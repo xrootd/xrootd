@@ -75,7 +75,8 @@ XrdThrottleManager::Init()
 inline void
 XrdThrottleManager::GetShares(int &shares, int &request)
 {
-   int remaining = AtomicSub(shares, request);
+   int remaining;
+   AtomicFSub(remaining, shares, request);
    if (remaining > 0)
    {
       request -= (remaining < request) ? remaining : request;

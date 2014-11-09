@@ -55,21 +55,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set address
       //------------------------------------------------------------------------
-      void SetAddress( const sockaddr_in &address )
+      void SetAddress( const XrdNetAddr &address )
       {
-        memcpy( &pSockAddr, &address, sizeof( sockaddr_in ) );
+        pSockAddr = address;
       }
 
       //------------------------------------------------------------------------
       //! Get the address that the socket is connected to
       //------------------------------------------------------------------------
-      const sockaddr_in &GetAddress() const
+      const XrdNetAddr &GetAddress() const
       {
         return pSockAddr;
       }
 
       //------------------------------------------------------------------------
-      //! Connect to the currently set addres
+      //! Connect to the currently set address
       //------------------------------------------------------------------------
       Status Connect( time_t timeout );
 
@@ -94,7 +94,7 @@ namespace XrdCl
       Status EnableUplink()
       {
         if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
-          return Status( stError, errPollerError );
+          return Status( stFatal, errPollerError );
         return Status();
       }
 
@@ -104,7 +104,7 @@ namespace XrdCl
       Status DisableUplink()
       {
         if( !pPoller->EnableWriteNotification( pSocket, false ) )
-          return Status( stError, errPollerError );
+          return Status( stFatal, errPollerError );
         return Status();
       }
 
@@ -114,6 +114,14 @@ namespace XrdCl
       const std::string &GetStreamName()
       {
         return pStreamName;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get timestamp of last registered socket activity
+      //------------------------------------------------------------------------
+      time_t GetLastActivity()
+      {
+        return pLastActivity;
       }
 
     private:
@@ -139,12 +147,12 @@ namespace XrdCl
       Status WriteCurrentMessage();
 
       //------------------------------------------------------------------------
-      // Got a read rediness event
+      // Got a read readiness event
       //------------------------------------------------------------------------
       void OnRead();
 
       //------------------------------------------------------------------------
-      // Got a read rediness event while handshaking
+      // Got a read readiness event while handshaking
       //------------------------------------------------------------------------
       void OnReadWhileHandshaking();
 
@@ -190,12 +198,19 @@ namespace XrdCl
       Socket                        *pSocket;
       Message                       *pIncoming;
       Message                       *pOutgoing;
-      sockaddr_in                    pSockAddr;
+      XrdNetAddr                     pSockAddr;
       HandShakeData                 *pHandShakeData;
       bool                           pHandShakeDone;
       uint16_t                       pTimeoutResolution;
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
+      bool                           pHeaderDone;
+      std::pair<IncomingMsgHandler*, bool> pIncHandler;
+      bool                           pOutMsgDone;
+      OutgoingMsgHandler            *pOutHandler;
+      uint32_t                       pIncMsgSize;
+      uint32_t                       pOutMsgSize;
+      time_t                         pLastActivity;
   };
 }
 

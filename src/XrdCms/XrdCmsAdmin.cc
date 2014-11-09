@@ -155,7 +155,10 @@ void *XrdCmsAdminSend(void *carg)
 void XrdCmsAdmin::Login(int socknum)
 {
    const char *epname = "Admin_Login";
+   const char *sMsg[2] = {"temporary suspend requested by",
+                          "long-term suspend requested by"};
    char *request, *tp;
+   int sPerm;
 
 // Attach the socket FD to a stream
 //
@@ -179,12 +182,17 @@ void XrdCmsAdmin::Login(int socknum)
         {DEBUG("received request: '" <<request <<"'");
          if ((tp = Stream.GetToken()))
             {     if (!strcmp("resume",   tp))
-                      CmsState.Update(XrdCmsState::Active, 1);
+                     {if ((tp = Stream.GetToken()) && *tp == 't') sPerm = 0;
+                         else sPerm = 1;
+                      CmsState.Update(XrdCmsState::Active, 1, sPerm);
+                     }
              else if (!strcmp("rmdid",    tp)) do_RmDid();   // via lfn
              else if (!strcmp("newfn",    tp)) do_RmDud();   // via lfn
              else if (!strcmp("suspend",  tp)) 
-                     {CmsState.Update(XrdCmsState::Active, 0);
-                      Say.Emsg("Notes","suspend requested by",Stype,Sname);
+                     {if ((tp = Stream.GetToken()) && *tp == 't') sPerm = 0;
+                         else sPerm = 1;
+                      CmsState.Update(XrdCmsState::Active, 0, sPerm);
+                      Say.Emsg("Login", sMsg[sPerm], Stype, Sname);
                      }
              else Say.Emsg(epname, "invalid admin request,", tp);
             }
@@ -339,9 +347,9 @@ void XrdCmsAdmin::Relay(int setSock, int newSock)
   
 void XrdCmsAdmin::Send(const char *Req, XrdCmsRRData &Data)
 {
-   AdminReq *arP;
+// AdminReq *arP;
 
-   if (AdminReq::numinQ < AdminReq::maxinQ) arP = new AdminReq(Req, Data);
+   if (AdminReq::numinQ < AdminReq::maxinQ) new AdminReq(Req, Data);
       else Say.Emsg("Send", "Queue full; ignoring", Req, Data.Path);
 }
 
@@ -414,11 +422,12 @@ void XrdCmsAdmin::BegAds()
 int XrdCmsAdmin::Con2Ads(const char *pname)
 {
    const char *epname = "Con2Ads";
-   static ClientInitHandShake hsVal = {0, 0, 0, htonl(4), htonl(2012)};
+   static ClientInitHandShake hsVal = {0, 0, 0, (int)htonl(4), (int)htonl(2012)};
    static ClientLoginRequest loginReq = {{0, 0},
-                                         htons(kXR_login), htonl(getpid()),
+                                         (kXR_unt16)htons(kXR_login),
+                                         (kXR_int32)htonl(getpid()),
                                          {'c', 'm', 's', 'd', 0, 0, 0, 0},
-                                         {0, 0}, 0, 0, 0};
+                                         0, 0, {0}, {0}, 0};
    struct {kXR_int32 siHS[4];} hsRsp;
    XrdNetSocket adsSocket;
    int ecode, snum;

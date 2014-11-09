@@ -215,12 +215,21 @@ struct CmsLocateRequest
 //     kXR_string    Ident;
 //     kXR_unt32     Opts;
 
-enum  {kYR_refresh = 0x01,
-       kYR_asap    = 0x80
+enum  {kYR_refresh = 0x0001,
+       kYR_retname = 0x0002,
+       kYR_asap    = 0x0080,
+       kYR_retipv4 = 0x0000,  // Client is only IPv4
+       kYR_retipv46= 0x1000,  // Client is IPv4 IPv6
+       kYR_retipv6 = 0x2000,  // Client is only IPv6
+       kYR_retipv64= 0x3000,  // Client is IPv6 IPv4
+       kYR_retipmsk= 0x3000,  // Mask  to isolate retipcxx bits
+       kYR_retipsft= 12,      // Shift to convert retipcxx bits
+       kYR_listall = 0x4000,  // List everything regardless of other settings
+       kYR_prvtnet = 0x8000,  // Client is using a orivate address
       };
 //     kXR_string    Path;
 
-static const int     RILen = 32;  // Max length of each response item
+static const int     RHLen =266;  // Max length of each host response item
 };
 
 /******************************************************************************/
@@ -246,6 +255,8 @@ struct CmsLoginData
        kXR_unt16  sPort;             // Subs port      (managers/supervisors)
        kXR_char  *SID;               // Server ID      (servers/ supervisors)
        kXR_char  *Paths;             // Exported paths (servers/ supervisors)
+       kXR_char  *ifList;            // Exported interfaces
+       kXR_char  *envCGI;            // Exported environment
 
        enum       LoginMode
                  {kYR_director=   0x00000001,
@@ -253,6 +264,7 @@ struct CmsLoginData
                   kYR_peer    =   0x00000004,
                   kYR_server  =   0x00000008,
                   kYR_proxy   =   0x00000010,
+                  kYR_subman  =   0x00000020,
                   kYR_suspend =   0x00000100,   // Suspended login
                   kYR_nostage =   0x00000200,   // Staging unavailable
                   kYR_trying  =   0x00000400,   // Extensive login retries
@@ -450,7 +462,14 @@ enum  {kYR_refresh = 0x0001,
        kYR_write   = 0x0020,
        kYR_stat    = 0x0040, // Exclsuive
        kYR_metaop  = 0x0080,
-       kYR_replica = 0x0100  // Only in combination with create
+       kYR_replica = 0x0100, // Only in combination with create
+       kYR_retipv4 = 0x0000,  // Client is only IPv4
+       kYR_retipv46= 0x1000,  // Client is IPv4 IPv6
+       kYR_retipv6 = 0x2000,  // Client is only IPv6
+       kYR_retipv64= 0x3000,  // Client is IPv6 IPv4
+       kYR_retipmsk= 0x3000,  // Mask  to isolate retipcxx bits
+       kYR_retipsft= 12,      // Shift to convert retipcxx bits
+       kYR_prvtnet = 0x8000,  // Client is using a orivate address
       };
 //     kXR_string    Path;
 //     kXR_string    Opaque; // Optional

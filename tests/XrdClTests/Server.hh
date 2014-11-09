@@ -129,12 +129,19 @@ struct ClientHelper;
 class Server
 {
   public:
+    enum ProtocolFamily
+    {
+      Inet4,
+      Inet6,
+      Both
+    };
+
     typedef std::map<std::string, std::pair<uint64_t, uint32_t> > TransferMap;
 
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    Server();
+    Server( ProtocolFamily family );
 
     //--------------------------------------------------------------------------
     //! Destructor
@@ -185,6 +192,8 @@ class Server
     std::vector<ClientHelper*>  pClients;
     int                         pListenSocket;
     ClientHandlerFactory       *pHandlerFactory;
+    ProtocolFamily              pProtocolFamily;
+
 };
 
 }

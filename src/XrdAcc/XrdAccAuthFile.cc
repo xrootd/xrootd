@@ -144,7 +144,8 @@ int XrdAccAuthFile::Close()
   
 int XrdAccAuthFile::getPP(char **path, char **priv)
 {
-   char *pp, *bp;
+// char *pp, *bp;
+   char *pp;
 
 // If a record has not been read, return end of record (i.e., 0)
 //
@@ -159,7 +160,8 @@ int XrdAccAuthFile::getPP(char **path, char **priv)
 
 // Copy the value since the stream buffer might get overlaid.
 //
-   bp = Copy(path_buff, pp, sizeof(path_buff)-1);
+// bp = Copy(path_buff, pp, sizeof(path_buff)-1);
+        Copy(path_buff, pp, sizeof(path_buff)-1);
    *path = path_buff;
 
 // Check if this is really a path or a template

@@ -75,7 +75,7 @@ namespace XrdCl
       return false;
     }
     log->Debug( UtilityMsg,
-                "Env: overriding entry: %s=%s with %s",
+                "Env: overriding entry: %s=\"%s\" with \"%s\"",
                 key.c_str(), it->second.first.c_str(), value.c_str() );
     pStringMap[key] = std::make_pair( value, false );
     return true;

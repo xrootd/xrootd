@@ -75,8 +75,8 @@ int XrdCnsSsiCfg::Configure(int argc, char **argv)
            Say.M("The diff function is not yet implemented.");
            return 0;
           }
-   else if (!strcmp("list", argv[1])) {Xeq = 'l'; Opts = "fhlmnpsS";}
-   else if (!strcmp("updt", argv[1])) {Xeq = 'u'; Opts = "v";}
+   else if (!strcmp("list", argv[1])) {Xeq = 'l'; Opts = "fhlmnpsSz";}
+   else if (!strcmp("updt", argv[1])) {Xeq = 'u'; Opts = "vz";}
    else Usage("Invalid function - ", argv[1]);
 
    Func = strdup(argv[1]);
@@ -107,13 +107,15 @@ int XrdCnsSsiCfg::Configure(int argc, char **argv, const char *Opts)
 
 // Parse the options
 //
-   while((theOpt = Spec.getopt()) != -1) 
+   while((theOpt = Spec.getopt()) != (char)-1) 
      {switch(theOpt)
        {
        case 'h': Lopt |= Lhost;
                  break;
        case 'l': if (Xeq == 'l') Lopt |= Lfull;
-                    else logFN = Spec.argval;
+                    else {logFN = Spec.argval;
+                          if (*logFN == '=') logFN++;
+                         }
                  break;
        case 'm': Lopt |= Lmode;
                  break;
@@ -126,6 +128,8 @@ int XrdCnsSsiCfg::Configure(int argc, char **argv, const char *Opts)
        case 'S': Lopt |= Lsize | Lfmts;
                  break;
        case 'v': Verbose = 1;
+                 break;
+       case 'z': MLog.logger()->setHiRes();
                  break;
        default:  NoGo = 1;
        }

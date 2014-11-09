@@ -33,7 +33,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 
 #include "XrdSys/XrdSysError.hh"
 
@@ -43,8 +42,9 @@
 #define XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetOpts.hh"
-#include "XrdNet/XrdNetPeer.hh"
+#include "XrdNet/XrdNetSecurity.hh"
   
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -52,30 +52,59 @@
 
        const char *XrdInet::TraceID = "Inet";
 
+       XrdNetIF    XrdInet::netIF;
+
 /******************************************************************************/
 /*                                A c c e p t                                 */
 /******************************************************************************/
 
-XrdLink *XrdInet::Accept(int opts, int timeout)
+XrdLink *XrdInet::Accept(int opts, int timeout, XrdSysSemaphore *theSem)
 {
-   XrdNetPeer myPeer;
+   static const char *unk = "unkown.endpoint";
+   XrdNetAddr myAddr;
    XrdLink   *lp;
-   int ismyfd, lnkopts = (opts & XRDNET_MULTREAD ? XRDLINK_RDLOCK : 0);
+   int        anum=0, lnkopts = (opts & XRDNET_MULTREAD ? XRDLINK_RDLOCK : 0);
 
-// Perform regular accept
+// Perform regular accept. This will be a unique TCP socket. We loop here
+// until the accept succeeds as it should never fail at this stage.
 //
-   if (!XrdNet::Accept(myPeer, opts | (netOpts & XRDNET_NORLKUP), timeout)) 
-      return (XrdLink *)0;
-   if ((ismyfd = (myPeer.fd == iofd))) lnkopts |= XRDLINK_NOCLOSE;
+   while(!XrdNet::Accept(myAddr, opts | XRDNET_NORLKUP, timeout))
+        {if (timeout >= 0)
+            {if (theSem) theSem->Post();
+             return (XrdLink *)0;
+            }
+         sleep(1); anum++;
+         if (!(anum%60)) eDest->Emsg("Accept", "Unable to accept connections!");
+        }
+
+// If authorization was defered, tell call we accepted the connection but
+// will be doing a background check on this connection.
+//
+   if (theSem) theSem->Post();
+   if (!(netOpts & XRDNET_NORLKUP)) myAddr.Name();
+
+// Authorize by ip address or full (slow) hostname format. We defer the check
+// so that the next accept can occur before we do any DNS resolution.
+//
+   if (Patrol)
+      {if (!Patrol->Authorize(myAddr))
+          {char ipbuff[512];
+           myAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAuto,
+                                                 XrdNetAddrInfo::noPort);
+           eDest->Emsg("Accept",EACCES,"accept TCP connection from",ipbuff);
+           close(myAddr.SockFD());
+           return (XrdLink *)0;
+          }
+      }
 
 // Allocate a new network object
 //
-   if (!(lp = XrdLink::Alloc(myPeer, lnkopts)))
-      {eDest->Emsg("Accept",ENOMEM,"allocate new link for",myPeer.InetName);
-       if (!ismyfd) close(myPeer.fd);
+   if (!(lp = XrdLink::Alloc(myAddr, lnkopts)))
+      {eDest->Emsg("Accept", ENOMEM, "allocate new link for", myAddr.Name(unk));
+       close(myAddr.SockFD());
       } else {
-       myPeer.InetBuff = 0; // Keep buffer after object goes away
-       TRACE(NET, "Accepted connection from " <<myPeer.fd <<'@' <<myPeer.InetName);
+       TRACE(NET, "Accepted connection from " <<myAddr.SockFD()
+                  <<'@' <<myAddr.Name(unk));
       }
 
 // All done
@@ -89,26 +118,39 @@ XrdLink *XrdInet::Accept(int opts, int timeout)
 
 XrdLink *XrdInet::Connect(const char *host, int port, int opts, int tmo)
 {
-   XrdNetPeer myPeer;
+   static const char *unk = "unkown.endpoint";
+   XrdNetAddr myAddr;
    XrdLink   *lp;
-   int ismyfd, lnkopts = (opts & XRDNET_MULTREAD ? XRDLINK_RDLOCK : 0);
+   int        lnkopts = (opts & XRDNET_MULTREAD ? XRDLINK_RDLOCK : 0);
 
-// Try to do a connect
+// Try to do a connect. This will be a unique TCP socket.
 //
-   if (!XrdNet::Connect(myPeer, host, port, opts, tmo)) return (XrdLink *)0;
-   if ((ismyfd = (myPeer.fd == iofd))) lnkopts |= XRDLINK_NOCLOSE;
+   if (!XrdNet::Connect(myAddr, host, port, opts, tmo)) return (XrdLink *)0;
 
 // Return a link object
 //
-   if (!(lp = XrdLink::Alloc(myPeer, lnkopts)))
-      {eDest->Emsg("Connect",ENOMEM,"allocate new link to",myPeer.InetName);
-       if (!ismyfd) close(myPeer.fd);
+   if (!(lp = XrdLink::Alloc(myAddr, lnkopts)))
+      {eDest->Emsg("Connect", ENOMEM, "allocate new link to", myAddr.Name(unk));
+       close(myAddr.SockFD());
       } else {
-       myPeer.InetBuff = 0; // Keep buffer after object goes away
-       TRACE(NET, "Connected to " <<myPeer.InetName <<':' <<port);
+       TRACE(NET, "Connected to " <<myAddr.Name(unk) <<':' <<port);
       }
 
 // All done, return whatever object we have
 //
    return lp;
+}
+  
+/******************************************************************************/
+/*                                S e c u r e                                 */
+/******************************************************************************/
+  
+void XrdInet::Secure(XrdNetSecurity *secp)
+{
+
+// If we don't have a Patrol object then use the one supplied. Otherwise
+// merge the supplied object into the existing object.
+//
+   if (Patrol) Patrol->Merge(secp);
+      else     Patrol = secp;
 }

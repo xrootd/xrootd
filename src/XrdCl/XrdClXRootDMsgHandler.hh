@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_XROOTD_MSG_HANDLER_HH__
@@ -23,6 +29,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClMessage.hh"
+#include "XProtocol/XProtocol.hh"
 
 namespace XrdCl
 {
@@ -62,11 +69,29 @@ namespace XrdCl
         pHasLoadBalancer( false ),
         pHasSessionId( false ),
         pChunkList( 0 ),
-        pRedirectCounter( 0 )
+        pRedirectCounter( 0 ),
+
+        pAsyncOffset( 0 ),
+        pAsyncReadSize( 0 ),
+        pAsyncReadBuffer( 0 ),
+        pAsyncMsgSize( 0 ),
+
+        pReadRawStarted( false ),
+        pReadRawCurrentOffset( 0 ),
+
+        pReadVRawMsgOffset( 0 ),
+        pReadVRawChunkHeaderDone( false ),
+        pReadVRawChunkHeaderStarted( false ),
+        pReadVRawSizeError( false ),
+        pReadVRawChunkIndex( 0 ),
+        pReadVRawMsgDiscard( false ),
+
+        pOtherRawStarted( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
           pHasSessionId = true;
+        memset( &pReadVRawChunkHeader, 0, sizeof( readahead_list ) );
       }
 
       //------------------------------------------------------------------------
@@ -83,14 +108,35 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Examine an incomming message, and decide on the action to be taken
+      //! Examine an incoming message, and decide on the action to be taken
       //!
       //! @param msg    the message, may be zero if receive failed
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint8_t OnIncoming( Message *msg  );
+      virtual uint16_t Examine( Message *msg  );
 
+      //------------------------------------------------------------------------
+      //! Process the message if it was "taken" by the examine action
+      //!
+      //! @param msg the message to be processed
+      //------------------------------------------------------------------------
+      virtual void Process( Message *msg );
+
+      //------------------------------------------------------------------------
+      //! Read message body directly from a socket - called if Examine returns
+      //! Raw flag - only socket related errors may be returned here
+      //!
+      //! @param msg       the corresponding message header
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data is needed
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status ReadMessageBody( Message  *msg,
+                                      int       socket,
+                                      uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
@@ -108,6 +154,24 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual void OnStatusReady( const Message *message,
                                   Status         status );
+
+      //------------------------------------------------------------------------
+      //! Are we a raw writer or not?
+      //------------------------------------------------------------------------
+      virtual bool IsRaw() const;
+
+      //------------------------------------------------------------------------
+      //! Write message body directly to a socket - called if IsRaw returns
+      //! true - only socket related errors may be returned here
+      //!
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data needs to be written
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status WriteMessageBody( int       socket,
+                                       uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Called after the wait time for kXR_wait has elapsed
@@ -167,10 +231,14 @@ namespace XrdCl
       void SetChunkList( ChunkList *chunkList )
       {
         pChunkList = chunkList;
+        if( chunkList )
+          pChunkStatus.resize( chunkList->size() );
+        else
+          pChunkStatus.clear();
       }
 
       //------------------------------------------------------------------------
-      //! Set the redirect coutner
+      //! Set the redirect counter
       //------------------------------------------------------------------------
       void SetRedirectCounter( uint16_t redirectCounter )
       {
@@ -178,6 +246,33 @@ namespace XrdCl
       }
 
     private:
+      //------------------------------------------------------------------------
+      //! Handle a kXR_read in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawRead( Message  *msg,
+                          int       socket,
+                          uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      //! Handle a kXR_readv in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawReadV( Message  *msg,
+                           int       socket,
+                           uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      //! Handle anything other than kXR_read and kXR_readv in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawOther( Message  *msg,
+                           int       socket,
+                           uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      //! Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
+      //! and pAsyncOffset
+      //------------------------------------------------------------------------
+      Status ReadAsync( int socket, uint32_t &btesRead );
+
       //------------------------------------------------------------------------
       //! Recover error
       //------------------------------------------------------------------------
@@ -208,20 +303,23 @@ namespace XrdCl
       //! Perform the changes to the original request needed by the redirect
       //! procedure - allocate new streamid, append redirection data and such
       //------------------------------------------------------------------------
-      Status RewriteRequestRedirect( const URL::ParamsMap &newCgi );
+      Status RewriteRequestRedirect( const URL::ParamsMap &newCgi,
+                                     const std::string    &newPath );
 
       //------------------------------------------------------------------------
-      //! Some requests need to be rewriten also after getting kXR_wait - sigh
+      //! Some requests need to be rewritten also after getting kXR_wait - sigh
       //------------------------------------------------------------------------
       Status RewriteRequestWait();
 
       //------------------------------------------------------------------------
-      //! Unpack vector read
+      //! Post process vector read
       //------------------------------------------------------------------------
-      Status UnpackVectorRead( VectorReadInfo *vReadInfo,
-                               ChunkList      *list,
-                               char           *sourceBuffer,
-                               uint32_t        sourceBufferSize );
+      Status PostProcessReadV( VectorReadInfo *vReadInfo );
+
+      //------------------------------------------------------------------------
+      //! Unpack a single readv response
+      //------------------------------------------------------------------------
+      Status UnPackReadVResponse( Message *msg );
 
       //------------------------------------------------------------------------
       //! Update the "tried=" part of the CGI of the current message
@@ -232,6 +330,16 @@ namespace XrdCl
       //! Switch on the refresh flag for some requests
       //------------------------------------------------------------------------
       void SwitchOnRefreshFlag();
+
+      //------------------------------------------------------------------------
+      // Helper struct for async reading of chunks
+      //------------------------------------------------------------------------
+      struct ChunkStatus
+      {
+        ChunkStatus(): sizeError( false ), done( false ) {}
+        bool sizeError;
+        bool done;
+      };
 
       Message                   *pRequest;
       Message                   *pResponse;
@@ -247,9 +355,28 @@ namespace XrdCl
       bool                       pHasLoadBalancer;
       HostInfo                   pLoadBalancer;
       bool                       pHasSessionId;
-      std::string                pRedirectCgi;
+      std::string                pRedirectUrl;
       ChunkList                 *pChunkList;
+      std::vector<ChunkStatus>   pChunkStatus;
       uint16_t                   pRedirectCounter;
+
+      uint32_t                   pAsyncOffset;
+      uint32_t                   pAsyncReadSize;
+      char*                      pAsyncReadBuffer;
+      uint32_t                   pAsyncMsgSize;
+
+      bool                       pReadRawStarted;
+      uint32_t                   pReadRawCurrentOffset;
+
+      uint32_t                   pReadVRawMsgOffset;
+      bool                       pReadVRawChunkHeaderDone;
+      bool                       pReadVRawChunkHeaderStarted;
+      bool                       pReadVRawSizeError;
+      int32_t                    pReadVRawChunkIndex;
+      readahead_list             pReadVRawChunkHeader;
+      bool                       pReadVRawMsgDiscard;
+
+      bool                       pOtherRawStarted;
   };
 }
 

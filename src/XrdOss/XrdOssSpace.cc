@@ -53,7 +53,7 @@ extern XrdSysError OssEroute;
 
        const char       *XrdOssSpace::qFname                     = 0;
        const char       *XrdOssSpace::uFname                     = 0;
-       XrdOssSpace::uEnt XrdOssSpace::uData[XrdOssSpace::maxEnt] = {{{0}}};
+       XrdOssSpace::uEnt XrdOssSpace::uData[XrdOssSpace::maxEnt];
        short             XrdOssSpace::uDvec[XrdOssSpace::maxEnt] = {0};
        int               XrdOssSpace::fencEnt                    = 0;
        int               XrdOssSpace::freeEnt                    =-1;
@@ -205,6 +205,10 @@ int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL)
    char *aP, buff[1048];
    int i, opts, updt = 0;
 
+// Initialize th usage array now
+//
+   memset(uData, 0, sizeof(uData));
+
 // Indicate whether we are solitary or not
 //
    Solitary = isSOL;
@@ -256,8 +260,7 @@ int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL)
 // Either read the contents or initialize the contents
 //
    if (opts & O_CREAT || buf.st_size == 0)
-      {memset(uData, 0, sizeof(uData));
-       if (!write(aFD, uData, sizeof(uData)))
+      {if (!write(aFD, uData, sizeof(uData)))
           {OssEroute.Emsg("Init", errno, "create", uFname);
            UsageLock(0); return 0;
           }

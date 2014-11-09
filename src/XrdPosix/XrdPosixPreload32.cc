@@ -50,7 +50,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#if defined(__macos__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
@@ -82,7 +82,7 @@ extern XrdPosixLinkage Xunix;
 // making CopyDirent() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
 #if !defined(__LP64__) && !defined(_LP64)
-#if !defined( __macos__) && !defined(SUNX86) && !defined(__FreeBSD__)
+#if !defined(__APPLE__) && !defined(SUNX86) && !defined(__FreeBSD__)
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -381,7 +381,7 @@ struct dirent* readdir(DIR *dirp)
 
    if (!(dp64 = XrdPosix_Readdir64(dirp))) return 0;
 
-#if !defined(__macos__) && !defined(_LP64) && !defined(__LP64__)
+#if !defined(__APPLE__) && !defined(_LP64) && !defined(__LP64__)
    if (XrdPosix_CopyDirent((struct dirent *)dp64, dp64)) return 0;
 #endif
 
@@ -400,7 +400,7 @@ extern "C"
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
    static int Init = Xunix.Init(&Init);
-#if defined(__macos__) || defined(__LP64__) || defined(_LP64)
+#if defined(__APPLE__) || defined(__LP64__) || defined(_LP64)
    return XrdPosix_Readdir_r(dirp, entry, result);
 #else
    char buff[sizeof(struct dirent64) + 2048];
@@ -478,7 +478,7 @@ int        stat(         const char *path, struct stat *buf)
 /*                                s t a t f s                                 */
 /******************************************************************************/
 
-#if !defined(__solaris__) && !defined(__macos__) && !defined(__FreeBSD__)
+#if !defined(__solaris__) && !defined(__APPLE__) && !defined(__FreeBSD__)
 extern "C"
 {
 int        statfs(         const char *path, struct statfs *buf)
@@ -488,7 +488,7 @@ int        statfs(         const char *path, struct statfs *buf)
    int rc;
 
    if ((rc = XrdPosix_Statfs(path, (struct statfs *)&buf64))) return rc;
-   memset(buf, 0, sizeof(buf));
+   memset(buf, 0, sizeof(struct statfs));
    buf->f_type    = buf64.f_type;
    buf->f_bsize   = buf64.f_bsize;
    buf->f_blocks  = buf64.f_blocks;
@@ -506,7 +506,7 @@ int        statfs(         const char *path, struct statfs *buf)
 /*                               s t a t v f s                                */
 /******************************************************************************/
 
-#if !defined(__macos__) && !defined(SUNX86) && !defined(__FreeBSD__)
+#if !defined(__APPLE__) && !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 int        statvfs(         const char *path, struct statvfs *buf)
@@ -515,7 +515,7 @@ int        statvfs(         const char *path, struct statvfs *buf)
    struct statvfs64 buf64;
    int rc;
    if ((rc = XrdPosix_Statvfs(path, (struct statvfs *)&buf64))) return rc;
-   memset(buf, 0, sizeof(buf));
+   memset(buf, 0, sizeof(struct statvfs));
    buf->f_flag    = buf64.f_flag;
    buf->f_bsize   = buf64.f_bsize;
    buf->f_blocks  = buf64.f_blocks;

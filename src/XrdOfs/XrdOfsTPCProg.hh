@@ -43,7 +43,7 @@ public:
 
        void      Cancel() {JobStream.Drain();}
 
-static int       Init(char *XfrProg, int Num);
+static int       Init();
 
        void      Run();
 
@@ -52,20 +52,19 @@ XrdOfsTPCProg   *Start(XrdOfsTPCJob *jP, int &rc);
 
        int       Xeq();
 
-                 XrdOfsTPCProg(XrdOfsTPCProg *Prev, int num);
+                 XrdOfsTPCProg(XrdOfsTPCProg *Prev, int num, int errMon);
 
                 ~XrdOfsTPCProg() {}
 private:
 
 static XrdSysMutex    pgmMutex;
 static XrdOfsTPCProg *pgmIdle;
-static const char    *XfrProg;
 
        XrdOucProg     Prog;
        XrdOucStream   JobStream;
        XrdOfsTPCProg *Next;
        XrdOfsTPCJob  *Job;
+       char           Pname[16];
        char           eRec[1024];
-       int            Pnum;
 };
 #endif

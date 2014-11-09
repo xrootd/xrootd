@@ -56,9 +56,12 @@
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
@@ -95,13 +98,13 @@ char      XrdOssSys::chkMmap = 0;
 //
 XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
                     const char   *OssLib, const char *OssParms,
-                    XrdVersionInfo &urVer)
+                    XrdOucEnv    *envP,   XrdVersionInfo &urVer)
 {
    static XrdOssSys   myOssSys;
    extern XrdSysError OssEroute;
-   XrdSysPlugin    *myLib;
+   XrdOucPinLoader *myLib;
+   XrdOss          *ossP;
    XrdOss          *(*ep)(XrdOss *, XrdSysLogger *, const char *, const char *);
-   int Debug = (getenv("XRDDEBUG") != 0);
 
 // Verify that versions are compatible.
 //
@@ -114,22 +117,25 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
                     else return (XrdOss *)&myOssSys;
                 }
 
-// Create a plugin object
+// Create a plugin object. Take into account the proxy library. Eventually,
+// we will need to support other core libraries. But, for now, this will do.
 //
    OssEroute.logger(Logger);
-   if (!(myLib = new XrdSysPlugin(&OssEroute, OssLib, "osslib",
-                                  myOssSys.myVersion))) return 0;
+   if (!(myLib = new XrdOucPinLoader(&OssEroute, myOssSys.myVersion,
+                                     "osslib",   OssLib))) return 0;
 
 // Now get the entry point of the object creator
 //
    ep = (XrdOss *(*)(XrdOss *, XrdSysLogger *, const char *, const char *))
-                    (myLib->getPlugin("XrdOssGetStorageSystem"));
+                    (myLib->Resolve("XrdOssGetStorageSystem"));
    if (!ep) return 0;
 
 // Get the Object now
 //
-   myLib->Persist(); delete myLib;
-   return ep((XrdOss *)&myOssSys, Logger, config_fn, OssParms);
+   delete myLib;
+   if ((ossP = ep((XrdOss *)&myOssSys, Logger, config_fn, OssParms)) && envP)
+      ossP->EnvInfo(envP);
+   return ossP;
 }
  
 /******************************************************************************/
@@ -140,7 +146,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
                          const char     *cfg_fn,
                          XrdVersionInfo &urVer)
 {
-   return XrdOssGetSS(logger, cfg_fn, 0, 0, urVer);
+   return XrdOssGetSS(logger, cfg_fn, 0, 0, 0, urVer);
 }
 
 /******************************************************************************/
@@ -280,12 +286,11 @@ int XrdOssSys::Chmod(const char *path, mode_t mode, XrdOucEnv *envP)
 int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *envP)
 {
     char actual_path[MAXPATHLEN+1], *local_path;
-    unsigned long long Popts, Hopts;
     int retc;
 
 // Make sure we can modify this path
 //
-   Popts = Check_RO(Mkdir, Hopts, path, "create directory");
+   Check_RW(Mkdir, path, "create directory");
 
 // Generate local path
 //
@@ -410,13 +415,12 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size,
 {
     struct stat statbuff;
     char actual_path[MAXPATHLEN+1], *local_path;
-    unsigned long long Popts, Hopts;
     long long oldsz;
     int retc;
 
 // Make sure we can modify this path
 //
-   Popts = Check_RO(Truncate, Hopts, path, "truncate");
+   Check_RW(Truncate, path, "truncate");
 
 // Generate local path
 //
@@ -555,6 +559,9 @@ int XrdOssDir::Readdir(char *buff, int blen)
       {errno = 0;
        if ((rp = readdir(lclfd)))
           {strlcpy(buff, rp->d_name, blen);
+#ifdef HAVE_FSTATAT
+           if (Stat && fstatat(dirFD, rp->d_name, Stat, 0)) return -errno;
+#endif
            return XrdOssOK;
           }
        *buff = '\0'; ateof = 1;
@@ -574,6 +581,51 @@ int XrdOssDir::Readdir(char *buff, int blen)
    return XrdOssSS->MSS_Readdir(mssfd, buff, blen);
 }
 
+/******************************************************************************/
+/*                               S t a t R e t                                */
+/******************************************************************************/
+/*
+  Function: Set stat buffer pointerto automatically stat returned entries.
+
+  Input:    buff       - Pointer to the stat buffer.
+
+  Output:   Upon success, return 0.
+
+            Upon failure, returns a (-errno).
+
+  Warning: The caller must provide proper serialization.
+*/
+int XrdOssDir::StatRet(struct stat *buff)
+{
+
+// Check if this object is actually open
+//
+   if (!isopen) return -XRDOSS_E8002;
+
+// We only support autostat for local directories
+//
+   if (!lclfd) return -ENOTSUP;
+
+// We do not support autostat unless we have the fstatat function
+//
+#ifndef HAVE_FSTATAT
+   return -ENOTSUP;
+#endif
+
+// Now obtain the correct file descriptor which is special in Solaris
+//
+#ifdef __solaris__
+   dirFD = lclfd->dd_fd;
+#else
+   dirFD = dirfd(lclfd);
+#endif
+
+// All is well
+//
+   Stat = buff;
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/
@@ -674,7 +726,8 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
           {close(fd); fd = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
        if (Oflag & (O_WRONLY | O_RDWR))
           {FSize = buf.st_size; cacheP = XrdOssCache::Find(local_path);}
-          else {if (buf.st_mode & S_ISUID && fd >= 0) {close(fd); fd=-ETXTBSY;}
+          else {if (buf.st_mode & XRDSFS_POSCPEND && fd >= 0)
+                   {close(fd); fd=-ETXTBSY;}
                 FSize = -1; cacheP = 0;
                }
       } else if (fd == -EEXIST)
@@ -813,15 +866,15 @@ ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
             an error.
 */
 
-ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, size_t n)
+ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, int n)
 {
-   EPNAME("ReadV");
    ssize_t rdsz, totBytes = 0;
    int i;
 
 // For platforms that support fadvise, pre-advise what we will be reading
 //
 #if defined(__linux__) && defined(HAVE_ATOMICS)
+   EPNAME("ReadV");
    long long begOff, endOff, begLst = -1, endLst = -1;
    int nPR = n;
 
@@ -1087,9 +1140,16 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
     int attcx = 0;
 #endif
 
+// If we need to do a stat() prior to the open, do so now
+//
+   if (XrdOssSS->STT_PreOp)
+      {struct stat Stat;
+       if ((*(XrdOssSS->STT_Func))(path, &Stat, XRDOSS_preop, 0)) return -errno;
+      }
+
 // Now open the actual data file in the appropriate mode.
 //
-    do { myfd = open(path, Oflag|O_LARGEFILE, Mode);}
+    do { myfd = XrdSysFD_Open(path, Oflag|O_LARGEFILE, Mode);}
        while( myfd < 0 && errno == EINTR);
 
 // If the file is marked purgeable or migratable and we may modify this file,
@@ -1118,11 +1178,10 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
 //
     if (myfd >= 0)
        {if (myfd < XrdOssSS->FDFence)
-           {if ((newfd = fcntl(myfd, F_DUPFD, XrdOssSS->FDFence)) < 0)
+           {if ((newfd = XrdSysFD_Dup1(myfd, XrdOssSS->FDFence)) < 0)
                OssEroute.Emsg("Open_ufs",errno,"reloc FD",path);
                else {close(myfd); myfd = newfd;}
            }
-        fcntl(myfd, F_SETFD, FD_CLOEXEC);
 #ifdef XRDOSSCX
         // If the file is compressed get a CXFile object and attach the FD to it
         //

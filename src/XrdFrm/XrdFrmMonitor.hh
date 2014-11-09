@@ -32,10 +32,8 @@
 
 #include <inttypes.h>
 #include <time.h>
-#include <netinet/in.h>
 #include <sys/types.h>
 
-#include "XrdNet/XrdNetPeer.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include "XProtocol/XPtypes.hh"
 
@@ -43,6 +41,8 @@
 #define XROOTD_MON_STAGE    2
 #define XROOTD_MON_MIGR     4
 #define XROOTD_MON_PURGE    8
+
+class XrdNetMsg;
 
 class XrdFrmMonitor
 {
@@ -72,12 +72,10 @@ static int               Send(int mmode, void *buff, int size);
 
 static char              *Dest1;
 static int                monMode1;
-static int                monFD1;
-static struct sockaddr    InetAddr1;
+static XrdNetMsg     *InetDest1;
 static char              *Dest2;
-static int                monFD2;
 static int                monMode2;
-static struct sockaddr    InetAddr2;
+static XrdNetMsg     *InetDest2;
 static kXR_int32          startTime;
 static int                isEnabled;
 static char              *idRec;

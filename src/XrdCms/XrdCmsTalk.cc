@@ -77,7 +77,7 @@ int XrdCmsTalk::Complain(XrdLink *Link, int ecode, const char *msg)
 
    struct iovec Liov[xNum];
    int mlen = strlen(msg)+1;
-   CmsResponse LEResp={{0, kYR_error, 0, 0}, htonl(ecode)};
+   CmsResponse LEResp={{0, kYR_error, 0, 0}, htonl((unsigned int)ecode)};
 
 // Fill out header and iovector
 //
@@ -101,7 +101,7 @@ const char *XrdCmsTalk::Request(XrdLink *Link, XrdCms::CmsRRHdr &Hdr,
                                 char    *buff, int blen)
 {
    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},
-                          {(char *)buff, blen}};
+                          {(char *)buff, (size_t)blen}};
 
    Hdr.datalen = htons(static_cast<unsigned short>(blen));
 
@@ -119,10 +119,10 @@ const char *XrdCmsTalk::Respond(XrdLink *Link, XrdCms::CmsRspCode rcode,
                                 char    *buff, int                blen)
 {
    static const unsigned short ovhd = sizeof(kXR_unt32);
-   CmsResponse Resp = {{0, rcode, 0,
+   CmsResponse Resp = {{0, (kXR_char)rcode, 0,
                         htons(static_cast<unsigned short>(blen+ovhd))}, 0};
    struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
-                          {         buff, blen}};
+                          {         buff, (size_t)blen}};
 
 // Send the actual data
 //

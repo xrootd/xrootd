@@ -267,7 +267,7 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
 	 XrdOucString fullurl(url);
 
 	 if (urlopaquedata) {
-	    fullurl += "?";
+	    if ((*urlopaquedata) != '?') fullurl += "?";
 	    fullurl += urlopaquedata;
 	 }
 

@@ -31,7 +31,6 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <sys/socket.h>
 
 #include "Xrd/XrdJob.hh"
 #include "XrdCms/XrdCmsPList.hh"
@@ -49,7 +48,6 @@ class XrdOucName2Name;
 class XrdOucProg;
 class XrdOucStream;
 class XrdCmsAdmin;
-class XrdCmsXmi;
 
 struct XrdVersionInfo;
 
@@ -88,6 +86,7 @@ int         RefReset;     // Min seconds    before a global ref count reset
 int         RefTurn;      // Min references before a global ref count reset
 int         AskPerf;      // Seconds between perf queries
 int         AskPing;      // Number of ping requests per AskPerf window
+int         PingTick;     // Ping clock value
 int         LogPerf;      // AskPerf intervals before logging perf
 
 int         PortTCP;      // TCP Port to  listen on
@@ -102,6 +101,9 @@ int         P_io;         // % I/O Capacity in load factor
 int         P_load;       // % MSC Capacity in load factor
 int         P_mem;        // % MEM Capacity in load factor
 int         P_pag;        // % PAG Capacity in load factor
+
+char        DoMWChk;      // When true (default) perform multiple write check
+char        Rsvd[3];      // Reserved for alignment
 
 int         DiskMin;      // Minimum MB needed of space in a partition
 int         DiskHWM;      // Minimum MB needed of space to requalify
@@ -143,8 +145,10 @@ const char  *myDomain;
 const char  *myInsName;
 const char  *myInstance;
 const char  *mySID;
+const char  *ifList;
 XrdOucTList *ManList;     // From manager directive
 XrdOucTList *NanList;     // From manager directive (managers only)
+XrdOucTList *SanList;     // From subcluster directive (managers only)
 
 XrdOss      *ossFS;       // The filsesystem interface
 XrdOucProg  *ProgCH;      // Server only chmod
@@ -162,7 +166,6 @@ XrdNetSocket      *AdminSock;
 XrdNetSocket      *AnoteSock;
 XrdNetSocket      *RedirSock;
 XrdNetSecurity    *Police;
-struct sockaddr    myAddr;
 
       XrdCmsConfig() : XrdJob("cmsd startup") {ConfigDefaults();}
      ~XrdCmsConfig() {}
@@ -185,12 +188,12 @@ int  PidFile(void);
 int  setupManager(void);
 int  setupServer(void);
 char *setupSid();
-int  setupXmi(void);
 void Usage(int rc);
 int  xapath(XrdSysError *edest, XrdOucStream &CFile);
 int  xallow(XrdSysError *edest, XrdOucStream &CFile);
 int  xaltds(XrdSysError *edest, XrdOucStream &CFile);
 int  Fsysadd(XrdSysError *edest, int chk, char *fn);
+int  xblk(XrdSysError *edest, XrdOucStream &CFile);
 int  xdelay(XrdSysError *edest, XrdOucStream &CFile);
 int  xdefs(XrdSysError *edest, XrdOucStream &CFile);
 int  xdfs(XrdSysError *edest, XrdOucStream &CFile);
@@ -212,8 +215,8 @@ int  xrole(XrdSysError *edest, XrdOucStream &CFile);
 int  xsched(XrdSysError *edest, XrdOucStream &CFile);
 int  xsecl(XrdSysError *edest, XrdOucStream &CFile);
 int  xspace(XrdSysError *edest, XrdOucStream &CFile);
+int  xsubc(XrdSysError *edest, XrdOucStream &CFile);
 int  xtrace(XrdSysError *edest, XrdOucStream &CFile);
-int  xxmi(XrdSysError *edest, XrdOucStream &CFile);
 
 XrdInet          *NetTCPr;     // Network for supervisors
 char             *AdminPath;
@@ -223,8 +226,8 @@ char             *ConfigFN;
 char            **inArgv;
 int               inArgc;
 char             *SecLib;
-char             *XmiPath;
-char             *XmiParms;
+char             *blkList;
+int               blkChk;
 int               isManager;
 int               isMeta;
 int               isPeer;
@@ -242,16 +245,5 @@ namespace XrdCms
 extern XrdCmsAdmin   Admin;
 extern XrdCmsConfig  Config;
 extern XrdScheduler *Sched;
-extern XrdCmsXmi    *Xmi_Chmod;
-extern XrdCmsXmi    *Xmi_Load;
-extern XrdCmsXmi    *Xmi_Mkdir;
-extern XrdCmsXmi    *Xmi_Mkpath;
-extern XrdCmsXmi    *Xmi_Prep;
-extern XrdCmsXmi    *Xmi_Rename;
-extern XrdCmsXmi    *Xmi_Remdir;
-extern XrdCmsXmi    *Xmi_Remove;
-extern XrdCmsXmi    *Xmi_Select;
-extern XrdCmsXmi    *Xmi_Space;
-extern XrdCmsXmi    *Xmi_Stat;
 }
 #endif

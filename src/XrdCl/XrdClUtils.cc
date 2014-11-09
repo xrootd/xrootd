@@ -17,64 +17,179 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
-
+#include "XrdNet/XrdNetAddr.hh"
 
 #include <algorithm>
+#include <iomanip>
+#include <sstream>
+#include <fstream>
+#include <functional>
+#include <cctype>
+#include <locale>
+#include <map>
+#include <string>
+
+#include <sys/types.h>
+#include <dirent.h>
+
+namespace
+{
+  bool isNotSpace( char c )
+  {
+    return c != ' ';
+  }
+
+  //----------------------------------------------------------------------------
+  // Ordering function for sorting IP addresses
+  //----------------------------------------------------------------------------
+  struct PreferIPv6
+  {
+    bool operator() ( const XrdNetAddr &l, const XrdNetAddr &r )
+    {
+      bool rIsIPv4 = false;
+      if( r.isIPType( XrdNetAddrInfo::IPv4 ) ||
+          (r.isIPType( XrdNetAddrInfo::IPv6 ) && r.isMapped()) )
+        rIsIPv4 = true;
+
+      if( l.isIPType( XrdNetAddrInfo::IPv6 ) && rIsIPv4 )
+        return true;
+      return false;
+    }
+  };
+}
 
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
+  // Get a parameter either from the environment or URL
+  //----------------------------------------------------------------------------
+  int Utils::GetIntParameter( const URL         &url,
+                              const std::string &name,
+                              int                defaultVal )
+  {
+    Env                            *env = DefaultEnv::GetEnv();
+    int                             value = defaultVal;
+    char                           *endPtr;
+    URL::ParamsMap::const_iterator  it;
+
+    env->GetInt( name, value );
+    it = url.GetParams().find( std::string("XrdCl.") + name );
+    if( it != url.GetParams().end() )
+    {
+      int urlValue = (int)strtol( it->second.c_str(), &endPtr, 0 );
+      if( !*endPtr )
+        value = urlValue;
+    }
+    return value;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get a parameter either from the environment or URL
+  //----------------------------------------------------------------------------
+  std::string Utils::GetStringParameter( const URL         &url,
+                                         const std::string &name,
+                                         const std::string &defaultVal )
+  {
+    Env                            *env = DefaultEnv::GetEnv();
+    std::string                     value = defaultVal;
+    URL::ParamsMap::const_iterator  it;
+
+    env->GetString( name, value );
+    it = url.GetParams().find( std::string("XrdCl.") + name );
+    if( it != url.GetParams().end() )
+      value = it->second;
+
+    return value;
+  }
+
+  //----------------------------------------------------------------------------
+  // Interpret a string as address type, default to IPAll
+  //----------------------------------------------------------------------------
+  Utils::AddressType Utils::String2AddressType( const std::string &addressType )
+  {
+    if( addressType == "IPv6" )
+      return IPv6;
+    else if( addressType == "IPv4" )
+      return IPv4;
+    else if( addressType == "IPv4Mapped6" )
+      return IPv4Mapped6;
+    else if( addressType == "IPAll" )
+      return IPAll;
+    else
+      return IPAuto;
+  }
+
+  //----------------------------------------------------------------------------
   // Resolve IP addresses
   //----------------------------------------------------------------------------
-  Status Utils::GetHostAddresses( std::vector<sockaddr_in> &addresses,
-                                  const URL                &url )
+  Status Utils::GetHostAddresses( std::vector<XrdNetAddr> &addresses,
+                                  const URL               &url,
+                                  Utils::AddressType      type )
   {
+    Log *log = DefaultEnv::GetLog();
+    XrdNetAddr *addrs;
+    int         nAddrs = 0;
+    const char *err    = 0;
+
     //--------------------------------------------------------------------------
-    // The address resolution algorithm in XRootD has a weird interface
-    // so we need to limit the number of possible IP addresses for
-    // a given hostname to 25. Why? Because.
+    // Resolve all the addresses
     //--------------------------------------------------------------------------
-    sockaddr_in *sa = (sockaddr_in*)malloc( sizeof(sockaddr_in) * 25 );
-    int numAddr = XrdSysDNS::getHostAddr( url.GetHostName().c_str(),
-                                          (sockaddr*)sa, 25 );
-    if( numAddr == 0 )
+    std::ostringstream o; o << url.GetHostName() << ":" << url.GetPort();
+    XrdNetUtils::AddrOpts opts;
+
+    if( type == IPv6 ) opts = XrdNetUtils::onlyIPv6;
+    else if( type == IPv4 ) opts = XrdNetUtils::onlyIPv4;
+    else if( type == IPv4Mapped6 ) opts = XrdNetUtils::allV4Map;
+    else if( type == IPAll ) opts = XrdNetUtils::allIPMap;
+    else opts = XrdNetUtils::prefAuto;
+
+    err = XrdNetUtils::GetAddrs( o.str().c_str(), &addrs, nAddrs, opts );
+
+    if( err )
     {
-      free( sa );
+      log->Error( UtilityMsg, "Unable to resolve %s: %s", o.str().c_str(),
+                  err );
       return Status( stError, errInvalidAddr );
     }
 
-    addresses.resize( numAddr );
-    std::vector<sockaddr_in>::iterator it = addresses.begin();;
-    for( int i = 0; i < numAddr; ++i, ++it )
+    if( nAddrs == 0 )
     {
-      memcpy( &(*it), &sa[i], sizeof( sockaddr_in ) );
-      it->sin_port = htons( (unsigned short) url.GetPort() );
+      log->Error( UtilityMsg, "No addresses for %s were found",
+                  o.str().c_str() );
+      return Status( stError, errInvalidAddr );
     }
-    free( sa );
 
+    addresses.clear();
+    for( int i = 0; i < nAddrs; ++i )
+      addresses.push_back( addrs[i] );
+    delete [] addrs;
+
+    //--------------------------------------------------------------------------
+    // Sort and shuffle them
+    //--------------------------------------------------------------------------
     std::random_shuffle( addresses.begin(), addresses.end() );
+    std::sort( addresses.begin(), addresses.end(), PreferIPv6() );
     return Status();
   }
 
   //----------------------------------------------------------------------------
   // Log all the addresses on the list
   //----------------------------------------------------------------------------
-  void Utils::LogHostAddresses( Log                      *log,
-                                uint64_t                  type,
-                                const std::string        &hostId,
-                                std::vector<sockaddr_in> &addresses )
+  void Utils::LogHostAddresses( Log                     *log,
+                                uint64_t                 type,
+                                const std::string       &hostId,
+                                std::vector<XrdNetAddr> &addresses )
   {
     std::string addrStr;
-    std::vector<sockaddr_in>::iterator it;
+    std::vector<XrdNetAddr>::iterator it;
     for( it = addresses.begin(); it != addresses.end(); ++it )
     {
       char nameBuff[256];
-      XrdSysDNS::IPFormat( (sockaddr*)&(*it), nameBuff, sizeof(nameBuff) );
+      it->Format( nameBuff, 256, XrdNetAddrInfo::fmtAdv6 );
       addrStr += nameBuff;
       addrStr += ", ";
     }
@@ -97,7 +212,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Get the elapsed mictoseconds between two timevals
+  // Get the elapsed microseconds between two timevals
   //----------------------------------------------------------------------------
   uint64_t Utils::GetElapsedMicroSecs( timeval start, timeval end )
   {
@@ -140,7 +255,7 @@ namespace XrdCl
       return XRootDStatus( stError, errCheckSumError );
 
     checkSum = elems[0] + ":";
-    checkSum += elems[1];
+    checkSum += NormalizeChecksum( elems[0], elems[1] );
 
     log->Dump( UtilityMsg, "Checksum for %s checksum: %s",
                path.c_str(), checkSum.c_str() );
@@ -176,7 +291,7 @@ namespace XrdCl
     char *cksBuffer = new char[265];
     ckSum.Get( cksBuffer, 256 );
     checkSum  = checkSumType + ":";
-    checkSum += cksBuffer;
+    checkSum += NormalizeChecksum( checkSumType, cksBuffer );
     delete [] cksBuffer;
 
     log->Dump( UtilityMsg, "Checksum for %s is: %s", path.c_str(),
@@ -190,12 +305,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   std::string Utils::BytesToString( uint64_t bytes )
   {
-    uint64_t final = bytes;
-    int      i     = 0;
-    char suf[3] = { 'k', 'M', 'G' };
+    double  final  = bytes;
+    int     i      = 0;
+    char    suf[3] = { 'k', 'M', 'G' };
     for( i = 0; i < 3 && final > 1024; ++i, final /= 1024 ) {};
     std::ostringstream o;
-    o << final;
+    o << std::setprecision(4) << final;
     if( i > 0 ) o << suf[i-1];
     return o.str();
   }
@@ -203,17 +318,18 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check if peer supports tpc
   //----------------------------------------------------------------------------
-  XRootDStatus Utils::CheckTPC( const std::string &server )
+  XRootDStatus Utils::CheckTPC( const std::string &server, uint16_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Error( UtilityMsg, "Checking if the data server %s supports tpc",
+    log->Debug( UtilityMsg, "Checking if the data server %s supports tpc",
                 server.c_str() );
 
     FileSystem    sourceDSFS( server );
     Buffer        queryArg; queryArg.FromString( "tpc" );
     Buffer       *queryResponse;
     XRootDStatus  st;
-    st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse );
+    st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse,
+                           timeout );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Cannot query source data server %s: %s",
@@ -234,5 +350,138 @@ namespace XrdCl
                 server.c_str() );
 
     return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Convert the fully qualified host name to country code
+  //----------------------------------------------------------------------------
+  std::string Utils::FQDNToCC( const std::string &fqdn )
+  {
+    std::vector<std::string> el;
+    Utils::splitString( el, fqdn, "." );
+    if( el.size() < 2 )
+      return "us";
+
+    std::string cc = *el.rbegin();
+    if( cc.length() == 2 )
+      return cc;
+    return "us";
+  }
+
+  //----------------------------------------------------------------------------
+  // Get directory entries
+  //----------------------------------------------------------------------------
+  Status Utils::GetDirectoryEntries( std::vector<std::string> &entries,
+                                     const std::string        &path )
+  {
+    DIR *dp = opendir( path.c_str() );
+    if( !dp )
+      return Status( stError, errOSError, errno );
+
+    dirent *dirEntry;
+
+    while( (dirEntry = readdir(dp)) != 0 )
+    {
+      std::string entryName = dirEntry->d_name;
+      if( !entryName.compare( 0, 2, "..") )
+        continue;
+      if( !entryName.compare( 0, 1, ".") )
+        continue;
+
+      entries.push_back( dirEntry->d_name );
+    }
+
+    closedir(dp);
+
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Process a config file and return key-value pairs
+  //----------------------------------------------------------------------------
+  Status Utils::ProcessConfig( std::map<std::string, std::string> &config,
+                               const std::string                  &file )
+  {
+    config.clear();
+    std::ifstream inFile( file.c_str() );
+    if( !inFile.good() )
+      return Status( stError, errOSError, errno );
+
+    errno = 0;
+    std::string line;
+    while( std::getline( inFile, line ) )
+    {
+      if( line.empty() || line[0] == '#' )
+        continue;
+
+      std::vector<std::string> elems;
+      splitString( elems, line, "=" );
+      if( elems.size() != 2 )
+        return Status( stError, errConfig );
+      std::string key   = elems[0]; Trim( key );
+      std::string value = elems[1]; Trim( value );
+      config[key] = value;
+    }
+
+    if( errno )
+      return Status( stError, errOSError, errno );
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Trim a string
+  //----------------------------------------------------------------------------
+  void Utils::Trim( std::string &str )
+  {
+    str.erase( str.begin(),
+               std::find_if( str.begin(), str.end(), isNotSpace ) );
+    str.erase( std::find_if( str.rbegin(), str.rend(), isNotSpace ).base(),
+               str.end() );
+  }
+
+  //----------------------------------------------------------------------------
+  // Log property list
+  //----------------------------------------------------------------------------
+  void Utils::LogPropertyList( Log                *log,
+                               uint64_t            topic,
+                               const char         *format,
+                               const PropertyList &list )
+  {
+    PropertyList::PropertyMap::const_iterator it;
+    std::string keyVals;
+    for( it = list.begin(); it != list.end(); ++it )
+      keyVals += "'" + it->first + "' = '" + it->second + "', ";
+    keyVals.erase( keyVals.length()-2, 2 );
+    log->Dump( topic, format, keyVals.c_str() );
+  }
+
+  //----------------------------------------------------------------------------
+  // Print a char array as hex
+  //----------------------------------------------------------------------------
+  std::string Utils::Char2Hex( uint8_t *array, uint16_t size )
+  {
+    char *hex = new char[2*size+1];
+    for( uint16_t i = 0; i < size; ++i )
+      snprintf( hex+(2*i), 3, "%02x", (int)array[i] );
+    std::string result = hex;
+    delete [] hex;
+    return result;
+  }
+
+  //----------------------------------------------------------------------------
+  // Normalize checksum
+  //----------------------------------------------------------------------------
+  std::string Utils::NormalizeChecksum( const std::string &name,
+                                        const std::string &checksum )
+  {
+    if( name == "adler32" || name == "crc32" )
+    {
+      size_t i;
+      for( i = 0; i < checksum.length(); ++i )
+        if( checksum[i] != '0' )
+          break;
+      return checksum.substr(i);
+    }
+    return checksum;
   }
 }

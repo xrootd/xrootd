@@ -1,0 +1,18 @@
+[Unit]
+Description=XRootD frm_purged deamon instance %I
+Documentation=man:frm_purged(8)
+Documentation=http://xrootd.org/docs.html
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/frm_purged -l /var/log/xrootd/frm_purged.log -c /etc/xrootd/xrootd-%i.cfg -k fifo -s /var/run/xrootd/frm_purged-%i.pid -n %i
+User=xrootd
+Group=xrootd
+Type=simple
+Restart=on-abort
+RestartSec=0
+KillMode=control-group
+
+[Install]
+RequiredBy=multi-user.target

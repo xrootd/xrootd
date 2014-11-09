@@ -40,6 +40,7 @@
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 
@@ -51,12 +52,12 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 #include "XrdCns/XrdCnsConfig.hh"
 #include "XrdCns/XrdCnsDaemon.hh"
@@ -128,10 +129,11 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
 
    const char *TraceID = "Config";
    XrdOucArgs Spec(&MLog,(argt ? "Cns_Config: ":"XrdCnsd: "),
-                          "a:b:B:c:dD:e:i:I:k:l:L:N:p:q:R:");
-   char buff[2048], *dP, *tP, *dnsEtxt = 0, *n2n = 0, *lroot = 0, *xpl = 0;
+                          "a:b:B:c:dD:e:i:I:k:l:L:N:p:q:R:z");
+   XrdNetAddr netHost;
+   const char *dnsEtxt = 0;
+   char buff[2048], *dP, *tP, *n2n = 0, *lroot = 0, *xpl = 0;
    char theOpt, *theArg;
-   long long llval;
    int n, bPort = 0, haveArk = 0, NoGo = 0;
 
 // Setup the logger
@@ -141,7 +143,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
 
 // Parse the options
 //
-   while((theOpt = Spec.getopt()) != -1) 
+   while((theOpt = Spec.getopt()) != (char)-1) 
      {switch(theOpt)
        {
        case 'a': if (*aPath == '/') aPath = Spec.argval;
@@ -161,18 +163,14 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
        case 'e': if (*ePath == '/') ePath = Spec.argval;
                     else NoGo = NAPath("'-e'", Spec.argval);
                  break;
-       case 'k': n = strlen(Spec.argval)-1;
-                 NoGo |= (isalpha(Spec.argval[n])
-                      ? XrdOuca2x::a2sz(MLog,"keep size", Spec.argval,&llval)
-                      : XrdOuca2x::a2ll(MLog,"keep count",Spec.argval,&llval));
-                 if (!isalpha(Spec.argval[n])) llval = -llval;
-                 logKeep = static_cast<int>(llval);
+       case 'k': if (!(bindArg = MLog.logger()->ParseKeep(optarg))) NoGo = 1;
                  break;
        case 'i': NoGo |= XrdOuca2x::a2tm(MLog,"-i value",Spec.argval,&cInt,1);
                  break;
        case 'I': NoGo |= XrdOuca2x::a2tm(MLog,"-I value",Spec.argval,&mInt,1);
                  break;
        case 'l': logfn = Spec.argval;
+                 if (*logfn == '=') logfn++;
                  break;
        case 'L': lroot = Spec.argval;
                  break;
@@ -185,6 +183,8 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                  break;
        case 'R': Opts |= optRecr;
                  xpl   = Spec.argval;
+                 break;
+       case 'z': MLog.logger()->setHiRes();
                  break;
        default:  NoGo = 1;
        }
@@ -240,10 +240,11 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
              if ((cP = index(hBuff+1, ':'))
              &&  XrdOuca2x::a2i(MLog,"-b port",cP+1,&bPort,1,65535)) *buff = 0;
              if (cP) *cP = '\0';
-             bHost = XrdSysDNS::getHostName(hBuff+1, &dnsEtxt);
+             if (!(dnsEtxt = netHost.Set(hBuff+1,0)))
+                bHost = strdup(netHost.Name("0.0.0.0", &dnsEtxt));
              if (dnsEtxt)
-                {*hBuff = '\''; strcat(hBuff+1, "\'"); *buff = 0;
-                 MLog.Emsg("Config", hBuff, dnsEtxt);
+                {*buff = 0;
+                 MLog.Emsg("Config", "Unable to resolve", hBuff+1, dnsEtxt);
                 } else strcpy(buff, dP);
             }
        if (!*buff)
@@ -279,11 +280,12 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                      NoGo = 1; continue;
                     } else *tP = '\0';
          dnsEtxt = 0;
-         tP = XrdSysDNS::getHostName(dP, &dnsEtxt);
+         if (!(dnsEtxt = netHost.Set(dP,0)))
+            tP = strdup(netHost.Name(0,&dnsEtxt));
          if (dnsEtxt)
-            {buff[0] = '\''; buff[1] = ' '; strcpy(buff+2, dnsEtxt);
-             MLog.Emsg("Config", "'", dP, buff);
-             NoGo = 1; delete tP; continue;
+            {buff[0] = '-'; buff[1] = ' '; strcpy(buff+2, dnsEtxt);
+             MLog.Emsg("Config", "Unable to resolve host", dP, buff);
+             NoGo = 1; continue;
             }
          sprintf(buff, "%s:%d", tP, n); delete tP;
               if (!bDest)  Dest = new XrdOucTList(buff, (bPath ? -n : n), Dest);
@@ -321,7 +323,7 @@ int XrdCnsConfig::Configure()
    XrdOucTokenizer mToks(0);
    XrdNetSocket   *EventSock;
    pthread_t tid;
-   int n, retc, NoGo = 0;
+   int retc, NoGo = 0;
    const char *iP;
    char buff[2048], *dP, *tP, *eVar;
 
@@ -381,7 +383,6 @@ int XrdCnsConfig::Configure()
 //
    if ((eVar = getenv("XRDEXPORTS")) && *eVar)
       {eVar = strdup(eVar); mToks.Attach(eVar); mToks.GetLine();
-       n = 9999;
        while((dP = mToks.GetToken()))
             {if (!LocalPath(dP, buff, sizeof(buff))) NoGo = 1;
                 else {Exports =  new XrdOucTList(buff, strlen(buff), Exports);
@@ -465,8 +466,6 @@ int XrdCnsConfig::Configure()
 int XrdCnsConfig::ConfigN2N()
 {
    static XrdVERSIONINFODEF(myVer, XrdCns, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin    *myLib;
-   XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
    char *N2NLib, *N2NParms = 0;
 
 // Get local root

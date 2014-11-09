@@ -30,23 +30,42 @@ namespace XrdCl
   class Message;
 
   //----------------------------------------------------------------------------
-  //! A synchronize queue for incomming data
+  //! A synchronize queue for incoming data
   //----------------------------------------------------------------------------
   class InQueue
   {
     public:
       //------------------------------------------------------------------------
-      //! Add a message to the queue
+      //! Add a fully reconstructed message to the queue
       //------------------------------------------------------------------------
       bool AddMessage( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Add a listener that should be notified about incomming messages
+      //! Add a listener that should be notified about incoming messages
       //!
       //! @param handler message handler
       //! @param expires time when the message handler expires
       //------------------------------------------------------------------------
       void AddMessageHandler( IncomingMsgHandler *handler, time_t expires );
+
+      //------------------------------------------------------------------------
+      //! Get a message handler interested in receiving message whose header
+      //! is stored in msg
+      //!
+      //! @param msg     message header
+      //! @param expires handle's expiration timestamp
+      //! @param action  the action declared by the handler
+      //!
+      //! @return handler or 0 if none is interested
+      //------------------------------------------------------------------------
+      IncomingMsgHandler *GetHandlerForMessage( Message  *msg,
+                                                time_t   &expires,
+                                                uint16_t &action );
+
+      //------------------------------------------------------------------------
+      //! Re-insert the handler without scanning the cached messages
+      //------------------------------------------------------------------------
+      void ReAddMessageHandler( IncomingMsgHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
       //! Remove a listener

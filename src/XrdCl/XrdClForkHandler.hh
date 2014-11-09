@@ -27,6 +27,7 @@ namespace XrdCl
   class FileStateHandler;
   class FileSystem;
   class PostMaster;
+  class FileTimer;
 
   //----------------------------------------------------------------------------
   // Helper class for handling forking
@@ -81,6 +82,12 @@ namespace XrdCl
         pPostMaster = postMaster;
       }
 
+      void RegisterFileTimer( FileTimer *fileTimer )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        pFileTimer = fileTimer;
+      }
+
       //------------------------------------------------------------------------
       //! Handle the preparation part of the forking process
       //------------------------------------------------------------------------
@@ -100,6 +107,7 @@ namespace XrdCl
       std::set<FileStateHandler*>  pFileObjects;
       std::set<FileSystem*>        pFileSystemObjects;
       PostMaster                  *pPostMaster;
+      FileTimer                   *pFileTimer;
       XrdSysMutex                  pMutex;
   };
 }

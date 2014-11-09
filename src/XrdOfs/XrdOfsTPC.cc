@@ -33,6 +33,7 @@
 #include <strings.h>
   
 #include "XrdAcc/XrdAccAccess.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 #include "XrdOfs/XrdOfsStats.hh"
@@ -41,7 +42,6 @@
 #include "XrdOfs/XrdOfsTPCJob.hh"
 #include "XrdOfs/XrdOfsTPCProg.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucProg.hh"
@@ -50,7 +50,6 @@
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -61,6 +60,22 @@
 extern XrdSysError  OfsEroute;
 extern XrdOfsStats  OfsStats;
 extern XrdOucTrace  OfsTrace;
+
+namespace XrdOfsTPCParms
+{
+char              *XfrProg  = 0;
+char              *cksType  = 0;
+int                LogOK    = 0;
+int                nStrms   = 0;
+int                xfrMax   = 9;
+int                tpcOK    = 0;
+int                encTPC   = 0;
+int                errMon   =-3;
+bool               doEcho   = false;
+bool               autoRM   = false;
+};
+
+using namespace XrdOfsTPCParms;
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -79,7 +94,7 @@ char           *theGN;
 XrdOucNList    *theHN;
 char           *theVO;
 
-int             Match(const XrdSecEntity *Who);
+int             Match(const XrdSecEntity *Who, const char *Host);
 
                 XrdOfsTPCAllow(char *vDN, char *vGN, char *vHN, char *vVO,
                                XrdOfsTPCAllow *Prev)
@@ -94,11 +109,11 @@ int             Match(const XrdSecEntity *Who);
 /*                 X r d O f s T P C A l l o w : : M a t c h                  */
 /******************************************************************************/
   
-int XrdOfsTPCAllow::Match(const XrdSecEntity *Who)
+int XrdOfsTPCAllow::Match(const XrdSecEntity *Who, const char *Host)
 {
-   if (theDN && (!(Who->name)  || strcmp(theDN, Who->name)))    return 0;
-   if (theHN && (!(Who->host)  || !(theHN->NameOK(Who->host)))) return 0;
-   if (theVO && (!(Who->vorg)  || strcmp(theDN, Who->vorg)))    return 0;
+   if (theHN && (!Host        || !(theHN->NameOK(Host  )))) return 0;
+   if (theDN && (!(Who->name) || strcmp(theDN, Who->name))) return 0;
+   if (theVO && (!(Who->vorg) || strcmp(theDN, Who->vorg))) return 0;
    if (!theGN) return 1;
    if (Who->grps)
       {char gBuff[1028], Group[64];
@@ -113,8 +128,6 @@ int XrdOfsTPCAllow::Match(const XrdSecEntity *Who)
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
   
-char              *XrdOfsTPC::XfrProg  = 0;
-
 XrdOucTList       *XrdOfsTPC::AuthDst  = 0;
 XrdOucTList       *XrdOfsTPC::AuthOrg  = 0;
 
@@ -122,17 +135,10 @@ XrdOucPListAnchor *XrdOfsTPC::RPList;
 
 XrdOfsTPCAllow    *XrdOfsTPC::ALList   = 0;
 
-XrdOss            *XrdOfsTPC::OfsOss   = 0;
 XrdAccAuthorize   *XrdOfsTPC::fsAuth   = 0;
 
-char              *XrdOfsTPC::cksType  = 0;
-int                XrdOfsTPC::dflTTL   = 7;
 int                XrdOfsTPC::maxTTL   =15;
-int                XrdOfsTPC::LogOK    = 0;
-int                XrdOfsTPC::nStrms   = 0;
-int                XrdOfsTPC::xfrMax   = 9;
-int                XrdOfsTPC::tpcOK    = 0;
-int                XrdOfsTPC::encTPC   = 0;
+int                XrdOfsTPC::dflTTL   = 7;
   
 /******************************************************************************/
 /*                                 A l l o w                                  */
@@ -154,10 +160,9 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
                          XrdOfsTPC::Facts  &Args,
                                int          isPLE)
 {
-   EPNAME("Authorize");
    XrdOfsTPCAuth *myTPC;
-   const char *eMsg;
-   int rc;
+   const char *dstHost;
+   int rc, NoGo = 0;
 
 // Determine if we can handle any TPC requests
 //
@@ -195,23 +200,29 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
 //
    if (AuthDst && !Screen(Args, AuthDst, isPLE)) return SFS_ERROR;
 
-// If we must restrict destinations, do so now
+// Avoid nodnr manglement of the host name, we always will need one. If we have
+// see if we should restrict the destinations and if so, do it.
 //
-   if (ALList)
-      {XrdOfsTPCAllow *aP = ALList;
-       while(aP && !aP->Match(Args.Usr)) aP = aP->Next;
-       if (!aP)
-          {OfsEroute.Emsg("TPC", Args.eRR->getErrUser(),
-                                "denied tpc access to", Args.Lfn);
-           OfsStats.Add(OfsStats.Data.numTPCdeny);
-           return Fatal(Args, "dest not authorized for tpc" ,EACCES, 1);
-          }
+   if (!(dstHost = Args.Usr->addrInfo->Name())) NoGo = 1;
+      else if (ALList)
+              {XrdOfsTPCAllow *aP = ALList;
+               while(aP && !aP->Match(Args.Usr, dstHost)) aP = aP->Next;
+               if (!aP) NoGo = 1;
+              }
+
+// Check if this destination is actually authorized
+//
+   if (NoGo)
+      {OfsEroute.Emsg("TPC", Args.eRR->getErrUser(),
+                             "denied tpc access to", Args.Lfn);
+       OfsStats.Add(OfsStats.Data.numTPCdeny);
+       return Fatal(Args, "dest not authorized for tpc" ,EACCES, 1);
       }
 
 // This is the destination trying to open a source file. We must make sure
 // that the origin has authorized this action for this destination.
 //
-   Args.Dst = Args.Usr->host;
+   Args.Dst = dstHost;
    if ((rc = XrdOfsTPCAuth::Get(Args, &myTPC))) return rc;
 
 // Check if entry already expired
@@ -285,7 +296,7 @@ int XrdOfsTPC::genOrg(const XrdSecEntity *client, char *Buff, int Blen)
 
 // Make sure this all fits
 //
-   if (((n + 1) + strlen(Name)) >= Blen)
+   if (((n + 1) + int(strlen(Name))) >= Blen)
       {strncpy(Buff, "origin ID too long", Blen);
        Buff[Blen-1] = 0;
        free(Name);
@@ -346,6 +357,9 @@ void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
    if (Parms.Logok  >= 0) LogOK  = Parms.Logok;
    if (Parms.Strm   >  0) nStrms = Parms.Strm;
    if (Parms.Xmax   >  0) xfrMax = Parms.Xmax;
+   if (Parms.Grab   <  0) errMon = Parms.Grab;
+   if (Parms.xEcho  >= 0) doEcho = Parms.xEcho != 0;
+   if (Parms.autoRM >= 0) autoRM = Parms.autoRM != 0;
 }
 
 /******************************************************************************/
@@ -446,7 +460,7 @@ int XrdOfsTPC::Start()
 
 // Allocate copy program objects
 //
-   if (!XrdOfsTPCProg::Init(XfrProg, xfrMax)) return 0;
+   if (!XrdOfsTPCProg::Init()) return 0;
 
 // Start the expiration thread
 //
@@ -497,7 +511,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 // Construct the source url (it may be very big)
 //
    n = snprintf(myURL, myURLen, "xroot://%s/%s?", tpcSrc, tpcLfn);
-   if (n >= sizeof(myURL)) return Fatal(Args, "url too long", EINVAL);
+   if (n >= int(sizeof(myURL))) return Fatal(Args, "url too long", EINVAL);
 
 // Set lfn location in the URL but only if we need to do a rename
 //
@@ -527,17 +541,17 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 char *XrdOfsTPC::Verify(const char *Who, const char *Name,
                               char *Buf,       int   Blen)
 {
-   char *etext, *Host;
+   XrdNetAddr vAddr;
+   const char *etext, *Host;
 
-// Obtain full host name
+// Obtain full host name and return it if successful
 //
-   Host = XrdSysDNS::getHostName(Name, &etext);
-   if (!etext) return Host;
+   if (!(etext = vAddr.Set(Name,0)) && (Host = vAddr.Name(0, &etext)))
+      return strdup(Host);
 
 // Generate error
 //
-   snprintf(Buf, Blen, "unable to verify %s (%s)", Who, etext);
+   snprintf(Buf, Blen, "unable to verify %s %s (%s)", Who, Name, etext);
    Buf[Blen-1] = 0;
-   free(Host);
    return 0;
 }

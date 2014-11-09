@@ -21,7 +21,6 @@ if( ENABLE_XRDCL )
   add_subdirectory( XrdCl )
 endif()
 
-include( XrdOfs )
 include( XrdServer )
 include( XrdDaemons )
 include( XrdFrm )
@@ -33,13 +32,17 @@ include( XrdApps )
 include( XrdCns )
 include( XrdHeaders )
 
+include( XrdFileCache )
+
+if( BUILD_HTTP )
+  include( XrdHttp )
+endif()
+
 #-------------------------------------------------------------------------------
 # Install the utility scripts
 #-------------------------------------------------------------------------------
 install(
   FILES
-  ${CMAKE_SOURCE_DIR}/utils/xrdcksum
-  ${CMAKE_SOURCE_DIR}/utils/xrdmd5sum
   ${CMAKE_SOURCE_DIR}/utils/XrdCmsNotify.pm
   ${CMAKE_SOURCE_DIR}/utils/netchk
   ${CMAKE_SOURCE_DIR}/utils/XrdOlbMonPerf
@@ -48,3 +51,38 @@ install(
   OWNER_EXECUTE OWNER_WRITE OWNER_READ
   GROUP_EXECUTE GROUP_READ
   WORLD_EXECUTE WORLD_READ )
+
+#-------------------------------------------------------------------------------
+# Install xrootd-config
+#-------------------------------------------------------------------------------
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND cat ${CMAKE_SOURCE_DIR}/utils/xrootd-config
+      COMMAND sed -e \"s/__VERSION__/${XROOTD_VERSION}/\"
+      COMMAND sed -e \"s|__LIBDIR__|${CMAKE_INSTALL_LIBDIR}|\"
+      COMMAND sed -e \"s|__INCLUDEDIR__|${CMAKE_INSTALL_INCLUDEDIR}|\"
+      COMMAND sed -e \"s/__PLUGIN_VERSION__/${PLUGIN_VERSION}/\"
+      COMMAND sed -e \"s|__PREFIX__|${CMAKE_INSTALL_PREFIX}|\"
+      OUTPUT_FILE \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/xrootd-config )
+    EXECUTE_PROCESS(
+      COMMAND chmod 755 \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/xrootd-config )"
+)
+
+#-------------------------------------------------------------------------------
+# Post process man pages
+#-------------------------------------------------------------------------------
+install(
+  CODE "
+    FILE(GLOB MANPAGES
+      \"\$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man[1,8]/*.[1,8]\" )
+    FOREACH(MANPAGE \${MANPAGES})
+      MESSAGE( \"-- Processing: \" \${MANPAGE} )
+      EXECUTE_PROCESS(
+        COMMAND cat \${MANPAGE}
+        COMMAND sed  -e \"s/__VERSION__/${XROOTD_VERSION}/\"
+        OUTPUT_FILE \${MANPAGE}.new )
+      EXECUTE_PROCESS(
+        COMMAND mv -f \${MANPAGE}.new \${MANPAGE} )
+    ENDFOREACH()"
+)

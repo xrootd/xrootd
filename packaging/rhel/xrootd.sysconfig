@@ -10,22 +10,22 @@
 # These may have many unexpected side effects, so be sure you know what you're
 # doing before playing with them.
 #-------------------------------------------------------------------------------
-XROOTD_USER=daemon
-XROOTD_GROUP=daemon
+XROOTD_USER=xrootd
+XROOTD_GROUP=xrootd
 
 #-------------------------------------------------------------------------------
 # Define the commandline options for the instances of the daemons.
 # The format is:
 # DAEMON_NAME_OPTIONS, where:
-#   DAEMON - the daemon name, the valid values are: XROOTD, CMSD or FRMD
+#   DAEMON - the daemon name, the valid values are: XROOTD, CMSD, XFRD and PURD
 #   NAME   - the name of the instance, any uppercase alphanumeric string
 #            without whitespaces is valid
 #-------------------------------------------------------------------------------
-XROOTD_DEFAULT_OPTIONS="-l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-clustered.cfg -k 7"
-#XROOTD_DEFAULT_OPTIONS="-l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-standalone.cfg -k 7"
-CMSD_DEFAULT_OPTIONS="-l /var/log/xrootd/cmsd.log -c /etc/xrootd/xrootd-clustered.cfg -k 7"
-PURD_DEFAULT_OPTIONS="-l /var/log/xrootd/purged.log -c /etc/xrootd/xrootd-clustered.cfg -k 7"
-XFRD_DEFAULT_OPTIONS="-l /var/log/xrootd/xfrd.log -c /etc/xrootd/xrootd-clustered.cfg -k 7"
+XROOTD_DEFAULT_OPTIONS="-l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-clustered.cfg -k fifo"
+#XROOTD_DEFAULT_OPTIONS="-l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-standalone.cfg -k fifo"
+CMSD_DEFAULT_OPTIONS="-l /var/log/xrootd/cmsd.log -c /etc/xrootd/xrootd-clustered.cfg -k fifo"
+PURD_DEFAULT_OPTIONS="-l /var/log/xrootd/purged.log -c /etc/xrootd/xrootd-clustered.cfg -k fifo"
+XFRD_DEFAULT_OPTIONS="-l /var/log/xrootd/xfrd.log -c /etc/xrootd/xrootd-clustered.cfg -k fifo"
 
 #-------------------------------------------------------------------------------
 # Names of the instances to be started by default, the case doesn't matter,
@@ -36,3 +36,32 @@ XROOTD_INSTANCES="default"
 CMSD_INSTANCES="default"
 PURD_INSTANCES="default"
 XFRD_INSTANCES="default"
+
+#-------------------------------------------------------------------------------
+# Names of the instances that should run XRootD 4 versions of the binaries,
+# by default XRootD 3 verstion are run if the appropriate compat packages
+# are installed. This will change in the 4.2.x release, where the XRootD 3
+# instances will have to be named explicitely.
+#-------------------------------------------------------------------------------
+XROOTD4_INSTANCES="default"
+CMSD4_INSTANCES="default"
+PURD4_INSTANCES="default"
+XFRD4_INSTANCES="default"
+
+#-------------------------------------------------------------------------------
+# Use a custom memory allocator when the one provided with the Standard C
+# Library (glibc) is eating up too much system memory. This is almost always the
+# case for RHEL >= 6, so you may consider installing jemalloc or tcmalloc and
+# using one of them instead.
+#
+# In order to do that, install either one of the packages:
+#
+#    yum install jemalloc         # for jemalloc
+# or
+#    yum install gperftools-libs  # for tcmalloc
+#
+# and uncomment one of the following lines. You may need to adjust the library
+# paths depending on the type of your system.
+#-------------------------------------------------------------------------------
+#export LD_PRELOAD=/usr/lib64/libjemalloc.so.1
+#export LD_PRELOAD=/usr/lib64/libtcmalloc.so.4

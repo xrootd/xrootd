@@ -35,31 +35,33 @@
 #endif
 
 #include "XrdSys/XrdSysPthread.hh"
+
+union XrdNetSockAddr;
   
 class XrdOucReqID
 {
 public:
 
-static char *ID(char *buff, int blen); // blen >= 48
+       char *ID(char *buff, int blen); // blen >= 48
 
-static int   isMine(char *reqid)
-             {return !strncmp((const char *)reqPFX,(const char *)reqid,reqPFXlen);}
+       char *isMine(char *reqid, int &hport, char *hname, int hlen);
 
-static int   isMine(char *reqid, int &hport, char *hname, int hlen);
-
-static char *PFX() {return reqPFX;}
+       char *PFX() {return reqPFX;}
 
 static int   Index(int KeyMax, const char *KeyVal, int KeyLen=0);
 
-             XrdOucReqID(int instance, const char *myhost, unsigned int myaddr);
+             XrdOucReqID();
+             XrdOucReqID(const XrdNetSockAddr *myAddr, int myPort=-1);
+
             ~XrdOucReqID() {} // Statics go away at exit
 
 private:
 
-static XrdSysMutex  myMutex;
-static int          reqPFXlen;
-static char        *reqPFX;
-static char        *reqFMT;
-static int          reqNum;
+XrdSysMutex  myMutex;
+int          reqPFXlen;
+int          reqIntern;
+char        *reqPFX;
+char        *reqFMT;
+int          reqNum;
 };
 #endif

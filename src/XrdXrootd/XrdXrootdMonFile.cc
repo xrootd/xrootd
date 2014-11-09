@@ -388,7 +388,6 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
 void XrdXrootdMonFile::Flush() // The bfMutex must be locked
 {
    static int seq = 0;
-   XrdXrootdMonFileTOD *tP = (XrdXrootdMonFileTOD *)repNext;
    int bfSize;
 
 // Update the sequence number
@@ -458,7 +457,7 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
    static const int minRecSz = sizeof(XrdXrootdMonFileOPN)
                              - sizeof(XrdXrootdMonFileLFN);
    XrdXrootdMonFileOPN *oP;
-   int i, sNum = -1, rLen, pLen = 0;
+   int i = 0, sNum = -1, rLen, pLen = 0;
 
 // Assign the path a dictionary id if not assigned via file monitoring
 //

@@ -29,11 +29,10 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
   
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysIOEvents.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -66,6 +65,26 @@
 
 #define ISPOLLER XrdSysThread::Same(XrdSysThread::ID(),pollTid)
 
+#define BOOLNAME(x) (x ? "true" : "false")
+
+#define DO_TRACE(x,fd,y) \
+                {PollerInit::traceMTX.Lock(); \
+                 cerr <<"IOE fd " <<fd <<' ' <<#x <<": " <<y <<endl; \
+                 PollerInit::traceMTX.UnLock();}
+
+#define TRACING PollerInit::doTrace
+
+#define IF_TRACE(x,fd,y) if (TRACING) DO_TRACE(x,fd,y)
+
+#define TRACE_LOK " channel now " <<(isLocked ? "locked" : "unlocked")
+
+#define TRACE_MOD(x,fd,y) \
+                 IF_TRACE(x,fd,"Modify(" <<y <<") == " \
+                 <<BOOLNAME(retval) <<TRACE_LOK)
+
+#define TRACE_NOD(x,fd,y) \
+                 IF_TRACE(x,fd,"Modify(" <<y <<") skipped; no events changed")
+
 /******************************************************************************/
 /*                           G l o b a l   D a t a                            */
 /******************************************************************************/
@@ -85,12 +104,13 @@ namespace XrdSys
 namespace IOEvents
 {
 struct pollArg
-       {Poller         *pollP;
-        const char     *retMsg;
-        int             retCode;
-        XrdSysSemaphore pollSync;
+       {Poller          *pollP;
+        const char      *retMsg;
+        int              retCode;
+        XrdSysSemaphore *pollSync;
 
-        pollArg() : retMsg(0), retCode(0), pollSync(0, "poll sync") {}
+        pollArg() : retMsg(0), retCode(0)
+                  {pollSync = new XrdSysSemaphore(0, "poll sync");}
        ~pollArg() {}
        };
 
@@ -105,9 +125,11 @@ void *BootStrap::Start(void *parg)
 {
    struct pollArg *pollArg = (struct pollArg *)parg;
    Poller *thePoller = pollArg->pollP;
+   XrdSysSemaphore *theSem = pollArg->pollSync;
    thePoller->pollTid = XrdSysThread::ID();
 
-   thePoller->Begin(&(pollArg->pollSync), pollArg->retCode, &(pollArg->retMsg));
+   thePoller->Begin(theSem, pollArg->retCode, &(pollArg->retMsg));
+   delete theSem;
 
    return (void *)0;
 }
@@ -165,6 +187,9 @@ public:
      PollerInit() : Poller(-1, -1) {}
     ~PollerInit() {}
 
+static XrdSysMutex traceMTX;
+static bool        doTrace;
+
 protected:
 
 void Begin(XrdSysSemaphore *syncp, int &rc, const char **eTxt) {}
@@ -178,10 +203,16 @@ bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
             }
 
 bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
-            {return Init(cP, eNum, eTxt, isLocked);}
+            {bool rc = Init(cP, eNum, eTxt, isLocked);
+             IF_TRACE(Modify,cP->GetFD(), "Init() returned " <<BOOLNAME(rc));
+             return rc;
+            }
 
 void Shutdown() {}
 };
+
+bool        PollerInit::doTrace = (getenv("XrdSysIOE_TRACE") != 0);
+XrdSysMutex PollerInit::traceMTX;
   
 /******************************************************************************/
 /*                            P o l l e r W a i t                             */
@@ -211,17 +242,14 @@ bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
             }
 
 bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
-            {eNum = EDEADLK;
-             if (eTxt) *eTxt = "modifying channel";
-             return false;
-            }
+            {return Init(cP, eNum, eTxt, isLocked);}
 
 void Shutdown() {}
 };
 
 PollerErr1 pollErr1;
 PollerInit pollInit;
-PollerInit pollWait;
+PollerWait pollWait;
 };
 };
 
@@ -247,10 +275,10 @@ XrdSys::IOEvents::Channel::Channel(Poller   *pollP, int   fd,
 }
 
 /******************************************************************************/
-/*                            D e s t r u c t o r                             */
+/*                                D e l e t e                                 */
 /******************************************************************************/
 
-XrdSys::IOEvents::Channel::~Channel()
+void XrdSys::IOEvents::Channel::Delete()
 {
    Poller *myPoller;
    bool isLocked = true;
@@ -286,6 +314,9 @@ XrdSys::IOEvents::Channel::~Channel()
            cbDone.Wait();
           }
       }
+// It is now safe to release the storage
+//
+   delete this;
 }
   
 /******************************************************************************/
@@ -301,9 +332,17 @@ bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 //
    chMutex.Lock();
 
+// Get correct current events; depending on the state of the channel
+//
+   if (chPoller == &pollWait) curev = static_cast<int>(reMod);
+      else                    curev = static_cast<int>(chEvents);
+
+// Trace this entry
+//
+   IF_TRACE(Disable,chFD,"->Disable(" <<events <<") chev=" <<curev);
+
 // Calculate new event mask
 //
-   curev   = static_cast<int>(chEvents);
    events &= allEvents;
    newev   = curev & ~events;
 
@@ -313,6 +352,9 @@ bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
    if (newev != curev)
       {chEvents = newev;
        retval = chPoller->Modify(this, eNum, eText, isLocked);
+       TRACE_MOD(Disable,chFD,newev);
+      } else {
+       TRACE_NOD(Disable,chFD,newev);
       }
    if (isLocked) chMutex.UnLock();
 
@@ -329,48 +371,46 @@ bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
                                        const char **eText)
 {
-   time_t newDL;
-   int eNum, newev, curev = static_cast<int>(chEvents);
-   bool retval, isLocked = true, setTO = false;
+   int eNum, newev, curev, tmoSet = 0;
+   bool retval, setTO, isLocked = true;
 
 // Lock ourselves against any changes (this is a recursive mutex)
 //
    chMutex.Lock();
 
+// Get correct current events; depending on the state of the channel
+//
+   if (chPoller == &pollWait) curev = static_cast<int>(reMod);
+      else                    curev = static_cast<int>(chEvents);
+
+// Trace this entry
+//
+   IF_TRACE(Enable,chFD,"->Enable("<<events<<','<<timeout<<") chev="<<curev);
+
 // Establish events that should be enabled
 //
    events &= allEvents;
    newev = (curev ^ events) & events;
-   chEvents |= events;
+   chEvents = curev | events;
 
 // Handle timeout changes now
 //
-   if (timeout)
-      {newDL = (timeout > 0 ? timeout + time(0) : Poller::maxTime);
-       if (events & readEvents)
-          {chRTO = (timeout < 0 ? 0 : timeout);
-           if (newDL != rdDL) {rdDL  = newDL; setTO = true;}
-          }
-       if (events & writeEvents)
-          {chWTO = (timeout < 0 ? 0 : timeout);
-           if (newDL != wrDL) {wrDL  = newDL; setTO = true;}
-          }
-      } else {
-       time_t nowTime = (chRTO || chWTO ? time(0) : 0);
-       if (events & readEvents)
-          {newDL = (chRTO ? nowTime + chRTO : Poller::maxTime);
-           if (newDL != rdDL) {rdDL  = newDL; setTO = true;}
-          }
-       if (events & writeEvents)
-          {newDL = (chWTO ? nowTime + chWTO : Poller::maxTime);
-           if (newDL != wrDL) {wrDL  = newDL; setTO = true;}
-          }
+   if (REVENTS(events))
+      {     if (timeout > 0) chRTO = timeout;
+       else if (timeout < 0) chRTO = 0;
+       if (rdDL != Poller::maxTime || chRTO) tmoSet |= CallBack::ReadyToRead;
+      }
+
+   if (WEVENTS(events))
+      {     if (timeout > 0) chWTO = timeout;
+       else if (timeout < 0) chWTO = 0;
+       if (wrDL != Poller::maxTime || chWTO) tmoSet |= CallBack::ReadyToWrite;
       }
 
 // Check if we have to reset the timeout. We need to hold the channel lock here.
 //
-   if (setTO && (chPoller == &pollInit || chPoller != &pollErr1))
-           setTO = chPollXQ->TmoAdd(this);
+   if (tmoSet && chPoller != &pollErr1)
+           setTO = chPollXQ->TmoAdd(this, tmoSet);
       else setTO = false;
 
 // Check if any modifcations needed here. If so, invoke the modifier. Note that
@@ -379,7 +419,13 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 // not unlock here is because we must ensure the channel doesn't change while
 // we call modify. We let modify determine what to do.
 //
-   retval = (newev ? chPoller->Modify(this, eNum, eText, isLocked) : true);
+   if (newev)
+      {retval = chPoller->Modify(this, eNum, eText, isLocked);
+       TRACE_MOD(Enable,chFD,(curev | events));
+      } else {
+       retval = true;
+       TRACE_NOD(Enable,chFD,(curev | events));
+      }
 
 // We need to notify the poller thread if the added deadline is the first in the
 // queue and the poller is waiting. We also optimize for the case where the
@@ -505,6 +551,7 @@ XrdSys::IOEvents::Poller::Poller(int rFD, int cFD)
    pipeBlen        = 0;
    pipePoll.fd     = rFD;
    pipePoll.events = POLLIN | POLLRDNORM;
+   tmoMask         = 255;
 }
 
 /******************************************************************************/
@@ -536,16 +583,17 @@ void XrdSys::IOEvents::Poller::Attach(XrdSys::IOEvents::Channel *cP)
 void XrdSys::IOEvents::Poller::CbkTMO()
 {
    Channel *cP;
-   time_t tNow = time(0);
-   bool disChannel;
 
 // Process each element in the timeout queue, calling the callback function
-// if the timeout has passed. As the timeout mutex is recursive, we can keep
-// it throughout this code as only this thread will modify the timeout list.
+// if the timeout has passed. As this method can be called with a lock on the
+// channel mutex, we need to drop it prior to calling the callback.
 //
    toMutex.Lock();
-   while((cP = tmoBase) && cP->deadLine <= tNow)
-        CbkXeq(cP, cP->dlType, 0, 0);
+   while((cP = tmoBase) && cP->deadLine <= time(0))
+        {toMutex.UnLock();
+         CbkXeq(cP, cP->dlType, 0, 0);
+         toMutex.Lock();
+        }
    toMutex.UnLock();
 }
 
@@ -558,18 +606,34 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 {
    XrdSysMutexHelper cbkMHelp(cP->chMutex);
    char oldEvents;
-   int isRead = 0, isWrite = 0;
-   bool cbok, isLocked = true;
+   bool cbok, retval, isRead, isWrite, isLocked = true;
+
+// Perform any required tracing
+//
+   if (TRACING)
+      {const char *cbtype = (cP->chPoller == cP->chPollXQ ? "norm" :
+                            (cP->chPoller == &pollInit    ? "init" :
+                            (cP->chPoller == &pollWait    ? "wait" : "err")));
+       DO_TRACE(CbkXeq,cP->chFD,"callback events=" <<events
+            <<" chev=" <<static_cast<int>(cP->chEvents)
+            <<" toq=" <<(cP->inTOQ != 0) <<" erc=" <<eNum
+            <<" callback " <<(cP->chCB ? "present" : "missing")
+            <<" poller=" <<cbtype);
+      }
 
 // Remove this from the timeout queue if there and reset the deadlines based
 // on the event we are reflecting. This separates read and write deadlines
 //
    if (cP->inTOQ)
       {TmoDel(cP);
-       isRead = (events & (CallBack::ReadyToRead  | CallBack:: ReadTimeOut));
+       cP->dlType |= (events & CallBack::ValidEvents) << 4;
+       isRead = events & (CallBack::ReadyToRead | CallBack:: ReadTimeOut);
        if (isRead)  cP->rdDL = maxTime;
-       isWrite= (events & (CallBack::ReadyToWrite | CallBack::WriteTimeOut));
+       isWrite= events & (CallBack::ReadyToWrite | CallBack::WriteTimeOut);
        if (isWrite) cP->wrDL = maxTime;
+      } else {
+       cP->dlType &= CallBack::ValidEvents;
+       isRead = isWrite = false;
       }
 
 // Verify that there is a callback here and the channel is ready. If not,
@@ -585,7 +649,8 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
           }
        oldEvents = cP->chEvents;
        cP->chEvents = 0;
-       Modify(cP, eNum, 0, isLocked);
+       retval = cP->chPoller->Modify(cP, eNum, 0, isLocked);
+       TRACE_MOD(CbkXeq,cP->chFD,0);
        if (!isLocked) cP->chMutex.Lock();
        cP->chEvents = oldEvents;
        return true;
@@ -617,7 +682,9 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    cP->chStat = Channel::isCBMode;
    chDead     = false;
    cbkMHelp.UnLock();
+   IF_TRACE(CbkXeq,cP->chFD,"invoking callback; events=" <<events);
    cbok = cP->chCB->Event(cP,cP->chCBA, events);
+   IF_TRACE(CbkXeq,cP->chFD,"callback returned " <<BOOLNAME(cbok));
 
 // If channel destroyed by the callback, bail really fast. Otherwise, regain
 // the channel lock.
@@ -639,14 +706,8 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 // the timeout if it hasn't been handled via a call from the callback.
 //
         if (!cbok) Detach(cP,isLocked,false);
-   else if (!(cP->inTOQ) && (cP->chRTO || cP->chWTO))
-           {time_t tNow = time(0);
-            if (isRead)  cP->rdDL = (REVENTS(cP->chEvents) && cP->chRTO
-                                  ?  cP->chRTO + tNow : maxTime);
-            if (isWrite) cP->wrDL = (WEVENTS(cP->chEvents) && cP->chWTO
-                                  ?  cP->chWTO + tNow : maxTime);
-            if (cP->rdDL != maxTime || cP->wrDL != maxTime) TmoAdd(cP);
-           }
+   else if ((isRead || isWrite) && !(cP->inTOQ) && (cP->chRTO || cP->chWTO))
+           TmoAdd(cP, 0);
 
 // All done. While the mutex should not have been unlocked, we relock it if
 // it has to keep the mutex helper from croaking.
@@ -660,22 +721,20 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 /******************************************************************************/
   
 XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
-                                                           const char **eTxt)
+                                                           const char **eTxt,
+                                                           int          crOpts)
 {
-   int i;
    int fildes[2];
    struct pollArg pArg;
    pthread_t tid;
 
 // Create a pipe used to break the poll wait loop
 //
-   if (pipe(fildes))
+   if (XrdSysFD_Pipe(fildes))
       {eNum = errno;
        if (eTxt) *eTxt = "creating poll pipe";
        return 0;
       }
-   fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
-   fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
 
 // Create an actual implementation of a poller
 //
@@ -692,8 +751,11 @@ XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
       {if (eTxt) *eTxt = "creating poller thread"; return 0;}
 
 // Now wait for the thread to finish initializing before we allow use
+// Note that the bootstrap takes ownership of the semaphore and will delete it
+// once the thread positing the semaphore actually ends. This is to avoid
+// semaphore bugs present in certain (e.g. Linux) kernels.
 //
-   pArg.pollSync.Wait();
+   pArg.pollSync->Wait();
 
 // Check if all went well
 //
@@ -703,6 +765,11 @@ XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
        delete pArg.pollP;
        return 0;
       }
+
+// Set creation options in the new poller
+//
+   if (crOpts & optTOM)
+      pArg.pollP->tmoMask = ~(CallBack::ReadTimeOut|CallBack::WriteTimeOut);
 
 // All done
 //
@@ -801,7 +868,21 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
 // The channel must be locked upon entry!
 //
    bool retval;
-   char oldEv;
+
+
+// If we are already in progress then simply update the shadow events and
+// resuppress all current events.
+//
+   if (cP->chPoller == &pollWait)
+      {cP->reMod    = cP->chEvents;
+       cP->chEvents = 0;
+       IF_TRACE(Init,cP->chFD,"defer events=" <<cP->reMod);
+       return true;
+      }
+
+// Trace this entry
+//
+   IF_TRACE(Init,cP->chFD,"begin events=" <<int(cP->chEvents));
 
 // If no events are enabled at this point, just return
 //
@@ -815,31 +896,28 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
        return false;
       }
 
-// If we are already in progress then indicate to the other thread that it
-// needs to remodify this channel w.r.t. to the poller (this is very rare).
+// So, now we can include the channel in the poll set. We will include it
+// with no events enabled to prevent callbacks prior to completion here.
 //
-   if (cP->chPoller == &pollWait)
-      {cP->reMod = 1;
-       return true;
-      }
-
-// So, now we can include the channel in the poll set, enable it, and if
-// successful, point it to a functioning poller.
-//
-   cP->chPoller = &pollWait; oldEv = cP->chEvents;
+   cP->chPoller = &pollWait; cP->reMod = cP->chEvents; cP->chEvents = 0;
    retval = cP->chPollXQ->Include(cP, eNum, eTxt, isLocked);
+   IF_TRACE(Init,cP->chFD,"Include() returned " <<BOOLNAME(retval) <<TRACE_LOK);
    if (!isLocked) {cP->chMutex.Lock(); isLocked = true;}
 
-// Determine what future poller to use and whether something happened should we
-// have lost control of the channel. If something meaningful did happen then
-// we need to redo it at this point as the other thread didn't want to wait.
+// Determine what future poller to use. If we can use the regular poller then
+// set the correct event mask for the channel. Note that we could have lost
+// control but the correct events will be reflected in the "reMod" member.
 //
    if (!retval) {cP->chPoller = &pollErr1; cP->chFault = eNum;}
       else {cP->chPoller = cP->chPollXQ;
             cP->inPSet   = 1;
-            if (cP->reMod && cP->chEvents != oldEv)
-               {retval = cP->chPoller->Modify(cP, eNum, eTxt, isLocked);
+            if (cP->reMod)
+               {cP->chEvents =  cP->reMod;
+                retval = cP->chPoller->Modify(cP, eNum, eTxt, isLocked);
+                TRACE_MOD(Init,cP->chFD,int(cP->reMod));
                 if (!isLocked) {cP->chMutex.Lock(); isLocked = true;}
+               } else {
+                TRACE_NOD(Init,cP->chFD,0);
                }
            }
 
@@ -907,11 +985,16 @@ void XrdSys::IOEvents::Poller::SetPollEnt(XrdSys::IOEvents::Channel *cP, int pe)
 
 void XrdSys::IOEvents::Poller::Stop()
 {
-   PipeData  cmdbuff = {PipeData::Stop, 0};
+   PipeData  cmdbuff;
    CallBack *theCB;
    Channel  *cP;
-   void     *vrc, *cbArg;
+   void     *cbArg;
    int       doCB;
+
+// Initialize the pipdata structure
+//
+   memset(&cmdbuff, 0, sizeof(cmdbuff));
+   cmdbuff.req = PipeData::Stop;
 
 // Lock all of this
 //
@@ -960,11 +1043,12 @@ void XrdSys::IOEvents::Poller::Stop()
 /*                                T m o A d d                                 */
 /******************************************************************************/
   
-bool XrdSys::IOEvents::Poller::TmoAdd(XrdSys::IOEvents::Channel *cP)
+bool XrdSys::IOEvents::Poller::TmoAdd(XrdSys::IOEvents::Channel *cP, int tmoSet)
 {
    XrdSysMutexHelper mHelper(toMutex);
-   time_t rdDL, wrDL;
+   time_t tNow;
    Channel *ncP;
+   bool setRTO, setWTO;
 
 // Remove element from timeout queue if it is there
 //
@@ -973,15 +1057,30 @@ bool XrdSys::IOEvents::Poller::TmoAdd(XrdSys::IOEvents::Channel *cP)
        cP->inTOQ = 0;
       }
 
+// Determine which timeouts need to be reset
+//
+   tmoSet|= cP->dlType >> 4;
+   setRTO = (tmoSet&tmoMask) & (CallBack::ReadyToRead |CallBack:: ReadTimeOut);
+   setWTO = (tmoSet&tmoMask) & (CallBack::ReadyToWrite|CallBack::WriteTimeOut);
+
+// Reset the required deadlines
+//
+   tNow = time(0);
+   if (setRTO && REVENTS(cP->chEvents) && cP->chRTO)
+      cP->rdDL = cP->chRTO + tNow;
+   if (setWTO && WEVENTS(cP->chEvents) && cP->chWTO)
+      cP->wrDL = cP->chWTO + tNow;
+
 // Calculate the closest enabled deadline
 //
-   rdDL = (cP->chEvents & Channel:: readEvents ? cP->rdDL : maxTime);
-   wrDL = (cP->chEvents & Channel::writeEvents ? cP->wrDL : maxTime);
-   if (rdDL < wrDL) {cP->deadLine = rdDL; cP->dlType  = CallBack::ReadTimeOut;}
-      else {if (rdDL != wrDL) cP->dlType = CallBack::WriteTimeOut;
-               else cP->dlType  = CallBack::ReadTimeOut|CallBack::WriteTimeOut;
-            cP->deadLine = wrDL;
-           }
+   if (cP->rdDL < cP->wrDL)
+      {cP->deadLine  = cP->rdDL; cP->dlType  = CallBack:: ReadTimeOut;
+      } else {
+       cP->deadLine  = cP->wrDL; cP->dlType  = CallBack::WriteTimeOut;
+       if (cP->rdDL == cP->wrDL) cP->dlType |= CallBack:: ReadTimeOut;
+      }
+   IF_TRACE(TmoAdd, cP->chFD, "t=" <<tNow <<" rdDL=" <<setRTO <<' ' <<cP->rdDL
+                                          <<" wrDL=" <<setWTO <<' ' <<cP->wrDL);
 
 // If no timeout really applies, we are done
 //
@@ -1030,12 +1129,15 @@ int XrdSys::IOEvents::Poller::TmoGet()
 //
    toMutex.Lock();
 
-// Calculate wait time
+// Calculate wait time. If the deadline passed, invoke the timeout callback.
+// we will need to drop the timeout lock as we don't have the channel lock.
 //
    do {if (!tmoBase) {wtval = -1; break;}
        wtval = (tmoBase->deadLine - time(0)) * 1000;
        if (wtval > 0) break;
+       toMutex.UnLock();
        CbkTMO();
+       toMutex.Lock();
       } while(1);
 
 // Return the value
@@ -1051,7 +1153,7 @@ int XrdSys::IOEvents::Poller::TmoGet()
 
 void XrdSys::IOEvents::Poller::WakeUp()
 {
-   static PipeData cmdbuff = {PipeData::NoOp, 0};
+   static PipeData cmdbuff(PipeData::NoOp);
 
 // Send it off to wakeup the poller thread, but only if here is no wakeup in
 // progress.
@@ -1072,6 +1174,8 @@ void XrdSys::IOEvents::Poller::WakeUp()
 #include "XrdSys/XrdSysIOEventsPollPort.icc"
 #elif defined( __linux__ )
 #include "XrdSys/XrdSysIOEventsPollE.icc"
+#elif defined(__APPLE__)
+#include "XrdSys/XrdSysIOEventsPollKQ.icc"
 #else
 #include "XrdSys/XrdSysIOEventsPollPoll.icc"
 #endif

@@ -49,7 +49,7 @@ using namespace XrdCms;
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-XrdNetBufferQ XrdCmsClientMan::BuffQ(2048,64);
+XrdOucBuffPool XrdCmsClientMan::BuffPool(XrdOucEI::Max_Error_Len, 65536, 1, 16);
 
 XrdInet      *XrdCmsClientMan::Network = 0;
 
@@ -82,7 +82,7 @@ XrdCmsClientMan::XrdCmsClientMan(char *host, int port,
    Suspend = 1;
    RecvCnt = 0;
    nrMax   = nr;
-   NetBuff = BuffQ.Alloc();
+   NetBuff = BuffPool.Alloc(XrdOucEI::Max_Error_Len);
    repWMax = rw;
    repWait = 0;
    minDelay= rd;
@@ -326,7 +326,7 @@ int XrdCmsClientMan::Hookup()
                 else     {opts = 0; tries = 12;}
              continue;
             }
-       lp->Bind(XrdSysThread::ID());
+//     lp->Bind(XrdSysThread::ID());
        memset(&Data, 0, sizeof(Data));
        Data.Mode = CmsLoginData::kYR_director;
        Data.HoldTime = static_cast<int>(getpid());
@@ -389,12 +389,15 @@ int XrdCmsClientMan::Receive()
    EPNAME("Receive")
    if (Link->RecvAll((char *)&Response, sizeof(Response)) > 0)
       {int dlen = static_cast<int>(ntohs(Response.datalen));
-       RecvCnt++; NetBuff->dlen = dlen;
+       RecvCnt++;
        DEBUG(Link->Name() <<' ' <<dlen <<" bytes on " <<Response.streamid);
        if (!dlen) return 1;
-       if (dlen > NetBuff->BuffSize())
-          Say.Emsg("ClientMan", "Excessive msg length from", Host);
-          else return Link->RecvAll(NetBuff->data, dlen);
+       if ((dlen > NetBuff->BuffSize())
+       &&  (Response.rrCode != kYR_data || !NetBuff->Resize(dlen)))
+           Say.Emsg("ClientMan", "Excessive msg length from", Host);
+           else {NetBuff->SetLen(dlen);
+                 return Link->RecvAll(NetBuff->Buffer(), dlen);
+                }
       }
    return 0;
 }
@@ -421,7 +424,7 @@ void XrdCmsClientMan::relayResp()
 
 // Obtain a new network buffer
 //
-   NetBuff = BuffQ.Alloc();
+   NetBuff = BuffPool.Alloc(XrdOucEI::Max_Error_Len);
 }
 
 /******************************************************************************/

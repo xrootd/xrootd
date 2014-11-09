@@ -45,14 +45,6 @@
 #include <stdarg.h>
 #include <sstream>
 
-#ifdef HAVE_READLINE
-#include <term.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#include <curses.h>
-#endif
-
-
 /////////////////////////////////////////////////////////////////////
 // function + macro to allow formatted print via cout,cerr
 /////////////////////////////////////////////////////////////////////
@@ -89,7 +81,7 @@ extern "C" {
 //////////////////////////////////////////////////////////////////////
 
 
-#define XRDSTAGETOOL_VERSION            "(C) 2004-2010 by the Xrootd group. $Revision$ - Xrootd version: "XrdVSTRING
+#define XRDSTAGETOOL_VERSION            "(C) 2004-2010 by the Xrootd group. $Revision$ - Xrootd version: " XrdVSTRING
 
 
 ///////////////////////////////////////////////////////////////////////

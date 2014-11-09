@@ -44,8 +44,10 @@
 #include "XrdFrm/XrdFrmXfrJob.hh"
 #include "XrdFrm/XrdFrmXfrQueue.hh"
 #include "XrdNet/XrdNetMsg.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -117,12 +119,12 @@ int XrdFrmXfrQueue::Add(XrdFrcRequest *rP, XrdFrcReqFile *reqFQ, int qNum)
 // Check if the file exists or not. For incomming requests, the file must not
 // exist. For outgoing requests the file must exist.
 //
-   if (stat(lclpath, &buf))
+   if (Config.Stat((rP->LFN)+rP->LFO, lclpath, &buf))
       {if (Outgoing)
           {if (Config.Verbose || Trace.What & TRACE_Debug)
-              Say.Say(0, xfrType,"skipped; ",lclpath," does not exist.");
+              Say.Say(0, xfrType,"skipped; ",lclpath," not resident.");
            if (reqFQ) reqFQ->Del(rP);
-           return Notify(rP, qNum, 2, "file not found");
+           return Notify(rP, qNum, 2, "file not resident");
           }
       } else {
        if (!Outgoing)
@@ -400,9 +402,8 @@ void XrdFrmXfrQueue::Send2File(char *Dest, char *Msg, int Mln)
 
 // Open the file
 //
-   if ((FD = open(Dest, O_WRONLY)) < 0)
+   if ((FD = XrdSysFD_Open(Dest, O_WRONLY)) < 0)
       {Say.Emsg("Notify", errno, "send notification via", Dest); return;}
-   fcntl(FD, F_SETFD, FD_CLOEXEC);
 
 // Write the message
 //

@@ -30,8 +30,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 
+#include "XrdNet/XrdNetSockAddr.hh"
 #include "Xrd/XrdProtocol.hh"
   
 /******************************************************************************/
@@ -55,9 +55,9 @@ AdmPath   = rhs.AdmPath  ? strdup(rhs.AdmPath)  : 0;
 AdmMode   = rhs.AdmMode;
 myInst    = rhs.myInst   ? strdup(rhs.myInst)   : 0;
 myName    = rhs.myName   ? strdup(rhs.myName)   : 0;
-         if (!rhs.myAddr) myAddr = 0;
-            else {myAddr = (struct sockaddr *)malloc(sizeof(struct sockaddr));
-                  memcpy(myAddr, rhs.myAddr, sizeof(struct sockaddr));
+         if (!rhs.urAddr) urAddr = 0;
+            else {urAddr = (XrdNetSockAddr *)malloc(sizeof(XrdNetSockAddr));
+                  memcpy((void *)urAddr, rhs.urAddr, sizeof(XrdNetSockAddr));
                  }
 ConnMax   = rhs.ConnMax;
 readWait  = rhs.readWait;

@@ -4,8 +4,8 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-SET( XRD_FFS_VERSION   1.0.0 )
-SET( XRD_FFS_SOVERSION 1 )
+SET( XRD_FFS_VERSION   2.0.0 )
+SET( XRD_FFS_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdFfs library
@@ -22,9 +22,8 @@ add_library(
 
 target_link_libraries(
   XrdFfs
+  XrdCl
   XrdPosix
-  XrdSecsss
-  XrdClient
   XrdUtils
   pthread )
 
@@ -33,6 +32,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_FFS_VERSION}
   SOVERSION ${XRD_FFS_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

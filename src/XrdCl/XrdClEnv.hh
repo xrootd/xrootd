@@ -30,7 +30,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! A simple key value store intended to hold global configuration.
   //! It is able to import the settings from the shell environment, the
-  //! variables imported this way surceede these provided from the C++
+  //! variables imported this way supersede these provided from the C++
   //! code.
   //----------------------------------------------------------------------------
   class Env
@@ -72,14 +72,16 @@ namespace XrdCl
       bool PutInt( const std::string &key, int value );
 
       //------------------------------------------------------------------------
-      //! Import an int from the shell environment
+      //! Import an int from the shell environment. Any imported setting
+      //! takes precedence over the one set by other means.
       //!
       //! @return true if the setting exists in the shell, false otherwise
       //------------------------------------------------------------------------
       bool ImportInt( const std::string &key, const std::string &shellKey );
 
       //------------------------------------------------------------------------
-      //! Import a string from the shell environment
+      //! Import a string from the shell environment. Any imported setting
+      //! takes precedence over the one set by ther means.
       //!
       //! @return true if the setting exists in the shell, false otherwise
       //------------------------------------------------------------------------

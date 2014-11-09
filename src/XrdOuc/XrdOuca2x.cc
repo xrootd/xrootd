@@ -131,6 +131,51 @@ int XrdOuca2x::a2fm(XrdSysError &Eroute, const char *emsg, const char *item,
        }
     return 0;
 }
+
+/******************************************************************************/
+/*                                  a 2 s n                                   */
+/******************************************************************************/
+
+int XrdOuca2x::a2sn(XrdSysError &Eroute, const char *emsg, const char *item,
+                    int *val, int nScale, int minv, int maxv)
+{
+    char *eP;
+    int   nsVal = nScale;
+
+    if (!item || !*item)
+       {Eroute.Emsg("a2x", emsg, "value not specified"); return -1;}
+
+    errno = 0;
+    *val  = strtol(item, &eP, 10);
+    if (errno || (*eP && *eP != '.'))
+       {Eroute.Emsg("a2x", emsg, item, "is not a number");
+        return -1;
+       }
+
+    if (*eP == '.')
+       {eP++;
+        while(*eP >= '0' && *eP <= '9')
+             {if (nsVal > 1)
+                 {*val = (*val * 10) + (*eP - int('0'));
+                  nsVal /= 10;
+                 }
+              eP++;
+             }
+        if (*eP)
+           {Eroute.Emsg("a2x", emsg, item, "is not a number");
+            return -1;
+           }
+       }
+    *val *= nsVal;
+
+    if (*val < minv) 
+       return Emsg(Eroute, emsg, item, "may not be less than %f",
+                   double(minv)/double(nScale));
+    if (maxv >= 0 && *val > maxv)
+       return Emsg(Eroute, emsg, item, "may not be greater than %d",
+                   double(maxv)/double(nScale));
+    return 0;
+}
  
 /******************************************************************************/
 /*                                  a 2 s p                                   */
@@ -274,6 +319,14 @@ int XrdOuca2x::a2vp(XrdSysError &Eroute, const char *emsg, const char *item,
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+  
+int XrdOuca2x::Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
+                                         const char *etxt2, double val)
+{char buff[256];
+ sprintf(buff, etxt2, val);
+ Eroute.Emsg("a2x", etxt1, item, buff);
+ return -1;
+}
   
 int XrdOuca2x::Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
                                          const char *etxt2, int val)

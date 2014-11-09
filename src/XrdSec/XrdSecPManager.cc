@@ -35,14 +35,17 @@
 #include <errno.h>
 
 #include "XrdVersion.hh"
+#include "XrdVersionPlugin.hh"
 
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecPManager.hh"
 #include "XrdSec/XrdSecProtocolhost.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
+#include "XrdOuc/XrdOucVerName.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -108,7 +111,7 @@ XrdSecPMask_t XrdSecPManager::Find(const char *pid, char **parg)
 /******************************************************************************/
 
 XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
-                                    const sockaddr &netaddr,
+                                    XrdNetAddrInfo &endPoint,
                                     const char     *pname,
                                     XrdOucErrInfo  *erp)
 {
@@ -120,7 +123,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
    if ((pl = Lookup(pname)))
       {DEBUG("Using " <<pname <<" protocol, args='"
               <<(pl->protargs ? pl->protargs : "") <<"'");
-       return pl->ep('s', hname, netaddr, 0, erp);
+       return pl->ep('s', hname, endPoint, 0, erp);
       }
 
 // Protocol is not supported
@@ -132,16 +135,22 @@ XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
 }
 
 XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
-                                    const sockaddr   &netaddr,
-                                    XrdSecParameters &secparm)
+                                    XrdNetAddrInfo   &endPoint,
+                                    XrdSecParameters &secparm,
+                                    XrdOucErrInfo    *eri)
 {
    char secbuff[4096], *nscan, *pname, *pargs, *bp = secbuff;
    char pcomp[XrdSecPROTOIDSIZE+4], *compProt;
-   const char *wantProt = getenv("XrdSecPROTOCOL");
    XrdSecProtList *pl;
    XrdSecProtocol *pp;
-   XrdOucErrInfo   erp;
+   XrdOucErrInfo   ei;
+   XrdOucErrInfo  *erp = (eri) ? eri : &ei;
    int i;
+
+// We support passing the list of protocols via Url parameter
+//
+   char *wp = (eri && eri->getEnv()) ? eri->getEnv()->Get("xrd.wantprot") : 0;
+   const char *wantProt = wp ? (const char *)wp : getenv("XrdSecPROTOCOL");
 
 // We only scan the buffer once
 //
@@ -186,10 +195,10 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
              strcat(pcomp, ",");
             }
          if (!wantProt || strstr(compProt, pcomp))
-            {if ((pl = Lookup(pname)) || (pl = ldPO(&erp, 'c', pname)))
+            {if ((pl = Lookup(pname)) || (pl = ldPO(erp, 'c', pname)))
                 {DEBUG("Using " <<pname <<" protocol, args='"
                        <<(pargs ? pargs : "") <<"'");
-                 if ((pp = pl->ep('c', hname, netaddr, pargs, &erp)))
+                 if ((pp = pl->ep('c', hname, endPoint, pargs, erp)))
                     {if (nscan) {i = nscan - secbuff;
                                  secparm.buffer += i; secparm.size -= i;
                                 } else secparm.size = -1;
@@ -197,7 +206,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
                      return pp;
                     }
                 }
-             if (erp.getErrInfo() != ENOENT) cerr <<erp.getErrText() <<endl;
+             if (erp->getErrInfo() != ENOENT) cerr <<erp->getErrText() <<endl;
             } else {DEBUG("Skipping " <<pname <<" only want " <<wantProt);}
          if (!nscan) break;
          *nscan = '&'; bp = nscan;
@@ -260,10 +269,11 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
    static XrdVERSIONINFODEF(clVer, SecClnt, XrdVNUMBER, XrdVERSION);
    static XrdVERSIONINFODEF(srVer, SecSrvr, XrdVNUMBER, XrdVERSION);
    XrdVersionInfo *myVer = (pmode == 'c' ? &clVer : &srVer);
-   XrdSysPlugin   *secLib;
+   XrdOucPinLoader *secLib;
    XrdSecProtocol *(*ep)(PROTPARMS);
    char           *(*ip)(INITPARMS);
-   char  poname[80], libfn[80], libpath[2048], *libloc, *newargs, *bP;
+   const char     *sep, *libloc;
+   char  poname[80], libpath[2048], *newargs, *bP;
    int i;
 
 // Set plugin debugging if needed (this only applies to client calls)
@@ -274,52 +284,39 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 //
    if (!strcmp(pid, "host")) return Add(eMsg,pid,XrdSecProtocolhostObject,0);
 
-// Form library name
+// Form library name (versioned) and object creator name and bundle id
 //
-   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s%s", pid, LT_MODULE_EXT );
-   libfn[sizeof(libfn)-1] = '\0';
+   snprintf(poname, sizeof(poname), "libXrdSec%s.so", pid);
+   i = (spath ? strlen(spath) : 0);
+   if (!i) {spath = ""; sep = "";}
+      else sep = (spath[i-1] == '/' ? "" : "/");
+   snprintf(libpath, sizeof(libpath), "%s%s%s", spath, sep, poname);
+   libloc = libpath;
 
-// Determine path
+// Get the plugin loader.
 //
-   if (!spath || (i = strlen(spath)) < 2) libloc = libfn;
-      else {char *sep = (spath[i-1] == '/' ? (char *)"" : (char *)"/");
-            snprintf(libpath, sizeof(libpath)-1, "%s%s%s", spath, sep, libfn);
-            libpath[sizeof(libpath)-1] = '\0';
-            libloc = libpath;
-           }
-   DEBUG("Loading " <<pid <<" protocol object from " <<libloc);
+   if (errP) secLib = new XrdOucPinLoader(errP, myVer, "sec.protocol", libloc);
+      else   {bP = eMsg->getMsgBuff(i);
+              secLib = new XrdOucPinLoader(bP,i,myVer, "sec.protocol", libloc);
+             }
 
-// For clients, verify if the library exists (don't complain, if not).
+// Get the protocol object creator.
 //
-   if (pmode == 'c')
-      {struct stat buf;
-       if (!stat(libloc, &buf) && errno == ENOENT)
-          {eMsg->setErrInfo(ENOENT, ""); return 0;}
-      }
-
-// Get the plugin object. We preferentially use a message object if it exists
-//
-   if (errP) secLib = new XrdSysPlugin(errP, libloc, "sec.protocol", myVer);
-       else {bP = eMsg->getMsgBuff(i);
-             secLib = new XrdSysPlugin(bP,i, libloc, "sec.protocol", myVer);
-            }
-   eMsg->setErrInfo(0, "");
-
-// Get the protocol object creator
-//
-   sprintf(poname, "XrdSecProtocol%sObject", pid);
-   if (!(ep = (XrdSecProtocol *(*)(PROTPARMS))secLib->getPlugin(poname)))
-      {delete secLib;
-       return 0;
-      }
+   if (eMsg) eMsg->setErrInfo(0, "");
+   snprintf(poname, sizeof(poname), "XrdSecProtocol%sObject", pid);
+   if (!(ep = (XrdSecProtocol *(*)(PROTPARMS))secLib->Resolve(poname)))
+      {secLib->Unload(true); return 0;}
 
 // Get the protocol initializer
 //
    sprintf(poname, "XrdSecProtocol%sInit", pid);
-   if (!(ip = (char *(*)(INITPARMS))secLib->getPlugin(poname)))
-      {delete secLib;
-       return 0;
-      }
+   if (!(ip = (char *(*)(INITPARMS))secLib->Resolve(poname)))
+      {secLib->Unload(true); return 0;}
+
+// Get the true path and do some debugging
+//
+   libloc = secLib->Path();
+   DEBUG("Loaded " <<pid <<" protocol object from " <<libpath);
 
 // Invoke the one-time initialization
 //
@@ -329,13 +326,12 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
                        " initialization failed in sec.protocol ", libloc};
            eMsg->setErrInfo(-1, eTxt, sizeof(eTxt));
           }
-       delete secLib;
+       secLib->Unload(true);
        return 0;
       }
 
 // Add this protocol to our protocol stack
 //
-   secLib->Persist();
    delete secLib;
    return Add(eMsg, pid, ep, newargs);
 }

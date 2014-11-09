@@ -2,45 +2,47 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
-# Shared library version
+# Modules
 #-------------------------------------------------------------------------------
-set( XRD_PSS_VERSION   1.0.0 )
-set( XRD_PSS_SOVERSION 1 )
-set( XRD_BWM_VERSION   1.0.0 )
-set( XRD_BWM_SOVERSION 1 )
-set( XRD_THROTTLE_VERSION 1.0.0 )
-set( XRD_THROTTLE_SOVERSION 1 )
+set( LIB_XRD_BWM        XrdBwm-${PLUGIN_VERSION} )
+set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
+set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
+set( LIB_XRD_ZCRC32     XrdCksCalczcrc32-${PLUGIN_VERSION} )
+set( LIB_XRD_THROTTLE   XrdThrottle-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
-# The XrdPss lib
+# Shared library version
+#-------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
+# The XrdPss module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdPss
-  SHARED
+  ${LIB_XRD_PSS}
+  MODULE
   XrdPss/XrdPssAio.cc
   XrdPss/XrdPss.cc           XrdPss/XrdPss.hh
   XrdPss/XrdPssCks.cc        XrdPss/XrdPssCks.hh
   XrdPss/XrdPssConfig.cc )
 
 target_link_libraries(
-  XrdPss
+  ${LIB_XRD_PSS}
   XrdFfs
   XrdPosix
   XrdUtils )
 
 set_target_properties(
-  XrdPss
+  ${LIB_XRD_PSS}
   PROPERTIES
-  VERSION   ${XRD_PSS_VERSION}
-  SOVERSION ${XRD_PSS_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# The XrdBwm lib
+# The XrdBwm module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdBwm
-  SHARED
+  ${LIB_XRD_BWM}
+  MODULE
   XrdBwm/XrdBwm.cc             XrdBwm/XrdBwm.hh
   XrdBwm/XrdBwmConfig.cc
   XrdBwm/XrdBwmHandle.cc       XrdBwm/XrdBwmHandle.hh
@@ -50,23 +52,60 @@ add_library(
                                XrdBwm/XrdBwmTrace.hh )
 
 target_link_libraries(
-  XrdBwm
+  ${LIB_XRD_BWM}
   XrdServer
   XrdUtils
   pthread )
 
 set_target_properties(
-  XrdBwm
+  ${LIB_XRD_BWM}
   PROPERTIES
-  VERSION   ${XRD_BWM_VERSION}
-  SOVERSION ${XRD_BWM_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# GPFS stat() plugin library
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_GPFS}
+  MODULE
+  XrdOss/XrdOssSIgpfsT.cc )
+
+target_link_libraries(
+  ${LIB_XRD_GPFS}
+  XrdUtils )
+
+set_target_properties(
+  ${LIB_XRD_GPFS}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# libz compatible CRC32 plugin
+#-------------------------------------------------------------------------------
+
+add_library(
+  ${LIB_XRD_ZCRC32}
+  MODULE
+  XrdCks/XrdCksCalczcrc32.cc )
+
+target_link_libraries(
+  ${LIB_XRD_ZCRC32}
+  XrdUtils
+  ${ZLIB_LIBRARY} )
+
+set_target_properties(
+  ${LIB_XRD_ZCRC32}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdThrottle lib
 #-------------------------------------------------------------------------------
 add_library(
-  XrdThrottle
+  ${LIB_XRD_THROTTLE}
   SHARED
   XrdOfs/XrdOfsFS.cc
   XrdThrottle/XrdThrottle.hh           XrdThrottle/XrdThrottleTrace.hh
@@ -77,20 +116,19 @@ add_library(
 )
 
 target_link_libraries(
-  XrdThrottle
-  XrdOfs
+  ${LIB_XRD_THROTTLE}
+  XrdServer
   XrdUtils )
 
 set_target_properties(
-  XrdThrottle
+  ${LIB_XRD_THROTTLE}
   PROPERTIES
-  VERSION    ${XRD_THROTTLE_VERSION}
-  SOVERSION  ${XRD_THROTTLE_VERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdPss XrdBwm XrdThrottle
+  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_THROTTLE}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

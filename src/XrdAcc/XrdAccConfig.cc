@@ -525,7 +525,7 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
                         User_ID = 'u',
                           No_ID = 0
                     };
-    char *authid, rtype, *atype, *path, *privs;
+    char *authid, rtype, *path, *privs;
     int alluser = 0, anyuser = 0, domname = 0, NoGo = 0;
     DB_RecType rectype;
     XrdOucHash<XrdAccCapability> *hp;
@@ -542,20 +542,20 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
    // Set up to handle the particular record
    //
    switch(rectype)
-         {case    Group_ID: hp = tabs.G_Hash; atype = (char *)"group";
+         {case    Group_ID: hp = tabs.G_Hash;
                             gtype=XrdAccUnixGroup;
                             break;
-          case     Host_ID: hp = tabs.H_Hash; atype = (char *)"host";
+          case     Host_ID: hp = tabs.H_Hash;
                             domname = (authid[0] == '.');
                             break;
-          case      Set_ID: hp = 0;           atype = (char *)"set";
+          case      Set_ID: hp = 0;
                             break;
-          case   Netgrp_ID: hp = tabs.N_Hash; atype = (char *)"netgrp";
+          case   Netgrp_ID: hp = tabs.N_Hash;
                             gtype=XrdAccNetGroup;
                             break;
-          case Template_ID: hp = tabs.T_Hash; atype = (char *)"template";
+          case Template_ID: hp = tabs.T_Hash;
                             break;
-          case     User_ID: hp = tabs.U_Hash; atype = (char *)"user";
+          case     User_ID: hp = tabs.U_Hash;
                             alluser = (authid[0] == '*' && !authid[1]);
                             anyuser = (authid[0] == '=' && !authid[1]);
                             break;

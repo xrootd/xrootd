@@ -244,6 +244,12 @@ virtual XrdOucCacheIO *Base()   {return this;}
 //
 virtual XrdOucCacheIO *Detach() {return this;}
 
+
+// ioActive() returns true if there is any ongoing IO operation. The function is
+//            used in XrdPosixXrootd::Close() to check if destruction od PosixFile
+//            has to be done in a separate task. 
+virtual bool ioActive() { return false; }
+
 // Preread() places Length bytes into the cache from a data source at Offset.
 //          When there is no cache or the associated cache does not support or
 //          allow pre-reads, it's a no-op. Cache placement limits do not apply.
@@ -256,7 +262,10 @@ virtual XrdOucCacheIO *Detach() {return this;}
 static const int SingleUse = 0x0001; // Mark pages for single use
 
 virtual
-void        Preread (long long Offset, int Length, int Opts=0) {}
+void        Preread (long long Offset, int Length, int Opts=0)
+{
+  (void)Offset; (void)Length; (void)Opts;
+}
 
 // The following structure describes automatic preread parameters. These can be
 // set at any time for each XrdOucCacheIO object. It can also be specified when
@@ -271,6 +280,7 @@ struct aprParms
        int   prRecalc;  // Recalc pr efficiency every prRecalc bytes   (0->50M)
        int   Reserve4;
        short minPages;  // If rdln/pgsz < min,  preread minPages       (0->off)
+       signed
        char  minPerf;   // Minimum auto preread performance required   (0->n/a)
        char  Reserve1;
 
@@ -280,7 +290,7 @@ struct aprParms
       };
 
 virtual
-void        Preread(aprParms &Parms) {}
+void        Preread(aprParms &Parms) { (void)Parms; }
 
 //          Here is where the stats about cache and I/O usage reside. There
 //          is a summary object in the associated cache as well.

@@ -35,6 +35,7 @@
 /* ************************************************************************** */
 
 #include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include <openssl/asn1.h>
 
@@ -66,6 +67,25 @@ int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1);
 // Function to convert X509_NAME into a one-line human readable string
 void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s);
 
+//
+// X509 proxy auxilliary functions
+// Function to check presence of a proxyCertInfo and retrieve the path length
+// constraint. Written following RFC3820 and examples in openssl-<vers>/crypto
+// source code. Extracts the policy field but ignores it contents.
+bool XrdCryptosslProxyCertInfo(const void *ext, int &pathlen, bool *haspolicy = 0);
+void XrdCryptosslSetPathLenConstraint(void *ext, int pathlen);
+// Create proxy certificates
+int XrdCryptosslX509CreateProxy(const char *, const char *, XrdProxyOpt_t *,
+                             XrdCryptogsiX509Chain *, XrdCryptoRSA **, const char *);
+// Create a proxy certificate request
+int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *,
+                                XrdCryptoX509Req **, XrdCryptoRSA **);
+// Sign a proxy certificate request
+int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *, XrdCryptoRSA *,
+                              XrdCryptoX509Req *, XrdCryptoX509 **);
+// Get VOMS attributes, if any
+int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *, XrdOucString &);
+
 /******************************************************************************/
 /*          E r r o r   L o g g i n g / T r a c i n g   F l a g s             */
 /******************************************************************************/
@@ -73,6 +93,23 @@ void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s);
 #define sslTRACE_Dump      0x0004
 #define sslTRACE_Debug     0x0002
 #define sslTRACE_Notify    0x0001
+
+/******************************************************************************/
+/*          E r r o r s   i n   P r o x y   M a n i p u l a t i o n s         */
+/******************************************************************************/
+#define kErrPX_Error            1      // Generic error condition
+#define kErrPX_BadEECfile       2      // Absent or bad EEC cert or key file
+#define kErrPX_BadEECkey        3      // Inconsistent EEC key
+#define kErrPX_ExpiredEEC       4      // EEC is expired
+#define kErrPX_NoResources      5      // Unable to create new objects
+#define kErrPX_SetAttribute     6      // Unable to set a certificate attribute
+#define kErrPX_SetPathDepth     7      // Unable to set path depth
+#define kErrPX_Signing          8      // Problems signing
+#define kErrPX_GenerateKey      9      // Problem generating the RSA key
+#define kErrPX_ProxyFile       10      // Problem creating / updating proxy file
+#define kErrPX_BadNames        11      // Names in certificates are bad
+#define kErrPX_BadSerial       12      // Problems resolving serial number
+#define kErrPX_BadExtension    13      // Problems with the extensions
 
 #endif
 

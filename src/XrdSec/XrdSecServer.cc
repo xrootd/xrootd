@@ -38,12 +38,12 @@
 #include <stdio.h>
 #include <sys/param.h>
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdNet/XrdNetAddr.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecServer.hh"
@@ -268,26 +268,37 @@ XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(lp, "sec_")
 /*                              g e t P a r m s                               */
 /******************************************************************************/
   
-const char *XrdSecServer::getParms(int &size, const char *hname)
+const char *XrdSecServer::getParms(int &size, XrdNetAddrInfo *endPoint)
 {
    EPNAME("getParms")
    XrdSecProtBind *bp;
+   char buff[256];
 
 // Try to find a specific token binding for a host or return default binding
 //
-   if (!hname) bp = 0;
-      else if ((bp = bpFirst)) while(bp && !bp->Match(hname)) bp = bp->next;
+   if (!endPoint || !bpFirst) bp = 0;
+      else {const char *hname = endPoint->Name("*unknown*");
+            bp = bpFirst;
+            do {if (bp->Match(hname)) break;} while((bp = bp->next));
+           }
+
+// Get endpoint info if we are debugging
+//
+   if (endPoint && QTRACE(Debug))
+      endPoint->Format(buff, sizeof(buff), XrdNetAddrInfo::fmtAuto,
+                                           XrdNetAddrInfo::noPort);
+      else *buff = 0;
 
 // If we have a binding, return that else return the default
 //
    if (!bp) bp = bpDefault;
    if (bp->SecToken.buffer) 
-      {DEBUG(hname <<" sectoken=" <<bp->SecToken.buffer);
+      {DEBUG(buff <<" sectoken=" <<bp->SecToken.buffer);
        size = bp->SecToken.size;
        return bp->SecToken.buffer;
       }
 
-   DEBUG(hname <<" sectoken=''");
+   DEBUG(buff <<" sectoken=''");
    size = 0;
    return (const char *)0;
 }
@@ -297,7 +308,7 @@ const char *XrdSecServer::getParms(int &size, const char *hname)
 /******************************************************************************/
 
 XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
-                                          const struct sockaddr   &hadr,
+                                          XrdNetAddrInfo          &endPoint,
                                           const XrdSecCredentials *cred,
                                           XrdOucErrInfo           *einfo)
 {
@@ -341,7 +352,7 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
 // If we passed the protocol binding check, try to get an instance of the
 // protocol the host is using
 //
-   return PManager.Get(host, hadr, cred->buffer, einfo);
+   return PManager.Get(host, endPoint, cred->buffer, einfo);
 }
 
 /******************************************************************************/
@@ -571,10 +582,13 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdSysError &Eroute)
        *sectoken = '\0';
       }
 
-// Translate "localhost" to our local hostname
+// Translate "localhost" to our local hostname, if possible.
 //
    if (!strcmp("localhost", thost))
-      {free(thost); thost = XrdSysDNS::getHostName();}
+      {XrdNetAddr myIPAddr(0);
+       free(thost);
+       thost = strdup(myIPAddr.Name("localhost"));
+      }
 
 // Create new bind object
 //

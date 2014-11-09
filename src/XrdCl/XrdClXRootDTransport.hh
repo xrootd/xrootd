@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_XROOTD_TRANSPORT_HH__
@@ -23,6 +29,8 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+
+class XrdSysPlugin;
 
 namespace XrdCl
 {
@@ -55,19 +63,30 @@ namespace XrdCl
       ~XRootDTransport();
 
       //------------------------------------------------------------------------
-      //! Read a message from the socket, the socket is non blocking, so if
-      //! there is not enough data the function should retutn errRetry in which
-      //! case it will be called again when more data arrives with the data
-      //! previousely read stored in the message buffer
+      //! Read a message header from the socket, the socket is non-blocking,
+      //! so if there is not enough data the function should return errRetry
+      //! in which case it will be called again when more data arrives, with
+      //! the data previously read stored in the message buffer
       //!
-      //! @param message the message
+      //! @param message the message buffer
       //! @param socket  the socket
-      //! @return        stOK if the message has been processed properly,
-      //!                stError & errRetry when the method needs to be called
-      //!                again to finish reading the message
-      //!                stError on faiure
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetMessage( Message *message, Socket *socket );
+      virtual Status GetHeader( Message *message, int socket );
+
+      //------------------------------------------------------------------------
+      //! Read the message body from the socket, the socket is non-blocking,
+      //! the method may be called multiple times - see GetHeader for details
+      //!
+      //! @param message the message buffer containing the header
+      //! @param socket  the socket
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
+      //------------------------------------------------------------------------
+      virtual Status GetBody( Message *message, int socket );
 
       //------------------------------------------------------------------------
       //! Initialize channel
@@ -89,7 +108,16 @@ namespace XrdCl
       //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
       virtual bool IsStreamTTLElapsed( time_t     time,
+                                       uint16_t   streamId,
                                        AnyObject &channelData );
+
+      //------------------------------------------------------------------------
+      //! Check the stream is broken - ie. TCP connection got broken and
+      //! went undetected by the TCP stack
+      //------------------------------------------------------------------------
+      virtual Status IsStreamBroken( time_t     inactiveTime,
+                                     uint16_t   streamId,
+                                     AnyObject &channelData );
 
       //------------------------------------------------------------------------
       //! Return the ID for the up stream this message should be sent by
@@ -110,6 +138,7 @@ namespace XrdCl
       //! the answer will be returned via the hinted stream.
       //------------------------------------------------------------------------
       virtual PathID MultiplexSubStream( Message   *msg,
+                                         uint16_t   streamId,
                                          AnyObject &channelData,
                                          PathID    *hint = 0 );
 
@@ -138,18 +167,18 @@ namespace XrdCl
       static Status MarshallRequest( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Unmarshal the request - sometimes the requests need to be rewritten,
+      //! Unmarshall the request - sometimes the requests need to be rewritten,
       //! so we need to unmarshall them
       //------------------------------------------------------------------------
       static Status UnMarshallRequest( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Unmarshal the body of the incomming message
+      //! Unmarshall the body of the incoming message
       //------------------------------------------------------------------------
       static Status UnMarshallBody( Message *msg, uint16_t reqType );
 
       //------------------------------------------------------------------------
-      //! Unmarshal the header incomming message
+      //! Unmarshall the header incoming message
       //------------------------------------------------------------------------
       static void UnMarshallHeader( Message *msg );
 
@@ -178,9 +207,21 @@ namespace XrdCl
       static void SetDescription( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Check whether the transport can highjack the message
+      //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
-      virtual bool Highjack( Message *msg, AnyObject &channelData );
+      virtual uint32_t MessageReceived( Message   *msg,
+                                        uint16_t   streamId,
+                                        uint16_t   subStream,
+                                        AnyObject &channelData );
+
+      //------------------------------------------------------------------------
+      //! Notify the transport about a message having been sent
+      //------------------------------------------------------------------------
+      virtual void MessageSent( Message   *msg,
+                                uint16_t   streamId,
+                                uint16_t   subStream,
+                                uint32_t   bytesSent,
+                                AnyObject &channelData );
 
     private:
 
@@ -266,12 +307,19 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Get the authentication function handle
       //------------------------------------------------------------------------
-      typedef XrdSecProtocol *(*XrdSecGetProt_t)( const char             *,
-                                                  const sockaddr         &,
-                                                  const XrdSecParameters &,
-                                                  XrdOucErrInfo          * );
-
       XrdSecGetProt_t GetAuthHandler();
+
+      //------------------------------------------------------------------------
+      // Generate the end session message
+      //------------------------------------------------------------------------
+      Message *GenerateEndSession( HandShakeData     *hsData,
+                                   XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Process the end session response
+      //------------------------------------------------------------------------
+      Status ProcessEndSessionResp( HandShakeData     *hsData,
+                                    XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Get a string representation of the server flags
@@ -283,7 +331,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static std::string FileHandleToStr( const unsigned char handle[4] );
 
-      void            *pSecLibHandle;
+      XrdSysPlugin    *pSecLibHandle;
       XrdSecGetProt_t  pAuthHandler;
   };
 }

@@ -154,7 +154,7 @@ void SocketTest::TransferTest()
 {
   using namespace XrdCl;
   srandom( time(0) );
-  Server serv;
+  Server serv( Server::Both );
   Socket sock;
 
   //----------------------------------------------------------------------------
@@ -164,7 +164,7 @@ void SocketTest::TransferTest()
   CPPUNIT_ASSERT( serv.Start() );
 
   CPPUNIT_ASSERT( sock.GetStatus() == Socket::Disconnected );
-  CPPUNIT_ASSERT( sock.Initialize().IsOK() );
+  CPPUNIT_ASSERT( sock.Initialize( AF_INET6 ).IsOK() );
   CPPUNIT_ASSERT( sock.Connect( "localhost", 9999 ).IsOK() );
   CPPUNIT_ASSERT( sock.GetStatus() == Socket::Connected );
 

@@ -31,7 +31,6 @@
 /******************************************************************************/
 
 #include <sys/types.h>
-#include <sys/socket.h>
 
 #include "XrdSec/XrdSecInterface.hh"
 
@@ -46,7 +45,7 @@ static int             Authenticate(XrdLink *Link, const char *Token, int tlen);
 
 static int             Configure(const char *Lib, const char *Cfn=0);
 
-static const char     *getToken(int &size, const char *hostname);
+static const char     *getToken(int &size, XrdNetAddrInfo *endPoint);
 
 static int             Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
                                 char *authBuff, int abLen);

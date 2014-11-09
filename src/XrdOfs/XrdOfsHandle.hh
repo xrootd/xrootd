@@ -151,7 +151,8 @@ inline const char  *Name() {return Path.Val;}
 
        const char  *PoscUsr();
 
-             int    Retire(long long *retsz=0, char *buff=0, int blen=0);
+             int    Retire(int &retc, long long *retsz=0,
+                           char *buff=0, int blen=0);
 
              int    Retire(XrdOfsHanCB *, int DSec);
 
@@ -166,7 +167,7 @@ inline       void   UnLock() {hMutex.UnLock();}
 
           XrdOfsHandle() : Path(0,0) {}
 
-         ~XrdOfsHandle() {Retire();}
+         ~XrdOfsHandle() {int retc; Retire(retc);}
 
 private:
 static int           Alloc(XrdOfsHanKey, int Opts, XrdOfsHandle **Handle);

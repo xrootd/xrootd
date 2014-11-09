@@ -43,10 +43,14 @@ class PollerTest: public CppUnit::TestCase
 {
   public:
     CPPUNIT_TEST_SUITE( PollerTest );
+#ifdef HAVE_LIBEVENT
       CPPUNIT_TEST( FunctionTestLibEvent );
+#endif
       CPPUNIT_TEST( FunctionTestBuiltIn );
     CPPUNIT_TEST_SUITE_END();
+#ifdef HAVE_LIBEVENT
     void FunctionTestLibEvent();
+#endif
     void FunctionTestBuiltIn();
     void FunctionTest( XrdCl::Poller *poller );
 };
@@ -132,7 +136,7 @@ class SocketHandler: public XrdCl::SocketHandler
       {
         char    buffer[50000];
         int     desc = socket->GetFD();
-        ssize_t ret;
+        ssize_t ret = 0;
 
         while( 1 )
         {
@@ -224,7 +228,7 @@ void PollerTest::FunctionTest( XrdCl::Poller *poller )
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Server server;
+  Server server( Server::Both );
   Socket s[3];
   CPPUNIT_ASSERT( server.Setup( 9999, 3, new RandomPumpHandlerFactory() ) );
   CPPUNIT_ASSERT( server.Start() );
@@ -277,16 +281,14 @@ void PollerTest::FunctionTest( XrdCl::Poller *poller )
 //------------------------------------------------------------------------------
 // Test the functionality libEvent based poller
 //------------------------------------------------------------------------------
+#ifdef HAVE_LIBEVENT
 void PollerTest::FunctionTestLibEvent()
 {
-#ifdef HAVE_LIBEVENT
   XrdCl::Poller *poller = new XrdCl::PollerLibEvent();
   FunctionTest( poller );
   delete poller;
-#else
-  CPPUNIT_ASSERT_MESSAGE( "LibEvent poller implementation is absent", false );
-#endif
 }
+#endif
 
 //------------------------------------------------------------------------------
 // Test the functionality the built-in poller

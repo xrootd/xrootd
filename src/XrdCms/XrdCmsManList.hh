@@ -33,18 +33,27 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdCmsManRef;
+class XrdOucTList;
+class XrdNetAddr;
 
 class XrdCmsManList
 {
 public:
 
 // Add() adds an alternate manager to the list of managers (duplicates not added)
+//       Previous entries for netAddr are removed before addition.
 //
-void     Add(unsigned int refp, char *manp, int manport, int lvl);
+void     Add(const XrdNetAddr *netAddr, char *redList, int manport, int lvl);
 
 // Del() removes all entries added under refp
 //
-void     Del(unsigned int refp);
+void     Del(const XrdNetAddr *refP) {Del(getRef(refP));}
+
+void     Del(int ref);
+
+// Get a reference number for a manager
+//
+int      getRef(const XrdNetAddr *refP);
 
 // haveAlts() returns true if alternates exist, false otherwise
 //
@@ -59,6 +68,10 @@ int      Next(int &port, char *buff, int bsz);
         ~XrdCmsManList();
 
 private:
+void Add(int ref, char *manp, int manport, int lvl);
+
+XrdSysMutex   refMutex;
+XrdOucTList  *refList;
 
 XrdSysMutex   mlMutex;
 XrdCmsManRef *nextMan;

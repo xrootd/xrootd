@@ -145,9 +145,18 @@ int XrdOfsTPCAuth::Expired(const char *Dst, int cnt)
 {
    char Buff[1024];
 
+// If there is a callback, tell the client they are no longer wanted
+//
+   if (Info.cbP) Info.Reply(SFS_ERROR, EACCES, "tpc authorization expired");
+
+// Log this event
+//
    snprintf(Buff, sizeof(Buff), "tpc grant by %s expired for", Info.Org);
    Buff[sizeof(Buff)-1] = 0;
    OfsEroute.Emsg("TPC", Dst, Buff, Info.Lfn);
+
+// Count stats and return
+//
    if (cnt) OfsStats.Add(OfsStats.Data.numTPCexpr);
    return 0;
 }
@@ -226,6 +235,7 @@ int XrdOfsTPCAuth::Get(XrdOfsTPC::Facts &Args, XrdOfsTPCAuth **theTPC)
 // Return result
 //
    *theTPC = aP;
+   aP->Refs = 0;
    return SFS_STARTED;
 }
 
@@ -235,7 +245,7 @@ int XrdOfsTPCAuth::Get(XrdOfsTPC::Facts &Args, XrdOfsTPCAuth **theTPC)
   
 int XrdOfsTPCAuth::RunTTL(int Init)
 {
-   XrdOfsTPCAuth *cP, *pP;
+   XrdOfsTPCAuth *cP, *pP, *nP;
    time_t        eNow;
    int           eWait, eDiff, numExp;
 
@@ -263,7 +273,9 @@ do{authMutex.Lock();
             else {if (pP) pP->Next = cP->Next;
                      else authQ    = cP->Next;
                   cP->Expired("localhost", 0); numExp++;
-                  cP = cP->Next;
+                  nP = cP->Next;
+                  if (cP->Refs < 1) delete cP;
+                  cP = nP;
                  }
         }
    authMutex.UnLock();

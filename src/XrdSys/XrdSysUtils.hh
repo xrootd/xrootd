@@ -37,9 +37,61 @@ class XrdSysUtils
 {
 public:
 
-// ExecName() returns the full path of the executable invoked.
-//
+//-----------------------------------------------------------------------------
+//! Get the name of the current executable.
+//!
+//! @return the full path of the executable invoked.
+//-----------------------------------------------------------------------------
+
 static const char *ExecName();
+
+//-----------------------------------------------------------------------------
+//! Format the uname information
+//!
+//! @param  buff   - pointer to the buffer to hold the uname as:
+//!                  <sysname> <release> [<version>] [<machine>]
+//! @param  blen   - length of the buffer.
+//!
+//! @return the output of snprintf(buff, blen, ...);
+//-----------------------------------------------------------------------------
+
+static int         FmtUname(char *buff, int blen);
+
+//-----------------------------------------------------------------------------
+//! Get common signal number.
+//!
+//! @param  sname  - the signal name as in sigxxx or just xxx (see kill).
+//!
+//! @return =0     - unknown or unsupported signal.
+//! @return !0     - the corresponding signal number.
+//-----------------------------------------------------------------------------
+
+static int         GetSigNum(const char *sname);
+
+//-----------------------------------------------------------------------------
+//! Block common signals. This must be called at program start.
+//!
+//! @return true   - common signals are blocked.
+//! @return false  - common signals not blocked, errno has teh reason.
+//-----------------------------------------------------------------------------
+
+static bool        SigBlock();
+
+//-----------------------------------------------------------------------------
+//! Block a particular signal. This should be called at program start so that
+//! the block applies to all threads.
+//!
+//! @aparam  numsig - The signal value to be blocked.
+//!
+//! @return true   - signal is  blocked.
+//! @return false  - signal not blocked, errno has teh reason.
+//-----------------------------------------------------------------------------
+
+static bool        SigBlock(int numsig);
+
+//-----------------------------------------------------------------------------
+//! Constructor and destructor
+//-----------------------------------------------------------------------------
 
        XrdSysUtils() {}
       ~XrdSysUtils() {}

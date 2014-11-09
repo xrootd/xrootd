@@ -41,20 +41,18 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
-#include "XrdSys/XrdSysPriv.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdSut/XrdSutAux.hh"
 #include "XrdSut/XrdSutCache.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
-#include "XrdCrypto/XrdCryptosslAux.hh"
-#include "XrdCrypto/XrdCryptosslgsiAux.hh"
+#include "XrdCrypto/XrdCryptoX509Req.hh"
 
 #include "XrdSecgsi/XrdSecProtocolgsi.hh"
 
@@ -153,9 +151,7 @@ String XrdSecProtocolgsi::DefError = "invalid credentials ";
 int    XrdSecProtocolgsi::PxyReqOpts = 0;
 int    XrdSecProtocolgsi::AuthzPxyWhat = -1;
 int    XrdSecProtocolgsi::AuthzPxyWhere = -1;
-XrdSysPlugin *XrdSecProtocolgsi::GMAPPlugin = 0;
 XrdSecgsiGMAP_t XrdSecProtocolgsi::GMAPFun = 0;
-XrdSysPlugin *XrdSecProtocolgsi::AuthzPlugin = 0;
 XrdSecgsiAuthz_t XrdSecProtocolgsi::AuthzFun = 0;
 XrdSecgsiAuthzKey_t XrdSecProtocolgsi::AuthzKey = 0;
 int    XrdSecProtocolgsi::AuthzCertFmt = -1;
@@ -164,7 +160,6 @@ int    XrdSecProtocolgsi::AuthzCacheTimeOut = 43200;  // 12h, default
 String XrdSecProtocolgsi::SrvAllowedNames;
 int    XrdSecProtocolgsi::VOMSAttrOpt = 1;
 XrdSecgsiAuthz_t XrdSecProtocolgsi::VOMSFun = 0;
-XrdSysPlugin *XrdSecProtocolgsi::VOMSPlugin = 0;
 int    XrdSecProtocolgsi::VOMSCertFmt = -1;
 int    XrdSecProtocolgsi::MonInfoOpt = 0;
 bool   XrdSecProtocolgsi::HashCompatibility = 1;
@@ -183,6 +178,9 @@ XrdSutCache XrdSecProtocolgsi::cachePxy;  // Client proxies
 XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
 XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
 XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
+//
+// Services
+XrdOucGMap *XrdSecProtocolgsi::servGMap = 0; // Grid map service
 //
 // CRL stack
 GSICrlStack  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
@@ -277,7 +275,7 @@ void gsiHSVars::Dump(XrdSecProtocolgsi *p)
 
 //_____________________________________________________________________________
 XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
-                                     const struct sockaddr *ipadd,
+                                     XrdNetAddrInfo &endPoint,
                                      const char *parms) : XrdSecProtocol("gsi")
 {
    // Default constructor
@@ -295,14 +293,10 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
       PRINT("could not create handshake vars object");
    }
 
-   // Set host name
-   if (ipadd) {
-      Entity.host = XrdSysDNS::getHostName((sockaddr&)*ipadd);
-      // Set host addr
-      memcpy(&hostaddr, ipadd, sizeof(hostaddr));
-   } else {
-      PRINT("WARNING: IP addr undefined: cannot determine host name: failure may follow");
-   }
+   // Set host name and address
+      Entity.host = strdup(endPoint.Name("*unknown*"));
+      epAddr = endPoint;
+      Entity.addrInfo = &epAddr;
 
    // Init session variables
    sessionCF = 0;
@@ -354,9 +348,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    EPNAME("Init");
    char *Parms = 0;
 
-   //
-   // Time stamp of initialization
-   time_t timestamp = time(0);
    //
    // Debug an tracing
    Debug = (opt.debug > -1) ? opt.debug : Debug;
@@ -710,31 +701,23 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
       bool hasgmap = 0;
       if (GMAPOpt > 0) {
-         if (access(GMAPFile.c_str(),R_OK) != 0) {
+         // Initialize the GMap service
+         //
+         String pars;
+         if (Debug) pars += "dbg|";
+         if (opt.gmapto > 0) { pars += "to="; pars += (int)opt.gmapto; }
+         if (!(servGMap = XrdOucgetGMap(&eDest, GMAPFile.c_str(), pars.c_str()))) {
             if (GMAPOpt > 1) {
-               if (errno == ENOENT) {
-                  ErrF(erp,kGSErrError,"Grid map file non existing:",GMAPFile.c_str());
-                  PRINT(erp->getErrText());
-               } else {
-                  ErrF(erp,kGSErrError,"'access' error on grid map file:",GMAPFile.c_str());
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
+               ErrF(erp,kGSErrError,"error loading grid map file:",GMAPFile.c_str());
+               PRINT(erp->getErrText());
+               return Parms;
             } else {
                NOTIFY("Grid map file: "<<GMAPFile<<" cannot be 'access'ed: do not use");
             }
          } else {
             DEBUG("using grid map file: "<<GMAPFile);
-            //
-            // Init cache for gridmap entries
-            if (LoadGMAP(timestamp) != 0) {
-               ErrF(erp,kGSErrError,"problems initializing cache for gridmap entries");
-               PRINT(erp->getErrText());
-               return Parms;
-            }
-            if (QTRACE(Authen)) { cacheGMAP.Dump(); }
-            hasgmap = 1;
-         }
+            hasgmap = 1;           
+         } 
       }
       //
       // Load function be used to map DN to usernames, if specified
@@ -1400,6 +1383,14 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
          return (XrdSecCredentials *)0;
    }
 
+   // We support passing the user {proxy, cert, key} paths via Url parameter
+   char *upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrpxy") : 0;
+   if (upp) UsrProxy = upp;
+   upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrcrt") : 0;
+   if (upp) UsrCert = upp;
+   upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrkey") : 0;
+   if (upp) UsrKey = upp;
+
    // Count interations
    (hs->Iter)++;
 
@@ -1713,6 +1704,15 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    // Check random challenge
    if (!CheckRtag(bmai, ClntMsg))
       return ErrS(hs->ID,ei,bpar,bmai,0,kGSErrBadRndmTag,stepstr,ClntMsg.c_str());
+         
+   // Extract the VOMS attrbutes, if required
+   XrdCryptoX509ExportChain_t X509ExportChain = (sessionCF) ? sessionCF->X509ExportChain() : 0;
+   if (!X509ExportChain) {
+      // Error
+      return ErrS(hs->ID,ei,0,0,0,kGSErrError,
+                  "crypto factory function for chain export not found");
+   }
+
    //
    // Now action depens on the step
    switch (step) {
@@ -1822,14 +1822,13 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       if (MonInfoOpt > 0) {
          Entity.moninfo = strdup(hs->Chain->EECname());
       }
-         
-      // Extract the VOMS attrbutes, if required
+
       if (VOMSAttrOpt > 0) {
          if (VOMSFun) {
             // Fill the information needed by the external function
             if (VOMSCertFmt == 1) {
                // PEM base64
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
@@ -1845,7 +1844,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                break;
             }
          } else {
-            // Lite version (no validations whatsover
+            // Lite version (no validations whatsover)
             if (ExtractVOMS(hs->Chain, Entity) != 0 && VOMSAttrOpt == 2) {
                // Error
                kS_rc = kgST_error;
@@ -1868,7 +1867,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             // May have been already done
             if (!Entity.creds || Entity.credslen == 0) {
                // PEM base64
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
@@ -1967,7 +1966,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             if (AuthzPxyWhat == 1 && hs->Chain->End()) {
                bpxy = hs->Chain->End()->Export();
             } else {
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
             }
             bpxy->ToString(spxy);
          }
@@ -2127,13 +2126,17 @@ int XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
    XrdCryptoX509 *xp = c->End();
    if (!xp) return -1;
    
+   // Extractor
+   XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr = sessionCF->X509GetVOMSAttr();
+   if (!X509GetVOMSAttr) return -1;
+
    // Extract the information
    XrdOucString vatts;
    int rc = 0;
-   if ((rc = XrdSslgsiX509GetVOMSAttr(xp, vatts)) != 0) {
+   if ((rc = (*X509GetVOMSAttr)(xp, vatts)) != 0) {
       if (strstr(xp->Subject(), "CN=limited proxy")) {
          xp = c->SearchBySubject(xp->Issuer());
-         rc = XrdSslgsiX509GetVOMSAttr(xp, vatts);
+         rc = (*X509GetVOMSAttr)(xp, vatts);
       }
       if (rc != 0) {
          if (rc > 0) {
@@ -2171,7 +2174,8 @@ int XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
          } else {
             if (vo.length() > 0) ent.vorg = strdup(vo.c_str());
          }
-         if (grp.length() > 0 && (!ent.grps || grp.length() > strlen(ent.grps))) {
+         if (grp.length() > 0
+         &&  (!ent.grps || grp.length() > int(strlen(ent.grps)))) {
             SafeFree(ent.grps);
             ent.grps = strdup(grp.c_str());
          }
@@ -2199,7 +2203,6 @@ int XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
 XrdOucTrace *XrdSecProtocolgsi::EnableTracing()
 {
    // Initiate error logging and tracing
-   EPNAME("EnableTracing");
 
    eDest.logger(&Logger);
    GSITrace = new XrdOucTrace(&eDest);
@@ -2537,7 +2540,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int crl = 1;
       int crlrefresh = 86400;
       int ogmap = 1;
-      int gmapto = -1;
+      int gmapto = 600;
       int authzto = -1;
       int dlgpxy = 0;
       int authzpxy = 0;
@@ -2683,11 +2686,14 @@ char *XrdSecProtocolgsiInit(const char mode,
 
 XrdVERSIONINFO(XrdSecProtocolgsiObject,secgsi);
 
+namespace
+{XrdVersionInfo *gsiVersion = &XrdVERSIONINFOVAR(XrdSecProtocolgsiObject);}
+
 extern "C"
 {
 XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
                                         const char             *hostname,
-                                        const struct sockaddr  &netaddr,
+                                        XrdNetAddrInfo         &endPoint,
                                         const char             *parms,
                                         XrdOucErrInfo    *erp)
 {
@@ -2696,8 +2702,8 @@ XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
 
    //
    // Get a new protocol object
-   if (!(prot = new XrdSecProtocolgsi(options, hostname, &netaddr, parms))) {
-      char *msg = (char *)"Secgsi: Insufficient memory for protocol.";
+   if (!(prot = new XrdSecProtocolgsi(options, hostname, endPoint, parms))) {
+      const char *msg = "Secgsi: Insufficient memory for protocol.";
       if (erp) 
          erp->setErrInfo(ENOMEM, msg);
       else 
@@ -3073,7 +3079,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    //
    // Verify the chain
-   x509ChainVerifyOpt_t vopt = { 0, hs->TimeStamp, -1, hs->Crl};
+   x509ChainVerifyOpt_t vopt = {0,static_cast<int>(hs->TimeStamp),-1,hs->Crl};
    XrdCryptoX509Chain::EX509ChainErr ecode = XrdCryptoX509Chain::kNone;
    if (!(hs->Chain->Verify(ecode, &vopt))) {
       emsg = "certificate chain verification failed: ";
@@ -3225,8 +3231,13 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
          return 0;
       }
       // Sign the request
+      XrdCryptoX509SignProxyReq_t X509SignProxyReq = (sessionCF) ? sessionCF->X509SignProxyReq() : 0;
+      if (!X509SignProxyReq) {
+         emsg = "problems getting method to sign request";
+         return 0;
+      }
       XrdCryptoX509 *npxy = 0;
-      if (XrdSslgsiX509SignProxyReq(pxy, kpxy, req, &npxy) != 0) {
+      if ((*X509SignProxyReq)(pxy, kpxy, req, &npxy) != 0) {
          emsg = "problems signing the request";
          return 0;
       }
@@ -3529,7 +3540,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    }
    //
    // Verify the chain
-   x509ChainVerifyOpt_t vopt = { 0, hs->TimeStamp, -1, hs->Crl};
+   x509ChainVerifyOpt_t vopt = {0,static_cast<int>(hs->TimeStamp),-1,hs->Crl};
    XrdCryptoX509Chain::EX509ChainErr ecode = XrdCryptoX509Chain::kNone;
    if (!(hs->Chain->Verify(ecode, &vopt))) {
       cmsg = "certificate chain verification failed: ";
@@ -3542,6 +3553,12 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    // normal request+signature, or just forwarded by the client.
    // In both cases we need to save the proxy chain. If we need a 
    // request, we have to prepare it and send it back to the client.
+   // Get hook to parsing function
+   XrdCryptoX509CreateProxyReq_t X509CreateProxyReq = sessionCF->X509CreateProxyReq();
+   if (!X509CreateProxyReq) {
+      cmsg = "cannot attach to X509CreateProxyReq function!";
+      return -1;
+   }
    bool needReq =
       ((PxyReqOpts & kOptsSrvReq) && (hs->Options & kOptsSigReq)) ||
        (hs->Options & kOptsDlgPxy);
@@ -3556,7 +3573,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
             // Create the request
             XrdCryptoX509Req *rPXp = (XrdCryptoX509Req *) &(hs->RemVers);
             XrdCryptoRSA *krPXp = 0;
-            if (XrdSslgsiX509CreateProxyReq(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
+            if ((*X509CreateProxyReq)(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
                // Save key in the cache
                hs->Cref->buf4.buf = (char *)krPXp;
                // Prepare export bucket for request
@@ -4380,7 +4397,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
 }
 
 //______________________________________________________________________________
-int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp)
+int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf, X509Chain *ch, XrdCryptoRSA **kp)
 {
    // Invoke 'grid-proxy-init' via the shell to create a valid the proxy file
    // If the variable GLOBUS_LOCATION is defined it prepares the external shell
@@ -4426,8 +4443,12 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp
                           pi->deplen}; // signature path depth
    //
    // Init now
-   rc = XrdSslgsiX509CreateProxy(pi->cert, pi->key, &pxopt,
-                                 ch, kp, pi->out);
+   XrdCryptoX509CreateProxy_t X509CreateProxy = cf->X509CreateProxy();
+   if (!X509CreateProxy) {
+      PRINT("cannot attach to X509CreateProxy function!");
+      return 1;
+   }
+   rc = (*X509CreateProxy)(pi->cert, pi->key, &pxopt, ch, kp, pi->out);
 #else
    // command string
    String cmd(kMAXBUFLEN);
@@ -4655,7 +4676,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          // Cleanup the chain
          po->chain->Cleanup();
 
-         if (InitProxy(pi, po->chain, &(po->ksig)) != 0) {
+         if (InitProxy(pi, cf, po->chain, &(po->ksig)) != 0) {
             NOTIFY("problems initializing proxy via external shell");
             ntry--;
             continue;
@@ -4794,105 +4815,6 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
 }
 
 //__________________________________________________________________________
-int XrdSecProtocolgsi::LoadGMAP(int now)
-{
-   // Load cache for gridmap entries with current content of the gridmap file.
-   // The cache content is loaded only if the file was modified since last
-   // access.
-   // Returns 0 if successful, -1 if somethign went wrong
-   EPNAME("LoadGMAP");
-   XrdSutCacheRef pfeRef;
-
-   // We need a file to load
-   if (GMAPFile.length() <= 0)
-      return 0;
-
-   // Get info about last time of modification
-   struct stat st;
-   if (stat(GMAPFile.c_str(), &st) != 0) {
-      PRINT("error 'stat'-ing file "<<GMAPFile);
-      return -1;
-   }
-
-   // This must be atomic
-   XrdSysMutexHelper guard(&mutexGMAP);
-
-   // Check against current time
-   if (lastGMAPCheck > st.st_mtime)
-      // Nothing to do
-      return 0;
-   
-   // Init or reset the cache
-   if (cacheGMAP.Empty()) {
-      if (cacheGMAP.Init(100) != 0) {
-         PRINT("error initializing cache");
-         return -1;
-      }
-   } else {
-      if (cacheGMAP.Reset() != 0) {
-         PRINT("error resetting cache");
-         return -1;
-      }
-   }
-
-   // Open the file
-   FILE *fm = fopen(GMAPFile.c_str(),"r");
-   if (!fm) {
-      PRINT("error opening file "<<GMAPFile);
-      return -1;
-   }
-
-   // Read entries now
-   char line[2048] = {0};
-   while (fgets(line,sizeof(line),fm)) {
-      // Skip comment line
-      if (line[0] == '#') continue;
-      // Get rid of \n
-      if (line[strlen(line)-1] == '\n')
-         line[strlen(line)-1] = 0;
-      // Extract DN
-      char *p0 = (line[0] == '"') ? &line[1] : &line[0];
-      int l0 = 0;
-      while (p0[l0] != '"')
-          l0++;
-      String udn(p0, l0);
-      p0 = (p0 + l0 + 1);
-      while (*p0 == ' ')
-          p0++;
-
-      // Extract username
-      String usr(p0);
-
-      // Notify
-      DEBUG("Found: udn: "<<udn<<", usr: "<<usr);
-
-      // Ok: save it into the cache
-      XrdSutPFEntry *cent = cacheGMAP.Add(pfeRef, udn.c_str());
-      if (cent) {
-         cent->status = kPFE_ok;
-         cent->cnt = 0;
-         cent->mtime = now; // creation time
-         // Add username
-         SafeDelArray(cent->buf1.buf);
-         cent->buf1.buf = new char[usr.length() + 1];
-         strcpy(cent->buf1.buf, usr.c_str());
-         cent->buf1.len = usr.length();
-      }
-   }
-   fclose(fm);
-
-   // Rehash cache
-   pfeRef.UnLock();  // cent can no longer be used
-   cacheGMAP.Rehash(1);
-
-   // Save the time
-   lastGMAPCheck = now;
-
-   // We are done
-   return 0;
-}
-
-//__________________________________________________________________________
 void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &usrs)
 {
    // Resolve usernames associated with this proxy. The lookup is typically
@@ -4957,21 +4879,14 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
       }
    }
 
-   // Try also the map file, if any
-   if (LoadGMAP(now) != 0) {
-      NOTIFY("error loading/ refreshing grid map file");
-      return;
-   }
-
-   // Lookup for 'dn' in the cache. We are reusing the cent pointer so unlock
-   // any previous reference via cent.
-   pfeRef.UnLock();
-   cent = cacheGMAP.Get(pfeRef, dn);
-
-   // Add / Save the result, if any
-   if (cent) {
-      if (usrs.length() > 0) usrs += ",";
-      usrs += (const char *)(cent->buf1.buf);
+   // Check the map file, if any
+   //
+   if (servGMap) {
+      char u[65];
+      if (servGMap->dn2user(dn, u, sizeof(u), now) == 0) {
+         if (usrs.length() > 0) usrs += ",";
+         usrs += (const char *)u;
+      }
    }
 
    // Done
@@ -4984,6 +4899,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
 {
    // Load the DN-Username mapping function from the specified plug-in
    EPNAME("LoadGMAPFun");
+   char errBuff[2048];
 
    // Make sure the input config file is defined
    if (!plugin || strlen(plugin) <= 0) {
@@ -4992,10 +4908,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
    }
 
    // Create the plug-in instance
-   if (!(GMAPPlugin = new XrdSysPlugin(&XrdSecProtocolgsi::eDest, plugin))) {
-      PRINT("could not create plugin instance for "<<plugin);
-      return (XrdSecgsiGMAP_t)0;
-   }
+   XrdOucPinLoader gmapLib(errBuff,sizeof(errBuff),gsiVersion,"gmaplib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -5013,12 +4926,11 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
 
    // Get the function
    XrdSecgsiGMAP_t ep = 0;
-   if (useglobals) {
-      ep = (XrdSecgsiGMAP_t) GMAPPlugin->getPlugin("XrdSecgsiGMAPFun", 0, true);
-   } else {
-      ep = (XrdSecgsiGMAP_t) GMAPPlugin->getPlugin("XrdSecgsiGMAPFun");
-   }
+   if (useglobals) gmapLib.Global(true);
+   ep = (XrdSecgsiGMAP_t) gmapLib.Resolve("XrdSecgsiGMAPFun");
+
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiGMAPFun()' in "<<plugin);
       return (XrdSecgsiGMAP_t)0;
    }
@@ -5079,6 +4991,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    //    allocated internally with 'new char[]'.
    //
    EPNAME("LoadAuthzFun");
+   char errBuff[2048];
 
    certfmt = -1;
    // Make sure the input config file is defined
@@ -5088,10 +5001,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    }
    
    // Create the plug-in instance
-   if (!(AuthzPlugin = new XrdSysPlugin(&XrdSecProtocolgsi::eDest, plugin))) {
-      PRINT("could not create plugin instance for "<<plugin);
-      return (XrdSecgsiAuthz_t)0;
-   }
+   XrdOucPinLoader authzLib(errBuff,sizeof(errBuff),gsiVersion,"authzlib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -5109,31 +5019,25 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
 
    // Get the function
    XrdSecgsiAuthz_t ep = 0;
-   if (useglobals)
-      ep = (XrdSecgsiAuthz_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzFun", 0, true);
-   else
-      ep = (XrdSecgsiAuthz_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzFun");
+   if (useglobals) authzLib.Global(true);
+   ep = (XrdSecgsiAuthz_t) authzLib.Resolve("XrdSecgsiAuthzFun");
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiAuthzFun()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
     
    // Get the key function
-   if (useglobals)
-      AuthzKey = (XrdSecgsiAuthzKey_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzKey", 0, true);
-   else
-      AuthzKey = (XrdSecgsiAuthzKey_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzKey");
+   AuthzKey = (XrdSecgsiAuthzKey_t) authzLib.Resolve("XrdSecgsiAuthzKey");
    if (!AuthzKey) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiAuthzKey()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
    
    // Get the init function
    XrdSecgsiAuthzInit_t epinit = 0;
-   if (useglobals)
-      epinit = (XrdSecgsiAuthzInit_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzInit", 0, true);
-   else
-      epinit = (XrdSecgsiAuthzInit_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzInit");
+   epinit = (XrdSecgsiAuthzInit_t) authzLib.Resolve("XrdSecgsiAuthzInit");
    if (!epinit) {
       PRINT("could not find 'XrdSecgsiAuthzInit()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
@@ -5184,6 +5088,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    //                          1       PEM (base64 standard string)
    //
    EPNAME("LoadVOMSFun");
+   char errBuff[2048];
 
    certfmt = -1;
    // Make sure the input config file is defined
@@ -5193,10 +5098,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    }
    
    // Create the plug-in instance
-   if (!(VOMSPlugin = new XrdSysPlugin(&XrdSecProtocolgsi::eDest, plugin))) {
-      PRINT("could not create plugin instance for "<<plugin);
-      return (XrdSecgsiAuthz_t)0;
-   }
+   XrdOucPinLoader vomsLib(errBuff,sizeof(errBuff),gsiVersion,"vomslib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -5214,22 +5116,19 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
 
    // Get the function
    XrdSecgsiVOMS_t ep = 0;
-   if (useglobals)
-      ep = (XrdSecgsiVOMS_t) VOMSPlugin->getPlugin("XrdSecgsiVOMSFun", 0, true);
-   else
-      ep = (XrdSecgsiVOMS_t) VOMSPlugin->getPlugin("XrdSecgsiVOMSFun");
+   if (useglobals) vomsLib.Global(true);
+   ep = (XrdSecgsiVOMS_t) vomsLib.Resolve("XrdSecgsiVOMSFun");
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiVOMSFun()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
    
    // Get the init function
    XrdSecgsiVOMSInit_t epinit = 0;
-   if (useglobals)
-      epinit = (XrdSecgsiVOMSInit_t) VOMSPlugin->getPlugin("XrdSecgsiVOMSInit", 0, true);
-   else
-      epinit = (XrdSecgsiVOMSInit_t) VOMSPlugin->getPlugin("XrdSecgsiVOMSInit");
+   epinit = (XrdSecgsiVOMSInit_t) vomsLib.Resolve("XrdSecgsiVOMSInit");
    if (!epinit) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiVOMSInit()' in "<<plugin);
       return (XrdSecgsiVOMS_t)0;
    }
@@ -5383,30 +5282,18 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
    //
    // Get the IDs of the file: we need them to acquire the right privileges when opening
    // the certificate
-   bool getpriv = 0;
    uid_t gsi_uid = geteuid();
    gid_t gsi_gid = getegid();
    struct stat st;
    if (!stat(SrvKey.c_str(), &st)) {
       if (st.st_uid != gsi_uid || st.st_gid != gsi_gid) {
-         getpriv = 1;
          gsi_uid = st.st_uid;
          gsi_gid = st.st_gid;
       }
    }
    
    // Check normal certificates
-   XrdCryptoX509 *xsrv = 0;
-   {  XrdSysPrivGuard pGuard(gsi_uid, gsi_gid);
-      if (pGuard.Valid() || !getpriv) {
-         xsrv = cf->X509(SrvCert.c_str(), SrvKey.c_str());
-      } else {
-         PRINT("problems creating guard to load server certificate '"<<
-               SrvCert<<"' (euid:"<<geteuid()<<", egid:"<<getegid()<<
-               ") <-> (st_uid:"<<st.st_uid<<", st_gid:"<<st.st_gid<<")" );
-         return cent;
-      }
-   }
+   XrdCryptoX509 *xsrv = cf->X509(SrvCert.c_str(), SrvKey.c_str());
    if (xsrv) {
       // Must be of EEC type
       if (xsrv->type != XrdCryptoX509::kEEC) {

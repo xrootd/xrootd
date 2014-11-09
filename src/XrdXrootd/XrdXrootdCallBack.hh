@@ -47,7 +47,7 @@ public:
 
         const char *Func() {return Opname;}
 
-        const char  Oper() {return Opcode;}
+        char        Oper() {return Opcode;}
 
         int         Same(unsigned long long arg1, unsigned long long arg2);
 
@@ -55,7 +55,7 @@ public:
 
         void        sendResp(XrdOucErrInfo *eInfo,
                              XResponseType  xrt,       int  *Data=0,
-                             const char    *Msg=0,     int   ovhd=0);
+                             const char    *Msg=0,     int   Mlen=0);
 
 static  void        setVals(XrdSysError    *erp,
                             XrdXrootdStats *SIp,

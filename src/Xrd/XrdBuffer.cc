@@ -29,7 +29,7 @@
 
 #include <time.h>
 #include <unistd.h>
-#if !defined(__macos__) && !defined(__FreeBSD__)
+#if !defined(__APPLE__) && !defined(__FreeBSD__)
 #include <malloc.h>
 #endif
 #include <stdio.h>

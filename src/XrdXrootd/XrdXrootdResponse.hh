@@ -42,6 +42,8 @@
 /******************************************************************************/
   
 class XrdLink;
+class XrdOucSFVec;
+class XrdXrootdTransit;
 
 class XrdXrootdResponse
 {
@@ -49,21 +51,23 @@ public:
 
 const  char *ID() {return (const char *)trsid;}
 
-       int   Push(void *data, int dlen);
-       int   Push(void);
        int   Send(void);
        int   Send(const char *msg);
        int   Send(XErrorCode ecode, const char *msg);
        int   Send(void *data, int dlen);
        int   Send(struct iovec *, int iovcnt, int iolen=-1);
        int   Send(XResponseType rcode, void *data, int dlen);
-       int   Send(XResponseType rcode, int info, const char *data);
+       int   Send(XResponseType rcode, int info, const char *data, int dsz=-1);
        int   Send(int fdnum, long long offset, int dlen);
+       int   Send(XrdOucSFVec *sfvec, int sfvnum, int dlen);
 static int   Send(XrdXrootdReqID &ReqID,  XResponseType Status,
                   struct iovec   *IOResp, int           iornum, int  iolen);
 
 inline void  Set(XrdLink *lp) {Link = lp;}
+inline void  Set(XrdXrootdTransit *tp) {Bridge = tp;}
        void  Set(kXR_char *stream);
+
+       bool  isOurs() {return Bridge == 0;}
 
        XrdLink *theLink()               {return Link;}
        void     StreamID(kXR_char *sid) {sid[0] = Resp.streamid[0];
@@ -71,10 +75,11 @@ inline void  Set(XrdLink *lp) {Link = lp;}
                                         }
 
        XrdXrootdResponse(XrdXrootdResponse &rhs) {Set(rhs.Link);
+                                                  Set(rhs.Bridge);
                                                   Set(rhs.Resp.streamid);
                                                  }
 
-       XrdXrootdResponse() {Link = 0; *trsid = '\0';
+       XrdXrootdResponse() {Link = 0; Bridge = 0; *trsid = '\0';
                           RespIO[0].iov_base = (caddr_t)&Resp;
                           RespIO[0].iov_len  = sizeof(Resp);
                          }
@@ -82,12 +87,14 @@ inline void  Set(XrdLink *lp) {Link = lp;}
 
        XrdXrootdResponse &operator =(const XrdXrootdResponse &rhs)
                                    {Set(rhs.Link);
+                                    Set(rhs.Bridge);
                                     Set((unsigned char *)rhs.Resp.streamid);
                                     return *this;
                                    }
 
 private:
 
+       XrdXrootdTransit    *Bridge;
        ServerResponseHeader Resp;
        XrdLink             *Link;
 struct iovec                RespIO[3];

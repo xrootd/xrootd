@@ -1,4 +1,3 @@
-
 /******************************************************************************/
 /*                                                                            */
 /*                      X r d S u t B u f f e r . c c                         */
@@ -27,9 +26,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <netinet/in.h>
+#include <sys/types.h>
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -103,7 +105,7 @@ XrdSutBuffer::XrdSutBuffer(const char *buf, kXR_int32 len)
       // Assume exchange info format
       // Check integrity
       int k = 0;
-      while (buf[k] && k < XrdSecPROTOIDSIZE && k < len) { k++; } 
+      while ( k < XrdSecPROTOIDSIZE && k < len && buf[k]) { k++; }
       if (!k || k == XrdSecPROTOIDSIZE) {
          PRINT("no protocol name: do nothing");
          ok = 0;

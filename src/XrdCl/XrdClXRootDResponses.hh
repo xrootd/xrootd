@@ -138,7 +138,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      LocationInfo( const char *data = 0 );
+      LocationInfo();
 
       //------------------------------------------------------------------------
       //! Get number of locations
@@ -196,9 +196,13 @@ namespace XrdCl
         pLocations.push_back( location );
       }
 
+      //------------------------------------------------------------------------
+      //! Parse server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const char *data );
+
     private:
-      void ParseServerResponse( const char *data );
-      void ProcessLocation( std::string &location );
+      bool ProcessLocation( std::string &location );
       LocationList pLocations;
   };
 
@@ -247,7 +251,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string ToStr() const
       {
-
         if( code == errErrorResponse )
         {
           std::ostringstream o;
@@ -255,7 +258,10 @@ namespace XrdCl
           o << pMessage << std::endl;
           return o.str();
         }
-        return ToString();
+        std::string str = ToString();
+        if( !pMessage.empty() )
+          str += ": " + pMessage;
+        return str;
       }
 
     private:
@@ -336,15 +342,16 @@ namespace XrdCl
         Other        = kXR_other,     //!< Neither a file nor a directory
         Offline      = kXR_offline,   //!< File is not online (ie. on disk)
         POSCPending  = kXR_poscpend,  //!< File opened with POST flag, not yet
-                                      //!< successfuly closed
-        IsReadable   = kXR_readable,  //!< Read access is alowed
-        IsWritable   = kXR_writable   //!< Write access is allowed
+                                      //!< successfully closed
+        IsReadable   = kXR_readable,  //!< Read access is allowed
+        IsWritable   = kXR_writable,  //!< Write access is allowed
+        BackUpExists = kXR_bkpexist   //!< Back up copy exists
       };
 
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      StatInfo( const char *data );
+      StatInfo();
 
       //------------------------------------------------------------------------
       //! Get id
@@ -398,13 +405,12 @@ namespace XrdCl
         return ts;
       }
 
+      //------------------------------------------------------------------------
+      //! Parse server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const char *data );
 
     private:
-
-      //------------------------------------------------------------------------
-      // Parse the stat info returned by the server
-      //------------------------------------------------------------------------
-      void ParseServerResponse( const char *data  );
 
       //------------------------------------------------------------------------
       // Normal stat
@@ -424,7 +430,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      StatInfoVFS( const char *data );
+      StatInfoVFS();
 
       //------------------------------------------------------------------------
       //! Get number of nodes that can provide read/write space
@@ -435,7 +441,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Get size of the largest contiguous aread of free r/w space (in MB)
+      //! Get size of the largest contiguous area of free r/w space (in MB)
       //------------------------------------------------------------------------
       uint64_t GetFreeRW() const
       {
@@ -459,7 +465,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Get size of the largest contiguous aread of free staging space (in MB)
+      //! Get size of the largest contiguous area of free staging space (in MB)
       //------------------------------------------------------------------------
       uint64_t GetFreeStaging() const
       {
@@ -474,12 +480,12 @@ namespace XrdCl
         return pUtilizationStaging;
       }
 
-    private:
+      //------------------------------------------------------------------------
+      //! Parse server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const char *data );
 
-      //------------------------------------------------------------------------
-      // Parse the stat info returned by the server
-      //------------------------------------------------------------------------
-      void ParseServerResponse( const char *data  );
+    private:
 
       //------------------------------------------------------------------------
       // kXR_vfs stat
@@ -572,9 +578,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      DirectoryList( const std::string &hostID,
-                     const std::string &parent,
-                     const char        *data );
+      DirectoryList();
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -660,8 +664,23 @@ namespace XrdCl
         return pParent;
       }
 
+      //------------------------------------------------------------------------
+      //! Set name of the parent directory
+      //------------------------------------------------------------------------
+      void SetParentName( const std::string &parent )
+      {
+        pParent = parent;
+        if( !pParent.empty() && pParent[pParent.length()-1] != '/' )
+          pParent += "/";
+      }
+
+      //------------------------------------------------------------------------
+      //! Parse server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const std::string &hostId,
+                                const char *data );
+
     private:
-      void ParseServerResponse( const std::string &hostId, const char *data );
       DirList     pDirList;
       std::string pParent;
   };
@@ -808,26 +827,6 @@ namespace XrdCl
   typedef std::vector<HostInfo> HostList;
 
   //----------------------------------------------------------------------------
-  //! Describe the redirection information
-  //----------------------------------------------------------------------------
-  struct RedirectInfo
-  {
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //--------------------------------------------------------------------------
-    RedirectInfo( const std::string &h,
-                  uint16_t           p,
-                  const std::string &c ):
-      protocol("xroot"), host(h), port(p), path(""), cgi(c), token("") {};
-    std::string protocol; //!< protocol
-    std::string host;     //!< host the request has been redirected to
-    uint16_t    port;     //!< host port
-    std::string path;     //!< path
-    std::string cgi;      //!< the cgi that should be appended to the request
-    std::string token;    //!< additional token info
-  };
-
-  //----------------------------------------------------------------------------
   //! Handle an async response
   //----------------------------------------------------------------------------
   class ResponseHandler
@@ -861,7 +860,10 @@ namespace XrdCl
       //!                 (request dependent)
       //------------------------------------------------------------------------
       virtual void HandleResponse( XRootDStatus *status,
-                                   AnyObject    *response ) {}
+                                   AnyObject    *response )
+      {
+        (void)status; (void)response;
+      }
   };
 }
 

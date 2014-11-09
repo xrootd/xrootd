@@ -32,15 +32,19 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <netinet/in.h>
 #include <sys/uio.h>
   
 #include "Xrd/XrdLink.hh"
 #include "XrdCms/XrdCmsTypes.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
+#include "XrdNet/XrdNetIF.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdCmsBaseFR;
 class XrdCmsBaseFS;
+class XrdCmsClustID;
 class XrdCmsDrop;
 class XrdCmsPrepArgs;
 class XrdCmsRRData;
@@ -52,26 +56,29 @@ class XrdCmsNode
 friend class XrdCmsCluster;
 public:
        char  *Ident;        // -> role hostname
-       char   isDisable;    //0 Set via admin command to temporarily remove node
-       char   isOffline;    //1 Set when a link failure occurs
-       char   isNoStage;    //2 Set upon a nostage event
-       char   isMan;        //3 Set when node acts as manager
-       char   isPeer;       //4 Set when node acts as peer manager
-       char   isProxy;      //5 Set when node acts as a proxy
-       char   isSuspend;    //6 Set upon a suspend event
+       char   hasNet;       //0 Network selection mask
+       char   isBad;        //1 Set on an event that makes it unselectable
+       char   isOffline;    //2 Set when a link failure occurs
+       char   isRW;         //3 Set when node can write or stage data
+       char   isNoStage;    //4 Set upon a nostage event
+       char   isMan;        //5 Set when node acts as manager
+       char   isPeer;       //6 Set when node acts as peer manager
        char   isBound;      //7 Set when node is in the configuration
-       char   isRW;         //0 Set when node can write or stage data
-       char   isKnown;      //1 Set when we have recieved a "state"
-       char   isConn;       //2 Set when node is network connected
-       char   isGone;       //3 Set when node must be deleted
-       char   isPerm;       //4 Set when node is permanently bound
-       char   isReserved[2];
-       char   RoleID;       // The converted XrdCmsRole::RoleID
-       char   TimeZone;     // Time zone in +UTC-
-       char   TZValid;      // Time zone has been set
+       char   isKnown;      //0 Set when we have recieved a "state"
+       char   isConn;       //1 Set when node is network connected
+       char   isGone;       //2 Set when node must be deleted
+       char   isPerm;       //3 Set when node is permanently bound
+       char   isReserved;   //4
+       char   RoleID;       //5 The converted XrdCmsRole::RoleID
+       char   TimeZone;     //6 Time zone in +UTC-
+       char   TZValid;      //7 Time zone has been set
 
-static const char allowsRW = 0x01; // in isRW -> Server allows r/w access
-static const char allowsSS = 0x02; // in isRW -> Server can stage data
+static const char isBlisted  = 0x01; // in isBad -> Node is black listed
+static const char isDisabled = 0x02; // in isBad -> Node is disable (internal)
+static const char isSuspend  = 0x04; // in isBad -> Node is suspended via event
+
+static const char allowsRW   = 0x01; // in isRW  -> Server allows r/w access
+static const char allowsSS   = 0x02; // in isRW  -> Server can stage data
 
 unsigned int    DiskTotal;    // Total disk space in GB
          int    DiskNums;     // Number of file systems
@@ -87,7 +94,8 @@ const  char  *do_Gone(XrdCmsRRData &Arg);
 const  char  *do_Have(XrdCmsRRData &Arg);
 const  char  *do_Load(XrdCmsRRData &Arg);
 const  char  *do_Locate(XrdCmsRRData &Arg);
-static int    do_LocFmt(char *buff, XrdCmsSelected *sP, SMask_t pf, SMask_t wf);
+static int    do_LocFmt(char *buff, XrdCmsSelected *sP,
+                        SMask_t pf, SMask_t wf, bool lsall=false);
 const  char  *do_Mkdir(XrdCmsRRData &Arg);
 const  char  *do_Mkpath(XrdCmsRRData &Arg);
 const  char  *do_Mv(XrdCmsRRData &Arg);
@@ -120,14 +128,13 @@ inline int    Inst() {return Instance;}
 inline int    isNode(SMask_t smask) {return (smask & NodeMask) != 0;}
 inline int    isNode(const char *hn)
                     {return Link && !strcmp(Link->Host(), hn);}
-inline int    isNode(unsigned int ipa)
-                    {return ipa == IPAddr;}
-inline int    isNode(unsigned int ipa, const char *nid)
-                    {return ipa == IPAddr && (nid ? !strcmp(myNID, nid) : 1);}
+inline int    isNode(const XrdNetAddr *addr)
+                    {return netID.Same(addr);}
+inline int    isNode(XrdLink *lp, const char *nid, int port)
+                    {return netID.Same(lp->NetAddr()) && port == netIF.Port()
+                         && (nid ? !strcmp(myNID, nid) : 1);
+                    }
 inline char  *Name()   {return (myName ? myName : (char *)"?");}
-
-inline char  *Name(int &len, int &port)
-                       {len = myNlen; port = Port; return myName;}
 
 inline SMask_t Mask() {return NodeMask;}
 
@@ -141,7 +148,7 @@ inline int   Send(const char *buff, int blen=0)
 inline int   Send(const struct iovec *iov, int iovcnt, int iotot=0)
                  {return (isOffline ? -1 : Link->Send(iov, iovcnt, iotot));}
 
-       void  setName(XrdLink *lnkp, int port);
+       void  setName(XrdLink *lnkp, const char *theIF, int port);
 
        void  setShare(int shrval)
                      {if (shrval > 99) Shrem = Shrip = Share = 0;
@@ -158,10 +165,12 @@ inline int   Send(const struct iovec *iov, int iovcnt, int iotot=0)
 inline void  setSlot(short rslot) {RSlot = rslot;}
 inline short getSlot() {return RSlot;}
 
+inline void  ShowIF() {netIF.Display("=====> ");}
+
        void  SyncSpace();
 
-             XrdCmsNode(XrdLink *lnkp, int port=0,
-                        const char *sid=0, int lvl=0, int id=-1);
+             XrdCmsNode(XrdLink *lnkp, const char *theIF=0, const char *sid=0,
+                        int port=0, int lvl=0, int id=-1);
             ~XrdCmsNode();
 
 private:
@@ -175,19 +184,19 @@ const  char *fsFail(const char *Who, const char *What, const char *Path, int rc)
 
 XrdSysMutex        myMutex;
 XrdLink           *Link;
-unsigned int       IPAddr;
+XrdNetAddr         netID;
+XrdNetIF           netIF;
 XrdCmsNode        *Next;
 time_t             DropTime;
 XrdCmsDrop        *DropJob;  
-int                IPV6Len;  // 12345678901234567890123456
-char               IPV6[28]; // [::123.123.123.123]:123456
 
+XrdCmsClustID     *cidP;
 SMask_t            NodeMask;
 int                NodeID;
 int                Instance;
-int                Port;
 int                myLevel;
-int                myCNUM;
+short              subsPort;     // Subscription port number
+short              Rsvd2;
 char              *myCID;
 char              *myNID;
 char              *myName;

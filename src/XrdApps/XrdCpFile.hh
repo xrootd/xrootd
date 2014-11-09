@@ -37,7 +37,9 @@ class XrdCpFile
 {
 public:
 
-enum PType {isOther = 0, isDir, isFile, isStdIO, isXroot, isHttp, isHttps};
+enum PType {isOther = 0, isDir,  isFile,  isStdIO,
+            isXroot,     isHttp, isHttps, isDevNull, isDevZero
+           };
 
 XrdCpFile        *Next;         // -> Next file in list
 char             *Path;         // -> Absolute path to the file

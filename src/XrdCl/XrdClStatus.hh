@@ -29,7 +29,7 @@ namespace XrdCl
   // Constants
   //----------------------------------------------------------------------------
   const uint16_t stOK    = 0x0000;  //!< Everything went OK
-  const uint16_t stError = 0x0001;  //!< An error occured that could potentially be retried
+  const uint16_t stError = 0x0001;  //!< An error occurred that could potentially be retried
   const uint16_t stFatal = 0x0003;  //!< Fatal error, it's still an error
 
   //----------------------------------------------------------------------------
@@ -40,8 +40,6 @@ namespace XrdCl
   const uint16_t suRetry           = 2;
   const uint16_t suPartial         = 3;
   const uint16_t suAlreadyDone     = 4;
-
-  const uint16_t suXRDRedirect     = 101;
 
   //----------------------------------------------------------------------------
   // Generic errors
@@ -61,6 +59,8 @@ namespace XrdCl
   const uint16_t errUninitialized  = 11;
   const uint16_t errOSError        = 12;
   const uint16_t errNotSupported   = 13;
+  const uint16_t errDataError      = 14; //!< data is corrupted
+  const uint16_t errNotImplemented = 15; //!< Operation is not implemented
 
   //----------------------------------------------------------------------------
   // Socket related errors
@@ -96,9 +96,12 @@ namespace XrdCl
   const uint16_t errRedirectLimit      = 306;
 
   const uint16_t errErrorResponse      = 400;
+  const uint16_t errRedirect           = 401;
+
+  const uint16_t errResponseNegative   = 500; //!< Query response was negative
 
   //----------------------------------------------------------------------------
-  //! Proceure execution status
+  //! Procedure execution status
   //----------------------------------------------------------------------------
   struct Status
   {

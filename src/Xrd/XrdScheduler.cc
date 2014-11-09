@@ -32,7 +32,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#ifdef __macos__
+#ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #endif
 
@@ -228,7 +228,7 @@ void *XrdScheduler::Reaper()
    int status;
    pid_t pid;
    XrdSchedulerPID *tp, *ptp, *xtp;
-#if defined(__macos__) && !defined(MAC_OS_X_VERSION_10_5)
+#if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_5)
    struct timespec ts = { 1, 0 };
 #else
    sigset_t Sset;
@@ -256,7 +256,7 @@ void *XrdScheduler::Reaper()
                 } else {ptp = tp; tp = tp->next;}
              }
        ReaperMutex.UnLock();
-#if defined(__macos__) && !defined(MAC_OS_X_VERSION_10_5)
+#if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_5)
        // Mac OS X sigwait() is broken on <= 10.4.
       } while (nanosleep(&ts, 0) <= 0);
 #else

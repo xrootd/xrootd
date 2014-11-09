@@ -42,68 +42,211 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
+//-----------------------------------------------------------------------------
+//! XrdSysLogger is the object that is used to route messages to wherever they
+//! need to go and also handles log file rotation and trimming.
+//-----------------------------------------------------------------------------
+
 class XrdSysLogger
 {
 public:
+
+//-----------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param  errFD     is the filedescriptor of where error messages normally
+//!                   go if this class is not used. Default is stderr.
+//! @param  xrotate   when not zero performs internal log rotatation. Otherwise,
+//!                   log rotation is suppressed. See also setRotate().
+//-----------------------------------------------------------------------------
+
          XrdSysLogger(int ErrFD=STDERR_FILENO, int xrotate=1);
+
+//-----------------------------------------------------------------------------
+//! Destructor
+//-----------------------------------------------------------------------------
 
         ~XrdSysLogger() {if (ePath) free(ePath);}
 
-// Bind allows you to bind standard error to a file with an optional periodic
-// closing and opening of the file.
-//
-int Bind(const char *path, int intsec=0);
+//-----------------------------------------------------------------------------
+//! Add a message to be printed at midnight.
+//!
+//! @param  msg       The message to be printed. A copy of the message is saved.
+//-----------------------------------------------------------------------------
 
-// Flush any pending output
-//
-void Flush() {fsync(eFD);}
+void  AddMsg(const char *msg);
 
-// originalFD() returns the base FD that we started with
-//
-int  originalFD() {return baseFD;}
+//-----------------------------------------------------------------------------
+//! Add a task to be run at midnight. Tasks are run sequentially lifo.
+//!
+//! @param  mnTask    Pointer to an instance of the task object below.
+//-----------------------------------------------------------------------------
 
-// Output data and optionally prefix with date/time
-//
-void Put(int iovcnt, struct iovec *iov);
+class Task
+{
+public:
+friend class XrdSysLogger;
 
-// Set log file keep value. A negative number means keep abs() files.
-//                          A positive number means keep no more than n bytes.
-//
-void setKeep(long long knum) {eKeep = knum;}
+virtual void  Ring() = 0; //!< This method gets called at midnight
 
-// Set log file rotation on/off. Used by forked processes.
-//
-void setRotate(int onoff) {doLFR = onoff;}
+inline  Task *Next() {return next;}
 
-// Return formated date/time (tbuff must be atleast 24 characters)
-//
-int Time(char *tbuff);
-
-// traceBeg() obtains  the logger lock and returns a message header.
-// traceEnd() releases the logger lock and returns a newline
-//
-char *traceBeg() {Logger_Mutex.Lock(); Time(TBuff); return TBuff;}
-char  traceEnd() {Logger_Mutex.UnLock(); return '\n';}
-
-// xlogFD() returns the FD to be used by external programs as their STDERR.
-// A negative one indicates that no special FD is assigned.
-//
-int   xlogFD();
+              Task() : next(0) {}
+virtual      ~Task() {}
 
 private:
+Task *next;
+};
 
+void  AtMidnight(Task *mnTask);
+
+//-----------------------------------------------------------------------------
+//! Bind allows you to bind the file descriptor passed at construction time to
+//! a file with an optional periodic closing and opening of the file.
+//!
+//! @param  path      The log file path. The file is created, if need be.
+//!                   If path is null, messages are routed to stderr and the
+//!                   lfh argument is ignored.
+//! @param  lfh       Log file handling:
+//!                   >0 file is to be closed and opened at midnight.
+//!                      This implies automatic log rotation.
+//!                   =0 file is to be left open all the time.
+//!                      This implies no        log rotation.
+//!                   <0 file is to be closed and opened only on signal abs(lfh)
+//!                      unless the value equals onFifo. In this case a fifo is
+//!                      used to control log file rotation. The name of the fifo
+//!                      is path with the filename component prefixed by dot.
+//!                      This implies manual    log rotation. Warning! Using
+//!                      signals requires that Bind() be called before starting
+//!                      any threads so that the signal is properly blocked.
+//!
+//! @return  0        Processing successful.
+//! @return <0        Unable to bind, returned value is -errno of the reason.
+//-----------------------------------------------------------------------------
+
+static const int onFifo = (int)0x80000000;
+
+int Bind(const char *path, int lfh=0);
+
+//-----------------------------------------------------------------------------
+//! Flush any pending output
+//-----------------------------------------------------------------------------
+
+void Flush() {fsync(eFD);}
+
+//-----------------------------------------------------------------------------
+//! Get the file descriptor passed at construction time.
+//!
+//! @return the file descriptor passed to the constructor.
+//-----------------------------------------------------------------------------
+
+int  originalFD() {return baseFD;}
+
+//-----------------------------------------------------------------------------
+//! Parse the keep option argument.
+//!
+//! @param  arg       Pointer to the argument. The argument syntax is:
+//!                   <count> | <size> | fifo | <signame>
+//!
+//! @return !0        Parsing succeeded. The return value is the argument that
+//!                   must be passed as the lfh parameter to Bind().
+//! @return =0        Invalid keep argument.
+//-----------------------------------------------------------------------------
+
+int  ParseKeep(const char *arg);
+
+//-----------------------------------------------------------------------------
+//! Output data and optionally prefix with date/time
+//!
+//! @param  iovcnt    The number of elements in iov vector.
+//! @param  iov       The vector describing what to print. If iov[0].iov_base
+//!                   is zero, the message is prefixed by date and time.
+//-----------------------------------------------------------------------------
+
+void Put(int iovcnt, struct iovec *iov);
+
+//-----------------------------------------------------------------------------
+//! Set log file timstamp to high resolution (hh:mm:ss.uuuu).
+//-----------------------------------------------------------------------------
+
+void setHiRes() {hiRes = true;}
+
+//-----------------------------------------------------------------------------
+//! Set log file keep value.
+//!
+//! @param  knum      The keep value. If knum < 0 then abs(knum) files are kept.
+//!                   Otherwise, only knum bytes of log files are kept.
+//-----------------------------------------------------------------------------
+
+void setKeep(long long knum) {eKeep = knum;}
+
+//-----------------------------------------------------------------------------
+//! Set log file rotation on/off.
+//!
+//! @param  onoff     When !0 turns on log file rotations. Otherwise, rotation
+//!                   is turned off.
+//-----------------------------------------------------------------------------
+
+void setRotate(int onoff) {doLFR = onoff;}
+
+//-----------------------------------------------------------------------------
+//! Start trace message serialization. This method must be followed by a call
+//! to traceEnd().
+//!
+//! @return pointer to the time buffer to be used as the msg timestamp.
+//-----------------------------------------------------------------------------
+
+char *traceBeg() {Logger_Mutex.Lock(); Time(TBuff); return TBuff;}
+
+//-----------------------------------------------------------------------------
+//! Stop trace message serialization. This method must be preceeded by a call
+//! to traceBeg().
+//!
+//! @return pointer to a new line character to terminate the message.
+//-----------------------------------------------------------------------------
+
+char  traceEnd() {Logger_Mutex.UnLock(); return '\n';}
+
+//-----------------------------------------------------------------------------
+//! Get the log file routing.
+//!
+//! @return the filename of the log file or "stderr".
+//-----------------------------------------------------------------------------
+
+const char *xlogFN() {return (ePath ? ePath : "stderr");}
+
+//-----------------------------------------------------------------------------
+//! Internal method to handle the logfile. This is public because it needs to
+//! be called by an external thread.
+//-----------------------------------------------------------------------------
+
+void        zHandler();
+
+private:
+int         FifoMake();
+void        FifoWait();
+int         Time(char *tbuff);
+
+struct mmMsg
+      {mmMsg *next;
+       int    mlen;
+       char  *msg;
+      };
+mmMsg     *msgList;
+Task      *taskQ;
 XrdSysMutex Logger_Mutex;
-static int extLFD[4];
 long long  eKeep;
-char       TBuff[24];        // Trace header buffer
+char       TBuff[32];        // Trace header buffer
 int        eFD;
 int        baseFD;
 char      *ePath;
 char       Filesfx[8];
-time_t     eNTC;
 int        eInt;
-time_t     eNow;
-int        doLFR;
+int        reserved1;
+char      *fifoFN;
+bool       hiRes;
+bool       doLFR;
+pthread_t  lfhTID;
 
 void   putEmsg(char *msg, int msz);
 int    ReBind(int dorename=1);

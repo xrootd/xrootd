@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <strings.h>
 
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
 
 class XrdSecProtocolhost : public XrdSecProtocol
@@ -52,11 +53,15 @@ public:
 
 void                       Delete() {delete this;}
 
-              XrdSecProtocolhost(const char *host) : XrdSecProtocol("host")
-                                   {theHost = strdup(host);}
+              XrdSecProtocolhost(const char *host, XrdNetAddrInfo &endPoint)
+                                : XrdSecProtocol("host")
+                                   {theHost = strdup(host);
+                                    epAddr = endPoint;
+                                   }
              ~XrdSecProtocolhost() {if (theHost) free(theHost);}
 private:
 
+XrdNetAddrInfo epAddr;
 char *theHost;
 };
 #endif

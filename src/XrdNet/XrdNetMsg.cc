@@ -28,13 +28,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <errno.h>
 #include <sys/poll.h>
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetMsg.hh"
 #include "XrdNet/XrdNetOpts.hh"
-#include "XrdNet/XrdNetPeer.hh"
-#include "XrdNet/XrdNetSocket.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -42,21 +41,26 @@
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest)
+XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest, bool *aOK)
 {
-   XrdNet     myNet(erp);
-   XrdNetPeer Peer;
+   XrdNet myNet(erp);
+   bool   aok = true;
 
-   eDest = erp; DestHN = 0; DestIP = 0; DestSZ = 0; FD = -1;
+   eDest = erp; FD = -1; destOK = 0;
    if (dest)
-      {if (XrdNetSocket::socketAddr(erp, dest, &DestIP, DestSZ))
-          eDest->Emsg("Msg", "Default", dest, "is unreachable");
-          else DestHN = strdup(dest);
+      {const char *eText = dfltDest.Set(dest);
+       if (!eText) destOK = 1;
+          else {eDest->Emsg("Msg", "Default", dest, "is unreachable");
+                aok = false;
+               }
       }
 
-    if (!myNet.Relay(Peer, dest, XRDNET_SENDONLY))
-       eDest->Emsg("Msg", "Unable top create UDP msg socket.");
-       else FD = Peer.fd;
+    if ((FD = myNet.Relay(dest)) < 0)
+       {eDest->Emsg("Msg", "Unable to create UDP msg socket.");
+        aok = false;
+       }
+
+    if (aOK) *aOK = aok;
 }
 
 /******************************************************************************/
@@ -65,29 +69,27 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest)
   
 int XrdNetMsg::Send(const char *Buff, int Blen, const char *dest, int tmo)
 {
-   int retc, eCode, dL, doFree = 0;
-   struct sockaddr *dP;
+   XrdNetAddr *theDest;
+   int retc;
 
    if (!Blen && !(Blen = strlen(Buff))) return  0;
 
    if (!dest)
-       {if (!DestHN)
+       {if (!destOK)
            {eDest->Emsg("Msg", "Destination not specified."); return -1;}
-        dP = DestIP; dL = DestSZ; dest = DestHN;
+        theDest = &dfltDest;
        }
-      else if (XrdNetSocket::socketAddr(eDest, dest, &dP, dL))
+      else if (specDest.Set(dest))
               {eDest->Emsg("Msg", dest, "is unreachable");    return -1;}
-              else doFree = 1;
+              else theDest = &specDest;
 
-   if (tmo >= 0 && !OK2Send(tmo, dest)) {if (doFree) free(dP); return 1;}
+   if (tmo >= 0 && !OK2Send(tmo, dest)) return 1;
 
-   do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0, dP, dL);}
+   do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0, 
+                     theDest->SockAddr(), theDest->SockSize());}
        while (retc < 0 && errno == EINTR);
 
-   if (retc < 0) eCode = errno;
-   if (doFree) free(dP);
-   if (retc < 0) return retErr(errno, dest);
-   return 0;
+   return (retc < 0 ? retErr(errno, theDest) : 0);
 }
 
 /******************************************************************************/
@@ -135,9 +137,19 @@ int XrdNetMsg::OK2Send(int timeout, const char *dest)
 /******************************************************************************/
 /*                                r e t E r r                                 */
 /******************************************************************************/
-  
-int XrdNetMsg::retErr(int ecode, const char *dest)
+
+int XrdNetMsg::retErr(int ecode, const char *theDest)
 {
-   eDest->Emsg("Msg", ecode, "send to", dest);
+   if (!theDest)
+      {if (!destOK)
+          {eDest->Emsg("Msg", "Destination not specified."); return -1;}
+       theDest = dfltDest.Name("unknown");
+      }
+   eDest->Emsg("Msg", ecode, "send to", theDest);
    return (EWOULDBLOCK == ecode || EAGAIN == ecode ? 1 : -1);
+}
+  
+int XrdNetMsg::retErr(int ecode, XrdNetAddr *theDest)
+{
+   return retErr(ecode, theDest->Name("unknown"));
 }

@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClLog.hh"
@@ -22,13 +28,19 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileStateHandler.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPlugInInterface.hh"
+#include "XrdCl/XrdClPlugInManager.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  File::File()
+  File::File( bool enablePlugIns ):
+    pPlugIn(0),
+    pEnablePlugIns( enablePlugIns )
   {
     pStateHandler = new FileStateHandler();
   }
@@ -38,8 +50,17 @@ namespace XrdCl
   //------------------------------------------------------------------------
   File::~File()
   {
-    Close();
+    //--------------------------------------------------------------------------
+    // This, in principle, should never ever happen. Except for the case
+    // when we're interfaced with ROOT that may call this desctructor from
+    // its garbage collector, from its __cxa_finalize, ie. after the XrdCl lib
+    // has been finalized by the linker. So, if we don't have the log object
+    // at this point we just give up the hope.
+    //--------------------------------------------------------------------------
+    if( DefaultEnv::GetLog() )
+      Close();
     delete pStateHandler;
+    delete pPlugIn;
   }
 
   //----------------------------------------------------------------------------
@@ -51,6 +72,30 @@ namespace XrdCl
                            ResponseHandler   *handler,
                            uint16_t           timeout )
   {
+    //--------------------------------------------------------------------------
+    // Check if we need to install and run a plug-in for this URL
+    //--------------------------------------------------------------------------
+    if( pEnablePlugIns && !pPlugIn )
+    {
+      Log *log = DefaultEnv::GetLog();
+      PlugInFactory *fact = DefaultEnv::GetPlugInManager()->GetFactory( url );
+      if( fact )
+      {
+        pPlugIn = fact->CreateFile( url );
+        if( !pPlugIn )
+        {
+          log->Error( FileMsg, "Plug-in factory failed to produce a plug-in "
+                      "for %s, continuing without one", url.c_str() );
+        }
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Open the file
+    //--------------------------------------------------------------------------
+    if( pPlugIn )
+      return pPlugIn->Open( url, flags, mode, handler, timeout );
+
     return pStateHandler->Open( url, flags, mode, handler, timeout );
   }
 
@@ -76,6 +121,9 @@ namespace XrdCl
   XRootDStatus File::Close( ResponseHandler *handler,
                             uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Close( handler, timeout );
+
     return pStateHandler->Close( handler, timeout );
   }
 
@@ -100,6 +148,9 @@ namespace XrdCl
                            ResponseHandler *handler,
                            uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Stat( force, handler, timeout );
+
     return pStateHandler->Stat( force, handler, timeout );
   }
 
@@ -128,6 +179,9 @@ namespace XrdCl
                            ResponseHandler *handler,
                            uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Read( offset, size, buffer, handler, timeout );
+
     return pStateHandler->Read( offset, size, buffer, handler, timeout );
   }
 
@@ -156,7 +210,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Write a data chank at a given offset - async
+  // Write a data chunk at a given offset - async
   //----------------------------------------------------------------------------
   XRootDStatus File::Write( uint64_t         offset,
                             uint32_t         size,
@@ -164,6 +218,9 @@ namespace XrdCl
                             ResponseHandler *handler,
                             uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Write( offset, size, buffer, handler, timeout );
+
     return pStateHandler->Write( offset, size, buffer, handler, timeout );
   }
 
@@ -190,6 +247,9 @@ namespace XrdCl
   XRootDStatus File::Sync( ResponseHandler *handler,
                            uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Sync( handler, timeout );
+
     return pStateHandler->Sync( handler, timeout );
   }
 
@@ -214,6 +274,9 @@ namespace XrdCl
                                ResponseHandler *handler,
                                uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Truncate( size, handler, timeout );
+
     return pStateHandler->Truncate( size, handler, timeout );
   }
 
@@ -240,6 +303,9 @@ namespace XrdCl
                                  ResponseHandler *handler,
                                  uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->VectorRead( chunks, buffer, handler, timeout );
+
     return pStateHandler->VectorRead( chunks, buffer, handler, timeout );
   }
 
@@ -260,36 +326,91 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Fcntl( const Buffer    &arg,
+                            ResponseHandler *handler,
+                            uint16_t         timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->Fcntl( arg, handler, timeout );
+
+    return pStateHandler->Fcntl( arg, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Fcntl( const Buffer     &arg,
+                            Buffer          *&response,
+                            uint16_t          timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Fcntl( arg, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //------------------------------------------------------------------------
+  //! Get access token to a file - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::Visa( ResponseHandler *handler,
+                           uint16_t         timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->Visa( handler, timeout );
+
+    return pStateHandler->Visa( handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Get access token to a file - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Visa( Buffer   *&visa,
+                           uint16_t   timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Visa( &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, visa );
+  }
+
+  //----------------------------------------------------------------------------
   // Check if the file is open
   //----------------------------------------------------------------------------
   bool File::IsOpen() const
   {
+    if( pPlugIn )
+      return pPlugIn->IsOpen();
+
     return pStateHandler->IsOpen();
   }
 
   //----------------------------------------------------------------------------
-  // Enable/disable state recovery procedures while the file is open for
-  // reading
+  // Set file property
   //----------------------------------------------------------------------------
-  void File::EnableReadRecovery( bool enable )
+  bool File::SetProperty( const std::string &name, const std::string &value )
   {
-    pStateHandler->EnableReadRecovery( enable );
+    if( pPlugIn )
+      return pPlugIn->SetProperty( name, value );
+
+    return pStateHandler->SetProperty( name, value );
   }
 
   //----------------------------------------------------------------------------
-  // Enable/disable state recovery procedures while the file is open for
-  // writing or read/write
+  // Get file property
   //----------------------------------------------------------------------------
-  void File::EnableWriteRecovery( bool enable )
+  bool File::GetProperty( const std::string &name, std::string &value ) const
   {
-    pStateHandler->EnableWriteRecovery( enable );
-  }
+    if( pPlugIn )
+      return pPlugIn->GetProperty( name, value );
 
-  //----------------------------------------------------------------------------
-  // Get the data server the file is accessed at
-  //----------------------------------------------------------------------------
-  std::string File::GetDataServer() const
-  {
-    return pStateHandler->GetDataServer();
+    return pStateHandler->GetProperty( name, value );
   }
 }

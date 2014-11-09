@@ -41,6 +41,7 @@
 // whole object using the supplied copy constructor.
 
 class XrdSysError;
+union XrdNetSockAddr;
 class XrdOucTrace;
 class XrdBuffManager;
 class XrdInet;
@@ -74,7 +75,12 @@ int              AdmMode;      // Admin path mode
 const char      *myInst;       // Instance name
 const char      *myName;       // Host name
 const char      *myProg;       // Program name
+union {
+const
+XrdNetSockAddr  *urAddr;       // Host Address (the actual structure/union)
+const
 struct sockaddr *myAddr;       // Host address
+      };
 int              ConnMax;      // Max connections
 int              readWait;     // Max milliseconds to wait for data
 int              idleWait;     // Max milliseconds connection may be idle

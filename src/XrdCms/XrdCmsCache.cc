@@ -314,7 +314,7 @@ int XrdCmsCache::WT4File(XrdCmsSelect &Sel, SMask_t mask)
               else {Now = time(0);                            retc = 0;
                     if (iP->Loc.deadline && iP->Loc.deadline <= Now)
                         iP->Loc.deadline = DLTime + Now;
-                    Add2Q(Sel.InfoP, iP, Sel.Opts & XrdCmsSelect::Write);
+                    Add2Q(Sel.InfoP, iP, Sel.Opts);
                    }
 
 // Return result
@@ -433,14 +433,16 @@ void *XrdCmsCache::TickTock()
 /*                                 A d d 2 Q                                  */
 /******************************************************************************/
   
-void XrdCmsCache::Add2Q(XrdCmsRRQInfo *Info, XrdCmsKeyItem *iP, int isrw)
+void XrdCmsCache::Add2Q(XrdCmsRRQInfo *Info, XrdCmsKeyItem *iP, int selOpts)
 {
+   bool  isrw = (selOpts & XrdCmsSelect::Write) != 0;
    short Slot = (isrw ? iP->Loc.rwPend : iP->Loc.roPend);
 
 // Add the request to the appropriate pending queue
 //
    Info->Key = iP;
    Info->isRW= isrw;
+   Info->ifOP= (selOpts & XrdCmsSelect::ifWant);
    if (!(Slot = RRQ.Add(Slot, Info))) Info->Key = 0;
       else if (isrw) iP->Loc.rwPend = Slot;
                else  iP->Loc.roPend = Slot;

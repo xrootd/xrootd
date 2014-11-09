@@ -102,6 +102,8 @@ Where:
 #include <stdio.h>
 #include <sys/param.h>
 
+#include "XrdVersion.hh"
+
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdCns/XrdCnsConfig.hh"
@@ -114,10 +116,13 @@ Where:
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysUtils.hh"
   
 /******************************************************************************/
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
+
+#define XrdBANNER "Copr.  2004-2013 Stanford University, cns version " XrdVSTRING
 
 namespace XrdCns
 {
@@ -130,23 +135,6 @@ extern XrdCnsDaemon       XrdCnsd;
        XrdOucTrace        XrdTrace(&MLog);
 }
 
-/******************************************************************************/
-/*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
-/******************************************************************************/
-
-namespace XrdCns
-{
-void *MLogWorker(void *parg)
-{
-// Just blab out the midnight herald
-//
-   while(1)
-        {XrdSysTimer::Wait4Midnight();
-         MLog.Say(0, "XrdCnsd - Cluster Name Space Daemon");
-        }
-   return (void *)0;
-}
-}
 using namespace XrdCns;
 
 /******************************************************************************/
@@ -157,7 +145,6 @@ int main(int argc, char *argv[])
 {
    XrdSysLogger MLogger;
    XrdOucStream stdinEvents;    // STDIN fed events
-   sigset_t myset;
    char *xrdLogD = 0;
 
 // Establish message routing
@@ -166,11 +153,7 @@ int main(int argc, char *argv[])
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
-   signal(SIGPIPE, SIG_IGN);  // Solaris optimization
-   sigemptyset(&myset);
-   sigaddset(&myset, SIGPIPE);
-   sigaddset(&myset, SIGCHLD);
-   pthread_sigmask(SIG_BLOCK, &myset, NULL);
+   XrdSysUtils::SigBlock();
 
 // Set the default stack size here
 //
@@ -184,17 +167,12 @@ int main(int argc, char *argv[])
 // Construct the logfile path and bind it
 //
    if (Config.logfn || (xrdLogD = getenv("XRDLOGDIR")))
-      {pthread_t tid;
-       char buff[2048];
-       int retc;
+      {char buff[2048];
        if (Config.logfn) strcpy(buff, Config.logfn);
           else {strcpy(buff, xrdLogD); strcat(buff, "cnsdlog");}
-       if (Config.logKeep) MLogger.setKeep(Config.logKeep);
-       MLogger.Bind(buff, 24*60*60);
-       MLog.logger(&MLogger);
-       if ((retc = XrdSysThread::Run(&tid, MLogWorker, (void *)0,
-                                 XRDSYSTHREAD_BIND, "Midnight runner")))
-          MLog.Emsg("Main", retc, "create midnight runner");
+       MLogger.AddMsg(XrdBANNER);
+       MLogger.AddMsg("XrdCnsd - Cluster Name Space Daemon");
+       MLogger.Bind(buff, Config.bindArg);
       }
 
 // Complete configuration. We do it this way so that we can easily run this

@@ -182,6 +182,13 @@ else
 fi
 
 #-------------------------------------------------------------------------------
+# Make sure the version string is not longer than 25 characters
+#-------------------------------------------------------------------------------
+if test ${#VERSION} -gt 25; then
+  VERSION="${VERSION:0:19}...${VERSION: -3}"
+fi
+
+#-------------------------------------------------------------------------------
 # Print the version info and exit if necassary
 #-------------------------------------------------------------------------------
 if test x$PRINTONLY != x; then
@@ -215,4 +222,4 @@ elif test x"`diff src/XrdVersion.hh.new src/XrdVersion.hh`" != x; then
 else
   rm src/XrdVersion.hh.new
 fi
-echo "[I] src/XrdVersion.hh successfuly generated" 1>&2
+echo "[I] src/XrdVersion.hh successfully generated" 1>&2

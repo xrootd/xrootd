@@ -17,4 +17,10 @@ EndsWith$  user2
 #
 # Append '+' to map DN containing the indicated string
 Contains+  user3
+#
+# Map DN with blanks delimited by quotes to indicated string (different cases)
+"DN with Blanks" user4
+"^DN with Blanks" user4
+"DN with Blanks$" user4
+"DN with Blanks+" user4
 

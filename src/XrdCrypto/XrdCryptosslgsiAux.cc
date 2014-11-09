@@ -44,12 +44,23 @@
 #include <openssl/x509v3.h>
 
 #include "XrdSut/XrdSutRndm.hh"
-#include "XrdCrypto/XrdCryptosslgsiAux.hh"
-#include "XrdCrypto/XrdCryptoTrace.hh"
+#include "XrdCrypto/XrdCryptogsiX509Chain.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
 #include "XrdCrypto/XrdCryptosslRSA.hh"
+#include "XrdCrypto/XrdCryptosslTrace.hh"
 #include "XrdCrypto/XrdCryptosslX509.hh"
 #include "XrdCrypto/XrdCryptosslX509Req.hh"
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
+//                                                                           //
+// Extensions OID relevant for proxies                                       //
+//                                                                           //
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
+
+// X509v3 Key Usage: critical
+#define KEY_USAGE_OID  "2.5.29.15"
+// X509v3 Subject Alternative Name: must be absent
+#define SUBJ_ALT_NAME_OID  "2.5.29.17"
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 //                                                                           //
@@ -94,9 +105,9 @@
 #  define XRDGSI_CONST
 #endif
 
-int XrdSslgsiX509Asn1PrintInfo(int tag, int xclass, int constructed, int indent);
-int XrdSslgsiX509FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length);
-int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
+int XrdCryptosslX509Asn1PrintInfo(int tag, int xclass, int constructed, int indent);
+int XrdCryptosslX509FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length);
+int XrdCryptosslX509FillVOMS(XRDGSI_CONST unsigned char **pp,
                           long length, bool &getvat, XrdOucString &vat);
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
@@ -390,7 +401,7 @@ int i2d_gsiProxyCertInfo(gsiProxyCertInfo_t *pci, unsigned char **pp)
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 
 //___________________________________________________________________________
-bool XrdSslgsiProxyCertInfo(const void *extdata, int &pathlen, bool *haspolicy)
+bool XrdCryptosslProxyCertInfo(const void *extdata, int &pathlen, bool *haspolicy)
 {
    //
    // Check presence of a proxyCertInfo and retrieve the path length constraint.
@@ -437,7 +448,7 @@ bool XrdSslgsiProxyCertInfo(const void *extdata, int &pathlen, bool *haspolicy)
 }
 
 //___________________________________________________________________________
-void XrdSslgsiSetPathLenConstraint(void *extdata, int pathlen)
+void XrdCryptosslSetPathLenConstraint(void *extdata, int pathlen)
 {
    //
    // Set the patch length constraint valur in proxyCertInfo extension ext
@@ -472,9 +483,9 @@ void XrdSslgsiSetPathLenConstraint(void *extdata, int pathlen)
 }
 
 //____________________________________________________________________________
-int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk, 
+int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk, 
                              XrdProxyOpt_t *pxopt,
-                             XrdCryptosslgsiX509Chain *xp, XrdCryptoRSA **kp,
+                             XrdCryptogsiX509Chain *xp, XrdCryptoRSA **kp,
                              const char *fnp)
 {
    // Create a proxy certificate following the GSI specification (RFC 3820)
@@ -621,6 +632,7 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
          return -kErrPX_SetPathDepth;
       }
    }
+
    //
    // create extension
    X509_EXTENSION *ext = X509_EXTENSION_new();
@@ -665,7 +677,9 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
       PRINT("could not create stack for extensions"); 
       return -kErrPX_NoResources;
    }
-   if (sk_X509_EXTENSION_push(esk, ext) != 1) {
+   //
+   // Now we add the new extension
+   if (sk_X509_EXTENSION_push(esk, ext) == 0) {
       PRINT("could not push the extension in the stack"); 
       return -kErrPX_Error;
    }
@@ -728,6 +742,37 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
    if (!X509_gmtime_adj(X509_get_notAfter(xPX), valid)) {
       PRINT("could not set notAfter"); 
       return -kErrPX_SetAttribute;
+   }
+
+   // First duplicate the extensions of the EE certificate
+   X509_EXTENSION *xEECext = 0;
+   int nEECext = X509_get_ext_count(xEEC);
+   DEBUG("number of extensions found in the original certificate: "<< nEECext);
+   int i = 0;
+   bool haskeyusage = 0;
+   for (i = 0; i< nEECext; i++) {
+      xEECext = X509_get_ext(xEEC, i);
+      char s[256];
+      OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xEECext), 1);
+      // Flag key usage extension
+      if (!haskeyusage && !strcmp(s, KEY_USAGE_OID)) haskeyusage = 1;
+      // Skip subject alternative name extension
+      if (!strcmp(s, SUBJ_ALT_NAME_OID)) continue;
+      // Duplicate and add to the stack
+      X509_EXTENSION *xEECextdup = X509_EXTENSION_dup(xEECext);
+      if (X509_add_ext(xPX, xEECextdup, -1) == 0) {
+         PRINT("could not push the extension '"<<s<<"' in the stack"); 
+         return -kErrPX_Error;
+      }
+      // Notify what we added
+      int crit = X509_EXTENSION_get_critical(xEECextdup);
+      DEBUG("added extension '"<<s<<"', critical: " << crit);
+   }
+
+   // Warn if the critical oen is missing
+   if (!haskeyusage) {
+      PRINT(">>> WARNING: critical extension 'Key Usage' not found in original certificate! ");
+      PRINT(">>> WARNING: this proxy may not be accepted by some parsers. ");
    }
 
    // Add the extension
@@ -822,7 +867,7 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
 }
 
 //____________________________________________________________________________
-int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
+int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
                                 XrdCryptoX509Req **xcro, XrdCryptoRSA **kcro)
 {
    // Create a proxy certificate request following the GSI specification
@@ -923,15 +968,28 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
       return -kErrPX_NoResources;
    }
    //
+   // Create a stack
+   STACK_OF(X509_EXTENSION) *esk = sk_X509_EXTENSION_new_null();
+   if (!esk) {
+      PRINT("could not create stack for extensions"); 
+      return -kErrPX_NoResources;
+   }
+   //
    // Get signature path depth from present proxy
    X509_EXTENSION *xpiext = 0;
    int npiext = X509_get_ext_count(xpi);
    int i = 0;
+   bool haskeyusage = 0;
    int indepthlen = -1;
    for (i = 0; i< npiext; i++) {
       xpiext = X509_get_ext(xpi, i);
       char s[256];
       OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xpiext), 1);
+      // Flag key usage extension
+      if (!haskeyusage && !strcmp(s, KEY_USAGE_OID)) haskeyusage = 1;
+      // Skip subject alternative name extension
+      if (!strcmp(s, SUBJ_ALT_NAME_OID)) continue;
+      // Get signature path depth from present proxy
       if (!strcmp(s, gsiProxyCertInfo_OID)) {
          unsigned char *p = xpiext->value->data;
          gsiProxyCertInfo_t *inpci =
@@ -940,11 +998,27 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
              inpci->proxyCertPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->proxyCertPathLengthConstraint);
          DEBUG("IN depth length: "<<indepthlen);
+      } else {
+         // Duplicate and add to the stack
+         X509_EXTENSION *xpiextdup = X509_EXTENSION_dup(xpiext);
+         if (sk_X509_EXTENSION_push(esk, xpiextdup) == 0) {
+            PRINT("could not push the extension '"<<s<<"' in the stack"); 
+            return -kErrPX_Error;
+         }
+         // Notify what we added
+         int crit = X509_EXTENSION_get_critical(xpiextdup);
+         DEBUG("added extension '"<<s<<"', critical: " << crit);
       }
       // Do not free the extension: its owned by the certificate
       xpiext = 0;
    }
-
+   //
+   // Warn if the critical oen is missing
+   if (!haskeyusage) {
+      PRINT(">>> WARNING: critical extension 'Key Usage' not found in original certificate! ");
+      PRINT(">>> WARNING: this proxy may not be accepted by some parsers. ");
+   }
+   //
    // Set the new length
    if (indepthlen > -1) {
       if ((pci->proxyCertPathLengthConstraint = ASN1_INTEGER_new())) {
@@ -993,17 +1067,11 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
       PRINT("could not set extension critical flag"); 
       return -kErrPX_SetAttribute;
    }
-   // Create a stack
-   STACK_OF(X509_EXTENSION) *esk = sk_X509_EXTENSION_new_null();
-   if (!esk) {
-      PRINT("could not create stack for extensions"); 
-      return -kErrPX_NoResources;
-   }
-   if (sk_X509_EXTENSION_push(esk, ext) != 1) {
+   if (sk_X509_EXTENSION_push(esk, ext) == 0) {
       PRINT("could not push the extension in the stack"); 
       return -kErrPX_Error;
    }
-   // Add extension
+   // Add extensions
    if (!(X509_REQ_add_extensions(xro, esk))) {
       PRINT("problem adding extension"); 
       return -kErrPX_SetAttribute;
@@ -1032,7 +1100,7 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
 
 
 //____________________________________________________________________________
-int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
+int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
                               XrdCryptoX509Req *xcri, XrdCryptoX509 **xcpo)
 {
    // Sign a proxy certificate request.
@@ -1046,7 +1114,7 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    }
 
    // Make sure the certificate is not expired
-   int timeleft = xcpi->NotAfter() - (int)time(0);
+   int timeleft = xcpi->NotAfter() - (int)time(0) + XrdCryptoTZCorr();
    if (timeleft < 0) {
       PRINT("EEC certificate has expired"); 
       return -kErrPX_ExpiredEEC;
@@ -1161,9 +1229,10 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
 
    //
    // Get signature path depth from input proxy
-   X509_EXTENSION *xpiext = 0;
+   X509_EXTENSION *xpiext = 0, *xriext = 0;
    int npiext = X509_get_ext_count(xpi);
    int i = 0;
+   bool haskeyusage = 0;
    int indepthlen = -1;
    for (i = 0; i< npiext; i++) {
       xpiext = X509_get_ext(xpi, i);
@@ -1180,6 +1249,31 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
             indepthlen = ASN1_INTEGER_get(inpci->proxyCertPathLengthConstraint);
          DEBUG("IN depth length: "<<indepthlen);
       }
+      // Flag key usage extension
+      if (!haskeyusage && !strcmp(s, KEY_USAGE_OID)) haskeyusage = 1;
+      // Fail if a subject alternative name extension is found
+      if (!strcmp(s, SUBJ_ALT_NAME_OID)) {
+         PRINT("subject alternative name extension not allowed! Skipping request"); 
+         return -kErrPX_BadExtension;         
+      }
+      // Attach to ProxyCertInfo extension if any
+      if (!strcmp(s, gsiProxyCertInfo_OID)) {
+         if (xriext) {
+            PRINT("more than one ProxyCertInfo extension! Skipping request"); 
+            return -kErrPX_BadExtension;
+         }
+         xriext = xpiext;
+      } else {
+         // Duplicate and add to the stack
+         X509_EXTENSION *xpiextdup = X509_EXTENSION_dup(xpiext);
+         if (X509_add_ext(xpo, xpiextdup, -1) == 0) {
+            PRINT("could not push the extension '"<<s<<"' in the stack"); 
+            return -kErrPX_Error;
+         }
+         // Notify what we added
+         int crit = X509_EXTENSION_get_critical(xpiextdup);
+         DEBUG("added extension '"<<s<<"', critical: " << crit);
+      }
       // Do not free the extension: its owned by the certificate
       xpiext = 0;
    }
@@ -1194,27 +1288,11 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
 #else /* OPENSSL */
    int nriext = sk_num(xrisk);
 #endif /* OPENSSL */
-   if (nriext != 1) {
-      PRINT("missing or too many extensions in request"); 
+   if (nriext == 0 || !haskeyusage) {
+      PRINT("wrong extensions in request: "<< nriext<<", "<<haskeyusage); 
       return -kErrPX_BadExtension;
    }
-   // Get it
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-   X509_EXTENSION *xriext = sk_X509_EXTENSION_value(xrisk, 0);
-#else /* OPENSSL */
-   X509_EXTENSION *xriext = (X509_EXTENSION *)sk_value(xrisk, 0);
-#endif /* OPENSSL */
-   if (!xriext) {
-      PRINT("could not get extensions from request"); 
-      return -kErrPX_BadExtension;
-   }
-   // Check the extension type
-   char s[256];
-   OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xriext), 1);
-   if (strcmp(s, gsiProxyCertInfo_OID)) {
-      PRINT("wrong extension found"); 
-      return -kErrPX_BadExtension;
-   }
+   //
    // Get the content
    int reqdepthlen = -1;
    unsigned char *p = xriext->value->data;
@@ -1285,7 +1363,7 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    }
 
    // Add the extension
-   if (X509_add_ext(xpo, ext, -1) != 1) {
+   if (X509_add_ext(xpo, ext, -1) == 0) {
       PRINT("could not add extension"); 
       return -kErrPX_SetAttribute;
    }
@@ -1312,312 +1390,7 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
 }
 
 //____________________________________________________________________________
-int XrdSslgsiX509DumpExtensions(XrdCryptoX509 *xcpi)
-{
-   // Dump extensions of the certificate, if any
-   // Returns -1 on failure, 0 on success 
-   EPNAME("X509DumpExtensions");
-
-   int rc = -1;
-   // Make sure we got the right inputs
-   if (!xcpi) {
-      PRINT("invalid inputs");
-      return rc;
-   }
-   
-   // Point to the cerificate
-   X509 *xpi = (X509 *)(xcpi->Opaque());
-
-   rc = 1;
-   // Go through the extensions
-   X509_EXTENSION *xpiext = 0;
-   int npiext = X509_get_ext_count(xpi);
-   int i = 0;
-   for (i = 0; i< npiext; i++) {
-      xpiext = X509_get_ext(xpi, i);
-      char s[256];
-      OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xpiext), 1);
-      // Notify what we found
-      PRINT("found extension '"<<s<<"'");
-      // Dump its content
-      rc = 0;
-      XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) xpiext->value->data; 
-      long length = xpiext->value->length;
-      int ret = XrdSslgsiX509FillUnknownExt(&pp, length);
-      PRINT("ret: " << ret);
-   }
-
-   // Done
-   return rc;
-}
-
-//____________________________________________________________________________
-int XrdSslgsiX509FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length)
-{
-   // Do the actual filling of the bio; can be called recursevely
-   EPNAME("X509FillUnknownExt");
-
-   XRDGSI_CONST unsigned char *p,*ep,*tot,*op,*opp;
-   long len;
-   int tag, xclass, ret = 0;
-   int nl,hl,j,r;
-   ASN1_OBJECT *o = 0;
-   ASN1_OCTET_STRING *os = 0;
-   /* ASN1_BMPSTRING *bmp=NULL;*/
-   int dump_indent = 6;
-   int depth = 0;
-   int indent = 0;
-
-   p = *pp;
-   tot = p + length;
-   op = p - 1;
-   while ((p < tot) && (op < p)) {
-      op = p;
-      j = ASN1_get_object(&p, &len, &tag, &xclass, length);
-#ifdef LINT
-      j = j;
-#endif
-      if (j & 0x80) {
-         PRINT("ERROR: error in encoding");
-         ret = 0;
-         goto end;
-      }
-      hl = (p-op);
-      length -= hl;
-      /* if j == 0x21 it is a constructed indefinite length object */
-
-      if (j != (V_ASN1_CONSTRUCTED | 1)) {
-         PRINT("PRIM:  d="<<depth<<" hl="<<hl<<" l="<<len);
-      } else {
-         PRINT("CONST: d="<<depth<<" hl="<<hl<<" l=inf  ");
-      }
-      if (!XrdSslgsiX509Asn1PrintInfo(tag, xclass, j, (indent) ? depth : 0))
-         goto end;
-      if (j & V_ASN1_CONSTRUCTED) {
-         ep = p + len;
-         PRINT(" ");
-         if (len > length) {
-            PRINT("ERROR:CONST: length is greater than " <<length);
-            ret=0;
-            goto end;
-         }
-         if ((j == 0x21) && (len == 0)) {
-            for (;;) {
-               r = XrdSslgsiX509FillUnknownExt(&p, (long)(tot-p));
-               if (r == 0) {
-                  ret = 0;
-                  goto end;
-               }
-               if ((r == 2) || (p >= tot))
-                  break;
-            }
-         } else {
-            while (p < ep) {
-               r = XrdSslgsiX509FillUnknownExt(&p, (long)len);
-               if (r == 0) {
-                  ret = 0;
-                  goto end;
-               }
-            }
-         }
-      } else if (xclass != 0) {
-         p += len;
-         PRINT(" ");
-      } else {
-         nl = 0;
-         if ((tag == V_ASN1_PRINTABLESTRING) ||
-             (tag == V_ASN1_T61STRING) ||
-             (tag == V_ASN1_IA5STRING) ||
-             (tag == V_ASN1_VISIBLESTRING) ||
-             (tag == V_ASN1_NUMERICSTRING) ||
-             (tag == V_ASN1_UTF8STRING) ||
-             (tag == V_ASN1_UTCTIME) ||
-             (tag == V_ASN1_GENERALIZEDTIME)) {
-            if (len > 0) {
-               char *s = new char[len + 1];
-               memcpy(s, p, len);
-               s[len] = 0;
-               PRINT("GENERIC:" << s <<" (len: "<<(int)len<<")");
-               delete [] s;
-            } else {
-               PRINT("GENERIC: (len: "<<(int)len<<")");
-            }
-         } else if (tag == V_ASN1_OBJECT) {
-            opp = op;
-            if (d2i_ASN1_OBJECT(&o, &opp, len+hl)) {
-               BIO *mem = BIO_new(BIO_s_mem());
-               i2a_ASN1_OBJECT(mem, o);
-               XrdOucString objstr;
-               BIO_PRINT(mem, "AOBJ:");
-            } else {
-               PRINT("ERROR:AOBJ: BAD OBJECT");
-            }
-         } else if (tag == V_ASN1_BOOLEAN) {
-            opp = op;
-            int ii = d2i_ASN1_BOOLEAN(NULL,&opp,len+hl);
-            if (ii < 0) {
-               PRINT("ERROR:BOOL: Bad boolean");
-               goto end;
-            }
-            PRINT("BOOL:"<< ii);
-         } else if (tag == V_ASN1_BMPSTRING) {
-            /* do the BMP thang */
-         } else if (tag == V_ASN1_OCTET_STRING) {
-            int i, printable = 1;
-            opp = op;
-            os = d2i_ASN1_OCTET_STRING(0, &opp, len + hl);
-            if (os && os->length > 0) {
-               opp = os->data;
-               /* testing whether the octet string is * printable */
-               for (i=0; i<os->length; i++) {
-                  if (( (opp[i] < ' ') && (opp[i] != '\n') &&
-                        (opp[i] != '\r') && (opp[i] != '\t')) || (opp[i] > '~')) {
-                     printable = 0;
-                     break;
-                  }
-               }
-               if (printable) {
-                  /* printable string */
-                  char *s = new char[os->length + 1];
-                  memcpy(s, opp, os->length);
-                  s[os->length] = 0;
-                  PRINT("OBJS:" << s << " (len: "<<os->length<<")");
-                  delete [] s;
-               } else {
-                  /* print the normal dump */
-                  if (!nl) PRINT("OBJS:");
-                  BIO *mem = BIO_new(BIO_s_mem());
-                  if (BIO_dump_indent(mem, (const char *)opp, os->length, dump_indent) <= 0) {
-                     PRINT("ERROR:OBJS: problems dumping to BIO");
-                     BIO_free(mem);                  
-                     goto end;
-                  }
-                  BIO_PRINT(mem, "OBJS:");
-                  nl = 1;
-               }
-            }
-            if (os) {
-               M_ASN1_OCTET_STRING_free(os);
-               os = 0;
-            }
-         } else if (tag == V_ASN1_INTEGER) {
-            ASN1_INTEGER *bs;
-            int i;
-
-            opp = op;
-            bs = d2i_ASN1_INTEGER(0, &opp, len+hl);
-            if (bs) {
-               PRINT("AINT:");
-               if (bs->type == V_ASN1_NEG_INTEGER)
-                  PRINT("-");
-               BIO *mem = BIO_new(BIO_s_mem());
-               for (i = 0; i < bs->length; i++) {
-                  if (BIO_printf(mem, "%02X", bs->data[i]) <= 0) {
-                     PRINT("ERROR:AINT: problems printf-ing to BIO");
-                     BIO_free(mem); 
-                     goto end;
-                  }
-               }
-               BIO_PRINT(mem, "AINT:");
-               if (bs->length == 0) PRINT("00");
-            } else {
-               PRINT("ERROR:AINT: BAD INTEGER");
-            }
-            M_ASN1_INTEGER_free(bs);
-         } else if (tag == V_ASN1_ENUMERATED) {
-            ASN1_ENUMERATED *bs;
-            int i;
-
-            opp = op;
-            bs = d2i_ASN1_ENUMERATED(0, &opp, len+hl);
-            if (bs) {
-               PRINT("AENU:");
-               if (bs->type == V_ASN1_NEG_ENUMERATED)
-                  PRINT("-");
-               BIO *mem = BIO_new(BIO_s_mem());
-               for (i = 0; i < bs->length; i++) {
-                  if (BIO_printf(mem, "%02X", bs->data[i]) <= 0) {
-                     PRINT("ERROR:AENU: problems printf-ing to BIO");
-                     BIO_free(mem); 
-                     goto end;
-                  }
-               }
-               BIO_PRINT(mem, "AENU:");
-               if (bs->length == 0) PRINT("00");
-            } else {
-               PRINT("ERROR:AENU: BAD ENUMERATED");
-            }
-            M_ASN1_ENUMERATED_free(bs);
-         }
-
-         if (!nl) PRINT(" ");
-
-         p += len;
-         if ((tag == V_ASN1_EOC) && (xclass == 0)) {
-            ret = 2; /* End of sequence */
-            goto end;
-         }
-      }
-      length -= len;
-   }
-   ret = 1;
-end:
-   if (o) ASN1_OBJECT_free(o);
-   if (os) M_ASN1_OCTET_STRING_free(os);
-   *pp = p;
-   PRINT("ret: "<<ret);
-
-   return ret;
-}
-
-//____________________________________________________________________________
-int XrdSslgsiX509Asn1PrintInfo(int tag, int xclass, int constructed, int indent)
-{
-   // Print the BIO content
-   EPNAME("X509Asn1PrintInfo");
-
-   static const char fmt[]="%-18s";
-   static const char fmt2[]="%2d %-15s";
-   char str[128];
-   const char *p, *p2 = 0;
-
-   BIO *bp = BIO_new(BIO_s_mem());
-   if (constructed & V_ASN1_CONSTRUCTED)
-      p = "cons: ";
-   else
-      p = "prim: ";
-   if (BIO_write(bp, p, 6) < 6)
-      goto err;
-   BIO_indent(bp, indent, 128);
-
-   p = str;
-   if ((xclass & V_ASN1_PRIVATE) == V_ASN1_PRIVATE)
-      BIO_snprintf(str,sizeof str,"priv [ %d ] ",tag);
-   else if ((xclass & V_ASN1_CONTEXT_SPECIFIC) == V_ASN1_CONTEXT_SPECIFIC)
-      BIO_snprintf(str,sizeof str,"cont [ %d ]",tag);
-   else if ((xclass & V_ASN1_APPLICATION) == V_ASN1_APPLICATION)
-      BIO_snprintf(str,sizeof str,"appl [ %d ]",tag);
-   else if (tag > 30)
-      BIO_snprintf(str,sizeof str,"<ASN1 %d>",tag);
-   else
-      p = ASN1_tag2str(tag);
-
-   if (p2) {
-      if (BIO_printf(bp,fmt2,tag,p2) <= 0)
-         goto err;
-   } else {
-      if (BIO_printf(bp, fmt, p) <= 0)
-         goto err;
-   }
-   BIO_PRINT(bp, "A1PI:");
-   return(1);
-err:
-   BIO_free(bp);
-   return(0);
-}
-
-//____________________________________________________________________________
-int XrdSslgsiX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
+int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
 {
    // Get VOMS attributes from the certificate, if present
    // Return 0 in case of success, 1 if VOMS info is not available, < 0 if any
@@ -1651,7 +1424,7 @@ int XrdSslgsiX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
       rc = 0;
       XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) xpiext->value->data; 
       long length = xpiext->value->length;
-      int ret = XrdSslgsiX509FillVOMS(&pp, length, getvat, vat);
+      int ret = XrdCryptosslX509FillVOMS(&pp, length, getvat, vat);
       DEBUG("ret: " << ret << " - vat: " << vat);
    }
 
@@ -1660,7 +1433,7 @@ int XrdSslgsiX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
 }
 
 //____________________________________________________________________________
-int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
+int XrdCryptosslX509FillVOMS(XRDGSI_CONST unsigned char **pp,
                           long length, bool &getvat, XrdOucString &vat)
 {
    // Look recursively for the VOMS attributes
@@ -1670,7 +1443,7 @@ int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
    XRDGSI_CONST unsigned char *p,*ep,*tot,*op,*opp;
    long len;
    int tag, xclass, ret = 0;
-   int nl,hl,j,r;
+   int /*nl,*/ hl,j,r;
    ASN1_OBJECT *o = 0;
    ASN1_OCTET_STRING *os = 0;
 
@@ -1702,7 +1475,7 @@ int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
          }
          if ((j == 0x21) && (len == 0)) {
             for (;;) {
-               r = XrdSslgsiX509FillVOMS(&p, (long)(tot-p), getvat, vat);
+               r = XrdCryptosslX509FillVOMS(&p, (long)(tot-p), getvat, vat);
                if (r == 0) {
                   ret = 0;
                   goto end;
@@ -1712,7 +1485,7 @@ int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
             }
          } else {
             while (p < ep) {
-               r = XrdSslgsiX509FillVOMS(&p, (long)len, getvat, vat);
+               r = XrdCryptosslX509FillVOMS(&p, (long)len, getvat, vat);
                if (r == 0) {
                   ret = 0;
                   goto end;
@@ -1720,7 +1493,7 @@ int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
             }
          }
       } else {
-         nl = 0;
+         // nl = 0;
          if (tag == V_ASN1_OBJECT) {
             opp = op;
             if (d2i_ASN1_OBJECT(&o, &opp, len+hl)) {

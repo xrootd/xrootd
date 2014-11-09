@@ -29,45 +29,52 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-// This structure is returned during authentication. This is most relevant
-// for client authentication unless mutual authentication has been implemented
-// in which case the client can also authenticate the server. It is embeded
-// in each protocol object to facilitate mutual authentication. Note that the
-// destructor does nothing and it is the responsibility of the protocol object
-// to delete the XrdSecEntity data members, if need be. This is because
-// there can only be one destructor instance for the class and it is ambiguous
-// as to which shared library definition should be used. Since protocol objects
-// have unique class names, each one can have a private destructor avoiding
-// platform specific run-time loader address resolution ecentricities. The OO
-// "fix" for this problem would require protocols to define a derived private
-// destructor for this object which is more hassle than it's worth.
-//
+//------------------------------------------------------------------------------
+//! This object is returned during authentication. This is most relevant for
+//! client authentication unless mutual authentication has been implemented
+//! in which case the client can also authenticate the server. It is embeded
+//! in each protocol object to facilitate mutual authentication. Note that the
+//! destructor does nothing and it is the responsibility of the protocol object
+//! to delete the XrdSecEntity data members, if need be.
+//!
+//! Note: The host member contents are depdent on the dnr/nodnr setting and
+//!       and contain a host name or an IP address. To get the real host name
+//!       use addrInfo->Name(), this is required for any hostname comparisons.
+//------------------------------------------------------------------------------
 
 #include <string.h>
 
 #define XrdSecPROTOIDSIZE 8
+
+class  XrdNetAddrInfo;
 
 class  XrdSecEntity
 {
 public:
          char   prot[XrdSecPROTOIDSIZE];  // Protocol used
          char   *name;                    // Entity's name
-         char   *host;                    // Entity's host name
+         char   *host;                    // Entity's host name dnr dependent
          char   *vorg;                    // Entity's virtual organization
          char   *role;                    // Entity's role
          char   *grps;                    // Entity's group names
          char   *endorsements;            // Protocol specific endorsements
-         char   *creds;                   // Raw client credentials or certificate
-         int     credslen;                // Length of the 'cert' field
          char   *moninfo;                 // Additional information for monitoring 
-         char   *tident;                  // Trace identifier (do not touch)
-
+         char   *creds;                   // Raw client credentials or certificate
+         int     credslen;                // Length of the 'creds' field
+         int     rsvd;                    // Reserved field
+XrdNetAddrInfo  *addrInfo;                // Connection details from getProtocol
+const    char   *tident;                  // Trace identifier always preset
+         void   *sessvar;                 // Plugin settable storage pointer
+                                          // that is common to the session. Free
+                                          // it in your XrdSfsFileSystem::Disc()
+                                          // implementation, as needed.
          XrdSecEntity(const char *pName = "")
-                        {strncpy(prot, pName, XrdSecPROTOIDSIZE-1);
-                         prot[XrdSecPROTOIDSIZE-1] = '\0';
-                         name=host=vorg=role=grps=endorsements=creds=moninfo=tident = 0;
-                         credslen = 0;
-                        }
+                     : name(0), host(0), vorg(0), role(0), grps(0),
+                       endorsements(0), moninfo(0), creds(0), credslen(0),
+                       rsvd(0), addrInfo(0), tident(""), sessvar(0)
+                     {strncpy(prot, pName, XrdSecPROTOIDSIZE-1);
+                      prot[XrdSecPROTOIDSIZE-1] = '\0';
+                     }
         ~XrdSecEntity() {}
 };
 

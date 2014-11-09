@@ -33,6 +33,8 @@ compiler_define_if_found( HAVE_SHADOWPW HAVE_SHADOWPW )
 #-------------------------------------------------------------------------------
 # Some socket related functions
 #-------------------------------------------------------------------------------
+check_function_exists( getifaddrs HAVE_GETIFADDRS )
+compiler_define_if_found( HAVE_GETIFADDRS HAVE_GETIFADDRS )
 check_function_exists( getnameinfo HAVE_NAMEINFO )
 compiler_define_if_found( HAVE_NAMEINFO HAVE_NAMEINFO )
 if( NOT HAVE_NAMEINFO )
@@ -101,7 +103,7 @@ check_cxx_source_runs(
 "
   int main()
   {
-    unsigned long long val = 111, tmp, *mem = &val;
+    unsigned long long val = 111, *mem = &val;
 
     if (__sync_fetch_and_add(&val, 111) != 111 || val != 222) return 1;
     if (__sync_add_and_fetch(&val, 111) != 333)               return 1;
@@ -118,4 +120,8 @@ check_cxx_source_runs(
   }
 "
 HAVE_ATOMICS )
-compiler_define_if_found( HAVE_ATOMICS HAVE_ATOMICS )
+option(EnableAtomicsIfPresent "EnableAtomicsIfPresent" ON)
+if ( EnableAtomicsIfPresent )
+  compiler_define_if_found( HAVE_ATOMICS HAVE_ATOMICS )
+endif ()
+

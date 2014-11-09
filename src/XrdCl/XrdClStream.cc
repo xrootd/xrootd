@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClStream.hh"
@@ -27,16 +33,16 @@
 #include "XrdCl/XrdClOutQueue.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
-#include "XrdSys/XrdSysDNS.hh"
 
 #include <sys/types.h>
+#include <algorithm>
 #include <sys/socket.h>
 #include <sys/time.h>
 
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
-  // Message helper
+  // Outgoing message helper
   //----------------------------------------------------------------------------
   struct OutMessageHelper
   {
@@ -56,6 +62,26 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  // Incoming message helper
+  //----------------------------------------------------------------------------
+  struct InMessageHelper
+  {
+    InMessageHelper( Message              *message = 0,
+                     IncomingMsgHandler   *hndlr   = 0,
+                     time_t                expir   = 0,
+                     uint16_t              actio   = 0 ):
+      msg( message ), handler( hndlr ), expires( expir ), action( actio ) {}
+    void Reset()
+    {
+      msg = 0; handler = 0; expires = 0; action = 0;
+    }
+    Message              *msg;
+    IncomingMsgHandler   *handler;
+    time_t                expires;
+    uint16_t              action;
+  };
+
+  //----------------------------------------------------------------------------
   // Sub stream helper
   //----------------------------------------------------------------------------
   struct SubStreamData
@@ -71,7 +97,8 @@ namespace XrdCl
     }
     AsyncSocketHandler   *socket;
     OutQueue             *outQueue;
-    OutMessageHelper      msgHelper;
+    OutMessageHelper      outMsgHelper;
+    InMessageHelper       inMsgHelper;
     Socket::SocketStatus  status;
   };
 
@@ -84,12 +111,15 @@ namespace XrdCl
     pTransport( 0 ),
     pPoller( 0 ),
     pTaskManager( 0 ),
+    pJobManager( 0 ),
     pIncomingQueue( 0 ),
     pChannelData( 0 ),
     pLastStreamError( 0 ),
     pConnectionCount( 0 ),
     pConnectionInitTime( 0 ),
+    pAddressType( Utils::IPAll ),
     pSessionId( 0 ),
+    pQueueIncMsgJob(0),
     pBytesSent( 0 ),
     pBytesReceived( 0 )
   {
@@ -100,18 +130,23 @@ namespace XrdCl
     o << pUrl->GetHostId() << " #" << pStreamNum;
     pStreamName = o.str();
 
-    Env *env = DefaultEnv::GetEnv();
-    int connectionWindow = DefaultConnectionWindow;
-    env->GetInt( "ConnectionWindow", connectionWindow );
-    pConnectionWindow = connectionWindow;
+    pConnectionWindow  = Utils::GetIntParameter( *url, "ConnectionWindow",
+                                                 DefaultConnectionWindow );
+    pConnectionRetry   = Utils::GetIntParameter( *url, "ConnectionRetry",
+                                                 DefaultConnectionRetry );
+    pStreamErrorWindow = Utils::GetIntParameter( *url, "StreamErrorWindow",
+                                                 DefaultStreamErrorWindow );
 
-    int connectionRetry = DefaultConnectionRetry;
-    env->GetInt( "ConnectionRetry", connectionRetry );
-    pConnectionRetry = connectionRetry;
+    std::string netStack = Utils::GetStringParameter( *url, "NetworkStack",
+                                                      DefaultNetworkStack );
 
-    int streamErrorWindow = DefaultStreamErrorWindow;
-    env->GetInt( "StreamErrorWindow", streamErrorWindow );
-    pStreamErrorWindow = streamErrorWindow;
+    pAddressType = Utils::String2AddressType( netStack );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( PostMasterMsg, "[%s] Stream parameters: Network Stack: %s, "
+                "Connection Window: %d, ConnectionRetry: %d, Stream Error "
+                "Widnow: %d", pStreamName.c_str(), netStack.c_str(),
+                pConnectionWindow, pConnectionRetry, pStreamErrorWindow );
   }
 
   //----------------------------------------------------------------------------
@@ -122,7 +157,7 @@ namespace XrdCl
     Disconnect( true );
 
     Log *log = DefaultEnv::GetLog();
-    log->Debug( PostMasterMsg, "[%s] Destructing stream",
+    log->Debug( PostMasterMsg, "[%s] Destroying stream",
                 pStreamName.c_str() );
 
     MonitorDisconnection( Status() );
@@ -130,6 +165,8 @@ namespace XrdCl
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       delete *it;
+
+    delete pQueueIncMsgJob;
   }
 
   //----------------------------------------------------------------------------
@@ -145,6 +182,7 @@ namespace XrdCl
                                                     pChannelData,
                                                     0 );
     s->SetStream( this );
+
     pSubStreams.push_back( new SubStreamData() );
     pSubStreams[0]->socket = s;
     return Status();
@@ -190,14 +228,14 @@ namespace XrdCl
 
     //--------------------------------------------------------------------------
     // The main stream is not connected, we need to check whether enough time
-    // has passed since we last encoutnered an error (if any) so that we could
-    // reattempt the connection
+    // has passed since we last encountered an error (if any) so that we could
+    // re-attempt the connection
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     time_t now = ::time(0);
 
     if( now-pLastStreamError < pStreamErrorWindow )
-      return Status( stFatal, errConnectionError );
+      return pLastFatalError;
 
     gettimeofday( &pConnectionStarted, 0 );
     pConnectionInitTime = now;
@@ -206,13 +244,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Resolve all the addresses of the host we're supposed to connect to
     //--------------------------------------------------------------------------
-    Status st = Utils::GetHostAddresses( pAddresses, *pUrl );
+    Status st = Utils::GetHostAddresses( pAddresses, *pUrl, pAddressType );
     if( !st.IsOK() )
     {
       log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
                   "the host", pStreamName.c_str() );
       pLastStreamError = now;
-      st.status = stFatal;
+      st.status        = stFatal;
+      pLastFatalError  = st;
       return st;
     }
 
@@ -220,12 +259,13 @@ namespace XrdCl
                              pAddresses );
 
     //--------------------------------------------------------------------------
-    // Initiate the connection process to the first one on the list
+    // Initiate the connection process to the first one on the list.
+    // It's more efficient to remove addresses from the back of a vector
+    // so we reverse the it.
     //--------------------------------------------------------------------------
-    sockaddr_in addr;
-    memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
+    std::reverse( pAddresses.begin(), pAddresses.end() );
+    pSubStreams[0]->socket->SetAddress( pAddresses.back() );
     pAddresses.pop_back();
-    pSubStreams[0]->socket->SetAddress( addr );
     st = pSubStreams[0]->socket->Connect( pConnectionWindow );
     if( st.IsOK() )
       pSubStreams[0]->status = Socket::Connecting;
@@ -254,7 +294,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Decide on the path to send the message
     //--------------------------------------------------------------------------
-    PathID path = pTransport->MultiplexSubStream( msg, *pChannelData );
+    PathID path = pTransport->MultiplexSubStream( msg, pStreamNum,
+                                                  *pChannelData );
     if( pSubStreams.size() <= path.up )
     {
       log->Warning( PostMasterMsg, "[%s] Unable to send message %s through "
@@ -263,9 +304,9 @@ namespace XrdCl
       path.up = 0;
     }
 
-    log->Dump( PostMasterMsg, "[%s] Sending message %s through substream %d "
-               "expecting answer at %d", pStreamName.c_str(),
-               msg->GetDescription().c_str(), path.up, path.down );
+    log->Dump( PostMasterMsg, "[%s] Sending message %s (0x%x) through "
+               "substream %d expecting answer at %d", pStreamName.c_str(),
+               msg->GetDescription().c_str(), msg, path.up, path.down );
 
     //--------------------------------------------------------------------------
     // Enable *a* path and insert the message to the right queue
@@ -273,7 +314,7 @@ namespace XrdCl
     Status st = EnableLink( path );
     if( st.IsOK() )
     {
-      pTransport->MultiplexSubStream( msg, *pChannelData, &path );
+      pTransport->MultiplexSubStream( msg, pStreamNum, *pChannelData, &path );
       pSubStreams[path.up]->outQueue->PushBack( msg, handler,
                                                 expires, stateful );
     }
@@ -300,6 +341,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::Disconnect( bool /*force*/ )
   {
+    XrdSysMutexHelper scopedLock( pMutex );
+    SubStreamList::iterator it;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+    {
+      (*it)->socket->Close();
+      (*it)->status = Socket::Disconnected;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -307,9 +355,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::Tick( time_t now )
   {
+    //--------------------------------------------------------------------------
+    // Check for timed-out requests and incoming handlers
+    //--------------------------------------------------------------------------
     pMutex.Lock();
-    SubStreamList::iterator it;
     OutQueue q;
+    SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       q.GrabExpired( *(*it)->outQueue, now );
     pMutex.UnLock();
@@ -358,19 +409,61 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnIncoming( uint16_t /*subStream*/, Message *msg )
+  void Stream::OnIncoming( uint16_t subStream,
+                           Message  *msg,
+                           uint32_t  bytesReceived )
   {
     msg->SetSessionId( pSessionId );
-    pBytesReceived += msg->GetSize();
-    if( pTransport->Highjack( msg, *pChannelData ) )
+    pBytesReceived += bytesReceived;
+
+    uint32_t streamAction = pTransport->MessageReceived( msg, pStreamNum,
+                                                         subStream,
+                                                         *pChannelData );
+    if( streamAction & TransportHandler::DigestMsg )
       return;
-    pIncomingQueue->AddMessage( msg );
+
+    //--------------------------------------------------------------------------
+    // No handler, we cache and see what comes later
+    //--------------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
+    InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
+
+    if( !mh.handler )
+    {
+      log->Dump( PostMasterMsg, "[%s] Queuing received message: 0x%x.",
+                 pStreamName.c_str(), msg );
+
+      pJobManager->QueueJob( pQueueIncMsgJob, msg );
+      return;
+    }
+
+    //--------------------------------------------------------------------------
+    // We have a handler, so we call the callback
+    //--------------------------------------------------------------------------
+    log->Dump( PostMasterMsg, "[%s] Handling received message: 0x%x.",
+               pStreamName.c_str(), msg );
+
+    if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
+      pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
+
+    if( mh.action & IncomingMsgHandler::NoProcess )
+    {
+      log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
+                 pStreamName.c_str(), msg->GetDescription().c_str() );
+      mh.Reset();
+      return;
+    }
+
+    Job *job = new HandleIncMsgJob( mh.handler );
+    mh.Reset();
+    pJobManager->QueueJob( job, msg );
   }
 
   //----------------------------------------------------------------------------
   // Call when one of the sockets is ready to accept a new message
   //----------------------------------------------------------------------------
-  Message *Stream::OnReadyToWrite( uint16_t subStream )
+  std::pair<Message *, OutgoingMsgHandler *>
+    Stream::OnReadyToWrite( uint16_t subStream )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
@@ -380,29 +473,33 @@ namespace XrdCl
                  pSubStreams[subStream]->socket->GetStreamName().c_str() );
 
       pSubStreams[subStream]->socket->DisableUplink();
-      return 0;
+      return std::make_pair( (Message *)0, (OutgoingMsgHandler *)0 );
     }
 
-    OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+    OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
     h.msg = pSubStreams[subStream]->outQueue->PopMessage( h.handler,
                                                           h.expires,
                                                           h.stateful );
     scopedLock.UnLock();
     if( h.handler )
       h.handler->OnReadyToSend( h.msg, pStreamNum );
-    return h.msg;
+    return std::make_pair( h.msg, h.handler );
   }
 
   //----------------------------------------------------------------------------
   // Call when a message is written to the socket
   //----------------------------------------------------------------------------
-  void Stream::OnMessageSent( uint16_t subStream, Message *msg )
+  void Stream::OnMessageSent( uint16_t  subStream,
+                              Message  *msg,
+                              uint32_t  bytesSent )
   {
-    OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
-    pBytesSent += h.msg->GetSize();
+    pTransport->MessageSent( msg, pStreamNum, subStream, bytesSent,
+                             *pChannelData );
+    OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
+    pBytesSent += bytesSent;
     if( h.handler )
       h.handler->OnStatusReady( msg, Status() );
-    pSubStreams[subStream]->msgHelper.Reset();
+    pSubStreams[subStream]->outMsgHelper.Reset();
   }
 
   //----------------------------------------------------------------------------
@@ -419,6 +516,7 @@ namespace XrdCl
     if( subStream == 0 )
     {
       pLastStreamError = 0;
+      pLastFatalError  = Status();
       pConnectionCount = 0;
       uint16_t numSub = pTransport->SubStreamNumber( *pChannelData );
       ++pSessionId;
@@ -523,7 +621,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Check if we still have time to try and do somethig in the current window
+    // Check if we still have time to try and do something in the current window
     //--------------------------------------------------------------------------
     time_t elapsed = now-pConnectionInitTime;
     if( elapsed < pConnectionWindow )
@@ -533,10 +631,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( !pAddresses.empty() )
       {
-        sockaddr_in addr;
-        memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
+        pSubStreams[0]->socket->SetAddress( pAddresses.back() );
         pAddresses.pop_back();
-        pSubStreams[0]->socket->SetAddress( addr );
 
         Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
         if( !st.IsOK() )
@@ -587,7 +683,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Call back when an error has occured
+  // Call back when an error has occurred
   //----------------------------------------------------------------------------
   void Stream::OnError( uint16_t subStream, Status status )
   {
@@ -602,12 +698,22 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Reinsert the stuff that we have failed to sent
     //--------------------------------------------------------------------------
-    if( pSubStreams[subStream]->msgHelper.msg )
+    if( pSubStreams[subStream]->outMsgHelper.msg )
     {
-      OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+      OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
       pSubStreams[subStream]->outQueue->PushFront( h.msg, h.handler, h.expires,
                                                    h.stateful );
-      pSubStreams[subStream]->msgHelper.Reset();
+      pSubStreams[subStream]->outMsgHelper.Reset();
+    }
+
+    //--------------------------------------------------------------------------
+    // Reinsert the receiving handler
+    //--------------------------------------------------------------------------
+    if( pSubStreams[subStream]->inMsgHelper.handler )
+    {
+      InMessageHelper &h = pSubStreams[subStream]->inMsgHelper;
+      pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
+      h.Reset();
     }
 
     //--------------------------------------------------------------------------
@@ -694,6 +800,7 @@ namespace XrdCl
 
     pConnectionCount = 0;
     pLastStreamError = ::time(0);
+    pLastFatalError  = status;
 
     SubStreamList::iterator it;
     OutQueue q;
@@ -731,8 +838,56 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnReadTimeout( uint16_t /*substream*/ )
+  void Stream::OnReadTimeout( uint16_t substream )
   {
+    //--------------------------------------------------------------------------
+    // We only take the main stream into account
+    //--------------------------------------------------------------------------
+    if( substream != 0 )
+      return;
+
+    //--------------------------------------------------------------------------
+    // Check if there is no outgoing messages and if the stream TTL is elapesed.
+    // It is assumed that the underlying transport makes sure that there is no
+    // pending requests that are not answered, ie. all possible virtual streams
+    // are de-allocated
+    //--------------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
+    SubStreamList::iterator it;
+    time_t                  now = time(0);
+
+    XrdSysMutexHelper scopedLock( pMutex );
+    uint32_t outgoingMessages = 0;
+    time_t   lastActivity     = 0;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+    {
+      outgoingMessages += (*it)->outQueue->GetSize();
+      time_t sockLastActivity = (*it)->socket->GetLastActivity();
+      if( lastActivity < sockLastActivity )
+        lastActivity = sockLastActivity;
+    }
+
+    if( !outgoingMessages )
+    {
+      bool disconnect = pTransport->IsStreamTTLElapsed( now-lastActivity,
+                                                        pStreamNum,
+                                                        *pChannelData );
+      if( disconnect )
+      {
+        log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, disconnecting...",
+                    pStreamName.c_str() );
+        Disconnect();
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Check if the stream is broken
+    //--------------------------------------------------------------------------
+    Status st = pTransport->IsStreamBroken( now-lastActivity,
+                                            pStreamNum,
+                                            *pChannelData );
+    if( !st.IsOK() )
+      OnError( substream, st );
   }
 
   //----------------------------------------------------------------------------
@@ -742,20 +897,40 @@ namespace XrdCl
   {
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Register channel event handler
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void Stream::RegisterEventHandler( ChannelEventHandler *handler )
   {
     pChannelEvHandlers.AddHandler( handler );
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Remove a channel event handler
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void Stream::RemoveEventHandler( ChannelEventHandler *handler )
   {
     pChannelEvHandlers.RemoveHandler( handler );
   }
 
+  //----------------------------------------------------------------------------
+  // Install a incoming message handler
+  //----------------------------------------------------------------------------
+  std::pair<IncomingMsgHandler *, bool>
+        Stream::InstallIncHandler( Message *msg, uint16_t stream )
+  {
+    InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
+    if( !mh.handler )
+      mh.handler = pIncomingQueue->GetHandlerForMessage( msg,
+                                                         mh.expires,
+                                                         mh.action );
+
+    if( !mh.handler )
+      return std::make_pair( (IncomingMsgHandler*)0, false );
+
+    bool ownership = mh.action & IncomingMsgHandler::Take;
+    if( mh.action & IncomingMsgHandler::Raw )
+      return std::make_pair( mh.handler, ownership );
+    return std::make_pair( (IncomingMsgHandler*)0, ownership );
+  }
 }

@@ -97,6 +97,14 @@ public:
    XrdCryptoX509ExportChain_t X509ExportChain();
    XrdCryptoX509ChainToFile_t X509ChainToFile();
 
+   // Hooks to handle X509 proxy certificates
+   XrdCryptoProxyCertInfo_t ProxyCertInfo();
+   XrdCryptoSetPathLenConstraint_t SetPathLenConstraint();
+   XrdCryptoX509CreateProxy_t X509CreateProxy();
+   XrdCryptoX509CreateProxyReq_t X509CreateProxyReq();
+   XrdCryptoX509SignProxyReq_t X509SignProxyReq();
+   XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr();
+
    // Required SSL mutexes.
   static  XrdSysMutex*              CryptoMutexPool[SSLFACTORY_MAX_CRYPTO_MUTEX];
 

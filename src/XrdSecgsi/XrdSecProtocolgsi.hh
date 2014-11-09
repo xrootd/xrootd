@@ -27,11 +27,15 @@
 /******************************************************************************/
 #include <time.h>
 
+#include "XrdNet/XrdNetAddrInfo.hh"
+
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucGMap.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+
+#include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
@@ -46,14 +50,14 @@
 #include "XrdCrypto/XrdCryptoFactory.hh"
 #include "XrdCrypto/XrdCryptoX509Crl.hh"
 
-#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
+#include "XrdCrypto/XrdCryptogsiX509Chain.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
 /******************************************************************************/
 
 typedef XrdOucString String;
-typedef XrdCryptosslgsiX509Chain X509Chain;
+typedef XrdCryptogsiX509Chain X509Chain;
   
 #define XrdSecPROTOIDENT    "gsi"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
@@ -150,6 +154,7 @@ typedef XrdSecgsiAuthzInit_t XrdSecgsiVOMSInit_t;
 //
 // This a small class to set the relevant options in one go
 //
+class XrdOucGMap;
 class XrdOucTrace;
 class gsiOptions {
 public:
@@ -173,7 +178,7 @@ public:
    int    deplen; // [c] depth of signature path for proxies [0] 
    int    bits;   // [c] bits in PKI for proxies [512] 
    char  *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
-   int    gmapto; // [s] validity in secs of grid-map cache entries [-1 => unlimited]
+   int    gmapto; // [s] validity in secs of grid-map cache entries [600 s]
    char  *gmapfun;// [s] file with the function to map DN to usernames [0]
    char  *gmapfunparms;// [s] parameters for the function to map DN to usernames [0]
    char  *authzfun;// [s] file with the function to fill entities [0]
@@ -197,7 +202,7 @@ public:
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
                   cipher = 0; md = 0; ca = 1 ; crl = 1; crlrefresh = 86400;
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
-                  gridmap = 0; gmapto = -1;
+                  gridmap = 0; gmapto = 600;
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
@@ -265,8 +270,8 @@ public:
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        XrdSecProtocolgsi(int opts, const char *hname,
-                          const struct sockaddr *ipadd, const char *parms = 0);
+        XrdSecProtocolgsi(int opts, const char *hname, XrdNetAddrInfo &endPoint,
+                                    const char *parms = 0);
         virtual ~XrdSecProtocolgsi() {} // Delete() does it all
 
         // Initialization methods
@@ -294,6 +299,7 @@ public:
         static XrdOucTrace *EnableTracing();
 
 private:
+          XrdNetAddrInfo   epAddr;
 
    // Static members initialized at startup
    static XrdSysMutex      gsiContext;
@@ -320,9 +326,7 @@ private:
    static int              GMAPOpt;
    static bool             GMAPuseDNname;
    static int              GMAPCacheTimeOut;
-   static XrdSysPlugin    *GMAPPlugin;
    static XrdSecgsiGMAP_t  GMAPFun;
-   static XrdSysPlugin    *AuthzPlugin;
    static XrdSecgsiAuthz_t AuthzFun; 
    static XrdSecgsiAuthzKey_t AuthzKey; 
    static int              AuthzCertFmt; 
@@ -332,7 +336,6 @@ private:
    static int              AuthzPxyWhere;
    static String           SrvAllowedNames;
    static int              VOMSAttrOpt; 
-   static XrdSysPlugin    *VOMSPlugin;
    static XrdSecgsiVOMS_t  VOMSFun;
    static int              VOMSCertFmt; 
    static int              MonInfoOpt;
@@ -353,6 +356,9 @@ private:
    static XrdSutCache      cacheGMAPFun; // Cache for entries mapped by GMAPFun
    static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
    //
+   // Services
+   static XrdOucGMap      *servGMap;  // Grid mapping service 
+   //
    // CRL stack
    static GSICrlStack      stackCRL; // Stack of CRL in use
    //
@@ -372,7 +378,6 @@ private:
 
    // Information local to this instance
    int              options;
-   struct sockaddr  hostaddr;      // Client-side only
    XrdCryptoFactory *sessionCF;    // Chosen crypto factory
    XrdCryptoCipher *sessionKey;    // Session Key (result of the handshake)
    XrdSutBucket    *bucketKey;     // Bucket with the key in export form
@@ -427,7 +432,7 @@ private:
    static int     QueryProxy(bool checkcache, XrdSutCache *cache, const char *tag,
                              XrdCryptoFactory *cf, time_t timestamp,
                              ProxyIn_t *pi, ProxyOut_t *po);
-   static int     InitProxy(ProxyIn_t *pi,
+   static int     InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf,
                             X509Chain *ch = 0, XrdCryptoRSA **key = 0);
 
    // Error functions
@@ -454,7 +459,6 @@ private:
                                 XrdSutBuffer *bls, XrdSutBuffer *buf,
                                 kXR_int32 type, XrdCryptoCipher *cip);
    // Grid map cache handling
-   static int     LoadGMAP(int now); // Init or refresh the cache
    static XrdSecgsiGMAP_t            // Load alternative function for mapping
                   LoadGMAPFun(const char *plugin, const char *parms);
    static XrdSecgsiAuthz_t           // Load alternative function to fill XrdSecEntity

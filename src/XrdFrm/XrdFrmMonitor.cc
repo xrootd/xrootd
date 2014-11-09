@@ -32,15 +32,12 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
-#include "XrdNet/XrdNet.hh"
-#include "XrdNet/XrdNetPeer.hh"
+#include "XrdNet/XrdNetMsg.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -53,13 +50,11 @@ using namespace XrdFrc;
 /******************************************************************************/
   
 char              *XrdFrmMonitor::Dest1      = 0;
-int                XrdFrmMonitor::monFD1     = -1;
 int                XrdFrmMonitor::monMode1   = 0;
-struct sockaddr    XrdFrmMonitor::InetAddr1;
+XrdNetMsg         *XrdFrmMonitor::InetDest1  = 0;
 char              *XrdFrmMonitor::Dest2      = 0;
-int                XrdFrmMonitor::monFD2     = -1;
 int                XrdFrmMonitor::monMode2   = 0;
-struct sockaddr    XrdFrmMonitor::InetAddr2;
+XrdNetMsg         *XrdFrmMonitor::InetDest2  = 0;
 kXR_int32          XrdFrmMonitor::startTime  = 0;
 int                XrdFrmMonitor::isEnabled  = 0;
 char              *XrdFrmMonitor::idRec      = 0;
@@ -137,11 +132,11 @@ do{Send(-1, idRec, idLen);
   
 int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
 {
-   XrdNet     myNetwork(&Say, 0);
-   XrdNetPeer monDest;
    XrdXrootdMonMap *mP;
    long long  mySid;
-   char      *etext, iBuff[1024], *sName;
+   const char *etext = 0;
+   char        iBuff[1024];
+   bool       aOK;
 
 // Generate our server ID
 //
@@ -164,27 +159,22 @@ int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
    mP->dictid   = 0;
    strcpy(mP->info, iBuff);
 
-// Get the address of the primary destination
+// Setup the primary destination
 //
-   if (!XrdSysDNS::Host2Dest(Dest1, InetAddr1, &etext))
+   InetDest1 = new XrdNetMsg(&Say, Dest1, &aOK);
+   if (!aOK)
       {Say.Emsg("Monitor", "setup monitor collector;", etext);
        return 0;
       }
 
-// Allocate a socket for the primary destination
-//
-   if (!myNetwork.Relay(monDest, Dest1, XRDNET_SENDONLY)) return 0;
-   monFD1 = monDest.fd;
-
 // Do the same for the secondary destination
 //
    if (Dest2)
-      {if (!XrdSysDNS::Host2Dest(Dest2, InetAddr2, &etext))
+      {InetDest2 = new XrdNetMsg(&Say, Dest2, &aOK);
+       if (!aOK)
           {Say.Emsg("Monitor", "setup monitor collector;", etext);
            return 0;
           }
-       if (!myNetwork.Relay(monDest, Dest2, XRDNET_SENDONLY)) return 0;
-       monFD2 = monDest.fd;
       }
 
 // Check if we will be producing identification records
@@ -292,19 +282,17 @@ int XrdFrmMonitor::Send(int monMode, void *buff, int blen)
     static XrdSysMutex sendMutex;
     int rc1, rc2;
     sendMutex.Lock();
-    if (monMode & monMode1 && monFD1 >= 0)
-       {rc1  = (int)sendto(monFD1, buff, blen, 0,
-                        (const struct sockaddr *)&InetAddr1, sizeof(sockaddr));
-        DEBUG(blen <<" bytes sent to " <<Dest1 <<" rc=" <<(rc1 ? errno : 0));
+    if (monMode & monMode1 && InetDest1)
+       {rc1  = InetDest1->Send((char *)buff, blen);
+        DEBUG(blen <<" bytes sent to " <<Dest1 <<" rc=" <<rc1);
        }
        else rc1 = 0;
-    if (monMode & monMode2 && monFD2 >= 0)
-       {rc2 = (int)sendto(monFD2, buff, blen, 0,
-                        (const struct sockaddr *)&InetAddr2, sizeof(sockaddr));
-        DEBUG(blen <<" bytes sent to " <<Dest2 <<" rc=" <<(rc2 ? errno : 0));
+    if (monMode & monMode2 && InetDest2)
+       {rc2  = InetDest2->Send((char *)buff, blen);
+        DEBUG(blen <<" bytes sent to " <<Dest2 <<" rc=" <<rc2);
        }
        else rc2 = 0;
     sendMutex.UnLock();
 
-    return (rc1 > rc2 ? rc1 : rc2);
+    return (rc1 ? rc1 : rc2);
 }

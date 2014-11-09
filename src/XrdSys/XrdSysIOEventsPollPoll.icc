@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#if !defined(__macos__) && !defined(__FreeBSD__)
+#if !defined(__APPLE__) && !defined(__FreeBSD__)
 #include <malloc.h>
 #endif
 #include <unistd.h>
@@ -175,7 +175,6 @@ void XrdSys::IOEvents::PollPoll::Begin(XrdSysSemaphore *syncsem,
                                        const char     **eTxt)
 {
    int i, num2poll, numpolled;
-   Channel *cP;
 
 // Indicate to the starting thread that all went well
 //
@@ -279,7 +278,7 @@ void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
       {FDRem(ctnum);
        return;
       } else {
-       PipeData cmdbuff = {(char)PipeData::RmFD, 0, (short)ctnum, cP->GetFD()};
+       PipeData cmdbuff((char)PipeData::RmFD,0,(short)ctnum,cP->GetFD());
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
        SendCmd(cmdbuff);
       }
@@ -293,9 +292,7 @@ void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
 //
 void XrdSys::IOEvents::PollPoll::FDMod(int ptnum, int fd, int events)
 {
-   static const int cPert = 256;
    XrdSysMutexHelper mHelper(pollMutex);
-   Channel *cP;
 
 // First step is to see if we need to swap to a new poll table
 //
@@ -431,8 +428,8 @@ bool XrdSys::IOEvents::PollPoll::Include(XrdSys::IOEvents::Channel *cP,
       {FDMod(ctnum, fd, cP->GetEvents());
        return true;
       } else {
-       PipeData cmdbuff = {(char)PipeData::MiFD, (char)cP->GetEvents(),
-                           (short)ctnum,         fd};
+       PipeData cmdbuff((char)PipeData::MiFD, (char)cP->GetEvents(),
+                        (short)ctnum,         fd, 0);
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
        SendCmd(cmdbuff);
       }
@@ -460,8 +457,8 @@ bool XrdSys::IOEvents::PollPoll::Modify(XrdSys::IOEvents::Channel *cP,
       {FDMod(GetPollEnt(cP), cP->GetFD(), cP->GetEvents());
        return true;
       } else {
-       PipeData cmdbuff = {(char)PipeData::MdFD, (char)cP->GetEvents(),
-                           (short)GetPollEnt(cP), cP->GetFD()};
+       PipeData cmdbuff((char)PipeData::MdFD, (char)cP->GetEvents(),
+                        (short)GetPollEnt(cP), cP->GetFD(), 0);
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
        SendCmd(cmdbuff);
       }

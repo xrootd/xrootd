@@ -21,6 +21,8 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksLoader.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
@@ -108,12 +110,12 @@ namespace XrdCl
                   algName.c_str() );
       return false;
     }
-    std::auto_ptr<XrdCksCalc> calcPtr( calc );
+    XRDCL_SMART_PTR_T<XrdCksCalc> calcPtr( calc );
 
     //--------------------------------------------------------------------------
     // Open the file
     //--------------------------------------------------------------------------
-    log->Debug( UtilityMsg, "Openning %s for reading (chacksum calc)",
+    log->Debug( UtilityMsg, "Opening %s for reading (checksum calc)",
                filePath.c_str() );
 
     int fd = open( filePath.c_str(), O_RDONLY );
@@ -138,6 +140,7 @@ namespace XrdCl
         log->Error( UtilityMsg, "Unable read from %s: %s", filePath.c_str(),
                     strerror( errno ) );
         close( fd );
+        delete [] buffer;
         return false;
       }
       calc->Update( buffer, bytesRead );
@@ -150,6 +153,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Clean up
     //--------------------------------------------------------------------------
+    delete [] buffer;
     close( fd );
     return true;
   }

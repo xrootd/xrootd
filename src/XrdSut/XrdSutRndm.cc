@@ -44,7 +44,7 @@
 /*             M a s k s  f o r   A S C I I  c h a r a c t e r s              */
 /******************************************************************************/
 
-static kXR_int32 XrdSutCharMsk[4][4] =
+static kXR_unt32 XrdSutCharMsk[4][4] =
    { {0x0, 0xffffff08, 0xafffffff, 0x2ffffffe}, // any printable char
      {0x0, 0x3ff0000, 0x7fffffe, 0x7fffffe},    // letters/numbers  (up/low case)
      {0x0, 0x3ff0000, 0x7e, 0x7e},              // hex characters   (up/low case)

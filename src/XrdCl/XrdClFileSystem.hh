@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_FILE_SYSTEM_HH__
@@ -21,7 +27,7 @@
 
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClStatus.hh"
-#include "XrdCl/XrdClEnum.hh"
+#include "XrdOuc/XrdOucEnum.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XProtocol/XProtocol.hh"
@@ -32,6 +38,7 @@ namespace XrdCl
 {
   class PostMaster;
   class Message;
+  class FileSystemPlugIn;
   struct MessageSendParams;
 
   //----------------------------------------------------------------------------
@@ -45,7 +52,7 @@ namespace XrdCl
     enum Code
     {
       Config         = kXR_Qconfig,    //!< Query server configuration
-      ChecksumCancel = kXR_Qckscan,    //!< Query file checksum cancelation
+      ChecksumCancel = kXR_Qckscan,    //!< Query file checksum cancellation
       Checksum       = kXR_Qcksum,     //!< Query file checksum
       Opaque         = kXR_Qopaque,    //!< Implementation dependent
       OpaqueFile     = kXR_Qopaquf,    //!< Implementation dependent
@@ -68,9 +75,10 @@ namespace XrdCl
     enum Flags
     {
       None     = 0,              //!< Nothing
-      Delete   = kXR_delete,     //!< Open a new file, deleting any axisting
+      Delete   = kXR_delete,     //!< Open a new file, deleting any existing
                                  //!< file
-      Force    = kXR_force,      //!< Ignore file usage rules
+      Force    = kXR_force,      //!< Ignore file usage rules, for kXR_locate
+                                 //!< it means ignoreing network dependencies
       MakePath = kXR_mkpath,     //!< Create directory path if it does not
                                  //!< already exist
       New      = kXR_new,        //!< Open the file only if it does not already
@@ -84,16 +92,19 @@ namespace XrdCl
       Append   = kXR_open_apnd,  //!< Open only for appending
       Read     = kXR_open_read,  //!< Open only for reading
       Update   = kXR_open_updt,  //!< Open for reading and writing
+      Write    = kXR_open_wrto,  //!< Open only for writing
       POSC     = kXR_posc,       //!< Enable Persist On Successful Close
                                  //!< processing
       Refresh  = kXR_refresh,    //!< Refresh the cached information on file's
                                  //!< location. Voids NoWait.
       Replica  = kXR_replica,    //!< The file is being opened for replica
                                  //!< creation
-      SeqIO    = kXR_seqio       //!< File will be read or written sequentially
+      SeqIO    = kXR_seqio,      //!< File will be read or written sequentially
+      PrefName = kXR_prefname    //!< Hostname response is prefered, applies
+                                 //!< only to FileSystem::Locate
     };
   };
-  XRDCL_ENUM_OPERATORS( OpenFlags::Flags )
+  XRDOUC_ENUM_OPERATORS( OpenFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Access mode
@@ -117,7 +128,7 @@ namespace XrdCl
       OX   = kXR_ox          //!< world executable/browsable
     };
   };
-  XRDCL_ENUM_OPERATORS( Access::Mode )
+  XRDOUC_ENUM_OPERATORS( Access::Mode )
 
   //----------------------------------------------------------------------------
   //! MkDir flags
@@ -130,7 +141,7 @@ namespace XrdCl
       MakePath = 1   //!< create the entire directory tree if it doesn't exist
     };
   };
-  XRDCL_ENUM_OPERATORS( MkDirFlags::Flags )
+  XRDOUC_ENUM_OPERATORS( MkDirFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! DirList flags
@@ -145,7 +156,7 @@ namespace XrdCl
                    //!< the dirlist request to all of them
     };
   };
-  XRDCL_ENUM_OPERATORS( DirListFlags::Flags )
+  XRDOUC_ENUM_OPERATORS( DirListFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Prepare flags
@@ -154,6 +165,7 @@ namespace XrdCl
   {
     enum Flags
     {
+      None        = 0,            //!< no flags
       Colocate    = kXR_coloc,    //!< co-locate staged files, if possible
       Fresh       = kXR_fresh,    //!< refresh file access time even if
                                   //!< the location is known
@@ -163,7 +175,7 @@ namespace XrdCl
                                   //!< modification
     };
   };
-  XRDCL_ENUM_OPERATORS( PrepareFlags::Flags )
+  XRDOUC_ENUM_OPERATORS( PrepareFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Send file/filesystem queries to an XRootD cluster
@@ -179,9 +191,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param url URL    of the entry-point server to be contacted
+      //! @param url URL of the entry-point server to be contacted
+      //! @param enablePlugIns enable the plug-in mechanism for this object
       //------------------------------------------------------------------------
-      FileSystem( const URL &url );
+      FileSystem( const URL &url, bool enablePlugIns = true );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -195,7 +208,7 @@ namespace XrdCl
       //! @param flags   some of the OpenFlags::Flags
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a Buffer object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -227,7 +240,7 @@ namespace XrdCl
       //! @param flags   some of the OpenFlags::Flags
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a Buffer object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -287,7 +300,7 @@ namespace XrdCl
       //! @param arg       query argument
       //! @param handler   handler to be notified when the response arrives,
       //!                  the response parameter will hold a Buffer object
-      //!                  if the procedure is successfull
+      //!                  if the procedure is successful
       //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
@@ -474,7 +487,7 @@ namespace XrdCl
       //! @param path    file/directory path
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfo object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -502,7 +515,7 @@ namespace XrdCl
       //! @param path    file/directory path
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfoVFS object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -529,7 +542,7 @@ namespace XrdCl
       //!
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a ProtocolInfo object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -552,16 +565,18 @@ namespace XrdCl
       //! List entries of a directory - async
       //!
       //! @param path    directory path
+      //! @param flags   currently unused
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a DirectoryList
-      //!                object if the procedure is successfull
+      //!                object if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus DirList( const std::string &path,
-                            ResponseHandler   *handler,
-                            uint16_t           timeout = 0 );
+      XRootDStatus DirList( const std::string   &path,
+                            DirListFlags::Flags  flags,
+                            ResponseHandler     *handler,
+                            uint16_t             timeout = 0 );
 
       //------------------------------------------------------------------------
       //! List entries of a directory - sync
@@ -584,7 +599,7 @@ namespace XrdCl
       //! @param info      the info string to be sent
       //! @param handler   handler to be notified when the response arrives,
       //!                  the response parameter will hold a Buffer object
-      //!                  if the procedure is successfull
+      //!                  if the procedure is successful
       //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
@@ -614,7 +629,7 @@ namespace XrdCl
       //! @param priority  priority of the request 0 (lowest) - 3 (highest)
       //! @param handler   handler to be notified when the response arrives,
       //!                  the response parameter will hold a Buffer object
-      //!                  if the procedure is successfull
+      //!                  if the procedure is successful
       //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
@@ -642,6 +657,21 @@ namespace XrdCl
                             Buffer                         *&response,
                             uint16_t                         timeout = 0 );
 
+      //------------------------------------------------------------------------
+      //! Set filesystem property
+      //!
+      //! Filesystem properties:
+      //! FollowRedirects  [true/false] - enable/disable following redirections
+      //------------------------------------------------------------------------
+      bool SetProperty( const std::string &name, const std::string &value );
+
+      //------------------------------------------------------------------------
+      //! Get filesystem property
+      //!
+      //! @see FileSystem::SetProperty for property list
+      //------------------------------------------------------------------------
+      bool GetProperty( const std::string &name, std::string &value ) const;
+
     private:
 
       //------------------------------------------------------------------------
@@ -649,10 +679,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Status Send( Message                 *msg,
                    ResponseHandler         *handler,
-                   const MessageSendParams &params );
+                   MessageSendParams       &params );
 
       //------------------------------------------------------------------------
-      // Assign a loadbalancer if it has not already been assigned
+      // Assign a load balancer if it has not already been assigned
       //------------------------------------------------------------------------
       void AssignLoadBalancer( const URL &url );
 
@@ -672,9 +702,11 @@ namespace XrdCl
         pMutex.UnLock();
       }
 
-      XrdSysMutex  pMutex;
-      bool         pLoadBalancerLookupDone;
-      URL         *pUrl;
+      XrdSysMutex       pMutex;
+      bool              pLoadBalancerLookupDone;
+      bool              pFollowRedirects;
+      URL              *pUrl;
+      FileSystemPlugIn *pPlugIn;
   };
 }
 

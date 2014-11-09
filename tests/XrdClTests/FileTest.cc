@@ -19,9 +19,12 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include "TestEnv.hh"
 #include "Utils.hh"
+#include "IdentityPlugIn.hh"
+
 #include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClPostMaster.hh"
@@ -42,11 +45,13 @@ class FileTest: public CppUnit::TestCase
       CPPUNIT_TEST( ReadTest );
       CPPUNIT_TEST( WriteTest );
       CPPUNIT_TEST( VectorReadTest );
+      CPPUNIT_TEST( PlugInTest );
     CPPUNIT_TEST_SUITE_END();
     void RedirectReturnTest();
     void ReadTest();
     void WriteTest();
     void VectorReadTest();
+    void PlugInTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileTest );
@@ -102,14 +107,12 @@ void FileTest::RedirectReturnTest()
   SyncResponseHandler *handler = new SyncResponseHandler();
   MessageSendParams params; params.followRedirects = false;
   MessageUtils::ProcessSendParams( params );
-  st = MessageUtils::SendMessage( url, msg, handler, params );
-  RedirectInfo *response = 0;
-  CPPUNIT_ASSERT( st.IsOK() );
+  OpenInfo *response = 0;
+  CPPUNIT_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params ) );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
   delete handler;
-  CPPUNIT_ASSERT( st1.IsOK() );
-  CPPUNIT_ASSERT( st1.code == suXRDRedirect );
-  CPPUNIT_ASSERT( response );
+  CPPUNIT_ASSERT_XRDST_NOTOK( st1, errRedirect );
+  CPPUNIT_ASSERT( !response );
   delete response;
 }
 
@@ -142,8 +145,8 @@ void FileTest::ReadTest()
   // Fetch some data and checksum
   //----------------------------------------------------------------------------
   const uint32_t MB = 1024*1024;
-  char *buffer1 = new char[4*MB];
-  char *buffer2 = new char[4*MB];
+  char *buffer1 = new char[40*MB];
+  char *buffer2 = new char[40*MB];
   uint32_t bytesRead1 = 0;
   uint32_t bytesRead2 = 0;
   File f;
@@ -176,13 +179,17 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Read test
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST( f.Read( 10*MB, 4*MB, buffer1, bytesRead1 ) );
-  CPPUNIT_ASSERT_XRDST( f.Read( 20*MB, 4*MB, buffer2, bytesRead2 ) );
-  CPPUNIT_ASSERT( bytesRead1 == 4*MB );
-  CPPUNIT_ASSERT( bytesRead2 == 4*MB );
-  uint32_t crc = Utils::ComputeCRC32( buffer1, 4*MB );
-  crc = Utils::UpdateCRC32( crc, buffer2, 4*MB );
-  CPPUNIT_ASSERT( crc == 1304813676 );
+  CPPUNIT_ASSERT_XRDST( f.Read( 10*MB, 40*MB, buffer1, bytesRead1 ) );
+  CPPUNIT_ASSERT_XRDST( f.Read( 1008576000, 40*MB, buffer2, bytesRead2 ) );
+  CPPUNIT_ASSERT( bytesRead1 == 40*MB );
+  CPPUNIT_ASSERT( bytesRead2 == 40000000 );
+
+  uint32_t crc = Utils::ComputeCRC32( buffer1, 40*MB );
+  CPPUNIT_ASSERT( crc == 3303853367UL );
+
+  crc = Utils::ComputeCRC32( buffer2, 40000000 );
+  CPPUNIT_ASSERT( crc == 898701504UL );
+
   delete [] buffer1;
   delete [] buffer2;
 
@@ -278,7 +285,6 @@ void FileTest::WriteTest()
   delete [] buffer4;
 }
 
-
 //------------------------------------------------------------------------------
 // Vector read test
 //------------------------------------------------------------------------------
@@ -308,27 +314,56 @@ void FileTest::VectorReadTest()
   // Fetch some data and checksum
   //----------------------------------------------------------------------------
   const uint32_t MB = 1024*1024;
-  char *buffer = new char[40*MB];
+  char *buffer1 = new char[40*MB];
+  char *buffer2 = new char[40*256000];
   File f;
 
   //----------------------------------------------------------------------------
   // Build the chunk list
   //----------------------------------------------------------------------------
-  ChunkList chunkList;
+  ChunkList chunkList1;
+  ChunkList chunkList2;
   for( int i = 0; i < 40; ++i )
-    chunkList.push_back( ChunkInfo( (i+1)*10*MB, 1*MB ) );
+  {
+    chunkList1.push_back( ChunkInfo( (i+1)*10*MB, 1*MB ) );
+    chunkList2.push_back( ChunkInfo( (i+1)*10*MB, 256000 ) );
+  }
 
   //----------------------------------------------------------------------------
   // Open the file
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT( f.Open( fileUrl, OpenFlags::Read ).IsOK() );
+  CPPUNIT_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
   VectorReadInfo *info = 0;
-  CPPUNIT_ASSERT( f.VectorRead( chunkList, buffer, info ).IsOK() );
+  CPPUNIT_ASSERT_XRDST( f.VectorRead( chunkList1, buffer1, info ) );
   CPPUNIT_ASSERT( info->GetSize() == 40*MB );
   delete info;
-  uint32_t crc = Utils::ComputeCRC32( buffer, 40*MB );
-  CPPUNIT_ASSERT( crc == 3695956670 );
-  CPPUNIT_ASSERT( f.Close().IsOK() );
+  uint32_t crc = 0;
+  crc = Utils::ComputeCRC32( buffer1, 40*MB );
+  CPPUNIT_ASSERT( crc == 3695956670UL );
 
-  delete [] buffer;
+  info = 0;
+  CPPUNIT_ASSERT_XRDST( f.VectorRead( chunkList2, buffer2, info ) );
+  CPPUNIT_ASSERT( info->GetSize() == 40*256000 );
+  delete info;
+  crc = Utils::ComputeCRC32( buffer2, 40*256000 );
+  CPPUNIT_ASSERT( crc == 3492603530UL );
+
+  CPPUNIT_ASSERT_XRDST( f.Close() );
+
+  delete [] buffer1;
+  delete [] buffer2;
+}
+
+//------------------------------------------------------------------------------
+// Plug-in test
+//------------------------------------------------------------------------------
+void FileTest::PlugInTest()
+{
+  XrdCl::PlugInFactory *f = new IdentityFactory;
+  XrdCl::DefaultEnv::GetPlugInManager()->RegisterDefaultFactory(f);
+  RedirectReturnTest();
+  ReadTest();
+  WriteTest();
+  VectorReadTest();
+  XrdCl::DefaultEnv::GetPlugInManager()->RegisterDefaultFactory(0);
 }

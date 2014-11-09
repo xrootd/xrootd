@@ -39,7 +39,7 @@
 #include "XrdOuc/XrdOucCacheData.hh"
 #include "XrdSys/XrdSysHeaders.hh"
   
-#ifdef __macos__
+#ifdef __APPLE__
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS MAP_ANON
 #endif

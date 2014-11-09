@@ -4,8 +4,8 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_APP_UTILS_VERSION   0.0.0 )
-set( XRD_APP_UTILS_SOVERSION 0 )
+set( XRD_APP_UTILS_VERSION   1.0.0 )
+set( XRD_APP_UTILS_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # xrdadler32
@@ -61,6 +61,18 @@ target_link_libraries(
   ${EXTRA_LIBS} )
 
 #-------------------------------------------------------------------------------
+# xrdmapc
+#-------------------------------------------------------------------------------
+add_executable(
+  xrdmapc
+  XrdApps/XrdMapCluster.cc )
+
+target_link_libraries(
+  xrdmapc
+  XrdCl
+  XrdUtils )
+
+#-------------------------------------------------------------------------------
 # AppUtils
 #-------------------------------------------------------------------------------
 add_library(
@@ -83,14 +95,14 @@ set_target_properties(
 # xrdCp
 #-------------------------------------------------------------------------------
 add_executable(
-  xrdcp
+  xrdcp-old
   XrdApps/XrdCpy.cc
   XrdClient/XrdcpXtremeRead.cc         XrdClient/XrdcpXtremeRead.hh
   XrdClient/XrdCpMthrQueue.cc          XrdClient/XrdCpMthrQueue.hh
   XrdClient/XrdCpWorkLst.cc            XrdClient/XrdCpWorkLst.hh )
 
 target_link_libraries(
-  xrdcp
+  xrdcp-old
   XrdClient
   XrdUtils
   XrdAppUtils
@@ -102,14 +114,14 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp XrdAppUtils
+  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp-old XrdAppUtils
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdadler32.1
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp-old.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(

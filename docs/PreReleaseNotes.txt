@@ -6,74 +6,75 @@ Prerelease Notes
 ================
 
 + **New Features**
-   * Implement full readv-passthru for enhanced performance (B. Bockleman,
-     UNL). This breaks SFS and OSS plugin ABI compatibility. It also
-     introduces a new method to the POSIX interface.
-   * Allow NSWalk error messages to be routed to stderr for use by command
-     line tools.
-   * Add a disconnect record to the f-stream.
-   * Add --infiles option to xrdcp (and follow-ons) to accept a list of input
-     files via an external file. For the current xrdcp only 1 input file is
-     allowed (xrdcopy has no such restriction).
-   * Allow autloading of checksum plugins (this is for clients).
-   * Make it obvious that version info is mandatory (use references).
-   * Add new object to format and route error messages to multiple
-     destinations.
-   * Allow clients to easily load checksum objects via XrdCksLoader object.
+   * Allow either a dot or dash (whichever comes first) suffix to
+     delimit the default protocol name in the executable's name.
+   * Allow forwardable sss tokens when ecrypted with a forwarding key
+     as defined by the xrdsssadmin command.
+   * Allow the definition of subordinate clusters.
+   * Support multiple checksum types. Client can select non-default
+     checksum using the "cks.type=<algorithm>" cgi element.
+   * Implement generic matching rules to version check 3rd party plug-ins.
+   * Allow the specification of xrootd.seclib default.
+   * Implement dynamic plugin shared library filename versioning to allow
+     multiple major versions to co-exist (currently only for security).
+   * Add new security framework loader to allow external pacakges that
+     linked against security plugins to dynamically load them instead. 
+   * Set keepalive as the default socket value.
+   * Add additional options to xrd.network to control keepalive option.
+   * Allow local/local copying for new xrdcp but not for the old one.
+   * Control core file generation via xrd.sched core directive.
+   * Add pss.permit directive to restrict outbound connections for
+     forwarding proxies.
+   * Allow xrootd to handle objectid names as exports (new feature).
+   * Implement a forwarding proxy option.
+   * Pass along XRD_MONINFO setting and application name to monitoring.
+   * Set client location information.
 
 + **Major bug fixes**
-   * Fix various parse issues in CpConfig. Allow -T {first|only}.
-   * Do not rely in file locking to serialize inter-thread access. This
-     fixes the prolem of usage file drift.
-   * Correct calculation of polltab entries when using poll() type poll.
-     This fixes MacOS bug 99882.
-   * Fix various parse context issues in copy config with --recursive.
-   * Only use the callback dispatcher ending state to determine whether the
-     channel should be excluded from the poll set to avoid referencing
-     deleted memory should the callback delete its own channel.
-   * Recognize object deletion in the error handling path.
-   * Add missing return statement to avoid SEGV during write error recovery
-     under certain circumstances. Fixes bug 99002.
-   * Add mutex serialization so as not to use only fcntl() locking
-     as a synchronization primitive across threads. It doesn't work
-     in Linux.
+   * Pass correct size of buffer to avoid the groupname from not being
+     returned in the unix authentication protocol.
+   * Use the same write selection rules for dfs and non-dfs environments.
+     Currently, kXR_delete selection incorrectly fails in dfs if the file
+     does not exist but correctly succeeds in non-dfs environments.
+   * Correctly size the time buffer to avoid stack corruption.
+   * Use correct flag when adding a cluster. The bug made it impossible
+     to have more than one supervisor node.
+   * Avoid SEGV when assigning a unix domain address to a NetAddrInfo object
+     previously used to hold a TCP domain address.
+   * Prevent blacklisting of all connctions when role is supervisor.
+   * Avoid SEGV when no environment has been passed in the proxy server.
+   * Fix bug in handling cms.dfs redirect verify that would keep the
+     client is an infinite wait loop. This also affected locate requests
+     regardless of what the redirect option was set to.
+   * Fix client-side memory leak. Insignificant except for proxy servers.
+   * Fix memory leak in the Posix admin locate function.
 
 + **Minor bug fixes**
-   * Do not use static structs when refering to stack allocated variable.
-   * Do not create the PrepQ Netsg object in the constructor as this may
-     cause a SEGV should that fail as the PrepQ object is a static global.
-   * Avoid garbled message by using stable storage for message insert.
-   * Fix a post 3.1.1 regression that dropped "refresh" from kXR_locate.
-   * Allow extended host specification as input to TPC.
-   * Add missing instance of XrdPosixXrootd to allow local calculation
-     of checksum for a remote file and increase read size to 1MB. This
-     completes fix for problem 99711.
-   * Do not reflect an error if we actually ended a successful checksum.
-     This only applies to checksums that are externally computed and
-     partially solves problem 99711.
-   * Make sure to include unistd.h, this is a problem when this header
-     is independently used. Patch by Brian Bockelman, UNL.
-   * Fix garbled plugin message.
-   * Avoid lost memory and correct computation of env length. This also fixes
-     bug 99375.
-   * Correct midnight calculation to properly account for time shifts.
-   * Make sure error messages generated in a fork during stream execution
-     appear in the log.
-   * Return error message text to the client when a checksum fails.
-   * Reject checksums on anything that isn't a regular file.
-   * Allow for null fields in the cgi string.
-   * Remove non-atomic AtomicDTZ and AtomicISM macros.
-   * Do not use AtomicDTZ and AtomicISM so as to keep LinkCount and
-     LinkCountMax updates truly atomic. The mentioned atomic macros
-     should be removed at the next release boundary as this will
-     change a public user interface.
-   * Properly recognize a loaded checksum as a native checksum.
+   * Do not set TCP_NODELAY for unix domain sockets as this issues a
+     nasty error message.
+   * Allow cms.dfs mdhold argument to be 0 as documented.
+   * Provide complete portability and correct behaviour across platforms
+     with and without Atomics. This patch does not change any ABI's.
+   * Fixes #133 Pass the external environment to the protocol manager.
+   * Squelch C11 warnings when dev_t is 32 bits (MacOS).
+   * Correct header define gaurd in XrdSfsFlags.hh.
+   * Fix broken readdir_r() and readdir_r64() functions.
+   * Fully support extended file system features and pass those features
+     through a proxy server. This fixes bug report #115.
+   * Add missing initializer to the LocInfo structure.
+   * Provide full error mapping for POSIX interface.
+   * Prevent over-scan of the xrd.network routes option which may cause
+     a config file error message and initialization failure.
 
 + **Miscellaneous**
-   * Allow stdin as a source in the xrdcp front-end parser. Do not
-     compute doff for non-local sources.
-   * Final change to f-stream monitoring. Replace standard deviation
-     (sdv) calc with reporting sum of squares (ssq) counts.
-   * Remove beta warning from xrdcp after xrdcpy became xrdcp.
-   * Pretty up an error message. Required XrdOucERoute patch.
+   * Actually remove xmi plugin handling as xmilib is no longer supported.
+   * Add a generic plugin preload function to help MacOS clients.
+   * Remove useless loading the security framework from the http plugin.
+   * Add new NetSecurity::Authorize() method that accepts text.
+   * Properly support proxying objectids.
+   * Make sure to always passhrough CGI information.
+   * Honor network routing when creating the client's i/f selection mask.
+   * Prevent mkdir failure in a clustered environment by creating the
+     full directory path by default (can be turned off).
+   * Efficiently handle replicated subscribers (i.e. managers).
 

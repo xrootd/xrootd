@@ -58,6 +58,7 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                         l o c a l   d e f i n e s                          */
@@ -66,6 +67,7 @@
 #define MaxARGC 64
 #define XrdOucStream_EOM  0x01
 #define XrdOucStream_BUSY 0x02
+#define XrdOucStream_ELIF 0x80
 
 #define Erq(p, a, b) Err(p, a, b, (char *)0)
 #define Err(p, a, b, c) (ecode=(Eroute ? Eroute->Emsg(#p, a, b, c) : a), -1)
@@ -74,6 +76,11 @@
 // The following is used by child processes prior to exec() to avoid deadlocks
 //
 #define Erx(p, a, b) cerr <<#p <<": " <<strerror(a) <<' ' <<b <<endl;
+
+// The following mutex is used to allow only one fork at a time so that
+// we do not leak file descriptors. It is a short-lived lock.
+//
+namespace {XrdSysMutex forkMutex;}
 
 /******************************************************************************/
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
@@ -301,17 +308,24 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
     // Handle the standard error file descriptor
     //
     if (!efd) Child_log = (Eroute ? dup(Eroute->logger()->originalFD()) : -1);
-       else if (efd > 0) Child_log = efd;
+       else if (efd  >  0) Child_log = efd;
+       else if (efd == -2){Child_log = Child_out; Child_out = -1;}
+       else if (efd == -3) Child_log = Child_out;
 
     // Fork a process first so we can pick up the next request. We also
-    // set the process group in case the chi;d hasn't been able to do so.
+    // set the process group in case the child hasn't been able to do so.
+    // Make sure only one fork occurs at any one time (we are the only one).
     //
+    forkMutex.Lock();
     if ((child = fork()))
-       {          close(Child_out);
+       {if (child < 0)
+           {close(Child_in); close(Child_out); forkMutex.UnLock();
+            return Err(Exec, errno, "fork request process for", parm[0]);
+           }
+                  close(Child_out);
         if (inrd) close(Child_in );
         if (!efd && Child_log >= 0) close(Child_log);
-        if (child < 0)
-           return Err(Exec, errno, "fork request process for", parm[0]);
+        forkMutex.UnLock();
         setpgid(child, child);
         return 0;
        }
@@ -337,7 +351,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
        {if (dup2(Child_out, STDOUT_FILENO) < 0)
            {Erx(Exec, errno, "setting up standard out for " <<parm[0]);
             exit(255);
-           } else close(Child_out);
+           } else if (Child_out != Child_log) close(Child_out);
        }
 
     // Redirect stderr of the stream if we can to avoid keeping the logfile open
@@ -495,7 +509,7 @@ char *XrdOucStream::GetFirstWord(int lowcase)
       //
       if (xline) 
          {XrdOucEnv *oldEnv = SetEnv(0);
-          while(GetWord(lowcase));
+          while(GetWord(lowcase)) {}
           SetEnv(oldEnv);
          }
       return GetWord(lowcase);
@@ -817,7 +831,9 @@ char *XrdOucStream::doelse()
            return 0;
           }
        sawif = 0;
+       flags |=  XrdOucStream_ELIF;
        var = doif();
+       flags &= ~XrdOucStream_ELIF;
       } while(var && !strcmp("else", var));
    return var;
 }
@@ -849,7 +865,7 @@ char *XrdOucStream::doelse()
 
 char *XrdOucStream::doif()
 {
-    char *var;
+    char *var, ifLine[512];
     int rc;
 
 // Check if the previous if was properly closed
@@ -859,12 +875,20 @@ char *XrdOucStream::doif()
        ecode = EINVAL;
       }
 
+// Save the line for context message should we get an error
+//
+   snprintf(ifLine, sizeof(ifLine), "%s", token);
+
 // Check if we should continue
 //
    sawif = 1; skpel = 0;
    if ((rc = XrdOucUtils::doIf(Eroute,*this,"if directive",myHost,myName,myExec)))
-      {if (rc < 0) ecode = EINVAL;
-          else skpel = 1;
+      {if (rc >= 0) skpel = 1;
+          else {ecode = EINVAL;
+                if(Eroute) Eroute->Say(llPrefix,
+                                      (flags & XrdOucStream_ELIF ? "else " : 0),
+                                       "if ", ifLine);
+               }
        return 0;
       }
 

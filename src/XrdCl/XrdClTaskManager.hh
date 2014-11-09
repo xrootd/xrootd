@@ -69,7 +69,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Run short tasks at a given time in the future
   //!
-  //! The task manager just runs one extra thread so the execution of one taks
+  //! The task manager just runs one extra thread so the execution of one tasks
   //! may interfere with the execution of another
   //----------------------------------------------------------------------------
   class TaskManager
@@ -98,18 +98,20 @@ namespace XrdCl
       bool Stop();
 
       //------------------------------------------------------------------------
-      //! Run the given task at the given time, the manager takes ownership
-      //! over the task and will destroy it when no longer necessary
+      //! Run the given task at the given time.
       //!
       //! @param task task to be run
-      //! @param time time at which the task schould be run
+      //! @param time time at which the task should be run
+      //! @param own  determines whether the task object should be destroyed
+      //!             when no longer needed
       //------------------------------------------------------------------------
-      void RegisterTask( Task *task, time_t time );
+      void RegisterTask( Task *task, time_t time, bool own = true );
 
       //------------------------------------------------------------------------
       //! Remove a task, the unregistration process is asynchronous and may
       //! be performed at any point in the future, the function just queues
-      //! the request. Unregistered task gets destroyed.
+      //! the request. Unregistered task gets destroyed if it was owned by
+      //! the task manager.
       //------------------------------------------------------------------------
       void UnregisterTask( Task *task );
 
@@ -125,9 +127,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct TaskHelper
       {
-        TaskHelper( Task *tsk, time_t tme ): task(tsk), execTime(tme) {}
+        TaskHelper( Task *tsk, time_t tme, bool ow = true ):
+          task(tsk), execTime(tme), own(ow) {}
         Task   *task;
         time_t  execTime;
+        bool    own;
       };
 
       struct TaskHelperCmp

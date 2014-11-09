@@ -426,8 +426,10 @@ int XrdCnsSsi::Updt(const char *Host, const char *Path)
    if ((iFD = open(oBuff, O_CREAT|O_TRUNC|O_WRONLY, AMode)) < 0)
       {Say.M("Unable to create ", oBuff, "; ",
              XrdOucUtils::eText(errno, iBuff, sizeof(iBuff)));
+       *lP = cSave;
        return 8;
       }
+   *lP = cSave;
 
 // Create a TOD record based on the last TOD received
 //

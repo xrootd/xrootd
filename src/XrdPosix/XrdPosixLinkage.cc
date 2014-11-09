@@ -40,7 +40,7 @@
 #endif
 
 #include <dlfcn.h>
-#if !defined(__macos__) && !defined(__CYGWIN__)
+#if !defined(__APPLE__) && !defined(__CYGWIN__)
 #include <link.h>
 #endif
 

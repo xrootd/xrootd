@@ -34,11 +34,9 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
-#include <netdb.h>
-#include <arpa/inet.h>
 #include <sys/param.h>
-#include <sys/socket.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -106,17 +104,16 @@ void xerr(int x);
 
 int main(int argc, char **argv)
 {
-  int i, rc;
-  struct sockaddr    caddr;
-  struct sockaddr_in *netaddr = (struct sockaddr_in *)&caddr;
-
+  XrdNetAddr theAddr;
   XrdOucErrInfo einfo;
   XrdSysLogger Logger;
   XrdSecService *ServerSecurity;
   XrdSecParameters *parmp;
   XrdSecCredentials cred((char *)malloc(8192), 8192);
   XrdSecProtocol *pp;
+  const char *eText;
   unsigned char bbuff[4096];
+  int i, rc;
 
 // Parse the argument list.
 //
@@ -125,19 +122,12 @@ int main(int argc, char **argv)
 // if hostname given, get the hostname address
 //
    if (opts.host)
-      {struct hostent *hp;
-       if (!(hp = gethostbyname(opts.host)))
-          {cerr <<"testServer: host '" <<opts.host <<"' not found." <<endl;
+      {if ((eText = theAddr.Set(opts.host,0)))
+          {cerr <<"testServer: Unable to resolve '" <<opts.host <<"'; " <<eText <<endl;
            exit(1);
           }
-       memcpy((void *)&netaddr->sin_addr.s_addr, hp->h_addr_list[0],
-              sizeof(netaddr->sin_addr.s_addr));
       }
-      else {netaddr->sin_family = AF_INET;
-            netaddr->sin_port   = 0;
-            netaddr->sin_addr.s_addr = 0x80000001;
-            opts.host = (char *)"localhost";
-           }
+      else theAddr.Set("localhost",0);
 
 // Create a new security server
 //
@@ -165,8 +155,7 @@ int main(int argc, char **argv)
 
 // Get the protocol
 //
-   if (!(pp = ServerSecurity->getProtocol(opts.host,
-                                          (const sockaddr &)caddr,
+   if (!(pp = ServerSecurity->getProtocol(opts.host, theAddr,
                                           (const XrdSecCredentials *)&cred,
                                           &einfo)))
       {rc = einfo.getErrInfo();

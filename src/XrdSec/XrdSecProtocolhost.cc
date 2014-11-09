@@ -43,6 +43,7 @@ int XrdSecProtocolhost::Authenticate(XrdSecCredentials  *cred,
 {
    strcpy(Entity.prot, "host");
    Entity.host = theHost;
+   Entity.addrInfo = &epAddr;
    return 0;
 }
 
@@ -76,12 +77,12 @@ XrdSecCredentials *XrdSecProtocolhost::getCredentials(XrdSecParameters *parm,
 //
 XrdSecProtocol *XrdSecProtocolhostObject(const char              who,
                                          const char             *hostname,
-                                         const struct sockaddr  &netaddr,
+                                               XrdNetAddrInfo   &endPoint,
                                          const char             *parms,
-                                         XrdOucErrInfo          *einfo)
+                                               XrdOucErrInfo    *einfo)
 {
 
 // Simply return an instance of the host protocol object
 //
-   return new XrdSecProtocolhost(hostname);
+   return new XrdSecProtocolhost(hostname, endPoint);
 }

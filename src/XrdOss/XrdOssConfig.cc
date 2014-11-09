@@ -43,6 +43,7 @@
 #include "XrdVersion.hh"
 
 #include "XrdFrc/XrdFrcProxy.hh"
+#include "XrdOss/XrdOssPath.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
@@ -57,10 +58,10 @@
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -217,6 +218,10 @@ XrdOssSys::XrdOssSys()
    prActive      = 0;
    prDepth       = 0;
    prQSize       = 0;
+   STT_Lib       = 0;
+   STT_Parms     = 0;
+   STT_Func      = 0;
+   STT_PreOp     = 0;
 }
   
 /******************************************************************************/
@@ -295,9 +300,12 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
 //
    ConfigSpace();
 
-// Configure extended attributes (really not much to do here)
-//
-   XrdSysFAttr::Msg(&Eroute);
+// Set the prefix for files in cache file systems  
+   if ( OptFlags & XrdOss_CacheFS ) 
+       if (!NoGo) {
+           NoGo = XrdOssPath::InitPrefix();
+           if (NoGo) Eroute.Emsg("Config", "cache file prefix initialization failed");
+       }
 
 // Configure statiscal reporting
 //
@@ -529,15 +537,16 @@ int XrdOssSys::ConfigProc(XrdSysError &Eroute)
                  &&  xpath(Config, Eroute)) {Config.Echo(); NoGo = 1;}
         }
 
-// All done scanning the file, set dependent parameters.
-//
-   if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute);
-
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
       NoGo = Eroute.Emsg("Config", retc, "read config file", ConfigFN);
    Config.Close();
+
+// All done scanning the file, set dependent parameters.
+//
+   if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute);
+   if (STT_Lib && !NoGo) NoGo |= ConfigStatLib(Eroute);
 
 // Return final return code
 //
@@ -811,6 +820,29 @@ int XrdOssSys::ConfigStageC(XrdSysError &Eroute)
    return NoGo;
 }
 
+/******************************************************************************/
+/*                         C o n f i g S t a t L i b                          */
+/******************************************************************************/
+
+int XrdOssSys::ConfigStatLib(XrdSysError &Eroute)
+{
+   XrdOucPinLoader myLib(&Eroute, myVersion, "statlib", STT_Lib);
+   XrdOssStatInfoInit_t siGet;
+
+// Get the plugin
+//
+   if (!(siGet = (XrdOssStatInfoInit_t)myLib.Resolve("XrdOssStatInfoInit")))
+      return 1;
+
+// Get an Instance of the statinfo function
+//
+   if (!(STT_Func = siGet(this, Eroute.logger(), ConfigFN, STT_Parms)))
+      return 1;
+
+// Return success
+//
+   return 0;
+}
   
 /******************************************************************************/
 /*                           C o n f i g S t a t s                            */
@@ -908,6 +940,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
    TS_Xeq("preread",       xprerd);
    TS_Xeq("space",         xspace);
    TS_Xeq("stagecmd",      xstg);
+   TS_Xeq("statlib",       xstl);
    TS_Xeq("trace",         xtrace);
    TS_Xeq("usage",         xusage);
    TS_Xeq("xfr",           xxfr);
@@ -1286,10 +1319,18 @@ int XrdOssSys::xnml(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOssSys::xpath(XrdOucStream &Config, XrdSysError &Eroute)
 {
+   XrdOucPList *pP;
 
 // Parse the arguments
 //
-   return (XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags) ? 0 : 1);
+   pP = XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags);
+   if (!pP) return 1;
+
+// This plugin does not support relative paths so check for this
+//
+   if (*(pP->Path()) == '/') return 0;
+   Eroute.Emsg("Config", "Unsupported export -", pP->Path());
+   return 1;
 }
 
 /******************************************************************************/
@@ -1536,7 +1577,52 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
    return 0;
 }
 
-  
+/******************************************************************************/
+/*                                  x s t l                                   */
+/******************************************************************************/
+
+/* Function: xstl
+
+   Purpose:  To parse the directive: statlib [preopen] <path> [<parms>]
+
+             preopen   issue the stat() prior to opening the file.
+             <path>    the path of the stat library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOssSys::xstl(XrdOucStream &Config, XrdSysError &Eroute)
+{
+    char *val, parms[1040];
+
+// Get the path or preopen option
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", "statlib not specified"); return 1;}
+
+// Check for preopen option
+//
+   if (strcmp(val, "preopen")) STT_PreOp = 0;
+      else {STT_PreOp = 1;
+            if (!(val = Config.GetWord()) || !val[0])
+               {Eroute.Emsg("Config", "statlib not specified"); return 1;}
+           }
+
+// Record the path
+//
+   if (STT_Lib) free(STT_Lib);
+   STT_Lib = strdup(val);
+
+// Record any parms
+//
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "statlib parameters too long"); return 1;}
+   if (STT_Parms) free(STT_Parms);
+   STT_Parms = (*parms ? strdup(parms) : 0);
+   return 0;
+}
+
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/

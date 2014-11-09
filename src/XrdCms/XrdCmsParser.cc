@@ -43,6 +43,7 @@
 #include "XrdCms/XrdCmsTrace.hh"
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucBuffer.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
 
@@ -63,12 +64,12 @@ const  char **nameVec() {return (const char **)PupNVec;}
        XrdCmsParseInit(int mVal, ...)
                       {va_list ap;
                        int vp = mVal;
-                       const char *Dummy;
+//                     const char *Dummy;
                        memset(PupNVec, 0, sizeof(PupNVec));
                        va_start(ap, mVal);
                        do { if (vp < XrdCmsRRData::Arg_Count)
                                PupNVec[vp] = va_arg(ap, char *);
-                               else Dummy  = va_arg(ap, char *);
+                               else          va_arg(ap, char *);
                           } while((vp = va_arg(ap, int)));
                        va_end(ap);
                       }
@@ -89,8 +90,10 @@ char           *XrdCmsParseInit::PupNVec[XrdCmsRRData::Arg_Count];
 XrdCmsParseInit XrdCmsParseArgN(XrdCmsRRData::Arg_Null,    "",
                                 XrdCmsRRData::Arg_AToken,  "authtoken",
                                 XrdCmsRRData::Arg_Avoid,   "bad_host",
+                                XrdCmsRRData::Arg_CGI,     "CGI",
                                 XrdCmsRRData::Arg_Datlen,  "datalen",
                                 XrdCmsRRData::Arg_Ident,   "ident",
+                                XrdCmsRRData::Arg_Ilist,   "interfaces",
                                 XrdCmsRRData::Arg_Mode,    "mode",
                                 XrdCmsRRData::Arg_Notify,  "notify",
                                 XrdCmsRRData::Arg_Opaque,  "opaque",
@@ -107,6 +110,7 @@ XrdCmsParseInit XrdCmsParseArgN(XrdCmsRRData::Arg_Null,    "",
                                 XrdCmsRRData::Arg_theLoad, "load",
                                 XrdCmsRRData::Arg_Info,    "info",
                                 XrdCmsRRData::Arg_Port,    "port",
+                                XrdCmsRRData::Arg_SID,     "SID",
                                 0,                         (const char *)0
                                );
 
@@ -238,7 +242,9 @@ XrdOucPupArgs XrdCmsParser::logArgs[] =
 /*0*/         setPUP0(Fence),
 /*1*/         setPUP1(XrdCmsRRData::Arg_SID,     char,    CmsLoginData, SID),
 /*2*/         setPUP1(XrdCmsRRData::Arg_Path,    char,    CmsLoginData, Paths),
-/*3*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,   CmsLoginData, Size)
+/*3*/         setPUP1(XrdCmsRRData::Arg_Ilist,   char,    CmsLoginData, ifList),
+/*4*/         setPUP1(XrdCmsRRData::Arg_CGI,     char,    CmsLoginData, envCGI),
+/*5*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,   CmsLoginData, Size)
              };
 
 /******************************************************************************/
@@ -282,16 +288,16 @@ XrdCmsParser::XrdCmsParser()
 
 // Decode responses to the redirector. Very simple lean protocol.
 
-int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, char *data, int dlen,
+int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, XrdOucBuffer *dBuff,
                          XrdOucErrInfo *eInfo)
 {
    EPNAME("Decode");
    static const int mvsz = static_cast<int>(sizeof(kXR_unt32));
    kXR_unt32    uval;
-   int          Result, msgval, msglen;
+   int          Result, msgval, msglen, dlen = dBuff->DataLen();
    const char  *Path = eInfo->getErrData(), *User = eInfo->getErrUser();
    const char  *Mgr  = (Man ? Man : "?");
-   char        *msg;
+   char        *msg, *data = dBuff->Buffer();
 
 // Path may be null here, fix it
 //
@@ -322,6 +328,14 @@ int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, char *data, int dlen,
              break;
     case kYR_data:      Result = SFS_DATA; msgval = msglen;
              TRACE(Redirect, Mgr <<" sent " <<User <<" '" <<msg <<"' " <<Path);
+             if (msglen > (int)XrdOucEI::Max_Error_Len)
+                {XrdOucBuffer *myBuff=dBuff->Highjack(XrdOucEI::Max_Error_Len);
+                 if (myBuff)
+                    {myBuff->SetLen(msglen, (msglen ? mvsz : 0));
+                     eInfo->setErrInfo(msglen, myBuff);
+                     return Result;
+                    }
+                }
              break;
     case kYR_error:     Result = SFS_ERROR;
              if (msgval) msgval = -mapError(msgval);

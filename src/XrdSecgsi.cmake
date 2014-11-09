@@ -4,97 +4,80 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_SEC_GSI_VERSION            2.0.0 )
-set( XRD_SEC_GSI_SOVERSION          0 )
-
-set( XRD_SEC_GSI_GMAPLDAP_VERSION   1.0.0 )
-set( XRD_SEC_GSI_GMAPLDAP_SOVERSION 0 )
-
-set( XRD_SEC_GSI_GMAPDN_VERSION     1.0.0 )
-set( XRD_SEC_GSI_GMAPDN_SOVERSION   0 )
-
-set( XRD_SEC_GSI_AUTHZVO_VERSION    1.0.0 )
-set( XRD_SEC_GSI_AUTHZVO_SOVERSION  0 )
+set( LIB_XRD_SEC_GSI          XrdSecgsi-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_GSI_GMAPLDAP XrdSecgsiGMAPLDAP-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_GSI_GMAPDN   XrdSecgsiGMAPDN-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_GSI_AUTHZVO  XrdSecgsiAUTHZVO-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
 # The XrdSecgsi library
 #-------------------------------------------------------------------------------
 add_library(
-  XrdSecgsi
-  SHARED
+  ${LIB_XRD_SEC_GSI}
+  MODULE
   XrdSecgsi/XrdSecProtocolgsi.cc      XrdSecgsi/XrdSecProtocolgsi.hh
                                       XrdSecgsi/XrdSecgsiTrace.hh )
 
 target_link_libraries(
-  XrdSecgsi
-  XrdCryptossl
+  ${LIB_XRD_SEC_GSI}
   XrdCrypto
   XrdUtils
   pthread )
 
 set_target_properties(
-  XrdSecgsi
+  ${LIB_XRD_SEC_GSI}
   PROPERTIES
-  VERSION   ${XRD_SEC_GSI_VERSION}
-  SOVERSION ${XRD_SEC_GSI_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# The XrdSecgsiGMAPLDAP library
+# The XrdSecgsiGMAPLDAP module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdSecgsiGMAPLDAP
-  SHARED
+  ${LIB_XRD_SEC_GSI_GMAPLDAP}
+  MODULE
   XrdSecgsi/XrdSecgsiGMAPFunLDAP.cc )
 
-#target_link_libraries(
-#  XrdSecgsiGMAPLDAP
-#  XrdSecgsi )
-
 set_target_properties(
-  XrdSecgsiGMAPLDAP
+  ${LIB_XRD_SEC_GSI_GMAPLDAP}
   PROPERTIES
-  VERSION   ${XRD_SEC_GSI_GMAPLDAP_VERSION}
-  SOVERSION ${XRD_SEC_GSI_GMAPLDAP_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# The XrdSecgsiAuthzVO library
+# The XrdSecgsiAuthzVO module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdSecgsiAuthzVO
-  SHARED
+  ${LIB_XRD_SEC_GSI_AUTHZVO}
+  MODULE
   XrdSecgsi/XrdSecgsiAuthzFunVO.cc )
 
 target_link_libraries(
-  XrdSecgsiAuthzVO
+  ${LIB_XRD_SEC_GSI_AUTHZVO}
   XrdUtils )
 
 set_target_properties(
-  XrdSecgsiAuthzVO
+  ${LIB_XRD_SEC_GSI_AUTHZVO}
   PROPERTIES
-  VERSION   ${XRD_SEC_GSI_AUTHZVO_VERSION}
-  SOVERSION ${XRD_SEC_GSI_AUTHZVO_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# The XrdSecgsiGMAPDN library
+# The XrdSecgsiGMAPDN module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdSecgsiGMAPDN
-  SHARED
+  ${LIB_XRD_SEC_GSI_GMAPDN}
+  MODULE
   XrdSecgsi/XrdSecgsiGMAPFunDN.cc )
 
 target_link_libraries(
-  XrdSecgsiGMAPDN
-  XrdSecgsi
+  ${LIB_XRD_SEC_GSI_GMAPDN}
   XrdUtils )
 
 set_target_properties(
-  XrdSecgsiGMAPDN
+  ${LIB_XRD_SEC_GSI_GMAPDN}
   PROPERTIES
-  VERSION   ${XRD_SEC_GSI_GMAPDN_VERSION}
-  SOVERSION ${XRD_SEC_GSI_GMAPDN_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -106,16 +89,20 @@ add_executable(
 
 target_link_libraries(
   xrdgsiproxy
-  XrdCryptossl
   XrdCrypto
-  XrdUtils )
+  XrdUtils
+  ${OPENSSL_CRYPTO_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdSecgsi XrdSecgsiGMAPDN XrdSecgsiGMAPLDAP xrdgsiproxy
-          XrdSecgsiAuthzVO
+  TARGETS
+  ${LIB_XRD_SEC_GSI}
+  ${LIB_XRD_SEC_GSI_GMAPLDAP}
+  ${LIB_XRD_SEC_GSI_AUTHZVO}
+  ${LIB_XRD_SEC_GSI_GMAPDN}
+  xrdgsiproxy
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 

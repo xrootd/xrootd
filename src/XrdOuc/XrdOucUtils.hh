@@ -42,6 +42,8 @@ public:
 
 static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 
+static bool  endsWith(const char *text, const char *ending, int endlen);
+
 static char *eText(int rc, char *eBuff, int eBlen, int AsIs=0);
 
 static int   doIf(XrdSysError *eDest, XrdOucStream &Config,
@@ -69,6 +71,8 @@ static int   is1of(char *val, const char **clist);
 static void  makeHome(XrdSysError &eDest, const char *inst);
 
 static int   makePath(char *path, mode_t mode);
+
+static int   ReLink(const char *path, const char *target, mode_t mode=0);
  
 static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 

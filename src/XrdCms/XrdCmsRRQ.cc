@@ -287,7 +287,9 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsSelected *sP;
    XrdCmsNode *nP;
-   int bytes, n = 0;
+   XrdCmsCluster::CmsLSOpts lsopts;
+   int bytes;
+   bool oksel;
 
 // Send a delay if we timed out
 //
@@ -298,8 +300,10 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 
 // Get the list of servers that have this file. If none found, then force the
 // client to wait as this should never happen and the long path is called for.
+// ASAP responses always respond in with IPv6 addresses or mapped IPv4 ones.
 //
-   if (!(sP = Cluster.List(lP->Arg1, XrdCmsCluster::LS_IPO))
+   lsopts = static_cast<XrdCmsCluster::CmsLSOpts>(lP->Info.lsLU);
+   if (!(sP = Cluster.List(lP->Arg1, lsopts, oksel))
    || (!(bytes = XrdCmsNode::do_LocFmt(databuff,sP,lP->Arg2,lP->Info.rwVec))))
       {sendLwtResp(lP);
        return;
@@ -360,8 +364,9 @@ void XrdCmsRRQ::sendRedResp(XrdCmsRRQSlot *rP)
 
 // Determine where the client should be redirected
 //
-   if ((doredir = (rP->Arg1 && Cluster.Select(rP->Info.isRW, rP->Info.actR,
-                                              rP->Arg1, port, hostbuff, hlen))))
+   if ((doredir = (rP->Arg1 && Cluster.Select(rP->Arg1, port, hostbuff, hlen,
+                                              rP->Info.isRW, rP->Info.actR,
+                                              rP->Info.ifOP))))
       {redrResp.Val = htonl(port);
        redrResp.Hdr.datalen = htons(static_cast<unsigned short>(hlen+ovhd));
        redr_iov[1].iov_len  = hlen;

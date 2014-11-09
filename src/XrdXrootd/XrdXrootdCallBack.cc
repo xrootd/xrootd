@@ -145,7 +145,8 @@ void XrdXrootdCBJob::DoIt()
    if (SFS_OK == Result)
       {if (*(cbFunc->Func()) == 'o') cbFunc->sendResp(eInfo, kXR_wait, 0);
           else {if (*(cbFunc->Func()) == 'x') DoStatx(eInfo);
-                cbFunc->sendResp(eInfo, kXR_ok, 0, eInfo->getErrText());
+                cbFunc->sendResp(eInfo, kXR_ok, 0, eInfo->getErrText(),
+                                                   eInfo->getErrTextLen());
                }
       } else cbFunc->sendError(Result, eInfo, Path);
 
@@ -252,7 +253,7 @@ void XrdXrootdCallBack::sendError(int            rc,
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
-       sendResp(eInfo, kXR_error, &rc, eMsg, 1);
+       sendResp(eInfo, kXR_error, &rc, eMsg, eInfo->getErrTextLen()+1);
        return;
       }
 
@@ -263,7 +264,7 @@ void XrdXrootdCallBack::sendError(int            rc,
        if (ecode <= 0) ecode = (ecode ? -ecode : Port);
        TRACE(REDIR, User <<" async redir to " << eMsg <<':' <<ecode <<' '
                          <<(Path ? Path : ""));
-       sendResp(eInfo, kXR_redirect, &ecode, eMsg);
+       sendResp(eInfo, kXR_redirect, &ecode, eMsg, eInfo->getErrTextLen());
        if (XrdXrootdMonitor::Redirect() && Path)
            XrdXrootdMonitor::Redirect(eInfo->getErrMid(),eMsg,ecode,Opcode,Path);
        return;
@@ -274,7 +275,7 @@ void XrdXrootdCallBack::sendError(int            rc,
    if (rc >= SFS_STALL)
       {SI->stallCnt++;
        TRACE(STALL, "Stalling " <<User <<" for " <<rc <<" sec");
-       sendResp(eInfo, kXR_wait, &rc, eMsg, 1);
+       sendResp(eInfo, kXR_wait, &rc, eMsg, eInfo->getErrTextLen()+1);
        return;
       }
 
@@ -288,11 +289,11 @@ void XrdXrootdCallBack::sendError(int            rc,
 
 // Unknown conditions, report it
 //
-   {char buff[32];
+   {char buff[64];
     SI->errorCnt++;
-    sprintf(buff, "%d", rc);
-    eDest->Emsg("sendError", "Unknown error code", buff, eMsg);
-    sendResp(eInfo, kXR_error, &Xserr, eMsg, 1);
+    ecode = sprintf(buff, "Unknown sfs response code %d", rc);
+    eDest->Emsg("sendError", buff);
+    sendResp(eInfo, kXR_error, &Xserr, buff, ecode+1);
     return;
    }
 }
@@ -305,7 +306,7 @@ void XrdXrootdCallBack::sendResp(XrdOucErrInfo  *eInfo,
                                  XResponseType   Status,
                                  int            *Data,
                                  const char     *Msg,
-                                 int             ovhd)
+                                 int             Mlen)
 {
    const char *TraceID = "sendResp";
    struct iovec       rspVec[4];
@@ -320,7 +321,7 @@ void XrdXrootdCallBack::sendResp(XrdOucErrInfo  *eInfo,
       }
     if (Msg && *Msg)
        {        rspVec[n].iov_base = (caddr_t)Msg;
-        dlen += rspVec[n].iov_len  = strlen(Msg)+ovhd; n++;      // 2
+        dlen += rspVec[n].iov_len  = Mlen; n++;                  // 2
        }
 
 // Set the destination
@@ -338,4 +339,8 @@ void XrdXrootdCallBack::sendResp(XrdOucErrInfo  *eInfo,
                TRACE(RSP, eInfo->getErrUser() <<" async " <<theResp.ID()
                           <<' ' <<Opname <<" status " <<Status);
               }
+
+// Release any external buffer from the errinfo object
+//
+   if (eInfo->extData()) eInfo->Reset();
 }

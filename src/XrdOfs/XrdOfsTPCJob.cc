@@ -67,6 +67,7 @@ XrdOfsTPCJob::XrdOfsTPCJob(const char *Url, const char *Org,
 void XrdOfsTPCJob::Del()
 {
    XrdOfsTPCJob *pP = 0;
+   bool tpcCan = false;
 
 // Remove from queue if we are still in the queue
 //
@@ -78,8 +79,12 @@ void XrdOfsTPCJob::Del()
                 if (pP) pP->Next = Next;
                }
        if (this == jobLast) jobLast = pP;
-       inQ = 0;
-      } else if (Status == isRunning && myProg) myProg->Cancel();
+       inQ = 0; tpcCan = true;
+      } else if (Status == isRunning && myProg)
+                {myProg->Cancel(); tpcCan = true;}
+
+   if (tpcCan && Info.cbP)
+      Info.Reply(SFS_ERROR, ECANCELED, "destination file prematurely closed");
 
 // Delete the element if possible
 //

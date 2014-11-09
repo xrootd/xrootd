@@ -96,6 +96,7 @@ public:
 
         int            close();
 
+        using          XrdSfsFile::fctl;
         int            fctl(const int               cmd,
                             const char             *args,
                                   XrdOucErrInfo    &out_error);
@@ -115,7 +116,7 @@ public:
         int            read(XrdSfsAio *aioparm);
 
         XrdSfsXferSize readv(XrdOucIOVec      *readV,
-                             size_t            readCount);
+                             int               readCount);
 
         XrdSfsXferSize write(XrdSfsFileOffset   fileOffset,
                              const char        *buffer,

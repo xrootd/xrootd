@@ -36,75 +36,99 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 #include <time.h>
+#include <unistd.h>
+#include <netinet/in.h>
 #include <sys/types.h>
   
 #include "XrdOucReqID.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucCRC.hh"
-
-/******************************************************************************/
-/*                      S t a t i c   V a r i a b l e s                       */
-/******************************************************************************/
-  
-XrdSysMutex  XrdOucReqID::myMutex;
-char        *XrdOucReqID::reqFMT;
-char        *XrdOucReqID::reqPFX;
-int          XrdOucReqID::reqPFXlen = 0;
-int          XrdOucReqID::reqNum = 0;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOucReqID::XrdOucReqID(int inst, const char *myHost, unsigned int myIP)
+XrdOucReqID::XrdOucReqID()
 {
-   time_t eNow = time(0);
    char xbuff[256];
+   int eNow = static_cast<int>(time(0)), myPid = static_cast<int>(getpid());
 
-   snprintf(xbuff, sizeof(xbuff)-1, "%08x:%04x.%08x:%%d", myIP, inst,
-                                    static_cast<unsigned int>(eNow));
+// Now format the formatting template
+//
+   snprintf(xbuff, sizeof(xbuff)-1, "%08X:%08x.%%d", myPid, eNow);
+   reqFMT    = strdup(xbuff);
+   xbuff[8]  = 0;
+   reqPFX    = strdup(xbuff);
+   reqPFXlen = 8;
+   reqIntern = 0;
+   reqNum    = 0;
+}
+
+/******************************************************************************/
+  
+XrdOucReqID::XrdOucReqID(const XrdNetSockAddr *myAddr, int myPort)
+{
+   char ybuff[256], xbuff[256];
+   unsigned int pHash;
+   int n, eNow = static_cast<unsigned int>(time(0));
+
+// Encode our address as the prefix
+//
+   if ( (n = XrdNetUtils::Encode(myAddr, ybuff, sizeof(ybuff), myPort)) <= 0)
+      n = sprintf(ybuff, "%04X%08X", myPort, eNow);
+   reqPFX    = strdup(ybuff);
+   reqPFXlen = n;
+   reqIntern = n+1;
+
+// Generate out hash
+//
+   pHash = XrdOucCRC::CRC32((const unsigned char *)ybuff, n);
+
+// Now format the formatting template
+//
+   snprintf(xbuff, sizeof(xbuff)-1, "%s:%08x.%08x:%%d", ybuff, pHash, eNow);
    reqFMT = strdup(xbuff);
-   reqPFXlen = 13;
-   xbuff[reqPFXlen] = '\0';
-   reqPFX = strdup(xbuff);
+   reqNum = 0;
 }
  
 /******************************************************************************/
 /*                                i s M i n e                                 */
 /******************************************************************************/
  
-int XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
+char *XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
 {
-   unsigned int ipaddr, ipport;
-   char *cp, *ep, *ip;
+   XrdNetAddr theAddr;
+   XrdNetSockAddr IP;
+   const char *theHost;
+   int thePort;
+   char *cp;
 
 // Determine whether this is our host
 //
-   if (isMine(reqid)) return 1;
+   if (!strncmp(reqPFX,reqid,reqPFXlen) && (cp = index(reqid,':'))) return cp+1;
 
 // Not ours, try to tell the caller who it is
 //
+   hport = 0;
    if (!hlen) return 0;
 
 // Get the IP address of his id
 //
-   hport = 0;
-   if (!(cp = index(reqid, int(':'))) || cp-reqid != 8) return 0;
-   if (!(ipaddr = strtol(reqid, &ep, 16)) || ep != cp)  return 0;
+   thePort = XrdNetUtils::Decode(&IP, reqid, reqPFXlen);
+   if (thePort <= 0) return 0;
 
-// Get the port number
+// Convert this in the appropriate way
 //
-   ep++;
-   if (!(cp = index(ep, int('.')))     || cp-ep != 4) return 0;
-   if (!(ipport = strtol(ep, &cp, 16)) || ep != cp)   return 0;
+   if (theAddr.Set(&IP.Addr)
+   ||  !(theHost = theAddr.Name())
+   ||  strlen(theHost) >= (unsigned int)hlen) return 0;
 
-// Format the address and return the port
+// Return the alternate host
 //
-   ip = (char *)&ipaddr;
-   snprintf(hname, hlen-1, "%d.%d.%d.%d",
-                   (int)ip[0], (int)ip[1], (int)ip[2], (int)ip[3]);
-   hname[hlen-1] = '\0';
-   hport = (int)ipport;
+   strcpy(hname, theHost);
+   hport = thePort;
    return 0;
 }
   
@@ -125,7 +149,7 @@ char *XrdOucReqID::ID(char *buff, int blen)
 // Generate the request id and return it
 //
    snprintf(buff, blen-1, reqFMT, myNum);
-   return buff;
+   return buff+reqIntern;
 }
 
 /******************************************************************************/

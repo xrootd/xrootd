@@ -29,22 +29,20 @@
 /******************************************************************************/
 
 #include <errno.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/socket.h>
 #include <sys/types.h>
-#if !defined(__macos__) && !defined(__FreeBSD__)
+#if !defined(__APPLE__) && !defined(__FreeBSD__)
 #include <malloc.h>
 #endif
 
 #include "XrdVersion.hh"
 
-#include "XrdNet/XrdNet.hh"
-#include "XrdNet/XrdNetPeer.hh"
+#include "XrdNet/XrdNetMsg.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -61,13 +59,12 @@ XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
 XrdSysError       *XrdXrootdMonitor::eDest      = 0;
 char              *XrdXrootdMonitor::idRec      = 0;
 int                XrdXrootdMonitor::idLen      = 0;
-int                XrdXrootdMonitor::monFD;
 char              *XrdXrootdMonitor::Dest1      = 0;
 int                XrdXrootdMonitor::monMode1   = 0;
-struct sockaddr    XrdXrootdMonitor::InetAddr1;
+XrdNetMsg         *XrdXrootdMonitor::InetDest1  = 0;
 char              *XrdXrootdMonitor::Dest2      = 0;
 int                XrdXrootdMonitor::monMode2   = 0;
-struct sockaddr    XrdXrootdMonitor::InetAddr2;
+XrdNetMsg         *XrdXrootdMonitor::InetDest2  = 0;
 XrdXrootdMonitor  *XrdXrootdMonitor::altMon     = 0;
 XrdSysMutex        XrdXrootdMonitor::windowMutex;
 kXR_int32          XrdXrootdMonitor::startTime  = 0;
@@ -136,9 +133,6 @@ class XrdXrootdMonitor_Ident : public XrdJob
 public:
 
 void          DoIt() {
-#ifndef NODEBUG
-                      const char *TraceID = "MonIdent";
-#endif
                       XrdXrootdMonitor::Ident();
                       Sched->Schedule((XrdJob *)this, time(0)+idInt);
                      }
@@ -234,20 +228,28 @@ void XrdXrootdMonitor::User::Enable()
 /*      X r d X r o o t d M o n i t o r : : U s e r : : R e g i s t e r       */
 /******************************************************************************/
   
-void XrdXrootdMonitor::User::Register(const char *Uname, const char *Hname)
+void XrdXrootdMonitor::User::Register(const char *Uname, 
+                                      const char *Hname,
+                                      const char *Pname)
 {
    const char *colonP, *atP;
-   char  uBuff[1024];
+   char  uBuff[1024], *uBP;
+   int n;
+
+// The identification always starts with the protocol being used
+//
+   n = sprintf(uBuff, "%s/", Pname);
+   uBP = uBuff + n;
 
 // Decode the user name as a.b:c@d
 //
    if ((colonP = index(Uname, ':')) && (atP = index(colonP+1, '@')))
-      {int n = colonP - Uname + 1;
-       strncpy(uBuff, Uname, n);
-       strcpy(uBuff+n, sidName);
-       n += sidSize; uBuff[n++] = '@';
-       strcpy(uBuff+n, Hname);
-      } else strcpy(uBuff, Uname);
+      {n = colonP - Uname + 1;
+       strncpy(uBP, Uname, n);
+       strcpy(uBP+n, sidName);
+       n += sidSize; *(uBP+n) = '@'; n++;
+       strcpy(uBP+n, Hname);
+      } else strcpy(uBP, Uname);
 
 // Generate a monitor identity for this user. We do not assign a dictioary
 // identifier unless this entry is reported.
@@ -542,10 +544,9 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 {
    static     XrdXrootdMonitor_Ident MonIdent(sp, monIdent);
    XrdXrootdMonMap *mP;
-   XrdNet     myNetwork(errp, 0);
-   XrdNetPeer monDest;
-   char      *etext, iBuff[1024], iPuff[1024], *sName, *cP;
+   char       iBuff[1024], iPuff[1024], *sName, *cP;
    int        i, Now = time(0);
+   bool       aOK;
 
 // Set static variables
 //
@@ -555,8 +556,9 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 
 // Generate our server ID
 //
+   strcpy(iBuff, "=/");
    sprintf(iPuff, "%s&ver=%s", iProg, XrdVERSION);
-   sName = XrdOucUtils::Ident(mySID, iBuff, sizeof(iBuff),
+   sName = XrdOucUtils::Ident(mySID, iBuff+2, sizeof(iBuff)-2,
                               iHost, iPuff, iName, Port);
    cP = (char *)&mySID; *cP = 0; *(cP+1) = 0;
    sidSize = strlen(sName);
@@ -568,23 +570,22 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 //
    if (!isEnabled) return 1;
 
-// Allocate a socket for the primary destination
+// Setup the primary destination
 //
-   if (!myNetwork.Relay(monDest, Dest1, XRDNET_SENDONLY)) return 0;
-   monFD = monDest.fd;
-
-// Get the address of the primary destination
-//
-   if (!XrdSysDNS::Host2Dest(Dest1, InetAddr1, &etext))
-      {eDest->Emsg("Monitor", "setup monitor collector;", etext);
+   InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK);
+   if (!aOK)
+      {eDest->Emsg("Monitor", "Unable to setup primary monitor collector.");
        return 0;
       }
 
-// Get the address of the alternate destination, if we happen to have one
+// Setup the secondary destination
 //
-   if (Dest2 && !XrdSysDNS::Host2Dest(Dest2, InetAddr2, &etext))
-      {eDest->Emsg("Monitor", "setup monitor collector;", etext);
-       return 0;
+   if (Dest2)
+      {InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK);
+       if (!aOK)
+          {eDest->Emsg("Monitor","Unable to setup secondary monitor collector.");
+           return 0;
+          }
       }
 
 // If there is a destination that is only collecting file events, then
@@ -742,7 +743,8 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
 // Take care of the server's name which might actually be a path
 //
    if (*hName == '/') {Path = hName; hName = ""; hLen = 0;}
-      else {hLen = strlen(hName);
+      else {const char *quest = index(hName, '?');
+            hLen = (quest ? quest - hName : strlen(hName));
             if (hLen >  256) hLen =  256;
            }
 
@@ -784,7 +786,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
    mtP->arg0.rdr.Port = htons(static_cast<short>(Port));
    mtP->arg1.dictid   = mID;
    dest = (char *)(mtP+1);
-   strcpy(dest, hName); dest += hLen; *dest++ = ':';
+   strncpy(dest, hName,hLen); dest += hLen; *dest++ = ':';
    strncpy(dest, Path, pLen);
 
 // Adjust pointer and return
@@ -1044,23 +1046,19 @@ int XrdXrootdMonitor::Send(int monMode, void *buff, int blen)
     int rc1, rc2;
 
     sendMutex.Lock();
-    if (monMode & monMode1) 
-       {rc1  = (int)sendto(monFD, buff, blen, 0,
-                        (const struct sockaddr *)&InetAddr1, sizeof(sockaddr));
-        rc1 = (rc1 < 0 ? -errno : 0);
+    if (monMode & monMode1 && InetDest1)
+       {rc1  = InetDest1->Send((char *)buff, blen);
         TRACE(DEBUG,blen <<" bytes sent to " <<Dest1 <<" rc=" <<rc1);
        }
        else rc1 = 0;
-    if (monMode & monMode2) 
-       {rc2 = (int)sendto(monFD, buff, blen, 0,
-                        (const struct sockaddr *)&InetAddr2, sizeof(sockaddr));
-        rc2 = (rc2 < 0 ? -errno : 0);
+    if (monMode & monMode2 && InetDest2)
+       {rc2  = InetDest2->Send((char *)buff, blen);
         TRACE(DEBUG,blen <<" bytes sent to " <<Dest2 <<" rc=" <<rc2);
        }
        else rc2 = 0;
     sendMutex.UnLock();
 
-    return (rc1 < rc2 ? rc1 : rc2);
+    return (rc1 ? rc1 : rc2);
 }
 
 /******************************************************************************/

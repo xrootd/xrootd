@@ -24,6 +24,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <ctime>
 
 #include <XrdOuc/XrdOucTokenizer.hh>
 
@@ -112,7 +114,9 @@ namespace XrdCl
 
       if( ret < 0 )
       {
-        pOutput->Write( "Error while processing a log message" );
+        snprintf( buffer, size, "Error while processing a log message \"%s\" \n", format);
+        pOutput->Write(buffer);
+        delete [] buffer;
         return;
       }
       else if( ret < size )
@@ -125,11 +129,18 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Add time and error level
     //--------------------------------------------------------------------------
-    char   now[30];
-    tm     tsNow;
-    time_t ttNow = time(0);
-    localtime_r( &ttNow, &tsNow );
-    strftime( now, 30, "%Y-%m-%d %H:%M:%S %z", &tsNow );
+    char    now[48];
+    char    ts[32];
+    char    tz[8];
+    tm      tsNow;
+    timeval ttNow;
+
+    gettimeofday( &ttNow, 0 );
+    localtime_r( &ttNow.tv_sec, &tsNow );
+
+    strftime( ts, 32, "%Y-%m-%d %H:%M:%S", &tsNow );
+    strftime( tz, 8, "%z", &tsNow );
+    snprintf( now, 48, "%s.%06ld %s", ts, (long int)ttNow.tv_usec, tz );
 
     XrdOucTokenizer tok( buffer );
     char *line = 0;

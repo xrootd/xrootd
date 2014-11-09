@@ -27,8 +27,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
@@ -54,10 +54,12 @@ int          XrdProtLoad::ProtPort[ProtoMax] = {0};
 int          XrdProtLoad::ProtoCnt = 0;
 int          XrdProtLoad::ProtWCnt = 0;
 
-char         *XrdProtLoad::liblist[ProtoMax];
-XrdSysPlugin *XrdProtLoad::libhndl[ProtoMax];
-
-int           XrdProtLoad::libcnt = 0;
+namespace
+{
+char            *liblist[XrdProtLoad::ProtoMax];
+XrdOucPinLoader *libhndl[XrdProtLoad::ProtoMax];
+int              libcnt = 0;
+}
 
 /******************************************************************************/
 /*            C o n s t r u c t o r   a n d   D e s t r u c t o r             */
@@ -226,6 +228,9 @@ int XrdProtLoad::Statistics(char *buff, int blen, int do_sync)
 /******************************************************************************/
 /*                           g e t P r o t o c o l                            */
 /******************************************************************************/
+
+extern "C" XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
+                                       XrdProtocol_Config *pi);
   
 XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
                                       const char *pname,
@@ -237,6 +242,10 @@ XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
    void *epvoid;
    int i;
 
+// If this is a builtin protocol getthe protocol object directly
+//
+   if (!lname) return XrdgetProtocol(pname, parms, pi);
+
 // Find the matching library. It must be here because getPort was already called
 //
    for (i = 0; i < libcnt; i++) if (!strcmp(xname, liblist[i])) break;
@@ -247,7 +256,7 @@ XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
 
 // Obtain an instance of the protocol object and return it
 //
-   if (!(epvoid = libhndl[i]->getPlugin("XrdgetProtocol"))) return 0;
+   if (!(epvoid = libhndl[i]->Resolve("XrdgetProtocol"))) return 0;
    ep = (XrdProtocol *(*)(const char*,char*,XrdProtocol_Config*))epvoid;
    return ep(pname, parms, pi);
 }
@@ -255,6 +264,9 @@ XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
 /******************************************************************************/
 /*                       g e t P r o t o c o l P o r t                        */
 /******************************************************************************/
+
+   extern "C" int XrdgetProtocolPort(const char *pname, char *parms,
+                                     XrdProtocol_Config *pi);
   
 int XrdProtLoad::getProtocolPort(const char *lname,
                                  const char *pname,
@@ -267,6 +279,10 @@ int XrdProtLoad::getProtocolPort(const char *lname,
    void *epvoid;
    int i;
 
+// If this is for the builtin protocol then get the port directly
+//
+   if (!lname) return XrdgetProtocolPort(pname, parms, pi);
+
 // See if the library is already opened, if not open it
 //
    for (i = 0; i < libcnt; i++) if (!strcmp(xname, liblist[i])) break;
@@ -275,7 +291,7 @@ int XrdProtLoad::getProtocolPort(const char *lname,
           {XrdLog->Emsg("Protocol", "Too many protocols have been defined.");
            return -1;
           }
-       if (!(libhndl[i] = new XrdSysPlugin(XrdLog, lname, "protocol", &myVer)))
+       if (!(libhndl[i] = new XrdOucPinLoader(XrdLog,&myVer,"protocol",lname)))
           return -1;
        liblist[i] = strdup(xname);
        libcnt++;
@@ -283,7 +299,7 @@ int XrdProtLoad::getProtocolPort(const char *lname,
 
 // Get the port number to be used
 //
-   if (!(epvoid = libhndl[i]->getPlugin("XrdgetProtocolPort", 2)))
+   if (!(epvoid = libhndl[i]->Resolve("XrdgetProtocolPort", 2)))
       return (pi->Port < 0 ? 0 : pi->Port);
    ep = (int (*)(const char*,char*,XrdProtocol_Config*))epvoid;
    return ep(pname, parms, pi);

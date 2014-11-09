@@ -38,7 +38,6 @@
 class XrdAccAuthorize;
 class XrdOfsTPCAllow;
 class XrdOfsTPCJob;
-class XrdOss;
 class XrdOucEnv;
 class XrdOucErrInfo;
 class XrdOucPListAnchor;
@@ -80,15 +79,17 @@ struct  iParm {char *Pgm;
                int   Logok;
                int   Strm;
                int   Xmax;
+               int   Grab;
+               int   xEcho;
+               int   autoRM;
                      iParm() : Pgm(0), Ckst(0), Dflttl(-1), Maxttl(-1),
-                               Logok(-1), Strm(-1), Xmax(-1) {}
+                               Logok(-1), Strm(-1), Xmax(-1), Grab(0), 
+                               xEcho(-1), autoRM(-1) {}
               };
 
 static  void  Init(iParm &Parms);
 
 static  void  Init(XrdAccAuthorize *accP) {fsAuth = accP;}
-
-static  void  Init(XrdOss *ossP)          {OfsOss = ossP;}
 
 static  const int reqALL = 0;
 static  const int reqDST = 1;
@@ -114,8 +115,6 @@ virtual      ~XrdOfsTPC() {}
 
 XrdOfsTPCInfo Info;
 
-static char  *cksType;
-
 protected:
 
 static int    Fatal(Facts &Args, const char *eMsg, int eCode, int nomsg=0);
@@ -125,23 +124,14 @@ static int    Screen(Facts &Args, XrdOucTList *tP, int wasEnc=0);
 static char  *Verify(const char *Who,const char *Name,char *Buf,int Blen);
 
 static XrdAccAuthorize   *fsAuth;
-static XrdOss            *OfsOss;
-
-static char              *XfrProg;
 
 static XrdOucTList       *AuthDst;
 static XrdOucTList       *AuthOrg;
 
 static XrdOfsTPCAllow    *ALList;
 static XrdOucPListAnchor *RPList;
-
-static int                dflTTL;
 static int                maxTTL;
-static int                LogOK;
-static int                nStrms;
-static int                xfrMax;
-static int                tpcOK;
-static int                encTPC;
+static int                dflTTL;
 
        char               Refs;      // Reference count
        char               inQ;       // Object in queue

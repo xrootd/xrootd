@@ -4,10 +4,10 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_POSIX_VERSION   1.0.0 )
-set( XRD_POSIX_SOVERSION 1 )
-set( XRD_POSIX_PRELOAD_VERSION   0.0.1 )
-set( XRD_POSIX_PRELOAD_SOVERSION 0 )
+set( XRD_POSIX_VERSION   2.0.0 )
+set( XRD_POSIX_SOVERSION 2 )
+set( XRD_POSIX_PRELOAD_VERSION   1.0.0 )
+set( XRD_POSIX_PRELOAD_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # The XrdPosix library
@@ -15,6 +15,11 @@ set( XRD_POSIX_PRELOAD_SOVERSION 0 )
 add_library(
   XrdPosix
   SHARED
+  XrdPosix/XrdPosixAdmin.cc        XrdPosix/XrdPosixAdmin.hh
+  XrdPosix/XrdPosixDir.cc          XrdPosix/XrdPosixDir.hh
+  XrdPosix/XrdPosixFile.cc         XrdPosix/XrdPosixFile.hh
+  XrdPosix/XrdPosixMap.cc          XrdPosix/XrdPosixMap.hh
+  XrdPosix/XrdPosixObject.cc       XrdPosix/XrdPosixObject.hh
   XrdPosix/XrdPosixXrootd.cc       XrdPosix/XrdPosixXrootd.hh
   XrdPosix/XrdPosixXrootdPath.cc   XrdPosix/XrdPosixXrootdPath.hh
                                    XrdPosix/XrdPosixCallBack.hh
@@ -22,7 +27,7 @@ add_library(
 
 target_link_libraries(
   XrdPosix
-  XrdClient
+  XrdCl
   XrdUtils
   pthread )
 
@@ -31,6 +36,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_POSIX_VERSION}
   SOVERSION ${XRD_POSIX_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -56,6 +62,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_POSIX_PRELOAD_VERSION}
   SOVERSION ${XRD_POSIX_PRELOAD_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPoller.hh"
 #include "XrdCl/XrdClTaskManager.hh"
+#include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClTransportManager.hh"
 #include "XrdCl/XrdClChannel.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -37,7 +38,12 @@ namespace XrdCl
   PostMaster::PostMaster():
     pPoller( 0 ), pInitialized( false )
   {
-    pTaskManager      = new TaskManager();
+    Env *env = DefaultEnv::GetEnv();
+    int workerThreads = DefaultWorkerThreads;
+    env->GetInt( "WorkerThreads", workerThreads );
+
+    pTaskManager = new TaskManager();
+    pJobManager  = new JobManager(workerThreads);
   }
 
   //----------------------------------------------------------------------------
@@ -47,6 +53,7 @@ namespace XrdCl
   {
     delete pPoller;
     delete pTaskManager;
+    delete pJobManager;
   }
 
   //----------------------------------------------------------------------------
@@ -67,6 +74,9 @@ namespace XrdCl
       delete pPoller;
       return false;
     }
+
+    pJobManager->Initialize();
+
     pInitialized = true;
     return true;
   }
@@ -83,6 +93,8 @@ namespace XrdCl
       return true;
 
     pInitialized = false;
+
+    pJobManager->Finalize();
 
     ChannelMap::iterator it;
     for( it = pChannelMap.begin(); it != pChannelMap.end(); ++it )
@@ -107,6 +119,13 @@ namespace XrdCl
       pPoller->Stop();
       return false;
     }
+
+    if( !pJobManager->Start() )
+    {
+      pPoller->Stop();
+      pTaskManager->Stop();
+      return false;
+    }
     return true;
   }
 
@@ -117,6 +136,9 @@ namespace XrdCl
   {
     if( !pInitialized )
       return true;
+
+    if( !pJobManager->Stop() )
+      return false;
     if( !pTaskManager->Stop() )
       return false;
     if( !pPoller->Stop() )
@@ -188,7 +210,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Listen to incomming messages
+  // Listen to incoming messages
   //----------------------------------------------------------------------------
   Status PostMaster::Receive( const URL          &url,
                               IncomingMsgHandler *handler,
@@ -277,7 +299,7 @@ namespace XrdCl
         return 0;
       }
 
-      channel = new Channel( url, pPoller, trHandler, pTaskManager );
+      channel = new Channel( url, pPoller, trHandler, pTaskManager, pJobManager );
       pChannelMap[url.GetHostId()] = channel;
     }
     else

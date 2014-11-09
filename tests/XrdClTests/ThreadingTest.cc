@@ -222,10 +222,10 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
     //--------------------------------------------------------------------------
     // Get the checksum
     //--------------------------------------------------------------------------
-    std::string remoteSum;
+    std::string remoteSum, dataServer;
+    threadData[i].file->GetProperty( "DataServer", dataServer );
     CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum(
-                            remoteSum, "zcrc32",
-                            threadData[i].file->GetDataServer(), path[i] ) );
+                            remoteSum, "zcrc32", dataServer, path[i] ) );
     CPPUNIT_ASSERT( remoteSum == transferSum );
     CPPUNIT_ASSERT_MESSAGE( path[i], remoteSum == transferSum );
   }

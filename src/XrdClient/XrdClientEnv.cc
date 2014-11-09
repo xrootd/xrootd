@@ -39,6 +39,7 @@
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientConnMgr.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include <string>
 #include <algorithm>
 #include <ctype.h>
@@ -238,7 +239,7 @@ static void child()
 } // extern "C"
 
 //------------------------------------------------------------------------------
-// Install the fork handlers on application startup
+// Install the fork handlers on application startup and set IPV4 mode
 //------------------------------------------------------------------------------
 namespace
 {
@@ -246,6 +247,7 @@ namespace
   {
     Initializer()
     {
+      XrdNetAddr::SetIPV4();
       //------------------------------------------------------------------------
       // Install the fork handlers
       //------------------------------------------------------------------------

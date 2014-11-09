@@ -43,6 +43,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdCpMthrQueue.hh"
+#include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdCpWorkLst.hh"
 #include "XrdClient/XrdClientEnv.hh"
@@ -72,6 +73,7 @@
 #endif
 #include <stdarg.h>
 #include <stdio.h>
+#include <sstream>
 
 #ifdef HAVE_LIBZ
 #include <zlib.h>
@@ -83,9 +85,10 @@
   
 namespace XrdCopy
 {
-XrdCpConfig  Config("xrdcpy");
+XrdCpConfig  Config("xrdcp");
 XrdCksData   srcCksum, dstCksum;
 XrdCksCalc  *csObj;
+XrdClient   *tpcSrc;
 char         tpcKey[32];
 long long    tpcFileSize;
 pthread_t    tpcTID;
@@ -98,6 +101,7 @@ int          prtCks;
 int          setCks;
 int          verCks;
 int          xeqCks;
+int          lclCks;
 static const int rwMode = kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or;
 }
 
@@ -154,7 +158,7 @@ struct XrdCpInfo {
 
 #define XRDCP_BLOCKSIZE          (8*1024*1024)
 #define XRDCP_XRDRASIZE          (30*XRDCP_BLOCKSIZE)
-#define XRDCP_VERSION            "(C) 2004-2011 by the XRootD collaboration. Version: "XrdVSTRING
+#define XRDCP_VERSION            "(C) 2004-2011 by the XRootD collaboration. Version: " XrdVSTRING
 
 ///////////////////////////////////////////////////////////////////////
 // Coming from parameters on the cmd line
@@ -244,11 +248,22 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
   
 void print_chksum(const char* src, unsigned long long bytesread)
 {
+   const char *csName;
    char Buff[64];
-   dstCksum.Get(Buff, sizeof(Buff));
+   int csLen;
    XrdOucString xsrc(src);
    xsrc.erase(xsrc.rfind('?'));
-   cout <<dstCksum.Name <<": " <<Buff <<' ' <<xsrc <<' ' <<bytesread <<endl;
+
+   if (lclCks && csObj)
+      {const void *csVal  = csObj->Final();
+       csName = csObj->Type(csLen);
+       srcCksum.Set(csVal, csLen);
+       srcCksum.Get(Buff, sizeof(Buff));
+      } else {
+       dstCksum.Get(Buff, sizeof(Buff));
+       csName = dstCksum.Name;
+      }
+   cout <<csName <<": " <<Buff <<' ' <<xsrc <<' ' <<bytesread <<endl;
 }
 
 /******************************************************************************/
@@ -312,7 +327,7 @@ void undoProgBar(int isOK)
 /*                               c p F a t a l                                */
 /******************************************************************************/
   
-int cpFatal(const char *Act, XrdClient *cSrc, XrdClient *cDst)
+int cpFatal(const char *Act, XrdClient *cSrc, XrdClient *cDst, const char *hn=0)
 {
    XrdClient *cObj;
    const char *Msg;
@@ -322,7 +337,9 @@ int cpFatal(const char *Act, XrdClient *cSrc, XrdClient *cDst)
    if (cSrc) {cObj = cSrc; Msg = "Copy from ";}
       else   {cObj = cDst; Msg = "Copy to ";}
 
-   EMSG(Msg <<cObj->GetCurrentUrl().Host.c_str() <<" failed on " <<Act <<"!");
+   if (!hn) hn = cObj->GetCurrentUrl().Host.c_str();
+
+   EMSG(Msg <<hn <<" failed on " <<Act <<"!");
    EMSG(ServerError(cObj));
    return -1;
 }
@@ -705,12 +722,12 @@ int valTPC(XrdClient *cObj, int isDest)
   
 char *genDestCgi(XrdClient *xrdsrc, const char *src)
 {
-   union {int *intP;
+   union {long long intP;
           int  intV[2];
          } iKey;
    XrdClientStatInfo stat;
    XrdOucString dCGI;
-   int myKey[3], xTTL = 0;
+   int myKey[3];
    const char *Path, *cksVal, *cgiP;
    char *qP, aszBuff[128], lfnBuff[1032], cgiBuff[2048];
 
@@ -732,7 +749,7 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
    gettimeofday(&abs_start_time,&tz);
    myKey[0] = abs_start_time.tv_usec;
    myKey[1] = getpid() | (getppid() << 16);
-   iKey.intP = &myKey[0];
+   iKey.intP = (long long) &myKey[0];
    myKey[2] = iKey.intV[0] ^ iKey.intV[1];
    sprintf(tpcKey, "%08x%08x%08x", myKey[0], myKey[1], myKey[2]);
 
@@ -742,7 +759,9 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
 
 // Generate the cgi for the destination
 //
-   cgiP = XrdOucTPC::cgiC2Dst(tpcKey, xrdsrc->GetCurrentUrl().Host.c_str(),
+   std::ostringstream o; o << xrdsrc->GetCurrentUrl().Host.c_str() << ":";
+   o << xrdsrc->GetCurrentUrl().Port;
+   cgiP = XrdOucTPC::cgiC2Dst(tpcKey, o.str().c_str(),
                               lfnBuff, cksVal, cgiBuff, sizeof(cgiBuff));
    if (*cgiP == '!')
       {EMSG("Unable to setup destination url. " <<cgiP+1); return 0;}
@@ -777,12 +796,25 @@ int doCp_xrd3xrd(XrdClient *xrddest, const char *src, const char *dst)
                     ~sdHelper() {if (Src) delete Src;}
          } Client;
    XrdClientUrlInfo dUrl;
-   XrdOucString sUrl(src);
-   pthread_t myTID;
+   XrdOucString sUrl(tpcSrc->GetCurrentUrl().GetUrl().c_str());
+   XrdOucString *rCGI, dstUrl;
    int xTTL = -1;
    const char *cgiP;
-   char *qP;
    char cgiBuff[1024];
+
+// Append any redirection cgi information to our source spec
+//
+   rCGI = &(tpcSrc->GetClientConn()->fRedirCGI);
+   if (rCGI->length() > 0)
+      {if (sUrl.find("?") == STR_NPOS) sUrl += '?';
+          else sUrl += '&';
+       sUrl += *rCGI;
+      }
+
+//cerr <<"tpc: bfr src=" <<src <<endl;
+//cerr <<"tpc: bfr dst=" <<dst <<endl;
+//cerr <<"tpc: bfr scl=" <<tpcSrc->GetCurrentUrl().GetUrl().c_str() <<endl;
+//cerr <<"tpc: bfr dcl=" <<xrddest->GetCurrentUrl().GetUrl().c_str() <<endl;
 
 // Verify that the destination supports 3rd party stuff
 //
@@ -800,20 +832,24 @@ int doCp_xrd3xrd(XrdClient *xrddest, const char *src, const char *dst)
    if (sUrl.find("?") == STR_NPOS) sUrl += '?';
       else sUrl += '&';
    sUrl += cgiBuff;
-// cerr <<"Src  url: " <<sUrl.c_str() <<endl;
+//cerr <<"tpc: aft scl=" <<sUrl.c_str()<<endl;
+//cerr <<"tpc: aft dcl=" <<xrddest->GetCurrentUrl().GetUrl().c_str() <<endl;
 
 // Open the source
 //
    Client.Src = new XrdClient(sUrl.c_str());
+   const char *hName = Client.Src->GetCurrentUrl().Host.c_str();
    if ((!Client.Src->Open(0, kXR_async) ||
       (Client.Src->LastServerResp()->status != kXR_ok)))
-      return cpFatal("open", Client.Src, 0);
+      return cpFatal("open", Client.Src, 0, hName);
    
 // Start the progress bar if so wanted
 //
    tpcPB = !Config.Want(XrdCpConfig::DoNoPbar);
    if (tpcPB)
-      {dUrl = xrddest->GetCurrentUrl();
+//    {dUrl = xrddest->GetCurrentUrl();
+//cerr <<"tpc: pbr dcl=" <<dst<<endl;
+      {dstUrl = dst; dUrl = dstUrl;
        tpcPB = !XrdSysThread::Run(&tpcTID, doProgBar, (void *)&dUrl,
                                   XRDSYSTHREAD_HOLD);
       }
@@ -864,7 +900,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 // If we need to verify checksums then we will need to get the checksum
 // from the source unless a specific checksum has been specified.
 //
-   if (verCks && getCks && !getCksum(srcCksum, src)) return -ENOTSUP;
+   if (lclCks) csObj = Config.CksObj;
+      else if (verCks && getCks && !getCksum(srcCksum, src)) return -ENOTSUP;
 
    gettimeofday(&abs_start_time,&tz);
 
@@ -872,9 +909,10 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    // If Xrdcli is non-null, the correct src file has already been opened
    if (!cpnfo.XrdCli)
       {cpnfo.XrdCli = new XrdClient(src);
+       const char *hName = cpnfo.XrdCli->GetCurrentUrl().Host.c_str();
        if ( ( !cpnfo.XrdCli->Open(0, kXR_async) ||
           (cpnfo.XrdCli->LastServerResp()->status != kXR_ok) ) )
-          {cpFatal("open", cpnfo.XrdCli, 0);
+          {cpFatal("open", cpnfo.XrdCli, 0, hName);
            delete cpnfo.XrdCli;
            cpnfo.XrdCli = 0;
            return 1;
@@ -889,9 +927,10 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    // if xrddest if nonzero, then the file is already opened for writing
    if (!*xrddest) {
       *xrddest = new XrdClient(dest.c_str());
+       const char *hName = (*xrddest)->GetCurrentUrl().Host.c_str();
       
       if (!PedanticOpen4Write(*xrddest, rwMode, xrd_wr_flags))
-         {cpFatal("open", 0, *xrddest);
+         {cpFatal("open", 0, *xrddest, hName);
           delete cpnfo.XrdCli;
           delete *xrddest;
           *xrddest = 0;
@@ -960,6 +999,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
                gettimeofday(&abs_stop_time,&tz);
                print_progbar(bytesread,size);
             }
+
+            if (csObj) csObj->Update((const char *)buf,len);
 
             if (!(*xrddest)->Write(buf, offs, len)) {
                cpFatal("write", 0, *xrddest);
@@ -1053,9 +1094,10 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    // If Xrdcli is non-null, the correct src file has already been opened
    if (!cpnfo.XrdCli)
       {cpnfo.XrdCli = new XrdClient(src);
+       const char *hName = cpnfo.XrdCli->GetCurrentUrl().Host.c_str();
        if ( ( !cpnfo.XrdCli->Open(0, kXR_async) ||
           (cpnfo.XrdCli->LastServerResp()->status != kXR_ok) ) )
-          {cpFatal("open", cpnfo.XrdCli, 0);
+          {cpFatal("open", cpnfo.XrdCli, 0, hName);
            delete cpnfo.XrdCli;
            cpnfo.XrdCli = 0;
            return 1;
@@ -1069,7 +1111,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    if (strcmp(dst, "-"))
       // Copy to local fs
       //unlink(dst);
-     {f = open(dst, loc_wr_flags,
+     {f = open(getFName(dst), loc_wr_flags,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
       if (f < 0)
          {EMSG(strerror(errno) <<" creating '" <<getFName(dst) <<"'.");
@@ -1078,8 +1120,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
           cpnfo.XrdCli = 0;
           return -1;
          }
+      if (verCks || lclCks) csObj = Config.CksObj;
      } else {
-      if (verCks) csObj = Config.CksObj;
       f = STDOUT_FILENO;  // Copy to stdout
      }
 
@@ -1260,8 +1302,9 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    // if xrddest if nonzero, then the file is already opened for writing
    if (!*xrddest)
       {*xrddest = new XrdClient(dest.c_str());
+       const char *hName = (*xrddest)->GetCurrentUrl().Host.c_str();
        if (!PedanticOpen4Write(*xrddest, rwMode, xrd_wr_flags) )
-          {cpFatal("open", 0 , *xrddest);
+          {cpFatal("open", 0 , *xrddest, hName);
            close(cpnfo.localfile);
            delete *xrddest;
            *xrddest = 0;
@@ -1283,7 +1326,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 // If we need to verify checksums then we will need to get the checksum
 // from the source unless a specific checksum has been specified.
 //
-   if (xeqCks && verCks && getCks) csObj = Config.CksObj;
+   if ((xeqCks && verCks && getCks) || lclCks) csObj = Config.CksObj;
 
    // Loop to write until ended or timeout err
    while(len > 0)
@@ -1416,7 +1459,7 @@ int doCp(XrdOucString &src, XrdOucString &dest, XrdClient *xrddest)
 int main(int argc, char**argv)
 {
    const char *Opaque;
-   char *srcpath = 0, *destpath = 0;
+   char *hName, *srcpath = 0, *destpath = 0;
 
 // Preset globals
 //
@@ -1433,7 +1476,7 @@ int main(int argc, char**argv)
 // Invoke config; it it returns then all went well.
 //
    Config.Config(argc, argv, XrdCpConfig::opt1Src|XrdCpConfig::optNoStdIn
-                            |XrdCpConfig::optNoXtnd);
+                            |XrdCpConfig::optNoXtnd|XrdCpConfig::optNoLclCp);
 
 // Turn off any blab from the client
 //
@@ -1518,8 +1561,9 @@ int main(int argc, char**argv)
 // Establish checksum processing
 //
    setCks = 0;
+   lclCks = Config.Want(XrdCpConfig::DoCksrc);
    xeqCks = Config.Want(XrdCpConfig::DoCksum);
-   prtCks = xeqCks &&  Config.Want(XrdCpConfig::DoCkprt);
+   prtCks =(xeqCks || lclCks) &&  Config.Want(XrdCpConfig::DoCkprt);
    getCks = xeqCks && (Config.CksData.Length == 0);
    verCks = xeqCks && !prtCks;
 
@@ -1534,6 +1578,13 @@ int main(int argc, char**argv)
  //    if (dup2(STDOUT_FILENO, STDERR_FILENO)) cerr <<"??? " <<errno <<endl;
       }
 
+// Extract source host if present
+//
+   if (strncmp(srcpath, "root://", 7) || strncmp(srcpath, "xroot://", 8) )
+      {XrdClientUrlInfo sUrl(srcpath);
+       hName = (sUrl.IsValid() ? strdup(sUrl.Host.c_str()) : 0);
+      } else hName = 0;
+
 // Prepare to generate a copy list
 //
    XrdCpWorkLst *wklst = new XrdCpWorkLst();
@@ -1544,21 +1595,32 @@ int main(int argc, char**argv)
 // Generate the sources
 //
    if (wklst->SetSrc(&cpnfo.XrdCli, srcpath, Config.srcOpq, recurse, 1))
-      {cpFatal("open", cpnfo.XrdCli, 0);
+      {cpFatal("open", cpnfo.XrdCli, 0, hName);
        exit(1);
       }
 
 // Generate destination opaque data now
 //
    if (!isTPC) Opaque = Config.dstOpq;
-      else if (!(Opaque = genDestCgi(cpnfo.XrdCli, srcpath))) exit(4);
+      else {if (!(Opaque = genDestCgi(cpnfo.XrdCli, srcpath))) exit(4);
+            tpcSrc = cpnfo.XrdCli;
+           }
+
+// Extract source host if present
+//
+   if (hName) free(hName);
+   if (strncmp(destpath, "root://", 7) || strncmp(destpath, "xroot://", 8) )
+      {XrdClientUrlInfo dUrl(destpath);
+       hName = (dUrl.IsValid() ? strdup(dUrl.Host.c_str()) : 0);
+      } else hName = 0;
 
 // Verify the correctness of the destination
 //
    if (wklst->SetDest(&xrddest, destpath, Opaque, xrd_wr_flags, 1))
-      {cpFatal("open", 0, xrddest);
+      {cpFatal("open", 0, xrddest, hName);
        exit(1);
       }
+   if (hName) {free(hName); hName = 0;}
 
       // Initialize monitoring client, if a plugin is present
       cpnfo.mon = 0;

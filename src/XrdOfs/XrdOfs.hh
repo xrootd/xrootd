@@ -39,6 +39,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdCms/XrdCmsClient.hh"
 
+class XrdNetIF;
 class XrdOfsEvs;
 class XrdOfsPocq;
 class XrdOss;
@@ -71,6 +72,8 @@ public:
 inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 
 const   char       *FName() {return (const char *)fname;}
+
+        int         autoStat(struct stat *buf);
 
                     XrdOfsDirectory(const char *user, int MonID)
                           : XrdSfsDirectory(user, MonID)
@@ -108,9 +111,16 @@ public:
 
         int            close();
 
-virtual int            fctl(const int               cmd,
+        using          XrdSfsFile::fctl;
+
+        int            fctl(const int               cmd,
                             const char             *args,
                                   XrdOucErrInfo    &out_error);
+
+        int            fctl(const int               cmd,
+                                  int               alen,
+                                  const char       *args,
+                            const XrdSecEntity     *client = 0);
 
         const char    *FName() {return (oh ? oh->Name() : "?");}
 
@@ -124,7 +134,7 @@ virtual int            fctl(const int               cmd,
                             XrdSfsXferSize     buffer_size);
 
         XrdSfsXferSize readv(XrdOucIOVec      *readV,
-                             size_t            readCount);
+                             int               readCount);
 
         int            read(XrdSfsAio *aioparm);
 
@@ -146,7 +156,7 @@ virtual int            fctl(const int               cmd,
 
                        XrdOfsFile(const char *user, int MonID);
 
-virtual               ~XrdOfsFile() {viaDel = 1; if (oh) close();}
+                      ~XrdOfsFile() {viaDel = 1; if (oh) close();}
 
 protected:
        const char   *tident;
@@ -282,6 +292,7 @@ virtual               ~XrdOfs() {}  // Too complicate to delete :-)
 // Configuration values for this filesystem
 //
 enum {Authorize = 0x0001,    // Authorization wanted
+      XAttrPlug = 0x0002,    // Extended Attribute Plugin
       isPeer    = 0x0050,    // Role peer
       isProxy   = 0x0020,    // Role proxy
       isManager = 0x0040,    // Role manager
@@ -290,11 +301,16 @@ enum {Authorize = 0x0001,    // Authorization wanted
       isMeta    = 0x0100,    // Role meta + above
       haveRole  = 0x01F0,    // A role is present
       Forwarding= 0x1000,    // Fowarding wanted
-      ThirdPC   = 0x2000     // This party copy wanted
+      ThirdPC   = 0x2000,    // This party copy wanted
+      SubCluster= 0x4000     // all.subcluster directive encountered
      };                      // These are set in Options below
 
 int   Options;               // Various options
 int   myPort;                // Port number being used
+
+// Networking
+//
+XrdNetIF *myIF;
 
 // Forward options
 //
@@ -320,13 +336,13 @@ struct fwdOpt fwdTRUNC;
 static int MaxDelay;  //    Max delay imposed during staging
 static int OSSDelay;  //    Delay to impose when oss interface times out
 
-char *HostName;       //    ->Our hostname
-char *HostPref;       //    ->Our hostname with domain removed
 char *ConfigFN;       //    ->Configuration filename
 char *OssLib;         //    ->Oss Library
 char *OssParms;       //    ->Oss Library Parameters
 char *CmsLib;         //    ->Cms Library
 char *CmsParms;       //    ->Cms Library Parameters
+char *AtrLib;         //    ->Atr Library
+char *AtrParms;       //    ->Atr Library Parameters
 
 /******************************************************************************/
 /*                       P r o t e c t e d   I t e m s                        */
@@ -360,8 +376,6 @@ char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdCmsClient     *Balancer;       //    ->Cluster Local   Interface
 XrdOfsEvs        *evsObject;      //    ->Event Notifier
-char             *locResp;        //    ->Locate Response
-int               locRlen;        //      Length of locResp;
 
 XrdOfsPoscq      *poscQ;          //    -> poscQ if  persist on close enabled
 char             *poscLog;        //    -> Directory for posc recovery log
@@ -371,6 +385,8 @@ int               poscAuto;       //  1 -> Automatic persist on close
 XrdCksConfig     *CksConfig;      // Checksum configurator
 XrdCks           *Cks;            // Checksum manager
 int               CksRdsz;        // Checksum read size
+
+char              myRType[4];     // Role type for consistency with the cms
 
 XrdVersionInfo   *myVersion;      // Version number compiled against
 
@@ -396,6 +412,7 @@ const char   *Fname(const char *);
 int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                       const char *arg1=0, const char *arg2=0,
                       XrdOucEnv  *Env1=0, XrdOucEnv  *Env2=0);
+int           setupAttr(XrdSysError &);
 int           setupAuth(XrdSysError &);
 const char   *theRole(int opts);
 int           xalib(XrdOucStream &, XrdSysError &);
@@ -412,5 +429,6 @@ int           xrole(XrdOucStream &, XrdSysError &);
 int           xtpc(XrdOucStream &, XrdSysError &);
 int           xtpcal(XrdOucStream &, XrdSysError &);
 int           xtrace(XrdOucStream &, XrdSysError &);
+int           xxlib(XrdOucStream &, XrdSysError &);
 };
 #endif

@@ -27,12 +27,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
   
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdLink.hh"
@@ -118,9 +118,9 @@ XrdPoll::XrdPoll()
    TID=0;
    numAttached=numEnabled=numEvents=numInterrupts=0;
 
-   if (pipe(fildes) == 0)
-      {CmdFD = fildes[1]; fcntl(CmdFD, F_SETFD, FD_CLOEXEC);
-       ReqFD = fildes[0]; fcntl(ReqFD, F_SETFD, FD_CLOEXEC);
+   if (XrdSysFD_Pipe(fildes) == 0)
+      {CmdFD = fildes[1];
+       ReqFD = fildes[0];
       } else {
        CmdFD = ReqFD = -1;
        XrdLog->Emsg("Poll", errno, "create poll pipe");

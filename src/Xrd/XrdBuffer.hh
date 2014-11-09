@@ -53,9 +53,9 @@ int      bsize;    // size of this buffer
          friend class XrdBuffManager;
 private:
 
+int        bindex;
 XrdBuffer *next;
-       int  bindex;
-static int  pagesz;
+static int pagesz;
 };
   
 /******************************************************************************/

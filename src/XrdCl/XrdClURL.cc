@@ -121,6 +121,8 @@ namespace XrdCl
       return false;
     }
 
+    ComputeURL();
+
     //--------------------------------------------------------------------------
     // Dump the url
     //--------------------------------------------------------------------------
@@ -200,7 +202,10 @@ namespace XrdCl
         // Check if we're IPv6 encoded IPv4
         //----------------------------------------------------------------------
         pos = pHostName.find( "." );
-        if( pos != std::string::npos )
+        size_t pos2 = pHostName.find( "[::ffff" );
+        size_t pos3 = pHostName.find( "[::" );
+        if( pos != std::string::npos && pos3 != std::string::npos &&
+            pos2 == std::string::npos )
         {
           pHostName.erase( 0, 3 );
           pHostName.erase( pHostName.length()-1, 1 );
@@ -235,6 +240,7 @@ namespace XrdCl
         return false;
     }
 
+    ComputeHostId();
     return true;
   }
 
@@ -251,35 +257,8 @@ namespace XrdCl
     }
     else
       pPath = path;
+    ComputeURL();
     return true;
-  }
-
-  //----------------------------------------------------------------------------
-  // Recreate the url
-  //----------------------------------------------------------------------------
-  std::string URL::GetURL() const
-  {
-    if( !IsValid() )
-      return "";
-
-    std::ostringstream o;
-    if( !pProtocol.empty() )
-      o << pProtocol << "://";
-
-    if( !pUserName.empty() )
-    {
-      o << pUserName;
-      if( !pPassword.empty() )
-        o << ":" << pPassword;
-      o << "@";
-    }
-
-    if( !pHostName.empty() )
-      o << pHostName << ":" << pPort << "/";
-
-    o << GetPathWithParams();
-
-    return o.str();
   }
 
   //----------------------------------------------------------------------------
@@ -292,18 +271,6 @@ namespace XrdCl
       o << pPath;
 
     o << GetParamsAsString();
-    return o.str();
-  }
-
-  //----------------------------------------------------------------------------
-  // Get host id
-  //----------------------------------------------------------------------------
-  std::string URL::GetHostId() const
-  {
-    std::ostringstream o;
-    if( pUserName.length() )
-      o << pUserName << "@";
-    o << pHostName << ":" << pPort;
     return o.str();
   }
 
@@ -379,6 +346,7 @@ namespace XrdCl
     pPort = 1094;
     pPath.clear();
     pParams.clear();
+    pURL.clear();
   }
 
   //----------------------------------------------------------------------------
@@ -395,5 +363,50 @@ namespace XrdCl
     if( pProtocol != "file" && pProtocol != "stdio" && pHostName.empty() )
       return false;
     return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Recompute the host id
+  //----------------------------------------------------------------------------
+  void URL::ComputeHostId()
+  {
+    std::ostringstream o;
+    if( !pUserName.empty() )
+    {
+      o << pUserName;
+      if( !pPassword.empty() )
+        o << ":" << pPassword;
+      o << "@";
+    }
+    o << pHostName << ":" << pPort;
+    pHostId = o.str();
+  }
+
+  //----------------------------------------------------------------------------
+  // Recreate the url
+  //----------------------------------------------------------------------------
+  void URL::ComputeURL()
+  {
+    if( !IsValid() )
+      pURL = "";
+
+    std::ostringstream o;
+    if( !pProtocol.empty() )
+      o << pProtocol << "://";
+
+    if( !pUserName.empty() )
+    {
+      o << pUserName;
+      if( !pPassword.empty() )
+        o << ":" << pPassword;
+      o << "@";
+    }
+
+    if( !pHostName.empty() )
+      o << pHostName << ":" << pPort << "/";
+
+    o << GetPathWithParams();
+
+    pURL = o.str();
   }
 }

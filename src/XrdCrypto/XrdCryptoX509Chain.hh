@@ -78,8 +78,6 @@ public:
 
 class XrdCryptoX509Chain {
 
-   friend class XrdCryptosslgsiX509Chain;
-
    enum ESearchMode { kExact = 0, kBegin = 1, kEnd = 2 };
 
 public:
@@ -140,7 +138,7 @@ public:
    XrdCryptoX509       *Begin();
    XrdCryptoX509       *Next();
 
-private:
+protected:
 
 
    XrdCryptoX509ChainNode *begin;

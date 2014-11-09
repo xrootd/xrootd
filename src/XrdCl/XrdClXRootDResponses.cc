@@ -28,34 +28,34 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // LocationInfo constructor
   //----------------------------------------------------------------------------
-  LocationInfo::LocationInfo( const char *data )
+  LocationInfo::LocationInfo()
   {
-    if( data )
-      ParseServerResponse( data );
   }
 
   //----------------------------------------------------------------------------
   // Parse the server location response
   //----------------------------------------------------------------------------
-  void LocationInfo::ParseServerResponse( const char *data )
+  bool LocationInfo::ParseServerResponse( const char *data )
   {
-    //--------------------------------------------------------------------------
-    // Split the locations
-    //--------------------------------------------------------------------------
+    if( !data || strlen( data ) == 0 )
+      return false;
+
     std::vector<std::string>           locations;
     std::vector<std::string>::iterator it;
     Utils::splitString( locations, data, " " );
     for( it = locations.begin(); it != locations.end(); ++it )
-      ProcessLocation( *it );
+      if( ProcessLocation( *it ) == false )
+        return false;
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Process location
   //----------------------------------------------------------------------------
-  void LocationInfo::ProcessLocation( std::string &location )
+  bool LocationInfo::ProcessLocation( std::string &location )
   {
-    if( location.length() < 17 )
-      return;
+    if( location.length() < 5 )
+      return false;
 
     //--------------------------------------------------------------------------
     // Decode location type
@@ -76,7 +76,7 @@ namespace XrdCl
         type = LocationInfo::ServerPending;
         break;
       default:
-        return;
+        return false;
     }
 
     //--------------------------------------------------------------------------
@@ -92,36 +92,40 @@ namespace XrdCl
         access = LocationInfo::ReadWrite;
         break;
       default:
-        return;
+        return false;
     }
 
     //--------------------------------------------------------------------------
     // Push the location info
     //--------------------------------------------------------------------------
     pLocations.push_back( Location( location.substr(2), type, access ) );
+
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // StatInfo constructor
   //----------------------------------------------------------------------------
-  StatInfo::StatInfo( const char *data ):
+  StatInfo::StatInfo():
     pSize( 0 ),
     pFlags( 0 ),
     pModTime( 0 )
   {
-    ParseServerResponse( data );
   }
 
   //----------------------------------------------------------------------------
   // Parse the stat info returned by the server
   //----------------------------------------------------------------------------
-  void StatInfo::ParseServerResponse( const char *data )
+  bool StatInfo::ParseServerResponse( const char *data )
   {
+    if( !data || strlen( data ) == 0 )
+      return false;
+
     std::vector<std::string> chunks;
     Utils::splitString( chunks, data, " " );
 
     if( chunks.size() < 4 )
-      return;
+      return false;
 
     pId = chunks[0];
 
@@ -130,28 +134,30 @@ namespace XrdCl
     if( *result != 0 )
     {
       pSize = 0;
-      return;
+      return false;
     }
 
     pFlags = ::strtol( chunks[2].c_str(), &result, 0 );
     if( *result != 0 )
     {
       pFlags = 0;
-      return;
+      return false;
     }
 
     pModTime = ::strtoll( chunks[3].c_str(), &result, 0 );
     if( *result != 0 )
     {
       pModTime = 0;
-      return;
+      return false;
     }
+
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // StatInfo constructor
   //----------------------------------------------------------------------------
-  StatInfoVFS::StatInfoVFS( const char *data ):
+  StatInfoVFS::StatInfoVFS():
     pNodesRW( 0 ),
     pFreeRW( 0 ),
     pUtilizationRW( 0 ),
@@ -159,77 +165,73 @@ namespace XrdCl
     pFreeStaging( 0 ),
     pUtilizationStaging( 0 )
   {
-    ParseServerResponse( data );
   }
 
   //----------------------------------------------------------------------------
   // Parse the stat info returned by the server
   //----------------------------------------------------------------------------
-  void StatInfoVFS::ParseServerResponse( const char *data )
+  bool StatInfoVFS::ParseServerResponse( const char *data )
   {
+    if( !data || strlen( data ) == 0 )
+      return false;
+
     std::vector<std::string> chunks;
     Utils::splitString( chunks, data, " " );
 
     if( chunks.size() < 6 )
-      return;
+      return false;
 
     char *result;
     pNodesRW = ::strtoll( chunks[0].c_str(), &result, 0 );
     if( *result != 0 )
     {
       pNodesRW = 0;
-      return;
+      return false;
     }
 
     pFreeRW = ::strtoll( chunks[1].c_str(), &result, 0 );
     if( *result != 0 )
     {
       pFreeRW = 0;
-      return;
+      return false;
     }
 
     pUtilizationRW = ::strtol( chunks[2].c_str(), &result, 0 );
     if( *result != 0 )
     {
       pUtilizationRW = 0;
-      return;
+      return false;
     }
 
     pNodesStaging = ::strtoll( chunks[3].c_str(), &result, 0 );
     if( *result != 0 )
     {
       pNodesStaging = 0;
-      return;
+      return false;
     }
 
     pFreeStaging = ::strtoll( chunks[4].c_str(), &result, 0 );
     if( *result != 0 )
     {
       pFreeStaging = 0;
-      return;
+      return false;
     }
 
     pUtilizationStaging = ::strtol( chunks[5].c_str(), &result, 0 );
     if( *result != 0 )
     {
       pUtilizationStaging = 0;
-      return;
+      return false;
     }
+
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // DirectoryList constructor
   //----------------------------------------------------------------------------
-  DirectoryList::DirectoryList( const std::string &hostId,
-                                const std::string &parent,
-                                const char        *data )
+  DirectoryList::DirectoryList()
   {
-    pParent = parent;
-    if( pParent[pParent.length()-1] != '/' )
-      pParent += "/";
-
-    if( data )
-      ParseServerResponse( hostId, data );
   }
 
   //----------------------------------------------------------------------------
@@ -244,14 +246,54 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Parse the directory list
   //----------------------------------------------------------------------------
-  void DirectoryList::ParseServerResponse( const std::string &hostId,
+  bool DirectoryList::ParseServerResponse( const std::string &hostId,
                                            const char *data )
   {
+    if( !data )
+      return false;
+
+    //--------------------------------------------------------------------------
+    // Check what kind of response we're dealing with
+    //--------------------------------------------------------------------------
+    std::string dat          = data;
+    std::string dStatPrefix = ".\n0 0 0 0";
+    bool        isDStat     = false;
+
+    if( !dat.compare( 0, dStatPrefix.size(), dStatPrefix ) )
+      isDStat = true;
+
     std::vector<std::string>           entries;
     std::vector<std::string>::iterator it;
-    Utils::splitString( entries, data, "\n" );
+    Utils::splitString( entries, dat, "\n" );
 
-    for( it = entries.begin(); it != entries.end(); ++it )
-      Add( new ListEntry( hostId, *it ) );
+    //--------------------------------------------------------------------------
+    // Normal response
+    //--------------------------------------------------------------------------
+    if( !isDStat )
+    {
+      for( it = entries.begin(); it != entries.end(); ++it )
+        Add( new ListEntry( hostId, *it ) );
+      return true;
+    }
+
+    //--------------------------------------------------------------------------
+    // kXR_dstat
+    //--------------------------------------------------------------------------
+    if( (entries.size() < 2) || (entries.size() % 2) )
+      return false;
+
+    it = entries.begin(); ++it; ++it;
+    for( ; it != entries.end(); ++it )
+    {
+      ListEntry *entry = new ListEntry( hostId, *it );
+      Add( entry );
+      ++it;
+      StatInfo *i = new StatInfo();
+      entry->SetStatInfo( i );
+      bool ok = i->ParseServerResponse( it->c_str() );
+      if( !ok )
+        return false;
+    }
+    return true;
   }
 }

@@ -84,6 +84,7 @@ static const int MaxMan = 15;
 private:
 int              Decode(char **resp);
 void             Inform(XrdCmsClientMan *xman, struct iovec xmsg[], int xnum);
+int              LocLocal(XrdOucErrInfo &Resp, XrdOucEnv *Env);
 XrdCmsClientMan *SelectManager(XrdOucErrInfo &Resp, const char *path);
 void             SelectManFail(XrdOucErrInfo &Resp);
 int              send2Man(XrdOucErrInfo &, const char *, struct iovec *, int);
@@ -115,6 +116,7 @@ unsigned char    savePath;
 /******************************************************************************/
 
 class XrdOucStream;
+class XrdOucTList;
   
 class XrdCmsFinderTRG : public XrdCmsClient
 {
@@ -124,12 +126,21 @@ public:
         int    Configure(const char *cfn, char *Args, XrdOucEnv *EnvInfo);
 
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
-                      XrdOucEnv *Info=0) {return 0;}
+                      XrdOucEnv *Info=0);
 
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
                        XrdOucEnv *Info=0) {return 0;}
 
+XrdOucTList   *Managers() {return myManList;}
+
         void   Removed(const char *path);
+
+        void   Resume (int Perm=1);
+        void   Suspend(int Perm=1);
+
+        int    Resource(int n);
+        int    Reserve (int n);
+        int    Release (int n);
 
         int    RunAdmin(char *Path);
 
@@ -149,11 +160,15 @@ void  Hookup();
 int   Process(XrdCmsRRData &Data);
 
 XrdOss        *SS;
-XrdOucStream  *CMSp;
-XrdSysMutex    myData;
-int            myPort;
 char          *CMSPath;
 char          *Login;
+XrdOucTList   *myManList;
+XrdOucStream  *CMSp;
+XrdSysMutex    myData;
+XrdSysMutex    rrMutex;
+int            resMax;
+int            resCur;
+int            myPort;
 int            isRedir;
 int            isProxy;
 int            Active;

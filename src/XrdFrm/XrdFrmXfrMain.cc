@@ -33,10 +33,11 @@
 
 /* This is the "main" part of the frm_migrd command. Syntax is:
 */
-static const char *XrdFrmOpts  = ":bc:dfhk:l:n:s:S:Tv";
+static const char *XrdFrmOpts  = ":bc:dfhk:l:n:s:S:Tvz";
 static const char *XrdFrmUsage =
 
-  " [-b] [-c <cfgfn>] [-d] [-f] [-k {num | sz{k|m|g}] [-l <lfile>] [-n name] [-s pidfile] [-S site] [-T] [-v]\n";
+  " [-b] [-c <cfgfn>] [-d] [-f] [-k {num|sz{k|m|g}|sig] [-l [=]<fn>] [-n name]\n"
+  " [-s pidfile] [-S site] [-T] [-v] [-z]\n";
 /*
 Where:
 
@@ -72,7 +73,6 @@ Where:
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -87,6 +87,7 @@ Where:
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 using namespace XrdFrc;
 using namespace XrdFrm;
@@ -112,16 +113,11 @@ int main(int argc, char *argv[])
 {
    XrdSysLogger Logger;
    extern int mainConfig();
-   sigset_t myset;
    char *pP;
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
-   signal(SIGPIPE, SIG_IGN);  // Solaris optimization
-   sigemptyset(&myset);
-   sigaddset(&myset, SIGPIPE);
-   sigaddset(&myset, SIGCHLD);
-   pthread_sigmask(SIG_BLOCK, &myset, NULL);
+   XrdSysUtils::SigBlock();
 
 // Set the default stack size here
 //

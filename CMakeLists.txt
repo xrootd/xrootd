@@ -16,9 +16,16 @@ include( XRootDDefaults )
 include( XRootDSystemCheck )
 include( XRootDFindLibs )
 
+add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
+
 #-------------------------------------------------------------------------------
 # Generate the version header
 #-------------------------------------------------------------------------------
+execute_process(
+  COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh --print-only ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE XROOTD_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE )
+
 add_custom_target(
   XrdVersion.hh
   ${CMAKE_SOURCE_DIR}/genversion.sh ${CMAKE_SOURCE_DIR} )

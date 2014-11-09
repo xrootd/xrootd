@@ -26,6 +26,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdNet/XrdNetAddrInfo.hh"
+
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -291,7 +293,7 @@ public:
                                           XrdOucErrInfo     *einfo=0);
 
         XrdSecProtocolpwd(int opts, const char *hname,
-                          const struct sockaddr *ipadd,
+                          XrdNetAddrInfo &endPoint,
                           const char *parms = 0);
         virtual ~XrdSecProtocolpwd() {} // Delete() does it all
 
@@ -357,8 +359,8 @@ private:
    static XrdOucTrace     *PWDTrace;
 
    // Information local to this instance
+   XrdNetAddrInfo          epAddr;
    int                     options;
-   struct sockaddr         hostaddr;      // Client-side only
    char                    CName[256];    // Client-name
    bool                    srvMode;       // TRUE if server mode 
 

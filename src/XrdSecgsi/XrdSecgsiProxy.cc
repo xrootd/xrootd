@@ -57,8 +57,7 @@
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptoX509Crl.hh"
 
-#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
-#include "XrdCrypto/XrdCryptosslgsiAux.hh"
+#include "XrdCrypto/XrdCryptogsiX509Chain.hh"
 
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 
@@ -97,6 +96,10 @@ bool         Debug = 0;
 bool         Exists = 0;
 XrdCryptoFactory *gCryptoFactory = 0;
 XrdOucString CryptoMod = "ssl";
+XrdCryptoX509ParseFile_t ParseFile = 0;
+XrdCryptoX509CreateProxy_t CreateProxy = 0;
+XrdCryptoX509GetVOMSAttr_t GetVOMSAttr = 0;
+XrdCryptoProxyCertInfo_t ProxyCertInfo = 0;
 XrdOucString CAdir  = "/etc/grid-security/certificates/";
 XrdOucString CRLdir = "/etc/grid-security/certificates/";
 XrdOucString DefEEcert = "/.globus/usercert.pem";
@@ -119,10 +122,9 @@ int main( int argc, char **argv )
    // Test implemented functionality
    int secValid = 0;
    XrdProxyOpt_t pxopt;
-   XrdCryptosslgsiX509Chain *cPXp = 0;
+   XrdCryptogsiX509Chain *cPXp = 0;
    XrdCryptoX509 *xPXp = 0, *xPXPp = 0;
    XrdCryptoRSA *kPXp = 0;
-   XrdCryptoX509ParseFile_t ParseFile = 0;
    int prc = 0;
    int nci = 0;
    int exitrc = 0;
@@ -158,6 +160,24 @@ int main( int argc, char **argv )
    if (Debug)
       gCryptoFactory->SetTrace(cryptoTRACE_Debug);
 
+   // Hooks for specific functionality
+   if (!(ParseFile = gCryptoFactory->X509ParseFile())) {
+      PRT("cannot attach to X509ParseFile function!");
+      exit(1);
+   }
+   if (!(CreateProxy = gCryptoFactory->X509CreateProxy())) {
+      PRT("cannot attach to X509CreateProxy function!");
+      exit(1);
+   }
+   if (!(ProxyCertInfo = gCryptoFactory->ProxyCertInfo())) {
+      PRT("cannot attach to ProxyCertInfo function!");
+      exit(1);
+   }
+   if (!(GetVOMSAttr = gCryptoFactory->X509GetVOMSAttr())) {
+      PRT("cannot attach to X509GetVOMSAttr function!");
+      exit(1);
+   }
+
    //
    // Depending on the mode
    switch (Mode) {
@@ -173,9 +193,11 @@ int main( int argc, char **argv )
       pxopt.bits = Bits;
       pxopt.valid = secValid;
       pxopt.depthlen = PathLength;
-      cPXp = new XrdCryptosslgsiX509Chain();
-      prc = XrdSslgsiX509CreateProxy(EEcert.c_str(), EEkey.c_str(), &pxopt,
-                                     cPXp, &kPXp, PXcert.c_str());
+      cPXp = new XrdCryptogsiX509Chain();
+      //
+      // Display info about existing proxies
+      prc = (*CreateProxy)(EEcert.c_str(), EEkey.c_str(), &pxopt,
+                           cPXp, &kPXp, PXcert.c_str());
       if (prc == 0) {
          // The proxy is the first certificate
          xPXp = cPXp->Begin();
@@ -199,12 +221,8 @@ int main( int argc, char **argv )
    case kM_info:
       //
       // Display info about existing proxies
-      if (!(ParseFile = gCryptoFactory->X509ParseFile())) {
-         PRT("cannot attach to ParseFile function!");
-         break;
-      }
       // Parse the proxy file
-      cPXp = new XrdCryptosslgsiX509Chain();
+      cPXp = new XrdCryptogsiX509Chain();
       nci = (*ParseFile)(PXcert.c_str(), cPXp);
       if (nci < 2) {
          if (Exists) {
@@ -696,8 +714,8 @@ void Display(XrdCryptoX509 *xp)
    // Subject
    PRT("subject     : "<<xp->Subject());
    // Path length field
-   int pathlen = 0;
-   XrdSslgsiProxyCertInfo(xp->GetExtension(gsiProxyCertInfo_OID), pathlen);
+   int pathlen = 0; bool b;
+   (*ProxyCertInfo)(xp->GetExtension(gsiProxyCertInfo_OID), pathlen, &b);
    PRT("path length : "<<pathlen);
    // Key strength
    PRT("bits        : "<<xp->BitStrength());
@@ -711,7 +729,7 @@ void Display(XrdCryptoX509 *xp)
    PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
    // Show VOMS attributes, if any
    XrdOucString vatts, vat;
-   if (XrdSslgsiX509GetVOMSAttr(xp, vatts) == 0) {
+   if ((*GetVOMSAttr)(xp, vatts) == 0) {
       int from = 0;
       while ((from = vatts.tokenize(vat, from, ',')) != -1) {
          if (vat.length() > 0) PRT("VOMS attributes: "<<vat);

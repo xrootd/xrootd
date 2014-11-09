@@ -54,12 +54,18 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get the URL
       //------------------------------------------------------------------------
-      std::string GetURL() const;
+      std::string GetURL() const
+      {
+        return pURL;
+      }
 
       //------------------------------------------------------------------------
       //! Get the host part of the URL (user:password\@host:port)
       //------------------------------------------------------------------------
-      std::string GetHostId() const;
+      std::string GetHostId() const
+      {
+        return pHostId;
+      }
 
       //------------------------------------------------------------------------
       //! Get protocol://host:port/path
@@ -80,6 +86,7 @@ namespace XrdCl
       void SetProtocol( const std::string &protocol )
       {
         pProtocol = protocol;
+        ComputeURL();
       }
 
       //------------------------------------------------------------------------
@@ -96,6 +103,8 @@ namespace XrdCl
       void SetUserName( const std::string &userName )
       {
         pUserName = userName;
+        ComputeHostId();
+        ComputeURL();
       }
 
       //------------------------------------------------------------------------
@@ -112,6 +121,7 @@ namespace XrdCl
       void SetPassword( const std::string &password )
       {
         pPassword = password;
+        ComputeURL();
       }
 
       //------------------------------------------------------------------------
@@ -128,6 +138,8 @@ namespace XrdCl
       void SetHostName( const std::string &hostName )
       {
         pHostName = hostName;
+        ComputeHostId();
+        ComputeURL();
       }
 
       //------------------------------------------------------------------------
@@ -144,6 +156,19 @@ namespace XrdCl
       void SetPort( int port )
       {
         pPort = port;
+        ComputeHostId();
+        ComputeURL();
+      }
+
+      //------------------------------------------------------------------------
+      // Set host and port
+      //------------------------------------------------------------------------
+      void SetHostPort( const std::string &hostName, int port )
+      {
+        pHostName = hostName;
+        pPort     = port;
+        ComputeHostId();
+        ComputeURL();
       }
 
       //------------------------------------------------------------------------
@@ -160,6 +185,7 @@ namespace XrdCl
       void SetPath( const std::string &path )
       {
         pPath = path;
+        ComputeURL();
       }
 
       //------------------------------------------------------------------------
@@ -176,14 +202,6 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Get the URL params
-      //------------------------------------------------------------------------
-      ParamsMap &GetParams()
-      {
-        return pParams;
-      }
-
-      //------------------------------------------------------------------------
       //! Get the URL params as string
       //------------------------------------------------------------------------
       std::string GetParamsAsString() const;
@@ -192,6 +210,15 @@ namespace XrdCl
       //! Set params
       //------------------------------------------------------------------------
       void SetParams( const std::string &params );
+
+      //------------------------------------------------------------------------
+      //! Set params
+      //------------------------------------------------------------------------
+      void SetParams( const ParamsMap &params )
+      {
+        pParams = params;
+        ComputeURL();
+      }
 
       //------------------------------------------------------------------------
       //! Parse a string and fill the URL fields
@@ -206,6 +233,8 @@ namespace XrdCl
     private:
       bool ParseHostInfo( const std::string hhostInfo );
       bool ParsePath( const std::string &path );
+      void ComputeHostId();
+      void ComputeURL();
       std::string pHostId;
       std::string pProtocol;
       std::string pUserName;
@@ -214,6 +243,7 @@ namespace XrdCl
       int         pPort;
       std::string pPath;
       ParamsMap   pParams;
+      std::string pURL;
 
   };
 }

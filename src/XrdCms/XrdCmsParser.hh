@@ -40,13 +40,14 @@
 /******************************************************************************/
 
 class XrdOucErrInfo;
+class XrdOucBuffer;
   
 class XrdCmsParser
 {
 public:
 
 static int            Decode(const char *Man, XrdCms::CmsRRHdr &hdr, 
-                                   char *data, int dlen, XrdOucErrInfo *eInfo);
+                                   XrdOucBuffer *dBuff, XrdOucErrInfo *eInfo);
 
 static int            mapError(const char *ecode);
 

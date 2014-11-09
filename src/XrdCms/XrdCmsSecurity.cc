@@ -40,9 +40,11 @@
 #include "XrdCms/XrdCmsTalk.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -53,22 +55,12 @@ using namespace XrdCms;
 /*                        S t a t i c   S y m b o l s                         */
 /******************************************************************************/
   
-namespace XrdCms
+namespace
 {
-static struct SecFunc {
-union {
-void                  *ProtFunc;
-XrdSecProtocol        *(*getProtocol)(const char             *hostname,
-                                      const struct sockaddr  &netaddr,
-                                      const XrdSecParameters &parms,
-                                            XrdOucErrInfo    *einfo);
-
-      };
-       SecFunc() : ProtFunc(0) {}
-      } Sec;
+static XrdSecGetProt_t getProtocol = 0;
 }
 
-XrdSecService *XrdCmsSecurity::DHS    = 0;
+XrdSecService *XrdCmsSecurity::DHS  = 0;
 
 /******************************************************************************/
 /*                          A u t h e n t i c a t e                           */
@@ -77,7 +69,6 @@ XrdSecService *XrdCmsSecurity::DHS    = 0;
 int XrdCmsSecurity::Authenticate(XrdLink *Link, const char *Token, int Toksz)
 {
    CmsRRHdr myHdr = {0, kYR_xauth, 0, 0};
-   struct sockaddr netaddr;
    XrdSecCredentials cred;
    XrdSecProtocol   *AuthProt = 0;
    XrdSecParameters *parm = 0;
@@ -106,14 +97,14 @@ do {
 // If we do not yet have a protocol, get one
 //
    if (!AuthProt)
-      {const char *hname = Link->Name(&netaddr);
-       if (!DHS
-       ||  !(AuthProt=DHS->getProtocol((char *)hname,netaddr,&cred,&eMsg)))
+      {if (!DHS || !(AuthProt=DHS->getProtocol(Link->Host(),
+                                             *(Link->AddrInfo()),&cred,&eMsg)))
           {eText = eMsg.getErrText(rc); break;}
       }
 
 // Perform the authentication
 //
+    AuthProt->Entity.addrInfo = Link->AddrInfo();
     if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg))) break;
     if (rc < 0) {eText = eMsg.getErrText(rc); break;}
     if (parm) 
@@ -149,37 +140,17 @@ do {
 
 int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 {
-   static XrdVERSIONINFODEF(myVer, cmssec, XrdVNUMBER, XrdVERSION);
    static XrdSysMutex myMutex;
-   static XrdSysPlugin secLib(&Say, Lib, "seclib", &myVer);
    XrdSysMutexHelper  hlpMtx(&myMutex);
-   XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
 
 // If we aleady have a security interface, return (may happen in client)
 //
-   if (!Cfn && Sec.getProtocol) return 1;
+   if (!Cfn && getProtocol) return 1;
 
-// Get the client object creator (in case we are acting as a client)
+// Get the server object and protocol creator
 //
-   if (! Sec.getProtocol
-   &&  !(Sec.getProtocol = (XrdSecProtocol *(*)(const char             *,
-                                                const struct sockaddr  &,
-                                                const XrdSecParameters &,
-                                                      XrdOucErrInfo    *))
-                       secLib.getPlugin("XrdSecGetProtocol"))) return 0;
-
-// If only configuring a client or we already cnfigured a server, all done
-//
-   if (!Cfn || DHS) return 1;
-
-// Get the server object creator
-//
-   if (!(ep = (XrdSecService *(*)(XrdSysLogger *, const char *cfn))
-              secLib.getPlugin("XrdSecgetService"))) return 0;
-
-// Get the server object
-//
-   if (!(DHS = (*ep)(Say.logger(), Cfn)))
+   if (!(DHS = XrdSecLoadSecService(&Say, Cfn, (strcmp(Lib,"default") ? Lib:0),
+                                    &getProtocol)))
       {Say.Emsg("Config","Unable to create security service object via",Lib);
        return 0;
       }
@@ -193,7 +164,7 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 /*                              g e t T o k e n                               */
 /******************************************************************************/
   
-const char *XrdCmsSecurity::getToken(int &size, const char *hostname)
+const char *XrdCmsSecurity::getToken(int &size, XrdNetAddrInfo *endPoint)
 {
 
 // If not configured, return a null to indicate no authentication required
@@ -202,7 +173,7 @@ const char *XrdCmsSecurity::getToken(int &size, const char *hostname)
 
 // Return actual token
 //
-   return DHS->getParms(size, hostname);
+   return DHS->getParms(size, endPoint);
 }
 
 /******************************************************************************/
@@ -213,8 +184,7 @@ int XrdCmsSecurity::Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
                              char *authBuff, int abLen)
 {
    CmsRRHdr outHdr = {0, kYR_xauth, 0, 0};
-   struct sockaddr netaddr;
-   const char *hname = Link->Host(&netaddr);
+   const char *hName = Link->Host();
    XrdSecCredentials *cred;
    XrdSecProtocol    *AuthProt = 0;
    XrdSecParameters   AuthParm, *AuthP = 0;
@@ -224,16 +194,16 @@ int XrdCmsSecurity::Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
 
 // Verify that we are configured
 //
-   if (!Sec.getProtocol && !Configure("libXrdSec.so"))
-      {Say.Emsg("Auth",Link->Host(),"authentication configuration failed.");
+   if (!getProtocol && !Configure("libXrdSec.so"))
+      {Say.Emsg("Auth", hName ,"authentication configuration failed.");
        return 0;
       }
 
 // Obtain the protocol
 //
    AuthParm.buffer = (char *)authBuff; AuthParm.size = strlen(authBuff);
-   if (!(AuthProt = Sec.getProtocol((char *)hname, netaddr, AuthParm, &eMsg)))
-      {Say.Emsg("Auth",hname,"getProtocol() failed;",eMsg.getErrText(rc));
+   if (!(AuthProt = getProtocol(hName,*(Link->AddrInfo()),AuthParm,&eMsg)))
+      {Say.Emsg("Auth", hName, "getProtocol() failed;", eMsg.getErrText(rc));
        return 0;
       }
 
@@ -261,7 +231,7 @@ do {
 
 // Check if we failed
 //
-   if (eText) Say.Emsg("Auth",Link->Host(),"authentication failed;",eText);
+   if (eText) Say.Emsg("Auth", hName, "authentication failed;", eText);
 
 // Perform final steps here
 //
@@ -273,7 +243,8 @@ do {
 /*                            s e t S e c F u n c                             */
 /******************************************************************************/
   
-void XrdCmsSecurity::setSecFunc(void *secfP) {Sec.ProtFunc = secfP;}
+void XrdCmsSecurity::setSecFunc(void *secfP)
+     {getProtocol = (XrdSecGetProt_t)secfP;}
 
 /******************************************************************************/
 /*                           s e t S y s t e m I D                            */

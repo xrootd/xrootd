@@ -32,15 +32,14 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucNList.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -83,6 +82,7 @@ int main(int argc, char *argv[])
    XrdOucNList_Anchor DirQ;
    XrdOucEnv          myEnv, *oldEnv = 0;
    XrdOucStream      *Config;
+   XrdNetAddr         theAddr(0);
 
    const char *Cfn = 0, *Host = 0, *Name = 0, *Xeq = "xrootd";
    const char *noSub[] = {"cms.prepmsg", "ofs.notifymsg", "oss.stagemsg",
@@ -121,11 +121,8 @@ int main(int argc, char *argv[])
 
 // Get full host name
 //
-   if (!Host) Host = XrdSysDNS::getHostName();
-      else {sockaddr IPAddr;
-            Host = (XrdSysDNS::getHostAddr(Host, &IPAddr)
-                 ?  XrdSysDNS::getHostName(IPAddr) : 0);
-           }
+   if (!Host) Host = theAddr.Name();
+      else if (!theAddr.Set(Host,0)) Host = theAddr.Name();
    if (!Host) {Say.Say(Pgm, "Unable to determine host name."); exit(3);}
 
 // Prepare all selector arguments
@@ -153,13 +150,13 @@ int main(int argc, char *argv[])
         {if (chkQ && !DirQ.Find(var)) {Config->noEcho(); continue;}
               if (inList(var, noSub))
                  {if (inList(var, slChk))
-                     while((var = Config->GetWord()) && *var != '/');
+                     while((var = Config->GetWord()) && *var != '/') {}
                   oldEnv = Config->SetEnv(0);
                   if (var) Config->GetRest(buff, sizeof(buff));
                   Config->SetEnv(oldEnv);
                  }
          else if (inList(var, ifChk))
-                 {while((var = Config->GetWord()) && strcmp(var, "if"));
+                 {while((var = Config->GetWord()) && strcmp(var, "if")) {}
                   if (var && !XrdOucUtils::doIf(&Say, *Config, "directive",
                                                 Host, Name, Xeq))
                      {Config->noEcho(); continue;}

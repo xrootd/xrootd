@@ -55,15 +55,19 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
+
 #include "XrdCms/XrdCmsClient.hh"
 #include "XrdCms/XrdCmsFinder.hh"
+#include "XrdCms/XrdCmsRole.hh"
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 
@@ -118,7 +122,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
   Output:   0 upon success or !0 otherwise.
 */
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
-                                              const char *, XrdVersionInfo &);
+                              const char   *, XrdOucEnv  *, XrdVersionInfo &);
    char *var;
    const char *tmp;
    int  i, j, cfgFD, retc, NoGo = 0;
@@ -128,6 +132,13 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // Print warm-up message
 //
    Eroute.Say("++++++ File system initialization started.");
+
+// Establish the network interface that the caller must provide
+//
+   if (!EnvInfo || !(myIF = (XrdNetIF *)EnvInfo->GetPtr("XrdNetIF*")))
+      {Eroute.Emsg("Finder", "Network i/f undefined; unable to self-locate.");
+       NoGo = 1;
+      }
 
 // Preset all variables with common defaults
 //
@@ -156,7 +167,8 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
            //
            while((var = Config.GetMyFirstWord()))
                 {if (!strncmp(var, "ofs.", 4)
-                 ||  !strcmp(var, "all.role"))
+                 ||  !strcmp(var, "all.role")
+                 ||  !strcmp(var, "all.subcluster"))
                     if (ConfigXeq(var+4,Config,Eroute)) {Config.Echo();NoGo=1;}
                 }
 
@@ -167,6 +179,14 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                               ConfigFN);
            Config.Close();
           }
+
+// Determine whether we should load the extended attribute plugin
+//
+   if ((Options & XAttrPlug) && (AtrLib || OssLib))
+      {if (!AtrLib) AtrLib = strdup(OssLib);
+       if (setupAttr(Eroute)) NoGo = 1;
+      }
+   XrdSysFAttr::Xat->SetMsgRoute(&Eroute);
 
 // Determine whether we should initialize authorization
 //
@@ -185,11 +205,15 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       {if ((j = Options & haveRole) && (i ^ j))
           {free(myRole); myRole = strdup(theRole(i));
            Eroute.Say("Config warning: command line role options override "
-                       "config file; 'ofs.role", myRole, "' in effect.");
+                       "config file; 'all.role", myRole, "' in effect.");
           }
        Options &= ~(haveRole);
        Options |= i;
       }
+
+// Export our role if we actually have one
+//
+   if (myRole) XrdOucEnv::Export("XRDROLE", myRole);
 
 // Set the redirect option for other layers
 //
@@ -231,8 +255,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // Now configure the storage system
 //
    if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib, OssParms,
-                                 XrdVERSIONINFOVAR(XrdOfs)))) NoGo = 1;
-      else XrdOfsTPC::Init(XrdOfsOss);
+                                 EnvInfo, XrdVERSIONINFOVAR(XrdOfs)))) NoGo = 1;
 
 // Initialize redirection.  We type te herald here to minimize confusion
 //
@@ -315,6 +338,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
                                   "       ofs.maxdelay   %d\n"
                                   "%s%s%s%s%s"
                                   "%s%s%s"
+                                  "%s%s%s"
                                   "       ofs.persist    %s hold %d%s%s%s"
                                   "       ofs.trace      %x",
               cloc, myRole,
@@ -327,6 +351,8 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
               (CmsParms? CmsParms : ""), (CmsLib ? "\n" : ""),
               (OssLib                    ? "       ofs.osslib " : ""),
               (OssLib ? OssLib : ""), (OssLib ? "\n" : ""),
+              (AtrLib                    ? "       ofs.xattrlib " : ""),
+              (AtrLib ? AtrLib : ""), (AtrLib ? "\n" : ""),
                pval, poscHold, (poscLog ? " logdir " : ""),
                (poscLog ? poscLog    : ""), (poscLog ? "\n" : ""),
               OfsTrace.What);
@@ -490,8 +516,8 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
   
 int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 {
-   XrdSysPlugin *myLib;
    XrdCmsClient *(*CmsPI)(XrdSysLogger *, int, int, XrdOss *);
+   CmsPI = 0;
    XrdSysLogger *myLogger = Eroute.logger();
    int isRedir = Options & isManager;
    int RMTopts = (Options & isServer ? XrdCms::IsTarget : 0)
@@ -503,11 +529,10 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 // If a cmslib was specified then create a plugin object
 //
    if (CmsLib)
-      {XrdSysPlugin myLib(&Eroute,CmsLib,"cmslib",&XrdVERSIONINFOVAR(XrdOfs));
+      {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"cmslib",CmsLib);
        CmsPI = (XrdCmsClient *(*)(XrdSysLogger *, int, int, XrdOss *))
-                                  (myLib.getPlugin("XrdCmsGetClient"));
+                                  (myLib.Resolve("XrdCmsGetClient"));
        if (!CmsPI) return 1;
-       myLib.Persist();
       }
 
 // For manager roles, we simply do a standard config
@@ -524,6 +549,13 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
        if (EnvInfo) EnvInfo->PutPtr("XRDCMSMANLIST", Finder->Managers());
       }
 
+// If we are a subcluster for another cluster then we can only be so if we
+// are a pure manager. If a subcluster directive was encountered and this is
+// not true we need to turn that off here. Subclusters need a target finder
+// just like supervisors eventhough we are not a supervisor.
+//
+   if ((Options & haveRole) != isManager) Options &= ~SubCluster;
+
 // For server roles find the port number and create the object. We used to pass
 // the storage system object to the finder to allow it to process cms storage
 // requests. The cms no longer sends such requests so there is no need to do
@@ -531,7 +563,7 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 // finder is created. So, it's just as well we pass a numm pointer. At some
 // point the finder should remove all storage system related code.
 //
-   if (Options & (isServer | (isPeer & ~isManager)))
+   if (Options & (isServer | SubCluster | (isPeer & ~isManager)))
       {if (!myPort)
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
@@ -544,7 +576,8 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
        if (!Balancer) return 1;
        if (!Balancer->Configure(ConfigFN, CmsParms, EnvInfo))
           {delete Balancer; Balancer = 0; return 1;}
-       if (Options & isProxy) Balancer = 0; // No chatting for proxies
+       if (Options & (isProxy | SubCluster))
+          Balancer = 0; // No chatting for proxies or subclusters
       }
 
 // All done
@@ -577,6 +610,11 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("role",          xrole);
     TS_Xeq("tpc",           xtpc);
     TS_Xeq("trace",         xtrace);
+    TS_Xeq("xattrlib",      xxlib);
+
+    // Screen out the subcluster directive (we need to track that)
+    //
+    TS_Bit("subcluster",Options,SubCluster);
 
     // Get the actual value for simple directives
     //
@@ -668,7 +706,6 @@ int XrdOfs::xclib(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xcmsl(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[2048];
-    int pl;
 
 // Get the path and parms
 //
@@ -1051,8 +1088,9 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
   
 /* Function: xolib
 
-   Purpose:  To parse the directive: osslib <path> [<parms>]
+   Purpose:  To parse the directive: osslib [+xattr] <path> [<parms>]
 
+             +xattr    the library contains the xattr plugin.
              <path>    the path of the oss library to be used.
              <parms>   optional parms to be passed
 
@@ -1062,10 +1100,19 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xolib(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[2048];
+    bool hasXattr = false;
 
 // Get the path and parms
 //
-   if (!(val = Config.GetWord()) || !val[0])
+   val = Config.GetWord();
+
+// Check if this is the xattr keyword
+//
+   if (val && (hasXattr = !strcmp("+xattr",  val))) val = Config.GetWord();
+
+// Check if we an osslib
+//
+   if (!val || !val[0])
       {Eroute.Emsg("Config", "osslib not specified"); return 1;}
 
 // Record the path
@@ -1083,6 +1130,16 @@ int XrdOfs::xolib(XrdOucStream &Config, XrdSysError &Eroute)
 //
    if (OssParms) free(OssParms);
    OssParms = (*parms ? strdup(parms) : 0);
+
+// Record whether or not this also contains the xattr plugin
+//
+   if (hasXattr)
+      {if (AtrLib) free(AtrLib);
+       AtrLib = strdup(OssLib);
+       if (AtrParms) free(AtrParms);
+       AtrParms = (*parms ? strdup(parms) : 0);
+       Options |= XAttrPlug;
+      }
    return 0;
 }
 
@@ -1158,38 +1215,28 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xrole
 
-   Purpose:  Parse: role { {[meta] | [peer] [proxy]} manager
-                           | peer | proxy | [proxy]  server
-                           |                [proxy]  supervisor
+   Purpose:  Parse: role { {[meta] | [proxy]} manager
+                           |         [proxy]  server
+                           |         [proxy]  supervisor
                          } [if ...]
 
              manager    xrootd: act as a manager (redirecting server). Prefixes:
                                 meta  - connect only to manager meta's
-                                peer  - ignored
                                 proxy - ignored
                         cmsd:   accept server subscribes and redirectors. Prefix
                                 modifiers do the following:
                                 meta  - No other managers apply
-                                peer  - subscribe to other managers as a peer
                                 proxy - manage a cluster of proxy servers
-
-             peer       xrootd: same as "peer manager"
-                        olbd:   same as "peer manager" but no server subscribers
-                                are required to function (i.e., run stand-alone).
-
-             proxy      xrootd: act as a server but supply data from another 
-                                server. No local olbd is present or required.
-                        olbd:   Generates an error as this makes no sense.
 
              server     xrootd: act as a server (supply local data). Prefix
                                 modifications do the following:
                                 proxy - server is part of a cluster. A local
-                                        olbd is required.
-                        olbd:   subscribe to a manager, possibly as a proxy.
+                                        cmsd is required.
+                        cmsd:   subscribe to a manager, possibly as a proxy.
 
              supervisor xrootd: equivalent to manager. The prefix modification
                                 is ignored.
-                        olbd:   equivalent to manager but also subscribe to a
+                        cmsd:   equivalent to manager but also subscribe to a
                                 manager. When proxy is specified, then subscribe
                                 as a proxy and only accept proxies.
 
@@ -1206,68 +1253,64 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 {
    const int resetit = ~haveRole;
-   char role[64];
-   char *val;
-   int rc, mopt = 0, qopt = 0, ropt = 0, sopt = 0;
+    XrdCmsRole::RoleID roleID;
+    char *val, *Tok1, *Tok2;
+    int rc, ropt = 0;
 
-   *role = '\0';
-   if (!(val = Config.GetWord()))
+// Get the first token
+//
+   if (!(val = Config.GetWord()) || !strcmp(val, "if"))
       {Eroute.Emsg("Config", "role not specified"); return 1;}
+   Tok1 = strdup(val);
 
-
-// Scan for "meta" o/w "peer" or "proxy"
+// Get second token which might be an "if"
 //
-   if (!strcmp("meta", val))
-      {mopt = isMeta; strcpy(role, val); val = Config.GetWord();}
-      else {if (!strcmp("peer", val))
-               {qopt = isPeer; strcpy(role, val);
-                val = Config.GetWord();
-               }
-            if (val && !strcmp("proxy", val))
-               {ropt = isProxy;
-                if (qopt) strcat(role, " ");
-                strcat(role, val);
-                val = Config.GetWord();
-               }
-           }
-
-// Scan for other possible alternatives
-//
-   if (val && strcmp("if", val))
-      {     if (!strcmp("manager",    val)) sopt = isManager;
-       else if (!strcmp("server",     val)) sopt = isServer;
-       else if (!strcmp("supervisor", val)) sopt = isSuper;
-       else    {Eroute.Emsg("Config", "invalid role -", val); return 1;}
-
-       if (mopt || qopt || ropt) strcat(role, " ");
-       strcat(role, val);
+   if ((val = Config.GetWord()) && strcmp(val, "if"))
+      {Tok2 = strdup(val);
        val = Config.GetWord();
-      }
+      } else Tok2 = 0;
 
-// Scan for invalid roles: peer proxy | peer server | {peer} supervisor
+// Process the if at this point
 //
-   if (((mopt || (qopt && ropt)) && !sopt)
-   ||  ((mopt || qopt) && sopt == isServer)
-   ||  ((mopt || qopt) && sopt == isSuper))
-      {Eroute.Emsg("Config", "invalid role -", role); return 1;}
-
-// Make sure a role was specified
-//
-    if (!(ropt = mopt | qopt | ropt | sopt))
-       {Eroute.Emsg("Config", "role not specified"); return 1;}
-
-// Pick up optional "if"
-//
-    if (val && !strcmp("if", val))
-       if ((rc = XrdOucUtils::doIf(&Eroute,Config,"role directive",
+   if (val && !strcmp("if", val))
+      {if ((rc = XrdOucUtils::doIf(&Eroute,Config,"role directive",
                                    getenv("XRDHOST"), XrdOucUtils::InstName(1),
                                    getenv("XRDPROG"))) <= 0)
-          {if (!rc) Config.noEcho(); return (rc < 0);}
+          {free(Tok1); if (Tok2) free(Tok2);
+           if (!rc) Config.noEcho();
+           return (rc < 0);
+          }
+      }
+
+// Convert the role names to a role ID, if possible
+//
+   roleID = XrdCmsRole::Convert(Tok1, Tok2);
+
+// Set markers based on the role we have
+//
+   rc = 0;
+   switch(roleID)
+         {case XrdCmsRole::MetaManager:  ropt = isManager | isMeta ; break;
+          case XrdCmsRole::Manager:      ropt = isManager          ; break;
+          case XrdCmsRole::Supervisor:   ropt = isSuper            ; break;
+          case XrdCmsRole::Server:       ropt = isServer           ; break;
+          case XrdCmsRole::ProxyManager: ropt = isManager | isProxy; break;
+          case XrdCmsRole::ProxySuper:   ropt = isSuper   | isProxy; break;
+          case XrdCmsRole::ProxyServer:  ropt = isServer  | isProxy; break;
+          default: Eroute.Emsg("Config", "invalid role -", Tok1, Tok2); rc = 1;
+         }
+
+// Release storage and return if an error occured
+//
+   free(Tok1);
+   if (Tok2) free(Tok2);
+   if (rc) return rc;
 
 // Set values
 //
     free(myRole);
-    myRole = strdup(role);
+    myRole = strdup(XrdCmsRole::Name(roleID));
+    strcpy(myRType, XrdCmsRole::Type(roleID));
     Options &= resetit;
     Options |= ropt;
     return 0;
@@ -1283,7 +1326,8 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                                          [logok] [xfr <n>] [allow <parms>]
                                          [require {all|client|dest} <auth>[+]]
                                          [restrict <path>] [streams <num>]
-                                         [pgm <path> [parms]]
+                                         [echo] [scan {stderr | stdout}]
+                                         [autorm] [pgm <path> [parms]]
 
              parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
 
@@ -1301,6 +1345,10 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                      valid authentication mechanisms. If the <auth> is suffixed
                      by a plus, then the request must also be encrypted using
                      the authentication's session key.
+             echo    echo the pgm's output to the log.
+             autorm  Remove file when copy fails.
+             scan    scan fr error messages either in stderr or stdout. The
+                     default is to scan both.
              pgm     specifies the transfer command with optional paramaters.
                      It must be the last parameter on the line.
 
@@ -1310,7 +1358,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
 {
    XrdOfsTPC::iParm Parms;
-   char *vcksum = 0, *val, pgm[1024];
+   char *val, pgm[1024];
    int  reqType;
    *pgm = 0;
 
@@ -1326,7 +1374,17 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
              Parms.Ckst = strdup(val);
              continue;
             }
+         if (!strcmp(val, "scan"))
+            {if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","scan type not specified"); return 1;}
+                  if (strcmp(val, "stderr")) Parms.Grab = -2;
+             else if (strcmp(val, "stdout")) Parms.Grab = -1;
+                {Eroute.Emsg("Config","invalid scan type -",val); return 1;}
+             continue;
+            }
+         if (!strcmp(val, "echo"))  {Parms.xEcho = 1; continue;}
          if (!strcmp(val, "logok")) {Parms.Logok = 1; continue;}
+         if (!strcmp(val, "autorm")){Parms.autoRM = 1; continue;}
          if (!strcmp(val, "pgm"))
             {if (!Config.GetRest(pgm, sizeof(pgm)))
                 {Eroute.Emsg("Config", "tpc command line too long"); return 1;}
@@ -1490,6 +1548,75 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 //
    return 0;
 }
+  
+/******************************************************************************/
+/*                                 x x l i b                                  */
+/******************************************************************************/
+  
+/* Function: xxlib
+
+   Purpose:  To parse the directive: xattrlib {osslib | <path>} [<parms>]
+
+             <path>    the path of the xattr library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xxlib(XrdOucStream &Config, XrdSysError &Eroute)
+{
+    char *val, parms[2048];
+
+// Get the path and parms
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", "xattrlib not specified"); return 1;}
+
+// Record the path
+//
+   if (AtrLib) free(AtrLib);
+   AtrLib = (strcmp("osslib", val) ? strdup(val) : 0);
+
+// Get any parameters
+//
+   *parms = 0;
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "xattrlib parameters too long"); return 1;}
+
+// Record the parameters
+//
+   if (AtrParms) free(AtrParms);
+   AtrParms = (*parms ? strdup(parms) : 0);
+   Options |= XAttrPlug;
+   return 0;
+}
+
+/******************************************************************************/
+/*                             s e t u p A t t r                              */
+/******************************************************************************/
+
+int XrdOfs::setupAttr(XrdSysError &Eroute)
+{
+   XrdSysXAttr *(*ep)(XrdSysError *, const char *, const char *);
+   XrdSysXAttr *theObj;
+
+// Create a plugin object
+//
+  {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"xattrlib",AtrLib);
+   ep = (XrdSysXAttr *(*)(XrdSysError *, const char *, const char *))
+                         (myLib.Resolve("XrdSysGetXAttrObject"));
+   if (!ep) return 1;
+  }
+
+// Get the Object now
+//
+   if (!(theObj = ep(&Eroute, ConfigFN, AtrParms))) return 1;
+
+// Tell the interface to use this object instead of the default implementation
+//
+   XrdSysFAttr::SetPlugin(theObj);
+   return 0;
+}
 
 /******************************************************************************/
 /*                             s e t u p A u t h                              */
@@ -1501,7 +1628,6 @@ int XrdOfs::setupAuth(XrdSysError &Eroute)
                           (XrdSysLogger   *lp,    const char   *cfn,
                            const char     *parm,  XrdVersionInfo &vInfo);
 
-   XrdSysPlugin    *myLib;
    XrdAccAuthorize *(*ep)(XrdSysLogger *, const char *, const char *);
 
 // Authorization comes from the library or we use the default
@@ -1512,11 +1638,10 @@ int XrdOfs::setupAuth(XrdSysError &Eroute)
 
 // Create a plugin object
 //
-  {XrdSysPlugin myLib(&Eroute, AuthLib, "authlib", &XrdVERSIONINFOVAR(XrdOfs));
+  {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"authlib",AuthLib);
    ep = (XrdAccAuthorize *(*)(XrdSysLogger *, const char *, const char *))
-                             (myLib.getPlugin("XrdAccAuthorizeObject"));
+                             (myLib.Resolve("XrdAccAuthorizeObject"));
    if (!ep) return 1;
-   myLib.Persist();
   }
 
 // Get the Object now

@@ -308,7 +308,7 @@ int XrdFrmAdmin::mkFile(int What, const char *Path, const char *Data, int DLen)
    if (What & mkLF) {Tid = Stat.st_mtime + (Opt.MPType == 'p' ? +113 : -113);}
       else {Tid = (DLen || Opt.ktAlways ? time(0) : Opt.KeepTime);
             if (Opt.ktAlways)
-               {do {rc = fchmod(theFD, Mode|S_ISUID);} while(rc && errno == EINTR);
+               {do {rc = fchmod(theFD, Mode);} while(rc && errno == EINTR);
                     if (rc) {Emsg(errno, "set mode for pfn ", tempFN);
                     close(theFD); unlink(tempFN); return 0;
                    }

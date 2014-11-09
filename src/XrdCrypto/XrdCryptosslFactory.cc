@@ -46,6 +46,8 @@
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 
+#include "XrdVersion.hh"
+
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 
@@ -53,7 +55,6 @@
 // For error logging and tracing
 static XrdSysLogger Logger;
 static XrdSysError eDest(0,"cryptossl_");
-XrdOucTrace *sslTrace = 0;
 
 // Mutexes for OpenSSL
 XrdSysMutex *XrdCryptosslFactory::CryptoMutexPool[SSLFACTORY_MAX_CRYPTO_MUTEX];
@@ -456,9 +457,61 @@ XrdCryptoX509ParseBucket_t XrdCryptosslFactory::X509ParseBucket()
    return &XrdCryptosslX509ParseBucket;
 }
 
+//______________________________________________________________________________
+XrdCryptoProxyCertInfo_t XrdCryptosslFactory::ProxyCertInfo()
+{
+   // Check if the proxyCertInfo extension exists
+
+   return &XrdCryptosslProxyCertInfo;
+}
+
+//______________________________________________________________________________
+XrdCryptoSetPathLenConstraint_t XrdCryptosslFactory::SetPathLenConstraint()
+{
+   // Set the path length constraint
+
+   return &XrdCryptosslSetPathLenConstraint;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509CreateProxy_t XrdCryptosslFactory::X509CreateProxy()
+{
+   // Create a proxy certificate
+
+   return &XrdCryptosslX509CreateProxy;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509CreateProxyReq_t XrdCryptosslFactory::X509CreateProxyReq()
+{
+   // Create a proxy request
+
+   return &XrdCryptosslX509CreateProxyReq;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509SignProxyReq_t XrdCryptosslFactory::X509SignProxyReq()
+{
+   // Sign a proxy request
+
+   return &XrdCryptosslX509SignProxyReq;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509GetVOMSAttr_t XrdCryptosslFactory::X509GetVOMSAttr()
+{
+   // Get VOMS attributes, if any
+
+   return &XrdCryptosslX509GetVOMSAttr;
+}
+
+
 /******************************************************************************/
 /*            X r d C r y p t o S s l F a c t o r y O b j e c t               */
 /******************************************************************************/
+
+XrdVERSIONINFO(XrdCryptosslFactoryObject,cryptossl);
+
 extern "C" {
 XrdCryptoFactory *XrdCryptosslFactoryObject()
 {

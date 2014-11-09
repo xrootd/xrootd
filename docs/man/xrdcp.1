@@ -1,4 +1,4 @@
-.TH xrdcp 1 "31 March 2012"
+.TH xrdcopy 1 "__VERSION__"
 .SH NAME
 xrdcp - copy files
 .SH SYNOPSIS
@@ -6,11 +6,13 @@ xrdcp - copy files
 
 \fBxrdcp\fR [\fIoptions\fR] \fIsource\fR \fIdestination\fR
 
-\fIoptions\fR: [\fB--cksum\fR \fIargs\fR] [\fB--debug\fR \fIlvl\fR] [\fB--coerce\fR] [\fB--force\fR]
-[\fB--help\fR] [\fB--license\fR] [\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
-[\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR] [\fB--silent\fR]
-[\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR] [\fB--tpc\fR] [\fB--verbose\fR]
-[\fB--version\fR] [\fB--xrate\fR \fIrate\fR]
+\fIoptions\fR: [\fB--cksum\fR \fIargs\fR] [\fB--debug\fR \fIlvl\fR]
+[\fB--coerce\fR] [\fB--force\fR] [\fB--help\fR] [\fB--license\fR]
+[\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
+[\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR]
+[\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
+[\fB--tpc\fR \fIfirst\fR|\fIonly\fR] [\fB--verbose\fR] [\fB--version\fR]
+[\fB--xrate\fR \fIrate\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -24,105 +26,113 @@ another. The data source and destination may be a local
 or remote file or directory.  Additionally, the data source may also reside
 on multiple servers.
 .SH OPTIONS
-{\fB-C | --cksum\fR} \fItype\fR[\fB:\fR{\fIvalue\fR|\fBprint\fR}]
+\fB-C\fR | \fB--cksum\fR \fItype\fR[\fB:\fR\fIvalue\fR|\fIprint\fR]
 .RS 5
 obtains the checksum of \fItype\fR (i.e. adler32, crc32, or md5) from the source,
 computes the checksum at the destination, and verifies that they are the same. If a \fIvalue\fR
-is specified, it is used as the source checksum. When \fBprint\fR
+is specified, it is used as the source checksum. When \fIprint\fR
 is specified, the checksum at the destination is printed but is \fInot\fR verified.
 
 .RE
-{\fB-d\fR | \fB--debug\fR} \fIlvl\fR
+\fB-d\fR | \fB--debug\fR \fIlvl\fR
 .RS 5
 debug level: 1 (low), 2 (medium), 3 (high)
 
 .RE
-{\fB-F\fR | --coerce}
+\fB-F\fR | \fB--coerce\fR
 .RS 5
 ignores locking semantics on the destination file. This option may lead to
 file corruption if not properly used.
 
 .RE
-{\fB-f\fR | \fB--force\fR}
+\fB-f\fR | \fB--force\fR
 .RS 5
 re-creates a file if it is already present.
 
 .RE
-{\fB-h\fR | --help}
+\fB-h\fR | \fB--help\fR
 .RS 5
 displays usage information.
 
 .RE
-{\fB-H\fR | --license}
+\fB-H\fR | \fB--license\fR
 .RS 5
 displays license terms and conditions.
 
 .RE
-{\fB-N\fR | \fB--nopbar\fR}
-.RS5
+\fB-N\fR | \fB--nopbar\fR
+.RS 5
 does not display the progress bar.
 
 .RE
-{\fB-P\fR | \fB--posc\fR}
+\fB-P\fR | \fB--posc\fR
 .RS 5
 requests POSC (persist-on-successful-close) processing
 to create a new file. Files are automatically deleted should they not be
 successfully closed.
 
 .RE
-{\fB-D\fR | \fB--proxy\fR} \fIproxyaddr\fB:\fIproxyport\fR
+\fB-D\fR | \fB--proxy\fR \fIproxyaddr\fB:\fIproxyport\fR
 .RS 5
+[NOT YET IMPLEMENTED]
+
 use \fIproxyaddr\fB:\fIproxyport\fR as a SOCKS4 proxy. Only numerical addresses are supported.
 
 .RE
-{\fB-r\fR | \fB--recursive\fR}
+\fB-r\fR | \fB--recursive\fR
 .RS 5
 recursively copy all files starting at the given source directory. This option is
 \fIonly\fR supported for local files.
 
 .RE
 \fB--server\fR
-.RS5
+.RS 5
 runs as if in a server environment. Used only for server-side
 third party copy support.
 
 .RE
-{\fB-s\fR | \fB--silent\fR}
+\fB-s\fR | \fB--silent\fR
 .RS 5
 neither produces summary information nor displays the progress bar.
 
 .RE
-{\fB-y\fR | \fB--sources\fR} \fInum\fR
+\fB-y\fR | \fB--sources\fR \fInum\fR
 .RS 5
+[NOT YET IMPLEMENTED]
+
 uses up to \fInum\fR sources to copy the file.
 
 .RE
-{\fB-S\fR | \fB--streams\fR} \fInum\fR
+\fB-S\fR | \fB--streams\fR \fInum\fR
 .RS 5
 uses \fInum\fR additional parallel streams to do the transfer.
 The maximum value is 15. The default is 0 (i.e., use only the main stream).
 
 .RE
-\fB--tpc\fR
+\fB--tpc\fR \fIfirst|only\fR
 .RS 5
 copies the file from remote server to remote server using third-party-copy
 protocol (i.e., data flows from server to server). The source and destination
 servers must support third party copies. Additional security restrictions
 may apply and may cause the copy to fail if they cannot be satisfied.
+Argument \fI'first'\fR tries tpc and if it fails, does a normal copy;
+while \fI'only'\fR fails the copy unless tpc succeeds.
 
 .RE
-{\fB-v\fR | \fB--verbose\fR}
+\fB-v\fR | \fB--verbose\fR
 .RS 5
 displays summary output.
 
 .RE
-{\fB-V\fR | \fB-version\fR}
+\fB-V\fR | \fB-version\fR
 .RS 5
 displays version information and immediately exits.
 
 .RE
-{\fB-X\fR | \fB--xrate\fR} \fIrate\fR
+\fB-X\fR | \fB--xrate\fR \fIrate\fR
 .RS 5
+[NOT YET IMPLEMENTED]
+
 limits the copy speed to the specified \fIrate\fB. The rate may be qualified
 with the letter \fBk\fR, \fBm\fR, or \fBg\fR to indicate kilo, mega, or giga
 bytes, respectively. The option only applies when the source or destination is
@@ -192,56 +202,208 @@ name suffixed by /, or an xrootd URL in the form
 The \fIabsolutepath\fR can be a directory.
 
 .RE
-.SH EXAMPLES (GENERIC)
-.TP
-local file upload:
+
+.SH ENVIRONMENT
+The following environment variables are supported. They apply to xrdfs and any
+other application using the libXrdCl library, unless specified otherwise. The
+text in the brackets is a name of the corresponding xrdcp commandline parameter.
 .br
-.B $ xrdcp /tmp/myfile xroot://foo.bar.com//data/myfile
+
+XRD_LOGLEVEL
+.RS 5
+Detemines the amout of diagnostics that should be printed. Valid values are:
+\fIDump\fR, \fIDebug\fR, \fIInfo\fR, \fIWarning\fR, and \fIError\fR.
+.RE
+
+XRD_LOGFILE
+.RS 5
+If set, the diagnostics will be printed to the specified file instead of stderr.
+.RE
+
+XRD_LOGMASK
+.RS 5
+Determines which diagnostics topics should be printed at all levels. It's a
+"|" separated list of topics. The first element may be "All" in which case
+all the topics are enabled and the subsequent elements may turn them off, or
+"None" in which case all the topics are disabled and the subsequent flags may
+turn them on. If the topic name is prefixed with "^", then it means that
+the topic should be disabled. If the topic name is not prefixed, then it means
+that the topic should be enabled.
 .br
-.TP
-remote file download:
+
+The log mask may as well be handled for each diagnostic level separately by
+setting one or more of the following variables: \fIXRD_LOGMASK_ERROR\fR,
+\fIXRD_LOGMASK_WARNING\fR, \fIXRD_LOGMASK_INFO\fR, \fIXRD_LOGMASK_DEBUG\fR,
+and \fIXRD_LOGMASK_DUMP\fR. The default for each level is "All", except
+for the \fIDump\fR level, where the default is "All|^PollerMsg". This means
+that, at the \fIDump\fR level, all the topics but "PollerMsg" are enabled.
 .br
-.B $ xrdcp xroot://foo.bar.com//data/myfile /tmp/myfile
-.br
-.TP
-remote-remote copy:
-.br
-.B $ xrdcp xroot://foo.bar.com//data/myfile1 xroot://foo.bar.com//data/myfile2
-.br
-.fi
-.br
-.ad l
-.SH EXAMPLES (CASTOR)
-.TP
-local file upload to a Castor instance using a specific service class and stager:
-.br
-.B $ xrdcp /tmp/myfile root://<stagerhost>.cern.ch//castor/cern.ch/data/myfile -ODstagerHost=$STAGE_HOST&svcClass=$STAGE_SVCCLASS
-.br
-[ you need to escape the '&' in the shell ]
-.TP
-remote file download from a Castor instance using a specific stager:
-.br
-.B $ xrdcp /tmp/myfile root://<stagerhost>.cern.ch//castor/cern.ch/data/myfile -OSstagerHost=$STAGE_HOST
-.TP
-client-proxy copy to-/from- a Castor instance:
-.br
-.B $ xrdcp
-.br
-.B root://<stagerA>.cern.ch//castor/cern.ch/data/stagerA/myfile -OSstagerHost=<stagerA>
-.br
-.B root://<stagerB>.cern.ch//castor/cern.ch/data/stagerB/myfile -ODstagerHost=<stagerA>
-.br
-.br
-[ you cannot copy between stagers using the same logical filename in the castor namespace! ]
+
+Available topics: AppMsg, UtilityMsg, FileMsg, PollerMsg, PostMasterMsg,
+XRootDTransportMsg, TaskMgrMsg, XRootDMsg, FileSystemMsg, AsyncSockMsg
+.RE
+
+
+XRD_CONNECTIONWINDOW (-DIConnectionWindow)
+.RS 5
+A time window for the connection establishment. A connection failure is declared if
+the connection is not established within the time window. If a connection failure
+happens earlier then another connection attempt will only be made at the beginning
+of the next window.
+.RE
+
+XRD_CONNECTIONRETRY (-DIConnectionRetry)
+.RS 5
+Number of connection attempts that should be made (number of available connection
+windows) before declaring a permanent failure.
+.RE
+
+XRD_REQUESTTIMEOUT (-DIRequestTimeout)
+.RS 5
+Default value for the time after which an error is declared if it was impossible
+to get a response to a request.
+.RE
+
+XRD_STREAMTIMEOUT (-DIStreamTimeout)
+.RS 5
+Default value for the time after which a connection error is declared (and a
+recovery attempted) if there are unfulfilled requests and there is no socket
+activity or a registered wait timeout.
+.RE
+
+XRD_SUBSTREAMSPERCHANNEL (-DISubStreamsPerChannel)
+.RS 5
+Number of streams per session.
+.RE
+
+XRD_TIMEOUTRESOLUTION (-DITimeoutResolution)
+.RS 5
+Resolution for the timeout events. Ie. timeout events will be
+processed only every XRD_TIMEOUTRESOLUTION seconds.
+.RE
+
+XRD_STREAMERRORWINDOW (-DIStreamErrorWindow)
+.RS 5
+Time after which the permanent failure flags are cleared out and a new connection
+may be attempted if needed.
+.RE
+
+XRD_RUNFORKHANDLER (-DIRunForkHandler)
+.RS 5
+Determines whether the fork handlers should be enabled, making the API fork safe.
+.RE
+
+XRD_REDIRECTLIMIT (-DIRedirectLimit)
+.RS 5
+Maximum number of allowed redirections.
+.RE
+
+XRD_POLLERPREFERENCE (-DSPollerPreference)
+.RS 5
+A comma separated list of poller implementations in order of preference. The
+default is: libevent,built-in.
+.RE
+
+XRD_CLIENTMONITOR (-DSClientMonitor)
+.RS 5
+Path to the client monitor library.
+.RE
+
+XRD_CLIENTMONITORPARAM (-DSClientMonitorParam)
+.RS 5
+Additional optional parameters that will be passed to the monitoring object
+on initialization.
+.RE
+
+XRD_WORKERTHREADS (-DIWorkerThreads)
+.RS 5
+Number of threads processing user callbacks.
+.RE
+
+XRD_CPPARALLELCHUNKS (-DICPParallelChunks)
+.RS 5
+Maximum number of asynchronous requests being processed by the xrdcp command
+at any given time.
+.RE
+
+XRD_CPCHUNKSIZE (-DICPChunkSize)
+.RS 5
+Size of a single data chunk handled by xrdcp.
+.RE
+
+XRD_NETWORKSTACK (-DSNetworkStack)
+.RS 5
+The network stack that the client should use to connect to the server. Possible
+values are:
+
+.B IPAuto
+- automatically detect which IP stack to use
+
+.B IPAll
+- use IPv6 stack (AF_INET6 sockets) and both IPv6 and IPv4 (mapped to IPv6)
+addresses
+
+.B IPv6
+- use only IPv6 stack and addresses
+
+.B IPv4
+- use only IPv4 stack (AF_INET sockets) and addresses
+
+.B IPv4Mapped6
+- use IPv6 stack and mapped IPv4 addresses
+.RE
+
+XRD_DATASERVERTTL (-DIDataServerTTL)
+.RS 5
+Time period after which an idle connection to a data server should be
+closed.
+.RE
+
+XRD_LOADBALANCERTTL (-DILoadBalancerTTL)
+.RS 5
+Time period after which an idle connection to a manager or a load balancer
+should be closed.
+.RE
+
+XRD_APPNAME (-DSAppName)
+.RS 5
+Override the application name reported to the server.
+.RE
+
+XRD_PLUGINCONFDIR
+.RS 5
+A custom location containing client plug-in config files.
+.RE
+
+XRD_PLUGIN
+.RS 5
+A default client plug-in to be used.
+.RE
+
+XRD_CPINITTIMEOUT (-DICPInitTimeout)
+.RS 5
+Maximum time allowed for the copy process to initialize, ie. open the source
+and destination files.
+.RE
+
+XRD_CPTPCTIMEOUT (-DICPTPCTimeout)
+.RS 5
+Maximum time allowed for a third-party copy operation to finish.
+.RE
+
 .SH NOTES
 Documentation for all components associated with \fBxrdcp\fR can be found at
 http://xrootd.org/docs.html
+
 .SH DIAGNOSTICS
 Errors yield an error message and a non-zero exit status.
+
 .SH LICENSE
-License terms can be displayed by typing "\fBxrootd -H\fR".
+LGPL
+
 .SH SUPPORT LEVEL
 The \fBxrdcp\fR command is supported by the xrootd collaboration.
-Contact information can be found at
+Contact information can be found at:
+
 .ce
 http://xrootd.org/contact.html

@@ -50,10 +50,11 @@
 #include "XrdCns/XrdCnsLogRec.hh"
 #include "XrdCns/XrdCnsXref.hh"
 
+#include "XrdNet/XrdNetUtils.hh"
+
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -81,8 +82,12 @@ XrdCnsLogClient::XrdCnsLogClient(XrdOucTList     *rP,
 {
    static int cNum = 0;
    static int bSfx = static_cast<int>(time(0)) - 1248126834;
-   static char *myName = XrdSysDNS::getHostName();
+   static char *myName = 0;
    char destBuff[512];
+
+// Establish out FQN
+//
+   if (!myName) myName = XrdNetUtils::MyHostName();
 
 // Save our index into the commit array
 //

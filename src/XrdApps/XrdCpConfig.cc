@@ -81,12 +81,13 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:PrRsS:t:T:vVy:";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NPrRsS:t:T:vVX:y:Z";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
       {OPT_TYPE "cksum",     1, 0, XrdCpConfig::OpCksum},
       {OPT_TYPE "debug",     1, 0, XrdCpConfig::OpDebug},
+      {OPT_TYPE "dynamic-src",0,0, XrdCpConfig::OpDynaSrc},
       {OPT_TYPE "coerce",    0, 0, XrdCpConfig::OpCoerce},
       {OPT_TYPE "force",     0, 0, XrdCpConfig::OpForce},
       {OPT_TYPE "help",      0, 0, XrdCpConfig::OpHelp},
@@ -105,6 +106,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "verbose",   0, 0, XrdCpConfig::OpVerbose},
       {OPT_TYPE "version",   0, 0, XrdCpConfig::OpVersion},
       {OPT_TYPE "xrate",     1, 0, XrdCpConfig::OpXrate},
+      {OPT_TYPE "parallel",  1, 0, XrdCpConfig::OpParallel},
       {0,                    0, 0, 0}
      };
 
@@ -126,6 +128,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    pHost    = 0;
    pPort    = 0;
    xRate    = 0;
+   Parallel = 1;
    OpSpec   = 0;
    Dlvl     = 0;
    nSrcs    = 1;
@@ -174,7 +177,7 @@ XrdCpConfig::~XrdCpConfig()
 void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
 {
    extern char *optarg;
-   extern int   optind, opterr, optopt;
+   extern int   optind, opterr;
    static int pgmSet = 0;
    char Buff[128], *Path, opC;
    XrdCpFile    pBase;
@@ -206,12 +209,14 @@ void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
 // Process legacy options first before atempting normal options
 //
 do{while(optind < Argc && Legacy(optind)) {}
-   if ((opC = getopt_long(Argc, Argv, opLetters, opVec, &i)) >= 0)
+   if ((opC = getopt_long(Argc, Argv, opLetters, opVec, &i)) != (char)-1)
       switch(opC)
          {case OpCksum:    defCks(optarg);
                            break;
           case OpDebug:    OpSpec |= DoDebug;
                            if (!a2i(optarg, &Dlvl, 0, 3)) Usage(22);
+                           break;
+          case OpDynaSrc:  OpSpec |= DoDynaSrc;
                            break;
           case OpForce:    OpSpec |= DoForce;
                            break;
@@ -237,7 +242,7 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpRetry:    OpSpec |= DoRetry;
                            if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
                            break;
-          case OpServer:   OpSpec |= DoServer;
+          case OpServer:   OpSpec |= DoServer|DoSilent|DoNoPbar|DoForce;
                            break;
           case OpSilent:   OpSpec |= DoSilent|DoNoPbar;
                            break;
@@ -263,6 +268,9 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpXrate:    OpSpec |= DoXrate;
                            if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
                            break;
+          case OpParallel: OpSpec |= DoParallel;
+                           if (!a2i(optarg, &Parallel, 1, 4)) Usage(22);
+                           break;
           case ':':        UMSG("'" <<OpName() <<"' argument missing.");
                            break;
           case '?':        if (!Legacy(optind-1))
@@ -271,7 +279,7 @@ do{while(optind < Argc && Legacy(optind)) {}
           default:         UMSG("Internal error processing '" <<OpName() <<"'.");
                            break;
          }
-  } while(opC >= 0 && optind < Argc);
+  } while(opC != (char)-1 && optind < Argc);
 
 // Make sure we have the right number of files
 //
@@ -284,6 +292,13 @@ do{while(optind < Argc && Legacy(optind)) {}
 //
    if (OpSpec & DoTpc &&  nSrcs > 1)
       UMSG("Third party copy requires a single source.");
+
+// Turn off verbose if we are in server mode
+//
+   if (OpSpec & DoServer)
+      {OpSpec &= ~DoVerbose;
+       Verbose = 0;
+      }
 
 // Process the destination first as it is special
 //
@@ -337,7 +352,8 @@ do{while(optind < Argc && Legacy(optind)) {}
 
 // Do the dumb check
 //
-   if (isLcl) FMSG("All files are local; use 'cp' instead!", 1);
+   if (isLcl && Opts & optNoLclCp)
+      FMSG("All files are local; use 'cp' instead!", 1);
 
 // Check for checksum spec conflicts
 //
@@ -518,7 +534,7 @@ int XrdCpConfig::defCks(const char *opval)
    static XrdVERSIONINFODEF(myVer, xrdcp, XrdVNUMBER, XrdVERSION);
    const char *Colon = index(opval, ':');
    char  csName[XrdCksData::NameSize];
-   int csSize, n;
+   int   n;
 
 // Initialize the checksum manager if we have not done so already
 //
@@ -547,20 +563,21 @@ int XrdCpConfig::defCks(const char *opval)
 // Reset checksum information
 //
    CksData.Length = 0;
-   OpSpec &= ~DoCkprt;
-   OpSpec |=  DoCksum;
+   OpSpec &= ~(DoCkprt | DoCksrc | DoCksum);
 
 // Check for any additional arguments
 //
    if (Colon)
       {Colon++;
        if (!(*Colon)) UMSG(CksData.Name <<" argument missing after ':'.");
-       if (!strcmp(Colon, "print")) OpSpec |= DoCkprt;
+       if (!strcmp(Colon, "print")) OpSpec |= (DoCkprt | DoCksum);
+          else if (!strcmp(Colon, "source")) OpSpec |= (DoCkprt | DoCksrc);
           else {n = strlen(Colon);
                 if (n != CksLen*2 || !CksData.Set(Colon, n))
                    UMSG("Invalid " <<CksData.Name <<" value '" <<Colon <<"'.");
+                OpSpec |= DoCksum;
                }
-      }
+      } else OpSpec |= DoCksum;
 
 // All done
 //
@@ -708,7 +725,7 @@ int XrdCpConfig::Legacy(int oIndex)
   
 int XrdCpConfig::Legacy(const char *theOp, const char *theArg)
 {
-   if (!strcmp(theOp, "-adler")) return defCks("adler32:print");
+   if (!strcmp(theOp, "-adler")) return defCks("adler32:source");
 
    if (!strncmp(theOp, "-DI", 3) || !strncmp(theOp, "-DS", 3))
       return defOpt(theOp, theArg);
@@ -720,7 +737,7 @@ int XrdCpConfig::Legacy(const char *theOp, const char *theArg)
 
    if (!strcmp(theOp, "-np")) {OpSpec |= DoNoPbar; return 1;}
 
-   if (!strcmp(theOp, "-md5")) return defCks("md5:print");
+   if (!strcmp(theOp, "-md5")) return defCks("md5:source");
 
    if (!strncmp(theOp,"-OD",3) || !strncmp(theOp,"-OS",3)) return defOpq(theOp);
 
@@ -817,11 +834,12 @@ void XrdCpConfig::Usage(int rc)
    "Usage:   xrdcp [<options>] <src> <dest>\n";
 
    static const char *Options= "\n"
-   "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--force] [--help]\n"
-   "         [--infiles <fn>] [--license] [--nopbar] [--posc]\n"
-   "         [--proxy <host>:<port] [--recursive] [--retry <n>] [--server]\n"
-   "         [--silent] [--sources <n>] [--streams <n>] [--tpc {first|only}]\n"
-   "         [--verbose] [--version] [--xrate <rate>]";
+   "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--dynamic-src]\n"
+   "         [--force] [--help] [--infiles <fn>] [--license] [--nopbar]\n"
+   "         [--posc] [--proxy <host>:<port>] [--recursive] [--retry <n>]\n"
+   "         [--server] [--silent] [--sources <n>] [--streams <n>]\n"
+   "         [--tpc {first|only}] [--verbose] [--version] [--xrate <rate>]\n"
+   "         [--parallel <n>]";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
@@ -835,12 +853,13 @@ void XrdCpConfig::Usage(int rc)
    static const char *Detail = "\n"
    "-C | --cksum <args> verifies the checksum at the destination as provided\n"
    "                    by the source server or locally computed. The args are\n"
-   "                    {adler32 | crc32 | md5}[:{<value>|print}]\n"
+   "                    {adler32 | crc32 | md5}[:{<value>|print|source}]\n"
    "                    If the hex value of the checksum is given, it is used.\n"
    "                    Otherwise, the server's checksum is used for remote files\n"
    "                    and computed for local files. Specifying print merely\n"
    "                    prints the checksum but does not verify it.\n"
    "-d | --debug <lvl>  sets the debug level: 0 off, 1 low, 2 medium, 3 high\n"
+   "-Z | --dynamic-src  file size may change during the copy\n"
    "-F | --coerce       coerces the copy by ignoring file locking semantics\n"
    "-f | --force        replaces any existing output file\n"
    "-h | --help         prints this information\n"
@@ -862,7 +881,8 @@ void XrdCpConfig::Usage(int rc)
    "-v | --verbose      produces more information about the copy\n"
    "-V | --version      prints the version number\n"
    "-X | --xrate <rate> limits the transfer to the specified rate. You can\n"
-   "                    suffix the value with 'k', 'm', or 'g'\n\n"
+   "                    suffix the value with 'k', 'm', or 'g'\n"
+   "     --parallel <n> number of copy jobs to be run simultaneously\n\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

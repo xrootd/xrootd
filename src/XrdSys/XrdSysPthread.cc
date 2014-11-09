@@ -110,28 +110,7 @@ int XrdSysCondVar::Wait()
 
 /******************************************************************************/
   
-int XrdSysCondVar::Wait(int sec)
-{
- struct timespec tval;
- int retc;
-
-// Get the mutex before calculating the time
-//
-   if (relMutex) Lock();
-
-// Simply adjust the time in seconds
-//
-   tval.tv_sec  = time(0) + sec;
-   tval.tv_nsec = 0;
-
-// Wait for the condition or timeout
-//
-   do {retc = pthread_cond_timedwait(&cvar, &cmut, &tval);}
-   while (retc && (retc != ETIMEDOUT));
-
-   if (relMutex) UnLock();
-   return retc == ETIMEDOUT;
-}
+int XrdSysCondVar::Wait(int sec) {return WaitMS(sec*1000);}
 
 /******************************************************************************/
 /*                                W a i t M S                                 */
@@ -161,7 +140,7 @@ int XrdSysCondVar::WaitMS(int msec)
 //
    tval.tv_sec  = tnow.tv_sec  +  sec;
    tval.tv_nsec = tnow.tv_usec + usec;
-   if (tval.tv_nsec > 1000000)
+   if (tval.tv_nsec >= 1000000)
       {tval.tv_sec += tval.tv_nsec / 1000000;
        tval.tv_nsec = tval.tv_nsec % 1000000;
       }
@@ -171,9 +150,13 @@ int XrdSysCondVar::WaitMS(int msec)
 // Now wait for the condition or timeout
 //
    do {retc = pthread_cond_timedwait(&cvar, &cmut, &tval);}
-   while (retc && (retc != ETIMEDOUT));
+   while (retc && (retc == EINTR));
 
    if (relMutex) UnLock();
+
+// Determine how to return
+//
+   if (retc && retc != ETIMEDOUT) {throw "cond_timedwait() failed";}
    return retc == ETIMEDOUT;
 }
  
@@ -184,7 +167,7 @@ int XrdSysCondVar::WaitMS(int msec)
 /*                              C o n d W a i t                               */
 /******************************************************************************/
   
-#ifdef __macos__
+#ifdef __APPLE__
 
 int XrdSysSemaphore::CondWait()
 {
@@ -220,10 +203,14 @@ void XrdSysSemaphore::Post()
 void XrdSysSemaphore::Wait()
 {
 
-// Wait until the sempahore value is positive. This will not be starvation
-// free is the OS implements an unfair mutex;
+// Wait until the semaphore value is positive. This will not be starvation
+// free if the OS implements an unfair mutex.
+// Adding a cleanup handler to the stack here enables threads using this OSX
+// semaphore to be canceled (which is rare). A scoped lock won't work here
+// because OSX is broken and doesn't call destructors properly.
 //
    semVar.Lock();
+   pthread_cleanup_push(&XrdSysSemaphore::CleanUp, (void *) &semVar);
    if (semVal < 1 || semWait)
       while(semVal < 1)
            {semWait++;
@@ -231,10 +218,20 @@ void XrdSysSemaphore::Wait()
             semWait--;
            }
 
-// Decrement the semaphore value and return
+// Decrement the semaphore value, unlock the underlying cond var and return
 //
    semVal--;
-   semVar.UnLock();
+   pthread_cleanup_pop(1);
+}
+
+/******************************************************************************/
+/*                               C l e a n U p                                */
+/******************************************************************************/
+
+void XrdSysSemaphore::CleanUp(void *semVar)
+{
+  XrdSysCondVar *sv = (XrdSysCondVar *) semVar;
+  sv->UnLock();
 }
 #endif
  
@@ -251,7 +248,7 @@ unsigned long XrdSysThread::Num()
    return static_cast<unsigned long>(syscall(SYS_gettid));
 #elif defined(__solaris__)
    return static_cast<unsigned long>(pthread_self());
-#elif defined(__macos__)
+#elif defined(__APPLE__)
    return static_cast<unsigned long>(pthread_mach_thread_np(pthread_self()));
 #else
    return static_cast<unsigned long>(getpid());

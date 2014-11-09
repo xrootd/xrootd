@@ -85,7 +85,7 @@ XrdCmsNode *XrdCmsManager::Add(XrdLink *lp, int Lvl)
 // Obtain a new a new node object
 //
    lp->setID("manager",0);
-   if (!(nP = new XrdCmsNode(lp, 0, 0, Lvl, i)))
+   if (!(nP = new XrdCmsNode(lp, 0, 0, 0, Lvl, i)))
         {Say.Emsg("Manager", "Unable to obtain node object."); return 0;}
 
 // Assign new manager
@@ -94,7 +94,7 @@ XrdCmsNode *XrdCmsManager::Add(XrdLink *lp, int Lvl)
    if (i > MTHi) MTHi = i;
    nP->isOffline  = 0;
    nP->isNoStage  = 0;
-   nP->isSuspend  = 0;
+   nP->isBad      = 0;
    nP->isBound    = 1;
    nP->isConn     = 1;
    nP->isMan      = (Config.asManager() ? 1 : 0);
@@ -167,8 +167,10 @@ void XrdCmsManager::Inform(const char *What, struct iovec *vP, int vN, int vT)
 void XrdCmsManager::Inform(XrdCms::CmsReqCode rCode, int rMod,
                                   const char *Arg,  int Alen)
 {
-    CmsRRHdr Hdr = {0, rCode, rMod, htons(static_cast<unsigned short>(Alen))};
-    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},{(char *)Arg, Alen}};
+  CmsRRHdr Hdr = {0, (kXR_char)rCode, (kXR_char)rMod,
+                    htons(static_cast<unsigned short>(Alen))};
+    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},
+                           {(char *)Arg, (size_t)Alen}};
 
     Inform(Router.getName((int)rCode), ioV, (Arg ? 2 : 1), Alen+sizeof(Hdr));
 }
@@ -177,7 +179,8 @@ void XrdCmsManager::Inform(XrdCms::CmsReqCode rCode, int rMod,
 
 void XrdCmsManager::Inform(CmsRRHdr &Hdr, const char *Arg, int Alen)
 {
-    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},{(char *)Arg, Alen}};
+    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},
+                           {(char *)Arg, (size_t)Alen}};
 
     Hdr.datalen = htons(static_cast<unsigned short>(Alen));
 

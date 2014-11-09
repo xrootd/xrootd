@@ -48,8 +48,10 @@ struct defVar
        union  {const char *strVal;  // -> String  value if in strDefs
                int         intVal;  //    Integer value if in intDefs
               };
-               defVar(const char *vn, const char *vl) : vName(vn), strVal(vl) {}
-               defVar(const char *vn, int         vl) : vName(vn), intVal(vl) {}
+               defVar(const char *vn, const char *vl)
+                     : Next(0), vName(vn), strVal(vl) {}
+               defVar(const char *vn, int         vl)
+                     : Next(0), vName(vn), intVal(vl) {}
       };
 
        defVar      *intDefs;       // -> -DI settings
@@ -58,6 +60,7 @@ struct defVar
        const char  *srcOpq;        // -> -OS setting (src  opaque)
        const char  *Pgm;           // -> Program name
         long long   xRate;         // -xrate value in bytes/sec   (0 if not set)
+             int    Parallel;      // Number of simultaneous copy ops (1 to 4)
              char  *pHost;         // -> SOCKS4 proxy hname       (0 if none)
              int    pPort;         //    SOCKS4 proxy port
              int    OpSpec;        // Bit mask of set options     (see Doxxxx)
@@ -81,9 +84,8 @@ XrdCpFile          *dstFile;       // The destination for the copy
 
 static XrdSysError *Log;           // -> Error message object
 
-static const int    DoAdler    =  0x00000001; //  -adler {legacy}
-
-static const int    OpCksum    =  'C';
+static const int    OpCksum    =  'C';        // -adler -MD5 legacy -> DoCksrc
+static const int    DoCksrc    =  0x00000001; // --cksum <type>:source
 static const int    DoCksum    =  0x00000002; // --cksum <type>
 static const int    DoCkprt    =  0x00000004; // --cksum <type>:print
 
@@ -104,7 +106,7 @@ static const int    DoIfile    =  0x00100000; // -I | --infiles
 
 static const int    OpLicense  =  'H';        // -H | --license
 
-static const int    DoMD5      =  0x00000080; // -md5 {legacy}
+//atic const int    DoXyzzy    =  0x00000080; // Reserved
 
 static const int    OpNoPbar   =  'N';
 static const int    DoNoPbar   =  0x00000100; // -N | --nopbar | -np {legacy}
@@ -120,10 +122,10 @@ static const int    OpRecursv  =  'R';
 static const int    DoRecurse  =  0x00000800; // -r | --recursive | -R {legacy}
 
 static const int    OpRetry    =  't';
-static const int    DoRetry    =  0x00001000; // --coerce
+static const int    DoRetry    =  0x00001000; // -t | --retry
 
 static const int    OpServer   =  0x03;
-static const int    DoServer   =  0x00002000; // -s | --silent
+static const int    DoServer   =  0x00002000; //      --server
 
 static const int    OpSilent   =  's';
 static const int    DoSilent   =  0x00004000; // -s | --silent
@@ -146,6 +148,12 @@ static const int    OpVersion  =  'V';        // -V | --version
 static const int    OpXrate    =  'X';
 static const int    DoXrate    =  0x00080000; // -X | --xrate
 
+static const int    OpParallel =  0x04;
+static const int    DoParallel =  0x00200000; //      --parallel
+
+static const int    OpDynaSrc  =  'Z';
+static const int    DoDynaSrc  =  0x00200000; //      --dynamic-src
+
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.
 // The following options may be passed (largely to support legacy stuff):
@@ -154,6 +162,7 @@ static const int    opt1Src     = 0x00000001; // Only one source is allowed
 static const int    optNoXtnd   = 0x00000002; // Do not index source directories
 static const int    optRmtRec   = 0x00000004; // Allow remote recursive copy
 static const int    optNoStdIn  = 0x00000008; // Disallow '-' as src for stdin
+static const int    optNoLclCp  = 0x00000010; // Disallow local/local copy
 
              void   Config(int argc, char **argv, int Opts=0);
 

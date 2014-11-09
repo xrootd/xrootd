@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClMessageUtils.hh"
@@ -26,6 +32,8 @@
 #include "XrdCl/XrdClRequestSync.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClForkHandler.hh"
+#include "XrdCl/XrdClPlugInInterface.hh"
+#include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <memory>
@@ -46,6 +54,7 @@ namespace
                          XrdCl::OpenFlags::Flags   flags,
                          time_t                    expires ):
         pFirstTime( true ),
+        pPartial( false ),
         pOutstanding( 1 ),
         pHandler( handler ),
         pPath( path ),
@@ -69,6 +78,7 @@ namespace
       virtual void HandleResponse( XrdCl::XRootDStatus *status,
                                    XrdCl::AnyObject    *response )
       {
+        XrdSysMutexHelper scopedLock( pMutex );
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         --pOutstanding;
@@ -91,9 +101,12 @@ namespace
                         "the initial location list: %s", this, pPath.c_str(),
                         status->ToStr().c_str() );
             pHandler->HandleResponse( status, response );
+            scopedLock.UnLock();
             delete this;
             return;
           }
+
+          pPartial = true;
 
           //--------------------------------------------------------------------
           // We have no more outstanding requests, so let give to the client
@@ -104,6 +117,7 @@ namespace
             log->Debug( FileSystemMsg, "[0x%x@DeepLocate(%s)] No outstanding "
                         "requests, give out what we've got", this,
                         pPath.c_str() );
+            scopedLock.UnLock();
             HandleFinalResponse();
           }
           delete status;
@@ -149,7 +163,10 @@ namespace
         delete response;
         delete status;
         if( !pOutstanding )
+        {
+          scopedLock.UnLock();
           HandleFinalResponse();
+        }
       }
 
       //------------------------------------------------------------------------
@@ -177,19 +194,23 @@ namespace
           AnyObject *obj = new AnyObject();
           obj->Set( pLocations );
           pLocations = 0;
-          pHandler->HandleResponse( new XRootDStatus(), obj );
+          XRootDStatus *st = new XRootDStatus();
+          if( pPartial ) st->code = suPartial;
+          pHandler->HandleResponse( st, obj );
         }
         delete this;
       }
 
     private:
       bool                      pFirstTime;
+      bool                      pPartial;
       uint16_t                  pOutstanding;
       XrdCl::ResponseHandler   *pHandler;
       XrdCl::LocationInfo      *pLocations;
       std::string               pPath;
       XrdCl::OpenFlags::Flags   pFlags;
       time_t                    pExpires;
+      XrdSysMutex               pMutex;
   };
 
   //----------------------------------------------------------------------------
@@ -288,10 +309,34 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  FileSystem::FileSystem( const URL &url ): pLoadBalancerLookupDone( false )
+  FileSystem::FileSystem( const URL &url, bool enablePlugIns ):
+    pLoadBalancerLookupDone( false ),
+    pFollowRedirects( true ),
+    pPlugIn(0)
   {
     pUrl = new URL( url.GetURL() );
-    DefaultEnv::GetForkHandler()->RegisterFileSystemObject( this );
+
+    //--------------------------------------------------------------------------
+    // Check if we need to install a plug-in for this URL
+    //--------------------------------------------------------------------------
+    if( enablePlugIns )
+    {
+      Log *log = DefaultEnv::GetLog();
+      std::string urlStr = url.GetURL();
+      PlugInFactory *fact = DefaultEnv::GetPlugInManager()->GetFactory(urlStr);
+      if( fact )
+      {
+        pPlugIn = fact->CreateFileSystem( urlStr );
+        if( !pPlugIn )
+        {
+          log->Error( FileMsg, "Plug-in factory failed to produce a plug-in "
+                      "for %s, continuing without one", urlStr.c_str() );
+        }
+      }
+    }
+
+    if( !pPlugIn )
+      DefaultEnv::GetForkHandler()->RegisterFileSystemObject( this );
   }
 
   //----------------------------------------------------------------------------
@@ -299,8 +344,14 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileSystem::~FileSystem()
   {
-    DefaultEnv::GetForkHandler()->UnRegisterFileSystemObject( this );
+    if( !pPlugIn )
+    {
+      if( DefaultEnv::GetForkHandler() )
+        DefaultEnv::GetForkHandler()->UnRegisterFileSystemObject( this );
+    }
+
     delete pUrl;
+    delete pPlugIn;
   }
 
   //----------------------------------------------------------------------------
@@ -311,6 +362,9 @@ namespace XrdCl
                                    ResponseHandler   *handler,
                                    uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Locate( path, flags, handler, timeout );
+
     Message             *msg;
     ClientLocateRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -381,6 +435,9 @@ namespace XrdCl
                                ResponseHandler   *handler,
                                uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Mv( source, dest, handler, timeout );
+
     Message         *msg;
     ClientMvRequest *req;
     MessageUtils::CreateRequest( msg, req, source.length()+dest.length()+1 );
@@ -421,6 +478,9 @@ namespace XrdCl
                                   ResponseHandler *handler,
                                   uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Query( queryCode, arg, handler, timeout );
+
     Message            *msg;
     ClientQueryRequest *req;
     MessageUtils::CreateRequest( msg, req, arg.GetSize() );
@@ -460,6 +520,9 @@ namespace XrdCl
                                      ResponseHandler   *handler,
                                      uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Truncate( path, size, handler, timeout );
+
     Message               *msg;
     ClientTruncateRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -497,6 +560,9 @@ namespace XrdCl
                                ResponseHandler   *handler,
                                uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Rm( path, handler, timeout );
+
     Message         *msg;
     ClientRmRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -534,6 +600,9 @@ namespace XrdCl
                                   ResponseHandler   *handler,
                                   uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->MkDir( path, flags, mode, handler, timeout );
+
     Message            *msg;
     ClientMkdirRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -573,6 +642,9 @@ namespace XrdCl
                                   ResponseHandler   *handler,
                                   uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->RmDir( path, handler, timeout );
+
     Message            *msg;
     ClientRmdirRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -609,6 +681,9 @@ namespace XrdCl
                                   ResponseHandler   *handler,
                                   uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->ChMod( path, mode, handler, timeout );
+
     Message            *msg;
     ClientChmodRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -645,6 +720,9 @@ namespace XrdCl
   XRootDStatus FileSystem::Ping( ResponseHandler *handler,
                                  uint16_t        timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Ping( handler, timeout );
+
     Message           *msg;
     ClientPingRequest *req;
     MessageUtils::CreateRequest( msg, req );
@@ -677,6 +755,9 @@ namespace XrdCl
                                  ResponseHandler   *handler,
                                  uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Stat( path, handler, timeout );
+
     Message           *msg;
     ClientStatRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -714,6 +795,9 @@ namespace XrdCl
                                     ResponseHandler   *handler,
                                     uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->StatVFS( path, handler, timeout );
+
     Message           *msg;
     ClientStatRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -750,6 +834,9 @@ namespace XrdCl
   XRootDStatus FileSystem::Protocol( ResponseHandler *handler,
                                      uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Protocol( handler, timeout );
+
     Message               *msg;
     ClientProtocolRequest *req;
     MessageUtils::CreateRequest( msg, req );
@@ -780,16 +867,24 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // List entries of a directory - async
   //----------------------------------------------------------------------------
-  XRootDStatus FileSystem::DirList( const std::string &path,
-                                    ResponseHandler   *handler,
-                                    uint16_t           timeout )
+  XRootDStatus FileSystem::DirList( const std::string   &path,
+                                    DirListFlags::Flags  flags,
+                                    ResponseHandler     *handler,
+                                    uint16_t             timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->DirList( path, flags, handler, timeout );
+
     Message           *msg;
-    ClientStatRequest *req;
+    ClientDirlistRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid  = kXR_dirlist;
     req->dlen       = path.length();
+
+    if( flags & DirListFlags::Stat )
+      req->options[0] = kXR_dstat;
+
     msg->Append( path.c_str(), path.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -816,7 +911,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       LocationInfo *locations;
       std::string locatePath = "*"; locatePath += path;
-      XRootDStatus st = DeepLocate( locatePath, OpenFlags::None, locations );
+      XRootDStatus st = DeepLocate( locatePath, OpenFlags::PrefName, locations );
 
       if( !st.IsOK() )
         return st;
@@ -832,10 +927,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       flags &= ~DirListFlags::Locate;
       FileSystem    *fs;
-      DirectoryList *currentResp = 0;
-      bool           errors = false;
+      DirectoryList *currentResp  = 0;
+      uint32_t       errors       = 0;
+      uint32_t       numLocations = locations->GetSize();
+      bool           partial      = st.code == suPartial ? true : false;
 
-      response = new DirectoryList( "", path, 0 );
+      response = new DirectoryList();
+      response->SetParentName( path );
 
       for( uint32_t i = 0; i < locations->GetSize(); ++i )
       {
@@ -843,13 +941,13 @@ namespace XrdCl
         st = fs->DirList( path, flags, currentResp, timeout );
         if( !st.IsOK() )
         {
-          errors = true;
+          ++errors;
           delete fs;
           continue;
         }
 
         if( st.code == suPartial )
-          errors = true;
+          partial = true;
 
         DirectoryList::Iterator it;
 
@@ -866,8 +964,12 @@ namespace XrdCl
       }
       delete locations;
 
-      if( errors )
+      if( errors || partial )
+      {
+        if( errors == numLocations )
+          return st;
         return XRootDStatus( stOK, suPartial );
+      }
       return XRootDStatus();
     };
 
@@ -875,7 +977,7 @@ namespace XrdCl
     // We just ask the current server
     //--------------------------------------------------------------------------
     SyncResponseHandler handler;
-    XRootDStatus st = DirList( path, &handler, timeout );
+    XRootDStatus st = DirList( path, flags, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -884,9 +986,14 @@ namespace XrdCl
       return st;
 
     //--------------------------------------------------------------------------
-    // Do the stats on all the entries if necessary
+    // Do the stats on all the entries if necessary.
+    // If we already have the stat objects it means that the bulk stat has
+    // succeeded.
     //--------------------------------------------------------------------------
     if( !(flags & DirListFlags::Stat) )
+      return st;
+
+    if( response->GetSize() && response->At(0)->GetStatInfo() )
       return st;
 
     uint32_t quota = response->GetSize() <= 1024 ? response->GetSize() : 1024;
@@ -918,6 +1025,9 @@ namespace XrdCl
                                      ResponseHandler   *handler,
                                      uint16_t           timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->SendInfo( info, handler, timeout );
+
     Message          *msg;
     ClientSetRequest *req;
     const char *prefix    = "monitor info ";
@@ -959,6 +1069,8 @@ namespace XrdCl
                                     ResponseHandler                *handler,
                                     uint16_t                        timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Prepare( fileList, flags, priority, handler, timeout );
 
     std::vector<std::string>::const_iterator it;
     std::string                              list;
@@ -1005,7 +1117,43 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Assign a loadbalancer if it has not already been assigned
+  // Set file property
+  //----------------------------------------------------------------------------
+  bool FileSystem::SetProperty( const std::string &name,
+                                const std::string &value )
+  {
+    if( pPlugIn )
+      return pPlugIn->SetProperty( name, value );
+
+    if( name == "FollowRedirects" )
+    {
+      if( value == "true" ) pFollowRedirects = true;
+      else pFollowRedirects = false;
+      return true;
+    }
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get file property
+  //----------------------------------------------------------------------------
+  bool FileSystem::GetProperty( const std::string &name,
+                                std::string &value ) const
+  {
+    if( pPlugIn )
+      return pPlugIn->GetProperty( name, value );
+
+    if( name == "FollowRedirects" )
+    {
+      if( pFollowRedirects ) value = "true";
+      else value = "false";
+      return true;
+    }
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Assign a load balancer if it has not already been assigned
   //----------------------------------------------------------------------------
   void FileSystem::AssignLoadBalancer( const URL &url )
   {
@@ -1026,9 +1174,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message in a locked environment
   //----------------------------------------------------------------------------
-  Status FileSystem::Send( Message                 *msg,
-                           ResponseHandler         *handler,
-                           const MessageSendParams &params )
+  Status FileSystem::Send( Message                  *msg,
+                           ResponseHandler          *handler,
+                           MessageSendParams        &params )
   {
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
@@ -1036,8 +1184,10 @@ namespace XrdCl
     log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
                pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
 
-    if( !pLoadBalancerLookupDone )
+    if( !pLoadBalancerLookupDone && pFollowRedirects )
       handler = new AssignLBHandler( this, handler );
+
+    params.followRedirects = pFollowRedirects;
 
     return MessageUtils::SendMessage( *pUrl, msg, handler, params );
   }

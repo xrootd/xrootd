@@ -37,6 +37,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
+#include "XrdOss/XrdOssStatInfo.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -53,18 +54,22 @@ public:
 int     Close(long long *retsz=0);
 int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
+int     StatRet(struct stat *buff);
 
         // Constructor and destructor
-        XrdOssDir(const char *tid) 
-                 {lclfd=0; mssfd=0; pflags=ateof=isopen=0; tident=tid;}
+        XrdOssDir(const char *tid) : lclfd(0), mssfd(0), Stat(0), tident(tid),
+                                     pflags(0), ateof(0), isopen(0), dirFD(0)
+                                   {}
        ~XrdOssDir() {if (isopen > 0) Close(); isopen = 0;}
 private:
          DIR       *lclfd;
          void      *mssfd;
+struct   stat      *Stat;
 const    char      *tident;
 unsigned long long  pflags;
          int        ateof;
          int        isopen;
+         int        dirFD;
 };
   
 /******************************************************************************/
@@ -97,7 +102,7 @@ int     isCompressed(char *cxidp=0);
 ssize_t Read(               off_t, size_t);
 ssize_t Read(       void *, off_t, size_t);
 int     Read(XrdSfsAio *aiop);
-ssize_t ReadV(XrdOucIOVec *readV, size_t n);
+ssize_t ReadV(XrdOucIOVec *readV, int);
 ssize_t ReadRaw(    void *, off_t, size_t);
 ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
@@ -176,6 +181,7 @@ int       StatFS(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
 int       StatFS(const char *path, unsigned long long &Opt,
                  long long &fSize, long long &fSpace);
 int       StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);
+int       StatPF(const char *, struct stat *);
 int       StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0);
 int       StatXA(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
 int       StatXP(const char *path, unsigned long long &attr, XrdOucEnv *Env=0);
@@ -247,6 +253,10 @@ int               lenDP;
 short             numDP;
 short             numCG;
 
+char             *STT_Lib;   // -> StatInfo  Library Path
+char             *STT_Parms; // -> StatInfo  Library Paramaters
+XrdOssStatInfo_t  STT_Func;
+int               STT_PreOp;
 
 long long         prPBits;   //    Page lo order bit mask
 long long         prPMask;   //    Page hi order bit mask
@@ -315,6 +325,7 @@ void   ConfigSpath(XrdSysError &Eroute, const char *Pn,
                    unsigned long long &Fv, int noMSS);
 int    ConfigStage(XrdSysError &Eroute);
 int    ConfigStageC(XrdSysError &Eroute);
+int    ConfigStatLib(XrdSysError &Eroute);
 void   ConfigStats(XrdSysError &Eroute);
 void   ConfigStats(dev_t Devnum, char *lP);
 int    ConfigXeq(char *, XrdOucStream &, XrdSysError &);
@@ -332,6 +343,7 @@ int    xprerd(XrdOucStream &Config, XrdSysError &Eroute);
 int    xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD=0);
 int    xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute);
 int    xstg(XrdOucStream &Config, XrdSysError &Eroute);
+int    xstl(XrdOucStream &Config, XrdSysError &Eroute);
 int    xusage(XrdOucStream &Config, XrdSysError &Eroute);
 int    xtrace(XrdOucStream &Config, XrdSysError &Eroute);
 int    xxfr(XrdOucStream &Config, XrdSysError &Eroute);
@@ -359,5 +371,9 @@ int    RenameLink3(char *cPath, char *old_path, char *new_path);
 #define Check_RO(act, flags, path, opname) \
    XRDEXP_REMOTE & (flags = PathOpts(path)); \
    if (flags & XRDEXP_NOTRW) \
+      return OssEroute.Emsg(#act, -XRDOSS_E8005, opname, path)
+
+#define Check_RW(act, path, opname) \
+   if (PathOpts(path) & XRDEXP_NOTRW) \
       return OssEroute.Emsg(#act, -XRDOSS_E8005, opname, path)
 #endif

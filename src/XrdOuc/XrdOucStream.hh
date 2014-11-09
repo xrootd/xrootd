@@ -90,7 +90,11 @@ void         Echo();
 // process via standard in. When inrd=-1 then the current attached FD's are
 // used to redirect STDIN and STDOUT of the child process. Standard error
 // is handled as determined by the efd argument:
-// efd < 0 -> The current stderr file decriptor is unchanged.
+// efd < 0 -> How to handle the current stderr file decriptor:
+//            -1 The current stderr file decriptor is unchanged.
+//               Output of only stdout is to be captured by this stream.
+//            -2 Output of only stderr is to be captured by this stream.
+//            -3 Output of stdout and stderr is to be captured by this stream.
 // efd = 0 -> The stderr file descriptor is set to the original logging FD
 // efd > 0 -> The stderr file descriptor is set to the value of efd.
 //

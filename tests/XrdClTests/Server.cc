@@ -18,7 +18,7 @@
 
 #include "Server.hh"
 #include "Utils.hh"
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "TestEnv.hh"
 
@@ -102,7 +102,9 @@ void ClientHandler::UpdateReceivedData( char *buffer, uint32_t size )
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Server::Server(): pServerThread(0), pListenSocket(-1), pHandlerFactory(0)
+Server::Server( ProtocolFamily family ):
+  pServerThread(0), pListenSocket(-1), pHandlerFactory(0),
+  pProtocolFamily( family )
 {
 }
 
@@ -135,9 +137,13 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
   pHandlerFactory = factory;
 
   //----------------------------------------------------------------------------
-  // Create and bind the socket
+  // Create the socket
   //----------------------------------------------------------------------------
-  pListenSocket = socket( AF_INET, SOCK_STREAM, 0 );
+  int protocolFamily = AF_INET;
+  if( pProtocolFamily == Inet6 || pProtocolFamily == Both )
+    protocolFamily = AF_INET6;
+
+  pListenSocket = socket( protocolFamily, SOCK_STREAM, 0 );
   if( pListenSocket < 0 )
   {
     log->Error( 1, "Unable to create listening socket: %s", strerror( errno ) );
@@ -152,13 +158,46 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
     return false;
   }
 
-  sockaddr_in servAddr;
-  memset( &servAddr, 0, sizeof(servAddr) );
-  servAddr.sin_family      = AF_INET;
-  servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servAddr.sin_port        = htons(port);
+  if( pProtocolFamily == Both )
+  {
+    optVal = 0;
+    if( setsockopt( pListenSocket, IPPROTO_IPV6, IPV6_V6ONLY, &optVal,
+                    sizeof(optVal) ) == -1 )
+    {
+      log->Error( 1, "Unable to disable the IPV6_V6ONLY option: %s",
+                  strerror( errno ) );
+      return false;
+    }
+  }
 
-  if( bind( pListenSocket, (sockaddr *)&servAddr, sizeof( servAddr ) ) < 0 )
+  //----------------------------------------------------------------------------
+  // Bind the socket
+  //----------------------------------------------------------------------------
+  sockaddr     *servAddr     = 0;
+  sockaddr_in6  servAddr6;
+  sockaddr_in   servAddr4;
+  int           servAddrSize = 0;
+
+  if( pProtocolFamily == Inet4 )
+  {
+    memset( &servAddr4, 0, sizeof(servAddr4) );
+    servAddr4.sin_family      = AF_INET;
+    servAddr4.sin_addr.s_addr = htonl(INADDR_ANY);
+    servAddr4.sin_port        = htons(port);
+    servAddr                  = (sockaddr*)&servAddr4;
+    servAddrSize              = sizeof(servAddr4);
+  }
+  else
+  {
+    memset( &servAddr6, 0, sizeof(servAddr6) );
+    servAddr6.sin6_family = AF_INET6;
+    servAddr6.sin6_addr   = in6addr_any;
+    servAddr6.sin6_port   = htons( port );
+    servAddr              = (sockaddr*)&servAddr6;
+    servAddrSize          = sizeof(servAddr6);
+  }
+
+  if( bind( pListenSocket, servAddr, servAddrSize ) < 0 )
   {
     log->Error( 1, "Unable to bind the socket: %s", strerror( errno ) );
     return false;
@@ -247,10 +286,22 @@ int Server::HandleConnections()
     //--------------------------------------------------------------------------
     // Accept the connection
     //--------------------------------------------------------------------------
-    sockaddr_in inetAddr;
-    socklen_t   inetLen = sizeof( inetAddr );
-    int connectionSocket = accept( pListenSocket, (sockaddr*)&inetAddr,
-                                   &inetLen );
+    sockaddr     *inetAddr = 0;
+    socklen_t     inetLen  = 0;
+    sockaddr_in   inetAddr4;
+    sockaddr_in6  inetAddr6;
+    if( pProtocolFamily == Inet4 )
+    {
+      inetAddr = (sockaddr*)&inetAddr4;
+      inetLen = sizeof( inetAddr4 );
+    }
+    else
+    {
+      inetAddr = (sockaddr*)&inetAddr6;
+      inetLen = sizeof( inetAddr6 );
+    }
+
+    int connectionSocket = accept( pListenSocket, inetAddr, &inetLen );
     if( connectionSocket < 0 )
     {
       log->Error( 1, "Unable to accept a connection: %s", strerror( errno ) );
@@ -263,7 +314,7 @@ int Server::HandleConnections()
     ClientHandler *handler = pHandlerFactory->CreateHandler();
     char           nameBuff[1024];
     ClientHelper  *helper = new ClientHelper();
-    XrdSysDNS::IPFormat( (sockaddr*)&inetAddr, nameBuff, sizeof( nameBuff ) );
+    XrdNetUtils::IPFormat( connectionSocket, nameBuff, sizeof(nameBuff) );
     log->Debug( 1, "Accepted a connection from %s", nameBuff );
 
     //--------------------------------------------------------------------------

@@ -36,13 +36,12 @@
 #include "XProtocol/YProtocol.hh"
 
 #include "XrdCms/XrdCmsResp.hh"
-#include "XrdNet/XrdNetBuffer.hh"
+#include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdInet;
 class XrdLink;
-class XrdNetBuffer;
 
 class XrdCmsClientMan
 {
@@ -58,6 +57,8 @@ XrdCmsClientMan     *nextManager() {return Next;}
 
 char                *Name() {return Host;}
 char                *NPfx() {return HPfx;}
+
+int                  manPort() {return Port;}
 
 int                  Send(char *msg, int mlen=0);
 int                  Send(const struct iovec *iov, int iovcnt, int iotot=0);
@@ -87,7 +88,7 @@ void  chkStatus();
 void  setStatus();
 
 static XrdSysMutex   manMutex;
-static XrdNetBufferQ BuffQ;
+static XrdOucBuffPool BuffPool;
 static XrdInet      *Network;
 static const char   *ConfigFN;
 static const int     chkVal = 256;
@@ -119,6 +120,6 @@ int               chkCount;
 time_t            lastUpdt;
 time_t            lastTOut;
 XrdCms::CmsRRHdr  Response;
-XrdNetBuffer     *NetBuff;
+XrdOucBuffer     *NetBuff;
 };
 #endif

@@ -12,6 +12,21 @@ add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=6
 set( LIBRARY_PATH_PREFIX "lib" )
 
 #-------------------------------------------------------------------------------
+# GCC
+#-------------------------------------------------------------------------------
+if( CMAKE_COMPILER_IS_GNUCXX )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
+  # gcc 4.1 is retarded
+  execute_process( COMMAND ${CMAKE_C_COMPILER} -dumpversion
+                   OUTPUT_VARIABLE GCC_VERSION )
+  if( (GCC_VERSION VERSION_GREATER 4.1 OR GCC_VERSION VERSION_EQUAL 4.1)
+      AND GCC_VERSION VERSION_LESS 4.2 )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-strict-aliasing" )
+  endif()
+endif()
+
+#-------------------------------------------------------------------------------
 # Linux
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
@@ -26,6 +41,10 @@ endif()
 #-------------------------------------------------------------------------------
 if( APPLE )
   set( MacOSX TRUE )
+
+  # this is here because of Apple deprecating openssl and krb5
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )
+
   add_definitions( -D__macos__=1 )
   add_definitions( -DLT_MODULE_EXT=".dylib" )
   set( CMAKE_INSTALL_LIBDIR "lib" )
@@ -56,9 +75,19 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   define_solaris_flavor()
 
   #-----------------------------------------------------------------------------
+  # Define solaris version
+  #-----------------------------------------------------------------------------
+  execute_process( COMMAND uname -r
+                   OUTPUT_VARIABLE SOLARIS_VER )
+  string( REPLACE "." ";" SOLARIS_VER_LIST ${SOLARIS_VER} )
+  list( GET SOLARIS_VER_LIST 1 SOLARIS_VERSION )
+  string( REPLACE "\n" "" SOLARIS_VERSION ${SOLARIS_VERSION} )
+  add_definitions( -DSOLARIS_VERSION=${SOLARIS_VERSION} )
+
+  #-----------------------------------------------------------------------------
   # AMD64 (opteron)
   #-----------------------------------------------------------------------------
-  if( SOLARIS_AMD64 AND NOT FORCE_32BITS )
+  if( ${SOLARIS_VERSION} STREQUAL "10" AND SOLARIS_AMD64 AND NOT FORCE_32BITS )
     set( CMAKE_CXX_FLAGS " -m64 -xtarget=opteron -xs ${CMAKE_CXX_FLAGS} " )
     set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -G" )
     set( CMAKE_LIBRARY_PATH "/lib/64;/usr/lib/64" )
@@ -82,15 +111,5 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
     }
   "
   SUNCC_CAN_DO_OPTS )
-
-  #-----------------------------------------------------------------------------
-  # Define solaris version
-  #-----------------------------------------------------------------------------
-  execute_process( COMMAND uname -r
-                   OUTPUT_VARIABLE SOLARIS_VER )
-  string( REPLACE "." ";" SOLARIS_VER_LIST ${SOLARIS_VER} )
-  list( GET SOLARIS_VER_LIST 1 SOLARIS_VERSION )
-  string( REPLACE "\n" "" SOLARIS_VERSION ${SOLARIS_VERSION} )
-  add_definitions( -DSOLARIS_VERSION=${SOLARIS_VERSION} )
 
 endif()

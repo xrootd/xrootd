@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClSocket.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 
 #include <string>
 #include <errno.h>
@@ -129,9 +130,12 @@ extern "C"
     if( what & EV_READ    ) ev |= SocketHandler::ReadyToRead;
 
     Log *log = DefaultEnv::GetLog();
-    log->Dump( PollerMsg, "%s Got read event: %s",
-                           helper->socket->GetName().c_str(),
-                           SocketHandler::EventTypeToString( ev ).c_str() );
+    if( unlikely(log->GetLevel() >= Log::DumpMsg) )
+    {
+      log->Dump( PollerMsg, "%s Got read event: %s",
+                             helper->socket->GetName().c_str(),
+                             SocketHandler::EventTypeToString( ev ).c_str() );
+    }
 
     helper->handler->Event( ev, helper->socket );
   }
@@ -150,9 +154,12 @@ extern "C"
     if( what & EV_WRITE   ) ev |= SocketHandler::ReadyToWrite;
 
     Log *log = DefaultEnv::GetLog();
-    log->Dump( PollerMsg, "%s Got write event %s",
-                           helper->socket->GetName().c_str(),
-                           SocketHandler::EventTypeToString( ev ).c_str() );
+    if( unlikely(log->GetLevel() >= Log::DumpMsg) )
+    {
+      log->Dump( PollerMsg, "%s Got write event %s",
+                             helper->socket->GetName().c_str(),
+                             SocketHandler::EventTypeToString( ev ).c_str() );
+    }
 
     helper->handler->Event( ev, helper->socket );
   }
@@ -168,7 +175,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
-    // Print some debing info
+    // Print some debugging info
     //--------------------------------------------------------------------------
     const char *compiledVersion = LIBEVENT_VERSION;
     const char *runningVersion  = event_get_version();
@@ -440,8 +447,8 @@ namespace XrdCl
       if( helper->readEnabled )
         return true;
 
-      log->Dump( PollerMsg, "%s Enable read notifications",
-                            socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Enable read notifications, timeout: %d",
+                 socket->GetName().c_str(), timeout );
 
       //------------------------------------------------------------------------
       // Create the read event if it doesn't exist
@@ -534,8 +541,8 @@ namespace XrdCl
       if( helper->writeEnabled )
         return true;
 
-      log->Dump( PollerMsg, "%s Enable write notifications",
-                            socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Enable write notifications, timeout: %d",
+                 socket->GetName().c_str(), timeout );
 
       //------------------------------------------------------------------------
       // Create the read event if it doesn't exist

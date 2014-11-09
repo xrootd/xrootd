@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_FILE_STATE_HANDLER_HH__
@@ -32,7 +38,7 @@ namespace XrdCl
   class Message;
 
   //----------------------------------------------------------------------------
-  //! Handle the statefull operations
+  //! Handle the stateful operations
   //----------------------------------------------------------------------------
   class FileStateHandler
   {
@@ -94,7 +100,7 @@ namespace XrdCl
       //! @param force   do not use the cached information, force re-stating
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfo object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -113,7 +119,7 @@ namespace XrdCl
       //!                or 0 if the buffer should be allocated by the system
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a buffer object if
-      //!                the procedure was successful, if a prealocated
+      //!                the procedure was successful, if a preallocated
       //!                buffer was specified then the buffer object will
       //!                "wrap" this buffer
       //! @param timeout timeout value, if 0 the environment default will be
@@ -127,7 +133,7 @@ namespace XrdCl
                          uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
-      //! Write a data chank at a given offset - async
+      //! Write a data chunk at a given offset - async
       //!
       //! @param offset  offset from the beginning of the file
       //! @param size    number of bytes to be written
@@ -184,6 +190,35 @@ namespace XrdCl
                                uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Performs a custom operation on an open file, server implementation
+      //! dependent - async
+      //!
+      //! @param arg       query argument
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successful
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Fcntl( const Buffer    &arg,
+                          ResponseHandler *handler,
+                          uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Get access token to a file - async
+      //!
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successful
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Visa( ResponseHandler *handler,
+                         uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Process the results of the opening operation
       //------------------------------------------------------------------------
       void OnOpen( const XRootDStatus *status,
@@ -206,7 +241,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Handle stateful redirect
       //------------------------------------------------------------------------
-      void OnStateRedirection( RedirectInfo      *redirectInfo,
+      void OnStateRedirection( const std::string &redirectUrl,
                                Message           *message,
                                ResponseHandler   *userHandler,
                                MessageSendParams &sendParams );
@@ -225,22 +260,18 @@ namespace XrdCl
       bool IsOpen() const;
 
       //------------------------------------------------------------------------
-      //! Enable/disable state recovery procedures while the file is open for
-      //! reading
+      //! Set file property
+      //!
+      //! @see File::GetProperty for propert list
       //------------------------------------------------------------------------
-      void EnableReadRecovery( bool enable );
+      bool SetProperty( const std::string &name, const std::string &value );
 
       //------------------------------------------------------------------------
-      //! Enable/disable state recovery procedures while the file is open for
-      //! writing or read/write
+      //! Get file property
+      //!
+      //! @see File::SetProperty for property list
       //------------------------------------------------------------------------
-      void EnableWriteRecovery( bool enable );
-
-      //------------------------------------------------------------------------
-      //! Get the data server the file is accessed at
-      //------------------------------------------------------------------------
-      std::string GetDataServer() const;
-
+      bool GetProperty( const std::string &name, std::string &value ) const;
 
       //------------------------------------------------------------------------
       //! Lock the internal lock
@@ -259,13 +290,23 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Tick
+      //------------------------------------------------------------------------
+      void Tick( time_t now );
+
+      //------------------------------------------------------------------------
+      //! Declare timeout on requests being recovered
+      //------------------------------------------------------------------------
+      void TimeOutRequests( time_t now );
+
+      //------------------------------------------------------------------------
       //! Called in the child process after the fork
       //------------------------------------------------------------------------
       void AfterForkChild();
 
     private:
       //------------------------------------------------------------------------
-      // Helper for queueing messages
+      // Helper for queuing messages
       //------------------------------------------------------------------------
       struct RequestData
       {
@@ -296,9 +337,8 @@ namespace XrdCl
       //! Recover a message
       //!
       //! @param rd                request data associated with the message
-      //! @param callbackOnFailure should the current message be inserted into
-      //!                          the recovery queue if the recovery procedure
-      //!                          fails
+      //! @param callbackOnFailure should the current handler be called back
+      //!                          if the recovery procedure fails
       //------------------------------------------------------------------------
       Status RecoverMessage( RequestData rd, bool callbackOnFailure = true );
 
@@ -306,6 +346,11 @@ namespace XrdCl
       //! Run the recovery procedure if appropriate
       //------------------------------------------------------------------------
       Status RunRecovery();
+
+      //------------------------------------------------------------------------
+      // Send a close and ignore the response
+      //------------------------------------------------------------------------
+      Status SendClose( uint16_t timeout );
 
       //------------------------------------------------------------------------
       //! Check if the file is open for read only
@@ -325,7 +370,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Fail queued messages
       //------------------------------------------------------------------------
-      void FailQueuedMessages( Status status );
+      void FailQueuedMessages( XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! Re-send queued messages
@@ -374,6 +419,7 @@ namespace XrdCl
       uint64_t                pSessionId;
       bool                    pDoRecoverRead;
       bool                    pDoRecoverWrite;
+      bool                    pFollowRedirects;
 
       //------------------------------------------------------------------------
       // Monitoring variables

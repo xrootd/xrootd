@@ -85,7 +85,7 @@ XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
 //
    if (fp->fctl(SFS_FCTL_GETFD, 0, fp->error) != SFS_OK) fdNum = -1;
       else fdNum = fp->error.getErrInfo();
-   sfEnabled = (sfOK && sfok && fdNum >= 0 ? 1 : 0);
+   sfEnabled = (sfOK && sfok && (fdNum >= 0||fdNum==(int)SFS_SFIO_FDVAL) ? 1:0);
 
 // Determine if file is memory mapped
 //

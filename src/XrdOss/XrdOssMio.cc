@@ -60,7 +60,7 @@ char           XrdOssMio::MM_chk      = 0;
 char           XrdOssMio::MM_okmlock  = 1;
 char           XrdOssMio::MM_preld    = 0;
 long long      XrdOssMio::MM_pagsz    = (long long)sysconf(_SC_PAGESIZE);
-#ifdef __macos__
+#ifdef __APPLE__
 long long      XrdOssMio::MM_pages    = 1024*1024*1024;
 #else
 long long      XrdOssMio::MM_pages    = (long long)sysconf(_SC_PHYS_PAGES);
@@ -222,11 +222,12 @@ void *XrdOssMio::preLoad(void *arg)
    XrdOssMioFile *mp = (XrdOssMioFile *)arg;
    char *Base = (char *)(mp->Base);
    char *Bend = Base + mp->Size;
-   char  Byte;
+   long long MY_pagsz = MM_pagsz;
 
-// Reference each page until we are done
+// Reference each page until we are done. This is somewhat obtuse but we
+// are trying to keep the compiler from optimizing out the code.
 //
-   while(Base < Bend) {Byte = *Base; Base += MM_pagsz;}
+   while(Base < Bend) Base += (*Base ? MY_pagsz : MM_pagsz);
 
 // All done
 //

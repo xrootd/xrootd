@@ -176,7 +176,7 @@ XrdCryptolocalCipher::XrdCryptolocalCipher(XrdSutBucket *bck)
 
 //____________________________________________________________________________
 XrdCryptolocalCipher::XrdCryptolocalCipher(int bits, char *pub,
-                                           int lpub, const char *t)
+                                           int /*lpub*/, const char *t)
 {
    // Constructor for key agreement.
    // Generates private + public parts. The public can be retrieved
@@ -190,7 +190,7 @@ XrdCryptolocalCipher::XrdCryptolocalCipher(int bits, char *pub,
    valid  = 0;
    bpub  = 0;
    bpriv = 0;
-   lpub = kPC3SLEN;   
+   // lpub = kPC3SLEN;   
 
    //
    // Generate local info
@@ -241,6 +241,7 @@ XrdCryptolocalCipher::XrdCryptolocalCipher(int bits, char *pub,
 
 //____________________________________________________________________________
 XrdCryptolocalCipher::XrdCryptolocalCipher(const XrdCryptolocalCipher &c)
+                     : XrdCryptoCipher()
 {
    // Copy Constructor
 
@@ -267,13 +268,13 @@ XrdCryptolocalCipher::XrdCryptolocalCipher(const XrdCryptolocalCipher &c)
 }
 
 //____________________________________________________________________________
-bool XrdCryptolocalCipher::Finalize(char *pub, int lpub, const char *t)
+bool XrdCryptolocalCipher::Finalize(char *pub, int /*lpub*/, const char *t)
 {
    // Final initialization for key agreement.
    // 'pub' is the buffer sent by teh counterpart.
    // The private part must be defined already.
 
-   lpub = kPC3SLEN;   
+   //lpub = kPC3SLEN;   
    if (valid && bpriv && pub) {
 
       // Convert back from hex

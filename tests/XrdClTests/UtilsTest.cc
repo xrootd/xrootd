@@ -2,6 +2,8 @@
 // Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include <cppunit/extensions/HelperMacros.h>
@@ -22,6 +28,7 @@
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
+#include "XrdCl/XrdClPropertyList.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -34,11 +41,13 @@ class UtilsTest: public CppUnit::TestCase
       CPPUNIT_TEST( AnyTest );
       CPPUNIT_TEST( TaskManagerTest );
       CPPUNIT_TEST( SIDManagerTest );
+      CPPUNIT_TEST( PropertyListTest );
     CPPUNIT_TEST_SUITE_END();
     void URLTest();
     void AnyTest();
     void TaskManagerTest();
     void SIDManagerTest();
+    void PropertyListTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( UtilsTest );
@@ -57,6 +66,7 @@ void UtilsTest::URLTest()
   XrdCl::URL url7( "root://lxfsra02a08.cern.ch:1095//eos/dev/SMWZd3pdExample_NTUP_SMWZ.526666._000073.root.1?&cap.sym=sfdDqALWo3W3tWUJ2O5XwQ5GG8U=&cap.msg=eGj/mh+9TrecFBAZBNr/nLau4p0kjlEOjc1JC+9DVjLL1Tq+g311485W0baMBAsM#W8lNFdVQcKNAu8K5yVskIcLDOEi6oNpvoxDA1DN4oCxtHR6LkOWhO91MLn/ZosJ5#Dc7aeBCIz/kKs261mnL4dJeUu6r25acCn4vhyp8UKyL1cVmmnyBnjqe6tz28qFO2#0fQHrHf6Z9N0MNhw1fplYjpGeNwFH2jQSfSo24zSZKGa/PKClGYnXoXBWDGU1spm#kJsGGrErhBHYvLq3eS+jEBr8l+c1BhCQU7ZaLZiyaKOnspYnR/Tw7bMrooWMh7eL#&mgm.logid=766877e6-9874-11e1-a77f-003048cf8cd8&mgm.recdcdcdcdplicaindex=0&mgm.replicahead=0" );
   XrdCl::URL url8( "/etc/passwd" );
   XrdCl::URL url9( "localhost:1094//data/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat" );
+  XrdCl::URL url10( "localhost:1094/?test=123" );
 
   XrdCl::URL urlInvalid1( "root://user1:passwd1@host1:asd//path?param1=val1&param2=val2" );
   XrdCl::URL urlInvalid2( "root://user1:passwd1host1:123//path?param1=val1&param2=val2" );
@@ -210,6 +220,20 @@ void UtilsTest::URLTest()
   CPPUNIT_ASSERT( url9.GetParams().size() == 0 );
 
   //----------------------------------------------------------------------------
+  // URL cgi without path
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( url10.IsValid() == true );
+  CPPUNIT_ASSERT( url10.GetProtocol() == "root" );
+  CPPUNIT_ASSERT( url10.GetUserName() == "" );
+  CPPUNIT_ASSERT( url10.GetPassword() == "" );
+  CPPUNIT_ASSERT( url10.GetHostName() == "localhost" );
+  CPPUNIT_ASSERT( url10.GetPort() == 1094 );
+  CPPUNIT_ASSERT( url10.GetPath() == "" );
+
+  CPPUNIT_ASSERT( url10.GetParams().size() == 1 );
+  CPPUNIT_ASSERT( url10.GetParamsAsString() == "?test=123" );
+
+  //----------------------------------------------------------------------------
   // Bunch od invalid ones
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT( urlInvalid1.IsValid() == false );
@@ -339,7 +363,6 @@ void UtilsTest::TaskManagerTest()
   taskMan.RegisterTask( tsk2, now+1 );
 
   ::sleep( 6 );
-  taskMan.UnregisterTask( tsk1 );
   taskMan.UnregisterTask( tsk2 );
 
   ::sleep( 2 );
@@ -383,4 +406,56 @@ void UtilsTest::SIDManagerTest()
   CPPUNIT_ASSERT( manager.IsTimedOut( sid5 ) == false );
   manager.ReleaseAllTimedOut();
   CPPUNIT_ASSERT( manager.NumberOfTimedOutSIDs() == 0 );
+}
+
+//------------------------------------------------------------------------------
+// SID Manager test
+//------------------------------------------------------------------------------
+void UtilsTest::PropertyListTest()
+{
+  using namespace XrdCl;
+  PropertyList l;
+  l.Set( "s1", "test string 1" );
+  l.Set( "i1", 123456789123ULL );
+
+  uint64_t i1;
+  std::string s1;
+
+  CPPUNIT_ASSERT( l.Get( "s1", s1 ) );
+  CPPUNIT_ASSERT( s1 == "test string 1" );
+  CPPUNIT_ASSERT( l.Get( "i1", i1 ) );
+  CPPUNIT_ASSERT( i1 == 123456789123ULL );
+  CPPUNIT_ASSERT( l.HasProperty( "s1" ) );
+  CPPUNIT_ASSERT( !l.HasProperty( "s2" ) );
+  CPPUNIT_ASSERT( l.HasProperty( "i1" ) );
+
+  for( int i = 0; i < 1000; ++i )
+    l.Set( "vect_int", i, i+1000 );
+
+  int i;
+  int num;
+  for( i = 0; l.HasProperty( "vect_int", i ); ++i )
+  {
+    CPPUNIT_ASSERT( l.Get( "vect_int", i, num ) );
+    CPPUNIT_ASSERT( num = i+1000 );
+  }
+  CPPUNIT_ASSERT( i == 1000 );
+
+  XRootDStatus st1, st2;
+  st1.SetErrorMessage( "test error message" );
+  l.Set( "status", st1 );
+  CPPUNIT_ASSERT( l.Get( "status", st2 ) );
+  CPPUNIT_ASSERT( st2.status == st1.status );
+  CPPUNIT_ASSERT( st2.code   == st1.code );
+  CPPUNIT_ASSERT( st2.errNo  == st1.errNo );
+  CPPUNIT_ASSERT( st2.GetErrorMessage() == st1.GetErrorMessage() );
+
+  std::vector<std::string> v1, v2;
+  v1.push_back( "test string 1" );
+  v1.push_back( "test string 2" );
+  v1.push_back( "test string 3" );
+  l.Set( "vector", v1 );
+  CPPUNIT_ASSERT( l.Get( "vector", v2 ) );
+  for( size_t i = 0; i < v1.size(); ++i )
+    CPPUNIT_ASSERT( v1[i] == v2[i] );
 }

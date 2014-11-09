@@ -58,7 +58,9 @@ int XrdSysDNS::getHostAddr(const  char     *InetName,
 {
 #ifdef HAVE_NAMEINFO
    struct addrinfo   *rp, *np, *pnp=0;
-   struct addrinfo    myhints = {AI_CANONNAME};
+   struct addrinfo    myhints;
+   memset(&myhints, 0, sizeof(myhints));
+   myhints.ai_flags = AI_CANONNAME;
 #else
    unsigned int addr;
    struct hostent hent, *hp;
@@ -115,8 +117,8 @@ int XrdSysDNS::getHostAddr(const  char     *InetName,
 // default /etc/hosts on some platforms, e.g. MacOsX)
 //
 // if (!strncmp(InetName,"localhost",9)) myhints.ai_family = AF_INET;
-// pcal: force ipv4  (was only for MacOS: ifdef __macos____)
-//#ifdef __macos__
+// pcal: force ipv4  (was only for MacOS: ifdef __APPLE__)
+//#ifdef __APPLE__
 // Disable IPv6 for MacOS X altogether for the time being
 //
    myhints.ai_family = AF_INET;
@@ -277,9 +279,12 @@ int XrdSysDNS::getHostName(struct sockaddr &InetAddr,
 // Some platforms have nameinfo but getnameinfo() is broken. If so, we revert
 // to using the gethostbyaddr().
 //
-#if defined(HAVE_NAMEINFO) && !defined(__macos__)
+#if defined(HAVE_NAMEINFO) && !defined(__APPLE__)
     struct addrinfo   *rp, *np;
-    struct addrinfo    myhints = {AI_CANONNAME};
+    struct addrinfo    myhints;
+    memset(&myhints, 0, sizeof(myhints));
+    myhints.ai_flags = AI_CANONNAME;
+
 #elif defined(HAVE_GETHBYXR)
    struct sockaddr_in *ip = (sockaddr_in *)&InetAddr;
    struct hostent hent, *hp;
@@ -302,7 +307,7 @@ int XrdSysDNS::getHostName(struct sockaddr &InetAddr,
   if (InetAddr.sa_family == AF_UNIX) 
      {InetName[0] = strdup("localhost"); return 1;}
 
-#if !defined(HAVE_NAMEINFO) || defined(__macos__)
+#if !defined(HAVE_NAMEINFO) || defined(__APPLE__)
 
 // Convert it to a host name
 //
@@ -397,8 +402,9 @@ int XrdSysDNS::getPort(const char  *servname,
 
 #ifdef HAVE_NAMEINFO
     struct addrinfo   *rp, *np;
-    struct addrinfo   myhints = {0};
+    struct addrinfo   myhints;
     int portnum = 0;
+    memset(&myhints, 0, sizeof(myhints));
 #else
    struct servent sent, *sp;
    char sbuff[1024];

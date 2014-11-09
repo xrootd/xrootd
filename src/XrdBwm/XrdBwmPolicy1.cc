@@ -62,7 +62,7 @@ int  XrdBwmPolicy1::Dispatch(char *RespBuff, int RespSize)
           {theQ[Xeq].Add(rP);
            rID = rP->refID; *RespBuff = '\0';
            pMutex.UnLock();
-           return refID;
+           return rID;
           }
        pMutex.UnLock();
        pSem.Wait();

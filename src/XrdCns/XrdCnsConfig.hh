@@ -51,7 +51,7 @@ XrdOucName2Name  *N2N;
 XrdCnsLogServer  *XrdCnsLog;
 XrdCnsXref       *Space;
 char             *logfn;       // Logmsg path
-int               logKeep;
+int               bindArg;
 int               Port;        // Xroot server port number for  Dest hosts
 int               mInt;        // Check interval for Inventory file
 int               cInt;        // Close interval for logfiles
@@ -74,7 +74,7 @@ int               MountPath(const char *oldp, char *newp, int newpsz);
                   XrdCnsConfig() : aPath(0), bPath(0), cPath(0), ePath(0),
                                    Dest(0),  bDest(0), Exports(0),
                                    LCLRoot(0), N2N(0), XrdCnsLog(0), Space(0),
-                                   logfn(0), logKeep(0), Port(1095),
+                                   logfn(0), bindArg(0), Port(1095),
                                    mInt(1800), cInt(1200), qLim(512), Opts(0)
                                  {}
                  ~XrdCnsConfig() {}

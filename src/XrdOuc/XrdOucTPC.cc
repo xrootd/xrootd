@@ -32,8 +32,8 @@
 #include <string.h>
 #include <strings.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucTPC.hh"
-#include "XrdSys/XrdSysDNS.hh"
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
@@ -124,7 +124,6 @@ const char *XrdOucTPC::cgiC2Src(const char *cKey, const char *xDst, int xTTL,
 const char *XrdOucTPC::cgiD2Src(const char *cKey, const char *cOrg,
                                       char *Buff, int Blen)
 {
-   char xbuff[512];
    int    n;
 
 // Make sure we have the minimum amount of information here
@@ -147,7 +146,8 @@ const char *XrdOucTPC::cgiD2Src(const char *cKey, const char *cOrg,
 bool XrdOucTPC::cgiHost(tpcInfo &Info, const char *hSpec)
 {
    const char *Colon, *hName;
-   char *etext, hBuff[256];
+   XrdNetAddr hAddr;
+   char hBuff[256];
    int n;
 
 // Extract out the username, if any
@@ -155,7 +155,7 @@ bool XrdOucTPC::cgiHost(tpcInfo &Info, const char *hSpec)
    if (!(hName = index(hSpec, '@'))) hName = hSpec;
       else {hName ++;
             n = hName - hSpec;
-            if (n >= sizeof(Info.User)) return false;
+            if (n >= int(sizeof(Info.User))) return false;
             Info.uName = Info.User;
             strncpy(Info.User, hSpec, n); Info.User[n] = 0;
            }
@@ -170,13 +170,14 @@ bool XrdOucTPC::cgiHost(tpcInfo &Info, const char *hSpec)
 //
    if ((Colon = index(Colon, ':')))
       {n = Colon - hName;
-       if (n >= sizeof(hBuff)) return false;
+       if (n >= int(sizeof(hBuff))) return false;
        Info.pName = Colon;
        strncpy(hBuff, hName, n); hBuff[n] = 0; hName = hBuff;
       }
 
 // Resolve the host name
 //
-   Info.hName = XrdSysDNS::getHostName(hName, &etext);
-   return etext == 0;
+   hAddr.Set(hName,0);
+   if ((hName = hAddr.Name())) Info.hName = strdup(hName);
+   return hName != 0;
 }

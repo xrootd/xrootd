@@ -36,6 +36,7 @@
 namespace XrdCl
 {
   class Stream;
+  class JobManager;
 
   //----------------------------------------------------------------------------
   //! A communication channel between the client and the server
@@ -48,13 +49,15 @@ namespace XrdCl
       //!
       //! @param url         address of the server to connect to
       //! @param poller      poller object to be used for non-blocking IO
-      //! @param transport   protocol speciffic transport handler
+      //! @param transport   protocol specific transport handler
       //! @param taskManager async task handler to be used by the channel
+      //! @param jobManager  worker thread handler to be used by the channel
       //------------------------------------------------------------------------
       Channel( const URL        &url,
                Poller           *poller,
                TransportHandler *transport,
-               TaskManager      *taskManager );
+               TaskManager      *taskManager,
+               JobManager       *jobManager );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -84,7 +87,7 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
-      //! send queue and a listener is called when the message is successuly
+      //! send queue and a listener is called when the message is successfully
       //! pushed through the wire or when the timeout elapses
       //!
       //! @param msg     message to be sent
@@ -92,8 +95,8 @@ namespace XrdCl
       //! @param expires unix timestamp after which a failure is reported
       //!                to the listener
       //! @param handler handler to be notified about the status
-      //! @return        success if the message was successfuly inserted
-      //!                into the send quees, failure otherwise
+      //! @return        success if the message was successfully inserted
+      //!                into the send queues, failure otherwise
       //------------------------------------------------------------------------
       Status Send( Message              *msg,
                    OutgoingMsgHandler   *handler,
@@ -102,20 +105,20 @@ namespace XrdCl
 
 
       //------------------------------------------------------------------------
-      //! Synchronously receive a message - blocks until a message maching
-      //! a filter is found in the incomming queue or the timout passes
+      //! Synchronously receive a message - blocks until a message matching
+      //! a filter is found in the incoming queue or the timeout passes
       //!
       //! @param msg     reference to a message pointer, the pointer will
       //!                point to the received message
       //! @param filter  filter object defining what to look for
       //! @param expires expiration timestamp
       //! @return        success when the message has been received
-      //!                successfuly, failure otherwise
+      //!                successfully, failure otherwise
       //------------------------------------------------------------------------
       Status Receive( Message *&msg, MessageFilter *filter, time_t expires );
 
       //------------------------------------------------------------------------
-      //! Listen to incomming messages, the listener is notified when a new
+      //! Listen to incoming messages, the listener is notified when a new
       //! message arrives and when the timeout passes
       //!
       //! @param handler handler to be notified about new messages
@@ -160,6 +163,7 @@ namespace XrdCl
       AnyObject              pChannelData;
       InQueue                pIncoming;
       Task                  *pTickGenerator;
+      JobManager            *pJobManager;
   };
 }
 

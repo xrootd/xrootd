@@ -52,6 +52,31 @@ class PostMasterTest: public CppUnit::TestCase
 CPPUNIT_TEST_SUITE_REGISTRATION( PostMasterTest );
 
 //------------------------------------------------------------------------------
+// Tear down the post master
+//------------------------------------------------------------------------------
+namespace
+{
+  class PostMasterFinalizer
+  {
+    public:
+      PostMasterFinalizer( XrdCl::PostMaster *pm = 0 ): pPostMaster(pm) {}
+      ~PostMasterFinalizer()
+      {
+        if( pPostMaster )
+        {
+          pPostMaster->Stop();
+          pPostMaster->Finalize();
+        }
+      }
+      void Set( XrdCl::PostMaster *pm ) { pPostMaster = pm; }
+      XrdCl::PostMaster *Get() { return pPostMaster; }
+
+    private:
+      XrdCl::PostMaster *pPostMaster;
+  };
+}
+
+//------------------------------------------------------------------------------
 // Message filter
 //------------------------------------------------------------------------------
 class XrdFilter: public XrdCl::MessageFilter
@@ -105,6 +130,8 @@ void *TestThreadFunc( void *arg )
   time_t expires = time(0)+1200;
   Message m;
   m.Allocate( sizeof( ClientPingRequest ) );
+  m.Zero();
+  m.SetDescription( "kXR_ping ()" );
   ClientPingRequest *request = (ClientPingRequest *)m.GetBuffer();
   request->streamid[0] = a->index;
   request->requestid   = kXR_ping;
@@ -122,13 +149,14 @@ void *TestThreadFunc( void *arg )
   //----------------------------------------------------------------------------
   for( int i = 0; i < 100; ++i )
   {
-    Message *m;
+    Message *m = 0;
     f.streamId[1] = i;
     CPPUNIT_ASSERT_XRDST( a->pm->Receive( host, m, &f, expires ) );
     ServerResponse *resp = (ServerResponse *)m->GetBuffer();
     CPPUNIT_ASSERT( resp != 0 );
     CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
     CPPUNIT_ASSERT( m->GetSize() == 8 );
+    delete m;
   }
   return 0;
 }
@@ -140,6 +168,7 @@ void PostMasterTest::ThreadingTest()
 {
   using namespace XrdCl;
   PostMaster postMaster;
+  PostMasterFinalizer finalizer( &postMaster );
   postMaster.Initialize();
   postMaster.Start();
 
@@ -155,9 +184,6 @@ void PostMasterTest::ThreadingTest()
 
   for( int i = 0; i < 100; ++i )
     pthread_join( thread[i], 0 );
-
-  postMaster.Stop();
-  postMaster.Finalize();
 }
 
 //------------------------------------------------------------------------------
@@ -176,6 +202,7 @@ void PostMasterTest::FunctionalTest()
   env->PutInt( "ConnectionWindow", 15 );
 
   PostMaster postMaster;
+  PostMasterFinalizer finalizer( &postMaster );
   postMaster.Initialize();
   postMaster.Start();
 
@@ -256,6 +283,7 @@ void PostMasterTest::FunctionalTest()
   //----------------------------------------------------------------------------
   // Reinitialize and try to do something
   //----------------------------------------------------------------------------
+  env->PutInt( "LoadBalancerTTL", 5 );
   postMaster.Initialize();
   postMaster.Start();
 
@@ -277,9 +305,18 @@ void PostMasterTest::FunctionalTest()
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
 
-  postMaster.Stop();
-  postMaster.Finalize();
+  //----------------------------------------------------------------------------
+  // Sleep 10 secs waiting for iddle connection to be closed and see
+  // whether we can reconnect
+  //----------------------------------------------------------------------------
+  sleep( 10 );
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, false, expires ) );
 
+  CPPUNIT_ASSERT_XRDST( postMaster.Receive( host, m2, &f1, expires ) );
+  resp = (ServerResponse *)m2->GetBuffer();
+  CPPUNIT_ASSERT( resp != 0 );
+  CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
+  CPPUNIT_ASSERT( m2->GetSize() == 8 );
 }
 
 
@@ -389,6 +426,7 @@ void PostMasterTest::MultiIPConnectionTest()
   env->PutInt( "ConnectionWindow",  5 );
 
   PostMaster postMaster;
+  PostMasterFinalizer finalizer( &postMaster );
   postMaster.Initialize();
   postMaster.Start();
 
@@ -427,10 +465,4 @@ void PostMasterTest::MultiIPConnectionTest()
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
-
-  //----------------------------------------------------------------------------
-  // Clean up
-  //----------------------------------------------------------------------------
-  postMaster.Stop();
-  postMaster.Finalize();
 }

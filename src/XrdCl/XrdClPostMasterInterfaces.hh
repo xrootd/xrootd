@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_POST_MASTER_INTERFACES_HH__
@@ -30,7 +36,6 @@ namespace XrdCl
 {
   class Channel;
   class Message;
-  class Socket;
   class URL;
 
   //----------------------------------------------------------------------------
@@ -59,20 +64,26 @@ namespace XrdCl
       //------------------------------------------------------------------------
       enum Action
       {
-        Take          = 0x01,     //!< Take ownership over the message
-        Ignore        = 0x02,     //!< Ignore the message
-        RemoveHandler = 0x04      //!< Remove the handler from the notification
-                                  //!< list
+        Take          = 0x0001,    //!< Take ownership over the message
+        Ignore        = 0x0002,    //!< Ignore the message
+        RemoveHandler = 0x0004,    //!< Remove the handler from the notification
+                                   //!< list
+        Raw           = 0x0008,    //!< the handler is interested in reading
+                                   //!< the message body directly from the
+                                   //!< socket
+        NoProcess     = 0x0010     //!< don't call the processing callback
+                                   //!< even if the message belongs to this
+                                   //!< handler
       };
 
       //------------------------------------------------------------------------
-      //! Events that may have occured to the stream
+      //! Events that may have occurred to the stream
       //------------------------------------------------------------------------
       enum StreamEvent
       {
         Ready      = 1, //!< The stream has become connected
         Broken     = 2, //!< The stream is broken
-        Timeout    = 3, //!< The declared timeout has occured
+        Timeout    = 3, //!< The declared timeout has occurred
         FatalError = 4  //!< Stream has been broken and won't be recovered
       };
 
@@ -83,13 +94,39 @@ namespace XrdCl
       virtual ~IncomingMsgHandler() {}
 
       //------------------------------------------------------------------------
-      //! Examine an incomming message, and decide on the action to be taken
+      //! Examine an incoming message, and decide on the action to be taken
       //!
       //! @param msg    the message, may be zero if receive failed
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint8_t OnIncoming( Message *msg ) = 0;
+      virtual uint16_t Examine( Message *msg ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Process the message if it was "taken" by the examine action
+      //!
+      //! @param msg the message to be processed
+      //------------------------------------------------------------------------
+      virtual void Process( Message *msg ) { (void)msg; };
+
+      //------------------------------------------------------------------------
+      //! Read message body directly from a socket - called if Examine returns
+      //! Raw flag - only socket related errors may be returned here
+      //!
+      //! @param msg       the corresponding message header
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data is needed
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status ReadMessageBody( Message  *msg,
+                                      int       socket,
+                                      uint32_t &bytesRead )
+      {
+        (void)msg; (void)socket; (void)bytesRead;
+        return Status( stOK, suDone );
+      };
 
       //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
@@ -103,6 +140,7 @@ namespace XrdCl
                                      uint16_t    streamNum,
                                      Status      status )
       {
+        (void)event; (void)streamNum; (void)status;
         return 0;
       };
   };
@@ -130,7 +168,34 @@ namespace XrdCl
       //! @param msg       message concerned
       //! @param streamNum number of the stream the message will go through
       //------------------------------------------------------------------------
-      virtual void OnReadyToSend( Message *msg, uint16_t streamNum ) {};
+      virtual void OnReadyToSend( Message *msg, uint16_t streamNum )
+      {
+        (void)msg; (void)streamNum;
+      };
+
+      //------------------------------------------------------------------------
+      //! Determines whether the handler wants to write some data directly
+      //! to the socket after the message (or message header) has been sent,
+      //! WriteMessageBody will be called
+      //------------------------------------------------------------------------
+      virtual bool IsRaw() const { return false; }
+
+      //------------------------------------------------------------------------
+      //! Write message body directly to a socket - called if IsRaw returns
+      //! true - only socket related errors may be returned here
+      //!
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data needs to be written
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status WriteMessageBody( int       socket,
+                                       uint32_t &bytesRead )
+      {
+        (void)socket; (void)bytesRead;
+        return Status();
+      }
   };
 
   //----------------------------------------------------------------------------
@@ -140,7 +205,7 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
-      //! Events that may have occured to the channel
+      //! Events that may have occurred to the channel
       //------------------------------------------------------------------------
       enum ChannelEvent
       {
@@ -157,7 +222,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Event callback
       //!
-      //! @param event   the event that has occured
+      //! @param event   the event that has occurred
       //! @param stream  the stream concerned
       //! @param status  the status info
       //! @return true if the handler should be kept
@@ -219,22 +284,53 @@ namespace XrdCl
   class TransportHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Stream actions that may be triggered by incoming control messages
+      //------------------------------------------------------------------------
+      enum StreamAction
+      {
+        NoAction     = 0x0000, //!< No action
+        DigestMsg    = 0x0001, //!< Digest the incoming message so that it won't
+                               //!< be passed to the user handlers
+        AbortStream  = 0x0002, //!< Disconnect, abort all the on-going
+                               //!< operations and mark the stream as
+                               //!< permanently broken [not yet implemented]
+        CloseStream  = 0x0004, //!< Disconnect and attempt reconnection later
+                               //!< [not yet implemented]
+        ResumeStream = 0x0008, //!< Resume sending requests
+                               //!< [not yet implemented]
+        HoldStream   = 0x0010  //!< Stop sending requests [not yet implemented]
+      };
+
+
       virtual ~TransportHandler() {}
 
       //------------------------------------------------------------------------
-      //! Read a message from the socket, the socket is non blocking, so if
-      //! there is not enough data the function should retutn errRetry in which
-      //! case it will be called again when more data arrives with the data
-      //! previousely read stored in the message buffer
+      //! Read a message header from the socket, the socket is non-blocking,
+      //! so if there is not enough data the function should return errRetry
+      //! in which case it will be called again when more data arrives, with
+      //! the data previously read stored in the message buffer
       //!
-      //! @param message the message
+      //! @param message the message buffer
       //! @param socket  the socket
-      //! @return        stOK if the message has been processed properly,
-      //!                stError & errRetry when the method needs to be called
-      //!                again to finish reading the message
-      //!                stError on faiure
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetMessage( Message *message, Socket *socket ) = 0;
+      virtual Status GetHeader( Message *message, int socket ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Read the message body from the socket, the socket is non-blocking,
+      //! the method may be called multiple times - see GetHeader for details
+      //!
+      //! @param message the message buffer containing the header
+      //! @param socket  the socket
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
+      //------------------------------------------------------------------------
+      virtual Status GetBody( Message *message, int socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Initialize channel
@@ -256,7 +352,16 @@ namespace XrdCl
       //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
       virtual bool IsStreamTTLElapsed( time_t     inactiveTime,
+                                       uint16_t   streamId,
                                        AnyObject &channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Check the stream is broken - ie. TCP connection got broken and
+      //! went undetected by the TCP stack
+      //------------------------------------------------------------------------
+      virtual Status IsStreamBroken( time_t     inactiveTime,
+                                     uint16_t   streamId,
+                                     AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
       //! Return the ID for the up stream this message should be sent by
@@ -277,6 +382,7 @@ namespace XrdCl
       //! the answer will be returned via the hinted stream.
       //------------------------------------------------------------------------
       virtual PathID MultiplexSubStream( Message   *msg,
+                                         uint16_t   streamId,
                                          AnyObject &channelData,
                                          PathID    *hint = 0 ) = 0;
 
@@ -305,10 +411,21 @@ namespace XrdCl
                             AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
-      //! Check whether the transport can highjack the message
+      //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
-      virtual bool Highjack( Message *msg, AnyObject &channelData ) = 0;
+      virtual uint32_t MessageReceived( Message   *msg,
+                                        uint16_t   streamId,
+                                        uint16_t   subStream,
+                                        AnyObject &channelData ) = 0;
 
+      //------------------------------------------------------------------------
+      //! Notify the transport about a message having been sent
+      //------------------------------------------------------------------------
+      virtual void MessageSent( Message   *msg,
+                                uint16_t   streamId,
+                                uint16_t   subStream,
+                                uint32_t   bytesSent,
+                                AnyObject &channelData ) = 0;
   };
 }
 

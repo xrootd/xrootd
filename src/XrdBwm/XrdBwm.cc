@@ -43,7 +43,10 @@
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
+
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
 #include "XrdSec/XrdSecEntity.hh"
@@ -51,7 +54,6 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -86,7 +88,7 @@ XrdBwm XrdBwmFS;
 
 XrdBwm::XrdBwm()
 {
-   unsigned int myIPaddr = 0;
+   XrdNetAddr myAddr(0);
    char buff[256], *bp;
    int myPort, i;
 
@@ -106,16 +108,13 @@ XrdBwm::XrdBwm()
 //
    myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **)NULL, 10) : 0;
 
-// Establish our hostname and IPV4 address
+// Establish our hostname and address
 //
-   HostName      = XrdSysDNS::getHostName();
-   if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
-   strcpy(buff, "[::"); bp = buff+3;
-   bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
-   *bp++ = ']'; *bp++ = ':';
-   sprintf(bp, "%d", myPort);
+   myAddr.Port(myPort);
+   HostName = strdup(myAddr.Name("*unknown*"));
+   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, XrdNetAddr::old6Map4);
    locResp = strdup(buff); locRlen = strlen(buff);
-   for (i = 0; HostName[i] && HostName[i] != '.'; i++);
+   for (i = 0; HostName[i] && HostName[i] != '.'; i++) {}
    HostName[i] = '\0';
    HostPref = strdup(HostName);
    HostName[i] = '.';
@@ -313,9 +312,9 @@ int XrdBwmFile::open(const char          *path,      // In
 
 // Determine the direction of flow
 //
-        if (XrdSysDNS::isDomain(theSrc, XrdBwmFS.myDomain, XrdBwmFS.myDomLen))
+        if (XrdOucUtils::endsWith(theSrc,XrdBwmFS.myDomain,XrdBwmFS.myDomLen))
            {incomming = 0; lclNode = theSrc; rmtNode = theDst;}
-   else if (XrdSysDNS::isDomain(theDst, XrdBwmFS.myDomain, XrdBwmFS.myDomLen))
+   else if (XrdOucUtils::endsWith(theDst,XrdBwmFS.myDomain,XrdBwmFS.myDomLen))
            {incomming = 1; lclNode = theDst; rmtNode = theSrc;}
    else return XrdBwmFS.Emsg("open", error, EREMOTE, "open", path);
 

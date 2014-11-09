@@ -34,9 +34,10 @@ namespace XrdCl
   class Poller;
   class TaskManager;
   class Channel;
+  class JobManager;
 
   //----------------------------------------------------------------------------
-  //! A hub for dispaching and receiving messages
+  //! A hub for dispatching and receiving messages
   //----------------------------------------------------------------------------
   class PostMaster
   {
@@ -98,7 +99,7 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
-      //! send queue and a listener is called when the message is successuly
+      //! send queue and a listener is called when the message is succesfsully
       //! pushed through the wire or when the timeout elapses
       //!
       //! DEADLOCK WARNING: no lock should be taken while calling this method
@@ -110,8 +111,8 @@ namespace XrdCl
       //!                      to the handler
       //! @param handler       handler will be notified about the status
       //! @param stateful      physical stream disconnection causes an error
-      //! @return              success if the message was successfuly inserted
-      //!                      into the send quees, failure otherwise
+      //! @return              success if the message was successfully inserted
+      //!                      into the send queues, failure otherwise
       //------------------------------------------------------------------------
       Status Send( const URL            &url,
                    Message              *msg,
@@ -120,8 +121,8 @@ namespace XrdCl
                    time_t                expires );
 
       //------------------------------------------------------------------------
-      //! Synchronously receive a message - blocks until a message maching
-      //! a filter is found in the incomming queue or the timout passes
+      //! Synchronously receive a message - blocks until a message matching
+      //! a filter is found in the incoming queue or the timeout passes
       //!
       //! @param url     sender of the message
       //! @param msg     reference to a message pointer, the pointer will
@@ -129,7 +130,7 @@ namespace XrdCl
       //! @param filter  filter object defining what to look for
       //! @param expires expiration timestamp
       //! @return        success when the message has been received
-      //!                successfuly, failure otherwise
+      //!                successfully, failure otherwise
       //------------------------------------------------------------------------
       Status Receive( const URL      &url,
                       Message       *&msg,
@@ -137,7 +138,7 @@ namespace XrdCl
                       time_t         expires );
 
       //------------------------------------------------------------------------
-      //! Listen to incomming messages, the listener is notified when a new
+      //! Listen to incoming messages, the listener is notified when a new
       //! message arrives and when the timeout passes
       //!
       //! @param url     sender of the message
@@ -182,6 +183,14 @@ namespace XrdCl
         return pTaskManager;
       }
 
+      //------------------------------------------------------------------------
+      //! Get the job manager object user by the post master
+      //------------------------------------------------------------------------
+      JobManager *GetJobManager()
+      {
+        return pJobManager;
+      }
+
     private:
       Channel *GetChannel( const URL &url );
 
@@ -191,6 +200,7 @@ namespace XrdCl
       ChannelMap        pChannelMap;
       XrdSysMutex       pChannelMapMutex;
       bool              pInitialized;
+      JobManager       *pJobManager;
   };
 }
 

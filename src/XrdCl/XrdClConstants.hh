@@ -36,6 +36,8 @@ namespace XrdCl
   const uint64_t XRootDMsg          = 0x0000000000000080ULL;
   const uint64_t FileSystemMsg      = 0x0000000000000100ULL;
   const uint64_t AsyncSockMsg       = 0x0000000000000200ULL;
+  const uint64_t JobMgrMsg          = 0x0000000000000400ULL;
+  const uint64_t PlugInMgrMsg       = 0x0000000000000800ULL;
 
   //----------------------------------------------------------------------------
   // Environment settings
@@ -43,15 +45,30 @@ namespace XrdCl
   const int DefaultSubStreamsPerChannel = 1;
   const int DefaultConnectionWindow     = 120;
   const int DefaultConnectionRetry      = 5;
-  const int DefaultRequestTimeout       = 300;
+  const int DefaultRequestTimeout       = 1800;
+  const int DefaultStreamTimeout        = 60;
   const int DefaultTimeoutResolution    = 15;
   const int DefaultStreamErrorWindow    = 1800;
   const int DefaultRunForkHandler       = 0;
   const int DefaultRedirectLimit        = 16;
+  const int DefaultWorkerThreads        = 3;
+  const int DefaultCPChunkSize          = 16777216;
+  const int DefaultCPParallelChunks     = 4;
+  const int DefaultDataServerTTL        = 300;
+  const int DefaultLoadBalancerTTL      = 1200;
+  const int DefaultCPInitTimeout        = 600;
+  const int DefaultCPTPCTimeout         = 1800;
+  const int DefaultTCPKeepAlive         = 0;
+  const int DefaultTCPKeepAliveTime     = 7200;
+  const int DefaultTCPKeepAliveInterval = 75;
+  const int DefaultTCPKeepAliveProbes   = 9;
 
-  const char * const DefaultPollerPreference   = "libevent,built-in";
+  const char * const DefaultPollerPreference   = "built-in,libevent";
+  const char * const DefaultNetworkStack       = "IPAuto";
   const char * const DefaultClientMonitor      = "";
   const char * const DefaultClientMonitorParam = "";
+  const char * const DefaultPlugInConfDir      = "";
+  const char * const DefaultPlugIn             = "";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

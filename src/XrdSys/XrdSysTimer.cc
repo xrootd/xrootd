@@ -36,6 +36,7 @@
 #include <time.h>
 #include <stdio.h>
 #include "XrdSys/XrdSysTimer.hh"
+#include <iostream>
 
 /******************************************************************************/
 /*                            D e l t a _ T i m e                             */
@@ -102,8 +103,8 @@ unsigned long XrdSysTimer::Report(double &Total_Time)
 
 // Add up the time as a double
 //
-    Total_Time += (double)LastReport.tv_sec +
-                 ((double)(LastReport.tv_usec/1000))/1000.0;
+    Total_Time += static_cast<double>(LastReport.tv_sec) +
+                  static_cast<double>(LastReport.tv_usec/1000)/1000.0;
 
 // Return time
 //
@@ -116,7 +117,7 @@ unsigned long XrdSysTimer::Report(unsigned long &Total_Time)
 {
     unsigned long report_time = Report();
 
-// Add up the time as a 32-bit value to nearest microsecond (max = 24 days)
+// Add up the time as a 32-bit value to nearest milliseconds (max = 24 days)
 //
     Total_Time += (unsigned long)LastReport.tv_sec*1000 +
                   (unsigned long)(LastReport.tv_usec/1000);
@@ -132,7 +133,7 @@ unsigned long XrdSysTimer::Report(unsigned long long &Total_Time)
 {
     unsigned long report_time = Report();
 
-// Add up the time as a 64-bit value to nearest microsecond
+// Add up the time as a 64-bit value to nearest milliseconds
 //
     Total_Time += (unsigned long long)LastReport.tv_sec*1000 +
                   (unsigned long long)(LastReport.tv_usec/1000);
@@ -203,6 +204,23 @@ char *XrdSysTimer::s2hms(int sec, char *buff, int blen)
 }
 
 /******************************************************************************/
+/*                              T i m e Z o n e                               */
+/******************************************************************************/
+
+int XrdSysTimer::TimeZone()
+{
+  time_t currTime    = time(0);
+  time_t currTimeGMT = 0;
+  tm ptm;
+
+  gmtime_r( &currTime, &ptm );
+  currTimeGMT = mktime( &ptm );
+  currTime /= 60*60;
+  currTimeGMT /= 60*60;
+  return currTime - currTimeGMT;
+}
+  
+/******************************************************************************/
 /*                                  W a i t                                   */
 /******************************************************************************/
   
@@ -236,7 +254,7 @@ void XrdSysTimer::Wait4Midnight()
 
 // Wait until midnight arrives
 //
-#ifndef __macos__
+#ifndef __APPLE__
    timespec Midnite = {Midnight(1), 0};
    while(clock_nanosleep(CLOCK_REALTIME,TIMER_ABSTIME,&Midnite,0) == EINTR) {}
 #else

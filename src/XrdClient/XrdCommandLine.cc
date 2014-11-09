@@ -49,15 +49,8 @@
 #include <iomanip>
 
 #ifdef HAVE_READLINE
-#include <term.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-
-// define NOMACROS prevents the insanity of some courses implementations from
-// breaking this app
-#define NOMACROS
-#include <curses.h>
-#undef NOMACROS
 #endif
 
 #define XRDCLI_VERSION "(C) 2004-2010 by the Xrootd group. Xrootd version: " XrdVSTRING

@@ -31,6 +31,7 @@
 /******************************************************************************/
 
 #include "XrdCrypto/XrdCryptoLite.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
 #include "XrdSecsss/XrdSecsssKT.hh"
@@ -70,11 +71,10 @@ static  char *Load_Server(XrdOucErrInfo *erp, const char *Parms);
 
 static  void  setOpts(int opts) {options = opts;}
 
-        XrdSecProtocolsss(const char                *hname,
-                          const struct sockaddr     *ipadd)
+        XrdSecProtocolsss(const char *hname, XrdNetAddrInfo &endPoint)
                          : XrdSecProtocol("sss"),
                            keyTab(0), Crypto(0), idBuff(0), Sequence(0)
-                         {urName = strdup(hname); setIP(ipadd);}
+                         {urName = strdup(hname); setIP(endPoint);}
 
 struct Crypto {const char *cName; char cType;};
 
@@ -95,18 +95,20 @@ static
 XrdCryptoLite *Load_Crypto(XrdOucErrInfo *erp, const char  eT);
 int            myClock();
 char          *setID(char *id, char **idP);
-void           setIP(const struct sockaddr *sockP);
+void           setIP(XrdNetAddrInfo &endPoint);
 
 static struct Crypto  CryptoTab[];
 
 static const char    *myName;
 static int            myNLen;
        char          *urName;
-       char           urIP[64];
+       char           urIP[48];  // New format
+       char           urIQ[48];  // Old format
 static int            options;
 static int            isMutual;
 static int            deltaTime;
 static int            ktFixed;
+       XrdNetAddrInfo epAddr;
 
 static XrdSecsssKT   *ktObject;  // Both:   Default Key Table object
        XrdSecsssKT   *keyTab;    // Both:   Active  Key Table

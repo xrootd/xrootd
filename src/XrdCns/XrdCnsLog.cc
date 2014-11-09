@@ -37,7 +37,7 @@
 
 #include "XrdCns/XrdCnsLog.hh"
 #include "XrdCns/XrdCnsLogRec.hh"
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
 /******************************************************************************/
@@ -150,11 +150,11 @@ XrdOucNSWalk::NSEnt *XrdCnsLog::List(const char *logDir,
   
 int XrdCnsLog::isEP(const char *File)
 {
-   struct sockaddr InetAddr;
+   XrdNetAddr tAddr;
    const char *dotP;
 
 // An endpoint must be a valid host name
 //
    if (!(dotP = index(File,'.')) || dotP == rindex(File,'.')) return 0;
-   return XrdSysDNS::getHostAddr(File, InetAddr);
+   return (tAddr.Set(File,0) == 0);
 }

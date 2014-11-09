@@ -42,10 +42,12 @@
 #include "XrdClient/XrdClientPhyConnection.hh"
 #include "XrdClient/XrdClientProtocol.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientEnv.hh"
@@ -55,6 +57,7 @@
 
 #include "XrdSys/XrdSysPriv.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 
 // Dynamic libs
 // Bypass Solaris ELF madness
@@ -68,13 +71,6 @@
 #endif
 #endif
 
-#ifndef WIN32
-#include <dlfcn.h>
-#ifndef __macos__
-#include <link.h>
-#endif
-#endif
-
 #include <stdio.h>      // needed by printf
 #include <stdlib.h>     // needed by getenv()
 #ifndef WIN32
@@ -85,14 +81,11 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 #include <string.h>     // needed by memcpy() and strcspn()
+#include <netdb.h>      // needed by getservbyname()
 #include <ctype.h>
 
 #define  SafeDelete(x) { if (x) { delete x; x = 0; } }
 
-
-// Security handle
-typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *, const struct sockaddr &,
-                                           const XrdSecParameters &, XrdOucErrInfo *);
 
 XrdSysMutex                              XrdClientConn::fSessionIDRMutex;
 XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
@@ -337,7 +330,6 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
     // to allocate for the request to be submitted. For instance, for the kXR_read
     // cmd the size is known, while for the kXR_getfile cmd is not.
 
-    int len;
     bool addOpaque = false;
 
     size_t TotalBlkSize = 0;
@@ -359,7 +351,6 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
     // Cycle for redirections...
     do {
 	// Send to the server the request
-	len = sizeof(ClientRequest);
 
 	// We have to unconditionally set the streamid inside the
 	// header, because, in case of 'rebouncing here', the Logical Connection 
@@ -1011,14 +1002,12 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
 {
     // Read server answer
 
-    int len;
     XrdClientMessage *Xmsg = 0;
     void *tmp2MoreData;
 
     // No need to actually read if we are in error...
     if (errorType == kOK) {
     
-	len = sizeof(ServerResponseHeader);
 
 	Info(XrdClientDebug::kHIDEBUG, "ReadPartialAnswer",
 	     "Reading a XrdClientMessage from the server [" << 
@@ -1673,15 +1662,13 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    //
    // Prepare host/IP information of the remote xrootd. This is required
    // for the authentication.
-   struct sockaddr_in netaddr;
-   char **hosterrmsg = 0;
-   if (XrdSysDNS::getHostAddr((char *)fUrl.HostAddr.c_str(),
-                              (struct sockaddr &)netaddr, hosterrmsg) <= 0) {
-      Info(XrdClientDebug::kUSERDEBUG, "DoAuthentication",
-                                       "getHostAddr said '" << *hosterrmsg << "'");
-      return protocol;
-   }
-   netaddr.sin_port   = fUrl.Port;
+   XrdNetAddr theAddr;
+   const char *hosterrmsg = 0;
+   if ((hosterrmsg = theAddr.Set(fOpenSockFD)))
+      {Info(XrdClientDebug::kUSERDEBUG, "DoAuthentication",
+                            "getHostAddr said '" << *hosterrmsg << "'");
+       return protocol;
+      }
 
    // Establish our local connection details (used by sss protocol)
    //
@@ -1705,30 +1692,16 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 
    // We need to load the protocol getter the first time we are here
    if (!getp) {
-      char libfn[80];
-      snprintf( libfn, sizeof(libfn)-1, "libXrdSec%s", LT_MODULE_EXT );
-      libfn[sizeof(libfn)-1] = '\0';
-
-      // Open the security library
-      void *lh = 0;
-      if (!(lh = dlopen( libfn, RTLD_NOW))) {
-         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
-                                       "unable to load libXrdSec.so");
-         // Set error, in case of need
-         fOpenError = kXR_NotAuthorized;
-         LastServerError.errnum = fOpenError;
-         strcpy(LastServerError.errmsg, "unable to load libXrdSec.so");
-         return protocol;
-      }
-
-      // Get the client protocol getter
-      if (!(getp = (XrdSecGetProt_t) dlsym(lh, "XrdSecGetProtocol"))) {
-         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+      LastServerError.errmsg[0] = 0;
+      if (!(getp = XrdSecLoadSecFactory(LastServerError.errmsg,
+                                        sizeof(LastServerError.errmsg))))
+        {Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
                                        "unable to load XrdSecGetProtocol()");
          // Set error, in case of need
          fOpenError = kXR_NotAuthorized;
          LastServerError.errnum = fOpenError;
-         strcpy(LastServerError.errmsg, "unable to load XrdSecGetProtocol()");
+         if (!LastServerError.errmsg[0])
+            strcpy(LastServerError.errmsg, "Unable to load XrdSecGetProtocol()");
          return protocol;
       }
    }
@@ -1736,11 +1709,10 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    // Get a instance of XrdSecProtocol; the order of preference is the one
    // specified by the server; the env XRDSECPROTOCOL can be used to force
    // the choice.
-   while ((protocol = (*getp)((char *)fUrl.Host.c_str(),
-                      (const struct sockaddr &)netaddr, Parms, 0))) {
+   while ((protocol = (*getp)((char *)fUrl.Host.c_str(), theAddr, Parms, 0)))
       //
       // Protocol name
-      XrdOucString protname = protocol->Entity.prot;
+     {XrdOucString protname = protocol->Entity.prot;
       //
       // Once we have the protocol, get the credentials
       XrdOucErrInfo ei("", &authEnv);
@@ -1901,6 +1873,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
               newport = 0;
               // An explicit redir overwrites token and opaque info
               ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
+              fRedirCGI = fRedirOpaque;
 
               // Save it in fREQUrl
               // fREQUrl = fUrl;
@@ -1946,6 +1919,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 		newport = fREQUrl.Port;
 
 		ParseRedirHost(newhost, fRedirOpaque, fRedirInternalToken);
+              fRedirCGI = fRedirOpaque;
 
 		// An unsuccessful connection to the dest host will make the
 		//  client go to the LB
@@ -1970,7 +1944,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 		    if (fUrl.Host.length()) newhost = fUrl.Host;
 		    else
 			newhost = fUrl.HostAddr;
-	       
+        fRedirOpaque = fRedirCGI;
 		    newport = fUrl.Port;
 		}
 	 
@@ -1982,6 +1956,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 
 	    // An explicit redir overwrites token and opaque info
 	    ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
+              fRedirCGI = fRedirOpaque;
 
 	    // Clear the current session info. Rather simplicistic.
 	    //ClearSessionID();

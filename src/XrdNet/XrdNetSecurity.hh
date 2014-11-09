@@ -36,9 +36,9 @@
 #include "XrdOuc/XrdOucNList.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+class  XrdNetAddr;
 class  XrdNetTextList;
 class  XrdOucTrace;
-struct sockaddr;
 
 class XrdNetSecurity
 {
@@ -48,18 +48,21 @@ void  AddHost(char *hname);
 
 void  AddNetGroup(char *hname);
 
-char *Authorize(struct sockaddr *addr);
+bool  Authorize(const char *hSpec);
+
+bool  Authorize(XrdNetAddr &addr);
 
 void  Merge(XrdNetSecurity *srcp);  // Deletes srcp
 
 void  Trace(XrdOucTrace *et=0) {eTrace = et;}
 
-     XrdNetSecurity() {NetGroups = 0; eTrace = 0; lifetime = 8*60*60;}
+     XrdNetSecurity() : NetGroups(0), eTrace(0), 
+                        chkNetLst(false), chkNetGrp(false) {}
     ~XrdNetSecurity() {}
 
 private:
 
-char *hostOK(char *hname, const char *ipname, const char *why);
+bool hostOK(const char *hname, const char *ipname, const char *why);
 
 XrdOucNList_Anchor        HostList;
 
@@ -68,8 +71,9 @@ XrdNetTextList           *NetGroups;
 XrdOucHash<char>          OKHosts;
 XrdSysMutex               okHMutex;
 XrdOucTrace              *eTrace;
+bool                      chkNetLst;
+bool                      chkNetGrp;
 
-int                       lifetime;
 static const char        *TraceID;
 };
 #endif

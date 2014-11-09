@@ -48,7 +48,6 @@ static RoleID      Convert(const char *Tok1, const char *Tok2)
                    {if (!Tok2)
                        {if (!strcmp(   Tok1, "server"))     return Server;
                         if (!strcmp(   Tok1, "supervisor")) return Supervisor;
-                        if (!strcmp(   Tok1, "peer"))       return Peer;
                         return (strcmp(Tok1, "manager") ?   noRole:Manager);
                        }
                     if (!strcmp(       Tok1, "proxy"))
@@ -58,20 +57,18 @@ static RoleID      Convert(const char *Tok1, const char *Tok2)
                        }
                     if (!strcmp(       Tok1, "meta"))
                         return (strcmp(Tok2, "manager") ?   noRole:MetaManager);
-                    if (!strcmp(       Tok1, "peer"))
-                        return (strcmp(Tok2, "manager") ?   noRole:Peer);
                     return noRole;
                    }
 
 static const char *Name(RoleID rid)
-                   {static const char *rName[] = {"metamanager",   // MetaMan
+                   {static const char *rName[] = {"meta manager",  // MetaMan
                                                   "manager",       // Manager
                                                   "supervisor",    // Super
                                                   "server",        // Server
-                                                  "proxy-manager", // ProxyMan
-                                                  "proxy-super",   // ProxySuper
-                                                  "proxy-server",  // ProxyServ
-                                                  "peer-manager",  // PeerMan
+                                                  "proxy manager", // ProxyMan
+                                                  "proxy supervisor",
+                                                  "proxy server",  // ProxyServ
+                                                  "peer manager",  // PeerMan
                                                   "peer"           // Peer
                                                  };
                     if (rid >= MetaManager && rid < noRole) return rName[rid];
@@ -91,6 +88,15 @@ static const char *Type(RoleID rid) // Maximum of 3 characters plus null byte!
                                                  };
                     if (rid >= MetaManager && rid < noRole) return tName[rid];
                     return "??";
+                   }
+
+static const char *Type(const char *rtype)
+                   {if (*rtype == 'M') return "manager";
+                    if (*rtype == 'R') return "supervisor";
+                    if (*rtype == 'S') return "server";
+                    if (*rtype == 'P') return "proxy";
+                    if (*rtype == 'E') return "peer";
+                    return "";
                    }
 
                    XrdCmsRole() {}

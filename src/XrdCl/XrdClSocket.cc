@@ -18,8 +18,10 @@
 
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetConnect.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClMessage.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -37,17 +39,19 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Status Socket::Initialize()
+  Status Socket::Initialize( int family )
   {
     if( pSocket != -1 )
       return Status( stError, errInvalidOp );
 
-    pSocket = ::socket( PF_INET, SOCK_STREAM, 0 );
+    pSocket = ::socket( family, SOCK_STREAM, 0 );
     if( pSocket < 0 )
     {
       pSocket = -1;
       return Status( stError, errSocketError );
     }
+
+    pProtocolFamily = family;
 
     //--------------------------------------------------------------------------
     // Make the socket non blocking and disable the Nagle algorithm since
@@ -142,6 +146,7 @@ namespace XrdCl
     return Status();
   }
 
+
   //----------------------------------------------------------------------------
   // Connect to the given host name
   //----------------------------------------------------------------------------
@@ -152,36 +157,41 @@ namespace XrdCl
     if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
       return Status( stError, errInvalidOp );
 
-    //--------------------------------------------------------------------------
-    // Set up the network connection structures
-    //--------------------------------------------------------------------------
-    sockaddr_in serverAddr;
-    if( XrdSysDNS::getHostAddr( host.c_str(), *((sockaddr*)&serverAddr) ) == 0 )
-      return Status( stError, errInvalidAddr );
+    std::vector<XrdNetAddr> addrs;
+    std::ostringstream o; o << host << ":" << port;
+    Status st;
 
-    serverAddr.sin_port = htons( (unsigned short) port );
+    if( pProtocolFamily == AF_INET6 )
+      st = Utils::GetHostAddresses( addrs, URL( o.str() ), Utils::IPAll );
+    else
+      st = Utils::GetHostAddresses( addrs, URL( o.str() ), Utils::IPv4 );
 
-    return ConnectToAddress( serverAddr, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    Utils::LogHostAddresses( DefaultEnv::GetLog(), PostMasterMsg, o.str(),
+                             addrs );
+
+
+    return ConnectToAddress( addrs[0], timeout );
   }
 
   //----------------------------------------------------------------------------
   // Connect to the given host
   //----------------------------------------------------------------------------
-  Status Socket::ConnectToAddress( const sockaddr_in &addr,
-                                   uint16_t           timeout )
+  Status Socket::ConnectToAddress( const XrdNetAddr &addr,
+                                   uint16_t          timeout )
   {
     if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
       return Status( stError, errInvalidOp );
 
-    pServerAddr = (sockaddr_in*)malloc( sizeof( sockaddr_in ) );
-    memcpy( pServerAddr, &addr, sizeof( sockaddr_in ) );
+    pServerAddr = addr;
 
     //--------------------------------------------------------------------------
     // Connect
     //--------------------------------------------------------------------------
-    int status = XrdNetConnect::Connect( pSocket, (sockaddr*)pServerAddr,
-                                         sizeof(sockaddr_in), timeout );
-
+    int status = XrdNetConnect::Connect( pSocket, pServerAddr.SockAddr(),
+                                         pServerAddr.SockSize(), timeout );
     if( status != 0 )
     {
       Status st( stError );
@@ -207,7 +217,6 @@ namespace XrdCl
       Close();
       return st;
     }
-
     pStatus = Connected;
     return Status();
   }
@@ -220,13 +229,11 @@ namespace XrdCl
     if( pSocket != -1 )
     {
       close( pSocket );
-      free( pServerAddr );
       pStatus      = Disconnected;
       pSocket      = -1;
       pSockName    = "";
       pPeerName    = "";
       pName        = "";
-      pServerAddr  = 0;
     }
   }
 
@@ -243,7 +250,7 @@ namespace XrdCl
       return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
-    // Some usefull variables
+    // Some useful variables
     //--------------------------------------------------------------------------
     bytesRead = 0;
 
@@ -338,7 +345,7 @@ namespace XrdCl
       return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
-    // Some usefull variables
+    // Some useful variables
     //--------------------------------------------------------------------------
     bytesWritten = 0;
 
@@ -466,7 +473,7 @@ namespace XrdCl
 
     //--------------------------------------------------------------------------
     // We loop on poll because it may return -1 even thought no fatal error
-    // has occured, these may be:
+    // has occurred, these may be:
     // * a signal interrupting the execution (errno == EINTR)
     // * a failure to initialize some internal structures (Solaris only)
     //   (errno == EAGAIN)
@@ -529,12 +536,10 @@ namespace XrdCl
       return pSockName;
 
     char      nameBuff[256];
-    sockaddr  sockAddr;
-    socklen_t sockAddrLen = sizeof( sockAddr );
-    if( getsockname( pSocket, &sockAddr, &sockAddrLen ) )
+    int len = XrdNetUtils::IPFormat( -pSocket, nameBuff, sizeof(nameBuff) );
+    if( len == 0 )
       return "";
 
-    XrdSysDNS::IPFormat( &sockAddr, nameBuff, sizeof(nameBuff) );
     pSockName = nameBuff;
     return pSockName;
   }
@@ -551,12 +556,10 @@ namespace XrdCl
       return pPeerName;
 
     char      nameBuff[256];
-    sockaddr  sockAddr;
-    socklen_t sockAddrLen = sizeof( sockAddr );
-    if( getpeername( pSocket, &sockAddr, &sockAddrLen ) )
+    int len = XrdNetUtils::IPFormat( pSocket, nameBuff, sizeof(nameBuff) );
+    if( len == 0 )
       return "";
 
-    XrdSysDNS::IPFormat( &sockAddr, nameBuff, sizeof(nameBuff) );
     pPeerName = nameBuff;
     return pPeerName;
   }

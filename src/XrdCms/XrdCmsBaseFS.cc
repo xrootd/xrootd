@@ -44,6 +44,8 @@
 
 #include "XrdOss/XrdOss.hh"
 
+#include "XrdSfs/XrdSfsFlags.hh"
+
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -127,7 +129,7 @@ int XrdCmsBaseFS::Exists(XrdCmsRRData &Arg, XrdCmsPInfo &Who, int noLim)
 // and then check if we even have this directory.
 //
    if (dmLife)
-      {for (fnPos=Arg.PathLen-2; fnPos >= 0 && Arg.Path[fnPos] != '/'; fnPos--);
+      {for (fnPos=Arg.PathLen-2;fnPos >= 0 && Arg.Path[fnPos] != '/';fnPos--) {}
        if (fnPos > 0 && !hasDir(Arg.Path, fnPos)) return -1;
       } else fnPos = 0;
 
@@ -157,7 +159,7 @@ int XrdCmsBaseFS::Exists(char *Path, int fnPos, int UpAT)
 // if so requested.
 //
    if (fnPos < 0 && dmLife)
-      {for (fnPos = -(fnPos+1); fnPos >= 0 && Path[fnPos] != '/'; fnPos--);
+      {for (fnPos = -(fnPos+1); fnPos >= 0 && Path[fnPos] != '/'; fnPos--) {}
        if (fnPos > 0 && !hasDir(Path, fnPos)) return -1;
       }
 
@@ -165,8 +167,8 @@ int XrdCmsBaseFS::Exists(char *Path, int fnPos, int UpAT)
 //
    if (!Config.ossFS->Stat(Path, &buf, Opts))
       {if ((buf.st_mode & S_IFMT) == S_IFREG)
-          return (buf.st_mode & S_ISUID ? CmsHaveRequest::Pending
-                                        : CmsHaveRequest::Online);
+          return (buf.st_mode & XRDSFS_POSCPEND ? CmsHaveRequest::Pending
+                                                : CmsHaveRequest::Online);
 
        return (buf.st_mode & S_IFMT) == S_IFDIR ? CmsHaveRequest::Online : -1;
       }

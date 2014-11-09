@@ -79,7 +79,7 @@ enum ArgName
      Arg_Opaque2,  Arg_Opaque,    Arg_Opts,      Arg_Path,
      Arg_Path2,    Arg_Port,      Arg_Prty,      Arg_Reqid,
      Arg_dskFree,  Arg_dskUtil,   Arg_theLoad,   Arg_SID,
-     Arg_dskTot,   Arg_dskMinf,
+     Arg_dskTot,   Arg_dskMinf,   Arg_CGI,       Arg_Ilist,
 
      Arg_Count     // Always the last item which equals the number of elements
 };

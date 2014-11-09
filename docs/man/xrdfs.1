@@ -1,4 +1,4 @@
-.TH xrdfs 1 "30 November 2011"
+.TH xrdfs 1 "__VERSION__"
 .SH NAME
 xrdfs - xrootd file and directory meta-data utility
 .SH SYNOPSIS
@@ -6,8 +6,8 @@ xrdfs - xrootd file and directory meta-data utility
 
 \fBxrdfs\fR \fIhost[:port]\fR \fI[command [args]]\fR
 
-\fBcommand\fR: help, chmod, locate, mkdir, mv, stat, statvfs, query, rm ,rmdir,
-         truncate
+\fBcommand\fR: help, chmod, ls, locate, mkdir, mv, stat, statvfs, query, rm, rmdir,
+           truncate, prepare, cat, tail, spaceinfo
 .fi
 .br
 .ad l
@@ -43,6 +43,8 @@ Get the locations of the path.
 \fI-n\fR make the server return the response immediately even though it may be incomplete
 .br
 \fI-d\fR do a recursive, deep locate in order to find data servers
+.br
+\fI-m\fR prefer host names to IP addresses
 
 .RE
 \fBmkdir\fR \fI[-p] [-m<user><group><other>] <dirname>\fR
@@ -62,6 +64,15 @@ Move path1 to path2 locally on the same server.
 \fBstat\fR \fI<path>\fR
 .RS 3
 Get info about the file or directory.
+.br
+\fI-q\fR query optional flag query parameter that makes
+xrdfs return error code to the shell if the
+requested flag combination is not present;
+flags may be combined together using '|' or '&'
+.br
+Available flags:
+\fBXBitSet\fR, \fBIsDir\fR, \fBOther\fR, \fBOffline\fR, \fBPOSCPending\fR,
+\fBIsReadable\fR, \fBIsWriteable\fR
 
 .RE
 \fBstatvfs\fR \fI<path>\fR
@@ -73,8 +84,35 @@ Get info about a virtual file system.
 .RS 3
 Obtain server information. Query codes:
 .br
-\fIconfig\fR         \fB<what>\fR   Server configuration
+\fIconfig\fR         \fB<what>\fR   Server configuration; <what> is one of the following:
+.RS 5
+bind_max      - the maximum number of parallel streams
 .br
+chksum        - the supported checksum
+.br
+pio_max       - maximum number of parallel I/O requests
+.br
+readv_ior_max - maximum size of a readv element
+.br
+readv_iov_max - maximum number of readv entries
+.br
+tpc           - support for third party copies
+.br
+wan_port      - the port to use for wan copies
+.br
+wan_window    - the wan_port window size
+.br
+window        - the tcp window size
+.br
+cms           - the status of the cmsd
+.br
+role          - the role in a cluster
+.br
+sitename      - the site name
+.br
+version       - the version of the server
+.br
+.RE
 \fIchecksumcancel\fR \fB<path>\fR   File checksum cancelation
 .br
 \fIchecksum\fR       \fB<path>\fR   File checksum
@@ -85,8 +123,28 @@ Obtain server information. Query codes:
 .br
 \fIspace\fR          \fB<space>\fR  Logical space stats
 .br
-\fIstats\fR          \fB<what>\fR   Server stats
+\fIstats\fR          \fB<what>\fR   Server stats; <what> is a list of letters
+indicating information to be returned:
+.RS 5
+a - all statistics
 .br
+p - protocol statistics
+.br
+b - buffer usage statistics
+.br
+s - scheduling statistics
+.br
+d - device polling statistics
+.br
+u - usage statistics
+.br
+i - server identification
+.br
+z - synchronized statistics
+.br
+l - connection statistics
+.br
+.RE
 \fIxattr\fR          \fB<path>\fR   Extended attributes
 
 .RE
@@ -103,6 +161,42 @@ Remove a directory.
 \fBtruncate\fR \fI<filename> <length>\fR
 .RS 3
 Truncate a file.
+
+.RE
+\fBprepare\fR \fI[-c]\fR \fI[-f]\fR \fI[-s]\fR \fI[-w]\fR \fI[-p priority]\fR \fIfilenames\fR
+.RS 3
+Prepare one or more files for access.
+.br
+\fI-c\fR co-locate staged files if possible
+.br
+\fI-f\fR refresh file access time even if the location is known
+.br
+\fI-s\fR stage the files to disk if they are not online
+.br
+\fI-w\fR whe files will be accessed for modification
+.br
+\fI-p\fR priority of the request, 0 (lowest) - 3 (highest)
+
+.RE
+\fBcat\fR \fI[-o localfile]\fR \fIfile\fR
+.RS 3
+Print contents of a file to stdout
+.br
+\fI-o\fR print to the specified local file
+
+.RE
+\fBtail\fR \fI[-c bytes] [-f]\fR \fIfile\fR
+.RS 3
+Output last part of files to stdout.
+.br
+\fI-c\fR num_bytes out last num_bytes
+.br
+\fI-f\fR           output appended data as file grows
+
+.RE
+\fBspaceinfo\fR \fIpath\fR
+.RS 3
+Get space statistics for given path.
 
 .SH NOTES
 For the list of available environment variables please refere to xrdcopy(1)

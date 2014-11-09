@@ -34,6 +34,7 @@
 
 #include "Xrd/XrdLink.hh"
 
+#include "XrdCms/XrdCmsBlackList.hh"
 #include "XrdCms/XrdCmsLogin.hh"
 #include "XrdCms/XrdCmsParser.hh"
 #include "XrdCms/XrdCmsTalk.hh"
@@ -63,14 +64,20 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
    if ((eText = XrdCmsTalk::Attend(Link, myHdr, myBuff, myBlen, myDlen)))
       return Emsg(Link, eText, 0);
 
+// Check if this node is blacklisted
+//
+   if (!(Data.Mode & CmsLoginData::kYR_director)
+   &&  XrdCmsBlackList::Present(Link->AddrInfo()->Name()))
+      return SendErrorBL(Link);
+
 // If we need to do authentication, do so now
 //
-   if ((Token = XrdCmsSecurity::getToken(Toksz, Link->Host()))
+   if ((Token = XrdCmsSecurity::getToken(Toksz, Link->AddrInfo()))
    &&  !XrdCmsSecurity::Authenticate(Link, Token, Toksz)) return 0;
 
 // Fiddle with the login data structures
 //
-   Data.SID = Data.Paths = 0;
+   Data.SID = Data.Paths = Data.ifList = Data.envCGI = 0;
    memset(&myData, 0, sizeof(myData));
    myData.Mode     = Data.Mode;
    myData.HoldTime = Data.HoldTime;
@@ -80,11 +87,6 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 //
    if (!Parser.Parse(&Data, myBuff, myBuff+myDlen)) 
       return Emsg(Link, "invalid login data", 0);
-
-// Do authentication now, if needed
-//
-   if ((Token = XrdCmsSecurity::getToken(Toksz, Link->Host())))
-      if (!XrdCmsSecurity::Authenticate(Link, Token, Toksz)) return 0;
 
 // Send off login reply
 //
@@ -152,9 +154,14 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data, int timeout)
 // Process error reply
 //
    if (LIHdr.rrCode == kYR_error)
-      return (dataLen < (int)sizeof(kXR_unt32)+8
-             ? Emsg(Link, "invalid error reply")
-             : Emsg(Link, WorkBuff+sizeof(kXR_unt32)));
+      {unsigned int eRC;
+       if (dataLen < (int)sizeof(kXR_unt32)+8)
+          return Emsg(Link, "invalid error reply");
+       Emsg(Link, WorkBuff+sizeof(kXR_unt32));
+       memcpy(&eRC, WorkBuff, sizeof(eRC));
+       eRC = ntohl(eRC);
+       return (eRC == kYR_EPERM ? -1 : kYR_EINVAL);
+      }
 
 // Process normal reply
 //
@@ -170,9 +177,9 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data, int timeout)
   
 int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 {
-   static const int xNum   = 16;
+   static const int xNum   = 18;
 
-   int          iovcnt;
+   int          n, iovcnt, iovnum;
    char         Work[xNum*12];
    struct iovec Liov[xNum];
    CmsRRHdr     Resp={0, kYR_login, 0, 0};
@@ -180,7 +187,7 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 // Pack the response (ignore the auth token for now)
 //
    if (!(iovcnt=Parser.Pack(kYR_login,&Liov[1],&Liov[xNum],(char *)&Data,Work)))
-      return Emsg(Link, "too much login reply data");
+      return Emsg(Link, "too much login data");
 
 // Complete I/O vector
 //
@@ -188,11 +195,48 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
    Liov[0].iov_base = (char *)&Resp;
    Liov[0].iov_len  = sizeof(Resp);
 
-// Send off the data
+// Send off the data *break it up to IOV_MAX chunks, mostly for Solaris)
 //
-   Link->Send(Liov, iovcnt+1);
+   n = 0; iovcnt++;
+   if (iovcnt <= IOV_MAX) Link->Send(Liov, iovcnt);
+      else while(iovcnt > 0)
+                {iovnum = (iovcnt > IOV_MAX ? IOV_MAX : iovcnt);
+                 Link->Send(&Liov[n], iovnum);
+                 n += IOV_MAX; iovcnt -= IOV_MAX;
+                }
 
 // Return success
 //
    return 0;
+}
+
+/******************************************************************************/
+/* Private:                  S e n d E r r o r B L                            */
+/******************************************************************************/
+  
+int XrdCmsLogin::SendErrorBL(XrdLink *Link)
+{
+  struct {CmsResponse rInfo;
+          char        rText[512];
+         }            rData;
+  const char *hName = Link->AddrInfo()->Name("???");
+  int n;
+
+// Format the message
+//
+   n = snprintf(rData.rText, sizeof(rData.rText), "%s is blacklisted.", hName)
+     + sizeof(rData.rInfo.Val) + 1;
+
+// Construct response
+//
+   rData.rInfo.Hdr.streamid = 0;
+   rData.rInfo.Hdr.rrCode   = kYR_error;
+   rData.rInfo.Hdr.modifier = 0;
+   rData.rInfo.Hdr.datalen  = htons(n);
+   rData.rInfo.Val          = htonl(static_cast<unsigned int>(kYR_EPERM));
+
+// Send off the data
+//
+   Link->Send((const char *)&rData, n + sizeof(CmsRRHdr));
+   return Emsg(Link, "blacklisted", 0);
 }

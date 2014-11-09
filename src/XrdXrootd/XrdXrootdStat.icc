@@ -38,6 +38,8 @@
 /******************************************************************************/
 /*                               S t a t G e n                                */
 /******************************************************************************/
+
+#include "XrdSfs/XrdSfsFlags.hh"
   
 int XRDXROOTD_STAT_CLASSNAME::StatGen(struct stat &buf, char *xxBuff)
 {
@@ -78,10 +80,15 @@ int XRDXROOTD_STAT_CLASSNAME::StatGen(struct stat &buf, char *xxBuff)
 
 // Compute the other flag settings
 //
-   if (S_ISDIR(buf.st_mode))           flags |= kXR_isDir;
-      else if (!S_ISREG(buf.st_mode))  flags |= kXR_other;
-   if (!Dev.uuid)                      flags |= kXR_offline;
-   if (buf.st_mode & S_ISUID)          flags |= kXR_poscpend;
+        if (!Dev.uuid)                         flags |= kXR_offline;
+        if (S_ISDIR(buf.st_mode))              flags |= kXR_isDir;
+   else if (!S_ISREG(buf.st_mode))             flags |= kXR_other;
+   else{if (buf.st_mode & XRDSFS_POSCPEND)     flags |= kXR_poscpend;
+        if ((buf.st_rdev & XRDSFS_RDVMASK) == 0)
+           {if (buf.st_rdev & XRDSFS_OFFLINE)  flags |= kXR_offline;
+            if (buf.st_rdev & XRDSFS_HASBKUP)  flags |= kXR_bkpexist;
+           }
+       }
    fsz = static_cast<long long>(buf.st_size);
 
 // Format the results and return them

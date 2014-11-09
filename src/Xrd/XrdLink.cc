@@ -32,7 +32,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/uio.h>
 
 #ifdef __linux__
@@ -44,16 +43,15 @@
 
 #ifdef HAVE_SENDFILE
 
-#ifndef __macos__
+#ifndef __APPLE__
 #include <sys/sendfile.h>
 #endif
 
 #endif
 
-#include "XrdNet/XrdNetPeer.hh"
 #include "XrdSys/XrdSysAtomics.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 #include "Xrd/XrdBuffer.hh"
@@ -133,7 +131,7 @@ static const char *TraceID;
        XrdSysMutex     XrdLink::statsMutex;
 
        const char     *XrdLinkScan::TraceID = "LinkScan";
-       int             XrdLink::devNull = open("/dev/null", O_RDONLY);
+       int             XrdLink::devNull = XrdSysFD_Open("/dev/null", O_RDONLY);
        short           XrdLink::killWait= 3;  // Kill then wait
        short           XrdLink::waitKill= 4;  // Wait then kill
 
@@ -178,12 +176,11 @@ void XrdLink::Reset()
   isEnabled= 0;
   isIdle   = 0;
   inQ      = 0;
-  tBound   = 0;
+  isBridged= 0;
   BytesOut = BytesIn = BytesOutTot = BytesInTot = 0;
   doPost   = 0;
   LockReads= 0;
   KeepFD   = 0;
-  udpbuff  = 0;
   Instance = 0;
   KillcvP  = 0;
   KillCnt  = 0;
@@ -193,18 +190,18 @@ void XrdLink::Reset()
 /*                                 A l l o c                                  */
 /******************************************************************************/
   
-XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
+XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
 {
    static XrdSysMutex  instMutex;
    static unsigned int myInstance = 1;
    XrdLink *lp;
-   char *unp, buff[16];
-   int bl;
+   char hName[1024], *unp, buff[16];
+   int bl, peerFD = peer.SockFD();
 
 // Make sure that the link slot is available
 //
    LTMutex.Lock();
-   if (LinkBat[Peer.fd])
+   if (LinkBat[peerFD])
       {LTMutex.UnLock();
        XrdLog->Emsg("Link", "attempt to reuse active link");
        return (XrdLink *)0;
@@ -213,7 +210,7 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
 // Check if we already have a link object in this slot. If not, allocate
 // a quantum of link objects and put them in the table.
 //
-   if (!(lp = LinkTab[Peer.fd]))
+   if (!(lp = LinkTab[peerFD]))
       {unsigned int i;
        XrdLink **blp, *nlp = new XrdLink[LinkAlloc]();
        if (!nlp)
@@ -221,13 +218,13 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
            XrdLog->Emsg("Link", ENOMEM, "create link"); 
            return (XrdLink *)0;
           }
-       blp = &LinkTab[Peer.fd/LinkAlloc*LinkAlloc];
+       blp = &LinkTab[peerFD/LinkAlloc*LinkAlloc];
        for (i = 0; i < LinkAlloc; i++, blp++) *blp = &nlp[i];
-       lp = LinkTab[Peer.fd];
+       lp = LinkTab[peerFD];
       }
       else lp->Reset();
-   LinkBat[Peer.fd] = XRDLINK_USED;
-   if (Peer.fd > LTLast) LTLast = Peer.fd;
+   LinkBat[peerFD] = XRDLINK_USED;
+   if (peerFD > LTLast) LTLast = peerFD;
    LTMutex.UnLock();
 
 // Establish the instance number of this link. This is will prevent us from
@@ -238,24 +235,20 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    lp->Instance = myInstance++;
    instMutex.UnLock();
 
-// Establish the address and connection type of this link
+// Establish the address and connection name of this link
 //
-   memcpy((void *)&(lp->InetAddr), (const void *)&Peer.InetAddr,
-          sizeof(struct sockaddr));
-   if (Peer.InetName) strlcpy(lp->Lname, Peer.InetName, sizeof(lp->Lname));
-      else {char *host = XrdSysDNS::getHostName(Peer.InetAddr);
-            strlcpy(lp->Lname, host, sizeof(lp->Lname));
-            free(host);
-           }
-   lp->HostName = strdup(lp->Lname);
-   lp->HNlen = strlen(lp->HostName);
-   XrdNetTCP->Trim(lp->Lname);
-   bl = sprintf(buff, "?:%d", Peer.fd);
+   peer.Format(hName, sizeof(hName), XrdNetAddr::fmtAuto,
+                                     XrdNetAddr::old6Map4 | XrdNetAddr::noPort);
+   lp->HostName = strdup(hName);
+   lp->HNlen = strlen(hName);
+   XrdNetTCP->Trim(hName);
+   lp->Addr = peer;
+   strlcpy(lp->Lname, hName, sizeof(lp->Lname));
+   bl = sprintf(buff, "?:%d", peerFD);
    unp = lp->Lname - bl - 1;
    strncpy(unp, buff, bl);
    lp->ID = unp;
-   lp->FD = Peer.fd;
-   lp->udpbuff = Peer.InetBuff;
+   lp->FD = peerFD;
    lp->Comment = (const char *)unp;
 
 // Set options as needed
@@ -272,41 +265,6 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    if (LinkCountMax <= AtomicInc(LinkCount)) LinkCountMax = LinkCount;
    statsMutex.UnLock();
    return lp;
-}
-  
-/******************************************************************************/
-/*                                  B i n d                                   */
-/******************************************************************************/
-  
-void XrdLink::Bind(pthread_t tid)
-{
-
-// For bind operations, it's quite simple
-//
-   TID = tid; 
-   tBound = 1; 
-}
-
-/******************************************************************************/
-
-void XrdLink::Bind()
-{
-#ifdef __linux__
-// pthread_t curTID = (tBound ? TID : XrdSysThread::ID());
-#endif
-
-// For unbind operations, we need to do some additional work. This is specific
-// to Linux. See the discussion under defered close in the Close() method.
-//
-   if (tBound)
-      {tBound = 0;
-#ifdef __linux__
-//     if (!XrdSysThread::Same(curTID, XrdSysThread::ID()))
-//        {XrdSysThread::Signal(curTID, SIGSTOP);
-//         XrdSysThread::Signal(curTID, SIGCONT);
-//        }  Remove old Linux 2.3 async shutdown workaround patch
-#endif
-      }
 }
 
 /******************************************************************************/
@@ -341,11 +299,9 @@ int XrdLink::Close(int defer)
 // Linux is peculiar in that any in-progress operations will remain in that
 // state even after the FD is closed unless there is some activity either on
 // the connection or an event occurs that causes an operation restart. We
-// accomplish this in Linux by stopping and then starting the thread that may
-// be bound to this link (see Bind()). Ugly, but that's what happens in Linux.
-// We also add a bit of portability by issuing a shutdown() on the socket prior
+// portably solve this problem by issuing a shutdown() on the socket prior
 // closing it. On most platforms, this informs readers that the connection is
-// gone (though not on Linux, sigh).
+// gone (though not on old (i.e. <= 2.3) versions of Linux, sigh).
 //
    opMutex.Lock();
    if (defer)
@@ -357,7 +313,7 @@ int XrdLink::Close(int defer)
                if (dup2(devNull, fd) < 0)
                   {FD = fd; Instance = csec;
                    XrdLog->Emsg("Link",errno,"close FD for",ID);
-                  } else Bind();
+                  }
               }
           }
        opMutex.UnLock();
@@ -384,7 +340,6 @@ int XrdLink::Close(int defer)
 //
    if (Protocol) {Protocol->Recycle(this, csec, Etext); Protocol = 0;}
    if (ProtoAlt) {ProtoAlt->Recycle(this, csec, Etext); ProtoAlt = 0;}
-   if (udpbuff)  {udpbuff->Recycle();  udpbuff  = 0;}
    if (Etext) {free(Etext); Etext = 0;}
    InUse    = 0;
 
@@ -451,6 +406,15 @@ void XrdLink::DoIt()
       else if (rc != -EINPROGRESS) Close();
 }
   
+/******************************************************************************/
+/*                                E n a b l e                                 */
+/******************************************************************************/
+  
+void XrdLink::Enable()
+{
+   if (Poller) Poller->Enable(this);
+}
+
 /******************************************************************************/
 /*                                  F i n d                                   */
 /******************************************************************************/
@@ -780,20 +744,20 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 }
  
 /******************************************************************************/
-int XrdLink::Send(const struct sfVec *sfP, int sfN)
+int XrdLink::Send(const sfVec *sfP, int sfN)
 {
-#if !defined(HAVE_SENDFILE) || defined(__macos__)
+#if !defined(HAVE_SENDFILE) || defined(__APPLE__)
    return -1;
 #else
 // Make sure we have valid vector count
 //
-   if (sfN < 1 || sfN > sfMax)
+   if (sfN < 1 || sfN > XrdOucSFVec::sfMax)
       {XrdLog->Emsg("Link", EINVAL, "send file to", ID);
        return -1;
       }
 
 #ifdef __solaris__
-    sendfilevec_t vecSF[sfMax], *vecSFP = vecSF;
+    sendfilevec_t vecSF[XrdOucSFVec::sfMax], *vecSFP = vecSF;
     size_t xframt, totamt, bytes = 0;
     ssize_t retc;
     int i = 0;
@@ -974,10 +938,6 @@ void XrdLink::setID(const char *userid, int procid)
 int XrdLink::Setup(int maxfds, int idlewait)
 {
    int numalloc, iticks, ichk;
-
-// Make sure our static /dev/null fd is closed whn we exec
-//
-   fcntl(devNull, F_SETFD, FD_CLOEXEC);
 
 // Compute the number of link objects we should allocate at a time. Generally,
 // we like to allocate 8k of them at a time but always as a power of two.

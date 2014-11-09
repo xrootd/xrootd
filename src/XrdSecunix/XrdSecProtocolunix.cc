@@ -37,6 +37,7 @@
 
 #include "XrdVersion.hh"
 
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -60,11 +61,12 @@ friend class XrdSecProtocolDummy; // Avoid stupid gcc warnings about destructor
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        XrdSecProtocolunix(const char                *hname,
-                           const struct sockaddr     *ipadd)
+        XrdSecProtocolunix(const char *hname, XrdNetAddrInfo &endPoint)
                           : XrdSecProtocol("unix")
                           {Entity.host = strdup(hname);
                            Entity.name = (char *)"?";
+                           epAddr      = endPoint;
+                           Entity.addrInfo = &epAddr;
                            credBuff    = 0;
                           }
 
@@ -76,7 +78,7 @@ private:
                               if (Entity.host) free(Entity.host);
                              } // via Delete()
 
-struct sockaddr           hostaddr;      // Client-side only
+XrdNetAddrInfo            epAddr;
 char                     *credBuff;      // Credentials buffer (server)
 };
 
@@ -105,7 +107,7 @@ XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
 
 // Get the group name
 //
-   if ((n = XrdOucUtils::GroupName(getegid(), Bp+1, Blen-1)))
+   if ((n = XrdOucUtils::GroupName(getegid(), Bp+1, sizeof(Buff)-Blen)))
       {*Bp = ' '; Blen += (n+1);}
 
 // Return the credentials
@@ -196,7 +198,7 @@ extern "C"
 {
 XrdSecProtocol *XrdSecProtocolunixObject(const char              mode,
                                          const char             *hostname,
-                                         const struct sockaddr  &netaddr,
+                                               XrdNetAddrInfo   &endPoint,
                                          const char             *parms,
                                                XrdOucErrInfo    *erp)
 {
@@ -204,7 +206,7 @@ XrdSecProtocol *XrdSecProtocolunixObject(const char              mode,
 
 // Return a new protocol object
 //
-   if (!(prot = new XrdSecProtocolunix(hostname, &netaddr)))
+   if (!(prot = new XrdSecProtocolunix(hostname, endPoint)))
       {const char *msg = "Seckunix: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
           else cerr <<msg <<endl;

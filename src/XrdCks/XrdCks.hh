@@ -159,7 +159,11 @@ char      *Name(int seqNum=0) = 0;
 //!         Failure: Zero if no corresponding object exists.
 //------------------------------------------------------------------------------
 virtual
-XrdCksCalc *Object(const char *name) {return 0;}
+XrdCksCalc *Object(const char *name)
+{
+  (void)name;
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 //! Get the binary length of the checksum with the corresponding name.

@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClFileStateHandler.hh"
@@ -27,8 +33,13 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClMonitor.hh"
+#include "XrdCl/XrdClFileTimer.hh"
+#include "XrdCl/XrdClResponseJob.hh"
+#include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 
 #include <sstream>
+#include <memory>
 #include <sys/time.h>
 
 namespace
@@ -64,14 +75,7 @@ namespace
         //----------------------------------------------------------------------
         OpenInfo *openInfo = 0;
         if( status->IsOK() )
-        {
-          if( !response )
-          {
-            XRootDStatus st( stError, errInternal );
-            pStateHandler->OnOpen( &st, 0, hostList );
-          }
           response->Get( openInfo );
-        }
 
         //----------------------------------------------------------------------
         // Notify the state handler and the client and say bye bye
@@ -183,8 +187,7 @@ namespace
                                             XrdCl::HostList     *hostList )
       {
         using namespace XrdCl;
-        std::auto_ptr<XRootDStatus>    statusPtr( status );
-        std::auto_ptr<AnyObject>       responsePtr( response );
+        XRDCL_SMART_PTR_T<AnyObject>       responsePtr( response );
         pSendParams.hostList = hostList;
 
         //----------------------------------------------------------------------
@@ -192,27 +195,13 @@ namespace
         //----------------------------------------------------------------------
         if( !status->IsOK() )
         {
-          statusPtr.release();
           pStateHandler->OnStateError( status, pMessage, this, pSendParams );
-          return;
-        }
-
-        //----------------------------------------------------------------------
-        // We have been sent out elsewhere
-        //----------------------------------------------------------------------
-        if( status->IsOK() && status->code == suXRDRedirect )
-        {
-          RedirectInfo *redirInfo = 0;
-          response->Get( redirInfo );
-          pStateHandler->OnStateRedirection( redirInfo, pMessage, this,
-                                             pSendParams );
           return;
         }
 
         //----------------------------------------------------------------------
         // We're clear
         //----------------------------------------------------------------------
-        statusPtr.release();
         responsePtr.release();
         pStateHandler->OnStateResponse( status, pMessage, response, hostList );
         pUserHandler->HandleResponseWithHosts( status, response, hostList );
@@ -252,11 +241,13 @@ namespace XrdCl
     pOpenFlags( 0 ),
     pSessionId( 0 ),
     pDoRecoverRead( true ),
-    pDoRecoverWrite( true )
+    pDoRecoverWrite( true ),
+    pFollowRedirects( true )
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
     DefaultEnv::GetForkHandler()->RegisterFileObject( this );
+    DefaultEnv::GetFileTimer()->RegisterFileObject( this );
   }
 
   //----------------------------------------------------------------------------
@@ -264,9 +255,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileStateHandler::~FileStateHandler()
   {
-    DefaultEnv::GetForkHandler()->UnRegisterFileObject( this );
+    if( DefaultEnv::GetFileTimer() )
+      DefaultEnv::GetFileTimer()->UnRegisterFileObject( this );
 
-    if( pFileState != Closed )
+    if( DefaultEnv::GetForkHandler() )
+      DefaultEnv::GetForkHandler()->UnRegisterFileObject( this );
+
+    if( pFileState != Closed && DefaultEnv::GetLog() )
     {
       XRootDStatus st;
       MonitorClose( &st );
@@ -321,7 +316,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Check if the recovery procedures should be enables
+    // Check if the recovery procedures should be enabled
     //--------------------------------------------------------------------------
     const URL::ParamsMap &urlParams = pFileUrl->GetParams();
     URL::ParamsMap::const_iterator it;
@@ -366,6 +361,7 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     OpenHandler *openHandler = new OpenHandler( this, handler );
     MessageSendParams params; params.timeout = timeout;
+    params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
 
     Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
@@ -421,7 +417,10 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     msg->SetSessionId( pSessionId );
     CloseHandler *closeHandler = new CloseHandler( this, handler, msg );
-    MessageSendParams params; params.timeout = timeout;
+    MessageSendParams params;
+    params.timeout = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
     MessageUtils::ProcessSendParams( params );
 
     Status st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler, params );
@@ -479,11 +478,10 @@ namespace XrdCl
     Message           *msg;
     ClientStatRequest *req;
     std::string        path = pFileUrl->GetPath();
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req );
 
     req->requestid = kXR_stat;
-    req->dlen = path.length();
-    msg->Append( path.c_str(), req->dlen, 24 );
+    memcpy( req->fhandle, pFileHandle, 4 );
 
     MessageSendParams params;
     params.timeout         = timeout;
@@ -540,7 +538,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Write a data chank at a given offset - async
+  // Write a data chunk at a given offset - async
   //----------------------------------------------------------------------------
   XRootDStatus FileStateHandler::Write( uint64_t         offset,
                                         uint32_t         size,
@@ -560,18 +558,22 @@ namespace XrdCl
 
     Message            *msg;
     ClientWriteRequest *req;
-    MessageUtils::CreateRequest( msg, req, size );
+    MessageUtils::CreateRequest( msg, req );
 
     req->requestid  = kXR_write;
     req->offset     = offset;
     req->dlen       = size;
     memcpy( req->fhandle, pFileHandle, 4 );
-    msg->Append( (char*)buffer, size, 24 );
+
+    ChunkList *list   = new ChunkList();
+    list->push_back( ChunkInfo( 0, size, (char*)buffer ) );
 
     MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
+    params.chunkList       = list;
+
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
@@ -723,6 +725,80 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Fcntl( const Buffer    &arg,
+                                        ResponseHandler *handler,
+                                        uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a fcntl command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientQueryRequest *req;
+    MessageUtils::CreateRequest( msg, req, arg.GetSize() );
+
+    req->requestid = kXR_query;
+    req->infotype  = kXR_Qopaqug;
+    req->dlen      = arg.GetSize();
+    memcpy( req->fhandle, pFileHandle, 4 );
+    msg->Append( arg.GetBuffer(), arg.GetSize(), 24 );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //----------------------------------------------------------------------------
+  // Get access token to a file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Visa( ResponseHandler *handler,
+                                       uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a visa command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientQueryRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_query;
+    req->infotype  = kXR_Qvisa;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //----------------------------------------------------------------------------
   // Check if the file is open
   //----------------------------------------------------------------------------
   bool FileStateHandler::IsOpen() const
@@ -735,34 +811,64 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Enable/disable state recovery procedures while the file is open for
-  // reading
+  // Set file property
   //----------------------------------------------------------------------------
-  void FileStateHandler::EnableReadRecovery( bool enable )
+  bool FileStateHandler::SetProperty( const std::string &name,
+                                      const std::string &value )
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    pDoRecoverRead = enable;
+    if( name == "ReadRecovery" )
+    {
+      if( value == "true" ) pDoRecoverRead = true;
+      else pDoRecoverRead = false;
+      return true;
+    }
+    else if( name == "WriteRecovery" )
+    {
+      if( value == "true" ) pDoRecoverWrite = true;
+      else pDoRecoverWrite = false;
+      return true;
+    }
+    else if( name == "FollowRedirects" )
+    {
+      if( value == "true" ) pFollowRedirects = true;
+      else pFollowRedirects = false;
+      return true;
+    }
+    return false;
   }
 
   //----------------------------------------------------------------------------
-  //! Enable/disable state recovery procedures while the file is open for
-  //! writing or read/write
+  // Get file property
   //----------------------------------------------------------------------------
-  void FileStateHandler::EnableWriteRecovery( bool enable )
+  bool FileStateHandler::GetProperty( const std::string &name,
+                                      std::string &value ) const
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    pDoRecoverWrite = enable;
-  }
-
-  //----------------------------------------------------------------------------
-  // Get the data server the file is accessed at
-  //----------------------------------------------------------------------------
-  std::string FileStateHandler::GetDataServer() const
-  {
-    XrdSysMutexHelper scopedLock( pMutex );
-    if( pDataServer )
-      return pDataServer->GetHostId();
-    return "";
+    if( name == "ReadRecovery" )
+    {
+      if( pDoRecoverRead ) value = "true";
+      else value = "false";
+      return true;
+    }
+    else if( name == "WriteRecovery" )
+    {
+      if( pDoRecoverWrite ) value = "true";
+      else value = "false";
+      return true;
+    }
+    else if( name == "FollowRedirects" )
+    {
+      if( pFollowRedirects ) value = "true";
+      else value = "false";
+      return true;
+    }
+    else if( name == "DataServer" && pDataServer )
+      { value = pDataServer->GetHostId(); return true; }
+    else if( name == "LastURL" && pDataServer )
+      { value =  pDataServer->GetURL(); return true; }
+    value = "";
+    return false;
   }
 
   //----------------------------------------------------------------------------
@@ -786,6 +892,19 @@ namespace XrdCl
       pLoadBalancer = 0;
 
       pDataServer = new URL( hostList->back().url );
+      pDataServer->SetParams( pFileUrl->GetParams() );
+      pDataServer->SetPath( pFileUrl->GetPath() );
+      lastServer = pDataServer->GetHostId();
+      HostList::const_iterator itC;
+      URL::ParamsMap params = pDataServer->GetParams();
+      for( itC = hostList->begin(); itC != hostList->end(); ++itC )
+      {
+        MessageUtils::MergeCGI( params,
+                                itC->url.GetParams(),
+                                true );
+      }
+      pDataServer->SetParams( params );
+
       HostList::const_reverse_iterator it;
       for( it = hostList->rbegin(); it != hostList->rend(); ++it )
         if( it->loadBalancer )
@@ -794,9 +913,6 @@ namespace XrdCl
           break;
         }
     }
-
-    if( pDataServer )
-      lastServer = pDataServer->GetHostId();
 
     log->Debug( FileMsg, "[0x%x@%s] Open has returned with status %s",
                 this, pFileUrl->GetURL().c_str(), status->ToStr().c_str() );
@@ -842,7 +958,7 @@ namespace XrdCl
         pStatInfo = new StatInfo( *openInfo->GetStatInfo() );
       }
 
-      log->Debug( FileMsg, "[0x%x@%s] Successfuly opened at %s, handle: 0x%x, "
+      log->Debug( FileMsg, "[0x%x@%s] successfully opened at %s, handle: 0x%x, "
                   "session id: %ld", this, pFileUrl->GetURL().c_str(),
                   pDataServer->GetHostId().c_str(), *((uint32_t*)pFileHandle),
                   pSessionId );
@@ -901,6 +1017,24 @@ namespace XrdCl
                                        ResponseHandler   *userHandler,
                                        MessageSendParams &sendParams )
   {
+    //--------------------------------------------------------------------------
+    // It may be a redirection
+    //--------------------------------------------------------------------------
+    if( !status->IsOK() && status->code == errRedirect && pFollowRedirects )
+    {
+      std::string root = "root", xroot = "xroot";
+      std::string msg = status->GetErrorMessage();
+      if( !msg.compare( 0, root.size(), root ) ||
+          !msg.compare( 0, xroot.size(), xroot ) )
+      {
+        OnStateRedirection( msg, message, userHandler, sendParams );
+        return;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Handle error
+    //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
     pInTheFly.erase( message );
@@ -957,7 +1091,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle stateful redirect
   //----------------------------------------------------------------------------
-  void FileStateHandler::OnStateRedirection( RedirectInfo      *redirectInfo,
+  void FileStateHandler::OnStateRedirection( const std::string &redirectUrl,
                                              Message           *message,
                                              ResponseHandler   *userHandler,
                                              MessageSendParams &sendParams )
@@ -972,12 +1106,12 @@ namespace XrdCl
     if( !pStateRedirect )
     {
       std::ostringstream o;
-      o << redirectInfo->host << ":" << redirectInfo->port << "//fakepath?";
-      o << redirectInfo->cgi;
-      pStateRedirect = new URL( o.str() );
-      MessageUtils::MergeCGI( pFileUrl->GetParams(),
+      pStateRedirect = new URL( redirectUrl );
+      URL::ParamsMap params = pFileUrl->GetParams();
+      MessageUtils::MergeCGI( params,
                               pStateRedirect->GetParams(),
                               false );
+      pFileUrl->SetParams( params );
     }
 
     RecoverMessage( RequestData( message, userHandler, sendParams ) );
@@ -1060,6 +1194,43 @@ namespace XrdCl
     };
   }
 
+  //------------------------------------------------------------------------
+  //! Tick
+  //------------------------------------------------------------------------
+  void FileStateHandler::Tick( time_t now )
+  {
+    TimeOutRequests( now );
+    XrdSysMutexHelper scopedLock( pMutex );
+  }
+
+  //----------------------------------------------------------------------------
+  // Declare timeout on requests being recovered
+  //----------------------------------------------------------------------------
+  void FileStateHandler::TimeOutRequests( time_t now )
+  {
+    if( !pToBeRecovered.empty() )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Dump( FileMsg, "[0x%x@%s] Got a timer event", this,
+                 pFileUrl->GetURL().c_str() );
+      RequestList::iterator it;
+      JobManager *jobMan = DefaultEnv::GetPostMaster()->GetJobManager();
+      for( it = pToBeRecovered.begin(); it != pToBeRecovered.end(); )
+      {
+        if( it->params.expires <= now )
+        {
+          jobMan->QueueJob( new ResponseJob(
+                              it->handler,
+                              new XRootDStatus( stError, errOperationExpired ),
+                              0, it->params.hostList ) );
+          it = pToBeRecovered.erase( it );
+        }
+        else
+          ++it;
+      }
+    }
+  }
+
   //----------------------------------------------------------------------------
   // Called in the child process after the fork
   //----------------------------------------------------------------------------
@@ -1109,9 +1280,9 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       // Invalid session id means that the connection has been broken while we
-      // were iddle so we haven't been informed about this fact earlier.
+      // were idle so we haven't been informed about this fact earlier.
       //------------------------------------------------------------------------
-      if( !st.IsOK() && st.code == errInvalidSession )
+      if( !st.IsOK() && st.code == errInvalidSession && IsRecoverable( st ) )
         return RecoverMessage( RequestData( msg, handler, sendParams ), false );
 
       if( st.IsOK() )
@@ -1128,34 +1299,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool FileStateHandler::IsRecoverable( const XRootDStatus &status ) const
   {
-    if( status.code == errOperationExpired )
-      return false;
-
-    if( status.code == errRedirectLimit )
-      return false;
-
-    if( IsReadOnly() && !pDoRecoverRead )
-      return false;
-
-    if( !IsReadOnly() && !pDoRecoverWrite )
-      return false;
-
-    if( status.code == errErrorResponse )
+    if( status.code == errSocketError || status.code == errInvalidSession )
     {
-      if( IsReadOnly() && pLoadBalancer && (status.errNo == kXR_FSError ||
-          status.errNo == kXR_IOError || status.errNo == kXR_ServerError) )
-      {
-        return true;
-      }
-      return false;
-    }
+      if( IsReadOnly() && !pDoRecoverRead )
+        return false;
 
-    if( !IsReadOnly() && (pOpenFlags & kXR_posc) )
-      return false;
+      if( !IsReadOnly() && !pDoRecoverWrite )
+        return false;
 
-    if( !status.IsFatal() )
       return true;
-
+    }
     return false;
   }
 
@@ -1192,7 +1345,8 @@ namespace XrdCl
 
     if( callbackOnFailure )
       FailMessage( rd, st );
-    return Status();
+
+    return st;
   }
 
   //----------------------------------------------------------------------------
@@ -1213,13 +1367,14 @@ namespace XrdCl
     Status st;
     if( pStateRedirect )
     {
-      st = ReOpenFileAtServer( *pStateRedirect, 300 );
+      SendClose( 0 );
+      st = ReOpenFileAtServer( *pStateRedirect, 0 );
       delete pStateRedirect; pStateRedirect = 0;
     }
     else if( IsReadOnly() && pLoadBalancer )
-      st = ReOpenFileAtServer( *pLoadBalancer, 300 );
+      st = ReOpenFileAtServer( *pLoadBalancer, 0 );
     else
-      st = ReOpenFileAtServer( *pDataServer, 300 );
+      st = ReOpenFileAtServer( *pDataServer, 0 );
 
     if( !st.IsOK() )
     {
@@ -1231,13 +1386,38 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Send a close and ignore the response
+  //----------------------------------------------------------------------------
+  Status FileStateHandler::SendClose( uint16_t timeout )
+  {
+    Message            *msg;
+    ClientCloseRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_close;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    XRootDTransport::SetDescription( msg );
+    msg->SetSessionId( pSessionId );
+    NullResponseHandler *handler = new NullResponseHandler();
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+
+    MessageUtils::ProcessSendParams( params );
+
+    return MessageUtils::SendMessage( *pDataServer, msg, handler, params );
+  }
+
+  //----------------------------------------------------------------------------
   // Re-open the current file at a given server
   //----------------------------------------------------------------------------
   Status FileStateHandler::ReOpenFileAtServer( const URL &url, uint16_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( FileMsg, "[0x%x@%s] Sending a recovery open command to %s",
-               this, pFileUrl->GetURL().c_str(), url.GetHostId().c_str() );
+               this, pFileUrl->GetURL().c_str(), url.GetURL().c_str() );
 
     //--------------------------------------------------------------------------
     // Remove the kXR_delete and kXR_new flags, we don't want the recovery
@@ -1249,7 +1429,11 @@ namespace XrdCl
 
     Message           *msg;
     ClientOpenRequest *req;
-    std::string        path = pFileUrl->GetPathWithParams();
+
+    URL u = *pFileUrl;
+    if( !url.GetPath().empty() )
+      u.SetPath( url.GetPath() );
+    std::string        path = u.GetPathWithParams();
     MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;
@@ -1297,7 +1481,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Fail queued messages
   //----------------------------------------------------------------------------
-  void FileStateHandler::FailQueuedMessages( Status status )
+  void FileStateHandler::FailQueuedMessages( XRootDStatus status )
   {
     RequestList::iterator it;
     for( it = pToBeRecovered.begin(); it != pToBeRecovered.end(); ++it )

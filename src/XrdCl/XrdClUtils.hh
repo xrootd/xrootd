@@ -21,11 +21,12 @@
 
 #include <string>
 #include <vector>
-#include <netinet/in.h>
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClPropertyList.hh"
+#include "XrdNet/XrdNetUtils.hh"
 
 #include <sys/time.h>
 
@@ -67,18 +68,50 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Get a parameter either from the environment or URL
+      //------------------------------------------------------------------------
+      static int GetIntParameter( const URL         &url,
+                                  const std::string &name,
+                                  int                defaultVal );
+
+      //------------------------------------------------------------------------
+      //! Get a parameter either from the environment or URL
+      //------------------------------------------------------------------------
+      static std::string GetStringParameter( const URL         &url,
+                                             const std::string &name,
+                                             const std::string &defaultVal );
+
+      //------------------------------------------------------------------------
+      //! Address type
+      //------------------------------------------------------------------------
+      enum AddressType
+      {
+        IPAuto        = 0,
+        IPAll         = 1,
+        IPv6          = 2,
+        IPv4          = 3,
+        IPv4Mapped6   = 4
+      };
+
+      //------------------------------------------------------------------------
+      //! Interpret a string as address type, default to IPAll
+      //------------------------------------------------------------------------
+      static AddressType String2AddressType( const std::string &addressType );
+
+      //------------------------------------------------------------------------
       //! Resolve IP addresses
       //------------------------------------------------------------------------
-      static Status GetHostAddresses( std::vector<sockaddr_in> &addresses,
-                                      const URL                &url);
+      static Status GetHostAddresses( std::vector<XrdNetAddr> &addresses,
+                                      const URL               &url,
+                                      AddressType              type );
 
       //------------------------------------------------------------------------
       //! Log all the addresses on the list
       //------------------------------------------------------------------------
-      static void LogHostAddresses( Log                      *log,
-                                    uint64_t                  type,
-                                    const std::string        &hostId,
-                                    std::vector<sockaddr_in> &addresses );
+      static void LogHostAddresses( Log                     *log,
+                                    uint64_t                 type,
+                                    const std::string       &hostId,
+                                    std::vector<XrdNetAddr> &addresses );
 
       //------------------------------------------------------------------------
       //! Convert timestamp to a string
@@ -86,7 +119,7 @@ namespace XrdCl
       static std::string TimeToString( time_t timestamp );
 
       //------------------------------------------------------------------------
-      //! Get the elapsed mictoseconds between two timevals
+      //! Get the elapsed microseconds between two timevals
       //------------------------------------------------------------------------
       static uint64_t GetElapsedMicroSecs( timeval start, timeval end );
 
@@ -113,7 +146,49 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Check if peer supports tpc
       //------------------------------------------------------------------------
-      static XRootDStatus CheckTPC( const std::string &server );
+      static XRootDStatus CheckTPC( const std::string &server,
+                                    uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Convert the fully qualified host name to country code
+      //------------------------------------------------------------------------
+      static std::string FQDNToCC( const std::string &fqdn );
+
+      //------------------------------------------------------------------------
+      //! Get directory entries
+      //------------------------------------------------------------------------
+      static Status GetDirectoryEntries( std::vector<std::string> &entries,
+                                         const std::string        &path );
+
+      //------------------------------------------------------------------------
+      //! Process a config file and return key-value pairs
+      //------------------------------------------------------------------------
+      static Status ProcessConfig( std::map<std::string, std::string> &config,
+                                   const std::string                  &file );
+
+      //------------------------------------------------------------------------
+      //! Trim a string
+      //------------------------------------------------------------------------
+      static void Trim( std::string &str );
+
+      //------------------------------------------------------------------------
+      //! Log property list
+      //------------------------------------------------------------------------
+      static void LogPropertyList( Log                *log,
+                                   uint64_t            topic,
+                                   const char         *format,
+                                   const PropertyList &list );
+
+      //------------------------------------------------------------------------
+      //! Print a char array as hex
+      //------------------------------------------------------------------------
+      static std::string Char2Hex( uint8_t *array, uint16_t size );
+
+      //------------------------------------------------------------------------
+      //! Normalize checksum
+      //------------------------------------------------------------------------
+      static std::string NormalizeChecksum( const std::string &name,
+                                            const std::string &checksum );
   };
 
   //----------------------------------------------------------------------------

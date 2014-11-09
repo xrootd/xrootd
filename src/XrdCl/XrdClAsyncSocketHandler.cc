@@ -21,7 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
-#include "XrdSys/XrdSysDNS.hh"
+#include <netinet/tcp.h>
 
 namespace XrdCl
 {
@@ -43,7 +43,12 @@ namespace XrdCl
     pHandShakeData( 0 ),
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
-    pConnectionTimeout( 0 )
+    pConnectionTimeout( 0 ),
+    pHeaderDone( false ),
+    pOutMsgDone( false ),
+    pOutHandler( 0 ),
+    pIncMsgSize( 0 ),
+    pOutMsgSize( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -51,8 +56,9 @@ namespace XrdCl
     env->GetInt( "TimeoutResolution", timeoutResolution );
     pTimeoutResolution = timeoutResolution;
 
-    memset( &pSockAddr, 0, sizeof( pSockAddr ) );
     pSocket = new Socket();
+    pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
+    pLastActivity = time(0);
   }
 
   //----------------------------------------------------------------------------
@@ -65,18 +71,18 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Connect to gien address
+  // Connect to given address
   //----------------------------------------------------------------------------
   Status AsyncSocketHandler::Connect( time_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
-    pConnectionStarted = ::time(0);
+    pLastActivity = pConnectionStarted = ::time(0);
     pConnectionTimeout = timeout;
 
     //--------------------------------------------------------------------------
     // Initialize the socket
     //--------------------------------------------------------------------------
-    Status st = pSocket->Initialize();
+    Status st = pSocket->Initialize( pSockAddr.Family() );
     if( !st.IsOK() )
     {
       log->Error( AsyncSockMsg, "[%s] Unable to initialize socket: %s",
@@ -85,13 +91,55 @@ namespace XrdCl
       return st;
     }
 
+    //--------------------------------------------------------------------------
+    // Set the keep-alive up
+    //--------------------------------------------------------------------------
+    Env *env = DefaultEnv::GetEnv();
+
+    int keepAlive = DefaultTCPKeepAlive;
+    env->GetInt( "TCPKeepAlive", keepAlive );
+    if( keepAlive )
+    {
+      int    param = 1;
+      Status st    = pSocket->SetSockOpt( SOL_SOCKET, SO_KEEPALIVE, &param,
+                                          sizeof(param) );
+      if( !st.IsOK() )
+        log->Error( AsyncSockMsg, "[%s] Unable to turn on keepalive: %s",
+                    st.ToString().c_str() );
+
+#if defined(__linux__) && defined( TCP_KEEPIDLE ) && \
+    defined( TCP_KEEPINTVL ) && defined( TCP_KEEPCNT )
+
+      param = DefaultTCPKeepAliveTime;
+      env->GetInt( "TCPKeepAliveTime", param );
+      st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPIDLE, &param, sizeof(param));
+      if( !st.IsOK() )
+        log->Error( AsyncSockMsg, "[%s] Unable to set keepalive time: %s",
+                    st.ToString().c_str() );
+
+      param = DefaultTCPKeepAliveInterval;
+      env->GetInt( "TCPKeepAliveInterval", param );
+      st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPINTVL, &param, sizeof(param));
+      if( !st.IsOK() )
+        log->Error( AsyncSockMsg, "[%s] Unable to set keepalive interval: %s",
+                    st.ToString().c_str() );
+
+      param = DefaultTCPKeepAliveProbes;
+      env->GetInt( "TCPKeepAliveProbes", param );
+      st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPCNT, &param, sizeof(param));
+      if( !st.IsOK() )
+        log->Error( AsyncSockMsg, "[%s] Unable to set keepalive probes: %s",
+                    st.ToString().c_str() );
+#endif
+    }
+
     pHandShakeDone = false;
 
     //--------------------------------------------------------------------------
     // Initiate async connection to the address
     //--------------------------------------------------------------------------
     char nameBuff[256];
-    XrdSysDNS::IPFormat( (sockaddr*)&pSockAddr, nameBuff, sizeof(nameBuff) );
+    pSockAddr.Format( nameBuff, sizeof(nameBuff), XrdNetAddrInfo::fmtAdv6 );
     log->Debug( AsyncSockMsg, "[%s] Attempting connection to %s",
                 pStreamName.c_str(), nameBuff );
 
@@ -102,6 +150,8 @@ namespace XrdCl
                   pStreamName.c_str(), st.ToString().c_str() );
       return st;
     }
+
+    pSocket->SetStatus( Socket::Connecting );
 
     //--------------------------------------------------------------------------
     // We should get the ready to write event once we're really connected
@@ -114,7 +164,7 @@ namespace XrdCl
       return st;
     }
 
-    if( !pPoller->EnableWriteNotification( pSocket, pTimeoutResolution ) )
+    if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
     {
       Status st( stFatal, errPollerError );
       pPoller->RemoveSocket( pSocket );
@@ -138,6 +188,11 @@ namespace XrdCl
 
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
+
+    if( !pIncHandler.second )
+      delete pIncoming;
+
+    pIncoming = 0;
     return Status();
   }
 
@@ -159,50 +214,52 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::Event( uint8_t type, XrdCl::Socket */*socket*/ )
   {
-    switch( type )
+    //--------------------------------------------------------------------------
+    // Read event
+    //--------------------------------------------------------------------------
+    if( type & ReadyToRead )
     {
-      //------------------------------------------------------------------------
-      // Read event
-      //------------------------------------------------------------------------
-      case ReadyToRead:
-        if( likely( pHandShakeDone ) )
-          OnRead();
-        else
-          OnReadWhileHandshaking();
-        break;
+      pLastActivity = time(0);
+      if( likely( pHandShakeDone ) )
+        OnRead();
+      else
+        OnReadWhileHandshaking();
+    }
 
-      //------------------------------------------------------------------------
-      // Read timeout
-      //------------------------------------------------------------------------
-      case ReadTimeOut:
-        if( likely( pHandShakeDone ) )
-          OnReadTimeout();
-        else
-          OnTimeoutWhileHandshaking();
-        break;
+    //--------------------------------------------------------------------------
+    // Read timeout
+    //--------------------------------------------------------------------------
+    else if( type & ReadTimeOut )
+    {
+      if( likely( pHandShakeDone ) )
+        OnReadTimeout();
+      else
+        OnTimeoutWhileHandshaking();
+    }
 
-      //------------------------------------------------------------------------
-      // Write event
-      //------------------------------------------------------------------------
-      case ReadyToWrite:
-        if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
-          OnConnectionReturn();
-        else if( likely( pHandShakeDone ) )
-          OnWrite();
-        else
-          OnWriteWhileHandshaking();
+    //--------------------------------------------------------------------------
+    // Write event
+    //--------------------------------------------------------------------------
+    if( type & ReadyToWrite )
+    {
+      pLastActivity = time(0);
+      if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
+        OnConnectionReturn();
+      else if( likely( pHandShakeDone ) )
+        OnWrite();
+      else
+        OnWriteWhileHandshaking();
+    }
 
-        break;
-
-      //------------------------------------------------------------------------
-      // Write timeout
-      //------------------------------------------------------------------------
-      case WriteTimeOut:
-        if( likely( pHandShakeDone ) )
-          OnWriteTimeout();
-        else
-          OnTimeoutWhileHandshaking();
-        break;
+    //--------------------------------------------------------------------------
+    // Write timeout
+    //--------------------------------------------------------------------------
+    else if( type & WriteTimeOut )
+    {
+      if( likely( pHandShakeDone ) )
+        OnWriteTimeout();
+      else
+        OnTimeoutWhileHandshaking();
     }
   }
 
@@ -256,7 +313,7 @@ namespace XrdCl
     pHandShakeData = new HandShakeData( pStream->GetURL(),
                                         pStream->GetStreamNumber(),
                                         pSubStreamNum );
-    pHandShakeData->serverAddr = pSocket->GetServerAddress();
+    pHandShakeData->serverAddr = &pSocket->GetServerAddress();
     pHandShakeData->clientName = pSocket->GetSockName();
     pHandShakeData->streamName = pStreamName;
 
@@ -301,28 +358,69 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pOutgoing )
     {
-      pOutgoing = pStream->OnReadyToWrite( pSubStreamNum );
+      pOutMsgDone = false;
+      std::pair<Message *, OutgoingMsgHandler *> toBeSent;
+      toBeSent = pStream->OnReadyToWrite( pSubStreamNum );
+      pOutgoing = toBeSent.first; pOutHandler = toBeSent.second;
+
       if( !pOutgoing )
         return;
 
       pOutgoing->SetCursor( 0 );
+      pOutMsgSize = pOutgoing->GetSize();
     }
 
     //--------------------------------------------------------------------------
-    // Write the message and notify the handler if done
+    // Write the message if not already written
     //--------------------------------------------------------------------------
     Status st;
-    if( !(st = WriteCurrentMessage()).IsOK() )
+    if( !pOutMsgDone )
     {
-      OnFault( st );
-      return;
+      if( !(st = WriteCurrentMessage()).IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
+
+      if( st.code == suRetry )
+        return;
+
+      Log *log = DefaultEnv::GetLog();
+
+      if( pOutHandler && pOutHandler->IsRaw() )
+      {
+        log->Dump( AsyncSockMsg, "[%s] Will call raw handler to write payload "
+                   "for message: %s (0x%x).", pStreamName.c_str(),
+                   pOutgoing->GetDescription().c_str(), pOutgoing );
+      }
+
+      pOutMsgDone = true;
     }
 
-    // if we're not done we need to get back here
-    if( st.code == suContinue )
-      return;
+    //--------------------------------------------------------------------------
+    // Check if the handler needs to be called
+    //--------------------------------------------------------------------------
+    if( pOutHandler && pOutHandler->IsRaw() )
+    {
+      uint32_t bytesWritten = 0;
+      st = pOutHandler->WriteMessageBody( pSocket->GetFD(), bytesWritten );
+      pOutMsgSize += bytesWritten;
+      if( !st.IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
 
-    pStream->OnMessageSent( pSubStreamNum, pOutgoing );
+      if( st.code == suRetry )
+        return;
+    }
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( AsyncSockMsg, "[%s] Successfully sent message: %s (0x%x).",
+               pStreamName.c_str(), pOutgoing->GetDescription().c_str(),
+               pOutgoing );
+
+    pStream->OnMessageSent( pSubStreamNum, pOutgoing, pOutMsgSize );
     pOutgoing = 0;
   }
 
@@ -345,7 +443,7 @@ namespace XrdCl
       return;
     }
 
-    if( st.code != suContinue )
+    if( st.code != suRetry )
     {
       delete pOutgoing;
       pOutgoing = 0;
@@ -378,7 +476,7 @@ namespace XrdCl
         // return
         //----------------------------------------------------------------------
         if( errno == EAGAIN || errno == EWOULDBLOCK )
-          return Status( stOK, suContinue );
+          return Status( stOK, suRetry );
 
         //----------------------------------------------------------------------
         // Actual socket error error!
@@ -393,8 +491,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We have written the message successfully
     //--------------------------------------------------------------------------
-    log->Dump( AsyncSockMsg, "[%s] Wrote a message of %d bytes",
-               pStreamName.c_str(), pOutgoing->GetSize() );
+    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
+               pStreamName.c_str(), pOutgoing->GetDescription().c_str(),
+               pOutgoing, pOutgoing->GetSize() );
     return Status();
   }
 
@@ -403,17 +502,93 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::OnRead()
   {
-    Status st = ReadMessage();
-    if( !st.IsOK() )
+    //--------------------------------------------------------------------------
+    // There is no incoming message currently being processed so we create
+    // a new one
+    //--------------------------------------------------------------------------
+    if( !pIncoming )
     {
-      OnFault( st );
-      return;
+      pHeaderDone  = false;
+      pIncoming    = new Message();
+      pIncHandler  = std::make_pair( (IncomingMsgHandler*)0, false );
+      pIncMsgSize  = 0;
     }
 
-    if( st.code != suDone )
-      return;
+    Status  st;
+    Log    *log = DefaultEnv::GetLog();
 
-    pStream->OnIncoming( pSubStreamNum, pIncoming );
+    //--------------------------------------------------------------------------
+    // We need to read the header first
+    //--------------------------------------------------------------------------
+    if( !pHeaderDone )
+    {
+      st = pTransport->GetHeader( pIncoming, pSocket->GetFD() );
+      if( !st.IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
+
+      if( st.code == suRetry )
+        return;
+
+      log->Dump( AsyncSockMsg, "[%s] Received message header for 0x%x size: %d",
+                pStreamName.c_str(), pIncoming, pIncoming->GetCursor() );
+      pIncMsgSize = pIncoming->GetCursor();
+      pHeaderDone = true;
+      std::pair<IncomingMsgHandler *, bool> raw;
+      pIncHandler = pStream->InstallIncHandler( pIncoming, pSubStreamNum );
+
+      if( pIncHandler.first )
+      {
+        log->Dump( AsyncSockMsg, "[%s] Will use the raw handler to read body "
+                   "of message 0x%x", pStreamName.c_str(), pIncoming );
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // We need to call a raw message handler to get the data from the socket
+    //--------------------------------------------------------------------------
+    if( pIncHandler.first )
+    {
+      uint32_t bytesRead = 0;
+      st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket->GetFD(),
+                                               bytesRead );
+      if( !st.IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
+      pIncMsgSize += bytesRead;
+
+      if( st.code == suRetry )
+        return;
+    }
+    //--------------------------------------------------------------------------
+    // No raw handler, so we read the message to the buffer
+    //--------------------------------------------------------------------------
+    else
+    {
+      st = pTransport->GetBody( pIncoming, pSocket->GetFD() );
+      if( !st.IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
+
+      if( st.code == suRetry )
+        return;
+
+      pIncMsgSize = pIncoming->GetSize();
+    }
+
+    //--------------------------------------------------------------------------
+    // Report the incoming message
+    //--------------------------------------------------------------------------
+    log->Dump( AsyncSockMsg, "[%s] Received message 0x%x of %d bytes",
+               pStreamName.c_str(), pIncoming, pIncMsgSize );
+
+    pStream->OnIncoming( pSubStreamNum, pIncoming, pIncMsgSize );
     pIncoming = 0;
   }
 
@@ -495,16 +670,33 @@ namespace XrdCl
   Status AsyncSocketHandler::ReadMessage()
   {
     if( !pIncoming )
-      pIncoming = new Message();
+    {
+      pHeaderDone = false;
+      pIncoming   = new Message();
+    }
 
-    Status st = pTransport->GetMessage( pIncoming, pSocket );
+    Status  st;
+    Log    *log = DefaultEnv::GetLog();
+    if( !pHeaderDone )
+    {
+      st = pTransport->GetHeader( pIncoming, pSocket->GetFD() );
+      if( st.IsOK() && st.code == suDone )
+      {
+        log->Dump( AsyncSockMsg,
+                  "[%s] Received message header, size: %d",
+                  pStreamName.c_str(), pIncoming->GetCursor() );
+        pHeaderDone = true;
+      }
+      else
+        return st;
+    }
+
+    st = pTransport->GetBody( pIncoming, pSocket->GetFD() );
     if( st.IsOK() && st.code == suDone )
     {
-      Log *log = DefaultEnv::GetLog();
       log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
                  pStreamName.c_str(), pIncoming->GetSize() );
     }
-
     return st;
   }
 
@@ -516,9 +708,13 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Error( AsyncSockMsg, "[%s] Socket error encountered: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
-    delete pIncoming;
-    pIncoming = 0;
-    pOutgoing = 0;
+
+    if( !pIncHandler.second )
+      delete pIncoming;
+
+    pIncoming   = 0;
+    pOutgoing   = 0;
+    pOutHandler = 0;
 
     pStream->OnError( pSubStreamNum, st );
   }

@@ -30,14 +30,18 @@ XrdCl::Log *TestEnv::sLog       = 0;
 TestEnv::TestEnv()
 {
   PutString( "MainServerURL",    "localhost:1094" );
+  PutString( "Manager1URL",      "localhost:1094" );
+  PutString( "Manager2URL",      "localhost:1094" );
   PutString( "DiskServerURL",    "localhost:1094" );
   PutString( "DataPath",         "/data"         );
   PutString( "RemoteFile",       "/data/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat" );
   PutString( "LocalFile",        "/data/testFile.dat" );
-  PutString( "MultiIPServeURL",  "multiip:1099" );
+  PutString( "MultiIPServerURL", "multiip:1099" );
 
   ImportString( "MainServerURL",    "XRDTEST_MAINSERVERURL" );
   ImportString( "DiskServerURL",    "XRDTEST_DISKSERVERURL" );
+  ImportString( "Manager1URL",      "XRDTEST_MANAGER1URL" );
+  ImportString( "Manager2URL",      "XRDTEST_MANAGER2URL" );
   ImportString( "DataPath",         "XRDTEST_DATAPATH" );
   ImportString( "LocalFile",        "XRDTEST_LOCALFILE" );
   ImportString( "RemoteFile",       "XRDTEST_REMOTEFILE" );

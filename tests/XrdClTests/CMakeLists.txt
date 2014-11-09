@@ -2,6 +2,8 @@
 include( XRootDCommon )
 include_directories( ${CPPUNIT_INCLUDE_DIRS} )
 
+set( LIB_XRD_CL_TEST_MONITOR XrdClTestMonitor-${PLUGIN_VERSION} )
+
 add_library(
   XrdClTestsHelper SHARED
   Server.cc              Server.hh
@@ -28,6 +30,7 @@ add_library(
   FileTest.cc
   FileCopyTest.cc
   ThreadingTest.cc
+  IdentityPlugIn.cc
 )
 
 target_link_libraries(
@@ -39,12 +42,12 @@ target_link_libraries(
   XrdCl )
 
 add_library(
-  XrdClTestMonitor MODULE
+  ${LIB_XRD_CL_TEST_MONITOR} MODULE
   MonitorTestLib.cc
 )
 
 target_link_libraries(
-  XrdClTestMonitor
+  ${LIB_XRD_CL_TEST_MONITOR}
   XrdClTestsHelper
   XrdCl )
 
@@ -100,6 +103,6 @@ ADD_TEST( MultiStrThreadingReadMonitorTest ${CMAKE_CURRENT_BINARY_DIR}/text-runn
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdClTests XrdClTestsHelper XrdClTestMonitor text-runner
+  TARGETS XrdClTests XrdClTestsHelper ${LIB_XRD_CL_TEST_MONITOR} text-runner
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

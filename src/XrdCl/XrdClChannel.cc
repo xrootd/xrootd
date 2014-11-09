@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 
 #include <ctime>
 
@@ -37,7 +38,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       FilterHandler( XrdCl::MessageFilter *filter ):
-        pSem( new XrdSysSemaphore(0) ), pFilter( filter ), pMsg( 0 )
+        pSem( new XrdCl::Semaphore(0) ), pFilter( filter ), pMsg( 0 )
       {
       }
 
@@ -52,15 +53,17 @@ namespace
       //------------------------------------------------------------------------
       // Message handler
       //------------------------------------------------------------------------
-      virtual uint8_t OnIncoming( XrdCl::Message *msg )
+      virtual uint16_t Examine( XrdCl::Message *msg )
       {
         if( pFilter->Filter( msg ) )
-        {
-          pMsg = msg;
-          pSem->Post();
           return Take | RemoveHandler;
-        }
         return Ignore;
+      }
+
+      virtual void Process( XrdCl::Message *msg )
+      {
+        pMsg = msg;
+        pSem->Post();
       }
 
       //------------------------------------------------------------------------
@@ -87,7 +90,7 @@ namespace
       }
 
       //------------------------------------------------------------------------
-      // Wait for the arraival of the message
+      // Wait for the arrival of the message
       //------------------------------------------------------------------------
       XrdCl::Message *GetMessage()
       {
@@ -95,7 +98,7 @@ namespace
       }
 
     private:
-      XrdSysSemaphore      *pSem;
+      XrdCl::Semaphore     *pSem;
       XrdCl::MessageFilter *pFilter;
       XrdCl::Message       *pMsg;
       XrdCl::Status         pStatus;
@@ -111,7 +114,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       StatusHandler( XrdCl::Message *msg ):
-        pSem( new XrdSysSemaphore(0) ),
+        pSem( new XrdCl::Semaphore(0) ),
         pMsg( msg ) {}
 
       //------------------------------------------------------------------------
@@ -143,9 +146,9 @@ namespace
       }
       
     private:
-      XrdSysSemaphore *pSem;
-      XrdCl::Status    pStatus;
-      XrdCl::Message  *pMsg;
+      XrdCl::Semaphore *pSem;
+      XrdCl::Status     pStatus;
+      XrdCl::Message   *pMsg;
   };
 
   class TickGeneratorTask: public XrdCl::Task
@@ -189,12 +192,14 @@ namespace XrdCl
   Channel::Channel( const URL        &url,
                     Poller           *poller,
                     TransportHandler *transport,
-                    TaskManager      *taskManager ):
+                    TaskManager      *taskManager,
+                    JobManager       *jobManager ):
     pUrl( url.GetHostId() ),
     pPoller( poller ),
     pTransport( transport ),
     pTaskManager( taskManager ),
-    pTickGenerator( 0 )
+    pTickGenerator( 0 ),
+    pJobManager( jobManager )
   {
     Env *env = DefaultEnv::GetEnv();
     Log *log = DefaultEnv::GetLog();
@@ -207,6 +212,8 @@ namespace XrdCl
     log->Debug( PostMasterMsg, "Creating new channel to: %s %d stream(s)",
                                 url.GetHostId().c_str(), numStreams );
 
+    pUrl.SetParams( url.GetParams() );
+
     //--------------------------------------------------------------------------
     // Create the streams
     //--------------------------------------------------------------------------
@@ -218,12 +225,13 @@ namespace XrdCl
       pStreams[i]->SetPoller( poller );
       pStreams[i]->SetIncomingQueue( &pIncoming );
       pStreams[i]->SetTaskManager( taskManager );
+      pStreams[i]->SetJobManager( jobManager );
       pStreams[i]->SetChannelData( &pChannelData );
       pStreams[i]->Initialize();
     }
 
     //--------------------------------------------------------------------------
-    // Register the task generating timout events
+    // Register the task generating timeout events
     //--------------------------------------------------------------------------
     pTickGenerator = new TickGeneratorTask( this, pUrl.GetHostId() );
     pTaskManager->RegisterTask( pTickGenerator, ::time(0)+timeoutResolution );
@@ -267,7 +275,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Synchronously receive a message - blocks until a message maching
+  // Synchronously receive a message - blocks until a message matching
   //----------------------------------------------------------------------------
   Status Channel::Receive( Message       *&msg,
                            MessageFilter  *filter,
@@ -285,7 +293,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Listen to incomming messages
+  // Listen to incoming messages
   //----------------------------------------------------------------------------
   Status Channel::Receive( IncomingMsgHandler *handler, time_t expires )
   {

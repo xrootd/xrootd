@@ -35,6 +35,7 @@
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
+#include "XrdXrootd/XrdXrootdTransit.hh"
   
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -49,34 +50,6 @@ const char *XrdXrootdResponse::TraceID = "Response";
 /******************************************************************************/
 
 #define TRACELINK Link
-  
-/******************************************************************************/
-/*                                  P u s h                                   */
-/******************************************************************************/
-
-int XrdXrootdResponse::Push(void *data, int dlen)
-{
-    kXR_int32 DLen = static_cast<kXR_int32>(htonl(dlen));
-    RespIO[1].iov_base = (caddr_t)&DLen;
-    RespIO[1].iov_len  = sizeof(dlen);
-    RespIO[2].iov_base = (caddr_t)data;
-    RespIO[2].iov_len  = dlen;
-
-    TRACES(RSP, "pushing " <<dlen <<" data bytes");
-
-    if (Link->Send(&RespIO[1], 2, sizeof(kXR_int32) + dlen) < 0)
-       return Link->setEtext("send failure");
-    return 0;
-}
-
-int XrdXrootdResponse::Push()
-{
-    static int null = 0;
-    TRACES(RSP, "pushing " <<sizeof(kXR_int32) <<" data bytes");
-    if (Link->Send((char *)&null, sizeof(kXR_int32)) < 0)
-       return Link->setEtext("send failure");
-    return 0;
-}
 
 /******************************************************************************/
 /*                                  S e n d                                   */
@@ -84,10 +57,17 @@ int XrdXrootdResponse::Push()
 
 int XrdXrootdResponse::Send()
 {
+    static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
 
-    Resp.status = static_cast<kXR_unt16>(htons(kXR_ok));
-    Resp.dlen   = 0;
     TRACES(RSP, "sending OK");
+
+    if (Bridge)
+       {if (Bridge->Send(kXR_ok, 0, 0, 0) >= 0) return 0;
+        return Link->setEtext("send failure");
+       }
+
+    Resp.status = isOK;
+    Resp.dlen   = 0;
 
     if (Link->Send((char *)&Resp, sizeof(Resp)) < 0)
        return Link->setEtext("send failure");
@@ -98,12 +78,20 @@ int XrdXrootdResponse::Send()
 
 int XrdXrootdResponse::Send(const char *msg)
 {
+    static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
 
-    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
+    TRACES(RSP, "sending OK: " <<msg);
+
     RespIO[1].iov_base = (caddr_t)msg;
     RespIO[1].iov_len  = strlen(msg)+1;
+
+    if (Bridge)
+       {if (Bridge->Send(kXR_ok,&RespIO[1],1,RespIO[1].iov_len) >= 0) return 0;
+        return Link->setEtext("send failure");
+       }
+
+    Resp.status        = isOK;
     Resp.dlen          = static_cast<kXR_int32>(htonl(RespIO[1].iov_len));
-    TRACES(RSP, "sending OK: " <<msg);
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + RespIO[1].iov_len) < 0)
        return Link->setEtext("send failure");
@@ -115,11 +103,18 @@ int XrdXrootdResponse::Send(const char *msg)
 int XrdXrootdResponse::Send(XResponseType rcode, void *data, int dlen)
 {
 
-    Resp.status        = static_cast<kXR_unt16>(htons(rcode));
+    TRACES(RSP, "sending " <<dlen <<" data bytes; status=" <<rcode);
+
     RespIO[1].iov_base = (caddr_t)data;
     RespIO[1].iov_len  = dlen;
+
+    if (Bridge)
+       {if (Bridge->Send(rcode, &RespIO[1], 1, dlen) >= 0) return 0;
+        return Link->setEtext("send failure");
+       }
+
+    Resp.status        = static_cast<kXR_unt16>(htons(rcode));
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
-    TRACES(RSP, "sending " <<dlen <<" data bytes; status=" <<rcode);
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
@@ -128,19 +123,26 @@ int XrdXrootdResponse::Send(XResponseType rcode, void *data, int dlen)
 
 /******************************************************************************/
 
-int XrdXrootdResponse::Send(XResponseType rcode, int info, const char *data)
+int XrdXrootdResponse::Send(XResponseType rcode, int info,
+                            const char   *data,  int dsz)
 {
     kXR_int32 xbuf = static_cast<kXR_int32>(htonl(info));
     int dlen;
 
-    Resp.status        = static_cast<kXR_unt16>(htons(rcode));
     RespIO[1].iov_base = (caddr_t)(&xbuf);
     RespIO[1].iov_len  = sizeof(xbuf);
     RespIO[2].iov_base = (caddr_t)data;
-    RespIO[2].iov_len  = dlen = strlen(data);
-    Resp.dlen          = static_cast<kXR_int32>(htonl((dlen+sizeof(xbuf))));
+    RespIO[2].iov_len  = dlen = (dsz < 0 ? strlen(data) : dsz);
 
-    TRACES(RSP, "sending " <<dlen <<" data bytes; status=" <<rcode);
+    TRACES(RSP,"sending " <<(sizeof(xbuf)+dlen) <<" data bytes; status=" <<rcode);
+
+    if (Bridge)
+       {if (Bridge->Send(rcode, &RespIO[1], 2, dlen) >= 0) return 0;
+        return Link->setEtext("send failure");
+       }
+
+    Resp.status        = static_cast<kXR_unt16>(htons(rcode));
+    Resp.dlen          = static_cast<kXR_int32>(htonl((dlen+sizeof(xbuf))));
 
     if (Link->Send(RespIO, 3, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
@@ -151,12 +153,20 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, const char *data)
 
 int XrdXrootdResponse::Send(void *data, int dlen)
 {
+    static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
 
-    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
+    TRACES(RSP, "sending " <<dlen <<" data bytes");
+
     RespIO[1].iov_base = (caddr_t)data;
     RespIO[1].iov_len  = dlen;
+
+    if (Bridge)
+       {if (Bridge->Send(kXR_ok, &RespIO[1], 1, dlen) >= 0) return 0;
+        return Link->setEtext("send failure");
+       }
+
+    Resp.status        = isOK;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
-    TRACES(RSP, "sending " <<dlen <<" data bytes; status=0");
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
@@ -167,16 +177,23 @@ int XrdXrootdResponse::Send(void *data, int dlen)
 
 int XrdXrootdResponse::Send(struct iovec *IOResp, int iornum, int iolen)
 {
+    static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
     int i, dlen = 0;
 
     if (iolen < 0) for (i = 1; i < iornum; i++) dlen += IOResp[i].iov_len;
        else dlen = iolen;
+    TRACES(RSP, "sending " <<dlen <<" data bytes; status=0");
 
-    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
+
+    if (Bridge)
+       {if (Bridge->Send(kXR_ok, &IOResp[1], iornum-1, dlen) >= 0) return 0;
+        return Link->setEtext("send failure");
+       }
+
     IOResp[0].iov_base = RespIO[0].iov_base;
     IOResp[0].iov_len  = RespIO[0].iov_len;
+    Resp.status        = isOK;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
-    TRACES(RSP, "sending " <<dlen <<" data bytes; status=0");
 
     if (Link->Send(IOResp, iornum, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
@@ -190,14 +207,21 @@ int XrdXrootdResponse::Send(XErrorCode ecode, const char *msg)
     int dlen;
     kXR_int32 erc = static_cast<kXR_int32>(htonl(ecode));
 
-    Resp.status        = static_cast<kXR_unt16>(htons(kXR_error));
+    TRACES(EMSG, "sending err " <<ecode <<": " <<msg);
+
     RespIO[1].iov_base = (char *)&erc;
     RespIO[1].iov_len  = sizeof(erc);
     RespIO[2].iov_base = (caddr_t)msg;
     RespIO[2].iov_len  = strlen(msg)+1;
                 dlen   = sizeof(erc) + RespIO[2].iov_len;
+
+    if (Bridge)
+       {if (Bridge->Send(kXR_error, &RespIO[1], 2, dlen) >= 0) return 0;
+        return Link->setEtext("send failure");
+       }
+
+    Resp.status        = static_cast<kXR_unt16>(htons(kXR_error));
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
-    TRACES(EMSG, "sending err " <<ecode <<": " <<msg);
 
     if (Link->Send(RespIO, 3, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
@@ -208,11 +232,19 @@ int XrdXrootdResponse::Send(XErrorCode ecode, const char *msg)
 
 int XrdXrootdResponse::Send(int fdnum, long long offset, int dlen)
 {
-   struct XrdLink::sfVec myVec[2];
+   static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
+   XrdLink::sfVec myVec[2];
+
+   TRACES(RSP, "sendfile " <<dlen <<" data bytes");
+
+   if (Bridge)
+      {if (Bridge->Send(offset, dlen, fdnum) >= 0) return 0;
+       return Link->setEtext("send failure");
+      }
 
 // We are only called should sendfile be enabled for this response
 //
-   Resp.status = static_cast<kXR_unt16>(htons(kXR_ok));
+   Resp.status = isOK;
    Resp.dlen   = static_cast<kXR_int32>(htonl(dlen));
 
 // Fill out the sendfile vector
@@ -226,8 +258,35 @@ int XrdXrootdResponse::Send(int fdnum, long long offset, int dlen)
 
 // Send off the request
 //
-    TRACES(RSP, "sendfile " <<dlen <<" data bytes; status=0");
     if (Link->Send(myVec, 2) < 0)
+       return Link->setEtext("sendfile failure");
+    return 0;
+}
+ 
+/******************************************************************************/
+
+int XrdXrootdResponse::Send(XrdOucSFVec *sfvec, int sfvnum, int dlen)
+{
+   static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
+
+   TRACES(RSP, "sendfile " <<dlen <<" data bytes");
+
+   if (Bridge)
+      {if (Bridge->Send(sfvec, sfvnum, dlen) >= 0) return 0;
+       return Link->setEtext("send failure");
+      }
+
+// We are only called should sendfile be enabled for this response
+//
+   Resp.status = isOK;
+   Resp.dlen   = static_cast<kXR_int32>(htonl(dlen));
+   sfvec[0].buffer = (char *)&Resp;
+   sfvec[0].sendsz = sizeof(Resp);
+   sfvec[0].fdnum  = -1;
+
+// Send off the request
+//
+    if (Link->Send(sfvec, sfvnum) < 0)
        return Link->setEtext("sendfile failure");
     return 0;
 }
@@ -256,7 +315,7 @@ int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID,
 
    XrdLink           *Link;
    unsigned char      theSID[2];
-   int                theFD, rc;
+   int                theFD, rc, ioxlen = iolen;
    unsigned int       theInst;
 
 // Fill out the header with constant information
@@ -292,9 +351,13 @@ int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID,
    if ((Link = XrdLink::fd2link(theFD, theInst)))
       {Link->setRef(1);
        if (Link->isInstance(theInst))
-          {asynResp.theHdr.streamid[0] = theSID[0];
-           asynResp.theHdr.streamid[1] = theSID[1];
-           rc = Link->Send(IOResp, iornum, iolen);
+          {if (Link->hasBridge())
+              rc = XrdXrootdTransit::Attn(Link, (short *)theSID, int(Status),
+                                          &IOResp[1], iornum-1, ioxlen);
+             else {asynResp.theHdr.streamid[0] = theSID[0];
+                   asynResp.theHdr.streamid[1] = theSID[1];
+                   rc = Link->Send(IOResp, iornum, iolen);
+                  }
           } else rc = -1;
        Link->setRef(-1);
        return (rc < 0 ? -1 : 0);

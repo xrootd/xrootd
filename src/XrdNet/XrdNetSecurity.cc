@@ -48,7 +48,7 @@ int innetgr(const char *netgroup, const char *host, const char *user,
 #include "XrdSys/XrdWin32.hh"
 #endif
 
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
@@ -85,17 +85,25 @@ const char *XrdNetSecurity::TraceID = "NetSecurity";
   
 void XrdNetSecurity::AddHost(char *hname)
 {
-   char *Hname = 0;
+   static const int fmtOpts = XrdNetAddr::old6Map4 | XrdNetAddr::noPort;
+   XrdNetAddr hAddr;
+   char ipbuff[64];
 
-// If host is an ip address then do short circuit add otherwise do a full add
+// If this has no asterisks, then we can add it as is. Otherwise, add it to
+// the name pattern list.
 //
-   if (isdigit(*hname) && (Hname = XrdSysDNS::getHostName(hname)))
-      OKHosts.Add(hname, Hname, 0, Hash_dofree);
+   if (!index(hname, '*') && !hAddr.Set(hname,0)
+   &&  hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAdv6, fmtOpts))
+      {OKHosts.Add(ipbuff, 0, 0, Hash_data_is_key);
+      }
       else {XrdOucNList *nlp = new XrdOucNList(hname);
             HostList.Insert(nlp);
+            chkNetLst = true;
            }
-   if (Hname) {DEBUG(hname <<" (" <<Hname <<") added to authorized hosts.");}
-      else    {DEBUG(hname <<" added to authorized hosts.");}
+
+// Echo this back if debugging
+//
+   DEBUG(hname <<" (" <<hname <<") added to authorized hosts.");
 }
 
 /******************************************************************************/
@@ -110,6 +118,7 @@ void XrdNetSecurity::AddNetGroup(char *gname)
 //
    tlp->next = NetGroups;
    NetGroups = tlp;
+   chkNetGrp = true;
 
 // All done
 //
@@ -120,45 +129,60 @@ void XrdNetSecurity::AddNetGroup(char *gname)
 /*                             A u t h o r i z e                              */
 /******************************************************************************/
 
-char *XrdNetSecurity::Authorize(struct sockaddr *addr)
+bool XrdNetSecurity::Authorize(const char *hSpec)
 {
-   struct sockaddr_in *ip = (struct sockaddr_in *)addr;
-   char ipbuff[64], *hname;
-   const char *ipname;
+   XrdNetAddr theAddr;
+
+// Convert the specification to a host address and validate it
+//
+   if (theAddr.Set(hSpec, -1094)) return false;
+
+// Now authorize what we have
+//
+   return Authorize(theAddr);
+}
+
+/******************************************************************************/
+
+bool XrdNetSecurity::Authorize(XrdNetAddr &addr)
+{
+   static const int fmtOpts = XrdNetAddr::old6Map4 | XrdNetAddr::noPort;
+   const char *hName;
+   char ipAddr[64];
    XrdNetTextList *tlp;
 
-// Convert IP address to characters (eventually,
+// Convert IP address to characters
 //
-   if (!(ipname = (char *)inet_ntop(ip->sin_family, (void *)&(ip->sin_addr),
-       ipbuff, sizeof(ipbuff)))) return (char *)0;
+   if (!addr.Format(ipAddr, sizeof(ipAddr), XrdNetAddr::fmtAdv6, fmtOpts))
+      return false;
 
 // Check if we have seen this host before
 //
    okHMutex.Lock();
-   if ((hname = OKHosts.Find(ipname)))
-      {okHMutex.UnLock(); return strdup(hname);}
+   if (OKHosts.Find(ipAddr)) {okHMutex.UnLock(); return true;}
 
 // Get the hostname for this IP address
 //
-   if (!(hname = XrdSysDNS::getHostName(*addr))) hname = strdup(ipname);
+   if (!chkNetLst && !chkNetGrp) {okHMutex.UnLock(); return false;}
+   if (!(hName = addr.Name())) hName = ipAddr;
 
 // Check if this host is in the the appropriate netgroup, if any
 //
    if ((tlp = NetGroups))
-      do {if (innetgr(tlp->text, hname, 0, 0))
-          return hostOK(hname, ipname, "netgroup");
+      do {if (innetgr(tlp->text, hName, 0, 0))
+          return hostOK(hName, ipAddr, "netgroup");
          } while ((tlp = tlp->next));
 
 // Plow through the specific host list to see if the host
 //
-   if (HostList.Find(hname)) return hostOK(hname, ipname, "host");
+   if (chkNetLst && HostList.Find(hName))
+      return hostOK(hName, ipAddr, "host");
 
 // Host is not authorized
 //
    okHMutex.UnLock();
-   DEBUG(hname <<" not authorized");
-   free(hname);
-   return 0;
+   DEBUG(hName <<" not authorized");
+   return false;
 }
 
 /******************************************************************************/
@@ -198,14 +222,15 @@ void XrdNetSecurity::Merge(XrdNetSecurity *srcp)
 /*                                h o s t O K                                 */
 /******************************************************************************/
   
-char *XrdNetSecurity::hostOK(char *hname, const char *ipname, const char *why)
+bool XrdNetSecurity::hostOK(const char *hname, const char *ipname,
+                            const char *why)
 {
 
 // Add host to valid host table and return true. Note that the okHMutex must
 // be locked upon entry and it will be unlocked upon exit.
 //
-   OKHosts.Add(ipname, strdup(hname), lifetime, Hash_dofree);
+   OKHosts.Add(ipname, 0, 0, Hash_data_is_key);
    okHMutex.UnLock();
    DEBUG(hname <<" authorized via " <<why);
-   return hname;
+   return true;
 }

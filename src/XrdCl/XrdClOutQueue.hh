@@ -29,7 +29,7 @@ namespace XrdCl
   class OutgoingMsgHandler;
 
   //----------------------------------------------------------------------------
-  //! A synchronized queue for the outgoind data
+  //! A synchronized queue for the outgoing data
   //----------------------------------------------------------------------------
   class OutQueue
   {
@@ -43,7 +43,7 @@ namespace XrdCl
       //! @param expires  timeout
       //! @param stateful if true a disconnection will cause an error and
       //!                 removing from the queue, otherwise sending
-      //!                 wil be retattempted
+      //!                 wil be re-attempted
       //------------------------------------------------------------------------
       void PushBack( Message              *msg,
                      OutgoingMsgHandler   *handler,
@@ -59,7 +59,7 @@ namespace XrdCl
       //! @param expires  timeout
       //! @param stateful if true a disconnection will cause an error and
       //!                 removing from the queue, otherwise sending
-      //!                 wil be retattempted
+      //!                 wil be re-attempted
       //------------------------------------------------------------------------
       void PushFront( Message              *msg,
                       OutgoingMsgHandler   *handler,

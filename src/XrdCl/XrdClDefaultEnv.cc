@@ -21,14 +21,24 @@
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClForkHandler.hh"
+#include "XrdCl/XrdClFileTimer.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClTransportManager.hh"
-#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdCl/XrdClPlugInManager.hh"
+#include "XrdOuc/XrdOucPreload.hh"
 #include "XrdSys/XrdSysUtils.hh"
+#include "XrdSys/XrdSysPwd.hh"
+#include "XrdVersion.hh"
 
+#include <libgen.h>
+#include <cstring>
 #include <map>
+#include <vector>
+#include <algorithm>
+#include <cctype>
+#include <string>
 #include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -57,6 +67,8 @@ namespace
       masks["XRootDMsg"]          = XrdCl::XRootDMsg;
       masks["FileSystemMsg"]      = XrdCl::FileSystemMsg;
       masks["AsyncSockMsg"]       = XrdCl::AsyncSockMsg;
+      masks["JobMgrMsg"]          = XrdCl::JobMgrMsg;
+      masks["PlugInMgrMsg"]       = XrdCl::PlugInMgrMsg;
     }
 
     //--------------------------------------------------------------------------
@@ -76,7 +88,7 @@ namespace
       for( it = topics.begin(); it != topics.end(); ++it )
       {
         //----------------------------------------------------------------------
-        // Check for reseting pseudo topics
+        // Check for resetting pseudo topics
         //----------------------------------------------------------------------
         if( *it == "All" )
         {
@@ -116,7 +128,25 @@ namespace
 
     std::map<std::string, uint64_t> masks;
   };
+
+  //----------------------------------------------------------------------------
+  // Helper for handling environment variables
+  //----------------------------------------------------------------------------
+  template<typename Item>
+  struct EnvVarHolder
+  {
+    EnvVarHolder( const std::string &name_, const Item &def_ ):
+      name( name_ ), def( def_ ) {}
+    std::string name;
+    Item        def;
+  };
 }
+
+#define REGISTER_VAR_INT( array, name,  def ) \
+    array.push_back( EnvVarHolder<int>( name, def ) )
+
+#define REGISTER_VAR_STR( array, name,  def ) \
+    array.push_back( EnvVarHolder<std::string>( name, def ) )
 
 namespace XrdCl
 {
@@ -128,40 +158,143 @@ namespace XrdCl
   PostMaster        *DefaultEnv::sPostMaster         = 0;
   Log               *DefaultEnv::sLog                = 0;
   ForkHandler       *DefaultEnv::sForkHandler        = 0;
+  FileTimer         *DefaultEnv::sFileTimer          = 0;
   Monitor           *DefaultEnv::sMonitor            = 0;
-  XrdSysPlugin      *DefaultEnv::sMonitorLibHandle   = 0;
+  XrdOucPinLoader   *DefaultEnv::sMonitorLibHandle   = 0;
   bool               DefaultEnv::sMonitorInitialized = false;
   CheckSumManager   *DefaultEnv::sCheckSumManager    = 0;
   TransportManager  *DefaultEnv::sTransportManager   = 0;
+  PlugInManager     *DefaultEnv::sPlugInManager      = 0;
 
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
   DefaultEnv::DefaultEnv()
   {
-    PutInt( "ConnectionWindow",      DefaultConnectionWindow     );
-    PutInt( "ConnectionRetry",       DefaultConnectionRetry      );
-    PutInt( "RequestTimeout",        DefaultRequestTimeout       );
-    PutInt( "SubStreamsPerChannel",  DefaultSubStreamsPerChannel );
-    PutInt( "TimeoutResolution",     DefaultTimeoutResolution    );
-    PutInt( "StreamErrorWindow",     DefaultStreamErrorWindow    );
-    PutInt( "RunForkHandler",        DefaultRunForkHandler       );
-    PutInt( "RedirectLimit",         DefaultRedirectLimit       );
-    PutString( "PollerPreference",   DefaultPollerPreference     );
-    PutString( "ClientMonitor",      DefaultClientMonitor        );
-    PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
+    Log *log = GetLog();
 
-    ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
-    ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
-    ImportInt(    "RequestTimeout",       "XRD_REQUESTTIMEOUT"       );
-    ImportInt(    "SubStreamsPerChannel", "XRD_SUBSTREAMSPERCHANNEL" );
-    ImportInt(    "TimeoutResolution",    "XRD_TIMEOUTRESOLUTION"    );
-    ImportInt(    "StreamErrorWindow",    "XRD_STREAMERRORWINDOW"    );
-    ImportInt(    "RunForkHandler",       "XRD_RUNFORKHANDLER"       );
-    ImportInt(    "RedirectLimit",        "XRD_REDIRECTLIMIT"        );
-    ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
-    ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
-    ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );
+    //--------------------------------------------------------------------------
+    // Declate the variables to be processed
+    //--------------------------------------------------------------------------
+    std::vector<EnvVarHolder<int> >         varsInt;
+    std::vector<EnvVarHolder<std::string> > varsStr;
+    REGISTER_VAR_INT( varsInt, "ConnectionWindow",     DefaultConnectionWindow     );
+    REGISTER_VAR_INT( varsInt, "ConnectionRetry",      DefaultConnectionRetry      );
+    REGISTER_VAR_INT( varsInt, "RequestTimeout",       DefaultRequestTimeout       );
+    REGISTER_VAR_INT( varsInt, "StreamTimeout",        DefaultStreamTimeout        );
+    REGISTER_VAR_INT( varsInt, "SubStreamsPerChannel", DefaultSubStreamsPerChannel );
+    REGISTER_VAR_INT( varsInt, "TimeoutResolution",    DefaultTimeoutResolution    );
+    REGISTER_VAR_INT( varsInt, "StreamErrorWindow",    DefaultStreamErrorWindow    );
+    REGISTER_VAR_INT( varsInt, "RunForkHandler",       DefaultRunForkHandler       );
+    REGISTER_VAR_INT( varsInt, "RedirectLimit",        DefaultRedirectLimit        );
+    REGISTER_VAR_INT( varsInt, "WorkerThreads",        DefaultWorkerThreads        );
+    REGISTER_VAR_INT( varsInt, "CPChunkSize",          DefaultCPChunkSize          );
+    REGISTER_VAR_INT( varsInt, "CPParallelChunks",     DefaultCPParallelChunks     );
+    REGISTER_VAR_INT( varsInt, "DataServerTTL",        DefaultDataServerTTL        );
+    REGISTER_VAR_INT( varsInt, "LoadBalancerTTL",      DefaultLoadBalancerTTL      );
+    REGISTER_VAR_INT( varsInt, "CPInitTimeout",        DefaultCPInitTimeout        );
+    REGISTER_VAR_INT( varsInt, "CPTPCTimeout",         DefaultCPTPCTimeout         );
+    REGISTER_VAR_INT( varsInt, "TCPKeepAlive",         DefaultTCPKeepAlive         );
+    REGISTER_VAR_INT( varsInt, "TCPKeepAliveTime",     DefaultTCPKeepAliveTime     );
+    REGISTER_VAR_INT( varsInt, "TCPKeepAliveInterval", DefaultTCPKeepAliveInterval );
+    REGISTER_VAR_INT( varsInt, "TCPKeepProbes",        DefaultTCPKeepAliveProbes   );
+
+    REGISTER_VAR_STR( varsStr, "PollerPreference",     DefaultPollerPreference     );
+    REGISTER_VAR_STR( varsStr, "ClientMonitor",        DefaultClientMonitor        );
+    REGISTER_VAR_STR( varsStr, "ClientMonitorParam",   DefaultClientMonitorParam   );
+    REGISTER_VAR_STR( varsStr, "NetworkStack",         DefaultNetworkStack         );
+    REGISTER_VAR_STR( varsStr, "PlugIn",               DefaultPlugIn               );
+    REGISTER_VAR_STR( varsStr, "PlugInConfDir",        DefaultPlugInConfDir        );
+
+    //--------------------------------------------------------------------------
+    // Process the configuration files
+    //--------------------------------------------------------------------------
+    std::map<std::string, std::string> config, userConfig;
+    Status st = Utils::ProcessConfig( config, "/etc/xrootd/client.conf" );
+
+    if( !st.IsOK() )
+      log->Warning( UtilityMsg, "Unable to process global config file: %s",
+                    st.ToString().c_str() );
+
+    XrdSysPwd pwdHandler;
+    passwd *pwd = pwdHandler.Get( getuid() );
+    std::string userConfigFile = pwd->pw_dir;
+    userConfigFile += "/.xrootd/client.conf";
+
+    st = Utils::ProcessConfig( userConfig, userConfigFile );
+
+    if( !st.IsOK() )
+      log->Debug( UtilityMsg, "Unable to process user config file: %s",
+                  st.ToString().c_str() );
+
+    std::map<std::string, std::string>::iterator it;
+
+    for( it = config.begin(); it != config.end(); ++it )
+      log->Dump( UtilityMsg, "[Global config] \"%s\" = \"%s\"",
+                 it->first.c_str(), it->second.c_str() );
+
+    for( it = userConfig.begin(); it != userConfig.end(); ++it )
+    {
+      config[it->first] = it->second;
+      log->Dump( UtilityMsg, "[User config] \"%s\" = \"%s\"",
+                 it->first.c_str(), it->second.c_str() );
+    }
+
+    for( it = config.begin(); it != config.end(); ++it )
+      log->Debug( UtilityMsg, "[Effective config] \"%s\" = \"%s\"",
+                  it->first.c_str(), it->second.c_str() );
+
+    //--------------------------------------------------------------------------
+    // Monitoring settings
+    //--------------------------------------------------------------------------
+    char *tmp = strdup( XrdSysUtils::ExecName() );
+    char *appName = basename( tmp );
+    PutString( "AppName", appName );
+    free( tmp );
+    ImportString( "AppName", "XRD_APPNAME" );
+    PutString( "MonInfo", "" );
+    ImportString( "MonInfo", "XRD_MONINFO" );
+
+    //--------------------------------------------------------------------------
+    // Process ints
+    //--------------------------------------------------------------------------
+    for( size_t i = 0; i < varsInt.size(); ++i )
+    {
+      PutInt( varsInt[i].name, varsInt[i].def );
+
+      it = config.find( varsInt[i].name );
+      if( it != config.end() )
+      {
+        char *endPtr = 0;
+        int value = (int)strtol( it->second.c_str(), &endPtr, 0 );
+        if( *endPtr )
+          log->Warning( UtilityMsg, "Unable to set %s to %s: not a proper "
+                        "integer", varsInt[i].name.c_str(),
+                        it->second.c_str() );
+        else
+          PutInt( varsInt[i].name, value );
+      }
+
+      std::string name = "XRD_" + varsInt[i].name;
+      std::transform( name.begin(), name.end(), name.begin(), ::toupper );
+      ImportInt( varsInt[i].name, name );
+    }
+
+    //--------------------------------------------------------------------------
+    // Process strings
+    //--------------------------------------------------------------------------
+    for( size_t i = 0; i < varsStr.size(); ++i )
+    {
+      PutString( varsStr[i].name, varsStr[i].def );
+
+      it = config.find( varsStr[i].name );
+      if( it != config.end() )
+        PutString( varsStr[i].name, it->second );
+
+      std::string name = "XRD_" + varsStr[i].name;
+      std::transform( name.begin(), name.end(), name.begin(), ::toupper );
+      ImportString( varsStr[i].name, name );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -199,6 +332,7 @@ namespace XrdCl
         return 0;
       }
       sForkHandler->RegisterPostMaster( sPostMaster );
+      sPostMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
     }
     return sPostMaster;
   }
@@ -212,11 +346,69 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Set log level
+  //----------------------------------------------------------------------------
+  void DefaultEnv::SetLogLevel( const std::string &level )
+  {
+    Log *log = GetLog();
+    log->SetLevel( level );
+  }
+
+  //----------------------------------------------------------------------------
+  // Set log file
+  //----------------------------------------------------------------------------
+  bool DefaultEnv::SetLogFile( const std::string &filepath )
+  {
+    Log *log = GetLog();
+    LogOutFile *out = new LogOutFile();
+
+    if( out->Open( filepath ) )
+    {
+      log->SetOutput( out );
+      return true;
+    }
+
+    delete out;
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set log mask.
+  //------------------------------------------------------------------------
+  void DefaultEnv::SetLogMask( const std::string &level,
+                               const std::string &mask )
+  {
+    Log *log = GetLog();
+    MaskTranslator translator;
+    uint64_t topicMask = translator.translateMask( mask );
+
+    if( level == "All" )
+    {
+      log->SetMask( Log::ErrorMsg,   topicMask );
+      log->SetMask( Log::WarningMsg, topicMask );
+      log->SetMask( Log::InfoMsg,    topicMask );
+      log->SetMask( Log::DebugMsg,   topicMask );
+      log->SetMask( Log::DumpMsg,    topicMask );
+      return;
+    }
+
+    log->SetMask( level, topicMask );
+  }
+
+  //----------------------------------------------------------------------------
   // Get fork handler
   //----------------------------------------------------------------------------
   ForkHandler *DefaultEnv::GetForkHandler()
   {
     return sForkHandler;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get fork handler
+  //----------------------------------------------------------------------------
+  FileTimer *DefaultEnv::GetFileTimer()
+  {
+    return sFileTimer;
   }
 
   //----------------------------------------------------------------------------
@@ -254,19 +446,19 @@ namespace XrdCl
         // Loading the plugin
         //----------------------------------------------------------------------
         char *errBuffer = new char[4000];
-        sMonitorLibHandle = new XrdSysPlugin(
-                                 errBuffer, 4000, monitorLib.c_str(),
-                                 monitorLib.c_str(),
-                                 &XrdVERSIONINFOVAR( XrdCl ) );
+        sMonitorLibHandle = new XrdOucPinLoader(
+                                 errBuffer, 4000, &XrdVERSIONINFOVAR( XrdCl ),
+                                 "monitor", monitorLib.c_str() );
 
         typedef XrdCl::Monitor *(*MonLoader)(const char *, const char *);
         MonLoader loader;
-        loader = (MonLoader)sMonitorLibHandle->getPlugin( "XrdClGetMonitor" );
+        loader = (MonLoader)sMonitorLibHandle->Resolve( "XrdClGetMonitor", -1 );
         if( !loader )
         {
           log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
                       errBuffer );
           delete [] errBuffer;
+          sMonitorLibHandle->Unload();
           delete sMonitorLibHandle; sMonitorLibHandle = 0;
           return 0;
         }
@@ -282,6 +474,7 @@ namespace XrdCl
           log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
                       errBuffer );
           delete [] errBuffer;
+          sMonitorLibHandle->Unload();
           delete sMonitorLibHandle; sMonitorLibHandle = 0;
           return 0;
         }
@@ -322,14 +515,37 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get plug-in manager
+  //----------------------------------------------------------------------------
+  PlugInManager *DefaultEnv::GetPlugInManager()
+  {
+    return sPlugInManager;
+  }
+
+  //----------------------------------------------------------------------------
+  // Retrieve the plug-in factory for the given URL
+  //----------------------------------------------------------------------------
+  PlugInFactory *DefaultEnv::GetPlugInFactory( const std::string url )
+  {
+    return  sPlugInManager->GetFactory( url );
+  }
+
+  //----------------------------------------------------------------------------
   // Initialize the environment
   //----------------------------------------------------------------------------
   void DefaultEnv::Initialize()
   {
-    sLog         = new Log();
-    sEnv         = new DefaultEnv();
-    sForkHandler = new ForkHandler();
+    sLog           = new Log();
     SetUpLog();
+
+    sEnv           = new DefaultEnv();
+    sForkHandler   = new ForkHandler();
+    sFileTimer     = new FileTimer();
+    sPlugInManager = new PlugInManager();
+
+    sPlugInManager->ProcessEnvironmentSettings();
+    sForkHandler->RegisterFileTimer( sFileTimer );
+
 
     //--------------------------------------------------------------------------
     // MacOSX library loading is completely moronic. We cannot dlopen a library
@@ -341,21 +557,21 @@ namespace XrdCl
 
     const char *libs[] =
     {
-      "libXrdSeckrb5.dylib",
-      "libXrdSecgsi.dylib",
-      "libXrdSecgsiAuthzVO.dylib",
-      "libXrdSecgsiGMAPDN.dylib",
-      "libXrdSecgsiGMAPLDAP.dylib",
-      "libXrdSecpwd.dylib",
-      "libXrdSecsss.dylib",
-      "libXrdSecunix.dylib",
+      "libXrdSeckrb5.so",
+      "libXrdSecgsi.so",
+      "libXrdSecgsiAuthzVO.so",
+      "libXrdSecgsiGMAPDN.so",
+      "libXrdSecgsiGMAPLDAP.so",
+      "libXrdSecpwd.so",
+      "libXrdSecsss.so",
+      "libXrdSecunix.so",
       0
     };
 
     for( int i = 0; libs[i]; ++i )
     {
       sLog->Debug( UtilityMsg, "Attempting to pre-load: %s", libs[i] );
-      bool ok = XrdSysPlugin::Preload( libs[i], errBuff, 1024 );
+      bool ok = XrdOucPreload( libs[i], errBuff, 1024 );
       if( !ok )
         sLog->Error( UtilityMsg, "Unable to pre-load %s: %s", libs[i], errBuff );
     }
@@ -385,11 +601,19 @@ namespace XrdCl
     delete sMonitor;
     sMonitor = 0;
 
+    if( sMonitorLibHandle )
+      sMonitorLibHandle->Unload();
     delete sMonitorLibHandle;
     sMonitorLibHandle = 0;
 
     delete sForkHandler;
     sForkHandler = 0;
+
+    delete sFileTimer;
+    sFileTimer = 0;
+
+    delete sPlugInManager;
+    sPlugInManager = 0;
 
     delete sEnv;
     sEnv = 0;
@@ -483,6 +707,8 @@ namespace XrdCl
     log->SetTopicName( XRootDMsg,          "XRootD" );
     log->SetTopicName( FileSystemMsg,      "FileSystem" );
     log->SetTopicName( AsyncSockMsg,       "AsyncSock" );
+    log->SetTopicName( JobMgrMsg,          "JobMgr" );
+    log->SetTopicName( PlugInMgrMsg,       "PlugInMgr" );
   }
 }
 

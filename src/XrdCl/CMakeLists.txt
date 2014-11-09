@@ -1,11 +1,6 @@
 
 include( XRootDCommon )
 
-if( CMAKE_COMPILER_IS_GNUCXX )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
-endif()
-
 if( BUILD_LIBEVENT )
   include_directories( ${LIBEVENT_INCLUDE_DIR} )
   set( LIBEVENT_POLLER_FILES
@@ -18,8 +13,8 @@ endif()
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_CL_VERSION   0.0.1 )
-set( XRD_CL_SOVERSION 0 )
+set( XRD_CL_VERSION   2.0.0 )
+set( XRD_CL_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdCl lib
@@ -65,7 +60,17 @@ add_library(
   XrdClForkHandler.cc         XrdClForkHandler.hh
   XrdClCheckSumManager.cc     XrdClCheckSumManager.hh
   XrdClTransportManager.cc    XrdClTransportManager.hh
-                              XrdClEnum.hh
+                              XrdClSyncQueue.hh
+  XrdClJobManager.cc          XrdClJobManager.hh
+                              XrdClResponseJob.hh
+  XrdClFileTimer.cc           XrdClFileTimer.hh
+                              XrdClUglyHacks.hh
+                              XrdClPlugInInterface.hh
+  XrdClPlugInManager.cc       XrdClPlugInManager.hh
+                              XrdClPropertyList.hh
+                              XrdClCopyJob.hh
+  XrdClFileSystemUtils.cc     XrdClFileSystemUtils.hh
+  XrdClTPFallBackCopyJob.cc   XrdClTPFallBackCopyJob.hh
   ${LIBEVENT_POLLER_FILES}
 )
 
@@ -80,6 +85,8 @@ target_link_libraries(
 set_target_properties(
   XrdCl
   PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES ""
   VERSION   ${XRD_CL_VERSION}
   SOVERSION ${XRD_CL_SOVERSION} )
 
@@ -93,6 +100,7 @@ add_executable(
 
 target_link_libraries(
   xrdfs
+  pthread
   XrdCl
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
@@ -101,11 +109,11 @@ target_link_libraries(
 # xrdcopy
 #-------------------------------------------------------------------------------
 add_executable(
-  xrdcopy
+  xrdcp
   XrdClCopy.cc )
 
 target_link_libraries(
-  xrdcopy
+  xrdcp
   XrdCl
   XrdAppUtils )
 
@@ -113,7 +121,7 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdCl xrdfs xrdcopy
+  TARGETS XrdCl xrdfs xrdcp
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
@@ -135,11 +143,43 @@ install(
     XrdClStatus.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh
-    XrdClEnum.hh
+    XrdClPlugInInterface.hh
+    XrdClPlugInManager.hh
+    XrdClPropertyList.hh
+    XrdClFileSystemUtils.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdcopy.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
+
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf xrdcp xrdcopy
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} )"
+)
+
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf xrdcp.1 xrdcopy.1
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )"
+)
+
+install(
+  CODE "
+    FOREACH(MANPAGE xrdfs.1 xrdcp.1)
+      MESSAGE( \"-- Processing: \" \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1/\${MANPAGE} )
+      EXECUTE_PROCESS(
+        COMMAND cat \${MANPAGE}
+        COMMAND sed  -e \"s/__VERSION__/${XROOTD_VERSION}/\"
+        OUTPUT_FILE \${MANPAGE}.new
+        WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )
+      EXECUTE_PROCESS(
+        COMMAND mv -f \${MANPAGE}.new \${MANPAGE}
+        WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )
+    ENDFOREACH()"
+)

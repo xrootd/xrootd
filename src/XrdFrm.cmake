@@ -38,8 +38,8 @@ add_executable(
 
 target_link_libraries(
   frm_admin
-  XrdServer
   XrdFrm
+  XrdServer
   XrdUtils
   pthread
   ${READLINE_LIBRARY}
@@ -57,9 +57,9 @@ add_executable(
 
 target_link_libraries(
   frm_purged
+  XrdFrm
   XrdServer
   XrdUtils
-  XrdFrm
   pthread
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
@@ -73,9 +73,9 @@ add_executable(
 
 target_link_libraries(
   frm_xfrd
+  XrdFrm
   XrdServer
   XrdUtils
-  XrdFrm
   pthread
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
@@ -89,9 +89,9 @@ add_executable(
 
 target_link_libraries(
   frm_xfragent
+  XrdFrm
   XrdServer
   XrdUtils
-  XrdFrm
   pthread
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )

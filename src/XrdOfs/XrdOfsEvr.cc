@@ -351,7 +351,7 @@ void XrdOfsEvr::sendEvent(theEvent *ep)
 // to it just in case a client is in-transit
 //
    while((cp = ep->aClient))
-        {einfo = new XrdOucErrInfo(cp->User, 0, cp->evtCBarg);
+        {einfo = new XrdOucErrInfo(cp->User, (XrdOucEICB *)0, cp->evtCBarg);
          einfo->setErrInfo(ep->finalRC, (ep->finalMsg ? ep->finalMsg : ""));
          cp->evtCB->Done(Result, einfo);
          ep->aClient = cp->Next;

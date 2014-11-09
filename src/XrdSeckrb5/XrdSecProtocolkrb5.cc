@@ -53,14 +53,15 @@ extern "C" {
 
 #include "XrdVersion.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdSys/XrdSysPriv.hh"
   
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -117,11 +118,12 @@ static  void               setExpFile(char *expfile)
 
         XrdSecProtocolkrb5(const char                *KP,
                            const char                *hname,
-                           const struct sockaddr     *ipadd)
+                                 XrdNetAddrInfo      &endPoint)
                           : XrdSecProtocol(XrdSecPROTOIDENT)
                           {Service = (KP ? strdup(KP) : 0);
                            Entity.host = strdup(hname);
-                           memcpy(&hostaddr, ipadd, sizeof(hostaddr));
+                           epAddr = endPoint;
+                           Entity.addrInfo = &epAddr;
                            CName[0] = '?'; CName[1] = '\0';
                            Entity.name = CName;
                            Step = 0;
@@ -139,6 +141,7 @@ private:
 
 static int Fatal(XrdOucErrInfo *erp,int rc,const char *msg1,char *KP=0,int krc=0);
 static int get_krbCreds(char *KP, krb5_creds **krb_creds);
+       void SetAddr(krb5_address &ipadd);
 
 static XrdSysMutex        krbContext;    // Server
 static XrdSysMutex        krbClientContext;// Client
@@ -149,8 +152,6 @@ static krb5_context       krb_client_context;   // Client
 static krb5_ccache        krb_client_ccache;    // Client 
 static krb5_ccache        krb_ccache;    // Server
 static krb5_keytab        krb_keytab;    // Server
-static uid_t              krb_kt_uid;// Server
-static gid_t              krb_kt_gid;// Server
 static krb5_principal     krb_principal; // Server
 
 static char              *Principal;     // Server's principal name
@@ -161,7 +162,7 @@ static char               ExpFile[XrdSecMAXPATHLEN]; // Server: (template for)
 int exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp);
 int get_krbFwdCreds(char *KP, krb5_data *outdata);
 
-struct sockaddr           hostaddr;      // Client-side only
+XrdNetAddrInfo            epAddr;
 char                      CName[256];    // Kerberos limit
 char                     *Service;       // Target principal for client
 char                      Step;          // Indicates at which step we are
@@ -185,8 +186,6 @@ krb5_context        XrdSecProtocolkrb5::krb_client_context;       // Client
 krb5_ccache         XrdSecProtocolkrb5::krb_client_ccache; // Client
 krb5_ccache         XrdSecProtocolkrb5::krb_ccache;        // Server
 krb5_keytab         XrdSecProtocolkrb5::krb_keytab = NULL; // Server
-uid_t               XrdSecProtocolkrb5::krb_kt_uid = 0;    // Server
-gid_t               XrdSecProtocolkrb5::krb_kt_gid = 0;    // Server
 krb5_principal      XrdSecProtocolkrb5::krb_principal;     // Server
 
 char               *XrdSecProtocolkrb5::Principal = 0;     // Server
@@ -229,6 +228,7 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
        return new XrdSecCredentials(0,0);
       }
 
+#if 0
 // Set KRB5CCNAME to its default value, if not done
 //
    if (!getenv("KRB5CCNAME")) {
@@ -240,7 +240,21 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
       }
    }
    CLDBG((getenv("KRB5CCNAME") ? getenv("KRB5CCNAME") : "KRB5CCNAME unset"));
-	 
+#else	
+// We support passing the credential cache path via Url parameter
+//
+   char *ccn = (error && error->getEnv()) ? error->getEnv()->Get("xrd.k5ccname") : 0;
+   const char *kccn = ccn ? (const char *)ccn : getenv("KRB5CCNAME");
+   char ccname[128];
+   if (!kccn)
+      {snprintf(ccname, 128, "/tmp/krb5cc_%d", geteuid());
+       if (access(ccname, R_OK) == 0)
+          {kccn = ccname;}
+      }
+   CLDBG((kccn ? kccn : "credentials cache unset"));
+
+#endif
+
 // Initialize the context and get the cache default.
 //
    if ((rc = krb5_init_context(&krb_client_context)))
@@ -249,6 +263,16 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
       }
 
    CLDBG("init context");
+
+// Set the name of the default credentials cache for the Kerberos context
+//
+   if ((rc = krb5_cc_set_default_name(krb_client_context, kccn)))
+      {Fatal(error, ENOPROTOOPT, "Kerberos default credentials cache setting failed", Service, rc);
+       return (XrdSecCredentials *)0;
+      }
+
+   CLDBG("cc set default name");
+
 // Obtain the default cache location
 //
    if ((rc = krb5_cc_default(krb_client_context, &krb_client_ccache)))
@@ -256,7 +280,7 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
        return (XrdSecCredentials *)0;
       }
 
-   CLDBG("cc cache default");
+   CLDBG("cc default");
 // Check if the server asked for a forwardable ticket
 //
    char *pfwd = 0;
@@ -472,11 +496,7 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 //
    CLDBG("Context Locked");
    if (!(XrdSecProtocolkrb5::options & XrdSecNOIPCHK))
-      {struct sockaddr_in *ip = (struct sockaddr_in *)&hostaddr;
-      // The above is a hack but K5 does it this way
-       ipadd.addrtype = ADDRTYPE_INET;
-       ipadd.length = sizeof(ip->sin_addr);
-       ipadd.contents = (krb5_octet *)&ip->sin_addr;
+      {SetAddr(ipadd);
        iferror = (char *)"Unable to validate ip address;";
        if (!(rc=krb5_auth_con_init(krb_context, &AuthContext)))
              rc=krb5_auth_con_setaddrs(krb_context, AuthContext, NULL, &ipadd);
@@ -484,21 +504,17 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 
 // Decode the credentials and extract client's name
 //
-   {  XrdSysPrivGuard pGuard(krb_kt_uid, krb_kt_gid);
-      if (pGuard.Valid())
-         {if (!rc)
-             {if ((rc = krb5_rd_req(krb_context, &AuthContext, &inbuf,
-                                  (krb5_const_principal)krb_principal,
-                                   krb_keytab, NULL, &Ticket)))
-                 iferror = (char *)"Unable to authenticate credentials;";
-              else if ((rc = krb5_aname_to_localname(krb_context,
-                                          Ticket->enc_part2->client,
-                                          sizeof(CName)-1, CName)))
-                     iferror = (char *)"Unable to extract client name;";
-             }
-      } else
-         iferror = (char *)"Unable to acquire privileges to read the keytab;";
-   }
+   if (!rc)
+      {if ((rc = krb5_rd_req(krb_context, &AuthContext, &inbuf,
+                            (krb5_const_principal)krb_principal,
+                             krb_keytab, NULL, &Ticket)))
+           iferror = (char *)"Unable to authenticate credentials;";
+       else if ((rc = krb5_aname_to_localname(krb_context,
+                                  Ticket->enc_part2->client,
+                                  sizeof(CName)-1, CName)))
+             iferror = (char *)"Unable to extract client name;";
+      }
+
 // Make sure the name is null-terminated
 //
    CName[sizeof(CName)-1] = '\0';
@@ -586,23 +602,16 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
        return Fatal(erp, ESRCH, buff, Principal, rc);
       }
 
-// Find out if need to acquire privileges to open and read the keytab file and
-// set the required uid,gid accordingly
+// Check if we can read access the keytab file
 //
-   krb_kt_uid = geteuid();
-   krb_kt_gid = getegid();
-   char *pf = 0;
-   if ((pf = (char *) strstr(krb_kt_name, "FILE:")))
-      {pf += strlen("FILE:");
-       if (strlen(pf) > 0)
-          {struct stat st;
-           if (!stat(pf, &st))
-              {if (st.st_uid != krb_kt_uid || st.st_gid != krb_kt_gid)
-                  {krb_kt_uid = st.st_uid;
-                   krb_kt_gid = st.st_gid;
-                  }
-              }
-          }
+   krb5_kt_cursor ktc;
+   if ((rc = krb5_kt_start_seq_get(krb_context, krb_keytab, &ktc)))
+      {snprintf(buff, sizeof(buff), "Unable to start sequence on the keytab file %s", krb_kt_name);
+       return Fatal(erp, EPERM, buff, Principal, rc);
+      }
+   if ((rc = krb5_kt_end_seq_get(krb_context, krb_keytab, &ktc)))
+      {snprintf(buff, sizeof(buff), "WARNING: unable to end sequence on the keytab file %s", krb_kt_name);
+       CLPRT(buff);
       }
 
 // Now, extract the "principal/instance@realm" from the stream
@@ -752,7 +761,8 @@ int XrdSecProtocolkrb5::get_krbFwdCreds(char *KP, krb5_data *outdata)
 
 int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 {
-    int rc = 0;
+   krb5_address      ipadd;
+   int rc = 0;
 
 // Create the cache filename, expanding the keywords, if needed
 //
@@ -814,7 +824,8 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 
 // Fill-in remote address
 //
-    if ((rc = krb5_auth_con_setaddrs(krb_context, AuthContext, 0, (krb5_address *)&hostaddr)))
+    SetAddr(ipadd);
+    if ((rc = krb5_auth_con_setaddrs(krb_context, AuthContext, 0, &ipadd)))
        return rc;
 
 // Readout the credentials
@@ -828,12 +839,6 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
     krb5_ccache cache = 0;
     if ((rc = krb5_cc_resolve(krb_context, ccfile, &cache)))
        return rc;
-
-// Need privileges from now on
-//
-    XrdSysPrivGuard pGuard((uid_t)0, (gid_t)0);
-    if (!pGuard.Valid())
-       return Fatal(erp, EINVAL, "Unable to acquire privileges;", ccfile, 0);
 
 // Init cache
 //
@@ -852,8 +857,6 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 
 // Change permission and ownership of the file
 //
-    if (chown(ccfile, pw->pw_uid, pw->pw_gid) == -1)
-       return Fatal(erp, errno, "Unable to change file ownership;", ccfile, 0);
     if (chmod(ccfile, 0600) == -1)
        return Fatal(erp, errno, "Unable to change file permissions;", ccfile, 0);
 
@@ -862,6 +865,27 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
    return 0;
 }
  
+/******************************************************************************/
+/*                               S e t A d d r                                */
+/******************************************************************************/
+  
+void XrdSecProtocolkrb5::SetAddr(krb5_address &ipadd)
+{
+// The below is a hack but that's how it is actually done!
+//
+   if (epAddr.Family() == AF_INET6)
+      {struct sockaddr_in6 *ip = (struct sockaddr_in6 *)epAddr.SockAddr();
+       ipadd.addrtype = ADDRTYPE_INET6;
+       ipadd.length = sizeof(ip->sin6_addr);
+       ipadd.contents = (krb5_octet *)&ip->sin6_addr;
+      } else {
+       struct sockaddr_in *ip = (struct sockaddr_in *)epAddr.SockAddr();
+       ipadd.addrtype = ADDRTYPE_INET;
+       ipadd.length = sizeof(ip->sin_addr);
+       ipadd.contents = (krb5_octet *)&ip->sin_addr;
+      }
+}
+
 /******************************************************************************/
 /*                X r d S e c p r o t o c o l k r b 5 I n i t                 */
 /******************************************************************************/
@@ -940,7 +964,7 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
     int lkey = strlen("<host>");
     char *phost = (char *) strstr(&KPrincipal[0], "<host>");
     if (phost)
-       {char *hn = XrdSysDNS::getHostName();
+       {char *hn = XrdNetUtils::MyHostName();
         if (hn)
            {int lhn = strlen(hn);
             if (lhn != lkey) {
@@ -999,7 +1023,7 @@ extern "C"
 {
 XrdSecProtocol *XrdSecProtocolkrb5Object(const char              mode,
                                          const char             *hostname,
-                                         const struct sockaddr  &netaddr,
+                                               XrdNetAddrInfo   &endPoint,
                                          const char             *parms,
                                                XrdOucErrInfo    *erp)
 {
@@ -1022,7 +1046,7 @@ XrdSecProtocol *XrdSecProtocolkrb5Object(const char              mode,
 
 // Get a new protocol object
 //
-   if (!(prot = new XrdSecProtocolkrb5(KPrincipal, hostname, &netaddr)))
+   if (!(prot = new XrdSecProtocolkrb5(KPrincipal, hostname, endPoint)))
       {char *msg = (char *)"Seckrb5: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
           else cerr <<msg <<endl;

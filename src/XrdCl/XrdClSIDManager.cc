@@ -110,4 +110,13 @@ namespace XrdCl
       pFreeSIDs.push_back( *it );
     pTimeOutSIDs.clear();
   }
+
+  //----------------------------------------------------------------------------
+  // Get number of allocated SIDs
+  //----------------------------------------------------------------------------
+  uint16_t SIDManager::GetNumberOfAllocatedSIDs() const
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    return pSIDCeiling - pFreeSIDs.size() - pTimeOutSIDs.size() - 1;
+  }
 }

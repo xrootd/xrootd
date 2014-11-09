@@ -35,7 +35,6 @@
 #include <fcntl.h>
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 
 #include "XrdVersion.hh"
@@ -48,6 +47,7 @@
 #include "XrdFrm/XrdFrmCns.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetCmsNotify.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssSpace.hh"
@@ -63,13 +63,13 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 using namespace XrdFrc;
 using namespace XrdFrm;
@@ -129,18 +129,6 @@ void *XrdFrmConfigMum(void *parg)
    return (void *)0;
 }
 
-void *XrdLogWorker(void *parg)
-{
-   char *mememe = strdup((char *)parg);
-
-   while(1)
-        {XrdSysTimer::Wait4Midnight();
-         Say.Say(0, XrdBANNER);
-         Say.Say(0, mememe, " running.");
-        }
-   return (void *)0;
-}
-
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -193,6 +181,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    runOld   = 0;
    runNew   = 1;
    nonXA    = 0;
+   doStatPF = 0;
 
    myUid    = geteuid();
    myGid    = getegid();
@@ -245,16 +234,16 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
-                              const char   *, XrdVersionInfo &);
+                              const char   *, XrdOucEnv *,  XrdVersionInfo &);
    extern int *XrdOssRunMode;
+   static XrdNetAddr myAddr(0);
    XrdFrmConfigSE theSE;
-   int n, retc, isMum = 0, myXfrMax = -1, NoGo = 0, optBG = 0;
+   int retc, isMum = 0, myXfrMax = -1, NoGo = 0, optBG = 0;
    const char *temp;
    char c, buff[1024], *logfn = 0;
-   long long logkeep = 0;
    extern char *optarg;
    extern int opterr, optopt;
-   int pipeFD[2] = {-1, -1};
+   int pipeFD[2] = {-1, -1}, bindArg = -1, pureLFN = 0;
    const char *pidFN = 0;
 
 // Obtain the program name (used for logging)
@@ -268,7 +257,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 //
    opterr = 0; nextArg = 1;
    while(nextArg < argc && '-' == *argv[nextArg]
-         && (c=getopt(argc,argv,vOpts)) && (c != -1))
+         && (c=getopt(argc,argv,vOpts)) && (c != (char)-1))
      { switch(c)
        {
        case 'b': optBG = 1;
@@ -282,14 +271,17 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        case 'f': Fix = 1;
                  break;
        case 'h': Usage(0);
-       case 'k': n = strlen(optarg)-1;
-                 retc = (isalpha(optarg[n])
-                        ? XrdOuca2x::a2sz(Say,"keep size", optarg,&logkeep)
-                        : XrdOuca2x::a2ll(Say,"keep count",optarg,&logkeep));
-                 if (retc) Usage(1);
-                 if (!isalpha(optarg[n])) logkeep = -logkeep;
+       case 'k': if (!(bindArg = Say.logger()->ParseKeep(optarg)))
+                    {Say.Emsg("Config","Invalid -k argument -",optarg);
+                     Usage(1);
+                    }
                  break;
-       case 'l': if (logfn) free(logfn);
+       case 'l': if ((pureLFN = *optarg == '=')) optarg++;
+                 if (!*optarg)
+                    {Say.Emsg("Config", "Logfile name not specified.");
+                     Usage(1);
+                    }
+                 if (logfn) free(logfn);
                  logfn = strdup(optarg);
                  break;
        case 'm': if (XrdOuca2x::a2i(Say,"max number",optarg,&myXfrMax))
@@ -311,6 +303,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        case 's': pidFN = optarg;
                  break;
        case 'S': mySite= optarg;
+                 break;
+       case 'z': Say.logger()->setHiRes();
                  break;
        default:  sprintf(buff,"'%c'", optopt);
                  if (c == ':') Say.Emsg("Config", buff, "value not specified.");
@@ -334,7 +328,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
                                            (isAgent ? 'a' : 'd'));
                logfn = strdup(buff);
               }
-          } else if (!(logfn=XrdOucUtils::subLogfn(Say,myInst,logfn))) _exit(16);
+          } else if (!pureLFN
+                 && !(logfn=XrdOucUtils::subLogfn(Say,myInst,logfn))) _exit(16);
 
    // If undercover desired and we are not an agent, do so
    //
@@ -352,14 +347,14 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    // Bind the log file if we have one
    //
        if (logfn)
-          {if (logkeep) Say.logger()->setKeep(logkeep);
-           Say.logger()->Bind(logfn, 24*60*60);
+          {Say.logger()->AddMsg(XrdBANNER);
+           if (Say.logger()->Bind(logfn, bindArg)) _exit(19);
           }
       }
 
 // Get the full host name. In theory, we should always get some kind of name.
 //
-   if (!(myName = XrdSysDNS::getHostName()))
+   if (!(myName = myAddr.Name()))
       {Say.Emsg("Config","Unable to determine host name; execution terminated.");
        _exit(16);
       }
@@ -379,6 +374,14 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 //
    if (!logfn && (ssID == ssAdmin || isOTO) && !Trace.What)
       isMum = ConfigMum(theSE);
+
+// Add final message to the logger
+//
+   if (logfn)
+      {char msgBuff[2048];
+       strcpy(msgBuff, myInstance); strcat(msgBuff, " running.");
+       Say.logger()->AddMsg(msgBuff);
+      }
 
 // Put out the herald
 //
@@ -405,8 +408,11 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        if (ssID == ssPurg) XrdOucEnv::Export("XRDOSSCSCAN", "off");
        if (!NoGo)
           {if (!(ossFS=XrdOssGetSS(Say.logger(), ConfigFN, ossLib, ossParms,
-                                   *myVersion))) NoGo = 1;
-              else runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
+                                   0, *myVersion))) NoGo = 1;
+              else {struct stat Stat;
+                    doStatPF = ossFS->StatPF("/", &Stat) != -ENOTSUP;
+                    runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
+                   }
           }
       }
 
@@ -431,15 +437,6 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 // If we have a post-processing routine, invoke it
 //
    if (!NoGo && ppf) NoGo = ppf();
-
-// Start the log turn-over thread
-//
-   if (!NoGo && logfn)
-      {pthread_t tid;
-       if ((retc = XrdSysThread::Run(&tid, XrdLogWorker, (void *)myInstance,
-                                     XRDSYSTHREAD_BIND, "midnight runner")))
-          {Say.Emsg("Config", retc, "create logger thread"); NoGo = 1;}
-      }
 
    // if we call this it means that the daemon has forked and we are
    // in the child process
@@ -581,6 +578,16 @@ XrdOucTList *XrdFrmConfig::Space(const char *Name, const char *Path)
    tP = vP->Dir;
    while(tP && strcmp(Path, tP->text)) tP = tP->next;
    return (tP ? tP : &nullEnt);
+}
+
+/******************************************************************************/
+/*                                  S t a t                                   */
+/******************************************************************************/
+  
+int XrdFrmConfig::Stat(const char *xLfn, const char *xPfn, struct stat *buff)
+{
+   return (doStatPF ? ossFS->StatPF(xPfn, buff)
+                    : ossFS->Stat  (xLfn, buff, XRDOSS_resonly));
 }
 
 /******************************************************************************/
@@ -734,6 +741,13 @@ int XrdFrmConfig::ConfigMP(const char *pType)
 // Delete the explist
 //
    while((tP = expList)) {expList = tP->next; delete tP;}
+
+// For purging, make sure we have at least one path to purge
+//
+   if (xOpt == XRDEXP_PURGE && !pathList)
+      {Say.Emsg("Config","No purgeable paths specified!");
+       NoGo = 1;
+      }
 
 // The oss would have already set NORCREATE and NOCHECK for all stageable paths.
 // But now, we must also off the R/O flag on every purgeable and stageable path
@@ -1199,7 +1213,7 @@ int XrdFrmConfig::Grab(const char *var, char **Dest, int nosubs)
 XrdOucTList *XrdFrmConfig::InsertPL(XrdOucTList *pL, const char *Path,
                                     int Plen, int isRW)
 {
-   short sval[4] = {isRW, Plen};
+   short sval[4] = {static_cast<short>(isRW), static_cast<short>(Plen)};
    XrdOucTList *pP = 0, *tP = pL;
 
 // Find insertion point
@@ -1399,11 +1413,13 @@ int XrdFrmConfig::xcnsd()
 
    Purpose:  To parse the directive: copycmd [Options] cmd [args]
 
-   Options:  [in] [out] [stats] [timeout <sec>] [url] [xpd] cmd [args]
+   Options:  [in] [noalloc] [out] [rmerr] [stats] [timeout <sec>] [url] [xpd]
 
              in        use command for incomming copies.
              noalloc   do not pre-allocate space for incomming copies.
              out       use command for outgoing copies.
+             rmerr     remove incomming file when copy ends with an error.
+                       Default unless noalloc is specified.
              stats     print transfer statistics in the log.
              timeout   how long the cmd can run before it is killed.
              url       use command for url-based transfers.
@@ -1412,7 +1428,7 @@ int XrdFrmConfig::xcnsd()
    Output: 0 upon success or !0 upon failure.
 */
 int XrdFrmConfig::xcopy()
-{  int cmdIO[2] = {0,0}, TLim=0, Stats=0, hasMDP=0, cmdUrl=0, noAlo=0;
+{  int cmdIO[2] = {0,0}, TLim=0, Stats=0, hasMDP=0, cmdUrl=0, noAlo=0, rmErr=0;
    int monPD = 0;
    char *val, *theCmd = 0;
    struct copyopts {const char *opname; int *oploc;} cpopts[] =
@@ -1420,6 +1436,7 @@ int XrdFrmConfig::xcopy()
           {"in",     &cmdIO[0]},
           {"out",    &cmdIO[1]},
           {"noalloc",&noAlo},
+          {"rmerr",  &rmErr},
           {"stats",  &Stats},
           {"timeout",&TLim},
           {"url",    &cmdUrl},
@@ -1463,6 +1480,7 @@ int XrdFrmConfig::xcopy()
            if (Stats)  xfrCmd[n].Opts  |= cmdStats;
            if (monPD)  xfrCmd[n].Opts  |= cmdXPD;
            if (hasMDP) xfrCmd[n].Opts  |= cmdMDP;
+           if (rmErr)  xfrCmd[n].Opts  |= cmdRME;
            if (noAlo)  xfrCmd[n].Opts  &=~cmdAlloc;
               else     xfrCmd[n].Opts  |= cmdAlloc;
            xfrCmd[n].TLimit = TLim;

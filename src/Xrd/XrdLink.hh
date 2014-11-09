@@ -29,11 +29,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <time.h>
 
+#include "XrdNet/XrdNetAddr.hh"
+#include "XrdOuc/XrdOucSFVec.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "Xrd/XrdJob.hh"
@@ -52,8 +53,7 @@
 /******************************************************************************/
   
 class XrdInet;
-class XrdNetBuffer;
-class XrdNetPeer;
+class XrdNetAddr;
 class XrdPoll;
 class XrdOucTrace;
 class XrdScheduler;
@@ -68,16 +68,39 @@ friend class XrdPollPoll;
 friend class XrdPollDev;
 friend class XrdPollE;
 
-static XrdLink *Alloc(XrdNetPeer &Peer, int opts=0);
+//-----------------------------------------------------------------------------
+//! Obtain the address information for this link.
+//!
+//! @return Pointer to the XrdAddrInfo object. The pointer is valid while the
+//!         end-point is connected.
+//-----------------------------------------------------------------------------
+inline
+XrdNetAddrInfo *AddrInfo() {return (XrdNetAddrInfo *)&Addr;}
 
-void          Bind();
-void          Bind(pthread_t tid);
+//-----------------------------------------------------------------------------
+//! Allocate a new link object.
+//!
+//! @param  peer    The connection information for the endpoint.
+//!         opts    Processing options:
+//!                 XRDLINK_NOCLOSE - do not close the FD upon recycling.
+//!                 XRDLINK_RDLOCK  - obtain a lock prior to reading data.
+//!
+//! @return !0      The pointer to the new object.
+//!         =0      A new link object could not be allocated.
+//-----------------------------------------------------------------------------
+
+static XrdLink *Alloc(XrdNetAddr &peer, int opts=0);
+
+void          Bind() {}                // Obsolete
+void          Bind(pthread_t tid) { (void)tid; }   // Obsolete
 
 int           Client(char *buff, int blen);
 
 int           Close(int defer=0);
 
 void          DoIt();
+
+void          Enable();
 
 int           FDnum() {return FD;}
 
@@ -110,6 +133,15 @@ XrdProtocol  *getProtocol() {return Protocol;} // opmutex must be locked
 
 void          Hold(int lk) {(lk ? opMutex.Lock() : opMutex.UnLock());}
 
+//-----------------------------------------------------------------------------
+//! Get the fully qualified name of the endpoint.
+//!
+//! @return Pointer to fully qualified host name. The contents are valid
+//!         while the endpoint is connected.
+//-----------------------------------------------------------------------------
+
+const char   *Host() {return (const char *)HostName;}
+
 char         *ID;      // This is referenced a lot
 
 static   void Init(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP)
@@ -117,22 +149,53 @@ static   void Init(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP)
 
 static   void Init(XrdInet *iP) {XrdNetTCP = iP;}
 
+//-----------------------------------------------------------------------------
+//! Obtain the link's instance number.
+//!
+//! @return The link's instance number.
+//-----------------------------------------------------------------------------
+inline
 unsigned int  Inst() {return Instance;}
 
-int           isFlawed() {return Etext != 0;}
+//-----------------------------------------------------------------------------
+//! Indicate whether or not the link has an outstanding error.
+//!
+//! @return True    the link has an outstanding error.
+//!                 the link has no outstanding error.
+//-----------------------------------------------------------------------------
+inline
+bool          isFlawed() {return Etext != 0;}
 
-int           isInstance(unsigned int inst)
+//-----------------------------------------------------------------------------
+//! Indicate whether or not this link is of a particular instance.
+//! only be used for display and not for security purposes.
+//!
+//! @param  inst    the expected instance number.
+//!
+//! @return True    the link matches the instance number.
+//!                 the link differs the instance number.
+//-----------------------------------------------------------------------------
+inline
+bool          isInstance(unsigned int inst)
                         {return FD >= 0 && Instance == inst;}
 
-const char   *Name(sockaddr *ipaddr=0)
-                     {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(sockaddr));
-                      return (const char *)Lname;
-                     }
+//-----------------------------------------------------------------------------
+//! Obtain the domain trimmed name of the end-point. The returned value should
+//! only be used for display and not for security purposes.
+//!
+//! @return Pointer to the name that remains valid during the link's lifetime.
+//-----------------------------------------------------------------------------
+inline
+const char   *Name() {return (const char *)Lname;}
 
-const char   *Host(sockaddr *ipaddr=0)
-                     {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(sockaddr));
-                      return (const char *)HostName;
-                     }
+//-----------------------------------------------------------------------------
+//! Obtain the network address object for this link. The returned value is
+//! valid as long as the end-point is connected. Otherwise, it may change.
+//!
+//! @return Pointer to the object and remains valid during the link's lifetime.
+//-----------------------------------------------------------------------------
+inline const
+XrdNetAddr   *NetAddr() {return &Addr;}
 
 int           Peek(char *buff, int blen, int timeout=-1);
 
@@ -144,17 +207,11 @@ int           RecvAll(char *buff, int blen, int timeout=-1);
 int           Send(const char *buff, int blen);
 int           Send(const struct iovec *iov, int iocnt, int bytes=0);
 
-struct sfVec {union {char *buffer;    // ->Data if fdnum < 0
-                     off_t offset;    // File offset      of data
-                    };
-              int   sendsz;           // Length of data at offset
-              int   fdnum;            // File descriptor for data
-             };
-static const int sfMax = 8;
-
 static int    sfOK;                   // True if Send(sfVec) enabled
 
-int           Send(const struct sfVec *sdP, int sdn); // Iff sfOK > 0
+typedef XrdOucSFVec sfVec;
+
+int           Send(const sfVec *sdP, int sdn); // Iff sfOK > 0
 
 void          Serialize();                              // ASYNC Mode
 
@@ -163,6 +220,8 @@ int           setEtext(const char *text);
 void          setID(const char *userid, int procid);
 
 static void   setKWT(int wkSec, int kwSec);
+
+void          setLocation(XrdNetAddrInfo::LocInfo &loc) {Addr.SetLocation(loc);}
 
 XrdProtocol  *setProtocol(XrdProtocol *pp);
 
@@ -179,6 +238,9 @@ static int    Stats(char *buff, int blen, int do_sync=0);
 time_t        timeCon() {return conTime;}
 
 int           UseCnt() {return InUse;}
+
+void          armBridge() {isBridged = 1;}
+int           hasBridge() {return isBridged;}
 
               XrdLink();
              ~XrdLink() {}  // Is never deleted!
@@ -227,8 +289,8 @@ static XrdSysMutex  statsMutex;
 
 // Identification section
 //
-struct sockaddr     InetAddr;
-char                Uname[24];  // Uname and Lname must be adjacent!
+XrdNetAddr          Addr;
+char                Uname[24];       // Uname and Lname must be adjacent!
 char                Lname[232];
 char               *HostName;
 int                 HNlen;
@@ -240,7 +302,6 @@ XrdSysMutex         wrMutex;
 XrdSysSemaphore     IOSemaphore;
 XrdSysCondVar      *KillcvP;        // Protected by opMutex!
 XrdLink            *Next;
-XrdNetBuffer       *udpbuff;
 XrdProtocol        *Protocol;
 XrdProtocol        *ProtoAlt;
 XrdPoll            *Poller;
@@ -256,7 +317,7 @@ char                KeepFD;
 char                isEnabled;
 char                isIdle;
 char                inQ;
-char                tBound;
+char                isBridged;
 char                KillCnt;        // Protected by opMutex!
 static const char   KillMax =   60;
 static const char   KillMsk = 0x7f;

@@ -33,14 +33,13 @@
 #include <errno.h>
 #include <netdb.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <stdio.h>
+#include <iomanip>
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -85,7 +84,7 @@ void               Delete() {}  // Never deleted because it's static!
 extern "C"
 {
 XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
-                                  const struct sockaddr  &netaddr,
+                                        XrdNetAddrInfo   &endPoint,
                                         XrdSecParameters &parms,
                                         XrdOucErrInfo    *einfo)
 {
@@ -100,6 +99,7 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
 // Perform any required debugging
 //
    DEBUG("protocol request for host " <<hostname <<" token='"
+         <<(parms.size > 0 ? setw(parms.size) : setw(1))
          <<(parms.size > 0 ? parms.buffer : "") <<"'");
 
 // Check if the server wants no security.
@@ -108,7 +108,7 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
 
 // Find a supported protocol.
 //
-   if (!(protp = PManager.Get(hostname, netaddr, parms)))
+   if (!(protp = PManager.Get(hostname, endPoint, parms, einfo)))
       {if (einfo) einfo->setErrInfo(ENOPROTOOPT, noperr);
          else cerr <<noperr <<endl;
       }

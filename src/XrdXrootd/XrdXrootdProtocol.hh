@@ -36,6 +36,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSfs/XrdSfsDio.hh"
 
 #include "Xrd/XrdObject.hh"
 #include "Xrd/XrdProtocol.hh"
@@ -65,9 +66,12 @@
 
 class XrdNetSocket;
 class XrdOucErrInfo;
+class XrdOucReqID;
 class XrdOucStream;
+class XrdOucTList;
 class XrdOucTokenizer;
 class XrdOucTrace;
+class XrdSfsDirectory;
 class XrdSfsFileSystem;
 class XrdSecProtocol;
 class XrdBuffer;
@@ -82,7 +86,7 @@ class XrdXrootdPio;
 class XrdXrootdStats;
 class XrdXrootdXPath;
 
-class XrdXrootdProtocol : public XrdProtocol
+class XrdXrootdProtocol : public XrdProtocol, public XrdSfsDio
 {
 friend class XrdXrootdAdmin;
 friend class XrdXrootdAioReq;
@@ -92,11 +96,21 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        void          DoIt() {(*this.*Resume)();}
 
+       int           do_WriteSpan();
+
        XrdProtocol  *Match(XrdLink *lp);
 
        int           Process(XrdLink *lp); //  Sync: Job->Link.DoIt->Process
 
+       int           Process2();
+
        void          Recycle(XrdLink *lp, int consec, const char *reason);
+
+       int           SendFile(int fildes);
+
+       int           SendFile(XrdOucSFVec *sfvec, int sfvnum);
+
+       void          SetFD(int fildes);
 
        int           Stats(char *buff, int blen, int do_sync=0);
 
@@ -120,9 +134,10 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Bind();
        int   do_Chmod();
        int   do_CKsum(int canit);
-       int   do_CKsum(const char *Path, const char *Opaque);
+       int   do_CKsum(char *algT, const char *Path, const char *Opaque);
        int   do_Close();
        int   do_Dirlist();
+       int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, const char *opaque);
        int   do_Endsess();
        int   do_Getfile();
        int   do_Login();
@@ -172,10 +187,9 @@ static int   Config(const char *fn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError, const char *Path);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
+       void  logLogin(bool xauth=false);
 static int   mapMode(int mode);
-       void  MonAuth();
 static void  PidFile();
-       int   Process2();
        void  Reset();
 static int   rpCheck(char *fn, const char **opaque);
        int   rpEmsg(const char *op, char *fn);
@@ -184,6 +198,7 @@ static int   Squash(char *);
 static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
+static int   xdig(XrdOucStream &Config);
 static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
@@ -193,7 +208,8 @@ static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
 static int   xmon(XrdOucStream &Config);
 static int   xred(XrdOucStream &Config);
-static void  xred_set(RD_func func, const char *rHost, int rPort);
+static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
+static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
 static int   xsecl(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
 
@@ -202,10 +218,14 @@ XrdObject<XrdXrootdProtocol>         ProtLink;
 
 protected:
 
+       void  MonAuth();
+       int   SetSF(kXR_char *fhandle, bool seton=false);
+
 static XrdXrootdXPath        RPList;    // Redirected paths
 static XrdXrootdXPath        RQList;    // Redirected paths for ENOENT
 static XrdXrootdXPath        XPList;    // Exported   paths
 static XrdSfsFileSystem     *osFS;      // The filesystem
+static XrdSfsFileSystem     *digFS;     // The filesystem (digFS)
 static XrdSecService        *CIA;       // Authentication Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
@@ -233,15 +253,20 @@ static int                 WANPort;
 static int                 WANWindow;
 static char               *SecLib;
 static char               *FSLib[2];
+static char               *digLib;    // Normally zero for now
+static char               *digParm;
 static char               *Notify;
 static char                isRedir;
 static char                JobLCL;
+static char                JobCKCGI;
 static XrdXrootdJob       *JobCKS;
 static char               *JobCKT;
+static XrdOucTList        *JobCKTLST;
+static XrdOucReqID        *PrepID;
 
 // Static redirection
 //
-static struct RD_Table {char *Host; int Port;} Route[RD_Num];
+static struct RD_Table {char *Host[2]; int Port[2];} Route[RD_Num];
 
 // async configuration values
 //
@@ -284,6 +309,7 @@ XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
 XrdXrootdMonitor::User     Monitor;
 int                        clientPV;
+short                      rdType;
 char                       Status;
 unsigned char              CapVer;
 

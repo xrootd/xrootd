@@ -40,6 +40,8 @@
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetUtils.hh"
 
 /******************************************************************************/
 /*                          L o c a l   M a c r o s                           */
@@ -52,8 +54,10 @@
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
   
-char   XrdOssPath::h2c[16] = {'0','1','2','3','4','5','6','7',
+char XrdOssPath::h2c[16] = {'0','1','2','3','4','5','6','7',
                               '8','9','A','B','C','D','E','F'};
+
+char XrdOssPath::pfnPfx[60] = {'\0'};
 
 const char XrdOssPath::xChar;
 
@@ -62,6 +66,7 @@ const char XrdOssPath::xChar;
 const char *XrdOssPath::Sfx[XrdOssPath::sfxNum] =
                       {".anew", ".fail",  ".lock", ".pin",
                        ".mmap", ".mkeep", ".mlock",".pfn", 0};
+
 
 /******************************************************************************/
 /*                               C o n v e r t                                */
@@ -167,8 +172,7 @@ char *XrdOssPath::genPath(const char *inPath, const char *cgrp, char *sfx)
 char *XrdOssPath::genPFN(fnInfo &Info, char *buff, int blen, const char *Path)
 {
     static XrdSysMutex myMutex;
-    static char pfnPfx[8];
-    static int mySeq = Init(pfnPfx);
+    static int mySeq = 0;
     union {int  bin;
            char chr[4];} Seq;
     char   *bP = buff;
@@ -186,6 +190,11 @@ char *XrdOssPath::genPFN(fnInfo &Info, char *buff, int blen, const char *Path)
        return 0;
       }
 
+   if (! *pfnPfx) {
+       *bP = '\0';
+       return bP;
+   }
+
 // Increment the sequence number
 //
    myMutex.Lock();
@@ -196,12 +205,12 @@ char *XrdOssPath::genPFN(fnInfo &Info, char *buff, int blen, const char *Path)
 //
    memcpy(bP, Info.Path, Info.Plen);
    bP += Info.Plen;
-   *bP++ = h2c[((Seq.bin>4) & 0x0f)];
+   *bP++ = h2c[((Seq.bin>>4) & 0x0f)];
    *bP++ = h2c[( Seq.bin    & 0x0f)];
    Info.Slash= bP;
    *bP++ = '/';
-   memcpy(bP, pfnPfx, sizeof(pfnPfx));
-   bP = bin2hex(Seq.chr, sizeof(Seq.chr), bP+sizeof(pfnPfx));
+   strcpy(bP, pfnPfx);
+   bP = bin2hex(Seq.chr, sizeof(Seq.chr), bP+strlen(pfnPfx));
    memcpy(bP, Info.Sfx, sfxLen);
    bP += sfxLen;
    *bP = '\0';
@@ -322,21 +331,42 @@ char *XrdOssPath::bin2hex(char *inbuff, int dlen, char *buff)
 }
 
 /******************************************************************************/
-/*                                  I n i t                                   */
+/*                                  I n i t P r e f i x                       */
 /******************************************************************************/
-  
-int XrdOssPath::Init(char *pfnPfx)
-{
-   time_t theTime = time(0);
-   union {int  binT;
-          char chrT[4];} xTime;
 
-// Generate the pfn prefix
-//
-   xTime.binT = static_cast<int>(theTime);
-   bin2hex(xTime.chrT, sizeof(xTime.binT), pfnPfx);
+// Create a prefix for files in a cache. It is create only once when oss is 
+// configured. It is unique using:  <time><pid><encoded-network-address>
+
+int XrdOssPath::InitPrefix()
+{
+   union {int  binT;
+       char chrT[4];} xT;
+
+   size_t plen = sizeof(pfnPfx) - 4*sizeof(xT.binT) - 1;
+   
+   if (plen < 1) return 1;
+
+   char *bp = pfnPfx;
+
+   time_t theTime = time(0);
+   xT.binT = static_cast<int>(theTime);
+   bp = bin2hex(xT.chrT, sizeof(xT.binT), bp);
+   
+   pid_t pid = getpid();
+   xT.binT = static_cast<int> (pid);
+   bp = bin2hex(xT.chrT, sizeof(xT.binT), bp);
+
+   XrdNetAddr theAddr(0);
+   int rc = XrdNetUtils::Encode(theAddr.NetAddr(), bp, plen);
+
+   if ( rc < 0 ) { 
+       pfnPfx[0] = '\0';
+       return 1;
+   }
+
    return 0;
 }
+
 
 /******************************************************************************/
 /*                              p o s C n a m e                               */

@@ -65,7 +65,6 @@
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -165,7 +164,6 @@ int XrdgetProtocolPort(const char *pname, char *parms,
    Config.myProg    = strdup(pi->myProg);
    Sched            = pi->Sched;
    if (pi->DebugON) Trace.What = TRACE_ALL;
-   memcpy(&Config.myAddr, pi->myAddr, sizeof(struct sockaddr));
 
 // The only parameter we accept is the name of an alternate config file
 //
@@ -293,17 +291,23 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    loginData.HoldTime= static_cast<int>(getpid());
    loginData.Mode    = 0;
    loginData.Size    = 0;
+   loginData.ifList  = (kXR_char *)Config.ifList;
+   loginData.envCGI  = 0;
 
 // Establish request routing based on who we are
 //
-   if (Config.asManager()) Routing = (Config.asServer() ? &supVOps : &manVOps);
-      else                 Routing = (Config.asPeer()   ? &supVOps : &srvVOps);
+        if (Config.SanList)    {Routing= &supVOps;
+                                Role   = CmsLoginData::kYR_subman;
+                               }
+   else if (Config.asManager()) Routing= (Config.asServer() ? &supVOps:&manVOps);
+   else                         Routing= (Config.asPeer()   ? &supVOps:&srvVOps);
 
 // Compute the Manager's status (this never changes for managers/supervisors)
 //
    if (Config.asPeer())                Role  = CmsLoginData::kYR_peer;
-      else if (Config.asManager())     Role  = CmsLoginData::kYR_manager;
-              else                     Role  = CmsLoginData::kYR_server;
+      else {if (Config.asManager())    Role |= CmsLoginData::kYR_manager;
+            if (Config.asServer())     Role |= CmsLoginData::kYR_server;
+           }
    if (Config.asProxy())               Role |= CmsLoginData::kYR_proxy;
 
 // If we are a simple server, permanently add the nostage option if we are
@@ -351,8 +355,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
       // Compute current login mode
       //
       Mode = Role
-           | (CmsState.Suspended ? CmsLoginData::kYR_suspend : 0)
-           | (CmsState.NoStaging ? CmsLoginData::kYR_nostage : 0);
+           | (CmsState.Suspended ? int(CmsLoginData::kYR_suspend) : 0)
+           | (CmsState.NoStaging ? int(CmsLoginData::kYR_nostage) : 0);
        if (fails >= 6 && manp == manager) 
           {fails = 0; Mode |=    CmsLoginData::kYR_trying;}
 
@@ -360,7 +364,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
        //
        loginData.fSpace= Meter.FreeSpace(fsUtil);
        loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
-       KickedOut = 0; loginData.dPort = CmsState.Port();
+       KickedOut = 0;
+       if (!(loginData.dPort = CmsState.Port())) loginData.dPort = 1094;
        Data = loginData; Data.Mode = Mode | myShare | myTimeZ;
        if (!(rc = XrdCmsLogin::Login(Link, Data, TimeOut)))
           {if(!ManTree.Connect(myNID, myNode)) KickedOut = 1;
@@ -372,34 +377,26 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
                   }
           }
 
+       // Check if we should process the redirection
+       //
+       if (rc == kYR_redirect)
+          {myMans.Add(Link->NetAddr(),(char *)Data.Paths,Config.PortTCP,Lvl+1);
+           free(Data.Paths);
+          }
+
        // Remove manager from the config
        //
        Manager.Remove(myNode, (rc == kYR_redirect ? "redirected"
                                   : (Reason ? Reason : "lost connection")));
        ManTree.Disc(myNID);
        Link->Close();
-       delete myNode; myNode = 0;
-
-       // Check if we should process the redirection
-       //
-       if (rc == kYR_redirect)
-          {struct sockaddr netaddr;
-           XrdOucTokenizer hList((char *)Data.Paths);
-           unsigned int ipaddr;
-           char *hP;
-           Link->Name(&netaddr);
-           ipaddr = XrdSysDNS::IPAddr(&netaddr);
-           myMans.Del(ipaddr);
-           while((hP = hList.GetToken()))
-                 myMans.Add(ipaddr, hP, Config.PortTCP, Lvl+1);
-           free(Data.Paths);
-          }
+       delete myNode; myNode = 0; Reason = 0;
 
        // Cycle on to the next manager if we have one or snooze and try over
        //
        if (!KickedOut && (Lvl = myMans.Next(xport,manbuff,manblen)))
           {manp = manbuff; continue;}
-       XrdSysTimer::Snooze(9); Lvl = 0;
+       XrdSysTimer::Snooze((rc < 0 ? 60 : 9)); Lvl = 0;
        if (manp != manager) fails++;
        manp = manager; xport = mport;
       } while(1);
@@ -508,8 +505,8 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    XrdCmsRole::RoleID roleID = XrdCmsRole::noRole;
    const char  *Reason;
    SMask_t      newmask, servset(0);
-   int addedp = 0, Status = 0, isMan = 0, isPeer = 0, isProxy = 0, isServ = 0;
-   int wasSuspended = 0, Share = 100, tZone = 0;
+   int addedp = 0, Status = 0, isPeer = 0, isProxy = 0;
+   int isMan, isServ, isSubm, wasSuspended = 0, Share = 100, tZone = 0;
 
 // Establish outgoing mode
 //
@@ -536,16 +533,25 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    if (Config.asSolo())
       return Login_Failed("configuration disallows subscribers");
 
+// Setup for role tests
+//
+   isMan  = Data.Mode & CmsLoginData::kYR_manager;
+   isServ = Data.Mode & CmsLoginData::kYR_server;
+   isSubm = Data.Mode & CmsLoginData::kYR_subman;
+
 // Determine the role of this incomming login.
 //
-        if ((isMan = Data.Mode & CmsLoginData::kYR_manager))
-           {Status = CMS_isMan;
+        if (isMan)
+           {Status = (isServ ? CMS_isSuper|CMS_isMan : CMS_isMan);
                  if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
                     {Status |= CMS_isPeer;  roleID = XrdCmsRole::PeerManager;}
             else if (Data.Mode & CmsLoginData::kYR_proxy)
                                             roleID = XrdCmsRole::ProxyManager;
-            else if (Config.asMetaMan())    roleID = XrdCmsRole::Manager;
-            else                            roleID = XrdCmsRole::Supervisor;
+            else if (Config.asMetaMan() || isSubm)
+                                            roleID = XrdCmsRole::Manager;
+            else                           {roleID = XrdCmsRole::Supervisor;
+                                            Status|= CMS_isSuper;
+                                           }
            }
    else if ((isServ =  Data.Mode & CmsLoginData::kYR_server))
            {if ((isProxy=  Data.Mode & CmsLoginData::kYR_proxy))
@@ -586,7 +592,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 // unlock it prior to dispatching.
 //
    if (!(myNode = Cluster.Add(Link, Data.dPort, Status, Data.sPort,
-                              (const char *)Data.SID)))
+                  (const char *)Data.SID, (const char *)Data.ifList)))
       return (XrdCmsRouting *)0;
    myNode->RoleID = static_cast<char>(roleID);
 
@@ -596,9 +602,12 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
       {Share  = (Data.Mode & CmsLoginData::kYR_share)>>CmsLoginData::kYR_shift;
        if (Share <= 0 || Share > 100) Share = Config.P_gsdf;
        if (Share > 0) myNode->setShare(Share);
-       tZone = (Data.Mode & CmsLoginData::kYR_tzone)>>CmsLoginData::kYR_shifttz;
-       tZone = myNode->setTZone(tZone);
       }
+
+// Set the node's timezone
+//
+   tZone = (Data.Mode & CmsLoginData::kYR_tzone)>>CmsLoginData::kYR_shifttz;
+   tZone = myNode->setTZone(tZone);
 
 // Record the status of the server's filesystem
 //
@@ -643,16 +652,19 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 
 // Set the reference counts for intersecting nodes to be the same.
 // Additionally, indicate cache refresh will be needed because we have a new
-// node that may have files the we already reported on.
+// node that may have files the we already reported on. Note that setting
+// isBad may be subject to a concurrency race, but that is still OK here.
 //
    Cluster.ResetRef(servset);
    if (Config.asManager()) {Manager.Reset(); myNode->SyncSpace();}
-   myNode->isDisable = 0;
+   myNode->isBad &= ~XrdCmsNode::isDisabled;
 
 // Document the login
 //
-   Say.Emsg("Protocol", myNode->Ident,
-            (myNode->isSuspend ? "logged in suspended." : "logged in."));
+   Say.Emsg("Protocol",(myNode->isMan > 1 ? "Standby":"Primary"),myNode->Ident,
+            (myNode->isBad & XrdCmsNode::isSuspend ? "logged in suspended."
+                                                   : "logged in."));
+   myNode->ShowIF();
 
 // All done
 //
@@ -800,20 +812,31 @@ const char *XrdCmsProtocol::Dispatch(Bearing cDir, int maxWait, int maxTries)
                                     : "server not responding");
    const char *myArgs, *myArgt;
    char        buff[8];
-   int         rc, toLeft = maxTries;
+   int         rc, toLeft = maxTries, lastPing = Config.PingTick;
 
 // Dispatch runs with the current thread bound to the link.
 //
-   Link->Bind(XrdSysThread::ID());
+// Link->Bind(XrdSysThread::ID());
 
 // Read in the request header
 //
 do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
       {if (rc != -ETIMEDOUT) return "request read failed";
        if (!toLeft--) return toRC;
-       if (cDir == isDown && Link->Send((char *)&Ping, sizeof(Ping)) < 0)
-          return "server unreachable";
+       if (cDir == isDown)
+          {if (Link->Send((char *)&Ping, sizeof(Ping)) < 0)
+              return "server unreachable";
+           lastPing = Config.PingTick;
+          }
        continue;
+      }
+
+// Check if we need to ping as non-response activity may cause ping misses
+//
+   if (cDir == isDown && lastPing != Config.PingTick)
+      {if (Link->Send((char *)&Ping, sizeof(Ping)) < 0)
+          return "server unreachable";
+       lastPing = Config.PingTick;
       }
 
 // Decode the length and get the rest of the data
@@ -914,7 +937,7 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
    XrdCmsPInfo pinfo;
    SMask_t amask;
    struct iovec ioB[2] = {{(char *)&Data.Request, sizeof(Data.Request)},
-                          {         Data.Buff,    Data.Dlen}
+                          {         Data.Buff,    (size_t)Data.Dlen}
                          };
 
 // Check if we can really reissue the command
@@ -978,10 +1001,10 @@ void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etex
 
      if (Data.Request.streamid && (Data.Routing & XrdCmsRouting::Repliable))
         {CmsResponse Resp = {{Data.Request.streamid, kYR_error, 0,
-                              htons(sizeof(kXR_unt32)+n)},
+                              htons((unsigned short int)(sizeof(kXR_unt32)+n))},
                              htonl(static_cast<unsigned int>(ecode))};
          struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
-                                {(char *)etext, n}};
+                                {(char *)etext, (size_t)n}};
          act = " sent";
          Link->Send(ioV, 2);
         } else act = " skip";

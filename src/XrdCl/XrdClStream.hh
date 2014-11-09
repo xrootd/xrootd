@@ -24,18 +24,20 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 #include "XrdCl/XrdClChannelHandlerList.hh"
+#include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClInQueue.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include <list>
 #include <vector>
-#include <netinet/in.h>
 
 namespace XrdCl
 {
   class  Message;
   class  Channel;
   class  TransportHandler;
-  class  InQueue;
   class  TaskManager;
   struct SubStreamData;
 
@@ -101,6 +103,8 @@ namespace XrdCl
       void SetIncomingQueue( InQueue *incomingQueue )
       {
         pIncomingQueue = incomingQueue;
+        delete pQueueIncMsgJob;
+        pQueueIncMsgJob = new QueueIncMsgJob( incomingQueue );
       }
 
       //------------------------------------------------------------------------
@@ -117,6 +121,14 @@ namespace XrdCl
       void SetTaskManager( TaskManager *taskManager )
       {
         pTaskManager = taskManager;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set job manager
+      //------------------------------------------------------------------------
+      void SetJobManager( JobManager *jobManager )
+      {
+        pJobManager = jobManager;
       }
 
       //------------------------------------------------------------------------
@@ -169,17 +181,22 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Call back when a message has been reconstructed
       //------------------------------------------------------------------------
-      void OnIncoming( uint16_t subStream, Message *msg );
+      void OnIncoming( uint16_t  subStream,
+                       Message  *msg,
+                       uint32_t  bytesReceived );
 
       //------------------------------------------------------------------------
       // Call when one of the sockets is ready to accept a new message
       //------------------------------------------------------------------------
-      Message *OnReadyToWrite( uint16_t subStream );
+      std::pair<Message *, OutgoingMsgHandler *>
+        OnReadyToWrite( uint16_t subStream );
 
       //------------------------------------------------------------------------
       // Call when a message is written to the socket
       //------------------------------------------------------------------------
-      void OnMessageSent( uint16_t subStream, Message *msg );
+      void OnMessageSent( uint16_t  subStream,
+                          Message  *msg,
+                          uint32_t  bytesSent );
 
       //------------------------------------------------------------------------
       //! Call back when a message has been reconstructed
@@ -216,7 +233,56 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void RemoveEventHandler( ChannelEventHandler *handler );
 
+      //------------------------------------------------------------------------
+      //! Install a message handler for the given message if there is one
+      //! available, if the handler want's to be called in the raw mode
+      //! it will be returned, the message ownership flag is returned
+      //! in any case
+      //!
+      //! @param msg    message header
+      //! @param stream stream concerned
+      //! @return       a pair containing the handler and ownership flag
+      //------------------------------------------------------------------------
+      std::pair<IncomingMsgHandler *, bool>
+        InstallIncHandler( Message *msg, uint16_t stream );
+
     private:
+
+      //------------------------------------------------------------------------
+      // Job queuing the incoming messages
+      //------------------------------------------------------------------------
+      class QueueIncMsgJob: public Job
+      {
+        public:
+          QueueIncMsgJob( InQueue *queue ): pQueue( queue ) {};
+          virtual ~QueueIncMsgJob() {};
+          virtual void Run( void *arg )
+          {
+            Message *msg = (Message *)arg;
+            pQueue->AddMessage( msg );
+          }
+        private:
+          InQueue *pQueue;
+      };
+
+      //------------------------------------------------------------------------
+      // Job handling the incoming messages
+      //------------------------------------------------------------------------
+      class HandleIncMsgJob: public Job
+      {
+        public:
+          HandleIncMsgJob( IncomingMsgHandler *handler ): pHandler( handler ) {};
+          virtual ~HandleIncMsgJob() {};
+          virtual void Run( void *arg )
+          {
+            Message *msg = (Message *)arg;
+            pHandler->Process( msg );
+            delete this;
+          }
+        private:
+          IncomingMsgHandler *pHandler;
+      };
+
       //------------------------------------------------------------------------
       //! On fatal error - unlocks the stream
       //------------------------------------------------------------------------
@@ -240,19 +306,27 @@ namespace XrdCl
       TransportHandler              *pTransport;
       Poller                        *pPoller;
       TaskManager                   *pTaskManager;
+      JobManager                    *pJobManager;
       XrdSysRecMutex                 pMutex;
       InQueue                       *pIncomingQueue;
       AnyObject                     *pChannelData;
-      uint16_t                       pLastStreamError;
+      uint32_t                       pLastStreamError;
+      Status                         pLastFatalError;
       uint16_t                       pStreamErrorWindow;
       uint16_t                       pConnectionCount;
       uint16_t                       pConnectionRetry;
       time_t                         pConnectionInitTime;
       uint16_t                       pConnectionWindow;
       SubStreamList                  pSubStreams;
-      std::vector<sockaddr_in>       pAddresses;
+      std::vector<XrdNetAddr>        pAddresses;
+      Utils::AddressType             pAddressType;
       ChannelHandlerList             pChannelEvHandlers;
       uint64_t                       pSessionId;
+
+      //------------------------------------------------------------------------
+      // Jobs
+      //------------------------------------------------------------------------
+      QueueIncMsgJob                *pQueueIncMsgJob;
 
       //------------------------------------------------------------------------
       // Monitoring info

@@ -41,6 +41,8 @@ namespace
     { errUninitialized,      "Initialization error" },
     { errOSError,            "OS Error"             },
     { errNotSupported,       "Operation not supported" },
+    { errDataError,          "Received corrupted data" },
+    { errNotImplemented,     "Operation is not implemented" },
     { errInvalidAddr,        "Invalid address"      },
     { errSocketError,        "Socket error"         },
     { errSocketTimeout,      "Socket timeout"       },
@@ -48,7 +50,7 @@ namespace
     { errPollerError,        "Poller error"         },
     { errSocketOptError,     "Socket opt error"     },
     { errStreamDisconnect,   "Stream disconnect"    },
-    { errConnectionError,    "Conection error"      },
+    { errConnectionError,    "Connection error"     },
     { errInvalidSession,     "Invalid session"      },
     { errInvalidMessage,     "Invalid message"      },
     { errNotFound,           "Resource not found"   },
@@ -62,7 +64,9 @@ namespace
     { errNoMoreFreeSIDs,     "No more free SIDs"    },
     { errInvalidRedirectURL, "Invalid redirect URL" },
     { errInvalidResponse,    "Invalid response"     },
+    { errRedirect,           "Unhandled redirect"   },
     { errErrorResponse,      "Error response"       },
+    { errResponseNegative,   "Query response negative" },
     { 0, 0 } };
 
   //----------------------------------------------------------------------------

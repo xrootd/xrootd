@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_MESSAGE_UTILS_HH__
@@ -22,8 +28,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClMessage.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include <memory>
+#include "XrdCl/XrdClUglyHacks.hh"
 
 namespace XrdCl
 {
@@ -39,7 +44,7 @@ namespace XrdCl
       SyncResponseHandler():
         pStatus(0),
         pResponse(0),
-        pSem( new XrdSysSemaphore(0) ) {}
+        pSem( new Semaphore(0) ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -88,7 +93,24 @@ namespace XrdCl
     private:
       XRootDStatus    *pStatus;
       AnyObject       *pResponse;
-      XrdSysSemaphore *pSem;
+      Semaphore       *pSem;
+  };
+
+  //----------------------------------------------------------------------------
+  // We're not interested in the response just commit suicide
+  //----------------------------------------------------------------------------
+  class NullResponseHandler: public XrdCl::ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      virtual void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                            XrdCl::AnyObject    *response,
+                                            XrdCl::HostList     *hostList )
+      {
+        delete this;
+      }
   };
 
   //----------------------------------------------------------------------------
@@ -134,17 +156,19 @@ namespace XrdCl
       {
         handler->WaitForResponse();
 
-        std::auto_ptr<AnyObject> resp( handler->GetResponse() );
+        AnyObject    *resp   = handler->GetResponse();
         XRootDStatus *status = handler->GetStatus();
         XRootDStatus ret( *status );
         delete status;
 
         if( ret.IsOK() )
         {
-          if( !resp.get() )
+          if( !resp )
             return XRootDStatus( stError, errInternal );
           resp->Get( response );
           resp->Set( (int *)0 );
+          delete resp;
+
           if( !response )
             return XRootDStatus( stError, errInternal );
         }
@@ -179,17 +203,20 @@ namespace XrdCl
       static void ProcessSendParams( MessageSendParams &sendParams );
 
       //------------------------------------------------------------------------
-      //! Append cgi to the on already present in the message
+      //! Rewrite CGI and path if necessary
       //!
       //! @param msg     message concerned
       //! @param newCgi  the new cgi
       //! @param replace indicates whether, in case of a conflict, the new CGI
       //!                parameter should replace an existing one or be
       //!                appended to it using a comma
+      //! @param newPath will be used as the new destination path if it is
+      //!                not empty
       //------------------------------------------------------------------------
-      static void AppendCGI( Message              *msg,
-                             const URL::ParamsMap &newCgi,
-                             bool                  replace );
+      static void RewriteCGIAndPath( Message              *msg,
+                                     const URL::ParamsMap &newCgi,
+                                     bool                  replace,
+                                     const std::string    &newPath );
 
       //------------------------------------------------------------------------
       //! Merge cgi2 into cgi1

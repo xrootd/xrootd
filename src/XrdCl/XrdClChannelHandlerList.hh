@@ -28,7 +28,7 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
-  //! A helper for handling hannel event handlers
+  //! A helper for handling channel event handlers
   //----------------------------------------------------------------------------
   class ChannelHandlerList
   {

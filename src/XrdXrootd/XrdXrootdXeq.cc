@@ -33,6 +33,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -53,6 +54,8 @@
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
+
+#include "XrdVersion.hh"
   
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -91,6 +94,11 @@ struct XrdXrootdSessID
 #define CRED (const XrdSecEntity *)Client
 
 #define TRACELINK Link
+
+#define STATIC_REDIRECT(xfnc) \
+        if (Route[xfnc].Port[rdType]) \
+           return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],\
+                                             Route[xfnc].Host[rdType])
  
 /******************************************************************************/
 /*                              d o _ A d m i n                               */
@@ -107,7 +115,6 @@ int XrdXrootdProtocol::do_Admin()
   
 int XrdXrootdProtocol::do_Auth()
 {
-    struct sockaddr netaddr;
     XrdSecCredentials cred;
     XrdSecParameters *parm = 0;
     XrdOucErrInfo     eMsg;
@@ -133,27 +140,23 @@ int XrdXrootdProtocol::do_Auth()
       {if (AuthProt) AuthProt->Delete();
        strncpy(Entity.prot, (const char *)Request.auth.credtype,
                                    sizeof(Request.auth.credtype));
-       Link->Name(&netaddr);
-       if (!(AuthProt = CIA->getProtocol(Link->Host(),netaddr,&cred,&eMsg)))
+       if (!(AuthProt = CIA->getProtocol(Link->Host(), *(Link->AddrInfo()),
+                                         &cred, &eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);
           }
-       AuthProt->Entity.tident = Link->ID; numReads++;
+       AuthProt->Entity.tident = Link->ID;
+       numReads++;
       }
 
 // Now try to authenticate the client using the current protocol
 //
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
-      {const char *msg = (Status & XRD_ADMINUSER ? "admin login as"
-                                                 : "login as");
-       rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
+      {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
-       if (Client->name) 
-          eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, Client->name);
-          else
-          eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, "nobody");
+       logLogin(true);
        return rc;
       }
 
@@ -269,6 +272,7 @@ int XrdXrootdProtocol::do_Bind()
    free(cp);
    CapVer = pp->CapVer;
    Status = XRD_BOUNDPATH;
+   clientPV = pp->clientPV;
 
 // Get the required number of parallel I/O objects
 //
@@ -293,12 +297,11 @@ int XrdXrootdProtocol::do_Chmod()
 {
    int mode, rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
-   if (Route[RD_chmod].Port) 
-      return Response.Send(kXR_redirect,Route[RD_chmod].Port,Route[RD_chmod].Host);
+   STATIC_REDIRECT(RD_chmod);
 
 // Unmarshall the data
 //
@@ -324,13 +327,12 @@ int XrdXrootdProtocol::do_Chmod()
 int XrdXrootdProtocol::do_CKsum(int canit)
 {
    const char *opaque;
-   char *args[3];
+   char *algT = JobCKT, *args[4];
    int rc;
 
 // Check for static routing
 //
-   if (Route[RD_chksum].Port)
-      return Response.Send(kXR_redirect,Route[RD_chksum].Port,Route[RD_chksum].Host);
+   STATIC_REDIRECT(RD_chksum);
 
 // Check if we support this operation
 //
@@ -349,20 +351,44 @@ int XrdXrootdProtocol::do_CKsum(int canit)
        return Response.Send();
       }
 
+// Check if multiple checksums are supported and if so, pre-process
+//
+   if (JobCKCGI && opaque && *opaque)
+      {XrdOucEnv jobEnv(opaque);
+       char *cksT;
+       if ((cksT = jobEnv.Get("cks.type")))
+          {XrdOucTList *tP = JobCKTLST;
+           while(tP && strcmp(tP->text, cksT)) tP = tP->next;
+           if (!tP)
+              {char ebuf[1024];
+               snprintf(ebuf, sizeof(ebuf), "%s checksum not supported.", cksT);
+               return Response.Send(kXR_ServerError, ebuf);
+              }
+           algT = tP->text;
+          }
+      }
+
 // If we are allowed to locally query the checksum to avoid computation, do it
 //
-   if (JobLCL && (rc = do_CKsum(argp->buff, opaque)) <= 0) return rc;
+   if (JobLCL && (rc = do_CKsum(algT, argp->buff, opaque)) <= 0) return rc;
 
 // Just make absolutely sure we can continue with a calculation
 //
    if (!JobCKS)
       return Response.Send(kXR_ServerError, "Logic error computing checksum.");
 
-// Construct the argument list
+// Check if multiple checksums are supported and construct right argument list
 //
-   args[0] = JobCKT;
-   args[1] = argp->buff;
-   args[2] = 0;
+   if (JobCKCGI > 1 || JobLCL)
+      {args[0] = algT;
+       args[1] = algT;
+       args[2] = argp->buff;
+       args[3] = 0;
+      } else {
+       args[0] = algT;
+       args[1] = argp->buff;
+       args[2] = 0;
+      }
 
 // Preform the actual function
 //
@@ -372,12 +398,13 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_CKsum(const char *Path, const char *Opaque)
+int XrdXrootdProtocol::do_CKsum(char *algT, const char *Path,
+                                            const char *Opaque)
 {
    static char Space = ' ';
-   static int  CKTLen = strlen(JobCKT);
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
-   int ec, rc = osFS->chksum(XrdSfsFileSystem::csGet, JobCKT, Path,
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
+   int  CKTLen = strlen(algT);
+   int ec, rc = osFS->chksum(XrdSfsFileSystem::csGet, algT, Path,
                              myError, CRED, Opaque);
    const char *csData = myError.getErrText(ec);
 
@@ -388,7 +415,8 @@ int XrdXrootdProtocol::do_CKsum(const char *Path, const char *Opaque)
 // Return result if it is actually available
 //
    if (*csData)
-      {struct iovec iov[4] = {{0,0}, {JobCKT, CKTLen}, {&Space, 1},
+      {if (*csData == '!') return Response.Send(csData+1);
+       struct iovec iov[4] = {{0,0}, {algT, (size_t)CKTLen}, {&Space, 1},
                               {(char *)csData, strlen(csData)+1}};
        return Response.Send(iov, 4);
       }
@@ -469,20 +497,29 @@ int XrdXrootdProtocol::do_Dirlist()
    char *buff, ebuff[4096];
    const char *opaque, *dname;
    XrdSfsDirectory *dp;
+   bool doDig;
+
+// Check if we are digging for data
+//
+   doDig = (digFS && SFS_LCLROOT(argp->buff));
 
 // Check for static routing
 //
-   if (Route[RD_dirlist].Port) 
-      return Response.Send(kXR_redirect,Route[RD_dirlist].Port,Route[RD_dirlist].Host);
+   if (!doDig) {STATIC_REDIRECT(RD_dirlist);}
 
 // Prescreen the path
 //
    if (rpCheck(argp->buff, &opaque)) return rpEmsg("Listing", argp->buff);
-   if (!Squash(argp->buff))          return vpEmsg("Listing", argp->buff);
+   if (!doDig && !Squash(argp->buff))return vpEmsg("Listing", argp->buff);
 
 // Get a directory object
 //
-   if (!(dp = osFS->newDir(Link->ID, Monitor.Did)))
+   if (doDig) dp = digFS->newDir(Link->ID, Monitor.Did);
+      else    dp =  osFS->newDir(Link->ID, Monitor.Did);
+
+// Make sure we have the object
+//
+   if (!dp)
       {snprintf(ebuff,sizeof(ebuff)-1,"Insufficient memory to open %s",argp->buff);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
@@ -490,11 +527,17 @@ int XrdXrootdProtocol::do_Dirlist()
 
 // First open the directory
 //
+   dp->error.setUCap(clientPV);
    if ((rc = dp->open(argp->buff, CRED, opaque)))
       {rc = fsError(rc, XROOTD_MON_OPENDIR, dp->error, argp->buff);
        delete dp;
        return rc;
       }
+
+// Check if the caller wants stat information as well
+//
+   if (Request.dirlist.options[0] & kXR_dstat)
+      return do_DirStat(dp, ebuff, opaque);
 
 // Start retreiving each entry and place in a local buffer with a trailing new
 // line character (the last entry will have a null byte). If we cannot fit a
@@ -530,6 +573,85 @@ int XrdXrootdProtocol::do_Dirlist()
    dp->close();
    delete dp;
    if (!rc) {TRACEP(FS, "dirlist entries=" <<cnt <<" path=" <<argp->buff);}
+   return rc;
+}
+
+/******************************************************************************/
+/*                            d o _ D i r S t a t                             */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
+                                                 const char *opaque)
+{
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
+   struct stat Stat;
+   static const int statSz = 80;
+   int bleft, rc = 0, dlen, cnt = 0;
+   char *buff, *dLoc, ebuff[8192];
+   const char *dname;
+
+// Construct the path to the directory as we will be asking for stat calls
+// if the interface does not support autostat.
+//
+   if (dp->autoStat(&Stat) == SFS_OK) dLoc = 0;
+      else {strcpy(pbuff, argp->buff);
+            dlen = strlen(pbuff);
+            if (pbuff[dlen-1] != '/') {pbuff[dlen] = '/'; dlen++;}
+            dLoc = pbuff+dlen;
+           }
+
+// The initial leadin is a "dot" entry to indicate to the client that we
+// support the dstat option (older servers will not do that). It's up to the
+// client to issue individual stat requests in that case.
+//
+   memset(&Stat, 0, sizeof(Stat));
+   strcpy(ebuff, ".\n0 0 0 0\n");
+   buff = ebuff+10; bleft = sizeof(ebuff)-10;
+
+// Start retreiving each entry and place in a local buffer with a trailing new
+// line character (the last entry will have a null byte). If we cannot fit a
+// full entry in the buffer, send what we have with an OKSOFAR and continue.
+// This code depends on the fact that a directory entry will never be longer
+// than sizeof( ebuff)-1; otherwise, an infinite loop will result. No errors
+// are allowed to be reflected at this point.
+//
+  dname = 0;
+  do {while(dname || (dname = dp->nextEntry()))
+           {dlen = strlen(dname);
+            if (dlen > 2 || dname[0] != '.' || (dlen == 2 && dname[1] != '.'))
+               {if ((bleft -= (dlen+1)) < 0 || bleft < statSz) break;
+                strcpy(buff, dname); buff += dlen; *buff = '\n'; buff++; cnt++;
+                if (dLoc)
+                   {strcpy(dLoc, dname);
+                    rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
+                    if (rc != SFS_OK)
+                       return fsError(rc, XROOTD_MON_STAT, myError, argp->buff);
+                   }
+                dlen = StatGen(Stat, buff);
+                bleft -= dlen; buff += (dlen-1); *buff = '\n'; buff++;
+               }
+            dname = 0;
+           }
+       if (dname)
+          {rc = Response.Send(kXR_oksofar, ebuff, buff-ebuff);
+           buff = ebuff; bleft = sizeof(ebuff);
+          }
+     } while(!rc && dname);
+
+// Send the ending packet if we actually have one to send
+//
+   if (!rc) 
+      {if (ebuff == buff) rc = Response.Send();
+          else {*(buff-1) = '\0';
+                rc = Response.Send((void *)ebuff, buff-ebuff);
+               }
+      }
+
+// Close the directory
+//
+   dp->close();
+   delete dp;
+   if (!rc) {TRACEP(FS, "dirstat entries=" <<cnt <<" path=" <<argp->buff);}
    return rc;
 }
 
@@ -589,7 +711,7 @@ int XrdXrootdProtocol::do_Endsess()
   
 int XrdXrootdProtocol::do_Getfile()
 {
-   int gopts, buffsz;
+// int gopts, buffsz;
 
 // Keep Statistics
 //
@@ -597,8 +719,8 @@ int XrdXrootdProtocol::do_Getfile()
 
 // Unmarshall the data
 //
-   gopts  = int(ntohl(Request.getfile.options));
-   buffsz = int(ntohl(Request.getfile.buffsz));
+// gopts  = int(ntohl(Request.getfile.options));
+// buffsz = int(ntohl(Request.getfile.buffsz));
 
    return Response.Send(kXR_Unsupported, "getfile request is not supported");
 }
@@ -613,7 +735,8 @@ int XrdXrootdProtocol::do_Locate()
    int rc, opts, fsctl_cmd = SFS_FSCTL_LOCATE;
    const char *opaque;
    char *Path, *fn = argp->buff, opt[8], *op=opt;
-   XrdOucErrInfo myError(Link->ID, &locCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&locCB,ReqID.getID(),Monitor.Did,clientPV);
+   bool doDig = false;
 
 // Unmarshall the data
 //
@@ -623,47 +746,53 @@ int XrdXrootdProtocol::do_Locate()
 //
    if (opts & kXR_nowait)  {fsctl_cmd |= SFS_O_NOWAIT; *op++ = 'i';}
    if (opts & kXR_refresh) {fsctl_cmd |= SFS_O_RESET;  *op++ = 's';}
+   if (opts & kXR_force  ) {fsctl_cmd |= SFS_O_FORCE;  *op++ = 'f';}
+   if (opts & kXR_prefname){fsctl_cmd |= SFS_O_HNAME;  *op++ = 'n';}
    *op = '\0';
    TRACEP(FS, "locate " <<opt <<' ' <<fn);
 
-// Check for static routing
-//
-   if (Route[RD_locate].Port)
-      return Response.Send(kXR_redirect, Route[RD_locate].Port,
-                                         Route[RD_locate].Host);
-
 // Check if this is a non-specific locate
 //
-        if (*fn != '*') Path = fn;
-   else if (*(fn+1))    Path = fn+1;
+        if (*fn != '*'){Path = fn;
+                        doDig = (digFS && SFS_LCLROOT(Path));
+                       }
+   else if (*(fn+1))   {Path = fn+1;
+                        doDig = (digFS && SFS_LCLROOT(Path));
+                       }
    else                {Path = 0; 
                         fn = XPList.Next()->Path();
                         fsctl_cmd |= SFS_O_TRUNC;
                        }
 
+// Check for static routing
+//
+   if (!doDig) {STATIC_REDIRECT(RD_locate);}
+
 // Prescreen the path
 //
    if (Path)
       {if (rpCheck(Path, &opaque)) return rpEmsg("Locating", Path);
-       if (!Squash(Path))          return vpEmsg("Locating", Path);
+       if (!doDig && !Squash(Path))return vpEmsg("Locating", Path);
       }
 
 // Preform the actual function
 //
-   rc = osFS->fsctl(fsctl_cmd, fn, myError, CRED);
+   if (doDig) rc = digFS->fsctl(fsctl_cmd, fn, myError, CRED);
+      else    rc =  osFS->fsctl(fsctl_cmd, fn, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" locate " <<fn);
-   return fsError(rc, XROOTD_MON_LOCATE, myError, Path);
+   return fsError(rc, (doDig ? 0 : XROOTD_MON_LOCATE), myError, Path);
 }
   
 /******************************************************************************/
 /*                              d o _ L o g i n                               */
-/******************************************************************************/
+/*.x***************************************************************************/
   
 int XrdXrootdProtocol::do_Login()
 {
    static XrdSysMutex sessMutex;
    static unsigned int Sid = 0;
    XrdXrootdSessID sessID;
+   XrdNetAddrInfo *addrP;
    int i, pid, rc, sendSID = 0;
    char uname[sizeof(Request.login.username)+1];
 
@@ -693,14 +822,43 @@ int XrdXrootdProtocol::do_Login()
 
 // Establish the session ID if the client can handle it (protocol version > 0)
 //
-   if (CapVer && kXR_vermask)
+   if ((i = (CapVer & kXR_vermask)))
       {sessID.FD   = Link->FDnum();
        sessID.Inst = Link->Inst();
        sessID.Pid  = myPID;
        sessMutex.Lock(); mySID = ++Sid; sessMutex.UnLock();
        sessID.Sid  = mySID;
        sendSID = 1;
+       if (!clientPV)
+          {        if (i >  kXR_ver003) clientPV = (int)0x0300;
+              else if (i == kXR_ver003) clientPV = (int)0x0299;
+              else if (i == kXR_ver002) clientPV = (int)0x0290;
+              else if (i == kXR_ver001) clientPV = (int)0x0200;
+              else                      clientPV = (int)0x0100;
+          }
+       if (CapVer & kXR_asyncap) clientPV |= XrdOucEI::uAsync;
+       if (Request.login.ability & kXR_fullurl)
+          clientPV |= XrdOucEI::uUrlOK;
+       if (Request.login.ability & kXR_multipr)
+          clientPV |= (XrdOucEI::uMProt | XrdOucEI::uUrlOK);
+       if (Request.login.ability & kXR_readrdok)
+          clientPV |= XrdOucEI::uReadR;
+       if (Request.login.ability & kXR_hasipv64)
+          clientPV |= XrdOucEI::uIPv64;
       }
+
+// Mark the client as IPv4 if they came in as IPv4 or mapped IPv4 we can only
+// return IPv4 addresses. Of course, if the client is dual-stacked then we
+// simply indicate the client can accept either (the client better be honest).
+//
+   addrP = Link->AddrInfo();
+   if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
+      clientPV |= XrdOucEI::uIPv4;
+
+// Mark the client as being on a private net if the address is private
+//
+   if (addrP->isPrivate()) {clientPV |= XrdOucEI::uPrip; rdType = 1;}
+      else rdType = 0;
 
 // Check if this is an admin login
 //
@@ -712,7 +870,7 @@ int XrdXrootdProtocol::do_Login()
 // authentication. We can then optimize of each case.
 //
    if (CIA)
-      {const char *pp=CIA->getParms(i, Link->Host());
+      {const char *pp=CIA->getParms(i, Link->AddrInfo());
        if (pp && i ) {if (!sendSID) rc = Response.Send((void *)pp, i);
                          else {struct iovec iov[3];
                                iov[1].iov_base = (char *)&sessID;
@@ -735,17 +893,44 @@ int XrdXrootdProtocol::do_Login()
 
 // We always allow at least host-based authentication. This may be over-ridden
 // should strong authentication be enabled. Allocation of the protocol object
-// already supplied the protocol name and the hst name. We supply the tident.
+// already supplied the protocol name and the host name. We supply the tident
+// and the connection details in addrInfo.
 //
    Entity.tident = Link->ID;
+   Entity.addrInfo = Link->AddrInfo();
    Client = &Entity;
+
+// Check if we need to process a login environment
+//
+   if (Request.login.dlen > 8)
+      {XrdOucEnv loginEnv(argp->buff+1, Request.login.dlen-1);
+       char *cCode = loginEnv.Get("xrd.cc");
+       char *tzVal = loginEnv.Get("xrd.tz");
+       char *appXQ = loginEnv.Get("xrd.appname");
+       char *aInfo = loginEnv.Get("xrd.info");
+       int   tzNum = (tzVal ? atoi(tzVal) : 0);
+       if (cCode && *cCode && tzNum >= -12 && tzNum <= 14)
+          {XrdNetAddrInfo::LocInfo locInfo;
+           locInfo.Country[0] = cCode[0]; locInfo.Country[1] = cCode[1];
+           locInfo.TimeZone = tzNum & 0xff;
+           Link->setLocation(locInfo);
+          }
+       if (Monitor.Ready() && (appXQ || aInfo))
+          {char apBuff[1024];
+           snprintf(apBuff, sizeof(apBuff), "&x=%s&y=%s",
+                    (appXQ ? appXQ : ""), (aInfo ? aInfo : ""));
+           Entity.moninfo = strdup(apBuff);
+          }
+      }
 
 // Allocate a monitoring object, if needed for this connection
 //
    if (Monitor.Ready())
-      {Monitor.Register(Link->ID, Link->Host());
+      {Monitor.Register(Link->ID, Link->Host(), "xroot");
        if (Monitor.Logins() && (!Monitor.Auths() || !(Status & XRD_NEED_AUTH)))
-          Monitor.Report(Monitor.Auths() ? "" : 0);
+          {Monitor.Report(Entity.moninfo);
+           if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
+          }
       }
 
 // Complete the rquestID object
@@ -754,10 +939,7 @@ int XrdXrootdProtocol::do_Login()
 
 // Document this login
 //
-   if (!(Status & XRD_NEED_AUTH))
-      eDest.Log(SYS_LOG_01, "Xeq", Link->ID, (Status & XRD_ADMINUSER
-                            ? "admin login" : "login"));
-
+   if (!(Status & XRD_NEED_AUTH)) logLogin();
    return rc;
 }
 
@@ -769,12 +951,11 @@ int XrdXrootdProtocol::do_Mkdir()
 {
    int mode, rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
-   if (Route[RD_mkdir].Port) 
-      return Response.Send(kXR_redirect,Route[RD_mkdir].Port,Route[RD_mkdir].Host);
+   STATIC_REDIRECT(RD_mkdir);
 
 // Unmarshall the data
 //
@@ -804,12 +985,11 @@ int XrdXrootdProtocol::do_Mv()
    int rc;
    const char *Opaque, *Npaque;
    char *oldp, *newp;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
-   if (Route[RD_mv].Port) 
-      return Response.Send(kXR_redirect,Route[RD_mv].Port,Route[RD_mv].Host);
+   STATIC_REDIRECT(RD_mv);
 
 // Find the space separator between the old and new paths
 //
@@ -975,10 +1155,11 @@ int XrdXrootdProtocol::do_Open()
 {
    static XrdXrootdCallBack openCB("open file", XROOTD_MON_OPENR);
    int fhandle;
-   int rc, mode, opts, openopts, mkpath = 0, doforce = 0, compchk = 0;
+   int rc, mode, opts, openopts, doforce = 0, compchk = 0;
    int popt, retStat = 0;
    const char *opaque;
    char usage, ebuff[2048], opC;
+   bool doDig;
    char *fn = argp->buff, opt[16], *op=opt, isAsync = '\0';
    XrdSfsFile *fp;
    XrdXrootdFile *xp;
@@ -1003,7 +1184,10 @@ int XrdXrootdProtocol::do_Open()
            {openopts  = SFS_O_RDONLY;  *op++ = 'r'; opC = XROOTD_MON_OPENR;}
    else if (opts & kXR_open_updt)   
            {openopts  = SFS_O_RDWR;    *op++ = 'u'; usage = 'w';
-                                                    opC = XROOTD_MON_OPENR;}
+                                                    opC = XROOTD_MON_OPENW;}
+   else if (opts & kXR_open_wrto)
+           {openopts  = SFS_O_WRONLY;  *op++ = 'o'; usage = 'w';
+                                                    opC = XROOTD_MON_OPENW;}
    else    {openopts  = SFS_O_RDONLY;  *op++ = 'r'; opC = XROOTD_MON_OPENR;}
 
         if (opts & kXR_new)
@@ -1011,13 +1195,13 @@ int XrdXrootdProtocol::do_Open()
             if (opts & kXR_replica)   {*op++ = '+';
                                        openopts |= SFS_O_REPLICA;
                                       }
-            if (opts & kXR_mkdir)     {*op++ = 'm'; mkpath = 1;
+            if (opts & kXR_mkdir)     {*op++ = 'm';
                                        mode |= SFS_O_MKPTH;
                                       }
            }
    else if (opts & kXR_delete)
            {openopts  = SFS_O_TRUNC;   *op++ = 'd'; opC = XROOTD_MON_OPENW;
-            if (opts & kXR_mkdir)     {*op++ = 'm'; mkpath = 1;
+            if (opts & kXR_mkdir)     {*op++ = 'm';
                                        mode |= SFS_O_MKPTH;
                                       }
            }
@@ -1038,18 +1222,29 @@ int XrdXrootdProtocol::do_Open()
 //
    if (rpCheck(fn, &opaque)) return rpEmsg("Opening", fn);
 
+// Check if this is a local dig type file
+//
+   doDig = (digFS && SFS_LCLPATH(fn));
+
 // Check if static redirection applies
 //
-   if (Route[RD_open1].Host && (popt = RPList.Validate(fn)))
-      return Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
+   if (!doDig && Route[RD_open1].Host[rdType] && (popt = RPList.Validate(fn)))
+      return Response.Send(kXR_redirect, Route[popt].Port[rdType],
+                                         Route[popt].Host[rdType]);
 
 // Validate the path
 //
-   if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
+   if (doDig) {popt = XROOTDXP_NOLK; opC = 0;}
+      else if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
 
 // Get a file object
 //
-   if (!(fp = osFS->newFile(Link->ID, Monitor.Did)))
+   if (doDig) fp = digFS->newFile(Link->ID, Monitor.Did);
+      else    fp =  osFS->newFile(Link->ID, Monitor.Did);
+
+// Make sure we got one
+//
+   if (!fp)
       {snprintf(ebuff, sizeof(ebuff)-1,"Insufficient memory to open %s",fn);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
@@ -1058,6 +1253,7 @@ int XrdXrootdProtocol::do_Open()
 // The open is elegible for a defered response, indicate we're ok with that
 //
    fp->error.setErrCB(&openCB, ReqID.getID());
+   fp->error.setUCap(clientPV);
 
 // Open the file
 //
@@ -1192,8 +1388,8 @@ int XrdXrootdProtocol::do_Prepare()
 {
    int rc, hport, pathnum = 0;
    const char *opaque;
-   char opts, hname[32], reqid[64], nidbuff[512], *path;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   char opts, hname[256], reqid[128], nidbuff[512], *path;
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    XrdOucTokenizer pathlist(argp->buff);
    XrdOucTList *pFirst=0, *pP, *pLast = 0;
    XrdOucTList *oFirst=0, *oP, *oLast = 0;
@@ -1207,22 +1403,19 @@ int XrdXrootdProtocol::do_Prepare()
 
 // Check for static routing
 //
-   if (Route[RD_prepstg].Port && ((opts & kXR_stage) || (opts & kXR_cancel)))
-      return Response.Send(kXR_redirect,Route[RD_prepstg].Port,Route[RD_prepstg].Host);
-   if (Route[RD_prepare].Port)
-      return Response.Send(kXR_redirect,Route[RD_prepare].Port,Route[RD_prepare].Host);
+   if ((opts & kXR_stage) || (opts & kXR_cancel)) {STATIC_REDIRECT(RD_prepstg);}
+   STATIC_REDIRECT(RD_prepare);
 
 // Get a request ID for this prepare and check for static routine
 //
    if (opts & kXR_stage && !(opts & kXR_cancel)) 
-      {XrdOucReqID::ID(reqid, sizeof(reqid)); 
-       fsprep.opts = Prep_STAGE | (opts & kXR_coloc ? Prep_COLOC : 0);
+      {fsprep.reqid = PrepID->ID(reqid, sizeof(reqid));
+       fsprep.opts  = Prep_STAGE | (opts & kXR_coloc ? Prep_COLOC : 0);
       }
-      else {reqid[0] = '*'; reqid[1] = '\0';  fsprep.opts = 0;}
+      else {reqid[0]='*'; reqid[1]='\0'; fsprep.reqid = reqid; fsprep.opts = 0;}
 
 // Initialize the fsile system prepare arg list
 //
-   fsprep.reqid   = reqid;
    fsprep.paths   = 0;
    fsprep.oinfo   = 0;
    fsprep.opts   |= Prep_PRTY0 | (opts & kXR_fresh ? Prep_FRESH : 0);
@@ -1233,13 +1426,13 @@ int XrdXrootdProtocol::do_Prepare()
    if (opts & kXR_cancel)
       {if (!(path = pathlist.GetLine()))
           return Response.Send(kXR_ArgMissing, "Prepare requestid not specified");
-       if (!XrdOucReqID::isMine(path, hport, hname, sizeof(hname)))
+       fsprep.reqid = PrepID->isMine(path, hport, hname, sizeof(hname));
+       if (!fsprep.reqid)
           {if (!hport) return Response.Send(kXR_ArgInvalid,
                              "Prepare requestid owned by an unknown server");
            TRACEI(REDIR, Response.ID() <<"redirecting to " << hname <<':' <<hport);
            return Response.Send(kXR_redirect, hport, hname);
           }
-       fsprep.reqid = path;
        if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
           return fsError(rc, XROOTD_MON_PREP, myError, path);
        rc = Response.Send();
@@ -1316,7 +1509,9 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
 //
    if (Request.protocol.clientpv)
       {Resp = &RespNew; RespLen = sizeof(RespNew);
-       if (!Status) clientPV = ntohl(Request.protocol.clientpv);
+       if (!Status || !(clientPV & XrdOucEI::uVMask))
+          clientPV = (clientPV & ~XrdOucEI::uVMask)
+                   | (XrdOucEI::uVMask & ntohl(Request.protocol.clientpv));
       }
 
 // Return info
@@ -1330,7 +1525,7 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
   
 int XrdXrootdProtocol::do_Putfile()
 {
-   int popts, buffsz;
+// int popts, buffsz;
 
 // Keep Statistics
 //
@@ -1338,8 +1533,8 @@ int XrdXrootdProtocol::do_Putfile()
 
 // Unmarshall the data
 //
-   popts  = int(ntohl(Request.putfile.options));
-   buffsz = int(ntohl(Request.putfile.buffsz));
+// popts  = int(ntohl(Request.putfile.options));
+// buffsz = int(ntohl(Request.putfile.buffsz));
 
    return Response.Send(kXR_Unsupported, "putfile request is not supported");
 }
@@ -1350,8 +1545,9 @@ int XrdXrootdProtocol::do_Putfile()
   
 int XrdXrootdProtocol::do_Qconf()
 {
+   static const int fsctl_cmd = SFS_FSCTL_STATCC|SFS_O_LOCAL;
    XrdOucTokenizer qcargs(argp->buff);
-   char *val, buff[1024], *bp=buff;
+   char *val, buff[4096], *bp=buff;
    int n, bleft = sizeof(buff);
 
 // Get the first argument
@@ -1362,41 +1558,75 @@ int XrdXrootdProtocol::do_Qconf()
 // Trace this query variable
 //
    do {TRACEP(DEBUG, "query config " <<val);
-       if (bleft < 32) break;
 
    // Now determine what the user wants to query
    //
         if (!strcmp("bind_max", val))
-           {n = sprintf(bp, "%d\n", maxStreams-1);
+           {n = snprintf(bp, bleft, "%d\n", maxStreams-1);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("chksum", val))
+           {if (!JobCKT)
+               {n = snprintf(bp, bleft, "chksum\n");
+                bp += n; bleft -= n;
+                continue;
+               }
+            XrdOucTList *tP = JobCKTLST;
+            char sep;
+            do {sep = (tP->next ? ',' :'\n');
+                n = snprintf(bp, bleft, "%d:%s%c", tP->ival[0], tP->text, sep);
+                bp += n; bleft -= n;
+                tP = tP->next;
+               } while(tP && bleft > 0);
+           }
+   else if (!strcmp("cms", val))
+           {XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
+            if (osFS->fsctl(fsctl_cmd, ".", myError, CRED) == SFS_DATA)
+                    n = snprintf(bp, bleft, "%s\n", myError.getErrText());
+               else n = snprintf(bp, bleft, "%s\n", "cms\n");
             bp += n; bleft -= n;
            }
    else if (!strcmp("pio_max", val))
-           {n = sprintf(bp, "%d\n", maxPio+1);
+           {n = snprintf(bp, bleft, "%d\n", maxPio+1);
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_ior_max", val))
-           {n = sprintf(bp, "%d\n", maxTransz - (int)sizeof(readahead_list));
+           {n = snprintf(bp,bleft,"%d\n",maxTransz-(int)sizeof(readahead_list));
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_iov_max", val)) 
-           {n = sprintf(bp, "%d\n", maxRvecsz);
+           {n = snprintf(bp, bleft, "%d\n", maxRvecsz);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("role", val))
+           {const char *theRole = getenv("XRDROLE");
+            n = snprintf(bp, bleft, "%s\n", (theRole ? theRole : "none"));
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("sitename", val))
+           {const char *siteName = getenv("XRDSITE");
+            n = snprintf(bp, bleft, "%s\n", (siteName ? siteName : "sitename"));
             bp += n; bleft -= n;
            }
    else if (!strcmp("tpc", val))
            {char *tpcval = getenv("XRDTPC");
-            n = sprintf(bp, "%s\n", (tpcval ? tpcval : "tpc"));
+            n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpc"));
             bp += n; bleft -= n;
            }
    else if (!strcmp("wan_port", val) && WANPort)
-           {n = sprintf(bp, "%d\n", WANPort);
+           {n = snprintf(bp, bleft, "%d\n", WANPort);
             bp += n; bleft -= n;
            }
    else if (!strcmp("wan_window", val) && WANPort)
-           {n = sprintf(bp, "%d\n", WANWindow);
+           {n = snprintf(bp, bleft, "%d\n", WANWindow);
             bp += n; bleft -= n;
            }
    else if (!strcmp("window", val) && Window)
-           {n = sprintf(bp, "%d\n", Window);
+           {n = snprintf(bp, bleft, "%d\n", Window);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("version", val))
+           {n = snprintf(bp, bleft, "%s\n", XrdVSTRING);
             bp += n; bleft -= n;
            }
    else {n = strlen(val);
@@ -1404,7 +1634,7 @@ int XrdXrootdProtocol::do_Qconf()
          strcpy(bp, val); bp +=n; *bp = '\n'; bp++;
          bleft -= (n+1);
         }
-   } while((val = qcargs.GetToken()));
+   } while(bleft > 0 && (val = qcargs.GetToken()));
 
 // Make sure all ended well
 //
@@ -1422,26 +1652,16 @@ int XrdXrootdProtocol::do_Qconf()
 
 int XrdXrootdProtocol::do_Qfh()
 {
-   static const int fsctl_cmd1 = SFS_FCTL_STATV;
    static XrdXrootdCallBack qryCB("query", XROOTD_MON_QUERY);
-   XrdOucErrInfo myError(Link->ID, &qryCB, ReqID.getID(), Monitor.Did);
    XrdXrootdFHandle fh(Request.query.fhandle);
    XrdXrootdFile *fp;
+   const char *fArg = 0, *qType = "";
+   int rc;
    short qopt = (short)ntohs(Request.query.infotype);
-   int rc, fsctl_cmd;
 
 // Update misc stats count
 //
    SI->Bump(SI->miscCnt);
-
-// Perform the appropriate query
-//
-   switch(qopt)
-         {case kXR_Qvisa:   fsctl_cmd = fsctl_cmd1;
-                            break;
-          default:          return Response.Send(kXR_ArgMissing, 
-                                   "Required query argument not present");
-         }
 
 // Find the file object
 //
@@ -1449,14 +1669,34 @@ int XrdXrootdProtocol::do_Qfh()
       return Response.Send(kXR_FileNotOpen,
                            "query does not refer to an open file");
 
+// The query is elegible for a defered response, indicate we're ok with that
+//
+   fp->XrdSfsp->error.setErrCB(&qryCB, ReqID.getID());
+
+// Perform the appropriate query
+//
+   switch(qopt)
+         {case kXR_Qopaqug: qType = "Qopaqug";
+                            fArg = (Request.query.dlen ? argp->buff : 0);
+                            rc = fp->XrdSfsp->fctl(SFS_FCTL_SPEC1,
+                                                   Request.query.dlen, fArg,
+                                                   CRED);
+                            break;
+          case kXR_Qvisa:   qType = "Qvisa";
+                            rc = fp->XrdSfsp->fctl(SFS_FCTL_STATV, 0,
+                                                   fp->XrdSfsp->error);
+                            break;
+          default:          return Response.Send(kXR_ArgMissing, 
+                                   "Required query argument not present");
+         }
+
 // Preform the actual function
 //
-   rc = fp->XrdSfsp->fctl(fsctl_cmd, 0, myError);
-   TRACEP(FS, "query rc=" <<rc <<" fh=" <<fh.handle);
+   TRACEP(FS, "query " <<qType <<" rc=" <<rc <<" fh=" <<fh.handle);
 
 // Return appropriately
 //
-   if (SFS_OK != rc) return fsError(rc, XROOTD_MON_QUERY, myError, 0);
+   if (SFS_OK != rc) return fsError(rc, XROOTD_MON_QUERY,fp->XrdSfsp->error,0);
    return Response.Send();
 }
   
@@ -1466,7 +1706,7 @@ int XrdXrootdProtocol::do_Qfh()
   
 int XrdXrootdProtocol::do_Qopaque(short qopt)
 {
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    XrdSfsFSctl myData;
    const char *opaque, *Act, *AData;
    int fsctl_cmd, rc, dlen = Request.query.dlen;
@@ -1481,8 +1721,7 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
       } else {
        // Check for static routing (this falls under stat)
        //
-       if (Route[RD_stat].Port)
-          return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+       STATIC_REDIRECT(RD_stat);
 
        // Prescreen the path
        //
@@ -1514,14 +1753,13 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
 int XrdXrootdProtocol::do_Qspace()
 {
    static const int fsctl_cmd = SFS_FSCTL_STATLS;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    const char *opaque;
    int n, rc;
 
 // Check for static routing
 //
-   if (Route[RD_stat].Port) 
-      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+   STATIC_REDIRECT(RD_stat);
 
 // Prescreen the path
 //
@@ -1563,6 +1801,7 @@ int XrdXrootdProtocol::do_Query()
           case kXR_Qxattr:  return do_Qxattr();
           case kXR_Qopaque:
           case kXR_Qopaquf: return do_Qopaque(qopt);
+          case kXR_Qopaqug: return do_Qfh();
           default:          break;
          }
 
@@ -1582,12 +1821,11 @@ int XrdXrootdProtocol::do_Qxattr()
    static const int fsctl_cmd = SFS_FSCTL_STATXA;
    int rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, &statCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
 
 // Check for static routing
 //
-   if (Route[RD_stat].Port) 
-      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+   STATIC_REDIRECT(RD_stat);
 
 // Prescreen the path
 //
@@ -1681,7 +1919,13 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
    if (myFile->sfEnabled && myIOLen >= as_minsfsz
    &&  myOffset+myIOLen <= myFile->Stats.fSize)
       {myFile->Stats.rdOps(myIOLen);
-       return Response.Send(myFile->fdNum, myOffset, myIOLen);
+       if (myFile->fdNum >= 0)
+          return Response.Send(myFile->fdNum, myOffset, myIOLen);
+       rc = myFile->XrdSfsp->SendData((XrdSfsDio *)this, myOffset, myIOLen);
+       if (rc == SFS_OK)
+          {if (!myIOLen)    return 0;
+           if (myIOLen < 0) return -1;  // Otherwise retry using read()
+          } else return fsError(rc, 0, myFile->XrdSfsp->error, 0);
       }
 
 // If we are in async mode, schedule the read to ocur asynchronously
@@ -1930,12 +2174,11 @@ int XrdXrootdProtocol::do_Rm()
 {
    int rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
-   if (Route[RD_rm].Port) 
-      return Response.Send(kXR_redirect,Route[RD_rm].Port,Route[RD_rm].Host);
+   STATIC_REDIRECT(RD_rm);
 
 // Prescreen the path
 //
@@ -1961,12 +2204,11 @@ int XrdXrootdProtocol::do_Rmdir()
 {
    int rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
-   if (Route[RD_rmdir].Port) 
-      return Response.Send(kXR_redirect,Route[RD_rmdir].Port,Route[RD_rmdir].Host);
+   STATIC_REDIRECT(RD_rmdir);
 
 // Prescreen the path
 //
@@ -2020,7 +2262,7 @@ int XrdXrootdProtocol::do_Set()
 /*                            d o _ S e t _ M o n                             */
 /******************************************************************************/
 
-// Process: set monitor {off | on} [appid] | info [info]}
+// Process: set monitor {off | on} {[appid] | info [info]}
 
 int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 {
@@ -2081,11 +2323,12 @@ int XrdXrootdProtocol::do_Stat()
 {
    static XrdXrootdCallBack statCB("stat", XROOTD_MON_STAT);
    static const int fsctl_cmd = SFS_FSCTL_STATFS;
+   bool doDig;
    int rc;
    const char *opaque;
    char xxBuff[256];
    struct stat buf;
-   XrdOucErrInfo myError(Link->ID, &statCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
 
 // Update misc stats count
 //
@@ -2106,18 +2349,21 @@ int XrdXrootdProtocol::do_Stat()
        rc = fp->XrdSfsp->stat(&buf);
        TRACEP(FS, "stat rc=" <<rc <<" fh=" <<fh.handle);
        if (SFS_OK == rc) return Response.Send(xxBuff, StatGen(buf, xxBuff));
-       return fsError(rc, 0, myFile->XrdSfsp->error, 0);
+       return fsError(rc, 0, fp->XrdSfsp->error, 0);
       }
+
+// Check if we are handling a dig type path
+//
+   doDig = (digFS && SFS_LCLROOT(argp->buff));
 
 // Check for static routing
 //
-   if (Route[RD_stat].Port) 
-      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+   if (!doDig) {STATIC_REDIRECT(RD_stat);}
 
 // Prescreen the path
 //
    if (rpCheck(argp->buff, &opaque)) return rpEmsg("Stating", argp->buff);
-   if (!Squash(argp->buff))          return vpEmsg("Stating", argp->buff);
+   if (!doDig && !Squash(argp->buff))return vpEmsg("Stating", argp->buff);
 
 // Preform the actual function
 //
@@ -2126,11 +2372,12 @@ int XrdXrootdProtocol::do_Stat()
        TRACEP(FS, "rc=" <<rc <<" statfs " <<argp->buff);
        if (rc == SFS_OK) Response.Send("");
       } else {
-       rc = osFS->stat(argp->buff, &buf, myError, CRED, opaque);
+       if (doDig) rc = digFS->stat(argp->buff, &buf, myError, CRED, opaque);
+          else    rc =  osFS->stat(argp->buff, &buf, myError, CRED, opaque);
        TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
        if (rc == SFS_OK) return Response.Send(xxBuff, StatGen(buf, xxBuff));
       }
-   return fsError(rc, XROOTD_MON_STAT, myError, argp->buff);
+   return fsError(rc, (doDig ? 0 : XROOTD_MON_STAT), myError, argp->buff);
 }
 
 /******************************************************************************/
@@ -2144,13 +2391,12 @@ int XrdXrootdProtocol::do_Statx()
    const char *opaque;
    char *path, *respinfo = argp->buff;
    mode_t mode;
-   XrdOucErrInfo myError(Link->ID, &statxCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&statxCB,ReqID.getID(),Monitor.Did,clientPV);
    XrdOucTokenizer pathlist(argp->buff);
 
 // Check for static routing
 //
-   if (Route[RD_stat].Port) 
-      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+   STATIC_REDIRECT(RD_stat);
 
 // Cycle through all of the paths in the list
 //
@@ -2213,6 +2459,7 @@ int XrdXrootdProtocol::do_Sync()
   
 int XrdXrootdProtocol::do_Truncate()
 {
+   static XrdXrootdCallBack truncCB("trunc", 0);
    XrdXrootdFile *fp;
    XrdXrootdFHandle fh(Request.truncate.fhandle);
    long long theOffset;
@@ -2236,21 +2483,21 @@ int XrdXrootdProtocol::do_Truncate()
             return Response.Send(kXR_FileNotOpen,
                                      "trunc does not refer to an open file");
 
-     // Truncate the file
+     // Truncate the file (it is eligible for async callbacks)
      //
+        fp->XrdSfsp->error.setErrCB(&truncCB, ReqID.getID());
         rc = fp->XrdSfsp->truncate(theOffset);
         TRACEP(FS, "trunc rc=" <<rc <<" sz=" <<theOffset <<" fh=" <<fh.handle);
         if (SFS_OK != rc) return fsError(rc, 0, fp->XrdSfsp->error, 0);
 
    } else {
 
-       XrdOucErrInfo myError(Link->ID, Monitor.Did);
+       XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
        const char *opaque;
 
     // Check for static routing
     //
-       if (Route[RD_trunc].Port) return Response.Send(kXR_redirect,
-                                 Route[RD_trunc].Port,Route[RD_trunc].Host);
+       STATIC_REDIRECT(RD_trunc);
 
     // Verify the path and extract out the opaque information
     //
@@ -2431,6 +2678,103 @@ int XrdXrootdProtocol::do_WriteNone()
 }
   
 /******************************************************************************/
+/*                          d o _ W r i t e S p a n                           */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_WriteSpan()
+{
+   int rc;
+   XrdXrootdFHandle fh(Request.write.fhandle);
+   numWrites++;
+
+// Unmarshall the data
+//
+   myIOLen  = Request.header.dlen;
+              n2hll(Request.write.offset, myOffset);
+
+// Find the file object
+//                                                                             .
+   if (!FTab || !(myFile = FTab->Get(fh.handle)))
+      {if (argp && !Request.write.pathid)
+          {myIOLen -= myBlast; return do_WriteNone();}
+       Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
+       return Link->setEtext("write protcol violation");
+      }
+
+// If we are monitoring, insert a write entry
+//
+   if (Monitor.InOut())
+      Monitor.Agent->Add_wr(myFile->Stats.FileID, Request.write.dlen,
+                                                  Request.write.offset);
+
+// Trace this entry
+//
+   TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
+
+// Write data that was already read
+//
+   if ((rc = myFile->XrdSfsp->write(myOffset, myBuff, myBlast)) < 0)
+      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc;
+       return do_WriteNone();
+      }
+    myOffset += myBlast; myIOLen -= myBlast;
+
+// See if we need to finish this request in the normal way
+//
+   if (myIOLen > 0) return do_WriteAll();
+   return Response.Send();
+}
+  
+/******************************************************************************/
+/*                              S e n d F i l e                               */
+/******************************************************************************/
+
+int XrdXrootdProtocol::SendFile(int fildes)
+{
+
+// Make sure we have some data to send
+//
+   if (!myIOLen) return 1;
+
+// Send off the data
+//
+   myIOLen = Response.Send(fildes, myOffset, myIOLen);
+   return myIOLen;
+}
+
+/******************************************************************************/
+
+int XrdXrootdProtocol::SendFile(XrdOucSFVec *sfvec, int sfvnum)
+{
+   int i, xframt = 0;
+
+// Make sure we have some data to send
+//
+   if (!myIOLen) return 1;
+
+// Verify the length, it can't be greater than what the client wants
+//
+   for (i = 1; i < sfvnum; i++) xframt += sfvec[i].sendsz;
+   if (xframt > myIOLen) return 1;
+
+// Send off the data
+//
+   if (xframt) myIOLen = Response.Send(sfvec, sfvnum, xframt);
+      else {myIOLen = 0; Response.Send();}
+   return myIOLen;
+}
+
+/******************************************************************************/
+/*                                 S e t F D                                  */
+/******************************************************************************/
+  
+void XrdXrootdProtocol::SetFD(int fildes)
+{
+   if (fildes < 0) myFile->sfEnabled = 0;
+      else myFile->fdNum = fildes;
+}
+
+/******************************************************************************/
 /*                       U t i l i t y   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
@@ -2440,7 +2784,7 @@ int XrdXrootdProtocol::do_WriteNone()
 int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
                                const char *Path)
 {
-   int ecode, popt;
+   int ecode, popt, rs;
    const char *eMsg = myError.getErrText(ecode);
 
 // Process standard errors
@@ -2451,11 +2795,16 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        if (Path && (rc == kXR_NotFound) && RQLxist && opC
        &&  (popt = RQList.Validate(Path)))
           {if (XrdXrootdMonitor::Redirect())
-               XrdXrootdMonitor::Redirect(Monitor.Did, Route[popt].Host,
-                               Route[popt].Port, opC|XROOTD_MON_REDLOCAL, Path);
-           return Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
-          }
-       return Response.Send((XErrorCode)rc, eMsg);
+               XrdXrootdMonitor::Redirect(Monitor.Did,
+                                          Route[popt].Host[rdType],
+                                          Route[popt].Port[rdType],
+                                          opC|XROOTD_MON_REDLOCAL, Path);
+           rs = Response.Send(kXR_redirect,
+                              Route[popt].Port[rdType],
+                              Route[popt].Host[rdType]);
+          } else rs = Response.Send((XErrorCode)rc, eMsg);
+       if (myError.extData()) myError.Reset();
+       return rs;
       }
 
 // Process the redirection (error msg is host:port)
@@ -2466,7 +2815,9 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        if (XrdXrootdMonitor::Redirect() && Path && opC)
            XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
        TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg <<':' <<ecode);
-       return Response.Send(kXR_redirect, ecode, eMsg);
+       rs = Response.Send(kXR_redirect, ecode, eMsg, myError.getErrTextLen());
+       if (myError.extData()) myError.Reset();
+       return rs;
       }
 
 // Process the deferal. We also synchronize sending the deferal response with
@@ -2480,14 +2831,17 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        TRACEI(STALL, Response.ID() <<"delaying client up to " <<ecode <<" sec");
        rc = Response.Send(kXR_waitresp, ecode, eMsg);
        if (myError.getErrCB()) myError.getErrCB()->Done(ecode, &myError);
+       if (myError.extData()) myError.Reset();
        return (rc ? rc : 1);
       }
 
 // Process the data response
 //
    if (rc == SFS_DATA)
-      {if (ecode) return Response.Send((void *)eMsg, ecode);
-          else    return Response.Send();
+      {if (ecode) rs = Response.Send((void *)eMsg, ecode);
+          else    rs = Response.Send();
+       if (myError.extData()) myError.Reset();
+       return rs;
       }
 
 // Process the deferal
@@ -2495,8 +2849,9 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
    if (rc >= SFS_STALL)
       {SI->stallCnt++;
        TRACEI(STALL, Response.ID() <<"stalling client for " <<rc <<" sec");
-       return Response.Send(kXR_wait, rc, eMsg);
-//?    return (rc = Response.Send(kXR_wait, rc, eMsg)) ? rc : 1;
+       rs = Response.Send(kXR_wait, rc, eMsg);
+       if (myError.extData()) myError.Reset();
+       return rs;
       }
 
 // Unknown conditions, report it
@@ -2505,7 +2860,9 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
     SI->errorCnt++;
     sprintf(buff, "%d", rc);
     eDest.Emsg("Xeq", "Unknown error code", buff, eMsg);
-    return Response.Send(kXR_ServerError, eMsg);
+    rs = Response.Send(kXR_ServerError, eMsg);
+    if (myError.extData()) myError.Reset();
+    return rs;
    }
 }
   
@@ -2541,6 +2898,38 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
 }
 
 /******************************************************************************/
+/* Private:                     l o g L o g i n                               */
+/******************************************************************************/
+  
+void XrdXrootdProtocol::logLogin(bool xauth)
+{
+   const char *uName, *ipName;
+   char lBuff[512];
+
+// Determine ip type
+//
+   if (clientPV & XrdOucEI::uIPv4)
+           ipName = (clientPV & XrdOucEI::uIPv64 ? "IP46"   : "IPv4");
+      else ipName = (clientPV & XrdOucEI::uIPv64 ? "IP64"   : "IPv6");
+
+// Determine client name
+//
+   if (xauth) uName = (Client->name ? Client->name : "nobody");
+      else    uName = 0;
+
+// Format the line
+//
+   sprintf(lBuff, "%s %s %slogin%s",
+                  (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"), ipName,
+                  (Status   & XRD_ADMINUSER   ? "admin " : ""),
+                  (xauth                      ? " as"    : ""));
+
+// Document the login
+//
+   eDest.Log(SYS_LOG_01, "Xeq", Link->ID, lBuff, uName);
+}
+
+/******************************************************************************/
 /*                               m a p M o d e                                */
 /******************************************************************************/
 
@@ -2567,21 +2956,23 @@ int XrdXrootdProtocol::mapMode(int Mode)
 
 void XrdXrootdProtocol::MonAuth()
 {
-         char Buff[2048];
+         char Buff[4096];
    const char *bP = Buff;
 
-   if (Client == &Entity) bP = (Monitor.Auths() ? "" : 0);
-      else snprintf(Buff,sizeof(Buff), "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s",
+   if (Client == &Entity) bP = Entity.moninfo;
+      else snprintf(Buff,sizeof(Buff), "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s",
                      Client->prot,
                     (Client->name ? Client->name : ""),
                     (Client->host ? Client->host : ""),
                     (Client->vorg ? Client->vorg : ""),
                     (Client->role ? Client->role : ""),
                     (Client->grps ? Client->grps : ""),
-                    (Client->moninfo ? Client->moninfo : "")
+                    (Client->moninfo ? Client->moninfo : ""),
+                    (Entity.moninfo  ? Entity.moninfo  : "")
                    );
 
    Monitor.Report(bP);
+   if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
 }
   
 /******************************************************************************/
@@ -2592,12 +2983,17 @@ int XrdXrootdProtocol::rpCheck(char *fn, const char **opaque)
 {
    char *cp;
 
-   if (*fn != '/') return 1;
+   if (*fn != '/')
+      {if (!(XPList.Opts() & XROOTDXP_NOSLASH)) return 1;
+       if (  XPList.Opts() & XROOTDXP_NOCGI) {*opaque = 0; return 0;}
+      }
 
    if (!(cp = index(fn, '?'))) *opaque = 0;
       else {*cp = '\0'; *opaque = cp+1;
             if (!**opaque) *opaque = 0;
            }
+
+   if (*fn != '/') return 0;
 
    while ((cp = index(fn, '/')))
          {fn = cp+1;
@@ -2619,12 +3015,35 @@ int XrdXrootdProtocol::rpEmsg(const char *op, char *fn)
 }
  
 /******************************************************************************/
+/*                                 S e t S F                                  */
+/******************************************************************************/
+
+int XrdXrootdProtocol::SetSF(kXR_char *fhandle, bool seton)
+{
+   XrdXrootdFHandle fh(fhandle);
+   XrdXrootdFile   *theFile;
+
+   if (!FTab || !(theFile = FTab->Get(fh.handle))) return -EBADF;
+
+// Turn it off or on if so wanted
+//
+   if (!seton) theFile->sfEnabled = 0;
+      else if (theFile->fdNum >= 0) theFile->sfEnabled = 1;
+
+// All done
+//
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                S q u a s h                                 */
 /******************************************************************************/
   
 int XrdXrootdProtocol::Squash(char *fn)
 {
    char *ofn, *ifn = fn;
+
+   if (*fn != '/') return XPList.Opts();
 
    while(*ifn)
         {if (*ifn == '/')

@@ -376,7 +376,7 @@ const char *XrdOfsHandle::PoscUsr()
 
 // The handle must be locked upon entry! It is unlocked upon exit.
 
-int XrdOfsHandle::Retire(long long *retsz, char *buff, int blen)
+int XrdOfsHandle::Retire(int &retc, long long *retsz, char *buff, int blen)
 {
    int numLeft;
 
@@ -384,6 +384,7 @@ int XrdOfsHandle::Retire(long long *retsz, char *buff, int blen)
 // Decrement the links count and if zero, remove it from the table and
 // place it on the free list. Otherwise, it is still in use.
 //
+   retc = 0;
    myMutex.Lock();
    if (Path.Links == 1)
       {if (buff) strlcpy(buff, Path.Val, blen);
@@ -394,7 +395,7 @@ int XrdOfsHandle::Retire(long long *retsz, char *buff, int blen)
           if (Path.Val) {free((void *)Path.Val); Path.Val = (char *)"";}
           Path.Len = 0;
           if (ssi && ssi != ossDF)
-             {ssi->Close(retsz); delete ssi; ssi = ossDF;}
+             {retc = ssi->Close(retsz); delete ssi; ssi = ossDF;}
          } else OfsEroute.Emsg("Retire", "Lost handle to", Path.Val);
       } else numLeft = --Path.Links;
    UnLock();
@@ -408,6 +409,7 @@ int XrdOfsHandle::Retire(XrdOfsHanCB *cbP, int hTime)
 {
    static int allOK = StartXpr(1);
    XrdOfsHanXpr *xP;
+   int retc;
 
 // The handle can only be held by one reference and only if it's a POSC and
 // defered handling was properly set up.
@@ -417,7 +419,7 @@ int XrdOfsHandle::Retire(XrdOfsHanCB *cbP, int hTime)
       {OfsEroute.Emsg("Retire", "ignoring deferred retire of", Path.Val);
        if (Path.Links != 1 || !Posc || !cbP) myMutex.UnLock();
           else {myMutex.UnLock(); cbP->Retired(this);}
-       return Retire();
+       return Retire(retc);
       }
    myMutex.UnLock();
 
@@ -441,6 +443,7 @@ int XrdOfsHandle::StartXpr(int Init)
    static int InitDone = 0;
    XrdOfsHanXpr *xP;
    XrdOfsHandle *hP;
+   int retc;
 
 // If this is the initial all and we have not been initialized do so
 //
@@ -483,7 +486,7 @@ do{xP = XrdOfsHanXpr::Get(); hP = xP->Handle;
 
 // We can now officially retire the handle and delete the xpr object
 //
-   hP->Retire();
+   hP->Retire(retc);
    delete xP;
   } while(1);
 

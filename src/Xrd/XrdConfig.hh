@@ -65,6 +65,8 @@ private:
 int   ASocket(const char *path, const char *fname, mode_t mode);
 int   ConfigProc(void);
 int   getUG(char *parm, uid_t &theUid, gid_t &theGid);
+void  Manifest(const char *pidfn);
+void  setCFG();
 int   setFDL();
 int   Setup(char *dfltp);
 void  Usage(int rc);
@@ -72,6 +74,7 @@ int   xallow(XrdSysError *edest, XrdOucStream &Config);
 int   xapath(XrdSysError *edest, XrdOucStream &Config);
 int   xbuf(XrdSysError *edest, XrdOucStream &Config);
 int   xnet(XrdSysError *edest, XrdOucStream &Config);
+int   xnkap(XrdSysError *edest, char *val);
 int   xlog(XrdSysError *edest, XrdOucStream &Config);
 int   xport(XrdSysError *edest, XrdOucStream &Config);
 int   xprot(XrdSysError *edest, XrdOucStream &Config);
@@ -113,6 +116,7 @@ int                 NetTCPlep;
 int                 AdminMode;
 int                 repInt;
 char                repOpts;
-char                isProxy;
+char                ppNet;
+char                coreV;
 };
 #endif

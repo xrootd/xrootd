@@ -35,6 +35,7 @@
 #include "XrdOfs/XrdOfsTPCJob.hh"
 #include "XrdOfs/XrdOfsTPCProg.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -47,6 +48,19 @@
   
 extern XrdSysError  OfsEroute;
 extern XrdOucTrace  OfsTrace;
+extern XrdOss      *XrdOfsOss;
+
+namespace XrdOfsTPCParms
+{
+extern char        *XfrProg;
+extern char        *cksType;
+extern int          xfrMax;
+extern int          errMon;
+extern bool         doEcho;
+extern bool         autoRM;
+};
+
+using namespace XrdOfsTPCParms;
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
@@ -54,7 +68,6 @@ extern XrdOucTrace  OfsTrace;
   
 XrdSysMutex        XrdOfsTPCProg::pgmMutex;
 XrdOfsTPCProg     *XrdOfsTPCProg::pgmIdle  = 0;
-const char        *XrdOfsTPCProg::XfrProg  = 0;
 
 /******************************************************************************/
 /*                     E x t e r n a l   L i n k a g e s                      */
@@ -71,30 +84,32 @@ void *XrdOfsTPCProgRun(void *pp)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOfsTPCProg::XrdOfsTPCProg(XrdOfsTPCProg *Prev, int num)
-             : Prog(&OfsEroute),
+XrdOfsTPCProg::XrdOfsTPCProg(XrdOfsTPCProg *Prev, int num, int errMon)
+             : Prog(&OfsEroute, errMon),
                JobStream(&OfsEroute),
-               Next(Prev), Job(0), Pnum(num)
-             {}
+               Next(Prev), Job(0)
+             {snprintf(Pname, sizeof(Pname), "TPC job %d: ", num);
+              Pname[sizeof(Pname)-1] = 0;
+             }
 
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdOfsTPCProg::Init(char *xProg, int Num)
+int XrdOfsTPCProg::Init()
 {
    int n;
 
 // Allocate copy program objects
 //
-   XfrProg = xProg;
-   for (n = 0; n < Num; n++)
-       {pgmIdle = new XrdOfsTPCProg(pgmIdle, n);
+   for (n = 0; n < xfrMax; n++)
+       {pgmIdle = new XrdOfsTPCProg(pgmIdle, n, errMon);
         if (pgmIdle->Prog.Setup(XfrProg, &OfsEroute)) return 0;
        }
 
 // All done
 //
+   doEcho = doEcho || GTRACE(debug);
    return 1;
 }
 
@@ -160,12 +175,18 @@ int XrdOfsTPCProg::Xeq()
    char *lP, *Colon, *cksVal, *tident = Job->Info.Org;
    int rc;
 
-   DEBUG("Job " <<Pnum <<" starting " <<XfrProg <<' ' <<Job->Info.Key
-                <<' ' <<Job->Info.Dst);
+// Echo out what we are doing if so desired
+//
+   if (doEcho)
+      {char *Quest = index(Job->Info.Key, '?');
+       if (Quest) *Quest = 0;
+       OfsEroute.Say(Pname,tident," copying ",Job->Info.Key," to ",Job->Info.Dst);
+       if (Quest) *Quest = '?';
+      }
 
 // Determine checksum option
 //
-   cksVal = (Job->Info.Cks ? Job->Info.Cks : XrdOfsTPC::cksType);
+   cksVal = (Job->Info.Cks ? Job->Info.Cks : XrdOfsTPCParms::cksType);
    cksOpt = (cksVal ? "-C" : 0);
 
 // Start the job.
@@ -183,21 +204,24 @@ int XrdOfsTPCProg::Xeq()
    while((lP = JobStream.GetLine()))
         {if ((Colon = index(lP, ':')) && *(Colon+1) == ' ')
             {strncpy(eRec, Colon+2, sizeof(eRec)); eRec[sizeof(eRec)-1] = 0;}
-         DEBUG("Job " <<Pnum <<": " <<lP);
+         if (doEcho && *lP) OfsEroute.Say(Pname, lP);
         }
 
 // The job has completed. So, we must get the ending status.
 //
    if ((rc = Prog.RunDone(JobStream)) < 0) rc = -rc;
-   DEBUG("Job " <<Pnum <<" ended; rc=" <<rc);
+   DEBUG(Pname <<"ended with rc=" <<rc);
 
 // Check if we should generate a message
 //
    if (rc && !(*eRec)) sprintf(eRec, "Copy failed with return code %d", rc);
 
-// Log failures
+// Log failures and optionally remove the file
 //
-   if (rc) OfsEroute.Emsg("TPC", Job->Info.Org, Job->Info.Lfn, eRec);
+   if (rc)
+      {OfsEroute.Emsg("TPC", Job->Info.Org, Job->Info.Lfn, eRec);
+       if (autoRM) XrdOfsOss->Unlink(Job->Info.Dst, XRDOSS_isPFN);
+      }
 
 // All done
 //

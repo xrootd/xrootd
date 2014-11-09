@@ -39,27 +39,6 @@
 #include <fcntl.h>
 #include <sys/times.h>
 
-// AFS support
-#ifdef R__AFS
-extern "C" {
-#include <afs/stds.h>
-#include <afs/kautils.h>
-afs_int32 ka_Authenticate(char *name, char *instance, char *cell,
-                          struct ubik_client *conn, int service,
-                          struct ktc_encryptionKey *key, Date start,
-                          Date end, struct ktc_token *token,
-                          afs_int32 * pwexpires);
-afs_int32 ka_ReadPassword(char *prompt, int verify, char *cell,
-                          struct ktc_encryptionKey *key);
-afs_int32 ka_AuthServerConn(char *cell, int service,
-                            struct ktc_token *token,
-                            struct ubik_client **conn);
-char     *ka_LocalCell();
-void      ka_StringToKey(char *str, char *cell,
-                         struct ktc_encryptionKey *key);
-}
-#endif
-
 #include "XrdVersion.hh"
 
 #include "XrdSys/XrdSysHeaders.hh"
@@ -271,7 +250,7 @@ static const char *ServerStepStr(int ksrv)
 
 //_____________________________________________________________________________
 XrdSecProtocolpwd::XrdSecProtocolpwd(int opts, const char *hname,
-                                     const struct sockaddr *ipadd,
+                                     XrdNetAddrInfo &endPoint,
                                      const char *parms) : XrdSecProtocol("pwd")
 {
    // Default constructor
@@ -305,14 +284,14 @@ XrdSecProtocolpwd::XrdSecProtocolpwd(int opts, const char *hname,
    // Used by servers to store forwarded credentials
    clientCreds = 0;
 
-   // Save host name
+   // Save host name and address
    if (hname) {
       Entity.host = strdup(hname);
    } else {
       NOTIFY("warning: host name undefined");
    }
-   // Save host addr
-   memcpy(&hostaddr, ipadd, sizeof(hostaddr));
+   epAddr = endPoint;
+   Entity.addrInfo = &epAddr;
    // Init client name
    CName[0] = '?'; CName[1] = '\0';
 
@@ -480,7 +459,6 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       if (SysPwd) {
          // Make sure this setting makes sense
          if (pw) {
-#ifndef R__AFS
 #ifdef HAVE_SHADOWPW
             // Acquire the privileges, if needed
             XrdSysPrivGuard priv((uid_t) 0, (gid_t) 0);
@@ -502,9 +480,6 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                SysPwd = 0;
                DEBUG("no privileges to access system passwd file");
             }
-#endif
-#else
-            PRINT("configured with AFS support");
 #endif
          } else
             SysPwd = 0;
@@ -687,12 +662,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       // Priority option field
       String popt = "";
       if (SysPwd) {
-#ifndef R__AFS
          popt += "sys";
-#else
-         popt += "afs";
-         popt += ka_LocalCell();
-#endif
       }
 
       //
@@ -724,11 +694,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
          }
       }
       if (SysPwd) {
-#ifndef R__AFS
          NOTIFY("using system pwd information");
-#else
-         NOTIFY("using AFS information");
-#endif
       }
       if (KeepCreds) {
          NOTIFY("client credentials will be kept");
@@ -1633,7 +1599,6 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
 XrdOucTrace *XrdSecProtocolpwd::EnableTracing()
 {
    // Initiate error logging and tracing
-   EPNAME("EnableTracing");
 
    eDest.logger(&Logger);
    PWDTrace = new XrdOucTrace(&eDest);
@@ -1657,7 +1622,7 @@ void pwdOptions::Print(XrdOucTrace *t)
    POPTS(t, " Mode: "<< ((mode == 'c') ? "client" : "server"));
    POPTS(t, " Debug: "<< debug);
    if (mode == 'c') {
-      POPTS(t, " Check user's autologin info: " << (alog != 0) ? "yes" : "no");
+      POPTS(t, " Check user's autologin info: " << (alog != 0 ? "yes" : "no"));
       POPTS(t, " Verification level of server ownership on public key: " << verisrv);
       POPTS(t, " Max number of empty prompts:" << maxprompts);
       if (alogfile)
@@ -1666,7 +1631,7 @@ void pwdOptions::Print(XrdOucTrace *t)
          POPTS(t, " File with known servers public keys:" << srvpuk);
       POPTS(t, " Update auto-login info option:" << areg);
    } else {
-      POPTS(t, " Check pwd file in user's home: " << (upwd != 0) ? "yes" : "no");
+      POPTS(t, " Check pwd file in user's home: " << (upwd != 0 ? "yes" : "no"));
       POPTS(t, " Verification level of client ownership on public key: " << vericlnt);
       POPTS(t, " Autoregistration option:" << areg);
       POPTS(t, " Check system pwd file option: " << syspwd);
@@ -1680,7 +1645,7 @@ void pwdOptions::Print(XrdOucTrace *t)
          POPTS(t, " User's sub-directory with pwd files: " << udir);
       if (cpass)
          POPTS(t, " User's crypt hash pwd file: " << cpass);
-      POPTS(t, " Keep client credentials in memory: " << (keepcreds != 0) ? "yes" : "no");
+      POPTS(t, " Keep client credentials in memory: " << (keepcreds != 0 ? "yes" : "no"));
       if (expcreds) {
          POPTS(t, " File for exported client credentials: " << expcreds);
          POPTS(t, " Format for exported client credentials: " << expfmt);
@@ -1741,11 +1706,10 @@ char *XrdSecProtocolpwdInit(const char mode,
       // debug
       cenv = getenv("XrdSecDEBUG");
       if (cenv)
-         if (cenv[0] >= 49 && cenv[0] <= 51) {
-            opts.debug = atoi(cenv);
-         } else {
-            PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
-            opts.debug = 1;
+         {if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);
+             else {PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
+                   opts.debug = 1;
+                  }
          }
 
       // server verification
@@ -1928,7 +1892,7 @@ extern "C"
 {
 XrdSecProtocol *XrdSecProtocolpwdObject(const char              mode,
                                         const char             *hostname,
-                                        const struct sockaddr  &netaddr,
+                                        XrdNetAddrInfo         &endPoint,
                                         const char             *parms,
                                         XrdOucErrInfo    *erp)
 {
@@ -1937,8 +1901,8 @@ XrdSecProtocol *XrdSecProtocolpwdObject(const char              mode,
 
    //
    // Get a new protocol object
-   if (!(prot = new XrdSecProtocolpwd(options, hostname, &netaddr, parms))) {
-      char *msg = (char *)"Secpwd: Insufficient memory for protocol.";
+   if (!(prot = new XrdSecProtocolpwd(options, hostname, endPoint, parms))) {
+      const char *msg = "Secpwd: Insufficient memory for protocol.";
       if (erp) 
          erp->setErrInfo(ENOMEM, msg);
       else 
@@ -2102,24 +2066,19 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
 
    } else {
 #ifdef HAVE_CRYPT
-#ifndef R__AFS
       // Crypt-like: get the pwhash
       String passwd(creds->buffer,creds->size+1);
       passwd.reset(0,creds->size,creds->size);
       // Get the crypt
       char *pass_crypt = crypt(passwd.c_str(), hs->Pent->buf1.buf);
       // Compare
-      if (!strncmp(pass_crypt, hs->Pent->buf1.buf, hs->Pent->buf1.len + 1) != 0)
+      if (!strncmp(pass_crypt, hs->Pent->buf1.buf, hs->Pent->buf1.len + 1))
          match = 1;
       if (match && KeepCreds) {
          memcpy(cbuf, "cpt:", 4);
          memcpy(cbuf+4, creds->buffer, creds->size);
          creds->SetBuf(cbuf, len);
       }
-#else
-      // Check the AFS credentials
-      match = CheckCredsAFS(creds, ctype);
-#endif
 #else
       NOTIFY("Crypt-like passwords (via crypt(...)) not supported");
       match = 0;
@@ -2134,107 +2093,12 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
    return match;
 }
 
-#ifdef R__AFS
-//________________________________________________________________________
-bool XrdSecProtocolpwd::CheckCredsAFS(XrdSutBucket *creds, int ctype)
-{
-   // Check AFS credentials, either in plain (ctype==kpCT_afs) or
-   // encrypted (ctype==kpCT_afsenc) form
-   EPNAME("CheckCredsAFS");
-   bool match = 0;
-   int rc = 0;
-
-   // Here we are interested to the minimal token length (5 min)
-   int life = 60;
-
-   // We need a link to the user name
-   char *usr = (char *) hs->User.c_str();
-
-   bool notify = ((hs->Step == kXPC_creds) || QTRACE(ALL)) ? 1 : 0;
-   struct ktc_encryptionKey key;
-   if (ctype == kpCT_afs) {
-      char *errmsg;
-      char *pwd = new char[creds->size + 1];
-      memcpy(pwd, creds->buffer, creds->size);
-      pwd[creds->size] = 0;
-      rc = ka_UserAuthenticateGeneral(KA_USERAUTH_VERSION + KA_USERAUTH_DOSETPAG,
-                                      usr, (char *)"", (char *)"", pwd,
-                                      life, 0, 0, &errmsg);
-      if (rc) {
-         if (notify)
-            PRINT("CheckAFS: failure: "<< errmsg);
-         hs->ErrMsg += ka_LocalCell();
-      } else {
-         match = 1;
-         if (KeepCreds)
-            // We need to encrypt te plain passwd
-            ka_StringToKey(pwd, 0, &key);
-         if (QTRACE(ALL))
-            PRINT("CheckAFS: success!");
-      }
-      if (pwd) delete [] pwd;
-
-   } else if (ctype == kpCT_afsenc) {
-
-      // Get the cell
-      char *cell = 0;
-      char cellname[MAXKTCREALMLEN];
-      if (ka_ExpandCell(cell, cellname, 0) != 0) {
-         PRINT("CheckAFS: failure expanding cell");
-         return match;
-      }
-      cell = cellname;
-
-      // Get an unauthenticated connection to desired cell 
-      struct ubik_client *conn = 0;
-      if (ka_AuthServerConn(cell, KA_AUTHENTICATION_SERVICE, 0, &conn) != 0) {
-         PRINT("CheckAFS: failure getting an unauthenticated connection to the cell");
-         return match;
-      }
-
-      // Authenticate now
-      memcpy(key.data, creds->buffer, creds->size);
-      struct ktc_token token;
-      int pwexpires;
-      int now = hs->TimeStamp;
-      rc = ka_Authenticate(usr, (char *)"", cell, conn,
-                           KA_TICKET_GRANTING_SERVICE,
-                           &key, now, now + life,
-                           &token, &pwexpires);
-      if (rc) {
-         if (notify)
-            PRINT("CheckAFS: failure from ka_Authenticate");
-         hs->ErrMsg += ka_LocalCell();
-      } else {
-         match = 1;
-         if (QTRACE(ALL))
-            PRINT("CheckAFS: success!");
-      }
-   } else {
-      PRINT("CheckAFS: unknown credential type: "<< ctype);
-   }
-
-   // Save the creds, if requested
-   if (match && KeepCreds) {
-      // Create new buffer
-      int len = strlen("afs:") + 8;
-      char *buf = new char[len];
-      memcpy(buf,"afs:",4);
-      memcpy(buf+4,key.data,8);
-      // Fill output
-      creds->SetBuf(buf,len);
-   }
-   // We are done
-   return match;
-}
-#else
 //________________________________________________________________________
 bool XrdSecProtocolpwd::CheckCredsAFS(XrdSutBucket *, int)
 {
    // Check AFS credentials - not supported
    return 0;
 }
-#endif
 
 //____________________________________________________________________
 int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
@@ -2647,24 +2511,11 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    if (ctype == kpCT_crypt || ctype == kpCT_afs) {
       if (hs->Pent && hs->Pent->buf2.buf) {
          if (ctype == kpCT_afs) {
-#ifdef R__AFS
             String passwd(hs->Pent->buf2.buf,hs->Pent->buf2.len);
-            // We will send over and encrypted version
-            struct ktc_encryptionKey key;
-            ka_StringToKey((char *) passwd.c_str(),
-                           (char *) afsInfo.c_str(), &key);
-            // Fill output
-            creds->SetBuf(key.data,8);
-            // Tell the server
-            afsInfo = "c";
-            if (bm->UpdateBucket(afsInfo, kXRS_afsinfo) != 0)
-               PRINT("Warning: problems updating bucket with AFS info");
-#else
             // Fill output
             creds->SetBuf(hs->Pent->buf2.buf,hs->Pent->buf2.len);
             // Not needed anymore
             bm->Deactivate(kXRS_afsinfo);
-#endif
          } else {
             // Fill output
             creds->SetBuf(hs->Pent->buf2.buf,hs->Pent->buf2.len);
@@ -2731,17 +2582,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
             // Update status
             status = kpCI_prompt;
          } else if (ctype == kpCT_afs) {
-#ifdef R__AFS
-            // We will send over and encrypted version
-            struct ktc_encryptionKey key;
-            ka_StringToKey((char *) passwd.c_str(),
-                           (char *) afsInfo.c_str(), &key);
-            creds->SetBuf(key.data,8);
-            // Tell the server
-            afsInfo = "c";
-            if (bm->UpdateBucket(afsInfo, kXRS_afsinfo) != 0)
-               PRINT("Warning: problems updating bucket with AFS info");
-#endif
+
          }
          // Save creds to update auto-login file later
          // It will be flushed to file if required
@@ -3788,12 +3629,6 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
       return rc;
    //
    // If not, we check the system files
-#ifdef R__AFS
-   // Send over the cell
-   fn = "afs:";
-   fn += ka_LocalCell();
-   pwhash = "afs";
-#else
 #ifdef HAVE_SHADOWPW
    {  // Acquire the privileges; needs to be 'superuser' to access the
       // shadow password file
@@ -3815,7 +3650,6 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
    //
    // This is send back to the client to locate autologin info
    fn = "system";
-#endif
    // Check if successful
    if ((rc = pwhash.length()) <= 2) {
       NOTIFY("passwd hash not available for user "<<hs->User);

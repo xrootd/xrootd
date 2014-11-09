@@ -39,6 +39,7 @@
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecTLayer.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
 /******************************************************************************/
@@ -218,15 +219,10 @@ int XrdSecTLayer::bootUp(Initiator whoami)
 
 // Create a socket pair
 //
-   if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv))
+   if (XrdSysFD_Socketpair(AF_UNIX, SOCK_STREAM, 0, sv))
       {secError("Unable to create socket pair", errno); return 0;}
    myFD = sv[0]; urFD = sv[1];
    Responder = whoami;
-
-// Make sure these sockets don't persist
-//
-   fcntl(myFD, F_SETFD, FD_CLOEXEC);
-   fcntl(urFD, F_SETFD, FD_CLOEXEC);
 
 // Start a thread to handle the socket interaction
 //
