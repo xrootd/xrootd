@@ -543,6 +543,7 @@ fi
 %{_bindir}/XrdCnsd
 %{_bindir}/xrdpwdadmin
 %{_bindir}/xrdsssadmin
+%{_bindir}/xrdmapc
 %{_bindir}/xrootd
 %{_mandir}/man8/cmsd.8*
 %{_mandir}/man8/cns_ssi.8*
