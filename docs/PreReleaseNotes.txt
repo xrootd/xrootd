@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add new options to the ofs.osslib and ofs.xattrlib directives to
+     allow usage of the oss plugin for I/O related functions.
    * Allow either a dot or dash (whichever comes first) suffix to
      delimit the default protocol name in the executable's name.
    * Allow forwardable sss tokens when ecrypted with a forwarding key
