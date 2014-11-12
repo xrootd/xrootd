@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 
-#include "XrdClient/XrdClientConst.hh"
+//#include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"

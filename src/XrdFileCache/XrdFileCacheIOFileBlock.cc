@@ -27,7 +27,6 @@
 #include "XrdFileCacheStats.hh"
 #include "XrdFileCacheFactory.hh"
 
-#include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 

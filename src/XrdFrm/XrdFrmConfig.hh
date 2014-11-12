@@ -35,8 +35,8 @@
 #include "XrdOss/XrdOssSpace.hh"
 
 class XrdCks;
-class XrdCksConfig;
 class XrdNetCmsNotify;
+class XrdOfsConfigPI;
 class XrdOss;
 class XrdOucMsubs;
 class XrdOucName2Name;
@@ -85,8 +85,7 @@ static const int    cmdRME   = 0x0010;
 int                 xfrIN;
 int                 xfrOUT;
 
-char               *CksAlg;
-XrdCksConfig       *CksCfg;    // -> Checksum Configurator
+XrdOfsConfigPI     *OfsCfg;    // -> Plugin Configurator
 XrdCks             *CksMan;    // -> Checksum Manager
 XrdOucName2Name    *the_N2N;   // -> File mapper object
 XrdOss             *ossFS;
@@ -177,7 +176,6 @@ enum  SubSys {ssAdmin, ssMigr, ssPstg, ssPurg, ssXfr};
      ~XrdFrmConfig() {}
 
 private:
-int          ConfigCks();
 XrdOucMsubs *ConfigCmd(const char *cname, char *cdata);
 int          ConfigMum(XrdFrmConfigSE &theSE);
 int          ConfigN2N();
@@ -196,7 +194,7 @@ XrdOucTList *InsertPL(XrdOucTList *pP, const char *Path, int Plen, int isRW);
 void         InsertXD(const char *Path);
 void         Usage(int rc);
 int          xapath();
-int          xcks(int isOfs=0);
+int          xcks();
 int          xcnsd();
 int          xcopy();
 int          xcopy(int &TLim);
@@ -205,7 +203,6 @@ int          xdpol();
 int          xitm(const char *What, int &tDest);
 int          xnml();
 int          xmon();
-int          xoss();
 int          xpol();
 int          xpolprog();
 int          xqchk();
@@ -215,8 +212,6 @@ void         xspaceBuild(char *grp, char *fn, int isxa);
 int          xxfr();
 
 char               *ConfigFN;
-char               *ossLib;
-char               *ossParms;
 char               *LocalRoot;
 char               *RemoteRoot;
 XrdOucStream       *cFile;

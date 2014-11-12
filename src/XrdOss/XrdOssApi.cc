@@ -132,9 +132,15 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 
 // Get the Object now
 //
-   delete myLib;
    if ((ossP = ep((XrdOss *)&myOssSys, Logger, config_fn, OssParms)) && envP)
-      ossP->EnvInfo(envP);
+      {ossP->EnvInfo(envP);
+       if (envP && strcmp(OssLib, myLib->Path()))
+          envP->Put("oss.lib", myLib->Path());
+      }
+
+// All done
+//
+   delete myLib;
    return ossP;
 }
  

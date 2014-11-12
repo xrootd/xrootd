@@ -131,15 +131,8 @@ XrdOfs::XrdOfs()
 
 // Establish defaults
 //
-   AuthLib       = 0;
-   AuthParm      = 0;
+   ofsConfig     = 0;
    Authorization = 0;
-   AtrLib        = 0;
-   AtrParms      = 0;
-   CmsLib        = 0;
-   CmsParms      = 0;
-   OssLib        = 0;
-   OssParms      = 0;
    Finder        = 0;
    Balancer      = 0;
    evsObject     = 0;
@@ -165,8 +158,7 @@ XrdOfs::XrdOfs()
 // Set checksum pointers
 //
    Cks       = 0;
-   CksConfig = 0;
-   CksRdsz   = 0;
+   CksPfn    = true;
 }
   
 /******************************************************************************/
@@ -1366,7 +1358,7 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 
 // At this point we need to convert the lfn to a pfn
 //
-   if (!(Path = XrdOfsOss->Lfn2Pfn(Path, buff, MAXPATHLEN, rc)))
+   if (CksPfn && !(Path = XrdOfsOss->Lfn2Pfn(Path, buff, MAXPATHLEN, rc)))
       return Emsg(epname, einfo, rc, "checksum", Path);
 
 // Now determine what to do

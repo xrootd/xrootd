@@ -42,9 +42,9 @@
 #include "XrdVersion.hh"
 
 #include "XrdCks/XrdCks.hh"
-#include "XrdCks/XrdCksConfig.hh"
 
 #include "XrdOfs/XrdOfs.hh"
+#include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
 #include "XrdOfs/XrdOfsStats.hh"
@@ -55,9 +55,7 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -90,6 +88,9 @@ XrdVERSIONINFO(XrdOfs,XrdOfs);
 
 #define TS_Xeq(x,m)   if (!strcmp(x,var)) return m(Config,Eroute);
 
+#define TS_XPI(x,m)   if (!strcmp(x,var))\
+                         return !ofsConfig->Parse(XrdOfsConfigPI:: m);
+
 #define TS_Str(x,m)   if (!strcmp(x,var)) {free(m); m = strdup(val); return 0;}
 
 #define TS_PList(x,m)  if (!strcmp(x,var)) \
@@ -121,8 +122,8 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
   Output:   0 upon success or !0 otherwise.
 */
-   extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
-                              const char   *, XrdOucEnv  *, XrdVersionInfo &);
+//?extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
+//?                           const char   *, XrdOucEnv  *, XrdVersionInfo &);
    char *var;
    const char *tmp;
    int  i, j, cfgFD, retc, NoGo = 0;
@@ -145,11 +146,9 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
    Options            = 0;
    if (getenv("XRDDEBUG")) OfsTrace.What = TRACE_MOST | TRACE_debug;
 
-// Allocate a checksum configurator at this point
+// Allocate a our plugin configurator
 //
-   CksConfig = new XrdCksConfig(ConfigFN, &Eroute, retc,
-                                XrdVERSIONINFOVAR(XrdOfs));
-   if (!retc) NoGo = 1;
+   ofsConfig = new XrdOfsConfigPI(ConfigFN, &Config, &Eroute);
 
 // If there is no config file, return with the defaults sets.
 //
@@ -180,21 +179,6 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
            Config.Close();
           }
 
-// Determine whether we should load the extended attribute plugin
-//
-   if ((Options & XAttrPlug) && (AtrLib || OssLib))
-      {if (!AtrLib) AtrLib = strdup(OssLib);
-       if (setupAttr(Eroute)) NoGo = 1;
-      }
-   XrdSysFAttr::Xat->SetMsgRoute(&Eroute);
-
-// Determine whether we should initialize authorization
-//
-   if (Options & Authorize)
-      {if (setupAuth(Eroute)) NoGo = 1;
-          else XrdOfsTPC::Init(Authorization);
-      }
-
 // Check if redirection wanted
 //
    if (getenv("XRDREDIRECT")) i  = isManager;
@@ -221,9 +205,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
            XrdOucEnv::Export("XRDREDIRECT", (Options & isMeta ? "M" : "R"));
       else XrdOucEnv::Export("XRDREDIRECT", "0");
 
-// Configure the storage system at this point. This must be done prior to
-// configuring cluster processing. First check if we will be proxying.
-// If so, then substitute the proxy plug-in where we can.
+// If we are a proxy, then figure out where the prosy storge system resides
 //
    if ((Options & isProxy) && !(Options & isManager))
       {char buff[2048], *bp, *libofs = getenv("XRDOFSLIB");
@@ -232,13 +214,26 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                 while(bp != buff && *(bp-1) != '/') bp--;
                }
        strcpy(bp, "libXrdPss.so");
-       if (OssLib) Eroute.Say("Config warning: ",
-                   "specified osslib overrides default proxy lib.");
-          else OssLib = strdup(buff);
-       if (CksConfig->Manager()) Eroute.Say("Config warning: ",
-                   "specified ckslib overrides default proxy lib.");
-          else CksConfig->Manager(buff, 0);
+       ofsConfig->Default(XrdOfsConfigPI::theOssLib, buff, 0);
+       ofsConfig->Default(XrdOfsConfigPI::theCksLib, buff, 0);
       }
+
+// Determine whether we should load authorization
+//
+   int piOpts = XrdOfsConfigPI::allXXXLib;
+   if (!(Options & Authorize)) piOpts &= ~XrdOfsConfigPI::theAutLib;
+
+// Now load all of the required plugins
+//
+   if (!ofsConfig->Load(piOpts, EnvInfo)) NoGo = 1;
+      else {XrdOfsOss = ofsConfig->ossPI;
+            Cks       = ofsConfig->cksPI;
+            CksPfn    =!ofsConfig->OssCks();
+            if (Options & Authorize)
+               {Authorization = ofsConfig->autPI;
+                XrdOfsTPC::Init(Authorization);
+               }
+           }
 
 // Configure third party copy but only if we are not a manager or a proxy
 //
@@ -252,17 +247,12 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    if (!(Options & isManager) && !evrObject.Init(&Eroute)) NoGo = 1;
 
-// Now configure the storage system
-//
-   if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib, OssParms,
-                                 EnvInfo, XrdVERSIONINFOVAR(XrdOfs)))) NoGo = 1;
-
 // Initialize redirection.  We type te herald here to minimize confusion
 //
    if (Options & haveRole)
       {Eroute.Say("++++++ Configuring ", myRole, " role. . .");
        if (ConfigRedir(Eroute, EnvInfo))
-          {Eroute.Emsg("Config", "Unable to create cms client object.");
+          {Eroute.Emsg("Config", "Unable to create cluster management client.");
            NoGo = 1;
           }
       }
@@ -283,13 +273,6 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
           fwdTRUNC.Reset();
          }
 
-// Configure checksums even for managers
-//
-   if (!NoGo)
-      NoGo |= (Cks = CksConfig->Configure(0, CksRdsz)) == 0;
-   delete CksConfig;
-   CksConfig = 0;
-
 // If we need to send notifications, initialize the interface
 //
    if (!NoGo && evsObject) NoGo = evsObject->Start(&Eroute);
@@ -306,6 +289,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // Display final configuration
 //
    if (!NoGo) Config_Display(Eroute);
+   delete ofsConfig; ofsConfig = 0;
 
 // All done
 //
@@ -332,32 +316,20 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
         else     pval = (poscAuto ? "auto" : "manual");
 
      snprintf(buff, sizeof(buff), "Config effective %s ofs configuration:\n"
-                                  "       ofs.role %s\n"
+                                  "       all.role %s\n"
                                   "%s"
-                                  "%s%s%s"
                                   "       ofs.maxdelay   %d\n"
-                                  "%s%s%s%s%s"
-                                  "%s%s%s"
-                                  "%s%s%s"
                                   "       ofs.persist    %s hold %d%s%s%s"
                                   "       ofs.trace      %x",
               cloc, myRole,
               (Options & Authorize ? "       ofs.authorize\n" : ""),
-              (AuthLib                   ? "       ofs.authlib " : ""),
-              (AuthLib ? AuthLib : ""), (AuthLib ? "\n" : ""),
                MaxDelay,
-              (CmsLib                    ? "       ofs.cmslib " : ""),
-              (CmsLib ? CmsLib : ""), (CmsParms?" " : ""),
-              (CmsParms? CmsParms : ""), (CmsLib ? "\n" : ""),
-              (OssLib                    ? "       ofs.osslib " : ""),
-              (OssLib ? OssLib : ""), (OssLib ? "\n" : ""),
-              (AtrLib                    ? "       ofs.xattrlib " : ""),
-              (AtrLib ? AtrLib : ""), (AtrLib ? "\n" : ""),
                pval, poscHold, (poscLog ? " logdir " : ""),
                (poscLog ? poscLog    : ""), (poscLog ? "\n" : ""),
               OfsTrace.What);
 
      Eroute.Say(buff);
+     ofsConfig->Display();
 
      if (Options & Forwarding)
         {*fwbuff = 0;
@@ -516,8 +488,7 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
   
 int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 {
-   XrdCmsClient *(*CmsPI)(XrdSysLogger *, int, int, XrdOss *);
-   CmsPI = 0;
+   XrdCmsClient_t CmsPI = ofsConfig->cmsPI;
    XrdSysLogger *myLogger = Eroute.logger();
    int isRedir = Options & isManager;
    int RMTopts = (Options & isServer ? XrdCms::IsTarget : 0)
@@ -526,25 +497,16 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
    int TRGopts = (Options & isProxy  ? XrdCms::IsProxy  : 0)
                | (isRedir ? XrdCms::IsRedir : 0) | XrdCms::IsTarget;
 
-// If a cmslib was specified then create a plugin object
-//
-   if (CmsLib)
-      {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"cmslib",CmsLib);
-       CmsPI = (XrdCmsClient *(*)(XrdSysLogger *, int, int, XrdOss *))
-                                  (myLib.Resolve("XrdCmsGetClient"));
-       if (!CmsPI) return 1;
-      }
-
 // For manager roles, we simply do a standard config
 //
    if (isRedir) 
-      {     if (CmsLib) Finder = CmsPI(myLogger, RMTopts, myPort, XrdOfsOss);
+      {     if (CmsPI)  Finder = CmsPI(myLogger, RMTopts, myPort, XrdOfsOss);
        else if (XrdCmsFinderRMT::VCheck(XrdVERSIONINFOVAR(XrdOfs)))
                         Finder = (XrdCmsClient *)new XrdCmsFinderRMT(myLogger,
                                                                 RMTopts,myPort);
        else return 1;
        if (!Finder) return 1;
-       if (!Finder->Configure(ConfigFN, CmsParms, EnvInfo))
+       if (!ofsConfig->Configure(Finder, EnvInfo))
           {delete Finder; Finder = 0; return 1;}
        if (EnvInfo) EnvInfo->PutPtr("XRDCMSMANLIST", Finder->Managers());
       }
@@ -568,13 +530,13 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
           }
-            if (CmsLib) Balancer = CmsPI(myLogger, TRGopts, myPort, XrdOfsOss);
+            if (CmsPI)  Balancer = CmsPI(myLogger, TRGopts, myPort, XrdOfsOss);
        else if (XrdCmsFinderTRG::VCheck(XrdVERSIONINFOVAR(XrdOfs)))
                         Balancer = (XrdCmsClient *)new XrdCmsFinderTRG(myLogger,
                                                                 TRGopts,myPort);
        else return 1;
        if (!Balancer) return 1;
-       if (!Balancer->Configure(ConfigFN, CmsParms, EnvInfo))
+       if (!ofsConfig->Configure(Balancer, EnvInfo))
           {delete Balancer; Balancer = 0; return 1;}
        if (Options & (isProxy | SubCluster))
           Balancer = 0; // No chatting for proxies or subclusters
@@ -597,20 +559,20 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     // Now assign the appropriate global variable
     //
     TS_Bit("authorize",     Options, Authorize);
-    TS_Xeq("authlib",       xalib);
-    TS_Xeq("ckslib",        xclib);
+    TS_XPI("authlib",       theAutLib);
+    TS_XPI("ckslib",        theCksLib);
     TS_Xeq("cksrdsz",       xcrds);
-    TS_Xeq("cmslib",        xcmsl);
+    TS_XPI("cmslib",        theCmsLib);
     TS_Xeq("forward",       xforward);
     TS_Xeq("maxdelay",      xmaxd);
     TS_Xeq("notify",        xnot);
     TS_Xeq("notifymsg",     xnmsg);
-    TS_Xeq("osslib",        xolib);
+    TS_XPI("osslib",        theOssLib);
     TS_Xeq("persist",       xpers);
     TS_Xeq("role",          xrole);
     TS_Xeq("tpc",           xtpc);
     TS_Xeq("trace",         xtrace);
-    TS_Xeq("xattrlib",      xxlib);
+    TS_XPI("xattrlib",      theAtrLib);
 
     // Screen out the subcluster directive (we need to track that)
     //
@@ -627,107 +589,6 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     Eroute.Say("Config warning: ignoring unknown directive '",var,"'.");
     Config.Echo();
     return 0;
-}
-
-/******************************************************************************/
-/*                                 x a l i b                                  */
-/******************************************************************************/
-  
-/* Function: xalib
-
-   Purpose:  To parse the directive: authlib <path> [<parms>]
-
-             <path>    the path of the authorization library to be used.
-             <parms>   optional parms to be passed
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOfs::xalib(XrdOucStream &Config, XrdSysError &Eroute)
-{
-    char *val, parms[1024];
-
-// Get the path
-//
-   if (!(val = Config.GetWord()) || !val[0])
-      {Eroute.Emsg("Config", "authlib not specified"); return 1;}
-
-// Record the path
-//
-   if (AuthLib) free(AuthLib);
-   AuthLib = strdup(val);
-
-// Record any parms
-//
-   if (!Config.GetRest(parms, sizeof(parms)))
-      {Eroute.Emsg("Config", "authlib parameters too long"); return 1;}
-   if (AuthParm) free(AuthParm);
-   AuthParm = (*parms ? strdup(parms) : 0);
-   return 0;
-}
-
-/******************************************************************************/
-/*                                 x c l i b                                  */
-/******************************************************************************/
-  
-/* Function: xclib
-
-   Purpose:  To parse the directive: ckslib <digest> <path> [<parms>]
-
-             <digest>  the name of the checksum. The special name "*" is used
-                       load the checksum manager library.
-             <path>    the path of the checksum library to be used.
-             <parms>   optional parms to be passed
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOfs::xclib(XrdOucStream &Config, XrdSysError &Eroute)
-{
-// Return the result
-//
-   return CksConfig->ParseLib(Config);
-}
-  
-/******************************************************************************/
-/*                                 x c m s l                                  */
-/******************************************************************************/
-  
-/* Function: xcmsl
-
-   Purpose:  To parse the directive: cmslib <path> [<parms>]
-
-             <path>    the path of the cms library to be used.
-             <parms>   optional parms to be passed
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOfs::xcmsl(XrdOucStream &Config, XrdSysError &Eroute)
-{
-    char *val, parms[2048];
-
-// Get the path and parms
-//
-   if (!(val = Config.GetWord()) || !val[0])
-      {Eroute.Emsg("Config", "cmslib not specified"); return 1;}
-
-// Set the CmsLib pointer
-//
-   if (CmsLib) free(CmsLib);
-   CmsLib = strdup(val);
-
-// Combine the path and parameters
-//
-   *parms = 0;
-   if (!Config.GetRest(parms, sizeof(parms)))
-      {Eroute.Emsg("Config", "cmslib parameters too long"); return 1;}
-
-// Record the parameters, if any
-//
-   if (CmsParms) free(CmsParms);
-   CmsParms = (*parms ? strdup(parms) : 0);
-   return 0;
 }
 
 /******************************************************************************/
@@ -760,7 +621,7 @@ int XrdOfs::xcrds(XrdOucStream &Config, XrdSysError &Eroute)
 // Now convert it
 //
    if (XrdOuca2x::a2sz(Eroute, "cksrdsz size", val, &rdsz, 1, maxRds)) return 1;
-   CksRdsz = rdsz;
+   ofsConfig->SetCksRdSz(static_cast<int>(rdsz));
    return 0;
 }
   
@@ -1079,67 +940,6 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 
 // All done
 //
-   return 0;
-}
-  
-/******************************************************************************/
-/*                                 x o l i b                                  */
-/******************************************************************************/
-  
-/* Function: xolib
-
-   Purpose:  To parse the directive: osslib [+xattr] <path> [<parms>]
-
-             +xattr    the library contains the xattr plugin.
-             <path>    the path of the oss library to be used.
-             <parms>   optional parms to be passed
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOfs::xolib(XrdOucStream &Config, XrdSysError &Eroute)
-{
-    char *val, parms[2048];
-    bool hasXattr = false;
-
-// Get the path and parms
-//
-   val = Config.GetWord();
-
-// Check if this is the xattr keyword
-//
-   if (val && (hasXattr = !strcmp("+xattr",  val))) val = Config.GetWord();
-
-// Check if we an osslib
-//
-   if (!val || !val[0])
-      {Eroute.Emsg("Config", "osslib not specified"); return 1;}
-
-// Record the path
-//
-   if (OssLib) free(OssLib);
-   OssLib = strdup(val);
-
-// Get any parameters
-//
-   *parms = 0;
-   if (!Config.GetRest(parms, sizeof(parms)))
-      {Eroute.Emsg("Config", "osslib parameters too long"); return 1;}
-
-// Record the parameters
-//
-   if (OssParms) free(OssParms);
-   OssParms = (*parms ? strdup(parms) : 0);
-
-// Record whether or not this also contains the xattr plugin
-//
-   if (hasXattr)
-      {if (AtrLib) free(AtrLib);
-       AtrLib = strdup(OssLib);
-       if (AtrParms) free(AtrParms);
-       AtrParms = (*parms ? strdup(parms) : 0);
-       Options |= XAttrPlug;
-      }
    return 0;
 }
 
@@ -1547,106 +1347,6 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 // All done
 //
    return 0;
-}
-  
-/******************************************************************************/
-/*                                 x x l i b                                  */
-/******************************************************************************/
-  
-/* Function: xxlib
-
-   Purpose:  To parse the directive: xattrlib {osslib | <path>} [<parms>]
-
-             <path>    the path of the xattr library to be used.
-             <parms>   optional parms to be passed
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOfs::xxlib(XrdOucStream &Config, XrdSysError &Eroute)
-{
-    char *val, parms[2048];
-
-// Get the path and parms
-//
-   if (!(val = Config.GetWord()) || !val[0])
-      {Eroute.Emsg("Config", "xattrlib not specified"); return 1;}
-
-// Record the path
-//
-   if (AtrLib) free(AtrLib);
-   AtrLib = (strcmp("osslib", val) ? strdup(val) : 0);
-
-// Get any parameters
-//
-   *parms = 0;
-   if (!Config.GetRest(parms, sizeof(parms)))
-      {Eroute.Emsg("Config", "xattrlib parameters too long"); return 1;}
-
-// Record the parameters
-//
-   if (AtrParms) free(AtrParms);
-   AtrParms = (*parms ? strdup(parms) : 0);
-   Options |= XAttrPlug;
-   return 0;
-}
-
-/******************************************************************************/
-/*                             s e t u p A t t r                              */
-/******************************************************************************/
-
-int XrdOfs::setupAttr(XrdSysError &Eroute)
-{
-   XrdSysXAttr *(*ep)(XrdSysError *, const char *, const char *);
-   XrdSysXAttr *theObj;
-
-// Create a plugin object
-//
-  {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"xattrlib",AtrLib);
-   ep = (XrdSysXAttr *(*)(XrdSysError *, const char *, const char *))
-                         (myLib.Resolve("XrdSysGetXAttrObject"));
-   if (!ep) return 1;
-  }
-
-// Get the Object now
-//
-   if (!(theObj = ep(&Eroute, ConfigFN, AtrParms))) return 1;
-
-// Tell the interface to use this object instead of the default implementation
-//
-   XrdSysFAttr::SetPlugin(theObj);
-   return 0;
-}
-
-/******************************************************************************/
-/*                             s e t u p A u t h                              */
-/******************************************************************************/
-
-int XrdOfs::setupAuth(XrdSysError &Eroute)
-{
-   extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject
-                          (XrdSysLogger   *lp,    const char   *cfn,
-                           const char     *parm,  XrdVersionInfo &vInfo);
-
-   XrdAccAuthorize *(*ep)(XrdSysLogger *, const char *, const char *);
-
-// Authorization comes from the library or we use the default
-//
-   if (!AuthLib) return 0 == (Authorization = XrdAccDefaultAuthorizeObject
-                             (Eroute.logger(), ConfigFN, AuthParm,
-                              XrdVERSIONINFOVAR(XrdOfs)));
-
-// Create a plugin object
-//
-  {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"authlib",AuthLib);
-   ep = (XrdAccAuthorize *(*)(XrdSysLogger *, const char *, const char *))
-                             (myLib.Resolve("XrdAccAuthorizeObject"));
-   if (!ep) return 1;
-  }
-
-// Get the Object now
-//
-   return 0 == (Authorization = ep(Eroute.logger(), ConfigFN, AuthParm));
 }
   
 /******************************************************************************/

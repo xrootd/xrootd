@@ -33,6 +33,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 
 class XrdCks;
+class XrdOss;
 class XrdOucStream;
 class XrdSysError;
 
@@ -42,11 +43,14 @@ class XrdCksConfig
 {
 public:
 
-XrdCks *Configure(const char *dfltCalc=0, int rdsz=0);
+XrdCks *Configure(const char *dfltCalc=0, int rdsz=0, XrdOss *ossP=0);
 
 int     Manager() {return CksLib != 0;}
 
 int     Manager(const char *Path, const char *Parms);
+
+const
+char   *ManLib() {return CksLib;}
 
 int     ParseLib(XrdOucStream &Config);
 
@@ -59,7 +63,7 @@ int     ParseLib(XrdOucStream &Config);
                        }
 
 private:
-XrdCks      *getCks(int rdsz);
+XrdCks      *getCks(XrdOss *ossP, int rdsz);
 
 XrdSysError    *eDest;
 const char     *cfgFN;

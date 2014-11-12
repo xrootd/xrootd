@@ -407,6 +407,10 @@ enum  {IsProxy  = 1, //!< The role is proxy  {plus one or more of the below}
 //!         Failure: a null pointer which causes initialization to fail.
 //------------------------------------------------------------------------------
 
+class XrdOss;
+
+typedef XrdCmsClient *(*XrdCmsClient_t)(XrdSysLogger *, int, int, XrdOss *);
+
 /*! extern "C" XrdCmsClient *XrdCmsGetClient(XrdSysLogger *Logger,
                                              int           opMode,
                                              int           myPort

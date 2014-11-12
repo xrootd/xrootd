@@ -58,7 +58,6 @@ namespace XrdFileCache
       bool m_prefetchFileBlocks;      //!< flag for enabling block-level operation
       std::string m_cache_dir;        //!< path of disk cache
       std::string m_username;         //!< username passed to oss plugin
-      std::string m_osslib_name;      //!< oss library name (optional)
 
       float m_lwm;                    //!< cache purge low water mark
       float m_hwm;                    //!< cache purge high water mark
@@ -152,7 +151,6 @@ namespace XrdFileCache
 
          bool ConfigParameters(const char *);
          bool ConfigXeq(char *, XrdOucStream &);
-         bool xolib(XrdOucStream &);
          bool xdlib(XrdOucStream &);
 
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }

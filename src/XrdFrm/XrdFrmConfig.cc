@@ -40,8 +40,6 @@
 #include "XrdVersion.hh"
 
 #include "Xrd/XrdInfo.hh"
-#include "XrdCks/XrdCksConfig.hh"
-#include "XrdCks/XrdCksManager.hh"
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmCns.hh"
@@ -49,6 +47,7 @@
 #include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetCmsNotify.hh"
+#include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
@@ -162,8 +161,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    xfrCmd[2].Desc = "copycmd in url"; xfrCmd[3].Desc = "copycmd out url";
    xfrIN    = xfrOUT = 0;
    isAgent  = (getenv("XRDADMINPATH") ? 1 : 0);
-   ossLib   = 0;
-   ossParms = 0;
+   OfsCfg   = 0;
    cmsPath  = 0;
    haveCMS  = 0;
    isOTO    = 0;
@@ -189,8 +187,6 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    LocalRoot= RemoteRoot = 0;
    lcl_N2N  = rmt_N2N = the_N2N = 0;
    N2N_Lib  = N2N_Parms         = 0;
-   CksAlg   = 0;
-   CksCfg   = 0;
    CksMan   = 0;
 
    xfrFdir  = 0;
@@ -407,9 +403,12 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        XrdOucEnv::Export("XRDOSSTYPE",  myFrmID);
        if (ssID == ssPurg) XrdOucEnv::Export("XRDOSSCSCAN", "off");
        if (!NoGo)
-          {if (!(ossFS=XrdOssGetSS(Say.logger(), ConfigFN, ossLib, ossParms,
-                                   0, *myVersion))) NoGo = 1;
+          {int loadPI = XrdOfsConfigPI::theOssLib | XrdOfsConfigPI::theAtrLib;
+           if (ssID == ssAdmin) loadPI |= XrdOfsConfigPI::theCksLib;
+           if (!OfsCfg->Load(loadPI)) NoGo = 1;
               else {struct stat Stat;
+                    ossFS  = OfsCfg->ossPI;
+                    CksMan = OfsCfg->cksPI;
                     doStatPF = ossFS->StatPF("/", &Stat) != -ENOTSUP;
                     runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
                    }
@@ -423,7 +422,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 // Configure each specific component
 //
    if (!NoGo) switch(ssID)
-      {case ssAdmin: NoGo = (ConfigN2N() || ConfigMss() || ConfigCks());
+      {case ssAdmin: NoGo = (ConfigN2N() || ConfigMss());
                      break;
        case ssPurg:  if (!(NoGo = (ConfigMon(0) || ConfigMP("purgeable"))))
                         ConfigPF("frm_purged");
@@ -467,6 +466,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 
 // All done
 //
+   if (OfsCfg) delete OfsCfg;
    return !NoGo;
 }
   
@@ -593,22 +593,6 @@ int XrdFrmConfig::Stat(const char *xLfn, const char *xPfn, struct stat *buff)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
-/******************************************************************************/
-/*                             C o n f i g C k s                              */
-/******************************************************************************/
-
-int XrdFrmConfig::ConfigCks()
-{
-
-// If we have no algorithm, we are done
-//
-   if (!CksAlg) return 0;
-
-// Configure the algorithm
-//
-   return !(CksMan = CksCfg->Configure(CksAlg));
-}
-  
 /******************************************************************************/
 /* Private:                    C o n f i g C m d                              */
 /******************************************************************************/
@@ -974,12 +958,9 @@ int XrdFrmConfig::ConfigProc()
   XrdOucEnv myEnv;
   XrdOucStream cfgFile(&Say, myInstance, &myEnv, "=====> ");
 
-// Allocate a chksum configurator if needed
+// Allocate a plugin library configurator
 //
-   if (ssID == ssAdmin)
-      {CksCfg = new XrdCksConfig(ConfigFN, &Say, retc, *myVersion);
-       if (!retc) return 1;
-      }
+   OfsCfg = new XrdOfsConfigPI(ConfigFN, &cfgFile, &Say, myVersion);
 
 // Try to open the configuration file.
 //
@@ -1012,6 +993,8 @@ int XrdFrmConfig::ConfigProc()
 /* Prvate:                     C o n f i g X e q                              */
 /******************************************************************************/
 
+#define PARSEPI(x) return !OfsCfg->Parse(XrdOfsConfigPI:: x);
+
 int XrdFrmConfig::ConfigXeq(char *var, int mbok)
 {
 
@@ -1027,8 +1010,9 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
    if (ssID == ssAdmin)
       {
        if (!strcmp(var, "frm.xfr.qcheck")) return xqchk();
-       if (!strcmp(var, "ofs.ckslib"    )) return xcks(1);
-       if (!strcmp(var, "ofs.osslib"    )) return xoss();
+       if (!strcmp(var, "ofs.ckslib"    )) PARSEPI(theCksLib);
+       if (!strcmp(var, "ofs.osslib"    )) PARSEPI(theOssLib);
+       if (!strcmp(var, "ofs.xattrlib"  )) PARSEPI(theAtrLib);
        if (!strcmp(var, "oss.cache"     )){hasCache = 1; // runOld
                                            return xspace(0,0);
                                           }
@@ -1048,7 +1032,8 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (isAgent) return 0;           // Server-oriented directives
 
        if (!strcmp(var, "all.sitename"  )) return xsit();
-       if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
+       if (!strcmp(var, "ofs.osslib"    )) PARSEPI(theOssLib);
+       if (!strcmp(var, "ofs.xattrlib"  )) PARSEPI(theAtrLib);
        if (!strcmp(var, "oss.cache"     )) return xspace(0,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
@@ -1073,7 +1058,8 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "dirhold"       )) return xdpol();
        if (!strcmp(var, "oss.cache"     )) return xspace(1,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
-       if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
+       if (!strcmp(var, "ofs.osslib"    )) PARSEPI(theOssLib);
+       if (!strcmp(var, "ofs.xattrlib"  )) PARSEPI(theAtrLib);
        if (!strcmp(var, "policy"        )) return xpol();
        if (!strcmp(var, "polprog"       )) return xpolprog();
        if (!strcmp(var, "oss.space"     )) return xspace(1);
@@ -1325,13 +1311,9 @@ int XrdFrmConfig::xapath()
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdFrmConfig::xcks(int isOfs)
+int XrdFrmConfig::xcks()
 {
    char *palg;
-
-// If this is the ofs cks directive, then process as such
-//
-   if (isOfs) return CksCfg->ParseLib(*cFile);
 
 // Get the algorithm name and the program implementing it
 //
@@ -1345,8 +1327,10 @@ int XrdFrmConfig::xcks(int isOfs)
 //
    if (!palg || *palg == '/')
       {Say.Emsg("Config", "chksum algorithm not specified"); return 1;}
-   if (CksAlg) free(CksAlg);
-   CksAlg = strdup(palg);
+
+// Set default checksum
+//
+   OfsCfg->DefaultCS(palg);
    return 0;
 }
   
@@ -1697,46 +1681,12 @@ int XrdFrmConfig::xnml()
 }
 
 /******************************************************************************/
-/* Private:                         x o s s                                   */
-/******************************************************************************/
-  
-
-/* Function: xoss
-
-   Purpose:  To parse the directive: osslib <path>
-
-             <path>    the path of the filesystem library to be used.
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdFrmConfig::xoss()
-{
-    char *val, parms[1024];
-
-// Get the path
-//
-   if (!(val = cFile->GetWord()) || !val[0])
-      {Say.Emsg("Config", "osslib not specified"); return 1;}
-   if (ossLib) free(ossLib);
-   ossLib = strdup(val);
-
-// Record any parms
-//
-   if (!cFile->GetRest(parms, sizeof(parms)))
-      {Say.Emsg("Config", "osslib parameters too long"); return 1;}
-   if (ossParms) free(ossParms);
-   ossParms = (*parms ? strdup(parms) : 0);
-   return 0;
-}
-
-/******************************************************************************/
 /* Private:                         x p o l                                   */
 /******************************************************************************/
 
 /* Function: xpol
 
-   Purpose:  To parse the directive: policy {*|sname} {nopurge|min [max]] [opts]
+   Purpose:  To parse the directive: policy {*|sname} {nopurge|min} max]] [opts]
 
              *         The default policy for all spaces.
 

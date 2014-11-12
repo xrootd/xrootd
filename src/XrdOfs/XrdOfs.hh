@@ -177,8 +177,8 @@ char           viaDel;
 
 class XrdAccAuthorize;
 class XrdCks;
-class XrdCksConfig;
 class XrdCmsClient;
+class XrdOfsConfigPI;
 class XrdOfsPoscq;
   
 class XrdOfs : public XrdSfsFileSystem
@@ -337,12 +337,6 @@ static int MaxDelay;  //    Max delay imposed during staging
 static int OSSDelay;  //    Delay to impose when oss interface times out
 
 char *ConfigFN;       //    ->Configuration filename
-char *OssLib;         //    ->Oss Library
-char *OssParms;       //    ->Oss Library Parameters
-char *CmsLib;         //    ->Cms Library
-char *CmsParms;       //    ->Cms Library Parameters
-char *AtrLib;         //    ->Atr Library
-char *AtrParms;       //    ->Atr Library Parameters
 
 /******************************************************************************/
 /*                       P r o t e c t e d   I t e m s                        */
@@ -370,8 +364,6 @@ const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
 
 private:
   
-char             *AuthLib;        //    ->Authorization   Library
-char             *AuthParm;       //    ->Authorization   Parameters
 char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdCmsClient     *Balancer;       //    ->Cluster Local   Interface
@@ -380,11 +372,13 @@ XrdOfsEvs        *evsObject;      //    ->Event Notifier
 XrdOfsPoscq      *poscQ;          //    -> poscQ if  persist on close enabled
 char             *poscLog;        //    -> Directory for posc recovery log
 int               poscHold;       //       Seconds to hold a forced close
-int               poscAuto;       //  1 -> Automatic persist on close
+short             poscAuto;       //  1 -> Automatic persist on close
 
-XrdCksConfig     *CksConfig;      // Checksum configurator
+char              Rsvd1;          //  Reserved
+bool              CksPfn;         // Checksum needs a pfn
+XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
 XrdCks           *Cks;            // Checksum manager
-int               CksRdsz;        // Checksum read size
+int               Reserved4;      // Reserved for future checksum stuff
 
 char              myRType[4];     // Role type for consistency with the cms
 
@@ -412,23 +406,16 @@ const char   *Fname(const char *);
 int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                       const char *arg1=0, const char *arg2=0,
                       XrdOucEnv  *Env1=0, XrdOucEnv  *Env2=0);
-int           setupAttr(XrdSysError &);
-int           setupAuth(XrdSysError &);
 const char   *theRole(int opts);
-int           xalib(XrdOucStream &, XrdSysError &);
-int           xclib(XrdOucStream &, XrdSysError &);
 int           xcrds(XrdOucStream &, XrdSysError &);
-int           xcmsl(XrdOucStream &, XrdSysError &);
 int           xforward(XrdOucStream &, XrdSysError &);
 int           xmaxd(XrdOucStream &, XrdSysError &);
 int           xnmsg(XrdOucStream &, XrdSysError &);
 int           xnot(XrdOucStream &, XrdSysError &);
-int           xolib(XrdOucStream &, XrdSysError &);
 int           xpers(XrdOucStream &, XrdSysError &);
 int           xrole(XrdOucStream &, XrdSysError &);
 int           xtpc(XrdOucStream &, XrdSysError &);
 int           xtpcal(XrdOucStream &, XrdSysError &);
 int           xtrace(XrdOucStream &, XrdSysError &);
-int           xxlib(XrdOucStream &, XrdSysError &);
 };
 #endif
