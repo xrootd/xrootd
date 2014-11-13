@@ -258,10 +258,10 @@ function handleDaemons()
     INSTANCES=$@
   fi
 
-  eval INSTANCES_XROOTD4=\$${CONFIG_NAME}4_INSTANCES
+  eval INSTANCES_XROOTD3=\$${CONFIG_NAME}3_INSTANCES
 
   INSTANCES=`echo $INSTANCES | tr '[[:upper:]]' '[[:lower:]]'`
-  INSTANCES_XROOTD4=`echo $INSTANCES_XROOTD4 | tr '[[:upper:]]' '[[:lower:]]'`
+  INSTANCES_XROOTD3=`echo $INSTANCES_XROOTD3 | tr '[[:upper:]]' '[[:lower:]]'`
 
   #-----------------------------------------------------------------------------
   # Exec the command on the instances
@@ -275,15 +275,13 @@ function handleDaemons()
     # Check if the instance is xrootd3 or xrootd4, if a xrootd3 binary is
     # installed
     #---------------------------------------------------------------------------
-    EXEC_RUN=$EXEC-3
-    if test -x $EXEC_RUN; then
-      for INS in $INSTANCES_XROOTD4; do
+    EXEC_RUN=$EXEC
+    if test -x $EXEC-3; then
+      for INS in $INSTANCES_XROOTD3; do
         if test $INS = $INSTANCE; then
-          EXEC_RUN=$EXEC
+          EXEC_RUN=$EXEC-3
         fi
       done
-    else
-      EXEC_RUN=$EXEC
     fi
 
     #---------------------------------------------------------------------------
