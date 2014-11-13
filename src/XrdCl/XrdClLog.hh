@@ -76,6 +76,7 @@ namespace XrdCl
   {
     public:
       virtual void Write( const std::string &message );
+      virtual ~LogOutCerr() {}
     private:
       XrdSysMutex pMutex;
   };
