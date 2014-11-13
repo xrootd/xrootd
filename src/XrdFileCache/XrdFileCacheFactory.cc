@@ -212,13 +212,8 @@ bool Factory::xdlib(XrdOucStream &Config)
    const char* params;
    params = (val[0]) ?  Config.GetWord() : 0;
 
-#if defined(HAVE_VERSIONS)
    XrdOucPinLoader* myLib = new XrdOucPinLoader(&m_log, 0, "decisionlib",
                                                 libp.c_str());
-#else
-   XrdOucPinLoader* myLib = new XrdOucPinLoader(&m_log, 0, "decisionlib",
-                                                libp.c_str());
-#endif
    Decision *(*ep)(XrdSysError&);
    ep = (Decision *(*)(XrdSysError&))myLib->Resolve("XrdFileCacheGetDecision");
    if (!ep) {myLib->Unload(true); return false;}
