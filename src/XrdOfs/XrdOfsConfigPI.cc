@@ -293,7 +293,7 @@ bool XrdOfsConfigPI::Parse(TheLib what)
 // Get the path
 //
    if (!(val = Config->GetWord()) || !val[0])
-      {Eroute->Emsg("Config", drctv[what], "not specified"); return false;}
+      {Eroute->Emsg("Config", drctv[PIX(what)],"not specified"); return false;}
 
 // Set the lib and parameterss
 //
