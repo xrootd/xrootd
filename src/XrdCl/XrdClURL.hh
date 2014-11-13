@@ -68,7 +68,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Get protocol://host:port/path
+      //! Get location (protocol://host:port/path)
       //------------------------------------------------------------------------
       std::string GetLocation() const;
 
