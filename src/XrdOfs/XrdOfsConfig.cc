@@ -148,7 +148,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Allocate a our plugin configurator
 //
-   ofsConfig = new XrdOfsConfigPI(ConfigFN, &Config, &Eroute);
+   ofsConfig = XrdOfsConfigPI::New(ConfigFN, &Config, &Eroute);
 
 // If there is no config file, return with the defaults sets.
 //
@@ -226,11 +226,11 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // Now load all of the required plugins
 //
    if (!ofsConfig->Load(piOpts, EnvInfo)) NoGo = 1;
-      else {XrdOfsOss = ofsConfig->ossPI;
-            Cks       = ofsConfig->cksPI;
-            CksPfn    =!ofsConfig->OssCks();
+      else {ofsConfig->Plugin(XrdOfsOss);
+            ofsConfig->Plugin(Cks);
+            CksPfn = !ofsConfig->OssCks();
             if (Options & Authorize)
-               {Authorization = ofsConfig->autPI;
+               {ofsConfig->Plugin(Authorization);
                 XrdOfsTPC::Init(Authorization);
                }
            }
@@ -488,7 +488,7 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
   
 int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 {
-   XrdCmsClient_t CmsPI = ofsConfig->cmsPI;
+   XrdCmsClient_t CmsPI;
    XrdSysLogger *myLogger = Eroute.logger();
    int isRedir = Options & isManager;
    int RMTopts = (Options & isServer ? XrdCms::IsTarget : 0)
@@ -496,6 +496,10 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
                | (Options & isMeta   ? XrdCms::IsMeta   : 0);
    int TRGopts = (Options & isProxy  ? XrdCms::IsProxy  : 0)
                | (isRedir ? XrdCms::IsRedir : 0) | XrdCms::IsTarget;
+
+// Get the cms object creator plugin
+//
+   ofsConfig->Plugin(CmsPI);
 
 // For manager roles, we simply do a standard config
 //

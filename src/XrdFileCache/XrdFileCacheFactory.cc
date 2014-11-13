@@ -109,8 +109,6 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
    XrdOucEnv myEnv;
    XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), &myEnv, "=====> ");
-   XrdOfsConfigPI ofsCfg(config_filename, &Config, &m_log,
-                         &XrdVERSIONINFOVAR(XrdOucGetCache));
 
    if (!config_filename || !*config_filename)
    {
@@ -127,13 +125,18 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
    Config.Attach(fd);
 
+   // Obtain plugin configurator
+   XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(config_filename,&Config,&m_log,
+                                            &XrdVERSIONINFOVAR(XrdOucGetCache));
+   if (!ofsCfg) return false;
+
    // Actual parsing of the config file.
    bool retval = true;
    int retc;
    char *var;
    while((var = Config.GetMyFirstWord()))
    {
-      if (( strcmp(var,"ofs.osslib") && !ofsCfg.Parse(XrdOfsConfigPI::theOssLib))
+      if (( strcmp(var,"ofs.osslib") && !ofsCfg->Parse(XrdOfsConfigPI::theOssLib))
       || (!strncmp(var,"pfc.", 4) && !ConfigXeq(var+4, Config)))
       {
          Config.Echo();
@@ -156,7 +159,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
    if (retval)
    {
-      if (ofsCfg.Load(XrdOfsConfigPI::theOssLib)) m_output_fs = ofsCfg.ossPI;
+      if (ofsCfg->Load(XrdOfsConfigPI::theOssLib)) ofsCfg->Plugin(m_output_fs);
          else
       {
          clLog()->Error(XrdCl::AppMsg, "Factory::Config() Unable to create an OSS object");
@@ -171,6 +174,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
    clLog()->Info(XrdCl::AppMsg, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
 
+   if (ofsCfg) delete ofsCfg;
    return retval;
 }
 

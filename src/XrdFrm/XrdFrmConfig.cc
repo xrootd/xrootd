@@ -407,8 +407,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
            if (ssID == ssAdmin) loadPI |= XrdOfsConfigPI::theCksLib;
            if (!OfsCfg->Load(loadPI)) NoGo = 1;
               else {struct stat Stat;
-                    ossFS  = OfsCfg->ossPI;
-                    CksMan = OfsCfg->cksPI;
+                    OfsCfg->Plugin(ossFS);
+                    OfsCfg->Plugin(CksMan);
                     doStatPF = ossFS->StatPF("/", &Stat) != -ENOTSUP;
                     runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
                    }
@@ -960,7 +960,8 @@ int XrdFrmConfig::ConfigProc()
 
 // Allocate a plugin library configurator
 //
-   OfsCfg = new XrdOfsConfigPI(ConfigFN, &cfgFile, &Say, myVersion);
+   OfsCfg = XrdOfsConfigPI::New(ConfigFN, &cfgFile, &Say, myVersion);
+   if (!OfsCfg) return 1;
 
 // Try to open the configuration file.
 //

@@ -42,22 +42,17 @@ class  XrdSysError;
 struct XrdVersionInfo;
 
 //-----------------------------------------------------------------------------
-//! The XrdOfsConfigPI is a helper class to handle ofs plugins.
+//! The XrdOfsConfigPI is a helper class to handle ofs plugins. It is a safe
+//! class in that the invoker of this class may reside in a different shared
+//! library even though the implementation of this class may change. This is
+//! because nothing is this class depends on the invoker knowing the layout
+//! of thie class members nor the actual size of this class. Note that you
+//! must use the static New() method to obtain an instance of this class.
 //-----------------------------------------------------------------------------
 
 class XrdOfsConfigPI
 {
 public:
-
-//-----------------------------------------------------------------------------
-//! The following pointers are set after a call to Load(). A nil pointer means
-//! either the plugin was not requested to be loaded or the load failed.
-//-----------------------------------------------------------------------------
-
-XrdAccAuthorize *autPI;    //!< -> Authorization plugin
-XrdCks          *cksPI;    //!< -> Checksum manager plugin
-XrdCmsClient_t   cmsPI;    //!< -> Cms client object generator plugin
-XrdOss          *ossPI;    //!< -> Oss plugin
 
 //-----------------------------------------------------------------------------
 //! The following enum is passed either alone or in combination to various
@@ -84,10 +79,7 @@ enum TheLib {theAtrLib = 0x0100,  //!< Extended attribute plugin
 //! @return          true upon success and false upon failure.
 //-----------------------------------------------------------------------------
 
-bool   Configure(XrdCmsClient *cmscP, XrdOucEnv *envP)
-               {return 0 != cmscP->Configure(ConfigFN,
-                                   LP[theCmsLib & libIXMask].parms, envP);
-               }
+bool   Configure(XrdCmsClient *cmscP, XrdOucEnv *envP);
 
 //-----------------------------------------------------------------------------
 //! Set the default plugin path and parms. This method may be called before or
@@ -129,12 +121,32 @@ void   Display();
 bool   Load(int what, XrdOucEnv *envP=0);
 
 //-----------------------------------------------------------------------------
+//! Obtain an instance of this class (note that the constructor is private).
+//!
+//! @param   cfn     Pointer to the configuration file name.
+//! @param   cfgP    Pointer to the stream that reads the configuration file.
+//! @param   errP    Pointer to the error message object that routes messages.
+//! @param   verP    Pointer to the version information of the object creator.
+//!                  If zero, the version information of this object is used.
+//!                  Generally, if the creator resides in a different shared
+//!                  library, the creator's version should be supplied.
+//!
+//! @return          Pointer to an instance of this class. If the pointer is
+//!                  nil, either the caller's version is incompatible or
+//!                  there is not enough memory (unlikely).
+//-----------------------------------------------------------------------------
+
+static
+XrdOfsConfigPI *New(const char *cfn, XrdOucStream *cfgP, XrdSysError *errP,
+                    XrdVersionInfo *verP=0);
+
+//-----------------------------------------------------------------------------
 //! Check if the checksum plugin uses the oss plugin.
 //!
 //! @return  True if the plugin uses the oss plugin, false otherwise.
 //-----------------------------------------------------------------------------
 
-bool   OssCks() {return ossCksio;}
+bool   OssCks();
 
 //-----------------------------------------------------------------------------
 //! Parse a plugin directive.
@@ -146,15 +158,37 @@ bool   OssCks() {return ossCksio;}
 bool   Parse(TheLib what);
 
 //-----------------------------------------------------------------------------
+//! Obtain a pointer to a plugin handled by this class.
+//!
+//! @param  piP      Refererence to the pointer to receive the plugin pointer.
+//!
+//! @return true     Plugin pointer has been returned.
+//! @return false    The plugin was not oaded and the pointer is nil.
+//-----------------------------------------------------------------------------
+
+bool   Plugin(XrdAccAuthorize *&piP);    //!< Get Authorization plugin
+bool   Plugin(XrdCks          *&pip);    //!< Get Checksum manager plugin
+bool   Plugin(XrdCmsClient_t   &piP);    //!< Get Cms client object generator
+bool   Plugin(XrdOss          *&piP);    //!< Get Oss plugin
+
+//-----------------------------------------------------------------------------
 //! Set the checksum read size
 //!
 //! @param   rdsz    The chesum read size buffer.
 //-----------------------------------------------------------------------------
 
-void   SetCksRdSz(int rdsz) {CksRdsz = rdsz;}
+void   SetCksRdSz(int rdsz);
 
 //-----------------------------------------------------------------------------
-//! Constructor
+//! Destructor
+//-----------------------------------------------------------------------------
+
+      ~XrdOfsConfigPI();
+
+private:
+
+//-----------------------------------------------------------------------------
+//! Constructor (private to force use of New()).
 //!
 //! @param   cfn     Pointer to the configuration file name.
 //! @param   cfgP    Pointer to the stream that reads the configuration file.
@@ -168,14 +202,6 @@ void   SetCksRdSz(int rdsz) {CksRdsz = rdsz;}
        XrdOfsConfigPI(const char *cfn, XrdOucStream *cfgP, XrdSysError *errP,
                       XrdVersionInfo *verP=0);
 
-//-----------------------------------------------------------------------------
-//! Destructor
-//-----------------------------------------------------------------------------
-
-      ~XrdOfsConfigPI();
-
-private:
-
 bool          ParseAtrLib();
 bool          ParseOssLib();
 bool          RepLib(TheLib what, const char *newLib, const char *newParms=0);
@@ -183,7 +209,12 @@ bool          SetupAttr(TheLib what);
 bool          SetupAuth();
 bool          SetupCms();
 
-XrdVersionInfo *urVer;
+XrdAccAuthorize *autPI;    //!< -> Authorization plugin
+XrdCks          *cksPI;    //!< -> Checksum manager plugin
+XrdCmsClient_t   cmsPI;    //!< -> Cms client object generator plugin
+XrdOss          *ossPI;    //!< -> Oss plugin
+XrdVersionInfo  *urVer;    //!< -> Version information
+
 XrdOucStream *Config;
 XrdSysError  *Eroute;
 XrdCksConfig *CksConfig;

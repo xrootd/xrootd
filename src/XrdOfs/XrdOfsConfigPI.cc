@@ -67,8 +67,6 @@ namespace
 const char *drctv[] = {"xattrlib", "authlib", "ckslib", "cmslib", "osslib"};
 
 const char *nullParms = 0;
-
-      bool  badVer    = false;
 }
 
 XrdVERSIONINFOREF(XrdOfs);
@@ -98,17 +96,14 @@ XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
 //
    memset(defLib, 0, sizeof(defLib));
 
-// Handle te version information first
+// Set correct version
 //
-        if (!verP) urVer = &XrdVERSIONINFOVAR(XrdOfs);
-   else if (!XrdSysPlugin::VerCmp(*verP, XrdVERSIONINFOVAR(XrdOfs))) badVer=true;
+   if (!verP) urVer = &XrdVERSIONINFOVAR(XrdOfs);
 
 // Preallocate the checksum configurator
 //
-   if (!badVer)
-      {CksConfig = new XrdCksConfig(ConfigFN, Eroute, rc, *urVer);
-       if (!rc) {delete CksConfig; CksConfig = 0;}
-      }
+   CksConfig = new XrdCksConfig(ConfigFN, Eroute, rc, *urVer);
+   if (!rc) {delete CksConfig; CksConfig = 0;}
 }
 
 /******************************************************************************/
@@ -119,6 +114,15 @@ XrdOfsConfigPI::~XrdOfsConfigPI()
 {
    if (CksConfig) delete CksConfig;
    if (CksAlg)    free(CksAlg);
+}
+  
+/******************************************************************************/
+/*                             C o n f i g u r e                              */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::Configure(XrdCmsClient *cmscP, XrdOucEnv *envP)
+{
+   return 0 != cmscP->Configure(ConfigFN, LP[PIX(theCmsLib)].parms, envP);
 }
   
 /******************************************************************************/
@@ -181,7 +185,6 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOucEnv *envP)
 
 // Check if load was already called as we can only try once
 //
-   if (badVer) return false;
    if (Loaded) return LoadOK;
    Loaded = true;
 
@@ -232,6 +235,29 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOucEnv *envP)
    LoadOK = true;
    return true;
 }
+  
+/******************************************************************************/
+/*                                   N e w                                    */
+/******************************************************************************/
+  
+XrdOfsConfigPI *XrdOfsConfigPI::New(const char  *cfn,  XrdOucStream   *cfgP,
+                                    XrdSysError *errP, XrdVersionInfo *verP)
+{
+// Handle caller's version if so indicated
+//
+   if (verP && !XrdSysPlugin::VerCmp(*verP, XrdVERSIONINFOVAR(XrdOfs)))
+      return 0;
+
+// Return an actual instance
+//
+   return new XrdOfsConfigPI(cfn, cfgP, errP, verP);
+}
+
+/******************************************************************************/
+/*                                O s s C k s                                 */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::OssCks() {return ossCksio;}
   
 /******************************************************************************/
 /*                                 P a r s e                                  */
@@ -353,6 +379,22 @@ bool XrdOfsConfigPI::ParseOssLib()
 }
 
 /******************************************************************************/
+/*                                P l u g i n                                 */
+/******************************************************************************/
+  
+bool   XrdOfsConfigPI::Plugin(XrdAccAuthorize *&piP)
+{      return (piP = autPI) != 0;}
+
+bool   XrdOfsConfigPI::Plugin(XrdCks          *&piP)
+{      return (piP = cksPI) != 0;}
+
+bool   XrdOfsConfigPI::Plugin(XrdCmsClient_t   &piP)
+{      return (piP = cmsPI) != 0;}
+
+bool   XrdOfsConfigPI::Plugin(XrdOss          *&piP)
+{      return (piP = ossPI) != 0;}
+
+/******************************************************************************/
 /* Private:                       R e p L i b                                 */
 /******************************************************************************/
   
@@ -394,7 +436,13 @@ bool XrdOfsConfigPI::RepLib(XrdOfsConfigPI::TheLib what,
 }
 
 /******************************************************************************/
-/*                             S e t u p A t t r                              */
+/*                            S e t C k s R d S z                             */
+/******************************************************************************/
+
+void   XrdOfsConfigPI::SetCksRdSz(int rdsz) {CksRdsz = rdsz;}
+  
+/******************************************************************************/
+/* Private:                    S e t u p A t t r                              */
 /******************************************************************************/
 
 bool XrdOfsConfigPI::SetupAttr(XrdOfsConfigPI::TheLib what)
@@ -425,7 +473,7 @@ bool XrdOfsConfigPI::SetupAttr(XrdOfsConfigPI::TheLib what)
 }
 
 /******************************************************************************/
-/*                             S e t u p A u t h                              */
+/* Private:                    S e t u p A u t h                              */
 /******************************************************************************/
 
 bool XrdOfsConfigPI::SetupAuth()
@@ -459,7 +507,7 @@ bool XrdOfsConfigPI::SetupAuth()
 }
 
 /******************************************************************************/
-/*                              S e t u p C m s                               */
+/* Private:                     S e t u p C m s                               */
 /******************************************************************************/
   
 bool XrdOfsConfigPI::SetupCms()
