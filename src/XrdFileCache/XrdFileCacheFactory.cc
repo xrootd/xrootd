@@ -136,7 +136,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
    char *var;
    while((var = Config.GetMyFirstWord()))
    {
-      if (( strcmp(var,"ofs.osslib") && !ofsCfg->Parse(XrdOfsConfigPI::theOssLib))
+      if ((!strcmp(var,"pss.osslib") && !ofsCfg->Parse(XrdOfsConfigPI::theOssLib))
       || (!strncmp(var,"pfc.", 4) && !ConfigXeq(var+4, Config)))
       {
          Config.Echo();
