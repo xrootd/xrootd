@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add pfc.decisionlib directive for the proxy file cache.
    * Add new options to the ofs.osslib and ofs.xattrlib directives to
      allow usage of the oss plugin for I/O related functions.
    * Allow either a dot or dash (whichever comes first) suffix to
@@ -69,6 +70,7 @@ Prerelease Notes
      a config file error message and initialization failure.
 
 + **Miscellaneous**
+   * Consolidate handling of all ofs plugins to avoid code duplication.
    * Actually remove xmi plugin handling as xmilib is no longer supported.
    * Add a generic plugin preload function to help MacOS clients.
    * Remove useless loading the security framework from the http plugin.
