@@ -187,7 +187,7 @@ public:
             const char             *opaque = 0);
 
    virtual int
-   Configure(XrdSysError &);
+   Configure(XrdSysError &, XrdSfsFileSystem *native_fs);
 
 private:
    static void

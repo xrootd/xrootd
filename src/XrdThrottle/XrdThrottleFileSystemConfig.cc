@@ -21,8 +21,6 @@ static XrdSfsFileSystem *
 LoadFS(const std::string &fslib, XrdSysError &eDest, const std::string &config_file){
    // Load the library
    XrdSysPlugin ofsLib(&eDest, fslib.c_str(), "fslib", NULL);
-   // Overwrite the environment variable saying that throttling is the fslib.
-   XrdOucEnv::Export("XRDOFSLIB", fslib.c_str());
    XrdSfsFileSystem *fs;
    if (fslib == OFS_NAME)
    {
@@ -105,7 +103,7 @@ FileSystem::Initialize(FileSystem      *&fs,
       fs->m_config_file = configfn;
       fs->m_eroute.logger(lp);
       fs->m_eroute.Say("Initializing a Throttled file system.");
-      if (fs->Configure(fs->m_eroute))
+      if (fs->Configure(fs->m_eroute, native_fs))
       {
          fs->m_eroute.Say("Initialization of throttled file system failed.");
          fs = NULL;
@@ -118,7 +116,7 @@ FileSystem::Initialize(FileSystem      *&fs,
 
 #define TS_Xeq(key, func) NoGo = (strcmp(key, var) == 0) ? func(Config) : 0
 int
-FileSystem::Configure(XrdSysError & log)
+FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs)
 {
    XrdOucEnv myEnv;
    XrdOucStream Config(&m_eroute, getenv("XRDINSTANCE"), &myEnv, "(Throttle Config)> ");
@@ -157,8 +155,11 @@ FileSystem::Configure(XrdSysError & log)
    }
 
    // Load the filesystem object.
-   m_sfs_ptr = LoadFS(fslib, m_eroute, m_config_file);
+   m_sfs_ptr = native_fs ? native_fs : LoadFS(fslib, m_eroute, m_config_file);
    if (!m_sfs_ptr) return 1;
+
+   // Overwrite the environment variable saying that throttling is the fslib.
+   XrdOucEnv::Export("XRDOFSLIB", fslib.c_str());
 
    return 0;
 }
