@@ -243,8 +243,10 @@ XrdThrottleManager::RecomputeInternal()
    // Update the IO counters
    m_compute_var.Lock();
    m_stable_io_counter = AtomicGet(m_io_counter);
-   m_stable_io_wait.tv_sec += static_cast<long>(AtomicFAZ(m_io_wait.tv_sec) * intervals_per_second);
-   m_stable_io_wait.tv_nsec += static_cast<long>(AtomicFAZ(m_io_wait.tv_nsec) * intervals_per_second);
+   time_t secs; AtomicFZAP(secs, m_io_wait.tv_sec);
+   long nsecs; AtomicFZAP(nsecs, m_io_wait.tv_nsec);
+   m_stable_io_wait.tv_sec += static_cast<long>(secs * intervals_per_second);
+   m_stable_io_wait.tv_nsec += static_cast<long>(nsecs * intervals_per_second);
    while (m_stable_io_wait.tv_nsec > 1000000000)
    {
       m_stable_io_wait.tv_nsec -= 1000000000;
@@ -328,7 +330,7 @@ XrdThrottleManager::CheckLoadShed(const std::string &opaque)
    {
       return false;
    }
-   if (rand() % 100 > m_loadshed_frequency)
+   if (static_cast<unsigned>(rand()) % 100 > m_loadshed_frequency)
    {
       return false;
    }
