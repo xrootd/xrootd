@@ -99,7 +99,7 @@ static bool  Import( const char *var, long  &val );
 
 // secEnv() returns the security environment; which may be a null pointer.
 //
-inline const XrdSecEntity *secEnv() {return secEntity;}
+inline const XrdSecEntity *secEnv() const {return secEntity;}
 
 // Use the constructor to define the initial variable settings. The passed
 // string is duplicated and the copy can be retrieved using Env().
