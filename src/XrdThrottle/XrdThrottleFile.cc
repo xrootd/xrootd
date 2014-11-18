@@ -156,3 +156,12 @@ File::getCXinfo(char cxtype[4], int &cxrsz)
    return m_sfs->getCXinfo(cxtype, cxrsz);
 }
 
+int
+File::SendData(XrdSfsDio         *sfDio,
+               XrdSfsFileOffset   offset,
+               XrdSfsXferSize     size)
+{
+   DO_THROTTLE(size);
+   return m_sfs->SendData(sfDio, offset, size);
+}
+

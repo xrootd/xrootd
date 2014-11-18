@@ -80,6 +80,11 @@ public:
    virtual int
    getCXinfo(char cxtype[4], int &cxrsz);
 
+   virtual int
+   SendData(XrdSfsDio         *sfDio,
+            XrdSfsFileOffset   offset,
+            XrdSfsXferSize     size);
+
 private:
    File(const char *user, int monid, std::auto_ptr<XrdSfsFile>, XrdThrottleManager &throttle, XrdSysError &eroute);
 
