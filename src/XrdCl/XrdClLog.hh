@@ -28,6 +28,18 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
+// C++11 atomics are used to avoid illegal behavior when setting / getting the
+// log level.  To minimize costs across all platforms, we use std::memory_order_relaxed;
+// this means threads may reorder SetLogLevel writes and the visibility is relatively
+// undefined.  However, we know the stores are at least atomic.
+#if __cplusplus >= 201103L
+#define USE_CPP11_ATOMICS
+#endif
+
+#ifdef USE_CPP11_ATOMICS
+#include <atomic>
+#endif
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -124,7 +136,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Error( uint64_t topic, const char *format, ... )
       {
-        if( unlikely( pLevel < ErrorMsg ) )
+        if( unlikely( GetLevel() < ErrorMsg ) )
           return;
 
         if( unlikely( (topic & pMask[ErrorMsg]) == 0 ) )
@@ -141,7 +153,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Warning( uint64_t topic, const char *format, ... )
       {
-        if( unlikely( pLevel < WarningMsg ) )
+        if( unlikely( GetLevel() < WarningMsg ) )
           return;
 
         if( unlikely( (topic & pMask[WarningMsg]) == 0 ) )
@@ -158,7 +170,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Info( uint64_t topic, const char *format, ... )
       {
-        if( likely( pLevel < InfoMsg ) )
+        if( likely( GetLevel() < InfoMsg ) )
           return;
 
         if( unlikely( (topic & pMask[InfoMsg]) == 0 ) )
@@ -175,7 +187,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Debug( uint64_t topic, const char *format, ... )
       {
-        if( likely( pLevel < DebugMsg ) )
+        if( likely( GetLevel() < DebugMsg ) )
           return;
 
         if( unlikely( (topic & pMask[DebugMsg]) == 0 ) )
@@ -192,7 +204,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Dump( uint64_t topic, const char *format, ... )
       {
-        if( likely( pLevel < DumpMsg ) )
+        if( likely( GetLevel() < DumpMsg ) )
           return;
 
         if( unlikely( (topic & pMask[DumpMsg]) == 0 ) )
@@ -219,7 +231,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetLevel( LogLevel level )
       {
+#ifdef USE_CPP11_ATOMICS
+        pLevel.store(level, std::memory_order_relaxed);
+#else
         pLevel = level;
+#endif
       }
 
       //------------------------------------------------------------------------
@@ -229,7 +245,13 @@ namespace XrdCl
       {
         LogLevel lvl;
         if( StringToLogLevel( level, lvl ) )
+        {
+#ifdef USE_CPP11_ATOMICS
+          pLevel.store(lvl, std::memory_order_relaxed);
+#else
           pLevel = lvl;
+#endif
+        }
       }
 
       //------------------------------------------------------------------------
@@ -269,7 +291,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       LogLevel GetLevel() const
       {
+#ifdef USE_CPP11_ATOMICS
+        LogLevel lvl = pLevel.load(std::memory_order_relaxed);
+        return lvl;
+#else
         return pLevel;
+#endif
       }
 
     private:
@@ -278,7 +305,11 @@ namespace XrdCl
       bool StringToLogLevel( const std::string &strLevel, LogLevel &level );
       std::string TopicToString( uint64_t topic );
 
+#ifdef USE_CPP11_ATOMICS
+      std::atomic<LogLevel> pLevel;
+#else
       LogLevel    pLevel;
+#endif
       uint64_t    pMask[DumpMsg+1];
       LogOut     *pOutput;
       TopicMap    pTopicMap;
