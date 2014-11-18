@@ -81,7 +81,7 @@ int        num_Limited; // Number of times max was reached
 // Constructor and destructor
 //
               XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
-                           int minw=8, int maxw=2048, int maxi=780);
+                           int minw=8, int maxw=8192, int maxi=780);
 
              ~XrdScheduler();
 

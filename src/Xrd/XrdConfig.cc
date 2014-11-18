@@ -842,27 +842,15 @@ int XrdConfig::setFDL()
 //
 #if defined(__linux__) && defined(RLIMIT_NPROC)
 
-// Get the resource limit
-//
-   if (getrlimit(RLIMIT_NPROC, &rlim) < 0)
-      return Log.Emsg("Config", errno, "get thread limit");
-
-// Set the limit to the maximum allowed
-//
-   int nthr = static_cast<int>(rlim.rlim_max);
-   rlim.rlim_cur = (rlim.rlim_max < 4096 ? rlim.rlim_max : 4096);
-   if (setrlimit(RLIMIT_NPROC, &rlim) < 0)
-      return Log.Emsg("Config", errno,"set thread limit");
-
-// Obtain the actual limit now
+// Obtain the actual limit now (Scheduler construction sets this to rlim_max)
 //
    if (getrlimit(RLIMIT_NPROC, &rlim) < 0)
       return Log.Emsg("Config", errno, "get thread limit");
 
 // Establish operating limit
 //
-   nthr = static_cast<int>(rlim.rlim_cur);
-   if (nthr < 4096)
+   int nthr = static_cast<int>(rlim.rlim_cur);
+   if (nthr < 8192 || ProtInfo.DebugON)
       {sprintf(buff, "%d", static_cast<int>(rlim.rlim_cur));
        Log.Say("Config maximum number of threads restricted to ", buff);
       }

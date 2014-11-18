@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #ifdef __APPLE__
@@ -94,6 +95,8 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
               : XrdJob("underused thread monitor"),
                 WorkAvail(0, "sched work")
 {
+    struct rlimit rlim;
+
     XrdLog      =  eP;
     XrdTrace    =  tP;
     min_Workers =  minw;
@@ -111,6 +114,26 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
     num_Limited =  0;
     firstPID    =  0;
     WorkFirst = WorkLast = TimerQueue = 0;
+
+// Make sure we are using the maximum number of threads allowed (Linux only)
+//
+#if defined(__linux__) && defined(RLIMIT_NPROC)
+
+// Get the resource thread limit and set to maximum
+//
+   if (!getrlimit(RLIMIT_NPROC, &rlim))
+      {if (rlim.rlim_cur < rlim.rlim_max)
+          {rlim.rlim_cur = rlim.rlim_max;
+           setrlimit(RLIMIT_NPROC, &rlim);
+          }
+      }
+
+// Readjust our internal maximum to be the actual maximum
+//
+   if (!getrlimit(RLIMIT_NPROC, &rlim))
+      max_Workers = static_cast<int>(rlim.rlim_cur);
+#endif
+
 }
  
 /******************************************************************************/
