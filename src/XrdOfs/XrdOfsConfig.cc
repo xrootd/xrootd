@@ -136,10 +136,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Establish the network interface that the caller must provide
 //
-   if (!EnvInfo || !(myIF = (XrdNetIF *)EnvInfo->GetPtr("XrdNetIF*")))
-      {Eroute.Emsg("Finder", "Network i/f undefined; unable to self-locate.");
-       NoGo = 1;
-      }
+   if (EnvInfo && !(myIF = (XrdNetIF *)EnvInfo->GetPtr("XrdNetIF*")))
+   {Eroute.Emsg("Finder", "Network i/f undefined; unable to self-locate.");
+     NoGo = 1;
+   }
 
 // Preset all variables with common defaults
 //
