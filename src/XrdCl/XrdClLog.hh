@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_LOG_HH__
@@ -28,15 +34,14 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-// C++11 atomics are used to avoid illegal behavior when setting / getting the
-// log level.  To minimize costs across all platforms, we use std::memory_order_relaxed;
-// this means threads may reorder SetLogLevel writes and the visibility is relatively
-// undefined.  However, we know the stores are at least atomic.
+//------------------------------------------------------------------------------
+// C++11 atomics are used to avoid illegal behavior when setting/getting the
+// log level. To minimize costs across all platforms, we use
+// std::memory_order_relaxed; this means threads may reorder SetLogLevel writes
+// and the visibility is relatively undefined. However, we know the stores are
+// at least atomic.
+//------------------------------------------------------------------------------
 #if __cplusplus >= 201103L
-#define USE_CPP11_ATOMICS
-#endif
-
-#ifdef USE_CPP11_ATOMICS
 #include <atomic>
 #endif
 
@@ -231,7 +236,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetLevel( LogLevel level )
       {
-#ifdef USE_CPP11_ATOMICS
+#if __cplusplus >= 201103L
         pLevel.store(level, std::memory_order_relaxed);
 #else
         pLevel = level;
@@ -245,13 +250,7 @@ namespace XrdCl
       {
         LogLevel lvl;
         if( StringToLogLevel( level, lvl ) )
-        {
-#ifdef USE_CPP11_ATOMICS
-          pLevel.store(lvl, std::memory_order_relaxed);
-#else
-          pLevel = lvl;
-#endif
-        }
+          SetLevel( lvl );
       }
 
       //------------------------------------------------------------------------
@@ -291,7 +290,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       LogLevel GetLevel() const
       {
-#ifdef USE_CPP11_ATOMICS
+#if __cplusplus >= 201103L
         LogLevel lvl = pLevel.load(std::memory_order_relaxed);
         return lvl;
 #else
@@ -305,7 +304,7 @@ namespace XrdCl
       bool StringToLogLevel( const std::string &strLevel, LogLevel &level );
       std::string TopicToString( uint64_t topic );
 
-#ifdef USE_CPP11_ATOMICS
+#if __cplusplus >= 201103L
       std::atomic<LogLevel> pLevel;
 #else
       LogLevel    pLevel;
