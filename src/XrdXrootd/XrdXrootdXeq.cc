@@ -1715,7 +1715,7 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
 //
    if (qopt == kXR_Qopaque)
       {myData.Arg1 = argp->buff; myData.Arg1Len = dlen;
-       myData.Arg2 = 0;          myData.Arg1Len = 0;
+       myData.Arg2 = 0;          myData.Arg2Len = 0;
        fsctl_cmd = SFS_FSCTL_PLUGIO;
        Act = " qopaque '"; AData = "...";
       } else {
