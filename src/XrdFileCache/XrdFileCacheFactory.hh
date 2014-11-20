@@ -24,9 +24,9 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucCache.hh"
+
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
-
 #include "XrdFileCacheDecision.hh"
 
 class XrdOucStream;
@@ -149,7 +149,7 @@ namespace XrdFileCache
          bool CheckFileForDiskSpace(const char* path, long long fsize);
          void UnCheckFileForDiskSpace(const char* path);
 
-         bool ConfigParameters(const char *);
+         bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
          bool xdlib(XrdOucStream &);
 
