@@ -76,7 +76,7 @@
 #else
 #define CPP_ATOMIC_LOAD(x, order)       x
 #define CPP_ATOMIC_STORE(x, val, order) x = val
-#define CPP_ATOMIC_TYPE(kind)           kind bar
+#define CPP_ATOMIC_TYPE(kind)           kind
 #endif
 
 
