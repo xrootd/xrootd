@@ -112,37 +112,37 @@ Partial file block-based prefetching is enabled with option '-prefetchFileBlock'
 
 CONFIGURATION
 
-pfc.cacheDir <directory>: directory path to cache location
+pfc.cachedir <directory>: directory path to cache location
 
-pfc.bufferSize: prefetch buffer size, default 1M
+pfc.buffersize: prefetch buffer size, default 1M
 
-pfc.NRamBuffersRead: number of in memory cached blocks reserved for read tasks
+pfc.nread: number of in memory cached blocks reserved for read tasks
 
-pfc.NRamBuffersRead: number of in memory cached blocks reserved for prefetch tasks
+pfc.nprefetch: number of in memory cached blocks reserved for prefetch tasks
 
-pfc.diskUsage <lwm fraction> <hwm fraction>: high / low watermarks for disk cache
+pfc.diskusage <lwm fraction> <hwm fraction>: high / low watermarks for disk cache
 purge operation (default 0.7 and 0.9)
 
 pfc.user <username>: username used by XrdOss plugin
 
-pfc.prefetchFileBlocks <block-size> -- enable prefetching a unit of a file, 
+pfc.fileblockmode [blocksize <bytes>] -- enable prefetching a unit of a file, 
 with default block size
 
-pfc.decisionlib <lpath> [<prams>] path to decision library and plugin parameters
-
 pfc.osslib <lpath> [<params>] path to alternative plign for output file system 
+
+pfc.decisionlib <lpath> [<prams>] path to decision library and plugin parameters
 
 Examples 
 
 a) Enable proxy file prefetching:
 pps.cachelib libXrdFileCache.so
 pfc.cachedir  /data/xrd-file-cache
-pfc.NRamBuffersPrefetch 1
+pfc.nprefetch 1
 
 
 b) enable file block mode, with block size 64 MB:
 pss.cachelib libXrdFileCache.so
-pfc.prefetchFileBlocks 64m
+pfc.prefetchFileBlocks blocksize 64m
 
 
 //==============================================================================

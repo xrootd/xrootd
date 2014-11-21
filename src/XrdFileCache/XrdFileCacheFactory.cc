@@ -275,7 +275,7 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
       m_configuration.m_cache_dir = config.GetWord();
       clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
    }
-   else if  ( part == "diskUsage" )
+   else if  ( part == "diskusage" )
    {
       const char* minV = config.GetWord();
       if (minV) {
@@ -290,7 +290,7 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
          clLog()->Error(XrdCl::AppMsg, "Factory::ConfigParameters() pss.diskUsage min max value not specified");
       }
    }
-   else if  ( part == "bufferSize" )
+   else if  ( part == "buffersize" )
    {
       long long minBSize = 64 * 1024;
       long long maxBSize = 16 * 1024 * 1024;
@@ -300,23 +300,27 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
       }
       clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() bufferSize %lld", m_configuration.m_bufferSize);
    }
-   else if (part == "NRamBuffersRead")
+   else if (part == "nramread")
    {
       m_configuration.m_NRamBuffersRead = ::atoi(config.GetWord());
       clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersRead = %d", m_configuration.m_NRamBuffersRead);
    }
-   else if (part == "NRamBuffersPrefetch")
+   else if (part == "nramprefetch")
    {
       m_configuration.m_NRamBuffersPrefetch = ::atoi(config.GetWord());
       clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersPrefetch = %d", m_configuration.m_NRamBuffersPrefetch);
    }
-   else if ( part == "prefetchFileBlocks" )
+   else if ( part == "fileblockmode" )
    {
       m_configuration.m_prefetchFileBlocks = true;
       clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() enable block prefetch.");
 
       const char* params =  config.GetWord();
       if (params) {
+         params = config.GetWord();
+         if (strncmp("blocksize", params, 9))
+             return false;
+
          long long minBlSize = 128 * 1024;
          long long maxBlSize = 1024 * 1024 * 1024;
          if ( XrdOuca2x::a2sz(m_log, "get block size", params, &m_configuration.m_blockSize, minBlSize, maxBlSize))
