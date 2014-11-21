@@ -270,7 +270,7 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
       m_configuration.m_username = config.GetWord();
       clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
    }
-   else if  ( part == "cacheDir" )
+   else if  ( part == "cachedir" )
    {
       m_configuration.m_cache_dir = config.GetWord();
       clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
