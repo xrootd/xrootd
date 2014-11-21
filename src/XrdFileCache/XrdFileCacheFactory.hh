@@ -24,9 +24,9 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucCache.hh"
+
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
-
 #include "XrdFileCacheDecision.hh"
 
 class XrdOucStream;
@@ -53,7 +53,7 @@ namespace XrdFileCache
          m_bufferSize(1024*1024),
 	 m_NRamBuffersRead(8),
 	 m_NRamBuffersPrefetch(1),
-         m_blockSize(128*1024*1024) {}
+         m_fileFragmentSize(128*1024*1024) {}
 
       bool m_prefetchFileBlocks;      //!< flag for enabling block-level operation
       std::string m_cache_dir;        //!< path of disk cache
@@ -65,7 +65,7 @@ namespace XrdFileCache
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
       int  m_NRamBuffersRead;         //!< number of read in-memory cache blocks
       int  m_NRamBuffersPrefetch;     //!< number of prefetch in-memory cache blocks
-      long long m_blockSize;          //!< used with m_prefetchFileBlocks, default 128MB
+      long long m_fileFragmentSize;          //!< used with m_prefetchFileBlocks, default 128MB
    };
 
 
@@ -149,7 +149,7 @@ namespace XrdFileCache
          bool CheckFileForDiskSpace(const char* path, long long fsize);
          void UnCheckFileForDiskSpace(const char* path);
 
-         bool ConfigParameters(const char *);
+         bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
          bool xdlib(XrdOucStream &);
 

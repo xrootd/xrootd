@@ -20,10 +20,14 @@
 #include <string>
 #include <fcntl.h>
 #include <stdio.h>
+
+
 #include <map>
 
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -43,8 +47,6 @@ using namespace XrdFileCache;
 namespace {
 static long long s_diskSpacePrecisionFactor = 10000000;
 }
-#define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(Config);
-
 
 XrdVERSIONINFO(XrdOucGetCache, XrdFileCache);
 
@@ -99,90 +101,6 @@ XrdOucCache *Factory::Create(Parms & parms, XrdOucCacheIO::aprParms * prParms)
    return new Cache(m_stats);
 }
 
-bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *parameters)
-{
-   m_log.logger(logger);
-
-   const char * cache_env;
-   if (!(cache_env = getenv("XRDPOSIX_CACHE")) || !*cache_env)
-      XrdOucEnv::Export("XRDPOSIX_CACHE", "mode=s&optwr=0");
-
-   XrdOucEnv myEnv;
-   XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), &myEnv, "=====> ");
-
-   if (!config_filename || !*config_filename)
-   {
-      clLog()->Warning(XrdCl::AppMsg, "Factory::Config() configuration file not specified.");
-      return false;
-   }
-
-   int fd;
-   if ( (fd = open(config_filename, O_RDONLY, 0)) < 0)
-   {
-      clLog()->Error(XrdCl::AppMsg, "Factory::Config() can't open configuration file %s", config_filename);
-      return false;
-   }
-
-   Config.Attach(fd);
-
-   // Obtain plugin configurator
-   XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(config_filename,&Config,&m_log,
-                                            &XrdVERSIONINFOVAR(XrdOucGetCache));
-   if (!ofsCfg) return false;
-
-   // Actual parsing of the config file.
-   bool retval = true;
-   int retc;
-   char *var;
-   while((var = Config.GetMyFirstWord()))
-   {
-      if ((!strcmp(var,"pfc.osslib") && !ofsCfg->Parse(XrdOfsConfigPI::theOssLib))
-      || (!strncmp(var,"pfc.", 4) && !ConfigXeq(var+4, Config)))
-      {
-         Config.Echo();
-         retval = false;
-         break;
-      }
-   }
-
-   if ((retc = Config.LastError()))
-   {
-      retval = false;
-      clLog()->Error(XrdCl::AppMsg, "Factory::Config() error in parsing");
-   }
-
-   Config.Close();
-
-
-   if (retval)
-      retval = ConfigParameters(parameters);
-
-   if (retval)
-   {
-      if (ofsCfg->Load(XrdOfsConfigPI::theOssLib)) ofsCfg->Plugin(m_output_fs);
-         else
-      {
-         clLog()->Error(XrdCl::AppMsg, "Factory::Config() Unable to create an OSS object");
-         retval = false;
-         m_output_fs = 0;
-      }
-
-      clLog()->Info(XrdCl::AppMsg, "Factory::Config() user name %s", m_configuration.m_username.c_str());
-      clLog()->Info(XrdCl::AppMsg, "Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
-      clLog()->Info(XrdCl::AppMsg, "Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
-   }
-
-   clLog()->Info(XrdCl::AppMsg, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
-
-   if (ofsCfg) delete ofsCfg;
-   return retval;
-}
-
-bool Factory::ConfigXeq(char *var, XrdOucStream &Config)
-{
-   TS_Xeq("decisionlib",  xdlib);
-   return true;
-}
 
 /* Function: xdlib
 
@@ -212,8 +130,10 @@ bool Factory::xdlib(XrdOucStream &Config)
    const char* params;
    params = (val[0]) ?  Config.GetWord() : 0;
 
+
    XrdOucPinLoader* myLib = new XrdOucPinLoader(&m_log, 0, "decisionlib",
                                                 libp.c_str());
+
    Decision *(*ep)(XrdSysError&);
    ep = (Decision *(*)(XrdSysError&))myLib->Resolve("XrdFileCacheGetDecision");
    if (!ep) {myLib->Unload(true); return false;}
@@ -230,85 +150,8 @@ bool Factory::xdlib(XrdOucStream &Config)
    m_decisionpoints.push_back(d);
    return true;
 }
+//______________________________________________________________________________
 
-bool Factory::ConfigParameters(const char * parameters)
-{
-   if (!parameters || (!(*parameters)))
-   {
-      return true;
-   }
-
-   std::istringstream is(parameters);
-   std::string part;
-   while (getline(is, part, ' '))
-   {
-      // cout << part << endl;
-      if ( part == "-prefetchFileBlock" )
-      {
-         m_configuration.m_prefetchFileBlocks = true;
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() enable block prefetch.");
-      }
-      else if ( part == "-user" )
-      {
-         getline(is, part, ' ');
-         m_configuration.m_username = part.c_str();
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
-      }
-      else if  ( part == "-cacheDir" )
-      {
-         getline(is, part, ' ');
-         m_configuration.m_cache_dir = part.c_str();
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
-      }
-      else if  ( part == "-lwm" )
-      {
-         getline(is, part, ' ');
-         m_configuration.m_lwm = ::atof(part.c_str());
-      }
-      else if  ( part == "-hwm" )
-      {
-         getline(is, part, ' ');
-         m_configuration.m_hwm = ::atof(part.c_str());
-      }
-      else if  ( part == "-bufferSize" )
-      {
-         getline(is, part, ' ');
-         long long minBSize = 64 * 1024;
-         long long maxBSize = 16 * 1024 * 1024;
-         if ( XrdOuca2x::a2sz(m_log, "get buffer size", part.c_str(), &m_configuration.m_bufferSize, minBSize, maxBSize))
-         {
-            return false;
-         }
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() bufferSize %lld", m_configuration.m_bufferSize);
-      }
-      else if (part == "-NRamBuffersRead")
-      {
-         getline(is, part, ' ');
-         m_configuration.m_NRamBuffersRead = ::atoi(part.c_str());
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersRead = %d", m_configuration.m_NRamBuffersRead);
-      }
-      else if (part == "-NRamBuffersPrefetch")
-      {
-         getline(is, part, ' ');
-         m_configuration.m_NRamBuffersPrefetch = ::atoi(part.c_str());
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersPrefetch = %d", m_configuration.m_NRamBuffersPrefetch);
-      }
-      else if  ( part == "-blockSize" )
-      {
-         getline(is, part, ' ');
-         long long minBlSize = 128 * 1024;
-         long long maxBlSize = 1024 * 1024 * 1024;
-
-         if ( XrdOuca2x::a2sz(m_log, "get block size", part.c_str(), &m_configuration.m_blockSize, minBlSize, maxBlSize))
-         {
-            return false;
-         }
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() blockSize = %lld", m_configuration.m_blockSize);
-      }
-   }
-
-   return true;
-}
 
 bool Factory::Decide(XrdOucCacheIO* io)
 {
@@ -333,6 +176,187 @@ bool Factory::Decide(XrdOucCacheIO* io)
    return true;
 }
 
+
+
+//______________________________________________________________________________
+
+
+bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *parameters)
+{
+   m_log.logger(logger);
+
+   const char * cache_env;
+   if (!(cache_env = getenv("XRDPOSIX_CACHE")) || !*cache_env)
+      XrdOucEnv::Export("XRDPOSIX_CACHE", "mode=s&optwr=0");
+
+   XrdOucEnv myEnv;
+   XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+
+   if (!config_filename || !*config_filename)
+   {
+      clLog()->Warning(XrdCl::AppMsg, "Factory::Config() configuration file not specified.");
+      return false;
+   }
+
+   int fd;
+   if ( (fd = open(config_filename, O_RDONLY, 0)) < 0)
+   {
+      clLog()->Error(XrdCl::AppMsg, "Factory::Config() can't open configuration file %s", config_filename);
+      return false;
+   }
+
+   Config.Attach(fd);
+
+   // Obtain plugin configurator
+   XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(config_filename,&Config,&m_log,
+                                                &XrdVERSIONINFOVAR(XrdOucGetCache));
+   if (!ofsCfg) return false;
+
+   // Actual parsing of the config file.
+   bool retval = true;
+   char *var;
+   while((var = Config.GetMyFirstWord()))
+   {
+      if (!strcmp(var,"pfc.osslib"))
+      {
+         ofsCfg->Parse(XrdOfsConfigPI::theOssLib);
+      }
+      else if (!strcmp(var,"pfc.decisionlib"))
+      {
+         xdlib(Config);
+      }
+      else if (!strncmp(var,"pfc.", 4))
+      {
+         retval = ConfigParameters(std::string(var+4), Config);
+      }
+
+      if (!retval)
+      {
+         retval = false;
+         clLog()->Error(XrdCl::AppMsg, "Factory::Config() error in parsing");
+         break;
+      }
+
+   }
+
+   Config.Close();
+
+
+   if (retval)
+   {
+      if (ofsCfg->Load(XrdOfsConfigPI::theOssLib)) ofsCfg->Plugin(m_output_fs);
+      else
+      {
+         clLog()->Error(XrdCl::AppMsg, "Factory::Config() Unable to create an OSS object");
+         retval = false;
+         m_output_fs = 0;
+      }
+
+  
+      char buff[2048];
+      snprintf(buff, sizeof(buff), "result\n"
+               "\tpfc.cachedir %s\n"
+               "\tpfc.blocksize %lld\n"
+               "\tpfc.nramread %d\n\tpfc.nramprefetch %d\n",
+               m_configuration.m_cache_dir.c_str() , 
+               m_configuration.m_bufferSize, 
+               m_configuration.m_NRamBuffersRead, m_configuration.m_NRamBuffersPrefetch );
+
+
+      if (m_configuration.m_prefetchFileBlocks)
+      {
+         char buff2[512];
+         snprintf(buff2, sizeof(buff2), "\tpfc.filefragmentmode filefragmentsize %lld \n", m_configuration.m_fileFragmentSize);
+         m_log.Emsg("", buff, buff2);   
+      }          
+      else {
+
+      m_log.Emsg("Config", buff);
+      }
+   }
+
+   m_log.Emsg("Config", "Configuration =  ", retval ? "Success" : "Fail");
+
+   if (ofsCfg) delete ofsCfg;
+   return retval;
+}
+
+//______________________________________________________________________________
+
+
+bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
+{   
+   XrdSysError err(0, "");
+   if ( part == "user" )
+   {
+      m_configuration.m_username = config.GetWord();
+   }
+   else if  ( part == "cachedir" )
+   {
+      m_configuration.m_cache_dir = config.GetWord();
+   }
+   else if  ( part == "diskusage" )
+   {
+      const char* minV = config.GetWord();
+      if (minV) {
+         m_configuration.m_lwm = ::atof(minV);
+         const char* maxV = config.GetWord();
+         if (maxV) {
+            m_configuration.m_hwm = ::atof(maxV);
+         }
+      }
+      else {
+         clLog()->Error(XrdCl::AppMsg, "Factory::ConfigParameters() pss.diskUsage min max value not specified");
+      }
+   }
+   else if  ( part == "blocksize" )
+   {
+      long long minBSize = 64 * 1024;
+      long long maxBSize = 16 * 1024 * 1024;
+      if ( XrdOuca2x::a2sz(m_log, "get block size", config.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
+      {
+         return false;
+      }
+   }
+   else if (part == "nramread")
+   {
+      m_configuration.m_NRamBuffersRead = ::atoi(config.GetWord());
+   }
+   else if (part == "nramprefetch")
+   {
+      m_configuration.m_NRamBuffersPrefetch = ::atoi(config.GetWord());
+   }
+   else if ( part == "filefragmentmode" )
+   {
+      m_configuration.m_prefetchFileBlocks = true;
+
+      const char* params =  config.GetWord();
+      if (params) {
+         if (!strncmp("filefragmentsize", params, 9)) {
+            long long minBlSize = 128 * 1024;
+            long long maxBlSize = 1024 * 1024 * 1024;
+            params = config.GetWord();
+            if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", params, &m_configuration.m_fileFragmentSize, minBlSize, maxBlSize))
+            {
+               return false;
+            }
+         }
+         else {
+            m_log.Emsg("Config", "Error setting the fragment size parameter name");
+            return false;        
+         }
+      }         
+   }
+   else
+   {
+      m_log.Emsg("Factory::ConfigParameters() unmatched pfc parameter", part.c_str());
+      return false;
+   }
+
+   assert ( config.GetWord() == 0 && "Factory::ConfigParameters() lost argument"); 
+
+   return true;
+}
 
 //______________________________________________________________________________
 

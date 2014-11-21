@@ -112,36 +112,37 @@ Partial file block-based prefetching is enabled with option '-prefetchFileBlock'
 
 CONFIGURATION
 
--bufferSize: prefetch buffer size, default 1M
+pfc.cachedir <directory>: directory path to cache location
 
--NRamBuffersRead: number of in memmory cached blocks reserved for read tasks
+pfc.blocksize: prefetch buffer size, default 1M
 
--NRamBuffersRead: number of in memmory cached blocks reserved for prefetch tasks
+pfc.nread: number of in memory cached blocks reserved for read tasks
 
--hwm <fraction> / -lwm <fraction>: high / low watermarks for disk cache purge
- operation (default 0.7 and 0.9)
+pfc.nprefetch: number of in memory cached blocks reserved for prefetch tasks
 
--cacheDir <directory>: directory path to cache location
+pfc.diskusage <lwm fraction> <hwm fraction>: high / low watermarks for disk cache
+purge operation (default 0.7 and 0.9)
 
--user <username>: username required by the XrdOss plugin
+pfc.user <username>: username used by XrdOss plugin
+
+pfc.filefragmentmode [fragmentsize <bytes>] -- enable prefetching a unit of a file, 
+with default block size
+
+pfc.osslib <lpath> [<params>] path to alternative plign for output file system 
+
+pfc.decisionlib <lpath> [<prams>] path to decision library and plugin parameters
+
+Examples 
+
+a) Enable proxy file prefetching:
+pps.cachelib libXrdFileCache.so
+pfc.cachedir  /data/xrd-file-cache
+pfc.nprefetch 1
 
 
-Options for block-based cache:
-
--prefetchFileBlocks -- enable prefetching a unit of a file
-
--blockSize <size>: default size of a file-block on the local disk
-
-
-Examples:
-
-pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so
-  -user alja -NRamBuffersRead 4M  -NRamBuffersPrefetch 1 -cacheDir /data/xrd-file-cache
-
-
-pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so
-  -user alja -cacheDir /data/hdfs-file-cache
-  -prefetchFileBlocks -blockSize 64M
+b) enable file block mode, with block size 64 MB:
+pss.cachelib libXrdFileCache.so
+pfc.filefragmentmode fragmentsize 64m
 
 
 //==============================================================================
