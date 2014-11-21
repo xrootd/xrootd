@@ -26,6 +26,8 @@
 
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -212,7 +214,6 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
    // Actual parsing of the config file.
    bool retval = true;
-   int retc;
    char *var;
    while((var = Config.GetMyFirstWord()))
    {
@@ -226,13 +227,16 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
       }
       else if (!strncmp(var,"pfc.", 4))
       {
-         ConfigParameters(std::string(var+4), Config);
+         retval = ConfigParameters(std::string(var+4), Config);
       }
-   }
-   if ((retc = Config.LastError()))
-   {
-      retval = false;
-      clLog()->Error(XrdCl::AppMsg, "Factory::Config() error in parsing");
+
+      if (!retval)
+      {
+         retval = false;
+         clLog()->Error(XrdCl::AppMsg, "Factory::Config() error in parsing");
+         break;
+      }
+
    }
 
    Config.Close();
@@ -241,19 +245,37 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
    if (retval)
    {
       if (ofsCfg->Load(XrdOfsConfigPI::theOssLib)) ofsCfg->Plugin(m_output_fs);
-         else
+      else
       {
          clLog()->Error(XrdCl::AppMsg, "Factory::Config() Unable to create an OSS object");
          retval = false;
          m_output_fs = 0;
       }
 
-      // clLog()->Info(XrdCl::AppMsg, "Factory::Config() user name %s", m_configuration.m_username.c_str());
-      //  clLog()->Info(XrdCl::AppMsg, "Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
-      //  clLog()->Info(XrdCl::AppMsg, "Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
+  
+      char buff[2048];
+      snprintf(buff, sizeof(buff), "result\n"
+               "\tpfc.cachedir %s\n"
+               "\tpfc.blocksize %lld\n"
+               "\tpfc.nramread %d\n\tpfc.nramprefetch %d\n",
+               m_configuration.m_cache_dir.c_str() , 
+               m_configuration.m_bufferSize, 
+               m_configuration.m_NRamBuffersRead, m_configuration.m_NRamBuffersPrefetch );
+
+
+      if (m_configuration.m_prefetchFileBlocks)
+      {
+         char buff2[512];
+         snprintf(buff2, sizeof(buff2), "\tpfc.filefragmentmode filefragmentsize %lld \n", m_configuration.m_blockSize);
+         m_log.Emsg("", buff, buff2);   
+      }          
+      else {
+
+      m_log.Emsg("Config", buff);
+      }
    }
 
-   clLog()->Info(XrdCl::AppMsg, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
+   m_log.Emsg("Config", "Configuration =  ", retval ? "Success" : "Fail");
 
    if (ofsCfg) delete ofsCfg;
    return retval;
@@ -263,17 +285,15 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
 
 bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
-{
-  
+{   
+   XrdSysError err(0, "");
    if ( part == "user" )
    {
       m_configuration.m_username = config.GetWord();
-      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
    }
    else if  ( part == "cachedir" )
    {
       m_configuration.m_cache_dir = config.GetWord();
-      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
    }
    else if  ( part == "diskusage" )
    {
@@ -283,7 +303,6 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
          const char* maxV = config.GetWord();
          if (maxV) {
             m_configuration.m_hwm = ::atof(maxV);
-            clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() disk usage [%.2f-%.2f] %%", m_configuration.m_lwm, m_configuration.m_hwm);
          }
       }
       else {
@@ -298,41 +317,39 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
       {
          return false;
       }
-      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() blocksize %lld", m_configuration.m_bufferSize);
    }
    else if (part == "nramread")
    {
       m_configuration.m_NRamBuffersRead = ::atoi(config.GetWord());
-      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersRead = %d", m_configuration.m_NRamBuffersRead);
    }
    else if (part == "nramprefetch")
    {
       m_configuration.m_NRamBuffersPrefetch = ::atoi(config.GetWord());
-      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersPrefetch = %d", m_configuration.m_NRamBuffersPrefetch);
    }
    else if ( part == "filefragmentmode" )
    {
       m_configuration.m_prefetchFileBlocks = true;
-      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() enable file fragment prefetch.");
 
       const char* params =  config.GetWord();
       if (params) {
-         params = config.GetWord();
-         if (strncmp("fragmentsize", params, 9))
-             return false;
-
-         long long minBlSize = 128 * 1024;
-         long long maxBlSize = 1024 * 1024 * 1024;
-         if ( XrdOuca2x::a2sz(m_log, "get block size", params, &m_configuration.m_blockSize, minBlSize, maxBlSize))
-         {
-            return false;
+         if (!strncmp("filefragmentsize", params, 9)) {
+            long long minBlSize = 128 * 1024;
+            long long maxBlSize = 1024 * 1024 * 1024;
+            params = config.GetWord();
+            if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", params, &m_configuration.m_blockSize, minBlSize, maxBlSize))
+            {
+               return false;
+            }
          }
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() file blockSize = %lld", m_configuration.m_blockSize);
-      }
+         else {
+            m_log.Emsg("Config", "Error setting the fragment size parameter name");
+            return false;        
+         }
+      }         
    }
    else
    {
-      clLog()->Error(XrdCl::AppMsg, "Factory::ConfigParameters() unmatched pfc parameter %s", part.c_str());
+      m_log.Emsg("Factory::ConfigParameters() unmatched pfc parameter", part.c_str());
       return false;
    }
 
