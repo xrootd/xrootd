@@ -266,7 +266,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
       if (m_configuration.m_prefetchFileBlocks)
       {
          char buff2[512];
-         snprintf(buff2, sizeof(buff2), "\tpfc.filefragmentmode filefragmentsize %lld \n", m_configuration.m_blockSize);
+         snprintf(buff2, sizeof(buff2), "\tpfc.filefragmentmode filefragmentsize %lld \n", m_configuration.m_fileFragmentSize);
          m_log.Emsg("", buff, buff2);   
       }          
       else {
@@ -336,7 +336,7 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
             long long minBlSize = 128 * 1024;
             long long maxBlSize = 1024 * 1024 * 1024;
             params = config.GetWord();
-            if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", params, &m_configuration.m_blockSize, minBlSize, maxBlSize))
+            if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", params, &m_configuration.m_fileFragmentSize, minBlSize, maxBlSize))
             {
                return false;
             }
