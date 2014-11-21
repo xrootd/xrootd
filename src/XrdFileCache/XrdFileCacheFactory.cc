@@ -248,9 +248,9 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
          m_output_fs = 0;
       }
 
-      clLog()->Info(XrdCl::AppMsg, "Factory::Config() user name %s", m_configuration.m_username.c_str());
-      clLog()->Info(XrdCl::AppMsg, "Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
-      clLog()->Info(XrdCl::AppMsg, "Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
+      // clLog()->Info(XrdCl::AppMsg, "Factory::Config() user name %s", m_configuration.m_username.c_str());
+      //  clLog()->Info(XrdCl::AppMsg, "Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
+      //  clLog()->Info(XrdCl::AppMsg, "Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
    }
 
    clLog()->Info(XrdCl::AppMsg, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
@@ -290,15 +290,15 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
          clLog()->Error(XrdCl::AppMsg, "Factory::ConfigParameters() pss.diskUsage min max value not specified");
       }
    }
-   else if  ( part == "buffersize" )
+   else if  ( part == "blocksize" )
    {
       long long minBSize = 64 * 1024;
       long long maxBSize = 16 * 1024 * 1024;
-      if ( XrdOuca2x::a2sz(m_log, "get buffer size", config.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
+      if ( XrdOuca2x::a2sz(m_log, "get block size", config.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
       {
          return false;
       }
-      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() bufferSize %lld", m_configuration.m_bufferSize);
+      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() blocksize %lld", m_configuration.m_bufferSize);
    }
    else if (part == "nramread")
    {
@@ -310,15 +310,15 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
       m_configuration.m_NRamBuffersPrefetch = ::atoi(config.GetWord());
       clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersPrefetch = %d", m_configuration.m_NRamBuffersPrefetch);
    }
-   else if ( part == "fileblockmode" )
+   else if ( part == "filefragmentmode" )
    {
       m_configuration.m_prefetchFileBlocks = true;
-      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() enable block prefetch.");
+      clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() enable file fragment prefetch.");
 
       const char* params =  config.GetWord();
       if (params) {
          params = config.GetWord();
-         if (strncmp("blocksize", params, 9))
+         if (strncmp("fragmentsize", params, 9))
              return false;
 
          long long minBlSize = 128 * 1024;
