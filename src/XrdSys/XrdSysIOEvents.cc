@@ -434,11 +434,7 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 // that we cannot hold the channel mutex for this call because it may wait.
 //
    if (isLocked) chMutex.UnLock();
-#ifdef USE_CPP_ATOMICS
-   bool isWakePend = chPollXQ->wakePend.load(std::memory_order_consume);
-#else
-   bool isWakePend = chPollXQ->wakePend;
-#endif
+   bool isWakePend = CPP_ATOMIC_LOAD(chPollXQ->wakePend, std::memory_order_consume);
    if (retval && !isWakePend && setTO && isLocked) chPollXQ->WakeUp();
 
 // All done
@@ -1147,11 +1143,7 @@ int XrdSys::IOEvents::Poller::TmoGet()
 
 // Return the value
 //
-#ifdef USE_CPP11_ATOMICS
-   wakePend.store(false, std::memory_order_release);
-#else
-   wakePend = false;
-#endif
+   CPP_ATOMIC_STORE(wakePend, false, std::memory_order_release);
    toMutex.UnLock();
    return wtval;
 }
@@ -1167,18 +1159,11 @@ void XrdSys::IOEvents::Poller::WakeUp()
 // Send it off to wakeup the poller thread, but only if here is no wakeup in
 // progress.
 //
-#ifdef USE_CPP11_ATOMICS
-   bool isWakePend = wakePend.load(std::memory_order_consume);
+   bool isWakePend = CPP_ATOMIC_LOAD(wakePend, std::memory_order_consume);
    if (!isWakePend)
-      {wakePend.store(true, std::memory_order_release);
-#else
-   toMutex.Lock();
-   if (wakePend) toMutex.UnLock();
-      else {wakePend = true;
-            toMutex.UnLock();
-#endif
-            SendCmd(cmdbuff);
-           }
+      {CPP_ATOMIC_STORE(wakePend, true, std::memory_order_release);
+       SendCmd(cmdbuff);
+      }
 }
 
 /******************************************************************************/

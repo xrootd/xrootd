@@ -59,3 +59,24 @@
 #define AtomicZAP(x)        x = 0
 #endif
 #endif
+
+/*
+ * The following definitions give a mechanism for using C++ atomics
+ * (when using at least C++11).  *Note* that these can't be relied
+ * on for correct behavior as they are non-atomic for C++03 compilers.
+ *
+ * Only use them for standards correctness (eliminating C++11 undefined
+ * behavior).
+ */
+#if __cplusplus >= 201103L
+#include <atomic>
+#define CPP_ATOMIC_LOAD(x, order)       x.load(order)
+#define CPP_ATOMIC_STORE(x, val, order) x.store(val, order)
+#define CPP_ATOMIC_TYPE(kind)           std::atomic<kind>
+#else
+#define CPP_ATOMIC_LOAD(x, order)       x
+#define CPP_ATOMIC_STORE(x, val, order) x = val
+#define CPP_ATOMIC_TYPE(kind)           kind bar
+#endif
+
+

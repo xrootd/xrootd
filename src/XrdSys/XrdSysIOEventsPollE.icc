@@ -207,11 +207,7 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
 //
    do {do {numpolled = epoll_wait(pollDfd, pollTab, pollMax, TmoGet());}
           while (numpolled < 0 && errno == EINTR);
-#ifdef USE_CPP11_ATOMICS
-       wakePend.store(true, std::memory_order_release);
-#else
-       wakePend = true;
-#endif
+       CPP_ATOMIC_STORE(wakePend, true, std::memory_order_release);
        numPoll = numpolled;
        if (numpolled == 0) CbkTMO();
        else if (numpolled <  0)
