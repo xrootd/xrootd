@@ -731,7 +731,7 @@ int XrdCpConfig::Legacy(const char *theOp, const char *theArg)
       return defOpt(theOp, theArg);
 
    if (!strcmp(theOp, "-extreme") || !strcmp(theOp, "-x"))
-      {if (nSrcs <= 1) nSrcs = dfltSrcs;
+      {if (nSrcs <= 1) {nSrcs = dfltSrcs; OpSpec |= DoSources;}
        return 1;
       }
 
