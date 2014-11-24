@@ -434,7 +434,8 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 // that we cannot hold the channel mutex for this call because it may wait.
 //
    if (isLocked) chMutex.UnLock();
-   if (retval && !(chPollXQ->wakePend) && setTO && isLocked) chPollXQ->WakeUp();
+   bool isWakePend = CPP_ATOMIC_LOAD(chPollXQ->wakePend, std::memory_order_consume);
+   if (retval && !isWakePend && setTO && isLocked) chPollXQ->WakeUp();
 
 // All done
 //
@@ -1142,7 +1143,7 @@ int XrdSys::IOEvents::Poller::TmoGet()
 
 // Return the value
 //
-   wakePend = false;
+   CPP_ATOMIC_STORE(wakePend, false, std::memory_order_release);
    toMutex.UnLock();
    return wtval;
 }
@@ -1158,9 +1159,19 @@ void XrdSys::IOEvents::Poller::WakeUp()
 // Send it off to wakeup the poller thread, but only if here is no wakeup in
 // progress.
 //
+// We use a mutex here because we want to produce a synchronization point - all
+// threads that might be interested timeouts and wakeups are going to incur a
+// cache bounce for the page where wakePend resides; they will see a consistent
+// view of the wakePend flag.  For those threads, this is equivalent to
+// an atomic with memory_order std::memory_order_seq_cst (the strongest ordering).
+// However, the threads that are not interested in timeouts will not get a flush
+// for their copy of the wakePend page.  They will still have the weaker memory
+// ordering of consume/release (which is guaranteed anyway on all current architectures
+// except for DEC Alpha).
    toMutex.Lock();
-   if (wakePend) toMutex.UnLock();
-      else {wakePend = true;
+   bool isWakePend = CPP_ATOMIC_LOAD(wakePend, std::memory_order_consume);
+   if (isWakePend) {toMutex.UnLock();}
+      else {CPP_ATOMIC_STORE(wakePend, true, std::memory_order_release);
             toMutex.UnLock();
             SendCmd(cmdbuff);
            }

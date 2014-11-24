@@ -35,6 +35,7 @@
 #include <sys/types.h>
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 
 //-----------------------------------------------------------------------------
 //! IOEvents
@@ -506,7 +507,7 @@ PipeData        reqBuff;    // Buffer used by poller thread to recv data
 char           *pipeBuff;   // Read resumption point in buffer
 int             pipeBlen;   // Number of outstanding bytes
 char            tmoMask;    // Timeout mask
-bool            wakePend;   // Wakeup is effectively pending (don't send)
+CPP_ATOMIC_TYPE(bool) wakePend;   // Wakeup is effectively pending (don't send)
 bool            chDead;     // True if channel deleted by callback
 
 static time_t   maxTime;    // Maximum time allowed
