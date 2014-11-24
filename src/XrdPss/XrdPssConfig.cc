@@ -941,6 +941,7 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
          {"ConnectTimeout",             "ConnectionWindow"},    // Default  120
          {"DataServerConn_ttl",         ""},
          {"DebugLevel",                 "*"},                   // Default   -1
+         {"DebugMask",                 "*"},                    // Default   -1
          {"DfltTcpWindowSize",          0},
          {"LBServerConn_ttl",           ""},
          {"ParStreamsPerPhyConn",       "SubStreamsPerChannel"},// Default    1
