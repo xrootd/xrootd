@@ -728,7 +728,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    RefTurn  = 3*STMax*(DiskLinger+1);
    DirFlags    = 0;
    blkList     = 0;
-   blkChk      = 600;
+   blkChk      = 0;
    SecLib      = 0;
    ossLib      = 0;
    ossParms    = 0;
@@ -1076,7 +1076,8 @@ int XrdCmsConfig::setupManager()
 
 // Initialize the black list
 //
-   if (!isServer) XrdCmsBlackList::Init(Sched, &Cluster, blkList, blkChk);
+   if (!isServer && blkChk)
+      XrdCmsBlackList::Init(Sched, &Cluster, blkList, blkChk);
 
 // All done
 //
@@ -1345,6 +1346,18 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile)
 //
    if (!isManager || isServer) return CFile.noEcho();
 
+// Indicate blacklisting is acttive and free up any current blacklist path
+//
+   blkChk = 600;
+   if (blkList) {free(blkList); blkList = 0;}
+
+// Avoid echoing limitation in the stream object
+//
+   if (!val || !val[0])
+      {eDest->Say("=====> cms.blacklist");
+       return 0;
+      }
+
 // See if a time was specified
 //
    if (val && !strcmp(val, "check"))
@@ -1353,22 +1366,16 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile)
            return 1;
           }
        if (XrdOuca2x::a2tm(*eDest, "check value", val, &blkChk, 60)) return 1;
-       if (!(val = CFile.GetWord()))
-          {if (blkList) {free(blkList); blkList = 0;}
-           return 0;
-          }
+       val = CFile.GetWord();
       }
 
-// Verify the path it must be absolute
+// Verify the path, if any. is absolute
 //
-   if (!val || !val[0])
-      {eDest->Emsg("Config", "blacklist path not specified"); return 1;}
    if (*val != '/')
       {eDest->Emsg("Config", "blacklist path not absolute"); return 1;}
 
 // Record the path
 //
-   if (blkList) free(blkList);
    blkList = strdup(val);
    return 0;
 }
