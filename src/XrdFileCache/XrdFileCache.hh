@@ -65,6 +65,11 @@ namespace XrdFileCache
          { return NULL; }
 
          //---------------------------------------------------------------------
+         //! Run new file script if specified in config file
+         //---------------------------------------------------------------------
+         void RunNewFileScript(XrdOucCacheIO *);
+
+         //---------------------------------------------------------------------
          //! Add downloaded block in write queue.
          //---------------------------------------------------------------------
          static void AddWriteTask(Prefetch* p, int ramBlockidx, size_t size, bool fromRead);
@@ -85,6 +90,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          static void ProcessWriteTasks();
 
+       
       private:
          //! Decrease attached count. Called from IO::Detach().
          void Detach(XrdOucCacheIO *);

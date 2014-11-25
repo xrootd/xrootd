@@ -32,8 +32,10 @@
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOss/XrdOss.hh"
+#include "XrdCks/XrdCks.hh"
 #include "XrdVersion.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -347,6 +349,12 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
          }
       }         
    }
+   else if (part == "newfilescript")
+   {
+      m_configuration.m_newFileScript = config.GetWord();
+      m_log.Emsg("Factory::ConfigParameters() new file script", part.c_str());
+
+   }
    else
    {
       m_log.Emsg("Factory::ConfigParameters() unmatched pfc parameter", part.c_str());
@@ -356,6 +364,28 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
    assert ( config.GetWord() == 0 && "Factory::ConfigParameters() lost argument"); 
 
    return true;
+}
+
+//______________________________________________________________________________
+
+XrdCks* Factory::GetCksMng()
+{
+    if (!m_cksMng) {
+        XrdOucPinLoader* myLib = new XrdOucPinLoader(&m_log, 0, "ckslib", "libXrdPss.so");
+
+        XrdCks *(*ep)(XrdSysError&);
+        ep = (XrdCks *(*)(XrdSysError&))myLib->Resolve("XrdCksInit");
+        if (!ep)
+        {
+            clLog()->Error(XrdCl::AppMsg, "Factory::GetCksMng() failed to resolve symbol XrdCksInit");
+            return 0;
+        }
+        m_cksMng = ep(m_log);
+        if (!m_cksMng)
+            clLog()->Error(XrdCl::AppMsg, "Factory::GetCksMng() failed to create cksum mng object.") ;
+    }
+
+    return m_cksMng;
 }
 
 //______________________________________________________________________________
@@ -521,3 +551,4 @@ void Factory::UnCheckFileForDiskSpace(const char* path)
 {
     m_filesInQueue.erase(path);
 }
+

@@ -31,6 +31,7 @@
 
 class XrdOucStream;
 class XrdSysError;
+class XrdCks;
 
 namespace XrdCl
 {
@@ -53,7 +54,8 @@ namespace XrdFileCache
          m_bufferSize(1024*1024),
 	 m_NRamBuffersRead(8),
 	 m_NRamBuffersPrefetch(1),
-         m_fileFragmentSize(128*1024*1024) {}
+         m_fileFragmentSize(128*1024*1024),
+         m_newFileScript (""){}
 
       bool m_prefetchFileBlocks;      //!< flag for enabling block-level operation
       std::string m_cache_dir;        //!< path of disk cache
@@ -65,7 +67,8 @@ namespace XrdFileCache
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
       int  m_NRamBuffersRead;         //!< number of read in-memory cache blocks
       int  m_NRamBuffersPrefetch;     //!< number of prefetch in-memory cache blocks
-      long long m_fileFragmentSize;          //!< used with m_prefetchFileBlocks, default 128MB
+      long long m_fileFragmentSize;   //!< used with m_prefetchFileBlocks, default 128MB
+      std::string m_newFileScript;    //!< script ran before file is cached
    };
 
 
@@ -144,6 +147,11 @@ namespace XrdFileCache
          //! Thread function running disk cache purge periodically.
          //---------------------------------------------------------------------
          void CacheDirCleanup();
+     
+         //---------------------------------------------------------------------
+         //! Get ckeck sum manager from pss lib
+         //---------------------------------------------------------------------
+         XrdCks* GetCksMng();
 
       private:
          bool CheckFileForDiskSpace(const char* path, long long fsize);
@@ -160,6 +168,7 @@ namespace XrdFileCache
          XrdSysError       m_log;       //!< XrdFileCache namespace logger
          XrdOucCacheStats  m_stats;     //!< passed to cache, currently not used
          XrdOss           *m_output_fs; //!< disk cache file system
+         XrdCks           *m_cksMng;    //!< cksum manager
 
          std::vector<XrdFileCache::Decision*> m_decisionpoints; //!< decision plugins
 
