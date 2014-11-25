@@ -1371,6 +1371,7 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile)
 
 // Verify the path, if any. is absolute
 //
+   if (!val || !val[0]) return 0;
    if (*val != '/')
       {eDest->Emsg("Config", "blacklist path not absolute"); return 1;}
 
