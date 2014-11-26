@@ -28,6 +28,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdio.h>
+
 #include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssCks.hh"
 
@@ -85,14 +87,18 @@ XrdPssCks::csInfo *XrdPssCks::Find(const char *Name)
 int XrdPssCks::Get(const char *Pfn, XrdCksData &Cks)
 {
    static const int cksBLen = 256;
-   char             cksBuff[cksBLen], pBuff[2048], *tP;
+   char             cksBuff[cksBLen], pBuff[2048], cgiBuff[32], *tP;
    XrdOucTokenizer  Resp(cksBuff);
    time_t           Mtime;
-   int              rc;
+   int              rc, n;
+
+// Construct the cgi for digest type
+//
+   n = snprintf(cgiBuff, sizeof(cgiBuff), "cks.type=%s", Cks.Name);
 
 // Direct the path to the origin (we don't have any cgi or ident info)
 //
-   if (!XrdPssSys::P2URL(rc, pBuff, sizeof(pBuff), Pfn, 0, 0, 0, 0, 0))
+   if (!XrdPssSys::P2URL(rc, pBuff, sizeof(pBuff), Pfn, 0, cgiBuff, n, 0, 0))
       return rc;
 
 // First step is to getthe checksum value
