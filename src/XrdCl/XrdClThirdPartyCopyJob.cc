@@ -279,7 +279,6 @@ namespace XrdCl
     TPCStatusHandler  statusHandler;
     Semaphore        *sem  = statusHandler.GetSemaphore();
     StatInfo         *info   = 0;
-    FileSystem        fs( GetTarget().GetHostId() );
 
     st = targetFile.Sync( &statusHandler );
     if( !st.IsOK() )
@@ -301,7 +300,7 @@ namespace XrdCl
 
       if( progress )
       {
-        st = fs.Stat( GetTarget().GetPathWithParams(), info );
+        st = targetFile.Stat( true, info );
         if( st.IsOK() )
         {
           progress->JobProgress( pJobId, info->GetSize(), sourceSize );
