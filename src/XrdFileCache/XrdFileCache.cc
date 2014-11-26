@@ -200,9 +200,7 @@ Cache::ProcessWriteTasks()
 void Cache::RunNewFileScript(XrdOucCacheIO* io)
 {
    // execute the script
-   
  
-
    XrdCks* cksMng = Factory::GetInstance().GetCksMng();
    if (!cksMng) {
       clLog()->Info(XrdCl::AppMsg, "Can't get cksum manager %s.", io->Path());
@@ -213,9 +211,9 @@ void Cache::RunNewFileScript(XrdOucCacheIO* io)
    XrdCl::URL url(io->Path());
    int res = cksMng->Get(url.GetPath().c_str(), ckSum);
    if (res > 0)
-      printf("cksum name = [%s] value = [%s] \n", ckSum.Name, ckSum.Value);
+      clLog()->Info(XrdCl::AppMsg, "cksum name = [%s] value = [%s] \n", ckSum.Name, ckSum.Value);
    else
-      printf("PFC checksum error : %s \n", strerror(-res));
+      clLog()->Error(XrdCl::AppMsg,"PFC checksum error : %s \n", strerror(-res));
 
    XrdOucEnv myEnv;
    XrdOucStream es(&Factory::GetInstance().GetSysError(), getenv("XRDINSTANCE"), &myEnv, "=====> ");
