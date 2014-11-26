@@ -581,7 +581,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 // Setup the secondary destination
 //
    if (Dest2)
-      {InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK);
+      {InetDest2 = new XrdNetMsg(eDest, Dest2, &aOK);
        if (!aOK)
           {eDest->Emsg("Monitor","Unable to setup secondary monitor collector.");
            return 0;
