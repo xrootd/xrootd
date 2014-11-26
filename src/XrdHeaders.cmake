@@ -118,6 +118,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOfs/XrdOfsEvr.hh
   XrdOfs/XrdOfsHandle.hh
   XrdOfs/XrdOfsTrace.hh
+  XrdOfs/XrdOfsTPCInfo.hh
   XrdSys/XrdSysPriv.hh
 
   XrdOss/XrdOssApi.hh
@@ -125,6 +126,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOss/XrdOssError.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
+  
 )
 
 install_headers(
