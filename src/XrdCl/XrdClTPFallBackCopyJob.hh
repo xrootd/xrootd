@@ -54,9 +54,6 @@ namespace XrdCl
       virtual XRootDStatus Run( CopyProgressHandler *progress = 0 );
 
     private:
-      uint16_t      pJobId;
-      PropertyList *pJobProperties;
-      PropertyList *pJobResults;
       CopyJob      *pJob;
   };
 }
