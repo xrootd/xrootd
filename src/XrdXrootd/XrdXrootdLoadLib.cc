@@ -76,7 +76,7 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
 
 // Issue message if we could not load it
 //
-   if (FS) eDest->Emsg("Config","Unable to create file system object via",fslib);
+   if (!FS) eDest->Emsg("Config","Unable to create file system object via",fslib);
 
 // All done
 //
