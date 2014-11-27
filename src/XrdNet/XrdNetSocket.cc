@@ -246,7 +246,7 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
            snprintf(buff, sizeof(buff), "'; %s", eText);
            eroute->Emsg("Open", "Unable to create socket for '", epath, buff);
           }
-       return ErrCode;
+       return -1;
       }
 
 // Allocate a socket descriptor of the right type
