@@ -134,7 +134,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, 
                                                     XrdSfsFileSystem *,
-                                                    char *, const char *);
+                                                    char *, int,
+                                                    const char *, XrdOucEnv *);
    extern XrdSfsFileSystem *XrdDigGetFS
                             (XrdSfsFileSystem *nativeFS,
                              XrdSysLogger     *Logger,
@@ -275,7 +276,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (FSLib[0])
       {TRACE(DEBUG, "Loading base filesystem library " <<FSLib[0]);
-       osFS = XrdXrootdloadFileSystem(&eDest, 0, FSLib[0], pi->ConfigFN);
+       osFS = XrdXrootdloadFileSystem(&eDest, 0, FSLib[0], FSLvn[0],
+                                      pi->ConfigFN, &myEnv);
       } else {
        osFS = XrdSfsGetDefaultFileSystem(0,eDest.logger(),pi->ConfigFN,&myEnv);
       }
@@ -291,7 +293,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (FSLib[1])
       {TRACE(DEBUG, "Loading wrapper filesystem library " <<FSLib[1]);
-       osFS = XrdXrootdloadFileSystem(&eDest, osFS, FSLib[1], pi->ConfigFN);
+       osFS = XrdXrootdloadFileSystem(&eDest, osFS, FSLib[1], FSLvn[1],
+                                      pi->ConfigFN, &myEnv);
        if (!osFS)
           {eDest.Emsg("Config", "Unable to load file system wrapper.");
            return 0;
@@ -828,10 +831,10 @@ int XrdXrootdProtocol::xexpdo(char *path, int popt)
 
 /* Function: xfsl
 
-   Purpose:  To parse the directive: fslib [?] [throttle | <fspath2>]
-                                               {default  | <fspath1>}
+   Purpose:  To parse the directive: fslib [throttle | [-2] <fspath2>]
+                                           {default  | [-2] <fspath1>}
 
-             ?         check if fslib build version matches our version
+             -2        Uses version2 of the plugin initializer.
                        This is ignored now because it's always done.
              throttle  load libXrdThrottle.so as the head interface.
              <fspath2> load the named library as the head interface.
@@ -850,6 +853,7 @@ int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
 //
    if (FSLib[0]) {free(FSLib[0]); FSLib[0] = 0;}
    if (FSLib[1]) {free(FSLib[1]); FSLib[1] = 0;}
+   FSLvn[0] = FSLvn[1] = 0;
 
 // Get the path
 //
@@ -864,31 +868,46 @@ int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
           {eDest.Emsg("Config","fslib throttle target library not specified");
            return 1;
           }
-       if (!strcmp("default", val)) return 0;
-       FSLib[0] = xfsL(val);
+       return xfsL(Config, val, 0);
+      }
+
+// Check for default or default library, the common case
+//
+   if (xfsL(Config, val, 1))    return 1;
+   if (!FSLib[1])               return 0;
+
+// If we dont have another token, then demote the previous library
+//
+   if (!(val = Config.GetWord()))
+      {FSLib[0] = FSLib[1]; FSLib[1] = 0;
+       FSLvn[0] = FSLvn[1]; FSLvn[1] = 0;
        return 0;
       }
 
 // Check for default or default library, the common case
 //
-   if (!strcmp("default", val) || !(FSLib[1] = xfsL(val))) return 0;
-
-// If we dont have another token, then demote the previous library
-//
-   if (!(val = Config.GetWord()))
-      {FSLib[0] = FSLib[1]; FSLib[1] = 0; return 0;}
-
-// Check for default or default library, the common case
-//
-   if (strcmp("default", val)) FSLib[0] = xfsL(val);
-   return 0;
+   return xfsL(Config, val, 0);
 }
 
 /******************************************************************************/
 
-char *XrdXrootdProtocol::xfsL(char *val)
+int XrdXrootdProtocol::xfsL(XrdOucStream &Config, char *val, int lix)
 {
     char *Slash;
+    int lvn = 0;
+
+// Check if this is a version token
+//
+   if (!strcmp(val, "-2"))
+      {lvn = 2;
+       if (!(val = Config.GetWord()))
+          {eDest.Emsg("Config", "fslib not specified"); return 1;}
+      }
+
+// We will play fast and furious with the syntax as "default" should not be
+// prefixed with a version number but will let that pass.
+//
+   if (!strcmp("default", val)) return 0;
 
 // If this is the "standard" name tell the user that we are ignoring this lib.
 // Otherwise, record the path and return.
@@ -897,7 +916,7 @@ char *XrdXrootdProtocol::xfsL(char *val)
       else Slash++;
    if (!strcmp(Slash, "libXrdOfs.so"))
       eDest.Say("Config warning: ignoring fslib; libXrdOfs.so is built-in.");
-      else return strdup(val);
+      else {FSLib[lix] = strdup(val); FSLvn[lix] = lvn;}
    return 0;
 }
 

@@ -202,7 +202,7 @@ static int   xdig(XrdOucStream &Config);
 static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
-static char *xfsL(char *val);
+static int   xfsL(XrdOucStream &Config, char *val, int lix);
 static int   xpidf(XrdOucStream &Config);
 static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
@@ -253,6 +253,7 @@ static int                 WANPort;
 static int                 WANWindow;
 static char               *SecLib;
 static char               *FSLib[2];
+static int                 FSLvn[2];
 static char               *digLib;    // Normally zero for now
 static char               *digParm;
 static char               *Notify;

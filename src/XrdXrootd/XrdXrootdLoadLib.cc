@@ -27,6 +27,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdio.h>
+
 #include "XrdVersion.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
@@ -40,29 +42,41 @@
 
 XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
                                           XrdSfsFileSystem *prevFS,
-                                          char *fslib, const char *cfn)
+                                          char *fslib, int fsver,
+                                          const char *cfn, XrdOucEnv *envP)
 {
    static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
    XrdOucPinLoader ofsLib(eDest, &myVersion, "fslib", fslib);
-   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
-   XrdSfsFileSystem *FS;
+   XrdSfsFileSystem_t  ep;
+   XrdSfsFileSystem2_t ep2;
+   XrdSfsFileSystem *FS = 0;
+   const char *epname = "XrdSfsGetFileSystem";
+   char  epbuff[64];
 
 // Record the library path in the environment
 //
    if (!prevFS) XrdOucEnv::Export("XRDOFSLIB", fslib);
 
-// Get the file system object creator
+// If a different version is to used for initialization, generate the name
 //
-   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                    ofsLib.Resolve("XrdSfsGetFileSystem")))
-       return 0;
-
-// Get the file system object
-//
-   if (!(FS = (*ep)(prevFS, eDest->logger(), cfn)))
-      {eDest->Emsg("Config", "Unable to create file system object via",fslib);
-       return 0;
+   if (fsver)
+      {sprintf(epbuff, "XrdSfsGetFileSystem%d", fsver); // Always fits
+       epname = epbuff;
       }
+
+// Get the file system object creator and the object
+//
+   if (fsver)
+      {if ((ep2 = (XrdSfsFileSystem2_t)ofsLib.Resolve(epname)))
+          FS = (*ep2)(prevFS, eDest->logger(), cfn, envP);
+      } else {
+       if ((ep  = (XrdSfsFileSystem_t )ofsLib.Resolve(epname)))
+          FS = (*ep) (prevFS, eDest->logger(), cfn);
+      }
+
+// Issue message if we could not load it
+//
+   if (FS) eDest->Emsg("Config","Unable to create file system object via",fslib);
 
 // All done
 //

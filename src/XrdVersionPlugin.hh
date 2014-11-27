@@ -119,6 +119,7 @@
         XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolunixInit        )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecProtocolunixObject      )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSfsGetFileSystem           )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSfsGetFileSystem2          )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSysGetXAttrObject          )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetMonitor               )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetPlugIn                )\
