@@ -76,6 +76,7 @@ Version 4.1.0
    * **[Server/Proxy]** Fully support extended file system features and pass
      those features through a proxy server. (issue #115)
    * **[Client/Cl]** Remove duplicates from the HostList.
+   * **[Client/Cl]** Fix minor atomicity issues (C++11).
 
 + **Miscellaneous**
    * **[Server]** Actually remove xmi plugin handling as xmilib is no longer
@@ -88,6 +89,7 @@ Version 4.1.0
    * **[Server/Security]** Add new NetSecurity::Authorize() method that accepts
      text.
    * **[Server/Proxy]** Properly support proxying objectids.
+   * **[Server/Proxy]** Clean-ups in the caching proxy.
 
 -------------
 Version 4.0.4
