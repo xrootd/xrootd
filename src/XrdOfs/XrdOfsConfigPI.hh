@@ -64,7 +64,7 @@ enum TheLib {theAtrLib = 0x0100,  //!< Extended attribute plugin
              theCksLib = 0x0402,  //!< Checksum manager plugin
              theCmsLib = 0x0803,  //!< Cms client plugin
              theOssLib = 0x1004,  //!< Oss plugin
-             allXXXLib = 0x1705,  //!< All plugins (Load() only)
+             allXXXLib = 0x1f05,  //!< All plugins (Load() only)
              maxXXXLib = 0x0005,  //!< Maximum different plugins
              libIXMask = 0x00ff
             };
