@@ -117,6 +117,6 @@ int                 AdminMode;
 int                 repInt;
 char                repOpts;
 char                ppNet;
-char                coreV;
+signed char         coreV;
 };
 #endif
