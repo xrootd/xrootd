@@ -119,9 +119,10 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 //
 #if defined(__linux__) && defined(RLIMIT_NPROC)
 
-// Get the resource thread limit and set to maximum
+// Get the resource thread limit and set to maximum. In Linux this may be -1
+// to indicate useless infnity, so we have to come up with a number, sigh.
 //
-   if (!getrlimit(RLIMIT_NPROC, &rlim))
+   if (!getrlimit(RLIMIT_NPROC, &rlim) && rlim.rlim_max > 0)
       {if (rlim.rlim_cur < rlim.rlim_max)
           {rlim.rlim_cur = rlim.rlim_max;
            setrlimit(RLIMIT_NPROC, &rlim);
@@ -131,7 +132,9 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 // Readjust our internal maximum to be the actual maximum
 //
    if (!getrlimit(RLIMIT_NPROC, &rlim))
-      max_Workers = static_cast<int>(rlim.rlim_cur);
+      {if (rlim.rlim_cur < 1) max_Workers = 127000;
+          else max_Workers = static_cast<int>(rlim.rlim_cur);
+      }
 #endif
 
 }
@@ -448,8 +451,8 @@ void XrdScheduler::setParms(int minw, int maxw, int avlw, int maxi, int once)
 // get a consistent view of all the values
 //
    if (maxw <= 0) maxw = max_Workers;
-   if (minw < 0) minw = (maxw/10 ? maxw/10 : 1);
-      else if (minw > maxw) minw = maxw;
+   if (minw < 0)  minw = min_Workers;
+   if (minw > maxw) minw = maxw;
    if (avlw < 0) avlw = maxw/4*3;
       else if (avlw > maxw) avlw = maxw;
 
