@@ -1726,6 +1726,7 @@ namespace XrdCl
           SwitchOnRefreshFlag();
         HandleError( RetryAtServer( pLoadBalancer.url ) );
         delete pResponse;
+        return 0;
         return;
       }
       else
