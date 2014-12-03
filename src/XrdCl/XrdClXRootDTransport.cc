@@ -1335,9 +1335,14 @@ namespace XrdCl
     loginReq->requestid = kXR_login;
     loginReq->pid       = ::getpid();
     loginReq->capver[0] = kXR_asyncap | kXR_ver003;
-    loginReq->ability   = kXR_fullurl | kXR_readrdok | kXR_multipr;
     loginReq->role[0]   = kXR_useruser;
     loginReq->dlen      = cgiLen;
+    loginReq->ability   = kXR_fullurl | kXR_readrdok;
+
+    int multiProtocol = 0;
+    env->GetInt( "MultiProtocol", multiProtocol );
+    if(multiProtocol)
+      loginReq->ability |= kXR_multipr;
 
     //--------------------------------------------------------------------------
     // Check the IP stacks

@@ -62,6 +62,7 @@ namespace XrdCl
   const int DefaultTCPKeepAliveTime     = 7200;
   const int DefaultTCPKeepAliveInterval = 75;
   const int DefaultTCPKeepAliveProbes   = 9;
+  const int DefaultMultiProtocol        = 0;
 
   const char * const DefaultPollerPreference   = "built-in,libevent";
   const char * const DefaultNetworkStack       = "IPAuto";
