@@ -25,7 +25,6 @@
 
 version=__VERSION__
 prefix=__PREFIX__
-libdir=${prefix}/__LIBDIR__
 includedir=${prefix}/__INCLUDEDIR__/xrootd
 plugin_version=__PLUGIN_VERSION__
 
@@ -40,7 +39,6 @@ Generic options
 
 Compilation support options
   --cflags      print pre-processor and compiler flags
-  --libs        print library linking information
   --plugin-vesion print plug-in version suffix
 
 Install directories XRootD was configured to
@@ -65,11 +63,6 @@ while test $# -gt 0; do
     --cflags)
       if test "$includedir" != "/usr/include" ; then
         echo "-I${includedir}"
-      fi
-      ;;
-    --libs)
-      if test ${libdir} != "/usr/lib" ; then
-        echo "-L${libdir}"
       fi
       ;;
     --plugin-version)
