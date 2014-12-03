@@ -435,7 +435,7 @@ rm -rf $RPM_BUILD_ROOT
 %post   server-libs -p /sbin/ldconfig
 %postun server-libs -p /sbin/ldconfig
 
-%pre
+%pre server
 
 getent group xrootd >/dev/null || groupadd -r xrootd
 getent passwd xrootd >/dev/null || \
@@ -445,12 +445,12 @@ exit 0
 
 %if %{use_systemd}
 
-%post
+%post server
 if [ $1 -eq 1 ] ; then
     /usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 fi
 
-%preun
+%preun server
 if [ $1 -eq 0 ] ; then
     for DAEMON in xrootd cmsd frm_purged frm xfrd; do
         for INSTANCE in `/usr/bin/systemctl | grep $DAEMON@ | awk '{print $1;}'`; do
@@ -460,7 +460,7 @@ if [ $1 -eq 0 ] ; then
     done
 fi
 
-%postun
+%postun server
 if [ $1 -ge 1 ] ; then
     /usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
     for DAEMON in xrootd cmsd frm_purged frm xfrd; do
@@ -472,7 +472,7 @@ fi
 
 %else
 
-%post
+%post server
 if [ $1 -eq 1 ]; then
     /sbin/chkconfig --add xrootd
     /sbin/chkconfig --add cmsd
@@ -480,7 +480,7 @@ if [ $1 -eq 1 ]; then
     /sbin/chkconfig --add frm_xfrd
 fi
 
-%preun
+%preun server
 if [ $1 -eq 0 ]; then
     /sbin/service xrootd stop >/dev/null 2>&1 || :
     /sbin/service cmsd stop >/dev/null 2>&1 || :
@@ -492,7 +492,7 @@ if [ $1 -eq 0 ]; then
     /sbin/chkconfig --del frm_xfrd
 fi
 
-%postun
+%postun server
 if [ $1 -ge 1 ]; then
     /sbin/service xrootd condrestart >/dev/null 2>&1 || :
     /sbin/service cmsd condrestart >/dev/null 2>&1 || :
