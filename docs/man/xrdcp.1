@@ -391,6 +391,27 @@ XRD_CPTPCTIMEOUT (-DICPTPCTimeout)
 Maximum time allowed for a third-party copy operation to finish.
 .RE
 
+XRD_TCPKEEPALIVE (-DITCPKeepAlive)
+.RS 5
+Enable/Disable the TCP keep alive functionality
+.RE
+
+XRD_TCPKEEPALIVETIME (-DITCPKeepAliveTime)
+.RS 5
+Time between last data packet sent and the first keepalive probe (Linux only)
+.RE
+
+XRD_TCPKEEPALIVEINTERVAL (-DITCPKeepAliveInterval)
+.RS 5
+Interval between subsequent keepalive probes (Linux only)
+.RE
+
+XRD_TCPKEEPALIVEPROBES (-DITCPKeepProbes)
+.RS 5
+Number of unacknowledged probes before considering the connection dead
+(Linux only)
+.RE
+
 .SH NOTES
 Documentation for all components associated with \fBxrdcp\fR can be found at
 http://xrootd.org/docs.html
