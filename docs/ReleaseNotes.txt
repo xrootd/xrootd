@@ -29,6 +29,7 @@ Version 4.1.0
    * **[Server]** Pass along XRD_MONINFO setting and application name to
      monitoring.
    * **[Server/Proxy]** Implement a forwarding proxy option.
+   * **[Server/Proxy]** New configuration of XrdFileCache using 'pfc.' prefix.
    * **[Sever/HTTP]** Support gridmap parsing.
    * **[Client/Cl]** Inform the server about availability of local IP address
      types (IPv6/IPv4, public/private) to in order to facilitate redirections.
