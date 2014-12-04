@@ -39,7 +39,6 @@
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientConnMgr.hh"
-#include "XrdNet/XrdNetAddr.hh"
 #include <string>
 #include <algorithm>
 #include <ctype.h>
@@ -55,7 +54,6 @@ XrdClientEnv *XrdClientEnv::Instance() {
 	 std::cerr << "XrdClientEnv::Instance: fatal - couldn't create XrdClientEnv" << std::endl;
          abort();
       }
-      XrdNetAddr::SetIPV4(); // IPv4 if we actually will be running
    }
    return fgInstance;
 }
