@@ -6,6 +6,23 @@ Release Notes
 =============
 
 -------------
+Version 4.1.1
+-------------
+
++ **Major bug fixes**
+   * **[RPM]** Remove the library patch from xrootd-config to enable multiarch
+     installations.
+   * **[RPM]** Move the user creation scriptlets to xrootd-server where they
+     belong. (issue #179)
+   * [Server] Fix PowerPC compilation. (issue #177)
+   * [Server] Avoid the pitfalls of infinite nproc hard limit in Linux.
+
++ **Miscellaneous**
+   * **[Man]** Update documentation.
+   * **[Client/Cl] Set the multi-protocol ability basing on an environment
+     variable.
+
+-------------
 Version 4.1.0
 -------------
 
