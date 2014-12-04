@@ -66,10 +66,11 @@ namespace XrdFileCache
          virtual bool ioActive();
 
       private:
-         long long                  m_fileFragmentSize; //!< size of file-block
+         long long                  m_blocksize; //!< size of file-block
          std::map<int, Prefetch*>   m_blocks;    //!< map of created blocks
          XrdSysMutex                m_mutex;     //!< map mutex
 
+         void GetBlockSizeFromPath();
          Prefetch* newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO* io);
    };
 }
