@@ -207,8 +207,21 @@ void Cache::RunNewFileScript(XrdOucCacheIO* io)
       return;
    }
 
+
    XrdCksData ckSum;
+
    XrdCl::URL url(io->Path());
+
+   // check if URL overried cksum type
+   const  XrdCl::URL::ParamsMap& urlp = url.GetParams();
+   std::string cksp = "cksum.type";
+   XrdCl::URL::ParamsMap::const_iterator it = urlp.find(cksp);
+   if ( it != urlp.end())
+   {
+      ckSum.Set(it->second.c_str());
+   }
+
+   // request cksum
    int res = cksMng->Get(url.GetPath().c_str(), ckSum);
    if (res > 0)
       clLog()->Info(XrdCl::AppMsg, "cksum name = [%s] value = [%s] \n", ckSum.Name, ckSum.Value);
@@ -219,13 +232,12 @@ void Cache::RunNewFileScript(XrdOucCacheIO* io)
    XrdOucStream es(&Factory::GetInstance().GetSysError(), getenv("XRDINSTANCE"), &myEnv, "=====> ");
    char buff[1024];
    snprintf(buff,  1024, "%s %s %s", Factory::GetInstance().RefConfiguration().m_newFileScript.c_str(), io->Path(), ckSum.Value);
-
-   printf("------------------------------------------------------- \n----%s\n", &buff[0]);
    es.Exec(&buff[0]);
    char* txt = 0;
    while ((txt = es.GetLine()))
    {
       std::cout << "#### " << txt << std::endl;
    }
+
 }
 
