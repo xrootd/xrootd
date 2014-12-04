@@ -44,7 +44,7 @@ void *PrefetchRunnerBl(void * prefetch_void)
 IOFileBlock::IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache & cache)
    : IO(io, statsGlobal, cache)
 {
-   m_fileFragmentSize = Factory::GetInstance().RefConfiguration().m_fileFragmentSize;
+   m_fileFragmentSize = Factory::GetInstance().RefConfiguration().m_hdfsbs;
 }
 
 //______________________________________________________________________________

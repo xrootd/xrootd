@@ -62,7 +62,7 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
          m_attached++;
       }
       IO* cio;
-      if (Factory::GetInstance().RefConfiguration().m_prefetchFileBlocks)
+      if (Factory::GetInstance().RefConfiguration().m_hdfsmode)
          cio = new IOFileBlock(*io, m_stats, *this);
       else
          cio = new IOEntireFile(*io, m_stats, *this);
