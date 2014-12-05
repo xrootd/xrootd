@@ -182,8 +182,9 @@ XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
 // Services
 XrdOucGMap *XrdSecProtocolgsi::servGMap = 0; // Grid map service
 //
-// CRL stack
-GSICrlStack  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
+// CA and CRL stacks
+GSIStack<XrdCryptoX509Chain>  XrdSecProtocolgsi::stackCA; // Stack of CA in use
+GSIStack<XrdCryptoX509Crl>  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
 //
 // GMAP control vars
 time_t XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
@@ -4291,26 +4292,49 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // Try first the cache
    XrdSutPFEntry *cent = cacheCA.Get(pfeRef, tag.c_str());
 
+   X509Chain *chain = 0;
    // If found, we are done
    if (cent) {
-      if (hs) hs->Chain = (X509Chain *)(cent->buf1.buf);
+      bool goodca = 0;
+      if ((chain = (X509Chain *)(cent->buf1.buf))) {
+         // Check the validity of the certificates in the chain; if a certificate became invalid,
+         // we need to reload a valid one for the same CA.
+         if (chain->CheckValidity() == 0) {
+            goodca = 1;
+            if (hs) hs->Chain = chain;
+            // Add to the stack for proper cleaning of invalidated CAs
+            stackCA.Add(chain);
+         } else {
+            PRINT("CA entry for '"<<tag<<"' needs refreshing: clean the related entry cache first");
+            // Entry needs refreshing: we remove it from the stack, so it gets deleted when
+            // the last handshake using it is over 
+            stackCA.Del(chain);
+            cent->buf1.buf = 0;
+            if (!cacheCA.Remove(tag.c_str())) {
+               PRINT("problems removing entry from CA cache");
+               return -1;
+            }
+         }      
+      }
       XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
-      if ((CRLRefresh <= 0) || ((timestamp - cent->mtime) < CRLRefresh)) {
+      // If the CA is not good, we reload the CRL in any case
+      if (goodca && ((CRLRefresh <= 0) || ((timestamp - cent->mtime) < CRLRefresh))) {
          if (hs) hs->Crl = crl;
          // Add to the stack for proper cleaning of invalidated CRLs
          stackCRL.Add(crl);
          return 0;
       } else {
-         PRINT("entry for '"<<tag<<"' needs refreshing: clean the related entry cache first");
+         PRINT("CRL entry for '"<<tag<<"' needs refreshing: clean the related entry cache first");
          // Entry needs refreshing: we remove it from the stack, so it gets deleted when
          // the last handshake using it is over 
          stackCRL.Del(crl);
          cent->buf2.buf = 0;
-         if (!cacheCA.Remove(tag.c_str())) {
+         if (goodca && !cacheCA.Remove(tag.c_str())) {
             PRINT("problems removing entry from CA cache");
             return -1;
          }
       }
+      chain = 0;
    }
 
    // This is the last time we use cent so release the lock and zero the ptr
@@ -4323,7 +4347,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
 
    // Create chain ?
    bool createchain = (hs && hs->Chain) ? 0 : 1;
-   X509Chain *chain = (createchain) ? new X509Chain() : hs->Chain;
+   chain = (createchain) ? new X509Chain() : hs->Chain;
    if (!chain) {
       PRINT("could not attach-to or create new GSI chain");
       return -1;

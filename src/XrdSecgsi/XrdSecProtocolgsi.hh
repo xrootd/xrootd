@@ -232,27 +232,26 @@ typedef struct {
    int         bits;
 } ProxyIn_t;
 
-
-class GSICrlStack {
+template<class T>
+class GSIStack {
 public:
-   void Add(XrdCryptoX509Crl *crl) {
-      char k[40]; snprintf(k, 40, "%p", crl); 
+   void Add(T *t) {
+      char k[40]; snprintf(k, 40, "%p", t); 
       mtx.Lock();
-      if (!stack.Find(k)) stack.Add(k, crl, 0, Hash_count);
-      stack.Add(k, crl, 0, Hash_count);
+      if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count);
+      stack.Add(k, t, 0, Hash_count);
       mtx.UnLock();
    }
-   void Del(XrdCryptoX509Crl *crl) {
-      char k[40]; snprintf(k, 40, "%p", crl); 
+   void Del(T *t) {
+      char k[40]; snprintf(k, 40, "%p", t); 
       mtx.Lock();
       if (stack.Find(k)) stack.Del(k, Hash_count);
       mtx.UnLock();
    }
 private:
    XrdSysMutex                  mtx;
-   XrdOucHash<XrdCryptoX509Crl> stack;
+   XrdOucHash<T> stack;
 };
-
 
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l g s i   C l a s s                 */
@@ -359,8 +358,9 @@ private:
    // Services
    static XrdOucGMap      *servGMap;  // Grid mapping service 
    //
-   // CRL stack
-   static GSICrlStack      stackCRL; // Stack of CRL in use
+   // CA and CRL stacks
+   static GSIStack<XrdCryptoX509Chain>    stackCA; // Stack of CA in use
+   static GSIStack<XrdCryptoX509Crl>      stackCRL; // Stack of CRL in use
    //
    // GMAP control vars
    static time_t           lastGMAPCheck; // time of last check on GMAP
