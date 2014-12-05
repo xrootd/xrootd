@@ -20,10 +20,14 @@
 #include <sstream>
 #include <sys/statvfs.h>
 
+#include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucStream.hh"
+#include "XrdCks/XrdCksData.hh"
+#include "XrdCks/XrdCks.hh"
 
 #include "XrdFileCache.hh"
 #include "XrdFileCachePrefetch.hh"
@@ -57,6 +61,13 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
    if (Factory::GetInstance().Decide(io))
    {
       clLog()->Info(XrdCl::AppMsg, "Cache::Attach() %s", io->Path());
+
+
+      if (!(Factory::GetInstance().RefConfiguration().m_newFileScript.empty()))
+      {
+           RunNewFileScript(io);
+      }
+
       {
          XrdSysMutexHelper lock(&m_io_mutex);
          m_attached++;
@@ -184,3 +195,49 @@ Cache::ProcessWriteTasks()
       t.prefetch->DecRamBlockRefCount(t.ramBlockIdx);
    }
 }
+
+//______________________________________________________________________________
+void Cache::RunNewFileScript(XrdOucCacheIO* io)
+{
+   // execute the script
+ 
+   XrdCks* cksMng = Factory::GetInstance().GetCksMng();
+   if (!cksMng) {
+      clLog()->Info(XrdCl::AppMsg, "Can't get cksum manager %s.", io->Path());
+      return;
+   }
+
+
+   XrdCksData ckSum;
+
+   XrdCl::URL url(io->Path());
+
+   // check if URL overried cksum type
+   const  XrdCl::URL::ParamsMap& urlp = url.GetParams();
+   std::string cksp = "cksum.type";
+   XrdCl::URL::ParamsMap::const_iterator it = urlp.find(cksp);
+   if ( it != urlp.end())
+   {
+      ckSum.Set(it->second.c_str());
+   }
+
+   // request cksum
+   int res = cksMng->Get(url.GetPath().c_str(), ckSum);
+   if (res > 0)
+      clLog()->Info(XrdCl::AppMsg, "cksum name = [%s] value = [%s] \n", ckSum.Name, ckSum.Value);
+   else
+      clLog()->Error(XrdCl::AppMsg,"PFC checksum error : %s \n", strerror(-res));
+
+   XrdOucEnv myEnv;
+   XrdOucStream es(&Factory::GetInstance().GetSysError(), getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   char buff[1024];
+   snprintf(buff,  1024, "%s %s %s", Factory::GetInstance().RefConfiguration().m_newFileScript.c_str(), io->Path(), ckSum.Value);
+   es.Exec(&buff[0]);
+   char* txt = 0;
+   while ((txt = es.GetLine()))
+   {
+      std::cout << "#### " << txt << std::endl;
+   }
+
+}
+
