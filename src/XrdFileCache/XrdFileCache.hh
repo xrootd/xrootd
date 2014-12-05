@@ -90,7 +90,7 @@ namespace XrdFileCache
          void Detach(XrdOucCacheIO *);
 
          //! Transfor URL to path on local disk.
-         bool getFilePathFromURL(const char* url, std::string& res) const;
+         void getFilePathFromURL(const char* url, std::string& res) const;
 
          //! Short log alias.
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
