@@ -263,10 +263,10 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
                m_configuration.m_NRamBuffersRead, m_configuration.m_NRamBuffersPrefetch );
 
 
-      if (m_configuration.m_prefetchFileBlocks)
+      if (m_configuration.m_hdfsmode)
       {
          char buff2[512];
-         snprintf(buff2, sizeof(buff2), "\tpfc.filefragmentmode filefragmentsize %lld \n", m_configuration.m_fileFragmentSize);
+         snprintf(buff2, sizeof(buff2), "\tpfc.hdfsmode hdfsbsize %lld \n", m_configuration.m_hdfsbsize);
          m_log.Emsg("", buff, buff2);   
       }          
       else {
@@ -326,17 +326,17 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
    {
       m_configuration.m_NRamBuffersPrefetch = ::atoi(config.GetWord());
    }
-   else if ( part == "filefragmentmode" )
+   else if ( part == "hdfsmode" )
    {
-      m_configuration.m_prefetchFileBlocks = true;
+      m_configuration.m_hdfsmode = true;
 
       const char* params =  config.GetWord();
       if (params) {
-         if (!strncmp("filefragmentsize", params, 9)) {
+         if (!strncmp("hdfsbsize", params, 9)) {
             long long minBlSize = 128 * 1024;
             long long maxBlSize = 1024 * 1024 * 1024;
             params = config.GetWord();
-            if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", params, &m_configuration.m_fileFragmentSize, minBlSize, maxBlSize))
+            if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", params, &m_configuration.m_hdfsbsize, minBlSize, maxBlSize))
             {
                return false;
             }
