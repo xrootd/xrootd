@@ -79,7 +79,7 @@ namespace XrdCl
       //! files located in:
       //!
       //! 1) system directory: /etc/xrootd/client.plugins.d/
-      //! 2) user direvtory:   ~/.xrootd/client.plugins.f/
+      //! 2) user direvtory:   ~/.xrootd/client.plugins.d/
       //! 3) directory pointed to by XRD_PLUGINCONFDIR envvar
       //!
       //! In that order.
@@ -87,16 +87,19 @@ namespace XrdCl
       //! The configuration files contain lines with key-value pairs in the
       //! form of 'key=value'.
       //!
-      //! Possible keys are:
+      //! Mandatory keys are:
       //! url - a semicolon separated list of URLs the plug-in applies to
       //! lib - plugin library to be loaded
+      //! enabled - determines whether the plug-in should be enabled or not
+      //!
+      //! You may use any other keys for your own purposes.
       //!
       //! The config files are processed in alphabetic order, any satteing
       //! found later superseeds the previous one. Any setting applied via
       //! environment or config files superseeds any setting done
       //! programatically.
       //!
-      //! The plug-in library must implement the following method:
+      //! The plug-in library must implement the following C function:
       //!
       //! @code{.cpp}
       //! extern "C"
@@ -108,7 +111,7 @@ namespace XrdCl
       //! }
       //! @endcode
       //!
-      //! where arf is a const pointer to std::map<std::string, std::string>
+      //! where arg is a const pointer to std::map<std::string, std::string>
       //! containing the plug-in configuration.
       //------------------------------------------------------------------------
       void ProcessEnvironmentSettings();
