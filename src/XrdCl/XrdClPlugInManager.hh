@@ -122,7 +122,12 @@ namespace XrdCl
       struct FactoryHelper
       {
         FactoryHelper(): plugin(0), factory(0), isEnv(false), counter(0) {}
-        ~FactoryHelper() { delete factory; delete plugin; }
+        ~FactoryHelper()
+        {
+          delete factory;
+          plugin->Unload();
+          delete plugin;
+        }
         XrdOucPinLoader *plugin;
         PlugInFactory   *factory;
         bool             isEnv;

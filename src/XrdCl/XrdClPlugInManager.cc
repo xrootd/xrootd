@@ -59,10 +59,7 @@ namespace XrdCl
     {
       it->second->counter--;
       if( it->second->counter == 0 )
-      {
-        it->second->plugin->Unload();
         delete it->second;
-      }
     }
 
     delete pDefaultFactory;
