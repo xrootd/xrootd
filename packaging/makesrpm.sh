@@ -197,7 +197,7 @@ fi
 # Check if we need some other versions
 #-------------------------------------------------------------------------------
 OTHER_VERSIONS=`cat $TEMPDIR/xrootd.spec | \
-    egrep '^Source[0-9]+:[[:space:]]*xrootd-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz$' |\
+    egrep '^Source[0-9]+:[[:space:]]*xrootd-.*.gz$' |\
     awk  '{ print $2; }'`
 
 for VER in $OTHER_VERSIONS; do
