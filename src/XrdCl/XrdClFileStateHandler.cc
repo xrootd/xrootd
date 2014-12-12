@@ -921,7 +921,7 @@ namespace XrdCl
     // We have failed
     //--------------------------------------------------------------------------
     pStatus = *status;
-    if( !pStatus.IsOK() )
+    if( !pStatus.IsOK() || !openInfo )
     {
       log->Debug( FileMsg, "[0x%x@%s] Error while opening at %s: %s",
                   this, pFileUrl->GetURL().c_str(), lastServer.c_str(),
