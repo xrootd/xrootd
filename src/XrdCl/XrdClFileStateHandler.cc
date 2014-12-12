@@ -305,6 +305,13 @@ namespace XrdCl
     // Check if the parameters are valid
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
+
+    if (pFileUrl)
+    {
+      delete pFileUrl;
+      pFileUrl = 0;
+    }
+
     pFileUrl = new URL( url );
     if( !pFileUrl->IsValid() )
     {
