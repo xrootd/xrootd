@@ -440,14 +440,14 @@ XrdCl::XRootDStatus GetDirList( XrdCl::FileSystem        *fs,
 //------------------------------------------------------------------------------
 // Recursively index all files and directories inside a remote directory
 //------------------------------------------------------------------------------
-XrdCpFile* IndexRemote( XrdCl::FileSystem *fs,
+XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
                         std::string        basePath,
                         uint16_t           dirOffset )
 {
   using namespace XrdCl;
 
-  XrdCpFile  *start = new XrdCpFile();
-  XrdCpFile  *end   = start;
+  XrdCpFile   start;
+  XrdCpFile  *end   = &start;
   XrdCpFile  *current;
   URL         source( basePath );
   int         badUrl;
@@ -495,7 +495,7 @@ XrdCpFile* IndexRemote( XrdCl::FileSystem *fs,
 
   delete files;
   delete directories;
-  return start->Next;
+  return start.Next;
 }
 
 //------------------------------------------------------------------------------

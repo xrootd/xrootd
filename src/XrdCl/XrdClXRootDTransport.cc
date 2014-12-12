@@ -1580,11 +1580,8 @@ namespace XrdCl
                     errmsg );
         delete [] errmsg;
 
-        if( info->authProtocol )
-        {
-          info->authProtocol->Delete();
-          info->authProtocol = 0;
-        }
+        info->authProtocol->Delete();
+        info->authProtocol = 0;
 
         //----------------------------------------------------------------------
         // Find another protocol that gives us valid credentials

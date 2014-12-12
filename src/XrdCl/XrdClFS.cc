@@ -1428,6 +1428,8 @@ XRootDStatus DoSpaceInfo( FileSystem                      *fs,
   std::cout << "Free:               " << i->GetFree()             << std::endl;
   std::cout << "Used:               " << i->GetUsed()             << std::endl;
   std::cout << "Largest free chunk: " << i->GetLargestFreeChunk() << std::endl;
+
+  delete i;
   return XRootDStatus();
 }
 

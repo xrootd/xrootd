@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClPollerBuiltIn.hh"
@@ -189,7 +195,10 @@ namespace XrdCl
 
     XrdSysMutexHelper scopedLock( pMutex );
     if( !pPoller )
+    {
       log->Debug( PollerMsg, "Stopping a poller that has not been started" );
+      return true;
+    }
 
     XrdSys::IOEvents::Poller *poller = pPoller;
     pPoller = 0;

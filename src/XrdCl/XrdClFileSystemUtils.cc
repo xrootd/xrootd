@@ -70,8 +70,8 @@ namespace XrdCl
       // Query the server
       //------------------------------------------------------------------------
       Buffer *spaceInfo = 0;
-      FileSystem fs( it->GetAddress() );
-      st = fs.Query( QueryCode::Space, pathArg, spaceInfo );
+      FileSystem fs1( it->GetAddress() );
+      st = fs1.Query( QueryCode::Space, pathArg, spaceInfo );
       if( !st.IsOK() )
         return st;
 
@@ -96,9 +96,9 @@ namespace XrdCl
       {
         URL::ParamsMap::iterator paramIt = params.find( resp[i].first );
         if( paramIt == params.end() ) return st;
-        char *result;
-        uint64_t num = ::strtoll( paramIt->second.c_str(), &result, 0 );
-        if( *result != 0 ) return st;
+        char *res;
+        uint64_t num = ::strtoll( paramIt->second.c_str(), &res, 0 );
+        if( *res != 0 ) return st;
         if( resp[i].first == "oss.maxf" )
           { if( num > resp[i].second ) resp[i].second = num; }
         else

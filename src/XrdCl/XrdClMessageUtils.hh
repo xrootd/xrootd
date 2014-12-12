@@ -91,6 +91,9 @@ namespace XrdCl
       }
 
     private:
+      SyncResponseHandler(const SyncResponseHandler &other);
+      SyncResponseHandler &operator = (const SyncResponseHandler &other);
+
       XRootDStatus    *pStatus;
       AnyObject       *pResponse;
       Semaphore       *pSem;

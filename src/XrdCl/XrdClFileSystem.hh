@@ -673,6 +673,8 @@ namespace XrdCl
       bool GetProperty( const std::string &name, std::string &value ) const;
 
     private:
+      FileSystem(const FileSystem &other);
+      FileSystem &operator = (const FileSystem &other);
 
       //------------------------------------------------------------------------
       // Send a message in a locked environment

@@ -305,7 +305,7 @@ namespace
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      ~LocalSource()
+      virtual ~LocalSource()
       {
         if( pFD != -1 )
           close( pFD );
@@ -416,6 +416,8 @@ namespace
       }
 
     private:
+      LocalSource(const LocalSource &other);
+      LocalSource &operator = (const LocalSource &other);
       std::string     pPath;
       int             pFD;
       int64_t         pSize;
@@ -438,6 +440,14 @@ namespace
       {
         if( !ckSumType.empty() )
           pCkSumHelper = new CheckSumHelper( "stdin", ckSumType );
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~StdInSource()
+      {
+        delete pCkSumHelper;
       }
 
       //------------------------------------------------------------------------
@@ -519,6 +529,9 @@ namespace
       }
 
     private:
+      StdInSource(const StdInSource &other);
+      StdInSource &operator = (const StdInSource &other);
+
       CheckSumHelper *pCkSumHelper;
       uint64_t        pCurrentOffset;
       uint32_t        pChunkSize;
@@ -680,6 +693,9 @@ namespace
       }
 
     private:
+      XRootDSource(const XRootDSource &other);
+      XRootDSource &operator = (const XRootDSource &other);
+
       //------------------------------------------------------------------------
       // Asynchronous chunk handler
       //------------------------------------------------------------------------
@@ -834,6 +850,8 @@ namespace
       }
 
     private:
+      XRootDSourceDynamic(const XRootDSourceDynamic &other);
+      XRootDSourceDynamic &operator = (const XRootDSourceDynamic &other);
       const XrdCl::URL           *pUrl;
       XrdCl::File                *pFile;
       int64_t                     pCurrentOffset;
@@ -1036,6 +1054,9 @@ namespace
       }
 
     private:
+      LocalDestination(const LocalDestination &other);
+      LocalDestination &operator = (const LocalDestination &other);
+
       std::string pPath;
       int         pFD;
   };
@@ -1051,6 +1072,13 @@ namespace
       //------------------------------------------------------------------------
       StdOutDestination( const std::string &ckSumType ):
         pCkSumHelper( "stdout", ckSumType ), pCurrentOffset(0)
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~StdOutDestination()
       {
       }
 
@@ -1130,6 +1158,8 @@ namespace
       }
 
     private:
+      StdOutDestination(const StdOutDestination &other);
+      StdOutDestination &operator = (const StdOutDestination &other);
       CheckSumHelper pCkSumHelper;
       uint64_t       pCurrentOffset;
   };
@@ -1296,6 +1326,9 @@ namespace
       }
 
     private:
+      XRootDDestination(const XRootDDestination &other);
+      XRootDDestination &operator = (const XRootDDestination &other);
+
       //------------------------------------------------------------------------
       // Asynchronous chunk handler
       //------------------------------------------------------------------------

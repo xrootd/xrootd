@@ -346,6 +346,8 @@ namespace XrdCl
     {
       log->Debug( PlugInMgrMsg, "Error while loading %s: %s", lib.c_str(),
                   errorBuff );
+      pgHandler->Unload();
+      delete pgHandler;
       return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( 0, 0 );
     }
 
