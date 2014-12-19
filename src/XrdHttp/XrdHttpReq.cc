@@ -878,12 +878,12 @@ int XrdHttpReq::ProcessHTTPReq() {
             if (l <= 0) {
 	      if (l < 0) {
 		TRACE(ALL, " Data sizes mismatch.");
+		return -1;
 	      }
 	      else {
 		TRACE(ALL, " No more bytes to send.");
+		return 1;
 	      }
-	      
-	      return -1;
 	    }
 	    
 	    
