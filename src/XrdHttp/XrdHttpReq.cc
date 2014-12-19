@@ -1584,11 +1584,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                             (char *) "123456");
 
                     TRACEI(REQ, "Sending multipart: " << rwOps[rwOpDone].bytestart << "-" << rwOps[rwOpDone].byteend);
-                    prot->SendData((char *) s.c_str(), s.size());
+                    if (prot->SendData((char *) s.c_str(), s.size())) return -1;
                   }
 
                   // Send all the data we have
-                  prot->SendData(p + sizeof (readahead_list), len);
+                  if (prot->SendData(p + sizeof (readahead_list), len)) return -1;
 
                   // If we sent all the data relative to the current original chunk request
                   // then pass to the next chunk, otherwise wait for more data
@@ -1606,12 +1606,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
               if (rwOpDone == rwOps.size()) {
                 string s = buildPartialHdrEnd((char *) "123456");
-                prot->SendData((char *) s.c_str(), s.size());
+                if (prot->SendData((char *) s.c_str(), s.size())) return -1;
               }
 
             } else
               for (int i = 0; i < iovN; i++) {
-		if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return 1;
+		if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
 		writtenbytes += iovP[i].iov_len;
               }
               
