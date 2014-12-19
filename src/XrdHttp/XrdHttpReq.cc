@@ -851,7 +851,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           if (rwOps.size() <= 1) {
             // No chunks or one chunk... Request the whole file or single read
 	    // 
-
+	    long l;
             // --------- READ
             memset(&xrdreq, 0, sizeof (xrdreq));
             xrdreq.read.requestid = htons(kXR_read);
@@ -859,11 +859,11 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.read.dlen = 0;
 	    
             if (rwOps.size() == 0) {
-	      long l = (long)min(filesize-writtenbytes, (long long)1024*1024);
+	      l = (long)min(filesize-writtenbytes, (long long)1024*1024);
               xrdreq.read.offset = htonll(writtenbytes);
               xrdreq.read.rlen = htonl(l);
             } else {
-	      long l = min(rwOps[0].byteend - rwOps[0].bytestart + 1 - writtenbytes, (long long)1024*1024);
+	      l = min(rwOps[0].byteend - rwOps[0].bytestart + 1 - writtenbytes, (long long)1024*1024);
               xrdreq.read.offset = htonll(rwOps[0].bytestart + writtenbytes);
               xrdreq.read.rlen = htonl(l);
             }
@@ -875,6 +875,19 @@ int XrdHttpReq::ProcessHTTPReq() {
               }
             }
 
+            if (l <= 0) {
+	      if (l < 0) {
+		TRACE(ALL, " Data sizes mismatch.");
+	      }
+	      else {
+		TRACE(ALL, " No more bytes to send.");
+	      }
+	      
+	      return -1;
+	    }
+	    
+	    
+	    
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0);
               return -1;
