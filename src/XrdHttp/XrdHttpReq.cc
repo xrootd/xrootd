@@ -882,6 +882,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 	      }
 	      else {
 		TRACE(ALL, " No more bytes to send.");
+		reset();
 		return 1;
 	      }
 	    }
