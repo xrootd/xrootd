@@ -19,27 +19,12 @@ extern "C"
                          const char* config_fn,
                          const char* parms)
   {
-    return new CephOss(parms);
+    ceph_posix_set_defaults(parms);
+    return new CephOss();
   }
 }
 
-const char* CephOss::getPoolFromEnv(XrdOucEnv *env) {
-  if (0 != env) {
-    char* value = env->Get("pool");
-    if (0 != value) {
-      return value;
-    }
-  }
-  return (char*)m_defaultPool.c_str();
-}
-
-CephOss::CephOss(const char* defaultPool) {
-  if (0 == defaultPool) {
-    m_defaultPool = "default";
-  } else {
-    m_defaultPool = defaultPool;
-  }
-}
+CephOss::CephOss() {}
 
 CephOss::~CephOss() {
   ceph_posix_disconnect_all();
@@ -75,7 +60,7 @@ int CephOss::Stat(const char* path,
                   struct stat* buff,
                   int opts,
                   XrdOucEnv* env) {
-  return ceph_posix_stat(getPoolFromEnv(env), path, buff);
+  return ceph_posix_stat(env, path, buff);
 }
 
 int CephOss::StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP) {
@@ -105,11 +90,11 @@ int CephOss::StatVS(XrdOssVSInfo *sP, const char *sname, int updt) {
 int CephOss::Truncate (const char* path,
                        unsigned long long size,
                        XrdOucEnv* env) {
-  return ceph_posix_truncate(getPoolFromEnv(env), path, size);
+  return ceph_posix_truncate(env, path, size);
 }
 
 int CephOss::Unlink(const char *path, int Opts, XrdOucEnv *env) {
-  return ceph_posix_unlink(getPoolFromEnv(env), path);
+  return ceph_posix_unlink(env, path);
 }
 
 XrdOssDF* CephOss::newDir(const char *tident) {

@@ -10,7 +10,7 @@
 CephOssFile::CephOssFile(CephOss *cephOss) : m_fd(-1), m_cephOss(cephOss) {}
 
 int CephOssFile::Open(const char *path, int flags, mode_t mode, XrdOucEnv &env) {
-  m_fd = ceph_posix_open(m_cephOss->getPoolFromEnv(&env), path, flags, mode);
+  m_fd = ceph_posix_open(&env, path, flags, mode);
   return XrdOssOK;
 }
 

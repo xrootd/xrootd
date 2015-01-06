@@ -5,10 +5,7 @@
 CephOssDir::CephOssDir(CephOss *cephOss) : m_dirp(0), m_cephOss(cephOss) {}
 
 int CephOssDir::Opendir(const char *path, XrdOucEnv &env) {
-  if (strlen(path) != 1 || path[0] != '/') {
-    return -ENOENT;
-  }
-  m_dirp = ceph_posix_opendir(m_cephOss->getPoolFromEnv(&env));
+  m_dirp = ceph_posix_opendir(&env, path);
   if (0 == m_dirp) {
     return -errno;
   }

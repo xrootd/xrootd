@@ -7,12 +7,15 @@ include( XRootDCommon )
 set( XRD_CEPH_VERSION   1.0.0 )
 set( XRD_CEPH_SOVERSION 1 )
 
-#-------------------------------------------------------------------------------
-# The XrdClient lib
-#-------------------------------------------------------------------------------
+set( XRD_CEPH_XATTR_VERSION   1.0.0 )
+set( XRD_CEPH_XATTR_SOVERSION 1 )
+
 find_package(ceph REQUIRED)
 include_directories( ${RADOS_INCLUDE_DIR} )
 
+#-------------------------------------------------------------------------------
+# The XrdCeph lib
+#-------------------------------------------------------------------------------
 add_library(
   XrdCeph
   SHARED
@@ -35,8 +38,30 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# The XrdCephXattr lib
+#-------------------------------------------------------------------------------
+add_library(
+  XrdCephXattr
+  SHARED
+  XrdCeph/CephXAttr.cc XrdCeph/CephXAttr.hh )
+
+target_link_libraries(
+  XrdCeph
+  XrdCephXattr
+  XrdUtils
+  ${RADOS_LIBS} )
+
+set_target_properties(
+  XrdCephXattr
+  PROPERTIES
+  VERSION   ${XRD_CEPH_XATTR_VERSION}
+  SOVERSION ${XRD_CEPH_XATTR_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdCeph
+  TARGETS XrdCeph XrdCephXattr
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
