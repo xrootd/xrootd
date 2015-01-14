@@ -29,6 +29,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOss/XrdOssCache.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOuca2x.hh"
@@ -244,7 +245,11 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
    if (retval)
    {
-      if (ofsCfg->Load(XrdOfsConfigPI::theOssLib)) ofsCfg->Plugin(m_output_fs);
+      if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))  {
+          ofsCfg->Plugin(m_output_fs);
+          XrdOssCache_FS* ocfs = XrdOssCache::Find("public");
+          ocfs->Add(m_configuration.m_cache_dir.c_str());
+      }
       else
       {
          clLog()->Error(XrdCl::AppMsg, "Factory::Config() Unable to create an OSS object");
@@ -423,24 +428,25 @@ void Factory::CacheDirCleanup()
 
    XrdOss* oss =  Factory::GetInstance().GetOss();
    XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
+   XrdOssVSInfo sP;
+
    while (1)
    {
       // get amount of space to erase
       long long bytesToRemove = 0;
-      struct statvfs fsstat;
-      if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 )
+      if( oss->StatVS(&sP, "public", 1) < 0 )
       {
-         clLog()->Error(XrdCl::AppMsg, "Factory::CacheDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
+         clLog()->Error(XrdCl::AppMsg, "Factory::CacheDirCleanup() can't get statvs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
          exit(1);
       }
       else
       {
-         float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
+         float oc = 1 - float(sP.Free)/(sP.Total);
          clLog()->Debug(XrdCl::AppMsg, "Factory::CacheDirCleanup() occupates disk space == %f", oc);
          if (oc > m_configuration.m_hwm)
          {
             long long bytesToRemoveLong = static_cast<long long> ((oc - m_configuration.m_lwm) * static_cast<float>(s_diskSpacePrecisionFactor));
-            bytesToRemove = (fsstat.f_bsize * fsstat.f_blocks * bytesToRemoveLong) / s_diskSpacePrecisionFactor;
+            bytesToRemove = (sP.Total * bytesToRemoveLong) / s_diskSpacePrecisionFactor;
             clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() need space for  %lld bytes", bytesToRemove);
          }
       }
@@ -494,17 +500,17 @@ bool Factory::CheckFileForDiskSpace(const char* path, long long fsize)
         inQueue += i->second;
 
 
-    long long availableSpace = 0;;
-    struct statvfs fsstat;
+    XrdOssVSInfo sP;
+    long long availableSpace = 0;
 
-    if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 ) {
+    if(m_output_fs->StatVS(&sP, "public", 1) < 0 ) {
         clLog()->Error(XrdCl::AppMsg, "Factory:::CheckFileForDiskSpace can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
         exit(1);
     }
-    float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
+    float oc = 1 - float(sP.Free)/sP.Total;
     long long availableSpaceLong =  static_cast<long long>((m_configuration.m_hwm -oc)* static_cast<float>(s_diskSpacePrecisionFactor));
     if (oc < m_configuration.m_hwm) {
-        availableSpace = (fsstat.f_bsize * fsstat.f_blocks * availableSpaceLong) / s_diskSpacePrecisionFactor;
+        availableSpace = (sP.Free * availableSpaceLong) / s_diskSpacePrecisionFactor;
 
         if (availableSpace > fsize) {
             m_filesInQueue[path] = fsize;
