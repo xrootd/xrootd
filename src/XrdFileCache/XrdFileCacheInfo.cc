@@ -158,7 +158,7 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
    {
       AStat stat;
       long long off = GetHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
-      int res = fp->Read(&stat, off, sizeof(AStat));
+      res = fp->Read(&stat, off, sizeof(AStat));
       if (res == sizeof(AStat))
       {
          t = stat.DetachTime;

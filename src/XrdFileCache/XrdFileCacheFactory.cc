@@ -366,16 +366,16 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
 //______________________________________________________________________________
 
 
-void FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::string, time_t>& fcmap)
+void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, std::map<std::string, time_t>& fcmap)
 {
    char buff[256];
    XrdOucEnv env;
    int rdr;
-   const size_t InfoExtLen = sizeof(XrdFileCache::Info::m_infoExtension);  // cached var
+   const size_t InfoExtLen = strlen(XrdFileCache::Info::m_infoExtension);  // cached var
    XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
 
    Factory& factory = Factory::GetInstance();
-   while ( (rdr = df->Readdir(&buff[0], 256)) >= 0)
+   while ( (rdr = iOssDF->Readdir(&buff[0], 256)) >= 0)
    {
       // printf("readdir [%s]\n", buff);
       std::string np = path + "/" + std::string(buff);
@@ -413,7 +413,7 @@ void FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::st
          }
 
          delete dh; dh = 0;
-         delete df; df = 0;
+         delete fh; fh = 0;
       }
    }
 }
