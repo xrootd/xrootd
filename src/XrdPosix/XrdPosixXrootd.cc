@@ -984,8 +984,14 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 // Issue the truncate
 //
-   return XrdPosixMap::Result(admin.Xrd.Truncate(admin.Url.GetPathWithParams(),
-                                                 tSize));
+  std::string urlp = admin.Url.GetPathWithParams();
+  int res = XrdPosixMap::Result(admin.Xrd.Truncate(urlp,tSize));
+
+  if (!res && myCache) {
+     myCache->Truncate(urlp.c_str(), tSize);
+  }
+
+  return res;
 }
 
 /******************************************************************************/
