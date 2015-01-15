@@ -851,7 +851,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           if (rwOps.size() <= 1) {
             // No chunks or one chunk... Request the whole file or single read
 	    // 
-
+	    long l;
             // --------- READ
             memset(&xrdreq, 0, sizeof (xrdreq));
             xrdreq.read.requestid = htons(kXR_read);
@@ -859,11 +859,11 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.read.dlen = 0;
 	    
             if (rwOps.size() == 0) {
-	      long l = (long)min(filesize-writtenbytes, (long long)1024*1024);
+	      l = (long)min(filesize-writtenbytes, (long long)1024*1024);
               xrdreq.read.offset = htonll(writtenbytes);
               xrdreq.read.rlen = htonl(l);
             } else {
-	      long l = min(rwOps[0].byteend - rwOps[0].bytestart + 1 - writtenbytes, (long long)1024*1024);
+	      l = min(rwOps[0].byteend - rwOps[0].bytestart + 1 - writtenbytes, (long long)1024*1024);
               xrdreq.read.offset = htonll(rwOps[0].bytestart + writtenbytes);
               xrdreq.read.rlen = htonl(l);
             }
@@ -875,6 +875,20 @@ int XrdHttpReq::ProcessHTTPReq() {
               }
             }
 
+            if (l <= 0) {
+	      if (l < 0) {
+		TRACE(ALL, " Data sizes mismatch.");
+		return -1;
+	      }
+	      else {
+		TRACE(ALL, " No more bytes to send.");
+		reset();
+		return 1;
+	      }
+	    }
+	    
+	    
+	    
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0);
               return -1;
@@ -1584,11 +1598,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                             (char *) "123456");
 
                     TRACEI(REQ, "Sending multipart: " << rwOps[rwOpDone].bytestart << "-" << rwOps[rwOpDone].byteend);
-                    prot->SendData((char *) s.c_str(), s.size());
+                    if (prot->SendData((char *) s.c_str(), s.size())) return -1;
                   }
 
                   // Send all the data we have
-                  prot->SendData(p + sizeof (readahead_list), len);
+                  if (prot->SendData(p + sizeof (readahead_list), len)) return -1;
 
                   // If we sent all the data relative to the current original chunk request
                   // then pass to the next chunk, otherwise wait for more data
@@ -1606,12 +1620,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
               if (rwOpDone == rwOps.size()) {
                 string s = buildPartialHdrEnd((char *) "123456");
-                prot->SendData((char *) s.c_str(), s.size());
+                if (prot->SendData((char *) s.c_str(), s.size())) return -1;
               }
 
             } else
               for (int i = 0; i < iovN; i++) {
-		if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return 1;
+		if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
 		writtenbytes += iovP[i].iov_len;
               }
               
