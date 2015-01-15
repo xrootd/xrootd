@@ -745,8 +745,13 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 
 // Issue the rename
 //
-   return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
-                                           newUrl.GetPathWithParams()));
+  std::string urlp    = admin.Url.GetPathWithParams();
+  std::string nurlp   = newUrl.GetPathWithParams();
+  int res = XrdPosixMap::Result(admin.Xrd.Mv(urlp, nurlp));
+  if (!res && myCache)
+     myCache->Rename(urlp.c_str(), nurlp.c_str());
+
+  return res;
 }
 
 /******************************************************************************/
@@ -780,7 +785,12 @@ int XrdPosixXrootd::Rmdir(const char *path)
 
 // Issue the rmdir
 //
-   return XrdPosixMap::Result(admin.Xrd.RmDir(admin.Url.GetPathWithParams()));
+   std::string urlp = admin.Url.GetPathWithParams();
+   int res = XrdPosixMap::Result(admin.Xrd.RmDir(urlp));
+   if (!res && myCache)
+      myCache->Rmdir(urlp.c_str());
+
+   return res;
 }
 
 /******************************************************************************/
@@ -974,8 +984,14 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 // Issue the truncate
 //
-   return XrdPosixMap::Result(admin.Xrd.Truncate(admin.Url.GetPathWithParams(),
-                                                 tSize));
+  std::string urlp = admin.Url.GetPathWithParams();
+  int res = XrdPosixMap::Result(admin.Xrd.Truncate(urlp,tSize));
+
+  if (!res && myCache) {
+     myCache->Truncate(urlp.c_str(), tSize);
+  }
+
+  return res;
 }
 
 /******************************************************************************/
@@ -992,7 +1008,12 @@ int XrdPosixXrootd::Unlink(const char *path)
 
 // Issue the UnLink
 //
-   return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
+  std::string urlp = admin.Url.GetPathWithParams();
+  int res = XrdPosixMap::Result(admin.Xrd.Rm(urlp));
+  if (!res && myCache)
+     myCache->Unlink(urlp.c_str());
+
+  return res;
 }
 
 /******************************************************************************/
