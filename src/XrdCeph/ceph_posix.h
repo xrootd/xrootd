@@ -39,6 +39,7 @@ int ceph_posix_flistxattrs(int fd, XrdSysXAttr::AList **aPL, int getSz);
 void ceph_posix_freexattrlist(XrdSysXAttr::AList *aPL);
 int ceph_posix_statfs(long long *totalSpace, long long *freeSpace);
 int ceph_posix_truncate(XrdOucEnv* env, const char *pathname, unsigned long long size);
+int ceph_posix_ftruncate(int fd, unsigned long long size);
 int ceph_posix_unlink(XrdOucEnv* env, const char *pathname);
 DIR* ceph_posix_opendir(XrdOucEnv* env, const char *pathname);
 int ceph_posix_readdir(DIR* dirp, char *buff, int blen);

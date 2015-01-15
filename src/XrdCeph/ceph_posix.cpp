@@ -632,15 +632,30 @@ int ceph_posix_statfs(long long *totalSpace, long long *freeSpace) {
   return rc;
 }
 
-int ceph_posix_truncate(XrdOucEnv* env, const char *pathname, unsigned long long size) {
-  logwrapper((char*)"ceph_posix_truncate : %s\n", pathname);
-  // minimal stat : only size and times are filled
-  CephFile file = getCephFile(pathname, env);  
+static int ceph_posix_internal_truncate(const CephFile &file, unsigned long long size) {
   libradosstriper::RadosStriper *striper = getRadosStriper(file);
   if (0 == striper) {
     return -EINVAL;
   }
   return striper->trunc(file.name, size);
+}
+
+int ceph_posix_ftruncate(int fd, unsigned long long size) {
+  std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
+  if (it != g_fds.end()) {
+    CephFileRef &fr = it->second;
+    logwrapper((char*)"ceph_posix_ftruncate: fd %d, size %d\n", fd, size);
+    return ceph_posix_internal_truncate(fr, size);
+  } else {
+    return -EBADF;
+  }
+}
+
+int ceph_posix_truncate(XrdOucEnv* env, const char *pathname, unsigned long long size) {
+  logwrapper((char*)"ceph_posix_truncate : %s\n", pathname);
+  // minimal stat : only size and times are filled
+  CephFile file = getCephFile(pathname, env);
+  return ceph_posix_internal_truncate(file, size);
 }
 
 int ceph_posix_unlink(XrdOucEnv* env, const char *pathname) {

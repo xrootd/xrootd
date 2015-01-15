@@ -40,7 +40,8 @@ public:
   virtual int Fstat(struct stat *buff);
   virtual ssize_t Write(const void *buff, off_t offset, size_t blen);
   virtual int Fsync(void);
-
+  virtual int Ftruncate(unsigned long long);
+  
 private:
 
   int m_fd;

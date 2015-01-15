@@ -53,3 +53,7 @@ ssize_t CephOssFile::Write(const void *buff, off_t offset, size_t blen) {
 int CephOssFile::Fsync() {
   return ceph_posix_fsync(m_fd);
 }
+
+int CephOssFile::Ftruncate(unsigned long long len) {
+  return ceph_posix_ftruncate(m_fd, len);
+}
