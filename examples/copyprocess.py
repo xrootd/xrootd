@@ -35,10 +35,10 @@ class MyCopyProgressHandler(client.utils.CopyProgressHandler):
     print 'target: %s' % target
 
   def end(self, jobId, result):
-    print 'end status:', str(result['status']['message'])
+    print 'end status:', jobId, result
 
   def update(self, jobId, processed, total):
-    print 'processed: %d, total: %d' % (processed, total)
+    print 'jobId: %d, processed: %d, total: %d' % (jobId, processed, total)
 
   def should_cancel( jobId ):
     return False

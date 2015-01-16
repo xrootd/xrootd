@@ -17,6 +17,11 @@ with client.File() as f:
 
   status, data = f.read() # Reads the whole file
   print '%r' % data
+  print f.get_property('DataServer')
+  print f.get_property('LastURL')
+  print f.get_property('ReadRecovery')
+  f.set_property('ReadRecovery', 'false')
+  print f.get_property('ReadRecovery')
 
   status, data = f.read(offset=6, size=4) # Reads "eggs"
   print '%r' % data

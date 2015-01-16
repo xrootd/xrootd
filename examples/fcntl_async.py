@@ -7,6 +7,6 @@ def callback( status, response, hostlist ):
   print "Called:", status, response, hostlist
 
 with client.File() as f:
-  status, response = f.open('root://localhost:1099//tmp/eggs', OpenFlags.DELETE)
+  status, response = f.open('root://localhost//tmp/eggs', OpenFlags.DELETE)
   status = f.fcntl( 'asdf', callback = callback )
   sleep(20)

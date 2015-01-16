@@ -9,4 +9,4 @@ from XRootD import client
 
 myclient = client.FileSystem('root://localhost')
 status = myclient.copy('/tmp/spam', '/tmp/eggs', force=True)
-assert status.ok
+assert status[0].ok

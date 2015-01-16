@@ -13,7 +13,7 @@ from XRootD import client
 from XRootD.client.flags import OpenFlags
 
 with client.File() as f:
-  status, response = f.open('root://localhost//tmp/eggs', OpenFlags.UPDATE)
+  print f.open('root://localhost//tmp/eggs', OpenFlags.UPDATE)
 
   f.write(r'The XROOTD project aims at giving high performance, scalable '
           +' fault tolerant access to data repositories of many kinds')
@@ -22,6 +22,7 @@ with client.File() as f:
   v = [(0, 40), (40, 40), (80, size - 80)]
 
   status, response = f.vector_read(chunks=v)
+  print status
 
   for chunk in response.chunks:
     print chunk
