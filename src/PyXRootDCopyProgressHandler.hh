@@ -27,6 +27,7 @@
 
 #include "PyXRootD.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClPropertyList.hh"
 #include "XrdCl/XrdClURL.hh"
 
 namespace PyXRootD
@@ -66,7 +67,7 @@ namespace PyXRootD
       //------------------------------------------------------------------------
       //! Determine whether the job should be canceled
       //------------------------------------------------------------------------
-      virtual bool ShouldCancel( uint16_t jobNum );
+      virtual bool ShouldCancel(uint16_t jobNum);
 
     public:
       PyObject *handler;

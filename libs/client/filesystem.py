@@ -64,8 +64,8 @@ class FileSystem(object):
     :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                    object and None
     """
-    return XRootDStatus(self.__fs.copy(source=source, target=target,
-                                       force=force)), None
+    result = self.__fs.copy(source=source, target=target, force=force)[0]
+    return XRootDStatus(result), None
 
   def locate(self, path, flags, timeout=0, callback=None):
     """Locate a file.

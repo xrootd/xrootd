@@ -29,6 +29,7 @@
 
 #include "XrdCl/XrdClCopyProcess.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include <deque>
 
 namespace PyXRootD
 {
@@ -43,9 +44,8 @@ namespace PyXRootD
       static PyObject* Run(CopyProcess *self, PyObject *args, PyObject *kwds);
     public:
       PyObject_HEAD
-      XrdCl::CopyProcess *process;
-      std::vector<XrdCl::PropertyList*> results;
-      std::vector<PyObject*>            pythonResults;
+      XrdCl::CopyProcess              *process;
+      std::deque<XrdCl::PropertyList> *results;
   };
 
   PyDoc_STRVAR(copyprocess_type_doc, "CopyProcess object (internal)");
@@ -56,6 +56,7 @@ namespace PyXRootD
   static int CopyProcess_init( CopyProcess *self, PyObject *args )
   {
     self->process = new XrdCl::CopyProcess();
+    self->results = new std::deque<XrdCl::PropertyList>();
     return 0;
   }
 
@@ -65,9 +66,7 @@ namespace PyXRootD
   static void CopyProcess_dealloc( CopyProcess *self )
   {
     delete self->process;
-//    std::vector<XrdCl::PropertyList*>::iterator it;
-//    for( it = self->results.begin(); it != self->results.end(); ++it )
-//      delete *it;
+    delete self->results;
     self->ob_type->tp_free( (PyObject*) self );
   }
 

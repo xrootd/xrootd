@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
 // Copyright (c) 2012-2014 by European Organization for Nuclear Research (CERN)
 // Author: Justin Salmon <jsalmon@cern.ch>
+// Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
 // This file is part of the XRootD software suite.
 //
@@ -28,6 +29,8 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 
 #include "Conversions.hh"
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClConstants.hh>
 
 namespace PyXRootD
 {
@@ -43,74 +46,71 @@ namespace PyXRootD
 
     static const char *kwlist[]
       = { "source", "target", "sourcelimit", "force", "posc", "coerce",
-          "makedir", "thirdparty", "checksummode", "checksumtype",
-          "checksumpreset", "chunksize", "parallelchunks", "inittimeout",
-          "tpctimeout", "dynamicsource", 0 };
+          "mkdir", "thirdparty", "checksummode", "checksumtype",
+          "checksumpreset", "dynamicsource", "chunksize", "parallelchunks", "inittimeout",
+          "tpctimeout", NULL };
 
     const char  *source;
     const char  *target;
-    uint16_t sourceLimit   = 1;
-    bool force             = false;
-    bool posc              = false;
-    bool coerce            = false;
-    bool makeDir           = false;
-    const char *thirdParty       = "none";
-    const char *checkSumMode     = "none";
-    const char *checkSumType     = 0;
-    const char *checkSumPreset   = 0;
+    uint16_t     sourceLimit       = 1;
+    bool         force             = false;
+    bool         posc              = false;
+    bool         coerce            = false;
+    bool         mkdir             = false;
+    const char  *thirdParty        = "none";
+    const char  *checkSumMode      = "none";
+    const char  *checkSumType      = "";
+    const char  *checkSumPreset    = "";
+    bool         dynamicSource     = false;
 
-    int tmp = XrdCl::DefaultCPChunkSize;
-    env->GetInt( "CPChunkSize", tmp );
-    uint32_t chunkSize     = tmp;
-    tmp = XrdCl::DefaultCPParallelChunks;
-    env->GetInt( "CPParallelChunks", tmp );
-    uint8_t parallelChunks = tmp;
-    tmp = XrdCl::DefaultCPInitTimeout;
-    env->GetInt( "CPInitTimeout", tmp );
-    uint16_t initTimeout   = tmp;
-    tmp = XrdCl::DefaultCPTPCTimeout;
-    env->GetInt( "CPTPCTimeout", tmp );
-    uint16_t tpcTimeout    = tmp;
 
-    bool     dynSrc = false;
+    int val = XrdCl::DefaultCPChunkSize;
+    env->GetInt( "CPChunkSize", val );
+    uint32_t chunkSize = val;
 
-    if( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssIBHHb:add_job",
+    val = XrdCl::DefaultCPParallelChunks;
+    env->GetInt( "CPParallelChunks", val );
+    uint16_t parallelChunks = val;
+
+    val = XrdCl::DefaultCPInitTimeout;
+    env->GetInt( "CPInitTimeout", val );
+    uint16_t initTimeout = val;
+
+    val = XrdCl::DefaultCPTPCTimeout;
+    env->GetInt( "CPTPCTimeout", val );
+    uint16_t tpcTimeout = val;
+
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHH:add_job",
          (char**) kwlist, &source, &target, &sourceLimit, &force, &posc,
-         &coerce, &makeDir, &thirdParty, &checkSumMode, &checkSumType,
-         &checkSumPreset, &chunkSize, &parallelChunks, &initTimeout,
-         &tpcTimeout, &dynSrc ) )
+         &coerce, &mkdir, &thirdParty, &checkSumMode, &checkSumType,
+         &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks,
+         &initTimeout, &tpcTimeout) )
       return NULL;
 
-    //--------------------------------------------------------------------------
-    // Add the job
-    //--------------------------------------------------------------------------
-    XrdCl::PropertyList  properties;
-    XrdCl::PropertyList *results = new XrdCl::PropertyList;
+    XrdCl::PropertyList properties;
+    self->results->push_back(XrdCl::PropertyList());
+
     properties.Set( "source",         source         );
     properties.Set( "target",         target         );
     properties.Set( "force",          force          );
     properties.Set( "posc",           posc           );
     properties.Set( "coerce",         coerce         );
-    properties.Set( "makeDir",        makeDir        );
-    properties.Set( "dynamicSource",  dynSrc         );
+    properties.Set( "makeDir",        mkdir          );
+    properties.Set( "dynamicSource",  dynamicSource  );
     properties.Set( "thirdParty",     thirdParty     );
     properties.Set( "checkSumMode",   checkSumMode   );
     properties.Set( "checkSumType",   checkSumType   );
     properties.Set( "checkSumPreset", checkSumPreset );
     properties.Set( "chunkSize",      chunkSize      );
-    properties.Set( "parallelChunks", (int)parallelChunks );
+    properties.Set( "parallelChunks", parallelChunks );
+    properties.Set( "initTimeout",    initTimeout    );
+    properties.Set( "tpcTimeout",     tpcTimeout     );
 
-    //--------------------------------------------------------------------------
-    // Add results
-    //--------------------------------------------------------------------------
-    XrdCl::XRootDStatus status = self->process->AddJob( properties, results );
+    XrdCl::XRootDStatus status = self->process->AddJob(properties,
+                                                       &self->results->back());
 
-    if( !status.IsOK() )
-      delete results;
-
-    self->results.push_back( results );
-
-    return ConvertType<XrdCl::XRootDStatus>( &status );
+    return ConvertType( &status );
   }
 
   //----------------------------------------------------------------------------
@@ -119,7 +119,7 @@ namespace PyXRootD
   PyObject* CopyProcess::Prepare( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
     XrdCl::XRootDStatus status = self->process->Prepare();
-    return ConvertType<XrdCl::XRootDStatus>( &status );
+    return ConvertType( &status );
   }
 
   //----------------------------------------------------------------------------
@@ -145,6 +145,10 @@ namespace PyXRootD
     status = self->process->Run( handler );
     Py_END_ALLOW_THREADS
 
-    return ConvertType<XrdCl::XRootDStatus>( &status );
+    PyObject *tuple = PyTuple_New(2);
+    PyTuple_SetItem(tuple, 0, ConvertType(&status));
+    PyTuple_SetItem(tuple, 1, ConvertType(self->results));
+
+    return tuple;
   }
 }

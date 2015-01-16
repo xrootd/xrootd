@@ -28,8 +28,10 @@
 
 #include "PyXRootDURL.hh"
 #include "Utils.hh"
+#include <deque>
 
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClPropertyList.hh"
 
 namespace PyXRootD
 {
@@ -39,13 +41,42 @@ namespace PyXRootD
   template<typename T> struct PyDict;
 
   template<typename T>
-  PyObject* ConvertType( T *response )
+  inline PyObject* ConvertType( T *response )
   {
     if ( response != NULL ) {
       return PyDict<T>::Convert( response );
     } else {
       Py_RETURN_NONE;
     }
+  }
+
+  template<>
+  inline PyObject* ConvertType<const std::deque<XrdCl::PropertyList> >(const std::deque<XrdCl::PropertyList> *list )
+  {
+    if(list == NULL)
+      Py_RETURN_NONE;
+
+    PyObject *pylist = NULL;
+
+    if(list)
+    {
+      pylist = PyList_New(list->size());
+      std::deque<XrdCl::PropertyList>::const_iterator it = list->begin();
+      for(unsigned int i = 0; i < list->size(); ++i)
+      {
+        const XrdCl::PropertyList &result = *it++;
+        PyObject *pyresult = ConvertType(&result);
+        PyList_SetItem(pylist, i, pyresult);
+      }
+    }
+
+    return pylist;
+  }
+
+  template<>
+  inline PyObject* ConvertType<std::deque<XrdCl::PropertyList> >(std::deque<XrdCl::PropertyList> *list )
+  {
+    return ConvertType((const std::deque<XrdCl::PropertyList>*) list);
   }
 
   template<> struct PyDict<XrdCl::AnyObject>
@@ -60,15 +91,23 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::XRootDStatus *status )
       {
-        return Py_BuildValue( "{sHsHsIsssisOsOsO}",
+        PyObject *error = PyBool_FromLong(status->IsError());
+        PyObject *fatal = PyBool_FromLong(status->IsFatal());
+        PyObject *ok    = PyBool_FromLong(status->IsOK());
+        PyObject *obj   =
+          Py_BuildValue( "{sHsHsIsssisOsOsO}",
             "status",    status->status,
             "code",      status->code,
             "errno",     status->errNo,
             "message",   status->ToStr().c_str(),
             "shellcode", status->GetShellCode(),
-            "error",     PyBool_FromLong( status->IsError() ),
-            "fatal",     PyBool_FromLong( status->IsFatal() ),
-            "ok",        PyBool_FromLong( status->IsOK() ) );
+            "error",     error,
+            "fatal",     fatal,
+            "ok",        ok);
+        Py_DECREF(error);
+        Py_DECREF(fatal);
+        Py_DECREF(ok);
+        return obj;
       }
   };
 
@@ -148,9 +187,10 @@ namespace PyXRootD
         if ( PyType_Ready( &URLType ) < 0 ) return NULL;
         Py_INCREF( &URLType );
 
-        PyObject *pyhostlist = PyList_New( list->size() );
+        PyObject *pyhostlist = NULL;
 
         if ( list ) {
+          pyhostlist = PyList_New( list->size() );
           for ( unsigned int i = 0; i < list->size(); ++i ) {
             XrdCl::HostInfo *info = &list->at( i );
 
@@ -243,6 +283,113 @@ namespace PyXRootD
         return o;
       }
   };
+
+  template<> struct PyDict<const XrdCl::PropertyList>
+  {
+      static PyObject* Convert(const XrdCl::PropertyList *result)
+      {
+          PyObject   *pyresult = PyDict_New();
+          PyObject   *kO       = 0;
+          PyObject   *vO       = 0;
+          const char *key      = "sourceCheckSum";
+
+          if(result->HasProperty(key))
+          {
+            std::string s;
+            result->Get(key, s);
+            kO = Py_BuildValue("s", key);
+            vO = Py_BuildValue("s", s.c_str());
+            PyDict_SetItem(pyresult, kO, vO);
+            Py_DECREF(kO);
+            Py_DECREF(vO);
+          }
+
+          key = "targetCheckSum";
+          if(result->HasProperty(key))
+          {
+            std::string s;
+            result->Get(key, s);
+            kO = Py_BuildValue("s", key);
+            vO = Py_BuildValue("s", s.c_str());
+            PyDict_SetItem(pyresult, kO, vO);
+            Py_DECREF(kO);
+            Py_DECREF(vO);
+          }
+
+          key = "size";
+          if(result->HasProperty(key))
+          {
+            uint64_t s;
+            result->Get(key, s);
+            kO = Py_BuildValue("s", key);
+            vO = Py_BuildValue("K", s);
+            PyDict_SetItem(pyresult, kO, vO);
+            Py_DECREF(kO);
+            Py_DECREF(vO);
+
+          }
+
+          key = "status";
+          if(result->HasProperty(key))
+          {
+            XrdCl::XRootDStatus s;
+            result->Get(key, s);
+            kO = Py_BuildValue("s", key);
+            vO = ConvertType(&s);
+            PyDict_SetItem(pyresult, kO, vO);
+            Py_DECREF(kO);
+            Py_DECREF(vO);
+
+          }
+
+          key = "sources";
+          if(result->HasProperty(key))
+          {
+            std::vector<std::string> s;
+            result->Get(key, s);
+            kO = Py_BuildValue("s", key);
+            vO = ConvertType(&s);
+            PyDict_SetItem(pyresult, kO, vO);
+            Py_DECREF(kO);
+            Py_DECREF(vO);
+
+          }
+
+          key = "realTarget";
+          if(result->HasProperty(key))
+          {
+            std::string s;
+            result->Get(key, s);
+            kO = Py_BuildValue("s", key);
+            vO = Py_BuildValue("s", s.c_str());
+            PyDict_SetItem(pyresult, kO, vO);
+            Py_DECREF(kO);
+            Py_DECREF(vO);
+          }
+
+          return pyresult;
+      }
+  };
+
+  template<> struct PyDict<std::vector<std::string> >
+  {
+      static PyObject* Convert( std::vector<std::string> *list )
+      {
+        PyObject *pylist = NULL;
+
+        if(list)
+        {
+          pylist = PyList_New(list->size());
+          for(unsigned int i = 0; i < list->size(); ++i)
+          {
+            std::string &str = list->at(i);
+            PyList_SetItem(pylist, i, Py_BuildValue("s", str.c_str()));
+          }
+        }
+        return pylist;
+      }
+  };
+
 }
 
 #endif /* CONVERSIONS_HH_ */

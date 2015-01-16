@@ -73,7 +73,7 @@ class CopyProgressHandler(object):
     """
     pass
 
-  def end(self, jobId, status):
+  def end(self, jobId, results):
     """Notify when the previous job has finished
 
     :param  jobId: the job number of the copy job concerned
@@ -95,17 +95,6 @@ class CopyProgressHandler(object):
     """
     pass
 
-  def update(self, jobId, processed, total):
-    """Notify about the progress of the current job
-
-    :param     jobId: the job number of the copy job concerned
-    :type      jobId: integer
-    :param processed: bytes processed by the current job
-    :type  processed: integer
-    :param     total: total number of bytes to be processed by the current job
-    :type      total: integer
-    """
-    pass
 
   def should_cancel( self, jobId ):
     """Check whether the current job should be canceled.
@@ -113,4 +102,4 @@ class CopyProgressHandler(object):
     :param  jobId: the job number of the copy job concerned
     :type   jobId: integer
     """
-    return False;
+    return False

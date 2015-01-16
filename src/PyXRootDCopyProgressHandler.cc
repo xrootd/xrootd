@@ -30,76 +30,19 @@
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------
-  // Fill the result dictionary
-  //----------------------------------------------------------------------------
-  PyObject *ConvertResult( const XrdCl::PropertyList *res )
-  {
-    PyObject *dict = PyDict_New();
-    PyDict_SetItemString( dict, "sourcechecksum", Py_None );
-    PyDict_SetItemString( dict, "targetchecksum", Py_None );
-    PyDict_SetItemString( dict, "size",           Py_None );
-    PyDict_SetItemString( dict, "status",         Py_None );
-    PyDict_SetItemString( dict, "sources",        Py_None );
-    PyDict_SetItemString( dict, "realtarget",     Py_None );
-
-    if( res->HasProperty( "sourceCheckSum" ) )
-    {
-      std::string value; res->Get( "sourceCheckSum", value );
-      PyDict_SetItemString( dict, "sourcechecksum",
-                            Py_BuildValue( "s", value.c_str() ) );
-    }
-
-    if( res->HasProperty( "targetCheckSum" ) )
-    {
-      std::string value; res->Get( "targetCheckSum", value );
-      PyDict_SetItemString( dict, "targetchecksum",
-                            Py_BuildValue( "s", value.c_str() ) );
-    }
-
-    if( res->HasProperty( "size" ) )
-    {
-      // we need to pass size as string, sigh
-      std::string value; res->Get( "size", value );
-      PyDict_SetItemString( dict, "size",
-                            Py_BuildValue( "s", value.c_str() ) );
-    }
-
-    if( res->HasProperty( "status" ) )
-    {
-      XrdCl::XRootDStatus value; res->Get( "status", value );
-      PyDict_SetItemString( dict, "status",
-                            ConvertType<XrdCl::XRootDStatus>( &value ) );
-    }
-
-    if( res->HasProperty( "realTarget" ) )
-    {
-      std::string value; res->Get( "realTarget", value );
-      PyDict_SetItemString( dict, "realtarget",
-                            Py_BuildValue( "s", value.c_str() ) );
-    }
-    return dict;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Notify when a new job is about to start
+  // Notify when a new job is about to start
   //----------------------------------------------------------------------------
   void CopyProgressHandler::BeginJob( uint16_t          jobNum,
                                       uint16_t          jobTotal,
                                       const XrdCl::URL *source,
                                       const XrdCl::URL *target )
   {
-    //--------------------------------------------------------------------------
-    //! Acquire the GIL in case we are called from a non-Python thread
-    //--------------------------------------------------------------------------
     PyGILState_STATE state = PyGILState_Ensure();
 
     URLType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &URLType ) < 0 ) return;
     Py_INCREF( &URLType );
 
-    //--------------------------------------------------------------------------
-    //! Build the Python URLs
-    //--------------------------------------------------------------------------
     PyObject *pysource = PyObject_CallObject( (PyObject*) &URLType,
               Py_BuildValue( "(s)", source->GetURL().c_str() ) );
     if( PyErr_Occurred() ) PyErr_Print();
@@ -108,77 +51,74 @@ namespace PyXRootD
               Py_BuildValue( "(s)", target->GetURL().c_str() ) );
     if( PyErr_Occurred() ) PyErr_Print();
 
-    //--------------------------------------------------------------------------
-    //! Invoke the method
-    //--------------------------------------------------------------------------
+    PyObject *ret = 0;
     if (handler != NULL)
     {
-      PyObject_CallMethod( handler, const_cast<char*>( "begin" ),
-                           (char *) "(HHOO)", jobNum, jobTotal,
-                           pysource, pytarget );
+      ret = PyObject_CallMethod( handler, (char*)"begin", (char*)"(HHOO)",
+                                 jobNum, jobTotal, pysource, pytarget );
+      Py_XDECREF(ret);
     }
 
-    //--------------------------------------------------------------------------
-    //! Release the GIL
-    //--------------------------------------------------------------------------
     PyGILState_Release(state);
   }
 
   //----------------------------------------------------------------------------
-  //! Notify when the previous job has finished
+  // Notify when the previous job has finished
   //----------------------------------------------------------------------------
   void CopyProgressHandler::EndJob( uint16_t                   jobNum,
                                     const XrdCl::PropertyList *result )
   {
     PyGILState_STATE  state    = PyGILState_Ensure();
-    PyObject         *pyResult = ConvertResult( result );
+    PyObject         *pyresult = ConvertType(result);
+    PyObject         *ret      = 0;
 
-    //--------------------------------------------------------------------------
-    //! Invoke the method
-    //--------------------------------------------------------------------------
-    if (handler != NULL)
+    if (handler)
     {
-      PyObject_CallMethod( handler, const_cast<char*>( "end" ),
-                           (char *) "HO", jobNum, pyResult );
+      ret = PyObject_CallMethod( handler, (char*)"end", (char*)"HO",
+                                 jobNum, pyresult );
+      Py_XDECREF(ret);
     }
     PyGILState_Release(state);
   }
 
   //----------------------------------------------------------------------------
-  //! Notify about the progress of the current job
+  // Notify about the progress of the current job
   //----------------------------------------------------------------------------
   void CopyProgressHandler::JobProgress( uint16_t jobNum,
                                          uint64_t bytesProcessed,
                                          uint64_t bytesTotal )
   {
-    PyGILState_STATE state = PyGILState_Ensure();
-
-    if (handler != NULL)
+    PyGILState_STATE  state = PyGILState_Ensure();
+    PyObject         *ret   = 0;
+    if(handler)
     {
-      PyObject_CallMethod( handler, const_cast<char*>( "update" ),
-                           (char *) "Hkk", jobNum, bytesProcessed, bytesTotal );
+      ret = PyObject_CallMethod( handler, (char*)"update", (char*)"HKK",
+                                 jobNum, bytesProcessed, bytesTotal );
+      Py_XDECREF(ret);
     }
 
     PyGILState_Release(state);
   }
 
   //----------------------------------------------------------------------------
-  // Determine whether the job should be canceled
+  // Check if the job should be canceled
   //----------------------------------------------------------------------------
   bool CopyProgressHandler::ShouldCancel( uint16_t jobNum )
   {
     PyGILState_STATE state = PyGILState_Ensure();
-
-    bool retVal = false;
-    if (handler != NULL)
+    bool             ret   = false;
+    if(handler)
     {
-      PyObject *ret = PyObject_CallMethod( handler,
-                                           const_cast<char*>( "should_cancel" ),
-                                           (char *)"H", jobNum );
-      if( ret == Py_True )
-        retVal = true;
+      PyObject *val = PyObject_CallMethod( handler, (char*)"should_cancel",
+                                           (char*)"H", jobNum );
+      if(val)
+      {
+        if(PyBool_Check(val))
+          ret = (val == Py_True);
+        Py_DECREF(val);
+      }
     }
     PyGILState_Release(state);
-    return retVal;
+    return ret;
   }
 }

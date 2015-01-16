@@ -23,7 +23,7 @@
 #-------------------------------------------------------------------------------
 
 from pyxrootd import client
-from XRootD.client import URL
+from XRootD.client.url import URL
 from XRootD.client.responses import XRootDStatus
 
 class ProgressHandlerWrapper(object):
@@ -36,9 +36,11 @@ class ProgressHandlerWrapper(object):
     if self.handler:
       self.handler.begin(jobId, total, URL(source), URL(target))
 
-  def end(self, jobId, result):
+  def end(self, jobId, results):
+    if results.has_key('status'):
+      results['status'] = XRootDStatus(results['status'])
     if self.handler:
-      self.handler.end(jobId, result)
+      self.handler.end(jobId, results)
 
   def update(self, jobId, processed, total):
     if self.handler:
@@ -47,7 +49,8 @@ class ProgressHandlerWrapper(object):
   def should_cancel(self, jobId):
     if self.handler:
       return self.handler.should_cancel(jobId)
-    return False
+    else:
+      return False
 
 class CopyProcess(object):
   """Add multiple individually-configurable copy jobs to a "copy process" and
@@ -57,10 +60,23 @@ class CopyProcess(object):
   def __init__(self):
     self.__process = client.CopyProcess()
 
-  def add_job(self, source, target, sourcelimit=1, force=False, posc=False,
-              coerce=False, makedir=False, thirdparty="none", checksummode="none",
-              checksumtype="", checksumpreset="", chunksize=4194304,
-              parallelchunks=8, inittimeout=0, tpctimeout=0, dynamicsource=False):
+  def add_job(self,
+              source,
+              target,
+              sourcelimit    = 1,
+              force          = False,
+              posc           = False,
+              coerce         = False,
+              mkdir          = False,
+              thirdparty     = 'none',
+              checksummode   = 'none',
+              checksumtype   = '',
+              checksumpreset = '',
+              dynamicsource  = False,
+              chunksize      = 4194304,
+              parallelchunks = 8,
+              inittimeout    = 600,
+              tpctimeout     = 1800):
     """Add a job to the copy process.
 
     :param         source: original source URL
@@ -76,16 +92,19 @@ class CopyProcess(object):
     :param         coerce: ignore file usage rules, i.e. apply `FORCE` flag to
                            ``open()``
     :type          coerce: boolean
-    :param        makedir: create missing directory tree for the file
-    :type         makedif: boolean
-    :param     thirdparty: thirdparty copy mode: "none", "first", "only"
+    :param          mkdir: create the parent directories when creating a file
+    :type           mkdir: boolean
+    :param     thirdparty: third party copy mode
     :type      thirdparty: string
-    :param   checksummode: checksumming operations to be performed: "none", "end2end", "source", "target"
+    :param   checksummode: checksum mode to be used
     :type    checksummode: string
-    :param   checksumtype: type of the checksum to be calculates "md5", "adler32", and so on
+    :param   checksumtype: type of the checksum to be computed
     :type    checksumtype: string
-    :param checksumpreset: pre-set the value of the source checksum
+    :param checksumpreset: pre-set checksum instead of computing it
     :type  checksumpreset: string
+    :param  dynamicsource: read as much data from source as is available without
+                           checking the size
+    :type   dynamicsource: boolean
     :param      chunksize: chunk size for remote transfers
     :type       chunksize: integer
     :param parallelchunks: number of chunks that should be requested in parallel
@@ -94,13 +113,11 @@ class CopyProcess(object):
     :type     inittimeout: integer
     :param     tpctimeout: timeout for a third-party copy to finish
     :type      tpctimeout: integer
-    :param  dynamicsource: allow for the size of the sourcefile to change during copy
-    :type   dynamicsource: boolean
     """
-    self.__process.add_job(source, target, sourcelimit, force, posc, coerce,
-                           makedir, thirdparty, checksummode, checksumtype,
-                           checksumpreset, chunksize, parallelchunks,
-                           inittimeout, tpctimeout, dynamicsource)
+    self.__process.add_job(source, target, sourcelimit, force, posc, coerce, mkdir,
+                           thirdparty, checksummode, checksumtype, checksumpreset,
+                           dynamicsource, chunksize, parallelchunks, inittimeout,
+                           tpctimeout)
 
   def prepare(self):
     """Prepare the copy jobs. **Must be called before** ``run()``."""
@@ -115,5 +132,8 @@ class CopyProcess(object):
                     the three methods (``begin()``, ``progress()`` and ``end()``
                     ) to get regular progress updates for your copy jobs.
     """
-    status = self.__process.run(ProgressHandlerWrapper(handler))
-    return XRootDStatus(status)
+    status, results = self.__process.run(ProgressHandlerWrapper(handler))
+    for x in results:
+      if x.has_key('status'):
+        x['status'] = XRootDStatus(x['status'])
+    return XRootDStatus(status), results

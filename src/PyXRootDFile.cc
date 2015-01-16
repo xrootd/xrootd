@@ -590,7 +590,8 @@ namespace PyXRootD
       }
 
       // Check the offset/length values are valid
-      int tmpoffset, tmplength;
+      uint64_t tmpoffset;
+      uint32_t tmplength;
       if ( !PyArg_ParseTuple( chunk, "KI", &tmpoffset, &tmplength ) ) return NULL;
 
       if ( tmpoffset < 0 || tmplength < 0 ) {
