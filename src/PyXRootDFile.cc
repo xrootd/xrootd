@@ -153,7 +153,7 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kIHO:read",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|KIHO:read",
         (char**) kwlist, &offset, &size, &timeout, &callback ) ) return NULL;
 
     if (!size) {
@@ -463,7 +463,7 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|kIHO:write",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|KIHO:write",
          (char**) kwlist, &buffer, &buffsize, &offset, &size, &timeout,
          &callback ) ) return NULL;
 
@@ -535,7 +535,7 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO:truncate",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "K|HO:truncate",
          (char**) kwlist, &size, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
@@ -591,7 +591,7 @@ namespace PyXRootD
 
       // Check the offset/length values are valid
       int tmpoffset, tmplength;
-      if ( !PyArg_ParseTuple( chunk, "ii", &tmpoffset, &tmplength ) ) return NULL;
+      if ( !PyArg_ParseTuple( chunk, "KI", &tmpoffset, &tmplength ) ) return NULL;
 
       if ( tmpoffset < 0 || tmplength < 0 ) {
         PyErr_SetString( PyExc_TypeError, "offsets and lengths must be positive" );

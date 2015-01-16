@@ -228,7 +228,7 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sk|HO:truncate",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sK|HO:truncate",
          (char**) kwlist, &path, &size, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
