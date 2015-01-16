@@ -31,7 +31,6 @@
 
 #include <Python.h>
 #include <string>
-#include <iostream>
 #include "structmember.h"
 
 #if PY_MINOR_VERSION <= 5
