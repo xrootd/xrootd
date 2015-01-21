@@ -14,3 +14,4 @@ Prerelease Notes
 
 + **Miscellaneous**
    * Detect misconfigured or unavailable ipV6 stacks and revert to ipV4.
+   * Recreate the logfile fifo if the existing one cannot be used.
