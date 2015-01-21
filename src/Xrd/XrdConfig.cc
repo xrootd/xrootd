@@ -87,6 +87,11 @@ extern int ka_Itvl;
 extern int ka_Icnt;
 };
 
+namespace
+{
+XrdOucEnv  theEnv;
+};
+
 /******************************************************************************/
 /*                               d e f i n e s                                */
 /******************************************************************************/
@@ -170,7 +175,7 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    ProtInfo.Trace   = &Trace;           // Stable -> Trace Information
    ProtInfo.AdmPath = AdminPath;        // Stable -> The admin path
    ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
-   ProtInfo.Reserved= 0;                // Use to be the Thread Manager
+   ProtInfo.theEnv  = &theEnv;          // Additional information
 
    ProtInfo.Format   = XrdFORMATB;
    ProtInfo.WANPort  = 0;
@@ -212,10 +217,10 @@ int XrdConfig::Configure(int argc, char **argv)
    int pipeFD[2] = {-1, -1};
    const char *pidFN = 0;
    static const int myMaxc = 80;
-   char *myArgv[myMaxc], argBuff[myMaxc*3+8];
+   char **urArgv, *myArgv[myMaxc], argBuff[myMaxc*3+8];
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
    char *ifList = 0;
-   int   myArgc = 1, bindArg = 1;
+   int   myArgc = 1, bindArg = 1, urArgc = argc, i;
    bool ipV4 = false, ipV6 = false, pureLFN = false;
 
 // Obtain the protocol name we will be using
@@ -241,12 +246,35 @@ int XrdConfig::Configure(int argc, char **argv)
   }
    myArgv[0] = argv[0];
 
+// Prescan the argument list to see if there is a passthrough option. In any
+// case, we will set the ephemeral argv/arg in the environment.
+//
+  i = 1;
+  while(i < argc)
+      {if (*(argv[i]) == '-' && *(argv[i]+1) == '+')
+          {int n = strlen(argv[i]+2), j = i+1, k = 1;
+           if (urArgc == argc) urArgc = i;
+           if (n) strncpy(buff, argv[i]+2, (n > 256 ? 256 : n));
+           strcpy(&(buff[n]), ".argv**");
+           while(j < argc && (*(argv[j]) != '-' || *(argv[j]+1) != '+')) j++;
+           urArgv = new char*[j-i+1];
+           urArgv[0] = argv[0];
+           i++;
+           while(i < j) urArgv[k++] = argv[i++];
+           urArgv[k] = 0;
+           theEnv.PutPtr(buff, urArgv);
+           strcpy(&(buff[n]), ".argc");
+           theEnv.PutInt(buff, static_cast<long>(k));
+          } else i++;
+      }
+   theEnv.PutPtr("argv[0]", argv[0]);
+
 // Process the options. Note that we cannot passthrough long options or
 // options that take arguments because getopt permutes the arguments.
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,":bc:dhHI:k:l:L:n:p:P:R:s:S:vz"))
+      while ((c = getopt(urArgc,argv,":bc:dhHI:k:l:L:n:p:P:R:s:S:vz"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -325,6 +353,7 @@ int XrdConfig::Configure(int argc, char **argv)
                 break;
        }
      }
+
 // The first thing we must do is to set the correct networking mode
 //
    if (ipV4) XrdNetAddr::SetIPV4();
@@ -343,11 +372,14 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Pass over any parameters
 //
-   if (argc-optind+2 >= myMaxc)
+   if (urArgc-optind+2 >= myMaxc)
       {Log.Emsg("Config", "Too many command line arguments.");
        Usage(1);
       }
-   for ( ; optind < argc; optind++) myArgv[myArgc++] = argv[optind];
+   for ( ; optind < urArgc; optind++) myArgv[myArgc++] = argv[optind];
+
+// Record the actual arguments that we will pass on
+//
    myArgv[myArgc] = 0;
    ProtInfo.argc = myArgc;
    ProtInfo.argv = myArgv;

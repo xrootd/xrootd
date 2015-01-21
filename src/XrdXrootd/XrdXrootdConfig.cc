@@ -272,6 +272,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    myEnv.PutPtr("XrdSecGetProtocol*", (void *)secGetProt);
    myEnv.PutPtr("XrdScheduler*", Sched);
 
+// Copy over the xrd environment which contains plugin argv's
+//
+   if (pi->theEnv) myEnv.PutPtr("xrdEnv*", pi->theEnv);
+
 // Get the filesystem to be used
 //
    if (FSLib[0])
