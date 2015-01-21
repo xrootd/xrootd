@@ -348,26 +348,41 @@ int XrdSysLogger::FifoMake()
 // Check if the fifo exists and is usable or that we can create it
 //
    if (!stat(buff, &Stat))
-      {if (!S_ISFIFO(Stat.st_mode))
-          {BLAB("Logfile fifo " <<buff <<" exists but is not a fifo");
-           return EEXIST;
-          }
-       if (access(buff, R_OK))
-          {BLAB("Unable to access " <<buff);
-           return EACCES;
+      {     if (!S_ISFIFO(Stat.st_mode))
+               {BLAB("Logfile fifo " <<buff <<" exists but is not a fifo");
+                rc = EEXIST;
+               }
+       else if (access(buff, R_OK))
+               {BLAB("Unable to access " <<buff);
+                rc = EACCES;
+               }
+       else rc = 0;
+       if (rc)
+          {if (unlink(buff))
+              {BLAB("Unable to remove " <<buff <<"; " <<strerror(errno));
+               return rc;
+              } else {
+               BLAB(buff <<" has been removed");
+               rc = ENOENT;
+              }
           }
        } else {
-       if (errno != ENOENT)
-          {rc = errno;
-           BLAB("Unable to stat " <<buff <<"; " <<strerror(rc));
+       rc = errno;
+       if (rc != ENOENT)
+          {BLAB("Unable to stat " <<buff <<"; " <<strerror(rc));
            return rc;
           }
-       if (mkfifo(buff, S_IRUSR|S_IWUSR))
+       }
+
+// Now try to create the fifo if we actually need to
+//
+   if (rc == ENOENT)
+      {if (mkfifo(buff, S_IRUSR|S_IWUSR))
           {rc = errno;
            BLAB("Unable to create logfile fifo " <<buff <<"; " <<strerror(rc));
            return rc;
           }
-       }
+      }
 
 // Save the fifo path restore eInt
 //
