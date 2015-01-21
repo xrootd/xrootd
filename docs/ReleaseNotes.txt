@@ -6,6 +6,21 @@ Release Notes
 =============
 
 -------------
+Version 0.3.0
+-------------
+
++ **New features**
+   * Improve integration with xrootd 4.x CopyProcess API by passing to python
+     all of the result dictionaties. This involves one API change, where the
+     CopyProcess.run method now returns a tuple (Status, [Results]) instead
+     of just Status.
+
++ Major bug fixes
+   * Fix memory leaks by doing proper reference counting of objects created
+     within C++ code.
+   * Consistently create the URL objects from urls represented as strings.
+
+-------------
 Version 0.2.0
 -------------
 
