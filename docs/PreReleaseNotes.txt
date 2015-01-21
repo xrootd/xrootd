@@ -5,3 +5,11 @@ XRootD
 Prerelease Notes
 ================
 
++ **New Features**
+   * Provide mechanism to pass command line arguments to plugins.
+
++ **Major bug fixes**
+
++ **Minor bug fixes**
+
++ **Miscellaneous**
