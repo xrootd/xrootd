@@ -59,13 +59,32 @@
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
+namespace
+{
+bool OnlyIPV4()
+{
+   int    fd;
+
+// Detect badly configured or non-extent IPv6 stacks and revert to IPv4 is so.
+//
+   if ((fd = socket(AF_INET6, SOCK_STREAM, 0)) >= 0) close(fd);
+      else if (errno == EAFNOSUPPORT)
+              {XrdNetAddr::SetIPV4();
+               return true;
+              }
+   return false;
+}
+}
+
 struct addrinfo   *XrdNetAddr::hostHints    = XrdNetAddr::Hints(0, 0);
 
 struct addrinfo   *XrdNetAddr::huntHintsTCP = XrdNetAddr::Hints(1, SOCK_STREAM);
 
 struct addrinfo   *XrdNetAddr::huntHintsUDP = XrdNetAddr::Hints(2, SOCK_DGRAM);
 
-bool               XrdNetAddr::useIPV4      = false;
+// The following must be initialzed after all of the hint structures!
+//
+bool               XrdNetAddr::useIPV4      = OnlyIPV4();
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */

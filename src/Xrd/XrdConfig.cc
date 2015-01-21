@@ -221,7 +221,7 @@ int XrdConfig::Configure(int argc, char **argv)
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
    char *ifList = 0;
    int   myArgc = 1, bindArg = 1, urArgc = argc, i;
-   bool ipV4 = false, ipV6 = false, pureLFN = false;
+   bool noV6, ipV4 = false, ipV6 = false, pureLFN = false;
 
 // Obtain the protocol name we will be using
 //
@@ -356,8 +356,14 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // The first thing we must do is to set the correct networking mode
 //
-   if (ipV4) XrdNetAddr::SetIPV4();
-      else if (ipV6) XrdNetAddr::SetIPV6();
+   noV6 = XrdNetAddr::IPV4Set();
+        if (ipV4) XrdNetAddr::SetIPV4();
+   else if (ipV6){if (noV6) Log.Say("Config warning: ipV6 appears to be broken;"
+                                    " forced ipV6 mode not advised!");
+                  XrdNetAddr::SetIPV6();
+                 }
+   else if (noV6) Log.Say("Config warning: ipV6 is misconfigured or "
+                          "unavailable; reverting to ipV4.");
 
 // Set the site name if we have one
 //
