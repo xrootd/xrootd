@@ -39,23 +39,12 @@ namespace PyXRootD
   {
     PyGILState_STATE state = PyGILState_Ensure();
 
-    URLType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &URLType ) < 0 ) return;
-    Py_INCREF( &URLType );
-
-    PyObject *pysource = PyObject_CallObject( (PyObject*) &URLType,
-              Py_BuildValue( "(s)", source->GetURL().c_str() ) );
-    if( PyErr_Occurred() ) PyErr_Print();
-
-    PyObject *pytarget = PyObject_CallObject( (PyObject*) &URLType,
-              Py_BuildValue( "(s)", target->GetURL().c_str() ) );
-    if( PyErr_Occurred() ) PyErr_Print();
-
     PyObject *ret = 0;
     if (handler != NULL)
     {
-      ret = PyObject_CallMethod( handler, (char*)"begin", (char*)"(HHOO)",
-                                 jobNum, jobTotal, pysource, pytarget );
+      ret = PyObject_CallMethod( handler, (char*)"begin", (char*)"(HHss)",
+                                 jobNum, jobTotal, source->GetURL().c_str(),
+                                 target->GetURL().c_str() );
       Py_XDECREF(ret);
     }
 

@@ -40,7 +40,7 @@ class URL(object):
   """
 
   def __init__(self, url):
-    self.__url = url
+    self.__url = client.URL(url)
 
   def __str__(self):
     return str(self.__url)
