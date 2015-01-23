@@ -3,23 +3,46 @@
 #include <fcntl.h>
 
 #include <XrdCeph/ceph_posix.h>
-#include <XrdSys/XrdSysError.hh>
 #include <XrdOuc/XrdOucEnv.hh>
+#include <XrdSys/XrdSysError.hh>
+#include <XrdOuc/XrdOucTrace.hh>
 #include <XrdVersion.hh>
 
 #include "CephOss.hh"
 #include "CephOssDir.hh"
 #include "CephOssFile.hh"
 
+XrdSysError CephEroute(0);
+XrdOucTrace CephTrace(&CephEroute);
+
+// log wrapping function to be used by ceph_posix interface
+char g_logstring[1024];
+static void logwrapper(char *format, va_list argp) {
+  vsnprintf(g_logstring, 1024, format, argp);
+  CephEroute.Say(g_logstring);
+}
+
 extern "C"
 {
   XrdOss*
   XrdOssGetStorageSystem(XrdOss* native_oss,
-                         XrdSysLogger* Logger,
+                         XrdSysLogger* lp,
                          const char* config_fn,
                          const char* parms)
   {
-    ceph_posix_set_defaults(parms);
+    // Do the herald thing
+    CephEroute.SetPrefix("ceph_");
+    CephEroute.logger(lp);
+    CephEroute.Say("++++++ CERN/IT-DSS XrdCeph");
+    // set parameters
+    try {
+      ceph_posix_set_defaults(parms);
+    } catch (std::exception e) {
+      CephEroute.Say("CephOss loading failed with exception. Check the syntax of parameters : ", parms);
+      return 0;
+    }
+    // deal with logging
+    ceph_posix_set_logfunc(logwrapper);
     return new CephOss();
   }
 }
@@ -60,7 +83,12 @@ int CephOss::Stat(const char* path,
                   struct stat* buff,
                   int opts,
                   XrdOucEnv* env) {
-  return ceph_posix_stat(env, path, buff);
+  try {
+    return ceph_posix_stat(env, path, buff);
+  } catch (std::exception e) {
+    CephEroute.Say("stat : invalid syntax in file parameters");
+    return -EINVAL;
+  }
 }
 
 int CephOss::StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP) {
@@ -90,11 +118,21 @@ int CephOss::StatVS(XrdOssVSInfo *sP, const char *sname, int updt) {
 int CephOss::Truncate (const char* path,
                        unsigned long long size,
                        XrdOucEnv* env) {
-  return ceph_posix_truncate(env, path, size);
+  try {
+    return ceph_posix_truncate(env, path, size);
+  } catch (std::exception e) {
+    CephEroute.Say("truncate : invalid syntax in file parameters");
+    return -EINVAL;
+  }
 }
 
 int CephOss::Unlink(const char *path, int Opts, XrdOucEnv *env) {
-  return ceph_posix_unlink(env, path);
+  try {
+    return ceph_posix_unlink(env, path);
+  } catch (std::exception e) {
+    CephEroute.Say("unlink : invalid syntax in file parameters");
+    return -EINVAL;
+  }
 }
 
 XrdOssDF* CephOss::newDir(const char *tident) {

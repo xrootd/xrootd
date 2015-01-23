@@ -46,8 +46,8 @@ add_library(
   XrdCeph/CephXAttr.cc XrdCeph/CephXAttr.hh )
 
 target_link_libraries(
-  XrdCeph
   XrdCephXattr
+  XrdCeph
   XrdUtils
   ${RADOS_LIBS} )
 

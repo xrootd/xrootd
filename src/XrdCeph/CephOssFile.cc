@@ -3,15 +3,24 @@
 
 #include <XrdCeph/ceph_posix.h>
 #include <XrdOuc/XrdOucEnv.hh>
+#include <XrdSys/XrdSysError.hh>
+#include <XrdOuc/XrdOucTrace.hh>
 
 #include "CephOssFile.hh"
 #include "CephOss.hh"
 
+extern XrdSysError CephEroute;
+
 CephOssFile::CephOssFile(CephOss *cephOss) : m_fd(-1), m_cephOss(cephOss) {}
 
 int CephOssFile::Open(const char *path, int flags, mode_t mode, XrdOucEnv &env) {
-  m_fd = ceph_posix_open(&env, path, flags, mode);
-  return XrdOssOK;
+  try {
+    m_fd = ceph_posix_open(&env, path, flags, mode);
+    return XrdOssOK;
+  } catch (std::exception e) {
+    CephEroute.Say("open : invalid syntax in file parameters");
+    return -EINVAL;
+  }
 }
 
 int CephOssFile::Close(long long *retsz) {

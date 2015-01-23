@@ -7,19 +7,26 @@
 #include <sys/errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <radosstriper/libradosstriper.hpp>
 #include <map>
+#include <stdexcept>
 #include <string>
+#include <sstream>
 #include <sys/xattr.h>
 #include <time.h>
+#include <limits>
 #include <XrdCeph/ceph_posix.h>
 
-/// small structs to store file data, either for CEPH or for a local file
+/// small structs to store file metadata
 struct CephFile {
   std::string name;
   std::string pool;
   std::string userId;
+  unsigned int nbStripes;
+  unsigned long long stripeUnit;
+  unsigned long long objectSize;
 };
 
 struct CephFileRef : CephFile {
@@ -44,7 +51,14 @@ std::map<unsigned int, CephFileRef> g_fds;
 std::multiset<std::string> g_filesOpenForWrite;
 /// global variable remembering the next available file descriptor
 unsigned int g_nextCephFd = 0;
-/// global variables containing default userId and pool
+/// global variable containing defaults for CephFiles
+CephFile g_defaultParams = { "",
+                             "default",        // default pool
+                             "admin",          // default user
+                             1,                // default nbStripes
+                             4 * 1024 * 1024,  // default stripeUnit : 4 MB
+                             4 * 1024 * 1024}; // default objectSize : 4 MB
+
 std::string g_defaultUserId = "admin";
 std::string g_defaultPool = "default";
 
@@ -56,67 +70,194 @@ static void logwrapper(char* format, ...) {
   va_list arg;
   va_start(arg, format);
   (*g_logfunc)(format, arg);
-  va_end(arg);  
+  va_end(arg);
 }
 
-/// sets the default userId and pool
-void ceph_posix_set_defaults(const char* value) {
-  if (value) {
-    std::string svalue = value;
-    size_t atPos = svalue.find('@');
-    if (std::string::npos == atPos) {
-      g_defaultPool = svalue;
-    } else {
-      g_defaultUserId = svalue.substr(0, atPos);
-      g_defaultPool = svalue.substr(atPos+1);
-    }
+/// simple integer parsing, to be replaced by std::stoll when C++11 can be used
+static unsigned long long int stoull(const std::string &s) {
+  char* end;
+  errno = 0;
+  unsigned long long int res = strtoull(s.c_str(), &end, 10);
+  if (0 != *end) {
+    throw std::invalid_argument(s);
   }
+  if (ERANGE == errno) {
+    throw std::out_of_range(s);
+  }
+  return res;
 }
 
-/// fill a ceph file struct from a path and an environment
-static void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file) {
-  // Syntax of the given path is :
-  //   [[userId@]pool:]<actual path>
-  // in case userId or pool is not provided and env is not null
-  // the entries cephUserId and cephPool of env will be used.
-  // If env is null or no entry is found for what is missing,
-  // defaults are applied. These defaults are initially set to
-  // 'admin' and 'default' but can be changed via a call to
-  // ceph_posix_set_defaults
-  std::string spath = path;
-  size_t colonPos = spath.find(':');
-  if (std::string::npos == colonPos) {
-    file.name = spath;
+/// simple integer parsing, to be replaced by std::stoi when C++11 can be used
+static unsigned int stoui(const std::string &s) {
+  char* end;
+  errno = 0;
+  unsigned long int res = strtoul(s.c_str(), &end, 10);
+  if (0 != *end) {
+    throw std::invalid_argument(s);
+  }
+  if (ERANGE == errno || res > std::numeric_limits<unsigned int>::max()) {
+    throw std::out_of_range(s);
+  }
+  return (unsigned int)res;
+}
+
+/// fills the userId of a ceph file struct from a string and an environment
+/// returns position of first character after the userId
+static int fillCephUserId(const std::string &params, XrdOucEnv *env, CephFile &file) {
+  // default
+  file.userId = g_defaultParams.userId;
+  // parsing
+  size_t atPos = params.find('@');
+  if (std::string::npos != atPos) {
+    file.userId = params.substr(0, atPos);
+    return atPos+1;
   } else {
-    size_t atPos = spath.find('@');
-    if (std::string::npos == atPos || atPos > colonPos) {
-      file.pool = spath.substr(0, colonPos);
-    } else {
-      file.userId = spath.substr(0, atPos);
-      file.pool = spath.substr(atPos+1, colonPos-atPos-1);
-    }
-  }
-  if (file.userId.empty()) {
     if (0 != env) {
       char* cuser = env->Get("cephUserId");
       if (0 != cuser) {
         file.userId = cuser;
       }
     }
-    if (file.userId.empty()) {
-      file.userId = g_defaultUserId;
-    }
+    return 0;
   }
-  if (file.pool.empty()) {
-    if (0 != env) {
-      char* cpool = env->Get("cephPool");
-      if (0 != cpool) {
-        file.pool = cpool;
+}
+
+/// fills the pool of a ceph file struct from a string and an environment
+/// returns position of first character after the pool
+static int fillCephPool(const std::string &params, unsigned int offset, XrdOucEnv *env, CephFile &file) {
+  // default
+  file.pool = g_defaultParams.pool;
+  // parsing
+  size_t comPos = params.find(',', offset);
+  if (std::string::npos == comPos) {
+    if (params.size() == offset) {
+      if (NULL != env) {
+        char* cpool = env->Get("cephPool");
+        if (0 != cpool) {
+          file.pool = cpool;
+        }
+      }
+    } else {
+      file.pool = params.substr(offset);
+    }
+    return params.size();
+  } else {
+    file.pool = params.substr(offset, comPos-offset);
+    return comPos+1;
+  }
+}
+
+/// fills the nbStriped of a ceph file struct from a string and an environment
+/// returns position of first character after the nbStripes
+// this may raise std::invalid_argument and std::out_of_range
+static int fillCephNbStripes(const std::string &params, unsigned int offset, XrdOucEnv *env, CephFile &file) {
+  // default
+  file.nbStripes = g_defaultParams.nbStripes;
+  // parsing
+  size_t comPos = params.find(',', offset);
+  if (std::string::npos == comPos) {
+    if (params.size() == offset) {
+      if (NULL != env) {
+        char* cNbStripes = env->Get("cephNbStripes");
+        if (0 != cNbStripes) {
+          file.nbStripes = stoui(cNbStripes);
+        }
+      }
+    } else {
+      file.nbStripes = stoui(params.substr(offset));
+    }
+    return params.size();
+  } else {
+    file.nbStripes = stoui(params.substr(offset, comPos-offset));
+    return comPos+1;
+  }
+}
+
+/// fills the stripeUnit of a ceph file struct from a string and an environment
+/// returns position of first character after the stripeUnit
+// this may raise std::invalid_argument and std::out_of_range
+static int fillCephStripeUnit(const std::string &params, unsigned int offset, XrdOucEnv *env, CephFile &file) {
+  // default
+  file.stripeUnit = g_defaultParams.stripeUnit;
+  // parsing
+  size_t comPos = params.find(',', offset);
+  if (std::string::npos == comPos) {
+    if (params.size() == offset) {
+      if (NULL != env) {
+        char* cStripeUnit = env->Get("cephStripeUnit");
+        if (0 != cStripeUnit) {
+          file.stripeUnit = stoull(cStripeUnit);
+        }
+      }
+    } else {
+      file.stripeUnit = stoull(params.substr(offset));
+    }
+    return params.size();
+  } else {
+    file.stripeUnit = stoull(params.substr(offset, comPos-offset));
+    return comPos+1;
+  }
+}
+
+/// fills the objectSize of a ceph file struct from a string and an environment
+/// returns position of first character after the objectSize
+// this may raise std::invalid_argument and std::out_of_range
+static void fillCephObjectSize(const std::string &params, unsigned int offset, XrdOucEnv *env, CephFile &file) {
+  // default
+  file.objectSize = g_defaultParams.objectSize;
+  // parsing
+  if (params.size() == offset) {
+    if (NULL != env) {
+      char* cObjectSize = env->Get("cephObjectSize");
+      if (0 != cObjectSize) {
+        file.objectSize = stoull(cObjectSize);
       }
     }
-    if (file.pool.empty()) {
-      file.pool = g_defaultPool;
-    }
+  } else {
+    file.objectSize = stoull(params.substr(offset));
+  }
+}
+
+/// fill the parameters of a ceph file struct (all but name) from a string and an environment
+/// see fillCephFile for the detailed syntax
+void fillCephFileParams(const std::string &params, XrdOucEnv *env, CephFile &file) {
+  // parse the params one by one
+  unsigned int afterUser = fillCephUserId(params, env, file);
+  unsigned int afterPool = fillCephPool(params, afterUser, env, file);
+  unsigned int afterNbStripes = fillCephNbStripes(params, afterPool, env, file);
+  unsigned int afterStripeUnit = fillCephStripeUnit(params, afterNbStripes, env, file);
+  fillCephObjectSize(params, afterStripeUnit, env, file);
+}
+
+/// sets the default userId, pool and file layout
+/// syntax is [user@]pool[,nbStripes[,stripeUnit[,objectSize]]]
+/// may throw std::invalid_argument or std::out_of_range in case of error
+void ceph_posix_set_defaults(const char* value) {
+  if (value) {
+    CephFile newdefault;
+    fillCephFileParams(value, NULL, newdefault);
+    g_defaultParams = newdefault;
+  }
+}
+
+/// fill a ceph file struct from a path and an environment
+void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file) {
+  // Syntax of the given path is :
+  //   [[userId@]pool[,nbStripes[,stripeUnit[,objectSize]]]:]<actual path>
+  // for the missing parts, if env is not null the entries
+  // cephUserId, cephPool, cephNbStripes, cephStripeUnit, and cephObjectSize
+  // of env will be used.
+  // If env is null or no entry is found for what is missing, defaults are
+  // applied. These defaults are initially set to 'admin', 'default', 1, 4MB and 4MB
+  // but can be changed via a call to ceph_posix_set_defaults
+  std::string spath = path;
+  size_t colonPos = spath.find(':');
+  if (std::string::npos == colonPos) {
+    file.name = spath;
+    fillCephFileParams("", env, file);
+  } else {
+    file.name = spath.substr(colonPos+1);
+    fillCephFileParams(spath.substr(0, colonPos), env, file);
   }
 }
 
@@ -137,7 +278,10 @@ static CephFileRef getCephFileRef(const char *path, XrdOucEnv *env, int flags,
 }
 
 static libradosstriper::RadosStriper* getRadosStriper(const CephFile& file) {
-  std::string userAtPool = file.userId + '@' + file.pool;
+  std::stringstream ss;
+  ss << file.userId << '@' << file.pool << ',' << file.nbStripes << ','
+     << file.stripeUnit << ',' << file.objectSize;
+  std::string userAtPool = ss.str();
   std::map<std::string, libradosstriper::RadosStriper*>::iterator it =
     g_radosStripers.find(userAtPool);
   if (it == g_radosStripers.end()) {
@@ -182,23 +326,57 @@ static libradosstriper::RadosStriper* getRadosStriper(const CephFile& file) {
     if (rc != 0) {
       g_cluster->shutdown();
       delete g_cluster;
+      g_cluster = 0;
       delete ioctx;
       return 0;
     }
     // create RadosStriper connection
     libradosstriper::RadosStriper *striper = new libradosstriper::RadosStriper;
     if (0 == striper) {
+      delete ioctx;
       g_cluster->shutdown();
       delete g_cluster;
-      delete ioctx;
+      g_cluster = 0;
       return 0;
     }
     rc = libradosstriper::RadosStriper::striper_create(*ioctx, striper);
     if (rc != 0) {
+      delete striper;
+      delete ioctx;
       g_cluster->shutdown();
       delete g_cluster;
-      delete ioctx;
+      g_cluster = 0;
+      return 0;
+    }
+    // setup layout
+    rc = striper->set_object_layout_stripe_count(file.nbStripes);
+    if (rc != 0) {
+      logwrapper((char*)"getRadosStriper : invalid nbStripes %d", file.nbStripes);
       delete striper;
+      delete ioctx;
+      g_cluster->shutdown();
+      delete g_cluster;
+      g_cluster = 0;
+      return 0;
+    }
+    rc = striper->set_object_layout_stripe_unit(file.stripeUnit);
+    if (rc != 0) {
+      logwrapper((char*)"getRadosStriper : invalid stripeUnit %d (must be non0, multiple of 64K)", file.stripeUnit);
+      delete striper;
+      delete ioctx;
+      g_cluster->shutdown();
+      delete g_cluster;
+      g_cluster = 0;
+      return 0;
+    }
+    rc = striper->set_object_layout_object_size(file.objectSize);
+    if (rc != 0) {
+      logwrapper((char*)"getRadosStriper : invalid objectSize %d (must be non 0, multiple of stripe_unit)", file.objectSize);
+      delete striper;
+      delete ioctx;
+      g_cluster->shutdown();
+      delete g_cluster;
+      g_cluster = 0;
       return 0;
     }
     g_ioCtx.insert(std::pair<std::string, librados::IoCtx*>(userAtPool, ioctx));    
@@ -238,12 +416,12 @@ void ceph_posix_set_logfunc(void (*logfunc) (char *, va_list argp)) {
 };
 
 int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode) {
-  logwrapper((char*)"ceph_open : fd %d associated to %s\n", g_nextCephFd, pathname);
+  logwrapper((char*)"ceph_open : fd %d associated to %s", g_nextCephFd, pathname);
   CephFileRef fr = getCephFileRef(pathname, env, flags, mode, 0);
   g_fds[g_nextCephFd] = fr;
   g_nextCephFd++;
   if (flags & O_RDWR) {
-    g_filesOpenForWrite.insert(pathname);
+    g_filesOpenForWrite.insert(fr.name);
   }
   return g_nextCephFd-1;
 }
@@ -251,7 +429,7 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 int ceph_posix_close(int fd) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
-    logwrapper((char*)"ceph_close: closed fd %d\n", fd);
+    logwrapper((char*)"ceph_close: closed fd %d", fd);
     if (it->second.flags & O_RDWR) {
       g_filesOpenForWrite.erase(g_filesOpenForWrite.find(it->second.name));
     }
@@ -280,7 +458,7 @@ off_t ceph_posix_lseek(int fd, off_t offset, int whence) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_lseek: for fd %d, offset=%d, whence=%d\n", fd, offset, whence);
+    logwrapper((char*)"ceph_lseek: for fd %d, offset=%d, whence=%d", fd, offset, whence);
     return (off_t)lseek_compute_offset(fr, offset, whence);
   } else {
     return -EBADF;
@@ -291,7 +469,7 @@ off64_t ceph_posix_lseek64(int fd, off64_t offset, int whence) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_lseek64: for fd %d, offset=%d, whence=%d\n", fd, offset, whence);
+    logwrapper((char*)"ceph_lseek64: for fd %d, offset=%d, whence=%d", fd, offset, whence);
     return lseek_compute_offset(fr, offset, whence);
   } else {
     return -EBADF;
@@ -302,7 +480,7 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_write: for fd %d, count=%d\n", fd, count);
+    logwrapper((char*)"ceph_write: for fd %d, count=%d", fd, count);
     if ((fr.flags & O_RDWR) == 0) {
       return -EBADF;
     }
@@ -325,7 +503,7 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_read: for fd %d, count=%d\n", fd, count);
+    logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
     if ((fr.flags & O_RDWR) != 0) {
       return -EBADF;
     }
@@ -348,7 +526,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_stat: fd %d\n", fd);
+    logwrapper((char*)"ceph_stat: fd %d", fd);
     // minimal stat : only size and times are filled
     // atime, mtime and ctime are set all to the same value
     // mode is set arbitrarily to 0666
@@ -371,7 +549,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
 }
 
 int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
-  logwrapper((char*)"ceph_stat : %s\n", pathname);
+  logwrapper((char*)"ceph_stat : %s", pathname);
   // minimal stat : only size and times are filled
   // atime, mtime and ctime are set all to the same value
   // mode is set arbitrarily to 0666
@@ -382,7 +560,7 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
   memset(buf, 0, sizeof(*buf));
   int rc = striper->stat(pathname, (uint64_t*)&(buf->st_size), &(buf->st_atime));
   if (rc != 0) {
-    // for non exiting file. Check that we did not open it for write recently
+    // for non existing file. Check that we did not open it for write recently
     // in that case, we return 0 size and current time
     if (-ENOENT == rc && g_filesOpenForWrite.find(pathname) != g_filesOpenForWrite.end()) {
       buf->st_size = 0;
@@ -397,50 +575,10 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
   return 0;
 }
 
-int ceph_posix_fstat64(int fd, struct stat64 *buf) {
-  std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
-  if (it != g_fds.end()) {
-    CephFileRef &fr = it->second;
-      logwrapper((char*)"ceph_stat64: fd %d\n", fd);
-      // minimal stat : only size and times are filled
-      libradosstriper::RadosStriper *striper = getRadosStriper(fr);
-      if (0 == striper) {
-        return -EINVAL;
-      }
-      memset(buf, 0, sizeof(*buf));
-      int rc = striper->stat(fr.name, (uint64_t*)&(buf->st_size), &(buf->st_atime));
-      if (rc != 0) {
-        return -rc;
-      }
-      buf->st_mtime = buf->st_atime;
-      buf->st_ctime = buf->st_atime;  
-      return 0;
-  } else {
-    return -EBADF;
-  }
-}
-
-int ceph_posix_stat64(XrdOucEnv* env, const char *pathname, struct stat64 *buf) {
-  logwrapper((char*)"ceph_stat : %s\n", pathname);
-  // minimal stat : only size and times are filled
-  libradosstriper::RadosStriper *striper = getRadosStriper(getCephFile(pathname, env));
-  if (0 == striper) {
-    return -EINVAL;
-  }
-  memset(buf, 0, sizeof(*buf));
-  int rc = striper->stat(pathname, (uint64_t*)&(buf->st_size), &(buf->st_atime));
-  if (rc != 0) {
-    return -rc;
-  }
-  buf->st_mtime = buf->st_atime;
-  buf->st_ctime = buf->st_atime;  
-  return 0;
-}
-
 int ceph_posix_fsync(int fd) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
-    logwrapper((char*)"ceph_sync: fd %d\n", fd);
+    logwrapper((char*)"ceph_sync: fd %d", fd);
     return 0;
   } else {
     return -EBADF;
@@ -451,7 +589,7 @@ int ceph_posix_fcntl(int fd, int cmd, ... /* arg */ ) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_fcntl: fd %d cmd=%d\n", fd, cmd);
+    logwrapper((char*)"ceph_fcntl: fd %d cmd=%d", fd, cmd);
     // minimal implementation
     switch (cmd) {
     case F_GETFL:
@@ -482,7 +620,7 @@ static ssize_t ceph_posix_internal_getxattr(const CephFile &file, const char* na
 ssize_t ceph_posix_getxattr(XrdOucEnv* env, const char* path,
                             const char* name, void* value,
                             size_t size) {
-  logwrapper((char*)"ceph_getxattr: path %s name=%s\n", path, name);
+  logwrapper((char*)"ceph_getxattr: path %s name=%s", path, name);
   return ceph_posix_internal_getxattr(getCephFile(path, env), name, value, size);
 }
 
@@ -491,7 +629,7 @@ ssize_t ceph_posix_fgetxattr(int fd, const char* name,
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_fgetxattr: fd %d name=%s\n", fd, name);
+    logwrapper((char*)"ceph_fgetxattr: fd %d name=%s", fd, name);
     return ceph_posix_internal_getxattr(fr, name, value, size);
   } else {
     return -EBADF;
@@ -516,7 +654,7 @@ static ssize_t ceph_posix_internal_setxattr(const CephFile &file, const char* na
 ssize_t ceph_posix_setxattr(XrdOucEnv* env, const char* path,
                             const char* name, const void* value,
                             size_t size, int flags) {
-  logwrapper((char*)"ceph_setxattr: path %s name=%s value=%s\n", path, name, value);
+  logwrapper((char*)"ceph_setxattr: path %s name=%s value=%s", path, name, value);
   return ceph_posix_internal_setxattr(getCephFile(path, env), name, value, size, flags);
 }
 
@@ -526,7 +664,7 @@ int ceph_posix_fsetxattr(int fd,
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_fsetxattr: fd %d name=%s value=%s\n", fd, name, value);
+    logwrapper((char*)"ceph_fsetxattr: fd %d name=%s value=%s", fd, name, value);
     return ceph_posix_internal_setxattr(fr, name, value, size, flags);
   } else {
     return -EBADF;
@@ -547,7 +685,7 @@ static int ceph_posix_internal_removexattr(const CephFile &file, const char* nam
 
 int ceph_posix_removexattr(XrdOucEnv* env, const char* path,
                            const char* name) {
-  logwrapper((char*)"ceph_removexattr: path %s name=%s\n", path, name);
+  logwrapper((char*)"ceph_removexattr: path %s name=%s", path, name);
   return ceph_posix_internal_removexattr(getCephFile(path, env), name);
 }
 
@@ -555,7 +693,7 @@ int ceph_posix_fremovexattr(int fd, const char* name) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_fremovexattr: fd %d name=%s\n", fd, name);
+    logwrapper((char*)"ceph_fremovexattr: fd %d name=%s", fd, name);
     return ceph_posix_internal_removexattr(fr, name);
   } else {
     return -EBADF;
@@ -597,7 +735,7 @@ static int ceph_posix_internal_listxattrs(const CephFile &file, XrdSysXAttr::ALi
 }
 
 int ceph_posix_listxattrs(XrdOucEnv* env, const char* path, XrdSysXAttr::AList **aPL, int getSz) {
-  logwrapper((char*)"ceph_listxattrs: path %s\n", path);
+  logwrapper((char*)"ceph_listxattrs: path %s", path);
   return ceph_posix_internal_listxattrs(getCephFile(path, env), aPL, getSz);
 }
 
@@ -605,7 +743,7 @@ int ceph_posix_flistxattrs(int fd, XrdSysXAttr::AList **aPL, int getSz) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_flistxattrs: fd %d\n", fd);
+    logwrapper((char*)"ceph_flistxattrs: fd %d", fd);
     return ceph_posix_internal_listxattrs(fr, aPL, getSz);
   } else {
     return -EBADF;
@@ -622,7 +760,7 @@ void ceph_posix_freexattrlist(XrdSysXAttr::AList *aPL) {
 }
 
 int ceph_posix_statfs(long long *totalSpace, long long *freeSpace) {
-  logwrapper((char*)"ceph_posix_statfs\n");
+  logwrapper((char*)"ceph_posix_statfs");
   librados::cluster_stat_t result;
   int rc = g_cluster->cluster_stat(result);
   if (0 == rc) {
@@ -644,7 +782,7 @@ int ceph_posix_ftruncate(int fd, unsigned long long size) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_posix_ftruncate: fd %d, size %d\n", fd, size);
+    logwrapper((char*)"ceph_posix_ftruncate: fd %d, size %d", fd, size);
     return ceph_posix_internal_truncate(fr, size);
   } else {
     return -EBADF;
@@ -652,14 +790,14 @@ int ceph_posix_ftruncate(int fd, unsigned long long size) {
 }
 
 int ceph_posix_truncate(XrdOucEnv* env, const char *pathname, unsigned long long size) {
-  logwrapper((char*)"ceph_posix_truncate : %s\n", pathname);
+  logwrapper((char*)"ceph_posix_truncate : %s", pathname);
   // minimal stat : only size and times are filled
   CephFile file = getCephFile(pathname, env);
   return ceph_posix_internal_truncate(file, size);
 }
 
 int ceph_posix_unlink(XrdOucEnv* env, const char *pathname) {
-  logwrapper((char*)"ceph_posix_unlink : %s\n", pathname);
+  logwrapper((char*)"ceph_posix_unlink : %s", pathname);
   // minimal stat : only size and times are filled
   CephFile file = getCephFile(pathname, env);
   libradosstriper::RadosStriper *striper = getRadosStriper(file);
@@ -670,7 +808,7 @@ int ceph_posix_unlink(XrdOucEnv* env, const char *pathname) {
 }
 
 DIR* ceph_posix_opendir(XrdOucEnv* env, const char *pathname) {
-  logwrapper((char*)"ceph_posix_opendir : %s\n", pathname);
+  logwrapper((char*)"ceph_posix_opendir : %s", pathname);
   // only accept root dir, as there is no concept of dirs in object stores
   CephFile file = getCephFile(pathname, env);
   if (file.name.size() != 1 || file.name[0] != '/') {
