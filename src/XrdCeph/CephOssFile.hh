@@ -39,6 +39,7 @@ public:
   virtual ssize_t ReadRaw(void *, off_t, size_t);
   virtual int Fstat(struct stat *buff);
   virtual ssize_t Write(const void *buff, off_t offset, size_t blen);
+  virtual int Write(XrdSfsAio *aiop);
   virtual int Fsync(void);
   virtual int Ftruncate(unsigned long long);
   

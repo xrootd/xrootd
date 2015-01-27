@@ -5,6 +5,7 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdSys/XrdSysError.hh>
 #include <XrdOuc/XrdOucTrace.hh>
+#include <XrdSfs/XrdSfsAio.hh>
 
 #include "CephOssFile.hh"
 #include "CephOss.hh"
@@ -57,6 +58,19 @@ ssize_t CephOssFile::Write(const void *buff, off_t offset, size_t blen) {
     return ceph_posix_write(m_fd, buff, blen);
   }
   return rc;
+}
+
+int CephOssFile::Write(XrdSfsAio *aiop) {
+  ssize_t rc = Write((void*)aiop->sfsAio.aio_buf,
+                     aiop->sfsAio.aio_offset,
+                     aiop->sfsAio.aio_nbytes);
+  if (aiop->sfsAio.aio_nbytes == (size_t)rc) {
+    aiop->Result = rc;
+    aiop->doneWrite();
+    return 0;
+  } else {
+    return rc;
+  }
 }
 
 int CephOssFile::Fsync() {
