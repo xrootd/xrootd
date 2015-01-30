@@ -420,7 +420,7 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
   CephFileRef fr = getCephFileRef(pathname, env, flags, mode, 0);
   g_fds[g_nextCephFd] = fr;
   g_nextCephFd++;
-  if (flags & O_RDWR) {
+  if (flags & (O_WRONLY|O_RDWR)) {
     g_filesOpenForWrite.insert(fr.name);
   }
   return g_nextCephFd-1;
@@ -430,7 +430,7 @@ int ceph_posix_close(int fd) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     logwrapper((char*)"ceph_close: closed fd %d", fd);
-    if (it->second.flags & O_RDWR) {
+    if (it->second.flags & (O_WRONLY|O_RDWR)) {
       g_filesOpenForWrite.erase(g_filesOpenForWrite.find(it->second.name));
     }
     g_fds.erase(it);
@@ -451,7 +451,7 @@ static off64_t lseek_compute_offset(CephFileRef &fr, off64_t offset, int whence)
   default:
     return -EINVAL;
   }
-  return 0;
+  return fr.offset;
 }
 
 off_t ceph_posix_lseek(int fd, off_t offset, int whence) {
@@ -481,7 +481,7 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
     logwrapper((char*)"ceph_write: for fd %d, count=%d", fd, count);
-    if ((fr.flags & O_RDWR) == 0) {
+    if ((fr.flags & (O_WRONLY|O_RDWR)) == 0) {
       return -EBADF;
     }
     libradosstriper::RadosStriper *striper = getRadosStriper(fr);
@@ -504,7 +504,7 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
     logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
-    if ((fr.flags & O_RDWR) != 0) {
+    if ((fr.flags & (OWRONLY|O_RDWR)) != 0) {
       return -EBADF;
     }
     libradosstriper::RadosStriper *striper = getRadosStriper(fr);
@@ -610,11 +610,13 @@ static ssize_t ceph_posix_internal_getxattr(const CephFile &file, const char* na
   }
   ceph::bufferlist bl;
   int rc = striper->getxattr(file.name, name, bl);
-  if (rc) {
-    return -rc;
+  if (rc < 0) {
+    errno = -rc;
+    return -1;
   }
-  bl.copy(0, size, (char*)value);
-  return 0;
+  size_t returned_size = (size_t)rc<size?rc:size;
+  bl.copy(0, returned_size, value);
+  return returned_size;
 }  
 
 ssize_t ceph_posix_getxattr(XrdOucEnv* env, const char* path,
