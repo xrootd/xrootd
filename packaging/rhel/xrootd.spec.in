@@ -629,6 +629,7 @@ fi
 %{_libdir}/libXrdHttp-4.so
 %{_libdir}/libXrdOssSIgpfsT-4.so
 %{_libdir}/libXrdServer.so.*
+%{_libdir}/libXrdThrottle-4.so
 
 %files server-devel
 %defattr(-,root,root,-)
