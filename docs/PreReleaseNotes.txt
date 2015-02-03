@@ -9,6 +9,7 @@ Prerelease Notes
    * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
+   * Avoid SEGV when deleting a partially empty table.
 
 + **Minor bug fixes**
 
