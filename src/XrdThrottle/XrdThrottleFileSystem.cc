@@ -23,9 +23,13 @@ FileSystem::newFile(char *user,
    XrdSfsFile * chain_file = m_sfs_ptr->newFile(user, monid);
    if (chain_file)
    {
-      std::auto_ptr<XrdSfsFile> chain_file_ptr(chain_file);
+      unique_sfs_ptr chain_file_ptr(chain_file);
       // We should really be giving out shared_ptrs to m_throttle, but alas, no boost.
+#if __cplusplus >= 201103L
+      return static_cast<XrdSfsFile*>(new File(user, monid, std::move(chain_file_ptr), m_throttle, m_eroute));
+#else
       return static_cast<XrdSfsFile*>(new File(user, monid, chain_file_ptr, m_throttle, m_eroute));
+#endif
    }
    return NULL;
 }

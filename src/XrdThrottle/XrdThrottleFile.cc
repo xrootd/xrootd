@@ -23,10 +23,14 @@ XrdThrottleTimer xtimer = m_throttle.StartIOTimer();
 
 File::File(const char                     *user,
                  int                       monid,
-                 std::auto_ptr<XrdSfsFile> sfs,
+                 unique_sfs_ptr            sfs,
                  XrdThrottleManager       &throttle,
                  XrdSysError              &eroute)
-   : m_sfs(sfs), // Guaranteed to be non-null by FileSystem::newFile
+#if __cplusplus >= 201103L
+   : m_sfs(std::move(sfs)), // Guaranteed to be non-null by FileSystem::newFile
+#else
+   : m_sfs(sfs),
+#endif
      m_uid(0),
      m_user(user),
      m_throttle(throttle),
