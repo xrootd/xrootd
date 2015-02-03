@@ -14,7 +14,14 @@
 class XrdSysLogger;
 class XrdOucStream;
 
+
 namespace XrdThrottle {
+
+#if __cplusplus >= 201103L
+typedef std::unique_ptr<XrdSfsFile> unique_sfs_ptr;
+#else
+typedef std::auto_ptr<XrdSfsFile> unique_sfs_ptr;
+#endif
 
 class FileSystem;
 
@@ -86,12 +93,12 @@ public:
             XrdSfsXferSize     size);
 
 private:
-   File(const char *user, int monid, std::auto_ptr<XrdSfsFile>, XrdThrottleManager &throttle, XrdSysError &eroute);
+   File(const char *user, int monid, unique_sfs_ptr, XrdThrottleManager &throttle, XrdSysError &eroute);
 
    virtual
    ~File();
 
-   std::auto_ptr<XrdSfsFile> m_sfs;
+   unique_sfs_ptr m_sfs;
    int m_uid; // A unique identifier for this user; has no meaning except for the fairshare.
    std::string m_loadshed;
    std::string m_user;
