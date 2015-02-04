@@ -134,12 +134,6 @@ const char *XrdOssErrorText[] =
 
 #define xrdmax(a,b)       (a < b ? b : a)
 
-// Set the following value to establish the ulimit for FD numbers. Zero
-// sets it to whatever the current hard limit is. Negative leaves it alone.
-//
-#define XrdOssFDLIMIT     -1
-#define XrdOssFDMINLIM    64
-
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
@@ -187,7 +181,7 @@ XrdOssSys::XrdOssSys()
    RemoteRoot    = 0;
    cscanint      = 600;
    FDFence       = -1;
-   FDLimit       = XrdOssFDLIMIT;
+   FDLimit       = -1;
    MaxSize       = 0;
    minalloc      = 0;
    ovhalloc      = 0;
@@ -239,6 +233,8 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
 */
    XrdSysError_Table *ETab = new XrdSysError_Table(XRDOSS_EBASE, XRDOSS_ELAST,
                                                    XrdOssErrorText);
+   static const int maxFD = 1048576;
+   struct rlimit rlim;
    char *val;
    int  retc, NoGo = XrdOssOK;
    pthread_t tid;
@@ -253,17 +249,26 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
 //
    ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
 
+// Establish the FD limit and the fence (half way)
+//
+  if (getrlimit(RLIMIT_NOFILE, &rlim))
+     Eroute.Emsg("Config", errno, "get fd limit");
+     else {if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_max = maxFD;
+           if (rlim.rlim_cur != rlim.rlim_max)
+              {rlim.rlim_cur  = rlim.rlim_max;
+               if (setrlimit(RLIMIT_NOFILE, &rlim))
+                  Eroute.Emsg("Config", errno, "set fd limit");
+                  else FDLimit = rlim.rlim_cur;
+              } else {FDFence = static_cast<int>(rlim.rlim_cur)>>1;
+                      FDLimit = rlim.rlim_cur;
+                     }
+
 // Process the configuration file
 //
    NoGo = ConfigProc(Eroute);
 
 // Establish the FD limit
 //
-   {struct rlimit rlim;
-    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
-       Eroute.Emsg("Config", errno, "get resource limits");
-       else Hard_FD_Limit = rlim.rlim_max;
-
     if (FDLimit <= 0) FDLimit = rlim.rlim_cur;
        else {rlim.rlim_cur = FDLimit;
             if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
@@ -1135,27 +1140,12 @@ int XrdOssSys::xdefault(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdSysError &Eroute)
 {
-    char *val;
-    int fence = 0, fdmax = XrdOssFDLIMIT;
 
-      if (!(val = Config.GetWord()))
-         {Eroute.Emsg("Config", "fdlimit fence not specified"); return 1;}
+    while(Config.GetWord()) {}
 
-      if (!strcmp(val, "*")) fence = -1;
-         else if (XrdOuca2x::a2i(Eroute,"fdlimit fence",val,&fence,0)) return 1;
+    Eroute.Say("Config warning: ", "fdlimit directive no longer supported.");
 
-      if (!(val = Config.GetWord())) fdmax = -1;
-         else if (!strcmp(val, "max")) fdmax = Hard_FD_Limit;
-                 else if (XrdOuca2x::a2i(Eroute, "fdlimit value", val, &fdmax,
-                              xrdmax(fence,XrdOssFDMINLIM))) return -EINVAL;
-                         else if (fdmax > Hard_FD_Limit)
-                                 {fdmax = Hard_FD_Limit;
-                                  Eroute.Say("Config warning: ",
-                                              "'fdlimit' forced to hard max");
-                                 }
-      FDFence = fence;
-      FDLimit = fdmax;
-      return 0;
+    return 0;
 }
   
 /******************************************************************************/

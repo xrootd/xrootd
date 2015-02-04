@@ -834,6 +834,7 @@ void XrdConfig::setCFG()
   
 int XrdConfig::setFDL()
 {
+   static const int maxFD = 1048576;
    struct rlimit rlim;
    char buff[100];
 
@@ -844,10 +845,10 @@ int XrdConfig::setFDL()
 
 // Set the limit to the maximum allowed
 //
+   if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_max = maxFD;
    rlim.rlim_cur = rlim.rlim_max;
 #if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_5))
-   if (rlim.rlim_cur == RLIM_INFINITY || rlim.rlim_cur > OPEN_MAX)
-     rlim.rlim_cur = OPEN_MAX;
+   if (rlim.rlim_cur > OPEN_MAX) rlim.rlim_max = rlim.rlim_cur = OPEN_MAX;
 #endif
    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
       return Log.Emsg("Config", errno,"set FD limit");

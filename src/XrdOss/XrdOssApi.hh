@@ -210,10 +210,9 @@ int       MSS_Unlink(const char *);
 static const int MaxArgs = 15;
 
 char     *ConfigFN;       // -> Pointer to the config file name
-int       Hard_FD_Limit;  //    Hard file descriptor limit
-int       MaxTwiddle;     //    Maximum seconds of internal wait
 char     *LocalRoot;      // -> Path prefix for local  filename
 char     *RemoteRoot;     // -> Path prefix for remote filename
+int       MaxTwiddle;     //    Maximum seconds of internal wait
 int       StageRealTime;  //    If 1, Invoke stage command on demand
 int       StageAsync;     //    If 1, return EINPROGRESS to the caller
 int       StageCreate;    //    If 1, use open path to create files
