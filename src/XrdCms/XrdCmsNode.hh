@@ -46,6 +46,7 @@ class XrdCmsBaseFR;
 class XrdCmsBaseFS;
 class XrdCmsClustID;
 class XrdCmsDrop;
+class XrdCmsManager;
 class XrdCmsPrepArgs;
 class XrdCmsRRData;
 class XrdCmsSelected;
@@ -76,6 +77,7 @@ public:
 static const char isBlisted  = 0x01; // in isBad -> Node is black listed
 static const char isDisabled = 0x02; // in isBad -> Node is disable (internal)
 static const char isSuspend  = 0x04; // in isBad -> Node is suspended via event
+static const char isDoomed   = 0x08; // in isBad -> Node socket must be closed
 
 static const char allowsRW   = 0x01; // in isRW  -> Server allows r/w access
 static const char allowsSS   = 0x02; // in isRW  -> Server can stage data
@@ -148,6 +150,8 @@ inline int   Send(const char *buff, int blen=0)
 inline int   Send(const struct iovec *iov, int iovcnt, int iotot=0)
                  {return (isOffline ? -1 : Link->Send(iov, iovcnt, iotot));}
 
+       void  setManager(XrdCmsManager *mP) {Manager = mP;}
+
        void  setName(XrdLink *lnkp, const char *theIF, int port);
 
        void  setShare(int shrval)
@@ -161,6 +165,8 @@ inline int   Send(const struct iovec *iov, int iovcnt, int iotot=0)
                       TZValid = (tZone != 0);
                       return TimeZone;
                      }
+
+        void setVersion(unsigned short vnum) {myVersion = vnum;}
 
 inline void  setSlot(short rslot) {RSlot = rslot;}
 inline short getSlot() {return RSlot;}
@@ -186,6 +192,7 @@ XrdSysMutex        myMutex;
 XrdLink           *Link;
 XrdNetAddr         netID;
 XrdNetIF           netIF;
+XrdCmsManager     *Manager;
 XrdCmsNode        *Next;
 time_t             DropTime;
 XrdCmsDrop        *DropJob;  
@@ -196,7 +203,7 @@ int                NodeID;
 int                Instance;
 int                myLevel;
 short              subsPort;     // Subscription port number
-short              Rsvd2;
+unsigned short     myVersion;
 char              *myCID;
 char              *myNID;
 char              *myName;

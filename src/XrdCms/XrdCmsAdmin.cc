@@ -621,7 +621,7 @@ void XrdCmsAdmin::do_RmDid(int isPfn)
       }
 
    DEBUG("sending managers gone " <<tp);
-   Manager.Inform(kYR_gone, kYR_raw, tp, strlen(tp)+1);
+   XrdCmsManager::Inform(kYR_gone, kYR_raw, tp, strlen(tp)+1);
 }
  
 /******************************************************************************/
@@ -650,5 +650,5 @@ void XrdCmsAdmin::do_RmDud(int isPfn)
       }
 
    DEBUG("sending managers have online " <<tp);
-   Manager.Inform(kYR_have, Mods, tp, strlen(tp)+1);
+   XrdCmsManager::Inform(kYR_have, Mods, tp, strlen(tp)+1);
 }

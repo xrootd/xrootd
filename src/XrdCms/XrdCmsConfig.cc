@@ -53,7 +53,6 @@
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsManager.hh"
-#include "XrdCms/XrdCmsManTree.hh"
 #include "XrdCms/XrdCmsMeter.hh"
 #include "XrdCms/XrdCmsNode.hh"
 #include "XrdCms/XrdCmsPrepare.hh"
@@ -181,6 +180,7 @@ private:
 #define TS_String(x,m) if (!strcmp(x,var)) {free(m); m = strdup(val); return 0;}
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(eDest, CFile);
+#define TS_Xer(x,m,v)  if (!strcmp(x,var)) return m(eDest, CFile, v);
 
 #define TS_Set(x,v)    if (!strcmp(x,var)) {v=1; CFile.Echo(); return 0;}
 
@@ -497,6 +497,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("subcluster",    xsubc);   // Manager, non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
+   TS_Xer("whitelist",     xblk,true);//Manager, non-dynamic
    }
 
    // The following are client directives that we will ignore
@@ -518,8 +519,6 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
 void XrdCmsConfig::DoIt()
 {
    XrdSysSemaphore SyncUp(0);
-   XrdCmsProtocol *pP;
-   XrdOucTList    *tp;
    pthread_t       tid;
    time_t          eTime = time(0);
    int             wTime;
@@ -569,25 +568,9 @@ void XrdCmsConfig::DoIt()
        SyncUp.Wait();
       }
 
-// Start the server subsystem. We check here to make sure we will not be
-// tying to connect to ourselves. This is possible if the manager and meta-
-// manager were defined to be the same and we are a manager. We would have
-// liked to screen this out earlier but port discovery prevents it.
+// Start the manager subsystem.
 //
-   if (isManager || isServer || isPeer)
-      {tp = ManList;
-       while(tp)
-            {if (strcmp(tp->text, myName) || tp->val != PortTCP)
-                {pP = XrdCmsProtocol::Alloc(myRole, tp->text, tp->val);
-                 Sched->Schedule((XrdJob *)pP);
-                } else {
-                 char buff[512];
-                 sprintf(buff, "%s:%d", tp->text, tp->val);
-                 Say.Emsg("Config", "Circular connection to", buff, "ignored.");
-                }
-             tp = tp->next;
-            }
-      }
+   if (isManager || isServer || isPeer) XrdCmsManager::Start(ManList);
 
 // Start state monitoring thread
 //
@@ -705,6 +688,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    NanList   =0;
    SanList   =0;
    mySID    = 0;
+   mySite   = 0;
    ifList    =0;
    perfint  = 3*60;
    perfpgm  = 0;
@@ -1100,13 +1084,12 @@ int XrdCmsConfig::setupServer()
        return 1;
       }
 
-// Count the number of managers we have and tell ManTree about it
+// Count the number of managers. Make sure there are not too many.
 //
    tp = ManList;
    while(tp) {n++; tp = tp->next;}
    if (n > XrdCmsManager::MTMax)
       {Say.Emsg("Config", "Too many managers have been specified"); return 1;}
-   ManTree.setMaxCon(n);
 
 // Calculate overload delay time
 //
@@ -1155,6 +1138,11 @@ char *XrdCmsConfig::setupSid()
 // we will copy it because we must use it permanently.
 //
    if (getenv("XRDIFADDRS")) ifList = strdup(getenv("XRDIFADDRS"));
+
+// Grab the site name
+//
+   if ((mySite = getenv("XRDSITE")) && *mySite) mySite = strdup(mySite);
+      else mySite = 0;
 
 // Determine what type of role we are playing
 //
@@ -1330,7 +1318,7 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
 
 /* Function: xblk
 
-   Purpose:  To parse the directive: blacklist [check <time> [path]] | <path>
+   Purpose:  To parse the directive: blacklist [check <time>] [<path>]
 
              <time>    how often to check for black list changes.
              <path>    the path to the blacklist file
@@ -1338,15 +1326,16 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile)
+int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile, bool iswl)
 {
+   const char *fType = (iswl ? "whitelist" : "blacklist");
    char *val = CFile.GetWord();
 
 // We only support this for managers
 //
    if (!isManager || isServer) return CFile.noEcho();
 
-// Indicate blacklisting is acttive and free up any current blacklist path
+// Indicate blacklisting is active and free up any current blacklist path
 //
    blkChk = 600;
    if (blkList) {free(blkList); blkList = 0;}
@@ -1354,20 +1343,25 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile)
 // Avoid echoing limitation in the stream object
 //
    if (!val || !val[0])
-      {eDest->Say("=====> cms.blacklist");
+      {eDest->Say("=====> cms.", fType);
        return 0;
       }
 
-// See if a time was specified
+// Process any options
 //
-   if (val && !strcmp(val, "check"))
-      {if (!(val = CFile.GetWord()) || !val[0])
-          {eDest->Emsg("Config", "blacklist check interval not specified");
-           return 1;
-          }
-       if (XrdOuca2x::a2tm(*eDest, "check value", val, &blkChk, 60)) return 1;
-       val = CFile.GetWord();
-      }
+   do {     if (!strcmp(val, "check"))
+               {if (!(val = CFile.GetWord()) || !val[0])
+                   {eDest->Emsg("Config",fType,"check interval not specified");
+                    return 1;
+                   }
+                if (XrdOuca2x::a2tm(*eDest, "check value", val, &blkChk, 60)) return 1;
+               }
+       else break;
+      } while((val = CFile.GetWord()));
+
+// Handle the invert option
+//
+   if (iswl) blkChk = -blkChk;
 
 // Verify the path, if any. is absolute
 //

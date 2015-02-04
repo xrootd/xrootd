@@ -48,7 +48,6 @@
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsManager.hh"
 #include "XrdCms/XrdCmsManList.hh"
-#include "XrdCms/XrdCmsManTree.hh"
 #include "XrdCms/XrdCmsMeter.hh"
 #include "XrdCms/XrdCmsPList.hh"
 #include "XrdCms/XrdCmsPrepare.hh"
@@ -141,6 +140,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     TZValid  = 0;
     TimeZone = 0;
     subsPort = 0;
+    myVersion= kYR_Version;
 
 // setName() will set the node identification information
 //
@@ -343,11 +343,11 @@ const char *XrdCmsNode::do_Gone(XrdCmsRRData &Arg)
 
 // If we have no managers and we still have the file or never had it, return
 //
-   if (!Manager.Present() || !newgone) return 0;
+   if (XrdCmsManager::Present() || !newgone) return 0;
 
 // Back-propogate the gone to all of our managers
 //
-   Manager.Inform(Arg.Request, Arg.Buff, Arg.Dlen);
+   XrdCmsManager::Inform(Arg.Request, Arg.Buff, Arg.Dlen);
 
 // All done
 //
@@ -395,11 +395,11 @@ const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 
 // Return if we have no managers or we already informed the managers
 //
-   if (!Manager.Present() || !isnew) return 0;
+   if (XrdCmsManager::Present() || !isnew) return 0;
 
 // Back-propogate the have to all of our managers
 //
-   Manager.Inform(Arg.Request, Arg.Buff, Arg.Dlen);
+   XrdCmsManager::Inform(Arg.Request, Arg.Buff, Arg.Dlen);
 
 // All done
 //
@@ -773,6 +773,7 @@ const char *XrdCmsNode::do_Ping(XrdCmsRRData &Arg)
 // Process: ping
 // Respond: pong
 //
+   if (isBad & isDoomed) return ".redirected";
    Link->Send((char *)&pongIt, sizeof(pongIt));
    return 0;
 }
@@ -1104,7 +1105,8 @@ const char *XrdCmsNode::do_Space(XrdCmsRRData &Arg)
 
 // Send the response
 //
-   if (Arg.Request.rrCode != kYR_space) Manager.Inform(mySpace.Hdr, buff, blen);
+   if (Arg.Request.rrCode != kYR_space)
+      XrdCmsManager::Inform(mySpace.Hdr, buff, blen);
       else {xmsg[0].iov_base = (char *)&mySpace;
             xmsg[0].iov_len  = sizeof(mySpace);
             xmsg[1].iov_base = buff;
@@ -1211,10 +1213,10 @@ void XrdCmsNode::do_StateDFS(XrdCmsBaseFR *rP, int rc)
 // point we will only inform the manager that actually wants to know. This
 // is encoded to the route passed to us.
 //
-   if (Manager.Present() && isNew
+   if (XrdCmsManager::Present() && isNew
    && !(rP->Mod & CmsStateRequest::kYR_noresp))
       {Request.rrCode   = kYR_have;
-       Manager.Inform(Request, rP->Path, rP->PathLen+1);
+       XrdCmsManager::Inform(Request, rP->Path, rP->PathLen+1);
       }
 }
   
@@ -1421,7 +1423,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 // Process reset requests. These are exclsuive to any other request
 //
    if (Reset)
-      {Manager.Reset();                // Propagate the reset to our managers
+      {XrdCmsManager::Reset();         // Propagate the reset to our managers
        Cache.Bounce(NodeMask, NodeID); // Now invalidate our cache lines
       }
 
@@ -1515,7 +1517,7 @@ const char *XrdCmsNode::do_Try(XrdCmsRRData &Arg)
 
 // Add all the alternates to our alternate list
 //
-   myMans.Add(&netID, Arg.Path, Config.PortTCP, myLevel);
+   if (Manager) Manager->myMans->Add(&netID, Arg.Path, Config.PortTCP, myLevel);
 
 // Close the link and return an error
 //
@@ -1586,7 +1588,7 @@ void XrdCmsNode::Report_Usage(XrdLink *lp)   // Static!
    xmsg[1].iov_base = respbuff;
    xmsg[1].iov_len  = blen;
    if (lp) lp->Send(xmsg, 2);
-      else Manager.Inform("usage", xmsg, 2);
+      else XrdCmsManager::Inform("usage", xmsg, 2);
 
 // Do some debugging
 //

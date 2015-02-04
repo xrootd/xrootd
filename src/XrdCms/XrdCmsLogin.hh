@@ -41,7 +41,8 @@ class XrdCmsLogin
 {
 public:
 
-       int  Admit(XrdLink *Link, XrdCms::CmsLoginData &Data);
+       int  Admit(XrdLink    *Link, XrdCms::CmsLoginData &Data,
+                  const char *sid,  const char *envP);
 
 static int  Login(XrdLink *Link, XrdCms::CmsLoginData &Data, int timeout=-1);
 
@@ -55,6 +56,7 @@ static int Authenticate(XrdLink *Link, XrdCms::CmsLoginData &Data);
 static int Emsg(XrdLink *, const char *, int ecode=XrdCms::kYR_EINVAL);
 static int sendData(XrdLink *Link, XrdCms::CmsLoginData &Data);
 static int SendErrorBL(XrdLink *Link);
+static int SendErrorBL(XrdLink *Link, char *rbuff, int rblen);
 
          char       *myBuff;
          int         myBlen;

@@ -40,16 +40,54 @@
 #include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
+/*                         L o c a l   S t a t i c s                          */
+/******************************************************************************/
+  
+namespace
+{
+XrdOucTList *GetLocalSite()
+             {const char *sname = getenv("XRDSITE");
+              if (!sname || !(*sname)) sname = "local";
+              return new XrdOucTList(sname);
+             }
+
+XrdOucTList *siteList  = 0;
+int          siteIndex = 0;
+}
+
+/******************************************************************************/
 /*                              P a r s e M a n                               */
 /******************************************************************************/
   
 bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
-                           char  *hSpec, char *hPort, int *sPort)
+                           char  *hSpec, char *hPort, int *sPort, bool hush)
 {
+   static const size_t maxSNLen = 63;
    XrdOucTList *newMans, *newP, *oldP, *appList = (oldMans ? *oldMans : 0);
+   XrdOucTList *sP = siteList;
    const char *eText;
-   char *plus;
-   int nPort, maxIP = 1;
+   char *plus, *atsn;
+   int nPort, maxIP = 1, snum = 0;
+
+// Generate local site name if we haven't done so yet
+//
+   if (!siteList) siteList = GetLocalSite();
+
+// Handle site qualification first
+//
+   if ((atsn = index(hPort, '@')))
+      {if (*(atsn+1) == '\0')
+          {eDest->Emsg("Config", "site name missing for",  hSpec); return 0;}
+       *atsn++ = 0;
+       if (strlen(atsn) > maxSNLen)
+          {eDest->Emsg("Config", "site name too long for", hSpec); return 0;}
+       while(sP && strcmp(sP->text, atsn)) sP = sP->next;
+       if (sP) snum = sP->val;
+          else {siteIndex++;
+                siteList = new XrdOucTList(atsn, siteIndex, siteList);
+                snum = siteIndex;
+               }
+      }
 
 // Check if this is a multi request
 //
@@ -88,6 +126,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 //
    while((newP = newMans))
         {newMans = newMans->next;
+         newP->ival[1] = snum;
          oldP = *oldMans;
          while(oldP)
               {if (newP->val == oldP->val && !strcmp(newP->text, oldP->text))
@@ -99,7 +138,8 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
               }
          if (!oldP) 
             {newP->next = appList; appList = newP;
-             if (plus) eDest->Say("Config ",hSpec," -> all.manager ",newP->text);
+             if (plus && !hush)
+                eDest->Say("Config ",hSpec," -> all.manager ",newP->text);
             }
         }
 
@@ -144,4 +184,21 @@ char *XrdCmsUtils::ParseManPort(XrdSysError *eDest, XrdOucStream &CFile,
 // All is well
 //
    return strdup(pSpec);
+}
+
+/******************************************************************************/
+/*                              S i t e N a m e                               */
+/******************************************************************************/
+  
+const char *XrdCmsUtils::SiteName(int snum)
+{
+   XrdOucTList *sP = siteList;
+
+// Find matching site
+//
+   while(sP && snum != sP->val) sP = sP->next;
+
+// Return result
+//
+   return (sP ? sP->text : "anonymous");
 }

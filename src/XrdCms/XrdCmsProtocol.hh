@@ -36,6 +36,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdLink;
+class XrdCmsManager;
 class XrdCmsNode;
 class XrdCmsRRData;
 class XrdCmsRouting;
@@ -45,8 +46,8 @@ class XrdCmsProtocol : public XrdProtocol
 friend class XrdCmsJob;
 public:
 
-static XrdCmsProtocol *Alloc(const char *theRole = "",
-                             const char *theMan  = 0, int thePort=0);
+static XrdCmsProtocol *Alloc(const char *theRole = "", XrdCmsManager *mP=0,
+                             const char *theMan  = 0,  int thePort=0);
 
        void            DoIt();
 
@@ -58,11 +59,11 @@ static XrdCmsProtocol *Alloc(const char *theRole = "",
 
        void            Recycle(XrdLink *lp, int consec, const char *reason);
 
+       void            Ref(int rcnt);
+
        int             Stats(char *buff, int blen, int do_sync=0);
 
-              XrdCmsProtocol() : XrdProtocol("cms protocol handler"),
-                                 ProtLink(0), myRole("?"), myNode(0), RSlot(0)
-                               {}
+              XrdCmsProtocol() : XrdProtocol("cms protocol handler") {Init();}
              ~XrdCmsProtocol() {}
 
 private:
@@ -76,11 +77,14 @@ int             Authenticate();
 void            ConfigCheck(unsigned char *theConfig);
 enum Bearing    {isDown, isLateral, isUp};
 const char     *Dispatch(Bearing cDir, int maxWait, int maxTries);
+void            Init(const char *iRole="?", XrdCmsManager *uMan=0,
+                     const char *iMan="?",  int iPort=0);
 XrdCmsRouting  *Login_Failed(const char *Reason);
 void            Pander(const char *manager, int mport);
 void            Reissue(XrdCmsRRData &Data);
 void            Reply_Delay(XrdCmsRRData &Data, kXR_unt32 theDelay);
 void            Reply_Error(XrdCmsRRData &Data, int ecode, const char *etext);
+void            Sync();
 
 static XrdSysMutex     ProtMutex;
 static XrdCmsProtocol *ProtStack;
@@ -90,14 +94,17 @@ static XrdCmsParser    ProtArgs;
        XrdCmsRouting  *Routing;   // Request routing for this instance
 
 static const int       maxReqSize = 16384;
-
+       XrdSysMutex     refMutex;
+       XrdSysSemaphore *refWait;
        XrdLink        *Link;
 static int             readWait;
 const  char           *myRole;
+       XrdCmsNode     *myNode;
+       XrdCmsManager  *Manager;
 const  char           *myMan;
        int             myManPort;
-       XrdCmsNode     *myNode;
+       int             refCount;
        short           RSlot;      // True only for redirectors
-       char            loggedIn;   // True of login succeeded
+       char            loggedIn;   // True if login succeeded
 };
 #endif

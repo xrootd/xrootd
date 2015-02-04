@@ -322,8 +322,10 @@ XrdCmsNode *XrdCmsCluster::AddAlt(XrdCmsClustID *cidP, XrdLink *lp,
 
 void XrdCmsCluster::BlackList(XrdOucTList *blP)
 {
+   static CmsDiscRequest discRequest = {{0, kYR_disc, 0, 0}};
    XrdCmsNode *nP;
-   int i;
+   const char *etxt;
+   int i, blRD;
    bool inBL;
 
 // Obtain a lock on the table
@@ -334,17 +336,23 @@ void XrdCmsCluster::BlackList(XrdOucTList *blP)
 //
    for (i = 0; i <= STHi; i++)
        {if ((nP = NodeTab[i]))
-           {inBL = (blP && XrdCmsBlackList::Present(nP->Name(), blP));
-            if ((inBL &&  (nP->isBad & XrdCmsNode::isBlisted))
-            || (!inBL && !(nP->isBad & XrdCmsNode::isBlisted)))
-               continue;
+           {inBL = (blP && (blRD = XrdCmsBlackList::Present(nP->Name(), blP)));
+            if ((!inBL && !(nP->isBad & XrdCmsNode::isBlisted))
+            ||  ( inBL &&  (nP->isBad & XrdCmsNode::isBlisted))) continue;
             nP->Lock();
             STMutex.UnLock();
             if (inBL)
-               {nP->isBad |=  XrdCmsNode::isBlisted;
-                Say.Emsg("Manager", nP->Name(), "blacklisted.");
+               {nP->isBad |= XrdCmsNode::isBlisted | XrdCmsNode::isDoomed;
+                if (blRD < -1)
+                  {if (kYR_Version > nP->myVersion)
+                            etxt = "blacklisted; redirect unsupported.";
+                      else  etxt = "blacklisted with redirect.";
+                   nP->isBad |= XrdCmsNode::isDoomed;
+                   nP->Send((char *)&discRequest, sizeof(discRequest));
+                  }
+                Say.Emsg("Manager", nP->Name(), etxt);
                } else {
-                nP->isBad &= ~XrdCmsNode::isBlisted;
+                nP->isBad &= ~(XrdCmsNode::isBlisted | XrdCmsNode::isDoomed);
                 Say.Emsg("Manager", nP->Name(), "removed from blacklist.");
                }
             nP->UnLock();
@@ -844,7 +852,7 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 // If this is an immediate drop request, do so now. Drop() will delete
 // the node object, so remove the node lock and tell LockHandler that.
 //
-   if (immed || !Config.DRPDelay) 
+   if (immed || !Config.DRPDelay || theNode->isBad & XrdCmsNode::isDoomed)
       {theNode->UnLock();
        LockHandler.myNode = 0;
        Drop(NodeID, Inst);
