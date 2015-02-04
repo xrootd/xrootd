@@ -299,9 +299,9 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 // Fill our the environment
 //
    if (!Config.mySite) loginData.envCGI  = 0;
-      {snprintf(envBuff, sizeof(envBuff), "site=%s", Config.mySite);
-       loginData.envCGI = (kXR_char *)envBuff;
-      }
+      else {snprintf(envBuff, sizeof(envBuff), "site=%s", Config.mySite);
+            loginData.envCGI = (kXR_char *)envBuff;
+           }
 
 // Establish request routing based on who we are
 //
