@@ -303,7 +303,7 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     char rootpath[MAXROOTURLLEN];
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
-/* 
+/*
    if CNS server is not defined, there is no way to list files in a directory
    because we don't know the data nodes
 */
@@ -317,7 +317,7 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
         dp = XrdFfsPosix_opendir(rootpath);
         if (dp == NULL)
             return -errno;
-                                                                                                                                               
+
         while ((de = XrdFfsPosix_readdir(dp)) != NULL)
         {
 /*
@@ -342,13 +342,14 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
          for (i = 0; i < n; i++)
              if (filler(buf, dnarray[i], NULL, 0)) break;
 
-/* 
-  this loop should not be merged with the above loop because all members of 
+/*
+  this loop should not be merged with the above loop because all members of
   dnarray[] should be freed, or there will be memory leak.
  */
-         for (i = 0; i < n; i++) 
+         for (i = 0; i < n; i++)
              free(dnarray[i]);
-         free(dnarray); 
+         if (dnarray != NULL)
+             free(dnarray);
 
          return -errno;
     }
