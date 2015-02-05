@@ -335,7 +335,7 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     else  /* if there is no CNS, try collect dirents from all known data servers. */
     {
          int i, n;
-         char **dnarray;
+         char **dnarray = NULL;
 
          n = XrdFfsPosix_readdirall(xrootdfs.rdr, path, &dnarray, fuse_get_context()->uid);
 
