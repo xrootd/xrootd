@@ -225,7 +225,7 @@ enum  {kYR_refresh = 0x0001,
        kYR_retipmsk= 0x3000,  // Mask  to isolate retipcxx bits
        kYR_retipsft= 12,      // Shift to convert retipcxx bits
        kYR_listall = 0x4000,  // List everything regardless of other settings
-       kYR_prvtnet = 0x8000,  // Client is using a orivate address
+       kYR_prvtnet = 0x8000   // Client is using a orivate address
       };
 //     kXR_string    Path;
 
@@ -470,7 +470,7 @@ enum  {kYR_refresh = 0x0001,
        kYR_retipv64= 0x3000,  // Client is IPv6 IPv4
        kYR_retipmsk= 0x3000,  // Mask  to isolate retipcxx bits
        kYR_retipsft= 12,      // Shift to convert retipcxx bits
-       kYR_prvtnet = 0x8000,  // Client is using a orivate address
+       kYR_prvtnet = 0x8000   // Client is using a orivate address
       };
 //     kXR_string    Path;
 //     kXR_string    Opaque; // Optional

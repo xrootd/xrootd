@@ -324,7 +324,7 @@ void XrdCmsCluster::BlackList(XrdOucTList *blP)
 {
    static CmsDiscRequest discRequest = {{0, kYR_disc, 0, 0}};
    XrdCmsNode *nP;
-   const char *etxt;
+   const char *etxt = "blacklisted.";
    int i, blRD;
    bool inBL;
 

@@ -53,15 +53,18 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
-using namespace XrdCms;
-
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
-extern XrdSysError     XrdCms::Say;
+namespace XrdCms
+{
+extern XrdSysError     Say;
 
-extern XrdOucTrace     XrdCms::Trace;
+extern XrdOucTrace     Trace;
+}
+
+using namespace XrdCms;
 
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
