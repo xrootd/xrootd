@@ -7,6 +7,7 @@ Prerelease Notes
 
 + **New Features**
    * Allow suspending and enabling remote debugging without a restart.
+   * Implement black/whitelist with optional redirection.
    * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
