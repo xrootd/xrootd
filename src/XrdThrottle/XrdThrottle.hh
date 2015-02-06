@@ -41,6 +41,7 @@ public:
    virtual int
    close();
 
+   using XrdSfsFile::fctl;
    virtual int
    fctl(const int               cmd,
         const char             *args,

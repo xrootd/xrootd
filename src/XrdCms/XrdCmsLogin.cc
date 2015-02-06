@@ -273,7 +273,8 @@ int XrdCmsLogin::SendErrorBL(XrdLink *Link)
 int XrdCmsLogin::SendErrorBL(XrdLink *Link, char *rbuff, int rblen)
 {
   CmsRRHdr Rsp = {0, kYR_try, CmsTryRequest::kYR_permtop, htons(rblen)};
-  struct iovec iov[2] = {{(char *)&Rsp, sizeof(Rsp)}, {rbuff, (size_t)rblen}};
+  struct iovec iov[2] = {{(char *)&Rsp, sizeof(Rsp)},
+                                {rbuff, static_cast<size_t>(rblen)}};
   char msgbuff[2048];
 
 // Send off the data
