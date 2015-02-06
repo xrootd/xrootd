@@ -103,7 +103,9 @@ void XrdCmsManList::Add(int ref, char *manp, int manport, int lvl)
 
 // Find the colon in the host name
 //
-   if (!(cp = index(manp, int(':')))) port = manport;
+   if (*manp != '[') cp = index(manp, int(':'));
+      else if ((cp = index(manp+1, ']'))) cp = index(cp+1, int(':'));
+   if (!cp) port = manport;
       else {if (!(port=atoi(cp+1)) || port > 0xffff) port=manport;
             *cp = '\0';
            }

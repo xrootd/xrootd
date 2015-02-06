@@ -551,20 +551,26 @@ bool XrdCmsManager::Start(const XrdOucTList *mL)
 bool XrdCmsManager::Verify(XrdLink *lP, const char *sid, const char *sname)
 {
    XrdSysMutexHelper hMutex(MTMutex);
+   const char *sidP;
+
+// Trim off the type of service in the sid
+//
+   if ((sidP = index(sid, ' '))) sidP++;
+      else sidP = sid;
 
 // If we have no sid, just record it
 //
    if (!theSID)
-      {theSID = strdup(sid);
+      {theSID = strdup(sidP);
        if (theSite) free(theSite);
        theHost = strdup(lP->Host());
-       theSite = (sname ? strdup(sname) : strdup("unkbown"));
+       theSite = (sname ? strdup(sname) : strdup("anonymous"));
        return true;
       }
 
 // Make sure we are connecting to the same cluster as before
 //
-   if (!strcmp(theSID, sid)) return true;
+   if (!strcmp(theSID, sidP)) return true;
 
 // Compute the offending site configuration
 //
