@@ -135,6 +135,8 @@ XrdPoll::XrdPoll()
 /*                                A t t a c h                                 */
 /******************************************************************************/
   
+int XrdPoll__Attach(XrdLink *lp) {return XrdPoll::Attach(lp);}
+
 int XrdPoll::Attach(XrdLink *lp)
 {
    int i;
