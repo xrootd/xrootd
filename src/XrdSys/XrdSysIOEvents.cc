@@ -289,7 +289,8 @@ void XrdSys::IOEvents::Channel::Delete()
    chMutex.Lock();
    if (!chPollXQ || chPollXQ == &pollErr1)
       {chMutex.UnLock();
-       return;
+        delete this;
+        return;
       }
 
 // Disable and remove ourselves from all queues
