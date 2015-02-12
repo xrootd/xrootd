@@ -14,6 +14,7 @@ Prerelease Notes
    * Avoid SEGV when deleting a partially empty table.
 
 + **Minor bug fixes**
+   * Avoid memory leak when deleting a detached channel.
 
 + **Miscellaneous**
    * Provide consistency for RLIM_INFINITY in getrlimit(RLIMIT_NOFILE).
