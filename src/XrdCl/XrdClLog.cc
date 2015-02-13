@@ -148,7 +148,9 @@ namespace XrdCl
     while( (line = tok.GetLine()) )
     {
       out << "[" << now << "][" << LogLevelToString( level ) << "]";
-      out << "[" << TopicToString( topic ) << "] " << line << std::endl;
+      out << "[" << TopicToString( topic ) << "]";
+      if(pPid) out << "[" << std::setw(5) << pPid << "]";
+      out << " " << line << std::endl;
     }
 
     pOutput->Write( out.str() );
