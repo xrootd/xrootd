@@ -758,8 +758,8 @@ extern "C"
     ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
     env->UnLock();
 
-    log->Debug( UtilityMsg, "In the parent fork handler for process %d",
-                getpid() );
+    pid_t pid = getpid();
+    log->Debug( UtilityMsg, "In the parent fork handler for process %d", pid );
 
     //--------------------------------------------------------------------------
     // Run the fork handler if it's enabled
@@ -767,7 +767,10 @@ extern "C"
     int runForkHandler = DefaultRunForkHandler;
     env->GetInt( "RunForkHandler", runForkHandler );
     if( runForkHandler )
+    {
+      log->SetPid(pid);
       forkHandler->Parent();
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -785,8 +788,8 @@ extern "C"
     ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
     env->ReInitializeLock();
 
-    log->Debug( UtilityMsg, "In the child fork handler for process %d",
-                getpid() );
+    pid_t pid = getpid();
+    log->Debug( UtilityMsg, "In the child fork handler for process %d", pid );
 
     //--------------------------------------------------------------------------
     // Run the fork handler if it's enabled
@@ -794,7 +797,10 @@ extern "C"
     int runForkHandler = DefaultRunForkHandler;
     env->GetInt( "RunForkHandler", runForkHandler );
     if( runForkHandler )
+    {
+      log->SetPid(pid);
       forkHandler->Child();
+    }
   }
 }
 
