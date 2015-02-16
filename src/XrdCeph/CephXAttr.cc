@@ -30,7 +30,7 @@ extern "C"
 }
 
 CephXAttr::CephXAttr() {}
-  
+
 CephXAttr::~CephXAttr() {}
 
 int CephXAttr::Del(const char *Aname, const char *Path, int fd) {

@@ -42,7 +42,7 @@ public:
   virtual int Write(XrdSfsAio *aiop);
   virtual int Fsync(void);
   virtual int Ftruncate(unsigned long long);
-  
+
 private:
 
   int m_fd;

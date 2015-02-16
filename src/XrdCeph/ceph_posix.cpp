@@ -379,7 +379,7 @@ static libradosstriper::RadosStriper* getRadosStriper(const CephFile& file) {
       g_cluster = 0;
       return 0;
     }
-    g_ioCtx.insert(std::pair<std::string, librados::IoCtx*>(userAtPool, ioctx));    
+    g_ioCtx.insert(std::pair<std::string, librados::IoCtx*>(userAtPool, ioctx));
     it = g_radosStripers.insert(std::pair<std::string, libradosstriper::RadosStriper*>
                                 (userAtPool, striper)).first;
   }
@@ -570,7 +570,7 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
     }
   }
   buf->st_mtime = buf->st_atime;
-  buf->st_ctime = buf->st_atime;  
+  buf->st_ctime = buf->st_atime;
   buf->st_mode = 0666;
   return 0;
 }
@@ -617,7 +617,7 @@ static ssize_t ceph_posix_internal_getxattr(const CephFile &file, const char* na
   size_t returned_size = (size_t)rc<size?rc:size;
   bl.copy(0, returned_size, value);
   return returned_size;
-}  
+}
 
 ssize_t ceph_posix_getxattr(XrdOucEnv* env, const char* path,
                             const char* name, void* value,

@@ -21,7 +21,7 @@ message (STATUS "RADOS_INCLUDE_DIR        = ${RADOS_INCLUDE_DIR}")
 message (STATUS "RADOS_LIBS               = ${RADOS_LIBS}")
 
 include (FindPackageHandleStandardArgs)
-find_package_handle_standard_args (ceph DEFAULT_MSG 
+find_package_handle_standard_args (ceph DEFAULT_MSG
   RADOS_INCLUDE_DIR
   RADOS_LIBS)
 
