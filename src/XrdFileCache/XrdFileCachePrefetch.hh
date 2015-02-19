@@ -82,6 +82,12 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          bool InitiateClose();
 
+         //----------------------------------------------------------------------
+         //! Sync file cache inf o and output data with disk
+         //----------------------------------------------------------------------
+         void Sync();
+
+
       protected:
          //! Read from disk, RAM, task, or client.
          ssize_t Read(char * buff, off_t offset, size_t size);
@@ -157,7 +163,7 @@ namespace XrdFileCache
 
          //! Log path
          const char* lPath() const;
-
+          
          RAM             m_ram;            //!< in memory cache
 
          XrdOssDF       *m_output;         //!< file handle for data file on disk
@@ -182,6 +188,12 @@ namespace XrdFileCache
          XrdSysCondVar     m_queueCond;    //!< m_tasks_queue condition variable
 
          Stats            m_stats;      //!< cache statistics, used in IO detach
+
+         // fsync
+         XrdSysMutex      m_syncStatusMutex; //!< mutex locking fsync status
+         std::vector<int> m_write_called_while_in_sync;
+         int              m_non_flushed_cnt;
+         bool             m_in_sync;
    };
 }
 #endif

@@ -62,7 +62,8 @@ namespace XrdFileCache
          //!
          //! @param i block index
          //---------------------------------------------------------------------
-         void SetBit(int i);
+         void SetBitWriteCalled(int i);
+         void SetBitFetched(int i);
 
          //---------------------------------------------------------------------
          //! \brief Reserve buffer for fileSize/bufferSize bytes
@@ -155,7 +156,8 @@ namespace XrdFileCache
          int            m_version;    //!< info version
          long long      m_bufferSize; //!< prefetch buffer size
          int            m_sizeInBits; //!< number of file blocks
-         unsigned char *m_buff;       //!< download state vector
+         unsigned char *m_buff_fetched;       //!< download state vector
+         unsigned char *m_buff_write_called;  //!< disk written state vector
          int            m_accessCnt;  //!< number of written AStat structs
          bool           m_complete;   //!< cached
    };
@@ -166,7 +168,7 @@ namespace XrdFileCache
       assert(cn < GetSizeInBytes());
 
       int off = i - cn*8;
-      return (m_buff[cn] & cfiBIT(off)) == cfiBIT(off);
+      return (m_buff_fetched[cn] & cfiBIT(off)) == cfiBIT(off);
    }
 
    inline int Info::GetSizeInBytes() const
@@ -197,13 +199,22 @@ namespace XrdFileCache
       m_complete = !IsAnythingEmptyInRng(0, m_sizeInBits-1);
    }
 
-   inline void Info::SetBit(int i)
+   inline void Info::SetBitWriteCalled(int i)
    {
       int cn = i/8;
       assert(cn < GetSizeInBytes());
 
       int off = i - cn*8;
-      m_buff[cn] |= cfiBIT(off);
+      m_buff_write_called[cn] |= cfiBIT(off);
+   }
+
+   inline void Info::SetBitFetched(int i)
+   {
+      int cn = i/8;
+      assert(cn < GetSizeInBytes());
+
+      int off = i - cn*8;
+      m_buff_fetched[cn] |= cfiBIT(off);
    }
 
    inline long long Info::GetBufferSize() const
