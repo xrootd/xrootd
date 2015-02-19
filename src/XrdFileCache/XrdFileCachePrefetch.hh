@@ -143,9 +143,6 @@ namespace XrdFileCache
          //! Open file handle for data file and info file on local disk.
          bool Open();
 
-         //! Write download state into cinfo file.
-         void RecordDownloadInfo();
-
          //! Short log alias.
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 

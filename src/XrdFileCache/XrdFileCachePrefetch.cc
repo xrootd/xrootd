@@ -162,7 +162,6 @@ Prefetch::~Prefetch()
    }
    if (m_infoFile)
    {
-      RecordDownloadInfo();
       clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close info file");
 
       m_infoFile->Close();
@@ -286,9 +285,6 @@ Prefetch::Run()
       delete task;
 
       numReadBlocks++;
-      //      if (numReadBlocks % 100 == 0)
-      //  RecordDownloadInfo();
-
    }  // loop tasks
 
 
@@ -296,7 +292,6 @@ Prefetch::Run()
 
 
    m_cfi.CheckComplete();
-   //   RecordDownloadInfo();
 
    m_stateCond.Lock();
    m_stopped = true;
@@ -911,15 +906,6 @@ Prefetch::Read(char *buff, off_t off, size_t size)
    }
 }
 
-//______________________________________________________________________________
-void Prefetch::RecordDownloadInfo()
-{
-   /*
-   clLog()->Debug(XrdCl::AppMsg, "Prefetch record Info file %s", lPath());
-   m_cfi.WriteHeader(m_infoFile);
-   m_nfoFile->Fsync();
-   */
-}
 
 //______________________________________________________________________________
 void Prefetch::AppendIOStatToFileInfo()
