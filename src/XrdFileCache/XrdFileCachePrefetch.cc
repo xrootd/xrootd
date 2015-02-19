@@ -553,7 +553,7 @@ Prefetch::WriteBlockToDisk(int ramIdx, size_t size)
 //______________________________________________________________________________
 void Prefetch::Sync()
 { 
-   clLog()->Info(XrdCl::AppMsg, "Prefetch sync %s", lPath());
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch sync %s", lPath());
    m_syncStatusMutex.Lock();
    m_in_sync = true;
    m_syncStatusMutex.UnLock();
@@ -561,7 +561,6 @@ void Prefetch::Sync()
    m_output->Fsync();
    m_infoFile->Fsync();
 
-   clLog()->Info(XrdCl::AppMsg, "Prefetch sync done for data and info file %s", lPath());
    m_syncStatusMutex.Lock();
    m_in_sync = false;
    m_cfi.WriteHeader(m_infoFile);
@@ -570,9 +569,7 @@ void Prefetch::Sync()
       m_cfi.SetBitWriteCalled(*i);
    m_write_called_while_in_sync.clear();
 
-
-
-   clLog()->Info(XrdCl::AppMsg, "Prefetch sync left %d",  m_non_flushed_cnt);
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch sync left %d",  m_non_flushed_cnt);
 
    m_syncStatusMutex.UnLock();
 }
