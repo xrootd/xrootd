@@ -38,7 +38,9 @@ if( BUILD_HTTP )
   include( XrdHttp )
 endif()
 
-include( XrdCeph )
+if( BUILD_CEPH )
+  include( XrdCeph )
+endif()
 
 #-------------------------------------------------------------------------------
 # Install the utility scripts
