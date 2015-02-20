@@ -1,8 +1,8 @@
-#include <XrdCeph/ceph_posix.h>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdOuc/XrdOucTrace.hh>
 
-#include "CephOssDir.hh"
+#include "XrdCeph/XrdCephPosix.h"
+#include "XrdCeph/XrdCephOssDir.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 
 extern XrdSysError CephEroute;
 

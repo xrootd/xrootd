@@ -17,7 +17,8 @@
 #include <sys/xattr.h>
 #include <time.h>
 #include <limits>
-#include <XrdCeph/ceph_posix.h>
+
+#include "XrdCeph/XrdCephPosix.h"
 
 /// small structs to store file metadata
 struct CephFile {
@@ -504,7 +505,7 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
     logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
-    if ((fr.flags & (OWRONLY|O_RDWR)) != 0) {
+    if ((fr.flags & (O_WRONLY|O_RDWR)) != 0) {
       return -EBADF;
     }
     libradosstriper::RadosStriper *striper = getRadosStriper(fr);
@@ -615,7 +616,7 @@ static ssize_t ceph_posix_internal_getxattr(const CephFile &file, const char* na
     return -1;
   }
   size_t returned_size = (size_t)rc<size?rc:size;
-  bl.copy(0, returned_size, value);
+  bl.copy(0, returned_size, (char*)value);
   return returned_size;
 }
 

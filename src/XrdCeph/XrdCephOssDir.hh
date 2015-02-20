@@ -1,11 +1,14 @@
-#ifndef __CEPH_OSS_FILE_HH__
-#define __CEPH_OSS_FILE_HH__
+#ifndef __CEPH_OSS_DIR_HH__
+#define __CEPH_OSS_DIR_HH__
 
-#include <XrdOss/XrdOss.hh>
-#include "CephOss.hh"
+#include "XrdOss/XrdOss.hh"
+#include "XrdCeph/XrdCephOss.hh"
 
 //------------------------------------------------------------------------------
 //! This class implements XrdOssDF interface for usage with a CEPH storage.
+//! It has a very restricted usage as the only valid path for opendir is '/'.
+//! The reason is that ceph is an object store where you can only list all
+//! objects, and that has no notion of hierarchy
 //!
 //! This plugin is able to use any pool of ceph with any userId.
 //! There are several ways to provide the pool and userId to be used for a given
@@ -25,29 +28,21 @@
 //! In case one of the two only has a default, it will be applied for both plugins.
 //------------------------------------------------------------------------------
 
-class CephOssFile : public XrdOssDF {
+class CephOssDir : public XrdOssDF {
 
 public:
 
-  CephOssFile(CephOss *cephoss);
-  virtual ~CephOssFile() {};
-  virtual int Open(const char *path, int flags, mode_t mode, XrdOucEnv &env);
+  CephOssDir(CephOss *cephoss);
+  virtual ~CephOssDir() {};
+  virtual int Opendir(const char *, XrdOucEnv &);
+  virtual int Readdir(char *buff, int blen);
   virtual int Close(long long *retsz=0);
-  virtual ssize_t Read(off_t offset, size_t blen);
-  virtual ssize_t Read(void *buff, off_t offset, size_t blen);
-  virtual int     Read(XrdSfsAio *aoip);
-  virtual ssize_t ReadRaw(void *, off_t, size_t);
-  virtual int Fstat(struct stat *buff);
-  virtual ssize_t Write(const void *buff, off_t offset, size_t blen);
-  virtual int Write(XrdSfsAio *aiop);
-  virtual int Fsync(void);
-  virtual int Ftruncate(unsigned long long);
 
 private:
 
-  int m_fd;
+  DIR *m_dirp;
   CephOss *m_cephOss;
 
 };
 
-#endif /* __CEPH_OSS_FILE_HH__ */
+#endif /* __CEPH_OSS_DIR_HH__ */

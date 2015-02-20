@@ -1,8 +1,8 @@
-#include <XrdVersion.hh>
-#include <XrdCeph/ceph_posix.h>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdOuc/XrdOucTrace.hh>
-#include "CephXAttr.hh"
+#include "XrdVersion.hh"
+#include "XrdCeph/XrdCephPosix.h"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdCeph/XrdCephXAttr.hh"
 
 XrdSysError CephXattrEroute(0);
 XrdOucTrace CephXattrTrace(&CephXattrEroute);

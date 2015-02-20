@@ -2,15 +2,14 @@
 #include <string>
 #include <fcntl.h>
 
-#include <XrdCeph/ceph_posix.h>
-#include <XrdOuc/XrdOucEnv.hh>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdOuc/XrdOucTrace.hh>
-#include <XrdVersion.hh>
-
-#include "CephOss.hh"
-#include "CephOssDir.hh"
-#include "CephOssFile.hh"
+#include "XrdCeph/XrdCephPosix.h"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdVersion.hh"
+#include "XrdCeph/XrdCephOss.hh"
+#include "XrdCeph/XrdCephOssDir.hh"
+#include "XrdCeph/XrdCephOssFile.hh"
 
 XrdSysError CephEroute(0);
 XrdOucTrace CephTrace(&CephEroute);

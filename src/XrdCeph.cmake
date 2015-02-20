@@ -1,61 +1,48 @@
-
 include( XRootDCommon )
-
-#-------------------------------------------------------------------------------
-# Shared library version
-#-------------------------------------------------------------------------------
-set( XRD_CEPH_VERSION   1.0.0 )
-set( XRD_CEPH_SOVERSION 1 )
-
-set( XRD_CEPH_XATTR_VERSION   1.0.0 )
-set( XRD_CEPH_XATTR_SOVERSION 1 )
-
-find_package(ceph REQUIRED)
 include_directories( ${RADOS_INCLUDE_DIR} )
 
 #-------------------------------------------------------------------------------
-# The XrdCeph lib
+# The XrdCeph module
 #-------------------------------------------------------------------------------
+set( LIB_XRD_CEPH XrdCeph-${PLUGIN_VERSION} )
+
 add_library(
-  XrdCeph
-  SHARED
-  XrdCeph/CephOss.cc     XrdCeph/CephOss.hh
-  XrdCeph/CephOssFile.cc XrdCeph/CephOssFile.hh
-  XrdCeph/CephOssDir.cc  XrdCeph/CephOssDir.hh
-  XrdCeph/ceph_posix.cpp XrdCeph/ceph_posix.h )
+  ${LIB_XRD_CEPH}
+  MODULE
+  XrdCeph/XrdCephOss.cc       XrdCeph/XrdCephOss.hh
+  XrdCeph/XrdCephOssFile.cc   XrdCeph/XrdCephOssFile.hh
+  XrdCeph/XrdCephOssDir.cc    XrdCeph/XrdCephOssDir.hh
+  XrdCeph/XrdCephPosix.cc     XrdCeph/XrdCephPosix.h )
 
 target_link_libraries(
-  XrdCeph
+  ${LIB_XRD_CEPH}
   XrdUtils
   ${RADOS_LIBS} )
 
 set_target_properties(
-  XrdCeph
+  ${LIB_XRD_CEPH}
   PROPERTIES
-  VERSION   ${XRD_CEPH_VERSION}
-  SOVERSION ${XRD_CEPH_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# The XrdCephXattr lib
+# The XrdCephXattr module
 #-------------------------------------------------------------------------------
+set( LIB_XRD_CEPH_XATTR XrdCephXattr-${PLUGIN_VERSION} )
+
 add_library(
-  XrdCephXattr
-  SHARED
-  XrdCeph/CephXAttr.cc XrdCeph/CephXAttr.hh )
+  ${LIB_XRD_CEPH_XATTR}
+  MODULE
+  XrdCeph/XrdCephXAttr.cc   XrdCeph/XrdCephXAttr.hh )
 
 target_link_libraries(
-  XrdCephXattr
-  XrdCeph
+  ${LIB_XRD_CEPH_XATTR}
   XrdUtils
   ${RADOS_LIBS} )
 
 set_target_properties(
-  XrdCephXattr
+  ${LIB_XRD_CEPH_XATTR}
   PROPERTIES
-  VERSION   ${XRD_CEPH_XATTR_VERSION}
-  SOVERSION ${XRD_CEPH_XATTR_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
@@ -63,5 +50,5 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdCeph XrdCephXattr
+  TARGETS ${LIB_XRD_CEPH} ${LIB_XRD_CEPH_XATTR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

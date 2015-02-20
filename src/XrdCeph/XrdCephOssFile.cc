@@ -1,14 +1,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <XrdCeph/ceph_posix.h>
-#include <XrdOuc/XrdOucEnv.hh>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdOuc/XrdOucTrace.hh>
-#include <XrdSfs/XrdSfsAio.hh>
+#include "XrdCeph/XrdCephPosix.h"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSfs/XrdSfsAio.hh"
 
-#include "CephOssFile.hh"
-#include "CephOss.hh"
+#include "XrdCeph/XrdCephOssFile.hh"
+#include "XrdCeph/XrdCephOss.hh"
 
 extern XrdSysError CephEroute;
 
