@@ -26,7 +26,9 @@
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheStats.hh"
 
+class XrdJob;
 class XrdOucIOVec;
+
 namespace XrdCl
 {
    class Log;
@@ -179,18 +181,19 @@ namespace XrdFileCache
          bool            m_stopped;   //!< prefetch is stopped
          XrdSysCondVar   m_stateCond; //!< state condition variable
 
-         XrdSysMutex      m_downloadStatusMutex; //!< mutex locking access to m_cfi object
+         XrdSysMutex       m_downloadStatusMutex; //!< mutex locking access to m_cfi object
 
          std::deque<Task*> m_tasks_queue;  //!< download queue
          XrdSysCondVar     m_queueCond;    //!< m_tasks_queue condition variable
 
-         Stats            m_stats;      //!< cache statistics, used in IO detach
+         Stats             m_stats;      //!< cache statistics, used in IO detach
 
          // fsync
-         XrdSysMutex      m_syncStatusMutex; //!< mutex locking fsync status
-         std::vector<int> m_write_called_while_in_sync;
-         int              m_non_flushed_cnt;
-         bool             m_in_sync;
+         XrdSysMutex       m_syncStatusMutex; //!< mutex locking fsync status
+         XrdJob           *m_syncer;
+         std::vector<int>  m_writes_during_sync;
+         int               m_non_flushed_cnt;
+         bool              m_in_sync;
    };
 }
 #endif

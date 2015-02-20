@@ -129,7 +129,6 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 {
    clLog()->Info(XrdCl::AppMsg, "Info:::AppendIOStat()");
 
-
    int flr = XrdOucSxeq::Serialize(fp->getFD(), 0);
    if (flr) clLog()->Error(XrdCl::AppMsg, "AppendIOStat() lock failed \n");
 
@@ -145,7 +144,7 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    as.BytesMissed = caches->m_BytesMissed;
 
    flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) clLog()->Error(XrdCl::AppMsg, "AppendStat() un-lock failed \n");
+   if (flr) clLog()->Error(XrdCl::AppMsg, "AppenIOStat() un-lock failed \n");
 
    long long ws = fp->Write(&as, off, sizeof(AStat));
    if ( ws != sizeof(AStat)) { assert(0); }

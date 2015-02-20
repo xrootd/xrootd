@@ -22,11 +22,12 @@
 
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdOss/XrdOss.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "Xrd/XrdScheduler.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdPosix/XrdPosixFile.hh"
@@ -34,19 +35,34 @@
 #include "XrdFileCachePrefetch.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCache.hh"
-const static int PREFETCH_MAX_ATTEMPTS = 10;
+
 using namespace XrdFileCache;
 
-bool POK = 0;
-bool PFALSE = 0;
-
-
-void *DiskSyncRunner(void * prefetch_void)
+namespace XrdPosixGlobals
 {
-   XrdFileCache::Prefetch *prefetch = static_cast<XrdFileCache::Prefetch *>(prefetch_void);
-   if (prefetch)
-      prefetch->Sync();
-   return NULL;
+   extern XrdScheduler *schedP;
+}
+
+namespace
+{
+   const int PREFETCH_MAX_ATTEMPTS = 10;
+
+   class DiskSyncer : public XrdJob
+   {
+   private:
+      Prefetch *m_prefetch;
+
+   public:
+      DiskSyncer(Prefetch *pref, const char *desc="") :
+         XrdJob(desc),
+         m_prefetch(pref)
+      {}
+
+      void DoIt()
+      {
+         m_prefetch->Sync();
+      }
+   };
 }
 
 
@@ -76,6 +92,7 @@ Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long lon
    m_stopped(false),
    m_stateCond(0),    // We will explicitly lock the condition before use.
    m_queueCond(0),
+   m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
    m_non_flushed_cnt(0),
    m_in_sync(false)
 {
@@ -133,19 +150,33 @@ Prefetch::~Prefetch()
          m_ram.m_writeMutex.UnLock();
 
          // disk sync
-         m_syncStatusMutex.Lock();
-         if (m_in_sync ) writewait = true;
-         m_syncStatusMutex.UnLock();
+         {
+            XrdSysMutexHelper _lck(&m_syncStatusMutex);
+
+            if (m_in_sync) writewait = true;
+         }
 
          if (!writewait)
             break;
       }
+
       XrdSysTimer::Wait(100);
    }
    clLog()->Debug(XrdCl::AppMsg, "Prefetch::~Prefetch finished with writing %s",lPath() );
 
-   if( m_non_flushed_cnt) {
-      clLog()->Info(XrdCl::AppMsg, "Prefetch sync unflushed %d\n", m_non_flushed_cnt);
+   bool do_sync = false;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+      if (m_non_flushed_cnt > 0)
+      {
+         do_sync   = true;
+         m_in_sync = true;
+
+         clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch sync unflushed %d\n", m_non_flushed_cnt);
+      }
+   }
+   if (do_sync)
+   {
       Sync();
    }
 
@@ -168,6 +199,8 @@ Prefetch::~Prefetch()
       delete m_infoFile;
       m_infoFile = NULL;
    }
+
+   delete m_syncer;
 }
 
 //______________________________________________________________________________
@@ -514,64 +547,82 @@ Prefetch::WriteBlockToDisk(int ramIdx, size_t size)
       cnt++;
 
       if (buffer_remaining)
+      {
          clLog()->Warning(XrdCl::AppMsg, "Prefetch::WriteToDisk() reattempt[%d] writing missing %d for block %d %s",
                           cnt, buffer_remaining, fileIdx, lPath());
-
-      if (cnt > PREFETCH_MAX_ATTEMPTS )
+      }
+      if (cnt > PREFETCH_MAX_ATTEMPTS)
       {
          clLog()->Error(XrdCl::AppMsg, "Prefetch::WriteToDisk() write failes too manny attempts %s", lPath());
+         return;
       }
-
    }
 
    // set bit fetched
    clLog()->Dump(XrdCl::AppMsg, "Prefetch::WriteToDisk() success set bit for block [%d] size [%d] %s", fileIdx, size, lPath());
    int pfIdx =  fileIdx - m_offset/m_cfi.GetBufferSize();
    m_downloadStatusMutex.Lock();
-   m_cfi.SetBitFetched( pfIdx);
+   m_cfi.SetBitFetched(pfIdx);
    m_downloadStatusMutex.UnLock();
 
 
    // set bit synced
-   m_syncStatusMutex.Lock();
-   if (m_in_sync) {
-      m_write_called_while_in_sync.push_back(pfIdx);
+   bool schedule_sync = false;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+
+      if (m_in_sync)
+      {
+         m_writes_during_sync.push_back(pfIdx);
+      }
+      else
+      {
+         m_cfi.SetBitWriteCalled(pfIdx);
+         ++m_non_flushed_cnt;
+      }
+
+      if (m_non_flushed_cnt >= 100)
+      {
+         schedule_sync     = true;
+         m_in_sync         = true;
+         m_non_flushed_cnt = 0;
+      }
    }
-   else {
-      m_cfi.SetBitWriteCalled(fileIdx);
-   }
-   ++m_non_flushed_cnt;
-   m_syncStatusMutex.UnLock();
-   if (m_non_flushed_cnt > 100 ) {
-      pthread_t tid;
-      clLog()->Info(XrdCl::AppMsg, "Running sync from Prefetch::WriteBlockToDisk %s", lPath());
-      XrdSysThread::Run(&tid, DiskSyncRunner, (void *)(this), 0, "XrdFileCache Prefetcher");
+
+   if (schedule_sync)
+   {
+      XrdPosixGlobals::schedP->Schedule(m_syncer);
    }
 }
 
 //______________________________________________________________________________
 void Prefetch::Sync()
 { 
-   clLog()->Dump(XrdCl::AppMsg, "Prefetch sync %s", lPath());
-   m_syncStatusMutex.Lock();
-   m_in_sync = true;
-   m_syncStatusMutex.UnLock();
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Sync %s", lPath());
 
    m_output->Fsync();
-   m_infoFile->Fsync();
 
-   m_syncStatusMutex.Lock();
-   m_in_sync = false;
    m_cfi.WriteHeader(m_infoFile);
-   m_non_flushed_cnt = (int)m_write_called_while_in_sync.size();
-   for (std::vector<int>::iterator i =  m_write_called_while_in_sync.begin(); i !=  m_write_called_while_in_sync.end(); ++i)
-      m_cfi.SetBitWriteCalled(*i);
-   m_write_called_while_in_sync.clear();
 
-   clLog()->Dump(XrdCl::AppMsg, "Prefetch sync left %d",  m_non_flushed_cnt);
+   int written_while_in_sync;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
 
-   m_syncStatusMutex.UnLock();
+      for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
+      {
+         m_cfi.SetBitWriteCalled(*i);
+      }
+      written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
+      m_writes_during_sync.clear();
+
+      m_in_sync = false;
+   }
+
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Sync %d blocks written during sync.", written_while_in_sync);
+
+   m_infoFile->Fsync();
 }
+
 //______________________________________________________________________________
 void Prefetch::DecRamBlockRefCount(int ramIdx)
 {
