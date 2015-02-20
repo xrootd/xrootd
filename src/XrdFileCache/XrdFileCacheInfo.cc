@@ -159,10 +159,10 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
    if (flr) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
    if (m_accessCnt)
    {
-      AStat stat;
-      long long off = GetHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
-      res = fp->Read(&stat, off, sizeof(AStat));
-      if (res == sizeof(AStat))
+      AStat     stat;
+      long long off      = GetHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
+      ssize_t   read_res = fp->Read(&stat, off, sizeof(AStat));
+      if (read_res == sizeof(AStat))
       {
          t = stat.DetachTime;
          res = true;
