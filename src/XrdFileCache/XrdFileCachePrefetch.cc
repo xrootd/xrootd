@@ -181,14 +181,14 @@ const char* Prefetch::lPath() const
 bool Prefetch::Open()
 {
    // clLog()->Debug(XrdCl::AppMsg, "Prefetch::Open() open file for disk cache %s", lPath());
-   XrdOss  &m_output_fs =  *Factory::GetInstance().GetOss();
+   XrdOss  &output_fs =  *Factory::GetInstance().GetOss();
    // Create the data file itself.
    XrdOucEnv myEnv;
-   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_output = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
+   output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0644, myEnv, XRDOSS_mkpath);
+   m_output = output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
    if (m_output)
    {
-      int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
+      int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0644, myEnv);
       if ( res < 0)
       {
          clLog()->Error(XrdCl::AppMsg, "Prefetch::Open() can't get data-FD for %s %s", m_temp_filename.c_str(), lPath());
@@ -205,12 +205,12 @@ bool Prefetch::Open()
 
    // Create the info file
    std::string ifn = m_temp_filename + Info::m_infoExtension;
-   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_infoFile = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
+   output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0644, myEnv, XRDOSS_mkpath);
+   m_infoFile = output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
    if (m_infoFile)
    {
 
-      int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
+      int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0644, myEnv);
       if ( res < 0 )
       {
          clLog()->Error(XrdCl::AppMsg, "Prefetch::Open() can't get info-FD %s  %s", ifn.c_str(), lPath());
@@ -232,7 +232,6 @@ bool Prefetch::Open()
       int ss = (m_fileSize -1)/m_cfi.GetBufferSize() + 1;
       //      clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, lPath());
       m_cfi.ResizeBits(ss);
-      RecordDownloadInfo();
    }
    else
    {
