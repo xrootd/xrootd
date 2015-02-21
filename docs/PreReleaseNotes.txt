@@ -20,6 +20,7 @@ Prerelease Notes
    * Avoid memory leak when deleting a detached channel.
 
 + **Miscellaneous**
+   * Avoid serializing stat() via the proxy to improve performance.
    * Provide consistency for RLIM_INFINITY in getrlimit(RLIMIT_NOFILE).
    * Detect misconfigured or unavailable ipV6 stacks and revert to ipV4.
    * Recreate the logfile fifo if the existing one cannot be used.
