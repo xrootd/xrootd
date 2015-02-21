@@ -97,6 +97,7 @@ int          XrdPssSys::urlPlen   =  0;
 int          XrdPssSys::hdrLen    =  0;
 const char  *XrdPssSys::hdrData   =  0;
 const char  *XrdPssSys::urlRdr    =  0;
+int          XrdPssSys::Streams   =512;
 int          XrdPssSys::Workers   = 16;
 
 char         XrdPssSys::allChmod  =  0;
@@ -116,6 +117,8 @@ namespace XrdProxy
 static XrdPosixXrootd  *Xroot;
   
 extern XrdSysError      eDest;
+
+extern XrdOucSid       *sidP;
 
 static const int maxHLen = 1024;
 }
@@ -211,6 +214,10 @@ int XrdPssSys::Configure(const char *cfn)
 // be done before we initialize the ffs.
 //
    Xroot = new XrdPosixXrootd(-32768, 16384);
+
+// Allocate an streaim ID object if need be
+//
+   if (Streams) sidP = new XrdOucSid((Streams > 8192 ? 8192 : Streams));
 
 // If this is an outgoing proxy then we are done
 //
@@ -658,7 +665,8 @@ int XrdPssSys::xconf(XrdSysError *Eroute, XrdOucStream &Config)
    char  *val, *kvp;
    int    kval;
    struct Xtab {const char *Key; int *Val;} Xopts[] =
-               {{"workers", &Workers}};
+               {{"streams", &Streams},
+                {"workers", &Workers}};
    int i, numopts = sizeof(Xopts)/sizeof(struct Xtab);
 
    if (!(val = Config.GetWord()))
