@@ -42,7 +42,7 @@
 #include <time.h>
 #include <limits>
 
-#include "XrdCeph/XrdCephPosix.h"
+#include "XrdCeph/XrdCephPosix.hh"
 
 /// small structs to store file metadata
 struct CephFile {

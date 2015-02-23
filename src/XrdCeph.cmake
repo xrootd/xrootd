@@ -12,7 +12,7 @@ add_library(
   XrdCeph/XrdCephOss.cc       XrdCeph/XrdCephOss.hh
   XrdCeph/XrdCephOssFile.cc   XrdCeph/XrdCephOssFile.hh
   XrdCeph/XrdCephOssDir.cc    XrdCeph/XrdCephOssDir.hh
-  XrdCeph/XrdCephPosix.cc     XrdCeph/XrdCephPosix.h )
+  XrdCeph/XrdCephPosix.cc     XrdCeph/XrdCephPosix.hh )
 
 target_link_libraries(
   ${LIB_XRD_CEPH}
