@@ -427,7 +427,6 @@ void Factory::CacheDirCleanup()
    XrdOucEnv env;
 
    XrdOss* oss =  Factory::GetInstance().GetOss();
-   XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
    XrdOssVSInfo sP;
 
    while (1)
@@ -456,6 +455,7 @@ void Factory::CacheDirCleanup()
          typedef std::map<std::string, time_t> fcmap_t;
          fcmap_t fcmap;
          // make a sorted map of file patch by access time
+         XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
          if (dh->Opendir(m_configuration.m_cache_dir.c_str(), env) >= 0)
          {
             FillFileMapRecurse(dh, m_configuration.m_cache_dir, fcmap);
@@ -481,14 +481,14 @@ void Factory::CacheDirCleanup()
                   clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                }
                if (bytesToRemove <= 0)
-                  break;
+		   break;
             }
          }
+	 dh->Close();
+	 delete dh; dh =0;
       }
       sleep(sleept);
    }
-   dh->Close();
-   delete dh; dh =0;
 }
 
 
