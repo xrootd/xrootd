@@ -22,11 +22,12 @@
 
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdOss/XrdOss.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "Xrd/XrdScheduler.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdPosix/XrdPosixFile.hh"
@@ -34,14 +35,38 @@
 #include "XrdFileCachePrefetch.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCache.hh"
-const static int PREFETCH_MAX_ATTEMPTS = 10;
+
 using namespace XrdFileCache;
 
-bool POK = 0;
-bool PFALSE = 0;
+namespace XrdPosixGlobals
+{
+   extern XrdScheduler *schedP;
+}
+
+namespace
+{
+   const int PREFETCH_MAX_ATTEMPTS = 10;
+
+   class DiskSyncer : public XrdJob
+   {
+   private:
+      Prefetch *m_prefetch;
+
+   public:
+      DiskSyncer(Prefetch *pref, const char *desc="") :
+         XrdJob(desc),
+         m_prefetch(pref)
+      {}
+
+      void DoIt()
+      {
+         m_prefetch->Sync();
+      }
+   };
+}
 
 
-Prefetch::RAM::RAM(): m_numBlocks(0),m_buffer(0),  m_blockStates(0), m_writeMutex(0)
+Prefetch::RAM::RAM():m_numBlocks(0),m_buffer(0), m_blockStates(0), m_writeMutex(0)
 {
    m_numBlocks = Factory::GetInstance().RefConfiguration().m_NRamBuffersRead + Factory::GetInstance().RefConfiguration().m_NRamBuffersPrefetch;
    m_buffer = (char*)malloc(m_numBlocks * Factory::GetInstance().RefConfiguration().m_bufferSize);
@@ -66,7 +91,10 @@ Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long lon
    m_stopping(false),
    m_stopped(false),
    m_stateCond(0),    // We will explicitly lock the condition before use.
-   m_queueCond(0)
+   m_queueCond(0),
+   m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
+   m_non_flushed_cnt(0),
+   m_in_sync(false)
 {
    assert(m_fileSize > 0);
    clLog()->Debug(XrdCl::AppMsg, "Prefetch::Prefetch() %p %s", (void*)&m_input, lPath());
@@ -121,14 +149,36 @@ Prefetch::~Prefetch()
          }
          m_ram.m_writeMutex.UnLock();
 
+         // disk sync
+         {
+            XrdSysMutexHelper _lck(&m_syncStatusMutex);
+
+            if (m_in_sync) writewait = true;
+         }
+
          if (!writewait)
             break;
       }
+
       XrdSysTimer::Wait(100);
    }
    clLog()->Debug(XrdCl::AppMsg, "Prefetch::~Prefetch finished with writing %s",lPath() );
 
+   bool do_sync = false;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+      if (m_non_flushed_cnt > 0)
+      {
+         do_sync   = true;
+         m_in_sync = true;
 
+         clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch sync unflushed %d\n", m_non_flushed_cnt);
+      }
+   }
+   if (do_sync)
+   {
+      Sync();
+   }
 
    // write statistics in *cinfo file
    AppendIOStatToFileInfo();
@@ -143,13 +193,14 @@ Prefetch::~Prefetch()
    }
    if (m_infoFile)
    {
-      RecordDownloadInfo();
       clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close info file");
 
       m_infoFile->Close();
       delete m_infoFile;
       m_infoFile = NULL;
    }
+
+   delete m_syncer;
 }
 
 //______________________________________________________________________________
@@ -163,14 +214,14 @@ const char* Prefetch::lPath() const
 bool Prefetch::Open()
 {
    // clLog()->Debug(XrdCl::AppMsg, "Prefetch::Open() open file for disk cache %s", lPath());
-   XrdOss  &m_output_fs =  *Factory::GetInstance().GetOss();
+   XrdOss  &output_fs =  *Factory::GetInstance().GetOss();
    // Create the data file itself.
    XrdOucEnv myEnv;
-   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_output = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
+   output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0644, myEnv, XRDOSS_mkpath);
+   m_output = output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
    if (m_output)
    {
-      int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
+      int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0644, myEnv);
       if ( res < 0)
       {
          clLog()->Error(XrdCl::AppMsg, "Prefetch::Open() can't get data-FD for %s %s", m_temp_filename.c_str(), lPath());
@@ -187,12 +238,12 @@ bool Prefetch::Open()
 
    // Create the info file
    std::string ifn = m_temp_filename + Info::m_infoExtension;
-   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_infoFile = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
+   output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0644, myEnv, XRDOSS_mkpath);
+   m_infoFile = output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
    if (m_infoFile)
    {
 
-      int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
+      int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0644, myEnv);
       if ( res < 0 )
       {
          clLog()->Error(XrdCl::AppMsg, "Prefetch::Open() can't get info-FD %s  %s", ifn.c_str(), lPath());
@@ -214,7 +265,6 @@ bool Prefetch::Open()
       int ss = (m_fileSize -1)/m_cfi.GetBufferSize() + 1;
       //      clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, lPath());
       m_cfi.ResizeBits(ss);
-      RecordDownloadInfo();
    }
    else
    {
@@ -267,9 +317,6 @@ Prefetch::Run()
       delete task;
 
       numReadBlocks++;
-      if (numReadBlocks % 100 == 0)
-         RecordDownloadInfo();
-
    }  // loop tasks
 
 
@@ -277,7 +324,6 @@ Prefetch::Run()
 
 
    m_cfi.CheckComplete();
-   RecordDownloadInfo();
 
    m_stateCond.Lock();
    m_stopped = true;
@@ -501,21 +547,80 @@ Prefetch::WriteBlockToDisk(int ramIdx, size_t size)
       cnt++;
 
       if (buffer_remaining)
+      {
          clLog()->Warning(XrdCl::AppMsg, "Prefetch::WriteToDisk() reattempt[%d] writing missing %d for block %d %s",
                           cnt, buffer_remaining, fileIdx, lPath());
-
-      if (cnt > PREFETCH_MAX_ATTEMPTS )
+      }
+      if (cnt > PREFETCH_MAX_ATTEMPTS)
       {
          clLog()->Error(XrdCl::AppMsg, "Prefetch::WriteToDisk() write failes too manny attempts %s", lPath());
+         return;
       }
-
    }
 
-   // set downloaded bits
+   // set bit fetched
    clLog()->Dump(XrdCl::AppMsg, "Prefetch::WriteToDisk() success set bit for block [%d] size [%d] %s", fileIdx, size, lPath());
+   int pfIdx =  fileIdx - m_offset/m_cfi.GetBufferSize();
    m_downloadStatusMutex.Lock();
-   m_cfi.SetBit( fileIdx - m_offset/m_cfi.GetBufferSize());
+   m_cfi.SetBitFetched(pfIdx);
    m_downloadStatusMutex.UnLock();
+
+
+   // set bit synced
+   bool schedule_sync = false;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+
+      if (m_in_sync)
+      {
+         m_writes_during_sync.push_back(pfIdx);
+      }
+      else
+      {
+         m_cfi.SetBitWriteCalled(pfIdx);
+         ++m_non_flushed_cnt;
+      }
+
+      if (m_non_flushed_cnt >= 100)
+      {
+         schedule_sync     = true;
+         m_in_sync         = true;
+         m_non_flushed_cnt = 0;
+      }
+   }
+
+   if (schedule_sync)
+   {
+      XrdPosixGlobals::schedP->Schedule(m_syncer);
+   }
+}
+
+//______________________________________________________________________________
+void Prefetch::Sync()
+{ 
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Sync %s", lPath());
+
+   m_output->Fsync();
+
+   m_cfi.WriteHeader(m_infoFile);
+
+   int written_while_in_sync;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+
+      for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
+      {
+         m_cfi.SetBitWriteCalled(*i);
+      }
+      written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
+      m_writes_during_sync.clear();
+
+      m_in_sync = false;
+   }
+
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Sync %d blocks written during sync.", written_while_in_sync);
+
+   m_infoFile->Fsync();
 }
 
 //______________________________________________________________________________
@@ -848,13 +953,6 @@ Prefetch::Read(char *buff, off_t off, size_t size)
    }
 }
 
-//______________________________________________________________________________
-void Prefetch::RecordDownloadInfo()
-{
-   clLog()->Debug(XrdCl::AppMsg, "Prefetch record Info file %s", lPath());
-   m_cfi.WriteHeader(m_infoFile);
-   m_infoFile->Fsync();
-}
 
 //______________________________________________________________________________
 void Prefetch::AppendIOStatToFileInfo()
@@ -871,3 +969,6 @@ void Prefetch::AppendIOStatToFileInfo()
    }
    m_downloadStatusMutex.UnLock();
 }
+
+
+

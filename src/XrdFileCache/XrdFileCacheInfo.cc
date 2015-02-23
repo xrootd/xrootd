@@ -42,7 +42,7 @@ using namespace XrdFileCache;
 Info::Info() :
    m_version(0),
    m_bufferSize(0),
-   m_sizeInBits(0), m_buff(0),
+   m_sizeInBits(0), m_buff_fetched(0), m_buff_write_called(0),
    m_accessCnt(0),
    m_complete(false)
 {
@@ -51,7 +51,8 @@ Info::Info() :
 
 Info::~Info()
 {
-   if (m_buff) free(m_buff);
+   if (m_buff_fetched) free(m_buff_fetched);
+   if (m_buff_write_called) free(m_buff_write_called);
 }
 
 //______________________________________________________________________________
@@ -60,8 +61,10 @@ Info::~Info()
 void Info::ResizeBits(int s)
 {
    m_sizeInBits = s;
-   m_buff = (unsigned char*)malloc(GetSizeInBytes());
-   memset(m_buff, 0, GetSizeInBytes());
+   m_buff_fetched = (unsigned char*)malloc(GetSizeInBytes());
+   m_buff_write_called = (unsigned char*)malloc(GetSizeInBytes());
+   memset(m_buff_fetched, 0, GetSizeInBytes());
+   memset(m_buff_write_called, 0, GetSizeInBytes());
 }
 
 //______________________________________________________________________________
@@ -81,7 +84,8 @@ int Info::Read(XrdOssDF* fp)
    off += fp->Read(&sb, off, sizeof(int));
    ResizeBits(sb);
 
-   off += fp->Read(m_buff, off, GetSizeInBytes());
+   off += fp->Read(m_buff_fetched, off, GetSizeInBytes());
+   off += fp->Read(m_buff_write_called, off, GetSizeInBytes());
    m_complete = IsAnythingEmptyInRng(0, sb-1) ? false : true;
 
    assert (off = GetHeaderSize());
@@ -112,7 +116,7 @@ void Info::WriteHeader(XrdOssDF* fp)
 
    int nb = GetSizeInBits();
    off += fp->Write(&nb, off, sizeof(int));
-   off += fp->Write(m_buff, off, GetSizeInBytes());
+   off += fp->Write(m_buff_write_called, off, GetSizeInBytes());
 
    flr = XrdOucSxeq::Release(fp->getFD());
    if (flr) clLog()->Error(XrdCl::AppMsg, "WriteHeader() un-lock failed \n");
@@ -124,7 +128,6 @@ void Info::WriteHeader(XrdOssDF* fp)
 void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 {
    clLog()->Info(XrdCl::AppMsg, "Info:::AppendIOStat()");
-
 
    int flr = XrdOucSxeq::Serialize(fp->getFD(), 0);
    if (flr) clLog()->Error(XrdCl::AppMsg, "AppendIOStat() lock failed \n");
@@ -141,7 +144,7 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    as.BytesMissed = caches->m_BytesMissed;
 
    flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) clLog()->Error(XrdCl::AppMsg, "AppendStat() un-lock failed \n");
+   if (flr) clLog()->Error(XrdCl::AppMsg, "AppenIOStat() un-lock failed \n");
 
    long long ws = fp->Write(&as, off, sizeof(AStat));
    if ( ws != sizeof(AStat)) { assert(0); }
@@ -156,10 +159,10 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
    if (flr) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
    if (m_accessCnt)
    {
-      AStat stat;
-      long long off = GetHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
-      res = fp->Read(&stat, off, sizeof(AStat));
-      if (res == sizeof(AStat))
+      AStat     stat;
+      long long off      = GetHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
+      ssize_t   read_res = fp->Read(&stat, off, sizeof(AStat));
+      if (read_res == sizeof(AStat))
       {
          t = stat.DetachTime;
          res = true;
