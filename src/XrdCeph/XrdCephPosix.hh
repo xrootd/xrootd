@@ -26,8 +26,8 @@
  * This interface provides wrapper methods for using ceph through a POSIX API.
  */
 
-#ifndef _CEPH_POSIX_H
-#define _CEPH_POSIX_H
+#ifndef _XRD_CEPH_POSIX_H
+#define _XRD_CEPH_POSIX_H
 
 #include <sys/types.h>
 #include <stdarg.h>
@@ -67,4 +67,4 @@ DIR* ceph_posix_opendir(XrdOucEnv* env, const char *pathname);
 int ceph_posix_readdir(DIR* dirp, char *buff, int blen);
 int ceph_posix_closedir(DIR *dirp);
 
-#endif
+#endif // __XRD_CEPH_POSIX__

@@ -50,10 +50,10 @@
 //! In case one of the two only has a default, it will be applied for both plugins.
 //------------------------------------------------------------------------------
 
-class CephOss : public XrdOss {
+class XrdCephOss : public XrdOss {
 public:
-  CephOss();
-  virtual ~CephOss();
+  XrdCephOss();
+  virtual ~XrdCephOss();
 
   virtual int     Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
   virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);

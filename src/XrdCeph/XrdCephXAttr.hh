@@ -22,8 +22,8 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#ifndef __CEPH_XATTR_HH__
-#define __CEPH_XATTR_HH__
+#ifndef __XRD_CEPH_XATTR_HH__
+#define __XRD_CEPH_XATTR_HH__
 
 #include <XrdSys/XrdSysXAttr.hh>
 
@@ -49,19 +49,19 @@
 //! In case one of the two only has a default, it will be applied for both plugins.
 //------------------------------------------------------------------------------
 
-class CephXAttr : public XrdSysXAttr {
+class XrdCephXAttr : public XrdSysXAttr {
 
 public:
 
   //------------------------------------------------------------------------------
   //! Constructor
   //------------------------------------------------------------------------------
-  CephXAttr();
+  XrdCephXAttr();
 
   //------------------------------------------------------------------------------
   //! Destructor
   //------------------------------------------------------------------------------
-  virtual ~CephXAttr();
+  virtual ~XrdCephXAttr();
 
   //------------------------------------------------------------------------------
   //! Remove an extended attribute.
@@ -149,4 +149,4 @@ public:
 
 };
 
-#endif /* __CEPH_XATTR_HH__ */
+#endif /* __XRD_CEPH_XATTR_HH__ */

@@ -22,8 +22,8 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#ifndef __CEPH_OSS_DIR_HH__
-#define __CEPH_OSS_DIR_HH__
+#ifndef __XRD_CEPH_OSS_DIR_HH__
+#define __XRD_CEPH_OSS_DIR_HH__
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdCeph/XrdCephOss.hh"
@@ -52,12 +52,12 @@
 //! In case one of the two only has a default, it will be applied for both plugins.
 //------------------------------------------------------------------------------
 
-class CephOssDir : public XrdOssDF {
+class XrdCephOssDir : public XrdOssDF {
 
 public:
 
-  CephOssDir(CephOss *cephoss);
-  virtual ~CephOssDir() {};
+  XrdCephOssDir(XrdCephOss *cephoss);
+  virtual ~XrdCephOssDir() {};
   virtual int Opendir(const char *, XrdOucEnv &);
   virtual int Readdir(char *buff, int blen);
   virtual int Close(long long *retsz=0);
@@ -65,8 +65,8 @@ public:
 private:
 
   DIR *m_dirp;
-  CephOss *m_cephOss;
+  XrdCephOss *m_cephOss;
 
 };
 
-#endif /* __CEPH_OSS_DIR_HH__ */
+#endif /* __XRD_CEPH_OSS_DIR_HH__ */
