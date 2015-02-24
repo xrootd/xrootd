@@ -138,6 +138,8 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
       uint64_t speed = 0;
       if( now-d.started )
         speed = d.bytesProcessed/(now-d.started);
+      else
+        speed = d.bytesProcessed;
 
       std::string bar;
       int prog = 0;
