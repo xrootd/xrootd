@@ -17,13 +17,8 @@
 //------------------------------------------------------------------------------
 
 #include <cppunit/extensions/HelperMacros.h>
-#include "TestEnv.hh"
-#include "Utils.hh"
-#include "IdentityPlugIn.hh"
-#include <XrdCeph/ceph_posix.h>
+#include <XrdCeph/XrdCephPosix.hh>
 #include <XrdOuc/XrdOucEnv.hh>
-
-#include "CppUnitXrdHelpers.hh"
 
 #define MB 1024*1024
 struct CephFile {
