@@ -11,6 +11,8 @@ Prerelease Notes
    * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
+   * Correct lock loophole introduced by commit d9014d7d that may
+     cause SEGV.
    * Do not hold the global lock when closing a file. For proxies this
      stalls all open/close operations should the remote file server be
      very slow in closing the file. This solves many timeout issues.
