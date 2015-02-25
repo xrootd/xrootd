@@ -11,6 +11,7 @@ Prerelease Notes
    * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
+   * Add all host IP's to the allow list.
    * Correct lock loophole introduced by commit d9014d7d that may
      cause SEGV.
    * Do not hold the global lock when closing a file. For proxies this
