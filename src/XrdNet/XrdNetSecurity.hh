@@ -56,13 +56,14 @@ void  Merge(XrdNetSecurity *srcp);  // Deletes srcp
 
 void  Trace(XrdOucTrace *et=0) {eTrace = et;}
 
-     XrdNetSecurity() : NetGroups(0), eTrace(0), 
+     XrdNetSecurity() : NetGroups(0), eTrace(0),
                         chkNetLst(false), chkNetGrp(false) {}
     ~XrdNetSecurity() {}
 
 private:
 
 bool hostOK(const char *hname, const char *ipname, const char *why);
+bool addHIP(const char *hname);
 
 XrdOucNList_Anchor        HostList;
 

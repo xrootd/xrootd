@@ -1145,7 +1145,9 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "allow target name not specified"); return 1;}
 
-    if (!Police) Police = new XrdNetSecurity();
+    if (!Police) {Police = new XrdNetSecurity();
+                  if (Trace.What == TRACE_ALL) Police->Trace(&Trace);
+                 }
     if (ishost)  Police->AddHost(val);
        else      Police->AddNetGroup(val);
 
