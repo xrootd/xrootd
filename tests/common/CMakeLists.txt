@@ -14,3 +14,14 @@ target_link_libraries(
   ${CPPUNIT_LIBRARIES}
   ${ZLIB_LIBRARY}
   XrdCl)
+
+add_executable(text-runner TextRunner.cc PathProcessor.hh)
+target_link_libraries(text-runner dl ${CPPUNIT_LIBRARIES} pthread)
+
+#-------------------------------------------------------------------------------
+# Install
+#-------------------------------------------------------------------------------
+install(
+ TARGETS XrdClTestsHelper text-runner
+ RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+ LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
