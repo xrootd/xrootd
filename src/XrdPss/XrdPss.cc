@@ -263,8 +263,8 @@ const char *XrdPssSys::Lfn2Pfn(const char *oldp, char *newp, int blen, int &rc)
 
 int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 {
-   int retc, CgiLen;
-   const char *Cgi = eP->Env(CgiLen);
+   int retc, CgiLen = 0;
+   const char *Cgi = (eP ? eP->Env(CgiLen) : 0);
    char pbuff[PBsz];
 
 // Verify we can write here
@@ -294,8 +294,8 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 */
 int XrdPssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
 {
-   int rc, CgiLen;
-   const char *Cgi  = eP->Env(CgiLen);
+   int rc, CgiLen = 0;
+   const char *Cgi  = (eP ? eP->Env(CgiLen) : 0);
    char pbuff[PBsz], cbuff[CBsz], *subPath;
 
 // Verify we can write here
@@ -357,8 +357,10 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 
 // Grab any cgi information
 //
-   oldCgi = oldenvP->Env(oldCgiLen);
-   newCgi = newenvP->Env(newCgiLen);
+   if (oldenvP) oldCgi = oldenvP->Env(oldCgiLen);
+      else     {oldCgi = 0; oldCgiLen = 0;}
+   if (newenvP) newCgi = newenvP->Env(newCgiLen);
+      else     {newCgi = 0; newCgiLen = 0;}
 
 // If we are not forwarding the request, manually execute it everywhere.
 //
@@ -399,7 +401,7 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 
 int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP)
 {
-   int CgiLen, retc;
+   int CgiLen = 0, retc;
    const char *Cgi = (eP ? eP->Env(CgiLen) : 0);
    char pbuff[PBsz], cbuff[CBsz];
 
@@ -437,8 +439,8 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 int XrdPssSys::Truncate(const char *path, unsigned long long flen,
                         XrdOucEnv *envP)
 {
-   int CgiLen, retc;
-   const char *Cgi = envP->Env(CgiLen);
+   int CgiLen = 0, retc;
+   const char *Cgi = (envP ? envP->Env(CgiLen) : 0);
    char pbuff[PBsz];
 
 // Make sure we can write here
@@ -469,8 +471,8 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen,
 */
 int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
-   int CgiLen, rc;
-   const char *Cgi = envP->Env(CgiLen);
+   int CgiLen = 0, rc;
+   const char *Cgi = (envP ? envP->Env(CgiLen) : 0);
    char *subPath, pbuff[PBsz], cbuff[CBsz];
 
 // Make sure we can write here
