@@ -279,8 +279,12 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // If POSC processing is enabled (as by default) do it. Warning! This must be
 // the last item in the configuration list as we need a working filesystem.
+// Note that in proxy mode we always disable posc!
 //
-   if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
+   if (getenv("XRDXROOTD_NOPOSC"))
+      {if (poscAuto != -1 && !NoGo)
+          Eroute.Say("Config POSC has been disabled by the osslib plugin.");
+      } else if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
 
 // Setup statistical monitoring
 //
@@ -319,7 +323,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
                                   "       all.role %s\n"
                                   "%s"
                                   "       ofs.maxdelay   %d\n"
-                                  "       ofs.persist    %s hold %d%s%s%s"
+                                  "       ofs.persist    %s hold %d%s%s%s\n"
                                   "       ofs.trace      %x",
               cloc, myRole,
               (Options & Authorize ? "       ofs.authorize\n" : ""),
