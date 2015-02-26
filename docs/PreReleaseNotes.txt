@@ -11,6 +11,7 @@ Prerelease Notes
    * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
+   * Avoid SEGV when environment pointer is nil.
    * Add all host IP's to the allow list.
    * Correct lock loophole introduced by commit d9014d7d that may
      cause SEGV.
@@ -23,6 +24,7 @@ Prerelease Notes
    * Avoid memory leak when deleting a detached channel.
 
 + **Miscellaneous**
+   * Disable POSC processing when the proxy plugin is loaded.
    * Avoid serializing stat() via the proxy to improve performance.
    * Provide consistency for RLIM_INFINITY in getrlimit(RLIMIT_NOFILE).
    * Detect misconfigured or unavailable ipV6 stacks and revert to ipV4.
