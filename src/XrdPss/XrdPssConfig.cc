@@ -202,6 +202,10 @@ int XrdPssSys::Configure(const char *cfn)
 //
    XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
 
+// Thell xrootd to disable POSC mode as this is meaningless here
+//
+   XrdOucEnv::Export("XRDXROOTD_NOPOSC", "1");
+
 // Initialize an alternate cache if one is present
 //
    if (cPath && !getCache()) return 1;
