@@ -578,16 +578,17 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
   // minimal stat : only size and times are filled
   // atime, mtime and ctime are set all to the same value
   // mode is set arbitrarily to 0666
-  libradosstriper::RadosStriper *striper = getRadosStriper(getCephFile(pathname, env));
+  CephFile file = getCephFile(pathname, env);
+  libradosstriper::RadosStriper *striper = getRadosStriper(file);
   if (0 == striper) {
     return -EINVAL;
   }
   memset(buf, 0, sizeof(*buf));
-  int rc = striper->stat(pathname, (uint64_t*)&(buf->st_size), &(buf->st_atime));
+  int rc = striper->stat(file.name, (uint64_t*)&(buf->st_size), &(buf->st_atime));
   if (rc != 0) {
     // for non existing file. Check that we did not open it for write recently
     // in that case, we return 0 size and current time
-    if (-ENOENT == rc && g_filesOpenForWrite.find(pathname) != g_filesOpenForWrite.end()) {
+    if (-ENOENT == rc && g_filesOpenForWrite.find(file.name) != g_filesOpenForWrite.end()) {
       buf->st_size = 0;
       buf->st_atime = time(NULL);
     } else {
@@ -635,10 +636,7 @@ static ssize_t ceph_posix_internal_getxattr(const CephFile &file, const char* na
   }
   ceph::bufferlist bl;
   int rc = striper->getxattr(file.name, name, bl);
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  }
+  if (rc < 0) return rc;
   size_t returned_size = (size_t)rc<size?rc:size;
   bl.copy(0, returned_size, (char*)value);
   return returned_size;
