@@ -29,6 +29,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -258,8 +259,9 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
       }
 
   
+      int loff = 0;
       char buff[2048];
-      snprintf(buff, sizeof(buff), "result\n"
+      loff = snprintf(buff, sizeof(buff), "result\n"
                "\tpfc.cachedir %s\n"
                "\tpfc.blocksize %lld\n"
                "\tpfc.nramread %d\n\tpfc.nramprefetch %d\n",
@@ -267,17 +269,25 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
                m_configuration.m_bufferSize, 
                m_configuration.m_NRamBuffersRead, m_configuration.m_NRamBuffersPrefetch );
 
-
       if (m_configuration.m_hdfsmode)
       {
          char buff2[512];
-         snprintf(buff2, sizeof(buff2), "\tpfc.hdfsmode hdfsbsize %lld \n", m_configuration.m_hdfsbsize);
-         m_log.Emsg("", buff, buff2);   
-      }          
-      else {
+         snprintf(buff2, sizeof(buff2), "\tpfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
+         loff += snprintf(&buff[loff], strlen(buff2), buff2);
+      } 
 
-      m_log.Emsg("Config", buff);
+
+      char  unameBuff[256];
+      if (m_configuration.m_username.empty()) {
+	XrdOucUtils::UserName(getuid(), unameBuff, sizeof(unameBuff));
+	m_configuration.m_username = unameBuff;
       }
+      else {
+	snprintf(unameBuff, sizeof(unameBuff), "\tpfc.user %s \n", m_configuration.m_username.c_str());
+        loff += snprintf(&buff[loff], strlen(unameBuff), unameBuff);
+      }
+     
+      m_log.Emsg("Config", buff);
    }
 
    m_log.Emsg("Config", "Configuration =  ", retval ? "Success" : "Fail");
