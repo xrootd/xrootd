@@ -46,7 +46,6 @@ namespace XrdFileCache
    {
       Configuration() :
          m_hdfsmode(false),
-         m_username("nobody"),
          m_lwm(0.95),
          m_hwm(0.9),
          m_bufferSize(1024*1024),
