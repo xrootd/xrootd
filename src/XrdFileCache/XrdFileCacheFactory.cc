@@ -157,9 +157,6 @@ bool Factory::xdlib(XrdOucStream &Config)
 
 bool Factory::Decide(XrdOucCacheIO* io)
 {
-   //   if ( CheckFileForDiskSpace(io->Path(), io->FSize()) == false )
-   //  return false;
-
    if(!m_decisionpoints.empty())
    {
       std::string filename = io->Path();
@@ -376,7 +373,7 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
 //______________________________________________________________________________
 
 
-void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, std::map<std::string, time_t>& fcmap)
+void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, std::multimap<time_t, std::string>& fcmap)
 {
    char buff[256];
    XrdOucEnv env;
@@ -410,7 +407,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, std::map<std
             if (cinfo.GetLatestDetachTime(accessTime, fh))
             {
                log->Debug(XrdCl::AppMsg, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
-               fcmap[np] = accessTime;
+               fcmap.insert(std::pair<time_t, std::string> (accessTime, buff));
             }
             else
             {
@@ -462,7 +459,7 @@ void Factory::CacheDirCleanup()
 
       if (bytesToRemove > 0)
       {
-         typedef std::map<std::string, time_t> fcmap_t;
+         typedef std::multimap<time_t, std::string> fcmap_t;
          fcmap_t fcmap;
          // make a sorted map of file patch by access time
          XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
@@ -471,27 +468,32 @@ void Factory::CacheDirCleanup()
             FillFileMapRecurse(dh, m_configuration.m_cache_dir, fcmap);
 
             // loop over map and remove files with highest value of access time
-            for (fcmap_t::iterator i = fcmap.begin(); i != fcmap.end(); ++i)
+            for (fcmap_t::iterator it = fcmap.begin(); it != fcmap.end(); ++it)
             {
-               std::string path = i->first;
-               // remove info file
-               if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
+               std::pair<fcmap_t::iterator, fcmap_t::iterator> ret;
+               ret = fcmap.equal_range(it->first); 
+               for (fcmap_t::iterator it2 = ret.first; it2 != ret.second; ++it2)
                {
-                  bytesToRemove -= fstat.st_size;
-                  oss->Unlink(path.c_str());
-                  clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
-               }
+                  std::string path = it2->second;
+                  // remove info file
+                  if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
+                  {
+                     bytesToRemove -= fstat.st_size;
+                     oss->Unlink(path.c_str());
+                     clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                  }
 
-               // remove data file
-               path = path.substr(0, path.size() - strlen(XrdFileCache::Info::m_infoExtension));
-               if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
-               {
-                  bytesToRemove -= fstat.st_size;
-                  oss->Unlink(path.c_str());
-                  clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                  // remove data file
+                  path = path.substr(0, path.size() - strlen(XrdFileCache::Info::m_infoExtension));
+                  if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
+                  {
+                     bytesToRemove -= fstat.st_size;
+                     oss->Unlink(path.c_str());
+                     clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                  }
                }
                if (bytesToRemove <= 0)
-		   break;
+                  break;
             }
          }
 	 dh->Close();
@@ -501,39 +503,3 @@ void Factory::CacheDirCleanup()
    }
 }
 
-
-
-bool Factory::CheckFileForDiskSpace(const char* path, long long fsize)
-{
-    long long inQueue = 0;
-    for (std::map<std::string, long long>::iterator i = m_filesInQueue.begin(); i!= m_filesInQueue.end(); ++i)
-        inQueue += i->second;
-
-
-    XrdOssVSInfo sP;
-    long long availableSpace = 0;
-
-    if(m_output_fs->StatVS(&sP, "public", 1) < 0 ) {
-        clLog()->Error(XrdCl::AppMsg, "Factory:::CheckFileForDiskSpace can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
-        exit(1);
-    }
-    float oc = 1 - float(sP.Free)/sP.Total;
-    long long availableSpaceLong =  static_cast<long long>((m_configuration.m_hwm -oc)* static_cast<float>(s_diskSpacePrecisionFactor));
-    if (oc < m_configuration.m_hwm) {
-        availableSpace = (sP.Free * availableSpaceLong) / s_diskSpacePrecisionFactor;
-
-        if (availableSpace > fsize) {
-            m_filesInQueue[path] = fsize;
-            return true;
-        }
-
-    }
-    clLog()->Error(XrdCl::AppMsg, "Factory:::CheckFileForDiskSpace not enugh space , availableSpace = %lld \n", availableSpace);
-    return false;
-}
-
-
-void Factory::UnCheckFileForDiskSpace(const char* path)
-{
-    m_filesInQueue.erase(path);
-}

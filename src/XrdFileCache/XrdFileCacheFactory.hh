@@ -144,9 +144,6 @@ namespace XrdFileCache
          void CacheDirCleanup();
 
       private:
-         bool CheckFileForDiskSpace(const char* path, long long fsize);
-         void UnCheckFileForDiskSpace(const char* path);
-
          bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
          bool xdlib(XrdOucStream &);
