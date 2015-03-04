@@ -132,6 +132,11 @@ namespace XrdFileCache
          bool IsComplete() const;
 
          //---------------------------------------------------------------------
+         //! Get number of downloaded blocks
+         //---------------------------------------------------------------------
+         int GetNDownloadedBlocks() const;
+
+         //---------------------------------------------------------------------
          //! Update complete status
          //---------------------------------------------------------------------
          void CheckComplete();
@@ -169,6 +174,16 @@ namespace XrdFileCache
 
       int off = i - cn*8;
       return (m_buff_fetched[cn] & cfiBIT(off)) == cfiBIT(off);
+   }
+
+
+   inline int Info::GetNDownloadedBlocks() const
+   {
+      int cntd = 0;
+      for (int i = 0; i < m_sizeInBits; ++i)
+         if (TestBit(i)) cntd++;
+
+      return cntd;
    }
 
    inline int Info::GetSizeInBytes() const
