@@ -447,7 +447,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
             if (cinfo.GetLatestDetachTime(accessTime, fh))
             {
                log->Debug(XrdCl::AppMsg, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
-               purgeState.checkFile(accessTime, buff, cinfo.GetNDownloadedBlocks());
+               purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBlocks());
             }
             else
             {
