@@ -440,6 +440,8 @@ void ceph_posix_set_logfunc(void (*logfunc) (char *, va_list argp)) {
   g_logfunc = logfunc;
 };
 
+static int ceph_posix_internal_truncate(const CephFile &file, unsigned long long size);
+
 int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode) {
   logwrapper((char*)"ceph_open : fd %d associated to %s", g_nextCephFd, pathname);
   CephFileRef fr = getCephFileRef(pathname, env, flags, mode, 0);
@@ -447,6 +449,10 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
   g_nextCephFd++;
   if (flags & (O_WRONLY|O_RDWR)) {
     g_filesOpenForWrite.insert(fr.name);
+  }
+  // in case of O_TRUNC, we should truncate the file
+  if (flags & O_TRUNC) {
+    ceph_posix_internal_truncate(fr, 0);
   }
   return g_nextCephFd-1;
 }
