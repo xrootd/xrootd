@@ -40,7 +40,9 @@ XrdCephOssFile::XrdCephOssFile(XrdCephOss *cephOss) : m_fd(-1), m_cephOss(cephOs
 
 int XrdCephOssFile::Open(const char *path, int flags, mode_t mode, XrdOucEnv &env) {
   try {
-    m_fd = ceph_posix_open(&env, path, flags, mode);
+    int rc = ceph_posix_open(&env, path, flags, mode);
+    if (rc < 0) return rc;
+    m_fd = rc;
     return XrdOssOK;
   } catch (std::exception e) {
     XrdCephEroute.Say("open : invalid syntax in file parameters");

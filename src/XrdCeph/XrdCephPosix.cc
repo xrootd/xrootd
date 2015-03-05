@@ -450,9 +450,21 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
   if (flags & (O_WRONLY|O_RDWR)) {
     g_filesOpenForWrite.insert(fr.name);
   }
+  // in case of O_CREAT and O_EXCL, we should complain if the file exists
+  if ((flags & O_CREAT) && (flags & O_EXCL)) {
+    libradosstriper::RadosStriper *striper = getRadosStriper(fr);
+    if (0 == striper) return -EINVAL;
+    struct stat buf;
+    int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime));
+    if (rc != -ENOENT) {
+      if (0 == rc) return -EEXIST;
+      return rc;
+    }
+  }
   // in case of O_TRUNC, we should truncate the file
   if (flags & O_TRUNC) {
-    ceph_posix_internal_truncate(fr, 0);
+    int rc = ceph_posix_internal_truncate(fr, 0);
+    if (rc < 0) return rc;
   }
   return g_nextCephFd-1;
 }
