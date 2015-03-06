@@ -392,7 +392,7 @@ public:
    void checkFile (time_t iTime, const char* iPath,  int iNBlck) 
    {
       if ( (nBlckAccum <  nBlckReq ) || (iTime < fmap.rbegin()->first) ) {
-         fmap.insert(std::pair<time_t, FS> (iTime, FS(iPath, iNBlck)));
+         fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNBlck)));
          nBlckAccum += iNBlck;
 
          // remove newest files from map if necessary
@@ -503,7 +503,7 @@ void Factory::CacheDirCleanup()
          XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
          if (dh->Opendir(m_configuration.m_cache_dir.c_str(), env) >= 0)
          {
-            long long nReq = (bytesToRemove*1.4)/m_configuration.m_bufferSize; // check more that required
+            long long nReq = (long long) ((bytesToRemove*1.4)/m_configuration.m_bufferSize); // check more that required
             FPurgeState purgeState(nReq);
             FillFileMapRecurse(dh, m_configuration.m_cache_dir, purgeState);
 
