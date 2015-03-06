@@ -41,6 +41,7 @@
 #include <sys/xattr.h>
 #include <time.h>
 #include <limits>
+#include "XrdSfs/XrdSfsAio.hh"
 
 #include "XrdCeph/XrdCephPosix.hh"
 
@@ -64,6 +65,14 @@ struct CephFileRef : CephFile {
 struct DirIterator {
   librados::ObjectIterator m_iterator;
   librados::IoCtx *m_ioctx;
+};
+
+/// small struct for aio API callbacks
+struct AioWriteArg {
+  AioWriteArg(XrdSfsAio* a, AioCB *b, size_t n) : aiop(a), callback(b), nbBytes(n) {}
+  XrdSfsAio* aiop;
+  AioCB *callback;
+  size_t nbBytes;
 };
 
 /// global variables holding stripers and ioCtxs for each ceph pool plus the cluster object
@@ -542,6 +551,45 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
     return -EBADF;
   }
 }
+
+static void ceph_aio_write_complete(rados_completion_t c, void *arg) {
+  AioWriteArg *awa = reinterpret_cast<AioWriteArg*>(arg);
+  size_t rc = rados_aio_get_return_value(c);
+  awa->callback(awa->aiop, rc == 0 ? awa->nbBytes : rc);
+  delete(awa);
+}
+
+ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
+  std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
+  if (it != g_fds.end()) {
+    // get the parameters from the Xroot aio object
+    size_t count = aiop->sfsAio.aio_nbytes;
+    const char *buf = (const char*)aiop->sfsAio.aio_buf;
+    size_t offset = aiop->sfsAio.aio_offset;
+    // get the striper
+    CephFileRef &fr = it->second;
+    logwrapper((char*)"ceph_aio_write: for fd %d, count=%d", fd, count);
+    if ((fr.flags & (O_WRONLY|O_RDWR)) == 0) {
+      return -EBADF;
+    }
+    libradosstriper::RadosStriper *striper = getRadosStriper(fr);
+    if (0 == striper) {
+      return -EINVAL;
+    }
+    // prepare a bufferlist around the given buffer
+    ceph::bufferlist bl;
+    bl.append(buf, count);
+    // prepare a ceph AioCompletion object and do async call
+    AioWriteArg *args = new AioWriteArg(aiop, cb, count);
+    librados::AioCompletion *completion =
+      g_cluster->aio_create_completion(args, ceph_aio_write_complete, NULL);
+    int rc = striper->aio_write(fr.name, completion, bl, count, offset);
+    completion->release();
+    return rc;
+  } else {
+    return -EBADF;
+  }
+} 
 
 ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
