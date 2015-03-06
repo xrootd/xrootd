@@ -464,7 +464,8 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
   // in case of O_TRUNC, we should truncate the file
   if (flags & O_TRUNC) {
     int rc = ceph_posix_internal_truncate(fr, 0);
-    if (rc < 0) return rc;
+    // fail only if file exists and cannot be truncated
+    if (rc < 0 && rc != -ENOENT) return rc;
   }
   return g_nextCephFd-1;
 }
