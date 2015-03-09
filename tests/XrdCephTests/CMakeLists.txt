@@ -1,8 +1,6 @@
 include( XRootDCommon )
 include_directories( ${CPPUNIT_INCLUDE_DIRS} )
 
-set( LIB_XRD_CL_TEST_MONITOR XrdClTestMonitor-${PLUGIN_VERSION} )
-
 add_library(
   XrdCephTests MODULE
   CephParsingTest.cc
