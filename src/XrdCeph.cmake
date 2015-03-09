@@ -75,5 +75,5 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_CEPH} ${LIB_XRD_CEPH_XATTR}
+  TARGETS ${LIB_XRD_CEPH} ${LIB_XRD_CEPH_XATTR} XrdCephPosix
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
