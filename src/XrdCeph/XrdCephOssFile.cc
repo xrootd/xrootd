@@ -66,8 +66,13 @@ ssize_t XrdCephOssFile::Read(void *buff, off_t offset, size_t blen) {
   return rc;
 }
 
-int XrdCephOssFile::Read(XrdSfsAio *aoip) {
-  return -ENOTSUP;
+static void aioReadCallback(XrdSfsAio *aiop, size_t rc) {
+  aiop->Result = rc;
+  aiop->doneRead();
+}
+
+int XrdCephOssFile::Read(XrdSfsAio *aiop) {
+  return ceph_aio_read(m_fd, aiop, aioReadCallback);
 }
 
 ssize_t XrdCephOssFile::ReadRaw(void *buff, off_t offset, size_t blen) {

@@ -48,6 +48,7 @@ off64_t ceph_posix_lseek64(int fd, off64_t offset, int whence);
 ssize_t ceph_posix_write(int fd, const void *buf, size_t count);
 ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb);
 ssize_t ceph_posix_read(int fd, void *buf, size_t count);
+ssize_t ceph_aio_read(int fd, XrdSfsAio *aiop, AioCB *cb);
 int ceph_posix_fstat(int fd, struct stat *buf);
 int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf);
 int ceph_posix_fsync(int fd);
