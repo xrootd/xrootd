@@ -21,6 +21,8 @@ Prerelease Notes
    * Avoid SEGV when deleting a partially empty table.
 
 + **Minor bug fixes**
+   * Do not use the same flag bit for -I and --tpc as this makes -I
+     unuseable (fixes #213).
    * Avoid memory leak when deleting a detached channel.
 
 + **Miscellaneous**
