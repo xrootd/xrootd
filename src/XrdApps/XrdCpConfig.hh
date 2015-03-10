@@ -102,11 +102,9 @@ static const int    OpHelp     =  'h';
 static const int    DoHelp     =  0x00000040; // -h | --help
 
 static const int    OpIfile    =  'I';
-static const int    DoIfile    =  0x00100000; // -I | --infiles
+static const int    DoIfile    =  0x00000080; // -I | --infiles
 
 static const int    OpLicense  =  'H';        // -H | --license
-
-//atic const int    DoXyzzy    =  0x00000080; // Reserved
 
 static const int    OpNoPbar   =  'N';
 static const int    DoNoPbar   =  0x00000100; // -N | --nopbar | -np {legacy}
