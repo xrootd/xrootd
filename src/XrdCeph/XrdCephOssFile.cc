@@ -66,8 +66,13 @@ ssize_t XrdCephOssFile::Read(void *buff, off_t offset, size_t blen) {
   return rc;
 }
 
-int XrdCephOssFile::Read(XrdSfsAio *aoip) {
-  return -ENOTSUP;
+static void aioReadCallback(XrdSfsAio *aiop, size_t rc) {
+  aiop->Result = rc;
+  aiop->doneRead();
+}
+
+int XrdCephOssFile::Read(XrdSfsAio *aiop) {
+  return ceph_aio_read(m_fd, aiop, aioReadCallback);
 }
 
 ssize_t XrdCephOssFile::ReadRaw(void *buff, off_t offset, size_t blen) {
@@ -86,17 +91,13 @@ ssize_t XrdCephOssFile::Write(const void *buff, off_t offset, size_t blen) {
   return rc;
 }
 
+static void aioWriteCallback(XrdSfsAio *aiop, size_t rc) {
+  aiop->Result = rc;
+  aiop->doneWrite();
+}
+
 int XrdCephOssFile::Write(XrdSfsAio *aiop) {
-  ssize_t rc = Write((void*)aiop->sfsAio.aio_buf,
-                     aiop->sfsAio.aio_offset,
-                     aiop->sfsAio.aio_nbytes);
-  if (aiop->sfsAio.aio_nbytes == (size_t)rc) {
-    aiop->Result = rc;
-    aiop->doneWrite();
-    return 0;
-  } else {
-    return rc;
-  }
+  return ceph_aio_write(m_fd, aiop, aioWriteCallback);
 }
 
 int XrdCephOssFile::Fsync() {

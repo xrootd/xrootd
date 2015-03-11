@@ -35,6 +35,9 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdSys/XrdSysXAttr.hh>
 
+class XrdSfsAio;
+typedef void(AioCB)(XrdSfsAio*, size_t);
+
 void ceph_posix_set_defaults(const char* value);
 void ceph_posix_disconnect_all();
 void ceph_posix_set_logfunc(void (*logfunc) (char *, va_list argp));
@@ -43,7 +46,9 @@ int ceph_posix_close(int fd);
 off_t ceph_posix_lseek(int fd, off_t offset, int whence);
 off64_t ceph_posix_lseek64(int fd, off64_t offset, int whence);
 ssize_t ceph_posix_write(int fd, const void *buf, size_t count);
+ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb);
 ssize_t ceph_posix_read(int fd, void *buf, size_t count);
+ssize_t ceph_aio_read(int fd, XrdSfsAio *aiop, AioCB *cb);
 int ceph_posix_fstat(int fd, struct stat *buf);
 int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf);
 int ceph_posix_fsync(int fd);
