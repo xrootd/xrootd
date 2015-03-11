@@ -31,7 +31,10 @@ URL:       http://xrootd.org/
 # cd xrootd
 # git-archive master | gzip -9 > ~/rpmbuild/SOURCES/xrootd.tgz
 Source0:   xrootd.tar.gz
+
+%if %{?_with_compat:1}%{!?_with_compat:0}
 Source1:   xrootd-3.3.6.tar.gz
+%endif
 
 BuildRoot: %{_tmppath}/%{name}-root
 
@@ -278,6 +281,7 @@ Requires: %{name}-client = %{epoch}:%{version}-%{release}
 This package contains a set of CPPUnit tests for xrootd.
 %endif
 
+%if %{?_with_compat:1}%{!?_with_compat:0}
 #-------------------------------------------------------------------------------
 # client-compat
 #-------------------------------------------------------------------------------
@@ -300,12 +304,17 @@ Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 %description server-compat
 This package contains compatibility binaries for xrootd 3 servers.
 
+%endif
+
 #-------------------------------------------------------------------------------
 # Build instructions
 #-------------------------------------------------------------------------------
 %prep
 %setup -c -n xrootd
+
+%if %{?_with_compat:1}%{!?_with_compat:0}
 %setup -T -D -n %{name} -a 1
+%endif
 
 %build
 cd xrootd
@@ -336,6 +345,7 @@ popd
 
 doxygen Doxyfile
 
+%if %{?_with_compat:1}%{!?_with_compat:0}
 pushd ../xrootd-3.3.6
 mkdir build
 pushd build
@@ -343,6 +353,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_PER
 make VERBOSE=1 %{?_smp_mflags}
 popd
 popd
+%endif
 
 #-------------------------------------------------------------------------------
 # Installation
@@ -353,6 +364,7 @@ rm -rf $RPM_BUILD_ROOT
 #-------------------------------------------------------------------------------
 # Install 3.3.6 compat
 #-------------------------------------------------------------------------------
+%if %{?_with_compat:1}%{!?_with_compat:0}
 pushd xrootd-3.3.6/build
 make install DESTDIR=$RPM_BUILD_ROOT
 rm -rf $RPM_BUILD_ROOT%{_includedir}
@@ -371,6 +383,7 @@ for i in cmsd frm_purged frm_xfrd xrootd; do
   mv $RPM_BUILD_ROOT%{_bindir}/$i $RPM_BUILD_ROOT%{_bindir}/${i}-3
 done
 popd
+%endif
 
 #-------------------------------------------------------------------------------
 # Install 4.x.y
@@ -720,6 +733,7 @@ fi
 %defattr(-,root,root)
 %{_datadir}/selinux/packages/%{name}/%{name}.pp
 
+%if %{?_with_compat:1}%{!?_with_compat:0}
 %files client-compat
 %defattr(-,root,root,-)
 %{_libdir}/libXrdAppUtils.so.0*
@@ -755,6 +769,7 @@ fi
 %{_libdir}/libXrdPss.so*
 %{_libdir}/libXrdServer.so.1*
 %{_libdir}/libXrdXrootd.so*
+%endif
 
 #-------------------------------------------------------------------------------
 # Changelog
