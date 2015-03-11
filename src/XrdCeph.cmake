@@ -20,7 +20,7 @@ target_link_libraries(
   ${RADOS_LIBS} )
 
 set_target_properties(
-  XrdClient
+  XrdCephPosix
   PROPERTIES
   VERSION   ${XRD_CEPH_POSIX_VERSION}
   SOVERSION ${XRD_CEPH_POSIX_SOVERSION}
