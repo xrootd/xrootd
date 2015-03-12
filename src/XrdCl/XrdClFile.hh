@@ -27,6 +27,7 @@
 
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdOuc/XrdOucCompiler.hh"
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -67,7 +68,8 @@ namespace XrdCl
                          OpenFlags::Flags   flags,
                          Access::Mode       mode,
                          ResponseHandler   *handler,
-                         uint16_t           timeout  = 0 );
+                         uint16_t           timeout  = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Open the file pointed to by the given URL - sync
@@ -82,7 +84,8 @@ namespace XrdCl
       XRootDStatus Open( const std::string &url,
                          OpenFlags::Flags   flags,
                          Access::Mode       mode    = Access::None,
-                         uint16_t           timeout = 0 );
+                         uint16_t           timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Close the file - async
@@ -93,7 +96,8 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Close( ResponseHandler *handler,
-                          uint16_t         timeout = 0 );
+                          uint16_t         timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Close the file - sync
@@ -102,7 +106,7 @@ namespace XrdCl
       //!                used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Close( uint16_t timeout = 0 );
+      XRootDStatus Close( uint16_t timeout = 0 ) XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Obtain status information for this file - async
@@ -117,7 +121,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Stat( bool             force,
                          ResponseHandler *handler,
-                         uint16_t         timeout = 0 );
+                         uint16_t         timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Obtain status information for this file - sync
@@ -130,7 +135,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Stat( bool       force,
                          StatInfo *&response,
-                         uint16_t   timeout = 0 );
+                         uint16_t   timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
 
       //------------------------------------------------------------------------
@@ -151,7 +157,8 @@ namespace XrdCl
                          uint32_t         size,
                          void            *buffer,
                          ResponseHandler *handler,
-                         uint16_t         timeout = 0 );
+                         uint16_t         timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - sync
@@ -168,7 +175,8 @@ namespace XrdCl
                          uint32_t  size,
                          void     *buffer,
                          uint32_t &bytesRead,
-                         uint16_t  timeout = 0 );
+                         uint16_t  timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - async
@@ -188,7 +196,8 @@ namespace XrdCl
                           uint32_t         size,
                           const void      *buffer,
                           ResponseHandler *handler,
-                          uint16_t         timeout = 0 );
+                          uint16_t         timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - sync
@@ -207,7 +216,8 @@ namespace XrdCl
       XRootDStatus Write( uint64_t    offset,
                           uint32_t    size,
                           const void *buffer,
-                          uint16_t    timeout = 0 );
+                          uint16_t    timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Commit all pending disk writes - async
@@ -218,7 +228,8 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Sync( ResponseHandler *handler,
-                         uint16_t         timeout = 0 );
+                         uint16_t         timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
 
       //------------------------------------------------------------------------
@@ -228,7 +239,7 @@ namespace XrdCl
       //!                used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Sync( uint16_t timeout = 0 );
+      XRootDStatus Sync( uint16_t timeout = 0 ) XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Truncate the file to a particular size - async
@@ -241,7 +252,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Truncate( uint64_t         size,
                              ResponseHandler *handler,
-                             uint16_t         timeout = 0 );
+                             uint16_t         timeout = 0 )
+                             XRD_WARN_UNUSED_RESULT;
 
 
       //------------------------------------------------------------------------
@@ -252,7 +264,9 @@ namespace XrdCl
       //!                used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Truncate( uint64_t size, uint16_t timeout = 0 );
+      XRootDStatus Truncate( uint64_t size,
+                             uint16_t timeout = 0 )
+                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Read scattered data chunks in one operation - async
@@ -274,7 +288,8 @@ namespace XrdCl
       XRootDStatus VectorRead( const ChunkList &chunks,
                                void            *buffer,
                                ResponseHandler *handler,
-                               uint16_t         timeout = 0 );
+                               uint16_t         timeout = 0 )
+                               XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Read scattered data chunks in one operation - sync
@@ -296,7 +311,8 @@ namespace XrdCl
       XRootDStatus VectorRead( const ChunkList  &chunks,
                                void             *buffer,
                                VectorReadInfo  *&vReadInfo,
-                               uint16_t          timeout = 0 );
+                               uint16_t          timeout = 0 )
+                               XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Performs a custom operation on an open file, server implementation
@@ -312,7 +328,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Fcntl( const Buffer    &arg,
                           ResponseHandler *handler,
-                          uint16_t         timeout = 0 );
+                          uint16_t         timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Performs a custom operation on an open file, server implementation
@@ -326,7 +343,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Fcntl( const Buffer     &arg,
                           Buffer          *&response,
-                          uint16_t          timeout = 0 );
+                          uint16_t          timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Get access token to a file - async
@@ -339,7 +357,8 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Visa( ResponseHandler *handler,
-                         uint16_t         timeout = 0 );
+                         uint16_t         timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Get access token to a file - sync
@@ -350,7 +369,8 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Visa( Buffer   *&visa,
-                         uint16_t   timeout = 0 );
+                         uint16_t   timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Check if the file is open
