@@ -59,7 +59,7 @@ ssize_t XrdCephOssFile::Read(off_t offset, size_t blen) {
 }
 
 ssize_t XrdCephOssFile::Read(void *buff, off_t offset, size_t blen) {
-  int rc = ceph_posix_lseek(m_fd, offset, SEEK_SET);
+  long long rc = ceph_posix_lseek(m_fd, offset, SEEK_SET);
   if (offset == rc) {
     return ceph_posix_read(m_fd, buff, blen);
   }

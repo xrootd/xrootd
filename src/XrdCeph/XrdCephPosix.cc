@@ -511,7 +511,7 @@ off_t ceph_posix_lseek(int fd, off_t offset, int whence) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_lseek: for fd %d, offset=%d, whence=%d", fd, offset, whence);
+    logwrapper((char*)"ceph_lseek: for fd %d, offset=%lld, whence=%d", fd, offset, whence);
     return (off_t)lseek_compute_offset(fr, offset, whence);
   } else {
     return -EBADF;
@@ -522,7 +522,7 @@ off64_t ceph_posix_lseek64(int fd, off64_t offset, int whence) {
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     CephFileRef &fr = it->second;
-    logwrapper((char*)"ceph_lseek64: for fd %d, offset=%d, whence=%d", fd, offset, whence);
+    logwrapper((char*)"ceph_lseek64: for fd %d, offset=%lld, whence=%d", fd, offset, whence);
     return lseek_compute_offset(fr, offset, whence);
   } else {
     return -EBADF;
