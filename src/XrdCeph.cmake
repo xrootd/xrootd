@@ -15,6 +15,11 @@ add_library(
   SHARED
   XrdCeph/XrdCephPosix.cc     XrdCeph/XrdCephPosix.hh )
 
+# needed during the transition between ceph giant and ceph hammer
+# for object listing API
+set_property(SOURCE XrdCeph/XrdCephPosix.cc
+             PROPERTY COMPILE_FLAGS " -Wno-deprecated-declarations")
+
 target_link_libraries(
   XrdCephPosix
   ${RADOS_LIBS} )
