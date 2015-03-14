@@ -83,6 +83,11 @@ using namespace XrdCms;
 
        XrdCmsParser     XrdCmsProtocol::ProtArgs;
 
+namespace XrdCms
+{
+extern XrdOucEnv        theEnv;
+};
+
 /******************************************************************************/
 /*                       P r o t o c o l   L o a d e r                        */
 /*                        X r d g e t P r o t o c o l                         */
@@ -165,6 +170,11 @@ int XrdgetProtocolPort(const char *pname, char *parms,
    Config.myProg    = strdup(pi->myProg);
    Sched            = pi->Sched;
    if (pi->DebugON) Trace.What = TRACE_ALL;
+
+// Create an xrootd compatabile environment
+//
+   XrdCms::theEnv.PutPtr("XrdScheduler*", Sched);
+   if (pi->theEnv) XrdCms::theEnv.PutPtr("xrdEnv*", pi->theEnv);
 
 // The only parameter we accept is the name of an alternate config file
 //

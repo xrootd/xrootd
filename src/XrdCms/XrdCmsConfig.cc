@@ -94,17 +94,22 @@ using namespace XrdCms;
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
-       XrdCmsAdmin      XrdCms::Admin;
+namespace XrdCms
+{
+       XrdOucEnv        theEnv;
 
-       XrdCmsBaseFS     XrdCms::baseFS(&XrdCmsNode::do_StateDFS);
+       XrdCmsAdmin      Admin;
 
-       XrdCmsConfig     XrdCms::Config;
+       XrdCmsBaseFS     baseFS(&XrdCmsNode::do_StateDFS);
 
-       XrdSysError      XrdCms::Say(0, "");
+       XrdCmsConfig     Config;
 
-       XrdOucTrace      XrdCms::Trace(&Say);
+       XrdSysError      Say(0, "");
 
-       XrdScheduler    *XrdCms::Sched = 0;
+       XrdOucTrace      Trace(&Say);
+
+       XrdScheduler    *Sched = 0;
+};
 
 /******************************************************************************/
 /*                S e c u r i t y   S y m b o l   T i e - I n                 */
@@ -774,7 +779,8 @@ int XrdCmsConfig::ConfigOSS()
 
 // Load and return result
 //
-   return !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib,ossParms,0,*myVInfo));
+   return !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib,ossParms,
+                              &theEnv, *myVInfo));
 }
 
 /******************************************************************************/
