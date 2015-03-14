@@ -26,6 +26,7 @@ Prerelease Notes
    * Avoid memory leak when deleting a detached channel.
 
 + **Miscellaneous**
+   * Pass along environment to plugins that need it.
    * Disable POSC processing when the proxy plugin is loaded.
    * Avoid serializing stat() via the proxy to improve performance.
    * Provide consistency for RLIM_INFINITY in getrlimit(RLIMIT_NOFILE).
