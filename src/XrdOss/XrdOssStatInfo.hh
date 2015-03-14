@@ -99,6 +99,19 @@ typedef int (*XrdOssStatInfo_t)(const char *path, struct stat *buff,
                                                   XrdSysLogger  *Logger,
                                                   const char    *config_fn,
                                                   const char    *parms);
+
+    An alternate entry point may be defined in lieu of the previous entry point.
+    This normally identified by a version option in the configuration file (e.g.
+    oss.statlib -2 <path>). It differs in that an extra parameter is passed:
+
+    @param  envP     - Pointer to the environment containing implementation
+                       specific information.
+
+   extern "C" XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
+                                                  XrdSysLogger  *Logger,
+                                                  const char    *config_fn,
+                                                  const char    *parms,
+                                                  XrdOucEnv     *envP);
 */
 
 //------------------------------------------------------------------------------
@@ -122,4 +135,10 @@ typedef XrdOssStatInfo_t (*XrdOssStatInfoInit_t)(XrdOss        *native_oss,
                                                  XrdSysLogger  *Logger,
                                                  const char    *config_fn,
                                                  const char    *parms);
+
+typedef XrdOssStatInfo_t (*XrdOssStatInfoInit2_t)(XrdOss       *native_oss,
+                                                  XrdSysLogger *Logger,
+                                                  const char   *config_fn,
+                                                  const char   *parms,
+                                                  XrdOucEnv    *envP);
 #endif

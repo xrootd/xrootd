@@ -154,13 +154,14 @@ virtual XrdOssDF *newFile(const char *tident)
                        {return (XrdOssDF *)new XrdOssFile(tident);}
 
 int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
-int       Configure(const char *, XrdSysError &);
+int       Configure(const char *, XrdSysError &, XrdOucEnv *envP);
 void      Config_Display(XrdSysError &);
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 int       GenLocalPath(const char *, char *);
 int       GenRemotePath(const char *, char *);
-int       Init(XrdSysLogger *, const char *);
+int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP);
+int       Init(XrdSysLogger *lP, const char *cP) {return Init(lP, cP, 0);}
 int       IsRemote(const char *path) 
                   {return (RPList.Find(path) & XRDEXP_REMOTE) != 0;}
 int       Lfn2Pfn(const char *Path, char *buff, int blen);
@@ -256,6 +257,7 @@ char             *STT_Lib;   // -> StatInfo  Library Path
 char             *STT_Parms; // -> StatInfo  Library Paramaters
 XrdOssStatInfo_t  STT_Func;
 int               STT_PreOp;
+int               STT_V2;
 
 long long         prPBits;   //    Page lo order bit mask
 long long         prPMask;   //    Page hi order bit mask
@@ -316,7 +318,7 @@ int                Stage_RT(const char *, const char *, XrdOucEnv &, unsigned lo
 // Configuration related methods
 //
 void   ConfigMio(XrdSysError &Eroute);
-int    ConfigN2N(XrdSysError &Eroute);
+int    ConfigN2N(XrdSysError &Eroute, XrdOucEnv *envP);
 int    ConfigProc(XrdSysError &Eroute);
 void   ConfigSpace();
 void   ConfigSpace(const char *Lfn);
@@ -324,7 +326,7 @@ void   ConfigSpath(XrdSysError &Eroute, const char *Pn,
                    unsigned long long &Fv, int noMSS);
 int    ConfigStage(XrdSysError &Eroute);
 int    ConfigStageC(XrdSysError &Eroute);
-int    ConfigStatLib(XrdSysError &Eroute);
+int    ConfigStatLib(XrdSysError &Eroute, XrdOucEnv *envP);
 void   ConfigStats(XrdSysError &Eroute);
 void   ConfigStats(dev_t Devnum, char *lP);
 int    ConfigXeq(char *, XrdOucStream &, XrdSysError &);

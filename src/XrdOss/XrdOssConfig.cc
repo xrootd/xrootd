@@ -216,13 +216,15 @@ XrdOssSys::XrdOssSys()
    STT_Parms     = 0;
    STT_Func      = 0;
    STT_PreOp     = 0;
+   STT_V2        = 0;
 }
   
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
+int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
+                                               XrdOucEnv   *envP)
 {
 /*
   Function: Establish default values using a configuration file.
@@ -266,6 +268,13 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
 // Process the configuration file
 //
    NoGo = ConfigProc(Eroute);
+
+// Configure dependent plugins
+//
+   if (!NoGo)
+      {if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute, envP);
+       if (STT_Lib && !NoGo) NoGo |= ConfigStatLib(Eroute, envP);
+      }
 
 // Establish the FD limit
 //
@@ -487,7 +496,7 @@ void XrdOssSys::ConfigMio(XrdSysError &Eroute)
 /*                             C o n f i g N 2 N                              */
 /******************************************************************************/
 
-int XrdOssSys::ConfigN2N(XrdSysError &Eroute)
+int XrdOssSys::ConfigN2N(XrdSysError &Eroute, XrdOucEnv *envP)
 {
    XrdOucN2NLoader n2nLoader(&Eroute,ConfigFN,N2N_Parms,LocalRoot,RemoteRoot);
 
@@ -547,11 +556,6 @@ int XrdOssSys::ConfigProc(XrdSysError &Eroute)
    if ((retc = Config.LastError()))
       NoGo = Eroute.Emsg("Config", retc, "read config file", ConfigFN);
    Config.Close();
-
-// All done scanning the file, set dependent parameters.
-//
-   if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute);
-   if (STT_Lib && !NoGo) NoGo |= ConfigStatLib(Eroute);
 
 // Return final return code
 //
@@ -829,20 +833,23 @@ int XrdOssSys::ConfigStageC(XrdSysError &Eroute)
 /*                         C o n f i g S t a t L i b                          */
 /******************************************************************************/
 
-int XrdOssSys::ConfigStatLib(XrdSysError &Eroute)
+int XrdOssSys::ConfigStatLib(XrdSysError &Eroute, XrdOucEnv *envP)
 {
    XrdOucPinLoader myLib(&Eroute, myVersion, "statlib", STT_Lib);
-   XrdOssStatInfoInit_t siGet;
 
-// Get the plugin
+// Get the plugin and stat function
 //
-   if (!(siGet = (XrdOssStatInfoInit_t)myLib.Resolve("XrdOssStatInfoInit")))
-      return 1;
-
-// Get an Instance of the statinfo function
-//
-   if (!(STT_Func = siGet(this, Eroute.logger(), ConfigFN, STT_Parms)))
-      return 1;
+   if (STT_V2)
+      {XrdOssStatInfoInit2_t siGet2;
+       if (!(siGet2=(XrdOssStatInfoInit2_t)myLib.Resolve("XrdOssStatInfoInit2"))
+       ||  !(STT_Func = siGet2(this,Eroute.logger(),ConfigFN,STT_Parms,envP)))
+          return 1;
+      } else {
+       XrdOssStatInfoInit_t siGet;
+       if (!(siGet = (XrdOssStatInfoInit_t)myLib.Resolve("XrdOssStatInfoInit"))
+       ||  !(STT_Func = siGet (this,Eroute.logger(),ConfigFN,STT_Parms)))
+          return 1;
+      }
 
 // Return success
 //
@@ -1573,7 +1580,7 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xstl
 
-   Purpose:  To parse the directive: statlib [preopen] <path> [<parms>]
+   Purpose:  To parse the directive: statlib [-2] [preopen] <path> [<parms>]
 
              preopen   issue the stat() prior to opening the file.
              <path>    the path of the stat library to be used.
@@ -1591,13 +1598,18 @@ int XrdOssSys::xstl(XrdOucStream &Config, XrdSysError &Eroute)
    if (!(val = Config.GetWord()) || !val[0])
       {Eroute.Emsg("Config", "statlib not specified"); return 1;}
 
-// Check for preopen option
+// Check for options
 //
-   if (strcmp(val, "preopen")) STT_PreOp = 0;
-      else {STT_PreOp = 1;
-            if (!(val = Config.GetWord()) || !val[0])
-               {Eroute.Emsg("Config", "statlib not specified"); return 1;}
-           }
+   STT_V2 = 0; STT_PreOp = 0;
+do{     if (!strcmp(val, "-2"))      STT_V2    = 1;
+   else if (!strcmp(val, "preopen")) STT_PreOp = 1;
+   else break;
+  } while((val = Config.GetWord()) && val[0]);
+
+// Make sure we have a statlib
+//
+   if (!val || !(*val))
+      {Eroute.Emsg("Config", "statlib not specified"); return 1;}
 
 // Record the path
 //
