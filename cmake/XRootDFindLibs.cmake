@@ -88,7 +88,7 @@ if( ENABLE_CEPH )
   endif()
 endif()
 
-if( ENABLE_PYTHON )
+if( ENABLE_PYTHON AND (Linux OR APPLE) )
   find_package(PythonLibs)
   find_package(PythonInterp)
   if( PYTHONINTERP_FOUND AND PYTHONLIBS_FOUND )
