@@ -1,0 +1,48 @@
+========
+PyXRootD
+========
+
+Release Notes
+=============
+
+-------------
+Version 0.3.0
+-------------
+
++ **New features**
+   * Improve integration with xrootd 4.x CopyProcess API by passing to python
+     all of the result dictionaties. This involves one API change, where the
+     CopyProcess.run method now returns a tuple (Status, [Results]) instead
+     of just Status.
+
++ Major bug fixes
+   * Fix memory leaks by doing proper reference counting of objects created
+     within C++ code.
+   * Consistently create the URL objects from urls represented as strings.
+
+-------------
+Version 0.2.0
+-------------
+
++ **New features**
+   * Move copy process to xrootd4 API
+   * Move file and filesystem to xrootd4 API
+   * Implement file.fcntl and file.visa
+
++ Major bug fixes
+   * Release the GIL while running copy jobs to allow other Python threads to run
+
++ **Miscellaneous**
+   * Cleanup of compilation scripts
+
+-------------
+Version 0.1.3
+-------------
+
++ **Minor bug fixes**
+   * Make the MkDirFlags.MAKEPATH flag work (issue #6)
+   * Fix a segfault when listing invalid directory (issues #3 and #4)
+   * Fix a SystemError exception occuring when trying to copy a file (issue #2)
+
++ **Miscellaneous**
+   * Fix file permissions

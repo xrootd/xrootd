@@ -1,0 +1,11 @@
+all.export /data
+all.trace debug all
+
+xrd.port 1094 if exec xrootd
+xrd.port 2094 if exec cmsd
+
+if manager*
+all.role manager
+all.manager manager.xrd.test 2094
+fi
+
