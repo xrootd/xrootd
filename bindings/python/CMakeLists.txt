@@ -14,7 +14,7 @@ add_custom_command(OUTPUT ${OUTPUT}
                    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} build
                    DEPENDS ${DEPS})
 
-add_custom_target(python_target ALL DEPENDS ${OUTPUT})
+add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
 
 install(
   CODE
