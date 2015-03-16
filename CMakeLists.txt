@@ -45,6 +45,7 @@ endmacro()
 # Build in subdirectories
 #-------------------------------------------------------------------------------
 add_subdirectory( src )
+add_subdirectory( bindings )
 
 if( BUILD_TESTS )
   ENABLE_TESTING()
