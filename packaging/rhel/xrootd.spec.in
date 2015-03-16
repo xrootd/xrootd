@@ -15,6 +15,14 @@
     %endif
 %endif
 
+%global __os_install_post    \
+    /usr/lib/rpm/redhat/brp-compress \
+    %{!?__debug_package:/usr/lib/rpm/redhat/brp-strip %{__strip}} \
+    /usr/lib/rpm/redhat/brp-strip-static-archive %{__strip} \
+    /usr/lib/rpm/redhat/brp-strip-comment-note %{__strip} %{__objdump} \
+    /usr/lib/rpm/redhat/brp-java-repack-jars \
+%{nil}
+
 #-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
@@ -47,6 +55,7 @@ BuildRequires: libxml2-devel
 BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
+BuildRequires: python-devel
 
 BuildRequires: selinux-policy-devel
 
@@ -229,6 +238,17 @@ This package contains the FUSE (file system in user space) xrootd mount
 tool.
 
 #-------------------------------------------------------------------------------
+# python
+#-------------------------------------------------------------------------------
+%package python
+Summary:	Python bindings for XRootD
+Group:		Development/Libraries
+Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+%description python
+Python bindings for XRootD
+
+#-------------------------------------------------------------------------------
 # doc
 #-------------------------------------------------------------------------------
 %package doc
@@ -391,6 +411,7 @@ popd
 pushd xrootd
 pushd  build
 make install DESTDIR=$RPM_BUILD_ROOT
+cat PYTHON_INSTALLED | sed -e "s|$RPM_BUILD_ROOT||g" > PYTHON_INSTALLED_FILES
 popd
 
 # configuration stuff
@@ -704,6 +725,9 @@ fi
 %{_mandir}/man1/xrootdfs.1*
 %dir %{_sysconfdir}/xrootd
 
+%files python -f xrootd/build/PYTHON_INSTALLED_FILES
+%defattr(-,root,root,-)
+
 %files doc
 %defattr(-,root,root,-)
 %doc %{_docdir}/%{name}-%{version}
@@ -775,6 +799,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Mon Mar 16 2015 Lukasz Janyst <ljanyst@cern.ch>
+- create the python package
+
 * Wed Mar 11 2015 Lukasz Janyst <ljanyst@cern.ch>
 - create the xrootd-ceph package
 
