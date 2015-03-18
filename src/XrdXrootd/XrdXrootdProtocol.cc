@@ -415,7 +415,8 @@ int XrdXrootdProtocol::Process2()
           case kXR_sync:     ReqID.setID(Request.header.streamid);
                              return do_Sync();
           case kXR_close:    return do_Close();
-          case kXR_truncate: if (!Request.header.dlen) return do_Truncate();
+          case kXR_truncate: ReqID.setID(Request.header.streamid);
+                             if (!Request.header.dlen) return do_Truncate();
                              break;
           case kXR_query:    if (!Request.header.dlen) return do_Qfh();
           default:           break;
