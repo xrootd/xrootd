@@ -15,13 +15,11 @@
     %endif
 %endif
 
-%global __os_install_post    \
-    /usr/lib/rpm/redhat/brp-compress \
-    %{!?__debug_package:/usr/lib/rpm/redhat/brp-strip %{__strip}} \
-    /usr/lib/rpm/redhat/brp-strip-static-archive %{__strip} \
-    /usr/lib/rpm/redhat/brp-strip-comment-note %{__strip} %{__objdump} \
-    /usr/lib/rpm/redhat/brp-java-repack-jars \
-%{nil}
+# Remove default rpm python bytecompiling scripts
+%global __os_install_post \
+    %(echo '%{__os_install_post}' | \
+      sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g \
+              s!/usr/lib[^[:space:]]*/brp-python-hardlink[[:space:]].*$!!g')
 
 #-------------------------------------------------------------------------------
 # Package definitions
