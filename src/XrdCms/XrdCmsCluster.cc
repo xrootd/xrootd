@@ -166,6 +166,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
            nP = NodeTab[Slot];
            nP->Link      = lp;
            nP->isOffline = 0;
+           nP->isBad    &= ~XrdCmsNode::isSuspend;
            nP->isConn    = 1;
            nP->Instance++;
            nP->setName(lp, theIF, port);  // Just in case it changed
