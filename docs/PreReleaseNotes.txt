@@ -25,7 +25,7 @@ Prerelease Notes
 
 + **Minor bug fixes**
    * Avoid disabling async I/O when using an oss plugin that does not
-     implement file compression.
+     implement file compression indicator.
    * Do not use the same flag bit for -I and --tpc as this makes -I
      unuseable (fixes #213).
    * Avoid memory leak when deleting a detached channel.
