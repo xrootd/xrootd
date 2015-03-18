@@ -11,6 +11,8 @@ Prerelease Notes
    * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
+   * Reorder ofs initialization in 4.1 to avoid disabling frm
+     notifications; which makes frm staging useless.
    * Fixes #218 - properly reset suspend state for reconecting cmsd's.
    * Avoid SEGV when environment pointer is nil.
    * Add all host IP's to the allow list.
