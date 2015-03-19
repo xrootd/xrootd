@@ -85,13 +85,14 @@ int Info::Read(XrdOssDF* fp)
    ResizeBits(sb);
 
    off += fp->Read(m_buff_fetched, off, GetSizeInBytes());
-   off += fp->Read(m_buff_write_called, off, GetSizeInBytes());
+   assert (off == GetHeaderSize());
+
+   memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
    m_complete = IsAnythingEmptyInRng(0, sb-1) ? false : true;
 
-   assert (off = GetHeaderSize());
 
    off += fp->Read(&m_accessCnt, off, sizeof(int));
-
+   clLog()->Dump(XrdCl::AppMsg, "Info:::Read() complete %d access_cnt %d", m_complete, m_accessCnt);
    return off;
 }
 
