@@ -1852,10 +1852,6 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
     StorageHelper SHelp(&hSpec, &hPort);
     int rc, xMeta = 0, xPeer = 0, xProxy = 0, *myPort = 0;
 
-// Ignore this call if we are a meta-manager and know our port number
-//
-   if (isMeta && PortTCP > 0) return CFile.noEcho();
-
 //  Process the optional "meta", "peer" or "proxy"
 //
     if ((val = CFile.GetWord()))
