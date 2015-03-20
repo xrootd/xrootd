@@ -24,6 +24,8 @@ Prerelease Notes
    * Avoid SEGV when deleting a partially empty table.
 
 + **Minor bug fixes**
+   * Allow meta-manager port directive ordering as was allowed before.
+     This is a backward compatability issue.
    * Avoid disabling async I/O when using an oss plugin that does not
      implement file compression indicator.
    * Do not use the same flag bit for -I and --tpc as this makes -I
