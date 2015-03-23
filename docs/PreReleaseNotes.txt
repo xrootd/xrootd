@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Implement the "cid" option of kXR_query config to display the
+     unique cluster ID
    * Allow suspending and enabling remote debugging without a restart.
    * Implement black/whitelist with optional redirection.
    * Provide mechanism to pass command line arguments to plugins.
