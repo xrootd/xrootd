@@ -1579,11 +1579,17 @@ int XrdXrootdProtocol::do_Qconf()
                 tP = tP->next;
                } while(tP && bleft > 0);
            }
+   else if (!strcmp("cid", val))
+           {const char *cidval = getenv("XRDCMSCLUSTERID");
+            if (!cidval || !(*cidval)) cidval = "cid";
+            n = snprintf(bp, bleft, "%s\n", cidval);
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("cms", val))
            {XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
             if (osFS->fsctl(fsctl_cmd, ".", myError, CRED) == SFS_DATA)
                     n = snprintf(bp, bleft, "%s\n", myError.getErrText());
-               else n = snprintf(bp, bleft, "%s\n", "cms\n");
+               else n = snprintf(bp, bleft, "%s\n", "cms");
             bp += n; bleft -= n;
            }
    else if (!strcmp("pio_max", val))
