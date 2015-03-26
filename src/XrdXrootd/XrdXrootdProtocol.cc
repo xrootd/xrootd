@@ -76,6 +76,8 @@ XrdOucTList          *XrdXrootdProtocol::JobCKTLST= 0;
 XrdOucReqID          *XrdXrootdProtocol::PrepID   = 0;
 
 char                 *XrdXrootdProtocol::Notify = 0;
+const char           *XrdXrootdProtocol::myCName= 0;
+int                   XrdXrootdProtocol::myCNlen= 0;
 int                   XrdXrootdProtocol::hailWait;
 int                   XrdXrootdProtocol::readWait;
 int                   XrdXrootdProtocol::Port;

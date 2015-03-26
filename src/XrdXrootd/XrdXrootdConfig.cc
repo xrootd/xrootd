@@ -389,6 +389,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        char buff[1024], puff[1024], xCgi[RD_Num] = {0};
        if (isRedir) {cgi1 = "+"; cgi2 = getenv("XRDCMSCLUSTERID");}
           else      {cgi1 = "";  cgi2 = pi->myName;}
+       myCNlen = snprintf(buff, sizeof(buff), "%s%s", cgi1, cgi2);
+       myCName = strdup(buff);
        do {k = xp->Opts();
            if (Route[k].Host[0] == Route[k].Host[1]
            &&  Route[k].Port[0] == Route[k].Port[1]) *puff = 0;
@@ -399,10 +401,13 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
               {bool isdup = Route[k].Host[0] == Route[k].Host[1]
                          && Route[k].Port[0] == Route[k].Port[1];
                for (i = 0; i < 2; i++)
-                   {snprintf(buff,sizeof(buff), "%s?tried=%s%s",
-                             Route[k].Host[i], cgi1, cgi2);
+                   {n = snprintf(buff,sizeof(buff), "%s?tried=%s%s",
+                                 Route[k].Host[i], cgi1, cgi2);
                     free(Route[k].Host[i]); Route[k].Host[i] = strdup(buff);
-                    if (isdup) {Route[k].Host[1] = Route[k].Host[0]; break;}
+                    Route[k].RDSz[i] = n;
+                    if (isdup) {Route[k].Host[1] = Route[k].Host[0];
+                                Route[k].RDSz[1] = n; break;
+                               }
                    }
               }
            xCgi[k] = 1;
@@ -804,7 +809,7 @@ int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 
 int XrdXrootdProtocol::xexpdo(char *path, int popt)
 {
-   const char *opaque;
+   char *opaque;
 
 // Check if we are exporting a generic name
 //
