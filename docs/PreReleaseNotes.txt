@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Detect commin redirect loops and stop further redirections.
    * Implement the "cid" option of kXR_query config to display the
      unique cluster ID
    * Allow suspending and enabling remote debugging without a restart.
@@ -13,6 +14,8 @@ Prerelease Notes
    * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
+   * Propagate tried token across static ENOENT redirects to properly
+     avoid failing servers.
    * Reorder ofs initialization in 4.1 to avoid disabling frm
      notifications; which makes frm staging useless.
    * Fixes #218 - properly reset suspend state for reconecting cmsd's.
