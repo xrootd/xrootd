@@ -2949,7 +2949,7 @@ int XrdXrootdProtocol::fsRedirNoEnt(const char *eMsg, char *Cgi, int popt)
 // We need to append the client's tried list to the one we have to avoid loops
 //
 
-   ioV[1].iov_base = &pnum;
+   ioV[1].iov_base = (void *)&pnum;
    ioV[1].iov_len  = sizeof(pnum);
    ioV[2].iov_base = Route[popt].Host[rdType];
    ioV[2].iov_len  = Route[popt].RDSz[rdType];
