@@ -265,6 +265,7 @@ bool Prefetch::Open()
       int ss = (m_fileSize -1)/m_cfi.GetBufferSize() + 1;
       //      clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, lPath());
       m_cfi.ResizeBits(ss);
+      m_cfi.WriteHeader(m_infoFile);
    }
    else
    {
