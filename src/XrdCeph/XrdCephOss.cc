@@ -108,7 +108,15 @@ int XrdCephOss::Stat(const char* path,
                   int opts,
                   XrdOucEnv* env) {
   try {
-    return ceph_posix_stat(env, path, buff);
+    if (!strcmp(path, "/")) {
+      // special case of a stat made by the locate interface
+      // we intend to then list all files
+      memset(buff, 0, sizeof(*buff));
+      buff->st_mode = S_IFDIR | 0700;
+      return 0;
+    } else {
+      return ceph_posix_stat(env, path, buff);
+    }
   } catch (std::exception e) {
     XrdCephEroute.Say("stat : invalid syntax in file parameters");
     return -EINVAL;
