@@ -14,7 +14,7 @@
 namespace XrdFileCache {
 class Print {
 public:
-   Print(XrdOss* oss, bool v, const char* path):m_oss(oss), m_verbose(v), m_ossUser("nobody"){
+   Print(XrdOss* oss, bool v, const char* path): m_oss(oss), m_verbose(v), m_ossUser("nobody"){
       // check if file ends with .cinfo
       if (isInfoFile(path)) {
          printFile(std::string(path));
@@ -33,7 +33,7 @@ private:
    XrdOss* m_oss;
    bool    m_verbose;
    const char* m_ossUser;
-XrdOucEnv m_env;
+   XrdOucEnv m_env;
 
    bool isInfoFile(const char* path) {
       if (strncmp(&path[strlen(path)-6], ".cinfo", 6))
@@ -47,12 +47,11 @@ XrdOucEnv m_env;
       printf("printing %s ...\n", path.c_str());
       XrdOssDF* fh = m_oss->newFile(m_ossUser);
       fh->Open((path).c_str(),O_RDONLY, 0600, m_env);
-      Info cfi;
+      Info cfi(0);
       long long off = cfi.Read(fh);
 
       std::vector<Info::AStat> statv;
 
-      printf("Numaccess %d \n", cfi.GetAccessCnt());
       for (int i = 0; i <cfi.GetAccessCnt(); ++i ) {
          Info::AStat a;
          fh->Read(&a, off , sizeof(Info::AStat));
@@ -134,11 +133,16 @@ int main(int argc, char *argv[])
    const char* cfgn = 0;
   
    XrdOucEnv myEnv;
-   int efs = open("/dev/null",O_RDWR, 0); XrdSysLogger log(efs);
+   int efs = open("/dev/null",O_RDWR, 0); 
+   XrdSysLogger ossLog(efs);
+   XrdSysError ossErr(&ossLog, "print");
 
-   XrdSysError err(&log, "print");
-   XrdOucStream Config(&err, getenv("XRDINSTANCE"), &myEnv, "=====> ");
-   XrdOucArgs Spec(&err, "pfc_print: ",    "", 
+   XrdSysLogger log;
+   XrdSysError err(&log);
+
+
+   XrdOucStream Config(&ossErr, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   XrdOucArgs Spec(&ossErr, "pfc_print: ",    "", 
                    "verbose",        1, "v",
                    "config",       1, "c",
                    (const char *)0);
@@ -170,7 +174,7 @@ int main(int argc, char *argv[])
    }
 
    XrdOss *oss; 
-   XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(cfgn,&Config,&err);
+   XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(cfgn,&Config,&ossErr);
    bool ossSucc = ofsCfg->Load(XrdOfsConfigPI::theOssLib);
    if (!ossSucc) {
       printf("can't load oss\n");

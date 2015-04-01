@@ -82,6 +82,7 @@ Prefetch::RAM::~RAM()
 Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
    m_output(NULL),
    m_infoFile(NULL),
+   m_cfi(Factory::GetInstance().RefConfiguration().m_bufferSize),
    m_input(inputIO),
    m_temp_filename(disk_file_path),
    m_offset(iOffset),
@@ -962,7 +963,12 @@ void Prefetch::AppendIOStatToFileInfo()
    m_downloadStatusMutex.Lock();
    if (m_infoFile)
    {
-      m_cfi.AppendIOStat(&m_stats, (XrdOssDF*)m_infoFile);
+      Info::AStat as;
+      as.DetachTime  = time(0);
+      as.BytesDisk   = m_stats.m_BytesDisk;
+      as.BytesRam    = m_stats.m_BytesRam;
+      as.BytesMissed = m_stats.m_BytesMissed;
+      m_cfi.AppendIOStat(as, (XrdOssDF*)m_infoFile);
    }
    else
    {

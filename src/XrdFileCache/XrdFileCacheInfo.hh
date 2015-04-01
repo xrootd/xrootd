@@ -59,7 +59,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor.
          //------------------------------------------------------------------------
-         Info();
+         Info(long long bufferSize);
 
          //------------------------------------------------------------------------
          //! Destructor.
@@ -103,7 +103,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Append access time, and cache statistics
          //---------------------------------------------------------------------
-         void AppendIOStat(const Stats* stat, XrdOssDF* fp);
+         void AppendIOStat(AStat& stat, XrdOssDF* fp);
 
          //---------------------------------------------------------------------
          //! Check download status in given block range

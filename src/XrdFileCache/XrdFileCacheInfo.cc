@@ -29,8 +29,8 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
-#include "XrdFileCacheFactory.hh"
-#include "XrdFileCacheStats.hh"
+//#include "XrdFileCacheFactory.hh"
+//#include "XrdFileCacheStats.hh"
 
 
 const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
@@ -39,14 +39,13 @@ const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
 using namespace XrdFileCache;
 
 
-Info::Info() :
+Info::Info(long long iBufferSize) :
    m_version(0),
-   m_bufferSize(0),
+   m_bufferSize(iBufferSize),
    m_sizeInBits(0), m_buff_fetched(0), m_buff_write_called(0),
    m_accessCnt(0),
    m_complete(false)
 {
-   m_bufferSize = Factory::GetInstance().RefConfiguration().m_bufferSize;
 }
 
 Info::~Info()
@@ -125,7 +124,7 @@ void Info::WriteHeader(XrdOssDF* fp)
 }
 
 //______________________________________________________________________________
-void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
+void Info::AppendIOStat(AStat& as, XrdOssDF* fp)
 {
    clLog()->Info(XrdCl::AppMsg, "Info:::AppendIOStat()");
 
@@ -133,20 +132,14 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    if (flr) clLog()->Error(XrdCl::AppMsg, "AppendIOStat() lock failed \n");
 
    m_accessCnt++;
-
    long long off = GetHeaderSize();
    off += fp->Write(&m_accessCnt, off, sizeof(int));
    off += (m_accessCnt-1)*sizeof(AStat);
-   AStat as;
-   as.DetachTime  = time(0);
-   as.BytesDisk   = caches->m_BytesDisk;
-   as.BytesRam    = caches->m_BytesRam;
-   as.BytesMissed = caches->m_BytesMissed;
-
+ 
+   long long ws = fp->Write(&as, off, sizeof(AStat));
    flr = XrdOucSxeq::Release(fp->getFD());
    if (flr) clLog()->Error(XrdCl::AppMsg, "AppenIOStat() un-lock failed \n");
 
-   long long ws = fp->Write(&as, off, sizeof(AStat));
    if ( ws != sizeof(AStat)) { assert(0); }
 }
 
