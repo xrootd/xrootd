@@ -126,25 +126,20 @@ void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
 
 //______________________________________________________________________________
 
-
 int main(int argc, char *argv[])
 { 
-
    static const char* usage = "Usage: pfc_print [-c config_file] [-v] path\n\n";
    bool verbose = false;
    const char* cfgn = 0;
   
    XrdOucEnv myEnv;
-   int efs = open("/dev/null",O_RDWR, 0); 
-   XrdSysLogger ossLog(efs);
-   XrdSysError ossErr(&ossLog, "print");
 
    XrdSysLogger log;
    XrdSysError err(&log);
 
 
-   XrdOucStream Config(&ossErr, getenv("XRDINSTANCE"), &myEnv, "=====> ");
-   XrdOucArgs Spec(&ossErr, "pfc_print: ",    "", 
+   XrdOucStream Config(&err, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   XrdOucArgs Spec(&err, "pfc_print: ",    "", 
                    "verbose",        1, "v",
                    "config",       1, "c",
                    (const char *)0);
@@ -159,6 +154,8 @@ int main(int argc, char *argv[])
       {
          case 'c': {
             cfgn = Spec.getarg();
+            int fd = open(cfgn, O_RDONLY, 0);
+            Config.Attach(fd);
             break;
          }
          case 'v': {
@@ -172,6 +169,11 @@ int main(int argc, char *argv[])
       }
    }
 
+
+   // suppress oss init messages
+   int efs = open("/dev/null",O_RDWR, 0); 
+   XrdSysLogger ossLog(efs);
+   XrdSysError ossErr(&ossLog, "print");
    XrdOss *oss; 
    XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(cfgn,&Config,&ossErr);
    bool ossSucc = ofsCfg->Load(XrdOfsConfigPI::theOssLib);
@@ -181,14 +183,35 @@ int main(int argc, char *argv[])
    }
    ofsCfg->Plugin(oss);
 
-
    const char* path = Spec.getarg();
    if (!path) {
       printf("%s", usage);
       exit(1);
    }
 
-   XrdFileCache::Print p(oss, verbose, path);
+   // append oss.localroot if path starts with 'root://'
+   if (!strncmp(&path[0], "root://", 7)) {
+      if (Config.FDNum() < 0) {
+         printf("Configuration file not specified.\n");
+         exit(1);
+      }
+      char *var;
+      while((var = Config.GetFirstWord()))
+      {
+         // printf("var %s \n", var);
+         if (!strncmp(var,"oss.localroot", strlen("oss.localroot")))
+         {
+            std::string tmp = Config.GetWord();
+            tmp += "/";
+            tmp += &path[7];
+            // printf("Absolute path %s \n", tmp.c_str());  
+            XrdFileCache::Print p(oss, verbose, tmp.c_str());
+         }
+      }
+   }
+   else {
+       XrdFileCache::Print p(oss, verbose, path);
+   }
 }
 
 
