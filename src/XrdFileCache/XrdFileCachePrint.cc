@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
    }
 
    // append oss.localroot if path starts with 'root://'
-   if (!strncmp(&path[0], "root://", 7)) {
+   if (!strncmp(&path[0], "root:/", 6)) {
       if (Config.FDNum() < 0) {
          printf("Configuration file not specified.\n");
          exit(1);
@@ -202,8 +202,7 @@ int main(int argc, char *argv[])
          if (!strncmp(var,"oss.localroot", strlen("oss.localroot")))
          {
             std::string tmp = Config.GetWord();
-            tmp += "/";
-            tmp += &path[7];
+            tmp += &path[6];
             // printf("Absolute path %s \n", tmp.c_str());  
             XrdFileCache::Print p(oss, verbose, tmp.c_str());
          }
