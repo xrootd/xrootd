@@ -96,7 +96,7 @@ namespace XrdFileCache
          int Read(XrdOssDF* fp);
 
          //---------------------------------------------------------------------
-         //! Write number of blocks and prefetch buffer size
+         //! Write number of blocks and read buffer size
          //---------------------------------------------------------------------
          void  WriteHeader(XrdOssDF* fp);
 

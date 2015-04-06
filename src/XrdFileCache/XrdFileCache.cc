@@ -27,11 +27,10 @@
 #include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdFileCache.hh"
-#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheFile.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
-#include "XrdFileCacheFactory.hh"
-#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheFactory.hh"x
 
 
 XrdFileCache::Cache::WriteQ XrdFileCache::Cache::s_writeQ;
@@ -68,7 +67,6 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
       else
          cio = new IOEntireFile(*io, m_stats, *this);
 
-      cio->StartPrefetch();
       return cio;
    }
    else
@@ -117,7 +115,7 @@ Cache::HaveFreeWritingSlots()
 
 //______________________________________________________________________________
 void
-Cache::AddWriteTask(Prefetch* p, int ri, size_t s, bool fromRead)
+Cache::AddWriteTask(File* p, int ri, size_t s, bool fromRead)
 {
    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::AddWriteTask() wqsize = %d, bi=%d", s_writeQ.size, ri);
    s_writeQ.condVar.Lock();
@@ -131,7 +129,7 @@ Cache::AddWriteTask(Prefetch* p, int ri, size_t s, bool fromRead)
 }
 
 //______________________________________________________________________________
-void Cache::RemoveWriteQEntriesFor(Prefetch *p)
+void Cache::RemoveWriteQEntriesFor(File *p)
 {
    s_writeQ.condVar.Lock();
    std::list<WriteTask>::iterator i = s_writeQ.queue.begin();

@@ -29,13 +29,6 @@
 
 using namespace XrdFileCache;
 
-void *PrefetchRunner(void * prefetch_void)
-{
-   XrdFileCache::Prefetch *prefetch = static_cast<XrdFileCache::Prefetch *>(prefetch_void);
-   if (prefetch)
-      prefetch->Run();
-   return NULL;
-}
 //______________________________________________________________________________
 
 
@@ -48,7 +41,7 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & c
    std::string fname;
    m_cache.getFilePathFromURL(io.Path(), fname);
 
-   m_prefetch = new Prefetch(io, fname, 0, io.FSize());
+   m_prefetch = new File(io, fname, 0, io.FSize());
 
 }
 
@@ -59,13 +52,6 @@ bool IOEntireFile::ioActive()
 {
    return m_prefetch->InitiateClose();
 }
-
-void IOEntireFile::StartPrefetch()
-{
-   pthread_t tid;
-   XrdSysThread::Run(&tid, PrefetchRunner, (void *)(m_prefetch), 0, "XrdFileCache Prefetcher");
-}
-
 
 XrdOucCacheIO *IOEntireFile::Detach()
 {

@@ -42,7 +42,7 @@
 
 #include "XrdFileCache.hh"
 #include "XrdFileCacheFactory.hh"
-#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheFile.hh"
 
 
 using namespace XrdFileCache;

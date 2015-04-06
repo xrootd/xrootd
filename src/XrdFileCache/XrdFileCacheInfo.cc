@@ -68,8 +68,8 @@ void Info::ResizeBits(int s)
 
 int Info::Read(XrdOssDF* fp)
 {
-   // does not need lock, called only in Prefetch::Open
-   // before Prefetch::Run() starts
+   // does not need lock, called only in File::Open
+   // before File::Run() starts
 
    int off = 0;
    off += fp->Read(&m_version, off, sizeof(int));
