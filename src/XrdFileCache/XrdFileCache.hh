@@ -28,7 +28,7 @@ namespace XrdCl {
    class Log;
 }
 namespace XrdFileCache {
-class Prefetch;
+class File;
 }
 
 namespace XrdFileCache
@@ -67,7 +67,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Add downloaded block in write queue.
          //---------------------------------------------------------------------
-         static void AddWriteTask(Prefetch* p, int ramBlockidx, size_t size, bool fromRead);
+         static void AddWriteTask(File* p, int ramBlockidx, size_t size, bool fromRead);
 
          //---------------------------------------------------------------------
          //! Check write queue size is not over limit.
@@ -76,9 +76,9 @@ namespace XrdFileCache
 
          //---------------------------------------------------------------------
          //!  \brief Remove blocks from write queue which belong to given prefetch.
-         //! This method is used at the time of Prefetch destruction.
+         //! This method is used at the time of File destruction.
          //---------------------------------------------------------------------
-         static void RemoveWriteQEntriesFor(Prefetch *p);
+         static void RemoveWriteQEntriesFor(File *p);
 
          //---------------------------------------------------------------------
          //! Separate task which writes blocks from ram to disk.
@@ -101,10 +101,10 @@ namespace XrdFileCache
 
          struct WriteTask
          {
-            Prefetch* prefetch;    //!< object queued for writing
+            File*     prefetch;    //!< object queued for writing
             int       ramBlockIdx; //!< in memory cache index
             size_t    size;        //!< write size -- block size except in case this is the end file block
-            WriteTask(Prefetch* p, int ri, size_t s):prefetch(p), ramBlockIdx(ri), size(s){}
+            WriteTask(File* p, int ri, size_t s):prefetch(p), ramBlockIdx(ri), size(s){}
          };
 
          struct WriteQ
@@ -124,7 +124,7 @@ namespace XrdFileCache
    //----------------------------------------------------------------------------
    class IO : public XrdOucCacheIO
    {
-      friend class Prefetch;
+      friend class File;
 
       public:
          IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache) :
@@ -146,7 +146,6 @@ namespace XrdFileCache
          virtual int Write(char *Buffer, long long Offset, int Length)
          { errno = ENOTSUP; return -1; }
 
-         virtual void StartPrefetch() {}
 
       protected:
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }

@@ -23,7 +23,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdFileCache.hh"
 #include "XrdFileCacheStats.hh"
-#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheFile.hh"
 
 class XrdSysError;
 class XrdOssDF;
@@ -50,7 +50,7 @@ namespace XrdFileCache
          ~IOEntireFile();
 
          //---------------------------------------------------------------------
-         //! Pass Read request to the corresponding Prefetch object.
+         //! Pass Read request to the corresponding File object.
          //!
          //! @param Buffer
          //! @param Offset
@@ -61,7 +61,7 @@ namespace XrdFileCache
          virtual int Read(char *Buffer, long long Offset, int Length);
 
          //---------------------------------------------------------------------
-         //! Pass ReadV request to the corresponding Prefetch object.
+         //! Pass ReadV request to the corresponding File object.
          //!
          //! @param readV
          //! @param n number of XrdOucIOVecs
@@ -81,12 +81,8 @@ namespace XrdFileCache
          //! Called to check if destruction needs to be done in a separate task.
          virtual bool ioActive();
 
-   protected:
-      //! Run prefetch outside constructor.
-      virtual void StartPrefetch();
-
       private:
-         Prefetch* m_prefetch;
+         File* m_prefetch;
    };
 
 }
