@@ -76,13 +76,6 @@ namespace XrdFileCache
 
       int             m_num_reads;
 
-      // XrdSysCondVar   m_stateCond;
-
-      // XrdSysMutex     m_downloadStatusMutex; //!< mutex locking access to m_cfi object
-
-      // std::deque<Task*> m_tasks_queue; //!< download queue
-      // XrdSysCondVar    m_queueCond;
-
       Stats            m_stats;      //!< cache statistics, used in IO detach
 
    public:
@@ -114,9 +107,6 @@ namespace XrdFileCache
 
 
       void ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status);
-
-      int ReadInBlocks(char* buff, off_t offset, size_t size);
-
 
    };
 
