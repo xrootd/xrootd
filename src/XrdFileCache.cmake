@@ -55,12 +55,17 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
-
 install(
   TARGETS ${LIB_XRD_FILECACHE}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
-
 install(
   TARGETS xrdpfc_print
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
+
+
+install(
+  FILES
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdpfc_print.8
+  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )
+
