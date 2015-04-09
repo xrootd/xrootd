@@ -441,7 +441,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
          if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], XrdFileCache::Info::m_infoExtension, InfoExtLen) == 0)
          {
             fh->Open((np).c_str(),O_RDONLY, 0600, env);
-            Info cinfo;
+            Info cinfo(factory.RefConfiguration().m_bufferSize);
             time_t accessTime;
             cinfo.Read(fh);
             if (cinfo.GetLatestDetachTime(accessTime, fh))
