@@ -39,15 +39,15 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# pfc_print
+# xrdpfc_print
 #-------------------------------------------------------------------------------
 add_executable(
-  pfc_print
+  xrdpfc_print
   XrdFileCache/XrdFileCachePrint.hh  XrdFileCache/XrdFileCachePrint.cc
   XrdFileCache/XrdFileCacheInfo.hh  XrdFileCache/XrdFileCacheInfo.cc)
 
 target_link_libraries(
-  pfc_print
+  xrdpfc_print
   XrdServer
   XrdCl
   XrdUtils )
@@ -62,5 +62,5 @@ install(
 
 
 install(
-  TARGETS pfc_print
+  TARGETS xrdpfc_print
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
