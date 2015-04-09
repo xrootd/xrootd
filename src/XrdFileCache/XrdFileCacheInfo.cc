@@ -29,9 +29,6 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
-//#include "XrdFileCacheFactory.hh"
-//#include "XrdFileCacheStats.hh"
-
 
 const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
 
