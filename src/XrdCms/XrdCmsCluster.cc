@@ -1807,7 +1807,7 @@ void XrdCmsCluster::setAltMan(int snum, XrdLink *lp, int port)
 // the size of he buffer was big enough so no need to check for overflow.
 //
    altAddr.Port(port);
-   i = altAddr.Format(ap, AltSize, XrdNetAddr::fmtAddr, XrdNetAddr::old6Map4);
+   i = altAddr.Format(ap, AltSize, XrdNetAddr::fmtAddr);
    ap[i] = ' ';
 
 // Compute new fence
