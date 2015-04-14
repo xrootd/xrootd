@@ -14,6 +14,9 @@ Prerelease Notes
    * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
+   * Further backward compatability changes for supervisor redirect lists.
+     Use hostname in list unless cms.sched tryhname 0 specifed.
+     Add option to netaddr.format to return IPv4 address (no abi change).
    * Fix broken IPv4 backward compatability in clusters with supervisors.
    * Propagate tried token across static ENOENT redirects to properly
      avoid failing servers.
