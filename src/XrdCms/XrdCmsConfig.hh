@@ -103,7 +103,8 @@ int         P_mem;        // % MEM Capacity in load factor
 int         P_pag;        // % PAG Capacity in load factor
 
 char        DoMWChk;      // When true (default) perform multiple write check
-char        Rsvd[3];      // Reserved for alignment
+char        DoHnTry;      // When true (default) use hostnames for try redirs
+char        Rsvd[2];      // Reserved for alignment
 
 int         DiskMin;      // Minimum MB needed of space in a partition
 int         DiskHWM;      // Minimum MB needed of space to requalify
