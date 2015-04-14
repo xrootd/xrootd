@@ -659,6 +659,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    AskPing  = 60;         // Every  1 minute
    PingTick = 0;
    DoMWChk  = 1;
+   DoHnTry  = 1;
    MaxDelay = -1;
    LogPerf  = 10;         // Every 10 usage requests
    DiskMin  = 10240;      // 10GB*1024 (Min partition space) in MB
@@ -2485,7 +2486,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
-    int  i, ppp;
+    int  i, ppp, V_hntry = -1;
     static struct schedopts {const char *opname; int maxv; int *oploc;}
            scopts[] =
        {
@@ -2499,7 +2500,8 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
         {"pag",      100, &P_pag},
         {"space",    100, &P_dsk},
         {"maxload",  100, &MaxLoad},
-        {"refreset", -1,  &RefReset}
+        {"refreset", -1,  &RefReset},
+        {"tryhname",   1, &V_hntry}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
 
@@ -2527,6 +2529,10 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
               eDest->Say("Config warning: ignoring invalid sched option '",val,"'.");
            val = CFile.GetWord();
           }
+
+// Handle non-int settings
+//
+   if (V_hntry >= 0) DoHnTry = static_cast<char>(V_hntry);
 
     return 0;
 }

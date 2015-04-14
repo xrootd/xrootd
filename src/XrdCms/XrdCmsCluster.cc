@@ -1811,11 +1811,14 @@ void XrdCmsCluster::setAltMan(int snum, XrdLink *lp, int port)
    if (!port || (port > 0x0000ffff)) port = Config.PortTCP;
    memset(ap, int(' '), AltSize);
 
+// First tr to use the hostname:port which may be too large (unlikely). Else
 // Insert the ip address of this node into the list of nodes. We made sure that
 // the size of he buffer was big enough so no need to check for overflow.
 //
    altAddr.Port(port);
-   i = altAddr.Format(ap, AltSize, XrdNetAddr::fmtAddr);
+   if (Config.DoHnTry) i = altAddr.Format(ap, AltSize, XrdNetAddr::fmtName);
+      else i = 0;
+   if (!i) i=altAddr.Format(ap,AltSize,XrdNetAddr::fmtAddr,XrdNetAddr::prefipv4);
    ap[i] = ' ';
 
 // Compute new fence
