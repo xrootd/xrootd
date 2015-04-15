@@ -261,11 +261,29 @@ namespace XrdCl
                  pRequest->GetDescription().c_str() );
       Message *embededMsg = new Message( rsp->hdr.dlen-8 );
       embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
-      delete msg;
+      XRDCL_SMART_PTR_T<Message> msgPtr( msg );
       pResponse = embededMsg; // this can never happen for oksofars
 
       // we need to unmarshall the header by hand
       XRootDTransport::UnMarshallHeader( embededMsg );
+
+      //------------------------------------------------------------------------
+      // Check if the dlen field of the embedded message is consistent with
+      // the dlen value of the original message
+      //------------------------------------------------------------------------
+      ServerResponse *embRsp = (ServerResponse *)embededMsg->GetBuffer();
+      if( embRsp->hdr.dlen != rsp->hdr.dlen-16 )
+      {
+        log->Error( XRootDMsg, "[%s] Sizes of the async response to %s and the "
+                    "embedded message are inconsistent. Expected %d, got %d.",
+                    pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
+                    rsp->hdr.dlen-16, embRsp->hdr.dlen);
+
+        pStatus = Status( stFatal, errInvalidMessage );
+        HandleResponse();
+        return;
+      }
+
       Process( embededMsg );
       return;
     }
