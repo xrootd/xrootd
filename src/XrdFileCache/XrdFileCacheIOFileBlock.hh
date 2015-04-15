@@ -71,6 +71,7 @@ namespace XrdFileCache
          XrdSysMutex                m_mutex;     //!< map mutex
 
          void GetBlockSizeFromPath();
+         File* newBlockFile(long long off, int blocksize, XrdOucCacheIO* io);
    };
 }
 

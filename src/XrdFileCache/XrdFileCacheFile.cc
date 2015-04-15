@@ -1,17 +1,84 @@
+//----------------------------------------------------------------------------------
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel
+//----------------------------------------------------------------------------------
+// XRootD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// XRootD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//----------------------------------------------------------------------------------
+
+
 #include "XrdFileCacheFile.hh"
+
+
+#include <stdio.h>
+#include <sstream>
+#include <fcntl.h>
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
+#include "XrdOss/XrdOss.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "Xrd/XrdScheduler.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdPosix/XrdPosixFile.hh"
+#include "XrdFileCacheFactory.hh"
+#include "XrdFileCache.hh"
 
 using namespace XrdFileCache;
 
-File::File(XrdOucCacheIO &io, std::string &path, long long off, long long size) :
-   m_input(io),
-   m_output(0),
-   m_infoFile(0),
-   m_temp_filename(path),
-   m_offset(off),
-   m_fileSize(size),
+namespace
+{
+const int PREFETCH_MAX_ATTEMPTS = 10;
+class DiskSyncer : public XrdJob
+{
+private:
+   File *m_file;
+public:
+   DiskSyncer(File *pref, const char *desc="") :
+      XrdJob(desc),
+      m_file(pref)
+   {}
+   void DoIt()
+   {
+      m_file->Sync();
+   }
+};
+}
 
-   m_block_cond(0),
-   m_num_reads(0)
+
+File::File(XrdOucCacheIO &inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
+m_input(inputIO),
+m_output(NULL),
+m_infoFile(NULL),
+
+m_temp_filename(disk_file_path),
+m_offset(iOffset),
+m_fileSize(iFileSize),
+
+m_started(false),
+m_failed(false),
+m_stopping(false),
+m_stopped(false),
+m_stateCond(0), // We will explicitly lock the condition before use.
+
+m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
+m_non_flushed_cnt(0),
+m_in_sync(false),
+
+m_block_cond(0)
+// m_num_reads(0)
 {
    clLog()->Debug(XrdCl::AppMsg, "File::File() %s", m_input.Path());
 }
@@ -41,6 +108,43 @@ File::~File()
       m_infoFile = 0;
    }
 }
+
+bool File::InitiateClose()
+{
+   // Retruns true if delay is needed
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Initiate close start", lPath());
+   if (m_cfi.IsComplete()) return false;
+   m_stateCond.Lock();
+   if (m_started == false) return false;
+   m_stopping = true;
+   m_stateCond.UnLock();
+   return true;
+}
+
+//______________________________________________________________________________
+
+
+void File::Sync()
+{
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Sync %s", lPath());
+   m_output->Fsync();
+   m_cfi.WriteHeader(m_infoFile);
+   int written_while_in_sync;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+      for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
+      {
+         m_cfi.SetBitWriteCalled(*i);
+      }
+      written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
+      m_writes_during_sync.clear();
+      m_in_sync = false;
+   }
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Sync %d blocks written during sync.", written_while_in_sync);
+   m_infoFile->Fsync();
+}
+
+
 
 //==============================================================================
 
@@ -96,7 +200,7 @@ bool File::Open()
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
       clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_input.Path());
       m_cfi.ResizeBits(ss);
-      RecordDownloadInfo();
+      m_cfi.WriteHeader(m_infoFile);
    }
    else
    {
@@ -120,7 +224,7 @@ namespace
                 long long req_off,  // offset of user request
                 int       req_size, // size of user request
                 // output:
-                long_long &off,     // offset in user buffer
+                long long &off,     // offset in user buffer
                 long long &blk_off, // offset in block
                 long long &size)    // size to copy
    {
@@ -156,7 +260,7 @@ Block* File::RequestBlock(int i)
    // Reference count is 0 so increase it in calling function if you want to
    // catch the block while still in memory.
 
-   XrdCl::XrdClFile &client = ((XrdPosixFile*)m_input).clFile;
+   XrdCl::File &client = ((XrdPosixFile*)(&m_input))->clFile;
 
    const long long   BS = m_cfi.GetBufferSize();
    const int last_block = m_cfi.GetSizeInBits() - 1;
@@ -167,26 +271,29 @@ Block* File::RequestBlock(int i)
    Block *b = new Block(this, off, this_bs);
    m_block_map[i] = b;
 
-   client.Read(off, this_bs, b->get_buff(), new BlockRH(b));
+   // AMT do I really have got cast to non-const ?
+   client.Read(off, this_bs, (void*)b->get_buff(), new BlockResponseHandler(b));
+
+   return b;
 }
 
 //------------------------------------------------------------------------------
 
-int File::RequestBlocksDirect(DirectRH *handler, std::list<int>& blocks,
-                              long long req_buf, long long req_off, long long req_size)
+int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
+                              char* req_buf, long long req_off, long long req_size)
 {
-   XrdCl::XrdClFile &client = ((XrdPosixFile*)m_input).clFile;
+   XrdCl::File &client = ((XrdPosixFile*)(&m_input))->clFile;
 
    const long long BS = m_cfi.GetBufferSize();
 
-   // XXX Use readv to load more at the same time.
+   // XXX Use readv to load more at the same time. 
 
    long long total = 0;
 
-   for (IntList_i ii = blocks ; ii != blocks.end(); ++ii)
+   for (IntList_i ii = blocks.begin() ; ii != blocks.end(); ++ii)
    {
       // overlap and request
-      long_long off;     // offset in user buffer
+      long long off;     // offset in user buffer
       long long blk_off; // offset in block
       long long size;    // size to copy
 
@@ -203,7 +310,7 @@ int File::RequestBlocksDirect(DirectRH *handler, std::list<int>& blocks,
 //------------------------------------------------------------------------------
 
 int File::ReadBlocksFromDisk(std::list<int>& blocks,
-                             long long req_buf, long long req_off, long long req_size)
+                             char* req_buf, long long req_off, long long req_size)
 {
    const long long BS = m_cfi.GetBufferSize();
 
@@ -211,16 +318,16 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
    // XXX Coalesce adjacent reads.
 
-   for (IntList_i ii = blocks ; ii != blocks.end(); ++ii)
+   for (IntList_i ii = blocks.begin() ; ii != blocks.end(); ++ii)
    {
       // overlap and read
-      long_long off;     // offset in user buffer
+      long long off;     // offset in user buffer
       long long blk_off; // offset in block
       long long size;    // size to copy
 
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
-      long long rs = m_output.Read(req_buf + off, *ii * BS + blk_off, size);
+      long long rs = m_output->Read(req_buf + off, *ii * BS + blk_off, size);
 
       if (rs < 0)
          return rs;
@@ -233,10 +340,8 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
 //------------------------------------------------------------------------------
 
-int File::Read(char* buff, long long offset, int size);
+int File::Read(char* buff, long long off, int size)
 {
-   XrdCl::XrdClFile &client = ((XrdPosixFile*)m_input).clFile;
-
    const long long BS = m_cfi.GetBufferSize();
 
    // lock
@@ -248,13 +353,13 @@ int File::Read(char* buff, long long offset, int size);
    //   passing the req to client is actually better.
    // unlock
 
-   const int MaxBlocksForRead = 16; // Should be config var! Or even mutable for low client counts.
+   const int MaxBlocksForRead = 16; // AMT Should be config var! Or even mutable for low client counts.
 
    m_block_cond.Lock();
 
    // XXX Check for blocks to free? Later ...
 
-   inc_num_readers();
+   //   inc_num_readers();
 
    const int idx_first = off / BS;
    const int idx_last  = (off + size - 1) / BS;
@@ -262,11 +367,9 @@ int File::Read(char* buff, long long offset, int size);
    BlockList_t  blks_to_process, blks_processed;
    IntList_t    blks_on_disk,    blks_direct;
 
-   int bmap_size = m_block_map.size();
-
-   for (int i = idx_first; blockIdx <= idx_last; ++blockIdx)
+   for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
    {
-      BlockMap_i bi = m_block_map.find(i);
+      BlockMap_i bi = m_block_map.find(block_idx);
 
       // In RAM or incoming?
       if (bi != m_block_map.end())
@@ -274,13 +377,13 @@ int File::Read(char* buff, long long offset, int size);
          // XXXX if failed before -- retry if timestamp sufficient or fail?
          // XXXX Or just push it and handle errors in one place later?
 
-         (*bi)->inc_ref_cont();
-         blks_to_process.push_front(*bi);
+         bi->second->inc_ref_count();
+         blks_to_process.push_front(bi->second);
       }
       // On disk?
-      else if (m_cfi.TestBit(i))
+      else if (m_cfi.TestBit(block_idx))
       {
-         blks_on_disk.push_back(i);
+         blks_on_disk.push_back(block_idx);
       }
       // Then we have to get it ...
       else
@@ -288,45 +391,45 @@ int File::Read(char* buff, long long offset, int size);
          // Is there room for one more RAM Block?
          if (size < MaxBlocksForRead)
          {
-            Block *b = RequestBlock(i);
-            b->inc_ref_cont();
+            Block *b = RequestBlock(block_idx);
+            b->inc_ref_count();
             blks_to_process.push_back(b);
-
             ++size;
          }
          // Nope ... read this directly without caching.
          else
          {
-            blks_direct.push_back(i);
+            blks_direct.push_back(block_idx);
          }
       }
    }
 
    m_block_cond.UnLock();
 
+   long long bytes_read = 0;
+
    // First, send out any direct requests.
    // XXX Could send them all out in a single vector read.
-   DirectRH *direct_handler = 0;
+   DirectResponseHandler *direct_handler = 0;
    int       direct_size = 0;
 
    if ( ! blks_direct.empty())
    {
-      direct_handler = new DirectRH(blks_direct.size());
+      direct_handler = new DirectResponseHandler(blks_direct.size());
 
-      direct_size = RequestBlocksDirect(direct_handler, blks_direct, *ii, buff, offset, size);
+      direct_size = RequestBlocksDirect(direct_handler, blks_direct, buff, off, size);
+      bytes_read += direct_size;  // AMT added
    }
 
-   long long bytes_read = 0;
-
    // Second, read blocks from disk.
-   int rc = ReadBlocksFromDisk(blks_on_disk, buff, offset, size);
+   int rc = ReadBlocksFromDisk(blks_on_disk, buff, off, size);
    if (rc >= 0)
    {
       bytes_read += rc;
    }
    else
    {
-      bytes_read = rc;
+       bytes_read = rc; // AMT ?? should there be an immediate return 
    }
 
    // Third, loop over blocks that are available or incoming
@@ -335,7 +438,7 @@ int File::Read(char* buff, long long offset, int size);
       BlockList_t finished;
 
       {
-         XrdSysConVarHelper _lck(m_block_cond);
+         XrdSysCondVarHelper _lck(m_block_cond);
 
          BlockList_i bi = blks_to_process.begin();
          while (bi != blks_to_process.end())
@@ -359,7 +462,7 @@ int File::Read(char* buff, long long offset, int size);
          }
       }
 
-      bi = finished.begin();
+      BlockList_i bi = finished.begin();
       while (bi != finished.end())
       {
          if ((*bi)->is_ok())
@@ -369,7 +472,7 @@ int File::Read(char* buff, long long offset, int size);
          else // it has failed ... krap up.
          {
             bytes_read = -1;
-            errno = (*bi)->errno;
+            errno = (*bi)->m_errno;
             break;
          }
       }
@@ -378,7 +481,7 @@ int File::Read(char* buff, long long offset, int size);
    }
 
    // Fourth, make sure all direct requests have arrived
-   if (m_direct_handler != 0)
+   if (direct_handler != 0)
    {
       XrdSysCondVarHelper _lck(direct_handler->m_cond);
 
@@ -397,12 +500,12 @@ int File::Read(char* buff, long long offset, int size);
          bytes_read = -1;
       }
 
-      delete m_direct_handler; m_direct_handler = 0;
+      delete direct_handler;
    }
 
    // Last, stamp and release blocks, release file.
    {
-      XrdSysConVarHelper _lck(m_block_cond);
+      XrdSysCondVarHelper _lck(m_block_cond);
 
       // XXXX stamp file
 
@@ -415,7 +518,7 @@ int File::Read(char* buff, long long offset, int size);
          // XXXX stamp block
       }
 
-      dec_num_readers();
+      // dec_num_readers();
    }
 
    return bytes_read;
@@ -490,4 +593,16 @@ void DirectResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
    {
       m_cond.Signal();
    }
+}
+
+
+int File::ReadV (const XrdOucIOVec *readV, int n)
+{
+    return 0;
+}
+
+//______________________________________________________________________________
+const char* File::lPath() const
+{
+return m_temp_filename.c_str();
 }

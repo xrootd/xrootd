@@ -1,10 +1,45 @@
 #ifndef __XRDFILECACHE_FILE_HH__
 #define __XRDFILECACHE_FILE_HH__
+//----------------------------------------------------------------------------------
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel
+//----------------------------------------------------------------------------------
+// XRootD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// XRootD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//----------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+
+#include "XrdFileCacheInfo.hh"
+#include "XrdFileCacheStats.hh"
 
 #include <string>
 #include <map>
+
+
+class XrdJob;
+class XrdOucIOVec;
+namespace XrdCl
+{
+class Log;
+}
+
+namespace XrdFileCache {
+   class BlockResponseHandler;
+   class DirectResponseHandler;
+}
+
 
 
 namespace XrdFileCache
@@ -33,10 +68,10 @@ namespace XrdFileCache
          m_offset(off), m_file(f), m_refcnt(0),
          m_errno(0), m_downloaded(false), m_on_disk(false)
       {
-         mbuff.resize(size);
+         m_buff.resize(size);
       }
 
-      char* get_buff(long long pos = 0) const { return &m_buff[pos]; }
+      const char* get_buff(long long pos = 0) const { return &m_buff[pos]; }
 
       bool is_finished() { return m_downloaded || m_errno != 0; }
       bool is_ok()       { return m_downloaded; }
@@ -47,11 +82,16 @@ namespace XrdFileCache
          m_errno = err;
          m_buff.resize(0);
       }
+
+       void inc_ref_count() {m_refcnt++;}
+       void dec_ref_count() {m_refcnt--;} // AMT done under m_block_cond lock
+
    };
 
    class File
    {
-      XrdOucCacheIO  *m_input;          //!< original data source
+   private:
+      XrdOucCacheIO  &m_input;          //!< original data source
       XrdOssDF       *m_output;         //!< file handle for data file on disk
       XrdOssDF       *m_infoFile;       //!< file handle for data-info file on disk
       Info            m_cfi;            //!< download status of file blocks and access statistics
@@ -60,8 +100,24 @@ namespace XrdFileCache
       long long       m_offset;         //!< offset of cached file for block-based operation
       long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
+      bool m_started; //!< state of run thread
+      bool m_failed; //!< reading from original source or writing to disk has failed
+      bool m_stopping; //!< run thread should be stopped
+      bool m_stopped; //!< prefetch is stopped
+      XrdSysCondVar m_stateCond; //!< state condition variable
+
+      XrdSysMutex m_downloadStatusMutex; //!< mutex locking access to m_cfi object
+
+      // fsync
+      XrdSysMutex m_syncStatusMutex; //!< mutex locking fsync status
+      XrdJob *m_syncer;
+      std::vector<int> m_writes_during_sync;
+      int m_non_flushed_cnt;
+      bool m_in_sync;
+
       typedef std::list<int>         IntList_t;
       typedef IntList_t::iterator    IntList_i;
+      // typedef IntList_t::const_iterator    IntList_ci;
 
       typedef std::list<Block*>      BlockList_t;
       typedef BlockList_t::iterator  BlockList_i;
@@ -72,11 +128,11 @@ namespace XrdFileCache
 
       BlockMap_t      m_block_map;
 
-      XrdSysCondVar     m_block_cond;
+      XrdSysCondVar   m_block_cond;
 
-      int             m_num_reads;
+       // int             m_num_reads; AMT don't know how this one should be used
 
-      Stats            m_stats;      //!< cache statistics, used in IO detach
+      Stats           m_stats;      //!< cache statistics, used in IO detach
 
    public:
 
@@ -94,20 +150,50 @@ namespace XrdFileCache
       //! Open file handle for data file and info file on local disk.
       bool Open();
 
-      int Read(char* buff, off_t offset, size_t size);
+      //! Vector read from disk if block is already downloaded, else ReadV from client.
+      int ReadV (const XrdOucIOVec *readV, int n);
 
-   private:
-      Block* RequestBlock(int i);
+      int Read(char* buff, long long offset, int size);
 
-      int    RequestBlocksDirect(DirectRH *handler, IntList_t& blocks,
-                                long long req_buf, long long req_off, long long req_size);
+      //----------------------------------------------------------------------
+      //! \brief Initiate close. Return true if still IO active.
+      //! Used in XrdPosixXrootd::Close()
+      //----------------------------------------------------------------------
+      bool InitiateClose();
 
-      int    ReadBlocksFromDisk(IntList_t& blocks,
-                                long long req_buf, long long req_off, long long req_size);
+      //----------------------------------------------------------------------
+      //! Sync file cache inf o and output data with disk
+      //----------------------------------------------------------------------
+      void Sync();
+
+      //----------------------------------------------------------------------
+      //! Reference to prefetch statistics.
+      //----------------------------------------------------------------------
+      Stats& GetStats() { return m_stats; }
 
 
       void ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status);
 
+   private:
+      Block* RequestBlock(int i);
+
+      int    RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
+                                char* buff, long long req_off, long long req_size);
+
+      int    ReadBlocksFromDisk(IntList_t& blocks,
+                                char* req_buf, long long req_off, long long req_size);
+
+
+
+
+      //! Short log alias.
+      XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
+
+
+      //! Log path
+      const char* lPath() const;
+
+   
    };
 
 
