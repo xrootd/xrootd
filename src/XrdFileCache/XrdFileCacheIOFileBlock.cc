@@ -84,7 +84,7 @@ void IOFileBlock::GetBlockSizeFromPath()
 }
 
 //______________________________________________________________________________
-File* IOFileBlock::newBlockFileer(long long off, int blocksize, XrdOucCacheIO*  io)
+File* IOFileBlock::newBlockFile(long long off, int blocksize, XrdOucCacheIO*  io)
 {
    std::string fname;
    m_cache.getFilePathFromURL(io->Path(), fname);
@@ -155,7 +155,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
             clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read() last block, change output file size to %lld \n %s", pbs, m_io.Path());
          }
 
-         fb = newBlockFileer(blockIdx*m_blocksize, pbs, &m_io);
+         fb = newBlockFile(blockIdx*m_blocksize, pbs, &m_io);
          m_blocks.insert(std::pair<int,File*>(blockIdx, (File*) fb));
       }
       m_mutex.UnLock();

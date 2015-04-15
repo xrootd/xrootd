@@ -30,7 +30,7 @@
 #include "XrdFileCacheFile.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
-#include "XrdFileCacheFactory.hh"x
+#include "XrdFileCacheFactory.hh"
 
 
 XrdFileCache::Cache::WriteQ XrdFileCache::Cache::s_writeQ;
@@ -130,7 +130,7 @@ Cache::AddWriteTask(File* p, int ri, size_t s, bool fromRead)
 
 //______________________________________________________________________________
 void Cache::RemoveWriteQEntriesFor(File *p)
-{
+{/*
    s_writeQ.condVar.Lock();
    std::list<WriteTask>::iterator i = s_writeQ.queue.begin();
    while (i != s_writeQ.queue.end())
@@ -148,12 +148,14 @@ void Cache::RemoveWriteQEntriesFor(File *p)
       }
    }
    s_writeQ.condVar.UnLock();
+ */
 }
 
 //______________________________________________________________________________
 void
 Cache::ProcessWriteTasks()
 {
+   /*
    while (true)
    {
       s_writeQ.condVar.Lock();
@@ -169,4 +171,5 @@ Cache::ProcessWriteTasks()
       t.prefetch->WriteBlockToDisk(t.ramBlockIdx, t.size);
       t.prefetch->DecRamBlockRefCount(t.ramBlockIdx);
    }
+   */
 }
