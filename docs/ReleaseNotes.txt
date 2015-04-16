@@ -6,6 +6,31 @@ Release Notes
 =============
 
 -------------
+Version 4.1.2
+-------------
+
++ **Major bug fixes**
+   * **[Utils]** Don't confuse -I and --tpc while parsing commandline parameters
+     for xrdcp. (issue #213)
+   * **[Server]** Fix various IPv4/IPv6 issues. (issues #164, #227)
+* **Minor bug fixes**
+   * **[Client/Cl]** Print mtime when doing xrdfs stat.
+   * **[All]** Fix some memory access issues. (issues #186, #197, #205)
+   * **[Server]** Recreate logfile fifo if it already exists and is a file.
+     (issue #183)
+   * **[Server]** Properly reset suspend state when reconnecting cmsd.
+     (issue #218)
+   * **[Server]** Avoid disabling async I/O when using an oss plugin that does
+     not implement file compression. (issue #219)
+   * **[Server]** Do not debit space when relocating a file within the same
+     partition.
+   * **[Server]** Fix meta-manager port directive ordering.
+   * **[Server/Logrotate]** Do not print anything to stdout to avoid making cron
+     send emails to admins. (issue #221)
++ **Miscellaneous**
+   * **[Server/Proxy]** Disable POSC processing when a proxy plugin is loaded.
+
+-------------
 Version 4.1.1
 -------------
 
