@@ -907,17 +907,18 @@ int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
       }
 
    }
-   XrdCl::File& clFile = ((XrdPosixFile&)m_input).clFile;
-   Status = clFile.VectorRead(chunkVec, (void *)0, vrInfo);
-   delete vrInfo;
+   if (!chunkVec.empty()) {
+      XrdCl::File& clFile = ((XrdPosixFile&)m_input).clFile;
+      Status = clFile.VectorRead(chunkVec, (void *)0, vrInfo);
+      delete vrInfo;
 
-   if (!Status.IsOK())
-   {
-       XrdPosixMap::Result(Status);
-       return -1;
+      if (!Status.IsOK())
+      {
+         XrdPosixMap::Result(Status);
+         return -1;
+      }
    }
-  else
-      return nbytes;
+   return nbytes;
 }
 //______________________________________________________________________________
 ssize_t
