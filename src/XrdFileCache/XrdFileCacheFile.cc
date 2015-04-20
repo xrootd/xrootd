@@ -33,10 +33,17 @@
 #include "Xrd/XrdScheduler.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdPosix/XrdPosixFile.hh"
+#include "XrdPosix/XrdPosix.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCache.hh"
+#include "Xrd/XrdScheduler.hh"
 
 using namespace XrdFileCache;
+
+namespace XrdPosixGlobals
+{
+   extern XrdScheduler *schedP;
+}
 
 namespace
 {
@@ -85,34 +92,61 @@ m_block_cond(0)
 
 File::~File()
 {
-   // see if we have to shut down
-   clLog()->Info(XrdCl::AppMsg, "File::~File() %p %s", (void*) this, m_input.Path());
+   clLog()->Debug(XrdCl::AppMsg, "File::~File() %p %s", (void*)this, lPath());
+   Cache::RemoveWriteQEntriesFor(this);
+   clLog()->Info(XrdCl::AppMsg, "File::~File() check write queues ...%s", lPath());
 
-   clLog()->Info(XrdCl::AppMsg, "File::~File close data file %p",(void*)this );
-
+   // can I do anythong to stop waiting for asyc read callbacks ?
+   while (true)
+   {
+      m_stateCond.Lock();
+      bool isStopped = m_stopped;
+      m_stateCond.UnLock();
+      if (isStopped)
+      {
+         // TODO AMT: wait for map to clear 
+         break;
+      }
+      XrdSysTimer::Wait(100);
+   }
+   clLog()->Debug(XrdCl::AppMsg, "File::~File finished with writing %s",lPath() );
+   bool do_sync = false;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+      if (m_non_flushed_cnt > 0)
+      {
+         do_sync = true;
+         m_in_sync = true;
+         clLog()->Info(XrdCl::AppMsg, "File::~File sync unflushed %d\n", m_non_flushed_cnt);
+      }
+   }
+   if (do_sync)
+   {
+      Sync();
+   }
+   // write statistics in *cinfo file
+   // AMT append IO stat --- look new interface in master branch
+   clLog()->Info(XrdCl::AppMsg, "File::~File close data file %p",(void*)this , lPath());
    if (m_output)
    {
       m_output->Close();
       delete m_output;
-      m_output = 0;
+      m_output = NULL;
    }
    if (m_infoFile)
    {
-      m_cfi.AppendIOStat(&m_stats, m_infoFile);
-      m_cfi.WriteHeader(m_infoFile);
-
       clLog()->Info(XrdCl::AppMsg, "File::~File close info file");
-
       m_infoFile->Close();
       delete m_infoFile;
-      m_infoFile = 0;
+      m_infoFile = NULL;
    }
+   delete m_syncer;
 }
 
 bool File::InitiateClose()
 {
    // Retruns true if delay is needed
-   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Initiate close start", lPath());
+   clLog()->Debug(XrdCl::AppMsg, "File::Initiate close start", lPath());
    if (m_cfi.IsComplete()) return false;
    m_stateCond.Lock();
    if (m_started == false) return false;
@@ -122,27 +156,6 @@ bool File::InitiateClose()
 }
 
 //______________________________________________________________________________
-
-
-void File::Sync()
-{
-   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Sync %s", lPath());
-   m_output->Fsync();
-   m_cfi.WriteHeader(m_infoFile);
-   int written_while_in_sync;
-   {
-      XrdSysMutexHelper _lck(&m_syncStatusMutex);
-      for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
-      {
-         m_cfi.SetBitWriteCalled(*i);
-      }
-      written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
-      m_writes_during_sync.clear();
-      m_in_sync = false;
-   }
-   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Sync %d blocks written during sync.", written_while_in_sync);
-   m_infoFile->Fsync();
-}
 
 
 
@@ -268,7 +281,7 @@ Block* File::RequestBlock(int i)
    long long off     = i * BS;
    long long this_bs = (i == last_block) ? m_input.FSize() - off : BS;
 
-   Block *b = new Block(this, off, this_bs);
+   Block *b = new Block(this, off, this_bs); // should block be reused to avoid recreation
    m_block_map[i] = b;
 
    // AMT do I really have got cast to non-const ?
@@ -340,7 +353,7 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
 //------------------------------------------------------------------------------
 
-int File::Read(char* buff, long long off, int size)
+int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 {
    const long long BS = m_cfi.GetBufferSize();
 
@@ -357,12 +370,13 @@ int File::Read(char* buff, long long off, int size)
 
    m_block_cond.Lock();
 
+   size_t msize =  m_block_map.size();
    // XXX Check for blocks to free? Later ...
 
    //   inc_num_readers();
 
-   const int idx_first = off / BS;
-   const int idx_last  = (off + size - 1) / BS;
+   const int idx_first = iUserOff / BS;
+   const int idx_last  = (iUserOff + iUserSize - 1) / BS;
 
    BlockList_t  blks_to_process, blks_processed;
    IntList_t    blks_on_disk,    blks_direct;
@@ -377,7 +391,7 @@ int File::Read(char* buff, long long off, int size)
          // XXXX if failed before -- retry if timestamp sufficient or fail?
          // XXXX Or just push it and handle errors in one place later?
 
-         bi->second->inc_ref_count();
+         inc_ref_count(bi->second);
          blks_to_process.push_front(bi->second);
       }
       // On disk?
@@ -389,12 +403,12 @@ int File::Read(char* buff, long long off, int size)
       else
       {
          // Is there room for one more RAM Block?
-         if (size < MaxBlocksForRead)
+         if ( msize < MaxBlocksForRead)
          {
             Block *b = RequestBlock(block_idx);
-            b->inc_ref_count();
+            inc_ref_count(b);
             blks_to_process.push_back(b);
-            ++size;
+            ++msize;
          }
          // Nope ... read this directly without caching.
          else
@@ -411,18 +425,18 @@ int File::Read(char* buff, long long off, int size)
    // First, send out any direct requests.
    // XXX Could send them all out in a single vector read.
    DirectResponseHandler *direct_handler = 0;
-   int       direct_size = 0;
+   int  direct_size = 0;
 
    if ( ! blks_direct.empty())
    {
       direct_handler = new DirectResponseHandler(blks_direct.size());
 
-      direct_size = RequestBlocksDirect(direct_handler, blks_direct, buff, off, size);
+      direct_size = RequestBlocksDirect(direct_handler, blks_direct, iUserBuff, iUserOff, iUserSize);
       bytes_read += direct_size;  // AMT added
    }
 
    // Second, read blocks from disk.
-   int rc = ReadBlocksFromDisk(blks_on_disk, buff, off, size);
+   int rc = ReadBlocksFromDisk(blks_on_disk, iUserBuff, iUserOff, iUserSize);
    if (rc >= 0)
    {
       bytes_read += rc;
@@ -467,7 +481,13 @@ int File::Read(char* buff, long long off, int size)
       {
          if ((*bi)->is_ok())
          {
-            // XXXX memcpy !
+            // XXXX memcpy ! AMT ...
+           long long user_off;     // offset in user buffer
+           long long off_in_block; // offset in block
+           long long size_to_copy;    // size to copy
+
+           overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
+           memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
          }
          else // it has failed ... krap up.
          {
@@ -508,13 +528,14 @@ int File::Read(char* buff, long long off, int size)
       XrdSysCondVarHelper _lck(m_block_cond);
 
       // XXXX stamp file
+      // AMT ??? fetched status stampled in WriteDisk callback , what dies stamp mean ?? 
 
       // blks_to_process can be non-empty, if we're exiting with an error.
       std::copy(blks_to_process.begin(), blks_to_process.end(), std::back_inserter(blks_processed));
 
       for (BlockList_i bi = blks_processed.begin(); bi != blks_processed.end(); ++bi)
       {
-         (*bi)->dec_ref_count();
+         dec_ref_count(*bi);
          // XXXX stamp block
       }
 
@@ -526,36 +547,99 @@ int File::Read(char* buff, long long off, int size)
 
 //------------------------------------------------------------------------------
 
-void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
+void File::WriteBlockToDisk(Block* b)
 {
-   m_block_cond.Lock();
-
-   if (status->IsOK()) 
+   int retval = 0;
+   // write block buffer into disk file
+   long long offset = b->m_offset - m_offset;
+   long long size = (b->m_offset +  m_cfi.GetBufferSize()) > m_input.FSize() ? (m_input.FSize() - b->m_offset) : m_cfi.GetBufferSize();
+   int buffer_remaining = size;
+   int buffer_offset = 0;
+   int cnt = 0;
+   const char* buff = &b->m_buff[0];
+   while ((buffer_remaining > 0) && // There is more to be written
+          (((retval = m_output->Write(buff, offset + buffer_offset, buffer_remaining)) != -1)
+           || (errno == EINTR))) // Write occurs without an error
    {
-      b->m_downloaded = true;
-      b->inc_ref_count();
+      buffer_remaining -= retval;
+      buff += retval;
+      cnt++;
 
-      // XXX Add to write queue (if needed)
-      // write_queue->QueueBlock(b);
+      if (buffer_remaining)
+      {
+         clLog()->Warning(XrdCl::AppMsg, "File::WriteToDisk() reattempt[%d] writing missing %ld for block %d %s",
+                          cnt, buffer_remaining, b->m_offset, lPath());
+      }
+      if (cnt > PREFETCH_MAX_ATTEMPTS)
+      {
+         clLog()->Error(XrdCl::AppMsg, "File::WriteToDisk() write failes too manny attempts %s", lPath());
+         return;
+      }
    }
-   else
+
+   // set bit fetched
+   clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() success set bit for block [%ld] size [%d] %s", b->m_offset, size, lPath());
+   int pfIdx =  (b->m_offset - m_offset)/m_cfi.GetBufferSize();
+   m_downloadStatusMutex.Lock();
+   m_cfi.SetBitFetched(pfIdx);
+   m_downloadStatusMutex.UnLock();
+
    {
-      // how long to keep?
-      // when to retry?
-
-      XrdPosixMap::Result(*status);
-
-      b->set_error_and_free(errno);
-      errno = 0;
-
-      // ???
-      b->inc_ref_count();
+      XrdSysCondVarHelper _lck(m_block_cond);
+      dec_ref_count(b);
    }
 
-   m_block_cond.Broadcast();
+   // set bit synced
+   bool schedule_sync = false;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
 
-   m_block_cond.UnLock();
+      if (m_in_sync)
+      {
+         m_writes_during_sync.push_back(pfIdx);
+      }
+      else
+      {
+         m_cfi.SetBitWriteCalled(pfIdx);
+         ++m_non_flushed_cnt;
+      }
+
+      if (m_non_flushed_cnt >= 100)
+      {
+         schedule_sync     = true;
+         m_in_sync         = true;
+         m_non_flushed_cnt = 0;
+      }
+   }
+
+   if (schedule_sync)
+   {
+      XrdPosixGlobals::schedP->Schedule(m_syncer);
+   }
 }
+
+//------------------------------------------------------------------------------
+
+void File::Sync()
+{
+   clLog()->Dump(XrdCl::AppMsg, "File::Sync %s", lPath());
+   m_output->Fsync();
+   m_cfi.WriteHeader(m_infoFile);
+   int written_while_in_sync;
+   {
+      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+      for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
+      {
+         m_cfi.SetBitWriteCalled(*i);
+      }
+      written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
+      m_writes_during_sync.clear();
+      m_in_sync = false;
+   }
+   clLog()->Dump(XrdCl::AppMsg, "File::Sync %d blocks written during sync.", written_while_in_sync);
+   m_infoFile->Fsync();
+}
+
 
 
 
@@ -596,6 +680,77 @@ void DirectResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
 }
 
 
+
+//==============================================================================
+
+//==============================================================================
+
+//==============================================================================
+void File::inc_ref_count(Block* b)
+{
+   b->m_refcnt++;
+}
+
+void File::dec_ref_count(Block* b)
+{
+    // AMT this function could actually be member of File ... would be nicer
+    // called under block lock
+    b-> m_refcnt--;
+    if ( b->m_refcnt == 0 ) {
+        int i = b->m_offset/BufferSize();
+        size_t ret = m_block_map.erase(i);
+        if (ret != 1) {
+            clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+
+void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
+{
+   m_block_cond.Lock();
+
+   if (status->IsOK()) 
+   {
+      b->m_downloaded = true;
+      inc_ref_count(b);
+
+      // XXX Add to write queue (if needed)
+      // AMT TODO check if state is stopped 
+      XrdFileCache::Cache::AddWriteTask(b, true);
+   }
+   else
+   {
+      // how long to keep?
+      // when to retry?
+
+      XrdPosixMap::Result(*status);
+
+      b->set_error_and_free(errno);
+      errno = 0;
+
+      // ???
+      inc_ref_count(b);
+   }
+
+   m_block_cond.Broadcast();
+
+   m_block_cond.UnLock();
+}
+
+
+
+ long long File::BufferSize() {
+     return m_cfi.GetBufferSize();
+ }
+
+
+//==============================================================================
+
+//==============================================================================
+
+
 int File::ReadV (const XrdOucIOVec *readV, int n)
 {
     return 0;
@@ -606,3 +761,5 @@ const char* File::lPath() const
 {
 return m_temp_filename.c_str();
 }
+
+

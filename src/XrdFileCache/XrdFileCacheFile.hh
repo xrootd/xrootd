@@ -82,10 +82,6 @@ namespace XrdFileCache
          m_errno = err;
          m_buff.resize(0);
       }
-
-       void inc_ref_count() {m_refcnt++;}
-       void dec_ref_count() {m_refcnt--;} // AMT done under m_block_cond lock
-
    };
 
    class File
@@ -173,6 +169,7 @@ namespace XrdFileCache
 
 
       void ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status);
+      void WriteBlockToDisk(Block* b);
 
    private:
       Block* RequestBlock(int i);
@@ -184,7 +181,7 @@ namespace XrdFileCache
                                 char* req_buf, long long req_off, long long req_size);
 
 
-
+       long long BufferSize();
 
       //! Short log alias.
       XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
@@ -193,6 +190,8 @@ namespace XrdFileCache
       //! Log path
       const char* lPath() const;
 
+      void inc_ref_count(Block*);
+      void dec_ref_count(Block*);
    
    };
 
