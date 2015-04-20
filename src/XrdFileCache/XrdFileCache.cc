@@ -27,7 +27,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdFileCache.hh"
-#include "XrdFileCacheFile.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
 #include "XrdFileCacheFactory.hh"
@@ -115,30 +114,29 @@ Cache::HaveFreeWritingSlots()
 
 //______________________________________________________________________________
 void
-Cache::AddWriteTask(File* p, int ri, size_t s, bool fromRead)
+Cache::AddWriteTask(Block* b, bool fromRead)
 {
-   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::AddWriteTask() wqsize = %d, bi=%d", s_writeQ.size, ri);
+   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::AddWriteTask() bOff=%ld", b->m_offset);
    s_writeQ.condVar.Lock();
    if (fromRead)
-      s_writeQ.queue.push_back(WriteTask(p, ri, s));
+       s_writeQ.queue.push_back(b);
    else
-      s_writeQ.queue.push_front(WriteTask(p, ri, s));
+      s_writeQ.queue.push_front(b); // AMT should this not be the opposite
    s_writeQ.size++;
    s_writeQ.condVar.Signal();
    s_writeQ.condVar.UnLock();
 }
 
 //______________________________________________________________________________
-void Cache::RemoveWriteQEntriesFor(File *p)
-{/*
+void Cache::RemoveWriteQEntriesFor(File *iFile)
+{
    s_writeQ.condVar.Lock();
-   std::list<WriteTask>::iterator i = s_writeQ.queue.begin();
+   std::list<Block*>::iterator i = s_writeQ.queue.begin();
    while (i != s_writeQ.queue.end())
    {
-      if (i->prefetch == p)
+      if ((*i)->m_file == iFile)
       {
-         std::list<WriteTask>::iterator j = i++;
-         j->prefetch->DecRamBlockRefCount(j->ramBlockIdx);
+         std::list<Block*>::iterator j = i++;
          s_writeQ.queue.erase(j);
          --s_writeQ.size;
       }
@@ -148,14 +146,12 @@ void Cache::RemoveWriteQEntriesFor(File *p)
       }
    }
    s_writeQ.condVar.UnLock();
- */
 }
 
 //______________________________________________________________________________
 void
 Cache::ProcessWriteTasks()
 {
-   /*
    while (true)
    {
       s_writeQ.condVar.Lock();
@@ -163,13 +159,12 @@ Cache::ProcessWriteTasks()
       {
          s_writeQ.condVar.Wait();
       }
-      WriteTask t = s_writeQ.queue.front();
+      Block* block = s_writeQ.queue.front(); // AMT should not be back ???
       s_writeQ.queue.pop_front();
       s_writeQ.size--;
       s_writeQ.condVar.UnLock();
 
-      t.prefetch->WriteBlockToDisk(t.ramBlockIdx, t.size);
-      t.prefetch->DecRamBlockRefCount(t.ramBlockIdx);
+      block->m_file->WriteBlockToDisk(block);
    }
-   */
 }
+

@@ -23,6 +23,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdFileCacheFile.hh"
 
 namespace XrdCl {
    class Log;
@@ -67,7 +68,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Add downloaded block in write queue.
          //---------------------------------------------------------------------
-         static void AddWriteTask(File* p, int ramBlockidx, size_t size, bool fromRead);
+         static void AddWriteTask(Block* b, bool from_read);
 
          //---------------------------------------------------------------------
          //! Check write queue size is not over limit.
@@ -78,7 +79,7 @@ namespace XrdFileCache
          //!  \brief Remove blocks from write queue which belong to given prefetch.
          //! This method is used at the time of File destruction.
          //---------------------------------------------------------------------
-         static void RemoveWriteQEntriesFor(File *p);
+         static void RemoveWriteQEntriesFor(File *f);
 
          //---------------------------------------------------------------------
          //! Separate task which writes blocks from ram to disk.
@@ -99,20 +100,13 @@ namespace XrdFileCache
          unsigned int       m_attached; //!< number of attached IO objects
          XrdOucCacheStats  &m_stats;    //!< global cache usage statistics
 
-         struct WriteTask
-         {
-            File*     prefetch;    //!< object queued for writing
-            int       ramBlockIdx; //!< in memory cache index
-            size_t    size;        //!< write size -- block size except in case this is the end file block
-            WriteTask(File* p, int ri, size_t s):prefetch(p), ramBlockIdx(ri), size(s){}
-         };
 
          struct WriteQ
          {
             WriteQ() : condVar(0), size(0) {}
             XrdSysCondVar         condVar;  //!< write list condVar
             size_t                size;     //!< cache size of a container
-            std::list<WriteTask>  queue;    //!< container
+             std::list<Block*>  queue;    //!< container
          };
 
          static WriteQ s_writeQ;
