@@ -6,6 +6,88 @@ Release Notes
 =============
 
 -------------
+Version 4.2.0
+-------------
+
++ **New Features**
+   * **[Client/Python]** Integrate xrootd-python into the main package.
+   * **[Server]** Include a Ceph OSS plug-ing.
+   * **[Server]** Implement throttling.
+   * **[Server]** Detect redirect loops using "tried" token.
+   * **[Server]** Implement the "cid" option for config query to display the
+     unique cluster ID.
+   * **[Server]** Allow suspending and enabling remote debugging without a
+     restart.
+   * **[Server]** Implement black/whitelist with optional redirection.
+   * **[Server/Proxy]** Add the xrdpfc_print tool to print the caching
+     proxy metadata.
+   * **[Server/PlugIns]** Provide a mechanism to pass command line arguments
+     to plug-ins.
+   * **[Server/PlugIns]** Provide access to the native and the active extended
+     attribute implementation.
++ **Major bug fixes**
+   * **[All]** Fix various memory access issues.
+   * **[Server]** Fix various IPv4/IPv6 compatibility issues.
+   * **[Server]** Avoid disabling of frm notifications due to plug-in
+     initialization issues.
+   * **[Server/Proxy]** Avoid holding a global lock when opening/closing files
+     to solve timeout issues.
+   * **[Security/GSI]** Fix reloading of CA and CRLs.
++ **Minor bug fixrs**
+   * **[Server/HTTP]** Fix issues related to invalid chunk sizes.
+   * **[Server/Proxy]** Various logic and permission processing fixes.
++ **Miscellaneous**
+   * **[Client/Cl]** Make the compiler issue warnings when the return codes
+     from the File and FileSystem methods are unchecked. (issue #188)
+   * **[RPM]** Disable building of the compat package by default.
+   * **[Server/Proxy]** Avoid serializing stat() via the proxy to improve
+     performance.
+   * **[Tests]** Factor out the common testing code from the client tests so
+     that it can be re-used.
+
+-------------
+Version 4.1.2
+-------------
+
++ **Major bug fixes**
+   * **[Utils]** Don't confuse -I and --tpc while parsing commandline parameters
+     for xrdcp. (issue #213)
+   * **[Server]** Fix various IPv4/IPv6 issues. (issues #164, #227)
++ **Minor bug fixes**
+   * **[Client/Cl]** Print mtime when doing xrdfs stat.
+   * **[All]** Fix some memory access issues. (issues #186, #197, #205)
+   * **[Server]** Recreate logfile fifo if it already exists and is a file.
+     (issue #183)
+   * **[Server]** Properly reset suspend state when reconnecting cmsd.
+     (issue #218)
+   * **[Server]** Avoid disabling async I/O when using an oss plugin that does
+     not implement file compression. (issue #219)
+   * **[Server]** Do not debit space when relocating a file within the same
+     partition.
+   * **[Server]** Fix meta-manager port directive ordering.
+   * **[Server/Logrotate]** Do not print anything to stdout to avoid making cron
+     send emails to admins. (issue #221)
++ **Miscellaneous**
+   * **[Server/Proxy]** Disable POSC processing when a proxy plugin is loaded.
+
+-------------
+Version 4.1.1
+-------------
+
++ **Major bug fixes**
+   * **[RPM]** Remove the library patch from xrootd-config to enable multiarch
+     installations.
+   * **[RPM]** Move the user creation scriptlets to xrootd-server where they
+     belong. (issue #179)
+   * **[Server]** Fix PowerPC compilation. (issue #177)
+   * **[Server]** Avoid the pitfalls of infinite nproc hard limit in Linux.
+   * **[Server]** Correct flag definition to include cms plugin loading. (issue #176)
++ **Miscellaneous**
+   * **[Man]** Update documentation.
+   * **[Client/Cl]** Set the multi-protocol ability basing on an environment
+     variable.
+
+-------------
 Version 4.1.0
 -------------
 
