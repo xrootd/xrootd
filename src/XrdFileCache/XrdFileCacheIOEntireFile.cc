@@ -34,14 +34,14 @@ using namespace XrdFileCache;
 
 IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
    : IO(io, stats, cache),
-     m_prefetch(0)
+     m_file(0)
 {
    clLog()->Info(XrdCl::AppMsg, "IO::IO() [%p] %s", this, m_io.Path());
 
    std::string fname;
    m_cache.getFilePathFromURL(io.Path(), fname);
 
-   m_prefetch = new File(io, fname, 0, io.FSize());
+   m_file = new File(io, fname, 0, io.FSize());
 
 }
 
@@ -50,17 +50,18 @@ IOEntireFile::~IOEntireFile()
 
 bool IOEntireFile::ioActive()
 {
-   return m_prefetch->InitiateClose();
+    printf("called ioActive ...\n");
+   return m_file->InitiateClose();
 }
 
 XrdOucCacheIO *IOEntireFile::Detach()
 {
-   m_statsGlobal.Add(m_prefetch->GetStats());
+   m_statsGlobal.Add(m_file->GetStats());
 
    XrdOucCacheIO * io = &m_io;
 
-   delete m_prefetch;
-   m_prefetch = 0;
+   delete m_file;
+   m_file = 0;
 
    // This will delete us!
    m_cache.Detach(this);
@@ -85,8 +86,8 @@ int IOEntireFile::Read (char *buff, long long off, int size)
    ssize_t bytes_read = 0;
    ssize_t retval = 0;
 
-   retval = m_prefetch->Read(buff, off, size);
-   clLog()->Debug(XrdCl::AppMsg, "IO::Read() read from prefetch retval =  %d %s", retval, m_io.Path());
+   retval = m_file->Read(buff, off, size);
+   clLog()->Debug(XrdCl::AppMsg, "IO::Read() read from File retval =  %d %s", retval, m_io.Path());
    if (retval > 0)
    {
       bytes_read += retval;
@@ -114,5 +115,5 @@ int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
    clLog()->Warning(XrdCl::AppMsg, "IO::ReadV(), get %d requests %s", n, m_io.Path());
 
 
-   return m_prefetch->ReadV(readV, n);
+   return m_file->ReadV(readV, n);
 }

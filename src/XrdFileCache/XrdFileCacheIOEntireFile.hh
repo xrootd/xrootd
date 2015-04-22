@@ -82,7 +82,7 @@ namespace XrdFileCache
          virtual bool ioActive();
 
       private:
-         File* m_prefetch;
+         File* m_file;
    };
 
 }
