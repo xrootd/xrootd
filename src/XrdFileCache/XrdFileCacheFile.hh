@@ -96,10 +96,9 @@ namespace XrdFileCache
       long long       m_offset;         //!< offset of cached file for block-based operation
       long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
-      bool m_started; //!< state of run thread
       bool m_failed; //!< reading from original source or writing to disk has failed
       bool m_stopping; //!< run thread should be stopped
-      bool m_stopped; //!< prefetch is stopped
+
       XrdSysCondVar m_stateCond; //!< state condition variable
 
       XrdSysMutex m_downloadStatusMutex; //!< mutex locking access to m_cfi object
