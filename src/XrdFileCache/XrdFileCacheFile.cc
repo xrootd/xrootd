@@ -127,7 +127,12 @@ File::~File()
       Sync();
    }
    // write statistics in *cinfo file
+
    // AMT append IO stat --- look new interface in master branch
+   // XXXX MT -- OK, what needs to be here?
+   AppendIOStatToFileInfo();
+   // XXXX MT END
+
    clLog()->Info(XrdCl::AppMsg, "File::~File close data file %p",(void*)this , lPath());
    if (m_output)
    {
@@ -152,7 +157,7 @@ bool File::InitiateClose()
    m_stateCond.Lock();
    m_stopping = true;
    m_stateCond.UnLock();
-   if (m_cfi.IsComplete()) return false; // AMT maybe map size is here more meaningfull
+   if (m_cfi.IsComplete()) return false; // AMT maybe map size is here more meaningfull, but might hold block state lock
    return true;
 }
 
@@ -286,7 +291,6 @@ Block* File::RequestBlock(int i)
    Block *b = new Block(this, off, this_bs); // should block be reused to avoid recreation
    m_block_map[i] = b;
 
-   // AMT do I really have got cast to non-const ?
    client.Read(off, this_bs, (void*)b->get_buff(), new BlockResponseHandler(b));
 
    return b;
@@ -378,8 +382,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
    size_t msize =  m_block_map.size();
    // XXX Check for blocks to free? Later ...
-
-   //   inc_num_readers();
 
    const int idx_first = iUserOff / BS;
    const int idx_last  = (iUserOff + iUserSize - 1) / BS;
@@ -496,7 +498,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       {
          if ((*bi)->is_ok())
          {
-            // XXXX memcpy ! AMT ...
            long long user_off;     // offset in user buffer
            long long off_in_block; // offset in block
            long long size_to_copy;    // size to copy
@@ -508,8 +509,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          }
          else // it has failed ... krap up.
          {
-
-           clLog()->Error(XrdCl::AppMsg, "Block finished with eorror.");
+            clLog()->Error(XrdCl::AppMsg, "Block finished with eorror.");
             bytes_read = -1;
             errno = (*bi)->m_errno;
             break;
@@ -560,8 +560,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          dec_ref_count(*bi);
          // XXXX stamp block
       }
-
-      // dec_num_readers();
    }
 
    return bytes_read;
@@ -663,6 +661,82 @@ void File::Sync()
 }
 
 
+void File::inc_ref_count(Block* b)
+{
+   b->m_refcnt++;
+}
+
+void File::dec_ref_count(Block* b)
+{
+    // AMT this function could actually be member of File ... would be nicer
+    // called under block lock
+    b-> m_refcnt--;
+    if ( b->m_refcnt == 0 ) {
+        int i = b->m_offset/BufferSize();
+        size_t ret = m_block_map.erase(i);
+        if (ret != 1) {
+            clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+
+void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
+{
+   clLog()->Dump(XrdCl::AppMsg, "File::ProcessBlockResponse %d ",(int)(b->m_offset/BufferSize()));
+
+   m_block_cond.Lock();
+
+   if (status->IsOK()) 
+   {
+      b->m_downloaded = true;
+      if (!m_stopping) { // AMT theoretically this should be under state lock, but then are double locks
+        inc_ref_count(b);
+        XrdFileCache::Cache::AddWriteTask(b, true);
+      }
+   }
+   else
+   {
+      // AMT how long to keep?
+      // when to retry?
+
+      XrdPosixMap::Result(*status);
+
+      b->set_error_and_free(errno);
+      errno = 0;
+
+      // ??? AMT temprary commented out
+      // inc_ref_count(b);
+   }
+
+   m_block_cond.Broadcast();
+
+   m_block_cond.UnLock();
+}
+
+
+
+ long long File::BufferSize() {
+     return m_cfi.GetBufferSize();
+ }
+
+//______________________________________________________________________________
+
+
+int File::ReadV (const XrdOucIOVec *readV, int n)
+{
+    return 0;
+}
+
+//______________________________________________________________________________
+const char* File::lPath() const
+{
+return m_temp_filename.c_str();
+}
+
+
+
 
 
 //==============================================================================
@@ -709,82 +783,3 @@ void DirectResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
 //==============================================================================
 
 //==============================================================================
-void File::inc_ref_count(Block* b)
-{
-   b->m_refcnt++;
-}
-
-void File::dec_ref_count(Block* b)
-{
-    // AMT this function could actually be member of File ... would be nicer
-    // called under block lock
-    b-> m_refcnt--;
-    if ( b->m_refcnt == 0 ) {
-        int i = b->m_offset/BufferSize();
-        size_t ret = m_block_map.erase(i);
-        if (ret != 1) {
-            clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
-        }
-    }
-}
-
-//------------------------------------------------------------------------------
-
-void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
-{
-   clLog()->Dump(XrdCl::AppMsg, "File::ProcessBlockResponse %d ",(int)(b->m_offset/BufferSize()));
-
-   m_block_cond.Lock();
-
-   if (status->IsOK()) 
-   {
-      b->m_downloaded = true;
-      inc_ref_count(b);
-
-      // XXX Add to write queue (if needed)
-      // AMT TODO check if state is stopped 
-      XrdFileCache::Cache::AddWriteTask(b, true);
-   }
-   else
-   {
-      // how long to keep?
-      // when to retry?
-
-      XrdPosixMap::Result(*status);
-
-      b->set_error_and_free(errno);
-      errno = 0;
-
-      // ???
-      inc_ref_count(b);
-   }
-
-   m_block_cond.Broadcast();
-
-   m_block_cond.UnLock();
-}
-
-
-
- long long File::BufferSize() {
-     return m_cfi.GetBufferSize();
- }
-
-
-//==============================================================================
-
-//==============================================================================
-
-
-int File::ReadV (const XrdOucIOVec *readV, int n)
-{
-    return 0;
-}
-
-//______________________________________________________________________________
-const char* File::lPath() const
-{
-return m_temp_filename.c_str();
-}
-
-

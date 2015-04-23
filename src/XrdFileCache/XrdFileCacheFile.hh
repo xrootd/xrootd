@@ -62,11 +62,10 @@ namespace XrdFileCache
       int                 m_refcnt;
       int                 m_errno;
       bool                m_downloaded;
-      bool                m_on_disk;
 
       Block(File *f, long long off, int size) :
          m_offset(off), m_file(f), m_refcnt(0),
-         m_errno(0), m_downloaded(false), m_on_disk(false)
+         m_errno(0), m_downloaded(false)
       {
          m_buff.resize(size);
       }
@@ -112,7 +111,6 @@ namespace XrdFileCache
 
       typedef std::list<int>         IntList_t;
       typedef IntList_t::iterator    IntList_i;
-      // typedef IntList_t::const_iterator    IntList_ci;
 
       typedef std::list<Block*>      BlockList_t;
       typedef BlockList_t::iterator  BlockList_i;
@@ -124,8 +122,6 @@ namespace XrdFileCache
       BlockMap_t      m_block_map;
 
       XrdSysCondVar   m_block_cond;
-
-       // int             m_num_reads; AMT don't know how this one should be used
 
       Stats           m_stats;      //!< cache statistics, used in IO detach
 
