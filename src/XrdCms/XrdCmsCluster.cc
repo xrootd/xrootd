@@ -1859,6 +1859,6 @@ int XrdCmsCluster::Unuseable(XrdCmsSelect &Sel)
    const char *Xmode = (Sel.Opts & XrdCmsSelect::Online ? "immediately " : "");
 
    Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-                   "No servers are available to %s%s the file.", Xmode, Amode);
+                   "No servers are available to %s%s the file.",Xmode,Amode)+1;
    return -1;
 }
