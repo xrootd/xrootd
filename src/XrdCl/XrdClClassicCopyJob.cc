@@ -1179,6 +1179,9 @@ namespace
         if( pCoerce )
           flags |= OpenFlags::Force;
 
+        if( pMakeDir)
+          flags |= OpenFlags::MakePath;
+
         Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
 
         return pFile->Open( pUrl->GetURL(), flags, mode );
@@ -1403,6 +1406,7 @@ namespace XrdCl
         std::ostringstream o; o << src->GetSize();
         params["oss.asize"] = o.str();
         newDestUrl.SetParams( params );
+        makeDir = true; // Backward compatability for xroot destinations!!!
       }
       dest.reset( new XRootDDestination( &newDestUrl, parallelChunks ) );
     }
