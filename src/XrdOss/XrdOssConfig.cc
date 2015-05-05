@@ -842,7 +842,7 @@ int XrdOssSys::ConfigStatLib(XrdSysError &Eroute, XrdOucEnv *envP)
    if (STT_V2)
       {XrdOssStatInfoInit2_t siGet2;
        if (!(siGet2=(XrdOssStatInfoInit2_t)myLib.Resolve("XrdOssStatInfoInit2"))
-       ||  !(STT_Func = siGet2(this,Eroute.logger(),ConfigFN,STT_Parms,envP)))
+       ||  !(STT_Fund = siGet2(this,Eroute.logger(),ConfigFN,STT_Parms,envP)))
           return 1;
       } else {
        XrdOssStatInfoInit_t siGet;

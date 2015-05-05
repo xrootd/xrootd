@@ -89,8 +89,10 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts,
 // Stat the file in the local filesystem first. If there. make sure the mode
 // bits correspond to our reality and update access time if so requested.
 //
-   retc = (STT_Func ? (*STT_Func)(local_path, buff, opts, EnvP) :
-                            stat (local_path, buff));
+   if (STT_Func)
+      {retc = (STT_V2 ? (*STT_Fund)(local_path, buff, opts, EnvP, path)
+                      : (*STT_Func)(local_path, buff, opts, EnvP));
+      } else stat (local_path, buff);
    if (!retc)
       {if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
        if (opts & XRDOSS_updtatm && (buff->st_mode & S_IFMT) == S_IFREG)
