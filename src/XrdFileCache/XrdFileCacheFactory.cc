@@ -270,7 +270,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
       {
          char buff2[512];
          snprintf(buff2, sizeof(buff2), "\tpfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
-         loff += snprintf(&buff[loff], strlen(buff2), buff2);
+         loff += snprintf(&buff[loff], strlen(buff2), "%s", buff2);
       } 
 
 
@@ -280,8 +280,8 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 	m_configuration.m_username = unameBuff;
       }
       else {
-	snprintf(unameBuff, sizeof(unameBuff), "\tpfc.user %s \n", m_configuration.m_username.c_str());
-        loff += snprintf(&buff[loff], strlen(unameBuff), unameBuff);
+        snprintf(unameBuff, sizeof(unameBuff), "\tpfc.user %s \n", m_configuration.m_username.c_str());
+        loff += snprintf(&buff[loff], strlen(unameBuff), "%s", unameBuff);
       }
      
       m_log.Emsg("Config", buff);
