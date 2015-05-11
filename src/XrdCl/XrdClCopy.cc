@@ -555,6 +555,7 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoTpc ) )      thirdParty = "first";
   if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdParty = "only";
   if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
+  if( config.Want( XrdCpConfig::DoPath    ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc     = true;
 
   //----------------------------------------------------------------------------

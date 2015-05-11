@@ -109,6 +109,9 @@ static const int    OpLicense  =  'H';        // -H | --license
 static const int    OpNoPbar   =  'N';
 static const int    DoNoPbar   =  0x00000100; // -N | --nopbar | -np {legacy}
 
+static const int    OpPath     =  'p';
+static const int    DoPath     =  0x00800000; // -p | --path
+
 static const int    OpPosc     =  'P';
 static const int    DoPosc     =  0x00000200; // -P | --posc
 
@@ -150,7 +153,7 @@ static const int    OpParallel =  0x04;
 static const int    DoParallel =  0x00200000; //      --parallel
 
 static const int    OpDynaSrc  =  'Z';
-static const int    DoDynaSrc  =  0x00200000; //      --dynamic-src
+static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
 
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.

@@ -1439,7 +1439,7 @@ namespace XrdCl
         std::ostringstream o; o << src->GetSize();
         params["oss.asize"] = o.str();
         newDestUrl.SetParams( params );
-        makeDir = true; // Backward compatability for xroot destinations!!!
+ //     makeDir = true; // Backward compatability for xroot destinations!!!
       }
       dest.reset( new XRootDDestination( &newDestUrl, parallelChunks ) );
     }
