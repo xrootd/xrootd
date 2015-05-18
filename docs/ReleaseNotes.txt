@@ -6,6 +6,14 @@ Release Notes
 =============
 
 -------------
+Version 4.2.1
+-------------
+
++ **Miscellaneous**
+   * **[Client/Cl]** Make sure kXR_mkpath is set for classic copy jobs when the
+     destination is xrootd (backward compatability fix).
+
+-------------
 Version 4.2.0
 -------------
 
