@@ -159,15 +159,7 @@ void XrdSsiFileReq::DoIt()
        myState = xqReq;
        myMutex.UnLock();
        DEBUGXQ("Calling session Process");
-       if (sessP->ProcessRequest((XrdSsiRequest *)this)) return;
-       if ( RespP()->rType != XrdSsiRespInfo::isError)
-          {int eCode;
-           const char *eText = eInfo.Get(eCode);
-           if (!eCode) eCode = EPROTO;
-           if (!eText) eText = "Server session logic error!";
-           if (SetErrResponse(eText, eCode))
-              Log.Emsg("DoIt", tident, "Invalid session process return!!");
-          }
+       sessP->ProcessRequest((XrdSsiRequest *)this);
       } else {
        myMutex.UnLock();
        DEBUGXQ("Skipped session Process");

@@ -73,6 +73,7 @@ int           ConfigObj();
 int           ConfigSvc(char **myArgv, int myArgc);
 int           ConfigXeq(char *var);
 int           Xlib(const char *lName, char **lPath, char **lParm);
+int           Xfsp();
 int           Xopts();
 int           Xrole();
 int           Xtrace();

@@ -48,12 +48,15 @@ struct  XrdSsiRespInfo
               };
         union {      int     blen;    //!<   buffer len When rType == isData;
                      int     eNum;    //!<   errno      When rType == isError;
-                     int     fdnum;   //!<   fdnum      When rType == isFile;
+                     int     fdnum;   //!<   filedesc   When rType == isFile;
               };
+               const char   *mdata;   //!< -> Metadata about response.
+                     int     mdlen;   //!<    Metadat length
+
         enum   Resp_t {isNone = 0, isData, isError, isFile, isStream};
         Resp_t rType;
 
-        inline void  Init()  {fsize = 0; blen = 0; rType = isNone;}
+        inline void  Init() {fsize = 0; blen = 0; mdlen = 0; rType = isNone;}
 
         const  char *State() const {if (rType == isData  ) return "isData";
                                     if (rType == isError ) return "isError";

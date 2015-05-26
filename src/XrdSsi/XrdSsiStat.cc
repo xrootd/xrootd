@@ -37,6 +37,8 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssStatInfo.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPList.hh"
+#include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiSfsConfig.hh"
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -53,35 +55,39 @@
 
 namespace XrdSsi
 {
-extern XrdSsiService  *Service;
+extern XrdSsiProvider   *Provider;
 
-extern XrdSysError     Log;
+extern XrdOucPListAnchor FSPath;
+
+extern bool              fsChk;
+
+extern XrdSysError       Log;
 };
 
 using namespace XrdSsi;
-
-/******************************************************************************/
-/*                 X r d O s s S t a t I n f o R e s O n l y                  */
-/******************************************************************************/
   
-extern "C"
-{
 /******************************************************************************/
 /*                        X r d O s s S t a t I n f o                         */
 /******************************************************************************/
-  
+
+extern "C"
+{
 int XrdOssStatInfo(const char *path, struct stat *buff,
-                   int         opts, XrdOucEnv   *envP)
+                   int         opts, XrdOucEnv   *envP, const char *lfn)
 {
    static const int regFile = S_IFREG | S_IRUSR | S_IWUSR;
-   XrdSsiService::rStat rStat;
+   XrdSsiProvider::rStat rStat;
+
+// Check if this should be issued to the file system
+//
+   if (fsChk && FSPath.Find(lfn)) return stat(path, buff);
 
 // Check resource availability
 //
-   if (Service && (rStat = Service->QueryResource(path)))
+   if (Provider && (rStat = Provider->QueryResource(path)))
       {memset(buff, 0, sizeof(struct stat));
        buff->st_mode = regFile;
-       if (rStat == XrdSsiService::isAvailable) return 0;
+       if (rStat == XrdSsiProvider::isPresent) return 0;
        if (!(opts & XRDOSS_resonly)) {buff->st_mode |= S_IFBLK; return 0;}
       }
 
@@ -100,11 +106,11 @@ int XrdOssStatInfo(const char *path, struct stat *buff,
 //! function that is to be used for stat() calls.
 //------------------------------------------------------------------------------
   
-XrdOssStatInfo_t XrdOssStatInfoInit2(XrdOss        *native_oss,
-                                     XrdSysLogger  *Logger,
-                                     const char    *config_fn,
-                                     const char    *parms,
-                                     XrdOucEnv     *envP)
+XrdOssStatInfo2_t XrdOssStatInfoInit2(XrdOss        *native_oss,
+                                      XrdSysLogger  *Logger,
+                                      const char    *config_fn,
+                                      const char    *parms,
+                                      XrdOucEnv     *envP)
 {
    XrdSsiSfsConfig Config(true);
 
@@ -112,14 +118,14 @@ XrdOssStatInfo_t XrdOssStatInfoInit2(XrdOss        *native_oss,
 //
    Log.logger(Logger);
 
-// Process the configuration file so that we get he service object
+// Process the configuration file so that we get the service provider object
 //
    if (!Config.Configure(config_fn) || !Config.Configure(envP))
       return 0;
 
 // Return the stat function
 //
-    return (XrdOssStatInfo_t)XrdOssStatInfo;
+    return (XrdOssStatInfo2_t)XrdOssStatInfo;
 }
 };
 

@@ -63,7 +63,7 @@ XrdSysMutex     *MutexP() {return &myMutex;}
         bool     Open(XrdSsiService::Resource *resP, const char *epURL,
                       unsigned short tOut);
 
-        bool     ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut=0);
+        void     ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut=0);
 
         void     Recycle(XrdSsiTaskReal *tP);
 
@@ -92,6 +92,7 @@ XrdCl::File      epFile;
 private:
 static int       MapErr(int xEnum);
 void             RelTask(XrdSsiTaskReal *tP);
+void             RequestFailed(XrdSsiRequest *rqstP,const char *eText,int eCode);
 void             Shutdown(XrdCl::XRootDStatus &epStatus);
 
 XrdSysRecMutex   myMutex;

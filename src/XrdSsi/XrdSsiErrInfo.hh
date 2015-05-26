@@ -74,6 +74,16 @@ const  char *Get(int &eNum)
                 }
 
 //-----------------------------------------------------------------------------
+//! Get current error text.
+//!
+//! @return =0    no error information is available.
+//! @return !0    pointer to a string describing the error.
+//!               The pointer is valid until the object is deleted or Set().
+//-----------------------------------------------------------------------------
+
+const  char *Get() {return errText;}
+
+//-----------------------------------------------------------------------------
 //! Get current error argument.
 //!
 //! @return       the error argument value.

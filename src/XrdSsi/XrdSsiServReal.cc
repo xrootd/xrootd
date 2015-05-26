@@ -106,7 +106,7 @@ bool XrdSsiServReal::GenURL(const char *sName, const char *avoid,
 /*                             P r o v i s i o n                              */
 /******************************************************************************/
   
-bool XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
+void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
                                unsigned short           timeOut
                               )
 {
@@ -116,29 +116,33 @@ bool XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
 // Validate the resource name
 //
    if (!resP->rName || *(resP->rName) != '/')
-      {resP->eInfo.Set("Resource name missing or invalid.", EINVAL);
-       return false;
+      {resP->eInfo.Set("Resource name missing.", EINVAL);
+       resP->ProvisionDone(0);
+       return;
       }
 
 // Construct url
 //
    if (!GenURL(resP->rName, resP->hAvoid, epURL, sizeof(epURL)))
       {resP->eInfo.Set("Resource url is too long.", ENAMETOOLONG);
-       return false;
+       resP->ProvisionDone(0);
+       return;
       }
 
 // Obtain a new session object
 //
    if (!(sObj = Alloc(resP->rName)))
       {resP->eInfo.Set("Insufficient memory.", ENOMEM);
-       return false;
+       resP->ProvisionDone(0);
+       return;
       }
 
 // Now just effect an open to this resource
 //
-   if (sObj->Open(resP, epURL, timeOut)) return true;
-   Recycle(sObj);
-   return false;
+   if (!(sObj->Open(resP, epURL, timeOut)))
+      {Recycle(sObj);
+       resP->ProvisionDone(0);
+      }
 }
 
 /******************************************************************************/
