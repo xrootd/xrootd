@@ -113,9 +113,11 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 //
         if (IP.Addr.sa_family == AF_INET6)
            {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
-            if (fmtOpts & old6Map4 && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
-               {if (ipRaw) {strcpy(bAddr,  "::"); n = 2;}
-                   else    {strcpy(bAddr, "[::"); n = 3; addBrak=1;}
+            if (fmtOpts & (old6Map4 | prefipv4)
+            &&  IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
+               {     if (fmtOpts & prefipv4)  {n = 0; pFmt = ":%d";}
+                else if (ipRaw) {strcpy(bAddr,  "::"); n = 2;}
+                else    {strcpy(bAddr, "[::"); n = 3; addBrak=1;}
                 if (!inet_ntop(AF_INET, &IP.v6.sin6_addr.s6_addr32[3],
                                bAddr+n, bLen-n)) return QFill(bAddr, bLen);
                } else {

@@ -57,6 +57,8 @@ const  char *ID() {return (const char *)trsid;}
        int   Send(void *data, int dlen);
        int   Send(struct iovec *, int iovcnt, int iolen=-1);
        int   Send(XResponseType rcode, void *data, int dlen);
+       int   Send(XResponseType rcode, struct iovec *IOResp,
+                 int iornum, int iolen=-1);
        int   Send(XResponseType rcode, int info, const char *data, int dsz=-1);
        int   Send(int fdnum, long long offset, int dlen);
        int   Send(XrdOucSFVec *sfvec, int sfvnum, int dlen);

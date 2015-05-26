@@ -39,8 +39,33 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# xrdpfc_print
+#-------------------------------------------------------------------------------
+add_executable(
+  xrdpfc_print
+  XrdFileCache/XrdFileCachePrint.hh  XrdFileCache/XrdFileCachePrint.cc
+  XrdFileCache/XrdFileCacheInfo.hh  XrdFileCache/XrdFileCacheInfo.cc)
+
+target_link_libraries(
+  xrdpfc_print
+  XrdServer
+  XrdCl
+  XrdUtils )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
   TARGETS ${LIB_XRD_FILECACHE}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+install(
+  TARGETS xrdpfc_print
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
+
+
+install(
+  FILES
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdpfc_print.8
+  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )
+

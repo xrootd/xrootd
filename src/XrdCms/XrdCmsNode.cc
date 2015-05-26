@@ -343,7 +343,7 @@ const char *XrdCmsNode::do_Gone(XrdCmsRRData &Arg)
 
 // If we have no managers and we still have the file or never had it, return
 //
-   if (XrdCmsManager::Present() || !newgone) return 0;
+   if (!XrdCmsManager::Present() || !newgone) return 0;
 
 // Back-propogate the gone to all of our managers
 //
@@ -395,7 +395,7 @@ const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 
 // Return if we have no managers or we already informed the managers
 //
-   if (XrdCmsManager::Present() || !isnew) return 0;
+   if (!XrdCmsManager::Present() || !isnew) return 0;
 
 // Back-propogate the have to all of our managers
 //

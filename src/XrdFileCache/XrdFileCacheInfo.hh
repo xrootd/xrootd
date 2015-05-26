@@ -47,10 +47,19 @@ namespace XrdFileCache
          static unsigned char cfiBIT(int n) { return 1 << n; }
 
       public:
+         // !Access statistics
+         struct AStat
+         {
+            time_t    DetachTime;  //! close time
+            long long BytesDisk;   //! read from disk
+            long long BytesRam;    //! read from ram
+            long long BytesMissed; //! read remote client
+         };
+
          //------------------------------------------------------------------------
          //! Constructor.
          //------------------------------------------------------------------------
-         Info();
+         Info(long long bufferSize);
 
          //------------------------------------------------------------------------
          //! Destructor.
@@ -62,8 +71,13 @@ namespace XrdFileCache
          //!
          //! @param i block index
          //---------------------------------------------------------------------
-         void SetBitWriteCalled(int i);
          void SetBitFetched(int i);
+
+         //! \brief Mark block as disk written
+         //!
+         //! @param i block index
+         //---------------------------------------------------------------------
+         void SetBitWriteCalled(int i);
 
          //---------------------------------------------------------------------
          //! \brief Reserve buffer for fileSize/bufferSize bytes
@@ -89,7 +103,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Append access time, and cache statistics
          //---------------------------------------------------------------------
-         void AppendIOStat(const Stats* stat, XrdOssDF* fp);
+         void AppendIOStat(AStat& stat, XrdOssDF* fp);
 
          //---------------------------------------------------------------------
          //! Check download status in given block range
@@ -141,22 +155,26 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void CheckComplete();
 
+         //---------------------------------------------------------------------
+         //! Get number of accesses
+         //---------------------------------------------------------------------
+         int GetAccessCnt() { return  m_accessCnt; }
+
+         //---------------------------------------------------------------------
+         //! Get version
+         //---------------------------------------------------------------------
+         int GetVersion() { return  m_version; }
+
+
          const static char* m_infoExtension;
 
-      private:
+      protected:
 
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
          //---------------------------------------------------------------------
          //! Cache statistics and time of access.
          //---------------------------------------------------------------------
-         struct AStat
-         {
-            time_t    DetachTime;
-            long long BytesDisk;
-            long long BytesRam;
-            long long BytesMissed;
-         };
 
          int            m_version;    //!< info version
          long long      m_bufferSize; //!< prefetch buffer size

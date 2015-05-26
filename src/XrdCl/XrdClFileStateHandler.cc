@@ -1207,7 +1207,6 @@ namespace XrdCl
   void FileStateHandler::Tick( time_t now )
   {
     TimeOutRequests( now );
-    XrdSysMutexHelper scopedLock( pMutex );
   }
 
   //----------------------------------------------------------------------------

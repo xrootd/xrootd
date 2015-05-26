@@ -94,6 +94,7 @@ enum fmtUse {fmtAuto=0, //!< Hostname if already resolved o/w use fmtAddr
 static const int noPort    = 0x0000001; //!< Do not add port number
 static const int noPortRaw = 0x0000002; //!< Use raw address format (no port)
 static const int old6Map4  = 0x0000004; //!< Use deprecated IPV6 mapped format
+static const int prefipv4  = 0x0000008; //!< Use if mapped  IPV4 actual format
 
 int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtAuto, int fmtOpts=0);
 

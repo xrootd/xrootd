@@ -82,6 +82,7 @@ Prefetch::RAM::~RAM()
 Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
    m_output(NULL),
    m_infoFile(NULL),
+   m_cfi(Factory::GetInstance().RefConfiguration().m_bufferSize),
    m_input(inputIO),
    m_temp_filename(disk_file_path),
    m_offset(iOffset),
@@ -265,6 +266,7 @@ bool Prefetch::Open()
       int ss = (m_fileSize -1)/m_cfi.GetBufferSize() + 1;
       //      clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, lPath());
       m_cfi.ResizeBits(ss);
+      m_cfi.WriteHeader(m_infoFile);
    }
    else
    {
@@ -905,17 +907,18 @@ int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
       }
 
    }
-   XrdCl::File& clFile = ((XrdPosixFile&)m_input).clFile;
-   Status = clFile.VectorRead(chunkVec, (void *)0, vrInfo);
-   delete vrInfo;
+   if (!chunkVec.empty()) {
+      XrdCl::File& clFile = ((XrdPosixFile&)m_input).clFile;
+      Status = clFile.VectorRead(chunkVec, (void *)0, vrInfo);
+      delete vrInfo;
 
-   if (!Status.IsOK())
-   {
-       XrdPosixMap::Result(Status);
-       return -1;
+      if (!Status.IsOK())
+      {
+         XrdPosixMap::Result(Status);
+         return -1;
+      }
    }
-  else
-      return nbytes;
+   return nbytes;
 }
 //______________________________________________________________________________
 ssize_t
@@ -961,7 +964,12 @@ void Prefetch::AppendIOStatToFileInfo()
    m_downloadStatusMutex.Lock();
    if (m_infoFile)
    {
-      m_cfi.AppendIOStat(&m_stats, (XrdOssDF*)m_infoFile);
+      Info::AStat as;
+      as.DetachTime  = time(0);
+      as.BytesDisk   = m_stats.m_BytesDisk;
+      as.BytesRam    = m_stats.m_BytesRam;
+      as.BytesMissed = m_stats.m_BytesMissed;
+      m_cfi.AppendIOStat(as, (XrdOssDF*)m_infoFile);
    }
    else
    {

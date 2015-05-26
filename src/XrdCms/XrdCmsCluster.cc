@@ -1811,11 +1811,14 @@ void XrdCmsCluster::setAltMan(int snum, XrdLink *lp, int port)
    if (!port || (port > 0x0000ffff)) port = Config.PortTCP;
    memset(ap, int(' '), AltSize);
 
+// First tr to use the hostname:port which may be too large (unlikely). Else
 // Insert the ip address of this node into the list of nodes. We made sure that
 // the size of he buffer was big enough so no need to check for overflow.
 //
    altAddr.Port(port);
-   i = altAddr.Format(ap, AltSize, XrdNetAddr::fmtAddr, XrdNetAddr::old6Map4);
+   if (Config.DoHnTry) i = altAddr.Format(ap, AltSize, XrdNetAddr::fmtName);
+      else i = 0;
+   if (!i) i=altAddr.Format(ap,AltSize,XrdNetAddr::fmtAddr,XrdNetAddr::prefipv4);
    ap[i] = ' ';
 
 // Compute new fence
@@ -1856,6 +1859,6 @@ int XrdCmsCluster::Unuseable(XrdCmsSelect &Sel)
    const char *Xmode = (Sel.Opts & XrdCmsSelect::Online ? "immediately " : "");
 
    Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-                   "No servers are available to %s%s the file.", Xmode, Amode);
+                   "No servers are available to %s%s the file.",Xmode,Amode)+1;
    return -1;
 }

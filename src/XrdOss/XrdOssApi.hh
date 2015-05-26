@@ -255,7 +255,10 @@ short             numCG;
 
 char             *STT_Lib;   // -> StatInfo  Library Path
 char             *STT_Parms; // -> StatInfo  Library Paramaters
+union {
 XrdOssStatInfo_t  STT_Func;
+XrdOssStatInfo2_t STT_Fund;
+      };
 int               STT_PreOp;
 int               STT_V2;
 

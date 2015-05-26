@@ -884,6 +884,7 @@ XRootDStatus DoStat( FileSystem                      *fs,
   std::cout << "Path:   " << fullPath << std::endl;
   std::cout << "Id:     " << info->GetId() << std::endl;
   std::cout << "Size:   " << info->GetSize() << std::endl;
+  std::cout << "MTime:  " << info->GetModTimeAsString() << std::endl;
   std::cout << "Flags:  " << info->GetFlags() << " (" << flags << ")";
   std::cout << std::endl;
   if( query.length() != 0 )

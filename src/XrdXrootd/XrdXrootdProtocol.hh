@@ -134,10 +134,10 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Bind();
        int   do_Chmod();
        int   do_CKsum(int canit);
-       int   do_CKsum(char *algT, const char *Path, const char *Opaque);
+       int   do_CKsum(char *algT, const char *Path, char *Opaque);
        int   do_Close();
        int   do_Dirlist();
-       int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, const char *opaque);
+       int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, char *opaque);
        int   do_Endsess();
        int   do_Getfile();
        int   do_Login();
@@ -184,14 +184,17 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
 static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
-       int   fsError(int rc, char opc, XrdOucErrInfo &myError, const char *Path);
+       int   fsError(int rc, char opc, XrdOucErrInfo &myError,
+                     const char *Path, char *Cgi);
+       int   fsRedir(RD_func xfnc);
+       int   fsRedirNoEnt(const char *eMsg, char *Cgi, int popt);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
        void  logLogin(bool xauth=false);
 static int   mapMode(int mode);
 static void  PidFile();
        void  Reset();
-static int   rpCheck(char *fn, const char **opaque);
+static int   rpCheck(char *fn, char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
 static int   Squash(char *);
@@ -257,6 +260,8 @@ static int                 FSLvn[2];
 static char               *digLib;    // Normally zero for now
 static char               *digParm;
 static char               *Notify;
+static const char         *myCName;
+static int                 myCNlen;
 static char                isRedir;
 static char                JobLCL;
 static char                JobCKCGI;
@@ -267,7 +272,9 @@ static XrdOucReqID        *PrepID;
 
 // Static redirection
 //
-static struct RD_Table {char *Host[2]; int Port[2];} Route[RD_Num];
+static struct RD_Table {char          *Host[2];
+                        unsigned short Port[2];
+                                 short RDSz[2];} Route[RD_Num];
 
 // async configuration values
 //

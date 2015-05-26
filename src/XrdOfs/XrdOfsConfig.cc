@@ -218,6 +218,18 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
        ofsConfig->Default(XrdOfsConfigPI::theCksLib, buff, 0);
       }
 
+// Configure third party copy but only if we are not a manager or a proxy
+//
+   if ((Options & ThirdPC) && !(Options & isProxy) && !(Options & isManager))
+      if (!XrdOfsTPC::Start()) NoGo = 1;
+
+// We need to do pre-initialization for event recording as the oss needs some
+// environmental information from that initialization to initialize the frm,
+// should it need to be used. We will do full evr initialization after the oss
+// and the finder are initialized. A bit messy in the current plug-in world.
+//
+   if (!(Options & isManager) && !evrObject.Init(&Eroute)) NoGo = 1;
+
 // Determine whether we should load authorization
 //
    int piOpts = XrdOfsConfigPI::allXXXLib;
@@ -234,18 +246,6 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                 XrdOfsTPC::Init(Authorization);
                }
            }
-
-// Configure third party copy but only if we are not a manager or a proxy
-//
-   if ((Options & ThirdPC) && !(Options & isProxy) && !(Options & isManager))
-      if (!XrdOfsTPC::Start()) NoGo = 1;
-
-// We need to do pre-initialization for event recording as the oss needs some
-// environmental information from that initialization to initialize the frm,
-// should it need to be used. We will do full evr initialization after the oss
-// and the finder are initialized. A bit messy in the current plug-in world.
-//
-   if (!(Options & isManager) && !evrObject.Init(&Eroute)) NoGo = 1;
 
 // Initialize redirection.  We type te herald here to minimize confusion
 //

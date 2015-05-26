@@ -425,7 +425,11 @@ static librados::IoCtx* getIoCtx(const CephFile& file) {
   if (0 == striper) {
     return 0;
   }
-  return g_ioCtx[file.pool];
+  std::stringstream ss;
+  ss << file.userId << '@' << file.pool << ',' << file.nbStripes << ','
+     << file.stripeUnit << ',' << file.objectSize;
+  std::string userAtPool = ss.str();
+  return g_ioCtx[userAtPool];
 }
 
 void ceph_posix_disconnect_all() {

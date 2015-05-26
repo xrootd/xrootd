@@ -218,9 +218,9 @@ void        setAltMan(int snum, XrdLink *lp, int port);
 int         Unreachable(XrdCmsSelect &Sel, bool none);
 int         Unuseable(XrdCmsSelect &Sel);
 
-// Number of IP:Port characters per entry
+// Number of <host>:Port characters per entry was INET6_ADDRSTRLEN+10
 //
-static const  int AltSize = INET6_ADDRSTRLEN+10;
+static const  int AltSize = 254; // We may revert to IP address
 
 XrdSysMutex   XXMutex;          // Protects cluster summary state variables
 XrdSysMutex   STMutex;          // Protects all node information  variables

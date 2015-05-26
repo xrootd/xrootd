@@ -6,30 +6,12 @@ Prerelease Notes
 ================
 
 + **New Features**
-   * Allow suspending and enabling remote debugging without a restart.
-   * Implement black/whitelist with optional redirection.
-   * Provide mechanism to pass command line arguments to plugins.
 
 + **Major bug fixes**
-   * Fixes #218 - properly reset suspend state for reconecting cmsd's.
-   * Avoid SEGV when environment pointer is nil.
-   * Add all host IP's to the allow list.
-   * Correct lock loophole introduced by commit d9014d7d that may
-     cause SEGV.
-   * Do not hold the global lock when closing a file. For proxies this
-     stalls all open/close operations should the remote file server be
-     very slow in closing the file. This solves many timeout issues.
-   * Avoid SEGV when deleting a partially empty table.
 
 + **Minor bug fixes**
-   * Do not use the same flag bit for -I and --tpc as this makes -I
-     unuseable (fixes #213).
-   * Avoid memory leak when deleting a detached channel.
 
 + **Miscellaneous**
-   * Pass along environment to plugins that need it.
-   * Disable POSC processing when the proxy plugin is loaded.
-   * Avoid serializing stat() via the proxy to improve performance.
-   * Provide consistency for RLIM_INFINITY in getrlimit(RLIMIT_NOFILE).
-   * Detect misconfigured or unavailable ipV6 stacks and revert to ipV4.
-   * Recreate the logfile fifo if the existing one cannot be used.
+   * [Client] Make sure kXR_mkpath is set for classic copy jobs when
+     the destination is xrootd (backward compatability fix).
+

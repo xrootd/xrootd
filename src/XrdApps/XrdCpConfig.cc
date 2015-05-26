@@ -81,7 +81,7 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NPrRsS:t:T:vVX:y:Z";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:Z";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -94,6 +94,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "infiles",   1, 0, XrdCpConfig::OpIfile},
       {OPT_TYPE "license",   0, 0, XrdCpConfig::OpLicense},
       {OPT_TYPE "nopbar",    0, 0, XrdCpConfig::OpNoPbar},
+      {OPT_TYPE "path",      0, 0, XrdCpConfig::OpPath},
       {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
       {OPT_TYPE "proxy",     1, 0, XrdCpConfig::OpProxy},
       {OPT_TYPE "recursive", 0, 0, XrdCpConfig::OpRecurse},
@@ -230,6 +231,8 @@ do{while(optind < Argc && Legacy(optind)) {}
                            break;
           case OpNoPbar:   OpSpec |= DoNoPbar;
                            break;
+          case OpPath:     OpSpec |= DoPath;
+                           break;
           case OpPosc:     OpSpec |= DoPosc;
                            break;
           case OpProxy:    OpSpec |= DoProxy;
@@ -299,6 +302,10 @@ do{while(optind < Argc && Legacy(optind)) {}
       {OpSpec &= ~DoVerbose;
        Verbose = 0;
       }
+
+// Turn on auto-path creation if requested via envar
+//
+   if (getenv("XRD_MAKEPATH")) OpSpec |= DoPath;
 
 // Process the destination first as it is special
 //
@@ -836,8 +843,8 @@ void XrdCpConfig::Usage(int rc)
    static const char *Options= "\n"
    "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--dynamic-src]\n"
    "         [--force] [--help] [--infiles <fn>] [--license] [--nopbar]\n"
-   "         [--posc] [--proxy <host>:<port>] [--recursive] [--retry <n>]\n"
-   "         [--server] [--silent] [--sources <n>] [--streams <n>]\n"
+   "         [--path] [--posc] [--proxy <host>:<port>] [--recursive]\n"
+   "         [--retry <n>] [--server] [--silent] [--sources <n>] [--streams <n>]\n"
    "         [--tpc {first|only}] [--verbose] [--version] [--xrate <rate>]\n"
    "         [--parallel <n>]";
 
@@ -866,6 +873,7 @@ void XrdCpConfig::Usage(int rc)
    "-H | --license      prints license terms and conditions\n"
    "-I | --infiles      specifies the file that contains a list of input files\n"
    "-N | --nopbar       does not print the progress bar\n"
+   "-p | --path         automatically create remote destination path\n"
    "-P | --posc         enables persist on successful close semantics\n"
    "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
    "-r | --recursive    recursively copies all source files\n"

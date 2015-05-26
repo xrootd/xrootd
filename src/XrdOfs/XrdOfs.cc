@@ -629,7 +629,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Set compression values and activate the handle
 //
-   if (oP.fP->isCompressed())
+   if (oP.fP->isCompressed() > 0)
       {oP.hP->isCompressed = 1;
        dorawio = (open_mode & SFS_O_RAWIO ? 1 : 0);
       }
