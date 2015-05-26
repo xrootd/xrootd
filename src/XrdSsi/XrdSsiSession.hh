@@ -88,15 +88,10 @@ const char    *Name() {return sessName;}
 //! @param  tOut   the maximum time the request should take. A value of zero
 //!                uses the default value.
 //!
-//! @return true   Request processing has been started. The request object's
-//!                ProcessResponse() method will be called when a response is
-//!                ready to be received.
-//!
-//! @return false  Request processing could not be started and no call back will
-//!                occur. The request object's eInfo member holds the reason.
+//! @return All results are returned via the request's ProcessResponse callback.
 //-----------------------------------------------------------------------------
 
-virtual bool   ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut=0) = 0;
+virtual void   ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut=0) = 0;
 
 //-----------------------------------------------------------------------------
 //! Unprovision a session. 

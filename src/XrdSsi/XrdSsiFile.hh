@@ -62,18 +62,16 @@ public:
         int              fctl(const int            cmd,
                                     int            alen,
                               const char          *args,
-                                    XrdOucErrInfo &out_error,
                               const XrdSecEntity  *client);
                         
-        const char      *FName() {return gigID;}
+        const char      *FName();
                         
-        int              getCXinfo(char cxtype[4], int &cxrsz) {return cxrsz=0;}
+        int              getCXinfo(char cxtype[4], int &cxrsz);
                         
-        int              getMmap(void **Addr, off_t &Size)
-                                {if (Addr) *Addr = 0; Size = 0; return SFS_OK;}
+        int              getMmap(void **Addr, off_t &Size);
                         
         int              read(XrdSfsFileOffset   fileOffset,
-                              XrdSfsXferSize     preread_sz) {return SFS_OK;}
+                              XrdSfsXferSize     preread_sz);
                         
         XrdSfsXferSize   read(XrdSfsFileOffset   fileOffset,
                               char              *buffer,
@@ -112,12 +110,12 @@ static  void             SetMaxSz(int mSz) {maxRSZ = mSz;}
 //                      
                          XrdSsiFile(const char *user, int MonID);
                         
-virtual                 ~XrdSsiFile() {viaDel = true; close();}
+virtual                 ~XrdSsiFile();
                         
                         
 private:                
-int                      Emsg(const char *pfx, int ecode, const char *opname,
-                              const char *path=0, XrdOucErrInfo *eDest=0);
+void                     CopyECB();
+int                      CopyErr(const char *op, int rc);
 bool                     NewRequest(int reqid, XrdOucBuffer *oP,
                                     XrdSfsXioHandle *bR, int rSz);
 XrdSfsXferSize           writeAdd(const char *buff, XrdSfsXferSize blen, int rid);
@@ -126,6 +124,7 @@ static int               authXQ;
 
 const char              *tident;
 char                    *gigID;
+XrdSfsFile              *fsFile;
 XrdSysMutex              myMutex;
 XrdSfsXio               *xioP;
 XrdOucBuffer            *oucBuff;

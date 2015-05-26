@@ -4,7 +4,7 @@
 /*                                                                            */
 /*                      X r d S s i S e r v i c e . h h                       */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2015 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include "XrdSsi/XrdSsiErrInfo.hh"
-
+  
 //-----------------------------------------------------------------------------
 //! The XrdSsiService object is used by the Scalable Service Interface to
 //! process client requests.
@@ -39,16 +39,11 @@
 //! one such object is obtained server-side. The object is used to effect all
 //! service requests and handle responses.
 //!
-//! Client-side: the service object is obtained via XrdSsiGetClientService().
+//! Client-side: the service object is obtained via the object pointed to by
+//!              XrdSsiProviderClient defined in libXrdSsi.so
 //!
-//! Server-side: the service object is obtained via an extern "C" plugin,
-//!              XrdSsiGetServerService() defined in a shared library. You use
-//!              the following directives to configure the service:
-//!
-//!              all.role server        <--- Only for clustered configurations
-//!              oss.statlib  <path>/libXrdSsi.so [Optional, see QueryResource]
-//!              xrootd.fslib <path>/libXrdSsi.so
-//!              ssi.svclib   <path>/<your shared library>
+//! Server-side: the service object is obtained via the object pointed to by
+//!              XrdSsiProviderServer defined in the plugin shared library.
 //-----------------------------------------------------------------------------
 
 class XrdSsiEntity;
@@ -123,11 +118,8 @@ virtual       ~Resource() {}
 //! @param  timeOut  the maximum number seconds the operation may last before
 //!                  it is considered to fail. A zero value uses the default.
 //!
-//! @return true     Provisioning has started; resP->ProvisionDone() will be
-//!                  called on a different thread with the final result.
-//!
-//! @return false    Provisoning could not be started. resP->eInfo holds the
-//!                  reason for the failure.
+//! @return The method returns all results via resP->ProvisionDone() callback
+//!         which may use the calling thread or a new thread.
 //!
 //! Special notes for server-side processing:
 //!
@@ -142,29 +134,9 @@ virtual       ~Resource() {}
 //!    resP->eInfo.eArg = the number of seconds the client should wait.
 //-----------------------------------------------------------------------------
 
-virtual bool   Provision(Resource       *resP,
+virtual void   Provision(Resource       *resP,
                          unsigned short  timeOut=0
                         ) = 0;
-
-//-----------------------------------------------------------------------------
-//! Obtain the status of a resource. When configured via oss.statlib directive,
-//! this is called server-side by the XrdSsiCluster object to see if a
-//! resource is available.
-//!
-//! @param  rName    Pointer to the resource name.
-//!
-//! @return          One of the rStat enums, as follows:
-//!                  notAvailable - resource not available.
-//!                   isAvailable - resource is  available and can be
-//!                                 immediately used, if necessary.
-//!                   isPending   - resource is  available but is not in an
-//!                                 immediately usable state, access may wait.
-//-----------------------------------------------------------------------------
-
-enum    rStat  {notAvailable = 0, isAvailable, isPending};
-
-virtual rStat  QueryResource(const char *rName)
-                            {(void)rName; return notAvailable;}
 
 //-----------------------------------------------------------------------------
 //! Stop the client-side service. This is never called server-side.
@@ -189,75 +161,4 @@ protected:
 
 virtual       ~XrdSsiService() {}
 };
-  
-/******************************************************************************/
-/*            X r d S s i S e r v i c e   I n s t a n t i a t o r             */
-/******************************************************************************/
-/******************************************************************************/
-/*                           C l i e n t - S i d e                            */
-/******************************************************************************/
-//-----------------------------------------------------------------------------
-//! Obtain a client-side service object.
-//!
-//! @param  eInfo    the object where error status is to be placed.
-//! @param  contact  the point of first contact when provisioning the service.
-//!                  The contact may be "host:port" where "host" is a DNS name,
-//!                  an IPV4 address (i.e. d.d.d.d), or an IPV6 address
-//!                  (i.e. [x:x:x:x:x:x]), and "port" is either a numeric port
-//!                  number or the service name assigned to the port number.
-//! @param  oHold    the maximum number of session objects that should be held
-//!                  in reserve for future Provision() calls.
-//!
-//! @return =0       A manager could not be created, eInfo has the reason.
-//! @return !0       Pointer to a manager object.
-//-----------------------------------------------------------------------------
-
-    extern XrdSsiService *XrdSsiGetClientService(XrdSsiErrInfo &eInfo,
-                                                 const char    *contact,
-                                                 int            oHold=256
-                                                );
-
-/******************************************************************************/
-/*                           S e r v e r - S i d e                            */
-/******************************************************************************/
-
-class XrdSsiCluster;
-class XrdSsiLogger;
-
-typedef XrdSsiService *(*XrdSsiServService_t)(XrdSsiLogger  *logP,
-                                              XrdSsiCluster *clsP,
-                                              const char    *cfgFn,
-                                              const char    *parms,
-                                                    int      argc,
-                                                    char   **argv);
-  
-/*! Obtain a server-side service object (only one is ever obtained).
-    When building a server-side shared library plugin, the following "C" entry
-    point must exist in the library:
-
-    extern "C"
-          {XrdSsiService *XrdSsiGetServerService(XrdSsiLogger  *logP,
-                                                 XrdSsiCluster *clsP,
-                                                 const char    *cfgFn,
-                                                 const char    *parms,
-                                                       int      argc,
-                                                       char   **argv);
-          }
-
-   @param  logP   pointer to the logger object for message routing.
-   @param  clsP   pointer to the cluster management object. This pointer is null
-                  when a service object is being obtained by the clustering
-                  system itself for QueryResource() invocations.
-   @param  cfgFn  pointer to the conifiguration file name.
-   @param  parms  pointer to the conifiguration parameters or null if none.
-                  This pointer may be null.
-   @param  argc   The count of command line arguments (always >= 1).
-   @param  argv   Pointer to a null terminated array of tokenized command line
-                  arguments. These arguments are taken from the command line
-                  after the "-+xrdssi" option (see invoking xrootd), if present.
-                  The first argument is always the same as argv[0] in main().
-
-   @return =0     the server object could not be created
-   @return !0     pointer to the service object
-*/
 #endif

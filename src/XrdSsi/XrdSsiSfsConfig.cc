@@ -48,8 +48,8 @@
 #include "XrdSsi/XrdSsiFile.hh"
 #include "XrdSsi/XrdSsiFileReq.hh"
 #include "XrdSsi/XrdSsiLogger.hh"
+#include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiSfsConfig.hh"
-#include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
 
 #include "XrdSsi/XrdSsiCms.hh"
@@ -63,7 +63,10 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucERoute.hh"
+#include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
+
+#include "XrdNet/XrdNetIF.hh"
 
 #include "XrdVersion.hh"
 
@@ -79,19 +82,29 @@ class XrdScheduler;
   
 namespace XrdSsi
 {
-       XrdSsiCms      *SsiCms;
+       XrdSsiCms              *SsiCms   = 0;
 
-       XrdScheduler   *Sched;
+       XrdScheduler           *Sched    = 0;
 
-       XrdOucBuffPool *BuffPool;
+       XrdOucBuffPool         *BuffPool = 0;
 
-       XrdSsiService  *Service;
+       XrdOucPListAnchor       FSPath;
 
-       XrdSsiLogger    SsiLogger;
+       XrdNetIF               *myIF     = 0;
 
-extern XrdOucTrace     Trace;
+       XrdSsiProvider         *Provider = 0;
 
-extern XrdSysError     Log;
+       XrdSsiService          *Service  = 0;
+
+       XrdSsiLogger            SsiLogger;
+
+       bool                    fsChk    = false;
+
+extern XrdSfsFileSystem       *theFS;
+
+extern XrdOucTrace             Trace;
+
+extern XrdSysError             Log;
 };
 
 using namespace XrdSsi;
@@ -196,6 +209,11 @@ bool XrdSsiSfsConfig::Configure(const char *cFN)
        return false;
       }
 
+// Configure filesystem callout as needed
+//
+   fsChk = FSPath.NotEmpty();
+   if (isServer && !theFS) fsChk = false;
+
 // All done
 //
    tmp = (NoGo ? " failed." : " completed.");
@@ -239,6 +257,12 @@ bool XrdSsiSfsConfig::Configure(XrdOucEnv *envP)
        myArgc = 1;
       }
 
+// Establish the network interface that the caller must provide
+//
+   if (!envP || !(myIF = (XrdNetIF *)envP->GetPtr("XrdNetIF*")))
+      {Log.Emsg("Finder", "Network i/f undefined; unable to self-locate.");
+       NoGo = 1;
+      }
 // Now configure management functions and the cms if we are not the cms
 //
    if (!NoGo && !isCms && envP)
@@ -325,13 +349,16 @@ int XrdSsiSfsConfig::ConfigObj()
 
 int XrdSsiSfsConfig::ConfigSvc(char **myArgv, int myArgc)
 {
-   XrdSysPlugin *myLib;
-   XrdSsiServService_t ep;
+   XrdSsiErrInfo    eInfo;
+   XrdSysPlugin    *myLib;
+   XrdSsiProvider **theProvider;
+   const char      *pName = (isCms ? "XrdSsiProviderLookup"
+                                   : "XrdSsiProviderServer");
 
 // Make sure a library was specified
 //
    if (!SvcLib)
-      {Log.Emsg("Config", "svclib not specified; service cannot be loaded.");
+      {Log.Emsg("Config", "svclib not specified; provider cannot be loaded.");
        return 1;
       }
 
@@ -342,14 +369,33 @@ int XrdSsiSfsConfig::ConfigSvc(char **myArgv, int myArgc)
 
 // Now get the entry point of the object creator
 //
-   ep = (XrdSsiServService_t)(myLib->getPlugin("XrdSsiGetServerService"));
-   if (!ep) return 1;
+   theProvider = (XrdSsiProvider **)(myLib->getPlugin(pName));
+   if (!theProvider) return 1;
+   Provider = *theProvider;
 
-// Get the Object now
+// Persist the library
 //
    myLib->Persist(); delete myLib;
-   Service = ep(&SsiLogger, (XrdSsiCluster *)SsiCms, ConfigFN,
-                             SvcParms, myArgc, myArgv);
+
+// Initialize the provider
+//
+   if (!(Provider->Init(&SsiLogger, (XrdSsiCluster *)SsiCms, ConfigFN,
+                          SvcParms, myArgc, myArgv)))
+      {Log.Emsg("Config", "Provider initialization failed.");
+       return 1;
+      }
+
+// If we are the cms then we are done.
+//
+   if (isCms) return 0;
+
+// Otherwise we need to get the service object (we get only one)
+//
+   if (!(Service = Provider->GetService(eInfo, 0)))
+      {const char *eText = eInfo.Get();
+       Log.Emsg("Config", "Unable to obtain server-side service object;",
+                          (eText ? eText : "reason unknown."));
+      }
    return Service == 0;
 }
   
@@ -364,6 +410,7 @@ int XrdSsiSfsConfig::ConfigXeq(char *var)
 //
     if (!strcmp("cmslib", var)) return Xlib("cmslib", &CmsLib, &CmsParms);
     if (!strcmp("svclib", var)) return Xlib("svclib", &SvcLib, &SvcParms);
+    if (!strcmp("fspath", var)) return Xfsp();
     if (!strcmp("opts",   var)) return Xopts();
     if (!strcmp("role",   var)) return Xrole();
     if (!strcmp("trace",  var)) return Xtrace();
@@ -374,7 +421,7 @@ int XrdSsiSfsConfig::ConfigXeq(char *var)
    cFile->Echo();
    return 0;
 }
-
+  
 /******************************************************************************/
 /*                                  x L i b                                   */
 /******************************************************************************/
@@ -417,6 +464,40 @@ int XrdSsiSfsConfig::Xlib(const char *lName, char **lPath, char **lParm)
 }
   
 /******************************************************************************/
+/*                                  x f s p                                   */
+/******************************************************************************/
+
+/* Function: xfsp
+
+   Purpose:  To parse the directive: fspath <path>
+
+             <path>    the path that is a file system path.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdSsiSfsConfig::Xfsp()
+{
+  XrdOucPList *plp;
+  char *val, pbuff[1024];
+
+// Get the path
+//
+   val = cFile->GetWord();
+   if (!val || !val[0])
+      {Log.Emsg("Config", "fspath path not specified"); return 1;}
+   strlcpy(pbuff, val, sizeof(pbuff));
+
+// Add path to configuration
+//
+   if (!(plp = FSPath.Match(pbuff)))
+      {plp = new XrdOucPList(pbuff,0);
+       FSPath.Insert(plp);
+      }
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                 X o p t s                                  */
 /******************************************************************************/
   
@@ -437,14 +518,13 @@ int XrdSsiSfsConfig::Xlib(const char *lName, char **lPath, char **lParm)
 int XrdSsiSfsConfig::Xopts()
 {
    char *val;
-   long long ppp, fObj = -1, rMax = -1, rObj = -1, fAut = -1;
+   long long ppp, rMax = -1, rObj = -1, fAut = -1;
    int  i;
 
    struct optsopts {const char *opname; long long *oploc; int maxv; int isSz;}
           opopts[] =
       {
        {"authinfo", &fAut,            2, 0},
-       {"files",    &fObj,      64*1024, 0},
        {"maxrsz",   &rMax, 16*1024*1024, 1},
        {"requests", &rObj,      64*1024, 0}
       };
@@ -478,7 +558,6 @@ int XrdSsiSfsConfig::Xopts()
 
 // Set the values that were specified
 //
-//  if (fObj >= 0) XrdSsiFile   ::SetMax(static_cast<int>(fObj));
     if (fAut >= 0) XrdSsiFile   ::SetAuth(static_cast<int>(fAut));
     if (rMax >= 0) maxRSZ = static_cast<int>(rMax);
     if (rObj >= 0) XrdSsiFileReq::SetMax(static_cast<int>(rObj));

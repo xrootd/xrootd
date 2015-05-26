@@ -86,6 +86,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSsi/XrdSsiEntity.hh
   XrdSsi/XrdSsiErrInfo.hh
   XrdSsi/XrdSsiLogger.hh
+  XrdSsi/XrdSsiProvider.hh
   XrdSsi/XrdSsiRequest.hh
   XrdSsi/XrdSsiRespInfo.hh
   XrdSsi/XrdSsiResponder.hh

@@ -1,10 +1,10 @@
-#ifndef __XRDSSISERVREAL_HH__
-#define __XRDSSISERVREAL_HH__
+#ifndef __SSI_UTILS_H__
+#define __SSI_UTILS_H__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i S e r v R e a l . h h                      */
+/*                        X r d S s i U t i l s . h h                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2015 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,37 +29,19 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiService.hh"
-#include "XrdSys/XrdSysPthread.hh"
+class XrdOucErrInfo;
 
-class XrdSsiSessReal;
-
-class XrdSsiServReal : public XrdSsiService
+class XrdSsiUtils
 {
 public:
 
-void           Provision(XrdSsiService::Resource *resP, unsigned short tOut=0);
+static int  Emsg(const char    *pfx,    // Message prefix value
+                 int            ecode,  // The error code
+                 const char    *op,     // Operation being performed
+                 const char    *path,   // Operation target
+                 XrdOucErrInfo &eDest); // Plase to put error
 
-void           Recycle(XrdSsiSessReal *sObj);
-
-bool           Stop();
-
-               XrdSsiServReal(const char *contact, int hObj)
-                             : manNode(strdup(contact)), freeSes(0),
-                               freeCnt(0), freeMax(hObj), actvSes(0) {}
-
-              ~XrdSsiServReal();
-private:
-
-XrdSsiSessReal *Alloc(const char *sName);
-bool            GenURL(const char *sName,const char *avoid,char *buff,int blen);
-XrdSsiSession  *RetErr(XrdSsiErrInfo &eInfo,const char *eTxt,int eNum,bool async);
-
-char           *manNode;
-XrdSysMutex     myMutex;
-XrdSsiSessReal *freeSes;
-int             freeCnt;
-int             freeMax;
-int             actvSes;
+            XrdSsiUtils() {}
+           ~XrdSsiUtils() {}
 };
 #endif

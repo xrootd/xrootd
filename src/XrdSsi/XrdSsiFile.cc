@@ -36,11 +36,16 @@
 #include <sys/stat.h>
 
 #include "XrdNet/XrdNetAddrInfo.hh"
+
 #include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucERoute.hh"
+#include "XrdOuc/XrdOucPList.hh"
+
 #include "XrdSec/XrdSecEntity.hh"
+
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsXio.hh"
+
 #include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiFile.hh"
 #include "XrdSsi/XrdSsiRRInfo.hh"
@@ -48,6 +53,8 @@
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
+#include "XrdSsi/XrdSsiUtils.hh"
+
 #include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
@@ -97,10 +104,14 @@ XrdSsiEntity    mySec;
 
 namespace XrdSsi
 {
-extern XrdOucBuffPool *BuffPool;
-extern XrdSsiService  *Service;
-extern XrdSysError     Log;
-extern XrdOucTrace     Trace;
+       XrdOucBuffPool    EmsgPool;
+extern XrdOucBuffPool   *BuffPool;
+extern XrdSsiService    *Service;
+extern XrdSfsFileSystem *theFS;
+extern XrdOucPListAnchor FSPath;
+extern bool              fsChk;
+extern XrdSysError       Log;
+extern XrdOucTrace       Trace;
 };
 
 using namespace XrdSsi;
@@ -138,6 +149,7 @@ XrdSsiFile::XrdSsiFile(const char *user, int monid) : XrdSfsFile(user, monid)
 {
    tident     = (user ? user : "");
    gigID      = 0;
+   fsFile     = 0;
    xioP       = 0;
    oucBuff    = 0;
    reqSize    = 0;
@@ -146,6 +158,19 @@ XrdSsiFile::XrdSsiFile(const char *user, int monid) : XrdSfsFile(user, monid)
    isOpen     = false;
    inProg     = false;
    viaDel     = false;
+}
+
+/******************************************************************************/
+/*                 X r d S s i F i l e   D e s t r u c t o r                  */
+/******************************************************************************/
+  
+XrdSsiFile::~XrdSsiFile()
+{
+
+// If we have a file object then delete it -- it needs to close. Else do it.
+//
+   if (fsFile) delete fsFile;
+      else {viaDel = true; close();}
 }
 
 /******************************************************************************/
@@ -161,7 +186,14 @@ int XrdSsiFile::close()
   Output:   Always returns SFS_OK
 */
 {
-   EPNAME("close");
+   const char *epname = "close";
+
+// Route this request as needed (no callback possible)
+//
+   if (fsFile)
+      {int rc = fsFile->close();
+       return (rc ? CopyErr(epname, rc) : rc);
+      }
 
 // Do some debugging
 //
@@ -190,35 +222,51 @@ int XrdSsiFile::close()
 }
   
 /******************************************************************************/
-/* Private:                         E m s g                                   */
+/* Private:                      C o p y E C B                                */
 /******************************************************************************/
-
-int XrdSsiFile::Emsg(const char    *pfx,    // Message prefix value
-                     int            ecode,  // The error code
-                     const char    *op,     // Operation being performed
-                     const char    *path,   // Operation target
-                     XrdOucErrInfo *eDest)  // Plase to put error
+  
+void XrdSsiFile::CopyECB()
 {
-   char buffer[2048];
+   unsigned long long cbArg;
+   XrdOucEICB        *cbVal = error.getErrCB(cbArg);
 
-// Get correct error code and path
+// We only need to copy some information
 //
-    if (ecode < 0) ecode = -ecode;
-    if (!path) path = gigID;
-    if (!eDest) eDest = &error;
+   if (!isOpen) fsFile->error.setUCap(error.getUCap());
+   fsFile->error.setErrCB(cbVal, cbArg);
+}
 
-// Format the error message
-//
-   XrdOucERoute::Format(buffer, sizeof(buffer), ecode, op, path);
+/******************************************************************************/
+/* Private:                      C o p y E r r                                */
+/******************************************************************************/
+  
+int XrdSsiFile::CopyErr(const char *op, int rc)
+{
+   XrdOucBuffer *buffP;
+   const char   *eText;
+   int           eTLen, eCode;
 
-// Put the message in the log
+// Get the error information
 //
-   Log.Emsg(pfx, eDest->getErrUser(), buffer);
+   eText = fsFile->error.getErrText(eCode);
 
-// Place the error message in the error object and return
+// Check if we need to copy and external buffer
 //
-   eDest->setErrInfo(ecode, buffer);
-   return SFS_ERROR;
+   if (!(fsFile->error.extData())) error.setErrInfo(eCode, eText);
+      else {eTLen = fsFile->error.getErrTextLen();
+            buffP = EmsgPool.Alloc(eTLen);
+            if (buffP)
+               {memcpy(buffP->Buffer(), eText, eTLen);
+                error.setErrInfo(eCode, buffP);
+               } else {
+                XrdSsiUtils::Emsg("CopyErr",ENOMEM,op,fsFile->FName(),error);
+                rc = SFS_ERROR;
+              }
+           }
+
+// All done
+//
+   return rc;
 }
   
 /******************************************************************************/
@@ -229,6 +277,11 @@ int      XrdSsiFile::fctl(const int         cmd,
                           const char       *args,
                           XrdOucErrInfo    &out_error)
 {
+
+// Route this request as needed
+//
+   if (fsFile) return fsFile->fctl(cmd, args, out_error);
+
 // Indicate we would like to use SendData()
 //
    if (cmd == SFS_FCTL_GETFD)
@@ -238,7 +291,7 @@ int      XrdSsiFile::fctl(const int         cmd,
 
 // We don't support any other kind of command
 //
-   return Emsg("fctl", ENOTSUP, "fctl", gigID, &out_error);
+   return XrdSsiUtils::Emsg("fctl", ENOTSUP, "fctl", gigID, out_error);
 }
 
 /******************************************************************************/
@@ -246,7 +299,6 @@ int      XrdSsiFile::fctl(const int         cmd,
 int      XrdSsiFile::fctl(const int           cmd,
                                 int           alen,
                           const char         *args,
-                          XrdOucErrInfo      &out_error,
                           const XrdSecEntity *client)
 {
    static const char *epname = "fctl";
@@ -256,15 +308,23 @@ int      XrdSsiFile::fctl(const int           cmd,
    XrdSsiFileReq     *rqstP;
    int reqID;
 
+// Route this request as needed (callback possible)
+//
+   if (fsFile)
+      {CopyECB();
+       int rc = fsFile->fctl(cmd, alen, args, client);
+       return (rc ? CopyErr(epname, rc) : rc);
+      }
+
 // If this isn't the special query, then return an error
 //
    if (cmd != SFS_FCTL_SPEC1)
-      return Emsg(epname, ENOTSUP, "fctl", gigID, &out_error);
+      return XrdSsiUtils::Emsg(epname, ENOTSUP, "fctl", gigID, error);
 
 // Caller wishes to find out if a request is ready and wait if it is not
 //
    if (!args || alen < (int)sizeof(XrdSsiRRInfo))
-      return Emsg(epname, EINVAL, "fctl", gigID, &out_error);
+      return XrdSsiUtils::Emsg(epname, EINVAL, "fctl", gigID, error);
 
 // Grab the request identifier
 //
@@ -277,7 +337,8 @@ int      XrdSsiFile::fctl(const int           cmd,
 
 // Find the request
 //
-   if (!(rqstP = rTab.LookUp(reqID))) return Emsg(epname, ESRCH, "fctl");
+   if (!(rqstP = rTab.LookUp(reqID)))
+      return XrdSsiUtils::Emsg(epname, ESRCH, "fctl", gigID, error);
 
 // Get callback information
 //
@@ -295,6 +356,79 @@ int      XrdSsiFile::fctl(const int           cmd,
    DEBUG(reqID <<':' <<gigID <<" resp not ready");
    error.setErrCB((XrdOucEICB *)rqstP);
    return SFS_STARTED;
+}
+
+/******************************************************************************/
+/*                                 F N a m e                                  */
+/******************************************************************************/
+  
+const char *XrdSsiFile::FName()
+{
+
+// Route to filesystem if need be
+//
+   if (fsFile) return fsFile->FName();
+
+// Return out name
+//
+   return gigID;
+}
+
+
+/******************************************************************************/
+/*                             g e t C X i n f o                              */
+/******************************************************************************/
+  
+int XrdSsiFile::getCXinfo(char cxtype[4], int &cxrsz)
+/*
+  Function: Set the length of the file object to 'flen' bytes.
+
+  Input:    n/a
+
+  Output:   cxtype - Compression algorithm code
+            cxrsz  - Compression region size
+
+            Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+// Route this request as needed (no callback possible)
+//
+   if (fsFile)
+      {int rc = fsFile->getCXinfo(cxtype, cxrsz);
+       return (rc ? CopyErr("getcx", rc) : rc);
+      }
+
+// Indicate we don't support compression
+//
+   cxrsz = 0;
+   return SFS_OK;
+}
+
+/******************************************************************************/
+/*                               g e t M m a p                                */
+/******************************************************************************/
+
+int XrdSsiFile::getMmap(void **Addr, off_t &Size)         // Out
+/*
+  Function: Return memory mapping for file, if any.
+
+  Output:   Addr        - Address of memory location
+            Size        - Size of the file or zero if not memory mapped.
+            Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+// Route this request as needed (no callback possible)
+//
+   if (fsFile)
+      {int rc = fsFile->getMmap(Addr, Size);
+       return (rc ? CopyErr("getmmap", rc) : rc);
+      }
+
+// Indicate we don't support memory mapping
+//
+   if (Addr) *Addr = 0;
+   Size = 0;
+   return SFS_OK;
 }
 
 /******************************************************************************/
@@ -353,16 +487,31 @@ int XrdSsiFile::open(const char          *path,      // In
 
 // Verify that this object is not already associated with an open file
 //
-   if (isOpen) return Emsg(epname, EADDRINUSE, "open session", path);
+   if (isOpen)
+      return XrdSsiUtils::Emsg(epname, EADDRINUSE, "open session", path, error);
+
+// Open a regular file if this is wanted
+//
+   if (fsChk && FSPath.Find(path))
+      {if (!(fsFile = theFS->newFile((char *)tident, error.getErrMid())))
+          return XrdSsiUtils::Emsg(epname, ENOMEM, "open file", path, error);
+       CopyECB();
+       if ((eNum = fsFile->open(path, open_mode, Mode, client, info)))
+          {eNum = CopyErr(epname, eNum);
+           delete fsFile; fsFile = 0;
+          } else isOpen = true;
+       return eNum;
+      }
 
 // Make sure the open flag is correct
 //
    if (open_mode != SFS_O_RDWR)
-      return Emsg(epname, EPROTOTYPE, "open session", path);
+      return XrdSsiUtils::Emsg(epname, EPROTOTYPE, "open session", path, error);
 
 // Obtain a session
 //
-   if (Service->Provision(&fileResource)) fileResource.ProvisionWait();
+   Service->Provision(&fileResource);
+   fileResource.ProvisionWait();
    if ((sessP = fileResource.Session()))
       {gigID = strdup(path);
        DEBUG(gigID);
@@ -408,6 +557,34 @@ int XrdSsiFile::open(const char          *path,      // In
    error.setErrInfo(ENOMSG, "Server logic error");
    return SFS_ERROR;
 }
+
+/******************************************************************************/
+/*                                  r e a d                                   */
+/******************************************************************************/
+
+int            XrdSsiFile::read(XrdSfsFileOffset  offset,    // In
+                                XrdSfsXferSize    blen)      // In
+/*
+  Function: Preread `blen' bytes at `offset'
+
+  Input:    offset    - The absolute byte offset at which to start the read.
+            blen      - The amount to preread.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR o/w.
+*/
+{
+
+// Route to file system if need be (no callback possible)
+//
+   if (fsFile)
+      {int rc = fsFile->read(offset, blen);
+       return (rc ? CopyErr("read", rc) : rc);
+      }
+
+// We ignore these
+//
+   return SFS_OK;
+}
   
 /******************************************************************************/
 /*                                  r e a d                                   */
@@ -435,6 +612,13 @@ XrdSfsXferSize XrdSsiFile::read(XrdSfsFileOffset  offset,    // In
    int            reqID = rInfo.Id() & XrdSsiRRTable<XrdSsiFileReq>::maxID;
    bool           noMore = false;
 
+// Route to file system if need be (no callback possible)
+//
+   if (fsFile)
+      {int rc = fsFile->read(offset, buff, blen);
+       return (rc ? CopyErr(epname, rc) : rc);
+      }
+
 // Find the request object. If not there we may have encountered an eof
 //
    if (!(rqstP = rTab.LookUp(reqID)))
@@ -442,7 +626,7 @@ XrdSfsXferSize XrdSsiFile::read(XrdSfsFileOffset  offset,    // In
           {eofVec.UnSet(reqID);
            return 0;
           }
-        return Emsg(epname, ESRCH, "read");
+        return XrdSsiUtils::Emsg(epname, ESRCH, "read", gigID, error);
        }
 
 // Simply effect the read via the request object
@@ -502,7 +686,14 @@ XrdSfsXferSize XrdSsiFile::readv(XrdOucIOVec     *readV,     // In
 {
    static const char *epname = "readv";
 
-   return Emsg(epname, ENOSYS, "readv");
+// Route this request to file system if need be (no callback possible)
+//
+   if (fsFile)
+      {int rc = fsFile->readv(readV, readCount);
+       return (rc ? CopyErr(epname, rc) : rc);
+      }
+
+   return XrdSsiUtils::Emsg(epname, ENOSYS, "readv", gigID, error);
 }
   
 /******************************************************************************/
@@ -518,9 +709,17 @@ int XrdSsiFile::SendData(XrdSfsDio         *sfDio,
    XrdSsiFileReq *rqstP;
    int rc, reqID = rInfo.Id() & XrdSsiRRTable<XrdSsiFileReq>::maxID;
 
+// Route this request to file system if need be (no callback possible)
+//
+   if (fsFile)
+      {int rc = fsFile->SendData(sfDio, offset, size);
+       return (rc ? CopyErr(epname, rc) : rc);
+      }
+
 // Find the request object
 //
-   if (!(rqstP = rTab.LookUp(reqID))) return Emsg(epname, ESRCH, "send");
+   if (!(rqstP = rTab.LookUp(reqID)))
+      return XrdSsiUtils::Emsg(epname, ESRCH, "send", gigID, error);
 
 // Simply effect the send via the request object
 //
@@ -548,6 +747,17 @@ int XrdSsiFile::stat(struct stat     *buf)         // Out
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
+
+// Route this request to file system if need be (callback possible)
+//
+   if (fsFile)
+      {CopyECB();
+       int rc = fsFile->stat(buf);
+       return (rc ? CopyErr("stat", rc) : rc);
+      }
+
+// Otherwise there is no stat information
+//
    memset(buf, 0 , sizeof(struct stat));
    return SFS_OK;
 }
@@ -567,7 +777,17 @@ int XrdSsiFile::sync()
 {
    static const char *epname = "sync";
 
-   return Emsg(epname, ENOSYS, "sync");
+// Route this request to file system if need be (callback possible)
+//
+   if (fsFile)
+      {CopyECB();
+       int rc = fsFile->sync();
+       return (rc ? CopyErr(epname, rc) : rc);
+      }
+
+// We don't support this
+//
+   return XrdSsiUtils::Emsg(epname, ENOSYS, "sync", gigID, error);
 }
 
 /******************************************************************************/
@@ -605,9 +825,18 @@ int XrdSsiFile::truncate(XrdSfsFileOffset  flen)  // In
    XrdSsiRRInfo::Opc  reqXQ = rInfo.Cmd();
    int reqID = rInfo.Id()  & XrdSsiRRTable<XrdSsiFileReq>::maxID;
 
+// Route this request to file system if need be (callback possible)
+//
+   if (fsFile)
+      {CopyECB();
+       int rc = fsFile->truncate(flen);
+       return (rc ? CopyErr(epname, rc) : rc);
+      }
+
 // Find the request
 //
-   if (!(rqstP = rTab.LookUp(reqID))) return Emsg(epname, ESRCH, "trunc");
+   if (!(rqstP = rTab.LookUp(reqID)))
+      return XrdSsiUtils::Emsg(epname, ESRCH, "trunc", gigID, error);
 
 // Process request
 //
@@ -630,7 +859,7 @@ int XrdSsiFile::truncate(XrdSfsFileOffset  flen)  // In
                rTab.Del(reqID);
                break;
           default:
-               return Emsg(epname, ENOSYS, "trunc");
+               return XrdSsiUtils::Emsg(epname, ENOSYS, "trunc", gigID, error);
                break;
          }
 
@@ -665,6 +894,13 @@ XrdSfsXferSize XrdSsiFile::write(XrdSfsFileOffset      offset,    // In
    XrdSsiRRInfo   rInfo(offset);
    int reqID = rInfo.Id() & XrdSsiRRTable<XrdSsiFileReq>::maxID;
 
+// Route this request to file system if need be (no callback possible)
+//
+   if (fsFile)
+      {int rc = fsFile->write(offset, buff, blen);
+       return (rc ? CopyErr(epname, rc) : rc);
+      }
+
 // Check if we are reading a request segment and handle that. This assumes that
 // writes to different requests cannot be interleaved (which they can't be).
 //
@@ -672,13 +908,14 @@ XrdSfsXferSize XrdSsiFile::write(XrdSfsFileOffset      offset,    // In
 
 // Make sure this request does not refer to an active request
 //
-   if (rTab.LookUp(reqID)) return Emsg(epname, EADDRINUSE, "write");
+   if (rTab.LookUp(reqID))
+      return XrdSsiUtils::Emsg(epname, EADDRINUSE, "write", gigID, error);
 
 // The offset contains the actual size of the request, make sure it's OK
 //
    reqSize = rInfo.Size();
    if (reqSize <= 0 || reqSize > maxRSZ || reqSize < blen)
-      return Emsg(epname, EFBIG, "write");
+      return XrdSsiUtils::Emsg(epname, EFBIG, "write", gigID, error);
 
 // Indicate we are in the progress of collecting the request arguments
 //
@@ -699,17 +936,17 @@ XrdSfsXferSize XrdSsiFile::write(XrdSfsFileOffset      offset,    // In
           {char etxt[16];
            sprintf(etxt, "%d", xStat);
            Log.Emsg(epname, "Xio.Swap() return error status of ", etxt);
-           return Emsg(epname, ENOMEM, "write");
+           return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
           }
        if (!NewRequest(reqID, 0, bRef, blen))
-          return Emsg(epname, ENOMEM, "write");
+          return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
        return blen;
       }
 
 // The full request is not present, so get a buffer to piece it together
 //
    if (!(oucBuff = BuffPool->Alloc(reqSize)))
-      return Emsg(epname, ENOMEM, "write");
+      return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
 
 // Setup to buffer this
 //
@@ -719,7 +956,7 @@ XrdSfsXferSize XrdSsiFile::write(XrdSfsFileOffset      offset,    // In
       {oucBuff->SetLen(reqSize);
 
        if (!NewRequest(reqID, oucBuff, 0, reqSize))
-          return Emsg(epname, ENOMEM, "write");
+          return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
        oucBuff = 0;
       } else oucBuff->SetLen(blen, blen);
    return blen;
@@ -751,7 +988,8 @@ XrdSfsXferSize XrdSsiFile::writeAdd(const char     *buff,      // In
 
 // Make sure the caller is not exceeding the size stated on the first write
 //
-   if (blen > reqLeft) return Emsg(epname, EFBIG, "writeAdd");
+   if (blen > reqLeft)
+      return XrdSsiUtils::Emsg(epname, EFBIG, "writeAdd", gigID, error);
 
 // Append the bytes
 //
@@ -768,7 +1006,7 @@ XrdSfsXferSize XrdSsiFile::writeAdd(const char     *buff,      // In
    if (!reqLeft)
       {oucBuff->SetLen(reqSize);
        if (!NewRequest(rid, oucBuff, 0, reqSize))
-          return Emsg(epname, ENOMEM, "write");
+          return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
        oucBuff = 0;
       }
 

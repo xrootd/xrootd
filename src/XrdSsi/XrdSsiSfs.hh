@@ -29,18 +29,16 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
-#include <string.h>
 #include <sys/types.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
+
+#include "XrdSsi/XrdSsiDir.hh"
 #include "XrdSsi/XrdSsiFile.hh"
-#include "XrdSys/XrdSysPthread.hh"
   
 struct XrdVersionInfo;
 
 class  XrdOucEnv;
-class  XrdOucStream;
 class  XrdSecEntity;
   
 class XrdSsiSfs : public XrdSfsFileSystem
@@ -51,21 +49,26 @@ public:
 
 // Object allocation
 //
-        XrdSfsDirectory *newDir(char *user=0, int MonID=0) {return 0;}
+        XrdSfsDirectory *newDir(char *user=0, int MonID=0)
+                                {return new XrdSsiDir(user, MonID);}
 
         XrdSfsFile      *newFile(char *user=0,int MonID=0)
-                            {return (XrdSfsFile *)new XrdSsiFile(user, MonID);}
+                                {return new XrdSsiFile(user, MonID);}
 
 // Other functions
 //
+        int            chksum(      csFunc            Func,
+                              const char             *csName,
+                              const char             *path,
+                                    XrdOucErrInfo    &eInfo,
+                              const XrdSecEntity     *client = 0,
+                              const char             *opaque = 0);
+
         int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &eInfo,
                              const XrdSecEntity     *client,
-                             const char             *opaque = 0)
-                            {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                             return SFS_ERROR;
-                            }
+                             const char             *opaque = 0);
 
         void           EnvInfo(XrdOucEnv *envP);
 
@@ -73,18 +76,14 @@ public:
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &eInfo,
                               const XrdSecEntity        *client,
-                              const char                *opaque = 0)
-                              {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                               return SFS_ERROR;
-                              }
+                              const char                *opaque = 0);
 
         int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &eInfo,
-                             const XrdSecEntity     *client)
-                            {return SFS_OK;}
+                             const XrdSecEntity     *client);
 
-        int            getStats(char *buff, int blen) {return 0;}
+        int            getStats(char *buff, int blen);
 
 const   char          *getVersion();
 
@@ -92,68 +91,47 @@ const   char          *getVersion();
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &eInfo,
                              const XrdSecEntity     *client,
-                             const char             *opaque = 0)
-                            {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                             return SFS_ERROR;
-                            }
+                             const char             *opaque = 0);
 
         int            prepare(      XrdSfsPrep       &pargs,
                                      XrdOucErrInfo    &eInfo,
-                               const XrdSecEntity     *client = 0)
-                              {return SFS_OK;}
+                               const XrdSecEntity     *client = 0);
 
         int            rem(const char             *path,
                                  XrdOucErrInfo    &eInfo,
                            const XrdSecEntity     *client,
-                           const char             *info = 0)
-                          {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                           return SFS_ERROR;
-                          }
+                           const char             *info = 0);
 
         int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &eInfo,
                               const XrdSecEntity     *client,
-                              const char             *info = 0)
-                             {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                              return SFS_ERROR;
-                             }
+                              const char             *info = 0);
 
         int            rename(const char             *oldFileName,
                               const char             *newFileName,
                                     XrdOucErrInfo    &eInfo,
                               const XrdSecEntity     *client,
                               const char             *infoO = 0,
-                              const char             *infoN = 0)
-                          {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                           return SFS_ERROR;
-                          }
+                              const char             *infoN = 0);
 
         int            stat(const char             *Name,
                                   struct stat      *buf,
                                   XrdOucErrInfo    &eInfo,
                             const XrdSecEntity     *client,
-                            const char             *opaque = 0)
-                           {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                            return SFS_ERROR;
-                           }
+                            const char             *opaque = 0);
 
         int            stat(const char             *Name,
                                   mode_t           &mode,
                                   XrdOucErrInfo    &eInfo,
                             const XrdSecEntity     *client,
-                            const char             *opaque = 0)
-                           {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                            return SFS_ERROR;
-                           }
+                            const char             *opaque = 0);
 
         int            truncate(const char             *Name,
                                       XrdSfsFileOffset fileOffset,
                                       XrdOucErrInfo    &eInfo,
                                 const XrdSecEntity     *client = 0,
-                                const char             *opaque = 0)
-                               {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                                return SFS_ERROR;
-                               }
+                                const char             *opaque = 0);
+
 // Management functions
 //
 static  void           setMax(int mVal) {freeMax = mVal;}
@@ -162,7 +140,10 @@ static  void           setMax(int mVal) {freeMax = mVal;}
 virtual               ~XrdSsiSfs() {}  // Too complicate to delete :-)
 
 private:
-
 static int             freeMax;
+
+int         Emsg(const char *pfx, XrdOucErrInfo &einfo, int ecode,
+                 const char *op,  const char    *target);
+const char *Split(const char *Args, const char **Opq, char *Path, int Plen);
 };
 #endif

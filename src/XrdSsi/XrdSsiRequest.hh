@@ -99,6 +99,21 @@ inline  bool    Finished(bool cancel=false)
                         }
 
 //-----------------------------------------------------------------------------
+//! Obtain the metadata associated with a response.
+//!
+//! @param  dlen  holds the length of the metadata after the call.
+//!
+//! @return =0    No metadata available, dlen has been set to zero.
+//! @return !0    Pointer to the buffer holding the metadata, dlen has the length
+//-----------------------------------------------------------------------------
+
+inline
+const char     *GetMetadata(int &dlen)
+                           {if ((dlen = Resp.mdlen)) return Resp.mdata;
+                            return 0;
+                           }
+
+//-----------------------------------------------------------------------------
 //! Obtain the request data sent by a client.
 //!
 //! @param  dlen  holds the length of the request after the call.
@@ -112,8 +127,8 @@ virtual char   *GetRequest(int &dlen) = 0;
 //-----------------------------------------------------------------------------
 //! Obtain the responder associated with this request.
 //!
-//! @return !0    - pointer to the session object.
-//! @retuen =0    - no responder associated with this request.
+//! @return !0    - pointer to the responder object.
+//! @retuen =0    - no alternate responder associated with this request.
 //-----------------------------------------------------------------------------
 inline
 XrdSsiResponder*GetResponder() {return theRespond;}

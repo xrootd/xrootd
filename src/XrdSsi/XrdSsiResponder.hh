@@ -146,10 +146,25 @@ inline Status  SetErrResponse(const char *eMsg, int eNum)
                           }
 
 //-----------------------------------------------------------------------------
+//! Set a pointer to metadata to be sent out-of-band ahead of the response.
+//!
+//! @param  buff  pointer to a buffer holding the metadata. The buffer must
+//!               remain valid until XrdSsiSession::RequestFinished() is called.
+//! @param  blen  the length of the metadata in buff that is to be sent.
+//!
+//! @return       See Status enum for possible values.
+//-----------------------------------------------------------------------------
+
+inline Status  SetMetadata(const char *buff, int blen)
+                          {if (!reqP) return notPosted;
+                           reqP->Resp.mdata = buff; reqP->Resp.mdlen = blen;
+                          }
+
+//-----------------------------------------------------------------------------
 //! Set a memory buffer containing data as the request response.
 //!
 //! @param  buff  pointer to a buffer holding the response. The buffer must
-//!               remain valid until XrdSsiSession::Complete() is called.
+//!               remain valid until XrdSsiSession::RequestFinished() is called.
 //! @param  blen  the length of the response in buff that is to be sent.
 //!
 //! @return       See Status enum for possible values.

@@ -1,10 +1,8 @@
-#ifndef __XRDSSISERVREAL_HH__
-#define __XRDSSISERVREAL_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i S e r v R e a l . h h                      */
+/*                        X r d S s i U t i l s . c c                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2015 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,37 +27,54 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiService.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
 
-class XrdSsiSessReal;
+#include "XrdOuc/XrdOucERoute.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSsi/XrdSsiUtils.hh"
+#include "XrdSys/XrdSysError.hh"
+  
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
 
-class XrdSsiServReal : public XrdSsiService
+namespace XrdSsi
 {
-public:
-
-void           Provision(XrdSsiService::Resource *resP, unsigned short tOut=0);
-
-void           Recycle(XrdSsiSessReal *sObj);
-
-bool           Stop();
-
-               XrdSsiServReal(const char *contact, int hObj)
-                             : manNode(strdup(contact)), freeSes(0),
-                               freeCnt(0), freeMax(hObj), actvSes(0) {}
-
-              ~XrdSsiServReal();
-private:
-
-XrdSsiSessReal *Alloc(const char *sName);
-bool            GenURL(const char *sName,const char *avoid,char *buff,int blen);
-XrdSsiSession  *RetErr(XrdSsiErrInfo &eInfo,const char *eTxt,int eNum,bool async);
-
-char           *manNode;
-XrdSysMutex     myMutex;
-XrdSsiSessReal *freeSes;
-int             freeCnt;
-int             freeMax;
-int             actvSes;
+extern XrdSysError       Log;
 };
-#endif
+
+using namespace XrdSsi;
+
+/******************************************************************************/
+/*                                  E m s g                                   */
+/******************************************************************************/
+
+int XrdSsiUtils::Emsg(const char    *pfx,    // Message prefix value
+                      int            ecode,  // The error code
+                      const char    *op,     // Operation being performed
+                      const char    *path,   // Operation target
+                      XrdOucErrInfo &eDest)  // Plase to put error
+{
+   char buffer[2048];
+
+// Get correct error code and path
+//
+    if (ecode < 0) ecode = -ecode;
+    if (!path) path = "???";
+
+// Format the error message
+//
+   XrdOucERoute::Format(buffer, sizeof(buffer), ecode, op, path);
+
+// Put the message in the log
+//
+   Log.Emsg(pfx, eDest.getErrUser(), buffer);
+
+// Place the error message in the error object and return
+//
+   eDest.setErrInfo(ecode, buffer);
+   return SFS_ERROR;
+}

@@ -52,8 +52,7 @@ public:
 virtual void   Added(const char *name, bool pend=false) = 0;
 
 //------------------------------------------------------------------------------
-//! Obtain the list of nodes that are managing this cluster along with their
-//! associated index numbers, origin 1.
+//! Obtain the list of nodes that are managing this cluster.
 //!
 //! @param  mNum Palce to put the number of managers in the returned array.
 //!

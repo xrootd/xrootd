@@ -88,41 +88,6 @@ XrdSsiSessReal::~XrdSsiSessReal()
 }
 
 /******************************************************************************/
-/*                              C o m p l e t e                               */
-/******************************************************************************/
-  
-void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
-                                     const XrdSsiRespInfo &rInfo, bool cancel)
-{
-   XrdSysMutexHelper rHelp(&myMutex);
-   XrdSsiResponder *tP = rqstP->GetResponder();
-   XrdSsiTaskReal  *rtP;
-   void            *objHandle;
-
-// If we have no task then we are really done here
-//
-   DBG("Session Complete: cancel="<<cancel<<" task="<<(tP?"ok":"nil"));
-   if (!tP) return;
-
-// Since only we can set the task pointer we are allowed to down-cast it
-// to it's actual implementation. This is actualy a safe operation.
-//
-   rtP = (XrdSsiTaskReal *)tP->GetObject(objHandle);
-
-// Remove task from the task list if it's in it
-//
-   if (rtP == attBase || rtP->attList.next != rtP)
-      {REMOVE(attBase, attList, rtP);}
-
-// If we can kill the task right now, clean up
-//
-   if (rtP->Kill()) RelTask(rtP);
-      else {rtP->attList.next = pendTask; pendTask = rtP;
-            DBG("Task="<<hex<<tP<<dec<<" id=" <<nextTID-1 <<" removal defered");
-           }
-}
-
-/******************************************************************************/
 /*                        H a n d l e R e s p o n s e                         */
 /******************************************************************************/
   
@@ -237,7 +202,7 @@ bool XrdSsiSessReal::Open(XrdSsiService::Resource *resP,
 /*                        P r o c e s s R e q u e s t                         */
 /******************************************************************************/
   
-bool XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
+void XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
 {
    XrdCl::XRootDStatus Status;
    XrdSsiRRInfo        rrInfo;
@@ -248,7 +213,7 @@ bool XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
 // Make sure the file is open
 //
    if (!epFile.IsOpen())
-      {reqP->eInfo.Set("Session not provisioned.", ENOTCONN); return false;}
+      {RequestFailed(reqP, "Session not provisioned.", ENOTCONN); return;}
 
 // Get the request information
 //
@@ -263,8 +228,8 @@ bool XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
    if ((tP = freeTask)) freeTask = tP->attList.next;
       else {if (!alocLeft || !(tP = new XrdSsiTaskReal(this, nextTID)))
                {myMutex.UnLock();
-                reqP->eInfo.Set("Too many active requests.", EMLINK);
-                return false;
+                RequestFailed(reqP, "Too many active requests.", EMLINK);
+                return;
                }
             alocLeft--; nextTID++;
            }
@@ -293,17 +258,12 @@ bool XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
       } else {
        const char *eText;
        int eNum;
-       BindRequest(reqP,0);  // Unbind the request from ourselves.
+       BindRequest(reqP,0);  // Unbind the request from the task
        RelTask(tP);
        myMutex.UnLock();
        SetErr(Status, eNum, &eText);
-       reqP->eInfo.Set(eText, eNum);
-       return false;
+       RequestFailed(reqP, eText, eNum);
       }
-
-// All done
-//
-   return true;
 }
 
 /******************************************************************************/
@@ -357,6 +317,60 @@ void XrdSsiSessReal::RelTask(XrdSsiTaskReal *tP) // myMutex locked!
    if (stopping) delete tP;
       else {tP->attList.next = freeTask;
             freeTask = tP;
+           }
+}
+
+/******************************************************************************/
+/*                         R e q u e s t F a i l e d                          */
+/******************************************************************************/
+
+void XrdSsiSessReal::RequestFailed(XrdSsiRequest *rqstP,
+                                   const char    *eText,
+                                   int            eCode)
+{
+
+// Bind the request to outselves as we will be responding
+//
+   BindRequest(rqstP, this);
+
+// Set the error response, this will call ProcessResponse()
+//
+   SetErrResponse(eText, eCode);
+}
+
+  
+/******************************************************************************/
+/*                       R e q u e s t F i n i s h e d                        */
+/******************************************************************************/
+  
+void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
+                                     const XrdSsiRespInfo &rInfo, bool cancel)
+{
+   XrdSysMutexHelper rHelp(&myMutex);
+   XrdSsiResponder *tP = rqstP->GetResponder();
+   XrdSsiTaskReal  *rtP;
+   void            *objHandle;
+
+// If we have no task then we are really done here
+//
+   DBG("Session Complete: cancel="<<cancel<<" task="<<(tP?"ok":"nil"));
+   if (!tP) return;
+
+// Since only we can set the task pointer we are allowed to down-cast it
+// to it's actual implementation. This is actualy a safe operation.
+//
+   rtP = static_cast<XrdSsiTaskReal *>(tP->GetObject(objHandle));
+
+// Remove task from the task list if it's in it
+//
+   if (rtP == attBase || rtP->attList.next != rtP)
+      {REMOVE(attBase, attList, rtP);}
+
+// If we can kill the task right now, clean up
+//
+   if (rtP->Kill()) RelTask(rtP);
+      else {rtP->attList.next = pendTask; pendTask = rtP;
+            DBG("Task="<<hex<<tP<<dec<<" id=" <<nextTID-1 <<" removal defered");
            }
 }
 

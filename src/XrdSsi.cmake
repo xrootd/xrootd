@@ -14,13 +14,15 @@ add_library(
   XrdSsi
   SHARED
                                        XrdSsi/XrdSsiBVec.hh
+XrdSsi/XrdSsiClient.cc
                                        XrdSsi/XrdSsiCluster.hh
 XrdSsi/XrdSsiCms.cc                    XrdSsi/XrdSsiCms.hh
+XrdSsi/XrdSsiDir.cc                    XrdSsi/XrdSsiDir.hh
                                        XrdSsi/XrdSsiErrInfo.hh
 XrdSsi/XrdSsiFile.cc                   XrdSsi/XrdSsiFile.hh
 XrdSsi/XrdSsiFileReq.cc                XrdSsi/XrdSsiFileReq.hh
-XrdSsi/XrdSsiGCS.cc
 XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh
+                                       XrdSsi/XrdSsiProvider.hh
                                        XrdSsi/XrdSsiRRInfo.hh
                                        XrdSsi/XrdSsiRRTable.hh
                                        XrdSsi/XrdSsiRequest.hh
@@ -34,7 +36,8 @@ XrdSsi/XrdSsiSfsConfig.cc              XrdSsi/XrdSsiSfsConfig.hh
 XrdSsi/XrdSsiStat.cc
                                        XrdSsi/XrdSsiStream.hh
 XrdSsi/XrdSsiTaskReal.cc               XrdSsi/XrdSsiTaskReal.hh
-                                       XrdSsi/XrdSsiTrace.hh)
+                                       XrdSsi/XrdSsiTrace.hh
+XrdSsi/XrdSsiUtils.cc                  XrdSsi/XrdSsiUtils.hh)
 
 target_link_libraries(
   XrdSsi
