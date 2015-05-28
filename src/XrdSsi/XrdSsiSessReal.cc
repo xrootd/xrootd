@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
   
+#include "XrdSsi/XrdSsiDebug.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
@@ -44,8 +45,6 @@
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
-
-#define DBG(x) cerr <<x <<endl
 
 #define SINGLETON(dlvar, theitem)\
                theitem ->dlvar .next == theitem
@@ -178,6 +177,7 @@ bool XrdSsiSessReal::Open(XrdSsiService::Resource *resP,
    static XrdCl::Access::Mode oMode = XrdCl::Access::UR
                                     | XrdCl::Access::UW
                                     | XrdCl::Access::UX;
+   EPNAME("SessOpen");
    XrdCl::XRootDStatus epStatus;
 
 // Set resource, we will need to call ProvisionDone() on it later
@@ -204,6 +204,7 @@ bool XrdSsiSessReal::Open(XrdSsiService::Resource *resP,
   
 void XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
 {
+   EPNAME("SessProcReq");
    XrdCl::XRootDStatus Status;
    XrdSsiRRInfo        rrInfo;
    XrdSsiTaskReal     *tP, *ptP;
@@ -272,6 +273,7 @@ void XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
 
 void XrdSsiSessReal::Recycle(XrdSsiTaskReal *tP) // myMutex locked!
 {
+   EPNAME("SessRecycle");
    XrdSsiTaskReal *ptP = 0, *ntP = pendTask;
 
 // This is called from the msg handler for delayed cancelled tasks. We must
@@ -310,10 +312,11 @@ void XrdSsiSessReal::Recycle(XrdSsiTaskReal *tP) // myMutex locked!
   
 void XrdSsiSessReal::RelTask(XrdSsiTaskReal *tP) // myMutex locked!
 {
+   EPNAME("SessRelTask");
 
 // Delete this task or place it on the free list
 //
-   DBG("RelTask dodel="<<stopping<<" id="<<tP->ID());
+   DBG("dodel="<<stopping<<" id="<<tP->ID());
    if (stopping) delete tP;
       else {tP->attList.next = freeTask;
             freeTask = tP;
@@ -346,6 +349,7 @@ void XrdSsiSessReal::RequestFailed(XrdSsiRequest *rqstP,
 void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
                                      const XrdSsiRespInfo &rInfo, bool cancel)
 {
+   EPNAME("SessReqFin");
    XrdSysMutexHelper rHelp(&myMutex);
    XrdSsiResponder *tP = rqstP->GetResponder();
    XrdSsiTaskReal  *rtP;
@@ -353,7 +357,7 @@ void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
 
 // If we have no task then we are really done here
 //
-   DBG("Session Complete: cancel="<<cancel<<" task="<<(tP?"ok":"nil"));
+   DBG("Request="<<hex<<rqstP<<dec<<" cancel="<<cancel<<" task="<<hex<<tP<<dec);
    if (!tP) return;
 
 // Since only we can set the task pointer we are allowed to down-cast it
@@ -370,7 +374,7 @@ void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
 //
    if (rtP->Kill()) RelTask(rtP);
       else {rtP->attList.next = pendTask; pendTask = rtP;
-            DBG("Task="<<hex<<tP<<dec<<" id=" <<nextTID-1 <<" removal defered");
+            DBG("Removal deferred; Task="<<tP<<dec<<" id=" <<nextTID-1);
            }
 }
 
