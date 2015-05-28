@@ -27,17 +27,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdSsi/XrdSsiDebug.hh"
 #include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiSessReal.hh"
 #include "XrdSsi/XrdSsiTaskReal.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-
-/******************************************************************************/
-/*                         L o c a l   D e f i n e s                          */
-/******************************************************************************/
-  
-#define DBG(x) cerr <<x <<endl;
 
 /******************************************************************************/
 /*                           G l o b a l   D a t a                            */
@@ -67,6 +62,7 @@ void XrdSsiTaskReal::Detach(bool force)
 void XrdSsiTaskReal::HandleResponse(XrdCl::XRootDStatus *status,
                                     XrdCl::AnyObject    *response)
 {
+   EPNAME("TaskHResp");
    class delRsp
         {public: delRsp(XrdCl::XRootDStatus *sP, XrdCl::AnyObject *rP)
                        : ssp(sP), rsp(rP) {}
@@ -86,7 +82,7 @@ void XrdSsiTaskReal::HandleResponse(XrdCl::XRootDStatus *status,
 // Affect proper response
 //
    sessP->Lock();
-   DBG("Task "<<hex<<this<<dec<<" sess="<<(sessP==&voidSession?"no":"ok")
+   DBG(" sess="<<(sessP==&voidSession?"no":"ok")
               <<" Status = "<<aOK<<' '<<statName[tStat]);
 
    switch(tStat)
@@ -94,9 +90,9 @@ void XrdSsiTaskReal::HandleResponse(XrdCl::XRootDStatus *status,
                if (!aOK) {RespErr(status); return;}
                tStat = isSync;
                rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Rwt);
-               DBG("Task Handler calling RelBuff.");
+               DBG("Calling RelBuff.");
                ReleaseRequestBuffer();
-               DBG("Task Handler calling trunc.");
+               DBG("Calling trunc.");
                epStatus = sessP->epFile.Truncate(rInfo.Info(),
                                                  (ResponseHandler *)this,
                                                  tmOut);
@@ -108,7 +104,7 @@ void XrdSsiTaskReal::HandleResponse(XrdCl::XRootDStatus *status,
                tStat = isReady;
                mhPend = false;
                sessP->UnLock();
-               DBG("Task Handler responding with stream.");
+               DBG("Responding with stream.");
                SetResponse((XrdSsiStream *)this);
                return; break;
           case isReady:
@@ -119,7 +115,7 @@ void XrdSsiTaskReal::HandleResponse(XrdCl::XRootDStatus *status,
                    sessP->Recycle(this);
                    sessP->UnLock();
                   } else {
-                   DBG("Task Handler deleting task.");
+                   DBG("Deleting task.");
                    sessP->UnLock();
                    delete this;
                   }
@@ -147,7 +143,7 @@ void XrdSsiTaskReal::HandleResponse(XrdCl::XRootDStatus *status,
    dBuff = dataBuff;
    mhPend = false;
    sessP->UnLock();
-   DBG("Task Handler calling ProcessResponseData.");
+   DBG("Calling ProcessResponseData; len="<<ibRead<<" last="<<(tStat==isDone));
    rqstP->ProcessResponseData(dBuff, ibRead, tStat == isDone);
 }
 
@@ -157,12 +153,12 @@ void XrdSsiTaskReal::HandleResponse(XrdCl::XRootDStatus *status,
 
 bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 {
+   EPNAME("TaskKill");
    XrdSsiRRInfo rInfo;
 
 // Do some debugging
 //
-   DBG("Task "<<hex <<this <<dec<<" Kill status = "<<statName[tStat]
-             <<" mhpend=" <<mhPend);
+   DBG("Status = "<<statName[tStat]<<" mhPend="<<mhPend);
 
 // Affect proper procedure
 //
@@ -185,7 +181,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 // We will send a synchronous cancel request. It shouldn't take long.
 //
    rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Can);
-   DBG("Kill cancelling request.");
+   DBG("Sending cancel request.");
    sessP->epFile.Truncate(rInfo.Info(), tmOut);
 
 // If we are in the message handler or if we have a message pending, then
@@ -231,6 +227,7 @@ void XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status) // Session is locked!
 int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
                             char *buff, int blen, bool &last)
 {
+   EPNAME("TaskSetBuff");
    XrdSysMutexHelper rHelp(sessP->MutexP());
    XrdCl::XRootDStatus epStatus;
    XrdSsiRRInfo rrInfo;
@@ -238,7 +235,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
 
 // Check if this is a proper call or we have reached EOF
 //
-   DBG("Task "<<hex<<this<<dec<<" SetBuff Sync Status=" <<statName[tStat]);
+   DBG("Sync Status=" <<statName[tStat]);
    if (tStat != isReady)
       {if (tStat == isDone) return 0;
        eInfo.Set("Stream is not active", ENODEV);
@@ -269,13 +266,14 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
   
 bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
 {
+   EPNAME("TaskSetBuff");
    XrdSysMutexHelper rHelp(sessP->MutexP());
    XrdCl::XRootDStatus epStatus;
    XrdSsiRRInfo rrInfo;
 
 // Check if this is a proper call or we have reached EOF
 //
-   DBG("Task "<<hex<<this<<dec<<" SetBuff Async Status=" <<statName[tStat]);
+   DBG("Async Status=" <<statName[tStat]);
    if (tStat != isReady)
       {reqP->eInfo.Set("Stream is not active", ENODEV);
        return false;

@@ -17,6 +17,7 @@ add_library(
 XrdSsi/XrdSsiClient.cc
                                        XrdSsi/XrdSsiCluster.hh
 XrdSsi/XrdSsiCms.cc                    XrdSsi/XrdSsiCms.hh
+XrdSsi/XrdSsiDebug.cc                  XrdSsi/XrdSsiDebug.hh
 XrdSsi/XrdSsiDir.cc                    XrdSsi/XrdSsiDir.hh
                                        XrdSsi/XrdSsiErrInfo.hh
 XrdSsi/XrdSsiFile.cc                   XrdSsi/XrdSsiFile.hh
