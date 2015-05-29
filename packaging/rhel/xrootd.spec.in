@@ -306,7 +306,6 @@ This package contains a set of CPPUnit tests for xrootd.
 %package client-compat
 Summary:	XRootD 3 compatibility client libraries
 Group:		System Environment/Libraries
-Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description client-compat
 This package contains compatibility libraries for xrootd 3 clients.
