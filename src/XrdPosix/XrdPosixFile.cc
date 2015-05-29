@@ -101,8 +101,13 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
 // Static function.
 // Called within a dedicated thread if XrdOucCacheIO is io-active.
 
-   XrdPosixFile* pf = (XrdPosixFile*)vpf;
-   delete pf;
+   XrdCl::XRootDStatus Status;
+   int wtCnt = 60;
+   XrdPosixFile* fP = (XrdPosixFile*)vpf;
+
+   while(fP->XCio->ioActive() && wtCnt--) sleep(1);
+   fP->Close(Status);
+   delete fP;
 
    return 0;
 }
