@@ -109,10 +109,13 @@ bool Prefetch::InitiateClose()
    clLog()->Debug(XrdCl::AppMsg, "Prefetch::Initiate close start", lPath());
    if (m_cfi.IsComplete()) return false;
 
-   m_stateCond.Lock();
-   if (m_started == false) return false;
+   XrdSysCondVarHelper monitor(m_stateCond);
    m_stopping = true;
-   m_stateCond.UnLock();
+   if (m_started == false)
+   {
+      m_stopped = true;
+      return false;
+   }
 
    return true;
 }
@@ -181,24 +184,32 @@ Prefetch::~Prefetch()
       Sync();
    }
 
-   // write statistics in *cinfo file
-   AppendIOStatToFileInfo();
-
-   clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close data file %p",(void*)this , lPath());
-
    if (m_output)
    {
+      clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close data file %p",(void*)this , lPath());
+
       m_output->Close();
       delete m_output;
       m_output = NULL;
+   }
+   else
+   {
+      clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close data file -- not opened %p",(void*)this , lPath());
    }
    if (m_infoFile)
    {
       clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close info file");
 
+      // write statistics in *cinfo file
+      AppendIOStatToFileInfo();
+
       m_infoFile->Close();
       delete m_infoFile;
       m_infoFile = NULL;
+   }
+   else
+   {
+      clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close info file -- not opened %p",(void*)this , lPath());
    }
 
    delete m_syncer;
@@ -284,7 +295,15 @@ Prefetch::Run()
 {
    {
       XrdSysCondVarHelper monitor(m_stateCond);
+
       if (m_started)
+      {
+         clLog()->Error(XrdCl::AppMsg, "Prefetch::Run() Already started for %s", lPath());
+         m_stopped = true;
+         return;
+      }
+
+      if (m_stopped)
       {
          return;
       }
@@ -297,10 +316,14 @@ Prefetch::Run()
       // Broadcast to possible io-read waiting objects
       m_stateCond.Broadcast();
 
-      if (m_failed) return;
+      if (m_failed)
+      {
+         m_stopped = true;
+         return;
+      }
    }
    assert(m_infoFile);
-   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() %s", lPath());
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() Starting loop over tasks for %s", lPath());
 
    Task* task;
    int numReadBlocks = 0;
