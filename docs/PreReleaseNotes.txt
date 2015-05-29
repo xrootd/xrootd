@@ -15,6 +15,3 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
-   * [Client] Make sure kXR_mkpath is set for classic copy jobs when
-     the destination is xrootd (backward compatability fix).
-
