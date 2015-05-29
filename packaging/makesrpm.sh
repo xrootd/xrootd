@@ -221,11 +221,12 @@ echo "[i] Creating the source RPM..."
 
 # Dirty, dirty hack!
 echo "%_sourcedir $RPMSOURCES" >> $TEMPDIR/rpmmacros
-rpmbuild --define "_topdir $TEMPDIR/rpmbuild"    \
-         --define "%_sourcedir $RPMSOURCES"      \
-         --define "%_srcrpmdir %{_topdir}/SRPMS" \
-         --define "_source_filedigest_algorithm md5" \
-         --define "_binary_filedigest_algorithm md5" \
+rpmbuild --define "_topdir $TEMPDIR/rpmbuild"          \
+         --define "%_sourcedir $RPMSOURCES"            \
+         --define "%_srcrpmdir %{_topdir}/SRPMS"       \
+         --define "_source_filedigest_algorithm md5"   \
+         --define "_binary_filedigest_algorithm md5"   \
+         --define "_with_compat ${XRD_WITH_COMPAT:=0}" \
   -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log
 if test $? -ne 0; then
   echo "[!] RPM creation failed" 1>&2
