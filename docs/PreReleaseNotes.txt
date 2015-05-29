@@ -8,6 +8,9 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * [Server/Proxy] Delay deleting a file object if the close was not successful.
+    This avoids deleting objects that may have pending activity resulting in an
+    eventual SEGV. This is a bypass fix to another problem.
 
 + **Minor bug fixes**
 
