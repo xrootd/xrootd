@@ -2,6 +2,11 @@
 # Project description
 #-------------------------------------------------------------------------------
 cmake_minimum_required( VERSION 2.6 )
+
+IF(CMAKE_VERSION VERSION_GREATER "2.8.12")
+   CMAKE_POLICY(SET CMP0022 OLD)
+ENDIF()
+
 project( XRootD )
 
 set( CMAKE_MODULE_PATH
