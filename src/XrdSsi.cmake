@@ -69,7 +69,8 @@ XrdSsi/XrdSsiShMat.cc                  XrdSsi/XrdSsiShMat.hh)
 
 target_link_libraries(
   XrdSsiShMap
-  ${ZLIB_LIBRARY} )
+  ${ZLIB_LIBRARY}
+  pthread )
 
 set_target_properties(
   XrdSsiShMap
