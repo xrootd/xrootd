@@ -15,3 +15,4 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * Use atomics to manipulate unlocked variable pollNum.
