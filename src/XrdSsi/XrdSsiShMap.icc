@@ -312,7 +312,6 @@ bool XrdSsi::ShMap<T>::Resize(XrdSsi::ShMap_Parms *parms)
 {
    XrdSsi::ShMap_Parms   rszParms(XrdSsi::ShMap_Parms::ForResize);
    XrdSsiShMat::CRZParms crzParms;
-   int rc;
 
 // First see if this object is already attached.
 //
