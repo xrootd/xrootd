@@ -5,6 +5,7 @@ from XRootD.client.flags import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
 from env import *
 import pytest
 import sys
+import os
 import inspect
 
 def test_filesystem():
@@ -67,7 +68,7 @@ def async(func, args, hasReturnObject):
 def test_copy_sync():
   c = client.FileSystem(SERVER_URL)
   f = client.File()
-  status, response = f.open(smallfile, OpenFlags.NEW)
+  status, response = f.open(smallfile, OpenFlags.DELETE)
   assert status.ok
   
   status, response = c.copy(smallfile, '/tmp/eggs', force=True)
@@ -75,6 +76,11 @@ def test_copy_sync():
   
   status, response = c.copy('/tmp/nonexistent', '/tmp/eggs')
   assert not status.ok
+
+  try:
+    os.remove('/tmp/eggs')
+  except OSError as __:
+    pass
 
 def test_locate_sync():
   c = client.FileSystem(SERVER_URL)

@@ -15,7 +15,7 @@ def test_copy_smallfile():
   c.add_job( source=smallfile, target=smallcopy, force=True )
   s = c.prepare()
   assert s.ok
-  s = c.run()
+  s, __ = c.run()
   assert s.ok
 
   f = client.File()
@@ -36,7 +36,7 @@ def test_copy_bigfile():
   c.add_job( source=bigfile, target=bigcopy, force=True )
   s = c.prepare()
   assert s.ok
-  s = c.run()
+  s, __ = c.run()
   assert s.ok
 
   f = client.File()
@@ -50,13 +50,13 @@ def test_copy_nojobs():
   c = client.CopyProcess()
   s = c.prepare()
   assert s.ok
-  s = c.run()
+  s, __ = c.run()
   assert s.ok
 
 def test_copy_noprep():
   c = client.CopyProcess()
   c.add_job( source=bigfile, target=bigcopy, force=True )
-  s = c.run()
+  s, __ = c.run()
   assert s.ok
 
 class TestProgressHandler():
@@ -65,11 +65,11 @@ class TestProgressHandler():
     print '+++ source: %s' % source
     print '+++ target: %s' % target
 
-  def end(self, status):
-    print '+++ end():', status
+  def end(self, jobId, status):
+    print '+++ end(): jobId: %s, status: %s'  % (jobId, status)
 
-  def update(self, processed, total):
-    print '+++ update(): processed: %d, total: %d' % (processed, total)
+  def update(self, jobId, processed, total):
+    print '+++ update(): jobid: %s, processed: %d, total: %d' % (jobId, processed, total)
 
 def test_copy_progress_handler():
   c = client.CopyProcess()

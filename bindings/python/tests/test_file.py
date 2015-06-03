@@ -6,6 +6,40 @@ from env import *
 import pytest
 import sys
 
+def test_write_sync():
+  f = client.File()
+  pytest.raises(ValueError, "f.write(smallbuffer)")
+  status, response = f.open(smallfile, OpenFlags.DELETE)
+  assert status.ok
+
+  status, response = f.write(smallbuffer)
+  assert status.ok
+  status, response = f.read()
+  assert status.ok
+  assert len(response) == len(smallbuffer)
+
+  buffer = 'eggs and ham\n'
+  status, response = f.write(buffer, offset=13, size=len(buffer) - 2)
+  assert status.ok
+  status, response = f.read()
+  assert status.ok
+  assert len(response) == len(buffer * 2) - 2
+  f.close()
+
+def test_write_async():
+  f = client.File()
+  status, response = f.open(smallfile, OpenFlags.DELETE)
+  assert status.ok
+
+  handler = AsyncResponseHandler()
+  status = f.write(smallbuffer, callback=handler)
+  status, response, hostlist = handler.wait()
+  assert status.ok
+  status, response = f.read()
+  assert status.ok
+  assert len(response) == len(smallbuffer)
+  f.close()
+
 def test_open_close_sync():
   f = client.File()
   pytest.raises(ValueError, "f.stat()")
@@ -36,42 +70,6 @@ def test_open_close_async():
   assert status.ok
   assert f.is_open() == False
 
-def test_write_sync():
-  f = client.File()
-  pytest.raises(ValueError, "f.write(smallbuffer)")
-  status, response = f.open(smallfile, OpenFlags.DELETE)
-  assert status.ok
-
-  status, response = f.write(smallbuffer)
-  assert status.ok
-  status, response = f.read()
-  assert status.ok
-  assert len(response) == len(smallbuffer)
-
-  buffer = 'eggs and ham\n'
-  status, response = f.write(buffer, offset=13, size=len(buffer) - 2)
-  assert status.ok
-  status, response = f.read()
-  assert status.ok
-  assert len(response) == len(buffer * 2) - 2
-
-  f.close()
-
-def test_write_async():
-  f = client.File()
-  status, response = f.open(smallfile, OpenFlags.DELETE)
-  assert status.ok
-
-  handler = AsyncResponseHandler()
-  status = f.write(smallbuffer, callback=handler)
-  status, response, hostlist = handler.wait()
-  assert status.ok
-  status, response = f.read()
-  assert status.ok
-  assert len(response) == len(smallbuffer)
-
-  f.close()
-
 def test_read_sync():
   f = client.File()
   pytest.raises(ValueError, 'f.read()')
@@ -100,7 +98,6 @@ def test_read_async():
   status, response, hostlist = handler.wait()
   assert status.ok
   assert len(response) == size
-
   f.close()
 
 def test_iter_small():
@@ -349,14 +346,9 @@ def test_misc():
   assert status.ok
   assert f.is_open()
 
-  pytest.raises(TypeError, "f.enable_read_recovery(enable='foo')")
-  f.enable_read_recovery(enable=True)
-
-  pytest.raises(TypeError, "f.enable_write_recovery(enable='foo')")
-  f.enable_write_recovery(enable=True)
-
-  assert f.get_data_server()
-  pytest.raises(TypeError, 'f.get_data_server("invalid_arg")')
+  f.set_property("ReadRecovery", "true")
+  f.set_property("WriteRecovery", "true")
+  assert f.get_property("DataServer")
 
   # testing context manager
   f.close()
