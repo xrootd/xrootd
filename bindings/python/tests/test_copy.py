@@ -59,7 +59,7 @@ def test_copy_noprep():
   s, __ = c.run()
   assert s.ok
 
-class TestProgressHandler():
+class TestProgressHandler(object):
   def begin(self, id, total, source, target):
     print '+++ begin(): %d, total: %d' % (id, total)
     print '+++ source: %s' % source

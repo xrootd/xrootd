@@ -79,7 +79,7 @@ def test_copy_sync():
 
   try:
     os.remove('/tmp/eggs')
-  except OSError as __:
+  except OSError, __:
     pass
 
 def test_locate_sync():
