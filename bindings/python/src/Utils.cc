@@ -35,7 +35,7 @@ namespace PyXRootD
     if ( !PyCallable_Check( callable ) ) {
       PyErr_SetString( PyExc_TypeError,
                       "callback must be callable function, class or lambda" );
-      return NULL;
+      return false;
     }
     // We need to keep this callback
     Py_INCREF( callable );
