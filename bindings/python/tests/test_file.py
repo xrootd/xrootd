@@ -1,25 +1,34 @@
 from XRootD import client
 from XRootD.client.utils import AsyncResponseHandler
-from XRootD.client.flags import OpenFlags
+from XRootD.client.flags import OpenFlags, AccessMode
 from env import *
 
 import pytest
 import sys
+import os
+
+# Global open mode
+open_mode = (AccessMode.UR | AccessMode.UW |
+             AccessMode.GR | AccessMode.GW |
+             AccessMode.OR | AccessMode.OW)
 
 def test_write_sync():
   f = client.File()
   pytest.raises(ValueError, "f.write(smallbuffer)")
-  status, response = f.open(smallfile, OpenFlags.DELETE)
+  status, __ = f.open(smallfile, OpenFlags.DELETE, open_mode )
   assert status.ok
 
-  status, response = f.write(smallbuffer)
+  # Write
+  status, __ = f.write(smallbuffer)
   assert status.ok
+
+  # Read
   status, response = f.read()
   assert status.ok
   assert len(response) == len(smallbuffer)
 
   buffer = 'eggs and ham\n'
-  status, response = f.write(buffer, offset=13, size=len(buffer) - 2)
+  status, __ = f.write(buffer, offset=13, size=len(buffer) - 2)
   assert status.ok
   status, response = f.read()
   assert status.ok
@@ -28,13 +37,16 @@ def test_write_sync():
 
 def test_write_async():
   f = client.File()
-  status, response = f.open(smallfile, OpenFlags.DELETE)
+  status, __ = f.open(smallfile, OpenFlags.DELETE, open_mode)
   assert status.ok
 
+  # Write async
   handler = AsyncResponseHandler()
   status = f.write(smallbuffer, callback=handler)
-  status, response, hostlist = handler.wait()
+  status, __, __ = handler.wait()
   assert status.ok
+
+  # Read sync
   status, response = f.read()
   assert status.ok
   assert len(response) == len(smallbuffer)
@@ -43,11 +55,12 @@ def test_write_async():
 def test_open_close_sync():
   f = client.File()
   pytest.raises(ValueError, "f.stat()")
-  status, response = f.open(smallfile, OpenFlags.READ)
+  status, __ = f.open(smallfile, OpenFlags.READ)
   assert status.ok
   assert f.is_open()
 
-  status, response = f.close()
+  # Close
+  status, __ = f.close()
   assert status.ok
   assert f.is_open() == False
   pytest.raises(ValueError, "f.stat()")
@@ -59,16 +72,101 @@ def test_open_close_async():
   handler = AsyncResponseHandler()
   status = f.open(smallfile, OpenFlags.READ, callback=handler)
   assert status.ok
-  status, response, hostlist = handler.wait()
+  status, __, __ = handler.wait()
   assert status.ok
   assert f.is_open()
 
+  # Close async
   handler = AsyncResponseHandler()
   status = f.close(callback=handler)
   assert status.ok
-  status, response, hostlist = handler.wait()
+  status, __, __ = handler.wait()
   assert status.ok
   assert f.is_open() == False
+
+def test_io_limits():
+  f = client.File()
+  pytest.raises(ValueError, 'f.read()')
+  status, __ = f.open(smallfile, OpenFlags.UPDATE)
+  assert status.ok
+  status, __ = f.stat()
+  assert status.ok
+
+  # Test read limits
+  pytest.raises(TypeError, 'f.read(0, [1, 2])')
+  pytest.raises(TypeError, 'f.read([1, 2], 0)')
+  pytest.raises(TypeError, 'f.read(0, 10, [0, 1, 2])')
+  pytest.raises(OverflowError, 'f.read(0, -10)')
+  pytest.raises(OverflowError, 'f.read(-1, 1)')
+  pytest.raises(OverflowError, 'f.read(0, 1, -1)')
+  pytest.raises(OverflowError, 'f.read(0, 10**11)')
+  pytest.raises(OverflowError, 'f.read(0, 10, 10**6)')
+
+  # Test readline limits
+  pytest.raises(TypeError, 'f.readline([0, 1], 1)')
+  pytest.raises(TypeError, 'f.readline(0, [0, 1])')
+  pytest.raises(TypeError, 'f.readline(0, 10, [0, 1])')
+  pytest.raises(OverflowError, 'f.readline(-1, 1)')
+  pytest.raises(OverflowError, 'f.readline(0, -1)')
+  pytest.raises(OverflowError, 'f.readline(0, 1, -1)')
+  pytest.raises(OverflowError, 'f.readline(0, 10**11)')
+  pytest.raises(OverflowError, 'f.readline(0, 10, 10**11)')
+
+  # Test write limits
+  data = "data that will never get written"
+  pytest.raises(TypeError, 'f.write(data, 0, [1, 2])')
+  pytest.raises(TypeError, 'f.write(data, [1, 2], 0)')
+  pytest.raises(TypeError, 'f.write(data, 0, 10, [0, 1, 2])')
+  pytest.raises(OverflowError, 'f.write(data, 0, -10)')
+  pytest.raises(OverflowError, 'f.write(data, -1, 1)')
+  pytest.raises(OverflowError, 'f.write(data, 0, 1, -1)')
+  pytest.raises(OverflowError, 'f.write(data, 0, 10**11)')
+  pytest.raises(OverflowError, 'f.write(data, 0, 10, 10**6)')
+
+  # Test vector_read limits
+  pytest.raises(TypeError, 'f.vector_read(chunks=100)')
+  pytest.raises(TypeError, 'f.vector_read(chunks=[1,2,3])')
+  pytest.raises(TypeError, 'f.vector_read(chunks=[("lol", "cakes")])')
+  pytest.raises(TypeError, 'f.vector_read(chunks=[(1), (2)])')
+  pytest.raises(TypeError, 'f.vector_read(chunks=[(1, 2), (3)])')
+  pytest.raises(OverflowError, 'f.vector_read(chunks=[(-1, -100), (-100, -100)])')
+  pytest.raises(OverflowError, 'f.vector_read(chunks=[(0, 10**10*10)])')
+
+  # Test truncate limits
+  pytest.raises(TypeError, 'f.truncate(0, [1, 2])')
+  pytest.raises(TypeError, 'f.truncate([1, 2], 0)')
+  pytest.raises(OverflowError, 'f.truncate(-1)')
+  pytest.raises(OverflowError, 'f.truncate(100, -10)')
+  pytest.raises(OverflowError, 'f.truncate(0, 10**6)')
+  status, __ = f.close()
+  assert status.ok
+
+def test_write_big_async():
+  f = client.File()
+  pytest.raises(ValueError, 'f.read()')
+  status, __ = f.open(bigfile, OpenFlags.DELETE, open_mode)
+  assert status.ok
+
+  rand_data = os.urandom(64 * 1024)
+  max_size = 512 * 1024  # 512 K
+  offset = 0
+  lst_handlers = []
+
+  while offset <= max_size:
+    status, __ = f.write(smallbuffer)
+    assert status.ok
+    handler = AsyncResponseHandler()
+    lst_handlers.append(handler)
+    status = f.write(rand_data, offset, callback=handler)
+    assert status.ok
+    offset = offset + len(smallbuffer) + len(rand_data)
+
+  # Wait for async write responses
+  for handler in lst_handlers:
+    status, __, __ = handler.wait()
+    assert status.ok
+
+  f.close()
 
 def test_read_sync():
   f = client.File()
@@ -81,8 +179,6 @@ def test_read_sync():
   status, response = f.read()
   assert status.ok
   assert len(response) == size
-
-  # Test read offsets and sizes
   f.close()
 
 def test_read_async():
@@ -102,10 +198,10 @@ def test_read_async():
 
 def test_iter_small():
   f = client.File()
-  s, r = f.open(smallfile, OpenFlags.DELETE)
-  assert s.ok
-  s, r = f.write(smallbuffer)
-  assert s.ok
+  status, __ = f.open(smallfile, OpenFlags.DELETE)
+  assert status.ok
+  status, __ = f.write(smallbuffer)
+  assert status.ok
 
   size = f.stat(force=True)[1].size
   pylines = open('/tmp/spam').readlines()
@@ -121,7 +217,8 @@ def test_iter_small():
 
 def test_iter_big():
   f = client.File()
-  f.open(bigfile, OpenFlags.READ)
+  status, __ = f.open(bigfile, OpenFlags.READ)
+  assert status.ok
 
   size = f.stat()[1].size
   pylines = open('/tmp/bigfile').readlines()
@@ -137,7 +234,7 @@ def test_iter_big():
 
 def test_readline():
   f = client.File()
-  f.open(smallfile, OpenFlags.DELETE)
+  f.open(smallfile, OpenFlags.DELETE, open_mode)
   f.write(smallbuffer)
 
   response = f.readline(offset=0, size=100)
@@ -151,7 +248,7 @@ def test_readline():
   f.close()
 
   f = client.File()
-  f.open(smallfile, OpenFlags.DELETE)
+  f.open(smallfile, OpenFlags.DELETE, open_mode)
   f.write(smallbuffer[:-1])
   f.readline()
   f.readline()
@@ -162,10 +259,10 @@ def test_readline():
 
 def test_readlines_small():
   f = client.File()
-  f.open(smallfile, OpenFlags.DELETE)
+  f.open(smallfile, OpenFlags.DELETE, open_mode)
   f.write(smallbuffer)
+  f.close()
   pylines = open('/tmp/spam').readlines()
-  print pylines
 
   for i in range(1, 100):
     f = client.File()
@@ -233,53 +330,53 @@ def test_vector_read_sync():
   vlen = sum([vec[1] for vec in v])
 
   f = client.File()
-  pytest.raises(ValueError, 'f.vector_read(v)')
-  status, response = f.open(bigfile, OpenFlags.READ)
+  status, __ = f.open(bigfile, OpenFlags.READ)
   assert status.ok
-
-  pytest.raises(TypeError, 'f.vector_read(chunks=100)')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[1,2,3])')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[("lol", "cakes")])')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[(1), (2)])')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[(1, 2), (3)])')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[(-1, -100), (-100, -100)])')
-  pytest.raises(OverflowError, 'f.vector_read(chunks=[(0, 10**10*10)])')
-
-  f = client.File()
-  status, response = f.open(bigfile, OpenFlags.READ)
+  status, stat_info = f.stat()
   assert status.ok
   status, response = f.vector_read(chunks=v)
-  assert status.ok
-  assert response.size == vlen
-  for chunk in response:
-    print '%r' % chunk.buffer
+
+  # If big enough file everything shoud be ok
+  if (stat_info.size > max([off + sz for (off, sz) in v])):
+    assert status.ok
+    assert response.size == vlen
+  else:
+    # If file not big enough this should fail
+    status, __ = f.vector_read(chunks=v)
+    assert not status.ok
+
   f.close()
 
 def test_vector_read_async():
   v = [(0, 100), (101, 200), (201, 200)]
   vlen = sum([vec[1] for vec in v])
   f = client.File()
-  status, response = f.open(bigfile, OpenFlags.READ)
+  status, __ = f.open(bigfile, OpenFlags.READ)
   assert status.ok
-
+  status, stat_info = f.stat()
+  assert status.ok
   handler = AsyncResponseHandler()
   status = f.vector_read(chunks=v, callback=handler)
   assert status.ok
-  status, response, hostlist = handler.wait()
-  print response
-  print status
-  assert response.size == vlen
+
+  # If big enough file everything shoud be ok
+  if (stat_info.size > max([off + sz for (off, sz) in v])):
+    status, response, hostlist = handler.wait()
+    assert status.ok
+    assert response.size == vlen
+  else:
+    status, __, __ = handler.wait()
+    assert not status.ok
+
   f.close()
 
 def test_stat_sync():
   f = client.File()
   pytest.raises(ValueError, 'f.stat()')
-  status, response = f.open(bigfile)
-
+  status, __ = f.open(bigfile)
   assert status.ok
-  status, response = f.stat()
+  status, __ = f.stat()
   assert status.ok
-  assert response.size
   f.close()
 
 def test_stat_async():
@@ -290,18 +387,16 @@ def test_stat_async():
   handler = AsyncResponseHandler()
   status = f.stat(callback=handler)
   assert status.ok
-  status, response, hostlist = handler.wait()
+  status, __, __ = handler.wait()
   assert status.ok
-  assert response.size
   f.close()
 
 def test_sync_sync():
   f = client.File()
   pytest.raises(ValueError, 'f.sync()')
-  status, response = f.open(bigfile)
+  status, __ = f.open(bigfile)
   assert status.ok
-
-  status, response = f.sync()
+  status, __ = f.sync()
   assert status.ok
   f.close()
 
@@ -312,29 +407,29 @@ def test_sync_async():
 
   handler = AsyncResponseHandler()
   status = f.sync(callback=handler)
-  status, response, hostlist = handler.wait()
+  status, __, __ = handler.wait()
   assert status.ok
   f.close()
 
 def test_truncate_sync():
   f = client.File()
   pytest.raises(ValueError, 'f.truncate(10000)')
-  status, response = f.open(smallfile, OpenFlags.DELETE)
+  status, __ = f.open(smallfile, OpenFlags.DELETE)
   assert status.ok
 
-  status, response = f.truncate(size=10000)
+  status, __ = f.truncate(size=10000)
   assert status.ok
   f.close()
 
 def test_truncate_async():
   f = client.File()
-  status, response = f.open(smallfile, OpenFlags.DELETE)
+  status, __ = f.open(smallfile, OpenFlags.DELETE)
   assert status.ok
 
   handler = AsyncResponseHandler()
   status = f.truncate(size=10000, callback=handler)
   assert status.ok
-  status, response, hostlist = handler.wait()
+  status, __, __ = handler.wait()
   assert status.ok
   f.close()
 
@@ -342,14 +437,16 @@ def test_misc():
   f = client.File()
   assert not f.is_open()
 
+  # Open
   status, response = f.open(smallfile, OpenFlags.READ)
   assert status.ok
   assert f.is_open()
 
+  # Set/get file properties
   f.set_property("ReadRecovery", "true")
   f.set_property("WriteRecovery", "true")
   assert f.get_property("DataServer")
 
-  # testing context manager
+  # Testing context manager
   f.close()
   assert not f.is_open()
