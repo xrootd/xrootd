@@ -60,7 +60,8 @@ void *CacheDirCleanupThread(void* cache_void)
 
 
 Factory::Factory()
-   : m_log(0, "XrdFileCache_")
+   : m_log(0, "XrdFileCache_"),
+     m_cache(0)
 {}
 
 extern "C"
@@ -97,7 +98,9 @@ Factory &Factory::GetInstance()
 XrdOucCache *Factory::Create(Parms & parms, XrdOucCacheIO::aprParms * prParms)
 {
    clLog()->Info(XrdCl::AppMsg, "Factory::Create() new cache object");
-   return new Cache(m_stats);
+   assert(m_cache == 0);
+   m_cache = new Cache(m_stats); 
+   return m_cache;
 }
 
 
@@ -269,10 +272,10 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
       loff = snprintf(buff, sizeof(buff), "result\n"
                "\tpfc.cachedir %s\n"
                "\tpfc.blocksize %lld\n"
-               "\tpfc.nramread %d\n\tpfc.nramprefetch %d\n",
+               "\tpfc.nram %d\n\n",
                m_configuration.m_cache_dir.c_str() , 
                m_configuration.m_bufferSize, 
-               m_configuration.m_NRamBuffersRead, m_configuration.m_NRamBuffersPrefetch );
+               m_configuration.m_NRamBuffers );
 
       if (m_configuration.m_hdfsmode)
       {
@@ -360,13 +363,9 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
          return false;
       }
    }
-   else if (part == "nramread")
+   else if (part == "nram")
    {
-      m_configuration.m_NRamBuffersRead = ::atoi(config.GetWord());
-   }
-   else if (part == "nramprefetch")
-   {
-      m_configuration.m_NRamBuffersPrefetch = ::atoi(config.GetWord());
+      m_configuration.m_NRamBuffers = ::atoi(config.GetWord());
    }
    else if ( part == "hdfsmode" )
    {

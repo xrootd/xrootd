@@ -32,8 +32,6 @@
 #include "XrdFileCacheFactory.hh"
 
 
-XrdFileCache::Cache::WriteQ XrdFileCache::Cache::s_writeQ;
-
 using namespace XrdFileCache;
 void *ProcessWriteTaskThread(void* c)
 {
@@ -44,7 +42,8 @@ void *ProcessWriteTaskThread(void* c)
 
 Cache::Cache(XrdOucCacheStats & stats)
    : m_attached(0),
-     m_stats(stats)
+     m_stats(stats),
+     m_RAMblocks_used(0)
 {
    pthread_t tid;
    XrdSysThread::Run(&tid, ProcessWriteTaskThread, (void*)this, 0, "XrdFileCache WriteTasks ");
@@ -103,6 +102,7 @@ void Cache::getFilePathFromURL(const char* iUrl, std::string &result) const
    result = Factory::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 }
 
+// XXXX MT: is the following needed ???
 //______________________________________________________________________________
 bool
 Cache::HaveFreeWritingSlots()
@@ -166,5 +166,26 @@ Cache::ProcessWriteTasks()
 
       block->m_file->WriteBlockToDisk(block);
    }
+}
+//______________________________________________________________________________
+
+bool
+Cache::RequestRAMBlock()
+{
+   XrdSysMutexHelper lock(&m_RAMblock_mutex);
+   if ( m_RAMblocks_used > Factory::GetInstance().RefConfiguration().m_NRamBuffers )
+   {
+      m_RAMblocks_used++;
+      return true;
+   }
+
+   return false;
+}
+
+void
+Cache::RAMBlockReleased()
+{
+   XrdSysMutexHelper lock(&m_RAMblock_mutex);
+   m_RAMblocks_used--;
 }
 
