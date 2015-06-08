@@ -37,6 +37,10 @@ namespace XrdCl
    class Log;
 }
 
+namespace XrdFileCache {
+   class Cache;
+}
+
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
@@ -49,8 +53,7 @@ namespace XrdFileCache
          m_diskUsageLWM(-1),
          m_diskUsageHWM(-1),
          m_bufferSize(1024*1024),
-	 m_NRamBuffersRead(8),
-	 m_NRamBuffersPrefetch(1),
+	 m_NRamBuffers(8000),
          m_hdfsbsize(128*1024*1024) {}
 
       bool m_hdfsmode;      //!< flag for enabling block-level operation
@@ -61,8 +64,7 @@ namespace XrdFileCache
       long long m_diskUsageHWM;       //!< cache purge high water mark
 
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
-      int  m_NRamBuffersRead;         //!< number of read in-memory cache blocks
-      int  m_NRamBuffersPrefetch;     //!< number of prefetch in-memory cache blocks
+      int  m_NRamBuffers;             //!< number of total in-memory cache blocks
       long long m_hdfsbsize;          //!< used with m_hdfsmode, default 128MB
    };
 
@@ -143,6 +145,8 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void CacheDirCleanup();
 
+
+         Cache* GetCache() { return m_cache; }
       private:
          bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
@@ -161,6 +165,8 @@ namespace XrdFileCache
          std::map<std::string, long long> m_filesInQueue;
 
          Configuration     m_configuration; //!< configurable parameters
+
+         Cache*            m_cache;
    };
 }
 

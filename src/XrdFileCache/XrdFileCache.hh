@@ -68,23 +68,23 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Add downloaded block in write queue.
          //---------------------------------------------------------------------
-         static void AddWriteTask(Block* b, bool from_read);
+         void AddWriteTask(Block* b, bool from_read);
 
-         //---------------------------------------------------------------------
-         //! Check write queue size is not over limit.
-         //---------------------------------------------------------------------
-         static bool HaveFreeWritingSlots();
 
          //---------------------------------------------------------------------
          //!  \brief Remove blocks from write queue which belong to given prefetch.
          //! This method is used at the time of File destruction.
          //---------------------------------------------------------------------
-         static void RemoveWriteQEntriesFor(File *f);
+         void RemoveWriteQEntriesFor(File *f);
 
          //---------------------------------------------------------------------
          //! Separate task which writes blocks from ram to disk.
          //---------------------------------------------------------------------
-         static void ProcessWriteTasks();
+         void ProcessWriteTasks();
+
+         bool RequestRAMBlock();
+
+         void RAMBlockReleased();
 
       private:
          //! Decrease attached count. Called from IO::Detach().
@@ -100,6 +100,8 @@ namespace XrdFileCache
          unsigned int       m_attached; //!< number of attached IO objects
          XrdOucCacheStats  &m_stats;    //!< global cache usage statistics
 
+         XrdSysMutex        m_RAMblock_mutex; //!< central lock for this class
+         int                m_RAMblocks_used;
 
          struct WriteQ
          {
@@ -109,7 +111,7 @@ namespace XrdFileCache
              std::list<Block*>  queue;    //!< container
          };
 
-         static WriteQ s_writeQ;
+         WriteQ s_writeQ;
 
    };
 

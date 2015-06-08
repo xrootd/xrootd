@@ -64,6 +64,10 @@ public:
 };
 }
 
+namespace
+{
+   Cache* cache() {return Factory::GetInstance().GetCache();}
+}
 
 File::File(XrdOucCacheIO &inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
 m_input(inputIO),
@@ -91,7 +95,7 @@ m_block_cond(0)
 File::~File()
 {
    clLog()->Debug(XrdCl::AppMsg, "File::~File() %p %s", (void*)this, lPath());
-   Cache::RemoveWriteQEntriesFor(this);
+   cache()->RemoveWriteQEntriesFor(this);
    clLog()->Info(XrdCl::AppMsg, "File::~File() check write queues ...%s", lPath());
 
    // can I do anythong to stop waiting for asyc read callbacks ?
@@ -376,8 +380,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    //   passing the req to client is actually better.
    // unlock
 
-   const int MaxBlocksForRead = 16; // AMT Should be config var! Or even mutable for low client counts.
-
    m_block_cond.Lock();
 
    size_t msize =  m_block_map.size();
@@ -411,7 +413,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       else
       {
          // Is there room for one more RAM Block?
-         if ( msize < MaxBlocksForRead)
+         if ( cache()->RequestRAMBlock())
          {
             Block *b = RequestBlock(block_idx);
             inc_ref_count(b);
@@ -677,6 +679,9 @@ void File::dec_ref_count(Block* b)
         if (ret != 1) {
             clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
         }
+        else {
+           cache()->RAMBlockReleased();
+        }
     }
 }
 
@@ -693,7 +698,7 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
       b->m_downloaded = true;
       if (!m_stopping) { // AMT theoretically this should be under state lock, but then are double locks
         inc_ref_count(b);
-        XrdFileCache::Cache::AddWriteTask(b, true);
+        cache()->AddWriteTask(b, true);
       }
    }
    else
