@@ -85,7 +85,9 @@ m_stateCond(0), // We will explicitly lock the condition before use.
 m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
 m_non_flushed_cnt(0),
 m_in_sync(false),
-m_downloadCond(0)
+m_downloadCond(0),
+m_prefetchReadCnt(0),
+m_prefetchHitCnt(0)
 {
    clLog()->Debug(XrdCl::AppMsg, "File::File() %s", m_input.Path());
    Open();
@@ -221,7 +223,7 @@ bool File::Open()
    {
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
       clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_input.Path());
-      m_cfi.ResizeBits(ss);
+      m_cfi.ResizeBits(ss, Factory::GetInstance().RefConfiguration().m_prefetch);
       m_cfi.WriteHeader(m_infoFile);
    }
    else
@@ -359,6 +361,8 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
          return rs;
 
       total += rs;
+
+      CheckPrefetchStatDisk(*ii);
    } 
 
    return total;
@@ -507,6 +511,8 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
            overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
            memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
            bytes_read += size_to_copy;
+
+           CheckPrefetchStatRAM(*bi);
          }
          else // it has failed ... krap up.
          {
@@ -787,11 +793,39 @@ void File::Prefetch()
 
    // decrease counter of globally available blocks, resources already checked in global thread 
    cache()->RequestRAMBlock();
+   m_prefetchReadCnt++;
      
    Block *b = RequestBlock(block_idx, true);
    inc_ref_count(b);  
 }
 
+
+//______________________________________________________________________________
+void File::CheckPrefetchStatRAM(Block* b)
+{
+   if (Factory::GetInstance().RefConfiguration().m_prefetch) {
+      if (b->m_prefetch)
+         m_prefetchHitCnt++;
+   }
+}
+
+//______________________________________________________________________________
+void File::CheckPrefetchStatDisk(int idx)
+{
+   if (Factory::GetInstance().RefConfiguration().m_prefetch) {
+      if (m_cfi.TestPrefetchBit(idx))
+         m_prefetchHitCnt++;
+   }
+}
+
+//______________________________________________________________________________
+float File::GetPrefetchScore()
+{
+   if (m_prefetchReadCnt)
+      return  m_prefetchHitCnt/m_prefetchReadCnt;
+
+   return 0;
+}
 
 //==============================================================================
 
