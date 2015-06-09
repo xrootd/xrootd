@@ -272,9 +272,11 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
       loff = snprintf(buff, sizeof(buff), "result\n"
                "\tpfc.cachedir %s\n"
                "\tpfc.blocksize %lld\n"
+               "\tpfc.prefetch %d\n"
                "\tpfc.nram %d\n\n",
                m_configuration.m_cache_dir.c_str() , 
-               m_configuration.m_bufferSize, 
+               m_configuration.m_bufferSize,
+               m_configuration.m_prefetch, // AMT not sure what parsing should be
                m_configuration.m_NRamBuffers );
 
       if (m_configuration.m_hdfsmode)
@@ -283,7 +285,6 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
          snprintf(buff2, sizeof(buff2), "\tpfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
          loff += snprintf(&buff[loff], strlen(buff2), "%s", buff2);
       } 
-
 
       char  unameBuff[256];
       if (m_configuration.m_username.empty()) {
@@ -363,7 +364,11 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
          return false;
       }
    }
-   else if (part == "nram")
+   else if (part == "prefetch" )
+   {
+      m_configuration.m_prefetch = true;
+   }
+   else if (part == "nram" )
    {
       m_configuration.m_NRamBuffers = ::atoi(config.GetWord());
    }
