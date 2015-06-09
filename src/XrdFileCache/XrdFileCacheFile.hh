@@ -124,6 +124,9 @@ namespace XrdFileCache
 
       Stats           m_stats;      //!< cache statistics, used in IO detach
 
+      int             m_prefetchReadCnt;
+      int             m_prefetchHitCnt;
+
    public:
 
       //------------------------------------------------------------------------
@@ -167,6 +170,8 @@ namespace XrdFileCache
 
       void Prefetch();
 
+      float GetPrefetchScore();
+
    private:
       Block* RequestBlock(int i, bool prefetch);
 
@@ -178,6 +183,9 @@ namespace XrdFileCache
 
 
        long long BufferSize();
+
+      void CheckPrefetchStatRAM(Block* b);
+      void CheckPrefetchStatDisk(int idx);
 
       //! Short log alias.
       XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
