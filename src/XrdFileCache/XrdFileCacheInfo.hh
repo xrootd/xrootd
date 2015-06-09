@@ -79,12 +79,19 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void SetBitWriteCalled(int i);
 
+         //! \brief Mark block as written from prefetch
+         //!
+         //! @param i block index
+         //---------------------------------------------------------------------
+         void SetBitPrefetch(int i);
+
+
          //---------------------------------------------------------------------
          //! \brief Reserve buffer for fileSize/bufferSize bytes
          //!
          //! @param n number of file blocks
          //---------------------------------------------------------------------
-         void ResizeBits(int n);
+         void ResizeBits(int n, bool prefetch_stat = false);
 
          //---------------------------------------------------------------------
          //! \brief Rea load content from cinfo file into this object
@@ -141,6 +148,11 @@ namespace XrdFileCache
          bool TestBit(int i) const;
 
          //---------------------------------------------------------------------
+         //! Test if block at the given index is prefetched
+         //---------------------------------------------------------------------
+         bool TestPrefetchBit(int i) const;
+
+         //---------------------------------------------------------------------
          //! Get complete status
          //---------------------------------------------------------------------
          bool IsComplete() const;
@@ -186,6 +198,7 @@ namespace XrdFileCache
          int            m_sizeInBits; //!< number of file blocks
          unsigned char *m_buff_fetched;       //!< download state vector
          unsigned char *m_buff_write_called;  //!< disk written state vector
+         unsigned char *m_buff_prefetch;  //!< prefetch state vector
          int            m_accessCnt;  //!< number of written AStat structs
          bool           m_complete;   //!< cached
    };
@@ -197,6 +210,16 @@ namespace XrdFileCache
 
       int off = i - cn*8;
       return (m_buff_fetched[cn] & cfiBIT(off)) == cfiBIT(off);
+   }
+
+   // AMT  could have only one function to test bit and pass an argument, but would loose clarity
+   inline bool Info::TestPrefetchBit(int i) const
+   {
+      int cn = i/8;
+      assert(cn < GetSizeInBytes());
+
+      int off = i - cn*8;
+      return (m_buff_prefetch[cn] & cfiBIT(off)) == cfiBIT(off);
    }
 
 
@@ -259,6 +282,16 @@ namespace XrdFileCache
       int off = i - cn*8;
       m_buff_fetched[cn] |= cfiBIT(off);
    }
+
+   inline void Info::SetBitPrefetch(int i)
+   {
+      int cn = i/8;
+      assert(cn < GetSizeInBytes());
+
+      int off = i - cn*8;
+      m_buff_prefetch[cn] |= cfiBIT(off);
+   }
+
 
    inline long long Info::GetBufferSize() const
    {
