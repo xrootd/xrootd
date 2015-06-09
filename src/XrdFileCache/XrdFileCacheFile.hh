@@ -59,12 +59,13 @@ namespace XrdFileCache
       std::vector<char>   m_buff;
       long long           m_offset;
       File               *m_file;
+      bool                m_prefetch;
       int                 m_refcnt;
       int                 m_errno;
       bool                m_downloaded;
 
-      Block(File *f, long long off, int size) :
-         m_offset(off), m_file(f), m_refcnt(0),
+      Block(File *f, long long off, int size, bool m_prefetch) :
+         m_offset(off), m_file(f), m_prefetch(false), m_refcnt(0),
          m_errno(0), m_downloaded(false)
       {
          m_buff.resize(size);
@@ -100,8 +101,6 @@ namespace XrdFileCache
 
       XrdSysCondVar m_stateCond; //!< state condition variable
 
-      XrdSysMutex m_downloadStatusMutex; //!< mutex locking access to m_cfi object
-
       // fsync
       XrdSysMutex m_syncStatusMutex; //!< mutex locking fsync status
       XrdJob *m_syncer;
@@ -121,7 +120,7 @@ namespace XrdFileCache
 
       BlockMap_t      m_block_map;
 
-      XrdSysCondVar   m_block_cond;
+      XrdSysCondVar   m_downloadCond;
 
       Stats           m_stats;      //!< cache statistics, used in IO detach
 
@@ -166,8 +165,10 @@ namespace XrdFileCache
       void ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status);
       void WriteBlockToDisk(Block* b);
 
+      void Prefetch();
+
    private:
-      Block* RequestBlock(int i);
+      Block* RequestBlock(int i, bool prefetch);
 
       int    RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
                                 char* buff, long long req_off, long long req_size);
