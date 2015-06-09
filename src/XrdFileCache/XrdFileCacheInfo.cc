@@ -49,18 +49,23 @@ Info::~Info()
 {
    if (m_buff_fetched) free(m_buff_fetched);
    if (m_buff_write_called) free(m_buff_write_called);
+   if (m_buff_prefetch) free(m_buff_prefetch);
 }
 
 //______________________________________________________________________________
 
 
-void Info::ResizeBits(int s)
+void Info::ResizeBits(int s, bool prefetch_stat)
 {
    m_sizeInBits = s;
    m_buff_fetched = (unsigned char*)malloc(GetSizeInBytes());
    m_buff_write_called = (unsigned char*)malloc(GetSizeInBytes());
    memset(m_buff_fetched, 0, GetSizeInBytes());
    memset(m_buff_write_called, 0, GetSizeInBytes());
+   if (prefetch_stat) {
+      m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
+      memset(m_buff_prefetch, 0, GetSizeInBytes());
+   }
 }
 
 //______________________________________________________________________________
