@@ -19,6 +19,8 @@ Prerelease Notes
     eventual SEGV. This is a bypass fix to another problem.
 
 + **Minor bug fixes**
+  * Correctly handle copying into a non-existent directory when automatic
+    path creation is enabled.
 
 + **Miscellaneous**
   * Use atomics to manipulate unlocked variable pollNum.
