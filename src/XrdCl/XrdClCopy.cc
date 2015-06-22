@@ -653,8 +653,12 @@ int main( int argc, char **argv )
     FileSystem fs( target );
     StatInfo *statInfo = 0;
     XRootDStatus st = fs.Stat( target.GetPath(), statInfo );
-    if( st.IsOK() && statInfo->TestFlags( StatInfo::IsDir ) )
-      targetIsDir = true;
+    if( st.IsOK() )
+      {if (statInfo->TestFlags( StatInfo::IsDir ) ) targetIsDir = true;}
+      else if (st.errNo == kXR_NotFound && config.Want( XrdCpConfig::DoPath ))
+              {int n = strlen(config.dstFile->Path);
+               if (config.dstFile->Path[n-1] == '/') targetIsDir = true;
+              }
 
     delete statInfo;
   }
