@@ -18,11 +18,13 @@
 
 #include <fcntl.h>
 #include <sstream>
+#include <algorithm>
 #include <sys/statvfs.h>
 
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
@@ -33,6 +35,7 @@
 
 
 using namespace XrdFileCache;
+
 void *ProcessWriteTaskThread(void* c)
 {
    Cache *cache = static_cast<Cache*>(c);
@@ -40,14 +43,26 @@ void *ProcessWriteTaskThread(void* c)
    return NULL;
 }
 
-Cache::Cache(XrdOucCacheStats & stats)
-   : m_attached(0),
+void *PrefetchThread(void* ptr)
+{
+   Cache* cache = static_cast<Cache*>(ptr);
+   cache->Prefetch();
+   return NULL;
+}
+//______________________________________________________________________________
+
+
+Cache::Cache(XrdOucCacheStats & stats) : XrdOucCache(),
      m_stats(stats),
      m_RAMblocks_used(0)
 {
-   pthread_t tid;
-   XrdSysThread::Run(&tid, ProcessWriteTaskThread, (void*)this, 0, "XrdFileCache WriteTasks ");
+   pthread_t tid1;
+   XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)this, 0, "XrdFileCache WriteTasks ");
+
+   pthread_t tid2;
+   XrdSysThread::Run(&tid2, PrefetchThread, (void*)this, 0, "XrdFileCache Prefetch ");
 }
+
 //______________________________________________________________________________
 
 XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
@@ -55,10 +70,6 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
    if (Factory::GetInstance().Decide(io))
    {
       clLog()->Info(XrdCl::AppMsg, "Cache::Attach() %s", io->Path());
-      {
-         XrdSysMutexHelper lock(&m_io_mutex);
-         m_attached++;
-      }
       IO* cio;
       if (Factory::GetInstance().RefConfiguration().m_hdfsmode)
          cio = new IOFileBlock(*io, m_stats, *this);
@@ -78,17 +89,13 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 
 int Cache::isAttached()
 {
-   XrdSysMutexHelper lock(&m_io_mutex);
-   return m_attached;
+    // virutal function of XrdOucCache, don't see it used in pfc or posix layer
+    return true;
 }
 
 void Cache::Detach(XrdOucCacheIO* io)
 {
    clLog()->Info(XrdCl::AppMsg, "Cache::Detach() %s", io->Path());
-   {
-      XrdSysMutexHelper lock(&m_io_mutex);
-      m_attached--;
-   }
 
    delete io;
 }
@@ -167,6 +174,7 @@ Cache::ProcessWriteTasks()
       block->m_file->WriteBlockToDisk(block);
    }
 }
+
 //______________________________________________________________________________
 
 bool
@@ -178,7 +186,6 @@ Cache::RequestRAMBlock()
       m_RAMblocks_used++;
       return true;
    }
-
    return false;
 }
 
@@ -189,3 +196,84 @@ Cache::RAMBlockReleased()
    m_RAMblocks_used--;
 }
 
+
+//==============================================================================
+//=======================  PREFETCH ===================================
+//==============================================================================
+
+namespace {
+struct prefetch_less_than
+{
+    inline bool operator() (const File* struct1, const File* struct2)
+    {
+        return (struct1->GetPrefetchScore() < struct2->GetPrefetchScore());
+    }
+}myobject;
+}
+//______________________________________________________________________________
+
+void
+Cache::RegisterPrefetchFile(File* file)
+{
+    //  called from File::Open()
+
+    if (Factory::GetInstance().RefConfiguration().m_prefetch)
+    {
+        if (Factory::GetInstance().RefConfiguration().m_hdfsmode) {
+            XrdSysMutexHelper lock(&m_prefetch_mutex);
+            m_files.push_back(file);
+        }
+        else 
+        {
+            // don't need to lock it becuse it File object is created in constructor of IOEntireFile
+            m_files.push_back(file);
+        }
+    }
+}
+//______________________________________________________________________________
+
+void
+Cache::DeRegisterPrefetchFile(File* file)
+{
+   //  called from last line File::InitiateClose()
+
+   XrdSysMutexHelper lock(&m_prefetch_mutex);
+   for (FileList::iterator it = m_files.begin(); it != m_files.end(); ++it) {
+      if (*it == file) {
+         m_files.erase(it);
+         break;
+      }
+   }
+}
+//______________________________________________________________________________
+
+File* 
+Cache::GetNextFileToPrefetch()
+{
+   XrdSysMutexHelper lock(&m_prefetch_mutex);
+   if (m_files.empty())
+      return 0;
+
+   std::sort(m_files.begin(), m_files.end(), myobject);
+   File* f = m_files.back();
+   f->MarkPrefetch();
+   return f;
+}
+
+//______________________________________________________________________________
+
+
+void 
+Cache::Prefetch()
+{
+   while (true) {
+      File* f = GetNextFileToPrefetch();
+      if (f) {
+         f->Prefetch();
+      }
+      else {
+         // wait for new file, AMT should I wait for the signal instead ???
+         XrdSysTimer::Wait(10);
+      }
+   }
+}
