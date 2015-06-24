@@ -126,8 +126,8 @@ namespace XrdFileCache
 
       int             m_prefetchReadCnt;
       int             m_prefetchHitCnt;
+      int             m_prefetchScore; //cached
       int             m_prefetchCurrentCnt;
-      // AMT should I cache prefetch score for optimization of Cache::getNextFileToPrefetch() ???
 
    public:
 

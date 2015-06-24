@@ -88,6 +88,7 @@ m_in_sync(false),
 m_downloadCond(0),
 m_prefetchReadCnt(0),
 m_prefetchHitCnt(0),
+m_prefetchScore(1),
 m_prefetchCurrentCnt(0)
 {
    clLog()->Debug(XrdCl::AppMsg, "File::File() %s", m_input.Path());
@@ -805,7 +806,7 @@ void File::Prefetch()
 
          if (cache()->RequestRAMBlock()) {
             m_prefetchReadCnt++;
-
+            m_prefetchScore = m_prefetchHitCnt/m_prefetchReadCnt;
             Block *b = RequestBlock(block_idx, true);
             inc_ref_count(b);
          }
@@ -820,8 +821,10 @@ void File::Prefetch()
 void File::CheckPrefetchStatRAM(Block* b)
 {
    if (Factory::GetInstance().RefConfiguration().m_prefetch) {
-      if (b->m_prefetch)
+      if (b->m_prefetch) {
          m_prefetchHitCnt++;
+         m_prefetchScore = m_prefetchHitCnt/m_prefetchReadCnt;
+      }
    }
 }
 
@@ -837,10 +840,7 @@ void File::CheckPrefetchStatDisk(int idx)
 //______________________________________________________________________________
 float File::GetPrefetchScore() const
 {
-   if (m_prefetchReadCnt)
-      return  m_prefetchHitCnt/m_prefetchReadCnt;
-
-   return 1; // AMT not sure if this should be 0.5 ... ????
+   return m_prefetchScore;
 }
 
 //______________________________________________________________________________
