@@ -561,7 +561,7 @@ namespace
       virtual ~XRootDSource()
       {
         CleanUpChunks();
-        pFile->Close();
+        XrdCl::XRootDStatus status = pFile->Close();
         delete pFile;
       }
 
@@ -754,7 +754,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~XRootDSourceDynamic()
       {
-        pFile->Close();
+        XrdCl::XRootDStatus status = pFile->Close();
         delete pFile;
       }
 
