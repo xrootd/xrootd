@@ -96,7 +96,6 @@ namespace XrdFileCache
       long long       m_offset;         //!< offset of cached file for block-based operation
       long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
-      bool m_failed; //!< reading from original source or writing to disk has failed
       bool m_stopping; //!< run thread should be stopped
 
       XrdSysCondVar m_stateCond; //!< state condition variable
