@@ -85,7 +85,7 @@ XrdPosixFile::~XrdPosixFile()
 
 // Close the remote connection
 //
-   if (clFile.IsOpen()) {XRootDStatus status = clFile.Close()};
+   if (clFile.IsOpen()) {XrdCl::XRootDStatus status = clFile.Close();};
 
 // Free the path
 //
