@@ -87,7 +87,8 @@ m_non_flushed_cnt(0),
 m_in_sync(false),
 m_downloadCond(0),
 m_prefetchReadCnt(0),
-m_prefetchHitCnt(0)
+m_prefetchHitCnt(0),
+m_prefetchCurrentCnt(0)
 {
    clLog()->Debug(XrdCl::AppMsg, "File::File() %s", m_input.Path());
    Open();
@@ -104,14 +105,17 @@ File::~File()
    {
       m_stateCond.Lock();
       bool isStopped = m_stopping;
+      bool isPrefetching = (m_prefetchCurrentCnt > 0);
       m_stateCond.UnLock();
-      if (isStopped)
+      if ((isPrefetching == false) && isStopped)
       {
-         printf("~FILE map size %ld \n", m_block_map.size());
-         if ( m_block_map.empty())
+         m_downloadCond.Lock();
+         bool blockMapEmpty =  m_block_map.empty();
+         m_downloadCond.UnLock();
+         if ( blockMapEmpty)
             break;
       }
-      XrdSysTimer::Wait(100);
+      XrdSysTimer::Wait(10);
    }
    clLog()->Debug(XrdCl::AppMsg, "File::~File finished with writing %s",lPath() );
 
@@ -159,9 +163,12 @@ bool File::InitiateClose()
 {
    // Retruns true if delay is needed
    clLog()->Debug(XrdCl::AppMsg, "File::Initiate close start", lPath());
+
+   cache()->DeRegisterPrefetchFile(this);
+
    m_stateCond.Lock();
    m_stopping = true;
-   m_stateCond.UnLock();
+   m_stateCond.UnLock(); 
    if (m_cfi.IsComplete()) return false; // AMT maybe map size is here more meaningfull, but might hold block state lock
    return true;
 }
@@ -231,6 +238,8 @@ bool File::Open()
       clLog()->Debug(XrdCl::AppMsg, "Info file read from disk: %s", m_input.Path());
    }
 
+
+   cache()->RegisterPrefetchFile(this);
    return true;
 }
 
@@ -770,33 +779,40 @@ void File::AppendIOStatToFileInfo()
 //______________________________________________________________________________
 void File::Prefetch()
 {
-   int block_idx = -1;
-   
-   XrdSysCondVarHelper _lck(m_downloadCond);
-   // AMT can this be sorted before calling Prefetch ??
-   if (m_cfi.IsComplete()) return;
+   bool stopping = false;
+   m_stateCond.Lock();
+   stopping = m_stopping;
+   m_stateCond.UnLock();
 
-   // check index not on disk and not in RAM
-   for (int f = 0; f < m_cfi.GetSizeInBits(); ++f)
-   {
-      if (!m_cfi.TestBit(f))
-      {    
-         BlockMap_i bi = m_block_map.find(block_idx);
-         if (bi == m_block_map.end()) {
-            block_idx = f;
-            break;
+   
+   if (!stopping) {
+      XrdSysCondVarHelper _lck(m_downloadCond);
+      if (m_cfi.IsComplete() == false)
+      {
+         int block_idx = -1;
+         // check index not on disk and not in RAM
+         for (int f = 0; f < m_cfi.GetSizeInBits(); ++f)
+         {
+            if (!m_cfi.TestBit(f))
+            {    
+               BlockMap_i bi = m_block_map.find(block_idx);
+               if (bi == m_block_map.end()) {
+                  block_idx = f;
+                  break;
+               }
+            }
+         }
+
+         if (cache()->RequestRAMBlock()) {
+            m_prefetchReadCnt++;
+
+            Block *b = RequestBlock(block_idx, true);
+            inc_ref_count(b);
          }
       }
    }
-   
-   assert(block_idx >= 0);
 
-   // decrease counter of globally available blocks, resources already checked in global thread 
-   cache()->RequestRAMBlock();
-   m_prefetchReadCnt++;
-     
-   Block *b = RequestBlock(block_idx, true);
-   inc_ref_count(b);  
+   UnMarkPrefetch();
 }
 
 
@@ -819,16 +835,33 @@ void File::CheckPrefetchStatDisk(int idx)
 }
 
 //______________________________________________________________________________
-float File::GetPrefetchScore()
+float File::GetPrefetchScore() const
 {
    if (m_prefetchReadCnt)
       return  m_prefetchHitCnt/m_prefetchReadCnt;
 
-   return 0;
+   return 1; // AMT not sure if this should be 0.5 ... ????
+}
+
+//______________________________________________________________________________
+void File::MarkPrefetch()
+{
+   m_stateCond.Lock();
+   m_prefetchCurrentCnt++;
+   m_stateCond.UnLock();
+
+}
+
+//______________________________________________________________________________
+void File::UnMarkPrefetch()
+{
+   m_stateCond.Lock();
+   m_prefetchCurrentCnt--;
+   m_stateCond.UnLock();
 }
 
 //==============================================================================
-
+//==================    RESPONSE HANDLER      ==================================
 //==============================================================================
 
 void BlockResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
@@ -865,9 +898,3 @@ void DirectResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
 }
 
 
-
-//==============================================================================
-
-//==============================================================================
-
-//==============================================================================

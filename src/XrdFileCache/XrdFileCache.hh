@@ -86,6 +86,13 @@ namespace XrdFileCache
 
          void RAMBlockReleased();
 
+         void RegisterPrefetchFile(File*);
+         void DeRegisterPrefetchFile(File*);
+
+         File* GetNextFileToPrefetch();
+
+         void Prefetch();
+
       private:
          //! Decrease attached count. Called from IO::Detach().
          void Detach(XrdOucCacheIO *);
@@ -96,8 +103,7 @@ namespace XrdFileCache
          //! Short log alias.
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
-         XrdSysMutex        m_io_mutex; //!< central lock for this class
-         unsigned int       m_attached; //!< number of attached IO objects
+         XrdSysMutex        m_prefetch_mutex; //!< central lock for this class
          XrdOucCacheStats  &m_stats;    //!< global cache usage statistics
 
          XrdSysMutex        m_RAMblock_mutex; //!< central lock for this class
@@ -113,6 +119,9 @@ namespace XrdFileCache
 
          WriteQ s_writeQ;
 
+       // prefetching
+       typedef std::vector<File*>  FileList;
+       FileList  m_files;
    };
 
    //----------------------------------------------------------------------------

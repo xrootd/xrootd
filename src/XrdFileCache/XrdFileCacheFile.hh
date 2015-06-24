@@ -126,6 +126,8 @@ namespace XrdFileCache
 
       int             m_prefetchReadCnt;
       int             m_prefetchHitCnt;
+      int             m_prefetchCurrentCnt;
+      // AMT should I cache prefetch score for optimization of Cache::getNextFileToPrefetch() ???
 
    public:
 
@@ -170,7 +172,9 @@ namespace XrdFileCache
 
       void Prefetch();
 
-      float GetPrefetchScore();
+      float GetPrefetchScore() const;
+
+      void  MarkPrefetch();
 
    private:
       Block* RequestBlock(int i, bool prefetch);
@@ -186,6 +190,8 @@ namespace XrdFileCache
 
       void CheckPrefetchStatRAM(Block* b);
       void CheckPrefetchStatDisk(int idx);
+
+      void UnMarkPrefetch();
 
       //! Short log alias.
       XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
