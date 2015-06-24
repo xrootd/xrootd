@@ -77,8 +77,6 @@ m_infoFile(NULL),
 m_temp_filename(disk_file_path),
 m_offset(iOffset),
 m_fileSize(iFileSize),
-
-m_failed(false),
 m_stopping(false),
 m_stateCond(0), // We will explicitly lock the condition before use.
 
