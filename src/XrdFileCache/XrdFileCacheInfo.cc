@@ -39,7 +39,8 @@ using namespace XrdFileCache;
 Info::Info(long long iBufferSize) :
    m_version(0),
    m_bufferSize(iBufferSize),
-   m_sizeInBits(0), m_buff_fetched(0), m_buff_write_called(0),
+   m_sizeInBits(0),
+   m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
    m_accessCnt(0),
    m_complete(false)
 {
