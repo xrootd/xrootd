@@ -37,12 +37,11 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & c
      m_file(0)
 {
    clLog()->Info(XrdCl::AppMsg, "IO::IO() [%p] %s", this, m_io.Path());
-
-   std::string fname;
-   m_cache.getFilePathFromURL(io.Path(), fname);
+   
+   XrdCl::URL url(io.Path());
+   std::string fname = Factory::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
    m_file = new File(io, fname, 0, io.FSize());
-
 }
 
 IOEntireFile::~IOEntireFile()
