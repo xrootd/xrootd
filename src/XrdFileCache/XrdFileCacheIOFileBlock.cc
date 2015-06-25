@@ -86,8 +86,9 @@ void IOFileBlock::GetBlockSizeFromPath()
 //______________________________________________________________________________
 File* IOFileBlock::newBlockFile(long long off, int blocksize, XrdOucCacheIO*  io)
 {
-   std::string fname;
-   m_cache.getFilePathFromURL(io->Path(), fname);
+   XrdCl::URL url(io->Path());
+   std::string fname = Factory::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
+
    std::stringstream ss;
    ss << fname;
    char offExt[64];

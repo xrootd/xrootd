@@ -100,9 +100,8 @@ void Cache::Detach(XrdOucCacheIO* io)
    delete io;
 }
 
+// XXXX MT: is the following needed ???
 //______________________________________________________________________________
-
-
 void Cache::getFilePathFromURL(const char* iUrl, std::string &result) const
 {
    XrdCl::URL url(iUrl);
@@ -117,7 +116,6 @@ Cache::HaveFreeWritingSlots()
    const static size_t maxWriteWaits=500;
    return s_writeQ.size < maxWriteWaits;
 }
-
 
 //______________________________________________________________________________
 void

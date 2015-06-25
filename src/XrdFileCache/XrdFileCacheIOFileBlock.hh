@@ -23,8 +23,7 @@
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdFileCache.hh"
-#include "XrdFileCacheFile.hh"
+#include "XrdFileCacheIO.hh"
 
 class XrdSysError;
 class XrdOssDF;

@@ -21,6 +21,7 @@
 #include <string>
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdFileCacheIO.hh"
 #include "XrdFileCache.hh"
 #include "XrdFileCacheStats.hh"
 #include "XrdFileCacheFile.hh"
