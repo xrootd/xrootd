@@ -555,7 +555,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           TRACEI(REQ, " xrdhttptime not specified. Authentication failed.");
           return -1;
         }
-        if (abs((time(0) - tim) > XRHTTP_TK_GRACETIME)) {
+        if (abs(time(0) - tim) > XRHTTP_TK_GRACETIME) {
           TRACEI(REQ, " Token expired. Authentication failed.");
           return -1;
         }
