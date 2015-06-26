@@ -225,7 +225,7 @@ bool File::Open()
       return false;
    }
 
-   if (m_cfi.Read(m_infoFile) <= 0)
+   if (m_cfi.Read(m_infoFile, Factory::GetInstance().RefConfiguration().m_prefetch) <= 0)
    {
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
       clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_input.Path());
@@ -291,7 +291,7 @@ Block* File::RequestBlock(int i, bool prefetch)
    //
    // Reference count is 0 so increase it in calling function if you want to
    // catch the block while still in memory.
-    clLog()->Dump(XrdCl::AppMsg, "Request block %d ", i);
+   clLog()->Debug(XrdCl::AppMsg, "RequestBlock() %d pOn=(%d)", i, prefetch);
 
    XrdCl::File &client = ((XrdPosixFile*)(&m_input))->clFile;
 
@@ -306,6 +306,7 @@ Block* File::RequestBlock(int i, bool prefetch)
 
    client.Read(off, this_bs, (void*)b->get_buff(), new BlockResponseHandler(b));
 
+   clLog()->Debug(XrdCl::AppMsg, "RequestBlock() %d END", i);
    return b;
 }
 
@@ -347,7 +348,7 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
                              char* req_buf, long long req_off, long long req_size)
 {
 
-   clLog()->Dump(XrdCl::AppMsg, "ReadBlocksFromDisk %ld ", blocks.size());
+   clLog()->Dump(XrdCl::AppMsg, "File::ReadBlocksFromDisk %ld ", blocks.size());
    const long long BS = m_cfi.GetBufferSize();
 
    long long total = 0;
@@ -380,6 +381,8 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
 int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 {
+   clLog()->Dump(XrdCl::AppMsg, "File::Read() begin ");
+
    const long long BS = m_cfi.GetBufferSize();
 
    // lock
@@ -426,6 +429,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          // Is there room for one more RAM Block?
          if ( cache()->RequestRAMBlock())
          {
+            clLog()->Debug(XrdCl::AppMsg, "File::Read() request block to fetch %d", block_idx);
             Block *b = RequestBlock(block_idx, false);
             inc_ref_count(b);
             blks_to_process.push_back(b);
@@ -434,6 +438,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          // Nope ... read this directly without caching.
          else
          {
+            clLog()->Debug(XrdCl::AppMsg, "File::Read() direct block %d", block_idx);
             blks_direct.push_back(block_idx);
          }
       }
@@ -479,10 +484,10 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
            BlockList_i bi = blks_to_process.begin();
            while (bi != blks_to_process.end())
            {
-               clLog()->Dump(XrdCl::AppMsg, "searcing for blocks finished");
+               clLog()->Dump(XrdCl::AppMsg, "File::Read() searcing for blocks finished");
                if ((*bi)->is_finished())
                {
-                   clLog()->Dump(XrdCl::AppMsg, "found finished block");
+                   clLog()->Dump(XrdCl::AppMsg, "File::Read() found finished block");
                    finished.push_back(*bi);
                    BlockList_i bj = bi++;
                    blks_to_process.erase(bj);
@@ -496,11 +501,11 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
            if (finished.empty())
            {
 
-               clLog()->Dump(XrdCl::AppMsg, "wait block begin");
+               clLog()->Dump(XrdCl::AppMsg, "File::Read() wait block begin");
 
                m_downloadCond.Wait();
 
-               clLog()->Dump(XrdCl::AppMsg, "wait block end");
+               clLog()->Dump(XrdCl::AppMsg, "File::Read() wait block end");
 
                continue;
            }
@@ -515,7 +520,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
            long long off_in_block; // offset in block
            long long size_to_copy;    // size to copy
 
-           clLog()->Dump(XrdCl::AppMsg, "Block finished ok.");
+           clLog()->Dump(XrdCl::AppMsg, "File::Read() Block finished ok.");
            overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
            memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
            bytes_read += size_to_copy;
@@ -524,7 +529,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          }
          else // it has failed ... krap up.
          {
-            clLog()->Error(XrdCl::AppMsg, "Block finished with eorror.");
+            clLog()->Error(XrdCl::AppMsg, "File::Read() Block finished with eorror.");
             bytes_read = -1;
             errno = (*bi)->m_errno;
             break;
@@ -539,7 +544,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    // Fourth, make sure all direct requests have arrived
    if (direct_handler != 0)
    {
-      clLog()->Error(XrdCl::AppMsg, "Read() waiting for direct requests.");
+      clLog()->Error(XrdCl::AppMsg, "File::Read() waiting for direct requests.");
       XrdSysCondVarHelper _lck(direct_handler->m_cond);
 
       if (direct_handler->m_to_wait > 0)
@@ -785,29 +790,40 @@ void File::Prefetch()
 
    
    if (!stopping) {
+
+         clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch enter to check download status \n");
       XrdSysCondVarHelper _lck(m_downloadCond);
-      if (m_cfi.IsComplete() == false)
+         clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch enter to check download status BEGIN \n");
+      if (m_cfi.IsComplete() == false && m_block_map.size() < 1600)
       {
-         int block_idx = -1;
+         clLog()->Debug(XrdCl::AppMsg, "Prefetch::Prefetch begin, block size %ld", m_block_map.size());
+
          // check index not on disk and not in RAM
-         for (int f = 0; f < m_cfi.GetSizeInBits(); ++f)
+         bool found = false;
+         for (int f=0; f < m_cfi.GetSizeInBits(); ++f)
          {
+            clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch test bit %d", f);
             if (!m_cfi.TestBit(f))
             {    
-               BlockMap_i bi = m_block_map.find(block_idx);
+               BlockMap_i bi = m_block_map.find(f);
                if (bi == m_block_map.end()) {
-                  block_idx = f;
+                  clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch take block %d", f);
+                  Block *b = RequestBlock(f, true);
+                  inc_ref_count(b);
+                  m_prefetchReadCnt++;
+                  m_prefetchScore = m_prefetchHitCnt/m_prefetchReadCnt;
+                  found = true;
                   break;
                }
             }
          }
-
-         if (cache()->RequestRAMBlock()) {
-            m_prefetchReadCnt++;
-            m_prefetchScore = m_prefetchHitCnt/m_prefetchReadCnt;
-            Block *b = RequestBlock(block_idx, true);
-            inc_ref_count(b);
+         if (!found)  { 
+            clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch no free blcok found ");
+            m_cfi.CheckComplete();
+            if (m_cfi.IsComplete() == false)
+                  clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch This shoulf not happedn !!!"); 
          }
+         clLog()->Debug(XrdCl::AppMsg, "Prefetch::Prefetch end");
       }
    }
 
@@ -844,6 +860,8 @@ float File::GetPrefetchScore() const
 //______________________________________________________________________________
 void File::MarkPrefetch()
 {
+
+    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"File::MarkPrefetch()");
    m_stateCond.Lock();
    m_prefetchCurrentCnt++;
    m_stateCond.UnLock();
@@ -865,6 +883,7 @@ void File::UnMarkPrefetch()
 void BlockResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
                                           XrdCl::AnyObject    *response)
 {
+    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"BlockResponseHandler::HandleResponse()");
    m_block->m_file->ProcessBlockResponse(m_block, status);
 
    delete status;
@@ -878,7 +897,7 @@ void BlockResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
 void DirectResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
                                            XrdCl::AnyObject    *response)
 {
-    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"Direct block response");
+    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"DirectResponseHandler::HandleRespons()");
    XrdSysCondVarHelper _lck(m_cond);
 
    --m_to_wait;

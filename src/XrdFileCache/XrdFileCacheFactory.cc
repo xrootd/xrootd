@@ -310,6 +310,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
 bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
 {   
+   printf("part %s \n", part.c_str());
    XrdSysError err(0, "");
    if ( part == "user" )
    {
@@ -366,7 +367,9 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
    }
    else if (part == "prefetch" )
    {
+      printf("prefetch enabled !!!!\n");
       m_configuration.m_prefetch = true;
+      config.GetWord();
    }
    else if (part == "nram" )
    {
