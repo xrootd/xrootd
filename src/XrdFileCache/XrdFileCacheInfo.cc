@@ -56,14 +56,14 @@ Info::~Info()
 //______________________________________________________________________________
 
 
-void Info::ResizeBits(int s, bool prefetch_stat)
+void Info::ResizeBits(int s, bool init_prefetch_buff)
 {
    m_sizeInBits = s;
    m_buff_fetched = (unsigned char*)malloc(GetSizeInBytes());
    m_buff_write_called = (unsigned char*)malloc(GetSizeInBytes());
    memset(m_buff_fetched, 0, GetSizeInBytes());
    memset(m_buff_write_called, 0, GetSizeInBytes());
-   if (prefetch_stat) {
+   if (init_prefetch_buff) {
       m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
       memset(m_buff_prefetch, 0, GetSizeInBytes());
    }
@@ -72,7 +72,7 @@ void Info::ResizeBits(int s, bool prefetch_stat)
 //______________________________________________________________________________
 
 
-int Info::Read(XrdOssDF* fp)
+int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
 {
    // does not need lock, called only in File::Open
    // before File::Run() starts
@@ -95,6 +95,13 @@ int Info::Read(XrdOssDF* fp)
 
    off += fp->Read(&m_accessCnt, off, sizeof(int));
    clLog()->Dump(XrdCl::AppMsg, "Info:::Read() complete %d access_cnt %d", m_complete, m_accessCnt);
+
+
+   if (init_prefetch_buff) {
+      m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
+      memset(m_buff_prefetch, 0, GetSizeInBytes());
+   }
+
    return off;
 }
 

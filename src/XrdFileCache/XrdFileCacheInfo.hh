@@ -100,7 +100,7 @@ namespace XrdFileCache
          //!
          //! @return number of bytes read
          //---------------------------------------------------------------------
-         int Read(XrdOssDF* fp);
+      int Read(XrdOssDF* fp, bool init_prefetch = false);
 
          //---------------------------------------------------------------------
          //! Write number of blocks and read buffer size

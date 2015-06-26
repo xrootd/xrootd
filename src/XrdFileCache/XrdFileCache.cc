@@ -179,7 +179,7 @@ bool
 Cache::RequestRAMBlock()
 {
    XrdSysMutexHelper lock(&m_RAMblock_mutex);
-   if ( m_RAMblocks_used > Factory::GetInstance().RefConfiguration().m_NRamBuffers )
+   if ( m_RAMblocks_used < Factory::GetInstance().RefConfiguration().m_NRamBuffers )
    {
       m_RAMblocks_used++;
       return true;
@@ -249,8 +249,10 @@ File*
 Cache::GetNextFileToPrefetch()
 {
    XrdSysMutexHelper lock(&m_prefetch_mutex);
-   if (m_files.empty())
+   if (m_files.empty()) {
+      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::GetNextFileToPrefetch ... no open files");  
       return 0;
+   }
 
    std::sort(m_files.begin(), m_files.end(), myobject);
    File* f = m_files.back();
@@ -264,14 +266,18 @@ Cache::GetNextFileToPrefetch()
 void 
 Cache::Prefetch()
 {
+   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch thread start");
+  
    while (true) {
       File* f = GetNextFileToPrefetch();
+      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch got file (%p)", f);
+
       if (f) {
          f->Prefetch();
       }
       else {
          // wait for new file, AMT should I wait for the signal instead ???
-         XrdSysTimer::Wait(10);
+         XrdSysTimer::Wait(1);
       }
    }
 }
