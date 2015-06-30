@@ -71,12 +71,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Execute the given commandline
       //!
-      //! @param commandline the commandline to be executed, a space separated
-      //!                    list of parameters, first of which is the command
-      //!                    name
+      //! @param args : arguments for the commandline to be executed,
+      //!                    first of which is the command name
       //! @return            status of the execution
       //------------------------------------------------------------------------
-      XRootDStatus Execute( const std::string &commandline );
+      XRootDStatus Execute( const CommandParams & args);
 
       //------------------------------------------------------------------------
       //! Get the environment
@@ -87,6 +86,7 @@ namespace XrdCl
       }
 
     private:
+
       typedef std::map<std::string, Command> CommandMap;
       FileSystem  *pFS;
       Env         *pEnv;

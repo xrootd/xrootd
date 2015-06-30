@@ -1593,9 +1593,10 @@ FSExecutor *CreateExecutor( const URL &url )
 //------------------------------------------------------------------------------
 // Execute command
 //------------------------------------------------------------------------------
-int ExecuteCommand( FSExecutor *ex, const std::string &commandline )
+int ExecuteCommand( FSExecutor *ex, int argc, char **argv )
 {
-  XRootDStatus st = ex->Execute( commandline );
+  std::vector<std::string> args (argv, argv + argc);
+  XRootDStatus st = ex->Execute( args );
   if( !st.IsOK() )
     std::cerr << st.ToStr() << std::endl;
   return st.GetShellCode();
@@ -1653,6 +1654,68 @@ std::string BuildPrompt( Env *env, const URL &url )
   return prompt.str();
 }
 
+//------------------------------------------------------------------------
+//! parse command line
+//!
+//! @ result : command parameters
+//! @ input  : string containing the command line
+//! @ return : true if the command has been completed, false otherwise
+//------------------------------------------------------------------------
+bool getArguments (std::vector<std::string> & result, const std::string &input)
+{
+  // the delimiter (space in the case of command line)
+  static const char delimiter = ' ';
+  // two types of quotes: single and double quotes
+  const char singleQuote = '\'', doubleQuote = '\"';
+  // if the current character of the command has been
+  // quoted 'currentQuote' holds the type of quote,
+  // otherwise it holds the null character
+  char currentQuote = '\0';
+
+  std::string tmp;
+  for (std::string::const_iterator it = input.begin (); it != input.end (); ++it)
+  {
+    // if we encountered a quote character ...
+    if (*it == singleQuote || *it == doubleQuote)
+    {
+      // if we are not within quoted text ...
+      if (!currentQuote)
+      {
+        currentQuote = *it; // set the type of quote
+        continue; // and continue, the quote character itself is not a part of the parameter
+      }
+      // otherwise if it is the closing quote character ...
+      else if (currentQuote == *it)
+      {
+        currentQuote = '\0'; // reset the current quote type
+        continue; // and continue, the quote character itself is not a part of the parameter
+      }
+    }
+    // if we are within quoted text or the character is not a delimiter ...
+    if (currentQuote || *it != delimiter)
+      {
+        // concatenate it
+        tmp += *it;
+      }
+    else
+      {
+        // otherwise add a parameter and erase the tmp string
+        if (!tmp.empty ())
+        {
+          result.push_back(tmp);
+          tmp.erase ();
+        }
+      }
+    }
+  // if the there are some remainders of the command add them
+  if (!tmp.empty())
+  {
+    result.push_back(tmp);
+  }
+  // return true if the quotation has been closed
+  return currentQuote == '\0';
+}
+
 //------------------------------------------------------------------------------
 // Execute interactive
 //------------------------------------------------------------------------------
@@ -1670,10 +1733,14 @@ int ExecuteInteractive( const URL &url )
   //----------------------------------------------------------------------------
   // Execute the commands
   //----------------------------------------------------------------------------
+  std::string cmdline;
   while(1)
   {
     char *linebuf = 0;
-    linebuf = readline( BuildPrompt( ex->GetEnv(), url ).c_str() );
+    // print new prompt only if the previous line was complete
+    // (a line is considered not to be complete if a quote has
+    // been opened but it has not been closed)
+    linebuf = readline( cmdline.empty() ? BuildPrompt( ex->GetEnv(), url ).c_str() : "> " );
     if( !linebuf || !strncmp( linebuf, "exit", 4 ) || !strncmp( linebuf, "quit", 4 ) )
     {
       std::cout << "Goodbye." << std::endl << std::endl;
@@ -1684,11 +1751,17 @@ int ExecuteInteractive( const URL &url )
       free( linebuf );
       continue;
     }
-    XRootDStatus st = ex->Execute( linebuf );
-    add_history( linebuf );
+    std::vector<std::string> args;
+    cmdline += linebuf;
     free( linebuf );
-    if( !st.IsOK() )
-      std::cerr << st.ToStr() << std::endl;
+    if (getArguments( args, cmdline ))
+    {
+      XRootDStatus st = ex->Execute( args );
+      add_history( cmdline.c_str() );
+      cmdline.erase();
+      if( !st.IsOK() )
+        std::cerr << st.ToStr() << std::endl;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -1715,7 +1788,7 @@ int ExecuteCommand( const URL &url, int argc, char **argv )
   }
 
   FSExecutor *ex = CreateExecutor( url );
-  int st = ExecuteCommand( ex, commandline );
+  int st = ExecuteCommand( ex, argc, argv );
   delete ex;
   return st;
 }
