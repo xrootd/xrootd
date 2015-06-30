@@ -95,24 +95,37 @@ m_prefetchCurrentCnt(0)
 
 File::~File()
 {
-   clLog()->Debug(XrdCl::AppMsg, "File::~File() %p %s", (void*)this, lPath());
-   cache()->RemoveWriteQEntriesFor(this);
+    clLog()->Debug(XrdCl::AppMsg, "File::~File() %p %s", (void*)this, lPath());
+    /*
+    cache()->RemoveWriteQEntriesFor(this);
+    m_downloadCond.Lock();
+    for ( BlockMap_t::iterator it = m_block_map.begin(); it !=  m_block_map.end(); ++it)
+    {
+        if ((it)->second->m_downloaded || (it)->second->m_errno )
+            dec_ref_count(it->second);
+    }
+    m_downloadCond.UnLock();
+    */
    clLog()->Info(XrdCl::AppMsg, "File::~File() check write queues ...%s", lPath());
+   
 
-   // can I do anythong to stop waiting for asyc read callbacks ?
    while (true)
    {
       m_stateCond.Lock();
       bool isStopped = m_stopping;
       bool isPrefetching = (m_prefetchCurrentCnt > 0);
       m_stateCond.UnLock();
+
+      clLog()->Info(XrdCl::AppMsg, "File::~File() stopped %d isPrefetching %d ...%s", isStopped, isPrefetching, lPath());
       if ((isPrefetching == false) && isStopped)
       {
          m_downloadCond.Lock();
          bool blockMapEmpty =  m_block_map.empty();
+         int blocksize = (int)m_block_map.size();
          m_downloadCond.UnLock();
          if ( blockMapEmpty)
             break;
+         clLog()->Info(XrdCl::AppMsg, "File::~File() block size %d ", blocksize);
       }
       XrdSysTimer::Wait(10);
    }
@@ -123,7 +136,7 @@ File::~File()
    bool do_sync = false;
    {
       XrdSysMutexHelper _lck(&m_syncStatusMutex);
-      if (m_non_flushed_cnt > 0)
+      if (m_non_flushed_cnt > 0 || !m_writes_during_sync.empty())
       {
          do_sync = true;
          m_in_sync = true;
@@ -693,7 +706,7 @@ void File::dec_ref_count(Block* b)
     // AMT this function could actually be member of File ... would be nicer
     // called under block lock
     b-> m_refcnt--;
-    if ( b->m_refcnt == 0 ) {
+    if ( b->m_refcnt == 0 || ( b->m_prefetch && b->m_refcnt ==-1)) {
         int i = b->m_offset/BufferSize();
         size_t ret = m_block_map.erase(i);
         if (ret != 1) {
@@ -794,7 +807,7 @@ void File::Prefetch()
          clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch enter to check download status \n");
       XrdSysCondVarHelper _lck(m_downloadCond);
          clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch enter to check download status BEGIN \n");
-      if (m_cfi.IsComplete() == false && m_block_map.size() < 1600)
+      if (m_cfi.IsComplete() == false && m_block_map.size() < 100)
       {
          clLog()->Debug(XrdCl::AppMsg, "Prefetch::Prefetch begin, block size %ld", m_block_map.size());
 
@@ -808,8 +821,8 @@ void File::Prefetch()
                BlockMap_i bi = m_block_map.find(f);
                if (bi == m_block_map.end()) {
                   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch take block %d", f);
-                  Block *b = RequestBlock(f, true);
-                  inc_ref_count(b);
+                  RequestBlock(f, true);
+                  /// inc_ref_count(b); AMT don't increase it, there is no-one to annulate it 0
                   m_prefetchReadCnt++;
                   m_prefetchScore = m_prefetchHitCnt/m_prefetchReadCnt;
                   found = true;
