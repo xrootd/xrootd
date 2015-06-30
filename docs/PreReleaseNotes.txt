@@ -21,6 +21,7 @@ Prerelease Notes
 + **Minor bug fixes**
   * Correctly handle copying into a non-existent directory when automatic
     path creation is enabled.
+  * [XrdCl] xrdfs correctly handles quotations (fixes the problem with ALICE token)
 
 + **Miscellaneous**
   * Use atomics to manipulate unlocked variable pollNum.
