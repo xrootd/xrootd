@@ -1595,7 +1595,13 @@ FSExecutor *CreateExecutor( const URL &url )
 //------------------------------------------------------------------------------
 int ExecuteCommand( FSExecutor *ex, int argc, char **argv )
 {
-  std::vector<std::string> args (argv, argv + argc);
+  // std::vector<std::string> args (argv, argv + argc);
+  std::vector<std::string> args;
+  args.reserve(argc);
+  for (int i = 0; i < argc; ++i)
+  {
+    args.push_back(argv[i]);
+  }
   XRootDStatus st = ex->Execute( args );
   if( !st.IsOK() )
     std::cerr << st.ToStr() << std::endl;
