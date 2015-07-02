@@ -28,11 +28,21 @@
 /******************************************************************************/
 
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
   
+#include "Xrd/XrdScheduler.hh"
+#include "Xrd/XrdTrace.hh"
+
 #include "XrdNet/XrdNetAddr.hh"
+
+#include "XrdSsi/XrdSsiDebug.hh"
 #include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
+
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -59,13 +69,25 @@ virtual rStat  QueryResource(const char *rName,
                              const char *contact=0
                             ) {return notPresent;}
 
-               XrdSsiClientProvider() {}
+virtual void   SetCBThreads(int tNum) {maxTCB = tNum;}
+
+               XrdSsiClientProvider() : maxTCB(300) {}
 virtual       ~XrdSsiClientProvider() {}
+
+private:
+void SetScheduler();
+
+int  maxTCB;
 };
 
 /******************************************************************************/
 /*      X r d S s i C l i e n t P r o v i d e r : : G e t S e r v i c e       */
 /******************************************************************************/
+
+namespace XrdSsi
+{
+XrdScheduler *schedP = 0;
+}
   
 XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo &eInfo,
                                                 const char    *contact,
@@ -75,6 +97,10 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo &eInfo,
    const char *eText;
    char buff[512];
    int  n;
+
+// Allocate a scheduler if we do not have one (1st call)
+//
+  if (!XrdSsi::schedP) SetScheduler();
 
 // If no contact is given then declare an error
 //
@@ -94,6 +120,53 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo &eInfo,
 // Allocate a service object and return it
 //
    return new XrdSsiServReal(buff, oHold);
+}
+
+/******************************************************************************/
+/*    X r d S s i C l i e n t P r o v i d e r : : S e t S c h e d u l e r     */
+/******************************************************************************/
+
+namespace
+{
+XrdSysError myLog(0, "Ssi");
+
+XrdOucTrace myTrc(&myLog);
+}
+  
+void XrdSsiClientProvider::SetScheduler()
+{
+   XrdSysLogger *logP;
+   int eFD;
+
+// Get a file descriptor mirroring standard error
+//
+#if defined(__linux__) && defined(O_CLOEXEC)
+   eFD = fcntl(STDERR_FILENO, F_DUPFD_CLOEXEC, 0);
+#else
+   eFD = dup(STDERR_FILENO);
+   fcntl(eFD, F_SETFD, FD_CLOEXEC);
+#endif
+
+// Now we need to get a logger object. We make this a real dumb one.
+//
+   logP = new XrdSysLogger(eFD, 0);
+   myLog.logger(logP);
+
+// Now construct the proper trace object
+//
+   if (XrdSsi::DeBug.isON) myTrc.What = TRACE_SCHED;
+
+// We can now set allocate a scheduler
+//
+   XrdSsi::schedP = new XrdScheduler(&myLog, &myTrc);
+
+// Set thread count for callbacks
+//
+   XrdSsi::schedP->setParms(-1, maxTCB, -1, -1, 0);
+
+// Start the scheduler
+//
+   XrdSsi::schedP->Start();
 }
 
 /******************************************************************************/

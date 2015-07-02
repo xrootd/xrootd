@@ -58,6 +58,8 @@ static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiSession *sP,
 
         void           Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz);
 
+        void           BindDone(XrdSsiSession *sP);
+
         void           Finalize();
 
         char          *GetRequest(int &rLen);
@@ -68,7 +70,7 @@ static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiSession *sP,
                             char           *buffer,
                             XrdSfsXferSize  blen);
                         
-        void           RelBuff();
+        void           RelRequestBuffer();
 
         int            Send(XrdSfsDio *sfDio, XrdSfsXferSize size);
 
@@ -111,8 +113,10 @@ void                   WakeInfo(XrdSsiRRInfo *rdyInfo);
 void                   WakeUp();
 
 enum reqState {wtReq=0, xqReq, wtRsp, doRsp, odRsp, erRsp, rsEnd};
+enum rspState {isNew=0, isBegun, isBound, isAbort, isDone, isMax};
 
-static const char     *stID[rsEnd];
+static const char     *reqstID[rsEnd];
+static const char     *rspstID[isMax];
 static XrdSysMutex     aqMutex;
 static XrdSsiFileReq  *freeReq;
 static int             freeCnt;
@@ -120,12 +124,12 @@ static int             freeMax;
 static int             cbRetD;
 
 XrdSsiFileReq         *nextReq;
+XrdSysSemaphore       *finWait;
 XrdOucEICB            *respCB;
 unsigned long long     respCBarg;
 
 char                  *tident;
 const char            *sessN;
-XrdSysRecMutex         myMutex;
 XrdOucErrInfo         *cbInfo;
 XrdSsiSession         *sessP;
 char                  *respBuf;
@@ -137,12 +141,12 @@ XrdSfsXioHandle       *sfsBref;
 XrdOucBuffer          *oucBuff;
 XrdSsiStream::Buffer  *strBuff;
 reqState               myState;
-bool                   respWait;
-bool                   isActive;
-bool                   isExported;
-bool                   strmEOF;
+rspState               urState;
 int                    reqSize;
 int                    reqID;
+bool                   respWait;
+bool                   strmEOF;
+bool                   schedDone;
 char                   rID[8];
 };
 #endif

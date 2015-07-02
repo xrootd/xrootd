@@ -32,7 +32,7 @@
 #include <string.h>
   
 #include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdSsi/XrdSsiEvent.hh"
 #include "XrdSsi/XrdSsiResponder.hh"
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSession.hh"
@@ -42,7 +42,7 @@
 class XrdSsiServReal;
 
 class XrdSsiSessReal : public XrdSsiSession, public XrdSsiResponder,
-                       public XrdCl::ResponseHandler
+                       public XrdSsiEvent
 {
 public:
 
@@ -51,8 +51,6 @@ union
  XrdSsiService::Resource *resource;
 };
 
-        void     HandleResponse(XrdCl::XRootDStatus *status,
-                                XrdCl::AnyObject    *response);
 
         void     InitSession(XrdSsiServReal *servP=0, const char *sName=0);
 
@@ -80,9 +78,13 @@ static  void     SetErr(XrdCl::XRootDStatus &Status, XrdSsiErrInfo &eInfo);
 
         bool     Unprovision(bool forced=false);
 
+        bool     XeqEvent(XrdCl::XRootDStatus *status,
+                          XrdCl::AnyObject    *response);
+
                  XrdSsiSessReal(XrdSsiServReal *servP, const char *sName)
                                : XrdSsiSession(strdup(sName), 0),
-                                 XrdSsiResponder(this, (void *)0)
+                                 XrdSsiResponder(this, (void *)0),
+                                 XrdSsiEvent("SessReal")
                                  {InitSession(servP);}
 
                 ~XrdSsiSessReal();

@@ -50,8 +50,8 @@ struct  XrdSsiRespInfo
                      int     eNum;    //!<   errno      When rType == isError;
                      int     fdnum;   //!<   filedesc   When rType == isFile;
               };
-               const char   *mdata;   //!< -> Metadata about response.
                      int     mdlen;   //!<    Metadat length
+               const char   *mdata;   //!< -> Metadata about response.
 
         enum   Resp_t {isNone = 0, isData, isError, isFile, isStream};
         Resp_t rType;

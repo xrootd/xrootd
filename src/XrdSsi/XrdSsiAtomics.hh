@@ -97,4 +97,77 @@
 #define Atomic_ZAP(x)   x = 0
 #define Atomic_END(x)   pthread_mutex_unlock(x)
 #endif
+
+/******************************************************************************/
+/*                                                                            */
+/*                           X r d S s i M u t e x                            */
+/******************************************************************************/
+
+#include <pthread.h>
+
+class XrdSsiMutex
+{
+public:
+
+inline bool TryLock() {return pthread_mutex_trylock( &cs ) == 0;}
+
+inline void    Lock() {pthread_mutex_lock(&cs);}
+
+inline void  UnLock() {pthread_mutex_unlock(&cs);}
+
+enum MutexType {Simple = 0, Recursive = 1};
+
+       XrdSsiMutex(MutexType mt=Simple)
+                  {int rc;
+                   if (mt == Simple) rc = pthread_mutex_init(&cs, NULL);
+                      else {pthread_mutexattr_t attr;
+                            if (!(rc = pthread_mutexattr_init(&attr)))
+                               {pthread_mutexattr_settype(&attr,
+                                                     PTHREAD_MUTEX_RECURSIVE);
+                                rc = pthread_mutex_init(&cs, &attr);
+                               }
+                           }
+                   if (rc) throw strerror(rc);
+                  }
+
+      ~XrdSsiMutex() {pthread_mutex_destroy(&cs);}
+
+protected:
+
+pthread_mutex_t cs;
+};
+  
+/******************************************************************************/
+/*                        X r d S s i M u t e x M o n                         */
+/******************************************************************************/
+  
+class XrdSsiMutexMon
+{
+public:
+
+inline void   Lock(XrdSsiMutex *mutex)
+                  {if (mtx) {if (mtx != mutex) mtx->UnLock();
+                                else return;
+                            }
+                   mutex->Lock();
+                   mtx = mutex;
+                  };
+
+inline void   Lock(XrdSsiMutex &mutex) {Lock(&mutex);}
+
+inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
+
+            XrdSsiMutexMon(XrdSsiMutex *mutex=0)
+                          {if (mutex) mutex->Lock();
+                           mtx =  mutex;
+                          }
+            XrdSsiMutexMon(XrdSsiMutex &mutex)
+                          {mutex.Lock();
+                           mtx = &mutex;
+                          }
+
+           ~XrdSsiMutexMon() {if (mtx) UnLock();}
+private:
+XrdSsiMutex *mtx;
+};
 #endif

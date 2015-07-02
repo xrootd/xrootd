@@ -833,10 +833,15 @@ int XrdSsiFile::truncate(XrdSfsFileOffset  flen)  // In
        return (rc ? CopyErr(epname, rc) : rc);
       }
 
-// Find the request
+// Find the request object. If not there we may have encountered an eof
 //
    if (!(rqstP = rTab.LookUp(reqID)))
-      return XrdSsiUtils::Emsg(epname, ESRCH, "trunc", gigID, error);
+      {if (eofVec.IsSet(reqID))
+          {eofVec.UnSet(reqID);
+           return 0;
+          }
+        return XrdSsiUtils::Emsg(epname, ESRCH, "read", gigID, error);
+       }
 
 // Process request
 //

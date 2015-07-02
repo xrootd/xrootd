@@ -157,7 +157,8 @@ void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj)
    myMutex.Lock();
    actvSes--;
    if (freeCnt >= freeMax) {myMutex.UnLock(); delete sObj;}
-      else {sObj->nextSess = freeSes;
+      else {sObj->ClrEvent();
+            sObj->nextSess = freeSes;
             freeSes = sObj;
             freeCnt++;
             myMutex.UnLock();

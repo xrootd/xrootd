@@ -87,45 +87,6 @@ XrdSsiSessReal::~XrdSsiSessReal()
 }
 
 /******************************************************************************/
-/*                        H a n d l e R e s p o n s e                         */
-/******************************************************************************/
-  
-void XrdSsiSessReal::HandleResponse(XrdCl::XRootDStatus *status,
-                                    XrdCl::AnyObject    *response)
-{
-   XrdSsiSessReal *sObj = 0;
-
-// Delete the response object now as it has nothing we want
-//
-   delete response;
-
-// If we are stopping then simply recycle ourselves
-//
-   if (stopping)
-      {Shutdown(*status);
-       delete status;
-       return;
-      }
-
-// We are here because the open finally completed. Check for errors.
-//
-   if (status->IsOK())
-      {std::string currNode;
-       if (epFile.GetProperty(dsProperty, currNode))
-          {if (sessNode) free(sessNode);
-           sessNode = strdup(currNode.c_str());
-           sObj = this;
-          } else resource->eInfo.Set("Unable to get node name!",EADDRNOTAVAIL);
-      } else SetErr(*status, resource->eInfo);
-
-// Do appropriate callback. Be careful, as the below is set up to allow the
-// callback to implicitly delete us should it unprovision the session.
-//
-   delete status;
-   resource->ProvisionDone(sObj);
-}
-
-/******************************************************************************/
 /*                           I n i t S e s s i o n                            */
 /******************************************************************************/
   
@@ -235,7 +196,7 @@ void XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
             alocLeft--; nextTID++;
            }
 
-// Initialize the task the task will take ownership of the request object
+// Initialize the task
 //
    tP->Init(reqP, tOut);
    DBG("Task="<<hex<<tP<<dec<<" processing id=" <<nextTID-1);
@@ -250,16 +211,17 @@ void XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
    Status = epFile.Write(rrInfo.Info(), (uint32_t)reqBlen, reqBuff,
                          (XrdCl::ResponseHandler *)tP, tOut);
 
-// Determine ending status. If OK, place task on attached list
+// Determine ending status. If OK, place task on attached list and bind the
+// request to ourselves indicating that the task will be the responder.
 //
    if (Status.IsOK())
       {if ((ptP = attBase)) {INSERT(attList, ptP, tP);}
            else attBase = tP;
+       BindRequest(reqP, (XrdSsiSession *)this, (XrdSsiResponder *)tP);
        myMutex.UnLock();
       } else {
        const char *eText;
        int eNum;
-       BindRequest(reqP,0);  // Unbind the request from the task
        RelTask(tP);
        myMutex.UnLock();
        SetErr(Status, eNum, &eText);
@@ -318,7 +280,8 @@ void XrdSsiSessReal::RelTask(XrdSsiTaskReal *tP) // myMutex locked!
 //
    DBG("dodel="<<stopping<<" id="<<tP->ID());
    if (stopping) delete tP;
-      else {tP->attList.next = freeTask;
+      else {tP->ClrEvent();
+            tP->attList.next = freeTask;
             freeTask = tP;
            }
 }
@@ -459,14 +422,54 @@ bool XrdSsiSessReal::Unprovision(bool forced)
    while(tP) {tP->Detach(); tP = tP->attList.next; numPT++;}
    pendTask = 0;
 
-// Close the file associated with this session if we have no pending tasks
+// Close the file associated with this session if we have no pending tasks. If
+// error occurs, the move ahead to Shutdown(). We cannot be holding our mutex!
 //
    if (!numPT)
       {epStatus = epFile.Close((XrdCl::ResponseHandler *)this);
-       if (!epStatus.IsOK()) Shutdown(epStatus);
+       if (!epStatus.IsOK()) {rHelp.UnLock(); Shutdown(epStatus);}
       }
 
 // All done
 //
    return true;
+}
+
+/******************************************************************************/
+/*                              X e q E v e n t                               */
+/******************************************************************************/
+  
+bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
+                              XrdCl::AnyObject    *response)
+{
+   XrdSysMutexHelper rHelp(&myMutex);
+   XrdSsiSessReal *sObj = 0;
+
+// If we are stopping then simply recycle ourselves. We must not be holding
+// our mutex when we do so!
+//
+   if (stopping)
+      {rHelp.UnLock();
+       Shutdown(*status);
+       return false;
+      }
+
+// We are here because the open finally completed. Check for errors.
+//
+   if (status->IsOK())
+      {std::string currNode;
+       if (epFile.GetProperty(dsProperty, currNode))
+          {if (sessNode) free(sessNode);
+           sessNode = strdup(currNode.c_str());
+           sObj = this;
+          } else resource->eInfo.Set("Unable to get node name!",EADDRNOTAVAIL);
+      } else SetErr(*status, resource->eInfo);
+
+// Do appropriate callback. Be careful, as the below is set up to allow the
+// callback to implicitly delete us should it unprovision the session. So,
+// we drop out lock at this point so we neither deadlock nor get SEGV.
+//
+   rHelp.UnLock();
+   resource->ProvisionDone(sObj);
+   return stopping;
 }

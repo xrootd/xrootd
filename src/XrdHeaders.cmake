@@ -82,6 +82,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSfs/XrdSfsXio.hh
   XrdSfs/XrdSfsFlags.hh
   XrdSfs/XrdSfsInterface.hh
+  XrdSsi/XrdSsiAtomics.hh
   XrdSsi/XrdSsiCluster.hh
   XrdSsi/XrdSsiEntity.hh
   XrdSsi/XrdSsiErrInfo.hh
