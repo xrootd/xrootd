@@ -46,7 +46,7 @@ namespace PyXRootD
       static PyObject* Read( File *self, PyObject *args, PyObject *kwds );
       static PyObject* ReadLine( File *self, PyObject *args, PyObject *kwds );
       static PyObject* ReadLines( File *self, PyObject *args, PyObject *kwds );
-      static XrdCl::Buffer* ReadChunk( File *self, uint64_t size, uint32_t offset );
+      static XrdCl::Buffer* ReadChunk( File *self, uint64_t offset, uint32_t size );
       static PyObject* ReadChunks( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Write( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Sync( File *self, PyObject *args, PyObject *kwds );
@@ -61,10 +61,7 @@ namespace PyXRootD
     public:
       PyObject_HEAD
       XrdCl::File                *file;
-      uint32_t                    currentOffset;
-      XrdCl::Buffer              *chunk;
-      XrdCl::Buffer              *partial;
-      std::deque<XrdCl::Buffer*> *surplus;
+      uint64_t                    currentOffset;
   };
 
   PyDoc_STRVAR(file_type_doc, "File object (internal)");
@@ -84,8 +81,6 @@ namespace PyXRootD
   static int File_init( File *self, PyObject *args )
   {
     self->file    = new XrdCl::File();
-    self->partial = new XrdCl::Buffer();
-    self->surplus = new std::deque<XrdCl::Buffer*>();
     self->currentOffset = 0;
     return 0;
   }
@@ -96,8 +91,6 @@ namespace PyXRootD
   static void File_dealloc( File *self )
   {
     delete self->file;
-    delete self->partial;
-    delete self->surplus;
     self->ob_type->tp_free( (PyObject*) self );
   }
 

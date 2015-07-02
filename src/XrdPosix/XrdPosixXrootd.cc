@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
@@ -63,6 +64,7 @@
 namespace XrdPosixGlobals
 {
 XrdScheduler  *schedP = 0;
+bool           psxDBG = (getenv("XRDPOSIX_DEBUG") != 0);
 };
 
 XrdOucCache   *XrdPosixXrootd::myCache  =  0;
@@ -148,24 +150,33 @@ int XrdPosixXrootd::Close(int fildes)
    if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
       {errno = EBADF; return -1;}
 
-   if (fP->XCio->ioActive())
-   {
-      if (XrdPosixGlobals::schedP )
-      {
-         XrdPosixGlobals::schedP->Schedule(fP);
+// Close the file if there is no active I/O (possible caching). Delete the
+// object if the close was successful (it might not be).
+//
+   if (!(fP->XCio->ioActive()))
+      {ret = fP->Close(Status);
+       if (!ret && XrdPosixGlobals::psxDBG)
+          {char eBuff[2048];
+           snprintf(eBuff, sizeof(eBuff), "Posix: %s closing %s\n",
+                    Status.ToString().c_str(), fP->Path());
+           cerr <<eBuff <<endl;
+          } else {delete fP; fP = 0;}
+      } else ret = 1;
+
+// If we still have a handle then we need to do a delayed delete on this
+// object because either the close failed or there is still active I/O
+//
+   if (fP)
+      {if (XrdPosixGlobals::schedP) XrdPosixGlobals::schedP->Schedule(fP);
+          else {pthread_t tid;
+                XrdSysThread::Run(&tid, XrdPosixFile::DelayedDestroy, fP, 0,
+                                        "PosixFileDestroy");
+               }
       }
-      else {
-         pthread_t tid;
-         XrdSysThread::Run(&tid, XrdPosixFile::DelayedDestroy, fP, 0, "PosixFileDestroy");
-      }
-      return 0;
-   }
-   else
-   {
-      ret = fP->Close(Status);
-      delete fP;
-      return (ret ? 0 : XrdPosixMap::Result(Status));
-   }
+
+// Return final result
+//
+   return (ret ? 0 : XrdPosixMap::Result(Status));
 }
 
 /******************************************************************************/
@@ -439,8 +450,17 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // If we failed, return the reason
 //
    if (!Status.IsOK())
-      {delete fp;
-       return XrdPosixMap::Result(Status);
+      {XrdPosixMap::Result(Status);
+       int rc = errno;
+       if (XrdPosixGlobals::psxDBG && rc != ENOENT && rc != ELOOP)
+          {char eBuff[2048];
+           snprintf(eBuff, sizeof(eBuff), "%s open %s\n",
+                    Status.ToString().c_str(), fp->Path());
+           cerr <<eBuff <<endl;
+          }
+       delete fp;
+       errno = rc;
+       return -1;
       }
 
 // Assign a file descriptor to this file

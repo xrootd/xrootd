@@ -148,13 +148,31 @@ namespace PyXRootD
     uint32_t            size     = 0;
     uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
+    PyObject           *py_offset = NULL, *py_size = NULL, *py_timeout = NULL;
     char               *buffer   = 0;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|KIHO:read",
-        (char**) kwlist, &offset, &size, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOOO:read",
+        (char**) kwlist, &py_offset, &py_size, &py_timeout, &callback ) ) return NULL;
+
+    unsigned long long tmp_offset = 0;
+    unsigned int tmp_size = 0;
+    unsigned short int tmp_timeout = 0;
+
+    if ( py_offset && PyObjToUllong( py_offset, &tmp_offset, "offset" ) )
+      return NULL;
+
+    if ( py_size && PyObjToUint(py_size, &tmp_size, "size" ) )
+      return NULL;
+
+    if ( py_timeout && PyObjToUshrt(py_timeout, &tmp_timeout, "timeout" ) )
+      return NULL;
+
+    offset = (uint64_t)tmp_offset;
+    size = (uint32_t)tmp_size;
+    timeout = (uint16_t)tmp_timeout;
 
     if (!size) {
       XrdCl::StatInfo *info = 0;
@@ -168,7 +186,8 @@ namespace PyXRootD
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::ChunkInfo>( callback );
       if ( !handler ) {
-        delete[] buffer; return NULL;
+        delete[] buffer;
+        return NULL;
       }
       async( status = self->file->Read( offset, size, buffer, handler, timeout ) );
     }
@@ -190,179 +209,99 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  //! Read a data chunk at a given offset, until the first newline encountered
+  // Read a data chunk at a given offset, until the first newline encountered
+  // or size data read.
   //----------------------------------------------------------------------------
   PyObject* File::ReadLine( File *self, PyObject *args, PyObject *kwds )
   {
     static const char *kwlist[]  = { "offset", "size", "chunksize", NULL };
-    uint32_t           offset    = 0;
+    uint64_t           offset    = 0;
     uint32_t           size      = 0;
     uint32_t           chunksize = 0;
-    uint32_t    lastNewlineIndex = 0;
-    bool        newlineFound     = false;
     PyObject          *pyline    = NULL;
+    PyObject          *py_offset = NULL, *py_size = NULL, *py_chunksize = NULL;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kII:readline",
-        (char**) kwlist, &offset, &size, &chunksize ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOO:readline",
+        (char**) kwlist, &py_offset, &py_size, &py_chunksize ) ) return NULL;
 
-    //--------------------------------------------------------------------------
-    // Default chunk size == 2MB
-    //--------------------------------------------------------------------------
+    unsigned long long tmp_offset = 0;
+    unsigned int tmp_size = 0, tmp_chunksize = 0;
+
+    if ( py_offset && PyObjToUllong(py_offset, &tmp_offset, "offset" ) )
+      return NULL;
+
+    if ( py_size && PyObjToUint(py_size, &tmp_size, "size" ) )
+      return NULL;
+
+    if ( py_chunksize && PyObjToUint(py_chunksize, &tmp_chunksize, "chunksize" ) )
+      return NULL;
+
+    offset = (uint64_t)tmp_offset;
+    size = (uint32_t)tmp_size;
+    chunksize = (uint32_t)tmp_chunksize;
+    uint64_t off_init = offset;
+
+    if (offset == 0)
+      offset = self->currentOffset;
+    else
+      self->currentOffset = offset;
+
+    // Default chunk size is 2MB or equal to size if size less then 2MB
     if ( !chunksize ) chunksize = 1024 * 1024 * 2;
+    if ( !size ) size = UINT_MAX;
+    if ( size < chunksize ) chunksize = size;
 
-    //--------------------------------------------------------------------------
-    // If we read multiple lines last time, return one here
-    //--------------------------------------------------------------------------
-    if ( !self->surplus->empty() )
+    uint64_t off_end = offset + size;
+    XrdCl::Buffer* chunk = new XrdCl::Buffer();
+    XrdCl::Buffer* line = new XrdCl::Buffer();
+
+    while ( offset < off_end )
     {
-      XrdCl::Buffer *surplus = self->surplus->front();
-      pyline = PyString_FromStringAndSize( surplus->GetBuffer(),
-                                           surplus->GetSize() );
-      self->surplus->pop_front();
-      delete surplus;
-      return pyline;
+      chunk = self->ReadChunk( self, offset, chunksize );
+      offset += chunk->GetSize();
+
+      // Reached end of file
+      if ( !chunk->GetSize() )
+        break;
+
+      // Check if we read a new line
+      bool found_newline = false;
+
+      for( uint32_t i = 0; i < chunk->GetSize(); ++i )
+      {
+        chunk->SetCursor( i );
+
+        // Stop if found newline or read required amount of data
+        if( ( *chunk->GetBufferAtCursor() == '\n') ||
+            ( line->GetSize() + i >= size))
+        {
+          found_newline = true;
+          line->Append( chunk->GetBuffer(), i + 1 );
+          break;
+        }
+      }
+
+      if ( !found_newline )
+        line->Append( chunk->GetBuffer(), chunk->GetSize() );
+      else
+        break;
     }
 
-    //--------------------------------------------------------------------------
-    // Don't read more than "size"
-    //--------------------------------------------------------------------------
-    if ( size && self->currentOffset >= size )
+    if ( line->GetSize() != 0 )
     {
-      self->chunk = new XrdCl::Buffer();
+      // Update file offset if default readline call
+      if ( off_init == 0 )
+        self->currentOffset += line->GetSize();
+
+      pyline = PyString_FromStringAndSize( line->GetBuffer(), line->GetSize() );
     }
     else
-    {
-      self->chunk = self->ReadChunk( self, chunksize, self->currentOffset );
-      self->currentOffset += chunksize;
-    }
+      pyline = PyString_FromString( "" );
 
-    //--------------------------------------------------------------------------
-    // We read nothing
-    //--------------------------------------------------------------------------
-    if ( self->chunk->GetSize() == 0 )
-    {
-      //delete self->chunk;
-
-      //------------------------------------------------------------------------
-      // We have no partial line, return empty string
-      //------------------------------------------------------------------------
-      if ( self->partial->GetSize() == 0 )
-      {
-        return PyString_FromString( "" );
-      }
-      //------------------------------------------------------------------------
-      // We can return the partial line
-      //------------------------------------------------------------------------
-      else
-      {
-        pyline = PyString_FromStringAndSize( self->partial->GetBuffer(),
-                                             self->partial->GetSize() );
-        self->partial->Free();
-        return pyline;
-      }
-    }
-
-    //--------------------------------------------------------------------------
-    // Keep reading chunks until we find one with newlines
-    //--------------------------------------------------------------------------
-    while ( !newlineFound )
-    {
-      for( uint32_t i = 0; i < self->chunk->GetSize(); ++i )
-      {
-        self->chunk->SetCursor( i );
-
-        if( *self->chunk->GetBufferAtCursor() == '\n' )
-        {
-          //--------------------------------------------------------------------
-          // We found a newline
-          //--------------------------------------------------------------------
-          newlineFound = true;
-
-          //--------------------------------------------------------------------
-          // This is the first line we've found so far
-          //--------------------------------------------------------------------
-          if ( !lastNewlineIndex && !pyline )
-          {
-            lastNewlineIndex = i;
-
-            //------------------------------------------------------------------
-            // Do we have a partial line to use up?
-            //------------------------------------------------------------------
-            if ( self->partial->GetSize() != 0 )
-            {
-              self->partial->Append( self->chunk->GetBuffer(),
-                                     lastNewlineIndex + 1 );
-              pyline = PyString_FromStringAndSize( self->partial->GetBuffer(),
-                                                   self->partial->GetSize() );
-              self->partial->Free();
-            }
-
-            //--------------------------------------------------------------------
-            // No partial line
-            //--------------------------------------------------------------------
-            else
-            {
-              pyline = PyString_FromStringAndSize( self->chunk->GetBuffer(),
-                                                   lastNewlineIndex + 1 );
-            }
-          }
-
-          //--------------------------------------------------------------------
-          // This is not the first line: append it to the surplus vector
-          //--------------------------------------------------------------------
-          else
-          {
-            XrdCl::Buffer *surplus = new XrdCl::Buffer();
-            surplus->Append( self->chunk->GetBuffer( lastNewlineIndex + 1 ),
-                             i - lastNewlineIndex );
-            self->surplus->push_back( surplus );
-            lastNewlineIndex = i;
-          }
-        }
-      }
-
-      //------------------------------------------------------------------------
-      // We didn't find a newline in this chunk: read another
-      //------------------------------------------------------------------------
-      if ( !newlineFound ) {
-        delete self->chunk;
-        self->chunk = self->ReadChunk( self, chunksize, self->currentOffset );
-        self->currentOffset += chunksize;
-      }
-
-      //------------------------------------------------------------------------
-      // We have a partial line left in the buffer
-      //------------------------------------------------------------------------
-      if( lastNewlineIndex != self->chunk->GetSize() - 1 )
-      {
-        uint32_t off = 0, sze = 0;
-
-        if( lastNewlineIndex == 0 )
-        {
-          if( *self->chunk->GetBuffer() == '\n' )
-          {
-            off = 1;
-            sze = self->chunk->GetSize() - 1;
-          }
-          else
-          {
-            off = 0;
-            sze = self->chunk->GetSize();
-          }
-        }
-        else
-        {
-          off = lastNewlineIndex + 1;
-          sze = self->chunk->GetSize() - lastNewlineIndex - 1;
-        }
-
-        self->partial->Append( self->chunk->GetBuffer( off ), sze );
-      }
-    }
-
-    delete self->chunk;
+    delete line;
+    delete chunk;
     return pyline;
   }
 
@@ -377,11 +316,28 @@ namespace PyXRootD
     uint64_t           offset    = 0;
     uint32_t           size      = 0;
     uint32_t           chunksize = 0;
+    PyObject *py_offset = NULL, *py_size = NULL, *py_chunksize = NULL;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kII:readlines",
-        (char**) kwlist, &offset, &size, &chunksize ) ) return NULL;
+          (char**) kwlist, &offset, &size, &chunksize ) ) return NULL;
+
+    unsigned long long tmp_offset = 0;
+    unsigned int tmp_size = 0, tmp_chunksize = 0;
+
+    if ( py_offset && PyObjToUllong( py_offset, &tmp_offset, "offset" ) )
+      return NULL;
+
+    if ( py_size && PyObjToUint( py_size, &tmp_size, "size" ) )
+      return NULL;
+
+    if ( py_chunksize && PyObjToUint( py_chunksize, &tmp_chunksize, "chunksize" ) )
+      return NULL;
+
+    offset = (uint64_t)tmp_offset;
+    size = (uint32_t)tmp_size;
+    chunksize = (uint16_t)tmp_chunksize;
 
     PyObject *lines = PyList_New( 0 );
     PyObject *line  = NULL;
@@ -389,9 +345,10 @@ namespace PyXRootD
     for (;;)
     {
       line = self->ReadLine( self, args, kwds );
-      if ( !line || PyString_Size( line ) == 0 ) {
+
+      if ( !line || PyString_Size( line ) == 0 )
         break;
-      }
+
       PyList_Append( lines, line );
     }
 
@@ -401,7 +358,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Read a chunk of the given size from the given offset as a string
   //----------------------------------------------------------------------------
-  XrdCl::Buffer* File::ReadChunk( File *self, uint64_t size, uint32_t offset )
+  XrdCl::Buffer* File::ReadChunk( File *self, uint64_t offset, uint32_t size )
   {
     XrdCl::XRootDStatus status;
     XrdCl::Buffer      *buffer;
@@ -425,15 +382,28 @@ namespace PyXRootD
   {
     static const char *kwlist[]  = { "offset", "chunksize", NULL };
     uint64_t           offset    = 0;
-    uint32_t           chunksize = 1042 * 1024 * 2; // 2MB
+    uint32_t           chunksize = 0;
     ChunkIterator     *iterator;
+    PyObject          *py_offset = NULL, *py_chunksize = NULL;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kI:readchunks",
-         (char**) kwlist, &offset, &chunksize ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|OO:readchunks",
+         (char**) kwlist, &py_offset, &py_chunksize ) ) return NULL;
 
+    unsigned long long tmp_offset = 0;
+    unsigned int tmp_chunksize = 1024 * 1024 *2;  // 2 MB
+
+    if ( py_offset && PyObjToUllong( py_offset, &tmp_offset, "offset" ) )
+      return NULL;
+
+    if ( py_chunksize && PyObjToUint( py_chunksize, &tmp_chunksize, "chunksize" ) )
+      return NULL;
+
+    offset = (uint64_t)tmp_offset;
+    chunksize = (uint32_t)tmp_chunksize;
     ChunkIteratorType.tp_new = PyType_GenericNew;
+
     if ( PyType_Ready( &ChunkIteratorType ) < 0 ) return NULL;
 
     args = Py_BuildValue( "OOO", self, Py_BuildValue("k", offset),
@@ -453,19 +423,37 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "buffer", "offset", "size", "timeout",
                                      "callback", NULL };
-    const  char        *buffer;
-    int                 buffsize;
-    uint64_t            offset   = 0;
-    uint32_t            size     = 0;
-    uint16_t            timeout  = 0;
-    PyObject           *callback = NULL, *pystatus = NULL;
+    const  char *buffer;
+    int          buffsize;
+    uint64_t     offset   = 0;
+    uint32_t     size     = 0;
+    uint16_t     timeout  = 0;
+    PyObject    *callback = NULL, *pystatus = NULL;
+    PyObject    *py_offset = NULL, *py_size = NULL, *py_timeout = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|KIHO:write",
-         (char**) kwlist, &buffer, &buffsize, &offset, &size, &timeout,
-         &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|OOOO:write",
+         (char**) kwlist, &buffer, &buffsize, &py_offset, &py_size,
+         &py_timeout, &callback ) ) return NULL;
+
+    unsigned long long tmp_offset = 0;
+    unsigned int tmp_size = 0;
+    unsigned short int tmp_timeout = 0;
+
+    if (py_offset && PyObjToUllong(py_offset, &tmp_offset, "offset"))
+      return NULL;
+
+    if (py_size && PyObjToUint(py_size, &tmp_size, "size"))
+      return NULL;
+
+    if (py_timeout && PyObjToUshrt(py_timeout, &tmp_timeout, "timeout"))
+      return NULL;
+
+    offset = (uint64_t)tmp_offset;
+    size = (uint32_t)tmp_size;
+    timeout = (uint16_t)tmp_timeout;
 
     if (!size) {
       size = buffsize;
@@ -509,7 +497,6 @@ namespace PyXRootD
       if ( !handler ) return NULL;
       async( status = self->file->Sync( handler, timeout ) );
     }
-
     else {
       status = self->file->Sync( timeout );
     }
@@ -527,16 +514,29 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Truncate( File *self, PyObject *args, PyObject *kwds )
   {
-    static const char  *kwlist[] = { "size", "timeout", "callback", NULL };
-    uint64_t            size;
-    uint16_t            timeout  = 0;
-    PyObject           *callback = NULL, *pystatus = NULL;
+    static const char *kwlist[] = { "size", "timeout", "callback", NULL };
+    uint64_t           size;
+    uint16_t           timeout  = 0;
+    PyObject          *callback = NULL, *pystatus = NULL;
+    PyObject          *py_size = NULL, *py_timeout = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "K|HO:truncate",
-         (char**) kwlist, &size, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO:truncate",
+         (char**) kwlist, &py_size, &py_timeout, &callback ) ) return NULL;
+
+    unsigned long long tmp_size = 0;
+    unsigned short int tmp_timeout = 0;
+
+    if ( py_size && PyObjToUllong( py_size, &tmp_size, "size" ) )
+      return NULL;
+
+    if ( py_timeout && PyObjToUshrt( py_timeout, &tmp_timeout, "timeout" ) )
+      return NULL;
+
+    size = (uint64_t)tmp_size;
+    timeout = (uint16_t)tmp_timeout;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -566,14 +566,21 @@ namespace PyXRootD
     uint64_t            offset   = 0;
     uint32_t            length   = 0;
     PyObject           *pychunks = NULL, *callback = NULL;
-    PyObject           *pyresponse = NULL, *pystatus = NULL;
+    PyObject           *pyresponse = NULL, *pystatus = NULL, *py_timeout = NULL;
     XrdCl::XRootDStatus status;
     XrdCl::ChunkList    chunks;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|HO:vector_read",
-         (char**) kwlist, &pychunks, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO:vector_read",
+         (char**) kwlist, &pychunks, &py_timeout, &callback ) ) return NULL;
+
+    unsigned short int tmp_timeout = 0;
+
+    if ( py_timeout && PyObjToUshrt( py_timeout, &tmp_timeout, "timeout" ) )
+      return NULL;
+
+    timeout = (uint16_t)tmp_timeout;
 
     if ( !PyList_Check( pychunks ) ) {
       PyErr_SetString( PyExc_TypeError, "chunks parameter must be a list" );
@@ -589,29 +596,28 @@ namespace PyXRootD
         return NULL;
       }
 
-      // Check the offset/length values are valid
-      uint64_t tmpoffset;
-      uint32_t tmplength;
-      if ( !PyArg_ParseTuple( chunk, "KI", &tmpoffset, &tmplength ) ) return NULL;
+      // Check that offset and length values are valid
+      unsigned long long tmp_offset = 0;
+      unsigned int tmp_length = 0;
 
-      if ( tmpoffset < 0 || tmplength < 0 ) {
-        PyErr_SetString( PyExc_TypeError, "offsets and lengths must be positive" );
+      if ( PyObjToUllong( PyTuple_GetItem( chunk, 0 ), &tmp_offset, "offset" ) )
         return NULL;
-      }
 
-      offset = tmpoffset;
-      length = tmplength;
+      if ( PyObjToUint( PyTuple_GetItem( chunk, 1 ), &tmp_length, "length" ) )
+        return NULL;
+
+      offset = (uint64_t)tmp_offset;
+      length = (uint32_t)tmp_length;
       char    *buffer = new char[length];
       chunks.push_back( XrdCl::ChunkInfo( offset, length, buffer ) );
     }
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler
-        = GetHandler<XrdCl::VectorReadInfo>( callback );
+          = GetHandler<XrdCl::VectorReadInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->VectorRead( chunks, 0, handler, timeout ) );
     }
-
     else {
       XrdCl::VectorReadInfo *info = 0;
       status = self->file->VectorRead( chunks, 0, info, timeout );

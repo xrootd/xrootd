@@ -48,9 +48,22 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static int ChunkIterator_init(ChunkIterator *self, PyObject *args)
   {
-    if ( !PyArg_ParseTuple( args, "OkI", &self->file,
-        &self->startOffset, &self->chunksize ) ) return -1;
+    PyObject *py_offset = NULL, *py_chunksize = NULL;
 
+    if ( !PyArg_ParseTuple( args, "OOO", &self->file,&py_offset,
+                            &py_chunksize ) ) return -1;
+
+    unsigned long long tmp_offset = 0;
+    unsigned int tmp_chunksize = 2 * 1024 * 1024; // 2 MB
+
+    if ( py_offset && PyObjToUllong( py_offset, &tmp_offset, "offset" ) )
+      return -1;
+
+    if ( py_chunksize && PyObjToUint( py_chunksize, &tmp_chunksize, "chunksize" ) )
+      return -1;
+
+    self->startOffset = (uint64_t)tmp_offset;
+    self->chunksize = (uint32_t)tmp_chunksize;
     self->currentOffset = self->startOffset;
     return 0;
   }
@@ -72,8 +85,8 @@ namespace PyXRootD
   static PyObject* ChunkIterator_iternext(ChunkIterator *self)
   {
     XrdCl::Buffer *chunk = self->file->ReadChunk( self->file,
-                                                  self->chunksize,
-                                                  self->currentOffset );
+                                                  self->currentOffset,
+                                                  self->chunksize);
     PyObject *pychunk = NULL;
 
     if ( chunk->GetSize() == 0 ) {

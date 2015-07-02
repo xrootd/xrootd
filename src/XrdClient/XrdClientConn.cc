@@ -1789,7 +1789,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
             if (LastServerResp.status == kXR_error) {
                // Unexpected reply: stop handshake and print error msg, if any
 
-               if (LastServerError.errmsg)
+               if (LastServerError.errmsg[0])
                   Error("DoAuthentication", LastServerError.errmsg);
 
                protocol->Delete();

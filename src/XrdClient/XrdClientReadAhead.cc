@@ -176,8 +176,9 @@ int XrdClientReadAhead_slidingavg::GetReadAheadHint(long long offset, long len, 
    LastOffsSum2 += offset;
    LastOffs.Push_back(offset);
 
-   if (LastOffs.GetSize() >= 50) {
-      LastOffsSum2 -= LastOffs[LastOffs.GetSize()-50];
+   int loSZ = LastOffs.GetSize(), loSZ50 = loSZ-50;
+   if (loSZ >= 50) {
+      LastOffsSum2 -= LastOffs[loSZ50];
    }
    if (LastOffs.GetSize() >= 1000) {
       LastOffsSum -= LastOffs[0];

@@ -26,12 +26,15 @@ class CallbackWrapper(object):
     self.callback = callback
     self.responsetype = responsetype
 
-  def __call__(self, status, response, hostlist):
+  def __call__(self, status, response, *argv):
     self.status = XRootDStatus(status)
     self.response = response
     if self.responsetype:
       self.response = self.responsetype(response)
-    self.hostlist = HostList(hostlist)
+    if argv:
+      self.hostlist = HostList(argv[0])
+    else:
+      self.hostlist = HostList([])
     self.callback(self.status, self.response, self.hostlist)
 
 class AsyncResponseHandler(object):

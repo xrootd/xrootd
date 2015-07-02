@@ -251,7 +251,7 @@ namespace XrdCl
       time_t now = time(0);
       if( now-start > timeLeft )
       {
-        targetFile.Close(1);
+        XRootDStatus status = targetFile.Close(1);
         return XRootDStatus( stError, errOperationExpired );
       }
       else
@@ -266,7 +266,7 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
-      targetFile.Close();
+      XRootDStatus status = targetFile.Close();
       return st;
     }
 
@@ -278,7 +278,7 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable to open source %s: %s",
                   tpcSource.GetURL().c_str(), st.ToStr().c_str() );
-      targetFile.Close(1);
+      XRootDStatus status = targetFile.Close(1);
       return st;
     }
 
@@ -294,8 +294,8 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable start the copy: %s",
                   st.ToStr().c_str() );
-      sourceFile.Close();
-      targetFile.Close();
+      XRootDStatus statusS = sourceFile.Close();
+      XRootDStatus statusT = targetFile.Close();
       return st;
     }
 
@@ -350,16 +350,16 @@ namespace XrdCl
                   GetSource().GetURL().c_str(), GetTarget().GetURL().c_str(),
                   st.ToStr().c_str() );
 
-      sourceFile.Close(1);
-      targetFile.Close(1);
+      XRootDStatus statusS = sourceFile.Close(1);
+      XRootDStatus statusT = targetFile.Close(1);
       return st;
     }
 
     log->Debug( UtilityMsg, "Third party copy from %s to %s successful",
                 GetSource().GetURL().c_str(), GetTarget().GetURL().c_str() );
 
-    sourceFile.Close(1);
-    targetFile.Close(1);
+    XRootDStatus statusS = sourceFile.Close(1);
+    XRootDStatus statusT = targetFile.Close(1);
 
     pResults->Set( "size", sourceSize );
 
@@ -508,8 +508,8 @@ namespace XrdCl
     URL         sourceUrlU = sourceUrl;
     properties->Set( "tpcSource", sourceUrl );
     StatInfo *statInfo;
-    sourceFile.Stat( false, statInfo );
-    properties->Set( "sourceSize", statInfo->GetSize() );
+    st = sourceFile.Stat( false, statInfo );
+    if (st.IsOK()) properties->Set( "sourceSize", statInfo->GetSize() );
     delete statInfo;
 
     if( hasInitTimeout )
@@ -521,7 +521,7 @@ namespace XrdCl
         timeLeft -= (now-start);
     }
 
-    sourceFile.Close( timeLeft );
+    st = sourceFile.Close( timeLeft );
 
     if( hasInitTimeout )
     {

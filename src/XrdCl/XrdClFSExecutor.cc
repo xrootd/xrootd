@@ -21,6 +21,8 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 
+#include <iterator>
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -64,26 +66,22 @@ namespace XrdCl
     return true;
   }
 
-  //----------------------------------------------------------------------------
-  // Execute the given commandline
-  //----------------------------------------------------------------------------
-  XRootDStatus FSExecutor::Execute( const std::string &commandline )
+  XRootDStatus FSExecutor::Execute( const CommandParams & args)
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Debug( AppMsg, "Executing: %s", commandline.c_str() );
+    std::stringstream cmdline;
+    std::ostream_iterator<std::string> oit(cmdline, " ");
+    std::copy(args.begin(), args.end(), oit);
 
-    //--------------------------------------------------------------------------
-    // Split the commandline string
-    //--------------------------------------------------------------------------
-    CommandParams args;
-    Utils::splitString( args, commandline, " " );
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( AppMsg, "Executing: %s", cmdline.str().c_str() );
+
     if( args.empty() )
     {
       log->Dump( AppMsg, "Empty commandline." );
       return 1;
     }
 
-    CommandParams::iterator parIt;
+    CommandParams::const_iterator parIt;
     int i = 0;
     for( parIt = args.begin(); parIt != args.end(); ++parIt, ++i )
       log->Dump( AppMsg, "  Param #%02d: '%s'", i, parIt->c_str() );

@@ -126,12 +126,14 @@ class File(object):
     """Read a data chunk from a given offset, until the first newline or EOF
     encountered.
 
-    :param offset: offset from the beginning of the file
-    :type  offset: integer
-    :param   size: maximum number of bytes to be read
-    :type    size: integer
-    :returns:      data that was read, including the trailing newline
-    :rtype:        string
+    :param    offset: offset from the beginning of the file
+    :type     offset: integer
+    :param      size: maximum number of bytes to be read
+    :type       size: integer
+    :param chunksize: size of chunk used for reading, in bytes
+    :type  chunksize: integer
+    :returns:         data that was read, including the trailing newline
+    :rtype:           string
     """
     return self.__file.readline(offset, size, chunksize)
 
@@ -139,10 +141,14 @@ class File(object):
     """Read lines from a given offset until EOF encountered. Return list of
     lines read.
 
-    :param offset: offset from the beginning of the file
-    :type  offset: integer
-    :returns:      data that was read, including trailing newlines
-    :rtype:        list of strings
+    :param    offset: offset from the beginning of the file
+    :type     offset: integer
+    :param      size: maximum number of bytes to be read
+    :type       size: integer
+    :param chunksize: size of chunk used for reading, in bytes
+    :type  chunksize: integer
+    :returns:         data that was read, including trailing newlines
+    :rtype:           list of strings
 
     .. warning:: This method will read the whole file into memory if you don't
                  specify an offset. Think twice about using it if your files
