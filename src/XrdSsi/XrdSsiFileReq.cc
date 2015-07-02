@@ -49,7 +49,7 @@
 /*                          L o c a l   M a c r o s                           */
 /******************************************************************************/
   
-#define DEBUGXQ(x) DEBUG(rID <<sessN <<stID[myState] <<x)
+#define DEBUGXQ(x) DEBUG(rID<<sessN<<rspstID[urState]<<reqstID[myState]<<x)
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -74,9 +74,14 @@ int             XrdSsiFileReq::freeCnt = 0;
 int             XrdSsiFileReq::freeMax = 256;
 int             XrdSsiFileReq::cbRetD  = SFS_DATA;
 
-const char     *XrdSsiFileReq::stID[XrdSsiFileReq::rsEnd] =
-                                   {" [wtReq] ", " [xqReq] ", " [wtRsp] ",
-                                    " [doRsp] ", " [odRsp] ", " [erRsp] "
+const char     *XrdSsiFileReq::rspstID[XrdSsiFileReq::isMax] =
+                                   {" [new",   " [begun", " [bound",
+                                    " [abort", " [done"
+                                   };
+
+const char     *XrdSsiFileReq::reqstID[XrdSsiFileReq::rsEnd] =
+                                   {" wtReq] ", " xqReq] ", " wtRsp] ",
+                                    " doRsp] ", " odRsp] ", " erRsp] "
                                    };
 
 /******************************************************************************/
@@ -97,9 +102,8 @@ void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
    sfsBref = bR;
    reqSize = rSz;
 
-// Now schedule ourselves to process this request indicating we are active
+// Now schedule ourselves to process this request. The state is new.
 //
-   isActive = true;
    Sched->Schedule((XrdJob *)this);
 }
 
@@ -144,27 +148,83 @@ XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo *eiP,
 }
 
 /******************************************************************************/
+/*                              B i n d D o n e                               */
+/******************************************************************************/
+
+// This is called with reqMutex locked!
+
+void XrdSsiFileReq::BindDone(XrdSsiSession *sP)
+{
+   EPNAME("BindDone");
+
+// Do some debugging
+//
+   DEBUGXQ("Bind called; session " <<(sP ? "set" : "nil"));
+
+// Processing depends on the current state. Only listed states are valid.
+// When the state is done, a finished event occuured between the time the
+// request was handed off to the session but before the session bound it.
+//
+   switch(urState)
+         {case isBegun:  urState = isBound;
+          case isBound:  return;
+                         break;
+          case isDone:   if (!schedDone)
+                            {schedDone = true;
+                             Sched->Schedule((XrdJob *)this);
+                            }
+                         return;
+                         break;
+          default:       break;
+         }
+
+// If we get here then we have an invalid state. Report it but otherwise we
+// can't really do anything else. This means some memory may be lost.
+//
+   Log.Emsg(epname, tident, "Invalid req/rsp state; giving up on object!");
+}
+  
+/******************************************************************************/
 /*                                  D o I t                                   */
 /******************************************************************************/
   
 void XrdSsiFileReq::DoIt()
 {
    EPNAME("DoIt");
+   XrdSsiMutexMon mHelper(reqMutex);
+   bool cancel;
 
-// Check if we were cancelled prior to being dispatched, otherwise process it
+// Processing is determined by the responder's state. Only listed states are
+// valid. Others should never occur in this context.
 //
-   myMutex.Lock();
-   if (isActive)
-      {isExported = true;
-       myState = xqReq;
-       myMutex.UnLock();
-       DEBUGXQ("Calling session Process");
-       sessP->ProcessRequest((XrdSsiRequest *)this);
-      } else {
-       myMutex.UnLock();
-       DEBUGXQ("Skipped session Process");
-       Recycle();
-      }
+   switch(urState)
+         {case isNew:    myState = xqReq; urState = isBegun;
+                         DEBUGXQ("Calling session Process");
+                         mHelper.UnLock();
+                         sessP->ProcessRequest((XrdSsiRequest *)this);
+                         return;
+                         break;
+          case isAbort:  DEBUGXQ("Skipped calling session Process");
+                         mHelper.UnLock();
+                         Recycle();
+                         return;
+                         break;
+          case isDone:   cancel = (myState != odRsp);
+                         DEBUGXQ("Calling Finished(" <<cancel <<')');
+                         Finished(cancel);
+                         if (respWait) WakeUp();
+                         if (finWait)  finWait->Post();
+                         mHelper.UnLock();
+                         Recycle();
+                         return;
+                         break;
+          default:       break;
+         }
+
+// If we get here then we have an invalid state. Report it but otherwise we
+// can't really do anything else. This means some memory may be lost.
+//
+   Log.Emsg(epname, tident, "Invalid req/rsp state; giving up on object!");
 }
 
 /******************************************************************************/
@@ -176,7 +236,7 @@ void XrdSsiFileReq::DoIt()
 void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 {
    EPNAME("Done");
-   XrdSysMutexHelper mHelper(&myMutex);
+   XrdSsiMutexMon mHelper(reqMutex);
 
 // Do some debugging
 //
@@ -254,41 +314,55 @@ int XrdSsiFileReq::Emsg(const char    *pfx,    // Message prefix value
 void XrdSsiFileReq::Finalize()
 {
    EPNAME("Finalize");
-   XrdSysMutexHelper mHelper(&myMutex);
+   XrdSsiMutexMon mHelper(reqMutex);
    bool cancel = (myState != odRsp);
 
-// Do some debugging
+// Processing is determined by the responder's state
 //
-   DEBUGXQ("active="<<isActive<<" exported="<<isExported<<" cancel="<<cancel);
+   switch(urState)
+         // Request is being scheduled, so we can simply abort it.
+         //
+         {case isNew:    DEBUGXQ("Aborting request processing");
+                         urState = isAbort;
+                         cbInfo  = 0;
+                         sessN   = "???";
+                         return;
+                         break;
 
-// If we are not yet exported then simply recycle ourselves
-//
-   if (!isActive) {mHelper.UnLock(); Recycle(); return;}
+         // Request already handed off but not yet bound. Defer until bound.
+         // We need to wait until this occurs to sequence Unprovision().
+         //
+          case isBegun:  urState = isDone;
+                        {XrdSysSemaphore wt4fin(0);
+                         finWait = &wt4fin;
+                         mHelper.UnLock();
+                         wt4fin.Wait();
+                        }
+                         return;
 
-// When isActive && !isExported implies a scheduled thread against this object.
-// That thread will then be responsible for recycling this object.
-//
-   if (!isExported)
-      {isActive = false;
-       sessN = "???";
-       cbInfo = 0;
-       return;
-      }
+          // Request is bound so we can finish right off.
+          //
+          case isBound:  if (strBuff) {strBuff->Recycle(); strBuff = 0;}
+                         DEBUGXQ("Calling Finished(" <<cancel <<')');
+                         Finished(cancel);
+                         if (respWait) WakeUp();
+                         mHelper.UnLock();
+                         Recycle();
+                         return;
+                         break;
 
-// If session process was called then tell the session we are finished.
-//
-   if (strBuff) {strBuff->Recycle(); strBuff = 0;}
-   isActive = false; isExported = false;
-   mHelper.UnLock();
-   Finished(cancel);
+          // The following two cases may happen but it's safe to ignore them.
+          //
+          case isAbort:
+          case isDone:   return;
+                         break;
+          default:       break;
+         }
 
-// We now have control of the request object. Terminate respWait state if on.
+// If we get here then we have an invalid state. Report it but otherwise we
+// can't really do anything else. This means some memory may be lost.
 //
-   if (respWait) WakeUp();
-
-// Now we can recycle ourselves
-//
-   Recycle();
+   Log.Emsg(epname, tident, "Invalid req/rsp state; giving up on object!");
 }
 
 /******************************************************************************/
@@ -317,6 +391,7 @@ char *XrdSsiFileReq::GetRequest(int &rLen)
 void XrdSsiFileReq::Init(const char *cID)
 {
    tident     = (cID ? strdup(cID) : strdup("???"));
+   finWait    = 0;
    nextReq    = 0;
    cbInfo     = 0;
    sessN      = "???";
@@ -329,9 +404,9 @@ void XrdSsiFileReq::Init(const char *cID)
    respOff    = 0;
    fileSz     = 0; // Also does respLen = 0;
    myState    = wtReq;
+   urState    = isNew;
   *rID        = 0;
-   isActive   = false;
-   isExported = false;
+   schedDone  = false;
    respWait   = false;
    strmEOF    = false;
 }
@@ -339,21 +414,25 @@ void XrdSsiFileReq::Init(const char *cID)
 /******************************************************************************/
 /* Protected:            P r o c e s s R e s p o n s e                        */
 /******************************************************************************/
+
+// Note that this is called with reqMUtex locked!
   
 bool XrdSsiFileReq::ProcessResponse(const XrdSsiRespInfo &Resp, bool isOK)
 {
    EPNAME("ProcessResponse");
-   XrdSysMutexHelper mHelper(&myMutex);
+
+// Do some debugging
+//
+   DEBUGXQ("Response presented wtr=" <<respWait);
 
 // Make sure we are still in execute state
 //
-   if (!isActive) return false;
+   if (urState != isBegun && urState != isBound) return false;
    myState = doRsp;
    respOff = 0;
 
 // Handle the response
 //
-   DEBUGXQ("Response present wtr=" <<respWait);
    switch(Resp.rType)
          {case XrdSsiRespInfo::isData:
                DEBUGXQ("Resp data sz="<<Resp.blen);
@@ -562,13 +641,14 @@ void XrdSsiFileReq::Recycle()
 }
 
 /******************************************************************************/
-/*                               R e l B u f f                                */
+/*                      R e l R e q u e s t B u f f e r                       */
 /******************************************************************************/
+
+// This is called with the reqMutex locked!
   
-void XrdSsiFileReq::RelBuff()
+void XrdSsiFileReq::RelRequestBuffer()
 {
-   EPNAME("RelBuff");
-   XrdSysMutexHelper mHelper(&myMutex);
+   EPNAME("RelReqBuff");
 
 // Do some debugging
 //
@@ -709,11 +789,11 @@ int XrdSsiFileReq::sendStrmA(XrdSsiStream *strmP,
   
 bool XrdSsiFileReq::WantResponse(XrdOucEICB *rCB, long long rArg)
 {
-   XrdSysMutexHelper mHelper(&myMutex);
+   XrdSsiMutexMon mHelper(reqMutex);
 
-// Check if a response is here
+// Check if a response is here (well, ProcessResponse was called)
 //
-   if (RespP()->rType) return true;
+   if (myState == doRsp) return true;
 //    {int mlen;
 //     WakeInfo((XrdSsiRRInfoRdy *)eInfo->getMsgBuff(mlen));
 //     eInfo->setErrCode(sizeof(XrdSsiRRInfoRdy));
@@ -732,7 +812,7 @@ bool XrdSsiFileReq::WantResponse(XrdOucEICB *rCB, long long rArg)
 /*                              W a k e I n f o                               */
 /******************************************************************************/
   
-void XrdSsiFileReq::WakeInfo(XrdSsiRRInfo *rdyInfo) // myMutex is locked!
+void XrdSsiFileReq::WakeInfo(XrdSsiRRInfo *rdyInfo) // reqMutex is locked!
 {
 
 // Set appropriate response information
@@ -762,7 +842,7 @@ void XrdSsiFileReq::WakeInfo(XrdSsiRRInfo *rdyInfo) // myMutex is locked!
 /* Private:                       W a k e U p                                 */
 /******************************************************************************/
   
-void XrdSsiFileReq::WakeUp() // Called with myMutex locked!
+void XrdSsiFileReq::WakeUp() // Called with reqMutex locked!
 {
    EPNAME("WakeUp");
    XrdOucErrInfo *wuInfo = new XrdOucErrInfo(tident,(XrdOucEICB *)0,respCBarg);

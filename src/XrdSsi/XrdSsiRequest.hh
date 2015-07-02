@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiErrInfo.hh"
 #include "XrdSsi/XrdSsiRespInfo.hh"
 #include "XrdSsi/XrdSsiSession.hh"
@@ -63,11 +64,13 @@
 
 class XrdSsiResponder;
 class XrdSsiStream;
+class XrdSsiTaskReal;
 
 class XrdSsiRequest
 {
 public:
 friend class XrdSsiResponder;
+friend class XrdSsiTaskReal;
 
 //-----------------------------------------------------------------------------
 //! The following object is used to relay error information from any method
@@ -81,6 +84,8 @@ XrdSsiErrInfo   eInfo;
 //! Indicate that request processing has been finished. This method calls
 //! XrdSsiSession::Complete() on the session object associated with Request().
 //!
+//! Note: This method locks the object's recursive mutex.
+//!
 //! @param  cancel False -> the request/response sequence completed normally.
 //!                True  -> the request/response sequence aborted because of an
 //!                         error or the client cancelled the request.
@@ -91,7 +96,8 @@ XrdSsiErrInfo   eInfo;
 //-----------------------------------------------------------------------------
 
 inline  bool    Finished(bool cancel=false)
-                        {if (!theSession) return false;
+                        {XrdSsiMutexMon(reqMutex);
+                         if (!theSession) return false;
                          theSession->RequestFinished(this, Resp, cancel);
                          Resp.Init(); eInfo.Clr();
                          theRespond = 0; theSession = 0;
@@ -101,6 +107,8 @@ inline  bool    Finished(bool cancel=false)
 //-----------------------------------------------------------------------------
 //! Obtain the metadata associated with a response.
 //!
+//! Note: This method locks the object's recursive mutex.
+//!
 //! @param  dlen  holds the length of the metadata after the call.
 //!
 //! @return =0    No metadata available, dlen has been set to zero.
@@ -109,12 +117,15 @@ inline  bool    Finished(bool cancel=false)
 
 inline
 const char     *GetMetadata(int &dlen)
-                           {if ((dlen = Resp.mdlen)) return Resp.mdata;
+                           {XrdSsiMutexMon(reqMutex);
+                            if ((dlen = Resp.mdlen)) return Resp.mdata;
                             return 0;
                            }
 
 //-----------------------------------------------------------------------------
 //! Obtain the request data sent by a client.
+//!
+//! Note: This method may be called with the object's recursive mutex unlocked!
 //!
 //! @param  dlen  holds the length of the request after the call.
 //!
@@ -125,13 +136,16 @@ const char     *GetMetadata(int &dlen)
 virtual char   *GetRequest(int &dlen) = 0;
 
 //-----------------------------------------------------------------------------
-//! Obtain the responder associated with this request.
+//! Obtain the responder associated with this request. This member is set by the
+//! responder and needs serialization.
+//!
+//! Note: This method locks the object's recursive mutex.
 //!
 //! @return !0    - pointer to the responder object.
 //! @retuen =0    - no alternate responder associated with this request.
 //-----------------------------------------------------------------------------
 inline
-XrdSsiResponder*GetResponder() {return theRespond;}
+XrdSsiResponder*GetResponder() {XrdSsiMutexMon(reqMutex); return theRespond;}
 
 //-----------------------------------------------------------------------------
 //! Asynchronously obtain response data. This is a helper method that allows a
@@ -149,17 +163,22 @@ XrdSsiResponder*GetResponder() {return theRespond;}
         bool    GetResponseData(char *buff, int  blen);
 
 //-----------------------------------------------------------------------------
-//! Obtain the session associated with this request.
+//! Obtain the session associated with this request. This member is set by the
+//! responder and needs seririalization.
+//!
+//! Note: This method locks the object's recursive mutex.
 //!
 //! @return !0    - pointer to the session object.
 //! @retuen =0    - no session associated with this request.
 //-----------------------------------------------------------------------------
 inline
-XrdSsiSession  *GetSession() {return theSession;}
+XrdSsiSession  *GetSession() {XrdSsiMutexMon(reqMutex); return theSession;}
 
 //-----------------------------------------------------------------------------
 //! Notify request that a response is ready to be processed. This method must
 //! be supplied by the request object's implementation.
+//!
+//! Note: This method is called with the object's recursive mutex locked.
 //!
 //! @param  rInfo Raw response information.
 //! @param  isOK  True:  Normal response.
@@ -175,6 +194,8 @@ virtual bool    ProcessResponse(const XrdSsiRespInfo &rInfo, bool isOK=true)=0;
 //! Handle incomming async stream data or error. This method is called by a
 //! stream object after a successful GetResponseData() or an asynchronous
 //! stream SetBuff() call.
+//!
+//! Note: This method is called with the object's recursive mutex locked.
 //!
 //! @param buff  Pointer to the buffer given to XrdSsiStream::SetBuff().
 //! @param blen  The number of bytes in buff or an error indication if blen < 0.
@@ -196,14 +217,28 @@ XrdSsiRequest  *nextRequest;
 //! Constructor
 //-----------------------------------------------------------------------------
 
-                XrdSsiRequest() : nextRequest(0),theSession(0),theRespond(0) {}
+                XrdSsiRequest() : nextRequest(0),
+                                  reqMutex(XrdSsiMutex::Recursive),
+                                  theSession(0), theRespond(0) {}
 
 protected:
+//-----------------------------------------------------------------------------
+//! Notify the underlying object that the request was bound to a session. This
+//! method is meant for server-side internal use only.
+//-----------------------------------------------------------------------------
+
+virtual void  BindDone(XrdSsiSession *sessP) {}
+
 //-----------------------------------------------------------------------------
 //! Release the request buffer. Use this method to optimize storage use; this
 //! is especially relevant for long-running requests. If the request buffer
 //! has been consumed and is no longer needed, early return of the buffer will
-//! minimize memory usage.
+//! minimize memory usage. This method is only invoked via XrdSsiResponder.
+//!
+//!
+//! Note: This method is called with the object's recursive mutex locked when
+//!       it is invoked via XrdSsiResponder's ReleaseRequestBuffer() which is
+//!       the only proper way of invoking this method.
 //-----------------------------------------------------------------------------
 
 virtual void    RelRequestBuffer() {}
@@ -217,8 +252,6 @@ virtual void    RelRequestBuffer() {}
 
 virtual        ~XrdSsiRequest() {}
 
-protected:
-
 //-----------------------------------------------------------------------------
 //! Get a pointer to the RespInfo structure. This is meant to be used by
 //! classes that inherit this class to simplify response handling.
@@ -227,6 +260,13 @@ protected:
 //-----------------------------------------------------------------------------
 inline
 const XrdSsiRespInfo *RespP() {return &Resp;}
+
+//-----------------------------------------------------------------------------
+//! The following mutex is used to serialize acccess to the request object.
+//! It can also be used to serialize access to the underlying object.
+//-----------------------------------------------------------------------------
+
+XrdSsiMutex     reqMutex;
 
 private:
 
@@ -243,7 +283,8 @@ XrdSsiRespInfo   Resp;       // Set via XrdSsiResponder::SetResponse()
 #include "XrdSsi/XrdSsiStream.hh"
 
 inline  bool    XrdSsiRequest::GetResponseData(char *buff, int  blen)
-                      {if (Resp.rType != XrdSsiRespInfo::isStream)
+                      {XrdSsiMutexMon(reqMutex);
+                       if (Resp.rType != XrdSsiRespInfo::isStream)
                           {eInfo.Set(0, ENODATA); return false;}
                        return Resp.strmP->SetBuff(this, buff, blen);
                       }

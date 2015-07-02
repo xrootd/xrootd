@@ -56,6 +56,15 @@
 //! object and the real (i.e. derived class) session object or its agent.
 //-----------------------------------------------------------------------------
 
+#define SSI_VAL_RESPONSE(rX)    XrdSsiRequest *rX = Atomic_GET(reqP);\
+                                if (!rX) return notPosted; \
+                                Atomic_SET(reqP, 0); \
+                                rX->reqMutex.Lock()
+
+#define SSI_XEQ_RESPONSE(rX,oK) bool ok = rP->ProcessResponse(rX->Resp, oK);\
+                                rX->reqMutex.UnLock(); \
+                                return (ok ? wasPosted : notActive)
+
 class XrdSsiSession;
 
 class XrdSsiResponder
@@ -64,7 +73,8 @@ public:
 
 //-----------------------------------------------------------------------------
 //! Obtain the object that inherited this responder (Version 1). Use this
-//! version if the object is identified by an int type value.
+//! version if the object is identified by an int type value. This member is
+//! set at construction time and does not need serialization.
 //!
 //! @param  oType Place to put object's type established at construction time.
 //! @param  oInfo Place to put Object's info established at construction time.
@@ -79,6 +89,7 @@ inline void   *GetObject(int &oType, int &oInfo)
 //-----------------------------------------------------------------------------
 //! Obtain the object that inherited this responder (Version 2). Use this
 //! version if the object is identified by void * handle (e.g. constructor).
+//! This member is set at construction time and does not need serialization.
 //!
 //! @param  oHndl Place to put Object's handle established at construction time.
 //!
@@ -103,16 +114,26 @@ protected:
 inline  void    BindRequest(XrdSsiRequest   *rqstP,
                             XrdSsiSession   *sessP,
                             XrdSsiResponder *respP=0)
-                            {rqstP->theSession = sessP;
-                             rqstP->theRespond = respP;
-                             reqP = rqstP; rqstP->Resp.Init();
-                            }
+                           {XrdSsiMutexMon(rqstP->reqMutex);
+                            rqstP->theSession = sessP;
+                            rqstP->theRespond = respP;
+                            if (respP) {Atomic_SET(respP->reqP, rqstP);}
+                               else    {Atomic_SET(reqP, rqstP);}
+                            rqstP->Resp.Init();
+                            rqstP->BindDone(sessP);
+                           }
 
 //-----------------------------------------------------------------------------
-//! Release the request buffer of the request bound to this object.
+//! Release the request buffer of the request bound to this object. This is
+//! tricky member that requires atomics to correctly synchronize as we have a
+//! cart horse problem here (i.e. no reqP no reqMutex).
 //-----------------------------------------------------------------------------
 
-inline  void   ReleaseRequestBuffer() {if (reqP) reqP->RelRequestBuffer();}
+inline  void   ReleaseRequestBuffer() {XrdSsiRequest *rP = Atomic_GET(reqP);
+                                       if (rP) {XrdSsiMutexMon(rP->reqMutex);
+                                                rP->RelRequestBuffer();
+                                               }
+                                      }
 
 //-----------------------------------------------------------------------------
 //! The following enums are returned by SetResponse() to indicate ending status.
@@ -135,14 +156,11 @@ enum Status {wasPosted=0, //!< Success: The response was successfully posted
 //-----------------------------------------------------------------------------
 
 inline Status  SetErrResponse(const char *eMsg, int eNum)
-                          {XrdSsiRequest *rP = reqP;
-                           if (!reqP) return notPosted;
-                           reqP->eInfo.Set(eMsg, eNum);
-                           reqP->Resp.eMsg  = reqP->eInfo.Get(reqP->Resp.eNum);
-                           reqP->Resp.rType = XrdSsiRespInfo::isError;
-                           reqP = 0;
-                           return (rP->ProcessResponse(rP->Resp, false)
-                                   ? wasPosted : notActive);
+                          {SSI_VAL_RESPONSE(rP);
+                           rP->eInfo.Set(eMsg, eNum);
+                           rP->Resp.eMsg  = rP->eInfo.Get(rP->Resp.eNum);
+                           rP->Resp.rType = XrdSsiRespInfo::isError;
+                           SSI_XEQ_RESPONSE(rP,false);
                           }
 
 //-----------------------------------------------------------------------------
@@ -156,8 +174,9 @@ inline Status  SetErrResponse(const char *eMsg, int eNum)
 //-----------------------------------------------------------------------------
 
 inline Status  SetMetadata(const char *buff, int blen)
-                          {if (!reqP) return notPosted;
-                           reqP->Resp.mdata = buff; reqP->Resp.mdlen = blen;
+                          {SSI_VAL_RESPONSE(rP);
+                           rP->Resp.mdata = buff; rP->Resp.mdlen = blen;
+                           rP->reqMutex.UnLock();
                           }
 
 //-----------------------------------------------------------------------------
@@ -171,13 +190,10 @@ inline Status  SetMetadata(const char *buff, int blen)
 //-----------------------------------------------------------------------------
 
 inline Status  SetResponse(const char *buff, int blen)
-                          {XrdSsiRequest *rP = reqP;
-                           if (!reqP) return notPosted;
-                           reqP->Resp.buff  = buff; reqP->Resp.blen  = blen;
-                           reqP->Resp.rType = XrdSsiRespInfo::isData;
-                           reqP = 0;
-                           return (rP->ProcessResponse(rP->Resp)
-                                   ? wasPosted : notActive);
+                          {SSI_VAL_RESPONSE(rP);
+                           rP->Resp.buff  = buff; rP->Resp.blen  = blen;
+                           rP->Resp.rType = XrdSsiRespInfo::isData;
+                           SSI_XEQ_RESPONSE(rP,true);
                           }
 
 //-----------------------------------------------------------------------------
@@ -190,14 +206,11 @@ inline Status  SetResponse(const char *buff, int blen)
 //-----------------------------------------------------------------------------
 
 inline Status  SetResponse(long long fsize, int fdnum)
-                          {XrdSsiRequest *rP = reqP;
-                           if (!reqP) return notPosted;
-                           reqP->Resp.fdnum = fdnum;
-                           reqP->Resp.fsize = fsize;
-                           reqP->Resp.rType = XrdSsiRespInfo::isFile;
-                           reqP = 0;
-                           return (rP->ProcessResponse(rP->Resp)
-                                   ? wasPosted : notActive);
+                          {SSI_VAL_RESPONSE(rP);
+                           rP->Resp.fdnum = fdnum;
+                           rP->Resp.fsize = fsize;
+                           rP->Resp.rType = XrdSsiRespInfo::isFile;
+                           SSI_XEQ_RESPONSE(rP,true);
                           }
 
 //-----------------------------------------------------------------------------
@@ -210,14 +223,11 @@ inline Status  SetResponse(long long fsize, int fdnum)
 //-----------------------------------------------------------------------------
 
 inline Status  SetResponse(XrdSsiStream *strmP)
-                          {XrdSsiRequest *rP = reqP;
-                           if (!reqP) return notPosted;
-                           reqP->Resp.eNum  = 0;
-                           reqP->Resp.strmP = strmP;
-                           reqP->Resp.rType = XrdSsiRespInfo::isStream;
-                           reqP = 0;
-                           return (rP->ProcessResponse(rP->Resp)
-                                   ? wasPosted : notActive);
+                          {SSI_VAL_RESPONSE(rP);
+                           rP->Resp.eNum  = 0;
+                           rP->Resp.strmP = strmP;
+                           rP->Resp.rType = XrdSsiRespInfo::isStream;
+                           SSI_XEQ_RESPONSE(rP,true);
                           }
 
 //-----------------------------------------------------------------------------
@@ -227,7 +237,7 @@ inline Status  SetResponse(XrdSsiStream *strmP)
 //!         is currently bound to this object.
 //-----------------------------------------------------------------------------
 inline
-XrdSsiRequest *TheRequest() {return reqP;}
+XrdSsiRequest *TheRequest() {return Atomic_GET(reqP);}
 
 //-----------------------------------------------------------------------------
 //! The constructor is protected. This class is meant to be inherited by an
@@ -262,13 +272,15 @@ XrdSsiRequest *TheRequest() {return reqP;}
 //! is meant to be inherited by a class and not separately instantiated.
 //-----------------------------------------------------------------------------
 
+protected:
+
 virtual       ~XrdSsiResponder() {}
 
 private:
-XrdSsiRequest *reqP;
-void          *objVal;
-union {int     objIdent[2];
-       void   *objHandle;
-      };
+Atomic(XrdSsiRequest *)  reqP;     // Can be set or retrieved w/o a mutex
+void                    *objVal;
+union          {int      objIdent[2];
+                void    *objHandle;
+               };
 };
 #endif

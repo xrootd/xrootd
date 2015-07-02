@@ -112,12 +112,7 @@ const  char *Get() {return errText;}
 //------------------------------------------------------------------------------
 
 XrdSsiErrInfo &operator=(XrdSsiErrInfo const &rhs)
-               {if (&rhs != this)
-                   {errArg = rhs.errArg;
-                    errNum = rhs.errNum;
-                    if (rhs.errText == 0) errText = 0;
-                       else errText = strdup(rhs.errText);
-                   }
+               {if (&rhs != this) Set(rhs.errText, rhs.errNum, rhs.errArg);
                 return *this;
                }
 
@@ -125,7 +120,8 @@ XrdSsiErrInfo &operator=(XrdSsiErrInfo const &rhs)
 //! Copy constructor
 //------------------------------------------------------------------------------
 
-               XrdSsiErrInfo(XrdSsiErrInfo const &oP) {*this = oP;}
+               XrdSsiErrInfo(XrdSsiErrInfo const &oP)
+                            {Set(oP.errText, oP.errNum, oP.errArg);}
 
 //-----------------------------------------------------------------------------
 //! Constructor and Destructor

@@ -23,6 +23,7 @@ XrdSsi/XrdSsiCms.cc                    XrdSsi/XrdSsiCms.hh
 XrdSsi/XrdSsiDebug.cc                  XrdSsi/XrdSsiDebug.hh
 XrdSsi/XrdSsiDir.cc                    XrdSsi/XrdSsiDir.hh
                                        XrdSsi/XrdSsiErrInfo.hh
+XrdSsi/XrdSsiEvent.cc                  XrdSsi/XrdSsiEvent.hh
 XrdSsi/XrdSsiFile.cc                   XrdSsi/XrdSsiFile.hh
 XrdSsi/XrdSsiFileReq.cc                XrdSsi/XrdSsiFileReq.hh
 XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh

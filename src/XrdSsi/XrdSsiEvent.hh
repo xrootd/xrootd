@@ -1,10 +1,10 @@
-#ifndef __XRDSSITASKREAL_HH__
-#define __XRDSSITASKREAL_HH__
+#ifndef __XRDSSIEVENT_HH__
+#define __XRDSSIEVENT_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i T a s k R e a l . h h                      */
+/*                        X r d S s i E v e n t . h h                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2015 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,65 +29,54 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiEvent.hh"
-#include "XrdSsi/XrdSsiStream.hh"
-#include "XrdSsi/XrdSsiResponder.hh"
+#include "Xrd/XrdJob.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdSsi/XrdSsiAtomics.hh"
 
-class XrdSsiRequest;
-class XrdSsiSessReal;
-
-class XrdSsiTaskReal : public XrdSsiEvent,    public XrdSsiResponder,
-                       public XrdSsiStream
+class XrdSsiEvent : public XrdJob, public XrdCl::ResponseHandler
 {
 public:
 
-enum TaskStat {isWrite=0, isSync, isReady, isDone, isDead};
+        void AddEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp);
 
-void   Detach(bool force=false);
+        void ClrEvent() {evMutex.Lock();ClrEvent(&thisEvent);evMutex.UnLock();}
 
-void  *Implementation() {return (void *)this;}
+virtual void DoIt();
 
-bool   Kill();
+virtual void HandleResponse(XrdCl::XRootDStatus *status,
+                            XrdCl::AnyObject *response)
+                           {AddEvent(status, response);}
 
-inline
-int    ID() {return tskID;}
+virtual bool XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp) = 0;
 
-inline
-void   Init(XrdSsiRequest *rP, unsigned short tmo=0)
-           {rqstP = rP, tStat = isWrite; tmOut = tmo; mhPend = true;
-            attList.next = attList.prev = this;
-           }
+             XrdSsiEvent(const char *hName="") : XrdJob(hName), lastEvent(0),
+                                                 running(false) {}
 
-int    SetBuff(XrdSsiErrInfo &eInfo, char *buff, int blen, bool &last);
-
-bool   SetBuff(XrdSsiRequest *reqP, char *buff, int blen);
-
-void   SetTaskID(short tid) {tskID = tid;}
-
-bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response);
-
-       XrdSsiTaskReal(XrdSsiSessReal *sP, short tid)
-                     : XrdSsiEvent("TaskReal"),
-                       XrdSsiResponder(this, (void *)0),
-                       XrdSsiStream(XrdSsiStream::isPassive),
-                       sessP(sP), tskID(tid)
-                    {}
-
-      ~XrdSsiTaskReal() {}
-
-void   RespErr(XrdCl::XRootDStatus *status);
-
-struct dlQ {XrdSsiTaskReal *next; XrdSsiTaskReal *prev;};
-dlQ             attList;
+            ~XrdSsiEvent() {ClrEvent();}
 
 private:
-XrdSsiSessReal *sessP;
-XrdSsiRequest  *rqstP;
-char           *dataBuff;
-int             dataRlen;
-TaskStat        tStat;
-unsigned short  tmOut;
-short           tskID;
-bool            mhPend;
+struct EventData
+      {XrdCl::XRootDStatus *status;
+       XrdCl::AnyObject    *response;
+       EventData           *next;
+
+       void Move2(EventData &dest) {dest.status   = status;   status   = 0;
+                                    dest.response = response; response = 0;
+                                    dest.next     = next;     next     = 0;
+                                   }
+
+       EventData(XrdCl::XRootDStatus *st=0, XrdCl::AnyObject *resp=0)
+                : status(st), response(resp), next(0) {}
+      ~EventData() {}
+      };
+
+void          ClrEvent(EventData *fdP);
+
+XrdSsiMutex   evMutex;
+EventData     thisEvent;
+EventData    *lastEvent;
+bool          running;
+static
+EventData    *freeEvent;
 };
 #endif

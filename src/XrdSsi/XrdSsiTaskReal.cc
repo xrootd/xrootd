@@ -54,98 +54,6 @@ void XrdSsiTaskReal::Detach(bool force)
 {   tStat = isDead;
     if (force) sessP = &voidSession;
 }
-  
-/******************************************************************************/
-/*                        H a n d l e R e s p o n s e                         */
-/******************************************************************************/
-  
-void XrdSsiTaskReal::HandleResponse(XrdCl::XRootDStatus *status,
-                                    XrdCl::AnyObject    *response)
-{
-   EPNAME("TaskHResp");
-   class delRsp
-        {public: delRsp(XrdCl::XRootDStatus *sP, XrdCl::AnyObject *rP)
-                       : ssp(sP), rsp(rP) {}
-                ~delRsp() {if (ssp) delete ssp;
-                           if (rsp) delete rsp;
-                          }
-         XrdCl::XRootDStatus *ssp;
-         XrdCl::AnyObject    *rsp;
-        };
-   delRsp rspHelper(status, response);
-   XrdCl::XRootDStatus epStatus;
-   XrdSsiRRInfo        rInfo;
-   char *dBuff;
-   union {uint32_t ubRead; int ibRead;};
-   bool aOK = status->IsOK();
-
-// Affect proper response
-//
-   sessP->Lock();
-   DBG(" sess="<<(sessP==&voidSession?"no":"ok")
-              <<" Status = "<<aOK<<' '<<statName[tStat]);
-
-   switch(tStat)
-         {case isWrite:
-               if (!aOK) {RespErr(status); return;}
-               tStat = isSync;
-               rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Rwt);
-               DBG("Calling RelBuff.");
-               ReleaseRequestBuffer();
-               DBG("Calling trunc.");
-               epStatus = sessP->epFile.Truncate(rInfo.Info(),
-                                                 (ResponseHandler *)this,
-                                                 tmOut);
-               if (!epStatus.IsOK()) {RespErr(&epStatus); return;}
-               sessP->UnLock();
-               return; break;
-          case isSync:
-               if (!aOK) {RespErr(status); return;}
-               tStat = isReady;
-               mhPend = false;
-               sessP->UnLock();
-               DBG("Responding with stream.");
-               SetResponse((XrdSsiStream *)this);
-               return; break;
-          case isReady:
-               break;
-          case isDead:
-               if (sessP != &voidSession)
-                  {DBG("Task Handler calling Recycle.");
-                   sessP->Recycle(this);
-                   sessP->UnLock();
-                  } else {
-                   DBG("Deleting task.");
-                   sessP->UnLock();
-                   delete this;
-                  }
-               return; break;
-          default: cerr <<"XrdSsiTaskReal: Invalid state " <<tStat <<endl;
-               return;
-         }
-
-// Handle incomming response data
-//
-   if (!aOK || !response)
-      {ibRead = -1;
-       if (!aOK) XrdSsiSessReal::SetErr(*status, rqstP->eInfo);
-          else   rqstP->eInfo.Set("Missing response", EFAULT);
-      } else {
-       XrdCl::ChunkInfo *cInfo = 0;
-       response->Get(cInfo);
-       ubRead = (cInfo ? cInfo->length : 0);
-      }
-
-// Reflect the response to the request as this was an async receive. We may not
-// reference this object after the UnLock() as Complete() might be called.
-//
-   if (ibRead < dataRlen) tStat = isDone;
-   dBuff = dataBuff;
-   mhPend = false;
-   sessP->UnLock();
-   DBG("Calling ProcessResponseData; len="<<ibRead<<" last="<<(tStat==isDone));
-   rqstP->ProcessResponseData(dBuff, ibRead, tStat == isDone);
-}
 
 /******************************************************************************/
 /*                                  K i l l                                   */
@@ -306,4 +214,89 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
    tStat = isDone;
    DBG("Task Async SetBuff error");
    return false;
+}
+  
+/******************************************************************************/
+/*                              X e q E v e n t                               */
+/******************************************************************************/
+  
+bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
+                              XrdCl::AnyObject    *response)
+{
+   EPNAME("TaskXeqEvent");
+   XrdCl::XRootDStatus epStatus;
+   XrdSsiRRInfo        rInfo;
+   char *dBuff;
+   union {uint32_t ubRead; int ibRead;};
+   bool aOK = status->IsOK();
+
+// Affect proper response
+//
+   sessP->Lock();
+   DBG(" sess="<<(sessP==&voidSession?"no":"ok")
+              <<" Status = "<<aOK<<' '<<statName[tStat]);
+
+   switch(tStat)
+         {case isWrite:
+               if (!aOK) {RespErr(status); return true;}
+               tStat = isSync;
+               rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Rwt);
+               DBG("Calling RelBuff.");
+               ReleaseRequestBuffer();
+               DBG("Calling trunc.");
+               epStatus = sessP->epFile.Truncate(rInfo.Info(),
+                                                 (ResponseHandler *)this,
+                                                 tmOut);
+               if (!epStatus.IsOK()) {RespErr(&epStatus); return true;}
+               sessP->UnLock();
+               return true; break;
+          case isSync:
+               if (!aOK) {RespErr(status); return true;}
+               tStat = isReady;
+               mhPend = false;
+               sessP->UnLock();
+               DBG("Responding with stream.");
+               SetResponse((XrdSsiStream *)this);
+               return true; break;
+          case isReady:
+               break;
+          case isDead:
+               if (sessP != &voidSession)
+                  {DBG("Task Handler calling Recycle.");
+                   sessP->Recycle(this);
+                   sessP->UnLock();
+                  } else {
+                   DBG("Deleting task.");
+                   sessP->UnLock();
+                   delete this;
+                  }
+               return false; break;
+          default: cerr <<"XrdSsiTaskReal: Invalid state " <<tStat <<endl;
+               return false;
+         }
+
+// Handle incomming response data
+//
+   if (!aOK || !response)
+      {ibRead = -1;
+       if (!aOK) XrdSsiSessReal::SetErr(*status, rqstP->eInfo);
+          else   rqstP->eInfo.Set("Missing response", EFAULT);
+      } else {
+       XrdCl::ChunkInfo *cInfo = 0;
+       response->Get(cInfo);
+       ubRead = (cInfo ? cInfo->length : 0);
+      }
+
+// Reflect the response to the request as this was an async receive. We may not
+// reference this object after the UnLock() as Complete() might be called.
+//
+   if (ibRead < dataRlen) tStat = isDone;
+   dBuff = dataBuff;
+   mhPend = false;
+   sessP->UnLock();
+   DBG("Calling ProcessResponseData; len="<<ibRead<<" last="<<(tStat==isDone));
+   rqstP->reqMutex.Lock();
+   rqstP->ProcessResponseData(dBuff, ibRead, tStat == isDone);
+   rqstP->reqMutex.UnLock();
+   return true;
 }

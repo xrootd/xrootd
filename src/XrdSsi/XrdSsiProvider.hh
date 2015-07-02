@@ -176,6 +176,16 @@ virtual rStat  QueryResource(const char *rName,
                             ) = 0;
 
 //-----------------------------------------------------------------------------
+//! Set the maximum number of threads for handling callbacks (client-side only).
+//! When the maximum is reached, callbacks wait until an in-progress callback
+//! completes. This method has no meaning server-side and is ignored.
+//!
+//! @param  tNum     The maximum number of threads to be used (default is 512).
+//-----------------------------------------------------------------------------
+
+virtual void   SetCBThreads(int tNum) {(void)tNum;}
+
+//-----------------------------------------------------------------------------
 //! Constructor
 //-----------------------------------------------------------------------------
 
