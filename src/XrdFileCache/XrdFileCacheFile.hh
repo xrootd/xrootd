@@ -65,7 +65,7 @@ namespace XrdFileCache
       bool                m_downloaded;
 
       Block(File *f, long long off, int size, bool m_prefetch) :
-         m_offset(off), m_file(f), m_prefetch(false), m_refcnt(0),
+         m_offset(off), m_file(f), m_prefetch(m_prefetch), m_refcnt(0),
          m_errno(0), m_downloaded(false)
       {
          m_buff.resize(size);
