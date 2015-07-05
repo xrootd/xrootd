@@ -481,7 +481,9 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
        }
        else
        {
-           bytes_read = rc; // AMT ?? should there be an immediate return 
+           bytes_read = rc; // AMT ?? should there be an immediate return
+           clLog()->Error(XrdCl::AppMsg, "File::Read() failed to read from disk.");
+           return rc;
        }
    }
    // Third, loop over blocks that are available or incoming
