@@ -93,31 +93,29 @@ m_prefetchCurrentCnt(0)
    Open();
 }
 
+
 File::~File()
 {
-    clLog()->Debug(XrdCl::AppMsg, "File::~File() %p %s", (void*)this, lPath());
-    /*
-    cache()->RemoveWriteQEntriesFor(this);
-    m_downloadCond.Lock();
-    for ( BlockMap_t::iterator it = m_block_map.begin(); it !=  m_block_map.end(); ++it)
-    {
-        if ((it)->second->m_downloaded || (it)->second->m_errno )
-            dec_ref_count(it->second);
-    }
-    m_downloadCond.UnLock();
-    */
+   clLog()->Debug(XrdCl::AppMsg, "File::~File() %p %s", (void*)this, lPath());
+
+   // assert if in debug mode
+   if (XrdCl::DefaultEnv::GetLog()->GetLevel() >= XrdCl::Log::DebugMsg ) {
+      m_stateCond.Lock();
+      assert (m_stopping == true);
+      m_stateCond.UnLock();
+   }
+
+   cache()->RemoveWriteQEntriesFor(this);
+
    clLog()->Info(XrdCl::AppMsg, "File::~File() check write queues ...%s", lPath());
    
-
    while (true)
    {
       m_stateCond.Lock();
-      bool isStopped = m_stopping;
       bool isPrefetching = (m_prefetchCurrentCnt > 0);
       m_stateCond.UnLock();
 
-      clLog()->Info(XrdCl::AppMsg, "File::~File() stopped %d isPrefetching %d ...%s", isStopped, isPrefetching, lPath());
-      if ((isPrefetching == false) && isStopped)
+      if (isPrefetching == false)
       {
          m_downloadCond.Lock();
          bool blockMapEmpty =  m_block_map.empty();
@@ -695,18 +693,22 @@ void File::Sync()
    m_infoFile->Fsync();
 }
 
+//______________________________________________________________________________
 
 void File::inc_ref_count(Block* b)
 {
+   // Method always called under lock
    b->m_refcnt++;
 }
 
+//______________________________________________________________________________
+
+
 void File::dec_ref_count(Block* b)
 {
-    // AMT this function could actually be member of File ... would be nicer
-    // called under block lock
+   // Method always called under lock
     b-> m_refcnt--;
-    if ( b->m_refcnt == 0 || ( b->m_prefetch && b->m_refcnt ==-1)) {
+    if ( b->m_refcnt == 0) {
         int i = b->m_offset/BufferSize();
         size_t ret = m_block_map.erase(i);
         if (ret != 1) {
@@ -722,23 +724,29 @@ void File::dec_ref_count(Block* b)
 
 void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
 {
-   clLog()->Dump(XrdCl::AppMsg, "File::ProcessBlockResponse %d ",(int)(b->m_offset/BufferSize()));
+   clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse %d ",(int)(b->m_offset/BufferSize()));
 
    m_downloadCond.Lock();
 
    if (status->IsOK()) 
    {
       b->m_downloaded = true;
+      clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse %d  finidhed %d",(int)(b->m_offset/BufferSize()), b->is_finished());
       if (!m_stopping) { // AMT theoretically this should be under state lock, but then are double locks
         inc_ref_count(b);
         cache()->AddWriteTask(b, true);
+      }
+      else {
+          if (b->m_prefetch && ( b->m_refcnt == 0)) {
+              m_block_map.erase((int)(b->m_offset/BufferSize()));
+          }
       }
    }
    else
    {
       // AMT how long to keep?
       // when to retry?
-
+      clLog()->Error(XrdCl::AppMsg, "File::ProcessBlockResponse block %d error ",(int)(b->m_offset/BufferSize()));
       XrdPosixMap::Result(*status);
 
       b->set_error_and_free(errno);
@@ -809,7 +817,6 @@ void File::Prefetch()
          clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch enter to check download status BEGIN \n");
       if (m_cfi.IsComplete() == false && m_block_map.size() < 100)
       {
-         clLog()->Debug(XrdCl::AppMsg, "Prefetch::Prefetch begin, block size %ld", m_block_map.size());
 
          // check index not on disk and not in RAM
          bool found = false;
