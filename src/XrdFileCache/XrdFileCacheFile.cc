@@ -167,6 +167,12 @@ File::~File()
       m_infoFile = NULL;
    }
    delete m_syncer;
+
+
+
+
+   // print just for curiosity
+   clLog()->Debug(XrdCl::AppMsg, "File::~File() ended, prefetch score ...%d/%d=%.2f",  m_prefetchReadCnt, m_prefetchHitCnt, m_prefetchScore);
 }
 
 bool File::InitiateClose()
