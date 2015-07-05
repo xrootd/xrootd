@@ -125,7 +125,7 @@ namespace XrdFileCache
 
       int             m_prefetchReadCnt;
       int             m_prefetchHitCnt;
-      int             m_prefetchScore; //cached
+      float           m_prefetchScore; //cached
       int             m_prefetchCurrentCnt;
 
    public:
