@@ -407,7 +407,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
    m_downloadCond.Lock();
 
-   size_t msize =  m_block_map.size();
    // XXX Check for blocks to free? Later ...
 
    const int idx_first = iUserOff / BS;
@@ -428,11 +427,13 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
          inc_ref_count(bi->second);
          blks_to_process.push_front(bi->second);
+         m_stats.m_BytesRam++;
       }
       // On disk?
       else if (m_cfi.TestBit(block_idx))
       {
          blks_on_disk.push_back(block_idx);
+         m_stats.m_BytesDisk++;
       }
       // Then we have to get it ...
       else
@@ -444,13 +445,14 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             Block *b = RequestBlock(block_idx, false);
             inc_ref_count(b);
             blks_to_process.push_back(b);
-            ++msize;
+            m_stats.m_BytesRam++;
          }
          // Nope ... read this directly without caching.
          else
          {
             clLog()->Debug(XrdCl::AppMsg, "File::Read() direct block %d", block_idx);
             blks_direct.push_back(block_idx);
+            m_stats.m_BytesMissed++;
          }
       }
    }
