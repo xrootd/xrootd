@@ -736,11 +736,6 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
         inc_ref_count(b);
         cache()->AddWriteTask(b, true);
       }
-      else {
-          if (b->m_prefetch && ( b->m_refcnt == 0)) {
-              m_block_map.erase((int)(b->m_offset/BufferSize()));
-          }
-      }
    }
    else
    {
@@ -752,9 +747,17 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
       b->set_error_and_free(errno);
       errno = 0;
 
-      // ??? AMT temprary commented out
+      // ??? AMT temprary commented out -- throw away failed attempts
       // inc_ref_count(b);
    }
+
+
+   // case when there is a prefetch that is failed or prefetch that stopped has just been initated
+   if (b->m_refcnt == 0) {
+      assert(b->m_prefetch);
+       m_block_map.erase((int)(b->m_offset/BufferSize()));
+   }
+
 
    m_downloadCond.Broadcast();
 
