@@ -86,6 +86,10 @@ int IOEntireFile::Read (char *buff, long long off, int size)
 {
    clLog()->Debug(XrdCl::AppMsg, "IO::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
 
+   // protect from reads over the file size
+   if (off + size > m_io.FSize())
+       size =  m_io.FSize() - off;
+
    ssize_t bytes_read = 0;
    ssize_t retval = 0;
 
@@ -97,15 +101,10 @@ int IOEntireFile::Read (char *buff, long long off, int size)
       bytes_read += retval;
       buff += retval;
       size -= retval;
+
+      if ((size > 0))
+         clLog()->Debug(XrdCl::AppMsg, "IO::Read() missed %d bytes %s", size, m_io.Path());
    }
-
-
-   if ((size > 0))
-   {
-      clLog()->Debug(XrdCl::AppMsg, "IO::Read() missed %d bytes %s", size, m_io.Path());
-      if (retval > 0) bytes_read += retval;
-   }
-
    if (retval < 0)
    {
       clLog()->Error(XrdCl::AppMsg, "IO::Read(), origin bytes read %d %s", retval, m_io.Path());
