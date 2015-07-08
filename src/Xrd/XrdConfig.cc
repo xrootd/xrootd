@@ -1626,7 +1626,7 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     long long lpp;
-    int  i, ppp;
+    int  i, ppp = 0;
     int  V_mint = -1, V_maxt = -1, V_idle = -1, V_avlt = -1;
     struct schedopts {const char *opname; int minv; int *oploc;
                       const char *opmsg;} scopts[] =

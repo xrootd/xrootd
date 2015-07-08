@@ -77,7 +77,7 @@ void XrdFfsDent_names_add(struct XrdFfsDentnames **p, char *name)
  */
 void XrdFfsDent_names_join(struct XrdFfsDentnames **p, struct XrdFfsDentnames **n)
 {
-    struct XrdFfsDentnames *t, *l;
+    struct XrdFfsDentnames *t, *l = 0;
 
     if ( *p != NULL )
     {

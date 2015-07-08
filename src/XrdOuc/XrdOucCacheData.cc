@@ -176,7 +176,7 @@ void XrdOucCacheData::Preread()
 {
    MrSw EnforceMrSw(pPLock, pPLopt);
    long long segBeg, segEnd;
-   int       oVal, pVal, rLen, noIO, bPead = 0, prPages = 0;
+   int       oVal, pVal = 0, rLen, noIO, bPead = 0, prPages = 0;
    char *cBuff;
 
 // Check if we are stopping, if so, ignore this request

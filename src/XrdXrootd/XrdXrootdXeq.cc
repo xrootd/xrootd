@@ -733,7 +733,7 @@ int XrdXrootdProtocol::do_Locate()
 {
    static XrdXrootdCallBack locCB("locate", XROOTD_MON_LOCATE);
    int rc, opts, fsctl_cmd = SFS_FSCTL_LOCATE;
-   char *opaque, *Path, *fn = argp->buff, opt[8], *op=opt;
+   char *opaque = 0, *Path, *fn = argp->buff, opt[8], *op=opt;
    XrdOucErrInfo myError(Link->ID,&locCB,ReqID.getID(),Monitor.Did,clientPV);
    bool doDig = false;
 
@@ -2028,7 +2028,7 @@ int XrdXrootdProtocol::do_ReadV()
    struct XrdOucIOVec     rdVec[maxRvecsz+1];
    struct readahead_list *raVec, respHdr;
    long long totSZ;
-   XrdSfsXferSize rdVAmt, rdVXfr, xfrSZ;
+   XrdSfsXferSize rdVAmt, rdVXfr, xfrSZ = 0;
    int rdVBeg, rdVBreak, rdVNow, rdVNum, rdVecNum;
    int currFH, i, k, Quantum, Qleft, rdVecLen = Request.header.dlen;
    int rvMon = Monitor.InOut();

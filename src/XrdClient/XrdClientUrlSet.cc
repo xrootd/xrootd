@@ -255,7 +255,7 @@ void XrdClientUrlSet::Rewind()
 XrdClientUrlInfo *XrdClientUrlSet::GetARandomUrl()
 {
    XrdClientUrlInfo *retval;
-   int rnd;
+   int rnd = 0;
 
    if (!fTmpUrlArray.GetSize()) Rewind();
 

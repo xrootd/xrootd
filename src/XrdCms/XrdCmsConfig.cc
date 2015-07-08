@@ -293,7 +293,7 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 // Create a text description of our role for use in messages
 //
    if (!myRole)
-      {XrdCmsRole::RoleID rid;
+      {XrdCmsRole::RoleID rid = XrdCmsRole::noRole;
              if (isMeta)        rid = XrdCmsRole::MetaManager;
         else if (isPeer)        rid = XrdCmsRole::Peer;
         else if (isProxy)
