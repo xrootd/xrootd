@@ -132,6 +132,10 @@ int IOFileBlock::Read (char *buff, long long off, int size)
    int bytes_read = 0;
    clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read() %lld@%d block range [%d-%d] \n %s", off, size, idx_first, idx_last, m_io.Path());
 
+   // protect from reads over the file size
+   if (off + size > m_io.FSize())
+       size =  m_io.FSize() - off;
+
    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
    {
       // locate block
@@ -192,15 +196,10 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          bytes_read += retvalBlock;
          buff += retvalBlock;
          off += retvalBlock;
-         long long remain = readBlockSize - retvalBlock;
-
-         // cancel read if not successfull
-         if (remain > 0)
-         {
-            clLog()->Warning(XrdCl::AppMsg, "IOFileBlock::Read() Incomplete prefetch block[%d] readSize =%d  offset[%lld], remain = %d %s",
-                                    blockIdx, readBlockSize, off, remain, m_io.Path());
-            return bytes_read;
-         }
+      }
+      else if (retvalBlock > 0) {
+         clLog()->Warning(XrdCl::AppMsg, "IOFileBlock::Read() incomplete read, missing bytes %d %s", readBlockSize-retvalBlock, m_io.Path());
+         return bytes_read + retvalBlock;
       }
       else
       {
