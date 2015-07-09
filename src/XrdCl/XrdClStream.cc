@@ -887,7 +887,10 @@ namespace XrdCl
                                             pStreamNum,
                                             *pChannelData );
     if( !st.IsOK() )
+    {
+      scopedLock.UnLock();
       OnError( substream, st );
+    }
   }
 
   //----------------------------------------------------------------------------
