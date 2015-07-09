@@ -720,6 +720,7 @@ void File::dec_ref_count(Block* b)
     b-> m_refcnt--;
     if ( b->m_refcnt == 0) {
         int i = b->m_offset/BufferSize();
+        delete m_block_map[i];
         size_t ret = m_block_map.erase(i);
         if (ret != 1) {
             clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
@@ -765,7 +766,10 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
    // case when there is a prefetch that is failed or prefetch that stopped has just been initated
    if (b->m_refcnt == 0) {
       assert(b->m_prefetch);
-       m_block_map.erase((int)(b->m_offset/BufferSize()));
+      cache()->RAMBlockReleased();
+      int bidx = (int)(b->m_offset/BufferSize());
+      delete m_block_map[bidx];
+      m_block_map.erase(bidx);
    }
 
 
@@ -841,6 +845,7 @@ void File::Prefetch()
                BlockMap_i bi = m_block_map.find(f);
                if (bi == m_block_map.end()) {
                   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch take block %d", f);
+                  cache()->RequestRAMBlock();
                   RequestBlock(f, true);
                   /// inc_ref_count(b); AMT don't increase it, there is no-one to annulate it 0
                   m_prefetchReadCnt++;

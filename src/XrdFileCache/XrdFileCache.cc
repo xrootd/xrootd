@@ -217,15 +217,8 @@ Cache::RegisterPrefetchFile(File* file)
 
     if (Factory::GetInstance().RefConfiguration().m_prefetch)
     {
-        if (Factory::GetInstance().RefConfiguration().m_hdfsmode) {
             XrdSysMutexHelper lock(&m_prefetch_mutex);
             m_files.push_back(file);
-        }
-        else 
-        {
-            // don't need to lock it becuse it File object is created in constructor of IOEntireFile
-            m_files.push_back(file);
-        }
     }
 }
 //______________________________________________________________________________
@@ -266,18 +259,28 @@ Cache::GetNextFileToPrefetch()
 void 
 Cache::Prefetch()
 {
-   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch thread start");
-  
-   while (true) {
-      File* f = GetNextFileToPrefetch();
-      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch got file (%p)", f);
+   const static int limitRAM= Factory::GetInstance().RefConfiguration().m_NRamBuffers * 0.7;
 
-      if (f) {
-         f->Prefetch();
+   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch thread start");
+
+    while (true) {
+      bool doPrefetch = false;
+      m_RAMblock_mutex.Lock();
+      if (m_RAMblocks_used < limitRAM)
+         doPrefetch = true;
+      m_RAMblock_mutex.UnLock();
+
+      if (doPrefetch) {
+         File* f = GetNextFileToPrefetch();
+         XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch got file (%p)", f);
+         if (f) {
+            f->Prefetch();
+            continue;
+         }
       }
-      else {
-         // wait for new file, AMT should I wait for the signal instead ???
-         XrdSysTimer::Wait(1);
-      }
-   }
+
+      // wait for new file or more resources, AMT should I wait for the signal instead ???
+      XrdSysTimer::Wait(1);
+
+   }  
 }
