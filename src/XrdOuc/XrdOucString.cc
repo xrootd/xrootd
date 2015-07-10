@@ -407,7 +407,7 @@ bool XrdOucString::endswith(char c)
 {
    // returns 1 if the stored string ends with string s
 
-   return (rfind(c) == (int)(len-1));
+   return ((len > 0) ? (rfind(c) == (int)(len-1)) : 0);
 }
 
 //______________________________________________________________________________
