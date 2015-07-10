@@ -186,6 +186,13 @@ int             Select(XrdCmsSelect &Sel);
 int             Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
                        int isrw, int isMulti, int ifWant);
 
+// Manipulate the global selection lock
+//
+void            SLock(bool dolock)
+                     {if (dolock) STMutex.Lock();
+                         else     STMutex.UnLock();
+                     }
+
 // Called to get cluster space (for managers and supervisors only)
 //
 void            Space(XrdCms::SpaceData &sData, SMask_t smask);
