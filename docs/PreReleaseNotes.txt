@@ -8,6 +8,8 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * [Server] Avoid execution stall during node logout when the thread limit
+    has been reached.
   * [Server] Make sure to capture return code for stat() to prevent random
     results.
   * [XrdCl] Make sure to get filestate lock during timeout processing to
