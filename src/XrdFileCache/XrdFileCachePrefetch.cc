@@ -236,7 +236,7 @@ bool Prefetch::Open()
       int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0644, myEnv);
       if ( res < 0)
       {
-         clLog()->Error(XrdCl::AppMsg, "Prefetch::Open() can't get data-FD for %s %s", m_temp_filename.c_str(), lPath());
+         clLog()->Error(XrdCl::AppMsg, "Prefetch::Open() can't open local file %s", m_temp_filename.c_str());
          delete m_output;
          m_output = NULL;
          return false;
@@ -951,7 +951,7 @@ Prefetch::Read(char *buff, off_t off, size_t size)
       XrdSysCondVarHelper monitor(m_stateCond);
 
       // AMT check if this can be done once during initalization
-      if (m_failed) return 0;
+      if (m_failed) return m_input.Read(buff, off, size);
 
       if ( ! m_started)
       {
