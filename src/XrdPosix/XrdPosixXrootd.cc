@@ -145,7 +145,7 @@ int XrdPosixXrootd::Close(int fildes)
 {
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fP;
-   int ret;
+   bool ret;
 
    if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
       {errno = EBADF; return -1;}
@@ -154,14 +154,14 @@ int XrdPosixXrootd::Close(int fildes)
 // object if the close was successful (it might not be).
 //
    if (!(fP->XCio->ioActive()))
-      {ret = fP->Close(Status);
-       if (!ret && XrdPosixGlobals::psxDBG)
-          {char eBuff[2048];
-           snprintf(eBuff, sizeof(eBuff), "Posix: %s closing %s\n",
-                    Status.ToString().c_str(), fP->Path());
-           cerr <<eBuff <<endl;
-          } else {delete fP; fP = 0;}
-      } else ret = 1;
+      {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
+          else if (XrdPosixGlobals::psxDBG)
+                  {char eBuff[2048];
+                   snprintf(eBuff, sizeof(eBuff), "Posix: %s closing %s\n",
+                            Status.ToString().c_str(), fP->Path());
+                   std::cerr <<eBuff <<std::flush;
+                  }
+      } else ret = true;
 
 // If we still have a handle then we need to do a delayed delete on this
 // object because either the close failed or there is still active I/O
@@ -456,7 +456,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
           {char eBuff[2048];
            snprintf(eBuff, sizeof(eBuff), "%s open %s\n",
                     Status.ToString().c_str(), fp->Path());
-           cerr <<eBuff <<endl;
+           std::cerr <<eBuff <<std::flush;
           }
        delete fp;
        errno = rc;
