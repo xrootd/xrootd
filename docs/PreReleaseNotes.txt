@@ -8,6 +8,8 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * [Server] Fixes #248 Prevent infinite loop when shift arg is negative.
+  * [Server] Complain when passed I/O length is negative.
   * [Server] Avoid execution stall during node logout when the thread limit
     has been reached.
   * [Server] Make sure to capture return code for stat() to prevent random
