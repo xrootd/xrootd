@@ -23,6 +23,7 @@ Prerelease Notes
     eventual SEGV. This is a bypass fix to another problem.
 
 + **Minor bug fixes**
+  * [Server] Fixes #234 Properly register all components in a mkpath request.
   * Correctly handle copying into a non-existent directory when automatic
     path creation is enabled.
   * [XrdCl] xrdfs correctly handles quotations (fixes the problem with ALICE token)
