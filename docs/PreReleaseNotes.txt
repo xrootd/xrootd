@@ -28,4 +28,5 @@ Prerelease Notes
   * [XrdCl] xrdfs correctly handles quotations (fixes the problem with ALICE token)
 
 + **Miscellaneous**
+  * Fixes #245 Provide compatability when cmake version is > 3.0.
   * Use atomics to manipulate unlocked variable pollNum.
