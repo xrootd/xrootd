@@ -8,6 +8,8 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * [Proxy] Protect forwarding proxy server from slow connections. This should
+    fix most, if not all, SEGV's that the server encountered under heavy load.
   * [Server] Fixes #248 Prevent infinite loop when shift arg is negative.
   * [Server] Complain when passed I/O length is negative.
   * [Server] Avoid execution stall during node logout when the thread limit
