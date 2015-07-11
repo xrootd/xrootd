@@ -8,6 +8,10 @@ set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
  ${PROJECT_SOURCE_DIR}/cmake )
 
+if(CMAKE_VERSION VERSION_GREATER "3.0")
+  cmake_policy(SET CMP0054 OLD)
+endif()
+
 include( XRootDUtils )
 CheckBuildDirectory()
 
