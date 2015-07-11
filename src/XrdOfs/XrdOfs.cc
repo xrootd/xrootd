@@ -1749,7 +1749,15 @@ int XrdOfs::mkdir(const char             *path,    // In
 
 // If we have a redirector, tell it that we now have this path
 //
-   if (Balancer) Balancer->Added(path);
+   if (Balancer)
+      {if (!mkpath) Balancer->Added(path);
+          else     {char *slash, *myPath = strdup(path);
+                    do {Balancer->Added(myPath);
+                        if ((slash = rindex(myPath, '/'))) *slash = 0;
+                       } while(slash && slash != myPath);
+                    free(myPath);
+                   }
+      }
 
     return SFS_OK;
 }
