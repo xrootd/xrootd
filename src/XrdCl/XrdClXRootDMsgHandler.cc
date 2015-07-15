@@ -1720,7 +1720,7 @@ namespace XrdCl
       return;
 
     Log *log = DefaultEnv::GetLog();
-    log->Error( XRootDMsg, "[%s] Handling error while processing %s: %s.",
+    log->Debug( XRootDMsg, "[%s] Handling error while processing %s: %s.",
                 pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
                 status.ToString().c_str() );
 
