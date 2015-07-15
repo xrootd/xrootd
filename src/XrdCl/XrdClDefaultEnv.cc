@@ -314,27 +314,32 @@ namespace XrdCl
     if( unlikely(!sPostMaster) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
+
       if( sPostMaster )
         return sPostMaster;
-      sPostMaster = new PostMaster();
 
-      if( !sPostMaster->Initialize() )
+      PostMaster* post_master = new PostMaster();
+
+      if( !post_master->Initialize() )
       {
-        delete sPostMaster;
-        sPostMaster = 0;
+        delete post_master;
+        post_master = 0;
         return 0;
       }
 
-      if( !sPostMaster->Start() )
+      if( !post_master->Start() )
       {
-        sPostMaster->Finalize();
-        delete sPostMaster;
-        sPostMaster = 0;
+        post_master->Finalize();
+        delete post_master;
+        post_master = 0;
         return 0;
       }
-      sForkHandler->RegisterPostMaster( sPostMaster );
-      sPostMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
+
+      sForkHandler->RegisterPostMaster( post_master );
+      post_master->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
+      sPostMaster = post_master;
     }
+
     return sPostMaster;
   }
 
@@ -547,7 +552,6 @@ namespace XrdCl
     sPlugInManager->ProcessEnvironmentSettings();
     sForkHandler->RegisterFileTimer( sFileTimer );
 
-
     //--------------------------------------------------------------------------
     // MacOSX library loading is completely moronic. We cannot dlopen a library
     // from a thread other than a main thread, so we-pre dlopen all the
@@ -723,9 +727,6 @@ extern "C"
   //----------------------------------------------------------------------------
   static void prepare()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     Log         *log         = DefaultEnv::GetLog();
     Env         *env         = DefaultEnv::GetEnv();
@@ -749,9 +750,6 @@ extern "C"
   //----------------------------------------------------------------------------
   static void parent()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     Log         *log         = DefaultEnv::GetLog();
     Env         *env         = DefaultEnv::GetEnv();
@@ -778,9 +776,6 @@ extern "C"
   //----------------------------------------------------------------------------
   static void child()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     DefaultEnv::ReInitializeLogging();
     Log         *log         = DefaultEnv::GetLog();
