@@ -21,6 +21,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClEnv.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 
 class XrdOucPinLoader;
 
@@ -160,7 +161,6 @@ namespace XrdCl
 
       static XrdSysMutex        sInitMutex;
       static Env               *sEnv;
-      static PostMaster        *sPostMaster;
       static Log               *sLog;
       static ForkHandler       *sForkHandler;
       static FileTimer         *sFileTimer;
@@ -170,6 +170,7 @@ namespace XrdCl
       static CheckSumManager   *sCheckSumManager;
       static TransportManager  *sTransportManager;
       static PlugInManager     *sPlugInManager;
+      static CPP_ATOMIC_TYPE(PostMaster*) sPostMaster;
   };
 }
 

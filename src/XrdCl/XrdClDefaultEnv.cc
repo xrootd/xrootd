@@ -155,7 +155,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XrdSysMutex        DefaultEnv::sInitMutex;
   Env               *DefaultEnv::sEnv                = 0;
-  PostMaster        *DefaultEnv::sPostMaster         = 0;
   Log               *DefaultEnv::sLog                = 0;
   ForkHandler       *DefaultEnv::sForkHandler        = 0;
   FileTimer         *DefaultEnv::sFileTimer          = 0;
@@ -165,6 +164,7 @@ namespace XrdCl
   CheckSumManager   *DefaultEnv::sCheckSumManager    = 0;
   TransportManager  *DefaultEnv::sTransportManager   = 0;
   PlugInManager     *DefaultEnv::sPlugInManager      = 0;
+  CPP_ATOMIC_TYPE(PostMaster*) DefaultEnv::sPostMaster(0);
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -311,14 +311,17 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   PostMaster *DefaultEnv::GetPostMaster()
   {
-    if( unlikely(!sPostMaster) )
+    PostMaster* post_master = CPP_ATOMIC_LOAD(sPostMaster, std::memory_order_seq_cst);
+
+    if( unlikely( !post_master ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
+      post_master = CPP_ATOMIC_LOAD(sPostMaster, std::memory_order_seq_cst);
 
-      if( sPostMaster )
-        return sPostMaster;
+      if( post_master )
+        return post_master;
 
-      PostMaster* post_master = new PostMaster();
+      post_master = new PostMaster();
 
       if( !post_master->Initialize() )
       {
@@ -337,10 +340,10 @@ namespace XrdCl
 
       sForkHandler->RegisterPostMaster( post_master );
       post_master->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
-      sPostMaster = post_master;
+      CPP_ATOMIC_STORE(sPostMaster, post_master, std::memory_order_relaxed);
     }
 
-    return sPostMaster;
+    return post_master;
   }
 
   //----------------------------------------------------------------------------
@@ -589,12 +592,14 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void DefaultEnv::Finalize()
   {
-    if( sPostMaster )
+    PostMaster* post_master = CPP_ATOMIC_LOAD(sPostMaster, std::memory_order_seq_cst);
+
+    if( post_master )
     {
-      sPostMaster->Stop();
-      sPostMaster->Finalize();
-      delete sPostMaster;
-      sPostMaster = 0;
+      CPP_ATOMIC_STORE(sPostMaster, 0, std::memory_order_seq_cst);
+      post_master->Stop();
+      post_master->Finalize();
+      delete post_master;
     }
 
     delete sTransportManager;
