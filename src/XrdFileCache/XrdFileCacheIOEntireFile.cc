@@ -69,7 +69,7 @@ XrdOucCacheIO *IOEntireFile::Detach()
 
 int IOEntireFile::Read (char *buff, long long off, int size)
 {
-   clLog()->Debug(XrdCl::AppMsg, "IO::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
+   clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
 
    // protect from reads over the file size
    if (off >= m_io.FSize())
@@ -86,19 +86,23 @@ int IOEntireFile::Read (char *buff, long long off, int size)
    ssize_t retval = 0;
 
    retval = m_file->Read(buff, off, size);
-   clLog()->Debug(XrdCl::AppMsg, "IO::Read() read from File retval =  %d %s", retval, m_io.Path());
+   clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() read from File retval =  %d %s", retval, m_io.Path());
    if (retval > 0)
    {
       bytes_read += retval;
       buff += retval;
       size -= retval;
 
+      // XXXX MT: the logick here is strange, see versions in
+      // alja/pfc-async-prefetch and in master.
+      // Also, what if retval == 0?
+      
       if ((size > 0))
-         clLog()->Debug(XrdCl::AppMsg, "IO::Read() missed %d bytes %s", size, m_io.Path());
+        clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() missed %d bytes %s", size, m_io.Path());
    }
    if (retval < 0)
    {
-      clLog()->Error(XrdCl::AppMsg, "IO::Read(), origin bytes read %d %s", retval, m_io.Path());
+      clLog()->Error(XrdCl::AppMsg, "IOEntireFile::Read(), origin bytes read %d %s", retval, m_io.Path());
    }
 
    return (retval < 0) ? retval : bytes_read;
@@ -111,7 +115,7 @@ int IOEntireFile::Read (char *buff, long long off, int size)
  */
 int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
 {
-   clLog()->Warning(XrdCl::AppMsg, "IO::ReadV(), get %d requests %s", n, m_io.Path());
+   clLog()->Warning(XrdCl::AppMsg, "IOEntireFile::ReadV(), get %d requests %s", n, m_io.Path());
 
 
    return m_file->ReadV(readV, n);
