@@ -105,7 +105,7 @@ File::~File()
       m_stateCond.UnLock();
    }
 
-   cache()->RemoveWriteQEntriesFor(this);
+   // cache()->RemoveWriteQEntriesFor(this);
 
    clLog()->Info(XrdCl::AppMsg, "File::~File() check write queues ...%s", lPath());
    
@@ -814,7 +814,7 @@ void File::AppendIOStatToFileInfo()
    }
    else
    {
-      clLog()->Warning(XrdCl::AppMsg, "Prefetch::AppendIOStatToFileInfo() info file not opened %s", lPath());
+      clLog()->Warning(XrdCl::AppMsg, "File::AppendIOStatToFileInfo() info file not opened %s", lPath());
    }
 }
 
@@ -829,22 +829,22 @@ void File::Prefetch()
    
    if (!stopping) {
 
-         clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch enter to check download status \n");
+       //  clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status \n");
       XrdSysCondVarHelper _lck(m_downloadCond);
-         clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch enter to check download status BEGIN \n");
-      if (m_cfi.IsComplete() == false && m_block_map.size() < 100)
+      //   clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status BEGIN \n");
+      if (m_cfi.IsComplete() == false && m_block_map.size() < 1)
       {
 
          // check index not on disk and not in RAM
          bool found = false;
          for (int f=0; f < m_cfi.GetSizeInBits(); ++f)
          {
-            clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch test bit %d", f);
+             // clLog()->Dump(XrdCl::AppMsg, "File::Prefetch test bit %d", f);
             if (!m_cfi.TestBit(f))
             {    
                BlockMap_i bi = m_block_map.find(f);
                if (bi == m_block_map.end()) {
-                  clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch take block %d", f);
+                  clLog()->Dump(XrdCl::AppMsg, "File::Prefetch take block %d", f);
                   cache()->RequestRAMBlock();
                   RequestBlock(f, true);
                   /// inc_ref_count(b); AMT don't increase it, there is no-one to annulate it 0
@@ -856,12 +856,12 @@ void File::Prefetch()
             }
          }
          if (!found)  { 
-            clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch no free blcok found ");
+            clLog()->Dump(XrdCl::AppMsg, "File::Prefetch no free blcok found ");
             m_cfi.CheckComplete();
             if (m_cfi.IsComplete() == false)
-                  clLog()->Dump(XrdCl::AppMsg, "Prefetch::Prefetch This shoulf not happedn !!!"); 
+                  clLog()->Dump(XrdCl::AppMsg, "File::Prefetch This shoulf not happedn !!!"); 
          }
-         clLog()->Debug(XrdCl::AppMsg, "Prefetch::Prefetch end");
+         clLog()->Debug(XrdCl::AppMsg, "File::Prefetch end");
       }
    }
 
@@ -898,8 +898,6 @@ float File::GetPrefetchScore() const
 //______________________________________________________________________________
 void File::MarkPrefetch()
 {
-
-    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"File::MarkPrefetch()");
    m_stateCond.Lock();
    m_prefetchCurrentCnt++;
    m_stateCond.UnLock();
