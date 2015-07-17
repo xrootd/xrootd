@@ -742,7 +742,7 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
    if (status->IsOK()) 
    {
       b->m_downloaded = true;
-      clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse %d  finidhed %d",(int)(b->m_offset/BufferSize()), b->is_finished());
+      clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse %d  finished %d",(int)(b->m_offset/BufferSize()), b->is_finished());
       if (!m_stopping) { // AMT theoretically this should be under state lock, but then are double locks
         inc_ref_count(b);
         cache()->AddWriteTask(b, true);
