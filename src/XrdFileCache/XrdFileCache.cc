@@ -99,24 +99,15 @@ void Cache::Detach(XrdOucCacheIO* io)
 
    delete io;
 }
-
-// XXXX MT: is the following needed ???
-//______________________________________________________________________________
-void Cache::getFilePathFromURL(const char* iUrl, std::string &result) const
-{
-   XrdCl::URL url(iUrl);
-   result = Factory::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
-}
-
-// XXXX MT: is the following needed ???
 //______________________________________________________________________________
 bool
 Cache::HaveFreeWritingSlots()
 {
+
+   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::HaveFreeWritingSlots() %ld", s_writeQ.size);
    const static size_t maxWriteWaits=500;
    return s_writeQ.size < maxWriteWaits;
 }
-
 //______________________________________________________________________________
 void
 Cache::AddWriteTask(Block* b, bool fromRead)
@@ -266,7 +257,7 @@ Cache::Prefetch()
     while (true) {
       bool doPrefetch = false;
       m_RAMblock_mutex.Lock();
-      if (m_RAMblocks_used < limitRAM)
+      if (m_RAMblocks_used < limitRAM && HaveFreeWritingSlots())
          doPrefetch = true;
       m_RAMblock_mutex.UnLock();
 
@@ -275,12 +266,13 @@ Cache::Prefetch()
          XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch got file (%p)", f);
          if (f) {
             f->Prefetch();
+            XrdSysTimer::Wait(1);
             continue;
          }
       }
 
       // wait for new file or more resources, AMT should I wait for the signal instead ???
-      XrdSysTimer::Wait(1);
+      XrdSysTimer::Wait(10);
 
    }  
 }
