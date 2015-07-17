@@ -68,6 +68,10 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void AddWriteTask(Block* b, bool from_read);
 
+         //---------------------------------------------------------------------
+         //! Check write queue size is not over limit.
+         //---------------------------------------------------------------------
+         bool HaveFreeWritingSlots();
 
          //---------------------------------------------------------------------
          //!  \brief Remove blocks from write queue which belong to given prefetch.
