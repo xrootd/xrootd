@@ -193,7 +193,7 @@ Cache::RAMBlockReleased()
 //==============================================================================
 //=======================  PREFETCH ===================================
 //==============================================================================
-
+/*
 namespace {
 struct prefetch_less_than
 {
@@ -202,7 +202,7 @@ struct prefetch_less_than
         return (struct1->GetPrefetchScore() < struct2->GetPrefetchScore());
     }
 }myobject;
-}
+}*/
 //______________________________________________________________________________
 
 void
@@ -243,7 +243,8 @@ Cache::GetNextFileToPrefetch()
       return 0;
    }
 
-   std::sort(m_files.begin(), m_files.end(), myobject);
+   //  std::sort(m_files.begin(), m_files.end(), myobject);
+   std::random_shuffle(m_files.begin(), m_files.end());
    File* f = m_files.back();
    f->MarkPrefetch();
    return f;
@@ -270,7 +271,7 @@ Cache::Prefetch()
          File* f = GetNextFileToPrefetch();
          if (f) {
             f->Prefetch();
-            XrdSysTimer::Wait(1);
+            // XrdSysTimer::Wait(1);
             continue;
          }
       }
