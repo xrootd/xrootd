@@ -103,10 +103,14 @@ void Cache::Detach(XrdOucCacheIO* io)
 bool
 Cache::HaveFreeWritingSlots()
 {
-
-   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::HaveFreeWritingSlots() %ld", s_writeQ.size);
    const static size_t maxWriteWaits=500;
-   return s_writeQ.size < maxWriteWaits;
+   if ( s_writeQ.size < maxWriteWaits) {
+      return true;
+   }
+   else {
+       XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::AppMsg, "Cache::HaveFreeWritingSlots() negative", s_writeQ.size);
+       return false;
+   }
 }
 //______________________________________________________________________________
 void
@@ -212,6 +216,7 @@ Cache::RegisterPrefetchFile(File* file)
             m_files.push_back(file);
     }
 }
+
 //______________________________________________________________________________
 
 void
@@ -263,7 +268,6 @@ Cache::Prefetch()
 
       if (doPrefetch) {
          File* f = GetNextFileToPrefetch();
-         XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch got file (%p)", f);
          if (f) {
             f->Prefetch();
             XrdSysTimer::Wait(1);
@@ -273,6 +277,5 @@ Cache::Prefetch()
 
       // wait for new file or more resources, AMT should I wait for the signal instead ???
       XrdSysTimer::Wait(10);
-
    }  
 }
