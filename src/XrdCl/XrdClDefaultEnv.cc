@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClTransportManager.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdOuc/XrdOucPreload.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysUtils.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
@@ -311,36 +312,39 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   PostMaster *DefaultEnv::GetPostMaster()
   {
-    if( unlikely(!sPostMaster) )
+    PostMaster* postMaster = AtomicGet(sPostMaster);
+
+    if( unlikely( !postMaster ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
+      postMaster = AtomicGet(sPostMaster);
 
-      if( sPostMaster )
-        return sPostMaster;
+      if( postMaster )
+        return postMaster;
 
-      PostMaster* post_master = new PostMaster();
+      postMaster = new PostMaster();
 
-      if( !post_master->Initialize() )
+      if( !postMaster->Initialize() )
       {
-        delete post_master;
-        post_master = 0;
+        delete postMaster;
+        postMaster = 0;
         return 0;
       }
 
-      if( !post_master->Start() )
+      if( !postMaster->Start() )
       {
-        post_master->Finalize();
-        delete post_master;
-        post_master = 0;
+        postMaster->Finalize();
+        delete postMaster;
+        postMaster = 0;
         return 0;
       }
 
-      sForkHandler->RegisterPostMaster( post_master );
-      post_master->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
-      sPostMaster = post_master;
+      sForkHandler->RegisterPostMaster( postMaster );
+      postMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
+      AtomicCAS(sPostMaster, sPostMaster, postMaster);
     }
 
-    return sPostMaster;
+    return postMaster;
   }
 
   //----------------------------------------------------------------------------
@@ -608,6 +612,7 @@ namespace XrdCl
 
     if( sMonitorLibHandle )
       sMonitorLibHandle->Unload();
+
     delete sMonitorLibHandle;
     sMonitorLibHandle = 0;
 
