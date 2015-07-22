@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClTransportManager.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdOuc/XrdOucPreload.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysUtils.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
@@ -311,31 +312,39 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   PostMaster *DefaultEnv::GetPostMaster()
   {
-    if( unlikely(!sPostMaster) )
+    PostMaster* postMaster = AtomicGet(sPostMaster);
+
+    if( unlikely( !postMaster ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
-      if( sPostMaster )
-        return sPostMaster;
-      sPostMaster = new PostMaster();
+      postMaster = AtomicGet(sPostMaster);
 
-      if( !sPostMaster->Initialize() )
+      if( postMaster )
+        return postMaster;
+
+      postMaster = new PostMaster();
+
+      if( !postMaster->Initialize() )
       {
-        delete sPostMaster;
-        sPostMaster = 0;
+        delete postMaster;
+        postMaster = 0;
         return 0;
       }
 
-      if( !sPostMaster->Start() )
+      if( !postMaster->Start() )
       {
-        sPostMaster->Finalize();
-        delete sPostMaster;
-        sPostMaster = 0;
+        postMaster->Finalize();
+        delete postMaster;
+        postMaster = 0;
         return 0;
       }
-      sForkHandler->RegisterPostMaster( sPostMaster );
-      sPostMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
+
+      sForkHandler->RegisterPostMaster( postMaster );
+      postMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
+      AtomicCAS(sPostMaster, sPostMaster, postMaster);
     }
-    return sPostMaster;
+
+    return postMaster;
   }
 
   //----------------------------------------------------------------------------
@@ -547,7 +556,6 @@ namespace XrdCl
     sPlugInManager->ProcessEnvironmentSettings();
     sForkHandler->RegisterFileTimer( sFileTimer );
 
-
     //--------------------------------------------------------------------------
     // MacOSX library loading is completely moronic. We cannot dlopen a library
     // from a thread other than a main thread, so we-pre dlopen all the
@@ -604,6 +612,7 @@ namespace XrdCl
 
     if( sMonitorLibHandle )
       sMonitorLibHandle->Unload();
+
     delete sMonitorLibHandle;
     sMonitorLibHandle = 0;
 
@@ -723,9 +732,6 @@ extern "C"
   //----------------------------------------------------------------------------
   static void prepare()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     Log         *log         = DefaultEnv::GetLog();
     Env         *env         = DefaultEnv::GetEnv();
@@ -749,9 +755,6 @@ extern "C"
   //----------------------------------------------------------------------------
   static void parent()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     Log         *log         = DefaultEnv::GetLog();
     Env         *env         = DefaultEnv::GetEnv();
@@ -778,9 +781,6 @@ extern "C"
   //----------------------------------------------------------------------------
   static void child()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     DefaultEnv::ReInitializeLogging();
     Log         *log         = DefaultEnv::GetLog();

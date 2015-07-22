@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
    XrdSysLogger Logger;
    sigset_t myset;
    XrdOucTokenizer Request(0);
-   char *cLine = 0, *pLine = 0, *Cmd = 0, *CmdArgs;
+   char *cLine = 0, *pLine = 0, *Cmd = 0, *CmdArgs = 0;
    int IMode;
 
 // Turn off sigpipe and host a variety of others before we start any threads

@@ -1345,8 +1345,9 @@ XRootDStatus DoTail( FileSystem                      *fs,
   }
 
   StatInfo *info = 0;
-  file.Stat( false, info );
-  uint64_t size = info->GetSize();
+  uint64_t size = 0;
+  st = file.Stat( false, info );
+  if (st.IsOK()) size = info->GetSize();
 
   if( size < offset )
     offset = 0;
@@ -1386,7 +1387,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
   }
   delete [] buffer;
 
-  file.Close();
+  XRootDStatus stC = file.Close();
 
   return XRootDStatus();
 }

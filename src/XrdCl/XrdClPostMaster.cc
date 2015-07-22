@@ -66,9 +66,12 @@ namespace XrdCl
     env->GetString( "PollerPreference", pollerPref );
 
     pPoller = PollerFactory::CreatePoller( pollerPref );
+
     if( !pPoller )
       return false;
+
     bool st = pPoller->Initialize();
+
     if( !st )
     {
       delete pPoller;
@@ -76,7 +79,6 @@ namespace XrdCl
     }
 
     pJobManager->Initialize();
-
     pInitialized = true;
     return true;
   }
@@ -93,12 +95,12 @@ namespace XrdCl
       return true;
 
     pInitialized = false;
-
     pJobManager->Finalize();
-
     ChannelMap::iterator it;
+
     for( it = pChannelMap.begin(); it != pChannelMap.end(); ++it )
       delete it->second;
+
     pChannelMap.clear();
     return pPoller->Finalize();
   }
@@ -126,6 +128,7 @@ namespace XrdCl
       pTaskManager->Stop();
       return false;
     }
+
     return true;
   }
 
@@ -162,8 +165,6 @@ namespace XrdCl
                            bool       stateful,
                            time_t     expires )
   {
-    if( !pInitialized )
-      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -181,8 +182,6 @@ namespace XrdCl
                            bool                  stateful,
                            time_t                expires )
   {
-    if( !pInitialized )
-      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -199,8 +198,6 @@ namespace XrdCl
                               MessageFilter  *filter,
                               time_t          expires )
   {
-    if( !pInitialized )
-      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -216,10 +213,7 @@ namespace XrdCl
                               IncomingMsgHandler *handler,
                               time_t              expires )
   {
-    if( !pInitialized )
-      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
-
 
     if( !channel )
       return Status( stError, errNotSupported );
@@ -234,8 +228,6 @@ namespace XrdCl
                                      uint16_t   query,
                                      AnyObject &result )
   {
-    if( !pInitialized )
-      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -250,8 +242,6 @@ namespace XrdCl
   Status PostMaster::RegisterEventHandler( const URL           &url,
                                            ChannelEventHandler *handler )
   {
-    if( !pInitialized )
-      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -267,8 +257,6 @@ namespace XrdCl
   Status PostMaster::RemoveEventHandler( const URL           &url,
                                        ChannelEventHandler *handler )
   {
-    if( !pInitialized )
-      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -286,6 +274,7 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pChannelMapMutex );
     Channel *channel = 0;
     ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
+
     if( it == pChannelMap.end() )
     {
       TransportManager *trManager = DefaultEnv::GetTransportManager();

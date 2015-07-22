@@ -28,7 +28,6 @@
 #include "PyXRootD.hh"
 #include "Conversions.hh"
 #include "Utils.hh"
-
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 namespace PyXRootD
@@ -47,11 +46,123 @@ namespace PyXRootD
           callback( callback ), state( PyGILState_UNLOCKED ) {}
 
       //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~AsyncResponseHandler() {};
+
+      //------------------------------------------------------------------------
       //! Handle the asynchronous response call
       //------------------------------------------------------------------------
       void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
                                     XrdCl::AnyObject *response,
                                     XrdCl::HostList *hostList )
+      {
+        //----------------------------------------------------------------------
+        // Ensure we hold the Global Interpreter Lock
+        //----------------------------------------------------------------------
+        state = PyGILState_Ensure();
+        if ( InitTypes() != 0) {
+          delete status;
+          delete response;
+          delete hostList;
+          return Exit();
+        }
+
+        //----------------------------------------------------------------------
+        // Convert the XRootDStatus object
+        //----------------------------------------------------------------------
+        PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( status );
+        if ( !pystatus || PyErr_Occurred() ) {
+          delete status;
+          delete response;
+          delete hostList;
+          return Exit();
+        }
+
+        //----------------------------------------------------------------------
+        // Convert the response object, if any
+        //----------------------------------------------------------------------
+        PyObject *pyresponse = NULL;
+        if ( response != NULL) {
+          pyresponse = ParseResponse( response );
+          if ( pyresponse == NULL || PyErr_Occurred() ) {
+            Py_XDECREF( pystatus );
+            delete status;
+            delete response;
+            delete hostList;
+            return Exit();
+          }
+        }
+
+        //----------------------------------------------------------------------
+        // Convert the host list
+        //----------------------------------------------------------------------
+        PyObject *pyhostlist = PyList_New( 0 );
+        if ( hostList != NULL ) {
+          pyhostlist = ConvertType<XrdCl::HostList>( hostList );
+          if ( pyhostlist == NULL || PyErr_Occurred() ) {
+            Py_XDECREF( pystatus );
+            Py_XDECREF( pyresponse );
+            delete status;
+            delete response;
+            delete hostList;
+            return Exit();
+          }
+        }
+
+        //----------------------------------------------------------------------
+        // Build the callback arguments
+        //----------------------------------------------------------------------
+        if (pyresponse == NULL) pyresponse = Py_BuildValue( "" );
+        PyObject *args = Py_BuildValue( "(OOO)", pystatus, pyresponse, pyhostlist );
+        if ( !args || PyErr_Occurred() ) {
+          Py_XDECREF( pystatus );
+          Py_XDECREF( pyresponse );
+          Py_XDECREF( pyhostlist );
+          delete status;
+          delete response;
+          delete hostList;
+          return Exit();
+        }
+
+        //----------------------------------------------------------------------
+        // Invoke the Python callback
+        //----------------------------------------------------------------------
+        PyObject *callbackResult = PyObject_CallObject( this->callback, args );
+        Py_DECREF( args );
+        if ( !callbackResult || PyErr_Occurred() ) {
+          Py_XDECREF( pystatus );
+          Py_XDECREF( pyresponse );
+          Py_XDECREF( pyhostlist );
+          delete status;
+          delete response;
+          delete hostList;
+          return Exit();
+        }
+
+        //----------------------------------------------------------------------
+        // Clean up
+        //----------------------------------------------------------------------
+        Py_XDECREF( pystatus );
+        Py_XDECREF( pyresponse );
+        Py_XDECREF( pyhostlist );
+        Py_XDECREF( callbackResult );
+        Py_XDECREF( this->callback );
+
+        PyGILState_Release( state );
+
+        delete status;
+        delete response;
+        delete hostList;
+        // Commit suicide...
+        delete this;
+      }
+
+      //------------------------------------------------------------------------
+      //! Handle the asynchronous response call
+      //------------------------------------------------------------------------
+      void HandleResponse( XrdCl::XRootDStatus *status,
+                           XrdCl::AnyObject *response )
       {
         //----------------------------------------------------------------------
         // Ensure we hold the Global Interpreter Lock
@@ -76,17 +187,8 @@ namespace PyXRootD
         if ( response != NULL) {
           pyresponse = ParseResponse( response );
           if ( pyresponse == NULL || PyErr_Occurred() ) {
-            return Exit();
-          }
-        }
-
-        //----------------------------------------------------------------------
-        // Convert the host list
-        //----------------------------------------------------------------------
-        PyObject *pyhostlist = PyList_New( 0 );
-        if ( hostList != NULL ) {
-          pyhostlist = ConvertType<XrdCl::HostList>( hostList );
-          if ( pyhostlist == NULL || PyErr_Occurred() ) {
+            Py_XDECREF( pystatus );
+            delete response;
             return Exit();
           }
         }
@@ -95,8 +197,11 @@ namespace PyXRootD
         // Build the callback arguments
         //----------------------------------------------------------------------
         if (pyresponse == NULL) pyresponse = Py_BuildValue( "" );
-        PyObject *args = Py_BuildValue( "(OOO)", pystatus, pyresponse, pyhostlist );
+        PyObject *args = Py_BuildValue( "(OO)", pystatus, pyresponse );
         if ( !args || PyErr_Occurred() ) {
+          Py_XDECREF( pystatus );
+          Py_XDECREF( pyresponse );
+          delete response;
           return Exit();
         }
 
@@ -106,6 +211,9 @@ namespace PyXRootD
         PyObject *callbackResult = PyObject_CallObject( this->callback, args );
         Py_DECREF( args );
         if ( !callbackResult || PyErr_Occurred() ) {
+          Py_XDECREF( pystatus );
+          Py_XDECREF( pyresponse );
+          delete response;
           return Exit();
         }
 
@@ -114,14 +222,13 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         Py_XDECREF( pystatus );
         Py_XDECREF( pyresponse );
-        Py_XDECREF( pyhostlist );
         Py_XDECREF( callbackResult );
         Py_XDECREF( this->callback );
 
         PyGILState_Release( state );
 
+        delete status;
         delete response;
-        delete hostList;
         // Commit suicide...
         delete this;
       }
@@ -145,7 +252,7 @@ namespace PyXRootD
       {
         PyErr_Print();
         PyGILState_Release( state );
-        return;
+        delete this;
       }
 
     private:

@@ -733,7 +733,7 @@ int XrdXrootdProtocol::do_Locate()
 {
    static XrdXrootdCallBack locCB("locate", XROOTD_MON_LOCATE);
    int rc, opts, fsctl_cmd = SFS_FSCTL_LOCATE;
-   char *opaque, *Path, *fn = argp->buff, opt[8], *op=opt;
+   char *opaque = 0, *Path, *fn = argp->buff, opt[8], *op=opt;
    XrdOucErrInfo myError(Link->ID,&locCB,ReqID.getID(),Monitor.Did,clientPV);
    bool doDig = false;
 
@@ -1871,16 +1871,21 @@ int XrdXrootdProtocol::do_Read()
       return Response.Send(kXR_FileNotOpen,
                            "read does not refer to an open file");
 
-// Short circuit processing is read length is zero
+// Trace and verify read length is not negative
 //
    TRACEP(FS, pathID <<" fh=" <<fh.handle <<" read " <<myIOLen <<'@' <<myOffset);
-   if (!myIOLen) return Response.Send();
+   if ( myIOLen < 0) return Response.Send(kXR_ArgInvalid,
+                                          "Read length is negative");
 
 // If we are monitoring, insert a read entry
 //
    if (Monitor.InOut())
       Monitor.Agent->Add_rd(myFile->Stats.FileID, Request.read.rlen,
                                                   Request.read.offset);
+
+// Short circuit processing if read length is zero
+//
+   if (!myIOLen) return Response.Send();
 
 // See if an alternate path is required, offload the read
 //
@@ -2028,7 +2033,7 @@ int XrdXrootdProtocol::do_ReadV()
    struct XrdOucIOVec     rdVec[maxRvecsz+1];
    struct readahead_list *raVec, respHdr;
    long long totSZ;
-   XrdSfsXferSize rdVAmt, rdVXfr, xfrSZ;
+   XrdSfsXferSize rdVAmt, rdVXfr, xfrSZ = 0;
    int rdVBeg, rdVBreak, rdVNow, rdVNum, rdVecNum;
    int currFH, i, k, Quantum, Qleft, rdVecLen = Request.header.dlen;
    int rvMon = Monitor.InOut();
@@ -2061,6 +2066,8 @@ int XrdXrootdProtocol::do_ReadV()
    totSZ = rdVecLen; Quantum = maxTransz - hdrSZ;
    for (i = 0; i < rdVecNum; i++) 
        {totSZ += (rdVec[i].size = ntohl(raVec[i].rlen));
+        if (rdVec[i].size < 0)       return Response.Send(kXR_ArgInvalid,
+                                           "Readv length is negative");
         if (rdVec[i].size > Quantum) return Response.Send(kXR_NoMemory,
                                            "Single readv transfer is too large");
         rdVec[i].offset = ntohll(raVec[i].offset);
@@ -2545,6 +2552,12 @@ int XrdXrootdProtocol::do_Write()
        return Link->setEtext("write protcol violation");
       }
 
+// Trace and verify that length is not negative
+//
+   TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
+   if ( myIOLen < 0) return Response.Send(kXR_ArgInvalid,
+                                          "Write length is negative");
+
 // If we are monitoring, insert a write entry
 //
    if (Monitor.InOut())
@@ -2553,8 +2566,7 @@ int XrdXrootdProtocol::do_Write()
 
 // If zero length write, simply return
 //
-   TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
-   if (myIOLen <= 0) return Response.Send();
+   if (!myIOLen) return Response.Send();
 
 // See if an alternate path is required
 //

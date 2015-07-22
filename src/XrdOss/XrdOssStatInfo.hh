@@ -53,13 +53,19 @@ struct stat;
 //! @param  opts          A combination of XRDOSS_xxxx options. See XrdOss.hh.
 //! @param  envP       -> environment pointer which includes CGI information.
 //!                       This pointer is nil if no special environment exists.
+//! @param  lfn        -> the corresponding logical file name. This is only
+//!                       passed for version 2 calls (see XrdOssStatInfoInit2).
 //!
 //! @return Success:      zero with the stat structure filled in.
 //! @return Failure:      a -1 with errno set to the correct err number value.
 //------------------------------------------------------------------------------
 
-typedef int (*XrdOssStatInfo_t)(const char *path, struct stat *buff,
-                                int         opts, XrdOucEnv   *envP);
+typedef int (*XrdOssStatInfo_t) (const char *path, struct stat *buff,
+                                 int         opts, XrdOucEnv   *envP);
+
+typedef int (*XrdOssStatInfo2_t)(const char *path, struct stat *buff,
+                                 int         opts, XrdOucEnv   *envP,
+                                 const char *lfn);
 
 /******************************************************************************/
 /*           X r d O s s S t a t I n f o   I n s t a n t i a t o r            */
@@ -102,16 +108,17 @@ typedef int (*XrdOssStatInfo_t)(const char *path, struct stat *buff,
 
     An alternate entry point may be defined in lieu of the previous entry point.
     This normally identified by a version option in the configuration file (e.g.
-    oss.statlib -2 <path>). It differs in that an extra parameter is passed:
+    oss.statlib -2 <path>). It differs in that an extra parameter is passed and
+    if returns a function that accepts an extra parameter.
 
     @param  envP     - Pointer to the environment containing implementation
                        specific information.
 
-   extern "C" XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
-                                                  XrdSysLogger  *Logger,
-                                                  const char    *config_fn,
-                                                  const char    *parms,
-                                                  XrdOucEnv     *envP);
+   extern "C" XrdOssStatInfo2_t XrdOssStatInfoInit2(XrdOss        *native_oss,
+                                                    XrdSysLogger  *Logger,
+                                                    const char    *config_fn,
+                                                    const char    *parms,
+                                                    XrdOucEnv     *envP);
 */
 
 //------------------------------------------------------------------------------
@@ -136,9 +143,9 @@ typedef XrdOssStatInfo_t (*XrdOssStatInfoInit_t)(XrdOss        *native_oss,
                                                  const char    *config_fn,
                                                  const char    *parms);
 
-typedef XrdOssStatInfo_t (*XrdOssStatInfoInit2_t)(XrdOss       *native_oss,
-                                                  XrdSysLogger *Logger,
-                                                  const char   *config_fn,
-                                                  const char   *parms,
-                                                  XrdOucEnv    *envP);
+typedef XrdOssStatInfo2_t (*XrdOssStatInfoInit2_t)(XrdOss       *native_oss,
+                                                   XrdSysLogger *Logger,
+                                                   const char   *config_fn,
+                                                   const char   *parms,
+                                                   XrdOucEnv    *envP);
 #endif

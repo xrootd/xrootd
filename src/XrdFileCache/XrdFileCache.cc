@@ -110,7 +110,7 @@ void Cache::getFilePathFromURL(const char* iUrl, std::string &result) const
 bool
 Cache::HaveFreeWritingSlots()
 {
-   const static size_t maxWriteWaits=100;
+   const static size_t maxWriteWaits=500;
    return s_writeQ.size < maxWriteWaits;
 }
 

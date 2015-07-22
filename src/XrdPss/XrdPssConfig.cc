@@ -831,7 +831,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 {
     XrdOucTList *tp = 0;
     char *val, *mval = 0;
-    int  i, port;
+    int  i, port = 0;
 
 //  We are looking for regular managers. These are our points of contact
 //

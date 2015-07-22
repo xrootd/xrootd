@@ -98,7 +98,10 @@ int XrdOfsTPCAuth::Add(XrdOfsTPC::Facts &Args)
 // Set the copy authorization information
 //
    if ((eMsg = Info.Set(Args.Key, Buff, Args.Lfn, Args.Dst)))
-      return Fatal(Args, eMsg, EINVAL);
+   {
+     authMutex.UnLock();
+     return Fatal(Args, eMsg, EINVAL);
+   }
 
 // Add this to queue
 //

@@ -296,7 +296,7 @@ void XrdCmsBlackList::DoIt()
 {
    struct stat Stat;
    XrdOucTList **blOldRedr = 0, **blNewRedr = 0, *blNewReal = 0, *tP = 0, *nP;
-   int rc, blOldRcnt, blNewRcnt;
+   int rc, blOldRcnt = 0, blNewRcnt;
    bool doUpdt = false, doPrt = false;
 
 // Check if the black list file was modified

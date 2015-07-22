@@ -57,8 +57,7 @@ namespace XrdCl
     // has been finalized by the linker. So, if we don't have the log object
     // at this point we just give up the hope.
     //--------------------------------------------------------------------------
-    if( DefaultEnv::GetLog() )
-      Close();
+    if ( DefaultEnv::GetLog() && IsOpen() ) {XRootDStatus status = Close();}
     delete pStateHandler;
     delete pPlugIn;
   }

@@ -36,6 +36,11 @@
 #include <sys/event.h>
 #include <sys/time.h>
 
+#include "XrdSys/XrdSysAtomics.hh"
+#ifndef Atomic
+#define Atomic(x) x
+#endif
+
 using namespace std;
   
 /******************************************************************************/
@@ -82,7 +87,7 @@ struct kevent       armPipe;
        int          cbNext;
        int          pollDfd;
        int          pollMax;
-       int          pollNum;
+       Atomic(int)  pollNum;
        int          numPoll;
 static void        *deadChP;
 
@@ -199,7 +204,7 @@ void XrdSys::IOEvents::PollKQ::Begin(XrdSysSemaphore *syncsem,
    struct timespec *tmP, tmOut;
    Channel *cP;
    long long tmVal;
-   int numpolled;
+   int numpolled, pollN;
 
 // Indicate to the starting thread that all went well
 //
@@ -227,7 +232,8 @@ void XrdSys::IOEvents::PollKQ::Begin(XrdSysSemaphore *syncsem,
                     else if (!Process(i+1)) return;
                 }
 
-       if (pollMax < pollNum) AllocPT(pollNum);
+       pollN = AtomicGet(pollNum);
+       if (pollMax < pollN) AllocPT(pollN);
 
       } while(1);
 }
@@ -289,7 +295,7 @@ void XrdSys::IOEvents::PollKQ::Exclude(XrdSys::IOEvents::Channel *cP,
 //
    if (i) kevent(pollDfd, chlist, i, 0, 0, 0);
    SetPollEnt(cP, 0);
-   pollNum--;
+   AtomicDec(pollNum);
 
 // If we need to verify this action, sync with the poller thread (note that the
 // poller thread will not ask for this action unless it wants to deadlock). We
@@ -337,7 +343,7 @@ bool XrdSys::IOEvents::PollKQ::Include(XrdSys::IOEvents::Channel *cP,
 // All went well. Bump the number in the set. The poller thread will
 // reallocate the poll table if need be.
 //
-   pollNum++;
+   AtomicInc(pollNum);
    return true;
 }
 

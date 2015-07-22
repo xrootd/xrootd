@@ -117,8 +117,8 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
 // Set the minimum size of the id buffer. This is likely going to wind up
 // a bit larger than we need but at least it will big enough.
 //
-   idTLen  = (decKey.Data.User ? strlen(decKey.Data.User) : 0);
-   idTLen += (decKey.Data.Grup ? strlen(decKey.Data.Grup) : 0);
+   idTLen  = (decKey.Data.User[0] ? strlen(decKey.Data.User) : 0);
+   idTLen += (decKey.Data.Grup[0] ? strlen(decKey.Data.Grup) : 0);
    if (idTLen < 16) idTLen = 16;
 
 // Extract out the entity ID
