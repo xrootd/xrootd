@@ -10,27 +10,27 @@ Version 4.2.2
 -------------
 
 + **Major bug fixes**
-  * [Proxy] Protect forwarding proxy server from slow connections. This should
+  * **[Proxy]** Protect forwarding proxy server from slow connections. This should
     fix most, if not all, SEGV's that the server encountered under heavy load.
-  * [Server] Fixes #248 Prevent infinite loop when shift arg is negative.
-  * [Server] Complain when passed I/O length is negative.
-  * [Server] Avoid execution stall during node logout when the thread limit
+  * **[Server]** Fixes #248 Prevent infinite loop when shift arg is negative.
+  * **[Server]** Complain when passed I/O length is negative.
+  * **[Server]** Avoid execution stall during node logout when the thread limit
     has been reached.
-  * [Server] Make sure to capture return code for stat() to prevent random
+  * **[Server]** Make sure to capture return code for stat() to prevent random
     results.
-  * [XrdCl] Make sure to get filestate lock during timeout processing to
+  * **[XrdCl]** Make sure to get filestate lock during timeout processing to
     avoid MT intereference and possible random results.
-  * [XrdClient] Restore commented out abort() when an attemp is made to index a
+  * **[XrdClient]** Restore commented out abort() when an attemp is made to index a
     vector outside of its current bounds (avoids random results).
-  * [Server/Proxy] Delay deleting a file object if the close was not successful.
+  * **[Server/Proxy]** Delay deleting a file object if the close was not successful.
     This avoids deleting objects that may have pending activity resulting in an
     eventual SEGV. This is a bypass fix to another problem.
 
 + **Minor bug fixes**
-  * [Server] Fixes #234 Properly register all components in a mkpath request.
+  * **[Server]** Fixes #234 Properly register all components in a mkpath request.
   * Correctly handle copying into a non-existent directory when automatic
     path creation is enabled.
-  * [XrdCl] xrdfs correctly handles quotations (fixes the problem with ALICE token)
+  * **[XrdCl]** xrdfs correctly handles quotations (fixes the problem with ALICE token)
 
 + **Miscellaneous**
   * Fixes #245 Provide compatability when cmake version is > 3.0.
@@ -43,9 +43,11 @@ Version 4.2.2
   * Increase max size of write to disk queues.
   * Fix bug in endswith. Fixes #260
   * XrdCeph : fixed problem with files bigger than 2GB for synchronous writes
-  * XrdCl: Change message loglevel from Error to Debug. Fixes #246.
-  * XrdCl: Fix race condition in PostMaster initialization
-  * XrdCl: Provide atomicity for PostMaster value using built-in functions
+  * **[XrdCl]** Change message loglevel from Error to Debug. Fixes #246.
+  * **[XrdCl]** Fix race condition in PostMaster initialization
+  * **[XrdCl]** Provide atomicity for PostMaster value using built-in functions
+  * **[XrdFileCache]** fixed deadlock on immediate file close (e.g. xrdcp to non-writable output)
+  * **[XrdFileCache]** fixed errors on some posix operations using virtual mount
 
 -------------
 Version 4.2.1
