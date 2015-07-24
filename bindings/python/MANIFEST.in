@@ -1,0 +1,7 @@
+include README.rst
+include VERSION_INFO
+include genversion.sh
+recursive-include tests *
+recursive-include examples *.py
+recursive-include docs *
+recursive-include src *
