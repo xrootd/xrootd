@@ -121,11 +121,20 @@ File::~File()
       {
          m_downloadCond.Lock();
          // remove failed blocks
-         for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end();) {
-            if (it->second->is_finished() && it->second->m_refcnt == 1) // refcounf more than 1 if used by Read()
-               m_block_map.erase(it);
-            else 
-               ++it;
+         //for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end();) {
+         
+         BlockMap_i itr = m_block_map.begin();
+         while (itr != m_block_map.end()) {
+            if (itr->second->is_finished() && itr->second->m_refcnt == 1) {
+               // refcounf more than 1 if used by Read()
+               BlockMap_i toErase = itr;
+               ++itr;
+               m_block_map.erase(toErase);
+               // Relase RAM AMT !!!
+            }
+            else {
+               ++itr;
+            }
          }
          
 
@@ -734,7 +743,7 @@ void File::dec_ref_count(Block* b)
 
     if ( b->m_refcnt == 0) {
         int i = b->m_offset/BufferSize();
-        clLog()->Error(XrdCl::AppMsg, "File::dec_ref_count erase block (%p) %d %s ", (void*)b, i, lPath());
+        clLog()->Dump(XrdCl::AppMsg, "File::dec_ref_count erase block (%p) %d %s ", (void*)b, i, lPath());
         delete m_block_map[i];
         size_t ret = m_block_map.erase(i);
         if (ret != 1) {
