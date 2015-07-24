@@ -239,7 +239,7 @@ Cache::GetNextFileToPrefetch()
 {
    XrdSysMutexHelper lock(&m_prefetch_mutex);
    if (m_files.empty()) {
-      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::GetNextFileToPrefetch ... no open files");  
+      // XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::GetNextFileToPrefetch ... no open files");  
       return 0;
    }
 
