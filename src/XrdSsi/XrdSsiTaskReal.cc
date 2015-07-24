@@ -234,7 +234,8 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
 //
    sessP->Lock();
    DBG(" sess="<<(sessP==&voidSession?"no":"ok")
-              <<" Status = "<<aOK<<' '<<statName[tStat]);
+              <<" Status = "<<aOK<<' '<<statName[tStat]
+              <<" clrT=" <<hex <<myCaller <<" xeqT=" <<pthread_self() <<dec);
 
    switch(tStat)
          {case isWrite:

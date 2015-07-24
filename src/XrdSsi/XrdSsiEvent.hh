@@ -45,7 +45,9 @@ virtual void DoIt();
 
 virtual void HandleResponse(XrdCl::XRootDStatus *status,
                             XrdCl::AnyObject *response)
-                           {AddEvent(status, response);}
+                           {myCaller = pthread_self();
+                            AddEvent(status, response);
+                           }
 
 virtual bool XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp) = 0;
 
@@ -53,6 +55,9 @@ virtual bool XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp) = 0;
                                                  running(false) {}
 
             ~XrdSsiEvent() {ClrEvent();}
+
+protected:
+pthread_t     myCaller;
 
 private:
 struct EventData
