@@ -86,16 +86,30 @@ XrdSsiSessReal *XrdSsiServReal::Alloc(const char *sName)
 /* Private:                       G e n U R L                                 */
 /******************************************************************************/
   
-bool XrdSsiServReal::GenURL(const char *sName, const char *avoid,
-                                  char *buff,        int   blen)
+bool XrdSsiServReal::GenURL(const char *sName, const char *uName,
+                            const char *avoid,       char *buff, int   blen)
 {
+   const char *xName;
+   char uBuff[12];
    int n;
+
+// Check if we need to qulift the host with a user name
+//
+        if (!uName || !(*uName)) *uBuff = 0;
+   else if (*uName != '=') sprintf(uBuff, "%.*s@", 8, uName);
+   else{if (*sName != '/') xName = sName;
+           else {if (!(xName = rindex(sName, '/'))) xName = sName+1;
+                    else xName++;
+                }
+        sprintf(uBuff, "%.*s%.*s@", 8, uName+1, 8, xName+1);
+        *(uBuff+8) = '@'; *(uBuff+9) = 0;
+       }
 
 // Generate appropriate url
 //
-   if (avoid) n = snprintf(buff, blen, "xroot://%s/%s?tried=%s",
-                                       manNode, sName, avoid);
-      else    n = snprintf(buff, blen, "xroot://%s/%s", manNode, sName);
+   if (avoid) n = snprintf(buff, blen, "xroot://%s%s/%s?tried=%s",
+                                       uBuff, manNode, sName, avoid);
+      else    n = snprintf(buff, blen, "xroot://%s%s/%s",uBuff,manNode,sName);
 
 // Return overflow or not
 //
@@ -123,7 +137,7 @@ void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
 
 // Construct url
 //
-   if (!GenURL(resP->rName, resP->hAvoid, epURL, sizeof(epURL)))
+   if (!GenURL(resP->rName, resP->rUser, resP->hAvoid, epURL, sizeof(epURL)))
       {resP->eInfo.Set("Resource url is too long.", ENAMETOOLONG);
        resP->ProvisionDone(0);
        return;

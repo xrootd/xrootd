@@ -394,6 +394,8 @@ void XrdSsiFileReq::Init(const char *cID)
    finWait    = 0;
    nextReq    = 0;
    cbInfo     = 0;
+   respCB     = 0;
+   respCBarg  = 0;
    sessN      = "???";
    sessP      = 0;
    oucBuff    = 0;
@@ -794,17 +796,17 @@ bool XrdSsiFileReq::WantResponse(XrdOucEICB *rCB, long long rArg)
 // Check if a response is here (well, ProcessResponse was called)
 //
    if (myState == doRsp) return true;
-//    {int mlen;
-//     WakeInfo((XrdSsiRRInfoRdy *)eInfo->getMsgBuff(mlen));
-//     eInfo->setErrCode(sizeof(XrdSsiRRInfoRdy));
-//     return true;
-//    }
 
-// Defer this by and record the callback arguments
+// Defer this and record the callback arguments. We defer setting respWait
+// to true until we know the deferal request has been sent (i.e. when Done()
+// is called). This forces ProcessResponse() to not prematurely wakeup the
+// client. This is necessitated by the fact that we must release the request
+// lock upon return; allowing a response to come in while the deferal request
+// is still in transit.
 //
    respCB    = rCB;
    respCBarg = rArg;
-   respWait  = true;
+   respWait  = false;
    return false;
 }
 

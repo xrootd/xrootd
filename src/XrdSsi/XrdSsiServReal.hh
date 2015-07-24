@@ -52,7 +52,8 @@ bool           Stop();
 private:
 
 XrdSsiSessReal *Alloc(const char *sName);
-bool            GenURL(const char *sName,const char *avoid,char *buff,int blen);
+bool            GenURL(const char *sName, const char *uName,
+                       const char *avoid,       char *buff, int blen);
 XrdSsiSession  *RetErr(XrdSsiErrInfo &eInfo,const char *eTxt,int eNum,bool async);
 
 char           *manNode;

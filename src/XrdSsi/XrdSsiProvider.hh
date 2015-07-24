@@ -106,7 +106,7 @@ virtual
 XrdSsiService *GetService(XrdSsiErrInfo &eInfo,
                           const char    *contact,
                           int            oHold=256
-                         ) = 0;
+                         ) {return 0;}
 
 //-----------------------------------------------------------------------------
 //! Initialize server-side processing. This method is invoked prior to any

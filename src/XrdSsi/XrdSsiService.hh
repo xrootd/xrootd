@@ -72,6 +72,7 @@ class          Resource
 {
 public:
 const char    *rName;  //!< -> Name of the resource to be provisioned
+const char    *rUser;  //!< -> Name of the resource user (nil if anonymous)
 const char    *hAvoid; //!< -> Comma separated list of hosts to avoid
 XrdSsiEntity  *client; //!< -> Pointer to client identification (server-side)
 XrdSsiErrInfo  eInfo;  //!<    Holds error information upon failure
@@ -90,17 +91,28 @@ virtual void   ProvisionDone(XrdSsiSession *sessP) = 0; //!< Callback
 //! Constructor
 //!
 //! @param  rname    points to the name of the resource and must remain valid
-//!                  until provisioning ends. The resource name must start a
-//!                  slash. Duplicate slashes amd dot-shashes are compressed.
+//!                  until provisioning ends. If using directory notation;
+//!                  duplicate slashes and dot-shashes are compressed out.
 //!
 //! @param  havoid   if not null then points to a comma separated list of
 //!                  hostnames to avoid using to provision the resource and
 //!                  must remain valid until provisioning ends. This argument
 //!                  is only meaningfull client-side.
+//!
+//! @param  ruser    points to the name of the resource user name. Only up to
+//!                  the first 8 character of the name are used. All users with
+//!                  the same name share the TCP connection to any endpoint.
+//!                  If the ruser starts with '=' then the remaining characters
+//!                  are appended with the most significant part of the rname.
+//!                  If the rname starts with a slash, the last component is
+//!                  used; otherwise, the leading characters are used.
+//!                  The name must remain valid until provisioning ends.
 //-----------------------------------------------------------------------------
 
-               Resource(const char *rname, const char *havoid=0)
-                       : rName(rname), hAvoid(havoid) {}
+               Resource(const char *rname,
+                        const char *havoid=0,
+                        const char *ruser=0
+                       ) : rName(rname), rUser(ruser), hAvoid(havoid) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor
