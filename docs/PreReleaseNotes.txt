@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * Add generalized XML parsing ability.
+  * Add metalink parsing for future integration.
 
 + **Major bug fixes**
 
