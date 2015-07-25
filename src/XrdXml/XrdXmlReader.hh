@@ -73,8 +73,8 @@ virtual bool    GetAttributes(const char **aname, char **aval)=0;
 //!
 //! @return =0       No specified tag was found. Note that this corresponds to
 //!                  encountering the tag present in ename[0], i.e. scope end.
-//!         >0       A tag was found, the return value less one is the index
-//!                  into ename that corresponds to the tag's name.
+//!         >0       A tag was found, the return value is the index into ename
+//!                  that corresponds to the tag's name.
 //-----------------------------------------------------------------------------
 
 virtual int     GetElement(const char **ename, bool reqd=false)=0;
