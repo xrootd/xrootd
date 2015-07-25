@@ -290,4 +290,4 @@ char *XrdXmlRdrXml2::GetText(const char *ename, bool reqd)
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-bool XrdXmlRdrXml2::Init() {return true;}
+bool XrdXmlRdrXml2::Init() {xmlInitParser(); return true;}
