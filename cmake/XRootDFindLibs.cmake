@@ -17,6 +17,11 @@ if( ZLIB_FOUND )
   add_definitions( -DHAVE_LIBZ )
 endif()
 
+find_package( LibXml2 )
+if( LIBXML2_FOUND )
+  add_definitions( -DHAVE_XML2 )
+endif()
+
 if( ENABLE_CRYPTO )
   find_package( OpenSSL )
   if( OPENSSL_FOUND )
