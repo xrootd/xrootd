@@ -36,10 +36,13 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdBuffer.hh"
+//??#include "Xrd/XrdBuffXL.hh"
+#include "XrdBuffXL.hh"
 
 #define XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
@@ -60,6 +63,18 @@ void *XrdReshaper(void *pp)
 /******************************************************************************/
 
 const char *XrdBuffManager::TraceID = "BuffManager";
+
+namespace
+{
+static const int minBuffSz = 1 << XRD_BUSHIFT;
+}
+
+namespace XrdGlobal
+{
+XrdBuffXL xlBuff;
+}
+
+using namespace XrdGlobal;
  
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -114,20 +129,21 @@ void XrdBuffManager::Init()
   
 XrdBuffer *XrdBuffManager::Obtain(int sz)
 {
-   long long ik, mk, pk;
-   int bindex = 0;
    XrdBuffer *bp;
    char *memp;
+   int mk, pk, bindex;
 
 // Make sure the request is within our limits
 //
-   if (sz <= 0 || sz > maxsz) return 0;
+   if (sz <= 0)     return 0;
+   if (sz >  maxsz) return xlBuff.Obtain(sz);
 
 // Calculate bucket index
 //
-   ik = mk = sz >> shift;
-   while((ik = ik>>1)) bindex++;
-   if ((mk = 1 << (shift+bindex)) < sz) {bindex++; mk = mk << 1;}
+   mk = sz >> shift;
+   bindex = XrdOucUtils::Log2(mk);
+   mk = minBuffSz << bindex;
+   if (mk < sz) {bindex++; mk = mk << 1;}
    if (bindex >= slots) return 0;    // Should never happen!
 
 // Obtain a lock on the bucket array and try to give away an existing buffer
@@ -168,18 +184,19 @@ XrdBuffer *XrdBuffManager::Obtain(int sz)
   
 int XrdBuffManager::Recalc(int sz)
 {
-   int ik, mk;
-   int bindex = 0;
+   int mk, bindex;
 
 // Make sure the request is within our limits
 //
-   if (sz <= 0 || sz > maxsz) return 0;
+   if (sz <= 0)     return 0;
+   if (sz >  maxsz) return xlBuff.Recalc(sz);
 
 // Calculate bucket index
 //
-   ik = mk = sz >> shift;
-   while((ik = ik>>1)) bindex++;
-   if ((mk = 1 << (shift+bindex)) < sz) {bindex++; mk = mk << 1;}
+   mk = sz >> shift;
+   bindex = XrdOucUtils::Log2(mk);
+   mk = minBuffSz << bindex;
+   if (mk < sz) {bindex++; mk = mk << 1;}
    if (bindex >= slots) return 0;    // Should never happen!
 
 // All done, return the actual size we would have allocated
@@ -194,6 +211,10 @@ int XrdBuffManager::Recalc(int sz)
 void XrdBuffManager::Release(XrdBuffer *bp)
 {
    int bindex = bp->bindex;
+
+// Check if we should release this via the big buffer object
+//
+   if (bindex >= slots) {xlBuff.Release(bp); return;}
 
 // Obtain a lock on the bucket array and reclaim the buffer
 //
@@ -264,6 +285,8 @@ while(1)
        TRACE(MEM, "Pool reshaped; " <<numfreed <<" freed; have " <<(memhave>>10) <<"K; target " <<(memtarget>>10) <<"K");
        lastshape = time(0);
        rsinprog = 0;    // No need to lock, we're the only ones now setting it
+
+       xlBuff.Trim();   // Trim big buffers
       }
 }
  
@@ -289,17 +312,19 @@ void XrdBuffManager::Set(int maxmem, int minw)
 int XrdBuffManager::Stats(char *buff, int blen, int do_sync)
 {
     static char statfmt[] = "<stats id=\"buff\"><reqs>%d</reqs>"
-                "<mem>%lld</mem><buffs>%d</buffs><adj>%d</adj></stats>";
+                "<mem>%lld</mem><buffs>%d</buffs><adj>%d</adj>%s</stats>";
+    char xlStats[1024];
     int nlen;
 
 // If only size wanted, return it
 //
-   if (!buff) return sizeof(statfmt) + 16*4;
+   if (!buff) return sizeof(statfmt) + 16*4 + xlBuff.Stats(0,0);
 
 // Return formatted stats
 //
    if (do_sync) Reshaper.Lock();
-   nlen = snprintf(buff, blen, statfmt, totreq, totalo, totbuf, totadj);
+   xlBuff.Stats(xlStats, sizeof(xlStats), do_sync);
+   nlen = snprintf(buff,blen,statfmt,totreq,totalo,totbuf,totadj,xlStats);
    if (do_sync) Reshaper.UnLock();
    return nlen;
 }

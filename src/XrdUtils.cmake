@@ -138,6 +138,7 @@ add_library(
   # Xrd
   #-----------------------------------------------------------------------------
   Xrd/XrdBuffer.cc              Xrd/XrdBuffer.hh
+  Xrd/XrdBuffXL.cc              Xrd/XrdBuffXL.hh
   Xrd/XrdInet.cc                Xrd/XrdInet.hh
   Xrd/XrdInfo.cc                Xrd/XrdInfo.hh
   Xrd/XrdJob.hh
