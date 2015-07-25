@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
   * Add generalized XML parsing ability.
   * Add metalink parsing for future integration.
+  * Allow declaring extra large I/O buffers (mostly for Ceph).
 
 + **Major bug fixes**
 
