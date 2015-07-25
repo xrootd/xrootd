@@ -212,7 +212,7 @@ XrdCmsNode *calcDelay(XrdCmsSelector &selR);
 int         Drop(int sent, int sinst, XrdCmsDrop *djp=0);
 void        Record(char *path, const char *reason, bool force=false);
 int         Multiple(SMask_t mVec);
-enum        {eExists, eDups, eROfs, eNoRep, eNoEnt}; // Passed to SelFail
+enum        {eExists, eDups, eROfs, eNoRep, eNoSel, eNoEnt}; // Passed to SelFail
 int         SelFail(XrdCmsSelect &Sel, int rc);
 int         SelNode(XrdCmsSelect &Sel, SMask_t  pmask, SMask_t  amask);
 XrdCmsNode *SelbyCost(SMask_t, XrdCmsSelector &selR);

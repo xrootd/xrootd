@@ -961,9 +961,13 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
            else if (Sel.Vec.bf) pmask = smask = 0;
            else if (Sel.Vec.hf)
                    {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,eExists);
-                    if (!(Sel.Opts & XrdCmsSelect::isMeta) && Config.DoMWChk
-                    &&  Multiple(Sel.Vec.hf))             return SelFail(Sel,eDups);
-                    if (!(pmask = Sel.Vec.hf & amask))    return SelFail(Sel,eROfs);
+                    if (Config.DoMWChk)
+                       {if (!(Sel.Opts & XrdCmsSelect::isMeta)
+                        &&  Multiple(Sel.Vec.hf))       return SelFail(Sel,eDups);
+                        if ((Sel.Vec.hf & pinfo.rwvec)
+                        !=  (Sel.Vec.hf & pinfo.rovec)) return SelFail(Sel,eROfs);
+                       }
+                    if (!(pmask = Sel.Vec.hf & amask))  return SelFail(Sel,eNoSel);
                     smask = 0;
                    }
            else if (Sel.Opts & (XrdCmsSelect::Trunc | XrdCmsSelect::NewFile))
@@ -1105,6 +1109,10 @@ int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
     case eDups:   etext = "Unable to write file; multiple files exist.";
                   break;
     case eNoRep:  etext = "Unable to replicate file; no new sites available.";
+                  break;
+    case eNoSel:  etext = (Sel.Vec.hf & Sel.nmask
+                        ? "Unable to write file; eligible servers shunned."
+                        : "Unable to write file; r/w exports not found.");
                   break;
     default:      etext = "Unable to access file; file does not exist.";
                   break;
