@@ -419,7 +419,7 @@ bool XrdSsiSessReal::Unprovision(bool forced)
 // If we have any pending tasks then detach them, they will be deleted later
 //
    numPT = 0;
-   while(tP) {tP->Detach(); tP = tP->attList.next; numPT++;}
+   while(tP) {tP->Detach(true); tP = tP->attList.next; numPT++;}
    pendTask = 0;
 
 // Close the file associated with this session if we have no pending tasks. If
