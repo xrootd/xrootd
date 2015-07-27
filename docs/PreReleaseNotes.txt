@@ -6,25 +6,14 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * Add generalized XML parsing ability.
+  * Add metalink parsing for future integration.
+  * Allow declaring extra large I/O buffers (mostly for Ceph).
 
 + **Major bug fixes**
-  * [Server] Make sure to capture return code for stat() to prevent random
-    results.
-  * [XrdCl] Make sure to get filestate lock during timeout processing to
-    avoid MT intereference and possible random results.
-  * [XrdClient] Restore commented out abort() when an attemp is made to index a
-    vector outside of its current bounds (avoids random results).
-  * [Server/Proxy] Delay deleting a file object if the close was not successful.
-    This avoids deleting objects that may have pending activity resulting in an
-    eventual SEGV. This is a bypass fix to another problem.
 
 + **Minor bug fixes**
-  * Correctly handle copying into a non-existent directory when automatic
-    path creation is enabled.
-  * [XrdCl] xrdfs correctly handles quotations (fixes the problem with ALICE token)
 
 + **Miscellaneous**
    * New Scalable Service Interface package.
    * New shared memory map package.
-  * Use atomics to manipulate unlocked variable pollNum.
->>>>>>> master

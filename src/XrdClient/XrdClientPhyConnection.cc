@@ -689,7 +689,7 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
    ERemoteServerType typeres = kSTNone;
    int isPS = (substreamid < 0);
 
-   int writeres, readres, len;
+   int writeres, readres, len = 0;
 
    // Set field in network byte order
    memset(&initHS, 0, sizeof(initHS));

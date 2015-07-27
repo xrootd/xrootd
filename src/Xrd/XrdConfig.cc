@@ -46,6 +46,7 @@
 
 #include "XrdVersion.hh"
 
+#include "Xrd/XrdBuffXL.hh"
 #include "Xrd/XrdConfig.hh"
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
@@ -86,6 +87,11 @@ extern int ka_Idle;
 extern int ka_Itvl;
 extern int ka_Icnt;
 };
+
+namespace XrdGlobal
+{
+XrdBuffXL xlBuff;
+}
 
 namespace
 {
@@ -491,6 +497,10 @@ int XrdConfig::Configure(int argc, char **argv)
       {Trace.What = TRACE_ALL;
        XrdSysThread::setDebug(&Log);
       }
+
+// Put largest buffer size in the env
+//
+   theEnv.PutInt("MaxBuffSize", XrdGlobal::xlBuff.MaxSize());
 
 // Export the network interface list at this point
 //
@@ -1160,8 +1170,11 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
 
 /* Function: xbuf
 
-   Purpose:  To parse the directive: buffers <memsz> [<rint>]
+   Purpose:  To parse the directive: buffers [maxbsz <bsz>] <memsz> [<rint>]
 
+             <bsz>      maximum size of an individualbuffer. The default is 2m.
+                        Specify any value 2m < bsz <= 1g; if specified, it must
+                        appear before the <memsz> and <memsz> becomes optional.
              <memsz>    maximum amount of memory devoted to buffers
              <rint>     minimum buffer reshape interval in seconds
 
@@ -1169,12 +1182,24 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
 */
 int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 {
+    static const long long minBSZ = 1024*1024*2+1;  // 2mb
+    static const long long maxBSZ = 1024*1024*1024; // 1gb
     int bint = -1;
     long long blim;
     char *val;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "buffer memory limit not specified"); return 1;}
+
+    if (!strcmp("maxbsz", val))
+       {if (!(val = Config.GetWord()))
+           {eDest->Emsg("Config", "max buffer size not specified"); return 1;}
+        if (XrdOuca2x::a2sz(*eDest,"maxbz value",val,&blim,minBSZ,maxBSZ))
+           return 1;
+        XrdGlobal::xlBuff.Init(blim);
+        if (!(val = Config.GetWord())) return 0;
+       }
+
     if (XrdOuca2x::a2sz(*eDest,"buffer limit value",val,&blim,
                        (long long)1024*1024)) return 1;
 
@@ -1626,7 +1651,7 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     long long lpp;
-    int  i, ppp;
+    int  i, ppp = 0;
     int  V_mint = -1, V_maxt = -1, V_idle = -1, V_avlt = -1;
     struct schedopts {const char *opname; int minv; int *oploc;
                       const char *opmsg;} scopts[] =

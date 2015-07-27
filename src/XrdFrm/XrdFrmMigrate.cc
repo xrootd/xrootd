@@ -92,7 +92,7 @@ void XrdFrmMigrate::Add(XrdFrmFileset *sP)
 int XrdFrmMigrate::Advance()
 {
    XrdFrmFileset *fP;
-   int xTime;
+   int xTime = 0;
 
 // Try to re-add everything in this queue
 //

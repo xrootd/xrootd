@@ -405,7 +405,7 @@ int XrdNetIF::GetDest(char *dest, int dlen, ifType ifT, bool prefn)
 int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
 {
    char ipBuff[256];
-   short ifIdx, sval[4] = {0, 0, 0, 0};
+   short ifIdx = 0, sval[4] = {0, 0, 0, 0};
    short iLen;
    int   haveIF = 0;
 

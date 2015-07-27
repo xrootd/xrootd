@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 {
    XrdSysLogger MLogger;
    XrdOucTList *tP;
-   const char *xrdLogD;
+   const char *xrdLogD = 0;
    char *hP;
    int rc = 0;
 

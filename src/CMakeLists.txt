@@ -25,6 +25,7 @@ include( XrdServer )
 include( XrdDaemons )
 include( XrdFrm )
 
+include( XrdXml )
 include( XrdPosix )
 include( XrdFfs )
 include( XrdPlugins )

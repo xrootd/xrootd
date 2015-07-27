@@ -448,7 +448,9 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 /******************************************************************************/
   
 // Process is called only when we get a new connection. We only return when
-// the connection drops.
+// the connection drops. At that point we immediately mark he node as offline
+// to prohibit its selection in the future (it may have already been selected).
+// Unfortunately, we need the global selection lock to do that.
 //
 int XrdCmsProtocol::Process(XrdLink *lp)
 {
@@ -465,12 +467,17 @@ int XrdCmsProtocol::Process(XrdLink *lp)
           else    {myWay = isDown;    tOut = Config.AskPing*1000;}
        myNode->UnLock();
        if ((Reason = Dispatch(myWay, tOut, 2))) lp->setEtext(Reason);
-       myNode->Lock();
+       Cluster.SLock(true); myNode->isOffline = 1; Cluster.SLock(false);
       }
 
-// Serialize all activity on the link before we proceed
+// Serialize all activity on the link before we proceed. This makes sure that
+// there are no outstanding tasks initiated by this node. We don't need a node
+// lock for this because we are no longer reading requests so no new tasks can
+// be started. Since the node is marked bound, any attempt to reconnect will be
+// rejected until we finish removing this node. We get the node lock afterwards.
 //
    lp->Serialize();
+   myNode->Lock();
 
 // Immediately terminate redirectors (they have an Rslot).
 //

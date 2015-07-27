@@ -1,11 +1,10 @@
-#ifndef __XRDOUCUTILS_HH__
-#define __XRDOUCUTILS_HH__
+#ifndef __XRDXMLRDRTINY_HH__
+#define __XRDXMLRDRTINY_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c U t i l s . h h                         */
+/*                      X r d X m l R d r T i n y . h h                       */
 /*                                                                            */
-/* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*                            All Rights Reserved                             */
+/* (c) 2015 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -30,63 +29,47 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "XrdXml/XrdXmlReader.hh"
   
-class XrdSysError;
-class XrdOucStream;
+//-----------------------------------------------------------------------------
+//! The XrdXmlRdrTiny object provides a xml parser based on libxml2.
+//-----------------------------------------------------------------------------
 
-class XrdOucUtils
+class  TiXmlDocument;
+class  TiXmlElement;
+class  TiXmlNode;
+
+class XrdXmlRdrTiny : public XrdXmlReader
 {
 public:
 
-static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
+virtual bool    GetAttributes(const char **aname, char **aval);
 
-static bool  endsWith(const char *text, const char *ending, int endlen);
+virtual int     GetElement(const char **ename, bool reqd=false);
 
-static char *eText(int rc, char *eBuff, int eBlen, int AsIs=0);
+virtual
+const char     *GetError(int &ecode) {return ((ecode = eCode) ? eText : 0);}
 
-static int   doIf(XrdSysError *eDest, XrdOucStream &Config,
-                  const char *what, const char *hname, 
-                                    const char *nname, const char *pname);
- 
-static int   fmtBytes(long long val, char *buff, int bsz);
+virtual char   *GetText(const char *ename, bool reqd=false);
 
-static char *genPath(const char *path, const char *inst, const char *psfx=0);
+static  bool    Init();
 
-static int   genPath(char *buff, int blen, const char *path, const char *psfx=0);
+//-----------------------------------------------------------------------------
+//! Constructor & Destructor
+//-----------------------------------------------------------------------------
 
-static int   GroupName(gid_t gID, char *gName, int gNsz);
+                XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc=0);
+virtual        ~XrdXmlRdrTiny();
 
-static char *Ident(long long  &mySID, char *iBuff, int iBlen,
-                   const char *iHost, const char *iProg, const char *iName,
-                   int Port);
+private:
+void            Debug(const char *,const char *,const char *,const char *,int);
 
-static const char *InstName(int TranOpt=0);
-
-static const char *InstName(const char *name, int Fillit=1);
-
-static int   is1of(char *val, const char **clist);
-
-static int   Log2(unsigned long long n);
-
-static int   Log10(unsigned long long n);
-
-static void  makeHome(XrdSysError &eDest, const char *inst);
-
-static int   makePath(char *path, mode_t mode);
-
-static int   ReLink(const char *path, const char *target, mode_t mode=0);
- 
-static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
-
-static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
-
-static int   UserName(uid_t uID, char *uName, int uNsz);
-
-static bool PidFile(XrdSysError &eDest, const char *path);
-
-       XrdOucUtils() {}
-      ~XrdOucUtils() {}
+TiXmlDocument  *reader;
+TiXmlNode      *curNode;
+TiXmlElement   *curElem;
+TiXmlNode      *elmNode;
+int             eCode;
+bool            debug;
+char            eText[251];
 };
 #endif

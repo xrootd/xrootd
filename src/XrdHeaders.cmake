@@ -108,6 +108,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysTimer.hh
   XrdSys/XrdSysXAttr.hh
   XrdSys/XrdSysXSLock.hh
+  XrdXml/XrdXmlReader.hh
   XrdXrootd/XrdXrootdMonData.hh
   XrdXrootd/XrdXrootdBridge.hh
   XrdHttp/XrdHttpSecXtractor.hh

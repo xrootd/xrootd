@@ -66,6 +66,7 @@ add_library(
   XrdOuc/XrdOucERoute.cc        XrdOuc/XrdOucERoute.hh
                                 XrdOuc/XrdOucErrInfo.hh
   XrdOuc/XrdOucExport.cc        XrdOuc/XrdOucExport.hh
+  XrdOuc/XrdOucFileInfo.cc      XrdOuc/XrdOucFileInfo.hh
   XrdOuc/XrdOucGMap.cc          XrdOuc/XrdOucGMap.hh
   XrdOuc/XrdOucHashVal.cc
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
@@ -137,6 +138,7 @@ add_library(
   # Xrd
   #-----------------------------------------------------------------------------
   Xrd/XrdBuffer.cc              Xrd/XrdBuffer.hh
+  Xrd/XrdBuffXL.cc              Xrd/XrdBuffXL.hh
   Xrd/XrdInet.cc                Xrd/XrdInet.hh
   Xrd/XrdInfo.cc                Xrd/XrdInfo.hh
   Xrd/XrdJob.hh

@@ -877,8 +877,10 @@ void XrdXrootdMonitor::unAlloc(XrdXrootdMonitor *monp)
 unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
 {
   const long long smask = 0x7fffffff00000000LL;
+  const long long xmask = 0x7fffffffffffffffLL;
   unsigned char xshift = 0;
 
+  xTot &= xmask;
   while(xTot & smask) {xTot = xTot >> 1LL; xshift++;}
   xVal = static_cast<unsigned int>(xTot);
 

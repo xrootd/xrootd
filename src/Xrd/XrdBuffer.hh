@@ -51,6 +51,7 @@ int      bsize;    // size of this buffer
         ~XrdBuffer() {if (buff) free(buff);}
 
          friend class XrdBuffManager;
+         friend class XrdBuffXL;
 private:
 
 int        bindex;
