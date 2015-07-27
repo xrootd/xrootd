@@ -228,7 +228,7 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
    XrdSsiRRInfo        rInfo;
    char *dBuff;
    union {uint32_t ubRead; int ibRead;};
-   bool aOK = status->IsOK();
+   bool last, aOK = status->IsOK();
 
 // Affect proper response
 //
@@ -289,15 +289,14 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
       }
 
 // Reflect the response to the request as this was an async receive. We may not
-// reference this object after the UnLock() as Complete() might be called.
+// reference this object after the UnLock() as Finished() might be called.
 //
    if (ibRead < dataRlen) tStat = isDone;
    dBuff = dataBuff;
    mhPend = false;
+   last = tStat == isDone;
    sessP->UnLock();
-   DBG("Calling ProcessResponseData; len="<<ibRead<<" last="<<(tStat==isDone));
-   rqstP->reqMutex.Lock();
-   rqstP->ProcessResponseData(dBuff, ibRead, tStat == isDone);
-   rqstP->reqMutex.UnLock();
+   DBG("Calling ProcessResponseData; len="<<ibRead<<" last="<<last);
+   rqstP->ProcessResponseData(dBuff, ibRead, last);
    return true;
 }

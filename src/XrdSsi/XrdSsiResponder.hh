@@ -61,9 +61,9 @@
                                 Atomic_SET(reqP, 0); \
                                 rX->reqMutex.Lock()
 
-#define SSI_XEQ_RESPONSE(rX,oK) bool ok = rP->ProcessResponse(rX->Resp, oK);\
-                                rX->reqMutex.UnLock(); \
-                                return (ok ? wasPosted : notActive)
+#define SSI_XEQ_RESPONSE(rX,oK) rX->reqMutex.UnLock(); \
+                                return (rP->ProcessResponse(rX->Resp, oK)\
+                                       ? wasPosted : notActive)
 
 class XrdSsiSession;
 
@@ -125,14 +125,11 @@ inline  void    BindRequest(XrdSsiRequest   *rqstP,
 
 //-----------------------------------------------------------------------------
 //! Release the request buffer of the request bound to this object. This is
-//! tricky member that requires atomics to correctly synchronize as we have a
-//! cart horse problem here (i.e. no reqP no reqMutex).
+//! tricky member that requires atomics to correctly synchronize request ptr.
 //-----------------------------------------------------------------------------
 
 inline  void   ReleaseRequestBuffer() {XrdSsiRequest *rP = Atomic_GET(reqP);
-                                       if (rP) {XrdSsiMutexMon(rP->reqMutex);
-                                                rP->RelRequestBuffer();
-                                               }
+                                       if (rP) rP->RelRequestBuffer();
                                       }
 
 //-----------------------------------------------------------------------------

@@ -417,11 +417,10 @@ void XrdSsiFileReq::Init(const char *cID)
 /* Protected:            P r o c e s s R e s p o n s e                        */
 /******************************************************************************/
 
-// Note that this is called with reqMUtex locked!
-  
 bool XrdSsiFileReq::ProcessResponse(const XrdSsiRespInfo &Resp, bool isOK)
 {
    EPNAME("ProcessResponse");
+   XrdSsiMutexMon mHelper(reqMutex);
 
 // Do some debugging
 //
@@ -646,11 +645,10 @@ void XrdSsiFileReq::Recycle()
 /*                      R e l R e q u e s t B u f f e r                       */
 /******************************************************************************/
 
-// This is called with the reqMutex locked!
-  
 void XrdSsiFileReq::RelRequestBuffer()
 {
    EPNAME("RelReqBuff");
+   XrdSsiMutexMon mHelper(reqMutex);
 
 // Do some debugging
 //
