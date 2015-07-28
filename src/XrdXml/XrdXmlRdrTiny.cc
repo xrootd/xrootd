@@ -266,7 +266,7 @@ char *XrdXmlRdrTiny::GetText(const char *ename, bool reqd)
       {snprintf(eText, sizeof(eText),
                 "Illegal position seeking text for tag %s",ename);
        eCode = EILSEQ;
-       return false;
+       return 0;
       }
 
 // Get the text associated with element (simple text only)
