@@ -339,7 +339,8 @@ namespace XrdCl
                    errmsg );
         delete [] errmsg;
 
-        HandleError( Status(stError, errErrorResponse), pResponse );
+        HandleError( Status(stError, errErrorResponse, rsp->body.error.errnum),
+                     pResponse );
         return;
       }
 
