@@ -385,6 +385,8 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 
    if (flags & SFS_O_RESET)     Data.Opts  |= CmsSelectRequest::kYR_refresh;
 
+   if (flags & SFS_O_MULTIW)    Data.Opts  |= CmsSelectRequest::kYR_mwfiles;
+
    if (Resp.getUCap() & XrdOucEI::uPrip)
       Data.Opts |= CmsSelectRequest::kYR_prvtnet;
        if (Resp.getUCap() & XrdOucEI::uIPv4)

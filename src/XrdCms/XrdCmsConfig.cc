@@ -2618,6 +2618,7 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
     char *val;
     int i, alinger = -1, arecalc = -1, minfP = -1, hwmP = -1;
     long long minf = -1, hwm = -1;
+    bool haveopt = false;
 
     while((val = CFile.GetWord()))
       {    if (!strcmp("linger", val))
@@ -2635,7 +2636,7 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
                   {eDest->Emsg("Config", "space min value not specified"); return 1;}
                break;
               }
-      else if (!strcmp("mwfiles", val)) DoMWChk = 0;
+      else if (!strcmp("mwfiles", val)) {DoMWChk = 0; haveopt = true;}
       else if (isdigit(*val)) break;
       else {eDest->Emsg("Config", "invalid space parameters"); return 1;}
       }
@@ -2682,7 +2683,7 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
 
     if (val) {eDest->Emsg("Config", "invalid space parameter -", val); return 1;}
     
-    if (alinger < 0 && arecalc < 0 && minf < 0)
+    if (!haveopt && alinger < 0 && arecalc < 0 && minf < 0)
        {eDest->Emsg("Config", "no space values specified"); return 1;}
 
     if (alinger >= 0) DiskLinger = alinger;

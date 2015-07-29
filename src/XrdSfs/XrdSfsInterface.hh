@@ -47,6 +47,7 @@
 #define SFS_O_RDWR             2         // open read/write
 #define SFS_O_CREAT        0x100         // used for file creation
 #define SFS_O_TRUNC        0x200         // used for file truncation
+#define SFS_O_MULTIW       0x400         // used for multi-write locations
 #define SFS_O_POSC     0x0100000         // persist on successful close
 #define SFS_O_FORCE    0x0200000         // used for locate only
 #define SFS_O_HNAME    0x0400000         // used for locate only

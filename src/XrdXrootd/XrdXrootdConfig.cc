@@ -775,7 +775,7 @@ int XrdXrootdProtocol::xdig(XrdOucStream &Config)
 
 /* Function: xexp
 
-   Purpose:  To parse the directive: export <path> [lock|nolock]
+   Purpose:  To parse the directive: export <path> [lock|nolock] [mwfiles]
 
              <path>    the path to be exported.
 
@@ -796,9 +796,11 @@ int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 
 // Get export lock option
 //
-   if ((val = Config.GetWord()))
-      {if (!strcmp("nolock", val)) popt = XROOTDXP_NOLK;
-          else if (strcmp("lock", val)) Config.RetToken();
+   while((val = Config.GetWord()))
+      {     if (!strcmp( "nolock", val)) popt |=  XROOTDXP_NOLK;
+       else if (!strcmp(   "lock", val)) popt &= ~XROOTDXP_NOLK;
+       else if (!strcmp("mwfiles", val)) popt |=  XROOTDXP_NOMWCHK;
+       else {Config.RetToken(); break;}
       }
 
 // Add path to configuration
@@ -811,6 +813,7 @@ int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 int XrdXrootdProtocol::xexpdo(char *path, int popt)
 {
    char *opaque;
+   int   xopt;
 
 // Check if we are exporting a generic name
 //
@@ -831,7 +834,8 @@ int XrdXrootdProtocol::xexpdo(char *path, int popt)
 
 // Record the path
 //
-   if (!Squash(path)) XPList.Insert(path, popt);
+   if (!(xopt = Squash(path)) || xopt != (popt|XROOTDXP_OK))
+      XPList.Insert(path, popt);
    return 0;
 }
   
