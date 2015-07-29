@@ -944,7 +944,10 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
    else {if (Arg.Opts & CmsSelectRequest::kYR_trunc)   
            {Sel.Opts |= XrdCmsSelect::Write | XrdCmsSelect::Trunc; *toP++='t';}
          if (Arg.Opts & CmsSelectRequest::kYR_write)   
-           {Sel.Opts |= XrdCmsSelect::Write;                       *toP++='w';}
+           {Sel.Opts |= XrdCmsSelect::Write;                       *toP++='w';
+            if (Arg.Opts & CmsSelectRequest::kYR_mwfiles || !Config.DoMWChk)
+               {Sel.Opts |= XrdCmsSelect::MWFiles;                *(toP-1)='W';}
+            }
          if (Arg.Opts & CmsSelectRequest::kYR_metaop)
            {Sel.Opts |= XrdCmsSelect::Write|XrdCmsSelect::isMeta;  *toP++='m';}
          if (Arg.Opts & CmsSelectRequest::kYR_create)  

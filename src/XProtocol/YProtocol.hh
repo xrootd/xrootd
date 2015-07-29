@@ -464,6 +464,7 @@ enum  {kYR_refresh = 0x0001,
        kYR_stat    = 0x0040, // Exclsuive
        kYR_metaop  = 0x0080,
        kYR_replica = 0x0100, // Only in combination with create
+       kYR_mwfiles = 0x0200, // Multiple writables files are OK
        kYR_retipv4 = 0x0000,  // Client is only IPv4
        kYR_retipv46= 0x1000,  // Client is IPv4 IPv6
        kYR_retipv6 = 0x2000,  // Client is only IPv6

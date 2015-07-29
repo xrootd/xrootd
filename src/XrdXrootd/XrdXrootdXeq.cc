@@ -1234,6 +1234,10 @@ int XrdXrootdProtocol::do_Open()
    if (doDig) {popt = XROOTDXP_NOLK; opC = 0;}
       else if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
 
+// Add the multi-write option if this path supports it
+//
+   if (popt & XROOTDXP_NOMWCHK) openopts |= SFS_O_MULTIW;
+
 // Get a file object
 //
    if (doDig) fp = digFS->newFile(Link->ID, Monitor.Did);

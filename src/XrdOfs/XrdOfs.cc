@@ -439,7 +439,7 @@ int XrdOfsFile::open(const char          *path,      // In
    mode_t theMode = Mode & S_IAMB;
    const char *tpcKey;
    int retc, isPosc = 0, crOpts = 0, isRW = 0, open_flag = 0;
-   int find_flag = open_mode & (SFS_O_NOWAIT | SFS_O_RESET);
+   int find_flag = open_mode & (SFS_O_NOWAIT | SFS_O_RESET | SFS_O_MULTIW);
    XrdOucEnv Open_Env(info,0,client);
 
 // Trace entry
