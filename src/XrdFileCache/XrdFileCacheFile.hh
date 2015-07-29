@@ -201,6 +201,7 @@ namespace XrdFileCache
 
       void inc_ref_count(Block*);
       void dec_ref_count(Block*);
+      void free_block(Block*);
    
    };
 

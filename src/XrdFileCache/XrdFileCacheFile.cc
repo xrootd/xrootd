@@ -125,12 +125,12 @@ File::~File()
          
          BlockMap_i itr = m_block_map.begin();
          while (itr != m_block_map.end()) {
-            if (itr->second->is_finished() && itr->second->m_refcnt == 1) {
-               // refcounf more than 1 if used by Read()
+            bool dropWqOrError = itr->second->is_finished() && itr->second->m_refcnt == 1; // refcounf more than 1 if used by Read()
+            bool prefetchWCancel = itr->second->m_prefetch && itr->second->m_refcnt == 0 && itr->second->m_downloaded;
+            if (dropWqOrError || prefetchWCancel) {
                BlockMap_i toErase = itr;
                ++itr;
-               m_block_map.erase(toErase);
-               cache()->RAMBlockReleased();
+               free_block(toErase->second);
             }
             else {
                ++itr;
@@ -143,7 +143,12 @@ File::~File()
          m_downloadCond.UnLock();
          if ( blockMapEmpty)
             break;
-         clLog()->Info(XrdCl::AppMsg, "File::~File() block size %d ", blocksize);
+         clLog()->Info(XrdCl::AppMsg, "File::~File() mapsize %d %s", blocksize,lPath());
+         for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it) {
+            Block* b = it->second;
+            clLog()->Debug(XrdCl::AppMsg, "File::~File() block idx=%d p=%d rcnt=%d dwnd=%d %s",
+                           b->m_offset/m_cfi.GetBufferSize(), b->m_prefetch, b->m_refcnt, b->m_downloaded, lPath());     
+         }
       }
       XrdSysTimer::Wait(10);
    }
@@ -744,18 +749,22 @@ void File::dec_ref_count(Block* b)
 
     //AMT ... this is ugly, ... File::Read() can decrease ref count before waiting to be , prefetch starts with refcnt 0
     if ( b->m_refcnt == 0 && b->is_finished()) {
-        int i = b->m_offset/BufferSize();
-        clLog()->Dump(XrdCl::AppMsg, "File::dec_ref_count erase block (%p) %d %s ", (void*)b, i, lPath());
-        delete m_block_map[i];
-        size_t ret = m_block_map.erase(i);
-        // AMT free ram counter
-        if (ret != 1) {
-            clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
-        }
-        else {
-           cache()->RAMBlockReleased();
-        }
+       free_block(b);
     }
+}
+
+void File::free_block(Block* b)
+{
+   int i = b->m_offset/BufferSize();
+   clLog()->Dump(XrdCl::AppMsg, "File::free_block block (%p) %d %s ", (void*)b, i, lPath());
+   delete m_block_map[i];
+   size_t ret = m_block_map.erase(i);
+   if (ret != 1) {
+      clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
+   }
+   else {
+      cache()->RAMBlockReleased();
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -848,7 +857,7 @@ void File::Prefetch()
 
        //  clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status \n");
       XrdSysCondVarHelper _lck(m_downloadCond);
-      clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status BEGIN %s \n", lPath());
+      //      clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status BEGIN %s \n", lPath());
       if (m_cfi.IsComplete() == false && m_block_map.size() < 3)
       {
 
