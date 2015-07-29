@@ -23,10 +23,8 @@ xrdlibdir = getenv( 'XRD_LIBDIR' ) or '/usr/lib'
 xrdincdir = getenv( 'XRD_INCDIR' ) or '/usr/include/xrootd'
 
 # Get package version
-topdir = path.dirname(path.dirname(getcwd()))
-p = subprocess.Popen(['./genversion.sh', '--print-only'], stdout=subprocess.PIPE, cwd=topdir)
-version, err = p.communicate()
-version = version.strip()
+with open ('VERSION_INFO') as verfile:
+    version = verfile.read().strip()
 
 print 'XRootD library dir: ', xrdlibdir
 print 'XRootD include dir: ', xrdincdir
