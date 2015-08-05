@@ -344,12 +344,18 @@ Block* File::RequestBlock(int i, bool prefetch)
    long long this_bs = (i == last_block) ? m_input.FSize() - off : BS;
 
    Block *b = new Block(this, off, this_bs, prefetch); // should block be reused to avoid recreation
-   m_block_map[i] = b;
-   clLog()->Dump(XrdCl::AppMsg, "File::RequestBlock() this = %p, b=%p, this idx=%d  pOn=(%d) %s", (void*)this, (void*)b, i, prefetch, lPath());
 
-   client.Read(off, this_bs, (void*)b->get_buff(), new BlockResponseHandler(b));
+   XrdCl::XRootDStatus status = client.Read(off, this_bs, (void*)b->get_buff(), new BlockResponseHandler(b));
+   if (status.IsOK()) {
+      clLog()->Dump(XrdCl::AppMsg, "File::RequestBlock() this = %p, b=%p, this idx=%d  pOn=(%d) %s", (void*)this, (void*)b, i, prefetch, lPath());
+      m_block_map[i] = b;
+      return b;
+   }
+   else {
 
-   return b;
+      clLog()->Error(XrdCl::AppMsg, "File::RequestBlock() error %d,  this = %p, b=%p, this idx=%d  pOn=(%d) %s", status.code, (void*)this, (void*)b, i, prefetch, lPath());
+      return 0;
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -376,7 +382,12 @@ int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
 
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
-      client.Read(*ii * BS + blk_off, size, req_buf + off, handler);
+      XrdCl::Status status = client.Read(*ii * BS + blk_off, size, req_buf + off, handler);
+      if (!status.IsOK())
+      {
+         clLog()->Error(XrdCl::AppMsg, "File::RequestBlocksDirect error %s\n", lPath());
+         return total;
+      }
 
       total += size;
    }
@@ -473,6 +484,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          {
             clLog()->Dump(XrdCl::AppMsg, "File::Read() inc_ref_count new %d %s", block_idx, lPath());
             Block *b = RequestBlock(block_idx, false);
+            break; //AMT ???
             inc_ref_count(b);
             blks_to_process.push_back(b);
             m_stats.m_BytesRam++;
@@ -789,7 +801,7 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
    {
       // AMT how long to keep?
       // when to retry?
-      clLog()->Error(XrdCl::AppMsg, "File::ProcessBlockResponse block %p %d error %s",(void*)b,(int)(b->m_offset/BufferSize()), lPath());
+      clLog()->Error(XrdCl::AppMsg, "File::ProcessBlockResponse block %p %d error=%d, [%s] %s",(void*)b,(int)(b->m_offset/BufferSize()), status->code, status->GetErrorMessage().c_str(), lPath());
       XrdPosixMap::Result(*status);
       // AMT could notfiy global cache we dont need RAM for that block
       b->set_error_and_free(errno);
@@ -870,7 +882,7 @@ void File::Prefetch()
             {    
                BlockMap_i bi = m_block_map.find(f);
                if (bi == m_block_map.end()) {
-                  clLog()->Dump(XrdCl::AppMsg, "File::Prefetch take block %d", f);
+                  clLog()->Dump(XrdCl::AppMsg, "File::Prefetch take block %d %s", f, lPath());
                   cache()->RequestRAMBlock();
                   RequestBlock(f, true);
                   m_prefetchReadCnt++;
