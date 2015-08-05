@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * Add back trace capability to the tool set.
   * Add generalized XML parsing ability.
   * Add metalink parsing for future integration.
   * Allow declaring extra large I/O buffers (mostly for Ceph).
