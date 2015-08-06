@@ -203,7 +203,7 @@ File::~File()
 bool File::InitiateClose()
 {
    // Retruns true if delay is needed
-   clLog()->Debug(XrdCl::AppMsg, "File::Initiate close start", lPath());
+   clLog()->Debug(XrdCl::AppMsg, "File::Initiate close start %s", lPath());
 
    cache()->DeRegisterPrefetchFile(this);
 
