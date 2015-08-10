@@ -137,6 +137,7 @@ XrdOfs::XrdOfs()
    Balancer      = 0;
    evsObject     = 0;
    myRole        = strdup("server");
+   ossRW         =' ';
 
 // Obtain port number we will be using. Note that the constructor must occur
 // after the port number is known (i.e., this cannot be a global static).
@@ -1559,20 +1560,23 @@ int XrdOfs::fsctl(const int               cmd,
        int Resp1Len;
        int find_flag = SFS_O_LOCATE
                      | (cmd&(SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|SFS_O_HNAME));
-
-            if (*Path == '*')      {locArg = Path; Path++;}
-       else if (cmd & SFS_O_TRUNC) {locArg = (char *)"*";}
-       else                         locArg = Path;
        XrdOucEnv loc_Env(opq ? opq+1 : 0,0,client);
-       AUTHORIZE(client,0,AOP_Stat,"locate",Path,einfo);
+
+       if (cmd & SFS_O_TRUNC)           locArg = (char *)"*";
+          else {     if (*Path == '*') {locArg = Path; Path++;}
+                        else            locArg = Path;
+                AUTHORIZE(client,0,AOP_Stat,"locate",Path,einfo);
+               }
        if (Finder && Finder->isRemote()
        &&  (retc = Finder->Locate(einfo, locArg, find_flag, &loc_Env)))
           return fsError(einfo, retc);
 
-       if ((retc = XrdOfsOss->Stat(Path, &fstat, 0, &loc_Env)))
-          return XrdOfsFS->Emsg(epname, einfo, retc, "locate", Path);
-       rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
-       rType[1] =  (fstat.st_mode & S_IWUSR             ? 'w' : 'r');
+       if (cmd & SFS_O_TRUNC) {rType[0] = 'S'; rType[1] = ossRW;}
+          else {if ((retc = XrdOfsOss->Stat(Path, &fstat, 0, &loc_Env)))
+                   return XrdOfsFS->Emsg(epname, einfo, retc, "locate", Path);
+                rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
+                rType[1] =  (fstat.st_mode & S_IWUSR             ? 'w' : 'r');
+               }
        rType[2] = '\0';
 
        ifType = XrdNetIF::GetIFType((einfo.getUCap() & XrdOucEI::uIPv4)  != 0,
