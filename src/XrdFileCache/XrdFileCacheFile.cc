@@ -466,7 +466,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          // XXXX Or just push it and handle errors in one place later?
 
          inc_ref_count(bi->second);
-         clLog()->Dump(XrdCl::AppMsg, "File::Read() inc_ref_count for existing b=%p %d %s", (void*)bi->second, block_idx, lPath());
+         clLog()->Dump(XrdCl::AppMsg, "File::Read() inc_ref_count for existing block %p %d %s", (void*)bi->second, block_idx, lPath());
          blks_to_process.push_front(bi->second);
          m_stats.m_BytesRam++; // AMT what if block fails
       }
@@ -484,7 +484,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          {
             clLog()->Dump(XrdCl::AppMsg, "File::Read() inc_ref_count new %d %s", block_idx, lPath());
             Block *b = RequestBlock(block_idx, false);
-            break; //AMT ???
+            assert(b);
             inc_ref_count(b);
             blks_to_process.push_back(b);
             m_stats.m_BytesRam++;
@@ -680,6 +680,7 @@ void File::WriteBlockToDisk(Block* b)
    int pfIdx =  (b->m_offset - m_offset)/m_cfi.GetBufferSize();
 
    m_downloadCond.Lock();
+   assert((m_cfi.TestBit(pfIdx) == false) && "Block not yet fetched.");
    m_cfi.SetBitFetched(pfIdx);
    m_downloadCond.UnLock();
 
