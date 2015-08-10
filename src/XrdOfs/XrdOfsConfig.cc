@@ -168,7 +168,12 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                 {if (!strncmp(var, "ofs.", 4)
                  ||  !strcmp(var, "all.role")
                  ||  !strcmp(var, "all.subcluster"))
-                    if (ConfigXeq(var+4,Config,Eroute)) {Config.Echo();NoGo=1;}
+                   {if (ConfigXeq(var+4,Config,Eroute)) {Config.Echo();NoGo=1;}}
+                    else if (!strcmp(var, "oss.defaults")
+                         ||  !strcmp(var, "all.export"))
+                            {xexp(Config, Eroute, *var == 'a');
+                             Config.noEcho();
+                            }
                 }
 
            // Now check if any errors occured during file i/o
@@ -178,6 +183,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                               ConfigFN);
            Config.Close();
           }
+
+// If no exports were specified, the default is that we are writable
+//
+   if (ossRW == ' ') ossRW = 'w';
 
 // Check if redirection wanted
 //
@@ -323,14 +332,13 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
                                   "       all.role %s\n"
                                   "%s"
                                   "       ofs.maxdelay   %d\n"
-                                  "       ofs.persist    %s hold %d%s%s%s\n"
+                                  "       ofs.persist    %s hold %d%s%s\n"
                                   "       ofs.trace      %x",
               cloc, myRole,
               (Options & Authorize ? "       ofs.authorize\n" : ""),
                MaxDelay,
                pval, poscHold, (poscLog ? " logdir " : ""),
-               (poscLog ? poscLog    : ""), (poscLog ? "\n" : ""),
-              OfsTrace.What);
+               (poscLog ? poscLog    : ""), OfsTrace.What);
 
      Eroute.Say(buff);
      ofsConfig->Display();
@@ -630,6 +638,51 @@ int XrdOfs::xcrds(XrdOucStream &Config, XrdSysError &Eroute)
 //
    if (XrdOuca2x::a2sz(Eroute, "cksrdsz size", val, &rdsz, 1, maxRds)) return 1;
    ofsConfig->SetCksRdSz(static_cast<int>(rdsz));
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                  x e x p                                   */
+/******************************************************************************/
+  
+/* Function: xexp
+
+   Purpose:  To prescan the all.export and oss.defaults directives to determine
+             if we have any writable paths.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xexp(XrdOucStream &Config, XrdSysError &Eroute, bool isExport)
+{
+   static struct rwOpts {const char *opname; int isRW;} rwtab[] =
+                        {{"r/o",      0}, {"readonly",    0},
+                         {"forcero",  0}, {"notwritable", 0},
+                         {"writable", 1}, {"r/w",         1}
+                        };
+   static bool defRW = true;
+   int isrw = -1, numopts = sizeof(rwtab)/sizeof(struct rwOpts);
+   char *val;
+
+// If this is an export and we already know that we have a writable path, return
+// Otherwise, scan over the path argument.
+//
+   if (isExport && (ossRW == 'w' || !(val = Config.GetWord()))) return 0;
+
+// Throw away path and scan all the options looking for something of interest
+//
+   while((val = Config.GetWord()))
+        {for (int i = 0; i < numopts; i++)
+             if (!strcmp(val, rwtab[i].opname)) {isrw = rwtab[i].isRW; break;}
+        }
+
+// Handle result depending if this is an export or a defaults
+//
+   if (isrw < 0) isrw = defRW;
+   if (isExport) ossRW = (isrw ? 'w'  : 'r');
+      else      {defRW = (isrw ? true : false);
+                 if (ossRW == ' ' && !isrw) ossRW = 'r';
+                }
    return 0;
 }
   
