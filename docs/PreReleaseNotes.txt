@@ -16,3 +16,4 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * Rationalize non-specfic locate requests.
