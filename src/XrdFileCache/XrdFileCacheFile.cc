@@ -480,7 +480,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       else
       {
          // Is there room for one more RAM Block?
-         if ( cache()->RequestRAMBlock())
+         if ( cache()->HaveFreeWritingSlots() && cache()->RequestRAMBlock())
          {
             clLog()->Dump(XrdCl::AppMsg, "File::Read() inc_ref_count new %d %s", block_idx, lPath());
             Block *b = RequestBlock(block_idx, false);
