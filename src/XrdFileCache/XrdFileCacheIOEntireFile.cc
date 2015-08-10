@@ -96,13 +96,15 @@ int IOEntireFile::Read (char *buff, long long off, int size)
       // XXXX MT: the logick here is strange, see versions in
       // alja/pfc-async-prefetch and in master.
       // Also, what if retval == 0?
-      
-      if ((size > 0))
-        clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() missed %d bytes %s", size, m_io.Path());
-   }
+   }      
    if (retval < 0)
    {
       clLog()->Error(XrdCl::AppMsg, "IOEntireFile::Read(), origin bytes read %d %s", retval, m_io.Path());
+   }
+   else if ((size > 0))
+   {
+      clLog()->Error(XrdCl::AppMsg, "IOEntireFile::Read() missed %d bytes %s", size, m_io.Path());
+      bytes_read += retval;
    }
 
    return (retval < 0) ? retval : bytes_read;
