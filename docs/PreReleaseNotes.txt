@@ -13,6 +13,9 @@ Prerelease Notes
 
 + **Major bug fixes**
   * Avoid SEGV when an excessively long readv vector is presented.
+  * Process waitresp synchronously via Ignore return to avoid SEGV.
+  * Avoid memory leak when a handler returns Ignore for a taken
+    message. This becomes more severe with above patch.
 
 + **Minor bug fixes**
 
