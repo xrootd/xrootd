@@ -141,6 +141,7 @@ namespace XrdFileCache
       //------------------------------------------------------------------------
       ~File();
 
+       void BlockRemovedFromWriteQ(Block*);
       //! Open file handle for data file and info file on local disk.
       bool Open();
 
@@ -175,6 +176,10 @@ namespace XrdFileCache
 
       void  MarkPrefetch();
 
+
+
+      //! Log path
+      const char* lPath() const;
    private:
       Block* RequestBlock(int i, bool prefetch);
 
@@ -195,9 +200,6 @@ namespace XrdFileCache
       //! Short log alias.
       XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
-
-      //! Log path
-      const char* lPath() const;
 
       void inc_ref_count(Block*);
       void dec_ref_count(Block*);

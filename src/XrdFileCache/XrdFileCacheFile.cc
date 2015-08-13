@@ -96,6 +96,13 @@ m_prefetchCurrentCnt(0)
    }
 }
 
+void File::BlockRemovedFromWriteQ(Block* b)
+{
+ m_downloadCond.Lock();
+ dec_ref_count(b);
+ clLog()->Dump(XrdCl::AppMsg, "File::BlockRemovedFromWriteQ() check write queues %p %d...%s", (void*)b, b->m_offset/m_cfi.GetBufferSize(), lPath());
+ m_downloadCond.UnLock();
+}
 
 File::~File()
 {
@@ -122,13 +129,9 @@ File::~File()
       {
          m_downloadCond.Lock();
          // remove failed blocks
-         //for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end();) {
-         
          BlockMap_i itr = m_block_map.begin();
          while (itr != m_block_map.end()) {
-            bool dropWqOrError = itr->second->is_finished() && itr->second->m_refcnt == 1; // refcounf more than 1 if used by Read()
-            bool prefetchWCancel = itr->second->m_prefetch && itr->second->m_refcnt == 0 && itr->second->m_downloaded;
-            if (dropWqOrError || prefetchWCancel) {
+            if (itr->second->is_failed() && itr->second->m_refcnt == 1) {
                BlockMap_i toErase = itr;
                ++itr;
                free_block(toErase->second);
@@ -823,6 +826,11 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
          clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse inc_ref_count %d %s\n", (int)(b->m_offset/BufferSize()), lPath());
         inc_ref_count(b);
         cache()->AddWriteTask(b, true);
+      }
+      else {
+          // there is no refcount +/- to remove dropped prefetched blocks on destruction
+          if (b->m_prefetch && (b->m_refcnt == 0))
+              free_block(b);
       }
    }
    else
