@@ -2055,7 +2055,7 @@ int XrdXrootdProtocol::do_ReadV()
 // a limit on it's size. We do this to be able to reuse the data buffer to 
 // prevent cross-cpu memory cache synchronization.
 //
-   if (rdVecLen > static_cast<int>(sizeof(rdVec)))
+   if (rdVecNum > maxRvecsz)
       return Response.Send(kXR_ArgTooLong, "Read vector is too long");
 
 // So, now we account for the number of readv requests and total segments
