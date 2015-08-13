@@ -922,7 +922,7 @@ void File::Prefetch()
                   cache()->RequestRAMBlock();
                   RequestBlock(f, true);
                   m_prefetchReadCnt++;
-                  m_prefetchScore = m_prefetchHitCnt/m_prefetchReadCnt;
+                  m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
                   found = true;
                   break;
                }
@@ -958,7 +958,7 @@ void File::CheckPrefetchStatRAM(Block* b)
    if (Factory::GetInstance().RefConfiguration().m_prefetch) {
       if (b->m_prefetch) {
          m_prefetchHitCnt++;
-         m_prefetchScore = m_prefetchHitCnt/m_prefetchReadCnt;
+         m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
       }
    }
 }
