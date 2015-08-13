@@ -12,6 +12,7 @@ Prerelease Notes
   * Allow declaring extra large I/O buffers (mostly for Ceph).
 
 + **Major bug fixes**
+  * Avoid SEGV when an excessively long readv vector is presented.
 
 + **Minor bug fixes**
 
