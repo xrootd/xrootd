@@ -136,7 +136,10 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
    {
       if ((*i)->m_file == iFile)
       {
+
+          XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Remove entries for %p path %s", (void*)(*i), iFile->lPath());
          std::list<Block*>::iterator j = i++;
+          iFile->BlockRemovedFromWriteQ(*j);
          s_writeQ.queue.erase(j);
          --s_writeQ.size;
       }
@@ -162,6 +165,7 @@ Cache::ProcessWriteTasks()
       Block* block = s_writeQ.queue.front(); // AMT should not be back ???
       s_writeQ.queue.pop_front();
       s_writeQ.size--;
+      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::ProcessWriteTasks  for %p path %s", (void*)(block), block->m_file->lPath());
       s_writeQ.condVar.UnLock();
 
       block->m_file->WriteBlockToDisk(block);
