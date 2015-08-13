@@ -446,11 +446,13 @@ namespace XrdCl
     if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
       pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
 
-    if( mh.action & IncomingMsgHandler::NoProcess )
+    if( mh.action & (IncomingMsgHandler::NoProcess|IncomingMsgHandler::Ignore) )
     {
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
+      bool delit = ( mh.action & IncomingMsgHandler::Ignore );
       mh.Reset();
+      if (delit) delete msg;
       return;
     }
 

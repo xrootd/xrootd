@@ -6,14 +6,20 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * Add back trace capability to the tool set.
   * Add generalized XML parsing ability.
   * Add metalink parsing for future integration.
   * Allow declaring extra large I/O buffers (mostly for Ceph).
 
 + **Major bug fixes**
+  * Avoid SEGV when an excessively long readv vector is presented.
+  * Process waitresp synchronously via Ignore return to avoid SEGV.
+  * Avoid memory leak when a handler returns Ignore for a taken
+    message. This becomes more severe with above patch.
 
 + **Minor bug fixes**
 
 + **Miscellaneous**
    * New Scalable Service Interface package.
    * New shared memory map package.
+  * Rationalize non-specfic locate requests.

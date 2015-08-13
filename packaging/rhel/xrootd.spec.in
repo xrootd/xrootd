@@ -632,6 +632,7 @@ fi
 %{_libdir}/libXrdCryptossl-4.so
 %{_libdir}/libXrdSec*-4.so
 %{_libdir}/libXrdUtils.so.*
+%{_libdir}/libXrdXml.so.*
 
 %files devel
 %defattr(-,root,root,-)
@@ -649,6 +650,8 @@ fi
 %{_libdir}/libXrdCrypto.so
 %{_libdir}/libXrdCryptoLite.so
 %{_libdir}/libXrdUtils.so
+%{_libdir}/libXrdXml.so
+%{_includedir}/xrootd/XrdXml/XrdXmlReader.hh
 
 %files client-libs
 %defattr(-,root,root,-)
