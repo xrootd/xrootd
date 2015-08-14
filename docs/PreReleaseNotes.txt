@@ -6,18 +6,20 @@ Prerelease Notes
 ================
 
 + **New Features**
-  * Add back trace capability to the tool set.
-  * Add generalized XML parsing ability.
-  * Add metalink parsing for future integration.
-  * Allow declaring extra large I/O buffers (mostly for Ceph).
+  * [Misc] Add back trace capability to the tool set.
+  * [Misc] Add generalized XML parsing ability.
+  * [Misc] Add metalink parsing for future integration.
+  * [Server] Allow declaring extra large I/O buffers (mostly for Ceph).
 
 + **Major bug fixes**
-  * Avoid SEGV when an excessively long readv vector is presented.
-  * Process waitresp synchronously via Ignore return to avoid SEGV.
-  * Avoid memory leak when a handler returns Ignore for a taken
-    message. This becomes more severe with above patch.
+  * [Server] Avoid SEGV when an excessively long readv vector is presented.
+  * [XrdCl] Process waitresp synchronously via Ignore return to avoid SEGV.
+  * [XrdCl] Avoid memory leak when a handler returns Ignore for a taken
+            message. This becomes more severe with above patch.
 
 + **Minor bug fixes**
 
 + **Miscellaneous**
-  * Rationalize non-specfic locate requests.
+  * [Server] Rationalize non-specfic locate requests.
+  * [App] Do not report expected errors as errors.
+  * [App] Always show any unusual node status in the display.
