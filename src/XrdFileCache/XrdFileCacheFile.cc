@@ -463,6 +463,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    //   passing the req to client is actually better.
    // unlock
 
+   bool preProcOK = true; 
    m_downloadCond.Lock();
 
    // XXX Check for blocks to free? Later ...
@@ -504,7 +505,9 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          {
             clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p inc_ref_count new %d %s", (void*)iUserBuff, block_idx, lPath());
             Block *b = RequestBlock(block_idx, false);
-            assert(b);
+            // assert(b);
+            preProcOK = false;
+            break;
             inc_ref_count(b);
             blks_to_process.push_back(b);
             m_stats.m_BytesRam++;
@@ -516,10 +519,22 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             blks_direct.push_back(block_idx);
             m_stats.m_BytesMissed++;
          }
-      }
+      } 
+
    }
 
+
    m_downloadCond.UnLock();
+
+
+
+
+   if (!preProcOK)   {
+      for (BlockList_i i = blks_to_process.begin(); i!= blks_to_process.end(); ++i )
+         dec_ref_count(*i);
+      return -1;   // AMT ???
+   }
+
 
    long long bytes_read = 0;
 
@@ -533,6 +548,13 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       direct_handler = new DirectResponseHandler(blks_direct.size());
 
       direct_size = RequestBlocksDirect(direct_handler, blks_direct, iUserBuff, iUserOff, iUserSize);
+      // failed to send direct client request
+      if (direct_size < 0) {
+         for (BlockList_i i = blks_to_process.begin(); i!= blks_to_process.end(); ++i )
+            dec_ref_count(*i);
+         delete direct_handler;
+         return -1;   // AMT ???
+      }
       clLog()->Dump(XrdCl::AppMsg, "File::Read() direct read %d. %s", direct_size, lPath());
    }
 
