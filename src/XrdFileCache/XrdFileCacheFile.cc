@@ -506,8 +506,10 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p inc_ref_count new %d %s", (void*)iUserBuff, block_idx, lPath());
             Block *b = RequestBlock(block_idx, false);
             // assert(b);
+            if (!b) {
             preProcOK = false;
             break;
+            }
             inc_ref_count(b);
             blks_to_process.push_back(b);
             m_stats.m_BytesRam++;
