@@ -357,8 +357,8 @@ Block* File::RequestBlock(int i, bool prefetch)
       return b;
    }
    else {
-
       clLog()->Error(XrdCl::AppMsg, "File::RequestBlock() error %d,  this = %p, b=%p, this idx=%d  pOn=(%d) %s", status.code, (void*)this, (void*)b, i, prefetch, lPath());
+       XrdPosixMap::Result(status);
       return 0;
    }
 }
@@ -389,7 +389,7 @@ int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
       if (!status.IsOK())
       {
          clLog()->Error(XrdCl::AppMsg, "File::RequestBlocksDirect error %s\n", lPath());
-         //return total;
+         XrdPosixMap::Result(status);
          return -1; // AMT all reads should be canceled in this case 
       }
       else {
