@@ -139,7 +139,7 @@ XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo *eiP,
        nP->sessP  = sP;
        nP->cbInfo = eiP;
        nP->reqID = rnum;
-       snprintf(nP->rID, sizeof(rID), "%d:", rnum);
+       snprintf(nP->rID, sizeof(nP->rID), "%d:", rnum);
       }
 
 // Return the pointer
