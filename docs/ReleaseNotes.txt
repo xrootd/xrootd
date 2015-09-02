@@ -6,6 +6,17 @@ Release Notes
 =============
 
 -------------
+Version 4.2.3
+-------------
+
++ **Major bug fixes**
+  * **[Server]** Avoid SEGV if cmsd login fails very early.
+  * **[Server]** Avoid SEGV when an excessively long readv vector is presented.
+  * **[Server]** Rationalize non-specfic locate requests.
+  * **[XrdCl]** Process waitresp synchronously via Ignore return to avoid SEGV.
+  * **[XrdCl]** Avoid memory leak when a handler returns Ignore for a taken message. 
+
+-------------
 Version 4.2.2
 -------------
 
