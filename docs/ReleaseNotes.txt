@@ -15,6 +15,7 @@ Version 4.2.3
   * **[Server]** Rationalize non-specfic locate requests.
   * **[XrdCl]** Process waitresp synchronously via Ignore return to avoid SEGV.
   * **[XrdCl]** Avoid memory leak when a handler returns Ignore for a taken message. 
+  * **[XrdCl]** Fix "tried" logic by forwarding the errNo
 
 -------------
 Version 4.2.2
