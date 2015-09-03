@@ -103,7 +103,7 @@ namespace XrdFileCache
          //! Short log alias.
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
-         XrdSysMutex        m_prefetch_mutex; //!< central lock for this class
+         XrdSysCondVar      m_prefetch_condVar; //!< central lock for this class
          XrdOucCacheStats  &m_stats;    //!< global cache usage statistics
 
          XrdSysMutex        m_RAMblock_mutex; //!< central lock for this class

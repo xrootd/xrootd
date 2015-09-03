@@ -53,6 +53,7 @@ void *PrefetchThread(void* ptr)
 
 
 Cache::Cache(XrdOucCacheStats & stats) : XrdOucCache(),
+     m_prefetch_condVar(0),
      m_stats(stats),
      m_RAMblocks_used(0)
 {
@@ -214,11 +215,16 @@ Cache::RegisterPrefetchFile(File* file)
 {
     //  called from File::Open()
 
-    if (Factory::GetInstance().RefConfiguration().m_prefetch)
-    {
-            XrdSysMutexHelper lock(&m_prefetch_mutex);
-            m_files.push_back(file);
-    }
+   if (Factory::GetInstance().RefConfiguration().m_prefetch)
+   {
+
+      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Register new file BEGIN");
+      m_prefetch_condVar.Lock();
+      m_files.push_back(file);
+      m_prefetch_condVar.Signal();
+      m_prefetch_condVar.UnLock();
+      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Register new file End");
+   }
 }
 
 //______________________________________________________________________________
@@ -228,29 +234,30 @@ Cache::DeRegisterPrefetchFile(File* file)
 {
    //  called from last line File::InitiateClose()
 
-   XrdSysMutexHelper lock(&m_prefetch_mutex);
+   m_prefetch_condVar.Lock();
    for (FileList::iterator it = m_files.begin(); it != m_files.end(); ++it) {
       if (*it == file) {
          m_files.erase(it);
          break;
       }
    }
+   m_prefetch_condVar.UnLock();
 }
 //______________________________________________________________________________
 
 File* 
 Cache::GetNextFileToPrefetch()
 {
-   XrdSysMutexHelper lock(&m_prefetch_mutex);
+   m_prefetch_condVar.Lock();
    if (m_files.empty()) {
-      // XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::GetNextFileToPrefetch ... no open files");  
-      return 0;
+      m_prefetch_condVar.Wait();
    }
 
    //  std::sort(m_files.begin(), m_files.end(), myobject);
    std::random_shuffle(m_files.begin(), m_files.end());
    File* f = m_files.back();
    f->MarkPrefetch();
+   m_prefetch_condVar.UnLock();
    return f;
 }
 
@@ -264,7 +271,7 @@ Cache::Prefetch()
 
    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch thread start");
 
-    while (true) {
+   while (true) {
       bool doPrefetch = false;
       m_RAMblock_mutex.Lock();
       if (m_RAMblocks_used < limitRAM && HaveFreeWritingSlots())
@@ -273,14 +280,8 @@ Cache::Prefetch()
 
       if (doPrefetch) {
          File* f = GetNextFileToPrefetch();
-         if (f) {
-            f->Prefetch();
-            // XrdSysTimer::Wait(1);
-            continue;
-         }
+         f->Prefetch();
+         XrdSysTimer::Wait(5); // ??? what is here a reasonable value
       }
-
-      // wait for new file or more resources, AMT should I wait for the signal instead ???
-      XrdSysTimer::Wait(10);
    }  
 }
