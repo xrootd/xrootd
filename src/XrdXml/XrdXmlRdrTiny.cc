@@ -80,7 +80,7 @@ const char *NodeName(int ntype)
 /*                        C o n s t r c u t o r   # 1                         */
 /******************************************************************************/
   
-XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc)
+XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc) : reader(0) // make sure the pointer is nil initialized otherwise if stat fails the destructor segfaults
 {
    struct stat Stat;
    const char *etext;
@@ -130,7 +130,11 @@ XrdXmlRdrTiny::~XrdXmlRdrTiny()
 
 // Tear down the reader
 //
-   if (reader) {delete reader; reader = 0;}
+   if (reader)
+   {
+     delete reader;
+     reader = 0;
+   }
 }
   
 /******************************************************************************/
