@@ -160,7 +160,7 @@ XrdCl::Access::Mode XrdPosixMap::Mode2Access(mode_t mode)
   
 int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status)
 {
-   const char *eText;
+   std::string eText;
    int eNum;
 
 // If all went well, return success
@@ -170,16 +170,16 @@ int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status)
 // If this is an xrootd error then get the xrootd generated error
 //
    if (Status.code == XrdCl::errErrorResponse)
-      {eText = Status.GetErrorMessage().c_str();
+      {eText = Status.GetErrorMessage();
        eNum  = mapError(Status.errNo);
       } else {
-       eText = Status.ToStr().c_str();
+       eText = Status.ToStr();
        eNum  = (Status.errNo ? Status.errNo : mapCode(Status.code));
       }
 
 // Trace this if need be
 //
-   if (eNum != ENOENT && eText && *eText && Debug)
+   if (eNum != ENOENT && !eText.empty() && Debug)
       cerr <<"XrdPosix: " <<eText <<endl;
 
 // Return

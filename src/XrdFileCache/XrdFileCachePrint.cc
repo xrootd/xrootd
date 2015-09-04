@@ -64,7 +64,7 @@ void Print::printFile(const std::string& path)
 
    for (int i = 0; i <cfi.GetAccessCnt(); ++i ) {
       Info::AStat a;
-      fh->Read(&a, off , sizeof(Info::AStat));
+      off += fh->Read(&a, off , sizeof(Info::AStat));
       statv.push_back(a);
    }
 
