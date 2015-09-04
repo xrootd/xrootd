@@ -105,7 +105,8 @@ XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc) : re
 
 // Get a file reader
 //
-   if ((reader = new TiXmlDocument(fname)) || !reader->LoadFile())
+   reader = new TiXmlDocument(fname);
+   if (reader->LoadFile())
       {curNode = (TiXmlNode *)reader;
        curElem = 0;
        elmNode = curNode;
