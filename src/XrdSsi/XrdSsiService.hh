@@ -73,6 +73,7 @@ class          Resource
 public:
 const char    *rName;  //!< -> Name of the resource to be provisioned
 const char    *rUser;  //!< -> Name of the resource user (nil if anonymous)
+const char    *rInfo;  //!< -> Additional information in CGI format
 const char    *hAvoid; //!< -> Comma separated list of hosts to avoid
 XrdSsiEntity  *client; //!< -> Pointer to client identification (server-side)
 XrdSsiErrInfo  eInfo;  //!<    Holds error information upon failure
@@ -93,26 +94,33 @@ virtual void   ProvisionDone(XrdSsiSession *sessP) = 0; //!< Callback
 //! @param  rname    points to the name of the resource and must remain valid
 //!                  until provisioning ends. If using directory notation;
 //!                  duplicate slashes and dot-shashes are compressed out.
+//!                  The storage must remain valid until provisioning ends.
 //!
 //! @param  havoid   if not null then points to a comma separated list of
 //!                  hostnames to avoid using to provision the resource and
 //!                  must remain valid until provisioning ends. This argument
-//!                  is only meaningfull client-side.
+//!                  is only meaningfull client-side. The storage must remain
+//!                  valid until provisioning ends.
 //!
-//! @param  ruser    points to the name of the resource user name. Only up to
-//!                  the first 8 character of the name are used. All users with
-//!                  the same name share the TCP connection to any endpoint.
-//!                  If the ruser starts with '=' then the remaining characters
-//!                  are appended with the most significant part of the rname.
-//!                  If the rname starts with a slash, the last component is
-//!                  used; otherwise, the leading characters are used.
-//!                  The name must remain valid until provisioning ends.
+//! @param  ruser    points to the name of the resource user. If nil the user
+//!                  is considered anonymous. The users with the same namee
+//!                  share the TCP connection to any endpoint. Different users
+//!                  have separate connections only if userConn is set to true
+//!                  at the time the resource is provisioned (see Provision()).
+//!                  The storage must remain valid until provisioning ends.
+//!
+//! @param  rinfo    points to additional information to be passed to the
+//!                  endpoint that provides the resource. The string should be
+//!                  in cgi format (e.g. var=val&var2-val2&....). The storage
+//!                  must remain valid until provisioning ends.
 //-----------------------------------------------------------------------------
 
                Resource(const char *rname,
                         const char *havoid=0,
-                        const char *ruser=0
-                       ) : rName(rname), rUser(ruser), hAvoid(havoid) {}
+                        const char *ruser=0,
+                        const char *rinfo=0
+                       ) : rName(rname), rUser(ruser), rInfo(rinfo),
+                           hAvoid(havoid) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor
@@ -129,6 +137,10 @@ virtual       ~Resource() {}
 //!
 //! @param  timeOut  the maximum number seconds the operation may last before
 //!                  it is considered to fail. A zero value uses the default.
+//!
+//! @param  userConn when false, prexisting TCP connections are shared even when
+//!                  rUser is unique. Otherwise, TCP connections are only
+//!                  shared for the same rUser to the same endpoint.
 //!
 //! @return The method returns all results via resP->ProvisionDone() callback
 //!         which may use the calling thread or a new thread.
@@ -147,7 +159,8 @@ virtual       ~Resource() {}
 //-----------------------------------------------------------------------------
 
 virtual void   Provision(Resource       *resP,
-                         unsigned short  timeOut=0
+                         unsigned short  timeOut=0,
+                         bool            userConn=false
                         ) = 0;
 
 //-----------------------------------------------------------------------------

@@ -44,10 +44,10 @@ const char      *myHost;
 const char      *myProg;
 const char      *myInsName;
 char            *myRole;
+XrdSsiCluster   *SsiCms;
 int              myPort;
 bool             isServer;
 bool             isCms;
-XrdSsiCluster   *SsiCms;
 
 bool             Configure(const char *cFN);
 
@@ -76,6 +76,7 @@ int           Xlib(const char *lName, char **lPath, char **lParm);
 int           Xfsp();
 int           Xopts();
 int           Xrole();
+int           Xrpwt();
 int           Xtrace();
 };
 #endif
