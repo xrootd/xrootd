@@ -38,7 +38,8 @@ class XrdSsiServReal : public XrdSsiService
 {
 public:
 
-void           Provision(XrdSsiService::Resource *resP, unsigned short tOut=0);
+void           Provision(XrdSsiService::Resource *resP,
+                         unsigned short tOut=0, bool userConn=false);
 
 void           Recycle(XrdSsiSessReal *sObj);
 
@@ -52,8 +53,7 @@ bool           Stop();
 private:
 
 XrdSsiSessReal *Alloc(const char *sName);
-bool            GenURL(const char *sName, const char *uName,
-                       const char *avoid,       char *buff, int blen);
+bool            GenURL(Resource *rP, char *buff, int blen, bool uCon);
 XrdSsiSession  *RetErr(XrdSsiErrInfo &eInfo,const char *eTxt,int eNum,bool async);
 
 char           *manNode;

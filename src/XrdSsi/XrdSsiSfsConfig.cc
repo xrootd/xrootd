@@ -98,6 +98,8 @@ namespace XrdSsi
 
        XrdSsiLogger            SsiLogger;
 
+       int                     respWT   = 0x7fffffff;
+
        bool                    fsChk    = false;
 
 extern XrdSfsFileSystem       *theFS;
@@ -128,6 +130,7 @@ XrdSsiSfsConfig::XrdSsiSfsConfig(bool iscms)
    SvcParms      = 0;
    myRole        = 0;
    maxRSZ        = 2097152;
+   respWT        = 0x7fffffff;
    isServer      = true;
    isCms         = iscms;
    myHost        = getenv("XRDHOST");
@@ -412,6 +415,7 @@ int XrdSsiSfsConfig::ConfigXeq(char *var)
     if (!strcmp("svclib", var)) return Xlib("svclib", &SvcLib, &SvcParms);
     if (!strcmp("fspath", var)) return Xfsp();
     if (!strcmp("opts",   var)) return Xopts();
+    if (!strcmp("respwt", var)) return Xrpwt();
     if (!strcmp("role",   var)) return Xrole();
     if (!strcmp("trace",  var)) return Xtrace();
 
@@ -658,6 +662,40 @@ int XrdSsiSfsConfig::Xrole()
    return 0;
 }
 
+/******************************************************************************/
+/*                                 x r p w t                                  */
+/******************************************************************************/
+
+/* Function: xrpwt
+
+   Purpose:  To parse the directive: respwt <sec>
+
+             <sec>    the number of seconds to tell the client to wait for a
+                      response.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdSsiSfsConfig::Xrpwt()
+{
+   char *val;
+   int   wval;
+
+// Get the seconds to wait
+//
+   if (!(val = cFile->GetWord()) || !val[0])
+      {Log.Emsg("Config", "respwt seconds not specified"); return 1;}
+
+// Convert the time
+//
+   if (XrdOuca2x::a2tm(Log,"respwt time",val,&wval,0)) return 1;
+
+// All is well
+//
+   respWT = wval;
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/

@@ -35,14 +35,36 @@
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdTrace.hh"
 
+#include "XrdCl/XrdClDefaultEnv.hh"
+
 #include "XrdNet/XrdNetAddr.hh"
 
+#include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiDebug.hh"
 #include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
 
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPthread.hh"
+  
+/******************************************************************************/
+/*                    N a m e   S p a c e   G l o b a l s                     */
+/******************************************************************************/
+
+namespace XrdSsi
+{
+XrdSysMutex   clMutex;
+XrdScheduler *schedP   = 0;
+XrdCl::Env   *clEnvP   = 0;
+int           maxTCB   = 300;
+bool          initDone = false;
+bool          dsTTLSet = false;
+bool          reqTOSet = false;
+bool          strTOSet = false;
+}
+
+using namespace XrdSsi;
   
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -69,38 +91,44 @@ virtual rStat  QueryResource(const char *rName,
                              const char *contact=0
                             ) {return notPresent;}
 
-virtual void   SetCBThreads(int tNum) {maxTCB = tNum;}
+virtual void   SetCBThreads(int tNum)
+                           {clMutex.Lock(); maxTCB = tNum; clMutex.UnLock();}
 
-               XrdSsiClientProvider() : maxTCB(300) {}
+virtual void   SetTimeout(tmoType what, int tmoval);
+
+               XrdSsiClientProvider() {}
 virtual       ~XrdSsiClientProvider() {}
 
 private:
 void SetScheduler();
-
-int  maxTCB;
 };
 
 /******************************************************************************/
 /*      X r d S s i C l i e n t P r o v i d e r : : G e t S e r v i c e       */
 /******************************************************************************/
-
-namespace XrdSsi
-{
-XrdScheduler *schedP = 0;
-}
   
 XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo &eInfo,
                                                 const char    *contact,
                                                 int            oHold)
 {
+   static const int maxTMO = 0x7fffffff;
    XrdNetAddr netAddr;
    const char *eText;
    char buff[512];
    int  n;
 
-// Allocate a scheduler if we do not have one (1st call)
+// Allocate a scheduler if we do not have one and set default env (1st call)
 //
-  if (!XrdSsi::schedP) SetScheduler();
+  if (!Atomic_GET(initDone))
+     {clMutex.Lock();
+      if (!schedP)   SetScheduler();
+      if (!clEnvP)   clEnvP = XrdCl::DefaultEnv::GetEnv();
+      if (!dsTTLSet) clEnvP->PutInt("DataServerTTL",  maxTMO);
+      if (!reqTOSet) clEnvP->PutInt("RequestTimeout", maxTMO);
+      if (!strTOSet) clEnvP->PutInt("StreamTimeout",  maxTMO);
+      initDone = true;
+      clMutex.UnLock();
+     }
 
 // If no contact is given then declare an error
 //
@@ -169,6 +197,42 @@ void XrdSsiClientProvider::SetScheduler()
    XrdSsi::schedP->Start();
 }
 
+/******************************************************************************/
+/*      X r d S s i C l i e n t P r o v i d e r : : S e t T i m e o u t       */
+/******************************************************************************/
+
+void XrdSsiClientProvider::SetTimeout(XrdSsiProvider::tmoType what, int tmoval)
+{
+
+// Ignore invalid timeouts
+//
+   if (tmoval <= 0) return;
+
+// Get global environment
+//
+  clMutex.Lock();
+  if (!XrdSsi::clEnvP) clEnvP = XrdCl::DefaultEnv::GetEnv();
+
+// Set requested timeout
+//
+   switch(what)
+         {case idleClose:  clEnvP->PutInt("DataServerTTL",  tmoval);
+                           dsTTLSet = true;
+                           break;
+          case request_T:  clEnvP->PutInt("RequestTimeout", tmoval);
+                           reqTOSet = true;
+                           break;
+          case stream_T:   clEnvP->PutInt("StreamTimeout",  tmoval);
+                           strTOSet = true;
+                           break;
+          default:         break;
+         }
+
+// All done
+//
+   clMutex.UnLock();
+}
+  
 /******************************************************************************/
 /*                        G l o b a l   S t a t i c s                         */
 /******************************************************************************/

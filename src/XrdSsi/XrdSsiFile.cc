@@ -112,6 +112,7 @@ extern XrdOucPListAnchor FSPath;
 extern bool              fsChk;
 extern XrdSysError       Log;
 extern XrdOucTrace       Trace;
+extern int               respWT;
 };
 
 using namespace XrdSsi;
@@ -150,6 +151,7 @@ XrdSsiFile::XrdSsiFile(const char *user, int monid) : XrdSfsFile(user, monid)
    tident     = (user ? user : "");
    gigID      = 0;
    fsFile     = 0;
+   fsUser     = 0;
    xioP       = 0;
    oucBuff    = 0;
    reqSize    = 0;
@@ -171,6 +173,10 @@ XrdSsiFile::~XrdSsiFile()
 //
    if (fsFile) delete fsFile;
       else {viaDel = true; close();}
+
+// Release other buffers
+//
+   if (fsUser) free(fsUser);
 }
 
 /******************************************************************************/
@@ -355,6 +361,7 @@ int      XrdSsiFile::fctl(const int           cmd,
 //
    DEBUG(reqID <<':' <<gigID <<" resp not ready");
    error.setErrCB((XrdOucEICB *)rqstP);
+   error.setErrInfo(respWT, "");
    return SFS_STARTED;
 }
 
@@ -429,6 +436,36 @@ int XrdSsiFile::getMmap(void **Addr, off_t &Size)         // Out
    if (Addr) *Addr = 0;
    Size = 0;
    return SFS_OK;
+}
+
+/******************************************************************************/
+/* Private:                      G e t U s e r                                */
+/******************************************************************************/
+  
+char *XrdSsiFile::GetUser(const char *incgi)
+{
+   const char *usr, *amp;
+   char *ubuff;
+   int n;
+
+// Find the user identification element
+//
+   if (!(usr = strstr(incgi, "ssi.user="))) return 0;
+   usr += 9;
+
+// Extract out user
+//
+   n = ((amp = index(usr, '&')) ? amp-usr : strlen(usr));
+
+// Allocate a buffer for the user name if we have anything at all
+//
+   if (!n) return 0;
+   ubuff = (char *)malloc(n+1);
+
+// Copy username into buffer and return it
+//
+   strncpy(ubuff, usr, n); *(ubuff+n) = 0;
+   return ubuff;
 }
 
 /******************************************************************************/
@@ -508,12 +545,21 @@ int XrdSsiFile::open(const char          *path,      // In
    if (open_mode != SFS_O_RDWR)
       return XrdSsiUtils::Emsg(epname, EPROTOTYPE, "open session", path, error);
 
+// Handle the cgi information
+//
+   fileResource.rUser = fsUser = GetUser(info);
+   fileResource.rInfo = info;
+
 // Obtain a session
 //
    Service->Provision(&fileResource);
    fileResource.ProvisionWait();
    if ((sessP = fileResource.Session()))
-      {gigID = strdup(path);
+      {if (!fsUser) gigID = strdup(path);
+          else {char gBuff[2048];
+                snprintf(gBuff, sizeof(gBuff), "%s:%s", fsUser, path);
+                gigID = strdup(gBuff);
+               }
        DEBUG(gigID);
        isOpen = true;
        return SFS_OK;
@@ -856,6 +902,7 @@ int XrdSsiFile::truncate(XrdSfsFileOffset  flen)  // In
                DEBUG(reqID <<':' <<gigID <<" resp not ready "
                            <<hex <<respCBarg <<dec);
                error.setErrCB((XrdOucEICB *)rqstP);
+               error.setErrInfo(respWT, "");
                return SFS_STARTED;
                break;
           case XrdSsiRRInfo::Can:

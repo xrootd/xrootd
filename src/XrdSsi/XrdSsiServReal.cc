@@ -86,30 +86,43 @@ XrdSsiSessReal *XrdSsiServReal::Alloc(const char *sName)
 /* Private:                       G e n U R L                                 */
 /******************************************************************************/
   
-bool XrdSsiServReal::GenURL(const char *sName, const char *uName,
-                            const char *avoid,       char *buff, int   blen)
+bool XrdSsiServReal::GenURL(XrdSsiService::Resource *rP,
+                            char *buff, int blen, bool uCon)
 {
-   const char *xName;
-   char uBuff[12];
+   const char *xUsr, *xAt, *iSep, *iVal, *tVar, *tVal, *uVar, *uVal;
    int n;
+   bool xCGI = false;
 
-// Check if we need to qulift the host with a user name
+// Preprocess avoid list, if any
 //
-        if (!uName || !(*uName)) *uBuff = 0;
-   else if (*uName != '=') sprintf(uBuff, "%.*s@", 8, uName);
-   else{if (*sName != '/') xName = sName;
-           else {if (!(xName = rindex(sName, '/'))) xName = sName+1;
-                    else xName++;
-                }
-        sprintf(uBuff, "%.*s%.*s@", 8, uName+1, 8, xName+1);
-        *(uBuff+8) = '@'; *(uBuff+9) = 0;
-       }
+   if (!(rP->hAvoid) || !*(rP->hAvoid)) tVar = tVal = "";
+      else {tVar = "?tried=";
+            tVal = rP->hAvoid;
+            xCGI = true;
+           }
+
+// Check if we need to qualify the host with a user name
+//
+   if (!rP->rUser || !(*rP->rUser)) xUsr = xAt = uVar = uVal = "";
+      else {uVar = (xCGI ? "&ssi.user=" : "?ssi.user=");
+            uVal = rP->rUser;
+            xCGI = true;
+            if (!uCon) xUsr = xAt = "";
+               else  {xUsr = rP->rUser; xAt = "@";}
+           }
+
+// Preprocess the cgi information
+//
+   if (!(rP->rInfo) || !*(rP->rInfo)) iSep = iVal = "";
+      else {iVal = rP->rInfo;
+            if (xCGI) iSep = (*iVal == '&' ? "" : "&");
+               else   iSep = (*iVal == '?' ? "" : "?");
+           }
 
 // Generate appropriate url
-//
-   if (avoid) n = snprintf(buff, blen, "xroot://%s%s/%s?tried=%s",
-                                       uBuff, manNode, sName, avoid);
-      else    n = snprintf(buff, blen, "xroot://%s%s/%s",uBuff,manNode,sName);
+//                                             t   u   i
+   n = snprintf(buff, blen, "xroot://%s%s%s/%s%s%s%s%s%s%s", xUsr, xAt, manNode,
+                             rP->rName, tVar, tVal, uVar, uVal, iSep, iVal);
 
 // Return overflow or not
 //
@@ -121,15 +134,16 @@ bool XrdSsiServReal::GenURL(const char *sName, const char *uName,
 /******************************************************************************/
   
 void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
-                               unsigned short           timeOut
+                               unsigned short           timeOut,
+                               bool                     userConn
                               )
 {
    XrdSsiSessReal *sObj;
-   char            epURL[2048];
+   char            epURL[4096];
 
 // Validate the resource name
 //
-   if (!resP->rName || *(resP->rName) != '/')
+   if (!resP->rName || !(*resP->rName))
       {resP->eInfo.Set("Resource name missing.", EINVAL);
        resP->ProvisionDone(0);
        return;
@@ -137,7 +151,7 @@ void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
 
 // Construct url
 //
-   if (!GenURL(resP->rName, resP->rUser, resP->hAvoid, epURL, sizeof(epURL)))
+   if (!GenURL(resP, epURL, sizeof(epURL), userConn))
       {resP->eInfo.Set("Resource url is too long.", ENAMETOOLONG);
        resP->ProvisionDone(0);
        return;
