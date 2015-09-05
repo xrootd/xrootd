@@ -450,7 +450,7 @@ char *XrdSsiFile::GetUser(const char *incgi)
 
 // Find the user identification element
 //
-   if (!(usr = strstr(incgi, "ssi.user="))) return 0;
+   if (!incgi || !(usr = strstr(incgi, "ssi.user="))) return 0;
    usr += 9;
 
 // Extract out user
