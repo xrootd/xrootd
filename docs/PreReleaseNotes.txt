@@ -12,14 +12,9 @@ Prerelease Notes
   * [Server] Allow declaring extra large I/O buffers (mostly for Ceph).
 
 + **Major bug fixes**
-  * [Server] Avoid SEGV when an excessively long readv vector is presented.
-  * [XrdCl] Process waitresp synchronously via Ignore return to avoid SEGV.
-  * [XrdCl] Avoid memory leak when a handler returns Ignore for a taken
-            message. This becomes more severe with above patch.
 
 + **Minor bug fixes**
 
 + **Miscellaneous**
-  * [Server] Rationalize non-specfic locate requests.
   * [App] Do not report expected errors as errors.
   * [App] Always show any unusual node status in the display.
