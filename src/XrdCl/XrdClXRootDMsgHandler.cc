@@ -146,6 +146,7 @@ namespace XrdCl
         return Take | RemoveHandler;
 
       case kXR_waitresp:
+        pResponse = 0;
         return Take | Ignore; // This must be handled synchronously!
 
       //------------------------------------------------------------------------
