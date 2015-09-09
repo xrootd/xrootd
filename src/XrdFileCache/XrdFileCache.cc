@@ -104,12 +104,12 @@ void Cache::Detach(XrdOucCacheIO* io)
 bool
 Cache::HaveFreeWritingSlots()
 {
-   const static size_t maxWriteWaits=500;
+   const static size_t maxWriteWaits=100000;
    if ( s_writeQ.size < maxWriteWaits) {
       return true;
    }
    else {
-       XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::AppMsg, "Cache::HaveFreeWritingSlots() negative", s_writeQ.size);
+       XrdCl::DefaultEnv::GetLog()->Info(XrdCl::AppMsg, "Cache::HaveFreeWritingSlots() negative", s_writeQ.size);
        return false;
    }
 }
@@ -272,16 +272,16 @@ Cache::Prefetch()
    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch thread start");
 
    while (true) {
-      bool doPrefetch = false;
       m_RAMblock_mutex.Lock();
-      if (m_RAMblocks_used < limitRAM && HaveFreeWritingSlots())
-         doPrefetch = true;
+      bool doPrefetch = (m_RAMblocks_used < limitRAM && HaveFreeWritingSlots());
       m_RAMblock_mutex.UnLock();
 
       if (doPrefetch) {
          File* f = GetNextFileToPrefetch();
          f->Prefetch();
-         XrdSysTimer::Wait(5); // ??? what is here a reasonable value
+      }
+      else {
+         XrdSysTimer::Wait(5);
       }
    }  
 }
