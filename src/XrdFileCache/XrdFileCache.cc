@@ -254,6 +254,11 @@ Cache::GetNextFileToPrefetch()
    }
 
    //  std::sort(m_files.begin(), m_files.end(), myobject);
+
+   size_t l = m_files.size();
+   int idx = rand() % l;
+   File* f = m_files[idx];
+
    std::random_shuffle(m_files.begin(), m_files.end());
    File* f = m_files.back();
    f->MarkPrefetch();
