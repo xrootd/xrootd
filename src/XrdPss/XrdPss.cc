@@ -973,9 +973,26 @@ const char *XrdPssSys::P2CGI(int &cgilen, char *cbuff, int cblen,
    if (!Cgi1) {cgilen = strlen(Cgi2); return Cgi2;}
    if (!Cgi2) return Cgi1;
 
-// Compose the two cgi elements together
-//
-   cgilen = snprintf(cbuff, cblen, "%s&%s", Cgi1, Cgi2);
+// Strip out any 'tried='
+// Then, Compose the two cgi elements together
+   const char * tried_loc = strstr(Cgi1, "tried=");
+   if (tried_loc != NULL) {
+      const char *next_amp = strchr(tried_loc, '&');
+      size_t bytes_to_copy = tried_loc-Cgi1;
+      if (bytes_to_copy >= static_cast<size_t>(cblen)) {return NULL;}
+      memcpy(cbuff, Cgi1, bytes_to_copy);
+      cgilen = bytes_to_copy;
+      if (next_amp)
+      {
+          cgilen += snprintf(cbuff+bytes_to_copy, cblen-bytes_to_copy, "%s&%s", next_amp, Cgi2);
+      }
+      else
+      {
+          cgilen += snprintf(cbuff+bytes_to_copy, cblen-bytes_to_copy, "&%s", Cgi2);
+      }
+   } else {
+      cgilen = snprintf(cbuff, cblen, "%s&%s", Cgi1, Cgi2);
+   }
    return (cgilen >= cblen ? 0 : cbuff);
 }
   
