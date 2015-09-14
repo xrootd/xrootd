@@ -87,6 +87,8 @@ namespace XrdFileCache
    class File
    {
    private:
+      enum PrefetchState_e { kOn, kHold, kCanceled };
+
       XrdOucCacheIO  &m_input;          //!< original data source
       XrdOssDF       *m_output;         //!< file handle for data file on disk
       XrdOssDF       *m_infoFile;       //!< file handle for data-info file on disk
@@ -122,6 +124,8 @@ namespace XrdFileCache
       XrdSysCondVar   m_downloadCond;
 
       Stats           m_stats;      //!< cache statistics, used in IO detach
+
+      PrefetchState_e m_prefetchState;
 
       int             m_prefetchReadCnt;
       int             m_prefetchHitCnt;
