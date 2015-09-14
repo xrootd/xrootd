@@ -49,7 +49,7 @@ namespace XrdPosixGlobals
 namespace
 {
 const int PREFETCH_MAX_ATTEMPTS = 10;
-const size_t PREFETCH_MAX_BLOCKS=5;
+const size_t PREFETCH_MAX_BLOCKS=10;
 
 class DiskSyncer : public XrdJob
 {
@@ -361,6 +361,7 @@ Block* File::RequestBlock(int i, bool prefetch)
 
       if (m_prefetchState == kOn && m_block_map.size() > PREFETCH_MAX_BLOCKS) {
          m_prefetchState = kHold;
+         cache()->DeRegisterPrefetchFile(this); 
       }
       return b;
    }
@@ -840,8 +841,10 @@ void File::free_block(Block* b)
       cache()->RAMBlockReleased();
    }
 
-   if (m_prefetchState == kHold && m_block_map.size() < PREFETCH_MAX_BLOCKS)
+   if (m_prefetchState == kHold && m_block_map.size() < PREFETCH_MAX_BLOCKS) {
       m_prefetchState = kOn;
+      cache()->RegisterPrefetchFile(this); 
+   }
 }
 
 //------------------------------------------------------------------------------
