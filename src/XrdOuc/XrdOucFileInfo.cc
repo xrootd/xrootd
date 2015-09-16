@@ -98,9 +98,9 @@ XrdOucFileInfo::~XrdOucFileInfo()
 //
    while((udP = uP)) {uP = uP->next; delete udP;}
 
-// Free the memory allocated for fLfn
+// Free the memory allocated for fTargetName
 //
-   if( fLfn ) free(fLfn);
+   if( fTargetName ) free(fTargetName);
 }
 
 /******************************************************************************/
@@ -162,7 +162,7 @@ void XrdOucFileInfo::AddUrl(const char *url,  const char *cntry,
 void XrdOucFileInfo::AddFileName(const char * filename)
 {
   if(filename)
-    fLfn = strdup(filename);
+    fTargetName = strdup(filename);
 }
 
 /******************************************************************************/

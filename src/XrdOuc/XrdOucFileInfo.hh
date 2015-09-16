@@ -100,6 +100,14 @@ const char     *GetDigest(const char *&hval, bool xrdname=true);
 const char     *GetLfn() {return fLfn;}
 
 //-----------------------------------------------------------------------------
+//! Obtain the target file name.
+//!
+//! @return Pointer to the target file name. The target filename is valid until this object is deleted.
+//-----------------------------------------------------------------------------
+
+const char     *GetTargetName() {return fTargetName;}
+
+//-----------------------------------------------------------------------------
 //! Get file size.
 //!
 //! @return The size of the file. If it is negative the size has not been set.
@@ -139,7 +147,7 @@ void            SetSize(long long fsz) {fSize = fsz;}
 
                 XrdOucFileInfo(const char *lfn=0)
                               : nextFile(0), fHash(0), fHashNext(0),
-                                             fUrl(0),  fUrlNext(0), fSize(-1)
+                                             fUrl(0),  fUrlNext(0), fTargetName(0), fSize(-1)
                               {if (lfn) fLfn = strdup(lfn);
                                   else  fLfn = 0;
                               }
@@ -163,6 +171,7 @@ XrdOucFIHash  *fHashNext;
 XrdOucFIUrl   *fUrl;
 XrdOucFIUrl   *fUrlNext;
 char          *fLfn;
+char          *fTargetName;
 long long      fSize;
 };
 #endif
