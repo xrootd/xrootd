@@ -68,6 +68,12 @@ void            AddDigest(const char *hname, const char *hval);
 
 void            AddUrl(const char *url, const char *cntry=0,
                        int prty=0, bool fifo=true);
+//-----------------------------------------------------------------------------
+//! Add a filename to the file descriptions.
+//!
+//! @param  filename     Poiner to file name.
+//-----------------------------------------------------------------------------
+void            AddFileName(const char * filename);
 
 //-----------------------------------------------------------------------------
 //! Obtain the next digest that can be used to validate the file.

@@ -97,6 +97,10 @@ XrdOucFileInfo::~XrdOucFileInfo()
 // Destroy the url  list
 //
    while((udP = uP)) {uP = uP->next; delete udP;}
+
+// Free the memory allocated for fLfn
+//
+   if( fLfn ) free(fLfn);
 }
 
 /******************************************************************************/
@@ -150,7 +154,17 @@ void XrdOucFileInfo::AddUrl(const char *url,  const char *cntry,
       else  fUrl      = urlP;
    if (fUrl != fUrlNext) fUrlNext = fUrl;
 }
-  
+
+/******************************************************************************/
+/*                                A d d F i l e N a m e                       */
+/******************************************************************************/
+
+void XrdOucFileInfo::AddFileName(const char * filename)
+{
+  if(filename)
+    fLfn = strdup(filename);
+}
+
 /******************************************************************************/
 /*                             G e t D i g e s t                              */
 /******************************************************************************/
