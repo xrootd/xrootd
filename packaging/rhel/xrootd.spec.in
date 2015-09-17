@@ -681,6 +681,7 @@ fi
 %{_libdir}/libXrdPss-4.so
 %{_libdir}/libXrdXrootd-4.so
 %{_libdir}/libXrdFileCache-4.so
+%{_libdir}/libXrdBlacklistDecision-4.so
 %{_libdir}/libXrdHttp-4.so
 %{_libdir}/libXrdOssSIgpfsT-4.so
 %{_libdir}/libXrdServer.so.*

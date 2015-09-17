@@ -121,7 +121,7 @@ bool Factory::xdlib(XrdOucStream &Config)
    std::string libp;
    if (!(val = Config.GetWord()) || !val[0])
    {
-      clLog()->Info(XrdCl::AppMsg, " Factory:;Config() decisionlib not specified; always caching files");
+      clLog()->Info(XrdCl::AppMsg, " Factory::Config() decisionlib not specified; always caching files");
       return true;
    }
    else
@@ -150,6 +150,7 @@ bool Factory::xdlib(XrdOucStream &Config)
       d->ConfigDecision(params);
 
    m_decisionpoints.push_back(d);
+   clLog()->Info(XrdCl::AppMsg, "Factory::Config() successfully created decision lib from %s", libp.c_str());
    return true;
 }
 //______________________________________________________________________________
