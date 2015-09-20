@@ -274,9 +274,13 @@ bool XrdXmlMetaLink::GetFile(const char *scope)
   
 bool XrdXmlMetaLink::GetFileInfo(const char *scope)
 {
+   static const char *fileScope = "file";
    const char *fsubElem[] = {scope, "url", "hash", "size",
                              "verification", "resources", 0};
    int ePos;
+
+   if(strncmp(scope, fileScope, 4) == 0)
+     GetName();
 
 // Process the elements in he file section. Both formats have the same tags,
 // though not the same attributes. We will take care of the differences later.
@@ -423,6 +427,19 @@ bool XrdXmlMetaLink::GetUrl()
 //
    noUrl = false;
    return true;
+}
+
+/******************************************************************************/
+/* Private:                       G e t N a m e                               */
+/******************************************************************************/
+
+void XrdXmlMetaLink::GetName()
+{
+  static const char *mAtr[] = {"name", 0};
+  char *mVal[] = {0};
+  reader->GetAttributes(mAtr, mVal);
+  currFile->AddFileName(mVal[0]);
+  free(mVal[0]);
 }
 
 /******************************************************************************/

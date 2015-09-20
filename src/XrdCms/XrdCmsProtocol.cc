@@ -477,6 +477,7 @@ int XrdCmsProtocol::Process(XrdLink *lp)
 // rejected until we finish removing this node. We get the node lock afterwards.
 //
    lp->Serialize();
+   if (!myNode) return -1;
    myNode->Lock();
 
 // Immediately terminate redirectors (they have an Rslot).

@@ -4,6 +4,7 @@ include( XRootDCommon )
 # Modules
 #-------------------------------------------------------------------------------
 set( LIB_XRD_FILECACHE  XrdFileCache-${PLUGIN_VERSION} )
+set( LIB_XRD_BLACKLIST  XrdBlacklistDecision-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -39,6 +40,24 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# The XrdBlacklistDecision library
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_BLACKLIST}
+  MODULE
+  XrdFileCache/XrdFileCacheBlacklistDecision.cc) 
+
+target_link_libraries(
+  ${LIB_XRD_BLACKLIST}
+  )
+
+set_target_properties(
+  ${LIB_XRD_BLACKLIST}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
 # xrdpfc_print
 #-------------------------------------------------------------------------------
 add_executable(
@@ -57,6 +76,10 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 install(
   TARGETS ${LIB_XRD_FILECACHE}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+install(
+  TARGETS ${LIB_XRD_BLACKLIST}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(
