@@ -242,7 +242,8 @@ namespace XrdCl
     pSessionId( 0 ),
     pDoRecoverRead( true ),
     pDoRecoverWrite( true ),
-    pFollowRedirects( true )
+    pFollowRedirects( true ),
+    pDoneInitOpen( false )
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
@@ -990,6 +991,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ReSendQueuedMessages();
       pFileState  = Opened;
+      pDoneInitOpen = true;
     }
   }
 
@@ -1427,25 +1429,30 @@ namespace XrdCl
                this, pFileUrl->GetURL().c_str(), url.GetURL().c_str() );
 
     //--------------------------------------------------------------------------
-    // Remove the kXR_delete and kXR_new flags, we don't want the recovery
-    // procedure to delete a file that has been partially updated or fail
-    // it because a partially uploaded file already exists
+    // If the inital open on the data server was successful then we update the
+    // open flags. Remove kXR_delete and kXR_new flags, as we don't want the
+    // recovery procedure to delete a file that has been partially updated or
+    // fail it because a partially uploaded file already exists.
     //--------------------------------------------------------------------------
-    if (pOpenFlags & kXR_delete)
+    if (pDoneInitOpen)
     {
-      pOpenFlags &= ~kXR_delete;
-      pOpenFlags |=  kXR_open_updt;
-    }
+      if (pOpenFlags & kXR_delete)
+      {
+	pOpenFlags &= ~kXR_delete;
+	pOpenFlags |=  kXR_open_updt;
+      }
 
-    pOpenFlags &= ~kXR_new;
+      pOpenFlags &= ~kXR_new;
+    }
 
     Message           *msg;
     ClientOpenRequest *req;
+    URL u = url;
 
-    URL u = *pFileUrl;
     if( !url.GetPath().empty() )
-      u.SetPath( url.GetPath() );
-    std::string        path = u.GetPathWithParams();
+      u.SetPath( pFileUrl->GetPath() );
+
+    std::string path = u.GetPathWithParams();
     MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;
