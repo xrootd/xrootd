@@ -1431,7 +1431,12 @@ namespace XrdCl
     // procedure to delete a file that has been partially updated or fail
     // it because a partially uploaded file already exists
     //--------------------------------------------------------------------------
-    pOpenFlags &= ~kXR_delete;
+    if (pOpenFlags & kXR_delete)
+    {
+      pOpenFlags &= ~kXR_delete;
+      pOpenFlags |=  kXR_open_updt;
+    }
+
     pOpenFlags &= ~kXR_new;
 
     Message           *msg;
