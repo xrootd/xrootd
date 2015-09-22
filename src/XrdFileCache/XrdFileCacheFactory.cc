@@ -317,17 +317,30 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
    }
    else if  ( part == "diskusage" )
    {
-      const char* minV = config.GetWord();
-      if (minV) {
-         float lwmf = ::atof(minV);
-         const char* maxV = config.GetWord();
-         if (maxV) {
-            float hwmf = ::atof(maxV);
-            XrdOssVSInfo sP;
-            if (m_output_fs->StatVS(&sP, "public", 1) >= 0)
+      std::string minV = config.GetWord();
+      std::string maxV = config.GetWord();
+      if (!minV.empty() && !maxV.empty()) {
+         XrdOssVSInfo sP;
+         if (m_output_fs->StatVS(&sP, "public", 1) >= 0)
+         {
+            if (::isalpha(*(minV.rbegin())) && ::isalpha(*(minV.rbegin()))) {
+               if ( XrdOuca2x::a2sz(m_log, "Error getting disk usage low watermark",  minV.c_str(), &m_configuration.m_diskUsageLWM, 0, sP.Total) 
+                 && XrdOuca2x::a2sz(m_log, "Error getting disk usage high watermark", maxV.c_str(), &m_configuration.m_diskUsageHWM, 0, sP.Total))
+               {
+                  return false;
+               }
+            }
+            else 
             {
-               m_configuration.m_diskUsageLWM = sP.Total * lwmf;
-               m_configuration.m_diskUsageHWM = sP.Total * hwmf;
+               float lwmf = ::atof(minV.c_str());
+               float hwmf = ::atof(maxV.c_str());
+               if (hwmf) {
+                  m_configuration.m_diskUsageLWM = sP.Total * lwmf;
+                  m_configuration.m_diskUsageHWM = sP.Total * hwmf;
+               }
+               else {
+                  m_log.Emsg("Factory::ConfigParameters() error parsing parameter", maxV.c_str());
+               }
             }
          }
       }
