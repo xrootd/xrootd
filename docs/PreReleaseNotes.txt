@@ -16,6 +16,7 @@ Prerelease Notes
   * [XrdCl] Avoid SEGV when server fails after it responds waitresp.
 
 + **Minor bug fixes**
+  * [Server] Make sure the cluster ID is always formatted the same way.
 
 + **Miscellaneous**
   * [App] Do not report expected errors as errors.
