@@ -12,6 +12,7 @@ Prerelease Notes
   * [Server] Allow declaring extra large I/O buffers (mostly for Ceph).
 
 + **Major bug fixes**
+  * [Server] Delete extraneous semaphore wait to avoid deadlock (#290).
   * [XrdCl] Avoid SEGV when server fails after it responds waitresp.
 
 + **Minor bug fixes**
