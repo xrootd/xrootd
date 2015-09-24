@@ -89,11 +89,6 @@ int XrdOucCallBack::Reply(int retVal, int eValue, const char *eText,
    if (!(objCB = cbObj)) return 0;
    cbObj = 0;
 
-// Wait for the semaphore to make sure the "wait for callback" response was
-// actually sent to preserve time causality.
-//
-   cbSync.Wait();
-
 // Send the reply using the constructed ErrInfo object and then wait until we
 // know that the response was actually sent to allow this object to be deleted.
 //
