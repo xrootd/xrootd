@@ -137,7 +137,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
                oldP = oldP->next;
               }
          if (!oldP) 
-            {newP->next = appList; appList = newP;
+            {appList = SInsert(appList, newP);
              if (plus && !hush)
                 eDest->Say("Config ",hSpec," -> all.manager ",newP->text);
             }
@@ -186,6 +186,30 @@ char *XrdCmsUtils::ParseManPort(XrdSysError *eDest, XrdOucStream &CFile,
    return strdup(pSpec);
 }
 
+/******************************************************************************/
+/* Private:                      S I n s e r t                                */
+/******************************************************************************/
+
+XrdOucTList *XrdCmsUtils::SInsert(XrdOucTList *oldP, XrdOucTList *newP)
+{
+   XrdOucTList *fstP = oldP, *preP = 0;
+
+// We insert in logically increasing order
+//
+   while(oldP && (newP->val < oldP->val || strcmp(newP->text, oldP->text) < 0))
+        {preP = oldP; oldP = oldP->next;}
+
+// Insert the new element
+//
+   if (preP) preP->next = newP;
+      else   fstP       = newP;
+   newP->next = oldP;
+
+// Return the first element in the list (may have changed)
+//
+   return fstP;
+}
+  
 /******************************************************************************/
 /*                              S i t e N a m e                               */
 /******************************************************************************/

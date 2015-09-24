@@ -97,5 +97,7 @@ const char *SiteName(int snum);
         ~XrdCmsUtils();
 
 private:
+static
+XrdOucTList *SInsert(XrdOucTList *oldP, XrdOucTList *newP);
 };
 #endif
