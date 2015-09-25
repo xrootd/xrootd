@@ -299,9 +299,9 @@ bool File::Open()
 
 
 
-namespace
-{
-   bool overlap(int       blk,      // block to query
+//namespace
+//{
+bool File::overlap(int       blk,      // block to query
                 long long blk_size, //
                 long long req_off,  // offset of user request
                 int       req_size, // size of user request
@@ -331,7 +331,7 @@ namespace
          return false;
       }
    }
-}
+//}
 
 //------------------------------------------------------------------------------
 
@@ -894,14 +894,6 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
  long long File::BufferSize() {
      return m_cfi.GetBufferSize();
  }
-
-//______________________________________________________________________________
-
-
-int File::ReadV (const XrdOucIOVec *readV, int n)
-{
-    return 0;
-}
 
 //______________________________________________________________________________
 const char* File::lPath() const
