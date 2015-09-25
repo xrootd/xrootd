@@ -38,6 +38,11 @@ class Log;
 namespace XrdFileCache {
    class BlockResponseHandler;
    class DirectResponseHandler;
+   
+   struct ReadVBlockListRAM;
+   struct ReadVChunkListRAM;
+   struct ReadVBlockListDisk;
+   struct ReadVChunkListDisk;
 }
 
 
@@ -185,6 +190,16 @@ namespace XrdFileCache
       //! Log path
       const char* lPath() const;
    private:
+      
+      bool overlap(int       blk,      // block to query
+                         long long blk_size, //
+                         long long req_off,  // offset of user request
+                         int       req_size, // size of user request
+                         // output:
+                         long long &off,     // offset in user buffer
+                         long long &blk_off, // offset in block
+                         long long &size);
+      // Read
       Block* RequestBlock(int i, bool prefetch);
 
       int    RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
@@ -193,7 +208,12 @@ namespace XrdFileCache
       int    ReadBlocksFromDisk(IntList_t& blocks,
                                 char* req_buf, long long req_off, long long req_size);
 
+      // VRead
+      bool VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& blks_to_process,  ReadVBlockListDisk& blks_on_disk, XrdCl::ChunkList& chunkVec);
+      int VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blks_on_disk);
+      int VReadProcessBlocks(const XrdOucIOVec *readV, int n, std::vector<ReadVChunkListRAM>& blks_to_process, std::vector<ReadVChunkListRAM>& blks_rocessed);
 
+      
        long long BufferSize();
 
       void CheckPrefetchStatRAM(Block* b);
