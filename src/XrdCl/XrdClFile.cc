@@ -58,7 +58,7 @@ namespace XrdCl
     // at this point we just give up the hope.
     //--------------------------------------------------------------------------
     if ( DefaultEnv::GetLog() && IsOpen() ) {XRootDStatus status = Close();}
-    delete pStateHandler;
+    pStateHandler->Destroy();
     delete pPlugIn;
   }
 

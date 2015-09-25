@@ -61,6 +61,11 @@ namespace
       {
       }
 
+      virtual ~OpenHandler()
+      {
+        pStateHandler->Destroy();
+      }
+
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
@@ -121,6 +126,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~CloseHandler()
       {
+        pStateHandler->Destroy();
         delete pMessage;
       }
 
@@ -175,6 +181,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~StatefulHandler()
       {
+        pStateHandler->Destroy();
         delete pMessage;
         delete pSendParams.chunkList;
       }
@@ -243,7 +250,8 @@ namespace XrdCl
     pDoRecoverRead( true ),
     pDoRecoverWrite( true ),
     pFollowRedirects( true ),
-    pDoneInitOpen( false )
+    pDoneInitOpen( false ),
+    pReferenceCounter(1)
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
@@ -367,7 +375,7 @@ namespace XrdCl
     msg->Append( path.c_str(), path.length(), 24 );
 
     XRootDTransport::SetDescription( msg );
-    OpenHandler *openHandler = new OpenHandler( this, handler );
+    OpenHandler *openHandler = new OpenHandler( Self(), handler );
     MessageSendParams params; params.timeout = timeout;
     params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
@@ -424,7 +432,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     msg->SetSessionId( pSessionId );
-    CloseHandler *closeHandler = new CloseHandler( this, handler, msg );
+    CloseHandler *closeHandler = new CloseHandler( Self(), handler, msg );
     MessageSendParams params;
     params.timeout = timeout;
     params.followRedirects = false;
@@ -498,7 +506,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -541,7 +549,7 @@ namespace XrdCl
     params.chunkList       = list;
     MessageUtils::ProcessSendParams( params );
 
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -585,7 +593,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -619,7 +627,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -655,7 +663,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -728,7 +736,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -767,7 +775,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -802,7 +810,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -1461,7 +1469,7 @@ namespace XrdCl
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    OpenHandler *openHandler = new OpenHandler( this, 0 );
+    OpenHandler *openHandler = new OpenHandler( Self(), 0 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
