@@ -250,7 +250,6 @@ namespace XrdCl
     pDoRecoverRead( true ),
     pDoRecoverWrite( true ),
     pFollowRedirects( true ),
-    pDoneInitOpen( false ),
     pReferenceCounter(1)
   {
     pFileHandle = new uint8_t[4];
@@ -999,7 +998,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ReSendQueuedMessages();
       pFileState  = Opened;
-      pDoneInitOpen = true;
     }
   }
 
@@ -1437,21 +1435,17 @@ namespace XrdCl
                this, pFileUrl->GetURL().c_str(), url.GetURL().c_str() );
 
     //--------------------------------------------------------------------------
-    // If the inital open on the data server was successful then we update the
-    // open flags. Remove kXR_delete and kXR_new flags, as we don't want the
-    // recovery procedure to delete a file that has been partially updated or
-    // fail it because a partially uploaded file already exists.
+    // Remove the kXR_delete and kXR_new flags, as we don't want the recovery
+    // procedure to delete a file that has been partially updated or fail it
+    // because a partially uploaded file already exists.
     //--------------------------------------------------------------------------
-    if (pDoneInitOpen)
+    if (pOpenFlags & kXR_delete)
     {
-      if (pOpenFlags & kXR_delete)
-      {
-	pOpenFlags &= ~kXR_delete;
-	pOpenFlags |=  kXR_open_updt;
-      }
-
-      pOpenFlags &= ~kXR_new;
+      pOpenFlags &= ~kXR_delete;
+      pOpenFlags |=  kXR_open_updt;
     }
+
+    pOpenFlags &= ~kXR_new;
 
     Message           *msg;
     ClientOpenRequest *req;
