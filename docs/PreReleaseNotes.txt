@@ -10,6 +10,7 @@ Prerelease Notes
   * [Misc] Add generalized XML parsing ability.
   * [Misc] Add metalink parsing for future integration.
   * [Server] Allow declaring extra large I/O buffers (mostly for Ceph).
+  * [Server] Allow iovec based data responses (no ABI changes).
 
 + **Major bug fixes**
   * [Server] Delete extraneous semaphore wait to avoid deadlock (#290).
