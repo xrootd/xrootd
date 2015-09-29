@@ -2865,6 +2865,16 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        return rs;
       }
 
+// Process the data response via an iovec
+//
+   if (rc == SFS_DATAVEC)
+      {if (ecode < 2) rs = Response.Send();
+          else        rs = Response.Send((struct iovec *)eMsg, ecode);
+       if (myError.getErrCB()) myError.getErrCB()->Done(ecode, &myError);
+       if (myError.extData())  myError.Reset();
+       return rs;
+      }
+
 // Process the deferal
 //
    if (rc >= SFS_STALL)

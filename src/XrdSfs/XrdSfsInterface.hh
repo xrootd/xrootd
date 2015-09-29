@@ -101,6 +101,7 @@
 #define SFS_REDIRECT   -256 // ErrInfo code -> Port number to redirect to
 #define SFS_STARTED    -512 // ErrInfo code -> Estimated seconds to completion
 #define SFS_DATA      -1024 // ErrInfo code -> Length of data
+#define SFS_DATAVEC   -2048 // ErrInfo code -> Num iovec elements in msgbuff
 
 // The following macros are used for dealing with special local paths
 //
