@@ -310,7 +310,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // and respective mutex
       //------------------------------------------------------------------------
-      mutable XrdSysRecMutex pMutex;
+      mutable XrdSysMutex pMutex;
   };
 
   //----------------------------------------------------------------------------
@@ -329,8 +329,7 @@ namespace XrdCl
     pSessionId( 0 ),
     pDoRecoverRead( true ),
     pDoRecoverWrite( true ),
-    pFollowRedirects( true ),
-    pReOpenHandler( 0 )
+    pFollowRedirects( true )
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
@@ -1546,29 +1545,13 @@ namespace XrdCl
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    // the handler has been removed from the queue
-    // (because we are here) so we can destroy it
-    if( pReOpenHandler )
-    {
-      pReOpenHandler->Destroy();
-      pReOpenHandler = 0;
-    }
-    // create a new reopen handler
-    ResponseHandlerHolder *openHandler = new ResponseHandlerHolder( new OpenHandler( this, 0 ) );
+    OpenHandler *openHandler = new OpenHandler( this, 0 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
     Status st = MessageUtils::SendMessage( url, msg, openHandler, params );
-    // if there was a problem destroy the open handler
     if( !st.IsOK() )
-    {
-      openHandler->Destroy();
-    }
-    // otherwise keep the reference
-    else
-    {
-      pReOpenHandler = openHandler->Self();
-    }
+      delete openHandler;
     return st;
   }
 
