@@ -59,7 +59,9 @@
 #define SSI_VAL_RESPONSE(rX)    XrdSsiRequest *rX = Atomic_GET(reqP);\
                                 if (!rX) return notPosted; \
                                 Atomic_SET(reqP, 0); \
-                                rX->reqMutex.Lock()
+                                rX->reqMutex.Lock(); \
+                                if (rX->theRespond != this) \
+                                   {rX->reqMutex.UnLock(); return notActive;}
 
 #define SSI_XEQ_RESPONSE(rX,oK) rX->reqMutex.UnLock(); \
                                 return (rP->ProcessResponse(rX->Resp, oK)\
@@ -99,6 +101,15 @@ inline void   *GetObject(int &oType, int &oInfo)
 
 inline void   *GetObject(void *&oHndl) {oHndl = objHandle; return objVal;}
 
+//-----------------------------------------------------------------------------
+//! The maximum amount of metedata+data (i.e. the sum of two blen arguments in
+//! SetMetadata() and and SetResponse(const char *buff, int blen), respectively)
+//! that may be directly sent to the client without the SSI framework converting
+//! the data buffer response into a stream response.
+//-----------------------------------------------------------------------------
+
+static const int MaxDirectXfr = 2097152; //< Max (metadata+data) direct xfr
+
 protected:
 
 //-----------------------------------------------------------------------------
@@ -116,7 +127,7 @@ inline  void    BindRequest(XrdSsiRequest   *rqstP,
                             XrdSsiResponder *respP=0)
                            {XrdSsiMutexMon(rqstP->reqMutex);
                             rqstP->theSession = sessP;
-                            rqstP->theRespond = respP;
+                            rqstP->theRespond =(respP ? respP : this);
                             if (respP) {Atomic_SET(respP->reqP, rqstP);}
                                else    {Atomic_SET(reqP, rqstP);}
                             rqstP->Resp.Init();
@@ -133,14 +144,39 @@ inline  void   ReleaseRequestBuffer() {XrdSsiRequest *rP = Atomic_GET(reqP);
                                       }
 
 //-----------------------------------------------------------------------------
-//! The following enums are returned by SetResponse() to indicate ending status.
+//! The following enums are returned by SetMetadata() and SetResponse() to
+//!  indicate ending status.
 //-----------------------------------------------------------------------------
 
 enum Status {wasPosted=0, //!< Success: The response was successfully posted
              notPosted,   //!< Failure: A request was not bound to this object
                           //!<          or a response has already been posted
+                          //!<          or the metadata length was invalid
              notActive    //!< Failure: Request is no longer active
             };
+
+//-----------------------------------------------------------------------------
+//! Set a pointer to metadata to be sent out-of-band ahead of the response.
+//!
+//! @param  buff  pointer to a buffer holding the metadata. The buffer must
+//!               remain valid until XrdSsiSession::RequestFinished() is called.
+//! @param  blen  the length of the metadata in buff that is to be sent. It must
+//!               in the range 0 <= blen <= MaxMetaDataSZ.
+//!
+//! @return       See Status enum for possible values.
+//-----------------------------------------------------------------------------
+
+static const int MaxMetaDataSZ = 2097152; //< 2MB metadata limit
+
+inline Status  SetMetadata(const char *buff, int blen)
+                          {XrdSsiRequest *rP = Atomic_GET(reqP);
+                           if (!rP || blen < 0 || blen > MaxMetaDataSZ)
+                              return notPosted;
+                           rP->reqMutex.Lock();
+                           rP->Resp.mdata = buff; rP->Resp.mdlen = blen;
+                           rP->reqMutex.UnLock();
+                           return wasPosted;
+                          }
 
 //-----------------------------------------------------------------------------
 //! Set an error response for a request.
@@ -161,20 +197,12 @@ inline Status  SetErrResponse(const char *eMsg, int eNum)
                           }
 
 //-----------------------------------------------------------------------------
-//! Set a pointer to metadata to be sent out-of-band ahead of the response.
-//!
-//! @param  buff  pointer to a buffer holding the metadata. The buffer must
-//!               remain valid until XrdSsiSession::RequestFinished() is called.
-//! @param  blen  the length of the metadata in buff that is to be sent.
+//! Set a nil response for a request (used for sending only metadata).
 //!
 //! @return       See Status enum for possible values.
 //-----------------------------------------------------------------------------
 
-inline Status  SetMetadata(const char *buff, int blen)
-                          {SSI_VAL_RESPONSE(rP);
-                           rP->Resp.mdata = buff; rP->Resp.mdlen = blen;
-                           rP->reqMutex.UnLock();
-                          }
+inline Status  SetNilResponse() {return SetResponse((const char *)0,0);}
 
 //-----------------------------------------------------------------------------
 //! Set a memory buffer containing data as the request response.

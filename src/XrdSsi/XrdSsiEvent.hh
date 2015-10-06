@@ -49,7 +49,7 @@ virtual void HandleResponse(XrdCl::XRootDStatus *status,
                             AddEvent(status, response);
                            }
 
-virtual bool XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp) = 0;
+virtual bool XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject **resp) = 0;
 
              XrdSsiEvent(const char *hName="") : XrdJob(hName), lastEvent(0),
                                                  running(false) {}

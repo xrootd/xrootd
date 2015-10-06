@@ -40,10 +40,11 @@
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-class XrdOucErrInfo;
-class XrdSfsXioHandle;
-class XrdSsiRRInfo;
-class XrdSsiStream;
+class  XrdOucErrInfo;
+class  XrdSfsXioHandle;
+class  XrdSsiFile;
+class  XrdSsiRRInfo;
+class  XrdSsiStream;
 
 class XrdSsiFileReq : public XrdSsiRequest, public XrdSsiResponder,
                       public XrdOucEICB,    public XrdJob
@@ -53,8 +54,9 @@ public:
 
 // SsiRequest methods
 //
-static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiSession *sP,
-                             const char    *sn, const char    *id, int rnum);
+static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiFile *fP,
+                             XrdSsiSession *sP, const char *sn,
+                             const char    *id, int         rnum);
 
         void           Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz);
 
@@ -76,7 +78,7 @@ static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiSession *sP,
 
 static  void           SetMax(int mVal) {freeMax = mVal;}
 
-        bool           WantResponse(XrdOucEICB *rCB, long long rArg);
+        bool           WantResponse(XrdOucErrInfo &eInfo);
 
 // OucEICB methods
 //
@@ -96,6 +98,9 @@ static  void           SetMax(int mVal) {freeMax = mVal;}
 
 virtual               ~XrdSsiFileReq() {if (tident) free(tident);}
 
+enum reqState {wtReq=0, xqReq, wtRsp, doRsp, odRsp, erRsp, rsEnd};
+enum rspState {isNew=0, isBegun, isBound, isAbort, isDone, isMax};
+
 private:
 
 int                    Emsg(const char *pfx, int ecode, const char *op);
@@ -109,19 +114,12 @@ XrdSfsXferSize         readStrmP(XrdSsiStream *strmP, char *buff,
 int                    sendStrmA(XrdSsiStream *strmP, XrdSfsDio *sfDio,
                                  XrdSfsXferSize blen);
 void                   Recycle();
-void                   WakeInfo(XrdSsiRRInfo *rdyInfo);
 void                   WakeUp();
 
-enum reqState {wtReq=0, xqReq, wtRsp, doRsp, odRsp, erRsp, rsEnd};
-enum rspState {isNew=0, isBegun, isBound, isAbort, isDone, isMax};
-
-static const char     *reqstID[rsEnd];
-static const char     *rspstID[isMax];
 static XrdSysMutex     aqMutex;
 static XrdSsiFileReq  *freeReq;
 static int             freeCnt;
 static int             freeMax;
-static int             cbRetD;
 
 XrdSsiFileReq         *nextReq;
 XrdSysSemaphore       *finWait;
@@ -131,6 +129,7 @@ unsigned long long     respCBarg;
 char                  *tident;
 const char            *sessN;
 XrdOucErrInfo         *cbInfo;
+XrdSsiFile            *fileP;
 XrdSsiSession         *sessP;
 char                  *respBuf;
 long long              respOff;
@@ -147,6 +146,7 @@ int                    reqID;
 bool                   respWait;
 bool                   strmEOF;
 bool                   schedDone;
+bool                   isPerm;
 char                   rID[8];
 };
 #endif

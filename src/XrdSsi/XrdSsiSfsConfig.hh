@@ -76,7 +76,6 @@ int           Xlib(const char *lName, char **lPath, char **lParm);
 int           Xfsp();
 int           Xopts();
 int           Xrole();
-int           Xrpwt();
 int           Xtrace();
 };
 #endif

@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 
 #include "XrdNet/XrdNetAddrInfo.hh"
 
@@ -48,7 +49,6 @@
 
 #include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiFile.hh"
-#include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
@@ -178,7 +178,79 @@ XrdSsiFile::~XrdSsiFile()
 //
    if (fsUser) free(fsUser);
 }
+/******************************************************************************/
+/*                              A t t n I n f o                               */
+/******************************************************************************/
+  
+bool XrdSsiFile::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
+                          int reqID) // Called with the request mutex locked!
+{
+   struct AttnResp {struct iovec ioV[4]; XrdSsiRRInfoAttn aHdr;};
 
+   AttnResp *attnResp;
+   char *mBuff;
+   int n, ioN = 2;
+   bool doFin;
+
+// If there is no data we can send back to the client in the attn response,
+// then simply reply with a short message to make the client come back.
+//
+   if (!respP->mdlen)
+      {if (respP->rType != XrdSsiRespInfo::isData
+       ||  respP->blen > XrdSsiResponder::MaxDirectXfr)
+          {eInfo.setErrInfo(0, "");
+           return false;
+          }
+      }
+
+// We will be constructing the response in the message buffer. This is
+// gauranteed to be big enough for our purposes so no need to check the size.
+//
+   mBuff = eInfo.getMsgBuff(n);
+
+// Initialize the response
+//
+   attnResp = (AttnResp *)mBuff;
+   memset(attnResp, 0, sizeof(attnResp));
+   attnResp->aHdr.pfxLen = htons(sizeof(XrdSsiRRInfoAttn));
+
+// Fill out iovec to point to our header
+//
+   attnResp->ioV[0].iov_len  = sizeof(XrdSsiRRInfoAttn) + respP->mdlen;
+   attnResp->ioV[1].iov_base = mBuff+offsetof(struct AttnResp, aHdr);
+   attnResp->ioV[1].iov_len  = sizeof(XrdSsiRRInfoAttn);
+
+// Fill out the iovec for the metadata if we have some
+//
+   if (respP->mdlen)
+      {attnResp->ioV[2].iov_base = (void *)respP->mdata;
+       attnResp->ioV[2].iov_len  =         respP->mdlen; ioN = 3;
+       attnResp->aHdr.mdLen = htonl(respP->mdlen);
+      }
+
+// Check if we have actual data here as well and can send it along
+//
+   if (respP->rType == XrdSsiRespInfo::isData
+   &&  respP->blen+respP->mdlen <= XrdSsiResponder::MaxDirectXfr)
+      {if (respP->blen)
+          {attnResp->ioV[ioN].iov_base = (void *)respP->buff;
+           attnResp->ioV[ioN].iov_len  =         respP->blen; ioN++;
+          }
+         attnResp->aHdr.tag = XrdSsiRRInfoAttn::fullResp; doFin = true;
+      }
+   else {attnResp->aHdr.tag = XrdSsiRRInfoAttn::pendResp; doFin = false;}
+
+// If we sent the full response we must remove the request from the request
+// table as it will get finished off when the response is actually sent.
+//
+   if (doFin) rTab.Del(reqID, false);
+
+// Setup to have metadata actually sent to the requestor
+//
+   eInfo.setErrCode(ioN);
+   return doFin;
+}
+  
 /******************************************************************************/
 /*                                 c l o s e                                  */
 /******************************************************************************/
@@ -256,7 +328,24 @@ int XrdSsiFile::CopyErr(const char *op, int rc)
 //
    eText = fsFile->error.getErrText(eCode);
 
-// Check if we need to copy and external buffer
+// Handle callbacks
+//
+   if (rc == SFS_STARTED || rc == SFS_DATAVEC)
+      {unsigned long long cbArg;
+       XrdOucEICB        *cbVal = fsFile->error.getErrCB(cbArg);
+       error.setErrCB(cbVal, cbArg);
+       if (rc == SFS_DATAVEC)
+          {struct iovec *iovP = (struct iovec *)eText;
+           char *mBuff = error.getMsgBuff(eTLen);
+           eTLen = iovP->iov_len;
+           memcpy(mBuff, eText, eTLen);
+           error.setErrCode(eCode);
+           return SFS_DATAVEC;
+          }
+      }
+
+// Check if we need to copy an external buffer. If this fails then if there is
+// an ofs callback pending, we must tell the ofs plugin we failed.
 //
    if (!(fsFile->error.extData())) error.setErrInfo(eCode, eText);
       else {eTLen = fsFile->error.getErrTextLen();
@@ -266,7 +355,10 @@ int XrdSsiFile::CopyErr(const char *op, int rc)
                 error.setErrInfo(eCode, buffP);
                } else {
                 XrdSsiUtils::Emsg("CopyErr",ENOMEM,op,fsFile->FName(),error);
-                rc = SFS_ERROR;
+                if (rc == SFS_STARTED && fsFile->error.getErrCB())
+                   {rc = eCode = SFS_ERROR;
+                    fsFile->error.getErrCB()->Done(eCode, &error);
+                   }
               }
            }
 
@@ -308,8 +400,6 @@ int      XrdSsiFile::fctl(const int           cmd,
                           const XrdSecEntity *client)
 {
    static const char *epname = "fctl";
-   XrdOucEICB        *respCB;
-   unsigned long long respCBarg;
    XrdSsiRRInfo      *rInfo;
    XrdSsiFileReq     *rqstP;
    int reqID;
@@ -335,7 +425,7 @@ int      XrdSsiFile::fctl(const int           cmd,
 // Grab the request identifier
 //
    rInfo = (XrdSsiRRInfo *)args;
-   reqID = rInfo->Id() & XrdSsiRRTable<XrdSsiFileReq>::maxID;
+   reqID = rInfo->Id();
 
 // Do some debugging
 //
@@ -346,15 +436,11 @@ int      XrdSsiFile::fctl(const int           cmd,
    if (!(rqstP = rTab.LookUp(reqID)))
       return XrdSsiUtils::Emsg(epname, ESRCH, "fctl", gigID, error);
 
-// Get callback information
-//
-   respCB = error.getErrCB(respCBarg);
-
 // Check if a response is waiting for the caller
 //
-   if (rqstP->WantResponse(respCB, respCBarg))
+   if (rqstP->WantResponse(error))
       {DEBUG(reqID <<':' <<gigID <<" resp ready");
-       return SFS_OK;
+       return SFS_DATAVEC;
       }
 
 // Put this client into callback state
@@ -380,7 +466,6 @@ const char *XrdSsiFile::FName()
 //
    return gigID;
 }
-
 
 /******************************************************************************/
 /*                             g e t C X i n f o                              */
@@ -481,8 +566,8 @@ bool XrdSsiFile::NewRequest(int              reqid,
 
 // Allocate a new request object
 //
-   if ((reqid > XrdSsiRRTable<XrdSsiFileReq>::maxID)
-   || !(reqP = XrdSsiFileReq::Alloc(&error, sessP, gigID, tident, reqid)))
+   if ((reqid > XrdSsiRRInfo::maxID)
+   || !(reqP = XrdSsiFileReq::Alloc(&error, this, sessP, gigID, tident, reqid)))
       return false;
 
 // Add it to the table
@@ -655,7 +740,7 @@ XrdSfsXferSize XrdSsiFile::read(XrdSfsFileOffset  offset,    // In
    XrdSsiRRInfo   rInfo(offset);
    XrdSsiFileReq *rqstP;
    XrdSfsXferSize retval;
-   int            reqID = rInfo.Id() & XrdSsiRRTable<XrdSsiFileReq>::maxID;
+   int            reqID = rInfo.Id();
    bool           noMore = false;
 
 // Route to file system if need be (no callback possible)
@@ -753,7 +838,7 @@ int XrdSsiFile::SendData(XrdSfsDio         *sfDio,
    static const char *epname = "SendData";
    XrdSsiRRInfo   rInfo(offset);
    XrdSsiFileReq *rqstP;
-   int rc, reqID = rInfo.Id() & XrdSsiRRTable<XrdSsiFileReq>::maxID;
+   int rc, reqID = rInfo.Id();
 
 // Route this request to file system if need be (no callback possible)
 //
@@ -864,12 +949,10 @@ int XrdSsiFile::truncate(XrdSfsFileOffset  flen)  // In
 */
 {
    static const char *epname = "trunc";
-   unsigned long long respCBarg;
-   XrdOucEICB        *respCB;
    XrdSsiFileReq     *rqstP;
    XrdSsiRRInfo       rInfo(flen);
    XrdSsiRRInfo::Opc  reqXQ = rInfo.Cmd();
-   int reqID = rInfo.Id()  & XrdSsiRRTable<XrdSsiFileReq>::maxID;
+   int reqID = rInfo.Id();
 
 // Route this request to file system if need be (callback possible)
 //
@@ -886,37 +969,19 @@ int XrdSsiFile::truncate(XrdSfsFileOffset  flen)  // In
           {eofVec.UnSet(reqID);
            return 0;
           }
-        return XrdSsiUtils::Emsg(epname, ESRCH, "read", gigID, error);
+        return XrdSsiUtils::Emsg(epname, ESRCH, "cancel", gigID, error);
        }
 
-// Process request
+// Process request (this can only be a cancel request)
 //
-   switch(reqXQ)
-         {case XrdSsiRRInfo::Rwt:
-               respCB = error.getErrCB(respCBarg);
-               if (rqstP->WantResponse(respCB, respCBarg))
-                  {DEBUG(reqID <<':' <<gigID <<" resp ready "
-                               <<hex <<respCBarg <<dec);
-                   return SFS_OK;
-                  }
-               DEBUG(reqID <<':' <<gigID <<" resp not ready "
-                           <<hex <<respCBarg <<dec);
-               error.setErrCB((XrdOucEICB *)rqstP);
-               error.setErrInfo(respWT, "");
-               return SFS_STARTED;
-               break;
-          case XrdSsiRRInfo::Can:
-               DEBUG(reqID <<':' <<gigID <<" cancelled");
-               rqstP->Finalize();
-               rTab.Del(reqID);
-               break;
-          default:
-               return XrdSsiUtils::Emsg(epname, ENOSYS, "trunc", gigID, error);
-               break;
-         }
+   if (reqXQ != XrdSsiRRInfo::Can)
+      return XrdSsiUtils::Emsg(epname, ENOSYS, "trunc", gigID, error);
 
-// All done
+// Perform the cancellation
 //
+   DEBUG(reqID <<':' <<gigID <<" cancelled");
+   rqstP->Finalize();
+   rTab.Del(reqID);
    return SFS_OK;
 }
 
@@ -944,7 +1009,7 @@ XrdSfsXferSize XrdSsiFile::write(XrdSfsFileOffset      offset,    // In
 {
    static const char *epname = "write";
    XrdSsiRRInfo   rInfo(offset);
-   int reqID = rInfo.Id() & XrdSsiRRTable<XrdSsiFileReq>::maxID;
+   int reqID = rInfo.Id();
 
 // Route this request to file system if need be (no callback possible)
 //

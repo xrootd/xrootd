@@ -30,6 +30,8 @@
 /******************************************************************************/
 
 #include <string.h>
+
+#include "XrdSsi/XrdSsiRRInfo.hh"
   
 class XrdSsiBVec
 {
@@ -47,6 +49,6 @@ inline void  UnSet(int bval) {bVec[bval/64] &= ~(0x01LL << (bval%64));}
 
 private:
 
-long long    bVec[4];
+long long    bVec[(XrdSsiRRInfo::maxID+1)/64]; // For 1023 should be 16
 };
 #endif
