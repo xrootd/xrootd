@@ -44,8 +44,10 @@ const char *statName[] = {"isWrite", "isSync", "isReady",
                           "isDone",  "isDead"};
 
 XrdSsiSessReal voidSession(0, "voidSession");
-}
 
+char        zedData = 0;
+}
+  
 /******************************************************************************/
 /*                                D e t a c h                                 */
 /******************************************************************************/
@@ -53,6 +55,68 @@ XrdSsiSessReal voidSession(0, "voidSession");
 void XrdSsiTaskReal::Detach(bool force)
 {   tStat = isDead;
     if (force) sessP = &voidSession;
+}
+
+/******************************************************************************/
+/* Private:                      G e t R e s p                                */
+/******************************************************************************/
+  
+XrdSsiTaskReal::respType XrdSsiTaskReal::GetResp(XrdCl::AnyObject **respP,
+                                                 char *&dbuff, int &dbL)
+{
+   EPNAME("GetResp");
+   XrdCl::AnyObject *response = *respP;
+   XrdCl::Buffer    *buffP;
+   XrdSsiRRInfoAttn *mdP;
+   char             *cdP;
+   unsigned int      mdL, pxL, n;
+   respType          xResp;
+
+// Make sure that the [meta]data is actually present
+//
+   response->Get(buffP);
+   if (!buffP || !(cdP = buffP->GetBuffer()))
+      {DBG("Responding with stream id=" <<tskID);
+       return isStream;
+      }
+
+// Validate the header
+//
+   if ((n=buffP->GetSize()) <= sizeof(XrdSsiRRInfoAttn)) return isBad;
+   mdP = (XrdSsiRRInfoAttn *)cdP;
+   mdL = ntohl(mdP->mdLen);
+   pxL = ntohs(mdP->pfxLen);
+   dbL = n - mdL - pxL;
+   if (pxL < sizeof(XrdSsiRRInfoAttn) || dbL < 0) return isBad;
+
+// Extract out the metadata
+//
+   if (mdL)
+      {DBG("Adding metadata id=" <<tskID);
+       SetMetadata(cdP+pxL, mdL);
+      }
+
+// Extract out the data
+//
+        if (mdP->tag == XrdSsiRRInfoAttn::fullResp)
+           {dbuff = (dbL ? cdP+mdL+pxL : &zedData);
+            xResp = isData;
+            DBG("Responding with data id=" <<tskID);
+           }
+   else    {xResp = isStream;
+            DBG("Responding with stream id=" <<tskID);
+           }
+
+// Save the response buffer if we will be referecing it later
+//
+   if (mdL || dbL)
+      {mdResp = response;
+       *respP = 0;
+      }
+
+// All done
+//
+   return xResp;
 }
 
 /******************************************************************************/
@@ -66,7 +130,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 
 // Do some debugging
 //
-   DBG("Status = "<<statName[tStat]<<" mhPend="<<mhPend);
+   DBG("Status = "<<statName[tStat]<<" mhPend="<<mhPend <<" id=" <<tskID);
 
 // Affect proper procedure
 //
@@ -89,7 +153,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 // We will send a synchronous cancel request. It shouldn't take long.
 //
    rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Can);
-   DBG("Sending cancel request.");
+   DBG("Sending cancel request id=" <<tskID);
    sessP->epFile.Truncate(rInfo.Info(), tmOut);
 
 // If we are in the message handler or if we have a message pending, then
@@ -143,7 +207,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
 
 // Check if this is a proper call or we have reached EOF
 //
-   DBG("Sync Status=" <<statName[tStat]);
+   DBG("Sync Status=" <<statName[tStat] <<" id=" <<tskID);
    if (tStat != isReady)
       {if (tStat == isDone) return 0;
        eInfo.Set("Stream is not active", ENODEV);
@@ -166,7 +230,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
 //
    XrdSsiSessReal::SetErr(epStatus, eInfo);
    tStat = isDone;
-   DBG("Task Sync SetBuff error");
+   DBG("Task Sync SetBuff error id=" <<tskID);
    return -1;
 }
 
@@ -181,7 +245,7 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
 
 // Check if this is a proper call or we have reached EOF
 //
-   DBG("Async Status=" <<statName[tStat]);
+   DBG("Async Status=" <<statName[tStat] <<" id=" <<tskID);
    if (tStat != isReady)
       {reqP->eInfo.Set("Stream is not active", ENODEV);
        return false;
@@ -191,6 +255,13 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
 //
    if (mhPend)
       {reqP->eInfo.Set("Stream is already active", EINPROGRESS);
+       return false;
+      }
+
+// Make sure the buffer length is valid
+//
+   if (blen <= 0)
+      {reqP->eInfo.Set("Buffer length invalid", EINVAL);
        return false;
       }
 
@@ -212,7 +283,7 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
 //
    XrdSsiSessReal::SetErr(epStatus, reqP->eInfo);
    tStat = isDone;
-   DBG("Task Async SetBuff error");
+   DBG("Task Async SetBuff error id=" <<tskID);
    return false;
 }
   
@@ -221,19 +292,22 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
 /******************************************************************************/
   
 bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
-                              XrdCl::AnyObject    *response)
+                              XrdCl::AnyObject   **respP)
 {
    EPNAME("TaskXeqEvent");
    XrdCl::XRootDStatus epStatus;
+   XrdCl::AnyObject   *response = *respP;
    XrdSsiRRInfo        rInfo;
    char *dBuff;
+   XrdCl::Buffer qBuff(sizeof(unsigned long long));
    union {uint32_t ubRead; int ibRead;};
+   int dLen;
    bool last, aOK = status->IsOK();
 
 // Affect proper response
 //
    sessP->Lock();
-   DBG(" sess="<<(sessP==&voidSession?"no":"ok")
+   DBG(" sess="<<(sessP==&voidSession?"no":"ok") <<" id=" <<tskID
               <<" Status = "<<aOK<<' '<<statName[tStat]
               <<" clrT=" <<hex <<myCaller <<" xeqT=" <<pthread_self() <<dec);
 
@@ -242,22 +316,30 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
                if (!aOK) {RespErr(status); return true;}
                tStat = isSync;
                rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Rwt);
-               DBG("Calling RelBuff.");
+               DBG("Calling RelBuff id=" <<tskID);
                ReleaseRequestBuffer();
-               DBG("Calling trunc.");
-               epStatus = sessP->epFile.Truncate(rInfo.Info(),
-                                                 (ResponseHandler *)this,
-                                                 tmOut);
+               DBG("Calling fcntl id=" <<tskID);
+               memcpy(qBuff.GetBuffer(), rInfo.Data(), sizeof(long long));
+               epStatus = sessP->epFile.Fcntl(qBuff,
+                                             (ResponseHandler *)this,
+                                             tmOut);
                if (!epStatus.IsOK()) {RespErr(&epStatus); return true;}
                sessP->UnLock();
                return true; break;
           case isSync:
                if (!aOK) {RespErr(status); return true;}
-               tStat = isReady;
                mhPend = false;
-               sessP->UnLock();
-               DBG("Responding with stream.");
-               SetResponse((XrdSsiStream *)this);
+               if (response) switch(GetResp(respP, dBuff, dLen))
+                  {case isData:   tStat = isDone;  sessP->UnLock();
+                                  SetResponse(dBuff, dLen);
+                                  break;
+                   case isStream: tStat = isReady; sessP->UnLock();
+                                  SetResponse((XrdSsiStream *)this);
+                                  break;
+                   default:       tStat = isDone;  sessP->UnLock();
+                                  SetErrResponse("Invalid response", EFAULT);
+                                  break;
+                  }
                return true; break;
           case isReady:
                break;

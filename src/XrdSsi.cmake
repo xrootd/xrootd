@@ -30,7 +30,7 @@ XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh
                                        XrdSsi/XrdSsiProvider.hh
                                        XrdSsi/XrdSsiRRInfo.hh
                                        XrdSsi/XrdSsiRRTable.hh
-                                       XrdSsi/XrdSsiRequest.hh
+XrdSsi/XrdSsiRequest.cc                XrdSsi/XrdSsiRequest.hh
                                        XrdSsi/XrdSsiResponder.hh
 XrdSsi/XrdSsiServReal.cc               XrdSsi/XrdSsiServReal.hh
                                        XrdSsi/XrdSsiService.hh

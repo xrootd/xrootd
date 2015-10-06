@@ -1,8 +1,6 @@
-#ifndef __XRDSSITASKREAL_HH__
-#define __XRDSSITASKREAL_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i T a s k R e a l . h h                      */
+/*                      X r d S s i R e q u e s t . h h                       */
 /*                                                                            */
 /* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
@@ -29,72 +27,40 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiEvent.hh"
-#include "XrdSsi/XrdSsiStream.hh"
-#include "XrdSsi/XrdSsiResponder.hh"
+#include <stdlib.h>
+#include <string.h>
 
-class XrdSsiRequest;
-class XrdSsiSessReal;
+#include "XrdSsi/XrdSsiRespInfo.hh"
+#include "XrdSsi/XrdSsiRequest.hh"
 
-class XrdSsiTaskReal : public XrdSsiEvent,    public XrdSsiResponder,
-                       public XrdSsiStream
+/******************************************************************************/
+/*                              C o p y D a t a                               */
+/******************************************************************************/
+  
+bool XrdSsiRequest::CopyData(char *buff, int blen)
 {
-public:
+   bool last;
 
-enum TaskStat {isWrite=0, isSync, isReady, isDone, isDead};
+// Make sure the buffer length is valid
+//
+   if (blen <= 0)
+      {eInfo.Set("Buffer length invalid", EINVAL);
+       return false;
+      }
 
-void   Detach(bool force=false);
+// Check if we have any data here
+//
+   reqMutex.Lock();
+   if (Resp.blen > 0)
+      {if (Resp.blen > blen) last = false;
+          else {blen = Resp.blen; last = true;}
+       memcpy(buff, Resp.buff, blen);
+       Resp.buff += blen; Resp.blen -= blen;
+      } else {blen = 0; last = true;}
+   reqMutex.UnLock();
 
-void  *Implementation() {return (void *)this;}
-
-bool   Kill();
-
-inline
-int    ID() {return tskID;}
-
-inline
-void   Init(XrdSsiRequest *rP, unsigned short tmo=0)
-           {rqstP = rP, tStat = isWrite; tmOut = tmo; mhPend = true;
-            attList.next = attList.prev = this;
-            if (mdResp) {delete mdResp; mdResp = 0;}
-           }
-
-int    SetBuff(XrdSsiErrInfo &eInfo, char *buff, int blen, bool &last);
-
-bool   SetBuff(XrdSsiRequest *reqP, char *buff, int blen);
-
-void   SetTaskID(short tid) {tskID = tid;}
-
-bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
-
-       XrdSsiTaskReal(XrdSsiSessReal *sP, short tid)
-                     : XrdSsiEvent("TaskReal"),
-                       XrdSsiResponder(this, (void *)0),
-                       XrdSsiStream(XrdSsiStream::isPassive),
-                       sessP(sP), mdResp(0), tskID(tid)
-                    {}
-
-      ~XrdSsiTaskReal() {if (mdResp) delete mdResp;}
-
-void   RespErr(XrdCl::XRootDStatus *status);
-
-struct dlQ {XrdSsiTaskReal *next; XrdSsiTaskReal *prev;};
-dlQ             attList;
-
-enum respType     {isBad=0, isData, isStream};
-
-private:
-
-respType          GetResp(XrdCl::AnyObject **respP, char *&dbuf, int &dlen);
-
-XrdSsiSessReal   *sessP;
-XrdSsiRequest    *rqstP;
-XrdCl::AnyObject *mdResp;
-char             *dataBuff;
-int               dataRlen;
-TaskStat          tStat;
-unsigned short    tmOut;
-short             tskID;
-bool              mhPend;
-};
-#endif
+// Invoke the callback
+//
+   ProcessResponseData(buff, blen, last);
+   return true;
+}

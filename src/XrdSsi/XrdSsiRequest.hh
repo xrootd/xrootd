@@ -42,7 +42,7 @@
 //! response to the request via a companion object described by XrdSsiResponder.
 //! Client-Side: Use this object to encapsulate your request and hand it off
 //!              to XrdSsiSession::ProcessRequest() either use GetResponseData()
-//!              or the actual stream object to obtain response data.
+//!              or the actual response tructure to get the response data.
 //!
 //! Server-side: XrdSsiSession::ProcessRequest() is called with this object.
 //!              Use the XrdSsiResponder object to post a response.
@@ -149,8 +149,10 @@ XrdSsiResponder*GetResponder() {XrdSsiMutexMon(reqMutex); return theRespond;}
 
 //-----------------------------------------------------------------------------
 //! Asynchronously obtain response data. This is a helper method that allows a
-//! client to deal with passive streams. All client-side data responses are
-//! handled via a passive stream, so this simplifies response data handling.
+//! client to deal with a passive stream response. This method also handles
+//! data response, albeit ineffeciently by copying the data response. However,
+//! this allows for uniform response processing regardless of response type.
+//! See the other from of GetResponseData() for a possible better approach.
 //!
 //! @param  buff  pointer to the buffer to receive the data. The buffer must
 //!               remain valid until the ProcessResponse() is called.
@@ -269,6 +271,7 @@ const XrdSsiRespInfo *RespP() {return &Resp;}
 XrdSsiMutex     reqMutex;
 
 private:
+        bool     CopyData(char *buff, int blen);
 
 XrdSsiSession   *theSession; // Set via XrdSsiResponder::BindRequest()
 XrdSsiResponder *theRespond; // Set via XrdSsiResponder::BindRequest()
@@ -284,8 +287,10 @@ XrdSsiRespInfo   Resp;       // Set via XrdSsiResponder::SetResponse()
 
 inline  bool    XrdSsiRequest::GetResponseData(char *buff, int  blen)
                       {XrdSsiMutexMon(reqMutex);
-                       if (Resp.rType != XrdSsiRespInfo::isStream)
-                          {eInfo.Set(0, ENODATA); return false;}
-                       return Resp.strmP->SetBuff(this, buff, blen);
+                       if (Resp.rType == XrdSsiRespInfo::isStream)
+                          return Resp.strmP->SetBuff(this, buff, blen);
+                       if (Resp.rType == XrdSsiRespInfo::isData)
+                          return CopyData(buff, blen);
+                       eInfo.Set(0, ENODATA); return false;
                       }
 #endif

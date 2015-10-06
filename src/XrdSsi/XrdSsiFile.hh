@@ -38,8 +38,9 @@
 #include "XrdSsi/XrdSsiRRTable.hh"
 #include "XrdSys/XrdSysPthread.hh"
   
-class XrdSfsXioHandle;
-class XrdSsiSession;
+class  XrdSfsXioHandle;
+struct XrdSsiRespInfo;
+class  XrdSsiSession;
 
 class XrdSsiFile : public XrdSfsFile
 {
@@ -111,7 +112,11 @@ static  void             SetMaxSz(int mSz) {maxRSZ = mSz;}
                          XrdSsiFile(const char *user, int MonID);
                         
 virtual                 ~XrdSsiFile();
-                        
+
+// Special methods
+//
+        bool             AttnInfo(      XrdOucErrInfo  &eInfo,
+                                  const XrdSsiRespInfo *respP, int reqID);
                         
 private:                
 void                     CopyECB();

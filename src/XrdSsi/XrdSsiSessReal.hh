@@ -79,7 +79,7 @@ static  void     SetErr(XrdCl::XRootDStatus &Status, XrdSsiErrInfo &eInfo);
         bool     Unprovision(bool forced=false);
 
         bool     XeqEvent(XrdCl::XRootDStatus *status,
-                          XrdCl::AnyObject    *response);
+                          XrdCl::AnyObject   **respP);
 
                  XrdSsiSessReal(XrdSsiServReal *servP, const char *sName)
                                : XrdSsiSession(strdup(sName), 0),

@@ -98,7 +98,7 @@ void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName)
    pendTask  = 0;
    myService = servP;
    nextTID   = 0;
-   alocLeft  = 255;
+   alocLeft  = XrdSsiRRInfo::maxID;
    stopping  = false;
    if (sName)
       {if (sessName) free(sessName);
@@ -440,7 +440,7 @@ bool XrdSsiSessReal::Unprovision(bool forced)
 /******************************************************************************/
   
 bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
-                              XrdCl::AnyObject    *response)
+                              XrdCl::AnyObject   **respP)
 {
    XrdSysMutexHelper rHelp(&myMutex);
    XrdSsiSessReal *sObj = 0;

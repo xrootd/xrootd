@@ -145,7 +145,7 @@ do{thisEvent.Move2(myEvent);
    lastEvent = 0;
    evMutex.UnLock();
    edP = &myEvent;
-   while(edP && XeqEvent(edP->status, edP->response)) {edP = edP->next;}
+   while(edP && XeqEvent(edP->status, &edP->response)) {edP = edP->next;}
    ClrEvent(&myEvent);
    if (edP) return;
    evMutex.Lock();

@@ -39,7 +39,6 @@
 #include "XrdSfs/XrdSfsXio.hh"
 #include "XrdSsi/XrdSsiFile.hh"
 #include "XrdSsi/XrdSsiFileReq.hh"
-#include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
@@ -65,6 +64,23 @@ extern XrdScheduler  *Sched;
 using namespace XrdSsi;
 
 /******************************************************************************/
+/*                         S t a t i c   L o c a l s                          */
+/******************************************************************************/
+
+namespace
+{
+const char     *rspstID[XrdSsiFileReq::isMax] =
+                                      {" [new",   " [begun", " [bound",
+                                       " [abort", " [done"
+                                      };
+
+const char     *reqstID[XrdSsiFileReq::rsEnd] =
+                                      {" wtReq] ", " xqReq] ", " wtRsp] ",
+                                       " doRsp] ", " odRsp] ", " erRsp] "
+                                      };
+};
+  
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
   
@@ -72,17 +88,6 @@ XrdSysMutex     XrdSsiFileReq::aqMutex;
 XrdSsiFileReq  *XrdSsiFileReq::freeReq = 0;
 int             XrdSsiFileReq::freeCnt = 0;
 int             XrdSsiFileReq::freeMax = 256;
-int             XrdSsiFileReq::cbRetD  = SFS_DATA;
-
-const char     *XrdSsiFileReq::rspstID[XrdSsiFileReq::isMax] =
-                                   {" [new",   " [begun", " [bound",
-                                    " [abort", " [done"
-                                   };
-
-const char     *XrdSsiFileReq::reqstID[XrdSsiFileReq::rsEnd] =
-                                   {" wtReq] ", " xqReq] ", " wtRsp] ",
-                                    " doRsp] ", " odRsp] ", " erRsp] "
-                                   };
 
 /******************************************************************************/
 /*                              A c t i v a t e                               */
@@ -112,6 +117,7 @@ void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
 /******************************************************************************/
 
 XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo *eiP,
+                                    XrdSsiFile    *fP,
                                     XrdSsiSession *sP,
                                     const char    *sID,
                                     const char    *cID,
@@ -137,6 +143,7 @@ XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo *eiP,
    if (nP)
       {nP->sessN  = sID;
        nP->sessP  = sP;
+       nP->fileP  = fP;
        nP->cbInfo = eiP;
        nP->reqID = rnum;
        snprintf(nP->rID, sizeof(nP->rID), "%d:", rnum);
@@ -214,6 +221,7 @@ void XrdSsiFileReq::DoIt()
                          Finished(cancel);
                          if (respWait) WakeUp();
                          if (finWait)  finWait->Post();
+                         if (cancel && !(RespP()->rType)) isPerm = true;
                          mHelper.UnLock();
                          Recycle();
                          return;
@@ -231,22 +239,36 @@ void XrdSsiFileReq::DoIt()
 /*                                  D o n e                                   */
 /******************************************************************************/
 
-// Gets invoked only after sync() waitresp signal
+// Gets invoked only after query() waitresp signal was sent
   
 void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 {
    EPNAME("Done");
-   XrdSsiMutexMon mHelper(reqMutex);
+   XrdSsiMutexMon(reqMutex);
+
+// We may need to delete the errinfo object if this callback was async. Note
+// that the following test is valid even if the file object has been deleted.
+//
+   if (eiP != &fileP->error) delete eiP;
+
+// Check if we should finalize this request. This will be the case if the
+// complete response was sent.
+//
+   if (myState == odRsp)
+      {DEBUGXQ("resp sent; no additional data remains");
+       Finalize();
+       return;
+      }
 
 // Do some debugging
 //
-   DEBUGXQ("wtrsp sent; resp "<<(RespP()->rType ? "pend" : "here"));
+   DEBUGXQ("wtrsp sent; resp "<<(RespP()->rType ? "here" : "pend"));
 
 // We are invoked when sync() waitresp has been sent, check if a response was
 // posted while this was going on. If so, make sure to send a wakepup.
 //
    if (RespP()->rType == XrdSsiRespInfo::isNone) respWait = true;
-      else WakeUp();
+      else if (respWait) WakeUp();
 }
 
 /******************************************************************************/
@@ -346,6 +368,7 @@ void XrdSsiFileReq::Finalize()
                          DEBUGXQ("Calling Finished(" <<cancel <<')');
                          Finished(cancel);
                          if (respWait) WakeUp();
+                         if (cancel && !(RespP()->rType)) isPerm = true;
                          mHelper.UnLock();
                          Recycle();
                          return;
@@ -411,6 +434,7 @@ void XrdSsiFileReq::Init(const char *cID)
    schedDone  = false;
    respWait   = false;
    strmEOF    = false;
+   isPerm     = false;
 }
 
 /******************************************************************************/
@@ -633,7 +657,7 @@ void XrdSsiFileReq::Recycle()
 //
    aqMutex.Lock();
    if (tident) {free(tident); tident = 0;}
-   if (freeCnt >= freeMax) {aqMutex.UnLock(); delete this;}
+   if (freeCnt >= freeMax && !isPerm) {aqMutex.UnLock(); delete this;}
       else {nextReq = freeReq;
             freeReq = this;
             freeCnt++;
@@ -787,13 +811,20 @@ int XrdSsiFileReq::sendStrmA(XrdSsiStream *strmP,
 /*                          W a n t R e s p o n s e                           */
 /******************************************************************************/
   
-bool XrdSsiFileReq::WantResponse(XrdOucEICB *rCB, long long rArg)
+bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
 {
-   XrdSsiMutexMon mHelper(reqMutex);
+   XrdSsiMutexMon(reqMutex);
+   const XrdSsiRespInfo *rspP = RespP();
 
 // Check if a response is here (well, ProcessResponse was called)
 //
-   if (myState == doRsp) return true;
+   if (rspP->rType)
+      {respCBarg   = 0;
+       if (fileP->AttnInfo(eInfo, rspP, reqID))
+          {    eInfo.setErrCB((XrdOucEICB *)this); myState = odRsp;}
+          else eInfo.setErrCB((XrdOucEICB *)0);
+       return true;
+      }
 
 // Defer this and record the callback arguments. We defer setting respWait
 // to true until we know the deferal request has been sent (i.e. when Done()
@@ -802,40 +833,9 @@ bool XrdSsiFileReq::WantResponse(XrdOucEICB *rCB, long long rArg)
 // lock upon return; allowing a response to come in while the deferal request
 // is still in transit.
 //
-   respCB    = rCB;
-   respCBarg = rArg;
-   respWait  = false;
+   respCB   = eInfo.getErrCB(respCBarg);
+   respWait = false;
    return false;
-}
-
-/******************************************************************************/
-/*                              W a k e I n f o                               */
-/******************************************************************************/
-  
-void XrdSsiFileReq::WakeInfo(XrdSsiRRInfo *rdyInfo) // reqMutex is locked!
-{
-
-// Set appropriate response information
-//
-   rdyInfo->Id(reqID);
-   switch(RespP()->rType)
-         {case XrdSsiRespInfo::isData:
-               rdyInfo->Size(respLen);
-               break;
-          case XrdSsiRespInfo::isError:
-               rdyInfo->Size(-1);
-               break;
-          case XrdSsiRespInfo::isFile:
-               if (fileSz & 0xffffffff80000000LL) rdyInfo->Size(0);
-                  rdyInfo->Size(static_cast<int>(fileSz));
-               break;
-          case XrdSsiRespInfo::isStream:
-               rdyInfo->Size(0);
-               break;
-          default:
-               rdyInfo->Size(-2);
-               break;
-         }
 }
   
 /******************************************************************************/
@@ -845,25 +845,24 @@ void XrdSsiFileReq::WakeInfo(XrdSsiRRInfo *rdyInfo) // reqMutex is locked!
 void XrdSsiFileReq::WakeUp() // Called with reqMutex locked!
 {
    EPNAME("WakeUp");
-   XrdOucErrInfo *wuInfo = new XrdOucErrInfo(tident,(XrdOucEICB *)0,respCBarg);
-   int mlen;
-
-// We will be placing the response in the cbInfo object
-//
-   WakeInfo((XrdSsiRRInfo *)wuInfo->getMsgBuff(mlen));
-   wuInfo->setErrCode(sizeof(XrdSsiRRInfo));
+   XrdOucErrInfo *wuInfo = 
+                  new XrdOucErrInfo(tident,(XrdOucEICB *)0,respCBarg);
+   const XrdSsiRespInfo *rspP = RespP();
+   int respCode = SFS_DATAVEC;
 
 // Do some debugging
 //
    DEBUGXQ("respCBarg=" <<hex <<respCBarg <<dec);
 
-// Tell the client to issue a read now. We don't need a callback on this so
-// the callback handler will delete the errinfo object for us.
+// Setup the wakeup data. If this is the complete response, then make sure we
+// get a callback to do the finalization. Otherwise, we don't need a callback
+// and the callback handler will simply delete the error object for us.
 //
-   wuInfo->setErrInfo(0,rID);
-   respCB->Done(cbRetD, wuInfo, sessN);
+   if (fileP->AttnInfo(*wuInfo, rspP, reqID))
+      {wuInfo->setErrCB((XrdOucEICB *)this, respCBarg); myState = odRsp;}
 
-// Finish up;
+// Tell the client to issue a read now or handle the full response.
 //
-   respWait = false;
+   respWait  = false;
+   respCB->Done(respCode, wuInfo, sessN);
 }

@@ -30,16 +30,18 @@
 /******************************************************************************/
 
 #include <string.h>
+
+#include "XrdSsi/XrdSsiAtomics.hh"
+#include "XrdSsi/XrdSsiRRInfo.hh"
   
 template<class T>
 class XrdSsiRRTable
 {
 public:
 
-static const int maxID = 255;
-
 void  Add(T *item, int itemID)
-         {T **frV;
+         {XrdSsiMutexMon(rrtMutex);
+          T **frV;
           int i = itemID >> sftID, j = itemID & mskID;
           if (!(frV = tVec[i]))
              {frV = tVec[i] = new   T * [vecSZ];
@@ -50,11 +52,13 @@ void  Add(T *item, int itemID)
           if (tEnd[i] < i) tEnd[i] = j;
          }
 
-void  Del(int itemID)
-         {T **tP;
+void  Del(int itemID, bool finit=false)
+         {XrdSsiMutexMon(rrtMutex);
+          T **tP;
           int i = itemID >> sftID, j = itemID & mskID, k;
           if ((tP = tVec[i]))
-             {tP[j] = 0;
+             {if (finit) tP[j]->Finalize();
+              tP[j] = 0;
               if (tEnd[i] == j) // Record last entry
                  {for (k = j-1; k >= 0; k--) if (tP[k]) break;
                   tEnd[i] = k;
@@ -63,14 +67,16 @@ void  Del(int itemID)
          }
 
 T    *LookUp(int itemID)
-            {T **tP;
+            {XrdSsiMutexMon(rrtMutex);
+             T **tP;
              if (itemID < vecSZ) return tPrm[itemID]; // Fast lookup
              if (!(tP = tVec[itemID >> sftID])) return 0;
              return tP[itemID & mskID];
             }
 
 void  Reset()
-           {T **frV;
+           {XrdSsiMutexMon(rrtMutex);
+            T **frV;
             int i, j;
             for (i = 0; i <= tVecLast; i++)
                 {if ((frV = tVec[i]))
@@ -93,11 +99,13 @@ void  Reset()
      ~XrdSsiRRTable() {Reset();}
 
 private:
-static const int         vecSZ =  16;
-static const int         mskID =  15;
-static const int         sftID =   4;
+XrdSsiMutex              rrtMutex;
+static const int         sftID = 5;
+static const int         sftSZ = 1<<sftID;
+static const int         vecSZ = (XrdSsiRRInfo::maxID+1)/sftSZ;
+static const int         mskID = vecSZ-1;
 
-char                     tEnd[vecSZ];
+char                     tEnd[sftSZ];
 int                      tVecLast;
 T                       *tPrm[vecSZ];
 T                      **tVec[vecSZ];
