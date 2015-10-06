@@ -61,11 +61,6 @@ namespace
       {
       }
 
-      virtual ~OpenHandler()
-      {
-        pStateHandler->Destroy();
-      }
-
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
@@ -126,7 +121,6 @@ namespace
       //------------------------------------------------------------------------
       virtual ~CloseHandler()
       {
-        pStateHandler->Destroy();
         delete pMessage;
       }
 
@@ -181,7 +175,6 @@ namespace
       //------------------------------------------------------------------------
       virtual ~StatefulHandler()
       {
-        pStateHandler->Destroy();
         delete pMessage;
         delete pSendParams.chunkList;
       }
@@ -233,6 +226,93 @@ namespace
 
 namespace XrdCl
 {
+  //------------------------------------------------------------------------
+  //! Holds a reference to a ResponceHandler
+  //! and allows to safely delete it
+  //------------------------------------------------------------------------
+  class ResponseHandlerHolder : public ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      ResponseHandlerHolder( ResponseHandler * handler ) : pHandler( handler ), pReferenceCounter( 1 ) {}
+      //------------------------------------------------------------------------
+      //! Destructor is private - use 'Destroy' in order to delete the object
+      //! Always destroys the actual ResponseHandler and deletes itself only
+      //! if this is the last reference
+      //------------------------------------------------------------------------
+      void Destroy()
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        // delete the actual handler
+        if( pHandler )
+        {
+          delete pHandler;
+          pHandler = 0;
+        }
+        // and than destroy myself if this is the last reference
+        DestroyMyself();
+      }
+      //------------------------------------------------------------------------
+      //! Increment reference counter
+      //------------------------------------------------------------------------
+      ResponseHandlerHolder* Self()
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        ++pReferenceCounter;
+        return this;
+      }
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      virtual void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                            XrdCl::AnyObject    *response,
+                                            XrdCl::HostList     *hostList )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        // delegate the job to the actual handler
+        if( pHandler )
+        {
+          pHandler->HandleResponseWithHosts( status, response, hostList );
+          // after handling a response the handler destroys itself,
+          // so we need to nullify the pointer
+          pHandler = 0;
+        }
+        // destroy the object if it is
+        DestroyMyself();
+      }
+
+    private:
+      //------------------------------------------------------------------------
+      //! Deletes itself only if this is the last reference
+      //------------------------------------------------------------------------
+      void DestroyMyself()
+      {
+        // decrement the reference counter
+        --pReferenceCounter;
+        // if the object is not used anymore delete it
+        if( pReferenceCounter == 0)
+          delete this;
+      }
+      //------------------------------------------------------------------------
+      //! Private Destructor (use 'Destroy' method)
+      //------------------------------------------------------------------------
+      ~ResponseHandlerHolder() {}
+      //------------------------------------------------------------------------
+      // The actual handler
+      //------------------------------------------------------------------------
+      ResponseHandler* pHandler;
+      //------------------------------------------------------------------------
+      // Reference counter
+      //------------------------------------------------------------------------
+      size_t pReferenceCounter;
+      //------------------------------------------------------------------------
+      // and respective mutex
+      //------------------------------------------------------------------------
+      mutable XrdSysRecMutex pMutex;
+  };
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
@@ -250,7 +330,7 @@ namespace XrdCl
     pDoRecoverRead( true ),
     pDoRecoverWrite( true ),
     pFollowRedirects( true ),
-    pReferenceCounter(1)
+    pReOpenHandler( 0 )
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
@@ -263,6 +343,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileStateHandler::~FileStateHandler()
   {
+    if( pReOpenHandler )
+      pReOpenHandler->Destroy();
+
     if( DefaultEnv::GetFileTimer() )
       DefaultEnv::GetFileTimer()->UnRegisterFileObject( this );
 
@@ -374,7 +457,7 @@ namespace XrdCl
     msg->Append( path.c_str(), path.length(), 24 );
 
     XRootDTransport::SetDescription( msg );
-    OpenHandler *openHandler = new OpenHandler( Self(), handler );
+    OpenHandler *openHandler = new OpenHandler( this, handler );
     MessageSendParams params; params.timeout = timeout;
     params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
@@ -431,7 +514,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     msg->SetSessionId( pSessionId );
-    CloseHandler *closeHandler = new CloseHandler( Self(), handler, msg );
+    CloseHandler *closeHandler = new CloseHandler( this, handler, msg );
     MessageSendParams params;
     params.timeout = timeout;
     params.followRedirects = false;
@@ -505,7 +588,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -548,7 +631,7 @@ namespace XrdCl
     params.chunkList       = list;
     MessageUtils::ProcessSendParams( params );
 
-    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -592,7 +675,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -626,7 +709,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -662,7 +745,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -735,7 +818,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -774,7 +857,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -809,7 +892,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( Self(), handler, msg, params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -1463,13 +1546,29 @@ namespace XrdCl
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    OpenHandler *openHandler = new OpenHandler( Self(), 0 );
+    // the handler has been removed from the queue
+    // (because we are here) so we can destroy it
+    if( pReOpenHandler )
+    {
+      pReOpenHandler->Destroy();
+      pReOpenHandler = 0;
+    }
+    // create a new reopen handler
+    ResponseHandlerHolder *openHandler = new ResponseHandlerHolder( new OpenHandler( this, 0 ) );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
     Status st = MessageUtils::SendMessage( url, msg, openHandler, params );
+    // if there was a problem destroy the open handler
     if( !st.IsOK() )
-      delete openHandler;
+    {
+      openHandler->Destroy();
+    }
+    // otherwise keep the reference
+    else
+    {
+      pReOpenHandler = openHandler->Self();
+    }
     return st;
   }
 

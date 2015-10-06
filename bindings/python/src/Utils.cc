@@ -137,7 +137,6 @@ namespace PyXRootD
     if (PyObjToUint(py_val, &tmp, name))
       return -1;
 
-    fprintf(stderr, "tmp=%u\n", tmp);
     if (tmp > USHRT_MAX)
     {
       PyErr_Format(PyExc_OverflowError, "%s too big for unsigned short int "

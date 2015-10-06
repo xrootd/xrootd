@@ -15,9 +15,11 @@ Prerelease Notes
 + **Major bug fixes**
   * [Server] Delete extraneous semaphore wait to avoid deadlock (#290).
   * [XrdCl] Avoid SEGV when server fails after it responds waitresp.
+  * [Server] Return correct response to a delayed open.
 
 + **Minor bug fixes**
   * [Server] Make sure the cluster ID is always formatted the same way.
+  * [Server] Correctly compute timeout wait.
 
 + **Miscellaneous**
   * New Scalable Service Interface package.

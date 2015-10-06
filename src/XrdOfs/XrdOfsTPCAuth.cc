@@ -87,7 +87,7 @@ int XrdOfsTPCAuth::Add(XrdOfsTPC::Facts &Args)
       {if (aP->Info.cbP)
           {aP->expT = expT;
            aP->Next = authQ; authQ = aP;
-           aP->Info.Reply(SFS_OK, 0, "", &authMutex);
+           aP->Info.Reply(SFS_STALL, 0, "", &authMutex);
            return 1;
           } else {
            authMutex.UnLock();
@@ -269,7 +269,7 @@ do{authMutex.Lock();
    eNow = time(0); eWait = maxTTL; numExp = 0;
    while(cP)
         {if (eNow < cP->expT)
-            {eDiff = eNow - cP->expT;
+            {eDiff = cP->expT - eNow;
              if (eDiff < eWait) eWait = eDiff;
              pP = cP; cP = cP->Next;
             }

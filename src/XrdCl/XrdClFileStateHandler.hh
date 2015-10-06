@@ -35,6 +35,7 @@
 
 namespace XrdCl
 {
+  class ResponseHandlerHolder;
   class Message;
 
   //----------------------------------------------------------------------------
@@ -62,25 +63,9 @@ namespace XrdCl
       FileStateHandler();
 
       //------------------------------------------------------------------------
-       //! Destructor is private - use 'Destroy' in order to delete the object
-       //------------------------------------------------------------------------
-       void Destroy()
-       {
-         XrdSysMutexHelper scopedLock( pMutex );
-         --pReferenceCounter;
-         if( pReferenceCounter == 0)
-           delete this;
-       }
-
-       //------------------------------------------------------------------------
-       //! Increment reference counter
-       //------------------------------------------------------------------------
-       FileStateHandler* Self()
-       {
-         XrdSysMutexHelper scopedLock( pMutex );
-         ++pReferenceCounter;
-         return this;
-       }
+      //! Destructor
+      //------------------------------------------------------------------------
+      ~FileStateHandler();
 
       //------------------------------------------------------------------------
       //! Open the file pointed to by the given URL
@@ -322,11 +307,6 @@ namespace XrdCl
 
     private:
       //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      ~FileStateHandler();
-
-      //------------------------------------------------------------------------
       // Helper for queuing messages
       //------------------------------------------------------------------------
       struct RequestData
@@ -424,7 +404,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void MonitorClose( const XRootDStatus *status );
 
-      mutable XrdSysRecMutex     pMutex;
+      mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;
       XRootDStatus            pStatus;
       StatInfo               *pStatInfo;
@@ -457,9 +437,10 @@ namespace XrdCl
       XRootDStatus             pCloseReason;
 
       //------------------------------------------------------------------------
-      // Reference counter
+      // Holds the OpenHanlder used to issue reopen
+      // (there is only only OpenHandler reopening a file at a time)
       //------------------------------------------------------------------------
-      size_t pReferenceCounter;
+      ResponseHandlerHolder *pReOpenHandler;
   };
 }
 
