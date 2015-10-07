@@ -87,7 +87,7 @@ int XrdOfsTPCAuth::Add(XrdOfsTPC::Facts &Args)
       {if (aP->Info.cbP)
           {aP->expT = expT;
            aP->Next = authQ; authQ = aP;
-           aP->Info.Reply(SFS_STALL, 0, "", &authMutex);
+           aP->Info.Reply(SFS_OK, 0, "", &authMutex);
            return 1;
           } else {
            authMutex.UnLock();
