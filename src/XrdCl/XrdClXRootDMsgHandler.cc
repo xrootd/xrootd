@@ -557,8 +557,10 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // kXR_waitresp - the response will be returned in some seconds
-      // as an unsolicited message
+      // kXR_waitresp - the response will be returned in some seconds as an
+      // unsolicited message. Currently all messages of this type are handled
+      // one step before in the XrdClStream::OnIncoming as they need to be
+      // processed synchronously.
       //------------------------------------------------------------------------
       case kXR_waitresp:
       {
