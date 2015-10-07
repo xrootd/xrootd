@@ -325,7 +325,7 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
          {
             if (::isalpha(*(minV.rbegin())) && ::isalpha(*(minV.rbegin()))) {
                if ( XrdOuca2x::a2sz(m_log, "Error getting disk usage low watermark",  minV.c_str(), &m_configuration.m_diskUsageLWM, 0, sP.Total) 
-                 && XrdOuca2x::a2sz(m_log, "Error getting disk usage high watermark", maxV.c_str(), &m_configuration.m_diskUsageHWM, 0, sP.Total))
+                 || XrdOuca2x::a2sz(m_log, "Error getting disk usage high watermark", maxV.c_str(), &m_configuration.m_diskUsageHWM, 0, sP.Total))
                {
                   return false;
                }
