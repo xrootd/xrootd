@@ -46,8 +46,8 @@ namespace XrdFileCache
    {
       Configuration() :
          m_hdfsmode(false),
-         m_lwm(0.95),
-         m_hwm(0.9),
+         m_diskUsageLWM(-1),
+         m_diskUsageHWM(-1),
          m_bufferSize(1024*1024),
 	 m_NRamBuffersRead(8),
 	 m_NRamBuffersPrefetch(1),
@@ -57,8 +57,8 @@ namespace XrdFileCache
       std::string m_cache_dir;        //!< path of disk cache
       std::string m_username;         //!< username passed to oss plugin
 
-      float m_lwm;                    //!< cache purge low water mark
-      float m_hwm;                    //!< cache purge high water mark
+      long long m_diskUsageLWM;       //!< cache purge low water mark
+      long long m_diskUsageHWM;       //!< cache purge high water mark
 
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
       int  m_NRamBuffersRead;         //!< number of read in-memory cache blocks
