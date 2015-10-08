@@ -258,7 +258,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
       if (m_output_fs->StatVS(&sP, "public", 1) >= 0) {
          m_configuration.m_diskUsageLWM = 0.90 * sP.Total;
          m_configuration.m_diskUsageHWM = 0.95 * sP.Total;
-         clLog()->Debug(XrdCl::AppMsg, "Default disk usage [%lld, %lld]",  sP.Total, m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM);
+         clLog()->Debug(XrdCl::AppMsg, "Default disk usage [%lld, %lld]", m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM);
       }
    }
 
