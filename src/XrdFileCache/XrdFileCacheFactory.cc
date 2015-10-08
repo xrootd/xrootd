@@ -332,15 +332,21 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
             }
             else 
             {
-               float lwmf = ::atof(minV.c_str());
-               float hwmf = ::atof(maxV.c_str());
-               if (lwmf && hwmf) {
-                  m_configuration.m_diskUsageLWM = sP.Total * lwmf;
-                  m_configuration.m_diskUsageHWM = sP.Total * hwmf;
+               char* eP;
+               errno = 0;
+               float lwmf = strtod(minV.c_str(), &eP);
+               if (errno || eP == minV.c_str()) {
+                    m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", minV.c_str());
+                    return false;
                }
-               else {
-                  m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameters ", minV.c_str(), maxV.c_str());
+               float hwmf = strtod(maxV.c_str(), &eP);
+               if (errno || eP == maxV.c_str()) {
+                  m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", maxV.c_str());
+                  return false;
                }
+
+               m_configuration.m_diskUsageLWM = sP.Total * lwmf;
+               m_configuration.m_diskUsageHWM = sP.Total * hwmf;
             }
          }
       }
