@@ -256,8 +256,8 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
    {
       XrdOssVSInfo sP;
       if (m_output_fs->StatVS(&sP, "public", 1) >= 0) {
-         m_configuration.m_diskUsageLWM = 0.90 * sP.Total;
-         m_configuration.m_diskUsageHWM = 0.95 * sP.Total;
+         m_configuration.m_diskUsageLWM = static_cast<long long>(0.90 * sP.Total + 0.5);
+         m_configuration.m_diskUsageHWM = static_cast<long long>(0.95 * sP.Total + 0.5);
          clLog()->Debug(XrdCl::AppMsg, "Default disk usage [%lld, %lld]", m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM);
       }
    }
@@ -345,8 +345,8 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
                   return false;
                }
 
-               m_configuration.m_diskUsageLWM = sP.Total * lwmf;
-               m_configuration.m_diskUsageHWM = sP.Total * hwmf;
+               m_configuration.m_diskUsageLWM = static_cast<long long>(sP.Total * lwmf + 0.5);
+               m_configuration.m_diskUsageHWM = static_cast<long long>(sP.Total * hwmf + 0.5);
             }
          }
       }
