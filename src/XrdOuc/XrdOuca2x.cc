@@ -239,11 +239,12 @@ int XrdOuca2x::a2sz(XrdSysError &Eroute, const char *emsg, const char *item,
     else if (*fP == 't' || *fP == 'T') qmult = 1024LL*1024LL*1024LL*1024LL;
     else                              {qmult = 1; fP++;}
     errno = 0;
-    *val  = strtoll(item, &eP, 10) * qmult;
+    double dval  = strtod(item, &eP) * qmult;
     if (errno || eP != fP)
        {Eroute.Emsg("a2x", emsg, item, "is not a number");
         return -1;
        }
+    *val = (long long)dval;
     if (*val < minv) 
        return Emsg(Eroute, emsg, item, "may not be less than %lld", minv);
     if (maxv >= 0 && *val > maxv)
