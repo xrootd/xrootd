@@ -627,8 +627,8 @@ int XrdSsiFile::open(const char          *path,      // In
 
 // Make sure the open flag is correct
 //
-   if (open_mode != SFS_O_RDWR)
-      return XrdSsiUtils::Emsg(epname, EPROTOTYPE, "open session", path, error);
+// if (open_mode != SFS_O_RDWR)
+//    return XrdSsiUtils::Emsg(epname, EPROTOTYPE, "open session", path, error);
 
 // Handle the cgi information
 //
