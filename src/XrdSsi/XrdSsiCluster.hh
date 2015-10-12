@@ -52,6 +52,15 @@ public:
 virtual void   Added(const char *name, bool pend=false) = 0;
 
 //------------------------------------------------------------------------------
+//! Determine whether or not the SSI plug-in is running in a data context.
+//!
+//! @return true  running in a data context (i.e. xrootd).
+//! @return false running is a meta context (i.e. cmsd).
+//------------------------------------------------------------------------------
+
+virtual bool          DataContext() = 0;
+
+//------------------------------------------------------------------------------
 //! Obtain the list of nodes that are managing this cluster.
 //!
 //! @param  mNum Palce to put the number of managers in the returned array.

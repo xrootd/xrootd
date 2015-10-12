@@ -135,9 +135,6 @@ bool XrdSsiSessReal::Open(XrdSsiService::Resource *resP,
                           const char              *epURL,
                           unsigned short           tOut)
 {
-   static XrdCl::Access::Mode oMode = XrdCl::Access::UR
-                                    | XrdCl::Access::UW
-                                    | XrdCl::Access::UX;
    EPNAME("SessOpen");
    XrdCl::XRootDStatus epStatus;
 
@@ -149,7 +146,7 @@ bool XrdSsiSessReal::Open(XrdSsiService::Resource *resP,
 //
    DBG("Opening " <<epURL);
    epStatus = epFile.Open((const std::string)epURL,
-                          XrdCl::OpenFlags::Update, oMode,
+                          XrdCl::OpenFlags::Read, (XrdCl::Access::Mode)0,
                           (XrdCl::ResponseHandler *)this, tOut);
    if (epStatus.IsOK()) return true;
 

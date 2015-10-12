@@ -295,6 +295,9 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
                               XrdCl::AnyObject   **respP)
 {
    EPNAME("TaskXeqEvent");
+   static std::string pName("ReadRecovery");
+   static std::string pValue("false");
+
    XrdCl::XRootDStatus epStatus;
    XrdCl::AnyObject   *response = *respP;
    XrdSsiRRInfo        rInfo;
@@ -315,6 +318,7 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
          {case isWrite:
                if (!aOK) {RespErr(status); return true;}
                tStat = isSync;
+               sessP->epFile.SetProperty(pName, pValue);
                rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Rwt);
                DBG("Calling RelBuff id=" <<tskID);
                ReleaseRequestBuffer();

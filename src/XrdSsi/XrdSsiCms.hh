@@ -41,6 +41,8 @@ public:
         void   Added(const char *name, bool pend=false)
                     {if (theCms) theCms->Added(name, pend);}
 
+        bool   DataContext() {return true;}
+
 const char *
 const      *   Managers(int &mNum) {mNum = manNum; return manList;}
 
