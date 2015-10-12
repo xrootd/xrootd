@@ -24,8 +24,8 @@ namespace XrdFileCache {
    
    struct  ReadVChunkListRAM {
       ReadVChunkListRAM(Block*b, std::vector <int>* iarr) : block(b), arr(iarr) { };
-      std::vector <int>* arr;
       Block* block;
+      std::vector <int>* arr;
    };
    
       // RAM
