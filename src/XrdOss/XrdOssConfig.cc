@@ -502,7 +502,11 @@ int XrdOssSys::ConfigN2N(XrdSysError &Eroute, XrdOucEnv *envP)
 
 // Get the plugin
 //
-   if (!(the_N2N = n2nLoader.Load(N2N_Lib, *myVersion))) return 1;
+   if (!(the_N2N = n2nLoader.Load(N2N_Lib, *myVersion, envP))) return 1;
+
+// If we need to only load the n2n but not use it, then we are done.
+//
+   if (OptFlags & XrdOss_N2NOnly) return 0;
 
 // Optimize the local case
 //
@@ -1269,8 +1273,10 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xnml
 
-   Purpose:  To parse the directive: namelib <path> [<parms>]
+   Purpose:  To parse the directive: namelib [initonly] <path> [<parms>]
 
+             initonly  load and initialize the library but do not use it.
+                       If specified, then <path> is optional.
              <path>    the path of the filesystem library to be used.
              <parms>   optional parms to be passed
 
@@ -1280,11 +1286,19 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOssSys::xnml(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[1040];
+    bool haveOpt = false;
 
 // Get the path
 //
-   if (!(val = Config.GetWord()) || !val[0])
-      {Eroute.Emsg("Config", "namelib not specified"); return 1;}
+do{if (!(val = Config.GetWord()) || !val[0])
+      {if (haveOpt) return 0;
+       Eroute.Emsg("Config", "namelib not specified");
+       return 1;
+      }
+   if (strcmp("initonly", val)) break;
+   OptFlags |= XrdOss_N2NOnly;
+   haveOpt = true;
+  } while(true);
 
 // Record the path
 //

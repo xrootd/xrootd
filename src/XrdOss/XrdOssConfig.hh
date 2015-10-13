@@ -42,6 +42,7 @@
 //
 #define XrdOss_USRPRTY   0x00000001
 #define XrdOss_CacheFS   0x00000002
+#define XrdOss_N2NOnly   0x00000004
 
 // Small structure to hold dual paths
 //
