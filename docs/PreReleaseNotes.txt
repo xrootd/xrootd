@@ -22,8 +22,8 @@ Prerelease Notes
   * [Server] Correctly compute timeout wait.
 
 + **Miscellaneous**
-  * New Scalable Service Interface package.
   * New shared memory map package.
   * [Server] Rationalize non-specfic locate requests.
+  * [Util] Avoid compiler warning about unsafe mktemp.
   * [App] Do not report expected errors as errors.
   * [App] Always show any unusual node status in the display.

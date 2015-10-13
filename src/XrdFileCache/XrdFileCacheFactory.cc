@@ -46,9 +46,6 @@
 
 
 using namespace XrdFileCache;
-namespace {
-static long long s_diskSpacePrecisionFactor = 10000000;
-}
 
 XrdVERSIONINFO(XrdOucGetCache, XrdFileCache);
 
@@ -212,6 +209,20 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
                                                 &XrdVERSIONINFOVAR(XrdOucGetCache));
    if (!ofsCfg) return false;
 
+
+   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))  {
+      ofsCfg->Plugin(m_output_fs);
+      XrdOssCache_FS* ocfs = XrdOssCache::Find("public");
+      ocfs->Add(m_configuration.m_cache_dir.c_str());
+   }
+   else
+   {
+      clLog()->Error(XrdCl::AppMsg, "Factory::Config() Unable to create an OSS object");
+      m_output_fs = 0;
+      return false;
+   }
+
+
    // Actual parsing of the config file.
    bool retval = true;
    char *var;
@@ -240,23 +251,19 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
    }
 
    Config.Close();
-
+   // sets default value for disk usage
+   if (m_configuration.m_diskUsageLWM < 0 || m_configuration.m_diskUsageHWM < 0)
+   {
+      XrdOssVSInfo sP;
+      if (m_output_fs->StatVS(&sP, "public", 1) >= 0) {
+         m_configuration.m_diskUsageLWM = static_cast<long long>(0.90 * sP.Total + 0.5);
+         m_configuration.m_diskUsageHWM = static_cast<long long>(0.95 * sP.Total + 0.5);
+         clLog()->Debug(XrdCl::AppMsg, "Default disk usage [%lld, %lld]", m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM);
+      }
+   }
 
    if (retval)
    {
-      if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))  {
-          ofsCfg->Plugin(m_output_fs);
-          XrdOssCache_FS* ocfs = XrdOssCache::Find("public");
-          ocfs->Add(m_configuration.m_cache_dir.c_str());
-      }
-      else
-      {
-         clLog()->Error(XrdCl::AppMsg, "Factory::Config() Unable to create an OSS object");
-         retval = false;
-         m_output_fs = 0;
-      }
-
-  
       int loff = 0;
       char buff[2048];
       loff = snprintf(buff, sizeof(buff), "result\n"
@@ -310,16 +317,38 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
    }
    else if  ( part == "diskusage" )
    {
-      const char* minV = config.GetWord();
-      if (minV) {
-         m_configuration.m_lwm = ::atof(minV);
-         const char* maxV = config.GetWord();
-         if (maxV) {
-            m_configuration.m_hwm = ::atof(maxV);
+      std::string minV = config.GetWord();
+      std::string maxV = config.GetWord();
+      if (!minV.empty() && !maxV.empty()) {
+         XrdOssVSInfo sP;
+         if (m_output_fs->StatVS(&sP, "public", 1) >= 0)
+         {
+            if (::isalpha(*(minV.rbegin())) && ::isalpha(*(minV.rbegin()))) {
+               if ( XrdOuca2x::a2sz(m_log, "Error getting disk usage low watermark",  minV.c_str(), &m_configuration.m_diskUsageLWM, 0, sP.Total) 
+                 || XrdOuca2x::a2sz(m_log, "Error getting disk usage high watermark", maxV.c_str(), &m_configuration.m_diskUsageHWM, 0, sP.Total))
+               {
+                  return false;
+               }
+            }
+            else 
+            {
+               char* eP;
+               errno = 0;
+               float lwmf = strtod(minV.c_str(), &eP);
+               if (errno || eP == minV.c_str()) {
+                    m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", minV.c_str());
+                    return false;
+               }
+               float hwmf = strtod(maxV.c_str(), &eP);
+               if (errno || eP == maxV.c_str()) {
+                  m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", maxV.c_str());
+                  return false;
+               }
+
+               m_configuration.m_diskUsageLWM = static_cast<long long>(sP.Total * lwmf + 0.5);
+               m_configuration.m_diskUsageHWM = static_cast<long long>(sP.Total * hwmf + 0.5);
+            }
          }
-      }
-      else {
-         clLog()->Error(XrdCl::AppMsg, "Factory::ConfigParameters() pss.diskUsage min max value not specified");
       }
    }
    else if  ( part == "blocksize" )
@@ -488,12 +517,11 @@ void Factory::CacheDirCleanup()
       }
       else
       {
-         float oc = 1 - float(sP.Free)/(sP.Total);
-         clLog()->Debug(XrdCl::AppMsg, "Factory::CacheDirCleanup() occupates disk space == %f", oc);
-         if (oc > m_configuration.m_hwm)
+         long long ausage = sP.Total - sP.Free;
+         clLog()->Debug(XrdCl::AppMsg, "Factory::CacheDirCleanup() occupates disk space == %lld", ausage);
+         if (ausage > m_configuration.m_diskUsageHWM)
          {
-            long long bytesToRemoveLong = static_cast<long long> ((oc - m_configuration.m_lwm) * static_cast<float>(s_diskSpacePrecisionFactor));
-            bytesToRemove = (sP.Total * bytesToRemoveLong) / s_diskSpacePrecisionFactor;
+            bytesToRemove = ausage - m_configuration.m_diskUsageLWM;
             clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() need space for  %lld bytes", bytesToRemove);
          }
       }

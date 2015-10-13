@@ -119,7 +119,7 @@ pfc.nread: number of in memory cached blocks reserved for read tasks
 pfc.nprefetch: number of in memory cached blocks reserved for prefetch tasks
 
 pfc.diskusage <lwm fraction> <hwm fraction>: high / low watermarks for disk cache
-purge operation (default 0.7 and 0.9)
+purge operation (default 0.9 and 0.95)
 
 pfc.user <username>: username used by XrdOss plugin
 

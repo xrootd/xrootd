@@ -30,8 +30,11 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysFD.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdXml/XrdXmlMetaLink.hh"
 
 /******************************************************************************/
@@ -39,6 +42,24 @@
 /******************************************************************************/
 
 #define SizeOfVec(x) sizeof(x)/sizeof(x[0])
+
+namespace
+{
+char         tmpPath[40];
+
+unsigned int GenTmpPath()
+{
+// The below will not generate a result more than 31 characters.
+//
+     snprintf(tmpPath, sizeof(tmpPath), "/tmp/.MetaLink%8x.%d.",
+                       static_cast<int>(time(0)), static_cast<int>(getpid()));
+     return 0;
+}
+
+XrdSysMutex xMutex;
+
+unsigned int seqNo = GenTmpPath();
+}
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -448,19 +469,22 @@ void XrdXmlMetaLink::GetName()
   
 bool XrdXmlMetaLink::PutFile(const char *buff, int blen)
 {
-   static const int oFlags = O_CREAT | O_TRUNC | O_WRONLY;
+   static const int oFlags = O_EXCL | O_CREAT | O_TRUNC | O_WRONLY;
    const char *what = "opening";
+   unsigned int fSeq;
    int fd;
 
-// Generate a unique filepath
-//                123456789012345678901234 (note tmpFn is 30 characters)
-   strcpy(tmpFn, "/tmp/.XrdMetaLink.XXXXXX");
-   mktemp(tmpFn);
-   if (!(*tmpFn))
-      {strcpy(eText, "Unable to create temporary filename.");
-       eCode = EINVAL;
-       return false;
-      }
+// Get a unique sequence number
+//
+   AtomicBeg(xMutex);
+   fSeq = AtomicInc(seqNo);
+   AtomicEnd(xMutex);
+
+// Generate a unique filepath. Unfortunately, mktemp is unsafe and mkstemp may
+// leak a file descriptor. So, we roll our own using above sequence number.
+// Note that the target buffer is 64 characters which is suffcient for us.
+//
+   snprintf(tmpFn, sizeof(tmpFn), "%s%u", tmpPath, fSeq);
 
 // Open the file for output, write out the buffer, and close the file
 //
