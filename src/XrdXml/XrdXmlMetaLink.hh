@@ -165,7 +165,7 @@ int             fileCnt;
 int             eCode;
 bool            doAll;
 bool            noUrl;
-char            tmpFn[30];
+char            tmpFn[64];
 char            eText[256];
 };
 #endif
