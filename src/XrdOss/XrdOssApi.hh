@@ -260,7 +260,8 @@ XrdOssStatInfo_t  STT_Func;
 XrdOssStatInfo2_t STT_Fund;
       };
 int               STT_PreOp;
-int               STT_V2;
+short             STT_DoN2N;
+short             STT_V2;
 
 long long         prPBits;   //    Page lo order bit mask
 long long         prPMask;   //    Page hi order bit mask

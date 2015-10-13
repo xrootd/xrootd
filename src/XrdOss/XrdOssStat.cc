@@ -80,7 +80,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts,
 
 // Generate local path
 //
-   if (lcl_N2N)
+   if (lcl_N2N && STT_DoN2N)
       if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path)))) 
          return retc;
          else local_path = actual_path;

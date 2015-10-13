@@ -216,6 +216,7 @@ XrdOssSys::XrdOssSys()
    STT_Parms     = 0;
    STT_Func      = 0;
    STT_PreOp     = 0;
+   STT_DoN2N     = 1;
    STT_V2        = 0;
 }
   
@@ -503,10 +504,6 @@ int XrdOssSys::ConfigN2N(XrdSysError &Eroute, XrdOucEnv *envP)
 // Get the plugin
 //
    if (!(the_N2N = n2nLoader.Load(N2N_Lib, *myVersion, envP))) return 1;
-
-// If we need to only load the n2n but not use it, then we are done.
-//
-   if (OptFlags & XrdOss_N2NOnly) return 0;
 
 // Optimize the local case
 //
@@ -1273,10 +1270,8 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xnml
 
-   Purpose:  To parse the directive: namelib [initonly] <path> [<parms>]
+   Purpose:  To parse the directive: namelib <path> [<parms>]
 
-             initonly  load and initialize the library but do not use it.
-                       If specified, then <path> is optional.
              <path>    the path of the filesystem library to be used.
              <parms>   optional parms to be passed
 
@@ -1286,19 +1281,11 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOssSys::xnml(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[1040];
-    bool haveOpt = false;
 
 // Get the path
 //
-do{if (!(val = Config.GetWord()) || !val[0])
-      {if (haveOpt) return 0;
-       Eroute.Emsg("Config", "namelib not specified");
-       return 1;
-      }
-   if (strcmp("initonly", val)) break;
-   OptFlags |= XrdOss_N2NOnly;
-   haveOpt = true;
-  } while(true);
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", "namelib not specified"); return 1;}
 
 // Record the path
 //
@@ -1594,8 +1581,10 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xstl
 
-   Purpose:  To parse the directive: statlib [-2] [preopen] <path> [<parms>]
+   Purpose:  To parse the directive: statlib [-2] [non2n] [preopen] <path> [<parms>]
 
+             -2        use version 2 initialization interface.
+             non2n     do not apply name2name prior to calling plug-in.
              preopen   issue the stat() prior to opening the file.
              <path>    the path of the stat library to be used.
              <parms>   optional parms to be passed
@@ -1614,8 +1603,9 @@ int XrdOssSys::xstl(XrdOucStream &Config, XrdSysError &Eroute)
 
 // Check for options
 //
-   STT_V2 = 0; STT_PreOp = 0;
+   STT_V2 = 0; STT_PreOp = 0; STT_DoN2N = 1;
 do{     if (!strcmp(val, "-2"))      STT_V2    = 1;
+   else if (!strcmp(val, "non2n"))   STT_DoN2N = 0;
    else if (!strcmp(val, "preopen")) STT_PreOp = 1;
    else break;
   } while((val = Config.GetWord()) && val[0]);
