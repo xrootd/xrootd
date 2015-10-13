@@ -29,6 +29,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -211,7 +212,7 @@ bool XrdSsiFile::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
 // Initialize the response
 //
    attnResp = (AttnResp *)mBuff;
-   memset(attnResp, 0, sizeof(attnResp));
+   memset(attnResp, 0, sizeof(AttnResp));
    attnResp->aHdr.pfxLen = htons(sizeof(XrdSsiRRInfoAttn));
 
 // Fill out iovec to point to our header
