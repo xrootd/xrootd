@@ -27,6 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstddef>
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
