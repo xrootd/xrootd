@@ -1550,10 +1550,15 @@ namespace XrdCl
     // (because we are here) so we can destroy it
     if( pReOpenHandler )
     {
+      // in principle this should not happen because reopen
+      // is triggered only from StateHandler (Stat, Write, Read, etc.)
+      // but not from Open itself but it is better to be on the save side
       pReOpenHandler->Destroy();
       pReOpenHandler = 0;
     }
     // create a new reopen handler
+    // (it is not assigned to 'pReOpenHandler' in order not to bump the reference counter
+    //  until we know that 'SendMessage' was successful)
     ResponseHandlerHolder *openHandler = new ResponseHandlerHolder( new OpenHandler( this, 0 ) );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );

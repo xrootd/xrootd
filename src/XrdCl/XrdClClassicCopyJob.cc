@@ -575,6 +575,10 @@ namespace
         log->Debug( UtilityMsg, "Opening %s for reading",
                                 pUrl->GetURL().c_str() );
 
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+        pFile->SetProperty( "ReadRecovery", value );
+
         XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
         if( !st.IsOK() )
           return st;
@@ -767,6 +771,10 @@ namespace
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for reading",
                                 pUrl->GetURL().c_str() );
+
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+        pFile->SetProperty( "ReadRecovery", value );
 
         XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
         if( !st.IsOK() )
@@ -1196,6 +1204,10 @@ namespace
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for writing",
                                 pUrl->GetURL().c_str() );
+
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
+        pFile->SetProperty( "WriteRecovery", value );
 
         OpenFlags::Flags flags = OpenFlags::Update;
         if( pForce )

@@ -198,6 +198,11 @@ namespace XrdCl
     // Open the target file
     //--------------------------------------------------------------------------
     File targetFile;
+    // set WriteRecovery property
+    std::string value;
+    DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
+    targetFile.SetProperty( "WriteRecovery", value );
+
     OpenFlags::Flags targetFlags = OpenFlags::Update;
     if( force )
       targetFlags |= OpenFlags::Delete;
@@ -271,6 +276,10 @@ namespace XrdCl
     }
 
     File sourceFile;
+    // set ReadRecovery property
+    DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+    sourceFile.SetProperty( "ReadRecovery", value );
+
     st = sourceFile.Open( tpcSource.GetURL(), OpenFlags::Read, Access::None,
                           timeLeft );
 
@@ -487,6 +496,11 @@ namespace XrdCl
     // can support the third party copy
     //--------------------------------------------------------------------------
     File          sourceFile;
+    // set WriteRecovery property
+    std::string value;
+    DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+    sourceFile.SetProperty( "ReadRecovery", value );
+
     XRootDStatus  st;
     URL           sourceURL = source;
 

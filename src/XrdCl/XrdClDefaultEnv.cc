@@ -207,6 +207,8 @@ namespace XrdCl
     REGISTER_VAR_STR( varsStr, "NetworkStack",         DefaultNetworkStack         );
     REGISTER_VAR_STR( varsStr, "PlugIn",               DefaultPlugIn               );
     REGISTER_VAR_STR( varsStr, "PlugInConfDir",        DefaultPlugInConfDir        );
+    REGISTER_VAR_STR( varsStr, "ReadRecovery",         DefaultReadRecovery         );
+    REGISTER_VAR_STR( varsStr, "WriteRecovery",        DefaultWriteRecovery        );
 
     //--------------------------------------------------------------------------
     // Process the configuration files
