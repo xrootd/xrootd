@@ -70,6 +70,8 @@ using namespace XrdFileCache;
 
 int File::ReadV (const XrdOucIOVec *readV, int n)
 {
+   clLog()->Debug(XrdCl::AppMsg, "ReadV for %d chunks", n);
+
    int bytesRead = 0;
    
    ReadVBlockListRAM blocks_to_process;
@@ -170,15 +172,19 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
       const int blck_idx_last = (readV[iov_idx].offset + readV[iov_idx].size - 1) / m_cfi.GetBufferSize();
       for (int block_idx = blck_idx_first; block_idx <= blck_idx_last; ++block_idx)
       {
+
+        clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess chunk %lld@lld", readV[iov_idx].size, readV[iov_idx].offset);
          BlockMap_i bi = m_block_map.find(block_idx);
          if (bi != m_block_map.end())
          {
             if ( blocks_to_process.AddEntry(bi->second, iov_idx))
                inc_ref_count(bi->second);
+            clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d in map", block_idx);
          }
          else if (m_cfi.TestBit(block_idx))
          {
             blocks_on_disk.AddEntry(block_idx, iov_idx);
+            clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d on disk", block_idx);
          }
          else {
             if ( Factory::GetInstance().GetCache()->HaveFreeWritingSlots() && Factory::GetInstance().GetCache()->RequestRAMBlock())
@@ -195,6 +201,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
                const long long BS = m_cfi.GetBufferSize();
                overlap(block_idx, BS, readV[iov_idx].offset, readV[iov_idx].size, off, blk_off, size);
                chunkVec.push_back(XrdCl::ChunkInfo( BS*block_idx + blk_off,size,  readV[iov_idx].data+off));
+               clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess direct read %d", block_idx);
             }
          }
       }
@@ -221,6 +228,7 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
          long long size;    // size to copy
       
 
+         clLog()->Debug(XrdCl::AppMsg, "VreadFromDisk block=%d chunk=%d", blockIdx, chunkIdx);
          overlap(blockIdx, m_cfi.GetBufferSize(), readV[chunkIdx].offset, readV[chunkIdx].size, off, blk_off, size);
          int rs = m_output->Read(readV[chunkIdx].data + readV[chunkIdx].offset+ off,  blockIdx*m_cfi.GetBufferSize() + blk_off , size);
          if (rs >=0 ) {
