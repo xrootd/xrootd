@@ -367,9 +367,14 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
    }
    else if (part == "prefetch" )
    {
-      printf("prefetch enabled !!!!\n");
-      m_configuration.m_prefetch = true;
-      config.GetWord();
+       int p = ::atoi(config.GetWord());
+       if (p != 0) {
+          printf("prefetch enabled !!!!\n");
+          m_configuration.m_prefetch = true;
+       }
+       else {
+           m_configuration.m_prefetch = false;
+       }
    }
    else if (part == "nram" )
    {
