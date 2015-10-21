@@ -49,6 +49,7 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_BLACKLIST}
+  XrdUtils
   )
 
 set_target_properties(
