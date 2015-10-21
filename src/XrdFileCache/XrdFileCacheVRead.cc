@@ -186,7 +186,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
          else if (m_cfi.TestBit(block_idx))
          {
             blocks_on_disk.AddEntry(block_idx, iov_idx);
-            clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d on disk", block_idx);
+            clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d , chunk idx = %d on disk", block_idx,iov_idx );
          }
          else {
             if ( Factory::GetInstance().GetCache()->HaveFreeWritingSlots() && Factory::GetInstance().GetCache()->RequestRAMBlock())
@@ -194,7 +194,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
                Block *b = RequestBlock(block_idx, false);
                if (!b) return false;
                blocks_to_process.AddEntry(b, iov_idx);
-               clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess request block %d", block_idx);
+               clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess request block  %d", block_idx);
                inc_ref_count(b);
             }
             else {
@@ -233,12 +233,16 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
 
          clLog()->Debug(XrdCl::AppMsg, "VReadFromDisk block=%d chunk=%d", blockIdx, chunkIdx);
          overlap(blockIdx, m_cfi.GetBufferSize(), readV[chunkIdx].offset, readV[chunkIdx].size, off, blk_off, size);
-         int rs = m_output->Read(readV[chunkIdx].data + readV[chunkIdx].offset + off,  blockIdx*m_cfi.GetBufferSize() + blk_off, size);
+
+         int rs = m_output->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off, size);
          if (rs >=0 ) {
             bytes_read += rs;
          }
          else {
             // ofs read shoul set the errno
+
+             clLog()->Error(XrdCl::AppMsg, "VReadFromDisk FAILED block=%d chunk=%d off=%lld, blk_off=%lld, size=%lld, chunfoff =%lld", blockIdx, chunkIdx, off, blk_off, size,readV[chunkIdx].offset );
+       
             return -1;
          }
       }
