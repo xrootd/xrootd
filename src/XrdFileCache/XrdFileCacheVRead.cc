@@ -85,7 +85,7 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
    
    // issue a client read
    
-   if (bytesRead) {
+   if (bytesRead >= 0) {
       if (!chunkVec.empty()) {
          direct_handler = new DirectResponseHandler(1);
          XrdCl::File &client = ((XrdPosixFile*)(&m_input))->clFile;
@@ -98,7 +98,7 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
    }
    
    // disk read
-   if (bytesRead) {
+   if (bytesRead >= 0) {
       int dr = VReadFromDisk(readV, n, blocks_on_disk);
       if (dr < 0)
          bytesRead = dr;
@@ -157,6 +157,8 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
    for (std::vector<ReadVChunkListRAM>::iterator  i = blks_processed.begin(); i != blks_processed.end(); ++i)
       delete i->arr;
    
+
+   clLog()->Debug(XrdCl::AppMsg, "VRead exit, total = %d", bytesRead);
    return bytesRead;
 }
 
@@ -192,7 +194,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
                Block *b = RequestBlock(block_idx, false);
                if (!b) return false;
                blocks_to_process.AddEntry(b, iov_idx);
-               clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess requst block %d", block_idx);
+               clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess request block %d", block_idx);
                inc_ref_count(b);
             }
             else {
@@ -217,10 +219,10 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
 int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blocks_on_disk)
 {
    int bytes_read = 0;
-   for (std::vector<ReadVChunkListDisk>::iterator bit = blocks_on_disk.bv.begin(); bit <= blocks_on_disk.bv.end(); bit++ )
+   for (std::vector<ReadVChunkListDisk>::iterator bit = blocks_on_disk.bv.begin(); bit != blocks_on_disk.bv.end(); ++bit )
    {
       int blockIdx = bit->block_idx;
-      for (std::vector<int>::iterator chunkIt = bit->arr.begin(); chunkIt != bit->arr.end(); ++bit)
+      for (std::vector<int>::iterator chunkIt = bit->arr.begin(); chunkIt != bit->arr.end(); ++chunkIt)
       {
          int chunkIdx = *chunkIt;
          
@@ -229,9 +231,9 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
          long long size;    // size to copy
       
 
-         clLog()->Debug(XrdCl::AppMsg, "VreadFromDisk block=%d chunk=%d", blockIdx, chunkIdx);
+         clLog()->Debug(XrdCl::AppMsg, "VReadFromDisk block=%d chunk=%d", blockIdx, chunkIdx);
          overlap(blockIdx, m_cfi.GetBufferSize(), readV[chunkIdx].offset, readV[chunkIdx].size, off, blk_off, size);
-         int rs = m_output->Read(readV[chunkIdx].data + readV[chunkIdx].offset+ off,  blockIdx*m_cfi.GetBufferSize() + blk_off , size);
+         int rs = m_output->Read(readV[chunkIdx].data + readV[chunkIdx].offset + off,  blockIdx*m_cfi.GetBufferSize() + blk_off, size);
          if (rs >=0 ) {
             bytes_read += rs;
          }
@@ -310,5 +312,6 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
       finished.clear();
    }
 
+   clLog()->Info(XrdCl::AppMsg, "VReadProcessBlocks total read == %d", bytes_read);
    return bytes_read;
 }
