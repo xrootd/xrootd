@@ -18,8 +18,8 @@ namespace XrdFileCache {
    // first element is block index, the following vector elements are chunk readv indicies
    struct  ReadVChunkListDisk {
       ReadVChunkListDisk(int i) : block_idx(i) {};
-      std::vector <int> arr;
       int block_idx;
+      std::vector <int> arr;
    };
    
    struct  ReadVChunkListRAM {
@@ -173,7 +173,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
       for (int block_idx = blck_idx_first; block_idx <= blck_idx_last; ++block_idx)
       {
 
-        clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess chunk %lld@lld", readV[iov_idx].size, readV[iov_idx].offset);
+        clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess chunk %lld@%lld", readV[iov_idx].size, readV[iov_idx].offset);
          BlockMap_i bi = m_block_map.find(block_idx);
          if (bi != m_block_map.end())
          {
@@ -192,6 +192,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
                Block *b = RequestBlock(block_idx, false);
                if (!b) return false;
                blocks_to_process.AddEntry(b, iov_idx);
+               clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess requst block %d", block_idx);
                inc_ref_count(b);
             }
             else {
@@ -262,8 +263,8 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
             if (bi->block->is_finished())
             {
                finished.push_back(ReadVChunkListRAM(bi->block, bi->arr));
-                std::vector<ReadVChunkListRAM>::iterator bj = bi++;
-               blocks_to_process.erase(bj);
+               //  std::vector<ReadVChunkListRAM>::iterator bj = bi++;
+               blocks_to_process.erase(bi);
             }
             else
             {
