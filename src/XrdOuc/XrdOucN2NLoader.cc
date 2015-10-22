@@ -40,10 +40,14 @@
 /******************************************************************************/
   
 XrdOucName2Name *XrdOucN2NLoader::Load(const char     *libName,
-                                       XrdVersionInfo &urVer)
+                                       XrdVersionInfo &urVer,
+                                       XrdOucEnv      *envP)
 {
+   extern XrdOucName2NameVec *XrdOucN2NVec_P;
    XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
    static XrdVERSIONINFODEF (myVer, XrdN2N, XrdVNUMBER, XrdVERSION);
+   XrdOucName2Name    *n2nP;
+   XrdOucName2NameVec *n2nV;
 
 // Use the default mapping if there is no library. Verify version numbers
 // as we are normally in a different shared library.
@@ -52,7 +56,9 @@ XrdOucName2Name *XrdOucN2NLoader::Load(const char     *libName,
       {if (!XrdSysPlugin::VerCmp(urVer, myVer)) return 0;
        if (lclRoot) XrdOucEnv::Export("XRDLCLROOT", lclRoot);
        if (rmtRoot) XrdOucEnv::Export("XRDRMTROOT", rmtRoot);
-       return XrdOucgetName2Name(eRoute, cFN, libParms, lclRoot, rmtRoot);
+       n2nP = XrdOucgetName2Name(eRoute, cFN, libParms, lclRoot, rmtRoot);
+       if (XrdOucN2NVec_P) envP->PutPtr("XrdOucName2NameVec*", XrdOucN2NVec_P);
+       return n2nP;
       } else {
        XrdOucEnv::Export("XRDN2NLIB", libName);
        if (libParms) XrdOucEnv::Export("XRDN2NPARMS", libParms);
@@ -66,5 +72,9 @@ XrdOucName2Name *XrdOucN2NLoader::Load(const char     *libName,
 
 // Get the Object now
 // 
-   return ep(eRoute, cFN, libParms, lclRoot, rmtRoot);
+   if ((n2nP = ep(eRoute, cFN, libParms, lclRoot, rmtRoot)))
+      {n2nV = (XrdOucName2NameVec *)myLib.Resolve("?Name2NameVec");
+       if (n2nV) envP->PutPtr("XrdOucName2NameVec*", n2nV);
+      }
+   return n2nP;
 }

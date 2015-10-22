@@ -101,6 +101,10 @@ XrdOucFileInfo::~XrdOucFileInfo()
 // Free the memory allocated for fTargetName
 //
    if( fTargetName ) free(fTargetName);
+
+// Free memory allocated to the lfn
+//
+   if(fLfn) free(fLfn);
 }
 
 /******************************************************************************/
@@ -161,8 +165,22 @@ void XrdOucFileInfo::AddUrl(const char *url,  const char *cntry,
 
 void XrdOucFileInfo::AddFileName(const char * filename)
 {
+  if(fTargetName) {free(fTargetName); fTargetName = 0;}
+
   if(filename)
     fTargetName = strdup(filename);
+}
+
+/******************************************************************************/
+/*                                A d d L f n                                 */
+/******************************************************************************/
+  
+void XrdOucFileInfo::AddLfn(const char * lfn)
+{
+  if(fLfn) {free(fLfn); fLfn = 0;}
+
+  if(lfn)
+    fLfn = strdup(lfn);
 }
 
 /******************************************************************************/

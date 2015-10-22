@@ -291,7 +291,7 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 // allowed and we will issue an error.
 //
    if (!(ep = dlsym(myHandle, pname)))
-      {if (!optional) libMsg(dlerror(), " plugin %s in ", pname);
+      {if (optional < 2) libMsg(dlerror(), " plugin %s in ", pname);
        return 0;
       }
 

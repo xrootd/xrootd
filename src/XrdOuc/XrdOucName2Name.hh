@@ -30,6 +30,21 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string>
+#include <vector>
+
+/******************************************************************************/
+/*                       X r d O u c N a m e 2 N a m e                        */
+/******************************************************************************/
+
+//! Class XrdoucName2Name must be used for creating a name translation plug-in.
+//! This plug-in is specified by the 'oss.namelib' directive and when present
+//! makes the default oss plug-in load the plug-in shared library, locate the
+//! XrdOucgetName2Name function within and use it to obtain an instance of the
+//! XrdOucName2Name object to perform name translation prior to all subsequent
+//! storage system calls. The companion object, XrdOucName2NameVec, should
+//! also be defined in the same shared library (see the class definition below).
+  
 class XrdOucName2Name
 {
 public:
@@ -97,6 +112,69 @@ virtual int pfn2lfn(const char *pfn, char *buff, int blen) = 0;
 //------------------------------------------------------------------------------
 
 virtual     ~XrdOucName2Name() {}
+};
+
+/******************************************************************************/
+/*                    X r d O u c N a m e 2 N a m e V e c                     */
+/******************************************************************************/
+
+//! Class XrdOucName2NameVec must be used to define a companion name translation
+//! mechanism. It is optional but highly recommended and may in fact be required
+//! by certain statlib plug-ins specific by the 'oss.statlib' directive. Refer
+//! to plug-in documentation to see if it requires this form of name2name
+//! translator. This translator should return all possible translations of a
+//! given logical file name. After an instance of the XrdOucName2Name
+//! translator is obtained (which implies it's full initilization) the default
+//! oss plug-in check if the symbol 'Name2NameVec' is present in the shared
+//! library. If it does, it obtains the contents of the symbol which should be
+//! a pointer to an object derived from the following class. That object is
+//! used to obtain a list of possible name translations. Initialization is
+//! is simplified if your implementation inherits XrdOucName2Name as well as
+//! XrdOucName2Namevec. The symbol that contains the pointer must be defined
+//! at file level as follows:
+
+//! XrdOucName2NameVec *Name2NameVec;
+
+//! It should be set during XrdOucName2Name initialization to point to an
+//! instance of the object. The methods defined for this class must be
+//! thread-safe. The default XrdOucName2Name translator also includes the
+//! XrdOucName2NameVec translator.
+  
+class XrdOucName2NameVec
+{
+public:
+
+//------------------------------------------------------------------------------
+//! Map a logical file name to all of its possible physical file names.
+//!
+//! @param  lfn   -> Logical file name.
+//!
+//! @return Success: Pointer to a vector of strings of physical file names.
+//!         Failure: A nil pointer indicating that no translation exists.
+//------------------------------------------------------------------------------
+
+virtual std::vector<std::string *> *n2nVec(const char *lfn)=0;
+
+//------------------------------------------------------------------------------
+//! Release all storage occupied by the vector returned by n2nVec().
+//!
+//! @param  nvP   -> Vector returned by n2nVec().
+//------------------------------------------------------------------------------
+
+virtual void Recycle(std::vector<std::string *> *nvP)
+                    {if (nvP)
+                        {for (unsigned int i = 0; i < nvP->size(); i++)
+                             {delete (*nvP)[i];}
+                         delete nvP;
+                        }
+                    }
+
+//------------------------------------------------------------------------------
+//! Constructor and Destructor
+//------------------------------------------------------------------------------
+
+             XrdOucName2NameVec() {}
+virtual     ~XrdOucName2NameVec() {}
 };
 
 /******************************************************************************/

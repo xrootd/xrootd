@@ -28,15 +28,26 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-// This file implements an instance of the XrdOucName2Name abstract class.
+// This file implements an instance of the XrdOucName2Name and the
+// XrdOucName2NameVec abstract classes.
 
 #include <errno.h>
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+  
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
 
-class XrdOucN2N : public XrdOucName2Name
+XrdOucName2NameVec *XrdOucN2NVec_P = 0;
+  
+/******************************************************************************/
+/*           XrdOucName2Name & XrdOucName2NameVec Class Definition            */
+/******************************************************************************/
+  
+class XrdOucN2N : public XrdOucName2Name, public XrdOucName2NameVec
 {
 public:
 
@@ -45,6 +56,8 @@ virtual int lfn2pfn(const char *lfn, char *buff, int blen);
 virtual int lfn2rfn(const char *lfn, char *buff, int blen);
 
 virtual int pfn2lfn(const char *lfn, char *buff, int blen);
+
+virtual std::vector<std::string *> *n2nVec(const char *lfn);
 
             XrdOucN2N(XrdSysError *erp, const char *lpfx, const char *rpfx);
 
@@ -152,10 +165,31 @@ int XrdOucN2N::pfn2lfn(const char *pfn, char  *buff, int blen)
 }
 
 /******************************************************************************/
+/*                                n 2 n V e c                                 */
+/******************************************************************************/
+  
+std::vector<std::string *> *XrdOucN2N::n2nVec(const char *lfn)
+{
+   char         pfnBuff[2048];
+   std::string *s;
+
+// Perform translation
+//
+   if (lfn2pfn(lfn, pfnBuff, sizeof(pfnBuff))) return 0;
+
+// Return a vector of one
+//
+   s = new std::string(pfnBuff);
+   return new std::vector<std::string *>(1, s);
+}
+  
+/******************************************************************************/
 /*                    X r d O u c g e t N a m e 2 N a m e                     */
 /******************************************************************************/
   
 XrdOucName2Name *XrdOucgetName2Name(XrdOucgetName2NameArgs)
 {
-   return (XrdOucName2Name *)new XrdOucN2N(eDest, lroot, rroot);
+   XrdOucN2N *n2nP = new XrdOucN2N(eDest, lroot, rroot);
+   XrdOucN2NVec_P  = (XrdOucName2NameVec *)n2nP;
+   return (XrdOucName2Name *)n2nP;
 }

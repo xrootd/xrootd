@@ -70,6 +70,8 @@ namespace XrdCl
   const char * const DefaultClientMonitorParam = "";
   const char * const DefaultPlugInConfDir      = "";
   const char * const DefaultPlugIn             = "";
+  const char * const DefaultReadRecovery       = "true";
+  const char * const DefaultWriteRecovery      = "true";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

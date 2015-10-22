@@ -297,11 +297,10 @@ bool XrdXmlMetaLink::GetFileInfo(const char *scope)
 {
    static const char *fileScope = "file";
    const char *fsubElem[] = {scope, "url", "hash", "size",
-                             "verification", "resources", 0};
+                             "verification", "resources", "glfn", 0};
    int ePos;
 
-   if(strncmp(scope, fileScope, 4) == 0)
-     GetName();
+   if(strncmp(scope, fileScope, 4) == 0) GetName();
 
 // Process the elements in he file section. Both formats have the same tags,
 // though not the same attributes. We will take care of the differences later.
@@ -320,12 +319,41 @@ bool XrdXmlMetaLink::GetFileInfo(const char *scope)
                case 5:  GetFileInfo("resources");
                         if (eCode)      return false;
                         break;
+               case 6:  if (!GetGLfn()) return false;
+                        break;
                default: break;
               }
 
 // Return success if we had at least one url
 //
    return !noUrl;
+}
+
+/******************************************************************************/
+/* Private:                      G e t G L f n                                */
+/******************************************************************************/
+
+bool XrdXmlMetaLink::GetGLfn()
+{
+   static const char *gAttr[] = {"name", 0};
+                char *gAVal[] = {0};
+   vecMon monVec(gAVal, SizeOfVec(gAVal));
+
+// Get the name
+//
+   if (!reader->GetAttributes(gAttr, gAVal))
+      {strcpy(eText, "Required glfn tag name attribute not found");
+       eCode = ENOMSG;
+       return false;
+      }
+
+// Add the the glfn
+//
+   currFile->AddLfn(gAVal[0]);
+
+// All done
+//
+   return true;
 }
 
 /******************************************************************************/

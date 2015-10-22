@@ -147,6 +147,7 @@ const char      *GetStatus(int &ecode) {ecode = eCode; return eText;}
 private:
 bool            GetFile(const char *scope);
 bool            GetFileInfo(const char *scope);
+bool            GetGLfn();
 bool            GetHash();
 void            GetRdrError(const char *why);
 bool            GetSize();
