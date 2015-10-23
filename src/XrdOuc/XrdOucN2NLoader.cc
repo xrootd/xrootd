@@ -57,7 +57,8 @@ XrdOucName2Name *XrdOucN2NLoader::Load(const char     *libName,
        if (lclRoot) XrdOucEnv::Export("XRDLCLROOT", lclRoot);
        if (rmtRoot) XrdOucEnv::Export("XRDRMTROOT", rmtRoot);
        n2nP = XrdOucgetName2Name(eRoute, cFN, libParms, lclRoot, rmtRoot);
-       if (XrdOucN2NVec_P) envP->PutPtr("XrdOucName2NameVec*", XrdOucN2NVec_P);
+       if (XrdOucN2NVec_P && envP)
+          envP->PutPtr("XrdOucName2NameVec*", XrdOucN2NVec_P);
        return n2nP;
       } else {
        XrdOucEnv::Export("XRDN2NLIB", libName);
@@ -72,7 +73,7 @@ XrdOucName2Name *XrdOucN2NLoader::Load(const char     *libName,
 
 // Get the Object now
 // 
-   if ((n2nP = ep(eRoute, cFN, libParms, lclRoot, rmtRoot)))
+   if ((n2nP = ep(eRoute, cFN, libParms, lclRoot, rmtRoot)) && envP)
       {n2nV = (XrdOucName2NameVec *)myLib.Resolve("?Name2NameVec");
        if (n2nV) envP->PutPtr("XrdOucName2NameVec*", n2nV);
       }
