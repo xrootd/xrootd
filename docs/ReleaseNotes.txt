@@ -10,37 +10,38 @@ Version 4.3.0
 -------------
 
 + **New Features**
-  * [Server] Make it possible to effeciently query an external database
+  * **[Server]** Make it possible to effeciently query an external database
     for file existence via the statlib plug-in (largely for DPM).`
-  * [Misc] Add back trace capability to the tool set.
-  * [Misc] Add generalized XML parsing ability.
-  * [Misc] Add metalink parsing for future integration.
-  * [Server] Allow declaring extra large I/O buffers (mostly for Ceph).
-  * [Server] Allow iovec based data responses (no ABI changes).
-  * [XrdCl] xrdcp add env var to disable recovery
+  * **[Misc]** Add back trace capability to the tool set.
+  * **[Misc]** Add generalized XML parsing ability.
+  * **[Misc]** Add metalink parsing for future integration.
+  * **[Server]** Allow declaring extra large I/O buffers (mostly for Ceph).
+  * **[Server]** Allow iovec based data responses (no ABI changes).
+  * **[XrdCl]** xrdcp add env var to disable recovery
 
 + **Major bug fixes**
-  * [Server] Delete extraneous semaphore wait to avoid deadlock (#290).
-  * [XrdCl] Avoid SEGV when server fails after it responds waitresp.
-  * [Server] Return correct response to a delayed open.
-  * [Server] Fix build of kXR_wait message in case of delayed open.
-  * [XrdCl] Append opaque info in case we retry at a data server after being redirected.
-  * [XrdCl] FileStateHandler::OnOpen seqfaults when both write timeout and OpenHandler timeout at the same time.
-  * [Misc] Add possibility to specify disk usage parameters in .. G, T units using XrdOuca2x::a2sz().
+  * **[Server]** Avoid SEGV when FileCache indirectly loads the N2N plugin.
+  * **[Server]** Delete extraneous semaphore wait to avoid deadlock (#290).
+  * **[XrdCl]** Avoid SEGV when server fails after it responds waitresp.
+  * **[Server]** Return correct response to a delayed open.
+  * **[Server]** Fix build of kXR_wait message in case of delayed open.
+  * **[XrdCl]** Append opaque info in case we retry at a data server after being redirected.
+  * **[XrdCl]** FileStateHandler::OnOpen seqfaults when both write timeout and OpenHandler timeout at the same time.
+  * **[Misc]** Add possibility to specify disk usage parameters in .. G, T units using XrdOuca2x::a2sz().
 
 + **Minor bug fixes**
-  * [Server] Make sure the cluster ID is always formatted the same way.
-  * [Server] Correctly compute timeout wait.
-  * [Misc] Include XrdXmlReader in the spec file. 
-  * [Misc] Fix bug in access statistics print.
-  * [Misc] Allow conversion of decimal numbers in  XrdOuca2x::a2sz()
+  * **[Server]** Make sure the cluster ID is always formatted the same way.
+  * **[Server]** Correctly compute timeout wait.
+  * **[Misc]** Include XrdXmlReader in the spec file. 
+  * **[Misc]** Fix bug in access statistics print.
+  * **[Misc]** Allow conversion of decimal numbers in  XrdOuca2x::a2sz()
 
 + **Miscellaneous**
-  * [Util] Avoid compiler warning about unsafe mktemp.
-  * [App] Do not report expected errors as errors.
-  * [App] Always show any unusual node status in the display.
-  * [Client/Python] Add MANIFEST.in for python bindings.
-  * [XrdFileCache] Implement blacklisting in a FileCache decision plugin.
+  * **[Util]** Avoid compiler warning about unsafe mktemp.
+  * **[App]** Do not report expected errors as errors.
+  * **[App]** Always show any unusual node status in the display.
+  * **[Client/Python]** Add MANIFEST.in for python bindings.
+  * **[XrdFileCache]** Implement blacklisting in a FileCache decision plugin.
 
 -------------
 Version 4.2.3
