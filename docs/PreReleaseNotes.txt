@@ -6,7 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
-i * [Server] Make it possible to effeciently query an external database
+  * [Server] Add cms.cidtag directive to qualify the global cluster id
+    (solves dpm problem).
+  * [Server] Make it possible to effeciently query an external database
     for file existence via the statlib plug-in (largely for DPM).`
   * [Misc] Add back trace capability to the tool set.
   * [Misc] Add generalized XML parsing ability.
