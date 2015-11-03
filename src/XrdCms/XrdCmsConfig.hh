@@ -147,6 +147,7 @@ const char  *myInsName;
 const char  *myInstance;
 const char  *mySID;
 const char  *mySite;
+      char  *cidTag;
 const char  *ifList;
 XrdOucTList *ManList;     // From manager directive
 XrdOucTList *NanList;     // From manager directive (managers only)
@@ -196,6 +197,7 @@ int  xallow(XrdSysError *edest, XrdOucStream &CFile);
 int  xaltds(XrdSysError *edest, XrdOucStream &CFile);
 int  Fsysadd(XrdSysError *edest, int chk, char *fn);
 int  xblk(XrdSysError *edest, XrdOucStream &CFile, bool iswl=false);
+int  xcid(XrdSysError *edest, XrdOucStream &CFile);
 int  xdelay(XrdSysError *edest, XrdOucStream &CFile);
 int  xdefs(XrdSysError *edest, XrdOucStream &CFile);
 int  xdfs(XrdSysError *edest, XrdOucStream &CFile);

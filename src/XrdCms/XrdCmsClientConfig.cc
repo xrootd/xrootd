@@ -128,7 +128,7 @@ int XrdCmsClientConfig::Configure(const char *cfn, configWhat What,
       {     if (What & configServer) sfx = 's';
        else if (What & configSuper)  sfx = 'u';
        else                          sfx = 'm';
-       if (!(mySid = XrdCmsSecurity::setSystemID(tpl, myName, myHost, sfx)))
+       if (!(mySid = XrdCmsSecurity::setSystemID(tpl,myName,myHost,cidTag,sfx)))
           {Say.Emsg("xrootd","Unable to generate system ID; too many managers.");
            NoGo = 1;
           } else {DEBUG("Global System Identification: " <<mySid);}
@@ -241,6 +241,7 @@ int XrdCmsClientConfig::ConfigXeq(char *var, XrdOucStream &Config)
 
    // Process items. for either a local or a remote configuration
    //
+   TS_Xeq("cidtag",        xcidt);
    TS_Xeq("conwait",       xconw);
    TS_Xeq("manager",       xmang);
    TS_Xeq("adminpath",     xapath);
@@ -285,6 +286,40 @@ int XrdCmsClientConfig::xapath(XrdOucStream &Config)
 //
    if (CMSPath) free(CMSPath);
    CMSPath = strdup(pval);
+   return 0;
+}
+
+/******************************************************************************/
+/*                                 x c i d t                                  */
+/******************************************************************************/
+
+/* Function: xcidt
+
+   Purpose:  To parse the directive: cidtag <tag>
+
+             <tag>     a 1- to 16-character cluster ID tag.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsClientConfig::xcidt(XrdOucStream &Config)
+{
+    char *val;
+
+// Get the path
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Say.Emsg("Config", "tag not specified"); return 1;}
+
+// Make sure it is not too long
+//
+   if ((int)strlen(val) > 16)
+      {Say.Emsg("Config", "tag is > 16 characters"); return 1;}
+
+// Record the tag
+//
+   if (cidTag) free(cidTag);
+   cidTag = strdup(val);
    return 0;
 }
 

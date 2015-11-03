@@ -483,6 +483,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
    TS_Xeq("altds",         xaltds);  // Server,  non-dynamic
    TS_Xeq("blacklist",     xblk);    // Manager, non-dynamic
+   TS_Xeq("cidtag",        xcid);    // Any,     non-dynamic
    TS_Xeq("defaults",      xdefs);   // Server,  non-dynamic
    TS_Xeq("dfs",           xdfs);    // Any,     non-dynamic
    TS_Xeq("export",        xexpo);   // Any,     non-dynamic
@@ -695,6 +696,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    SanList   =0;
    mySID    = 0;
    mySite   = 0;
+   cidTag   = 0;
    ifList    =0;
    perfint  = 3*60;
    perfpgm  = 0;
@@ -1158,7 +1160,7 @@ char *XrdCmsConfig::setupSid()
 
 // Generate the system ID and set the cluster ID
 //
-   return XrdCmsSecurity::setSystemID(tp, myInsName, myName, sfx);
+   return XrdCmsSecurity::setSystemID(tp, myInsName, myName, cidTag, sfx);
 }
 
 /******************************************************************************/
@@ -1379,6 +1381,40 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile, bool iswl)
 // Record the path
 //
    blkList = strdup(val);
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                  x c i d                                   */
+/******************************************************************************/
+
+/* Function: xcid
+
+   Purpose:  To parse the directive: cidtag <tag>
+
+             <tag>     a 1- to 16-character cluster ID tag.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xcid(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val;
+
+// Get the path
+//
+   if (!(val = CFile.GetWord()) || !val[0])
+      {eDest->Emsg("Config", "tag not specified"); return 1;}
+
+// Make sure it is not too long
+//
+   if ((int)strlen(val) > 16)
+      {eDest->Emsg("Config", "tag is > 16 characters"); return 1;}
+
+// Record the tag
+//
+   if (cidTag) free(cidTag);
+   cidTag = strdup(val);
    return 0;
 }
   
