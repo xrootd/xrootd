@@ -269,6 +269,7 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                {if (&rhs != this)
                    {memcpy(&IP, &rhs.IP, sizeof(IP));
                     addrSize = rhs.addrSize; sockNum = rhs.sockNum;
+                    protType = rhs.protType;
                     if (hostName) free(hostName);
                     hostName = (rhs.hostName ? strdup(rhs.hostName):0);
                     if (rhs.sockAddr != &rhs.IP.Addr)

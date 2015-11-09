@@ -271,6 +271,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                }
             memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
             protType = (IP.v6.sin6_family == AF_INET6 ? PF_INET6 : PF_INET);
+            if (rP->ai_canonname) hostName = strdup(rP->ai_canonname);
             freeaddrinfo(rP);
            }
 
@@ -364,8 +365,12 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
 
 // Copy the address based on address family
 //
-        if (sockP->sa_family == AF_INET6) addrSize = sizeof(IP.v6);
-   else if (sockP->sa_family == AF_INET)  addrSize = sizeof(IP.v4);
+        if (sockP->sa_family == AF_INET6) {addrSize = sizeof(IP.v6);
+                                           protType = PF_INET6;
+                                          }
+   else if (sockP->sa_family == AF_INET)  {addrSize = sizeof(IP.v4);
+                                           protType = PF_INET;
+                                          }
    else if (sockP->sa_family == AF_UNIX)
            {unixPipe = new sockaddr_un;
             memcpy(unixPipe, sockP, sizeof(struct sockaddr_un));
@@ -373,6 +378,7 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
             addrSize = sizeof(sockaddr_un);
             memset(&IP, 0, sizeof(IP));
             IP.Addr.sa_family = AF_UNIX;
+            protType = PF_UNIX;
             return 0;
            }
    else return "invalid address family";
@@ -407,8 +413,11 @@ const char *XrdNetAddr::Set(int sockFD, bool peer)
 
 // Set the correct address size
 //
-   addrSize = (IP.Addr.sa_family == AF_INET ? sizeof(sockaddr_in)
-                                            : sizeof(sockaddr_in6));
+   if (IP.Addr.sa_family == AF_INET)
+      {addrSize = sizeof(sockaddr_in);  protType = PF_INET;
+      } else {
+       addrSize = sizeof(sockaddr_in6); protType = PF_INET6;
+      }
 
 // All done
 //
