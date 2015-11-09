@@ -69,6 +69,7 @@ int   asSolo()    {return isSolo;}
 
 int         LUPDelay;     // Maximum delay at look-up
 int         LUPHold;      // Maximum hold  at look-up (in millisconds)
+int         DELDelay;     // Maximum delay for deleting an offline server
 int         DRPDelay;     // Maximum delay for dropping an offline server
 int         PSDelay;      // Maximum delay time before peer is selected
 int         RWDelay;      // R/W lookup delay handling (0 | 1 | 2)

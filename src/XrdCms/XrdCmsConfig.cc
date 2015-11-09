@@ -172,7 +172,7 @@ public:
 
 static void Start() {static PingClock selfie;}
 
-          PingClock() : XrdJob("ping clock") {DoIt();}
+          PingClock() : XrdJob(".ping clock") {DoIt();}
          ~PingClock() {}
 private:
 };
@@ -637,6 +637,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    QryDelay =-1;
    QryMinum = 0;
    LUPHold  = 178;
+   DELDelay = 960;  // 15 minutes
    DRPDelay = 10*60;
    PSDelay  = 0;
    RWDelay  = 2;
@@ -1430,8 +1431,9 @@ int XrdCmsConfig::xcid(XrdSysError *eDest, XrdOucStream &CFile)
                                            [suspend <sec>] [drop <sec>]
                                            [service <sec>] [hold <msec>]
                                            [peer <sec>] [rw <lvl>] [qdl <sec>]
-                                           [qdn <cnt>]
+                                           [qdn <cnt>] [delnode <sec>]
 
+   delnode   <sec>     maximum seconds to wait to be able to delete a node.
    discard   <cnt>     maximum number a message may be forwarded.
    drop      <sec>     seconds to delay a drop of an offline server.
    full      <sec>     seconds to delay client when no servers have space.
@@ -1462,6 +1464,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
     static struct delayopts {const char *opname; int *oploc; int istime;}
            dyopts[] =
        {
+        {"delnode",  &DELDelay, 1},
         {"discard",  &MsgTTL,   0},
         {"drop",     &DRPDelay, 1},
         {"full",     &DiskWT,  -1},

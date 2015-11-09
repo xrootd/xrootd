@@ -55,6 +55,7 @@ class XrdOucTList;
 class XrdCmsManager
 {
 public:
+friend class XrdCmsDelNode;
 
 XrdCmsManList *myMans;
 XrdCmsManTree *ManTree;
@@ -62,6 +63,8 @@ XrdCmsManTree *ManTree;
 static const int MTMax = 16;   // Maximum number of Managers
 
 XrdCmsNode *Add(XrdLink *lp, int Lvl, bool &xit);
+
+void        Delete(XrdCmsNode *nodeP);
 
 void        Finished(const char *manP, int mPort);
 

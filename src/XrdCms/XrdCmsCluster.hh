@@ -173,6 +173,8 @@ long long       Refs() {return SelWcnt+SelWtot+SelRcnt+SelRtot;}
 
 // Called to remove a node from the cluster
 //
+void            Remove(XrdCmsNode *theNode);
+
 void            Remove(const char *reason, XrdCmsNode *theNode, int immed=0);
 
 // Called to reset the node reference counts for nodes matching smask

@@ -89,7 +89,7 @@ XrdNetIF::ifType ifVec[4] = {XrdNetIF::PublicV4, XrdNetIF::Public46,
 /******************************************************************************/
   
 XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
-                       int port, int lvl, int id)
+                       int port, int lvl, int id) : nodeMutex(0, "nodeCV")
 {
     static XrdSysMutex   iMutex;
     static const SMask_t smask_1(1);
@@ -110,6 +110,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     isMan    =  0;
     isKnown  =  0;
     isPeer   =  0;
+    incUL    =  0;
     myCost   =  0;
     myLoad   =  0;
     myMass   =  0;
@@ -141,6 +142,10 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     TimeZone = 0;
     subsPort = 0;
     myVersion= kYR_Version;
+
+    lkCount  = 0;
+    ulCount  = 0;
+    Manager  = 0;
 
 // setName() will set the node identification information
 //
@@ -208,6 +213,87 @@ void XrdCmsNode::setName(XrdLink *lnkp, const char *theIF, int port)
 }
 
 /******************************************************************************/
+/*                                D e l e t e                                 */
+/******************************************************************************/
+
+void XrdCmsNode::Delete(XrdSysMutex &gMutex)
+{
+   EPNAME("Delete");
+   time_t tNow;
+   unsigned int theLKCnt;
+   int tmoWait = 60, totWait = 0;
+   bool doDel = true;
+
+// We need to make sure there are no references to this object. This is true
+// when the lkCount equals the ulCount. The lkCount is under control of the
+// global mutex passed to us. The ulCount is under control of the node lock.
+// we will wait until they are equal. As this node has been removed from all
+// table at this point, the lkCount cannot change and we need only to fetch
+// it once. However, we will refresh it if we timeout. Setting isGone will
+// signal us whenever the ulCount changes and is under global mutex control.
+//
+   gMutex.Lock();
+   theLKCnt = lkCount;
+   isGone = 1;
+   gMutex.UnLock();
+
+// Get the node lock and do some debugging
+//
+   nodeMutex.Lock();
+   DEBUG(Ident <<" locks=" <<theLKCnt <<" unlocks=" <<ulCount);
+
+// Now wait for things to simmer down. We wait for an appropriate time because
+// we don't want to occupy this thread forever.
+//
+   while(theLKCnt != ulCount)
+        {if (totWait >= Config.DELDelay) {doDel = false; break;}
+         tNow = time(0);
+         if (!nodeMutex.Wait(tmoWait)) totWait += (time(0) - tNow);
+            else {DeleteWarn(gMutex, theLKCnt);
+                  totWait += tmoWait;
+                  tmoWait  = tmoWait << 1;
+                  if (totWait + tmoWait > Config.DELDelay)
+                     {tmoWait = Config.DELDelay - totWait;
+                      if (tmoWait < 30) tmoWait = 30;
+                     }
+                 }
+        }
+
+// We can now safely delete this node
+//
+   nodeMutex.UnLock();
+   if (doDel) delete this;
+      else {char eBuff[256];
+            snprintf(eBuff, sizeof(eBuff),
+                     " (%p) delete timeout; node object lost!", this);
+            Say.Emsg("Delete", Ident, eBuff);
+           }
+}
+  
+/******************************************************************************/
+/* Private:                   D e l e t e W a r n                             */
+/******************************************************************************/
+
+void XrdCmsNode::DeleteWarn(XrdSysMutex &gMutex, unsigned int &lkVal)
+{
+   char eBuff[256];
+
+// Print warning
+//
+   snprintf(eBuff, sizeof(eBuff), "delete sync stall; lk %d != ul %d",
+            lkVal, ulCount);
+   Say.Emsg("Delete", Ident, eBuff);
+
+// Update the lock count
+//
+   nodeMutex.UnLock();
+   gMutex.Lock();
+   lkVal = lkCount;
+   gMutex.UnLock();
+   nodeMutex.Lock();
+}
+  
+/******************************************************************************/
 /*                                  D i s c                                   */
 /******************************************************************************/
 
@@ -216,7 +302,7 @@ void XrdCmsNode::Disc(const char *reason, int needLock)
 
 // Lock the object of not yet locked
 //
-   if (needLock) myMutex.Lock();
+   if (needLock) nodeMutex.Lock();
    isOffline = 1;
 
 // If we are still connected, initiate a teardown
@@ -229,7 +315,7 @@ void XrdCmsNode::Disc(const char *reason, int needLock)
 
 // Unlock ourselves if we locked ourselves
 //
-   if (needLock) myMutex.UnLock();
+   if (needLock) nodeMutex.UnLock();
 }
   
 /******************************************************************************/
@@ -1449,7 +1535,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
                      stgMsg = (isNoStage ? "(no staging)" : "(staging)");
                      port = ntohl(Arg.Request.streamid);
                      if (port && port != netIF.Port())
-                        {Lock(); netIF.Port(port); UnLock();
+                        {Lock(false); netIF.Port(port); UnLock();
                          DEBUGR("set data port to " <<port);
                         }
                     }
