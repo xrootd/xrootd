@@ -18,6 +18,7 @@ Prerelease Notes
 
 + **Major bug fixes**
   * [Server] Correct IP address matching between IPv4 and IPv6. Fixes #300.
+  * [Server] Ruggedize cmsd thread synchronization during node deletion.
   * [Server] Delete extraneous semaphore wait to avoid deadlock (#290).
   * [XrdCl] Avoid SEGV when server fails after it responds waitresp.
   * [Server] Return correct response to a delayed open.
