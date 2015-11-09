@@ -98,6 +98,8 @@ const char *SiteName(int snum);
 
 private:
 static
+void         Display(XrdSysError *eDest, const char *hSpec, const char *hName);
+static
 XrdOucTList *SInsert(XrdOucTList *oldP, XrdOucTList *newP);
 };
 #endif
