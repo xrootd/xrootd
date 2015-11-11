@@ -24,6 +24,7 @@ Prerelease Notes
   * [Server] Return correct response to a delayed open.
 
 + **Minor bug fixes**
+  * [Server] Make sure N2N gets configured for the cmsd when actually needed.
   * [Server] Properly handle an inifit NPROC limit. Fixes #288.
   * [Server] Make sure the cluster ID is always formatted the same way.
   * [Server] Correctly compute timeout wait.
