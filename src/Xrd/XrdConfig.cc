@@ -887,7 +887,7 @@ int XrdConfig::setFDL()
       }
 #endif
 
-// We try to set the thread limit here but only if we can
+// The scheduler will have already set the thread limit. We just report it
 //
 #if defined(__linux__) && defined(RLIMIT_NPROC)
 

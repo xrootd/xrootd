@@ -122,17 +122,17 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 // Get the resource thread limit and set to maximum. In Linux this may be -1
 // to indicate useless infnity, so we have to come up with a number, sigh.
 //
-   if (!getrlimit(RLIMIT_NPROC, &rlim) && rlim.rlim_max > 0)
-      {if (rlim.rlim_cur < rlim.rlim_max)
-          {rlim.rlim_cur = rlim.rlim_max;
-           setrlimit(RLIMIT_NPROC, &rlim);
-          }
+   if (!getrlimit(RLIMIT_NPROC, &rlim))
+      {     if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_cur = MAX_SCHED_PROCS;
+       else if (rlim.rlim_cur  < rlim.rlim_max) rlim.rlim_cur = rlim.rlim_max;
+       if (rlim.rlim_cur != rlim.rlim_max) setrlimit(RLIMIT_NPROC, &rlim);
       }
 
 // Readjust our internal maximum to be the actual maximum
 //
    if (!getrlimit(RLIMIT_NPROC, &rlim))
-      {if (rlim.rlim_cur < 1) max_Workers = 127000;
+      {if (rlim.rlim_cur == RLIM_INFINITY || rlim.rlim_cur > MAX_SCHED_PROCS)
+          max_Workers = MAX_SCHED_PROCS;
           else max_Workers = static_cast<int>(rlim.rlim_cur);
       }
 #endif
@@ -329,7 +329,8 @@ void XrdScheduler::Run()
     // before running this job.
     //
        if (!waiting) hireWorker();
-       TRACE(SCHED, "running " <<jp->Comment <<" inq=" <<num_JobsinQ);
+       if (TRACING(TRACE_SCHED) && *(jp->Comment) != '.')
+          {TRACE(SCHED, "running " <<jp->Comment <<" inq=" <<num_JobsinQ);}
        jp->DoIt();
       } while(1);
 }
@@ -414,7 +415,8 @@ void XrdScheduler::Schedule(XrdJob *jp, time_t atime)
 
 // Lock the queue
 //
-   TRACE(SCHED, "scheduling " <<jp->Comment <<" in " <<atime-time(0) <<" seconds");
+   if (TRACING(TRACE_SCHED) && *(jp->Comment) != '.')
+      {TRACE(SCHED, "scheduling " <<jp->Comment <<" in " <<atime-time(0) <<" seconds");}
    jp->SchedTime = atime;
    TimerMutex.Lock();
 

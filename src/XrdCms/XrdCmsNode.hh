@@ -69,7 +69,7 @@ public:
        char   isConn;       //1 Set when node is network connected
        char   isGone;       //2 Set when node must be deleted
        char   isPerm;       //3 Set when node is permanently bound
-       char   isReserved;   //4
+       char   incUL;        //4 Set when unlock count nedds to be incremented
        char   RoleID;       //5 The converted XrdCmsRole::RoleID
        char   TimeZone;     //6 Time zone in +UTC-
        char   TZValid;      //7 Time zone has been set
@@ -121,6 +121,8 @@ const  char  *do_Try(XrdCmsRRData &Arg);
 const  char  *do_Update(XrdCmsRRData &Arg);
 const  char  *do_Usage(XrdCmsRRData &Arg);
 
+       void   Delete(XrdSysMutex &gMutex);
+
        void   Disc(const char *reason=0, int needLock=1);
 
 inline int    ID(int &INum) {INum = Instance; return NodeID;}
@@ -140,8 +142,21 @@ inline char  *Name()   {return (myName ? myName : (char *)"?");}
 
 inline SMask_t Mask() {return NodeMask;}
 
-inline void    Lock() {myMutex.Lock(); isLocked = 1;}
-inline void  UnLock() {isLocked = 0; myMutex.UnLock();}
+inline void    Lock(bool doinc)
+                   {if (!doinc) nodeMutex.Lock();
+                       else    {lkCount++;  // Global lock must be held
+                                nodeMutex.Lock();
+                                incUL = 1;
+                               }
+                    isLocked = 1;
+                   }
+inline void  UnLock() {isLocked = 0;
+                       if (incUL)
+                          {ulCount++; incUL = 0;
+                           if (isGone) nodeMutex.Signal();
+                          }
+                       nodeMutex.UnLock();
+                      }
 
 static void  Report_Usage(XrdLink *lp);
 
@@ -183,12 +198,16 @@ private:
 static const int fsL2PFail1 = 999991;
 static const int fsL2PFail2 = 999992;
 
+       void  DeleteWarn(XrdSysMutex &gMutex, unsigned int &lkVal);
        int   fsExec(XrdOucProg *Prog, char *Arg1, char *Arg2=0);
 const  char *fsFail(const char *Who, const char *What, const char *Path, int rc);
        int   getMode(const char *theMode, mode_t &Mode);
        int   getSize(const char *theSize, long long &Size);
 
-XrdSysMutex        myMutex;
+XrdSysCondVar      nodeMutex;
+unsigned int       lkCount;  // Only Modified with global lock held
+unsigned int       ulCount;  // Only Modified with node   lock held
+
 XrdLink           *Link;
 XrdNetAddr         netID;
 XrdNetIF           netIF;

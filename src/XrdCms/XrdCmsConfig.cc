@@ -172,7 +172,7 @@ public:
 
 static void Start() {static PingClock selfie;}
 
-          PingClock() : XrdJob("ping clock") {DoIt();}
+          PingClock() : XrdJob(".ping clock") {DoIt();}
          ~PingClock() {}
 private:
 };
@@ -483,6 +483,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
    TS_Xeq("altds",         xaltds);  // Server,  non-dynamic
    TS_Xeq("blacklist",     xblk);    // Manager, non-dynamic
+   TS_Xeq("cidtag",        xcid);    // Any,     non-dynamic
    TS_Xeq("defaults",      xdefs);   // Server,  non-dynamic
    TS_Xeq("dfs",           xdfs);    // Any,     non-dynamic
    TS_Xeq("export",        xexpo);   // Any,     non-dynamic
@@ -636,6 +637,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    QryDelay =-1;
    QryMinum = 0;
    LUPHold  = 178;
+   DELDelay = 960;  // 15 minutes
    DRPDelay = 10*60;
    PSDelay  = 0;
    RWDelay  = 2;
@@ -695,6 +697,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    SanList   =0;
    mySID    = 0;
    mySite   = 0;
+   cidTag   = 0;
    ifList    =0;
    perfint  = 3*60;
    perfpgm  = 0;
@@ -1158,7 +1161,7 @@ char *XrdCmsConfig::setupSid()
 
 // Generate the system ID and set the cluster ID
 //
-   return XrdCmsSecurity::setSystemID(tp, myInsName, myName, sfx);
+   return XrdCmsSecurity::setSystemID(tp, myInsName, myName, cidTag, sfx);
 }
 
 /******************************************************************************/
@@ -1383,6 +1386,40 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile, bool iswl)
 }
   
 /******************************************************************************/
+/*                                  x c i d                                   */
+/******************************************************************************/
+
+/* Function: xcid
+
+   Purpose:  To parse the directive: cidtag <tag>
+
+             <tag>     a 1- to 16-character cluster ID tag.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xcid(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val;
+
+// Get the path
+//
+   if (!(val = CFile.GetWord()) || !val[0])
+      {eDest->Emsg("Config", "tag not specified"); return 1;}
+
+// Make sure it is not too long
+//
+   if ((int)strlen(val) > 16)
+      {eDest->Emsg("Config", "tag is > 16 characters"); return 1;}
+
+// Record the tag
+//
+   if (cidTag) free(cidTag);
+   cidTag = strdup(val);
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                x d e l a y                                 */
 /******************************************************************************/
 
@@ -1394,8 +1431,9 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile, bool iswl)
                                            [suspend <sec>] [drop <sec>]
                                            [service <sec>] [hold <msec>]
                                            [peer <sec>] [rw <lvl>] [qdl <sec>]
-                                           [qdn <cnt>]
+                                           [qdn <cnt>] [delnode <sec>]
 
+   delnode   <sec>     maximum seconds to wait to be able to delete a node.
    discard   <cnt>     maximum number a message may be forwarded.
    drop      <sec>     seconds to delay a drop of an offline server.
    full      <sec>     seconds to delay client when no servers have space.
@@ -1426,6 +1464,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
     static struct delayopts {const char *opname; int *oploc; int istime;}
            dyopts[] =
        {
+        {"delnode",  &DELDelay, 1},
         {"discard",  &MsgTTL,   0},
         {"drop",     &DRPDelay, 1},
         {"full",     &DiskWT,  -1},

@@ -6,7 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
-i * [Server] Make it possible to effeciently query an external database
+  * [Server] Add cms.cidtag directive to qualify the global cluster id
+    (solves dpm problem).
+  * [Server] Make it possible to effeciently query an external database
     for file existence via the statlib plug-in (largely for DPM).`
   * [Misc] Add back trace capability to the tool set.
   * [Misc] Add generalized XML parsing ability.
@@ -15,17 +17,21 @@ i * [Server] Make it possible to effeciently query an external database
   * [Server] Allow iovec based data responses (no ABI changes).
 
 + **Major bug fixes**
+  * [Server] Correct IP address matching between IPv4 and IPv6. Fixes #300.
+  * [Server] Ruggedize cmsd thread synchronization during node deletion.
   * [Server] Delete extraneous semaphore wait to avoid deadlock (#290).
   * [XrdCl] Avoid SEGV when server fails after it responds waitresp.
   * [Server] Return correct response to a delayed open.
 
 + **Minor bug fixes**
+  * [Server] Properly handle an inifit NPROC limit. Fixes #288.
   * [Server] Make sure the cluster ID is always formatted the same way.
   * [Server] Correctly compute timeout wait.
 
 + **Miscellaneous**
   * New shared memory map package.
   * [Server] Rationalize non-specfic locate requests.
+  * [Server] Display manager IP addresses during '+' host resolution.
   * [Util] Avoid compiler warning about unsafe mktemp.
   * [App] Do not report expected errors as errors.
   * [App] Always show any unusual node status in the display.

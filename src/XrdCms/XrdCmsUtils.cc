@@ -33,6 +33,7 @@
 #include <unistd.h>
 
 #include "XrdCms/XrdCmsUtils.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -53,6 +54,50 @@ XrdOucTList *GetLocalSite()
 
 XrdOucTList *siteList  = 0;
 int          siteIndex = 0;
+}
+
+/******************************************************************************/
+/* Private:                      D i s p l a y                                */
+/******************************************************************************/
+  
+void XrdCmsUtils::Display(XrdSysError *eDest, const char *hSpec,
+                                              const char *hName)
+{
+   XrdNetAddr *nP;
+   const char *eTxt;
+   int i, n, abLen, numIP = 0;
+   char *abP, aBuff[1024];
+
+// Get all of the addresses
+//
+   eTxt = XrdNetUtils::GetAddrs(hName, &nP, numIP, XrdNetUtils::prefAuto, 0);
+
+// Check for errors
+//
+   if (eTxt)
+      {eDest->Say("Config Manager ", hSpec, " -> ", hName, " ", eTxt);
+       return;
+      }
+   eDest->Say("Config Manager ", hSpec, " -> ", hName);
+
+// Prepare the buffer
+//
+   n = strlen(hSpec)+4;
+   if (n+64 > (int)sizeof(aBuff)) return;
+   memset(aBuff, int(' '), n);
+   abP = aBuff+n; abLen = sizeof(aBuff) - n;
+
+// Format the addresses
+//
+   for (i = 0; i < numIP; i++)
+       {if (!nP[i].Format(abP, abLen, XrdNetAddrInfo::fmtAddr,
+                                      XrdNetAddrInfo::noPort)) break;
+        eDest->Say("Config Manager ", aBuff);
+       }
+
+// All done
+//
+   delete [] nP;
 }
 
 /******************************************************************************/
@@ -138,8 +183,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
               }
          if (!oldP) 
             {appList = SInsert(appList, newP);
-             if (plus && !hush)
-                eDest->Say("Config ",hSpec," -> all.manager ",newP->text);
+             if (plus && !hush) Display(eDest, hSpec, newP->text);
             }
         }
 

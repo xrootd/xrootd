@@ -412,7 +412,12 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
                                   : (Reason ? Reason : "lost connection")));
        Manager->ManTree->Disc(myNID);
        Link->Close();
-       Sync(); delete myNode; myNode = 0; Reason = 0;
+
+       // The Sync() will wait until all the threads we started complete. Then
+       // ask the manager to delete the node as it must synchronize with other
+       // threads relative to the manager object before being destroyed.
+       //
+       Sync(); Manager->Delete(myNode); myNode = 0; Reason = 0;
 
        // Check if we should process the redirection
        //
@@ -478,9 +483,12 @@ int XrdCmsProtocol::Process(XrdLink *lp)
 //
    lp->Serialize();
    if (!myNode) return -1;
-   myNode->Lock();
+   Sync();
+   myNode->Lock(false);
 
-// Immediately terminate redirectors (they have an Rslot).
+// Immediately terminate redirectors (they have an Rslot). The redirector node
+// can be directly deleted as all references were serialized through the
+// RTable and one we remove our node there can be no references left.
 //
    if (RSlot)
       {RTable.Del(myNode); RSlot  = 0;
@@ -490,12 +498,12 @@ int XrdCmsProtocol::Process(XrdLink *lp)
 
 // We have a node that may or may not be in the cluster at this point, or may
 // need to remain in the cluster as a shadow member. In any case, the node
-// object lock will be released either by Remove() or the destructor.
+// object lock will be released by Remove().
 //
    if (myNode)
       {myNode->isConn = 0;
        if (myNode->isBound) Cluster.Remove(0, myNode, !loggedIn);
-          else if (myNode->isGone) delete myNode;
+          else if (myNode->isGone) Cluster.Remove(myNode);
               else myNode->UnLock();
       }
 
@@ -753,7 +761,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 // Director logins have no additional parameters. We return with the node object
 // locked to be consistent with the way server/suprvisors nodes are returned.
 //
-   myNode = new XrdCmsNode(Link); myNode->Lock();
+   myNode = new XrdCmsNode(Link); myNode->Lock(false);
    if (!(RSlot = RTable.Add(myNode)))
       {Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
        return 0;
@@ -1124,13 +1132,17 @@ void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etex
   
 void XrdCmsProtocol::Sync()
 {
+   EPNAME("Sync");
    XrdSysSemaphore mySem(0);
 
-// See if we need to wait or can continue
+// Make sure that all threads that we started have completed
 //
    refMutex.Lock();
-   if (refCount <= 0) {refMutex.UnLock(); return;}
-   refWait = &mySem;
-   refMutex.UnLock();
-   mySem.Wait();
+   if (refCount <= 0) refMutex.UnLock();
+      else {refWait = &mySem;
+            DEBUG("Waiting for " <<refCount <<' ' <<myNode->Ident
+                  <<" thread(s) to end.");
+            refMutex.UnLock();
+            mySem.Wait();
+           }
 }
