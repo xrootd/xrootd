@@ -61,10 +61,10 @@ int          siteIndex = 0;
 /******************************************************************************/
   
 void XrdCmsUtils::Display(XrdSysError *eDest, const char *hSpec,
-                                              const char *hName)
+                                              const char *hName, bool isBad)
 {
    XrdNetAddr *nP;
-   const char *eTxt;
+   const char *eTxt, *eSfx = (isBad ? " *** Invalid ***" : 0);
    int i, n, abLen, numIP = 0;
    char *abP, aBuff[1024];
 
@@ -78,7 +78,7 @@ void XrdCmsUtils::Display(XrdSysError *eDest, const char *hSpec,
       {eDest->Say("Config Manager ", hSpec, " -> ", hName, " ", eTxt);
        return;
       }
-   eDest->Say("Config Manager ", hSpec, " -> ", hName);
+   eDest->Say("Config Manager ", hSpec, " -> ", hName, eSfx);
 
 // Prepare the buffer
 //
@@ -113,6 +113,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
    const char *eText;
    char *plus, *atsn;
    int nPort, maxIP = 1, snum = 0;
+   bool isBad;
 
 // Generate local site name if we haven't done so yet
 //
@@ -181,9 +182,16 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
                   }
                oldP = oldP->next;
               }
+         if (!plus || strcmp(hSpec, newP->text)) isBad = false;
+            else {eDest->Say("Config warning: "
+                             "Cyclic DNS registration for ",newP->text,"\n"
+                             "Config warning: This cluster will exhibit "
+                             "undefined behaviour!!!");
+             isBad = true;
+            }
          if (!oldP) 
             {appList = SInsert(appList, newP);
-             if (plus && !hush) Display(eDest, hSpec, newP->text);
+             if (plus && !hush) Display(eDest, hSpec, newP->text, isBad);
             }
         }
 
