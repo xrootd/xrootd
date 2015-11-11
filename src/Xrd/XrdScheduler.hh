@@ -39,7 +39,7 @@ class XrdOucTrace;
 class XrdSchedulerPID;
 class XrdSysError;
 
-#define MAX_SCHED_PROCS 64000
+#define MAX_SCHED_PROCS 30000
 
 class XrdScheduler : public XrdJob
 {
