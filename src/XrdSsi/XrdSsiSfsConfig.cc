@@ -262,10 +262,11 @@ bool XrdSsiSfsConfig::Configure(XrdOucEnv *envP)
 
 // Establish the network interface that the caller must provide
 //
-   if (!envP || !(myIF = (XrdNetIF *)envP->GetPtr("XrdNetIF*")))
+   if (!isCms && (!envP || !(myIF = (XrdNetIF *)envP->GetPtr("XrdNetIF*"))))
       {Log.Emsg("Finder", "Network i/f undefined; unable to self-locate.");
        NoGo = 1;
       }
+
 // Now configure management functions and the cms if we are not the cms
 //
    if (!NoGo && !isCms && envP)
