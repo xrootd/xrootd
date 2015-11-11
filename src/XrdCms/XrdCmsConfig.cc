@@ -406,7 +406,7 @@ int XrdCmsConfig::Configure2()
 
 // If we need a name library, load it now
 //
-   if ((LocalRoot || RemotRoot) && ConfigN2N()) NoGo = 1;
+   if ((LocalRoot || RemotRoot || N2N_Lib) && ConfigN2N()) NoGo = 1;
 
 // Configure the OSS, the base filesystem, and initialize the prep queue
 //
@@ -749,7 +749,7 @@ int XrdCmsConfig::ConfigN2N()
 
 // Get the plugin
 //
-   if (!(xeq_N2N = n2nLoader.Load(N2N_Lib, *myVInfo))) return 1;
+   if (!(xeq_N2N = n2nLoader.Load(N2N_Lib, *myVInfo, &theEnv))) return 1;
 
 // Optimize the local case
 //
