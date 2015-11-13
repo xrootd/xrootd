@@ -78,21 +78,27 @@ class XrdCmsDrop : XrdJob
 {
 public:
 
-     void DoIt() {Cluster.STMutex.Lock();
-                  int rc = Cluster.Drop(nodeEnt, nodeInst, this);
-                  Cluster.STMutex.UnLock();
-                  if (!rc) delete this;
+     void DoIt() {if (nodeP)
+                     {nodeP->Delete(Cluster.STMutex);
+                      delete this;
+                     } else {
+                      if (!Cluster.Drop(nodeEnt, nodeInst, this)) delete this;
+                     }
                  }
 
-          XrdCmsDrop(int nid, int inst) : XrdJob("drop node")
-                    {nodeEnt  = nid;
-                     nodeInst = inst;
-                     Sched->Schedule((XrdJob *)this, time(0)+Config.DRPDelay);
-                    }
+          XrdCmsDrop(XrdCmsNode *nP) : XrdJob("delete node"), nodeP(nP),
+                                       nodeEnt(0), nodeInst(0)
+                    {Sched->Schedule((XrdJob *)this);}
+
+          XrdCmsDrop(int nid, int inst) : XrdJob("drop node"), nodeP(0),
+                                          nodeEnt(nid), nodeInst(inst)
+                    {Sched->Schedule((XrdJob *)this, time(0)+Config.DRPDelay);}
+
          ~XrdCmsDrop() {}
 
-int  nodeEnt;
-int  nodeInst;
+XrdCmsNode *nodeP;
+int         nodeEnt;
+int         nodeInst;
 };
   
 /******************************************************************************/
@@ -205,14 +211,14 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
                    sendAList(NodeTab[Slot]->Link);
 
                 DEBUG(lp->ID << " bumps " << NodeTab[Slot]->Ident <<" #" <<Slot);
-                NodeTab[Slot]->Lock();
+                NodeTab[Slot]->Lock(true);
                 Remove("redirected", NodeTab[Slot], -1);
                 act = "Shoved ";
                }
        NodeTab[Slot] = nP = new XrdCmsNode(lp, theIF, theNID, port, 0, Slot);
        if (!cidP) cidP = XrdCmsClustID::AddID(theNID);
        if ((cidP->AddNode(nP, SpecAlt))) nP->cidP = cidP;
-          else {delete nP; NodeTab[Slot] = 0; return 0;}
+          else {delete nP; NodeTab[Slot] = 0; return 0;} // OK to do delete!
       }
 
 // Indicate whether this snode can be redirected
@@ -271,6 +277,8 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
 /* Private:                       A d d A l t                                 */
 /******************************************************************************/
   
+// Warning STMutex must be held by the caller!
+
 XrdCmsNode *XrdCmsCluster::AddAlt(XrdCmsClustID *cidP, XrdLink *lp,
                                   int port, int Status, int sport,
                                   const char *theNID, const char *theIF)
@@ -291,7 +299,7 @@ XrdCmsNode *XrdCmsCluster::AddAlt(XrdCmsClustID *cidP, XrdLink *lp,
 //
    if (cidP->Avail())
       {nP = new XrdCmsNode(lp, theIF, theNID, port, 0, slot);
-       if (!(cidP->AddNode(nP, true))) {delete nP; nP = 0;}
+       if (!(cidP->AddNode(nP, true))) {delete nP; nP = 0;} // OK to do delete!
       }
 
 // Check if we were actually able to add this node
@@ -308,7 +316,7 @@ XrdCmsNode *XrdCmsCluster::AddAlt(XrdCmsClustID *cidP, XrdLink *lp,
       {setAltMan(nP->NodeID, nP->Link, sport);
        Say.Emsg("AddAlt", nP->Ident, "replacing dropped", pP->Ident);
        NodeTab[slot] = nP;
-       delete pP;
+       pP->DropJob = new XrdCmsDrop(pP); // Schedule deletion
       }
 
 // Hook the node to the cluster table and return
@@ -340,7 +348,7 @@ void XrdCmsCluster::BlackList(XrdOucTList *blP)
            {inBL = (blP && (blRD = XrdCmsBlackList::Present(nP->Name(), blP)));
             if ((!inBL && !(nP->isBad & XrdCmsNode::isBlisted))
             ||  ( inBL &&  (nP->isBad & XrdCmsNode::isBlisted))) continue;
-            nP->Lock();
+            nP->Lock(true);
             STMutex.UnLock();
             if (inBL)
                {nP->isBad |= XrdCmsNode::isBlisted | XrdCmsNode::isDoomed;
@@ -384,7 +392,7 @@ SMask_t XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod,
 //
    for (i = 0; i <= STHi; i++)
        {if ((nP = NodeTab[i]) && nP->isNode(bmask))
-           {nP->Lock();
+           {nP->Lock(true);
             STMutex.UnLock();
             if (nP->Send(iod, iovcnt, iotot) < 0) 
                {unQueried |= nP->Mask();
@@ -462,7 +470,7 @@ int XrdCmsCluster::Broadsend(SMask_t Who, XrdCms::CmsRRHdr &Hdr,
 //
 do{for (i = Beg; i <= Fin; i++)
        {if ((nP = NodeTab[i]) && nP->isNode(Who))
-           {nP->Lock();
+           {nP->Lock(true);
             STMutex.UnLock();
             if (nP->Send(ioV, 2, ioTot) >= 0) {nP->UnLock(); return 1;}
             DEBUG(nP->Ident <<" is unreachable");
@@ -567,7 +575,6 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts, bool &oksel)
                sip->Status |= XrdCmsSelected::Suspend;
             if (nP->isRW     ) sip->Status |= XrdCmsSelected::isRW;
             if (nP->isMan    ) sip->Status |= XrdCmsSelected::isMangr;
-//???       nP->UnLock();
             sipp = sip;
            }
    STMutex.UnLock();
@@ -719,7 +726,7 @@ void *XrdCmsCluster::MonRefs()
            {for (i = 0; i <= STHi; i++)
                 if ((nP = NodeTab[i])
                 &&  (resetWR || (doReset && nP->isNode(resetMask))) )
-                    {nP->Lock();
+                    {nP->Lock(true);
                      if (resetW || doReset) nP->RefW=0;
                      if (resetR || doReset) nP->RefR=0;
                      nP->Shrem = nP->Share;
@@ -740,6 +747,14 @@ void *XrdCmsCluster::MonRefs()
 /******************************************************************************/
 /*                                R e m o v e                                 */
 /******************************************************************************/
+
+// Warning! The node object must be locked upon entry. The lock is released
+//          upon deletion of the object.
+
+void XrdCmsCluster::Remove(XrdCmsNode *theNode)
+{
+     theNode->DropJob  = new XrdCmsDrop(theNode);
+}
 
 // Warning! The node object must be locked upon entry. The lock is released
 //          prior to returning to the caller. This entry obtains the node
@@ -766,17 +781,17 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
                                 myNID = node->ID(myInst);
                                 if (!hasLK)
                                    {myNode->UnLock();
-                                    myMutex->Lock();
-                                    myNode->Lock();
+                                    myMutex->Lock(); // Get global lock
+                                    myNode->Lock(true);
                                    }
                                }
                       ~theLocks()
                                {if (myNode)
                                    {if (doDrop)
-                                       {myNode->DropTime = 0;
-                                        myNode->DropJob  = 0;
-                                        myNode->isBound  = 0;
-                                        myNode->UnLock(); delete myNode;
+                                       {myNode->isBound  = 0;
+                                        myNode->DropTime = 0;
+                                        myNode->DropJob  = new XrdCmsDrop(myNode);
+                                        myNode->UnLock();
                                        } else myNode->UnLock();
                                    }
                                 if (!hasLK) myMutex->UnLock();
@@ -1075,8 +1090,8 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
        if (nP)
           {if (isrw)
               if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)    nP = 0;
-                 else {SelWcnt++; nP->RefTotW++; nP->RefW++; nP->Lock();}
-              else    {SelRcnt++; nP->RefTotR++; nP->RefR++; nP->Lock();}
+                 else {SelWcnt++; nP->RefTotW++; nP->RefW++; nP->Lock(true);}
+              else    {SelRcnt++; nP->RefTotR++; nP->RefR++; nP->Lock(true);}
           }
       }
    STMutex.UnLock();
@@ -1325,10 +1340,11 @@ XrdCmsNode *XrdCmsCluster::calcDelay(XrdCmsSelector &selR)
 /*                                  D r o p                                   */
 /******************************************************************************/
   
-// Warning: STMutex must be locked upon entry; the caller must release it.
-//          This method may only be called via Remove() either directly or via
-//          a defered job scheduled by that method. This method actually
-//          deletes the node object.
+// Warning: STMutex must be locked upon entry and the caller must release it
+//          if this method is called directily. Otherwise, the mutex will be
+//          obtained and released. Also, this method may only be called via
+//          Remove() either directly or via a defered job scheduled by that
+//          method. This method actually deletes the node object.
 
 int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 {
@@ -1336,10 +1352,15 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
    XrdCmsNode *nP;
    char hname[512];
 
+// If we are being called outside of a scheduled job, obtain the mutex
+//
+   if (djp) STMutex.Lock();
+
 // Make sure this node is the right one
 //
    if (!(nP = NodeTab[sent]) || nP->Inst() != sinst)
       {if (nP && djp == nP->DropJob) {nP->DropJob = 0; nP->DropTime = 0;}
+       if (djp) STMutex.UnLock();
        DEBUG(sent <<'.' <<sinst <<" cancelled.");
        return 0;
       }
@@ -1348,6 +1369,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 //
    if (djp && time(0) < nP->DropTime)
       {Sched->Schedule((XrdJob *)djp, nP->DropTime);
+       if (djp) STMutex.UnLock();
        return 1;
       }
 
@@ -1388,13 +1410,16 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 //
    if (nP->NodeMask) Cache.Drop(nP->NodeMask, sent, STHi);
 
+// We can now delete the node object if we were called via a job as we are on
+// a different thread. Direct calls require that we schedule the deletion as
+// it may take a long time if there are oustanding references to this node.
+//
+   if (djp) {STMutex.UnLock(); nP->Delete(STMutex);}
+      else nP->DropJob = new XrdCmsDrop(nP);
+
 // Document the drop
 //
    Say.Emsg("Drop_Node", hname, "dropped.");
-
-// Delete the node object
-//
-   delete nP;
    return 0;
 }
 
@@ -1614,7 +1639,7 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(selR);
-   sp->Lock();
+   sp->Lock(true);
    RefCount(sp, Multi, selR.needSpace);
    return sp;
 }
@@ -1658,7 +1683,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(selR);
-   sp->Lock();
+   sp->Lock(true);
    RefCount(sp, Multi, selR.needSpace);
    return sp;
 }
@@ -1695,7 +1720,7 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, XrdCmsSelector &selR)
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(selR);
-   sp->Lock();
+   sp->Lock(true);
    RefCount(sp, Multi, selR.needSpace);
    return sp;
 }

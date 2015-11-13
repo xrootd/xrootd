@@ -250,8 +250,9 @@ void XrdCmsSecurity::setSecFunc(void *secfP)
 /*                           s e t S y s t e m I D                            */
 /******************************************************************************/
   
-char *XrdCmsSecurity::setSystemID(XrdOucTList *tp, const char *iName,
-                                  const char  *iHost,    char  iType)
+char *XrdCmsSecurity::setSystemID(XrdOucTList *tp,    const char *iName,
+                                  const char  *iHost, const char *iTag,
+                                        char   iType)
 {
    XrdOucTList *tpF;
    char sidbuff[8192], *sidend = sidbuff+sizeof(sidbuff)-32, *sp, *cP;
@@ -265,6 +266,10 @@ char *XrdCmsSecurity::setSystemID(XrdOucTList *tp, const char *iName,
    strcpy(sidbuff, iName); strcat(sidbuff, "-");
    sp = sidbuff + strlen(sidbuff);
    *sp++ = iType; *sp++ = ' '; cP = sp;
+
+// Insert tag if we have one
+//
+   if (iTag) sp += sprintf(sp, "%s.", iTag);
 
 // Develop a unique cluster name for this cluster
 //

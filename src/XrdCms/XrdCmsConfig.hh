@@ -69,6 +69,7 @@ int   asSolo()    {return isSolo;}
 
 int         LUPDelay;     // Maximum delay at look-up
 int         LUPHold;      // Maximum hold  at look-up (in millisconds)
+int         DELDelay;     // Maximum delay for deleting an offline server
 int         DRPDelay;     // Maximum delay for dropping an offline server
 int         PSDelay;      // Maximum delay time before peer is selected
 int         RWDelay;      // R/W lookup delay handling (0 | 1 | 2)
@@ -147,6 +148,7 @@ const char  *myInsName;
 const char  *myInstance;
 const char  *mySID;
 const char  *mySite;
+      char  *cidTag;
 const char  *ifList;
 XrdOucTList *ManList;     // From manager directive
 XrdOucTList *NanList;     // From manager directive (managers only)
@@ -196,6 +198,7 @@ int  xallow(XrdSysError *edest, XrdOucStream &CFile);
 int  xaltds(XrdSysError *edest, XrdOucStream &CFile);
 int  Fsysadd(XrdSysError *edest, int chk, char *fn);
 int  xblk(XrdSysError *edest, XrdOucStream &CFile, bool iswl=false);
+int  xcid(XrdSysError *edest, XrdOucStream &CFile);
 int  xdelay(XrdSysError *edest, XrdOucStream &CFile);
 int  xdefs(XrdSysError *edest, XrdOucStream &CFile);
 int  xdfs(XrdSysError *edest, XrdOucStream &CFile);
