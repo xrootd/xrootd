@@ -10,6 +10,8 @@ Version 4.3.0
 -------------
 
 + **New Features**
+  * **[Server]** Add cms.cidtag directive to qualify the global cluster id
+    (solves dpm problem).
   * **[Server]** Make it possible to effeciently query an external database
     for file existence via the statlib plug-in (largely for DPM).`
   * **[Misc]** Add back trace capability to the tool set.
@@ -20,7 +22,8 @@ Version 4.3.0
   * **[XrdCl]** xrdcp add env var to disable recovery
 
 + **Major bug fixes**
-  * **[Server]** Avoid SEGV when FileCache indirectly loads the N2N plugin.
+  * **[Server]** Correct IP address matching between IPv4 and IPv6. Fixes #300.
+  * **[Server]** Ruggedize cmsd thread synchronization during node deletion.
   * **[Server]** Delete extraneous semaphore wait to avoid deadlock (#290).
   * **[XrdCl]** Avoid SEGV when server fails after it responds waitresp.
   * **[Server]** Return correct response to a delayed open.
@@ -30,6 +33,9 @@ Version 4.3.0
   * **[Misc]** Add possibility to specify disk usage parameters in .. G, T units using XrdOuca2x::a2sz().
 
 + **Minor bug fixes**
+  * **[Server]** Make sure N2N gets configured for the cmsd when actually needed.
+  * **[Server]** Properly handle an inifit NPROC limit. Fixes #288.
+  * **[Server]** Make sure the cluster ID is always formatted the same way.
   * **[Server]** Make sure the cluster ID is always formatted the same way.
   * **[Server]** Correctly compute timeout wait.
   * **[Misc]** Include XrdXmlReader in the spec file. 
@@ -37,6 +43,8 @@ Version 4.3.0
   * **[Misc]** Allow conversion of decimal numbers in  XrdOuca2x::a2sz()
 
 + **Miscellaneous**
+  * **[Server]** Detect cyclic DNS host registration when processing '+' hosts.
+  * **[Server]** Display manager IP addresses during '+' host resolution.
   * **[Util]** Avoid compiler warning about unsafe mktemp.
   * **[App]** Do not report expected errors as errors.
   * **[App]** Always show any unusual node status in the display.
