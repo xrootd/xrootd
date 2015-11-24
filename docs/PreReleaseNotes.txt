@@ -17,6 +17,7 @@ Prerelease Notes
   * [Server] Allow iovec based data responses (no ABI changes).
 
 + **Major bug fixes**
+  * [XrdCl] Avoid EAGAIN loop. Fixes #303.
   * [Server] Correct IP address matching between IPv4 and IPv6. Fixes #300.
   * [Server] Ruggedize cmsd thread synchronization during node deletion.
   * [Server] Delete extraneous semaphore wait to avoid deadlock (#290).
