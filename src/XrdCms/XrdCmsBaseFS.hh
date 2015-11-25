@@ -88,6 +88,8 @@ class XrdCmsBaseFS
 {
 public:
 
+       int              dfsTries() {return dfsMaxTries;}
+
 // Exists() returns a tri-logic state:
 // CmsHaveRequest::Online  -> File is known to exist and is available
 // CmsHaveRequest::Pending -> File is known to exist but is not available
@@ -126,14 +128,28 @@ inline int              Local() {return lclStat;}
 
        void             Runner();
 
+static const int dfltDfsTries = 2;
+static const int dfltStgTries = 3;
+
+       void             SetTries(bool xdfs, int tcnt)
+                                {if (xdfs) dfsMaxTries = 
+                                           (tcnt < 1 ? dfltDfsTries : tcnt);
+                                    else   stgMaxTries =
+                                           (tcnt < 1 ? dfltStgTries : tcnt);
+                                }
+
        void             Start();
+
+       int              stgTries() {return stgMaxTries;}
 
 inline int              Trim() {return preSel;}
 
 inline int              Traverse() {return Punt;}
 
        XrdCmsBaseFS(void (*theCB)(XrdCmsBaseFR *, int))
-                   : cBack(theCB), dmLife(0), dpLife(0), lclStat(0), preSel(1),
+                   : cBack(theCB), dfsMaxTries(dfltDfsTries),
+                                   stgMaxTries(dfltStgTries),
+                     dmLife(0), dpLife(0), lclStat(0), preSel(1),
                      dfsSys(0), Server(0), Fixed(0), Punt(0) {}
       ~XrdCmsBaseFS() {}
 
@@ -173,6 +189,8 @@ struct RequestQ
       ~RequestQ() {}
       }                 theQ;
 
+       int              dfsMaxTries;
+       int              stgMaxTries;
        int              dmLife;
        int              dpLife;
        char             lclStat;  // 1-> Local stat() calls wanted

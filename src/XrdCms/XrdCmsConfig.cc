@@ -1432,6 +1432,7 @@ int XrdCmsConfig::xcid(XrdSysError *eDest, XrdOucStream &CFile)
                                            [service <sec>] [hold <msec>]
                                            [peer <sec>] [rw <lvl>] [qdl <sec>]
                                            [qdn <cnt>] [delnode <sec>]
+                                           [nostage <cnt>]
 
    delnode   <sec>     maximum seconds to wait to be able to delete a node.
    discard   <cnt>     maximum number a message may be forwarded.
@@ -1439,6 +1440,7 @@ int XrdCmsConfig::xcid(XrdSysError *eDest, XrdOucStream &CFile)
    full      <sec>     seconds to delay client when no servers have space.
    hold      <msec>    millseconds to optimistically hold requests.
    lookup    <sec>     seconds to delay client when finding a file.
+   nostage   <cnt>     Maximum number of staging reselections allowed.
    overload  <sec>     seconds to delay client when all servers overloaded.
    peer      <sec>     maximum seconds client may be delayed before peer
                        selection is triggered.
@@ -1460,7 +1462,7 @@ int XrdCmsConfig::xcid(XrdSysError *eDest, XrdOucStream &CFile)
 int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
 {   char *val;
     const char *etxt = "invalid delay option";
-    int  i, ppp, minV = 1, ispercent = 0;
+    int  i, ppp, minV = 1, ispercent = 0, noStage = 0;
     static struct delayopts {const char *opname; int *oploc; int istime;}
            dyopts[] =
        {
@@ -1470,6 +1472,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
         {"full",     &DiskWT,  -1},
         {"hold",     &LUPHold,  0},
         {"lookup",   &LUPDelay, 1},
+        {"nostage",  &noStage,  01},
         {"overload", &MaxDelay,-1},
         {"peer",     &PSDelay,  1},
         {"qdl",      &QryDelay, 1},
@@ -1520,7 +1523,11 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
               eDest->Say("Config warning: ignoring invalid delay option '",val,"'.");
            val = CFile.GetWord();
           }
-     return 0;
+
+// Set the nostage option here
+//
+   if (noStage) baseFS.SetTries(false, noStage);
+   return 0;
 }
 
 /******************************************************************************/
@@ -1579,6 +1586,8 @@ int XrdCmsConfig::xdefs(XrdSysError *eDest, XrdOucStream &CFile)
                                  redirecting a client. This is the
                                  default for non-proxy configurations.    top
 
+             retries <n>         Maximum number of select retries.
+
    Type: Any, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
@@ -1588,7 +1597,7 @@ int XrdCmsConfig::xdfs(XrdSysError *eDest, XrdOucStream &CFile)
 {
     int Opts = XrdCmsBaseFS::DFSys | (isProxy ? XrdCmsBaseFS::Immed : 0)
              | (!isManager && isServer ? XrdCmsBaseFS::Servr: 0);
-    int Hold = 0, limCent = 0, limFix = 0, limV = 0, qMax = 0;
+    int Hold = 0, limCent = 0, limFix = 0, limV = 0, qMax = 0, rTry = 0;
     char *val;
 
 // If we are a meta-manager or a peer, ignore this option
@@ -1638,6 +1647,11 @@ do{     if (!strcmp("mdhold",  val))
                   return 1;
                  }
            }
+   else if (!strcmp("retries", val))
+           {if (!(val = CFile.GetWord()))
+               {eDest->Emsg("Config","retries value not specified.");    return 1;}
+            if (XrdOuca2x::a2i(*eDest, "retries value", val, &rTry, 1))  return 1;
+           }
    else {eDest->Emsg("Config", "invalid dfs option '",val,"'."); return 1;}
   } while((val = CFile.GetWord()));
 
@@ -1663,6 +1677,7 @@ do{     if (!strcmp("mdhold",  val))
 
 // All done, simply set the values
 //
+   baseFS.SetTries(true, rTry);
    baseFS.Limit(limV, qMax);
    baseFS.Init(Opts, Hold, Hold*10);
    return 0;
