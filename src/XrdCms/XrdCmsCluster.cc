@@ -947,14 +947,14 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // make sure the client is needlessly avoiding them as this signals an error.
 //
    if (baseFS.isDFS())
-      {if (Sel.nmask)
+      {if (Sel.nmask && !(Sel.Opts & XrdCmsSelect::NoTryLim))
           {pmask = (isRW ? pinfo.rwvec : pinfo.rovec) & Sel.nmask;
            if (!(Sel.Opts & XrdCmsSelect::Online))
               pmask |= pinfo.ssvec & Sel.nmask;
            if (pmask && maxBits(pmask, baseFS.dfsTries()))
               {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                "Too many attempts to gain dfs %s access to the file", Amode)+1;
-               return -3;
+               return RetryErr;
               }
           }
        pmask = amask;
@@ -1051,12 +1051,12 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // Check if should eliminate staging servers. We may need to do this if the
 // client has been eliminating too many of them as they all should be equal.
 //
-   if (Sel.nmask && pinfo.ssvec
+   if (Sel.nmask && pinfo.ssvec && !(Sel.Opts & XrdCmsSelect::NoTryLim)
    &&  maxBits(Sel.nmask & pinfo.ssvec, baseFS.stgTries()))
       {if (!pmask)
           {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
            "Too many attempts to stage %s access to the file", Amode)+1;
-           return -3;
+           return RetryErr;
           }
        smask = 0;
       }

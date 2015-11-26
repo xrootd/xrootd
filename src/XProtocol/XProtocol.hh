@@ -755,6 +755,8 @@ static int mapError(int rc)
            case EISDIR:       return kXR_isDirectory;
            case EEXIST:       return kXR_InvalidRequest;
            case ETXTBSY:      return kXR_inProgress;
+           case ENODEV:       return kXR_FSError;
+           case EFAULT:       return kXR_ServerError;
            default:           return kXR_FSError;
           }
       }

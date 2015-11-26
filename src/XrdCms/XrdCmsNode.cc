@@ -1000,6 +1000,8 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 {
    EPNAME("do_Select")
+//                      kXR_NotFound  kXR_IOError  kXR_FSError  kXR_ServerError
+   static int rtEC[] = {kYR_ENOENT,   kYR_EIO,     kYR_FSError, kYR_SrvError};
    XrdCmsRRQInfo reqInfo(Instance,RSlot,Arg.Request.streamid,Config.QryMinum);
    XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.Path, Arg.PathLen-1);
    struct iovec ioV[2];
@@ -1051,6 +1053,8 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
       {XrdNetAddr avoidAddr;
        char *Comma;
        DEBUGR(theopts <<' ' <<Arg.Path <<" avoiding " <<Avoid);
+       if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL)
+          Sel.Opts |= XrdCmsSelect::NoTryLim;
        Sel.InfoP = 0;
        do {if ((Comma = index(Avoid,','))) *Comma = '\0';
            if (*Avoid == '+') Sel.nmask |= Cluster.getMask(Avoid+1);
@@ -1070,7 +1074,11 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
            DEBUGR("delay " <<rc <<' ' <<Arg.Path);
           } else {
            Arg.Request.rrCode = kYR_error;
-           Sel.Resp.Port      = kYR_ENOENT;
+           if (rc != XrdCmsCluster::RetryErr) Sel.Resp.Port = kYR_ENOENT;
+              else {int rtRC = (Arg.Opts & CmsSelectRequest::kYR_tryMASK)
+                               >> CmsSelectRequest::kYR_trySHFT;
+                    Sel.Resp.Port = rtEC[rtRC];
+                   }
            DEBUGR("failed; " <<Sel.Resp.Data << ' ' <<Arg.Path);
           }
       } else if (!Sel.Resp.DLen) return 0;

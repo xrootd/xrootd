@@ -64,6 +64,7 @@ enum {Write   = 0x00010, // File will be open in write mode     (select & cache)
       isMeta  = 0x02000, // Only inode information being changed(select   only)
       Freshen = 0x04000, // Freshen access times                (prep     only)
       Replica = 0x08000, // File will be replicated (w/ Create) (select   only)
+      NoTryLim= 0x10000, // Do not apply the retry limit
       MWFiles = 0x20000, // Multiwrite files allowed            (select   only)
       Advisory= 0x40000, // Cache A/D is advisory (no delay)    (have   & cache)
       Pending = 0x80000, // File being staged                   (have   & cache)

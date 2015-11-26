@@ -337,6 +337,7 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
    int            n, iovcnt;
    char           Work[xNum*12];
    struct iovec   xmsg[xNum];
+   char          *triedRC;
 
 // Fill out the RR data structure
 //
@@ -397,6 +398,19 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                      ?  CmsSelectRequest::kYR_retipv64 :
                         CmsSelectRequest::kYR_retipv6);
          }
+
+   if (Data.Avoid && Env && (triedRC = Env->Get("triedrc")))
+      {     if (!strcmp(triedRC, "enoent"))
+               Data.Opts |= CmsSelectRequest::kYR_tryMISS;
+       else if (!strcmp(triedRC, "ioerr"))
+               Data.Opts |= CmsSelectRequest::kYR_tryIOER;
+       else if (!strcmp(triedRC, "fserr"))
+               Data.Opts |= CmsSelectRequest::kYR_tryFSER;
+       else if (!strcmp(triedRC, "srverr"))
+               Data.Opts |= CmsSelectRequest::kYR_trySVER;
+       else if (!strcmp(triedRC, "resel"))
+               Data.Opts |= CmsSelectRequest::kYR_tryRSEL;
+      }
   }
 
 // Pack the arguments

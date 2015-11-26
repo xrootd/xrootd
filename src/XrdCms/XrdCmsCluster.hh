@@ -183,6 +183,7 @@ void            ResetRef(SMask_t smask);
 
 // Called to select the best possible node to serve a file (two forms)
 //
+static const int RetryErr = -3;
 int             Select(XrdCmsSelect &Sel);
 
 int             Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
