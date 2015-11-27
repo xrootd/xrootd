@@ -311,7 +311,7 @@ void XrdOucBackTrace::DoBT(const char *head,  void *thisP, void *objP,
 //
    if (!head) head = "";
    if (!tail) tail = "";
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
    tid     = syscall(SYS_gettid);
 #else
    tid     = XrdSysThread::ID();
@@ -478,7 +478,7 @@ void XrdOucBackTrace::XrdBT(const char *head,  void *thisP, void *objP,
    if (!tail) tail = "";
    reqInfo = CvtReq(0, reqN);
    rspInfo = CvtRsp(0, rspN);
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
    tid     = syscall(SYS_gettid);
 #else
    tid     = XrdSysThread::ID();
