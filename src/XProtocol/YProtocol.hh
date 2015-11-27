@@ -130,7 +130,9 @@ enum YErrorCode
    kYR_ENAMETOOLONG,
    kYR_ENETUNREACH,
    kYR_ENOTBLK,
-   kYR_EISDIR
+   kYR_EISDIR,
+   kYR_FSError,
+   kYR_SrvError
 };
 
 struct CmsResponse
@@ -455,23 +457,31 @@ struct CmsSelectRequest
 //     kXR_string    Ident;
 //     kXR_unt32     Opts;
 
-enum  {kYR_refresh = 0x0001,
-       kYR_create  = 0x0002, // May combine with trunc -> delete
-       kYR_online  = 0x0004,
-       kYR_read    = 0x0008, // Default
-       kYR_trunc   = 0x0010, // -> write
-       kYR_write   = 0x0020,
-       kYR_stat    = 0x0040, // Exclsuive
-       kYR_metaop  = 0x0080,
-       kYR_replica = 0x0100, // Only in combination with create
-       kYR_mwfiles = 0x0200, // Multiple writables files are OK
-       kYR_retipv4 = 0x0000,  // Client is only IPv4
-       kYR_retipv46= 0x1000,  // Client is IPv4 IPv6
-       kYR_retipv6 = 0x2000,  // Client is only IPv6
-       kYR_retipv64= 0x3000,  // Client is IPv6 IPv4
-       kYR_retipmsk= 0x3000,  // Mask  to isolate retipcxx bits
-       kYR_retipsft= 12,      // Shift to convert retipcxx bits
-       kYR_prvtnet = 0x8000   // Client is using a private address
+enum  {kYR_refresh = 0x00000001,
+       kYR_create  = 0x00000002, // May combine with trunc -> delete
+       kYR_online  = 0x00000004,
+       kYR_read    = 0x00000008, // Default
+       kYR_trunc   = 0x00000010, // -> write
+       kYR_write   = 0x00000020,
+       kYR_stat    = 0x00000040, // Exclsuive
+       kYR_metaop  = 0x00000080,
+       kYR_replica = 0x00000100, // Only in combination with create
+       kYR_mwfiles = 0x00000200, // Multiple writables files are OK
+       kYR_retipv4 = 0x00000000,  // Client is only IPv4
+       kYR_retipv46= 0x00001000,  // Client is IPv4 IPv6
+       kYR_retipv6 = 0x00002000,  // Client is only IPv6
+       kYR_retipv64= 0x00003000,  // Client is IPv6 IPv4
+       kYR_retipmsk= 0x00003000,  // Mask  to isolate retipcxx bits
+       kYR_retipsft= 12,          // Shift to convert retipcxx bits
+       kYR_prvtnet = 0x00008000,  // Client is using a private address
+
+       kYR_tryMISS = 0x00000000,  // Retry due to missing file (triedrc=enoent)
+       kYR_tryIOER = 0x00010000,  // Retry due to I/O error    (triedrc=ioerr)
+       kYR_tryFSER = 0x00020000,  // Retry due to FS error     (triedrc=fserr)
+       kYR_trySVER = 0x00030000,  // Retry due to server error (triedrc=srverr)
+       kYR_tryMASK = 0x00030000,  // Mask to isolate retry reason
+       kYR_trySHFT = 16,          // Amount to shift right
+       kYR_tryRSEL = 0x00040000   // Retry for reselection     (triedrc=resel)
       };
 //     kXR_string    Path;
 //     kXR_string    Opaque; // Optional

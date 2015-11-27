@@ -6,7 +6,7 @@ if ( LIBXML2_FOUND )
         XrdXml/XrdXmlRdrXml2.cc
         XrdXml/XrdXmlRdrXml2.hh )
    set( XRDXML2_LIBRARIES ${LIBXML2_LIBRARIES} )
-   if( CMAKE_VERSION VERSION_LESS "2.8" )
+   if( CMAKE_VERSION VERSION_LESS "2.8" OR ${Solaris} STREQUAL "TRUE")
       INCLUDE_DIRECTORIES( ${LIBXML2_INCLUDE_DIR} )
    endif()
 else()

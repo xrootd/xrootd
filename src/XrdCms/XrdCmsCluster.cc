@@ -943,10 +943,21 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
       }
 
 // If we are running a shared file system preform an optional restricted
-// pre-selection and then do a standard selection.
+// pre-selection and then do a standard selection. Since all nodes are equal,
+// make sure the client is needlessly avoiding them as this signals an error.
 //
    if (baseFS.isDFS())
-      {pmask = amask;
+      {if (Sel.nmask && !(Sel.Opts & XrdCmsSelect::NoTryLim))
+          {pmask = (isRW ? pinfo.rwvec : pinfo.rovec) & Sel.nmask;
+           if (!(Sel.Opts & XrdCmsSelect::Online))
+              pmask |= pinfo.ssvec & Sel.nmask;
+           if (pmask && maxBits(pmask, baseFS.dfsTries()))
+              {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
+               "Too many attempts to gain dfs %s access to the file", Amode)+1;
+               return RetryErr;
+              }
+          }
+       pmask = amask;
        smask = (Sel.Opts & XrdCmsSelect::Online ? 0 : pinfo.ssvec & amask);
        if (baseFS.Trim())
           {Sel.Resp.DLen = 0;
@@ -978,7 +989,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
                    {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,eExists);
                     if (!(Sel.Opts & XrdCmsSelect::MWFiles))
                        {if (!(Sel.Opts & XrdCmsSelect::isMeta)
-                        &&  Multiple(Sel.Vec.hf))       return SelFail(Sel,eDups);
+                        &&  maxBits(Sel.Vec.hf,2))      return SelFail(Sel,eDups);
                         if ((Sel.Vec.hf & pinfo.rwvec)
                         !=  (Sel.Vec.hf & pinfo.rovec)) return SelFail(Sel,eROfs);
                        }
@@ -1033,9 +1044,25 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 //
    if (noSel) return 0;
 
-// Select a node
+// Check if we have no useable servers
 //
    if (dowt) return Unuseable(Sel);
+
+// Check if should eliminate staging servers. We may need to do this if the
+// client has been eliminating too many of them as they all should be equal.
+//
+   if (Sel.nmask && pinfo.ssvec && !(Sel.Opts & XrdCmsSelect::NoTryLim)
+   &&  maxBits(Sel.nmask & pinfo.ssvec, baseFS.stgTries()))
+      {if (!pmask)
+          {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
+           "Too many attempts to stage %s access to the file", Amode)+1;
+           return RetryErr;
+          }
+       smask = 0;
+      }
+
+// Select a node
+//
    return SelNode(Sel, pmask, smask);
 }
 
@@ -1455,6 +1482,27 @@ int XrdCmsCluster::Multiple(SMask_t mVec)
    return isMult[mVec];
 }
   
+/******************************************************************************/
+/*                               m a x B i t s                                */
+/******************************************************************************/
+  
+bool XrdCmsCluster::maxBits(SMask_t mVec, int mbits)
+{
+   int count = 0;
+
+// Count bits. This is the fastest way assuming few bits are set
+//
+   while(mVec)
+        {mVec &= (mVec - 1);
+         count++;
+         if (count >= mbits) return true;
+        }
+
+// Indicate we have not reached the maximum bits set
+//
+   return false;
+}
+
 /******************************************************************************/
 /*                                R e c o r d                                 */
 /******************************************************************************/

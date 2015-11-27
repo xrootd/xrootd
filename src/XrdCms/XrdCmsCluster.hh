@@ -183,6 +183,7 @@ void            ResetRef(SMask_t smask);
 
 // Called to select the best possible node to serve a file (two forms)
 //
+static const int RetryErr = -3;
 int             Select(XrdCmsSelect &Sel);
 
 int             Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
@@ -213,6 +214,7 @@ XrdCmsNode *AddAlt(XrdCmsClustID *cidP, XrdLink *lp, int port, int Status,
 XrdCmsNode *calcDelay(XrdCmsSelector &selR);
 int         Drop(int sent, int sinst, XrdCmsDrop *djp=0);
 void        Record(char *path, const char *reason, bool force=false);
+bool        maxBits(SMask_t mVec, int mbits);
 int         Multiple(SMask_t mVec);
 enum        {eExists, eDups, eROfs, eNoRep, eNoSel, eNoEnt}; // Passed to SelFail
 int         SelFail(XrdCmsSelect &Sel, int rc);

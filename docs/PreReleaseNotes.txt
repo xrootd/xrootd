@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * [Server] Let client inform redirector why it's retrying a lookup
+    using the triedrc CGI element.
   * [Server] Add cms.cidtag directive to qualify the global cluster id
     (solves dpm problem).
   * [Server] Make it possible to effeciently query an external database
@@ -25,12 +27,14 @@ Prerelease Notes
   * [Server] Return correct response to a delayed open.
 
 + **Minor bug fixes**
+  * [Server] Avoid redirection loop during error recovery in a uniform cluster.
   * [Server] Make sure N2N gets configured for the cmsd when actually needed.
   * [Server] Properly handle an inifit NPROC limit. Fixes #288.
   * [Server] Make sure the cluster ID is always formatted the same way.
   * [Server] Correctly compute timeout wait.
 
 + **Miscellaneous**
+  * [Server] Changes to allow for Solaris compilation.
   * [Server] Detect cyclic DNS host registration when processing '+' hosts.
   * [Server] Display manager IP addresses during '+' host resolution.
   * [Util] Avoid compiler warning about unsafe mktemp.
