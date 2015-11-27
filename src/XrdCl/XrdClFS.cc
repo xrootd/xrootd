@@ -1097,6 +1097,12 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
       files.push_back( args[i] );
   }
 
+  if( files.empty() )
+  {
+    log->Error( AppMsg, "Filename missing." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
   //----------------------------------------------------------------------------
   // Run the command
   //----------------------------------------------------------------------------
