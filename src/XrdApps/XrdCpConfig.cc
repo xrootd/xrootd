@@ -367,7 +367,7 @@ do{while(optind < Argc && Legacy(optind)) {}
    if (OpSpec & DoCksum)
       {if (CksData.Length && numFiles > 1)
           FMSG("Checksum with fixed value requires a single input file.", 2);
-       if (OpSpec & DoRecurse)
+       if (CksData.Length && OpSpec & DoRecurse)
           FMSG("Checksum with fixed value conflicts with '--recursive'.", 2);
       }
 

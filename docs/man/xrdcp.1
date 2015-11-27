@@ -26,7 +26,7 @@ another. The data source and destination may be a local
 or remote file or directory.  Additionally, the data source may also reside
 on multiple servers.
 .SH OPTIONS
-\fB-C\fR | \fB--cksum\fR \fItype\fR[\fB:\fR\fIvalue\fR|\fIprint\fR]
+\fB-C\fR | \fB--cksum\fR \fItype\fR[\fB:\fR\fIvalue\fR|\fIprint\fR|\fIsource\fR]
 .RS 5
 obtains the checksum of \fItype\fR (i.e. adler32, crc32, or md5) from the source,
 computes the checksum at the destination, and verifies that they are the same. If a \fIvalue\fR
@@ -142,9 +142,9 @@ local.
 Legacy options are provided for backward compatability. These are now
 deprecated and should be avoided.
 .RE
-\fB--adler\fR
+\fB-adler\fR
 .RS 5
-equivalent to "\fB--cksum adler32:print\fR".
+equivalent to "\fB--cksum adler32:source\fR".
 
 .RE
 \fB-DI\fR\fIpname numberval\fR
@@ -159,7 +159,7 @@ set the internal parameter \fIpname\fR with the string value \fIstringval\fR.
 .RE
 \fB-md5\fR
 .RS 5
-equivalent to "\fB--cksum md5:print\fR".
+equivalent to "\fB--cksum md5:source\fR".
 
 .RE
 \fB-np\fR
