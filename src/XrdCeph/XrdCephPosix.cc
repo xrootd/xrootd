@@ -556,6 +556,28 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
   }
 }
 
+ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset) {
+  std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
+  if (it != g_fds.end()) {
+    CephFileRef &fr = it->second;
+    logwrapper((char*)"ceph_write: for fd %d, count=%d", fd, count);
+    if ((fr.flags & (O_WRONLY|O_RDWR)) == 0) {
+      return -EBADF;
+    }
+    libradosstriper::RadosStriper *striper = getRadosStriper(fr);
+    if (0 == striper) {
+      return -EINVAL;
+    }
+    ceph::bufferlist bl;
+    bl.append((const char*)buf, count);
+    int rc = striper->write(fr.name, bl, count, offset);
+    if (rc) return rc;
+    return count;
+  } else {
+    return -EBADF;
+  }
+}
+
 static void ceph_aio_complete(rados_completion_t c, void *arg) {
   AioArgs *awa = reinterpret_cast<AioArgs*>(arg);
   size_t rc = rados_aio_get_return_value(c);
@@ -612,6 +634,28 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
     if (rc < 0) return rc;
     bl.copy(0, rc, (char*)buf);
     fr.offset += rc;
+    return rc;
+  } else {
+    return -EBADF;
+  }
+}
+
+ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
+  std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
+  if (it != g_fds.end()) {
+    CephFileRef &fr = it->second;
+    logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
+    if ((fr.flags & (O_WRONLY|O_RDWR)) != 0) {
+      return -EBADF;
+    }
+    libradosstriper::RadosStriper *striper = getRadosStriper(fr);
+    if (0 == striper) {
+      return -EINVAL;
+    }
+    ceph::bufferlist bl;
+    int rc = striper->read(fr.name, &bl, count, offset);
+    if (rc < 0) return rc;
+    bl.copy(0, rc, (char*)buf);
     return rc;
   } else {
     return -EBADF;

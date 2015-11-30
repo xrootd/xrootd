@@ -59,11 +59,7 @@ ssize_t XrdCephOssFile::Read(off_t offset, size_t blen) {
 }
 
 ssize_t XrdCephOssFile::Read(void *buff, off_t offset, size_t blen) {
-  off_t rc = ceph_posix_lseek(m_fd, offset, SEEK_SET);
-  if (offset == rc) {
-    return ceph_posix_read(m_fd, buff, blen);
-  }
-  return rc;
+  return ceph_posix_pread(m_fd, buff, blen, offset);
 }
 
 static void aioReadCallback(XrdSfsAio *aiop, size_t rc) {
@@ -84,11 +80,7 @@ int XrdCephOssFile::Fstat(struct stat *buff) {
 }
 
 ssize_t XrdCephOssFile::Write(const void *buff, off_t offset, size_t blen) {
-  off_t rc = ceph_posix_lseek(m_fd, offset, SEEK_SET);
-  if (offset == rc) {
-    return ceph_posix_write(m_fd, buff, blen);
-  }
-  return rc;
+  return ceph_posix_pwrite(m_fd, buff, blen, offset);
 }
 
 static void aioWriteCallback(XrdSfsAio *aiop, size_t rc) {
