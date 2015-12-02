@@ -36,6 +36,8 @@ Prerelease Notes
 + **Miscellaneous**
   * [Server] Changes to allow for Solaris compilation.
   * [Server] Detect cyclic DNS host registration when processing '+' hosts.
+  * New shared memory map package.
+  * [Server] Rationalize non-specfic locate requests.
   * [Server] Display manager IP addresses during '+' host resolution.
   * [Util] Avoid compiler warning about unsafe mktemp.
   * [App] Do not report expected errors as errors.
