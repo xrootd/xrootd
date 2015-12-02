@@ -27,6 +27,7 @@ Prerelease Notes
   * [Server] Return correct response to a delayed open.
 
 + **Minor bug fixes**
+  * [Server] Pass correct total data length in iovec to Send().
   * [Server] Avoid redirection loop during error recovery in a uniform cluster.
   * [Server] Make sure N2N gets configured for the cmsd when actually needed.
   * [Server] Properly handle an inifit NPROC limit. Fixes #288.
