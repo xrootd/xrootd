@@ -265,10 +265,12 @@ void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
    DEBUGXQ("wtrsp sent; resp "<<(RespP()->rType ? "here" : "pend"));
 
 // We are invoked when sync() waitresp has been sent, check if a response was
-// posted while this was going on. If so, make sure to send a wakepup.
+// posted while this was going on. If so, make sure to send a wakeup. Note
+// that the respWait flag is at this moment false as this is called in the
+// sync response path for fctl() and the response may have been posted.
 //
    if (RespP()->rType == XrdSsiRespInfo::isNone) respWait = true;
-      else if (respWait) WakeUp();
+      else WakeUp();
 }
 
 /******************************************************************************/
