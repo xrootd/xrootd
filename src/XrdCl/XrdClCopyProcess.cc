@@ -335,17 +335,23 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( parallelThreads == 1 )
     {
+      XRootDStatus err;
+
       for( it = pJobs.begin(); it != pJobs.end(); ++it )
       {
         QueuedCopyJob j( *it, progress, currentJob, totalJobs );
         j.Run(0);
 
         XRootDStatus st = (*it)->GetResults()->Get<XRootDStatus>( "status" );
-        if( !st.IsOK() ) return st;
+        if( err.IsOK() && !st.IsOK() )
+        {
+          err = st;
+        }
         ++currentJob;
       }
-    }
 
+      if( !err.IsOK() ) return err;
+    }
     //--------------------------------------------------------------------------
     // Multiple threads
     //--------------------------------------------------------------------------
