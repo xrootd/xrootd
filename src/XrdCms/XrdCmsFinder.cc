@@ -353,7 +353,7 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
        if (flags & SFS_O_LOCAL) return LocLocal(Resp, Env);
        Data.Request.rrCode = kYR_locate;
        Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0)
-                 | (flags & SFS_O_RESET  ? CmsSelectRequest::kYR_refresh : 0);
+                 | (flags & SFS_O_RESET  ? CmsLocateRequest::kYR_refresh : 0);
        if (Resp.getUCap() & XrdOucEI::uPrip)
           Data.Opts |= CmsLocateRequest::kYR_prvtnet;
        if (Resp.getUCap() & XrdOucEI::uIPv4)
@@ -365,6 +365,7 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                         CmsLocateRequest::kYR_retipv6);
          }
        if (flags & SFS_O_HNAME) Data.Opts |= CmsLocateRequest::kYR_retname;
+       if (flags & SFS_O_RAWIO) Data.Opts |= CmsLocateRequest::kYR_retuniq;
        if (doAll)               Data.Opts |= CmsLocateRequest::kYR_listall;
       } else
   {     Data.Request.rrCode = kYR_select;
@@ -843,7 +844,8 @@ int XrdCmsFinderRMT::Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *eP)
 //
    Data.Request.rrCode   = kYR_statfs;
    Data.Request.streamid = 0;
-   Data.Request.modifier = 0;
+   Data.Request.modifier = (eP && eP->Get("cms.qvfs")
+                         ?  CmsStatfsRequest::kYR_qvfs : 0);
    xmsg[0].iov_base      = (char *)&Data.Request;
    xmsg[0].iov_len       = sizeof(Data.Request);
 

@@ -940,19 +940,19 @@ XRootDStatus DoStatVFS( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   // Print the result
   //----------------------------------------------------------------------------
-  std::cout << "Path:                             ";
+  std::cout << "Path:                               ";
   std::cout << fullPath << std::endl;
-  std::cout << "Nodes with RW space:              ";
+  std::cout << "Nodes with RW space:                ";
   std::cout << info->GetNodesRW() << std::endl;
-  std::cout << "Size of RW space (MB):            ";
+  std::cout << "Size of largest RW space (MB):      ";
   std::cout << info->GetFreeRW() << std::endl;
-  std::cout << "Utilization of RW space (%):      ";
+  std::cout << "Utilization of RW space (%):        ";
   std::cout << (uint16_t)info->GetUtilizationRW() << std::endl;
-  std::cout << "Nodes with staging space:         ";
+  std::cout << "Nodes with staging space:           ";
   std::cout << info->GetNodesStaging() << std::endl;
-  std::cout << "Size of staging space (MB):       ";
+  std::cout << "Size of largest staging space (MB): ";
   std::cout << info->GetFreeStaging() << std::endl;
-  std::cout << "Utilization of staging space (%): ";
+  std::cout << "Utilization of staging space (%):   ";
   std::cout << (uint16_t)info->GetUtilizationStaging() << std::endl;
 
   delete info;

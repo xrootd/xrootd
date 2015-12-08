@@ -76,6 +76,8 @@ namespace XrdCl
     enum Flags
     {
       None     = 0,              //!< Nothing
+      Compress = kXR_compress,   //!< Read compressed data for open (ignored),
+                                 //!< for kXR_locate return unique hosts
       Delete   = kXR_delete,     //!< Open a new file, deleting any existing
                                  //!< file
       Force    = kXR_force,      //!< Ignore file usage rules, for kXR_locate

@@ -219,6 +219,7 @@ struct CmsLocateRequest
 
 enum  {kYR_refresh = 0x0001,
        kYR_retname = 0x0002,
+       kYR_retuniq = 0x0004,
        kYR_asap    = 0x0080,
        kYR_retipv4 = 0x0000,  // Client is only IPv4
        kYR_retipv46= 0x1000,  // Client is IPv4 IPv6
@@ -524,8 +525,11 @@ enum  {kYR_refresh = 0x01,   // Modifier
 //
 
 struct CmsStatfsRequest
-{      CmsRRHdr      Hdr;
+{      CmsRRHdr      Hdr;    // Modifier used with following options
 //     kXR_string    Path;
+
+enum  {kYR_qvfs    = 0x0001, // Virtual file system query
+      };
 };
 
 /******************************************************************************/

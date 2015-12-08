@@ -2050,6 +2050,8 @@ namespace XrdCl
             o << "kXR_nowait ";
           if( sreq->options & kXR_force )
             o << "kXR_force ";
+          if( sreq->options & kXR_compress )
+            o << "kXR_compress ";
         }
         o << ")";
         break;

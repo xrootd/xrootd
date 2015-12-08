@@ -1170,9 +1170,10 @@ int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
   
 void XrdCmsCluster::Space(SpaceData &sData, SMask_t smask)
 {
-   int i;
    XrdCmsNode *nP;
    SMask_t bmask;
+   int i;
+   bool doAll = !baseFS.isDFS();
 
 // Obtain a lock on the table and screen out peer nodes
 //
@@ -1182,12 +1183,16 @@ void XrdCmsCluster::Space(SpaceData &sData, SMask_t smask)
 // Run through the table getting space information
 //
    for (i = 0; i <= STHi; i++)
-       if ((nP = NodeTab[i]) && nP->isNode(bmask)
-       && !(nP->isOffline)   && nP->isRW)
-          {sData.Total += nP->DiskTotal;
-           sData.sNum++;
-           if (sData.sFree < nP->DiskFree)
-              {sData.sFree = nP->DiskFree; sData.sUtil = nP->DiskUtil;}
+       if ((nP = NodeTab[i]) && nP->isNode(bmask) && !(nP->isOffline))
+          {if (doAll || !sData.Total) 
+              {sData.Total += nP->DiskTotal;
+               sData.TotFr += nP->DiskFree;
+              }
+           if (nP->isRW & XrdCmsNode::allowsSS)
+              {sData.sNum++;
+               if (sData.sFree < nP->DiskFree)
+                  {sData.sFree = nP->DiskFree; sData.sUtil = nP->DiskUtil;}
+              }
            if (nP->isRW & XrdCmsNode::allowsRW)
               {sData.wNum++;
                if (sData.wFree < nP->DiskFree)
