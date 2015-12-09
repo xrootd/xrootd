@@ -37,6 +37,7 @@ Prerelease Notes
   * [Server] Correctly compute timeout wait.
 
 + **Miscellaneous**
+  * [Server] Prevent cmsd reconnect storm when things get way slow.
   * [Client] Report reason for reselection via triedrc CGI element.
   * [Server] Changes to allow for Solaris compilation.
   * [Server] Detect cyclic DNS host registration when processing '+' hosts.
