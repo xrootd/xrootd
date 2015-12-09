@@ -28,6 +28,8 @@
 
 namespace XrdCl
 {
+  class AnyObject;
+
   //----------------------------------------------------------------------------
   //! A network socket
   //----------------------------------------------------------------------------
@@ -52,7 +54,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Socket( int socket = -1, SocketStatus status = Disconnected ):
         pSocket(socket), pStatus( status ), pServerAddr( 0 ),
-        pProtocolFamily( AF_INET )
+        pProtocolFamily( AF_INET ),
+        pChannelID( 0 )
       {
       };
 
@@ -196,6 +199,24 @@ namespace XrdCl
         return pServerAddr;
       }
 
+      //------------------------------------------------------------------------
+      //! Set Channel ID
+      //! (an object that allows to identify all sockets corresponding to the same channel)
+      //------------------------------------------------------------------------
+      void SetChannelID( AnyObject *channelID )
+      {
+        pChannelID = channelID;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get Channel ID
+      //! (an object that allows to identify all sockets corresponding to the same channel)
+      //------------------------------------------------------------------------
+      const AnyObject* GetChannelID() const
+      {
+        return pChannelID;
+      }
+
     private:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO
@@ -219,6 +240,7 @@ namespace XrdCl
       mutable std::string  pPeerName;
       mutable std::string  pName;
       int                  pProtocolFamily;
+      AnyObject           *pChannelID;
   };
 }
 
