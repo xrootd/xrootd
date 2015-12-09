@@ -216,6 +216,7 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 
    XrdCmsClientMan *Manp;
    XrdCmsRRData     Data;
+   unsigned int     iMan;
    int              iovcnt, is2way, doAll = 0, opQ1Len = 0, opQ2Len = 0;
    char             Work[xNum*12];
    struct iovec     xmsg[xNum];
@@ -287,7 +288,7 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 
 // Send message and simply wait for the reply
 //
-   if (Manp->Send(xmsg, iovcnt+1))
+   if (Manp->Send(iMan, xmsg, iovcnt+1))
       {if (doAll)
           {Data.Request.modifier |= kYR_dnf;
            Inform(Manp, xmsg, iovcnt+1);
@@ -309,6 +310,7 @@ void XrdCmsFinderRMT::Inform(XrdCmsClientMan *xman,
                              struct iovec     xmsg[], int xnum)
 {
    XrdCmsClientMan *Womp, *Manp;
+   unsigned int iMan;
 
 // Make sure we are configured
 //
@@ -320,7 +322,7 @@ void XrdCmsFinderRMT::Inform(XrdCmsClientMan *xman,
 // Start at the beginning (we will avoid the previously selected one)
 //
    Womp = Manp = myManagers;
-   do {if (Manp != xman && Manp->isActive()) Manp->Send(xmsg, xnum);
+   do {if (Manp != xman && Manp->isActive()) Manp->Send(iMan, xmsg, xnum);
       } while((Manp = Manp->nextManager()) != Womp);
 }
   
@@ -524,6 +526,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
    XrdOucTList       *tp, *op;
    XrdCmsClientMan   *Manp = 0;
 
+   unsigned int       iMan;
    int                iovcnt = 0, NoteLen, n;
    char               Prty[1032], *NoteNum = 0, *colocp = 0;
    char               Work[xNum*12];
@@ -548,7 +551,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
            return SFS_ERROR;
           }
        if (!(Manp = SelectManager(Resp, 0))) return ConWait;
-       if (Manp->Send((const struct iovec *)&xmsg, iovcnt+1)) return 0;
+       if (Manp->Send(iMan, (const struct iovec *)&xmsg, iovcnt+1)) return 0;
        DEBUG("Finder: Failed to send prepare cancel to " 
              <<Manp->Name() <<" reqid=" <<pargs.reqid);
        Resp.setErrInfo(RepDelay, "");
@@ -605,7 +608,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
          if (!(Manp = SelectManager(Resp, tp->text))) break;
          DEBUG("Finder: Sending " <<Manp->Name() <<' ' <<Data.Reqid
                       <<' ' <<Data.Path);
-         if (!Manp->Send((const struct iovec *)&xmsg, iovcnt+1)) break;
+         if (!Manp->Send(iMan, (const struct iovec *)&xmsg, iovcnt+1)) break;
          if ((tp = tp->next))
             {prepMutex.Lock(); XrdSysTimer::Wait(PrepWait); prepMutex.UnLock();}
          if (colocp) {Data.Request.modifier |= CmsPrepAddRequest::kYR_coloc;
@@ -698,6 +701,7 @@ int XrdCmsFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
                               struct iovec  *xmsg, int         xnum)
 {
    EPNAME("send2Man")
+   unsigned int     iMan;
    int              retc;
    XrdCmsClientMsg *mp;
    XrdCmsClientMan *Manp;
@@ -724,9 +728,9 @@ int XrdCmsFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
 
 // Send message and simply wait for the reply (msg object is locked via Alloc)
 //
-   if (!Manp->Send(xmsg, xnum) || (mp->Wait4Reply(Manp->waitTime())))
+   if (!Manp->Send(iMan, xmsg, xnum) || (mp->Wait4Reply(Manp->waitTime())))
       {mp->Recycle();
-       retc = Manp->whatsUp(Resp.getErrUser(), path);
+       retc = Manp->whatsUp(Resp.getErrUser(), path, iMan);
        Resp.setErrInfo(retc, "");
        return retc;
       }
