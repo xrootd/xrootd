@@ -401,7 +401,9 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
          }
 
    if (Data.Avoid && Env && (triedRC = Env->Get("triedrc")))
-      {     if (!strcmp(triedRC, "enoent"))
+      {char *comma = rindex(triedRC, ',');
+       if (comma) triedRC = comma+1;
+            if (!strcmp(triedRC, "enoent"))
                Data.Opts |= CmsSelectRequest::kYR_tryMISS;
        else if (!strcmp(triedRC, "ioerr"))
                Data.Opts |= CmsSelectRequest::kYR_tryIOER;

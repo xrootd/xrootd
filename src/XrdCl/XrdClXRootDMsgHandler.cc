@@ -1743,7 +1743,7 @@ namespace XrdCl
           (status.errNo == kXR_FSError || status.errNo == kXR_IOError ||
           status.errNo == kXR_ServerError || status.errNo == kXR_NotFound) )
       {
-        UpdateTriedCGI();
+        UpdateTriedCGI(status.errNo);
         if( status.errNo == kXR_NotFound )
           SwitchOnRefreshFlag();
         HandleError( RetryAtServer( pLoadBalancer.url ) );
@@ -1815,10 +1815,19 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Update the "tried=" part of the CGI of the current message
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::UpdateTriedCGI()
+  void XRootDMsgHandler::UpdateTriedCGI(uint32_t errNo)
   {
     URL::ParamsMap cgi;
     std::string    tried = pUrl.GetHostName();
+
+    // Report the reason for the failure to the next location
+    //
+    if (errNo)
+       {     if (errNo == kXR_NotFound)     cgi["triedrc"] = "enoent";
+        else if (errNo == kXR_IOError)      cgi["triedrc"] = "ioerr";
+        else if (errNo == kXR_FSError)      cgi["triedrc"] = "fserr";
+        else if (errNo == kXR_ServerError)  cgi["triedrc"] = "srverr";
+       }
 
     //--------------------------------------------------------------------------
     // If our current load balancer is a metamanager and we failed either

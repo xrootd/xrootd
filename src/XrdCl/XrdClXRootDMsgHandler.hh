@@ -324,7 +324,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Update the "tried=" part of the CGI of the current message
       //------------------------------------------------------------------------
-      void UpdateTriedCGI();
+      void UpdateTriedCGI(uint32_t errNo=0);
 
       //------------------------------------------------------------------------
       //! Switch on the refresh flag for some requests
