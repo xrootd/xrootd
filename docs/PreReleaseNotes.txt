@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * [Proxy] Default event loops to 3 and allow it to be set via config.
   * [Server] Let client inform redirector why it's retrying a lookup
     using the triedrc CGI element.
   * [Server] Add cms.cidtag directive to qualify the global cluster id
