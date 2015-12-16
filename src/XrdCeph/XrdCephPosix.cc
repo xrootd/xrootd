@@ -220,15 +220,15 @@ static int fillCephStripeUnit(const std::string &params, unsigned int offset, Xr
       if (NULL != env) {
         char* cStripeUnit = env->Get("cephStripeUnit");
         if (0 != cStripeUnit) {
-          file.stripeUnit = stoull(cStripeUnit);
+          file.stripeUnit = ::stoull(cStripeUnit);
         }
       }
     } else {
-      file.stripeUnit = stoull(params.substr(offset));
+      file.stripeUnit = ::stoull(params.substr(offset));
     }
     return params.size();
   } else {
-    file.stripeUnit = stoull(params.substr(offset, comPos-offset));
+    file.stripeUnit = ::stoull(params.substr(offset, comPos-offset));
     return comPos+1;
   }
 }
@@ -244,11 +244,11 @@ static void fillCephObjectSize(const std::string &params, unsigned int offset, X
     if (NULL != env) {
       char* cObjectSize = env->Get("cephObjectSize");
       if (0 != cObjectSize) {
-        file.objectSize = stoull(cObjectSize);
+        file.objectSize = ::stoull(cObjectSize);
       }
     }
   } else {
-    file.objectSize = stoull(params.substr(offset));
+    file.objectSize = ::stoull(params.substr(offset));
   }
 }
 
