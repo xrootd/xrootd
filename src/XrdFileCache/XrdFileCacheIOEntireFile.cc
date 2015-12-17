@@ -87,7 +87,10 @@ int IOEntireFile::Read (char *buff, long long off, int size)
 
    // protect from reads over the file size
    if (off >= m_io.FSize() || off < 0)
-      return 0;
+   {
+      errno = EINVAL;
+      return -1;
+   }
    if (off + size > m_io.FSize())
       size = m_io.FSize() - off;
 
