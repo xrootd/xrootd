@@ -86,7 +86,9 @@ int IOEntireFile::Read (char *buff, long long off, int size)
    clLog()->Debug(XrdCl::AppMsg, "IO::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
 
    // protect from reads over the file size
-   if (off >= m_io.FSize() || off < 0)
+   if (off >= m_io.FSize())
+      return 0;
+   if (off < 0)
    {
       errno = EINVAL;
       return -1;
