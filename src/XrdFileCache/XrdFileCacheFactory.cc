@@ -431,6 +431,7 @@ public:
             std::pair<map_i, map_i> ret = fmap.equal_range(nt); 
             for (map_i it2 = ret.first; it2 != ret.second; ++it2)
                nBlckAccum -= it2->second.nBlck;
+	    fmap.erase(ret.first, ret.second);
          }
       }
    }
@@ -539,27 +540,24 @@ void Factory::CacheDirCleanup()
             // loop over map and remove files with highest value of access time
             for (FPurgeState::map_i it = purgeState.fmap.begin(); it != purgeState.fmap.end(); ++it)
             {
-               std::pair<FPurgeState::map_i, FPurgeState::map_i> ret = purgeState.fmap.equal_range(it->first); 
-               for (FPurgeState::map_i it2 = ret.first; it2 != ret.second; ++it2)
+               std::string path = it->second.path;
+               // remove info file
+               if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
                {
-                  std::string path = it2->second.path;
-                  // remove info file
-                  if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
-                  {
-                     bytesToRemove -= fstat.st_size;
-                     oss->Unlink(path.c_str());
-                     clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
-                  }
-
-                  // remove data file
-                  path = path.substr(0, path.size() - strlen(XrdFileCache::Info::m_infoExtension));
-                  if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
-                  {
-                     bytesToRemove -= fstat.st_size;
-                     oss->Unlink(path.c_str());
-                     clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
-                  }
+                  bytesToRemove -= fstat.st_size;
+                  oss->Unlink(path.c_str());
+                  clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                }
+
+               // remove data file
+               path = path.substr(0, path.size() - strlen(XrdFileCache::Info::m_infoExtension));
+               if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
+               {
+                  bytesToRemove -= fstat.st_size;
+                  oss->Unlink(path.c_str());
+                  clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+               }
+
                if (bytesToRemove <= 0)
                   break;
             }
