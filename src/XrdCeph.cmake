@@ -30,6 +30,7 @@ ENDIF()
 
 target_link_libraries(
   XrdCephPosix
+  XrdUtils
   ${RADOS_LIBS} )
 
 set_target_properties(
