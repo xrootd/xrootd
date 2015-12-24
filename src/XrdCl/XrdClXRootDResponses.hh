@@ -841,7 +841,7 @@ namespace XrdCl
       //! @param status   status of the request
       //! @param response an object associated with the response
       //!                 (request dependent)
-      //! @param urlList  list of hosts the request was redirected to
+      //! @param hostList list of hosts the request was redirected to
       //------------------------------------------------------------------------
       virtual void HandleResponseWithHosts( XRootDStatus *status,
                                             AnyObject    *response,

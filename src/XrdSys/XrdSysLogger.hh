@@ -54,7 +54,7 @@ public:
 //-----------------------------------------------------------------------------
 //! Constructor
 //!
-//! @param  errFD     is the filedescriptor of where error messages normally
+//! @param  ErrFD     is the filedescriptor of where error messages normally
 //!                   go if this class is not used. Default is stderr.
 //! @param  xrotate   when not zero performs internal log rotatation. Otherwise,
 //!                   log rotation is suppressed. See also setRotate().
@@ -146,7 +146,7 @@ int  originalFD() {return baseFD;}
 //! Parse the keep option argument.
 //!
 //! @param  arg       Pointer to the argument. The argument syntax is:
-//!                   <count> | <size> | fifo | <signame>
+//!                   \<count\> | \<size\> | fifo | \<signame\>
 //!
 //! @return !0        Parsing succeeded. The return value is the argument that
 //!                   must be passed as the lfh parameter to Bind().

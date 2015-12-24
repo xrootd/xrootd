@@ -251,7 +251,7 @@ enum EventCode {readEvents  = 0x01, //!< Read  and Read  Timeouts
 //! Get the callback object and argument associated with this channel.
 //!
 //! @param cbP   Place where the pointer is to be returned.
-//! @param caP   Place where the callback argument is to be returned.
+//! @param cbArg Place where the callback argument is to be returned.
 //-----------------------------------------------------------------------------
 
         void GetCallBack(CallBack **cbP, void **cbArg);
