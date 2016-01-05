@@ -28,6 +28,7 @@ Prerelease Notes
   * [Server] Return correct response to a delayed open.
 
 + **Minor bug fixes**
+  * [Server] Be agnostc NTP defaults when rotating logs (fixes new RH7 defaults).
   * [All] Fix numerous issues with space reporting (spaceinfo, query space,
           statvfs) such a double counting, scaling, and format issues.
   * [Server] Pass correct total data length in iovec to Send().
