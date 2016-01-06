@@ -151,6 +151,11 @@ namespace XrdFileCache
          int GetNDownloadedBlocks() const;
 
          //---------------------------------------------------------------------
+         //! Get number of downloaded bytes
+         //---------------------------------------------------------------------
+         long long GetNDownloadedBytes() const;
+
+         //---------------------------------------------------------------------
          //! Update complete status
          //---------------------------------------------------------------------
          void CheckComplete();
@@ -202,6 +207,11 @@ namespace XrdFileCache
          if (TestBit(i)) cntd++;
 
       return cntd;
+   }
+
+   inline long long Info::GetNDownloadedBytes() const
+   {
+      return m_bufferSize * GetNDownloadedBlocks();
    }
 
    inline int Info::GetSizeInBytes() const
