@@ -155,13 +155,13 @@ namespace XrdSys
             {
               int r = 0;
 
-              pthread_cleanup_push( Cleanup, pValue );
               pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, 0 );
+              pthread_cleanup_push( Cleanup, pValue );
 
               r = syscall( SYS_futex, pValue, FUTEX_WAIT, newVal, 0, 0, 0 );
 
-              pthread_setcanceltype( PTHREAD_CANCEL_DEFERRED, 0 );
               pthread_cleanup_pop( 0 );
+              pthread_setcanceltype( PTHREAD_CANCEL_DEFERRED, 0 );
 
               if( r == 0 )               // we've been woken up
                 break;
