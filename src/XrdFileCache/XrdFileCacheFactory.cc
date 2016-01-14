@@ -488,7 +488,31 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
             }
             else
             {
-               log->Warning(XrdCl::AppMsg, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
+               // XXXX MT - get a lot of those ... use time from stat?
+               // Or just remove them?
+
+               log->Info(XrdCl::AppMsg, "FillFileMapRecurse() could not get access time for %s, trying stat.\n", np.c_str());
+
+               XrdOss* oss = Factory::GetInstance().GetOss();
+               struct stat fstat;
+
+               if (oss->Stat(np.c_str(), &fstat) == XrdOssOK)
+               {
+                  accessTime = fstat.st_mtim.tv_sec;
+                  log->Info(XrdCl::AppMsg, "FillFileMapRecurse() determined access time for %s via stat: %lld\n",
+                                                np.c_str(), accessTime);
+
+                  purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBytes());
+               }
+               else
+               {
+                  log->Warning(XrdCl::AppMsg, "FillFileMapRecurse() could not get access time for %s. Purging directly.\n",
+                               np.c_str());
+
+                  oss->Unlink(np.c_str());
+                  np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
+                  oss->Unlink(np.c_str());
+               }
             }
          }
          else if (dh->Opendir(np.c_str(), env) >= 0)
@@ -510,7 +534,7 @@ void Factory::CacheDirCleanup()
    struct stat fstat;
    XrdOucEnv env;
 
-   XrdOss* oss =  Factory::GetInstance().GetOss();
+   XrdOss* oss = Factory::GetInstance().GetOss();
    XrdOssVSInfo sP;
 
    while (1)
