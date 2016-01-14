@@ -265,7 +265,8 @@ do{while(nanosleep(&Midnite, &tleft) && EINTR == errno)
          Midnite.tv_nsec = tleft.tv_nsec;
         }
    if (Midnight(1) - time(0) >= 60) break;
-   Midnite = {1, 0};
+   Midnite.tv_sec  = 1;
+   Midnite.tv_nsec = 0;
   } while(ntpWait--);  // This avoids multiple wakeups when NTP adjusts clock
 #endif
 }
