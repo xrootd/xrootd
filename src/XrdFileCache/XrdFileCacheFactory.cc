@@ -411,7 +411,7 @@ public:
       std::string path;
       long long   nByte;
 
-      FS(const char* p, int n) : path(p), nByte(n) {}
+      FS(const char* p, long long n) : path(p), nByte(n) {}
    };
 
    typedef std::multimap<time_t, FS> map_t;
@@ -488,8 +488,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
             }
             else
             {
-               // XXXX MT - get a lot of those ... use time from stat?
-               // Or just remove them?
+               // cinfo file does not contain any known accesses, use stat.mtime instead.
 
                log->Info(XrdCl::AppMsg, "FillFileMapRecurse() could not get access time for %s, trying stat.\n", np.c_str());
 
@@ -506,6 +505,8 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                }
                else
                {
+                  // This really shouldn't happen ... but if it does remove cinfo and the data file right away.
+
                   log->Warning(XrdCl::AppMsg, "FillFileMapRecurse() could not get access time for %s. Purging directly.\n",
                                np.c_str());
 
