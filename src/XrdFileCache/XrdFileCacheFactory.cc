@@ -421,7 +421,7 @@ public:
 
    map_t fmap;
 
-   void checkFile (time_t iTime, const char* iPath,  int iNByte)
+   void checkFile (time_t iTime, const char* iPath,  long long iNByte)
    {
       if (nByteAccum < nByteReq || iTime < fmap.rbegin()->first)
       {
