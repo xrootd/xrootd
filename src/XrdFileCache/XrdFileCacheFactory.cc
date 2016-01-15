@@ -497,7 +497,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
 
                if (oss->Stat(np.c_str(), &fstat) == XrdOssOK)
                {
-                  accessTime = fstat.st_mtim.tv_sec;
+                  accessTime = fstat.st_mtime;
                   log->Info(XrdCl::AppMsg, "FillFileMapRecurse() determined access time for %s via stat: %lld\n",
                                                 np.c_str(), accessTime);
 
