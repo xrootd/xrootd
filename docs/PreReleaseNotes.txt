@@ -28,6 +28,8 @@ Prerelease Notes
   * [Server] Return correct response to a delayed open.
 
 + **Minor bug fixes**
+  * [Proxy] Do not use the ffs code path if nothing is writable. This avoids
+            initialization failure when the origin is a large WAN cluster.
   * [Server] Be agnostc NTP defaults when rotating logs (fixes new RH7 defaults).
   * [All] Fix numerous issues with space reporting (spaceinfo, query space,
           statvfs) such a double counting, scaling, and format issues.
