@@ -171,9 +171,11 @@ int XrdPssSys::Configure(const char *cfn)
                                                  {0,     0        }
                                                 };
    const char *xP;
+   XrdOucPList *fP;
    pthread_t tid;
    char *eP, theRdr[maxHLen+1024];
    int i, hpLen, NoGo = 0;
+   bool haveFwd = false;
 
 // Get environmental values
 //
@@ -261,7 +263,9 @@ int XrdPssSys::Configure(const char *cfn)
    i = 0;
    if ((eP = getenv("XRDOFS_FWD")))
       while(Fwd[i].Typ)
-           {if (!strstr(eP, Fwd[i].Typ)) *(Fwd[i].Loc) = 1; i++;}
+           {if (!strstr(eP, Fwd[i].Typ)) {*(Fwd[i].Loc) = 1; haveFwd = true;}
+            i++;
+           }
 
 // Configure the N2N library:
 //
@@ -278,6 +282,17 @@ int XrdPssSys::Configure(const char *cfn)
 // Setup the redirection url
 //
    strcpy(&theRdr[urlPlen], xP); urlRdr = strdup(theRdr);
+
+// Check if we have any r/w exports as this will determine whether or not we
+// need to initialize the ffs (we'd rather ot if at all possible).
+//
+   fP = XPList.First();
+   while(fP && !(fP->Flag() & XRDEXP_NOTRW)) fP = fP->Next();
+
+// We avoid initializing the ffs if we have no r/w paths or there is no need to
+// forward r/w metadata operations (e.g. rm, rmdir, etc).
+//
+   if (!fP || !haveFwd) return 0;
 
 // Now spwan a thread to complete ffs initialization which may hang for a while
 //
@@ -461,6 +476,18 @@ int XrdPssSys::getCache()
    if (theCache) {XrdPosixXrootd::setCache(theCache);}
       else eDest.Emsg("Config", "Unable to get cache object from", cPath);
    return theCache != 0;
+}
+  
+/******************************************************************************/
+/*                             g e t D o m a i n                              */
+/******************************************************************************/
+
+const char *XrdPssSys::getDomain(const char *hName)
+{
+   const char *dot = index(hName, '.');
+
+   if (dot) return dot+1;
+   return hName;
 }
   
 /******************************************************************************/
@@ -889,6 +916,12 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
    if (ManList) delete ManList;
    ManList = new XrdOucTList(mval, port);
 
+// We now set the default dirlist flag based on whether the origin is in or out
+// of domain. Composite listings are normally disabled for out of domain nodes.
+//
+   if (!index(mval, '.') || !strcmp(getDomain(mval), getDomain(myHost)))
+      XrdPosixXrootd::setEnv("DirlistDflt", 1);
+
 // All done
 //
    free(mval);
@@ -960,7 +993,8 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
          {"DataServerConn_ttl",    "DataServerTTL",1},       // Default  300
          {"DebugLevel",            "*",0},                   // Default   -1
          {"DebugMask",             "*",0},                   // Default   -1
-         {"DfltTcpWindowSize",     0,0},
+         {"DirlistAll",            "DirlistAll",0},
+         {"DataServerTTL",         "DataServerTTL",1},       // Default  300
          {"LBServerConn_ttl",      "LoadBalancerTTL",1},     // Default 1200
          {"LoadBalancerTTL",       "LoadBalancerTTL",1},     // Default 1200
          {"ParallelEvtLoop",       "ParallelEvtLoop",0},     // Default    3

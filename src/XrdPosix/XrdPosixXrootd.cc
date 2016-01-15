@@ -64,6 +64,7 @@
 namespace XrdPosixGlobals
 {
 XrdScheduler  *schedP = 0;
+XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 bool           psxDBG = (getenv("XRDPOSIX_DEBUG") != 0);
 };
 
@@ -1324,10 +1325,21 @@ void XrdPosixXrootd::setDebug(int val, bool doDebug)
 void XrdPosixXrootd::setEnv(const char *kword, int kval)
 {
    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+   static bool dlfSet = false;
 
-// Set the env value
+// Check for internal envars before setting the external one
 //
-   env->PutInt((std::string)kword, kval);
+        if (!strcmp(kword, "DirlistAll"))
+           {XrdPosixGlobals::dlFlag = (kval ? XrdCl::DirListFlags::Locate
+                                            : XrdCl::DirListFlags::None);
+            dlfSet = true;
+           }
+   else if (!strcmp(kword, "DirlistDflt"))
+           {if (!dlfSet)
+            XrdPosixGlobals::dlFlag = (kval ? XrdCl::DirListFlags::Locate
+                                            : XrdCl::DirListFlags::None);
+           }
+   else env->PutInt((std::string)kword, kval);
 }
   
 /******************************************************************************/
