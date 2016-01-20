@@ -404,10 +404,13 @@ int XrdNetIF::GetDest(char *dest, int dlen, ifType ifT, bool prefn)
 
 int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
 {
+   static const int prvIF[] = {havePrv4, havePrv6};
+   static const int pubIF[] = {havePub4, havePub6};
+
    char ipBuff[256];
    short ifIdx = 0, sval[4] = {0, 0, 0, 0};
    short iLen;
-   int   haveIF = 0;
+   int   ifT, haveIF = 0;
 
 #ifdef HAVE_GETIFADDRS
 
@@ -442,8 +445,8 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
               !(IN6_IS_ADDR_LINKLOCAL(&((sockaddr_in6 *)(ifP->ifa_addr))->sin6_addr)))
              )
             )
-            {if (ifP->ifa_addr->sa_family == AF_INET) haveIF |= haveIPv4;
-                else haveIF |= haveIPv6;
+            {if (ifP->ifa_addr->sa_family == AF_INET){haveIF |= haveIPv4;ifT=0;}
+                else {haveIF |= haveIPv6; ifT = 1;}
              if (ifList)
                 {netAddr.Set(ifP->ifa_addr);
                  if ((iLen = netAddr.Format(ipBuff, sizeof(ipBuff),
@@ -451,12 +454,16 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
                     {sval[2] = ifIdx;
                      sval[1] = (netAddr.isPrivate() ? 1 : 0);
                      sval[0] = iLen;
+                     haveIF |= (sval[1] ? prvIF[ifT] : pubIF[ifT]);
                      tLP = new XrdOucTList(ipBuff, sval);
                      if (tList) tLast->next = tLP;
                         else    tList       = tLP;
                      tLast = tLP;
                      n++;
                     }
+                } else {
+                 netAddr.Set(ifP->ifa_addr);
+                 haveIF |= (netAddr.isPrivate() ? prvIF[ifT] : pubIF[ifT]);
                 }
             }
           ifP = ifP->ifa_next;
