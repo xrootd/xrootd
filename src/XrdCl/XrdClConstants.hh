@@ -65,7 +65,7 @@ namespace XrdCl
   const int DefaultMultiProtocol        = 0;
   const int DefaultParallelEvtLoop      = 1;
 
-  const char * const DefaultPollerPreference   = "built-in,libevent";
+  const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";
   const char * const DefaultClientMonitor      = "";
   const char * const DefaultClientMonitorParam = "";
