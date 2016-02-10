@@ -17,6 +17,7 @@ set( LIBRARY_PATH_PREFIX "lib" )
 if( CMAKE_COMPILER_IS_GNUCXX )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=misleading-indentation" )
   # gcc 4.1 is retarded
   execute_process( COMMAND ${CMAKE_C_COMPILER} -dumpversion
                    OUTPUT_VARIABLE GCC_VERSION )
