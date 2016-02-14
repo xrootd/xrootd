@@ -353,7 +353,7 @@ inline void Wait() {while (sem_wait(&h_semaphore))
                                    {throw "sem_init() failed";}
                                }
  ~XrdSysSemaphore() {if (sem_destroy(&h_semaphore))
-                        {/* throw "sem_destroy() failed"; */}
+                        {abort();}
                     }
 
 private:
