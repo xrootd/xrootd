@@ -76,7 +76,7 @@ File::File(XrdOucCacheIO &inputIO, std::string& disk_file_path, long long iOffse
 m_input(inputIO),
 m_output(NULL),
 m_infoFile(NULL),
-
+m_cfi(Factory::GetInstance().RefConfiguration().m_bufferSize),
 m_temp_filename(disk_file_path),
 m_offset(iOffset),
 m_fileSize(iFileSize),
@@ -178,11 +178,7 @@ File::~File()
       Sync();
    }
    // write statistics in *cinfo file
-
-   // AMT append IO stat --- look new interface in master branch
-   // XXXX MT -- OK, what needs to be here?
    AppendIOStatToFileInfo();
-   // XXXX MT END
 
    clLog()->Info(XrdCl::AppMsg, "File::~File close data file %p",(void*)this , lPath());
    if (m_output)
@@ -485,7 +481,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
    for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
    {
-       clLog()->Dump(XrdCl::AppMsg, "--- File::Read() idx %d %s \n", block_idx, lPath());
+      clLog()->Dump(XrdCl::AppMsg, "--- File::Read() idx %d %s \n", block_idx, lPath());
       BlockMap_i bi = m_block_map.find(block_idx);  
 
       // In RAM or incoming?
@@ -516,8 +512,8 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             Block *b = RequestBlock(block_idx, false);
             // assert(b);
             if (!b) {
-            preProcOK = false;
-            break;
+               preProcOK = false;
+               break;
             }
             inc_ref_count(b);
             blks_to_process.push_back(b);
@@ -534,18 +530,13 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
    }
 
-
    m_downloadCond.UnLock();
 
-
-
-
-   if (!preProcOK)   {
+   if (!preProcOK) {
       for (BlockList_i i = blks_to_process.begin(); i!= blks_to_process.end(); ++i )
          dec_ref_count(*i);
       return -1;   // AMT ???
    }
-
 
    long long bytes_read = 0;
 
@@ -571,78 +562,78 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
    // Second, read blocks from disk.
    if ((!blks_on_disk.empty()) && (bytes_read >= 0)) {
-       int rc = ReadBlocksFromDisk(blks_on_disk, iUserBuff, iUserOff, iUserSize);
-       clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p, from disk %d. %s", (void*)iUserBuff, rc, lPath());
-       if (rc >= 0)
-       {
-           bytes_read += rc;
-       }
-       else
-       {
-           bytes_read = rc;
-           clLog()->Error(XrdCl::AppMsg, "File::Read() failed to read from disk. %s", lPath());
-           // AMT commented line below should not be an immediate return, can have block refcount increased and map increased
-           // return rc;
-       }
+      int rc = ReadBlocksFromDisk(blks_on_disk, iUserBuff, iUserOff, iUserSize);
+      clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p, from disk %d. %s", (void*)iUserBuff, rc, lPath());
+      if (rc >= 0)
+      {
+         bytes_read += rc;
+      }
+      else
+      {
+         bytes_read = rc;
+         clLog()->Error(XrdCl::AppMsg, "File::Read() failed to read from disk. %s", lPath());
+         // AMT commented line below should not be an immediate return, can have block refcount increased and map increased
+         // return rc;
+      }
    }
 
    // Third, loop over blocks that are available or incoming
    while ( (! blks_to_process.empty()) && (bytes_read >= 0))
    {
-       BlockList_t finished;
+      BlockList_t finished;
 
-       {
-           XrdSysCondVarHelper _lck(m_downloadCond);
+      {
+         XrdSysCondVarHelper _lck(m_downloadCond);
 
-           BlockList_i bi = blks_to_process.begin();
-           while (bi != blks_to_process.end())
-           {
-              // clLog()->Dump(XrdCl::AppMsg, "File::Read() searcing for block %p finished", (void*)(*bi));
-               if ((*bi)->is_finished())
-               {
-                  clLog()->Dump(XrdCl::AppMsg, "File::Read() found finished block %p %s", (void*)(*bi), lPath());
-                   finished.push_back(*bi);
-                   BlockList_i bj = bi++;
-                   blks_to_process.erase(bj);
-               }
-               else
-               {
-                   ++bi;
-               }
-           }
+         BlockList_i bi = blks_to_process.begin();
+         while (bi != blks_to_process.end())
+         {
+            // clLog()->Dump(XrdCl::AppMsg, "File::Read() searcing for block %p finished", (void*)(*bi));
+            if ((*bi)->is_finished())
+            {
+               clLog()->Dump(XrdCl::AppMsg, "File::Read() found finished block %p %s", (void*)(*bi), lPath());
+               finished.push_back(*bi);
+               BlockList_i bj = bi++;
+               blks_to_process.erase(bj);
+            }
+            else
+            {
+               ++bi;
+            }
+         }
 
-           if (finished.empty())
-           {
+         if (finished.empty())
+         {
 
-              clLog()->Dump(XrdCl::AppMsg, "File::Read() wait block begin %s", lPath());
+            clLog()->Dump(XrdCl::AppMsg, "File::Read() wait block begin %s", lPath());
 
-               m_downloadCond.Wait();
+            m_downloadCond.Wait();
 
-               clLog()->Dump(XrdCl::AppMsg, "File::Read() wait block end %s", lPath());
+            clLog()->Dump(XrdCl::AppMsg, "File::Read() wait block end %s", lPath());
 
-               continue;
-           }
-       }
+            continue;
+         }
+      }
 
-   clLog()->Dump(XrdCl::AppMsg, "File::Read() bytes read before processing blocks %d %s\n", bytes_read, lPath());
+      clLog()->Dump(XrdCl::AppMsg, "File::Read() bytes read before processing blocks %d %s\n", bytes_read, lPath());
 
       BlockList_i bi = finished.begin();
       while (bi != finished.end())
       {
          if ((*bi)->is_ok())
          {
-           long long user_off;     // offset in user buffer
-           long long off_in_block; // offset in block
-           long long size_to_copy;    // size to copy
+            long long user_off;     // offset in user buffer
+            long long off_in_block; // offset in block
+            long long size_to_copy;    // size to copy
 
-           // clLog()->Dump(XrdCl::AppMsg, "File::Read() Block finished ok.");
-           overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
+            // clLog()->Dump(XrdCl::AppMsg, "File::Read() Block finished ok.");
+            overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
 
-           clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p, from finished block %d , size %d end %s", (void*)iUserBuff, (*bi)->m_offset/BS, size_to_copy, lPath());
-           memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
-           bytes_read += size_to_copy;
+            clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p, from finished block %d , size %d end %s", (void*)iUserBuff, (*bi)->m_offset/BS, size_to_copy, lPath());
+            memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
+            bytes_read += size_to_copy;
 
-           CheckPrefetchStatRAM(*bi);
+            CheckPrefetchStatRAM(*bi);
          }
          else // it has failed ... krap up.
          {
@@ -683,7 +674,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
       delete direct_handler;
    }
- clLog()->Debug(XrdCl::AppMsg, "File::Read() before assert %s.", lPath());
+   clLog()->Debug(XrdCl::AppMsg, "File::Read() before assert %s.", lPath());
    assert(iUserSize >= bytes_read);
 
    // Last, stamp and release blocks, release file.
@@ -746,7 +737,6 @@ void File::WriteBlockToDisk(Block* b)
    assert((m_cfi.TestBit(pfIdx) == false) && "Block not yet fetched.");
    m_cfi.SetBitFetched(pfIdx);
    m_downloadCond.UnLock();
-
 
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
@@ -901,7 +891,6 @@ const char* File::lPath() const
 return m_temp_filename.c_str();
 }
 
-// XXXX MT: is this needed ????
 //______________________________________________________________________________
 void File::AppendIOStatToFileInfo()
 {

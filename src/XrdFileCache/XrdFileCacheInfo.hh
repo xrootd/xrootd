@@ -100,12 +100,12 @@ namespace XrdFileCache
          //!
          //! @return number of bytes read
          //---------------------------------------------------------------------
-      int Read(XrdOssDF* fp, bool init_prefetch = false);
+         int Read(XrdOssDF* fp, bool init_prefetch = false);
 
          //---------------------------------------------------------------------
          //! Write number of blocks and read buffer size
          //---------------------------------------------------------------------
-         void  WriteHeader(XrdOssDF* fp);
+         void WriteHeader(XrdOssDF* fp);
 
          //---------------------------------------------------------------------
          //! Append access time, and cache statistics
@@ -221,7 +221,6 @@ namespace XrdFileCache
       int off = i - cn*8;
       return (m_buff_prefetch[cn] & cfiBIT(off)) == cfiBIT(off);
    }
-
 
    inline int Info::GetNDownloadedBlocks() const
    {

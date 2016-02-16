@@ -138,7 +138,6 @@ namespace XrdFileCache
       int             m_prefetchCurrentCnt;
 
    public:
-
       //------------------------------------------------------------------------
       //! Constructor.
       //------------------------------------------------------------------------
@@ -175,7 +174,6 @@ namespace XrdFileCache
       //----------------------------------------------------------------------
       Stats& GetStats() { return m_stats; }
 
-
       void ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status);
       void WriteBlockToDisk(Block* b);
 
@@ -185,20 +183,18 @@ namespace XrdFileCache
 
       void  MarkPrefetch();
 
-
-
       //! Log path
       const char* lPath() const;
+
    private:
-      
       bool overlap(int       blk,      // block to query
-                         long long blk_size, //
-                         long long req_off,  // offset of user request
-                         int       req_size, // size of user request
-                         // output:
-                         long long &off,     // offset in user buffer
-                         long long &blk_off, // offset in block
-                         long long &size);
+                   long long blk_size, //
+                   long long req_off,  // offset of user request
+                   int       req_size, // size of user request
+                   // output:
+                   long long &off,     // offset in user buffer
+                   long long &blk_off, // offset in block
+                   long long &size);
       // Read
       Block* RequestBlock(int i, bool prefetch);
 
@@ -210,11 +206,12 @@ namespace XrdFileCache
 
       // VRead
       bool VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& blks_to_process,  ReadVBlockListDisk& blks_on_disk, XrdCl::ChunkList& chunkVec);
-      int VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blks_on_disk);
-      int VReadProcessBlocks(const XrdOucIOVec *readV, int n, std::vector<ReadVChunkListRAM>& blks_to_process, std::vector<ReadVChunkListRAM>& blks_rocessed);
+      int  VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blks_on_disk);
+      int  VReadProcessBlocks(const XrdOucIOVec *readV, int n, std::vector<ReadVChunkListRAM>& blks_to_process, std::vector<ReadVChunkListRAM>& blks_rocessed);
 
-      
-       long long BufferSize();
+
+      long long BufferSize();
+      void AppendIOStatToFileInfo();
 
       void CheckPrefetchStatRAM(Block* b);
       void CheckPrefetchStatDisk(int idx);
@@ -223,7 +220,6 @@ namespace XrdFileCache
 
       //! Short log alias.
       XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
-
 
       void inc_ref_count(Block*);
       void dec_ref_count(Block*);
