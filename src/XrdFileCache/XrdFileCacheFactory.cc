@@ -413,52 +413,51 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
 }
 
 //______________________________________________________________________________
-//namespace {
 
-class FPurgeState
+namespace
 {
-public:
-   struct FS
+   class FPurgeState
    {
-      std::string path;
-      long long   nByte;
-
-      FS(const char* p, long long n) : path(p), nByte(n) {}
-   };
-
-   typedef std::multimap<time_t, FS> map_t;
-   typedef map_t::iterator map_i;
-
-   FPurgeState(long long iNByteReq) : nByteReq(iNByteReq), nByteAccum(0) {}
-
-   map_t fmap;
-
-   void checkFile (time_t iTime, const char* iPath,  long long iNByte)
-   {
-      if (nByteAccum < nByteReq || iTime < fmap.rbegin()->first)
+   public:
+      struct FS
       {
-         fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNByte)));
-         nByteAccum += iNByte;
+         std::string path;
+         long long   nByte;
 
-         // remove newest files from map if necessary
-         while (nByteAccum > nByteReq)
+         FS(const char* p, long long n) : path(p), nByte(n) {}
+      };
+
+      typedef std::multimap<time_t, FS> map_t;
+      typedef map_t::iterator map_i;
+
+      FPurgeState(long long iNByteReq) : nByteReq(iNByteReq), nByteAccum(0) {}
+
+      map_t fmap;
+
+      void checkFile (time_t iTime, const char* iPath,  long long iNByte)
+      {
+         if (nByteAccum < nByteReq || iTime < fmap.rbegin()->first)
          {
-            time_t nt = fmap.begin()->first;
-            std::pair<map_i, map_i> ret = fmap.equal_range(nt); 
-            for (map_i it2 = ret.first; it2 != ret.second; ++it2)
-               nByteAccum -= it2->second.nByte;
-	    fmap.erase(ret.first, ret.second);
+            fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNByte)));
+            nByteAccum += iNByte;
+
+            // remove newest files from map if necessary
+            while (nByteAccum > nByteReq)
+            {
+               time_t nt = fmap.begin()->first;
+               std::pair<map_i, map_i> ret = fmap.equal_range(nt); 
+               for (map_i it2 = ret.first; it2 != ret.second; ++it2)
+                  nByteAccum -= it2->second.nByte;
+               fmap.erase(ret.first, ret.second);
+            }
          }
       }
-   }
 
-private:
-   long long nByteReq;
-   long long nByteAccum;
-};
-
-
-//}
+   private:
+      long long nByteReq;
+      long long nByteAccum;
+   };
+}
 
 void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState& purgeState)
 {
