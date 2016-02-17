@@ -81,7 +81,7 @@ XrdNetAddrInfo *AddrInfo() {return (XrdNetAddrInfo *)&Addr;}
 //! Allocate a new link object.
 //!
 //! @param  peer    The connection information for the endpoint.
-//!         opts    Processing options:
+//! @param  opts    Processing options:
 //!                 XRDLINK_NOCLOSE - do not close the FD upon recycling.
 //!                 XRDLINK_RDLOCK  - obtain a lock prior to reading data.
 //!

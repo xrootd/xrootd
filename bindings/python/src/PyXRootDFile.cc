@@ -58,7 +58,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->file->Open( url, flags, mode, timeout );
+      async( status = self->file->Open( url, flags, mode, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -89,7 +89,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->file->Close( timeout );
+      async( status = self->file->Close( timeout ) )
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -123,7 +123,7 @@ namespace PyXRootD
 
     else {
       XrdCl::StatInfo *response = 0;
-      status = self->file->Stat( force, response, timeout );
+      async( status = self->file->Stat( force, response, timeout ) );
       pyresponse = ConvertType<XrdCl::StatInfo>( response );
       delete response;
     }
@@ -176,7 +176,7 @@ namespace PyXRootD
 
     if (!size) {
       XrdCl::StatInfo *info = 0;
-      XrdCl::XRootDStatus status = self->file->Stat(true, info, timeout);
+      async( XrdCl::XRootDStatus status = self->file->Stat(true, info, timeout) );
       size = info->GetSize();
       if (info) delete info;
     }
@@ -194,7 +194,7 @@ namespace PyXRootD
 
     else {
       uint32_t bytesRead;
-      status = self->file->Read( offset, size, buffer, bytesRead, timeout );
+      async( status = self->file->Read( offset, size, buffer, bytesRead, timeout ) );
       pyresponse = Py_BuildValue( "s#", buffer, bytesRead );
       delete[] buffer;
     }
@@ -466,7 +466,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->file->Write( offset, size, buffer, timeout );
+      async( status = self->file->Write( offset, size, buffer, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -498,7 +498,7 @@ namespace PyXRootD
       async( status = self->file->Sync( handler, timeout ) );
     }
     else {
-      status = self->file->Sync( timeout );
+      async( status = self->file->Sync( timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -545,7 +545,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->file->Truncate( size, timeout );
+      async( status = self->file->Truncate( size, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -620,7 +620,7 @@ namespace PyXRootD
     }
     else {
       XrdCl::VectorReadInfo *info = 0;
-      status = self->file->VectorRead( chunks, 0, info, timeout );
+      async( status = self->file->VectorRead( chunks, 0, info, timeout ) );
       pyresponse = ConvertType<XrdCl::VectorReadInfo>( info );
       delete info;
     }
@@ -664,7 +664,7 @@ namespace PyXRootD
 
     else {
       XrdCl::Buffer *response = 0;
-      status = self->file->Fcntl( arg, response, timeout );
+      async( status = self->file->Fcntl( arg, response, timeout ) );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
       delete response;
     }
@@ -704,7 +704,7 @@ namespace PyXRootD
 
     else {
       XrdCl::Buffer *response = 0;
-      status = self->file->Visa( response, timeout );
+      async( status = self->file->Visa( response, timeout ) );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
       delete response;
     }

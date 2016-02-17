@@ -57,6 +57,11 @@ namespace PyXRootD
                                     XrdCl::AnyObject *response,
                                     XrdCl::HostList *hostList )
       {
+        // If we get called while the program's exit handlers are being called,
+        // then calls to PyGILState_Ensure() deadlock.  Py_IsInitialized() is
+        // not thread-safe but we appear to be lacking in alternates.
+        if (!Py_IsInitialized()) {return;}
+
         //----------------------------------------------------------------------
         // Ensure we hold the Global Interpreter Lock
         //----------------------------------------------------------------------
@@ -164,6 +169,11 @@ namespace PyXRootD
       void HandleResponse( XrdCl::XRootDStatus *status,
                            XrdCl::AnyObject *response )
       {
+        // If we get called while the program's exit handlers are being called,
+        // then calls to PyGILState_Ensure() deadlock.  Py_IsInitialized() is
+        // not thread-safe but we appear to be lacking in alternates.
+        if (!Py_IsInitialized()) {return;}
+
         //----------------------------------------------------------------------
         // Ensure we hold the Global Interpreter Lock
         //----------------------------------------------------------------------

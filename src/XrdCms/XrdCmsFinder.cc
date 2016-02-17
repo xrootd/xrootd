@@ -216,6 +216,7 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 
    XrdCmsClientMan *Manp;
    XrdCmsRRData     Data;
+   unsigned int     iMan;
    int              iovcnt, is2way, doAll = 0, opQ1Len = 0, opQ2Len = 0;
    char             Work[xNum*12];
    struct iovec     xmsg[xNum];
@@ -287,7 +288,7 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 
 // Send message and simply wait for the reply
 //
-   if (Manp->Send(xmsg, iovcnt+1))
+   if (Manp->Send(iMan, xmsg, iovcnt+1))
       {if (doAll)
           {Data.Request.modifier |= kYR_dnf;
            Inform(Manp, xmsg, iovcnt+1);
@@ -309,6 +310,7 @@ void XrdCmsFinderRMT::Inform(XrdCmsClientMan *xman,
                              struct iovec     xmsg[], int xnum)
 {
    XrdCmsClientMan *Womp, *Manp;
+   unsigned int iMan;
 
 // Make sure we are configured
 //
@@ -320,7 +322,7 @@ void XrdCmsFinderRMT::Inform(XrdCmsClientMan *xman,
 // Start at the beginning (we will avoid the previously selected one)
 //
    Womp = Manp = myManagers;
-   do {if (Manp != xman && Manp->isActive()) Manp->Send(xmsg, xnum);
+   do {if (Manp != xman && Manp->isActive()) Manp->Send(iMan, xmsg, xnum);
       } while((Manp = Manp->nextManager()) != Womp);
 }
   
@@ -337,6 +339,7 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
    int            n, iovcnt;
    char           Work[xNum*12];
    struct iovec   xmsg[xNum];
+   char          *triedRC;
 
 // Fill out the RR data structure
 //
@@ -352,7 +355,7 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
        if (flags & SFS_O_LOCAL) return LocLocal(Resp, Env);
        Data.Request.rrCode = kYR_locate;
        Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0)
-                 | (flags & SFS_O_RESET  ? CmsSelectRequest::kYR_refresh : 0);
+                 | (flags & SFS_O_RESET  ? CmsLocateRequest::kYR_refresh : 0);
        if (Resp.getUCap() & XrdOucEI::uPrip)
           Data.Opts |= CmsLocateRequest::kYR_prvtnet;
        if (Resp.getUCap() & XrdOucEI::uIPv4)
@@ -364,6 +367,7 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                         CmsLocateRequest::kYR_retipv6);
          }
        if (flags & SFS_O_HNAME) Data.Opts |= CmsLocateRequest::kYR_retname;
+       if (flags & SFS_O_RAWIO) Data.Opts |= CmsLocateRequest::kYR_retuniq;
        if (doAll)               Data.Opts |= CmsLocateRequest::kYR_listall;
       } else
   {     Data.Request.rrCode = kYR_select;
@@ -397,6 +401,21 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                      ?  CmsSelectRequest::kYR_retipv64 :
                         CmsSelectRequest::kYR_retipv6);
          }
+
+   if (Data.Avoid && Env && (triedRC = Env->Get("triedrc")))
+      {char *comma = rindex(triedRC, ',');
+       if (comma) triedRC = comma+1;
+            if (!strcmp(triedRC, "enoent"))
+               Data.Opts |= CmsSelectRequest::kYR_tryMISS;
+       else if (!strcmp(triedRC, "ioerr"))
+               Data.Opts |= CmsSelectRequest::kYR_tryIOER;
+       else if (!strcmp(triedRC, "fserr"))
+               Data.Opts |= CmsSelectRequest::kYR_tryFSER;
+       else if (!strcmp(triedRC, "srverr"))
+               Data.Opts |= CmsSelectRequest::kYR_trySVER;
+       else if (!strcmp(triedRC, "resel"))
+               Data.Opts |= CmsSelectRequest::kYR_tryRSEL;
+      }
   }
 
 // Pack the arguments
@@ -507,6 +526,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
    XrdOucTList       *tp, *op;
    XrdCmsClientMan   *Manp = 0;
 
+   unsigned int       iMan;
    int                iovcnt = 0, NoteLen, n;
    char               Prty[1032], *NoteNum = 0, *colocp = 0;
    char               Work[xNum*12];
@@ -531,7 +551,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
            return SFS_ERROR;
           }
        if (!(Manp = SelectManager(Resp, 0))) return ConWait;
-       if (Manp->Send((const struct iovec *)&xmsg, iovcnt+1)) return 0;
+       if (Manp->Send(iMan, (const struct iovec *)&xmsg, iovcnt+1)) return 0;
        DEBUG("Finder: Failed to send prepare cancel to " 
              <<Manp->Name() <<" reqid=" <<pargs.reqid);
        Resp.setErrInfo(RepDelay, "");
@@ -588,7 +608,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
          if (!(Manp = SelectManager(Resp, tp->text))) break;
          DEBUG("Finder: Sending " <<Manp->Name() <<' ' <<Data.Reqid
                       <<' ' <<Data.Path);
-         if (!Manp->Send((const struct iovec *)&xmsg, iovcnt+1)) break;
+         if (!Manp->Send(iMan, (const struct iovec *)&xmsg, iovcnt+1)) break;
          if ((tp = tp->next))
             {prepMutex.Lock(); XrdSysTimer::Wait(PrepWait); prepMutex.UnLock();}
          if (colocp) {Data.Request.modifier |= CmsPrepAddRequest::kYR_coloc;
@@ -681,6 +701,7 @@ int XrdCmsFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
                               struct iovec  *xmsg, int         xnum)
 {
    EPNAME("send2Man")
+   unsigned int     iMan;
    int              retc;
    XrdCmsClientMsg *mp;
    XrdCmsClientMan *Manp;
@@ -707,9 +728,9 @@ int XrdCmsFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
 
 // Send message and simply wait for the reply (msg object is locked via Alloc)
 //
-   if (!Manp->Send(xmsg, xnum) || (mp->Wait4Reply(Manp->waitTime())))
+   if (!Manp->Send(iMan, xmsg, xnum) || (mp->Wait4Reply(Manp->waitTime())))
       {mp->Recycle();
-       retc = Manp->whatsUp(Resp.getErrUser(), path);
+       retc = Manp->whatsUp(Resp.getErrUser(), path, iMan);
        Resp.setErrInfo(retc, "");
        return retc;
       }
@@ -829,7 +850,8 @@ int XrdCmsFinderRMT::Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *eP)
 //
    Data.Request.rrCode   = kYR_statfs;
    Data.Request.streamid = 0;
-   Data.Request.modifier = 0;
+   Data.Request.modifier = (eP && eP->Get("cms.qvfs")
+                         ?  CmsStatfsRequest::kYR_qvfs : 0);
    xmsg[0].iov_base      = (char *)&Data.Request;
    xmsg[0].iov_len       = sizeof(Data.Request);
 

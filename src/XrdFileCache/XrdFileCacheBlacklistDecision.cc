@@ -85,10 +85,8 @@ class BlacklistDecision : public XrdFileCache::Decision
             return false;
          }
 
-         ssize_t read;
-         size_t len =0;
-         char *line = NULL;
-         while (-1 != (read=getline(&line, &len, fp)))
+         char line[4096];
+         while(fgets(line, sizeof(line), fp))
          {
             char *trimmed = line;
             while (trimmed[0] && isspace(trimmed[0])) {trimmed++;}
@@ -97,12 +95,11 @@ class BlacklistDecision : public XrdFileCache::Decision
             if (trimmed[filelen-1] == '\n') {trimmed[filelen-1] = '\0';}
             m_blacklist.push_back(trimmed);
          }
-         free(line);
-         fclose(fp);
          if (!feof(fp))
          {
             m_log.Emsg("ConfigDecision", errno, "Failed to parse blacklist");
          }
+         fclose(fp);
          for (std::vector<std::string>::const_iterator it=m_blacklist.begin(); it!=m_blacklist.end(); it++)
          {
             m_log.Emsg("ConfigDecision", "Cache is blacklisting paths matching", it->c_str());

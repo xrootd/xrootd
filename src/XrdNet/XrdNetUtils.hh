@@ -262,7 +262,8 @@ enum NetProt {hasNone  = 0, //!< Unable to determine available protocols
               hasPub6  = 8  //<! Has IPv6 public address  (or'd with above)
              };
 
-enum NetType {qryINET  = 0 //!< Only consider internet protocols
+enum NetType {qryINET  = 0,//!< Only consider internet protocols via DNS
+              qryINIF  = 1 //!< Only consider internet protocols via ifconfig
              };
 
 static NetProt      NetConfig(NetType netquery=qryINET, const char **eText=0);

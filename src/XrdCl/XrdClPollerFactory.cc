@@ -25,11 +25,6 @@
 #include <map>
 #include <vector>
 
-#ifdef HAVE_LIBEVENT
-#include "XrdCl/XrdClPollerLibEvent.hh"
-#endif
-
-
 //------------------------------------------------------------------------------
 // Poller creators
 //------------------------------------------------------------------------------
@@ -39,13 +34,6 @@ namespace
   {
     return new XrdCl::PollerBuiltIn();
   }
-
-#ifdef HAVE_LIBEVENT
-  XrdCl::Poller *createLibEvent()
-  {
-    return new XrdCl::PollerLibEvent();
-  }
-#endif
 };
 
 namespace XrdCl
@@ -63,10 +51,6 @@ namespace XrdCl
     typedef std::map<std::string, Poller *(*)()> PollerMap;
     PollerMap pollerMap;
     pollerMap["built-in"] = createBuiltIn;
-
-#ifdef HAVE_LIBEVENT
-    pollerMap["libevent"] = createLibEvent;
-#endif
 
     //--------------------------------------------------------------------------
     // Print the list of available pollers

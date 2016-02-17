@@ -86,7 +86,7 @@ namespace XrdCl
       //!
       //! @param url     recipient of the message
       //! @param msg     message to be sent
-      //! @param statful physical stream disconnection causes an error
+      //! @param stateful physical stream disconnection causes an error
       //! @param expires unix timestamp after which a failure should be
       //!                reported if sending was unsuccessful
       //! @return        success if the message has been pushed through the wire,

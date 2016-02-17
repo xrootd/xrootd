@@ -190,9 +190,9 @@ virtual XrdSecCredentials *getCredentials(XrdSecParameters   *parm=0,
 //!             The caller is responsible for deleting the returned object.
 //------------------------------------------------------------------------------
 
-virtual int     Encrypt(const char    * /*inbuff*/,  // Data to be encrypted
-                              int       /*inlen*/,   // Length of data in inbuff
-                        XrdSecBuffer ** /*outbuff*/  // Returns encrypted data
+virtual int     Encrypt(const char    *inbuff,  // Data to be encrypted
+                              int      inlen,   // Length of data in inbuff
+                        XrdSecBuffer **outbuff  // Returns encrypted data
                              ) {return -ENOTSUP;}
 
 //------------------------------------------------------------------------------
@@ -207,9 +207,9 @@ virtual int     Encrypt(const char    * /*inbuff*/,  // Data to be encrypted
 //!             The caller is responsible for deleting the returned object.
 //------------------------------------------------------------------------------
 
-virtual int     Decrypt(const char  * /*inbuff*/,   // Data to be decrypted
-                              int     /*inlen*/,    // Length of data in inbuff
-                      XrdSecBuffer ** /*outbuff*/   // Buffer for decrypted data
+virtual int     Decrypt(const char  *inbuff,   // Data to be decrypted
+                              int    inlen,    // Length of data in inbuff
+                      XrdSecBuffer **outbuff   // Buffer for decrypted data
                               ) {return -ENOTSUP;}
 
 //------------------------------------------------------------------------------
@@ -224,9 +224,9 @@ virtual int     Decrypt(const char  * /*inbuff*/,   // Data to be decrypted
 //!             The caller is responsible for deleting the returned object.
 //------------------------------------------------------------------------------
 
-virtual int     Sign(const char  * /*inbuff*/,   // Data to be signed
-                           int     /*inlen*/,    // Length of data in inbuff
-                   XrdSecBuffer ** /*outbuff*/   // Buffer for the signature
+virtual int     Sign(const char  *inbuff,   // Data to be signed
+                           int    inlen,    // Length of data in inbuff
+                   XrdSecBuffer **outbuff   // Buffer for the signature
                            ) {return -ENOTSUP;}
 
 //------------------------------------------------------------------------------
@@ -242,10 +242,10 @@ virtual int     Sign(const char  * /*inbuff*/,   // Data to be signed
 //!         > 0 Failed to verify, signature does not match inbuff data.
 //------------------------------------------------------------------------------
 
-virtual int     Verify(const char  * /*inbuff*/,   // Data to be decrypted
-                             int     /*inlen*/,    // Length of data in inbuff
-                       const char  * /*sigbuff*/,  // Buffer for signature
-                             int     /*siglen*/)   // Length if signature
+virtual int     Verify(const char  *inbuff,   // Data to be decrypted
+                             int    inlen,    // Length of data in inbuff
+                       const char  *sigbuff,  // Buffer for signature
+                             int    siglen)   // Length if signature
                       {return -ENOTSUP;}
 
 //------------------------------------------------------------------------------
@@ -261,7 +261,7 @@ virtual int     Verify(const char  * /*inbuff*/,   // Data to be decrypted
 //!
 //------------------------------------------------------------------------------
 
-virtual int     getKey(char * /*buff*/=0, int /*size*/=0) {return -ENOTSUP;}
+virtual int     getKey(char *buff = 0, int size = 0) {return -ENOTSUP;}
 
 //------------------------------------------------------------------------------
 //! Set the current encryption key
@@ -273,7 +273,7 @@ virtual int     getKey(char * /*buff*/=0, int /*size*/=0) {return -ENOTSUP;}
 //!           = 0 The new key has been set.
 //------------------------------------------------------------------------------
 
-virtual int     setKey(char * /*buff*/, int /*size*/) {return -ENOTSUP;}
+virtual int     setKey(char *buff, int size) {return -ENOTSUP;}
 
 //------------------------------------------------------------------------------
 //! Delete the protocol object. DO NOT use C++ delete() on this object.
@@ -368,15 +368,17 @@ virtual      ~XrdSecProtocol() {}
 //!             a client.
 //!          2) This function must be thread-safe.
 //!          3) Additionally, you *should* declare the xrootd version you used
-//!             to compile your plug-in using XrdVERSIONINFO where <name> is
+//!             to compile your plug-in using XrdVERSIONINFO where \<name\> is
 //!             the 1- to 15-character unquoted name of your plugin. This is a
 //!             mandatory requirement!
 //------------------------------------------------------------------------------
 
-/*! #include "XrdVersion.hh"
-    XrdVERSIONINFO(XrdSecProtocol<p>Object,<name>);
+/*! Example:
 
-    extern "C" XrdSecProtocol *XrdSecProtocol<p>Object
+        #include "XrdVersion.hh"
+        XrdVERSIONINFO(XrdSecProtocol<p>Object,<name>);
+
+        extern "C" XrdSecProtocol *XrdSecProtocol<p>Object
                                               (const char              who,
                                                const char             *hostname,
                                                      XrdnetAddrInfo   &endPoint,
@@ -428,7 +430,7 @@ virtual      ~XrdSecProtocol() {}
 //!          4) When replacing the default implementation with a plug-in the
 //!             extern "C" function below must exist in your shared library.
 //!          5) Additionally, you *should* declare the xrootd version you used
-//!             to compile your plug-in using XrdVERSIONINFO where <name> is
+//!             to compile your plug-in using XrdVERSIONINFO where \<name\> is
 //!             the 1- to 15-character unquoted name of your plugin. This is a
 //!             mandatory requirement!
 //------------------------------------------------------------------------------
@@ -442,11 +444,13 @@ typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *,
                                            XrdSecParameters &,
                                            XrdOucErrInfo *);
 
-/*!
-#include "XrdVersion.hh"
-XrdVERSIONINFO(XrdSecGetProtocol,<name>);
+/*! Example:
 
-extern "C" XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
+        #include "XrdVersion.hh"
+        XrdVERSIONINFO(XrdSecGetProtocol,<name>);
+
+        extern "C" XrdSecProtocol *XrdSecGetProtocol
+                                            (const char             *hostname,
                                                    XrdNetAddrInfo   &endPoint,
                                                    XrdSecParameters &sectoken,
                                                    XrdOucErrInfo    *einfo=0)
@@ -555,7 +559,7 @@ virtual                ~XrdSecService() {}
 //!             own plugin, the extern "C" function below must be defined in
 //!             your plugin shared library.
 //!          3) Additionally, you *should* declare the xrootd version you used
-//!             to compile your plug-in using XrdVERSIONINFO where <name> is
+//!             to compile your plug-in using XrdVERSIONINFO where \<name\> is
 //!             the 1- to 15-character unquoted name of your plugin. This is a
 //!             mandatory requirement!
 //------------------------------------------------------------------------------
@@ -568,10 +572,11 @@ virtual                ~XrdSecService() {}
 class XrdSysLogger;
 typedef XrdSecService  *(*XrdSecGetServ_t)(XrdSysLogger *, const char *);
 
-/*!
-#include "XrdVersion.hh"
-XrdVERSIONINFO(XrdSecgetService,<name>);
+/*! Example:
 
-extern "C" XrdSecService *XrdSecgetService(XrdSysLogger *lp, const char *cfn)
+        #include "XrdVersion.hh"
+        XrdVERSIONINFO(XrdSecgetService,<name>);
+
+        extern "C" XrdSecService *XrdSecgetService(XrdSysLogger *lp, const char *cfn)
 */
 #endif

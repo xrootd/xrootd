@@ -203,6 +203,10 @@ namespace XrdCl
     DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
     targetFile.SetProperty( "WriteRecovery", value );
 
+    // Set the close timeout to the default value of the stream timeout
+    int closeTimeout = 0;
+    (void) DefaultEnv::GetEnv()->GetInt( "StreamTimeout", closeTimeout);
+
     OpenFlags::Flags targetFlags = OpenFlags::Update;
     if( force )
       targetFlags |= OpenFlags::Delete;
@@ -256,7 +260,7 @@ namespace XrdCl
       time_t now = time(0);
       if( now-start > timeLeft )
       {
-        XRootDStatus status = targetFile.Close(1);
+        XRootDStatus status = targetFile.Close( closeTimeout );
         return XRootDStatus( stError, errOperationExpired );
       }
       else
@@ -271,7 +275,7 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
-      XRootDStatus status = targetFile.Close();
+      XRootDStatus status = targetFile.Close( closeTimeout );
       return st;
     }
 
@@ -287,7 +291,7 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable to open source %s: %s",
                   tpcSource.GetURL().c_str(), st.ToStr().c_str() );
-      XRootDStatus status = targetFile.Close(1);
+      XRootDStatus status = targetFile.Close( closeTimeout );
       return st;
     }
 
@@ -303,8 +307,8 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable start the copy: %s",
                   st.ToStr().c_str() );
-      XRootDStatus statusS = sourceFile.Close();
-      XRootDStatus statusT = targetFile.Close();
+      XRootDStatus statusS = sourceFile.Close( closeTimeout );
+      XRootDStatus statusT = targetFile.Close( closeTimeout );
       return st;
     }
 
@@ -359,16 +363,27 @@ namespace XrdCl
                   GetSource().GetURL().c_str(), GetTarget().GetURL().c_str(),
                   st.ToStr().c_str() );
 
-      XRootDStatus statusS = sourceFile.Close(1);
-      XRootDStatus statusT = targetFile.Close(1);
+      // Ignore close response
+      XRootDStatus statusS = sourceFile.Close( closeTimeout );
+      XRootDStatus statusT = targetFile.Close( closeTimeout );
+      return st;
+    }
+
+    XRootDStatus statusS = sourceFile.Close( closeTimeout );
+    XRootDStatus statusT = targetFile.Close( closeTimeout );
+
+    if ( !statusS.IsOK() || !statusT.IsOK() )
+    {
+      st = (statusS.IsOK() ? statusT : statusS);
+      log->Error( UtilityMsg, "Third party copy from %s to %s failed during "
+                  "close of %s: %s", GetSource().GetURL().c_str(),
+                  GetTarget().GetURL().c_str(),
+                  (statusS.IsOK() ? "destination" : "source"), st.ToStr().c_str() );
       return st;
     }
 
     log->Debug( UtilityMsg, "Third party copy from %s to %s successful",
                 GetSource().GetURL().c_str(), GetTarget().GetURL().c_str() );
-
-    XRootDStatus statusS = sourceFile.Close(1);
-    XRootDStatus statusT = targetFile.Close(1);
 
     pResults->Set( "size", sourceSize );
 

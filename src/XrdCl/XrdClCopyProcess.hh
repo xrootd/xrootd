@@ -62,6 +62,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Notify when the previous job has finished
       //!
+      //! @param jobNum job number
       //! @param result result of the job
       //------------------------------------------------------------------------
       virtual void EndJob( uint16_t            jobNum,
@@ -73,6 +74,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Notify about the progress of the current job
       //!
+      //! @param jobNum         job number
       //! @param bytesProcessed bytes processed by the current job
       //! @param bytesTotal     total number of bytes to be processed by the 
       //!                       current job

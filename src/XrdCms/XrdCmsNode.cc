@@ -583,7 +583,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    XrdCmsCluster::CmsLSOpts lsopts = XrdCmsCluster::LS_NULL;
    XrdNetIF::ifType ifType;
    int rc, bytes;
-   bool oksel = false, lsall = (*Arg.Path == '*');
+   bool lsuniq = false, oksel = false, lsall = (*Arg.Path == '*');
 
 // Get the right interface selection options
 //
@@ -595,10 +595,18 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    lsopts = (Arg.Opts & CmsLocateRequest::kYR_retname
           ?  XrdCmsCluster::LS_IDNT : XrdCmsCluster::LS_IPO);
 
+// Indicate if only a single server entry should be listed
+//
+   if (Arg.Opts & CmsLocateRequest::kYR_retuniq && baseFS.isDFS())
+      {lsuniq = true; *toP++='u';}
+
 // Indicate whether we can ignore network restrictions
 //
    if (Arg.Opts & CmsLocateRequest::kYR_listall)
       lsopts |= XrdCmsCluster::LS_ANY;
+
+// Indicate whether we ony want to list a single entry
+//
 
 // Handle private networks here
 //
@@ -612,7 +620,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    Sel.Opts = static_cast<int>(ifType) & XrdCmsSelect::ifWant;
    lsopts   = static_cast<XrdCmsCluster::CmsLSOpts>(lsopts | ifType);
 
-// Grab the refresh option (the only one we support)
+// Grab various options
 //
    if (Arg.Opts & CmsLocateRequest::kYR_refresh) 
       {Sel.Opts  = XrdCmsSelect::Refresh; *toP++='s';}
@@ -668,7 +676,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
       {Resp.Val           = htonl(rc);
        DEBUGR(Why <<Arg.Path);
       } else {
-       bytes = do_LocFmt(Resp.outbuff, sP, Sel.Vec.pf, Sel.Vec.wf, lsall)
+       bytes = do_LocFmt(Resp.outbuff, sP, Sel.Vec.pf, Sel.Vec.wf, lsall,lsuniq)
              + sizeof(Resp.Val) + 1;
        Resp.Val            = 0;
        Arg.Request.rrCode  = kYR_data;
@@ -687,13 +695,32 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 /******************************************************************************/
   
 int XrdCmsNode::do_LocFmt(char *buff, XrdCmsSelected *sP,
-                          SMask_t pfVec, SMask_t wfVec, bool lsall)
+                          SMask_t pfVec, SMask_t wfVec, bool lsall, bool lsuniq)
 {
    static const int Skip = (XrdCmsSelected::Disable | XrdCmsSelected::Offline);
    static const int Hung = (XrdCmsSelected::Disable | XrdCmsSelected::Offline
                          |  XrdCmsSelected::Suspend);
    XrdCmsSelected *pP;
    char *oP = buff;
+
+// If only unique entries are wanted then we need to only let through
+// all non-servers and one server (prefereably a r/w one)
+//
+if (!lsall && lsuniq)
+   {XrdCmsSelected *xP = 0;
+    bool haverw = false;
+    pP = sP;
+    while(pP)
+         {if (!(pP->Status & (XrdCmsSelected::isMangr | Skip)))
+             {if (haverw) pP->Status |= Skip;
+                 else {if (xP) xP->Status |= Skip;
+                       xP = pP;
+                       haverw = (pP->Mask & wfVec) != 0;
+                      }
+             }
+          pP = pP->next;
+         }
+   }
 
 // format out the request as follows:                   
 // 01234567810123456789212345678
@@ -1000,6 +1027,8 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 {
    EPNAME("do_Select")
+//                      kXR_NotFound  kXR_IOError  kXR_FSError  kXR_ServerError
+   static int rtEC[] = {kYR_ENOENT,   kYR_EIO,     kYR_FSError, kYR_SrvError};
    XrdCmsRRQInfo reqInfo(Instance,RSlot,Arg.Request.streamid,Config.QryMinum);
    XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.Path, Arg.PathLen-1);
    struct iovec ioV[2];
@@ -1051,6 +1080,8 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
       {XrdNetAddr avoidAddr;
        char *Comma;
        DEBUGR(theopts <<' ' <<Arg.Path <<" avoiding " <<Avoid);
+       if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL)
+          Sel.Opts |= XrdCmsSelect::NoTryLim;
        Sel.InfoP = 0;
        do {if ((Comma = index(Avoid,','))) *Comma = '\0';
            if (*Avoid == '+') Sel.nmask |= Cluster.getMask(Avoid+1);
@@ -1070,7 +1101,11 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
            DEBUGR("delay " <<rc <<' ' <<Arg.Path);
           } else {
            Arg.Request.rrCode = kYR_error;
-           Sel.Resp.Port      = kYR_ENOENT;
+           if (rc != XrdCmsCluster::RetryErr) Sel.Resp.Port = kYR_ENOENT;
+              else {int rtRC = (Arg.Opts & CmsSelectRequest::kYR_tryMASK)
+                               >> CmsSelectRequest::kYR_trySHFT;
+                    Sel.Resp.Port = rtEC[rtRC];
+                   }
            DEBUGR("failed; " <<Sel.Resp.Data << ' ' <<Arg.Path);
           }
       } else if (!Sel.Resp.DLen) return 0;
@@ -1406,9 +1441,16 @@ const char *XrdCmsNode::do_StatFS(XrdCmsRRData &Arg)
 //
    if (Cache.Paths.Find(Arg.Path, pinfo) && pinfo.rovec)
       {Cluster.Space(theSpace, pinfo.rovec);
-       bytes = sprintf(buff, "%d %d %d %d %d %d",
-                       theSpace.wNum, theSpace.wFree>>10, theSpace.wUtil,
-                       theSpace.sNum, theSpace.sFree>>10, theSpace.sUtil) + 1;
+       if (Arg.Request.modifier &  CmsStatfsRequest::kYR_qvfs)
+          {bytes = sprintf(buff, "A %lld %lld %d",
+                       theSpace.Total, theSpace.TotFr,
+                      (theSpace.wFree < theSpace.sFree ? theSpace.sFree
+                                                       : theSpace.wFree)) + 1;
+          } else {
+           bytes = sprintf(buff, "%d %d %d %d %d %d",
+                       theSpace.wNum, theSpace.wFree, theSpace.wUtil,
+                       theSpace.sNum, theSpace.sFree, theSpace.sUtil) + 1;
+          }
       } else bytes = strlcpy(buff, "-1 -1 -1 -1 -1 -1", sizeof(buff)) + 1;
 
 // Send the response

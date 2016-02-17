@@ -298,7 +298,8 @@ bool Screen(void *thisP, void *objP, bool rrOK)
 void XrdOucBackTrace::DoBT(const char *head,  void *thisP, void *objP,
                            const char *tail,  bool  force)
 {
-   int      tid, k;
+   long     tid;
+   int      k;
    char     btBuff[4096];
 
 // Apply any necessary filters
@@ -310,11 +311,15 @@ void XrdOucBackTrace::DoBT(const char *head,  void *thisP, void *objP,
 //
    if (!head) head = "";
    if (!tail) tail = "";
+#if defined(__linux__) || defined(__APPLE__)
    tid     = syscall(SYS_gettid);
+#else
+   tid     = XrdSysThread::ID();
+#endif
 
 // Format the header
 //
-   k = snprintf(btBuff,sizeof(btBuff),"\nTBT %d %p %s obj %p %s\n",
+   k = snprintf(btBuff,sizeof(btBuff),"\nTBT %ld %p %s obj %p %s\n",
                 tid, thisP, head, objP, tail);
 
 // Now dump the stack
@@ -449,7 +454,8 @@ void XrdOucBackTrace::XrdBT(const char *head,  void *thisP, void *objP,
                             const char *tail,  bool  force)
 {
    XrdInfo *infoP, *reqInfo, *rspInfo;
-   int      tid, k;
+   long     tid;
+   int      k;
    char     btBuff[4096];
    bool     rrOK;
 
@@ -472,12 +478,16 @@ void XrdOucBackTrace::XrdBT(const char *head,  void *thisP, void *objP,
    if (!tail) tail = "";
    reqInfo = CvtReq(0, reqN);
    rspInfo = CvtRsp(0, rspN);
+#if defined(__linux__) || defined(__APPLE__)
    tid     = syscall(SYS_gettid);
+#else
+   tid     = XrdSysThread::ID();
+#endif
 
 // Format the header
 //
    k = snprintf(btBuff, sizeof(btBuff),
-                "\nTBT %d %p %s obj %p req %s rsp %s %s\n",
+                "\nTBT %ld %p %s obj %p req %s rsp %s %s\n",
                 tid, thisP, head, objP, reqInfo->name, rspInfo->name, tail);
 
 // Now dump the stack

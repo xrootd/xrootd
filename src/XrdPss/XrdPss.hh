@@ -52,14 +52,11 @@ int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 
         // Constructor and destructor
-        XrdPssDir(const char *tid) : tident(tid), myDir(0), dirVec(0) {}
-       ~XrdPssDir() {if (dirVec) Close();}
+        XrdPssDir(const char *tid) : tident(tid), myDir(0) {}
+       ~XrdPssDir() {if (myDir) Close();}
 private:
 const    char      *tident;
          DIR       *myDir;
-         char     **dirVec;
-         int        curEnt;
-         int        numEnt;
 };
   
 /******************************************************************************/
@@ -209,6 +206,8 @@ int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
 int    ConfigN2N();
 int    getCache();
+const
+char  *getDomain(const char *hName);
 int    xcach(XrdSysError *Eroute, XrdOucStream &Config);
 int    xcacl(XrdSysError *Eroute, XrdOucStream &Config);
 char  *xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff);

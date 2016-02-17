@@ -97,7 +97,8 @@ const  char  *do_Have(XrdCmsRRData &Arg);
 const  char  *do_Load(XrdCmsRRData &Arg);
 const  char  *do_Locate(XrdCmsRRData &Arg);
 static int    do_LocFmt(char *buff, XrdCmsSelected *sP,
-                        SMask_t pf, SMask_t wf, bool lsall=false);
+                        SMask_t pf, SMask_t wf,
+                        bool lsall=false, bool lsuniq=false);
 const  char  *do_Mkdir(XrdCmsRRData &Arg);
 const  char  *do_Mkpath(XrdCmsRRData &Arg);
 const  char  *do_Mv(XrdCmsRRData &Arg);

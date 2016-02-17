@@ -159,6 +159,7 @@ virtual int    Configure(const char *cfn, char *Parms, XrdOucEnv *EnvInfo) = 0;
 //! @param   Env2 Associated environmental information for arg2 (e.g., cgi info
 //!               which can be retrieved by Env1->Env(<len>)).
 //!
+//!
 //!          cmd       arg1    arg2           cmd       arg1    arg2
 //!          --------  ------  ------         --------  ------  ------
 //!          [+]chmod  <path>  <mode %o>      [+]rmdir  <path>  0
@@ -166,7 +167,7 @@ virtual int    Configure(const char *cfn, char *Parms, XrdOucEnv *EnvInfo) = 0;
 //!          [+]mkpath <path>  <mode %o>      [+]trunc  <path>  <size %lld>
 //!          [+]rm     <path>  0
 //!
-//! @Return:   As explained under "return conventions".
+//! @return  As explained under "return conventions".
 //------------------------------------------------------------------------------
 
 virtual int    Forward(XrdOucErrInfo &Resp,   const char *cmd,
