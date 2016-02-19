@@ -312,11 +312,11 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
    {
       m_configuration.m_username = config.GetWord();
    }
-   else if  ( part == "cachedir" )
+   else if ( part == "cachedir" )
    {
       m_configuration.m_cache_dir = config.GetWord();
    }
-   else if  ( part == "diskusage" )
+   else if ( part == "diskusage" )
    {
       std::string minV = config.GetWord();
       std::string maxV = config.GetWord();
@@ -364,12 +364,12 @@ bool Factory::ConfigParameters(std::string part, XrdOucStream& config )
    else if (part == "prefetch" )
    {
        int p = ::atoi(config.GetWord());
-       if (p != 0) {
-          printf("prefetch enabled !!!!\n");
+       if (p > 0) {
+          printf("prefetch enabled, max blocks per file=%d\n", p);
           m_configuration.m_prefetch = true;
-       }
-       else {
-           m_configuration.m_prefetch = false;
+          m_configuration.m_prefetch_max_blocks = p;
+       } else {
+          m_configuration.m_prefetch = false;
        }
    }
    else if (part == "nram" )

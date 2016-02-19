@@ -111,7 +111,7 @@ namespace XrdFileCache
       XrdSysMutex m_syncStatusMutex; //!< mutex locking fsync status
       XrdJob *m_syncer;
       std::vector<int> m_writes_during_sync;
-      int m_non_flushed_cnt;
+      int  m_non_flushed_cnt;
       bool m_in_sync;
 
       typedef std::list<int>         IntList_t;
