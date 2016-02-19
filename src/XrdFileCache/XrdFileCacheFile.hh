@@ -27,15 +27,16 @@
 #include <string>
 #include <map>
 
-
 class XrdJob;
 class XrdOucIOVec;
+
 namespace XrdCl
 {
-class Log;
+   class Log;
 }
 
-namespace XrdFileCache {
+namespace XrdFileCache
+{
    class BlockResponseHandler;
    class DirectResponseHandler;
    
@@ -44,7 +45,6 @@ namespace XrdFileCache {
    struct ReadVBlockListDisk;
    struct ReadVChunkListDisk;
 }
-
 
 
 namespace XrdFileCache
