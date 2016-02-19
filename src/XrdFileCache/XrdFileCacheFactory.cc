@@ -132,7 +132,6 @@ bool Factory::xdlib(XrdOucStream &Config)
    const char* params;
    params = (val[0]) ?  Config.GetWord() : 0;
 
-
    XrdOucPinLoader* myLib = new XrdOucPinLoader(&m_log, 0, "decisionlib",
                                                 libp.c_str());
 
@@ -153,16 +152,16 @@ bool Factory::xdlib(XrdOucStream &Config)
    clLog()->Info(XrdCl::AppMsg, "Factory::Config() successfully created decision lib from %s", libp.c_str());
    return true;
 }
-//______________________________________________________________________________
 
+//______________________________________________________________________________
 
 bool Factory::Decide(XrdOucCacheIO* io)
 {
-   if(!m_decisionpoints.empty())
+   if (!m_decisionpoints.empty())
    {
       std::string filename = io->Path();
       std::vector<Decision*>::const_iterator it;
-      for ( it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
+      for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
       {
          XrdFileCache::Decision *d = *it;
          if (!d) continue;
@@ -176,10 +175,7 @@ bool Factory::Decide(XrdOucCacheIO* io)
    return true;
 }
 
-
-
 //______________________________________________________________________________
-
 
 bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *parameters)
 {
@@ -538,7 +534,6 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
    }
 }
 
-
 void Factory::CacheDirCleanup()
 {
    // check state every sleep seconds
@@ -615,4 +610,3 @@ void Factory::CacheDirCleanup()
       sleep(sleept);
    }
 }
-

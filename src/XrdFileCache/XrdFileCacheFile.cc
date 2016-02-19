@@ -143,7 +143,6 @@ File::~File()
                ++itr;
             }
          }
-         
 
          bool blockMapEmpty =  m_block_map.empty();
          int blocksize = (int)m_block_map.size();
@@ -195,9 +194,6 @@ File::~File()
       m_infoFile = NULL;
    }
    delete m_syncer;
-
-
-
 
    // print just for curiosity
    clLog()->Debug(XrdCl::AppMsg, "File::~File() ended, prefetch score ...%d/%d=%.2f",  m_prefetchHitCnt, m_prefetchReadCnt, m_prefetchScore);
@@ -913,9 +909,8 @@ void File::AppendIOStatToFileInfo()
 //______________________________________________________________________________
 void File::Prefetch()
 {
-   
-   if (m_prefetchState == kOn) {
-
+   if (m_prefetchState == kOn)
+   {
       //  clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status \n");
       XrdSysCondVarHelper _lck(m_downloadCond);
       //      clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status BEGIN %s \n", lPath());
