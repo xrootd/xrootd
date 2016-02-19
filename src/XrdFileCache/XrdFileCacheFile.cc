@@ -48,28 +48,27 @@ namespace XrdPosixGlobals
 
 namespace
 {
-const int PREFETCH_MAX_ATTEMPTS = 10;
-const size_t PREFETCH_MAX_BLOCKS=10;
+   const int PREFETCH_MAX_ATTEMPTS = 10;
 
-class DiskSyncer : public XrdJob
-{
-private:
-   File *m_file;
-public:
-   DiskSyncer(File *pref, const char *desc="") :
-      XrdJob(desc),
-      m_file(pref)
-   {}
-   void DoIt()
+   class DiskSyncer : public XrdJob
    {
-      m_file->Sync();
-   }
-};
+   private:
+      File *m_file;
+   public:
+      DiskSyncer(File *pref, const char *desc="") :
+         XrdJob(desc),
+         m_file(pref)
+      {}
+      void DoIt()
+      {
+         m_file->Sync();
+      }
+   };
 }
 
 namespace
 {
-   Cache* cache() {return Factory::GetInstance().GetCache();}
+   Cache* cache() { return Factory::GetInstance().GetCache(); }
 }
 
 File::File(XrdOucCacheIO &inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
@@ -351,7 +350,8 @@ Block* File::RequestBlock(int i, bool prefetch)
       clLog()->Dump(XrdCl::AppMsg, "File::RequestBlock() this = %p, b=%p, this idx=%d  pOn=(%d) %s", (void*)this, (void*)b, i, prefetch, lPath());
       m_block_map[i] = b;
 
-      if (m_prefetchState == kOn && m_block_map.size() > PREFETCH_MAX_BLOCKS) {
+      if (m_prefetchState == kOn && m_block_map.size() > Factory::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+      {
          m_prefetchState = kHold;
          cache()->DeRegisterPrefetchFile(this); 
       }
@@ -820,14 +820,17 @@ void File::free_block(Block* b)
    clLog()->Dump(XrdCl::AppMsg, "File::free_block block (%p) %d %s ", (void*)b, i, lPath());
    delete m_block_map[i];
    size_t ret = m_block_map.erase(i);
-   if (ret != 1) {
+   if (ret != 1)
+   {
       clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
    }
-   else {
+   else
+   {
       cache()->RAMBlockReleased();
    }
 
-   if (m_prefetchState == kHold && m_block_map.size() < PREFETCH_MAX_BLOCKS) {
+   if (m_prefetchState == kHold && m_block_map.size() < Factory::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+   {
       m_prefetchState = kOn;
       cache()->RegisterPrefetchFile(this); 
    }
