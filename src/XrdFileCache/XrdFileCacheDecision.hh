@@ -55,7 +55,11 @@ namespace XrdFileCache
          //!
          //! @return status of configuration
          //------------------------------------------------------------------------------
-         virtual bool ConfigDecision(const char* params) { return true; }
+         virtual bool ConfigDecision(const char* params) 
+         { 
+           (void) params;
+           return true; 
+         }
    };
 }
 

@@ -193,7 +193,11 @@ virtual XrdSecCredentials *getCredentials(XrdSecParameters   *parm=0,
 virtual int     Encrypt(const char    *inbuff,  // Data to be encrypted
                               int      inlen,   // Length of data in inbuff
                         XrdSecBuffer **outbuff  // Returns encrypted data
-                             ) {return -ENOTSUP;}
+                             ) 
+{
+  (void) inbuff; (void) inlen; (void) outbuff;
+  return -ENOTSUP;
+}
 
 //------------------------------------------------------------------------------
 //! Decrypt data in inbuff using the session key.
@@ -210,7 +214,11 @@ virtual int     Encrypt(const char    *inbuff,  // Data to be encrypted
 virtual int     Decrypt(const char  *inbuff,   // Data to be decrypted
                               int    inlen,    // Length of data in inbuff
                       XrdSecBuffer **outbuff   // Buffer for decrypted data
-                              ) {return -ENOTSUP;}
+                              ) 
+{
+  (void) inbuff; (void) inlen; (void) outbuff;
+  return -ENOTSUP;
+}
 
 //------------------------------------------------------------------------------
 //! Sign data in inbuff using the session key.
@@ -227,7 +235,11 @@ virtual int     Decrypt(const char  *inbuff,   // Data to be decrypted
 virtual int     Sign(const char  *inbuff,   // Data to be signed
                            int    inlen,    // Length of data in inbuff
                    XrdSecBuffer **outbuff   // Buffer for the signature
-                           ) {return -ENOTSUP;}
+                           ) 
+{
+  (void) inbuff; (void) inlen; (void) outbuff;
+  return -ENOTSUP;
+}
 
 //------------------------------------------------------------------------------
 //! Verify a signature using the session key.
@@ -246,7 +258,10 @@ virtual int     Verify(const char  *inbuff,   // Data to be decrypted
                              int    inlen,    // Length of data in inbuff
                        const char  *sigbuff,  // Buffer for signature
                              int    siglen)   // Length if signature
-                      {return -ENOTSUP;}
+{
+  (void) inbuff; (void) inlen; (void) sigbuff; (void) siglen;
+  return -ENOTSUP;
+}
 
 //------------------------------------------------------------------------------
 //! Get the current encryption key (i.e. session key)
@@ -261,7 +276,11 @@ virtual int     Verify(const char  *inbuff,   // Data to be decrypted
 //!
 //------------------------------------------------------------------------------
 
-virtual int     getKey(char *buff = 0, int size = 0) {return -ENOTSUP;}
+virtual int     getKey(char *buff = 0, int size = 0) 
+{
+  (void) buff; (void) size;
+  return -ENOTSUP;
+}
 
 //------------------------------------------------------------------------------
 //! Set the current encryption key
@@ -273,7 +292,11 @@ virtual int     getKey(char *buff = 0, int size = 0) {return -ENOTSUP;}
 //!           = 0 The new key has been set.
 //------------------------------------------------------------------------------
 
-virtual int     setKey(char *buff, int size) {return -ENOTSUP;}
+virtual int     setKey(char *buff, int size) 
+{
+  (void) buff; (void) size;
+  return -ENOTSUP;
+}
 
 //------------------------------------------------------------------------------
 //! Delete the protocol object. DO NOT use C++ delete() on this object.
