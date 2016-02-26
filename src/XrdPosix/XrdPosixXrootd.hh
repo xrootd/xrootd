@@ -85,7 +85,7 @@ static int     Closedir(DIR *dirp);
 //! endPoint() is a POSIX extension and returns the location of an open file.
 //!
 //! @param  FD   File descriptor of an open file in question.
-//! @param  Buff Pointer to the buffer to receive '<host>:<port>' of the server.
+//! @param  Buff Pointer to the buffer to receive '\<host\>:\<port\>' of the server.
 //! @param  Blen Size of the buffer, it must be big enough for the result.
 //!
 //! @return >= 0 The numeric port number of the data server.

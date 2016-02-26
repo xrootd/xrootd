@@ -1086,6 +1086,10 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 //
    selR.needNet = XrdNetIF::Mask(nType);
 
+// Packed selection can never occur in this code path so we turn it off
+//
+   selR.selPack = false;
+
 // If we are exporting a shared-everything system then the incomming mask
 // may have more than one server indicated. So, we need to do a full select.
 // This is forced when isMulti is true, indicating a choice may exist.
@@ -1170,9 +1174,10 @@ int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
   
 void XrdCmsCluster::Space(SpaceData &sData, SMask_t smask)
 {
-   int i;
    XrdCmsNode *nP;
    SMask_t bmask;
+   int i;
+   bool doAll = !baseFS.isDFS();
 
 // Obtain a lock on the table and screen out peer nodes
 //
@@ -1182,12 +1187,16 @@ void XrdCmsCluster::Space(SpaceData &sData, SMask_t smask)
 // Run through the table getting space information
 //
    for (i = 0; i <= STHi; i++)
-       if ((nP = NodeTab[i]) && nP->isNode(bmask)
-       && !(nP->isOffline)   && nP->isRW)
-          {sData.Total += nP->DiskTotal;
-           sData.sNum++;
-           if (sData.sFree < nP->DiskFree)
-              {sData.sFree = nP->DiskFree; sData.sUtil = nP->DiskUtil;}
+       if ((nP = NodeTab[i]) && nP->isNode(bmask) && !(nP->isOffline))
+          {if (doAll || !sData.Total) 
+              {sData.Total += nP->DiskTotal;
+               sData.TotFr += nP->DiskFree;
+              }
+           if (nP->isRW & XrdCmsNode::allowsSS)
+              {sData.sNum++;
+               if (sData.sFree < nP->DiskFree)
+                  {sData.sFree = nP->DiskFree; sData.sUtil = nP->DiskUtil;}
+              }
            if (nP->isRW & XrdCmsNode::allowsRW)
               {sData.wNum++;
                if (sData.wFree < nP->DiskFree)
@@ -1540,6 +1549,10 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 //
    selR.needNet = XrdNetIF::Mask(nType);
 
+// Indicate whether or not stable selection is required
+//
+   selR.selPack = (Sel.Opts & XrdCmsSelect::Pack) != 0;
+
 // There is a difference bwteen needing space and needing r/w access. The former
 // is needed when we will be writing data the latter for inode modifications.
 //
@@ -1554,7 +1567,8 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
    mask = pmask & peerMask;
    while(pass--)
         {if (mask)
-            {nP=(Config.sched_RR ? SelbyRef(mask,selR) : SelbyLoad(mask,selR));
+            {nP = (Config.sched_RR || (Sel.Opts & XrdCmsSelect::UseRef)
+                ?  SelbyRef(mask,selR) : SelbyLoad(mask,selR));
              if (nP || (selR.nPick && selR.delay)
              ||  NodeCnt < Config.SUPCount) break;
             }
@@ -1673,12 +1687,14 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
            if (selR.needSpace && np->isNoStage)  {selR.xFull = true; continue;}
            if (!sp) sp = np;
               else{if (abs(sp->myCost - np->myCost) <= Config.P_fuzz)
-                      {if (selR.needSpace)
-                          {if (sp->RefW > (np->RefW+Config.DiskLinger))
-                               sp=np;
-                           } 
-                           else if (sp->RefR > np->RefR) sp=np;
-                       }
+                      {     if (selR.selPack)
+                               {if (sp->Inst() > np->Inst()) sp=np;}
+                       else if (selR.needSpace)
+                               {if (sp->RefW > (np->RefW+Config.DiskLinger))
+                                   sp=np;
+                               }
+                       else if (sp->RefR > np->RefR) sp=np;
+                      }
                        else if (sp->myCost > np->myCost) sp=np;
                    Multi = true;
                   }
@@ -1717,11 +1733,18 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
            if (!sp) sp = np;
               else{if (selR.needSpace)
                       {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
-                          {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
+                          {if (selR.selPack)
+                              {if (sp->Inst() > np->Inst())             sp=np;}
+                           else
+                           if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;
+                          }
                           else if (sp->myMass > np->myMass)             sp=np;
                       } else {
                        if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
-                          {if (sp->RefR > np->RefR)                     sp=np;}
+                          {if (selR.selPack)
+                              {if (sp->Inst() > np->Inst())             sp=np;}
+                              else if (sp->RefR > np->RefR)             sp=np;
+                          }
                           else if (sp->myLoad > np->myLoad)             sp=np;
                       }
                    Multi = true;
@@ -1758,10 +1781,11 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, XrdCmsSelector &selR)
                                   || (reqSS && np->isNoStage)))
               {selR.xFull = true; continue;}
            if (!sp) sp = np;
-              else {if (selR.needSpace)
-                      {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
-                       else if (sp->RefR > np->RefR) sp=np;
-                    Multi = true;
+              else {Multi = true;
+                         if (selR.selPack) {if (sp->Inst() > np->Inst())sp=np;}
+                    else if (selR.needSpace)
+                            {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
+                    else if (sp->RefR > np->RefR)                         sp=np;
                    }
           }
 

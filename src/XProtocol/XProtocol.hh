@@ -182,7 +182,7 @@ enum XDirlistRequestOption {
 };
 
 enum XOpenRequestOption {
-   kXR_compress = 1,
+   kXR_compress = 1,      // also locate (return unique hosts)
    kXR_delete   = 2,
    kXR_force    = 4,
    kXR_new      = 8,

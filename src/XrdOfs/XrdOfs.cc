@@ -1552,14 +1552,15 @@ int XrdOfs::fsctl(const int               cmd,
 // Process the LOCATE request
 //
    if (opcode == SFS_FSCTL_LOCATE)
-      {struct stat fstat;
+      {static const int locMask = (SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|
+                                   SFS_O_HNAME|SFS_O_RAWIO);
+       struct stat fstat;
        char pbuff[1024], rType[3];
        const char *Resp[2] = {rType, pbuff};
        const char *locArg, *opq, *Path = Split(args,&opq,pbuff,sizeof(pbuff));
        XrdNetIF::ifType ifType;
        int Resp1Len;
-       int find_flag = SFS_O_LOCATE
-                     | (cmd&(SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|SFS_O_HNAME));
+       int find_flag = SFS_O_LOCATE | (cmd & locMask);
        XrdOucEnv loc_Env(opq ? opq+1 : 0,0,client);
 
        if (cmd & SFS_O_TRUNC)           locArg = (char *)"*";
@@ -1598,7 +1599,7 @@ int XrdOfs::fsctl(const int               cmd,
        XrdOucEnv fs_Env(opq ? opq+1 : 0,0,client);
        AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Space(einfo, Path, &fs_Env))) 
+       &&  (retc = Finder->Space(einfo, Path, &fs_Env)))
           return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
        if ((retc = XrdOfsOss->StatFS(Path, bP, blen, &fs_Env)))
@@ -1614,9 +1615,13 @@ int XrdOfs::fsctl(const int               cmd,
        const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv statls_Env(opq ? opq+1 : 0,0,client);
        AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
-       if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Space(einfo, Path, &statls_Env)))
-          return fsError(einfo, retc);
+       if (Finder && Finder->isRemote())
+          {statls_Env.Put("cms.qvfs", "1");
+           if ((retc = Finder->Space(einfo, Path, &statls_Env)))
+              {if (retc == SFS_DATA) retc = Reformat(einfo);
+               return fsError(einfo, retc);
+              }
+          }
        bP = einfo.getMsgBuff(blen);
        if ((retc = XrdOfsOss->StatLS(statls_Env, Path, bP, blen)))
           return XrdOfsFS->Emsg(epname, einfo, retc, "statls", Path);
@@ -2202,6 +2207,47 @@ int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
    if (rc > 0)             {OfsStats.Data.numDelays++;   return rc;          }
    if (rc == SFS_DATA)     {OfsStats.Data.numReplies++;  return SFS_DATA;    }
                            {OfsStats.Data.numErrors++;   return SFS_ERROR;   }
+}
+
+/******************************************************************************/
+/*                              R e f o r m a t                               */
+/******************************************************************************/
+  
+int XrdOfs::Reformat(XrdOucErrInfo &myError)
+{
+   static const char *fmt = "oss.cgroup=all&oss.space=%llu&oss.free=%llu"
+                            "&oss.maxf=%llu&oss.used=%llu&oss.quota=-1";
+   char qsFmt, *bP;
+   unsigned long long totSpace, totFree, maxFree;
+   int n, blen;
+
+// Get the buffer
+//
+   bP = myError.getMsgBuff(blen);
+
+// Scan out the values
+//
+   n = sscanf(bP, "%c %llu %llu %llu", &qsFmt, &totSpace, &totFree, &maxFree);
+
+// Validate the response. The response will be invalid for older cmsd's
+//
+   if (n != 4 || qsFmt != 'A')
+      {myError.setErrInfo(ENOTSUP,"space fctl operation not supported by cmsd");
+       return SFS_ERROR;
+      }
+
+// Change megabyte values to actual bytes
+//
+   totSpace = totSpace << 20LL;
+   totFree  = totFree  << 20LL;
+   maxFree  = maxFree  << 20LL;
+
+// Reformat the result
+//
+   blen = snprintf(bP,blen,fmt,totSpace,totFree,maxFree,(totSpace-totFree));
+                                 
+   myError.setErrCode(blen);
+   return SFS_DATA;
 }
 
 /******************************************************************************/

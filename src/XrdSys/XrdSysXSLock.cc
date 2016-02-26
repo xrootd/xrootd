@@ -43,7 +43,7 @@ XrdSysXSLock::~XrdSysXSLock()
    LockContext.Lock();
    if (cur_count || shr_wait || exc_wait)
       {LockContext.UnLock();
-       throw "XSLock_delete: Lock object is still active.";
+       abort();
       }
    LockContext.UnLock();
 }

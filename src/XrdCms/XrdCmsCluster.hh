@@ -83,15 +83,16 @@ class SpaceData
 public:
 
 long long Total;    // Total space
+long long TotFr;    // Total space free
 int       wMinF;    // Free space minimum to select wFree node
-int       wFree;    // Free space for nodes providing r/w access
+int       wFree;    // Free space for nodes providing r/w access (largest one)
 int       wNum;     // Number of      nodes providing r/w access
-int       wUtil;    // Average utilization
-int       sFree;    // Free space for nodes providing staging
+int       wUtil;    // Average utilization (largest one)
+int       sFree;    // Free space for nodes providing staging    (largest one)
 int       sNum;     // Number of      nodes providing staging
-int       sUtil;    // Average utilization
+int       sUtil;    // Average utilization (largest one)
 
-          SpaceData() : Total(0), wMinF(0),
+          SpaceData() : Total(0), TotFr(0),wMinF(0),
                         wFree(0), wNum(0), wUtil(0),
                         sFree(0), sNum(0), sUtil(0) {}
          ~SpaceData() {}

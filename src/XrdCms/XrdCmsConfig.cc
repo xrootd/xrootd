@@ -674,7 +674,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    DiskOK   = 0;          // Does not have any disk
    myPaths  = (char *)""; // Default is 'r /'
    ConfigFN = 0;
-   sched_RR = 0;
+   sched_RR = sched_Pack = sched_Level = 0; sched_Force = 1;
    isManager= 0;
    isMeta   = 0;
    isPeer   = 0;
@@ -1039,7 +1039,9 @@ int XrdCmsConfig::setupManager()
    sched_RR = (100 == P_fuzz) || !AskPerf
               || !(P_cpu || P_io || P_load || P_mem || P_pag);
    if (sched_RR)
-      Say.Say("Config round robin scheduling in effect.");
+      {Say.Say("Config round robin scheduling in effect.");
+       sched_Level = 0;
+      }
 
 // Create statistical monitoring thread
 //
@@ -2521,6 +2523,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
                                        [io <p>] [runq <p>]
                                        [mem <p>] [pag <p>] [space <p>]
                                        [fuzz <p>] [maxload <p>] [refreset <sec>]
+                [affinity [default] {none | weak | strong | strict}]
 
              <p>      is the percentage to include in the load as a value
                       between 0 and 100. For fuzz this is the largest
@@ -2555,6 +2558,7 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
         {"space",    100, &P_dsk},
         {"maxload",  100, &MaxLoad},
         {"refreset", -1,  &RefReset},
+        {"affinity", -2,  0},
         {"tryhname",   1, &V_hntry}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
@@ -2569,6 +2573,10 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
                       {eDest->Emsg("Config", "sched ", scopts[i].opname,
                                    "argument not specified.");
                        return 1;
+                      }
+                   if (scopts[i].maxv == -2)
+                      {if (!xschedm(val, eDest, CFile)) return 1;
+                       break;
                       }
                    if (scopts[i].maxv < 0)
                       {if (XrdOuca2x::a2tm(*eDest,"sched value", val, &ppp, 0)) 
@@ -2589,6 +2597,39 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
    if (V_hntry >= 0) DoHnTry = static_cast<char>(V_hntry);
 
     return 0;
+}
+
+/******************************************************************************/
+
+int XrdCmsConfig::xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile)
+{
+
+   if (!strcmp(val, "default"))
+      {sched_Force = 0;
+       if (!(val = CFile.GetWord()))
+          {eDest->Emsg("Config", "sched affinity not specified"); return 0;}
+      } else sched_Force = 1;
+
+   if (!strcmp(val, "none"))
+      {sched_Pack = sched_Level = 0;
+       return 1;
+      }
+
+   sched_Pack = sched_Level = 1;
+
+   if (!strcmp(val, "weak")) return 1;
+
+   sched_Pack = 2;
+
+   if (!strcmp(val, "strong")) return 1;
+
+   if (!strcmp(val, "strict"))
+      {sched_Level = 0;
+       return 1;
+      }
+
+   eDest->Emsg("Config", "Invalid sched affinity -", val);
+   return 0;
 }
 
 /******************************************************************************/

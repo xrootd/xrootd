@@ -171,9 +171,11 @@ int XrdPssSys::Configure(const char *cfn)
                                                  {0,     0        }
                                                 };
    const char *xP;
+   XrdOucPList *fP;
    pthread_t tid;
    char *eP, theRdr[maxHLen+1024];
    int i, hpLen, NoGo = 0;
+   bool haveFwd = false;
 
 // Get environmental values
 //
@@ -189,6 +191,10 @@ int XrdPssSys::Configure(const char *cfn)
 // Set client IP mode based on what the server is set to
 //
    if (XrdNetAddr::IPV4Set()) XrdPosixXrootd::setIPV4(true);
+
+// Set default number of event loops
+//
+   XrdPosixXrootd::setEnv("ParallelEvtLoop", 3);
 
 // Process the configuration file
 //
@@ -257,7 +263,9 @@ int XrdPssSys::Configure(const char *cfn)
    i = 0;
    if ((eP = getenv("XRDOFS_FWD")))
       while(Fwd[i].Typ)
-           {if (!strstr(eP, Fwd[i].Typ)) *(Fwd[i].Loc) = 1; i++;}
+           {if (!strstr(eP, Fwd[i].Typ)) {*(Fwd[i].Loc) = 1; haveFwd = true;}
+            i++;
+           }
 
 // Configure the N2N library:
 //
@@ -274,6 +282,17 @@ int XrdPssSys::Configure(const char *cfn)
 // Setup the redirection url
 //
    strcpy(&theRdr[urlPlen], xP); urlRdr = strdup(theRdr);
+
+// Check if we have any r/w exports as this will determine whether or not we
+// need to initialize the ffs (we'd rather ot if at all possible).
+//
+   fP = XPList.First();
+   while(fP && !(fP->Flag() & XRDEXP_NOTRW)) fP = fP->Next();
+
+// We avoid initializing the ffs if we have no r/w paths or there is no need to
+// forward r/w metadata operations (e.g. rm, rmdir, etc).
+//
+   if (!fP || !haveFwd) return 0;
 
 // Now spwan a thread to complete ffs initialization which may hang for a while
 //
@@ -457,6 +476,18 @@ int XrdPssSys::getCache()
    if (theCache) {XrdPosixXrootd::setCache(theCache);}
       else eDest.Emsg("Config", "Unable to get cache object from", cPath);
    return theCache != 0;
+}
+  
+/******************************************************************************/
+/*                             g e t D o m a i n                              */
+/******************************************************************************/
+
+const char *XrdPssSys::getDomain(const char *hName)
+{
+   const char *dot = index(hName, '.');
+
+   if (dot) return dot+1;
+   return hName;
 }
   
 /******************************************************************************/
@@ -885,6 +916,12 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
    if (ManList) delete ManList;
    ManList = new XrdOucTList(mval, port);
 
+// We now set the default dirlist flag based on whether the origin is in or out
+// of domain. Composite listings are normally disabled for out of domain nodes.
+//
+   if (!index(mval, '.') || !strcmp(getDomain(mval), getDomain(myHost)))
+      XrdPosixXrootd::setEnv("DirlistDflt", 1);
+
 // All done
 //
    free(mval);
@@ -946,30 +983,36 @@ do {if (!(val = Config.GetWord()))
 
 int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
 {
-    char  kword[256], *val, *kvp;
-    long  kval;
-    static struct {const char *Sopt; const char *Copt;} Sopts[]  =
+    char  kword[256], *val;
+    int   kval, noGo;
+    static struct {const char *Sopt; const char *Copt; int isT;} Sopts[]  =
        {
-         {"ConnectTimeout",             "ConnectionWindow"},    // Default  120
-         {"DataServerConn_ttl",         ""},
-         {"DebugLevel",                 "*"},                   // Default   -1
-         {"DebugMask",                 "*"},                    // Default   -1
-         {"DfltTcpWindowSize",          0},
-         {"LBServerConn_ttl",           ""},
-         {"ParStreamsPerPhyConn",       "SubStreamsPerChannel"},// Default    1
-         {"ReadAheadSize",              0},
-         {"ReadAheadStrategy",          0},
-         {"ReadCacheBlkRemPolicy",      0},
-         {"ReadCacheSize",              0},
-         {"ReadTrimBlockSize",          0},
-         {"ReconnectWait",              "StreamErrorWindow"},   // Default 1800
-         {"RedirCntTimeout",            "!use RedirectLimit instead."},
-         {"RedirectLimit",              "RedirectLimit"},       // Default   16
-         {"RedirectorConn_ttl",         ""},
-         {"RemoveUsedCacheBlocks",      0},
-         {"RequestTimeout",             "RequestTimeout"},      // Default  300
-         {"TransactionTimeout",         ""},
-         {"WorkerThreads",              "WorkerThreads"}        // Set To    32
+         {"ConnectTimeout",        "ConnectionWindow",1},    // Default  120
+         {"ConnectionRetry",       "ConnectionRetry",1},     // Default    5
+         {"DataServerTTL",         "DataServerTTL",1},       // Default  300
+         {"DataServerConn_ttl",    "DataServerTTL",1},       // Default  300
+         {"DebugLevel",            "*",0},                   // Default   -1
+         {"DebugMask",             "*",0},                   // Default   -1
+         {"DirlistAll",            "DirlistAll",0},
+         {"DataServerTTL",         "DataServerTTL",1},       // Default  300
+         {"LBServerConn_ttl",      "LoadBalancerTTL",1},     // Default 1200
+         {"LoadBalancerTTL",       "LoadBalancerTTL",1},     // Default 1200
+         {"ParallelEvtLoop",       "ParallelEvtLoop",0},     // Default    3
+         {"ParStreamsPerPhyConn",  "SubStreamsPerChannel",0},// Default    1
+         {"ReadAheadSize",         0,0},
+         {"ReadAheadStrategy",     0,0},
+         {"ReadCacheBlkRemPolicy", 0,0},
+         {"ReadCacheSize",         0,0},
+         {"ReadTrimBlockSize",     0,0},
+         {"ReconnectWait",         "StreamErrorWindow",1},   // Default 1800
+         {"RedirCntTimeout",       "!use RedirectLimit instead.",0},
+         {"RedirectLimit",         "RedirectLimit",0},       // Default   16
+         {"RedirectorConn_ttl",    "LoadBalancerTTL",1},     // Default 1200
+         {"RemoveUsedCacheBlocks", 0,0},
+         {"RequestTimeout",        "RequestTimeout",1},      // Default 1800
+         {"StreamTimeout",         "StreamTimeout",1},
+         {"TransactionTimeout",    "",1},
+         {"WorkerThreads",         "WorkerThreads",0}        // Set To    64
        };
     int i, numopts = sizeof(Sopts)/sizeof(const char *);
 
@@ -981,19 +1024,17 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
         return 1;
        }
 
-    kval = strtol(val, &kvp, 10);
-    if (*kvp)
-       {Eroute->Emsg("Config", kword, "setopt keyword value is invalid -", val);
-        return 1;
-       }
-
     for (i = 0; i < numopts; i++)
         if (!strcmp(Sopts[i].Sopt, kword))
            {if (!Sopts[i].Copt || *(Sopts[i].Copt) == '!')
                {Eroute->Emsg("Config", kword, "no longer supported;",
                              (Sopts[i].Copt ? Sopts[i].Copt+1 : "ignored"));
                } else if (*(Sopts[i].Copt))
-                         {if (*(Sopts[i].Copt) == '*')
+                         {noGo = (Sopts[i].isT
+                               ?  XrdOuca2x::a2tm(*Eroute,kword,val,&kval)
+                               :  XrdOuca2x::a2i (*Eroute,kword,val,&kval));
+                          if (noGo) return 1;
+                          if (*(Sopts[i].Copt) == '*')
                                XrdPosixXrootd::setDebug(kval);
                           else XrdPosixXrootd::setEnv(Sopts[i].Copt, kval);
                          }

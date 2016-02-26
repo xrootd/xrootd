@@ -126,15 +126,22 @@ bool IOFileBlock::ioActive()
 //______________________________________________________________________________
 int IOFileBlock::Read (char *buff, long long off, int size)
 {
+   // protect from reads over the file size
+   if (off >= m_io.FSize())
+      return 0;
+   if (off < 0)
+   {
+      errno = EINVAL;
+      return -1;
+   }
+   if (off + size > m_io.FSize())
+      size = m_io.FSize() - off;
+
    long long off0 = off;
    int idx_first = off0/m_blocksize;
    int idx_last = (off0+size-1)/m_blocksize;
    int bytes_read = 0;
    clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read() %lld@%d block range [%d-%d] \n %s", off, size, idx_first, idx_last, m_io.Path());
-
-   // protect from reads over the file size
-   if (off + size > m_io.FSize())
-       size =  m_io.FSize() - off;
 
    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
    {

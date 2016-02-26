@@ -537,12 +537,10 @@ int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
    int CgiLen, retc;
    const char *Cgi = Env.Env(CgiLen);
    char pbuff[PBsz], *subPath;
-   int theUid = XrdPssSys::T2UID(tident);
 
 // Return an error if this object is already open
 //
-   if (dirVec || myDir) return -XRDOSS_E8001;
-   if (!XrdPssSys::outProxy && !XrdProxySS.cfgDone) return -EBUSY;
+   if (myDir) return -XRDOSS_E8001;
 
 // Open directories are not supported for object id's
 //
@@ -553,22 +551,10 @@ int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
    if (!(subPath = XrdPssSys::P2URL(retc,pbuff,PBsz,dir_path,0,Cgi,CgiLen)))
       return retc;
 
-// If we are an outgoing proxy then do the simple thing
+// Open the directory
 //
-   if (XrdPssSys::outProxy)
-      {myDir = XrdPosixXrootd::Opendir(pbuff);
-       if (!myDir) return -errno;
-       return XrdOssOK;
-      }
-
-// Return proxied result
-//
-   if ((numEnt = XrdFfsPosix_readdirall(pbuff, "", &dirVec, theUid)) < 0)
-       {int rc = -errno;
-        if (dirVec) {free(dirVec); dirVec = 0;}
-        return rc;
-        } else curEnt = 0;
-
+   myDir = XrdPosixXrootd::Opendir(pbuff);
+   if (!myDir) return -errno;
    return XrdOssOK;
 }
 
@@ -604,18 +590,9 @@ int XrdPssDir::Readdir(char *buff, int blen)
        return XrdOssOK;
       }
 
-// Check if this object is actually open
+// The directory is not open
 //
-   if (!dirVec) return -XRDOSS_E8002;
-
-// Return a single entry
-//
-   if (curEnt >= numEnt) *buff = 0;
-      else {strlcpy(buff, dirVec[curEnt], blen);
-            free(dirVec[curEnt]);
-            curEnt++;
-           }
-   return XrdOssOK;
+   return -XRDOSS_E8002;
 }
 
 /******************************************************************************/
@@ -631,7 +608,6 @@ int XrdPssDir::Readdir(char *buff, int blen)
 */
 int XrdPssDir::Close(long long *retsz)
 {
-   int i;
 
 // Close the directory proper if it exists
 //
@@ -641,16 +617,9 @@ int XrdPssDir::Close(long long *retsz)
        return XrdOssOK;
       }
 
-// Make sure this object is open
+// Directory is not open
 //
-   if (!dirVec) return -XRDOSS_E8002;
-
-// Free up remaining storage
-//
-   for (i = curEnt; i < numEnt; i++) free(dirVec[i]);
-   free(dirVec);
-   dirVec = 0;
-   return XrdOssOK;
+   return -XRDOSS_E8002;
 }
 
 /******************************************************************************/

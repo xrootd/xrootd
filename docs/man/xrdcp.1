@@ -243,6 +243,11 @@ Available topics: AppMsg, UtilityMsg, FileMsg, PollerMsg, PostMasterMsg,
 XRootDTransportMsg, TaskMgrMsg, XRootDMsg, FileSystemMsg, AsyncSockMsg
 .RE
 
+XRD_PARALLELEVTLOOP
+.RS 5
+The number of event loops.
+.RE
+
 
 XRD_CONNECTIONWINDOW (-DIConnectionWindow)
 .RS 5
@@ -301,7 +306,7 @@ Maximum number of allowed redirections.
 XRD_POLLERPREFERENCE (-DSPollerPreference)
 .RS 5
 A comma separated list of poller implementations in order of preference. The
-default is: libevent,built-in.
+default is: built-in.
 .RE
 
 XRD_CLIENTMONITOR (-DSClientMonitor)

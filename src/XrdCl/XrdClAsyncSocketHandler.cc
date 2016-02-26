@@ -57,6 +57,7 @@ namespace XrdCl
     pTimeoutResolution = timeoutResolution;
 
     pSocket = new Socket();
+    pSocket->SetChannelID( pChannelData );
     pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
     pLastActivity = time(0);
   }

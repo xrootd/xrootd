@@ -28,9 +28,6 @@
 
 #include <vector>
 
-#ifdef HAVE_LIBEVENT
-#include "XrdCl/XrdClPollerLibEvent.hh"
-#endif
 
 #include "XrdCl/XrdClPollerBuiltIn.hh"
 
@@ -43,14 +40,8 @@ class PollerTest: public CppUnit::TestCase
 {
   public:
     CPPUNIT_TEST_SUITE( PollerTest );
-#ifdef HAVE_LIBEVENT
-      CPPUNIT_TEST( FunctionTestLibEvent );
-#endif
-      CPPUNIT_TEST( FunctionTestBuiltIn );
+    CPPUNIT_TEST( FunctionTestBuiltIn );
     CPPUNIT_TEST_SUITE_END();
-#ifdef HAVE_LIBEVENT
-    void FunctionTestLibEvent();
-#endif
     void FunctionTestBuiltIn();
     void FunctionTest( XrdCl::Poller *poller );
 };
@@ -277,18 +268,6 @@ void PollerTest::FunctionTest( XrdCl::Poller *poller )
 
   delete handler;
 }
-
-//------------------------------------------------------------------------------
-// Test the functionality libEvent based poller
-//------------------------------------------------------------------------------
-#ifdef HAVE_LIBEVENT
-void PollerTest::FunctionTestLibEvent()
-{
-  XrdCl::Poller *poller = new XrdCl::PollerLibEvent();
-  FunctionTest( poller );
-  delete poller;
-}
-#endif
 
 //------------------------------------------------------------------------------
 // Test the functionality the built-in poller

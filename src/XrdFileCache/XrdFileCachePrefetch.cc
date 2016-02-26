@@ -871,6 +871,19 @@ ssize_t Prefetch::ReadInBlocks(char *buff, off_t off, size_t size)
 
 int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
 {
+   {
+      XrdSysCondVarHelper monitor(m_stateCond);
+
+      // AMT check if this can be done once during initalization
+      if (m_failed) return m_input.ReadV(readV, n);
+
+      if ( ! m_started)
+      {
+         m_stateCond.Wait();
+         if (m_failed) return 0;
+      }
+   }
+
    // check if read sizes are big enough to cache
 
    XrdCl::XRootDStatus Status;

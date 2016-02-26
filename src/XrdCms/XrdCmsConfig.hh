@@ -117,7 +117,10 @@ int         DiskWT;       // Seconds to defer client while waiting for space
 int         DiskSS;       // This is a staging server
 int         DiskOK;       // This configuration has data
 
-int         sched_RR;     // 1 -> Simply do round robin scheduling
+char        sched_RR;     // 1 -> Simply do round robin scheduling
+char        sched_Pack;   // 1 -> Pick oldest node (>1 same but wait for resps)
+char        sched_Level;  // 1 -> Use load-based level for "pack" selection
+char        sched_Force;  // 1 -> Client cannot select mode
 int         doWait;       // 1 -> Wait for a data end-point
 
 int         adsPort;      // Alternate server port
@@ -218,6 +221,7 @@ int  xreps(XrdSysError *edest, XrdOucStream &CFile);
 int  xrmtrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xrole(XrdSysError *edest, XrdOucStream &CFile);
 int  xsched(XrdSysError *edest, XrdOucStream &CFile);
+int  xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile);
 int  xsecl(XrdSysError *edest, XrdOucStream &CFile);
 int  xspace(XrdSysError *edest, XrdOucStream &CFile);
 int  xsubc(XrdSysError *edest, XrdOucStream &CFile);

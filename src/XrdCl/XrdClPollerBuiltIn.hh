@@ -22,6 +22,8 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClPoller.hh"
 #include <map>
+#include <vector>
+
 
 namespace XrdSys { namespace IOEvents
 {
@@ -30,6 +32,8 @@ namespace XrdSys { namespace IOEvents
 
 namespace XrdCl
 {
+  class AnyObject;
+
   //----------------------------------------------------------------------------
   //! A poller implementation using the build-in XRootD poller
   //----------------------------------------------------------------------------
@@ -39,7 +43,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      PollerBuiltIn(): pPoller( 0 ) {}
+      PollerBuiltIn() : pNbPoller( GetNbPollerInit() ){}
+
+      ~PollerBuiltIn() {}
 
       //------------------------------------------------------------------------
       //! Initialize the poller
@@ -110,14 +116,38 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual bool IsRunning() const
       {
-        return pPoller;
+        return !pPollerPool.empty();
       }
 
     private:
-      typedef std::map<Socket *, void *> SocketMap;
-      SocketMap                 pSocketMap;
-      XrdSys::IOEvents::Poller *pPoller;
-      XrdSysMutex pMutex;
+
+      //------------------------------------------------------------------------
+      //! Goes over poller threads in round robin fashion
+      //------------------------------------------------------------------------
+      XrdSys::IOEvents::Poller* GetNextPoller();
+
+      //------------------------------------------------------------------------
+      //! Returns the poller object associated with a socket
+      //------------------------------------------------------------------------
+      XrdSys::IOEvents::Poller* GetPoller(const Socket * socket);
+
+      //------------------------------------------------------------------------
+      //! Gets the initial value for 'pNbPoller'
+      //------------------------------------------------------------------------
+      static int GetNbPollerInit();
+
+      // associates channel ID to a pair: poller and count (how many sockets where mapped to this poller)
+      typedef std::map<const AnyObject *, std::pair<XrdSys::IOEvents::Poller *, size_t> > PollerMap;
+
+      typedef std::map<Socket *, void *>              SocketMap;
+      typedef std::vector<XrdSys::IOEvents::Poller *> PollerPool;
+
+      SocketMap            pSocketMap;
+      PollerMap            pPollerMap;
+      PollerPool           pPollerPool;
+      PollerPool::iterator pNext;
+      const int            pNbPoller;
+      XrdSysMutex          pMutex;
   };
 }
 

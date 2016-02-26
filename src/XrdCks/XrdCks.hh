@@ -56,7 +56,7 @@ public:
 //! @param  Pfn       The physical name of the file to be checksumed.
 //! @param  Cks       For  input, it specifies the checksum algorithm to be used.
 //!                   For output, the checksum value is returned upon success.
-//! @param  doset     When true, the new value must replace any existing value
+//! @param  doSet     When true, the new value must replace any existing value
 //!                   in the Pfn's extended file attributes.
 //!
 //! @return Success:  zero with Cks structure holding the checksum value.
@@ -168,7 +168,7 @@ XrdCksCalc *Object(const char *name)
 //------------------------------------------------------------------------------
 //! Get the binary length of the checksum with the corresponding name.
 //!
-//! @param  name.    The checksum algorithm name. If null, use the default name.
+//! @param  Name     The checksum algorithm name. If null, use the default name.
 //!
 //! @return Success: checksum length.
 //!         Failure: Zero  if the checksum name does not exist.

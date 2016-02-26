@@ -747,6 +747,7 @@ int XrdXrootdProtocol::do_Locate()
    if (opts & kXR_refresh) {fsctl_cmd |= SFS_O_RESET;  *op++ = 's';}
    if (opts & kXR_force  ) {fsctl_cmd |= SFS_O_FORCE;  *op++ = 'f';}
    if (opts & kXR_prefname){fsctl_cmd |= SFS_O_HNAME;  *op++ = 'n';}
+   if (opts & kXR_compress){fsctl_cmd |= SFS_O_RAWIO;  *op++ = 'u';}
    *op = '\0';
    TRACEP(FS, "locate " <<opt <<' ' <<fn);
 

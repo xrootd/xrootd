@@ -239,6 +239,7 @@ inline XrdOucEICB  *getErrCB(unsigned long long &ap)
 
 inline int         getErrInfo() {return ErrInfo.code;}
 
+/*
 //-----------------------------------------------------------------------------
 //! Get a copy of the error information.
 //!
@@ -246,7 +247,6 @@ inline int         getErrInfo() {return ErrInfo.code;}
 //!
 //! @return The error code that was previously set.
 //-----------------------------------------------------------------------------
-/*
 inline int          getErrInfo(XrdOucEI &errParm)
                               {errParm = ErrInfo; return ErrInfo.code;}
 */
@@ -439,7 +439,7 @@ inline void         setUCap(int ucval) {ErrInfo.ucap = ucval;}
 //! Constructor
 //!
 //! @param  user    - Pointer to he user string in stable storage.
-//! @param  MonId   - The monitoring identifier.
+//! @param  MonID   - The monitoring identifier.
 //! @param  uc      - The user capabilities.
 //-----------------------------------------------------------------------------
 
@@ -494,7 +494,7 @@ public:
 //!                 function after the actual callback message is sent. This
 //!                 allows the callback requestor to do post-processing and be
 //!                 asynchronous being assured that the callback completed.
-//!        Path   - Optionally, the path related to thid request. It is used
+//! @param Path   - Optionally, the path related to thid request. It is used
 //!                 for tracing and detailed monitoring purposes.
 //-----------------------------------------------------------------------------
 
