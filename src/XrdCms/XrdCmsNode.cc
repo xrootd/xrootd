@@ -1073,6 +1073,25 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
         }
    *toP = '\0';
 
+// If the client can override selection mode, check if this has been done. Note
+// that true packed selection turns off fast redirect.
+//
+   if (Config.sched_Force || !(Arg.Opts & CmsSelectRequest::kYR_aSpec))
+      {if (Config.sched_Pack)
+          {Sel.Opts |= XrdCmsSelect::Pack;
+           if (Config.sched_Pack > 1) Sel.InfoP = 0;
+           if (!Config.sched_Level) Sel.Opts |= XrdCmsSelect::UseRef;
+          }
+      } else {
+       if (Arg.Opts & CmsSelectRequest::kYR_aPack)
+          {Sel.Opts |= XrdCmsSelect::Pack;
+           if (Arg.Opts  & CmsSelectRequest::kYR_aWait) Sel.InfoP = 0;
+           if ((Arg.Opts & CmsSelectRequest::kYR_aPack) ==
+                           CmsSelectRequest::kYR_aStrict)
+              Sel.Opts |= XrdCmsSelect::UseRef;
+          }
+      }
+
 // Check if an avoid node present. If so, this is ineligible for fast redirect.
 //
    Sel.nmask = SMask_t(0);

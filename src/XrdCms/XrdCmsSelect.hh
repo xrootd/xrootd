@@ -68,7 +68,10 @@ enum {Write   = 0x00010, // File will be open in write mode     (select & cache)
       MWFiles = 0x20000, // Multiwrite files allowed            (select   only)
       Advisory= 0x40000, // Cache A/D is advisory (no delay)    (have   & cache)
       Pending = 0x80000, // File being staged                   (have   & cache)
-      ifWant  = 0x0000f  // XrdNetIF::ifType encoding location
+      ifWant  = 0x0000f, // XrdNetIF::ifType encoding location
+
+      Pack    = 0x00010000, // Packed selection
+      UseRef  = 0x00020000  // Selection by reference count only
      };
 
 struct {SMask_t wf;     // Out: Writable locations
@@ -137,6 +140,7 @@ const  char *reason;
        short nPick;
        char  needNet;
        char  needSpace;
+       bool  selPack;
        bool  xFull;
        bool  xNoNet;
        bool  xOff;

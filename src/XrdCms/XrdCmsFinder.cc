@@ -339,7 +339,7 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
    int            n, iovcnt;
    char           Work[xNum*12];
    struct iovec   xmsg[xNum];
-   char          *triedRC;
+   char          *triedRC, *affmode;
 
 // Fill out the RR data structure
 //
@@ -390,6 +390,13 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
    if (flags & SFS_O_RESET)     Data.Opts  |= CmsSelectRequest::kYR_refresh;
 
    if (flags & SFS_O_MULTIW)    Data.Opts  |= CmsSelectRequest::kYR_mwfiles;
+
+   if (Env && (affmode = Env->Get("cms.aff")))
+      {     if (*affmode == 'n') Data.Opts |= CmsSelectRequest::kYR_aNone;
+       else if (*affmode == 'S') Data.Opts |= CmsSelectRequest::kYR_aStrict;
+       else if (*affmode == 's') Data.Opts |= CmsSelectRequest::kYR_aStrong;
+       else if (*affmode == 'w') Data.Opts |= CmsSelectRequest::kYR_aWeak;
+      }
 
    if (Resp.getUCap() & XrdOucEI::uPrip)
       Data.Opts |= CmsSelectRequest::kYR_prvtnet;

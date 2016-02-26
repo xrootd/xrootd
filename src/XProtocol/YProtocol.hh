@@ -482,7 +482,14 @@ enum  {kYR_refresh = 0x00000001,
        kYR_trySVER = 0x00030000,  // Retry due to server error (triedrc=srverr)
        kYR_tryMASK = 0x00030000,  // Mask to isolate retry reason
        kYR_trySHFT = 16,          // Amount to shift right
-       kYR_tryRSEL = 0x00040000   // Retry for reselection     (triedrc=resel)
+       kYR_tryRSEL = 0x00040000,  // Retry for reselection     (triedrc=resel)
+       kYR_aWeak   = 0x00100000,  // Affinity: weak
+       kYR_aStrong = 0x00200000,  // Affinity: strong
+       kYR_aStrict = 0x00300000,  // Affinity: strict
+       kYR_aNone   = 0x00400000,  // Affinity: none
+       kYR_aSpec   = 0x00700000,  // Mask to test if any affinity specified
+       kYR_aPack   = 0x00300000,  // Mask to test if the affinity packs choice
+       kYR_aWait   = 0x00200000   // Mask to test if the affinity must wait
       };
 //     kXR_string    Path;
 //     kXR_string    Opaque; // Optional
