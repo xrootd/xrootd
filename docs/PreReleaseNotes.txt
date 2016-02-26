@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * [Server] Implement resource selection affinity (primarily for ssi).
 
 + **Major bug fixes**
 
