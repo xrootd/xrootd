@@ -89,7 +89,9 @@ XrdSsiSessReal *XrdSsiServReal::Alloc(const char *sName)
 bool XrdSsiServReal::GenURL(XrdSsiService::Resource *rP,
                             char *buff, int blen, bool uCon)
 {
+   static const char affTab[] = "\0\0n\0w\0s\0S";
    const char *xUsr, *xAt, *iSep, *iVal, *tVar, *tVal, *uVar, *uVal;
+   const char *aVar, *aVal;
    int n;
    bool xCGI = false;
 
@@ -98,6 +100,14 @@ bool XrdSsiServReal::GenURL(XrdSsiService::Resource *rP,
    if (!(rP->hAvoid) || !*(rP->hAvoid)) tVar = tVal = "";
       else {tVar = "?tried=";
             tVal = rP->hAvoid;
+            xCGI = true;
+           }
+
+// Preprocess affinity
+//
+   if (!(rP->affinity)) aVar = aVal = "";
+      else {aVar = (xCGI ? "&cms.aff=" : "?cms.aff=");
+            aVal = &affTab[rP->affinity*2];
             xCGI = true;
            }
 
@@ -120,9 +130,11 @@ bool XrdSsiServReal::GenURL(XrdSsiService::Resource *rP,
            }
 
 // Generate appropriate url
-//                                             t   u   i
-   n = snprintf(buff, blen, "xroot://%s%s%s/%s%s%s%s%s%s%s", xUsr, xAt, manNode,
-                             rP->rName, tVar, tVal, uVar, uVal, iSep, iVal);
+//                                             t   a   u   i
+   n = snprintf(buff, blen, "xroot://%s%s%s/%s%s%s%s%s%s%s%s%s",
+                             xUsr, xAt, manNode,
+                             rP->rName, tVar, tVal, aVar, aVal,
+                                        uVar, uVal, iSep, iVal);
 
 // Return overflow or not
 //

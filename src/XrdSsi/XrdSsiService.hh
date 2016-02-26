@@ -78,6 +78,15 @@ const char    *hAvoid; //!< -> Comma separated list of hosts to avoid
 XrdSsiEntity  *client; //!< -> Pointer to client identification (server-side)
 XrdSsiErrInfo  eInfo;  //!<    Holds error information upon failure
 
+enum Affinity {Default,//!< Use configured affinity
+               None,   //!< Resource has no affinity, any endpoint will do
+               Weak,   //!< Use resource on same node if possible, don't wait
+               Strong, //!< Use resource on same node even if wait required
+               Strict  //!< Always use same node for resource no matter what
+              };
+Affinity       affinity;//!< Resource affinity
+int            Reserved;
+
 //-----------------------------------------------------------------------------
 //! Handle the ending results of a Provision() call. It is called by the
 //! Service object when provisioning that has actually started completes.
@@ -120,7 +129,7 @@ virtual void   ProvisionDone(XrdSsiSession *sessP) = 0; //!< Callback
                         const char *ruser=0,
                         const char *rinfo=0
                        ) : rName(rname), rUser(ruser), rInfo(rinfo),
-                           hAvoid(havoid) {}
+                           hAvoid(havoid), affinity(Default), Reserved(0) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor
