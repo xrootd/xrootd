@@ -121,7 +121,7 @@ void XrdOucFileInfo::AddDigest(const char *hname, const char *hval)
 
 // Now make sure the hash type is lower case
 //
-   n = strlen(hval);
+   n = strlen(hname);
    for (int i = 0; i < n; i++) fHash->hName[i] = tolower(fHash->hName[i]);
 }
 
