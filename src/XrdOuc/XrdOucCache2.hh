@@ -46,33 +46,6 @@
 //! difference is this version requires additional methods to be implemented
 //! and uses an asynchrnous callback mechanism to return the results.
 //-----------------------------------------------------------------------------
-
-/******************************************************************************/
-/*                  C l a s s   X r d O u c C a c h e 2 C B                   */
-/******************************************************************************/
-
-//-----------------------------------------------------------------------------
-//! The XrdOucCache2CB defines a callback object that must be used to handle
-//! asynchronous operations (e.g. I/O).
-//-----------------------------------------------------------------------------
-
-class XrdOucCache2CB
-{
-public:
-
-//------------------------------------------------------------------------------
-//! Handle result from a previous async operation.
-//!
-//! @param result is result from a previous operation. Successful results are
-//!               always values >= 0 while errors are negative values and are
-//!               always '-errno' indicate the reason for the error.
-//------------------------------------------------------------------------------
-virtual
-void     Done(int result) = 0;
-
-         XrdOucCache2CB() {}
-virtual ~XrdOucCache2CB() {}
-};
   
 /******************************************************************************/
 /*                  C l a s s   X r d O u c C a c h e I O 2                   */
@@ -87,22 +60,6 @@ virtual ~XrdOucCache2CB() {}
 class XrdOucCacheIO2 : public virtual XrdOucCacheIO
 {
 public:
-
-//------------------------------------------------------------------------------
-//! Perform an asynchronous file open request. This method is meant to be
-//! by the cache layer using the original XrdOucCacheIO2 object passed to
-//! Attach() after the cache layer has defered an open request via Prepare().
-//! The file is opened using the original url, oflags, and mode.
-//!
-//! @param iocb   reference to the callback object that receives the result. All
-//!               results are returned via this object's Done() method. If the
-//!               caller holds any locks they must be recursive locks as the
-//!               callback may occur on the calling thread. Done() is passed
-//!               <0 - Open failed, value is -errno.
-//!               =0 - Open succeeded.
-//------------------------------------------------------------------------------
-
-virtual void Open(XrdOucCache2CB &iocb) {iocb.Done(-ENOSYS);}
 
 //------------------------------------------------------------------------------
 //! Perform an asynchronous read (defaults to synchrnous).
@@ -121,7 +78,7 @@ virtual void Open(XrdOucCache2CB &iocb) {iocb.Done(-ENOSYS);}
 
 using        XrdOucCacheIO::Read;
 
-virtual void Read (XrdOucCache2CB &iocb, char *buff, long long offs, int rlen)
+virtual void Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen)
                   {iocb.Done(Read(buff, offs, rlen));}
 
 //------------------------------------------------------------------------------
@@ -139,7 +96,7 @@ virtual void Read (XrdOucCache2CB &iocb, char *buff, long long offs, int rlen)
 
 using        XrdOucCacheIO::ReadV;
 
-virtual void ReadV(XrdOucCache2CB &iocb, const XrdOucIOVec *readV, int rnum)
+virtual void ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int rnum)
                   {iocb.Done(ReadV(readV, rnum));}
 
 //------------------------------------------------------------------------------
@@ -155,24 +112,21 @@ virtual void ReadV(XrdOucCache2CB &iocb, const XrdOucIOVec *readV, int rnum)
 
 using        XrdOucCacheIO::Sync;
 
-virtual void Sync(XrdOucCache2CB &iocb) {iocb.Done(Sync());}
+virtual void Sync(XrdOucCacheIOCB &iocb) {iocb.Done(Sync());}
 
 //------------------------------------------------------------------------------
-//! Perform an asynchronous trunc() operation (defaults to synchrnous).
+//! Update the originally passed XrdOucCacheIO2 object with the object passed.
+//! All future uses underlying XrdOucCacheIO2 object must now use this object.
+//! Update() is called when Prepare() indicated that the file should not be
+//! physically opened and a file method was invoked in the XrdOucCacheIO2
+//! passed to Attach(). When this occurs, the file is actually opened and
+//! Update() called to replace the original XrdOucCacheIO2 object with one
+//! that uses the newly opened file.
 //!
-//! @param iocb   reference to the callback object that receives the result. All
-//!               results are returned via this object's Done() method. If the
-//!               caller holds any locks they must be recursive locks as the
-//!               callback may occur on the calling thread. Done() is passsed
-//!               <0 - Trunc failed, value is -errno.
-//!               =0 - Trunc succeeded.
-//! @param offs   the size the file is to have.
+//! @param iocp   reference to the new XrdOucCacheIO2 object.
 //------------------------------------------------------------------------------
 
-using        XrdOucCacheIO::Trunc;
-
-virtual void Trunc(XrdOucCache2CB &iocb, long long offs)
-                  {iocb.Done(Trunc(offs));}
+virtual void Update(XrdOucCacheIO2 &iocp) {}
 
 //------------------------------------------------------------------------------
 //! Perform an asynchronous write (defaults to synchronous).
@@ -191,7 +145,7 @@ virtual void Trunc(XrdOucCache2CB &iocb, long long offs)
 
 using        XrdOucCacheIO::Write;
 
-virtual void Write(XrdOucCache2CB &iocb, char *buff, long long offs, int wlen)
+virtual void Write(XrdOucCacheIOCB &iocb, char *buff, long long offs, int wlen)
                   {iocb.Done(Write(buff, offs, wlen));}
 
 //------------------------------------------------------------------------------
@@ -202,6 +156,8 @@ virtual    ~XrdOucCacheIO2() {}  // Always use Detach() instead of direct delete
 /******************************************************************************/
 /*                    C l a s s   X r d O u c C a c h e 2                     */
 /******************************************************************************/
+
+struct stat;
   
 //------------------------------------------------------------------------------
 //! The XrdOucCache2 class is used to define a version 2 cache. In version 2,
@@ -219,7 +175,8 @@ public:
 //! with this cache. Upon success a pointer to a new XrdOucCacheIO2 object is
 //! returned and must be used to read and write data with the cache interposed.
 //! Upon failure, the original XrdOucCacheIO2 object is returned with errno set.
-//! You can continue using the object without any cache.
+//! You can continue using the object without any cache. The new cache should
+//! use the methods in the passed CacheIO2 object to perform I/O operatios.
 //!
 //! @param  ioP     Pointer to the current CacheIO2 object used for I/O.
 //! @param  opts    Cache options identical to those defined for XrdOucCache
@@ -239,7 +196,7 @@ XrdOucCacheIO  *Attach(XrdOucCacheIO  *ioP, int opts=0)
 //! Creates an instance of a version 1 cache. This method is no longer used so
 //! we simply define a default for this method here for backward compatability.
 //!
-//! @return A pointer to an XrdOucCache2 object upon success or a nil pointer
+//! @return A pointer to an XrdOucCache object upon success or a nil pointer
 //!         with errno set upon failure.
 //------------------------------------------------------------------------------
 virtual
@@ -263,6 +220,23 @@ XrdOucCache   *Create(Parms &Params, XrdOucCacheIO::aprParms *aprP=0)
 virtual
 int            Prepare(const char *url, int oflags, mode_t mode)
                       {(void)url; (void)oflags; (void)mode; return 0;}
+
+//------------------------------------------------------------------------------
+//! Perform a stat() operation (defaults to passthrough).
+//!
+//! @param url    pointer to the url whose stat information is wanted.
+//! @param sbuff  reference to the stat buffer to be filled in. Only fields
+//!               st_size, st_blocks, st_mtime (st_atime and st_ctime may be
+//!               set to st_mtime), st_ino, st_rdev, and st_mode need to be
+//!               set. All other fields should be set to zero.
+//!
+//! @return <0 - Stat failed, value is -errno.
+//!         =0 - Stat succeeded, sbuff holds stat information.
+//!         >0 - Stat could not be done, forward operation to next level.
+//------------------------------------------------------------------------------
+
+virtual int  Stat(const char *url, struct stat &sbuff)
+                 {(void)url; (void)sbuff; return 1;}
 
                XrdOucCache2() {}
 virtual       ~XrdOucCache2() {}
