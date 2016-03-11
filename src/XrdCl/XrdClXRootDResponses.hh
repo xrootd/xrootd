@@ -669,7 +669,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetParentName( const std::string &parent )
       {
-        pParent = parent;
+        size_t pos = parent.find( '?' );
+        pParent = pos == std::string::npos ? parent : parent.substr( 0, pos );
         if( !pParent.empty() && pParent[pParent.length()-1] != '/' )
           pParent += "/";
       }
