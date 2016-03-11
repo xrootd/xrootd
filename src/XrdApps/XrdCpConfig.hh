@@ -155,6 +155,9 @@ static const int    DoParallel =  0x00200000; //      --parallel
 static const int    OpDynaSrc  =  'Z';
 static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
 
+static const int    OpMetalink =  'M';
+static const int    DoMetalink =  0x01000000; // -M | --metalink
+
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.
 // The following options may be passed (largely to support legacy stuff):
