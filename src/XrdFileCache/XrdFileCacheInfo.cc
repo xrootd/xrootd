@@ -39,7 +39,8 @@ using namespace XrdFileCache;
 Info::Info(long long iBufferSize) :
    m_version(0),
    m_bufferSize(iBufferSize),
-   m_sizeInBits(0), m_buff_fetched(0), m_buff_write_called(0),
+   m_sizeInBits(0),
+   m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
    m_accessCnt(0),
    m_complete(false)
 {
@@ -49,27 +50,32 @@ Info::~Info()
 {
    if (m_buff_fetched) free(m_buff_fetched);
    if (m_buff_write_called) free(m_buff_write_called);
+   if (m_buff_prefetch) free(m_buff_prefetch);
 }
 
 //______________________________________________________________________________
 
 
-void Info::ResizeBits(int s)
+void Info::ResizeBits(int s, bool init_prefetch_buff)
 {
    m_sizeInBits = s;
    m_buff_fetched = (unsigned char*)malloc(GetSizeInBytes());
    m_buff_write_called = (unsigned char*)malloc(GetSizeInBytes());
    memset(m_buff_fetched, 0, GetSizeInBytes());
    memset(m_buff_write_called, 0, GetSizeInBytes());
+   if (init_prefetch_buff) {
+      m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
+      memset(m_buff_prefetch, 0, GetSizeInBytes());
+   }
 }
 
 //______________________________________________________________________________
 
 
-int Info::Read(XrdOssDF* fp)
+int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
 {
-   // does not need lock, called only in Prefetch::Open
-   // before Prefetch::Run() starts
+   // does not need lock, called only in File::Open
+   // before File::Run() starts
 
    int off = 0;
    off += fp->Read(&m_version, off, sizeof(int));
@@ -89,6 +95,13 @@ int Info::Read(XrdOssDF* fp)
 
    off += fp->Read(&m_accessCnt, off, sizeof(int));
    clLog()->Dump(XrdCl::AppMsg, "Info:::Read() complete %d access_cnt %d", m_complete, m_accessCnt);
+
+
+   if (init_prefetch_buff) {
+      m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
+      memset(m_buff_prefetch, 0, GetSizeInBytes());
+   }
+
    return off;
 }
 

@@ -23,12 +23,14 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdFileCacheFile.hh"
 
 namespace XrdCl {
    class Log;
 }
 namespace XrdFileCache {
-class Prefetch;
+class File;
+class IO;
 }
 
 namespace XrdFileCache
@@ -38,9 +40,6 @@ namespace XrdFileCache
    //----------------------------------------------------------------------------
    class Cache : public XrdOucCache
    {
-      friend class IOEntireFile;
-      friend class IOFileBlock;
-
       public:
          //---------------------------------------------------------------------
          //! Constructor
@@ -67,94 +66,64 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Add downloaded block in write queue.
          //---------------------------------------------------------------------
-         static void AddWriteTask(Prefetch* p, int ramBlockidx, size_t size, bool fromRead);
+         void AddWriteTask(Block* b, bool from_read);
 
          //---------------------------------------------------------------------
          //! Check write queue size is not over limit.
          //---------------------------------------------------------------------
-         static bool HaveFreeWritingSlots();
+         bool HaveFreeWritingSlots();
 
          //---------------------------------------------------------------------
          //!  \brief Remove blocks from write queue which belong to given prefetch.
-         //! This method is used at the time of Prefetch destruction.
+         //! This method is used at the time of File destruction.
          //---------------------------------------------------------------------
-         static void RemoveWriteQEntriesFor(Prefetch *p);
+         void RemoveWriteQEntriesFor(File *f);
 
          //---------------------------------------------------------------------
          //! Separate task which writes blocks from ram to disk.
          //---------------------------------------------------------------------
-         static void ProcessWriteTasks();
+         void ProcessWriteTasks();
 
-      private:
+         bool RequestRAMBlock();
+
+         void RAMBlockReleased();
+
+         void RegisterPrefetchFile(File*);
+         void DeRegisterPrefetchFile(File*);
+
+         File* GetNextFileToPrefetch();
+
+         void Prefetch();
+
          //! Decrease attached count. Called from IO::Detach().
          void Detach(XrdOucCacheIO *);
 
-         //! Transfor URL to path on local disk.
-         void getFilePathFromURL(const char* url, std::string& res) const;
+      private:
 
          //! Short log alias.
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
-         XrdSysMutex        m_io_mutex; //!< central lock for this class
-         unsigned int       m_attached; //!< number of attached IO objects
+         XrdSysCondVar      m_prefetch_condVar; //!< central lock for this class
          XrdOucCacheStats  &m_stats;    //!< global cache usage statistics
 
-         struct WriteTask
-         {
-            Prefetch* prefetch;    //!< object queued for writing
-            int       ramBlockIdx; //!< in memory cache index
-            size_t    size;        //!< write size -- block size except in case this is the end file block
-            WriteTask(Prefetch* p, int ri, size_t s):prefetch(p), ramBlockIdx(ri), size(s){}
-         };
+         XrdSysMutex        m_RAMblock_mutex; //!< central lock for this class
+         int                m_RAMblocks_used;
 
          struct WriteQ
          {
             WriteQ() : condVar(0), size(0) {}
             XrdSysCondVar         condVar;  //!< write list condVar
             size_t                size;     //!< cache size of a container
-            std::list<WriteTask>  queue;    //!< container
+            std::list<Block*>     queue;    //!< container
          };
 
-         static WriteQ s_writeQ;
+         WriteQ s_writeQ;
 
+       // prefetching
+       typedef std::vector<File*>  FileList;
+       FileList  m_files;
    };
 
-   //----------------------------------------------------------------------------
-   //! Base cache-io class that implements XrdOucCacheIO abstract methods.
-   //----------------------------------------------------------------------------
-   class IO : public XrdOucCacheIO
-   {
-      friend class Prefetch;
-
-      public:
-         IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache) :
-         m_io(io), m_statsGlobal(stats), m_cache(cache) {}
-
-         //! Original data source.
-         virtual XrdOucCacheIO *Base() { return &m_io; }
-
-         //! Original data source URL.
-         virtual long long FSize() { return m_io.FSize(); }
-
-         //! Original data source URL.
-         virtual const char *Path() { return m_io.Path(); }
-
-         virtual int Sync() { return 0; }
-
-         virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
-
-         virtual int Write(char *Buffer, long long Offset, int Length)
-         { errno = ENOTSUP; return -1; }
-
-         virtual void StartPrefetch() {}
-
-      protected:
-         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
-
-         XrdOucCacheIO    &m_io;          //!< original data source
-         XrdOucCacheStats &m_statsGlobal; //!< reference to Cache statistics
-         Cache            &m_cache;       //!< reference to Cache needed in detach
-   };
 }
 
 #endif

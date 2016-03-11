@@ -23,8 +23,7 @@
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdFileCache.hh"
-#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheIO.hh"
 
 class XrdSysError;
 class XrdOssDF;
@@ -57,7 +56,7 @@ namespace XrdFileCache
          virtual XrdOucCacheIO *Detach();
 
          //---------------------------------------------------------------------
-         //! Pass Read request to the corresponding Prefetch object.
+         //! Pass Read request to the corresponding File object.
          //---------------------------------------------------------------------
          virtual int Read(char *Buffer, long long Offset, int Length);
 
@@ -67,11 +66,11 @@ namespace XrdFileCache
 
       private:
          long long                  m_blocksize; //!< size of file-block
-         std::map<int, Prefetch*>   m_blocks;    //!< map of created blocks
+         std::map<int, File*>   m_blocks;    //!< map of created blocks
          XrdSysMutex                m_mutex;     //!< map mutex
 
          void GetBlockSizeFromPath();
-         Prefetch* newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO* io);
+         File* newBlockFile(long long off, int blocksize, XrdOucCacheIO* io);
    };
 }
 
