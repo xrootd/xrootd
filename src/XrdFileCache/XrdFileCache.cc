@@ -27,14 +27,26 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdFileCache.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
-#include "XrdFileCacheFactory.hh"
+//#include "XrdFileCacheConfiguration.cc"
+//#include "XrdFileCachePurge.cc"
 
 
 using namespace XrdFileCache;
+
+
+
+Cache * Cache::m_factory = NULL;
+
+void *CacheDirCleanupThread(void* cache_void)
+{
+   Cache::GetInstance().CacheDirCleanup();
+   return NULL;
+}
 
 void *ProcessWriteTaskThread(void* c)
 {
@@ -49,12 +61,73 @@ void *PrefetchThread(void* ptr)
    cache->Prefetch();
    return NULL;
 }
+
+
+extern "C"
+{
+XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
+                            const char   *config_filename,
+                            const char   *parameters)
+{
+   XrdSysError err(0, "");
+   err.logger(logger);
+   err.Emsg("Retrieve", "Retrieving a caching proxy factory.");
+   Cache &factory = Cache::GetInstance();
+   if (!factory.Config(logger, config_filename, parameters))
+   {
+      err.Emsg("Retrieve", "Error - unable to create a factory.");
+      return NULL;
+   }
+   err.Emsg("Retrieve", "Success - returning a factory.");
+
+
+   pthread_t tid;
+   XrdSysThread::Run(&tid, CacheDirCleanupThread, NULL, 0, "XrdFileCache CacheDirCleanup");
+   return &factory;
+}
+}
+
+Cache &Cache::GetInstance()
+{
+   if (m_factory == NULL)
+      m_factory = new Cache();
+   return *m_factory;
+}
+
+// !AMT will be obsolete in future
+XrdOucCache *Cache::Create(Parms & parms, XrdOucCacheIO::aprParms * prParms)
+{
+   return this;
+}
+
+
+//______________________________________________________________________________
+
+bool Cache::Decide(XrdOucCacheIO* io)
+{
+   if (!m_decisionpoints.empty())
+   {
+      std::string filename = io->Path();
+      std::vector<Decision*>::const_iterator it;
+      for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
+      {
+         XrdFileCache::Decision *d = *it;
+         if (!d) continue;
+         if (!d->Decide(filename, *m_output_fs))
+         {
+            return false;
+         }
+      }
+   }
+
+   return true;
+}
 //______________________________________________________________________________
 
 
-Cache::Cache(XrdOucCacheStats & stats) : XrdOucCache(),
+Cache::Cache() : XrdOucCache(),
+     m_log(0, "XrdFileCache_"),
      m_prefetch_condVar(0),
-     m_stats(stats),
      m_RAMblocks_used(0)
 {
    pthread_t tid1;
@@ -68,11 +141,11 @@ Cache::Cache(XrdOucCacheStats & stats) : XrdOucCache(),
 
 XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 {
-   if (Factory::GetInstance().Decide(io))
+   if (Cache::GetInstance().Decide(io))
    {
       clLog()->Info(XrdCl::AppMsg, "Cache::Attach() %s", io->Path());
       IO* cio;
-      if (Factory::GetInstance().RefConfiguration().m_hdfsmode)
+      if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
          cio = new IOFileBlock(*io, m_stats, *this);
       else
          cio = new IOEntireFile(*io, m_stats, *this);
@@ -179,7 +252,7 @@ bool
 Cache::RequestRAMBlock()
 {
    XrdSysMutexHelper lock(&m_RAMblock_mutex);
-   if ( m_RAMblocks_used < Factory::GetInstance().RefConfiguration().m_NRamBuffers )
+   if ( m_RAMblocks_used < Cache::GetInstance().RefConfiguration().m_NRamBuffers )
    {
       m_RAMblocks_used++;
       return true;
@@ -215,7 +288,7 @@ Cache::RegisterPrefetchFile(File* file)
 {
     //  called from File::Open()
 
-   if (Factory::GetInstance().RefConfiguration().m_prefetch)
+   if (Cache::GetInstance().RefConfiguration().m_prefetch)
    {
 
       XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Register new file BEGIN");
@@ -269,7 +342,7 @@ Cache::GetNextFileToPrefetch()
 void 
 Cache::Prefetch()
 {
-   const static int limitRAM= Factory::GetInstance().RefConfiguration().m_NRamBuffers * 0.7;
+   const static int limitRAM= Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7;
 
    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch thread start");
 

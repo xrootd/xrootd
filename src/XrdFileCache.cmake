@@ -17,7 +17,8 @@ add_library(
   ${LIB_XRD_FILECACHE}
   MODULE
   XrdFileCache/XrdFileCache.cc              XrdFileCache/XrdFileCache.hh
-  XrdFileCache/XrdFileCacheFactory.cc       XrdFileCache/XrdFileCacheFactory.hh
+  XrdFileCache/XrdFileCacheConfiguration.cc
+  XrdFileCache/XrdFileCachePurge.cc
   XrdFileCache/XrdFileCacheFile.cc          XrdFileCache/XrdFileCacheFile.hh
   XrdFileCache/XrdFileCacheVRead.cc
   XrdFileCache/XrdFileCacheStats.hh

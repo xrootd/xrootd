@@ -25,7 +25,6 @@
 #include "XrdFileCacheIOFileBlock.hh"
 #include "XrdFileCache.hh"
 #include "XrdFileCacheStats.hh"
-#include "XrdFileCacheFactory.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -37,7 +36,7 @@ using namespace XrdFileCache;
 IOFileBlock::IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache & cache)
    : IO(io, statsGlobal, cache)
 {
-   m_blocksize = Factory::GetInstance().RefConfiguration().m_hdfsbsize;
+   m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
    GetBlockSizeFromPath();
 }
 
@@ -87,7 +86,7 @@ void IOFileBlock::GetBlockSizeFromPath()
 File* IOFileBlock::newBlockFile(long long off, int blocksize, XrdOucCacheIO*  io)
 {
    XrdCl::URL url(io->Path());
-   std::string fname = Factory::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
+   std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
    std::stringstream ss;
    ss << fname;
