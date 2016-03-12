@@ -25,7 +25,6 @@
 
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheStats.hh"
-#include "XrdFileCacheFactory.hh"
 
 using namespace XrdFileCache;
 
@@ -39,7 +38,7 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & c
    clLog()->Info(XrdCl::AppMsg, "IO::IO() [%p] %s", this, m_io.Path());
    
    XrdCl::URL url(io.Path());
-   std::string fname = Factory::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
+   std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
    m_file = new File(io, fname, 0, io.FSize());
 }

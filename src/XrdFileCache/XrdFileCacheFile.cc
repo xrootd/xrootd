@@ -35,7 +35,6 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosix.hh"
-#include "XrdFileCacheFactory.hh"
 #include "XrdFileCache.hh"
 #include "Xrd/XrdScheduler.hh"
 
@@ -68,14 +67,14 @@ namespace
 
 namespace
 {
-   Cache* cache() { return Factory::GetInstance().GetCache(); }
+   Cache* cache() { return &Cache::GetInstance(); }
 }
 
 File::File(XrdOucCacheIO &inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
 m_input(inputIO),
 m_output(NULL),
 m_infoFile(NULL),
-m_cfi(Factory::GetInstance().RefConfiguration().m_bufferSize),
+m_cfi(Cache::GetInstance().RefConfiguration().m_bufferSize),
 m_temp_filename(disk_file_path),
 m_offset(iOffset),
 m_fileSize(iFileSize),
@@ -223,11 +222,11 @@ bool File::Open()
 {
    clLog()->Dump(XrdCl::AppMsg, "File::Open() open file for disk cache %s", m_input.Path());
 
-   XrdOss  &m_output_fs =  *Factory::GetInstance().GetOss();
+   XrdOss  &m_output_fs =  *Cache::GetInstance().GetOss();
    // Create the data file itself.
    XrdOucEnv myEnv;
-   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_output = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
+   m_output_fs.Create(Cache::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
+   m_output = m_output_fs.newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
    if (m_output)
    {
       int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
@@ -248,8 +247,8 @@ bool File::Open()
 
    // Create the info file
    std::string ifn = m_temp_filename + Info::m_infoExtension;
-   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_infoFile = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
+   m_output_fs.Create(Cache::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
+   m_infoFile = m_output_fs.newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
    if (m_infoFile)
    {
       int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
@@ -266,11 +265,11 @@ bool File::Open()
       return false;
    }
 
-   if (m_cfi.Read(m_infoFile, Factory::GetInstance().RefConfiguration().m_prefetch) <= 0)
+   if (m_cfi.Read(m_infoFile, Cache::GetInstance().RefConfiguration().m_prefetch) <= 0)
    {
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
       clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_input.Path());
-      m_cfi.ResizeBits(ss, Factory::GetInstance().RefConfiguration().m_prefetch);
+      m_cfi.ResizeBits(ss, Cache::GetInstance().RefConfiguration().m_prefetch);
       m_cfi.WriteHeader(m_infoFile);
    }
    else
@@ -350,7 +349,7 @@ Block* File::RequestBlock(int i, bool prefetch)
       clLog()->Dump(XrdCl::AppMsg, "File::RequestBlock() this = %p, b=%p, this idx=%d  pOn=(%d) %s", (void*)this, (void*)b, i, prefetch, lPath());
       m_block_map[i] = b;
 
-      if (m_prefetchState == kOn && m_block_map.size() > Factory::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+      if (m_prefetchState == kOn && m_block_map.size() > Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
       {
          m_prefetchState = kHold;
          cache()->DeRegisterPrefetchFile(this); 
@@ -829,7 +828,7 @@ void File::free_block(Block* b)
       cache()->RAMBlockReleased();
    }
 
-   if (m_prefetchState == kHold && m_block_map.size() < Factory::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+   if (m_prefetchState == kHold && m_block_map.size() < Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
    {
       m_prefetchState = kOn;
       cache()->RegisterPrefetchFile(this); 
@@ -956,7 +955,7 @@ void File::Prefetch()
 //______________________________________________________________________________
 void File::CheckPrefetchStatRAM(Block* b)
 {
-   if (Factory::GetInstance().RefConfiguration().m_prefetch) {
+   if (Cache::GetInstance().RefConfiguration().m_prefetch) {
       if (b->m_prefetch) {
          m_prefetchHitCnt++;
          m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
@@ -967,7 +966,7 @@ void File::CheckPrefetchStatRAM(Block* b)
 //______________________________________________________________________________
 void File::CheckPrefetchStatDisk(int idx)
 {
-   if (Factory::GetInstance().RefConfiguration().m_prefetch) {
+   if (Cache::GetInstance().RefConfiguration().m_prefetch) {
       if (m_cfi.TestPrefetchBit(idx))
          m_prefetchHitCnt++;
    }
