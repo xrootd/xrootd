@@ -20,10 +20,15 @@
 #include <string>
 #include <list>
 
+#include "XrdVersion.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdFileCacheFile.hh"
+#include "XrdFileCacheDecision.hh"
+
+class XrdOucStream;
+class XrdSysError;
 
 namespace XrdCl {
    class Log;
@@ -36,6 +41,38 @@ class IO;
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
+   //! Contains parameters configurable from the xrootd config file.
+   //----------------------------------------------------------------------------
+   struct Configuration
+   {
+      Configuration() :
+         m_hdfsmode(false),
+         m_diskUsageLWM(-1),
+         m_diskUsageHWM(-1),
+         m_bufferSize(1024*1024),
+	 m_NRamBuffers(8000),
+         m_prefetch(false),
+         m_prefetch_max_blocks(10),
+         m_hdfsbsize(128*1024*1024) {}
+
+      bool m_hdfsmode;      //!< flag for enabling block-level operation
+      std::string m_cache_dir;        //!< path of disk cache
+      std::string m_username;         //!< username passed to oss plugin
+
+      long long m_diskUsageLWM;       //!< cache purge low water mark
+      long long m_diskUsageHWM;       //!< cache purge high water mark
+
+      long long m_bufferSize;         //!< prefetch buffer size, default 1MB
+      int       m_NRamBuffers;        //!< number of total in-memory cache blocks
+      bool      m_prefetch;           //!< prefetch enable state        
+      size_t    m_prefetch_max_blocks;//!< maximum number of blocks to prefetch per file
+
+      long long m_hdfsbsize;          //!< used with m_hdfsmode, default 128MB
+   };
+
+
+
+   //----------------------------------------------------------------------------
    //! Attaches/creates and detaches/deletes cache-io objects for disk based cache.
    //----------------------------------------------------------------------------
    class Cache : public XrdOucCache
@@ -44,7 +81,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Constructor
          //---------------------------------------------------------------------
-         Cache(XrdOucCacheStats&);
+         Cache();
 
          //---------------------------------------------------------------------
          //! Obtain a new IO object that fronts existing XrdOucCacheIO.
@@ -57,11 +94,49 @@ namespace XrdFileCache
          virtual int isAttached();
 
          //---------------------------------------------------------------------
-         //! \brief Unused abstract method. Plugin instantiation role is given
-         //! to the Factory class.
+         // this is an obsolete method 
+         virtual XrdOucCache* Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*);
+
+         //--------------------------------------------------------------------
+         //! \brief Makes decision if the original XrdOucCacheIO should be cached.
+         //!
+         //! @param & URL of file
+         //!
+         //! @return decision if IO object will be cached.
+         //--------------------------------------------------------------------
+         bool Decide(XrdOucCacheIO*);
+
+         //------------------------------------------------------------------------
+         //! Reference XrdFileCache configuration
+         //------------------------------------------------------------------------
+         const Configuration& RefConfiguration() const { return m_configuration; }
+
+
          //---------------------------------------------------------------------
-         virtual XrdOucCache* Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*)
-         { return NULL; }
+         //! \brief Parse configuration file
+         //!
+         //! @param logger             xrootd logger
+         //! @param config_filename    path to configuration file
+         //! @param parameters         optional parameters to be passed
+         //!
+         //! @return parse status
+         //---------------------------------------------------------------------
+         bool Config(XrdSysLogger *logger, const char *config_filename, const char *parameters);
+
+         //---------------------------------------------------------------------
+         //! Singleton access.
+         //---------------------------------------------------------------------
+         static Cache &GetInstance();
+
+         //---------------------------------------------------------------------
+         //! Version check.
+         //---------------------------------------------------------------------
+         static bool VCheck(XrdVersionInfo &urVersion) { return true; }
+
+         //---------------------------------------------------------------------
+         //! Thread function running disk cache purge periodically.
+         //---------------------------------------------------------------------
+         void CacheDirCleanup();
 
          //---------------------------------------------------------------------
          //! Add downloaded block in write queue.
@@ -98,13 +173,31 @@ namespace XrdFileCache
          //! Decrease attached count. Called from IO::Detach().
          void Detach(XrdOucCacheIO *);
 
+         XrdOss* GetOss() const { return m_output_fs; }
+
+         XrdSysError& GetSysError() { return m_log; }
+
+        
       private:
+         bool ConfigParameters(std::string, XrdOucStream&);
+         bool ConfigXeq(char *, XrdOucStream &);
+         bool xdlib(XrdOucStream &);
+         static Cache   *m_factory;   //!< this object
+
+         XrdSysError       m_log;       //!< XrdFileCache namespace logger
+         XrdOucCacheStats  m_stats;     //!< 
+         XrdOss           *m_output_fs; //!< disk cache file system
+
+         std::vector<XrdFileCache::Decision*> m_decisionpoints; //!< decision plugins
+
+         std::map<std::string, long long> m_filesInQueue;
+
+         Configuration     m_configuration; //!< configurable parameters
 
          //! Short log alias.
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
          XrdSysCondVar      m_prefetch_condVar; //!< central lock for this class
-         XrdOucCacheStats  &m_stats;    //!< global cache usage statistics
 
          XrdSysMutex        m_RAMblock_mutex; //!< central lock for this class
          int                m_RAMblocks_used;

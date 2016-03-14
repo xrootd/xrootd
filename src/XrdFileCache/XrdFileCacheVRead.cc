@@ -1,6 +1,4 @@
-
 #include "XrdFileCacheFile.hh"
-#include "XrdFileCacheFactory.hh"
 #include "XrdFileCache.hh"
 
 #include "XrdFileCacheInfo.hh"
@@ -189,7 +187,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
             clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d , chunk idx = %d on disk", block_idx,iov_idx );
          }
          else {
-            if ( Factory::GetInstance().GetCache()->HaveFreeWritingSlots() && Factory::GetInstance().GetCache()->RequestRAMBlock())
+            if ( Cache::GetInstance().HaveFreeWritingSlots() && Cache::GetInstance().RequestRAMBlock())
             {
                Block *b = RequestBlock(block_idx, false);
                if (!b) return false;
