@@ -80,6 +80,8 @@ struct AioArgs {
 std::map<std::string, libradosstriper::RadosStriper*> g_radosStripers;
 std::map<std::string, librados::IoCtx*> g_ioCtx;
 librados::Rados* g_cluster = 0;
+/// mutex protecting the striper and ioctx maps
+XrdSysMutex g_striper_mutex;
 
 /// global variable holding a list of files currently opened for write
 std::multiset<std::string> g_filesOpenForWrite;
@@ -88,29 +90,29 @@ std::map<unsigned int, CephFileRef> g_fds;
 /// global variable remembering the next available file descriptor
 unsigned int g_nextCephFd = 0;
 /// mutex protecting the map of file descriptors and the openForWrite multiset
-XrdSysMutex g_mutex;
+XrdSysMutex g_fd_mutex;
 
 /// check whether a file is open for write
 bool isOpenForWrite(std::string& name) {
-  XrdSysMutexHelper lock(g_mutex);
+  XrdSysMutexHelper lock(g_fd_mutex);
   return g_filesOpenForWrite.find(name) != g_filesOpenForWrite.end();
 }
 
 /// insert a filename in the list of files opened for write
 void insertOpenForWrite(std::string& name) {
-  XrdSysMutexHelper lock(g_mutex);
+  XrdSysMutexHelper lock(g_fd_mutex);
   g_filesOpenForWrite.insert(name);
 }
 
 /// delete a filename from the list of files opened for write
 void deleteOpenForWrite(std::string& name) {
-  XrdSysMutexHelper lock(g_mutex);
+  XrdSysMutexHelper lock(g_fd_mutex);
   g_filesOpenForWrite.erase(g_filesOpenForWrite.find(name));
 }
 
 /// look for a FileRef from its file descriptor
 CephFileRef* getFileRef(int fd) {
-  XrdSysMutexHelper lock(g_mutex);
+  XrdSysMutexHelper lock(g_fd_mutex);
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     return &(it->second);
@@ -121,7 +123,7 @@ CephFileRef* getFileRef(int fd) {
 
 /// deletes a FileRef from the global table of file descriptors
 void deleteFileRef(int fd) {
-  XrdSysMutexHelper lock(g_mutex);
+  XrdSysMutexHelper lock(g_fd_mutex);
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     g_fds.erase(it);
@@ -133,7 +135,7 @@ void deleteFileRef(int fd) {
  * and return the associated file descriptor
  */
 int insertFileRef(CephFileRef &fr) {
-  XrdSysMutexHelper lock(g_mutex);
+  XrdSysMutexHelper lock(g_fd_mutex);
   g_fds[g_nextCephFd] = fr;
   g_nextCephFd++;
   return g_nextCephFd-1;
@@ -365,7 +367,7 @@ static CephFileRef getCephFileRef(const char *path, XrdOucEnv *env, int flags,
   return fr;
 }
 
-static libradosstriper::RadosStriper* getRadosStriper(const CephFile& file) {
+static libradosstriper::RadosStriper* getRadosStriperNoLock(const CephFile& file) {
   std::stringstream ss;
   ss << file.userId << '@' << file.pool << ',' << file.nbStripes << ','
      << file.stripeUnit << ',' << file.objectSize;
@@ -474,8 +476,14 @@ static libradosstriper::RadosStriper* getRadosStriper(const CephFile& file) {
   return it->second;
 }
 
+static libradosstriper::RadosStriper* getRadosStriper(const CephFile& file) {
+  XrdSysMutexHelper lock(g_striper_mutex);
+  return getRadosStriperNoLock(file);
+}
+
 static librados::IoCtx* getIoCtx(const CephFile& file) {
-  libradosstriper::RadosStriper *striper = getRadosStriper(file);
+  XrdSysMutexHelper lock(g_striper_mutex);
+  libradosstriper::RadosStriper *striper = getRadosStriperNoLock(file);
   if (0 == striper) {
     return 0;
   }
@@ -487,6 +495,7 @@ static librados::IoCtx* getIoCtx(const CephFile& file) {
 }
 
 void ceph_posix_disconnect_all() {
+  XrdSysMutexHelper lock(g_striper_mutex);
   for (std::map<std::string, libradosstriper::RadosStriper*>::iterator it =
          g_radosStripers.begin();
        it != g_radosStripers.end();
