@@ -52,6 +52,11 @@ namespace XrdCl
       bool IsValid() const;
 
       //------------------------------------------------------------------------
+      //! Is it a URL to a metalink
+      //------------------------------------------------------------------------
+      bool IsMetalink() const;
+
+      //------------------------------------------------------------------------
       //! Get the URL
       //------------------------------------------------------------------------
       std::string GetURL() const
@@ -235,6 +240,7 @@ namespace XrdCl
       bool ParsePath( const std::string &path );
       void ComputeHostId();
       void ComputeURL();
+      bool PathEndsWith( const std::string & sufix ) const;
       std::string pHostId;
       std::string pProtocol;
       std::string pUserName;

@@ -15,6 +15,7 @@ add_library(
   FileCopyTest.cc
   ThreadingTest.cc
   IdentityPlugIn.cc
+  MetalinkTest.cc
 )
 
 target_link_libraries(
