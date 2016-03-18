@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                          X r d P s s A i o . c c                           */
+/*                     X r d P o s i x P r e p I O . h h                      */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -28,85 +28,73 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <iostream>
 #include <stdio.h>
-#include <unistd.h>
 
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdPss/XrdPss.hh"
-#include "XrdPss/XrdPssAioCB.hh"
-#include "XrdSfs/XrdSfsAio.hh"
+#include "XrdPosix/XrdPosixObjGaurd.hh"
+#include "XrdPosix/XrdPosixPrepIO.hh"
 
-// All AIO interfaces are defined here.
- 
 /******************************************************************************/
-/*                                 F s y n c                                  */
+/*                               G l o b a l s                                */
 /******************************************************************************/
-  
-/*
-  Function: Async fsync() a file
 
-  Input:    aiop      - A aio request object
-*/
-
-int XrdPssFile::Fsync(XrdSfsAio *aiop)
+namespace XrdPosixGlobals
 {
-
-// Execute this request in an asynchronous fashion
-//
-   XrdPosixXrootd::Fsync(fd, XrdPssAioCB::Alloc(aiop, true));
-   return 0;
-}
+extern bool psxDBG;
+};
 
 /******************************************************************************/
-/*                                  R e a d                                   */
+/*                                  I n i t                                   */
 /******************************************************************************/
-
-/*
-  Function: Async read `blen' bytes from the associated file, placing in 'buff'
-
-  Input:    aiop      - An aio request object
-
-   Output:  <0 -> Operation failed, value is negative errno value.
-            =0 -> Operation queued
-            >0 -> Operation not queued, system resources unavailable or
-                                        asynchronous I/O is not supported.
-*/
   
-int XrdPssFile::Read(XrdSfsAio *aiop)
+bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 {
+   XrdPosixObjGaurd objGaurd((XrdPosixObject *)fileP);
+   XrdCl::XRootDStatus Status;
+   static int maxCalls = 64;
 
-// Execute this request in an asynchronous fashion
+// Count the number of entries here. We want to catch someone ignoring the
+// Update() call and using this object as it is very ineffecient.
 //
-   XrdPosixXrootd::Pread(fd, (void *)aiop->sfsAio.aio_buf,
-                             (size_t)aiop->sfsAio.aio_nbytes,
-                             (off_t)aiop->sfsAio.aio_offset,
-                             XrdPssAioCB::Alloc(aiop, false));
-   return 0;
-}
+   if (iCalls++ >= maxCalls)
+      {maxCalls = maxCalls*2;
+       std::cerr <<"XrdPosix: Unexpected PrepIO calls (" <<iCalls <<")\n"
+                 <<std::flush;
+      }
 
-/******************************************************************************/
-/*                                 W r i t e                                  */
-/******************************************************************************/
-  
-/*
-  Function: Async write `blen' bytes from 'buff' into the associated file
-
-  Input:    aiop      - An aio request object.
-
-   Output:  <0 -> Operation failed, value is negative errno value.
-            =0 -> Operation queued
-            >0 -> Operation not queued, system resources unavailable or
-                                        asynchronous I/O is not supported.
-*/
-  
-int XrdPssFile::Write(XrdSfsAio *aiop)
-{
-
-// Execute this request in an asynchronous fashion
+// Check if the file is already opened. This caller may be vestigial
 //
-   XrdPosixXrootd::Pwrite(fd, (const void *)aiop->sfsAio.aio_buf,
-                              (size_t)aiop->sfsAio.aio_nbytes,
-                              (off_t)aiop->sfsAio.aio_offset,
-                              XrdPssAioCB::Alloc(aiop, true));
-   return 0;
+   if (fileP->clFile.IsOpen()) return true;
+
+// Do not try to open the file if there was previous error
+//
+   if (openRC) return false;
+
+// Open the file. It is too difficult to do an async open here as there is a
+// possible pending async request and doing both is not easy at all.
+//
+   Status = fileP->clFile.Open((std::string)fileP->Path(), clFlags, clMode);
+
+// If all went well, then we need to do a Stat() call on the underlying file
+//
+   if (Status.IsOK()) fileP->Stat(Status);
+
+// Make sure all went well
+//
+   if (!Status.IsOK())
+      {XrdPosixMap::Result(Status);
+       openRC = -errno;
+       if (XrdPosixGlobals::psxDBG && errno != ENOENT && errno != ELOOP)
+          {char eBuff[2048];
+           snprintf(eBuff, sizeof(eBuff), "%s deferred open %s\n",
+                    Status.ToString().c_str(), fileP->Path());
+           std::cerr <<eBuff <<std::flush;
+          }
+       return false;
+      }
+
+// Inform the cache that we have now have a new I/O object
+//
+   fileP->XCio->Update((XrdOucCacheIO2 &)*fileP);
+   return true;
 }

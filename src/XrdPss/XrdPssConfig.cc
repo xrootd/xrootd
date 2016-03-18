@@ -56,7 +56,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCache2.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
@@ -209,7 +209,7 @@ int XrdPssSys::Configure(const char *cfn)
 
 // Tell xrootd to disable async I/O as it just will slow everything down.
 //
-   XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
+// XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
 
 // Thell xrootd to disable POSC mode as this is meaningless here
 //
@@ -462,18 +462,31 @@ int XrdPssSys::getCache()
 {
    XrdOucPinLoader  myLib(&eDest,myVersion,"cachelib",cPath);
    XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
-   XrdOucCache     *theCache;
+   union {XrdOucCache2 *theCache2;
+          XrdOucCache  *theCache;
+         };
+   const char *cName;
+   bool isCache2;
+
+// First find out if this is a cache2 or old cache library
+//
+   if (myLib.Resolve("?XrdOucGetCache2") == 0)
+      {cName = "XrdOucGetCache";  isCache2 = false;
+      } else {
+       cName = "XrdOucGetCache2"; isCache2 = true;
+      }
 
 // Now get the entry point of the object creator
 //
    ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
-                    (myLib.Resolve("XrdOucGetCache"));
+                    (myLib.Resolve(cName));
    if (!ep) return 0;
 
 // Get the Object now
 //
    theCache = ep(eDest.logger(), ConfigFN, cParm);
-   if (theCache) {XrdPosixXrootd::setCache(theCache);}
+   if (theCache)
+      {XrdPosixXrootd::setCache(isCache2 ? theCache2 : theCache);}
       else eDest.Emsg("Config", "Unable to get cache object from", cPath);
    return theCache != 0;
 }
