@@ -70,7 +70,7 @@ namespace
    Cache* cache() { return &Cache::GetInstance(); }
 }
 
-File::File(XrdOucCacheIO &inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
+File::File(XrdOucCacheIO2 &inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
 m_input(inputIO),
 m_output(NULL),
 m_infoFile(NULL),
@@ -334,7 +334,6 @@ Block* File::RequestBlock(int i, bool prefetch)
    // catch the block while still in memory.
    clLog()->Debug(XrdCl::AppMsg, "RequestBlock() %d pOn=(%d)", i, prefetch);
 
-   XrdCl::File &client = ((XrdPosixFile*)(&m_input))->clFile;
 
    const long long   BS = m_cfi.GetBufferSize();
    const int last_block = m_cfi.GetSizeInBits() - 1;
@@ -344,23 +343,18 @@ Block* File::RequestBlock(int i, bool prefetch)
 
    Block *b = new Block(this, off, this_bs, prefetch); // should block be reused to avoid recreation
 
-   XrdCl::XRootDStatus status = client.Read(off, this_bs, (void*)b->get_buff(), new BlockResponseHandler(b));
-   if (status.IsOK()) {
-      clLog()->Dump(XrdCl::AppMsg, "File::RequestBlock() this = %p, b=%p, this idx=%d  pOn=(%d) %s", (void*)this, (void*)b, i, prefetch, lPath());
-      m_block_map[i] = b;
+   BlockResponseHandler* oucCB = new BlockResponseHandler(b);
+   m_input.Read(*oucCB, (char*)b->get_buff(), off, (int)this_bs);
 
-      if (m_prefetchState == kOn && m_block_map.size() > Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
-      {
-         m_prefetchState = kHold;
-         cache()->DeRegisterPrefetchFile(this); 
-      }
-      return b;
+   clLog()->Dump(XrdCl::AppMsg, "File::RequestBlock() this = %p, b=%p, this idx=%d  pOn=(%d) %s", (void*)this, (void*)b, i, prefetch, lPath());
+   m_block_map[i] = b;
+
+   if (m_prefetchState == kOn && m_block_map.size() > Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+   {
+      m_prefetchState = kHold;
+      cache()->DeRegisterPrefetchFile(this); 
    }
-   else {
-      clLog()->Error(XrdCl::AppMsg, "File::RequestBlock() error %d,  this = %p, b=%p, this idx=%d  pOn=(%d) %s", status.code, (void*)this, (void*)b, i, prefetch, lPath());
-       XrdPosixMap::Result(status);
-      return 0;
-   }
+   return b;
 }
 
 //------------------------------------------------------------------------------
@@ -368,8 +362,6 @@ Block* File::RequestBlock(int i, bool prefetch)
 int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
                               char* req_buf, long long req_off, long long req_size)
 {
-   XrdCl::File &client = ((XrdPosixFile*)(&m_input))->clFile;
-
    const long long BS = m_cfi.GetBufferSize();
 
    // XXX Use readv to load more at the same time. 
@@ -385,16 +377,9 @@ int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
 
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
-      XrdCl::Status status = client.Read(*ii * BS + blk_off, size, req_buf + off, handler);
-      if (!status.IsOK())
-      {
-         clLog()->Error(XrdCl::AppMsg, "File::RequestBlocksDirect error %s\n", lPath());
-         XrdPosixMap::Result(status);
-         return -1; // AMT all reads should be canceled in this case 
-      }
-      else {
-          clLog()->Dump(XrdCl::AppMsg, "RequestBlockDirect success %d %ld %s", *ii, size, lPath());
-      }
+      m_input.Read( *handler, req_buf + off, *ii * BS + blk_off, size);
+      clLog()->Dump(XrdCl::AppMsg, "RequestBlockDirect success %d %ld %s", *ii, size, lPath());
+      
       total += size;
    }
 
@@ -837,13 +822,13 @@ void File::free_block(Block* b)
 
 //------------------------------------------------------------------------------
 
-void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
+void File::ProcessBlockResponse(Block* b, int res)
 {
 
    m_downloadCond.Lock();
 
    clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse %p, %d %s",(void*)b,(int)(b->m_offset/BufferSize()), lPath());
-   if (status->IsOK()) 
+   if (res >= 0) 
    {
       b->m_downloaded = true;
       clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse %d  finished %d %s",(int)(b->m_offset/BufferSize()), b->is_finished(), lPath());
@@ -862,8 +847,8 @@ void File::ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status)
    {
       // AMT how long to keep?
       // when to retry?
-      clLog()->Error(XrdCl::AppMsg, "File::ProcessBlockResponse block %p %d error=%d, [%s] %s",(void*)b,(int)(b->m_offset/BufferSize()), status->code, status->GetErrorMessage().c_str(), lPath());
-      XrdPosixMap::Result(*status);
+      clLog()->Error(XrdCl::AppMsg, "File::ProcessBlockResponse block %p %d error=%d, %s",(void*)b,(int)(b->m_offset/BufferSize()), res, lPath());
+      // XrdPosixMap::Result(*status);
       // AMT could notfiy global cache we dont need RAM for that block
       b->set_error_and_free(errno);
       errno = 0;
@@ -999,32 +984,26 @@ void File::UnMarkPrefetch()
 //==================    RESPONSE HANDLER      ==================================
 //==============================================================================
 
-void BlockResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
-                                          XrdCl::AnyObject    *response)
+void BlockResponseHandler::Done(int res)
 {
-    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"BlockResponseHandler::HandleResponse()");
+    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"BlockResponseHandler::Done()");
 
-    m_block->m_file->ProcessBlockResponse(m_block, status);
-
-   delete status;
-   delete response;
+    m_block->m_file->ProcessBlockResponse(m_block, res);
 
    delete this;
 }
 
 //------------------------------------------------------------------------------
 
-void DirectResponseHandler::HandleResponse(XrdCl::XRootDStatus *status,
-                                           XrdCl::AnyObject    *response)
+void DirectResponseHandler::Done(int res)
 {
-    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"DirectResponseHandler::HandleRespons()");
+    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"DirectResponseHandler::Done()");
    XrdSysCondVarHelper _lck(m_cond);
 
    --m_to_wait;
 
-   if ( ! status->IsOK())
+   if (res < 0)
    {
-      XrdPosixMap::Result(*status);
       m_errno = errno;
    }
 

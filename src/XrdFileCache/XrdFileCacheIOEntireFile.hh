@@ -43,7 +43,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor
          //------------------------------------------------------------------------
-         IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+         IOEntireFile(XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache &cache);
 
          //------------------------------------------------------------------------
          //! Destructor

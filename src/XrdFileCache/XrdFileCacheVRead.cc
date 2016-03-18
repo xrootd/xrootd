@@ -75,7 +75,7 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
    ReadVBlockListRAM blocks_to_process;
    std::vector<ReadVChunkListRAM> blks_processed;
    ReadVBlockListDisk blocks_on_disk;
-   XrdCl::ChunkList chunkVec;
+   std::vector<XrdOucIOVec> chunkVec;
    DirectResponseHandler* direct_handler = 0;
    if (!VReadPreProcess(readV, n, blocks_to_process, blocks_on_disk, chunkVec))
       bytesRead = -1;
@@ -86,12 +86,9 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
    if (bytesRead >= 0) {
       if (!chunkVec.empty()) {
          direct_handler = new DirectResponseHandler(1);
-         XrdCl::File &client = ((XrdPosixFile*)(&m_input))->clFile;
          // TODO check interface in the client file
-         XrdCl::XRootDStatus vrStatus = client.VectorRead(chunkVec, (void*) 0, direct_handler);
-         if (!vrStatus.IsOK()) {
-            bytesRead = -1;
-         }
+         //         m_input.VectorRead(chunkVec, (void*) 0, direct_handler);
+         m_input.ReadV(*direct_handler, &chunkVec[0], chunkVec.size());
       }
    }
    
@@ -125,8 +122,8 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
       
       if (direct_handler->m_errno == 0)
       {
-         for (XrdCl::ChunkList::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
-            bytesRead += i->length;
+         for (std::vector<XrdOucIOVec>::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
+            bytesRead += i->size;
       }
       else
       {
@@ -163,7 +160,7 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
 //______________________________________________________________________________
 
 
-bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& blocks_to_process,  ReadVBlockListDisk& blocks_on_disk, XrdCl::ChunkList& chunkVec)
+bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& blocks_to_process,  ReadVBlockListDisk& blocks_on_disk, std::vector<XrdOucIOVec>& chunkVec)
 {
    XrdSysCondVarHelper _lck(m_downloadCond);
    for (int iov_idx=0; iov_idx<n; iov_idx++)
@@ -201,7 +198,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
                long long size;    // size to copy
                const long long BS = m_cfi.GetBufferSize();
                overlap(block_idx, BS, readV[iov_idx].offset, readV[iov_idx].size, off, blk_off, size);
-               chunkVec.push_back(XrdCl::ChunkInfo( BS*block_idx + blk_off,size,  readV[iov_idx].data+off));
+               chunkVec.push_back(XrdOucIOVec2(readV[iov_idx].data+off, BS*block_idx + blk_off,size));
                clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess direct read %d", block_idx);
             }
          }

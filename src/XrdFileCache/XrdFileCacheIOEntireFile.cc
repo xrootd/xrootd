@@ -31,7 +31,7 @@ using namespace XrdFileCache;
 //______________________________________________________________________________
 
 
-IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
+IOEntireFile::IOEntireFile(XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache & cache)
    : IO(io, stats, cache),
      m_file(0)
 {
