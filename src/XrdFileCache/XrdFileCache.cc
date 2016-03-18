@@ -65,7 +65,7 @@ void *PrefetchThread(void* ptr)
 
 extern "C"
 {
-XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
+XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
                             const char   *config_filename,
                             const char   *parameters)
 {
@@ -139,7 +139,7 @@ Cache::Cache() : XrdOucCache(),
 
 //______________________________________________________________________________
 
-XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
+XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 {
    if (Cache::GetInstance().Decide(io))
    {

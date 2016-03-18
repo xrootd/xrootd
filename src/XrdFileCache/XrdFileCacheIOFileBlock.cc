@@ -33,7 +33,7 @@
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
-IOFileBlock::IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache & cache)
+IOFileBlock::IOFileBlock(XrdOucCacheIO2 &io, XrdOucCacheStats &statsGlobal, Cache & cache)
    : IO(io, statsGlobal, cache)
 {
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
@@ -83,7 +83,7 @@ void IOFileBlock::GetBlockSizeFromPath()
 }
 
 //______________________________________________________________________________
-File* IOFileBlock::newBlockFile(long long off, int blocksize, XrdOucCacheIO*  io)
+File* IOFileBlock::newBlockFile(long long off, int blocksize, XrdOucCacheIO2*  io)
 {
    XrdCl::URL url(io->Path());
    std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
