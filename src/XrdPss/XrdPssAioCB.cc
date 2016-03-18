@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                          X r d P s s A i o . c c                           */
+/*                        X r d P s s A i o C B . c c                         */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -28,85 +28,80 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
-#include <unistd.h>
+#include <errno.h>
 
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssAioCB.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 
-// All AIO interfaces are defined here.
- 
 /******************************************************************************/
-/*                                 F s y n c                                  */
+/*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
+
+XrdSysMutex  XrdPssAioCB::myMutex;
+XrdPssAioCB *XrdPssAioCB::freeCB   =   0;
+int          XrdPssAioCB::numFree  =   0;
+int          XrdPssAioCB::maxFree  = 100;
   
-/*
-  Function: Async fsync() a file
+/******************************************************************************/
+/*                                 A l l o c                                  */
+/******************************************************************************/
 
-  Input:    aiop      - A aio request object
-*/
-
-int XrdPssFile::Fsync(XrdSfsAio *aiop)
+XrdPssAioCB *XrdPssAioCB::Alloc(XrdSfsAio *aiop, bool isWr)
 {
+   XrdPssAioCB *newCB;
 
-// Execute this request in an asynchronous fashion
+// Try to allocate an prexisting object otherwise get a new one
 //
-   XrdPosixXrootd::Fsync(fd, XrdPssAioCB::Alloc(aiop, true));
-   return 0;
+   myMutex.Lock();
+   if ((newCB = freeCB)) {freeCB = newCB->next; numFree--;}
+      else newCB = new XrdPssAioCB;
+   myMutex.UnLock();
+
+// Initialize the callback and return it
+//
+   newCB->theAIOP = aiop;
+   newCB->isWrite = isWr;
+   return newCB;
 }
 
 /******************************************************************************/
-/*                                  R e a d                                   */
+/*                              C o m p l e t e                               */
 /******************************************************************************/
-
-/*
-  Function: Async read `blen' bytes from the associated file, placing in 'buff'
-
-  Input:    aiop      - An aio request object
-
-   Output:  <0 -> Operation failed, value is negative errno value.
-            =0 -> Operation queued
-            >0 -> Operation not queued, system resources unavailable or
-                                        asynchronous I/O is not supported.
-*/
   
-int XrdPssFile::Read(XrdSfsAio *aiop)
+#include <iostream>
+void XrdPssAioCB::Complete(ssize_t result)
 {
 
-// Execute this request in an asynchronous fashion
+// Set correct result
 //
-   XrdPosixXrootd::Pread(fd, (void *)aiop->sfsAio.aio_buf,
-                             (size_t)aiop->sfsAio.aio_nbytes,
-                             (off_t)aiop->sfsAio.aio_offset,
-                             XrdPssAioCB::Alloc(aiop, false));
-   return 0;
+// std::cerr <<"AIO fin " <<(isWrite ? " write ":" read ")
+//           <<theAIOP->sfsAio.aio_nbytes <<'@' <<theAIOP->sfsAio.aio_offset
+//           <<" result " <<result <<std::endl;
+   theAIOP->Result = (result < 0 ? -errno : result);
+
+// Invoke the callback
+//
+   if (isWrite) theAIOP->doneWrite();
+      else      theAIOP->doneRead();
+
+// Now recycle ourselves
+//
+   Recycle();
 }
 
 /******************************************************************************/
-/*                                 W r i t e                                  */
+/*                               R e c y c l e                                */
 /******************************************************************************/
   
-/*
-  Function: Async write `blen' bytes from 'buff' into the associated file
-
-  Input:    aiop      - An aio request object.
-
-   Output:  <0 -> Operation failed, value is negative errno value.
-            =0 -> Operation queued
-            >0 -> Operation not queued, system resources unavailable or
-                                        asynchronous I/O is not supported.
-*/
-  
-int XrdPssFile::Write(XrdSfsAio *aiop)
+void XrdPssAioCB::Recycle()
 {
-
-// Execute this request in an asynchronous fashion
+// Perform recycling
 //
-   XrdPosixXrootd::Pwrite(fd, (const void *)aiop->sfsAio.aio_buf,
-                              (size_t)aiop->sfsAio.aio_nbytes,
-                              (off_t)aiop->sfsAio.aio_offset,
-                              XrdPssAioCB::Alloc(aiop, true));
-   return 0;
+   myMutex.Lock();
+   if (numFree >= maxFree) delete this;
+      else {next   = freeCB;
+            freeCB = this;
+            numFree++;
+           }
+   myMutex.UnLock();
 }
