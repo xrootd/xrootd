@@ -66,7 +66,6 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucCache2.hh"
 
-
 #include "XrdPosix/XrdPosixXrootd.hh"
 
 /******************************************************************************/
