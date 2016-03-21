@@ -64,6 +64,8 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucCache2.hh"
+
 
 #include "XrdPosix/XrdPosixXrootd.hh"
 
@@ -461,10 +463,6 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 int XrdPssSys::getCache()
 {
    XrdOucPinLoader  myLib(&eDest,myVersion,"cachelib",cPath);
-   XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
-   union {XrdOucCache2 *theCache2;
-          XrdOucCache  *theCache;
-         };
    const char *cName;
    bool isCache2;
 
@@ -474,21 +472,32 @@ int XrdPssSys::getCache()
       {cName = "XrdOucGetCache";  isCache2 = false;
       } else {
        cName = "XrdOucGetCache2"; isCache2 = true;
-      }
-
-// Now get the entry point of the object creator
-//
-   ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
-                    (myLib.Resolve(cName));
-   if (!ep) return 0;
+      } 
 
 // Get the Object now
 //
-   theCache = ep(eDest.logger(), ConfigFN, cParm);
-   if (theCache)
-      {XrdPosixXrootd::setCache(isCache2 ? theCache2 : theCache);}
-      else eDest.Emsg("Config", "Unable to get cache object from", cPath);
-   return theCache != 0;
+   if (isCache2) {
+      XrdOucCache2     *(*ep)(XrdSysLogger *, const char *, const char *);
+      ep = (XrdOucCache2 *(*)(XrdSysLogger *, const char *, const char *))
+         (myLib.Resolve(cName));
+
+      if (!ep) return 0;
+
+      XrdOucCache2* theCache2 = ep(eDest.logger(), ConfigFN, cParm);
+      if (theCache2) XrdPosixXrootd::setCache(theCache2);
+      return theCache2 != 0;
+   }
+   else {
+      XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
+      ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
+         (myLib.Resolve(cName));
+
+      if (!ep) return 0;
+
+      XrdOucCache* theCache = ep(eDest.logger(), ConfigFN, cParm);
+      if (theCache) XrdPosixXrootd::setCache(theCache);
+      return theCache != 0;
+   }
 }
   
 /******************************************************************************/
