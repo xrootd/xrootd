@@ -15,7 +15,7 @@
 #include <fcntl.h>
 using namespace XrdFileCache;
 
-XrdVERSIONINFO(XrdOucGetCache, XrdFileCache);
+XrdVERSIONINFO(XrdOucGetCache2, XrdFileCache);
 /* Function: xdlib
 
    Purpose:  To parse the directive: decisionlib <path> [<parms>]
@@ -95,7 +95,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
 
    // Obtain plugin configurator
    XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(config_filename,&Config,&m_log,
-                                                &XrdVERSIONINFOVAR(XrdOucGetCache));
+                                                &XrdVERSIONINFOVAR(XrdOucGetCache2));
    if (!ofsCfg) return false;
 
 
