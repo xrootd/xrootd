@@ -65,6 +65,11 @@ XrdOucCacheIO *IOEntireFile::Detach()
    return io;
 }
 
+void IOEntireFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen)
+{
+   iocb.Done(IOEntireFile::Read(buff, offs, rlen));
+}
+
 int IOEntireFile::Read (char *buff, long long off, int size)
 {
    clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
