@@ -20,7 +20,7 @@
 #include <map>
 #include <string>
 
-#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCache2.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdFileCacheIO.hh"
@@ -41,7 +41,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor.
          //------------------------------------------------------------------------
-         IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+         IOFileBlock(XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache &cache);
 
          //------------------------------------------------------------------------
          //! Destructor.
@@ -70,7 +70,7 @@ namespace XrdFileCache
          XrdSysMutex                m_mutex;     //!< map mutex
 
          void GetBlockSizeFromPath();
-         File* newBlockFile(long long off, int blocksize, XrdOucCacheIO* io);
+         File* newBlockFile(long long off, int blocksize, XrdOucCacheIO2* io);
    };
 }
 

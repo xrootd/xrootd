@@ -31,7 +31,7 @@ using namespace XrdFileCache;
 //______________________________________________________________________________
 
 
-IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
+IOEntireFile::IOEntireFile(XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache & cache)
    : IO(io, stats, cache),
      m_file(0)
 {
@@ -63,6 +63,11 @@ XrdOucCacheIO *IOEntireFile::Detach()
    // This will delete us!
    m_cache.Detach(this);
    return io;
+}
+
+void IOEntireFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen)
+{
+   iocb.Done(IOEntireFile::Read(buff, offs, rlen));
 }
 
 int IOEntireFile::Read (char *buff, long long off, int size)

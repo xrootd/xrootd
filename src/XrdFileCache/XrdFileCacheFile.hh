@@ -21,6 +21,9 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
+#include "XrdOuc/XrdOucCache2.hh"
+#include "XrdOuc/XrdOucIOVec.hh"
+
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheStats.hh"
 
@@ -94,7 +97,7 @@ namespace XrdFileCache
    private:
       enum PrefetchState_e { kOn, kHold, kCanceled };
 
-      XrdOucCacheIO  &m_input;          //!< original data source
+      XrdOucCacheIO2 &m_input;          //!< original data source
       XrdOssDF       *m_output;         //!< file handle for data file on disk
       XrdOssDF       *m_infoFile;       //!< file handle for data-info file on disk
       Info            m_cfi;            //!< download status of file blocks and access statistics
@@ -141,7 +144,7 @@ namespace XrdFileCache
       //------------------------------------------------------------------------
       //! Constructor.
       //------------------------------------------------------------------------
-      File(XrdOucCacheIO &io, std::string &path,
+      File(XrdOucCacheIO2 &io, std::string &path,
            long long offset, long long fileSize);
 
       //------------------------------------------------------------------------
@@ -174,7 +177,7 @@ namespace XrdFileCache
       //----------------------------------------------------------------------
       Stats& GetStats() { return m_stats; }
 
-      void ProcessBlockResponse(Block* b, XrdCl::XRootDStatus *status);
+      void ProcessBlockResponse(Block* b, int res);
       void WriteBlockToDisk(Block* b);
 
       void Prefetch();
@@ -205,7 +208,7 @@ namespace XrdFileCache
                                 char* req_buf, long long req_off, long long req_size);
 
       // VRead
-      bool VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& blks_to_process,  ReadVBlockListDisk& blks_on_disk, XrdCl::ChunkList& chunkVec);
+      bool VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& blks_to_process,  ReadVBlockListDisk& blks_on_disk, std::vector<XrdOucIOVec>& chunkVec);
       int  VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blks_on_disk);
       int  VReadProcessBlocks(const XrdOucIOVec *readV, int n, std::vector<ReadVChunkListRAM>& blks_to_process, std::vector<ReadVChunkListRAM>& blks_rocessed);
 
@@ -230,18 +233,17 @@ namespace XrdFileCache
 
    // ================================================================
 
-   class BlockResponseHandler : public XrdCl::ResponseHandler
+   class BlockResponseHandler : public XrdOucCacheIOCB
    {
    public:
       Block *m_block;
 
       BlockResponseHandler(Block *b) : m_block(b) {}
 
-      void HandleResponse(XrdCl::XRootDStatus *status,
-                          XrdCl::AnyObject    *response);
+      virtual void Done(int result);
    };
 
-   class DirectResponseHandler : public XrdCl::ResponseHandler
+   class DirectResponseHandler : public XrdOucCacheIOCB
    {
    public:
       XrdSysCondVar  m_cond;
@@ -254,8 +256,7 @@ namespace XrdFileCache
       bool is_ok()       { XrdSysCondVarHelper _lck(m_cond); return m_to_wait == 0 && m_errno == 0; }
       bool is_failed()   { XrdSysCondVarHelper _lck(m_cond); return m_errno != 0; }
 
-      void HandleResponse(XrdCl::XRootDStatus *status,
-                          XrdCl::AnyObject    *response);
+      virtual void Done(int result);
    };
 
 }

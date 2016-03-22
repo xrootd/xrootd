@@ -22,7 +22,8 @@
 
 #include "XrdVersion.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCache2.hh"
+#include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdFileCacheFile.hh"
 #include "XrdFileCacheDecision.hh"
@@ -37,6 +38,7 @@ namespace XrdFileCache {
 class File;
 class IO;
 }
+
 
 namespace XrdFileCache
 {
@@ -75,7 +77,7 @@ namespace XrdFileCache
    //----------------------------------------------------------------------------
    //! Attaches/creates and detaches/deletes cache-io objects for disk based cache.
    //----------------------------------------------------------------------------
-   class Cache : public XrdOucCache
+   class Cache : public XrdOucCache2
    {
       public:
          //---------------------------------------------------------------------
@@ -86,7 +88,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Obtain a new IO object that fronts existing XrdOucCacheIO.
          //---------------------------------------------------------------------
-         virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
+         virtual XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *, int Options=0);
 
          //---------------------------------------------------------------------
          //! Number of cache-io objects atteched through this cache.

@@ -2,7 +2,7 @@
 #define __XRDFILECACHE_CACHE_IO_HH__
 
 #include "XrdFileCache.hh"
-#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCache2.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
 namespace XrdFileCache
@@ -10,10 +10,10 @@ namespace XrdFileCache
    //----------------------------------------------------------------------------
    //! Base cache-io class that implements XrdOucCacheIO abstract methods.
    //----------------------------------------------------------------------------
-   class IO : public XrdOucCacheIO
+   class IO : public XrdOucCacheIO2
    {
       public:
-         IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache) :
+         IO (XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache &cache) :
          m_io(io), m_statsGlobal(stats), m_cache(cache) {}
 
          //! Original data source.
@@ -36,7 +36,7 @@ namespace XrdFileCache
       protected:
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
-         XrdOucCacheIO    &m_io;          //!< original data source
+         XrdOucCacheIO2   &m_io;          //!< original data source
          XrdOucCacheStats &m_statsGlobal; //!< reference to Cache statistics
          Cache            &m_cache;       //!< reference to Cache needed in detach
    };

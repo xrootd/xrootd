@@ -43,7 +43,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor
          //------------------------------------------------------------------------
-         IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+         IOEntireFile(XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache &cache);
 
          //------------------------------------------------------------------------
          //! Destructor
@@ -60,6 +60,19 @@ namespace XrdFileCache
          //! @return number of bytes read
          //---------------------------------------------------------------------
          virtual int Read(char *Buffer, long long Offset, int Length);
+
+         //---------------------------------------------------------------------
+         //! Asynchronous read.
+         //!
+         //! @param callback
+         //! @param Buffer
+         //! @param Offset
+         //! @param Length
+         //!
+         //! @return number of bytes read
+         //---------------------------------------------------------------------
+         virtual void Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen);
+
 
          //---------------------------------------------------------------------
          //! Pass ReadV request to the corresponding File object.
