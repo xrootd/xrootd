@@ -1304,7 +1304,6 @@ void XrdPosixXrootd::initEnv(char *eData)
    XrdOucCacheIO::aprParms apParms;
    XrdOucCache *v1Cache;
    long long Val;
-   int isRW = 0;
    char * tP;
 
 // Get numeric type variable (errors force a default)
@@ -1350,7 +1349,7 @@ void XrdPosixXrootd::initEnv(char *eData)
       myParms.Options |= XrdOucCache::logStats;
    if ((tP = theEnv.Get("optpr")) && *tP && *tP != '0')
       myParms.Options |= XrdOucCache::canPreRead;
-   if ((tP = theEnv.Get("optwr")) && *tP && *tP != '0') isRW = 1;
+// if ((tP = theEnv.Get("optwr")) && *tP && *tP != '0') isRW = 1;
 
 // Use the default cache if one was not provided
 //
