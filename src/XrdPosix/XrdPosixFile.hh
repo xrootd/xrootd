@@ -84,7 +84,7 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        bool          Close(XrdCl::XRootDStatus &Status);
 
-       bool          Finalize(XrdCl::XRootDStatus &Status);
+       bool          Finalize(XrdCl::XRootDStatus *Status);
 
        long long     FSize() {AtomicBeg(updMutex);
                               long long retSize = AtomicGet(mySize);

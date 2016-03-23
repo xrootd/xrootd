@@ -225,22 +225,25 @@ bool XrdPosixFile::Close(XrdCl::XRootDStatus &Status)
 /*                              F i n a l i z e                               */
 /******************************************************************************/
 
-bool XrdPosixFile::Finalize(XrdCl::XRootDStatus &Status)
+bool XrdPosixFile::Finalize(XrdCl::XRootDStatus *Status)
 {
+   XrdOucCacheIO2 *ioP;
+
 // Indicate that we are at the start of the file
 //
    currOffset = 0;
 
 // Complete initialization. If the stat() fails, the caller will unwind the
-// whole open process (ick).
+// whole open process (ick). In the process get correct I/O vector.
 
-   if (!Stat(Status))
-      return false;
+        if (!Status)       ioP = (XrdOucCacheIO2 *)PrepIO;
+   else if (Stat(*Status)) ioP = (XrdOucCacheIO2 *)this;
+   else return false;
 
 // Setup the cache if it is to be used
 //
    if (XrdPosixGlobals::theCache)
-      XCio = XrdPosixGlobals::theCache->Attach((XrdOucCacheIO2 *)this, cOpt);
+      XCio = XrdPosixGlobals::theCache->Attach(ioP, cOpt);
 
    return true;
 }
@@ -258,8 +261,8 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
 
 // If no errors occured, complete the open
 //
-   if (!(status->IsOK()))         rc = XrdPosixMap::Result(*status);
-      else if (!Finalize(Status)) rc = XrdPosixMap::Result(Status);
+   if (!(status->IsOK()))          rc = XrdPosixMap::Result(*status);
+      else if (!Finalize(&Status)) rc = XrdPosixMap::Result(Status);
 
 // Issue callback with the correct result
 //
