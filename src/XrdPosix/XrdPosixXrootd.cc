@@ -106,7 +106,11 @@ int OpenDefer(XrdPosixFile           *fp,
 
 // Allocate a prepare I/O object to defer this open
 //
-   fp->XCio = fp->PrepIO = new XrdPosixPrepIO(fp, XOflags, XOmode);
+   fp->PrepIO = new XrdPosixPrepIO(fp, XOflags, XOmode);
+
+// Finalize this file object. A null argument indicates it is defered.
+//
+   fp->Finalize(0);
 
 // For sync opens we just need to return the file descriptor
 //
@@ -545,7 +549,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // finalization is defered until the callback happens.
 //
    if (cbP) {errno = EINPROGRESS; return -1;}
-   if (fp->Finalize(Status)) return fp->FDNum();
+   if (fp->Finalize(&Status)) return fp->FDNum();
    return XrdPosixMap::Result(Status);
 }
   
