@@ -1948,6 +1948,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          } else {
             // Fetch a copy of the saved entity
             int slen = 0;
+            FreeEntity(&Entity);
             CopyEntity((XrdSecEntity *) cent->buf1.buf, &Entity, &slen);
             // Notify
             DEBUG("Got Entity from cacheAuthzFun ("<<slen<<" bytes)");
