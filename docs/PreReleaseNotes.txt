@@ -11,5 +11,6 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  * [Server] Free Entity before replacing it from the cache (memleak).  
 
 + **Miscellaneous**
