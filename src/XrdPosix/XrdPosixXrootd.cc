@@ -294,15 +294,42 @@ int XrdPosixXrootd::endPoint(int FD, char *Buff, int Blen)
 int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
 {
    XrdPosixFile *fp;
+   long long theSize;
 
 // Find the file object
 //
    if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
-// Return what little we can
+// First initialize the stat buffer
 //
    initStat(buf);
-   buf->st_size   = fp->FSize();
+
+// Check if we can get the stat information from the cache.
+//
+  if (myCache2)
+     {int rc = myCache2->Stat(fp->Path(), *buf);
+      if (rc <= 0)
+         {fp->UnLock();
+          if (!rc) return 0;
+          errno = -rc;
+          return -1;
+         }
+     }
+
+// We need to trat getting the size separately as this file may still not be
+// open. This gets resolved via the cache layer.
+//
+   theSize = fp->XCio->FSize();
+   if (theSize < 0)
+      {fp->UnLock();
+       errno = static_cast<int>(-theSize);
+       return -1;
+      }
+
+
+// Return what little we can
+//
+   buf->st_size   = theSize;
    buf->st_atime  = buf->st_mtime = buf->st_ctime = fp->myMtime;
    buf->st_blocks = buf->st_size/512+1;
    buf->st_ino    = fp->myInode;
@@ -1009,9 +1036,13 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Make sure the admin is OK
 //
-  if (!admin.isOK()) return -1;
+   if (!admin.isOK()) return -1;
 
-// Check if we can get the stat informat directly
+// Initialize the stat buffer
+//
+   initStat(buf);
+
+// Check if we can get the stat informatation from the cache
 //
   if (myCache2)
      {std::string urlp = admin.Url.GetPathWithParams();
@@ -1026,7 +1057,6 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Return what little we can
 //
-   initStat(buf);
    buf->st_size   = stSize;
    buf->st_blocks = stSize/512+1;
    buf->st_atime  = buf->st_mtime = buf->st_ctime = stMtime;

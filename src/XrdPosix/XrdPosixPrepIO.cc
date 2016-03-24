@@ -49,7 +49,7 @@ extern bool psxDBG;
   
 bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 {
-   XrdPosixObjGaurd objGaurd((XrdPosixObject *)fileP);
+   XrdPosixObjGaurd objGaurd(fileP);
    XrdCl::XRootDStatus Status;
    static int maxCalls = 64;
 

@@ -30,24 +30,24 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdPosix/XrdPosixObject.hh"
+#include "XrdPosix/XrdPosixFile.hh"
 
 class XrdPosixObjGaurd
 {
 public:
 
-void  Init(XrdPosixObject *oP, bool rw=true)
-          {if (objP) Release();
-           objP = oP;
-           objP->Lock(rw);
+void  Init(XrdPosixFile *fP)
+          {if (gaurdP) gaurdP->updUnLock();
+           gaurdP = fP;
+           gaurdP->updLock();
           }
 
-void  Release() {if (objP) {objP->UnLock(); objP = 0;}}
+void  Release() {if (gaurdP) {gaurdP->updUnLock(); gaurdP = 0;}}
 
-      XrdPosixObjGaurd(XrdPosixObject *oP, bool rw=true) {Init(oP, rw);}
+      XrdPosixObjGaurd(XrdPosixFile *fP) {Init(fP);}
      ~XrdPosixObjGaurd() {Release();}
 
 private:
-XrdPosixObject *objP;
+XrdPosixFile *gaurdP;
 };
 #endif

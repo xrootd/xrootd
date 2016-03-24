@@ -41,43 +41,43 @@ XrdOucCacheIO *Base()   {return this;} // Already defined
 
 XrdOucCacheIO *Detach() {return this;} // Already defined
 
-long long   FSize() {return (Init() ? FSize() : openRC);}
+long long   FSize() {return (Init() ? fileP->FSize() : openRC);}
 
 bool        ioActive() { return false; } // Already defined
 
 const char *Path()  {return fileP->Path();}
 
 int         Read (char *Buffer, long long Offset, int Length)
-                 {return (Init() ? Read(Buffer, Offset, Length) : openRC);}
+                 {return (Init() ? fileP->Read(Buffer, Offset, Length) : openRC);}
 
 void        Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen)
-                 {if (Init(&iocb)) Read(iocb, buff, offs, rlen);
+                 {if (Init(&iocb)) fileP->Read(iocb, buff, offs, rlen);
                      else iocb.Done(openRC);
                  }
 
 int         ReadV(const XrdOucIOVec *readV, int n)
-                 {return (Init() ? ReadV(readV, n) : openRC);}
+                 {return (Init() ? fileP->ReadV(readV, n) : openRC);}
 
 void        ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int rnum)
-                 {if (Init(&iocb)) ReadV(iocb, readV, rnum);
+                 {if (Init(&iocb)) fileP->ReadV(iocb, readV, rnum);
                      else iocb.Done(openRC);
                  }
 
-int         Sync() {return (Init() ? Sync() : openRC);}
+int         Sync() {return (Init() ? fileP->Sync() : openRC);}
 
 void        Sync(XrdOucCacheIOCB &iocb)
-                 {if (Init(&iocb)) Sync(iocb);
+                 {if (Init(&iocb)) fileP->Sync(iocb);
                      else iocb.Done(openRC);
                  }
 
 int         Trunc(long long Offset)
-                 {return (Init() ? Trunc(Offset) : openRC);}
+                 {return (Init() ? fileP->Trunc(Offset) : openRC);}
 
 int         Write(char *Buffer, long long Offset, int Length)
-                 {return (Init() ? Write(Buffer, Offset, Length) : openRC);}
+                 {return (Init() ? fileP->Write(Buffer,Offset,Length) : openRC);}
 
 void        Write(XrdOucCacheIOCB &iocb, char *buff, long long offs, int wlen)
-                 {if (Init(&iocb)) Write(iocb, buff, offs, wlen);
+                 {if (Init(&iocb)) fileP->Write(iocb, buff, offs, wlen);
                      else iocb.Done(openRC);
                  }
 

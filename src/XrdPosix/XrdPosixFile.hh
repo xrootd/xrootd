@@ -97,6 +97,10 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        void          isOpen();
 
+       void          updLock()   {updMutex.Lock();}
+
+       void          updUnLock() {updMutex.UnLock();}
+
        long long     Offset() {AtomicRet(updMutex, currOffset);}
 
        const char   *Path() {return fPath;}
