@@ -53,6 +53,8 @@ XrdOucCacheIO2 *Detach() {XrdOucCacheIO2 *theCIO = cacheIO2;
 virtual
 long long       FSize() {return cacheIO1->FSize();}
 
+virtual int     Fstat(struct stat &buf) {return cacheIO2->Fstat(buf);}
+
 virtual
 const char     *Path()  {return cacheIO1->Path();}
 

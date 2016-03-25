@@ -294,7 +294,7 @@ int XrdPosixXrootd::endPoint(int FD, char *Buff, int Blen)
 int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
 {
    XrdPosixFile *fp;
-   long long theSize;
+   int rc;
 
 // Find the file object
 //
@@ -306,40 +306,21 @@ int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
 
 // Check if we can get the stat information from the cache.
 //
-  if (myCache2)
-     {int rc = myCache2->Stat(fp->Path(), *buf);
-      if (rc <= 0)
-         {fp->UnLock();
-          if (!rc) return 0;
-          errno = -rc;
-          return -1;
-         }
-     }
-
-// We need to trat getting the size separately as this file may still not be
-// open. This gets resolved via the cache layer.
-//
-   theSize = fp->XCio->FSize();
-   if (theSize < 0)
+   rc = fp->XCio->Fstat(*buf);
+   if (rc <= 0)
       {fp->UnLock();
-       errno = static_cast<int>(-theSize);
+       if (!rc) return 0;
+       errno = -rc;
        return -1;
       }
 
-
-// Return what little we can
+// At this point we can call the file's Fstat() and if the file is not open
+// it will be opened.
 //
-   buf->st_size   = theSize;
-   buf->st_atime  = buf->st_mtime = buf->st_ctime = fp->myMtime;
-   buf->st_blocks = buf->st_size/512+1;
-   buf->st_ino    = fp->myInode;
-   buf->st_rdev   = fp->myRdev;
-   buf->st_mode   = fp->myMode;
-
-// All done
-//
+   rc = fp->Fstat(*buf);
    fp->UnLock();
-   return 0;
+   if (rc < 0) {errno = -rc; rc = -1;}
+   return rc;
 }
   
 /******************************************************************************/
@@ -445,13 +426,17 @@ off_t   XrdPosixXrootd::Lseek(int fildes, off_t offset, int whence)
 //
    if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
-// Set the new offset
+// Set the new offset. Note that SEEK_END requires that the file be opened.
+// An open may occur by calling the FSize() method via the cache pointer.
 //
-   if (whence == SEEK_SET) curroffset = fp->setOffset(offset);
-      else if (whence == SEEK_CUR) curroffset = fp->addOffset(offset);
-              else if (whence == SEEK_END)
-                      curroffset = fp->setOffset(fp->FSize()+offset);
-                      else return Fault(fp, EINVAL);
+        if (whence == SEEK_SET) curroffset = fp->setOffset(offset);
+   else if (whence == SEEK_CUR) curroffset = fp->addOffset(offset);
+   else if (whence == SEEK_END)
+           {curroffset = fp->XCio->FSize();
+            if (curroffset < 0) return Fault(fp,static_cast<int>(-curroffset));
+            curroffset = fp->setOffset(curroffset+offset);
+           }
+   else return Fault(fp, EINVAL);
 
 // All done
 //
@@ -1395,7 +1380,7 @@ void XrdPosixXrootd::initEnv(char *eData)
    myParms.Options |= XrdOucCache::Serialized;
    if (!(v1Cache = myCache->Create(myParms, &apParms)))
       cerr <<"XrdPosix: " <<strerror(errno) <<" creating cache." <<endl;
-      else XrdPosixGlobals::theCache = myCache2 = new XrdPosixCacheBC(v1Cache);
+      else XrdPosixGlobals::theCache = new XrdPosixCacheBC(v1Cache);
 }
 
 /******************************************************************************/

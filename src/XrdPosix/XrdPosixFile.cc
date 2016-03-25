@@ -249,6 +249,31 @@ bool XrdPosixFile::Finalize(XrdCl::XRootDStatus *Status)
 }
   
 /******************************************************************************/
+/*                                 F s t a t                                  */
+/******************************************************************************/
+
+int XrdPosixFile::Fstat(struct stat &buf)
+{
+   long long theSize;
+
+// The size is treated differently here as it may come from a cache and may
+// actually trigger a file open if the open was deferred.
+//
+   theSize = XCio->FSize();
+   if (theSize < 0) return static_cast<int>(theSize);
+
+// Return what little we can
+//
+   buf.st_size   = theSize;
+   buf.st_atime  = buf.st_mtime = buf.st_ctime = myMtime;
+   buf.st_blocks = buf.st_size/512+1;
+   buf.st_ino    = myInode;
+   buf.st_rdev   = myRdev;
+   buf.st_mode   = myMode;
+   return 0;
+}
+  
+/******************************************************************************/
 /*                        H a n d l e R e s p o n s e                         */
 /******************************************************************************/
   
