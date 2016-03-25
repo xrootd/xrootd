@@ -92,6 +92,8 @@ static void          DelayedDestroy(XrdPosixFile *fp);
                               return retSize;
                              }
 
+       int           Fstat(struct stat &buf);
+
        void          HandleResponse(XrdCl::XRootDStatus *status,
                                     XrdCl::AnyObject    *response);
 
