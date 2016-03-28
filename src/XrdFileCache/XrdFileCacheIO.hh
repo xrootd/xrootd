@@ -13,17 +13,17 @@ namespace XrdFileCache
    class IO : public XrdOucCacheIO2
    {
       public:
-         IO (XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache &cache) :
+         IO (XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache) :
          m_io(io), m_statsGlobal(stats), m_cache(cache) {}
 
          //! Original data source.
-         virtual XrdOucCacheIO *Base() { return &m_io; }
+         virtual XrdOucCacheIO *Base() { return m_io; }
 
          //! Original data source URL.
-         virtual long long FSize() { return m_io.FSize(); }
+         virtual long long FSize() { return m_io->FSize(); }
 
          //! Original data source URL.
-         virtual const char *Path() { return m_io.Path(); }
+         virtual const char *Path() { return m_io->Path(); }
 
          virtual int Sync() { return 0; }
 
@@ -32,11 +32,12 @@ namespace XrdFileCache
          virtual int Write(char *Buffer, long long Offset, int Length)
          { errno = ENOTSUP; return -1; }
 
+      virtual void Update(XrdOucCacheIO2 &iocp) { m_io = &iocp; }
 
       protected:
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
-         XrdOucCacheIO2   &m_io;          //!< original data source
+         XrdOucCacheIO2   *m_io;          //!< original data source
          XrdOucCacheStats &m_statsGlobal; //!< reference to Cache statistics
          Cache            &m_cache;       //!< reference to Cache needed in detach
    };

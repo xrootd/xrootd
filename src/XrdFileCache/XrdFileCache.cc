@@ -30,11 +30,9 @@
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdFileCache.hh"
+#include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
-//#include "XrdFileCacheConfiguration.cc"
-//#include "XrdFileCachePurge.cc"
-
 
 using namespace XrdFileCache;
 
@@ -146,9 +144,9 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
       clLog()->Info(XrdCl::AppMsg, "Cache::Attach() %s", io->Path());
       IO* cio;
       if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
-         cio = new IOFileBlock(*io, m_stats, *this);
+         cio = new IOFileBlock(io, m_stats, *this);
       else
-         cio = new IOEntireFile(*io, m_stats, *this);
+         cio = new IOEntireFile(io, m_stats, *this);
 
       return cio;
    }
@@ -316,6 +314,7 @@ Cache::DeRegisterPrefetchFile(File* file)
    }
    m_prefetch_condVar.UnLock();
 }
+
 //______________________________________________________________________________
 
 File* 
@@ -335,6 +334,39 @@ Cache::GetNextFileToPrefetch()
    m_prefetch_condVar.UnLock();
    return f;
 }
+
+//______________________________________________________________________________
+
+int 
+Cache::Prepare(const char *url, int oflags, mode_t mode)
+{
+   return 1;
+}
+
+//______________________________________________________________________________
+
+int 
+Cache::Stat(const char *curl, struct stat &sbuff)
+{
+   XrdCl::URL url(curl);
+   std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
+   fname += ".cinfo";
+
+   XrdOucEnv myEnv;
+   XrdOssDF* df = m_output_fs->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
+   int res = df->Open(fname.c_str(), O_RDONLY, 0600, myEnv);
+   if (res != 0)
+      return 1;
+
+   df->Fstat(&sbuff);
+
+   Info cinfo(0);
+   cinfo.Read(df);
+   sbuff.st_size = cinfo.GetSizeInBits();
+   delete df;
+   return 0;
+}
+
 
 //______________________________________________________________________________
 
