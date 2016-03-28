@@ -41,7 +41,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor.
          //------------------------------------------------------------------------
-         IOFileBlock(XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache &cache);
+         IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
 
          //------------------------------------------------------------------------
          //! Destructor.
@@ -66,11 +66,11 @@ namespace XrdFileCache
 
       private:
          long long                  m_blocksize; //!< size of file-block
-         std::map<int, File*>   m_blocks;    //!< map of created blocks
+         std::map<int, File*>       m_blocks;    //!< map of created blocks
          XrdSysMutex                m_mutex;     //!< map mutex
 
          void GetBlockSizeFromPath();
-         File* newBlockFile(long long off, int blocksize, XrdOucCacheIO2* io);
+         File* newBlockFile(long long off, int blocksize);
    };
 }
 

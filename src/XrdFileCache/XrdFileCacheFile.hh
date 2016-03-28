@@ -97,7 +97,7 @@ namespace XrdFileCache
    private:
       enum PrefetchState_e { kOn, kHold, kCanceled };
 
-      XrdOucCacheIO2 &m_input;          //!< original data source
+      XrdOucCacheIO2 *m_input;          //!< original data source
       XrdOssDF       *m_output;         //!< file handle for data file on disk
       XrdOssDF       *m_infoFile;       //!< file handle for data-info file on disk
       Info            m_cfi;            //!< download status of file blocks and access statistics
@@ -144,7 +144,7 @@ namespace XrdFileCache
       //------------------------------------------------------------------------
       //! Constructor.
       //------------------------------------------------------------------------
-      File(XrdOucCacheIO2 &io, std::string &path,
+      File(XrdOucCacheIO2 *io, std::string &path,
            long long offset, long long fileSize);
 
       //------------------------------------------------------------------------
