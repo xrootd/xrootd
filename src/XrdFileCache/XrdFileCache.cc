@@ -336,11 +336,31 @@ Cache::GetNextFileToPrefetch()
 }
 
 //______________________________________________________________________________
+//! Preapare the cache for a file open request. This method is called prior to
+//! actually opening a file. This method is meant to allow defering an open
+//! request or implementing the full I/O stack in the cache layer.
+//! @return <0 Error has occurred, return value is -errno; fail open request.
+//!         =0 Continue with open() request.
+//!         >0 Defer open but treat the file as actually being open. Use the
+//!            XrdOucCacheIO2::Open() method to open the file at a later time.
+//------------------------------------------------------------------------------
 
 int 
 Cache::Prepare(const char *url, int oflags, mode_t mode)
 {
-   return 1;
+   std::string curl(url);
+   XrdCl::URL xx(curl);
+   const std::string& spath = xx.GetPath();
+
+   struct stat buf;
+   int res = m_output_fs->Stat(spath.c_str(), &buf);
+   if (res == 0) {
+      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch defer open %s", spath.c_str());
+      return 1;
+   }
+   else {
+      return 0;
+   }
 }
 
 //______________________________________________________________________________
@@ -348,22 +368,7 @@ Cache::Prepare(const char *url, int oflags, mode_t mode)
 int 
 Cache::Stat(const char *curl, struct stat &sbuff)
 {
-   XrdCl::URL url(curl);
-   std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
-   fname += ".cinfo";
-
-   XrdOucEnv myEnv;
-   XrdOssDF* df = m_output_fs->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
-   int res = df->Open(fname.c_str(), O_RDONLY, 0600, myEnv);
-   if (res != 0)
-      return 1;
-
-   df->Fstat(&sbuff);
-
-   Info cinfo(0);
-   cinfo.Read(df);
-   sbuff.st_size = cinfo.GetSizeInBits();
-   delete df;
+   assert(0 && "Cache::Stat() should not be called.");
    return 0;
 }
 
