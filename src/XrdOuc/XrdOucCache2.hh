@@ -62,6 +62,21 @@ class XrdOucCacheIO2 : public virtual XrdOucCacheIO
 public:
 
 //------------------------------------------------------------------------------
+//! Perform an fstat() operation (defaults to passthrough).
+//!
+//! @param sbuff  reference to the stat buffer to be filled in. Only fields
+//!               st_size, st_blocks, st_mtime (st_atime and st_ctime may be
+//!               set to st_mtime), st_ino, and st_mode need to be set. All
+//!               other fields are preset and should not be changed.
+//!
+//! @return <0 - fstat failed, value is -errno.
+//!         =0 - fstat succeeded, sbuff holds stat information.
+//!         >0 - fstat could not be done, forward operation to next level.
+//------------------------------------------------------------------------------
+
+virtual int  Fstat(struct stat &sbuff) {(void)sbuff; return 1;}
+
+//------------------------------------------------------------------------------
 //! Perform an asynchronous read (defaults to synchrnous).
 //!
 //! @param iocb   reference to the callback object that receives the result. All
@@ -227,8 +242,8 @@ int            Prepare(const char *url, int oflags, mode_t mode)
 //! @param url    pointer to the url whose stat information is wanted.
 //! @param sbuff  reference to the stat buffer to be filled in. Only fields
 //!               st_size, st_blocks, st_mtime (st_atime and st_ctime may be
-//!               set to st_mtime), st_ino, st_rdev, and st_mode need to be
-//!               set. All other fields should be set to zero.
+//!               set to st_mtime), st_ino, and st_mode need to be set. All
+//!               other fields are preset and should not be changed.
 //!
 //! @return <0 - Stat failed, value is -errno.
 //!         =0 - Stat succeeded, sbuff holds stat information.
