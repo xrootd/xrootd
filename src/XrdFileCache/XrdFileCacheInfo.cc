@@ -37,7 +37,7 @@ using namespace XrdFileCache;
 
 
 Info::Info(long long iBufferSize) :
-   m_version(0),
+   m_version(1),
    m_bufferSize(iBufferSize),
    m_sizeInBits(0),
    m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
@@ -51,6 +51,13 @@ Info::~Info()
    if (m_buff_fetched) free(m_buff_fetched);
    if (m_buff_write_called) free(m_buff_write_called);
    if (m_buff_prefetch) free(m_buff_prefetch);
+}
+
+//______________________________________________________________________________
+void Info::SetFileSize(long long fs)
+{
+   m_fileSize = fs;
+   ResizeBits(m_fileSize/m_bufferSize);
 }
 
 //______________________________________________________________________________
@@ -82,15 +89,15 @@ int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
    off += fp->Read(&m_bufferSize, off, sizeof(long long));
    if (off <= 0) return off;
 
-   int sb;
-   off += fp->Read(&sb, off, sizeof(int));
-   ResizeBits(sb);
+
+   off += fp->Read(&m_fileSize, off, sizeof(long long));
+   ResizeBits(m_fileSize/m_bufferSize);
 
    off += fp->Read(m_buff_fetched, off, GetSizeInBytes());
    assert (off == GetHeaderSize());
 
    memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
-   m_complete = IsAnythingEmptyInRng(0, sb-1) ? false : true;
+   m_complete = IsAnythingEmptyInRng(0, m_sizeInBits - 1) ? false : true;
 
 
    off += fp->Read(&m_accessCnt, off, sizeof(int));
@@ -110,8 +117,8 @@ int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
 
 int Info::GetHeaderSize() const
 {
-   // version + buffersize + download-status-array-size + download-status-array
-   return sizeof(int) + sizeof(long long) + sizeof(int) + GetSizeInBytes();
+   // version + buffersize + file-size + download-status-array
+   return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes();
 }
 
 //______________________________________________________________________________
@@ -124,8 +131,8 @@ void Info::WriteHeader(XrdOssDF* fp)
    off += fp->Write(&m_version, off, sizeof(int));
    off += fp->Write(&m_bufferSize, off, sizeof(long long));
 
-   int nb = GetSizeInBits();
-   off += fp->Write(&nb, off, sizeof(int));
+
+   off += fp->Write(&m_fileSize, off, sizeof(long long));
    off += fp->Write(m_buff_write_called, off, GetSizeInBytes());
 
    flr = XrdOucSxeq::Release(fp->getFD());
