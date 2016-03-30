@@ -207,9 +207,10 @@ bool File::InitiateClose()
    m_stateCond.Lock();
    m_stopping = true;
    m_stateCond.UnLock();
-   m_prefetchState = kCanceled; 
-   if (m_cfi.IsComplete()) return false; // AMT maybe map size is here more meaningfull, but might hold block state lock
-   return true;
+   m_prefetchState = kCanceled;
+   m_cfi.CheckComplete();
+   bool complete =  m_cfi.IsComplete();
+   return !complete;
 }
 
 //______________________________________________________________________________
@@ -270,8 +271,9 @@ bool File::Open()
       m_fileSize = m_input->FSize();
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
       clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_input->Path());
-      m_cfi.ResizeBits(ss, Cache::GetInstance().RefConfiguration().m_prefetch);
+      m_cfi.SetFileSize(m_fileSize);
       m_cfi.WriteHeader(m_infoFile);
+      m_infoFile->Fsync();
    }
    else
    {
