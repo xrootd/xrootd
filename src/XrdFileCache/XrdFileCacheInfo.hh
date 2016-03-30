@@ -85,6 +85,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void SetBitPrefetch(int i);
 
+         void SetFileSize(long long);
 
          //---------------------------------------------------------------------
          //! \brief Reserve buffer for fileSize/bufferSize bytes
@@ -126,6 +127,11 @@ namespace XrdFileCache
          //! Get number of blocks represented in download-state bit-vector.
          //---------------------------------------------------------------------
          int GetSizeInBits() const;
+
+         //---------------------------------------------------------------------
+         //! Get file size
+         //---------------------------------------------------------------------
+         long long GetFileSize() const;
 
          //----------------------------------------------------------------------
          //! Get header size.
@@ -195,6 +201,7 @@ namespace XrdFileCache
 
          int            m_version;    //!< info version
          long long      m_bufferSize; //!< prefetch buffer size
+         long long      m_fileSize; //!< number of file blocks
          int            m_sizeInBits; //!< number of file blocks
          unsigned char *m_buff_fetched;       //!< download state vector
          unsigned char *m_buff_write_called;  //!< disk written state vector
@@ -244,6 +251,11 @@ namespace XrdFileCache
    inline int Info::GetSizeInBits() const
    {
       return m_sizeInBits;
+   }
+
+   inline long long Info::GetFileSize() const
+   {
+      return m_fileSize;
    }
 
    inline bool Info::IsComplete() const
