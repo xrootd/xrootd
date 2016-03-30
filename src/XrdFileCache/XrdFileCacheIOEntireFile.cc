@@ -17,6 +17,7 @@
 //----------------------------------------------------------------------------------
 
 #include <stdio.h>
+#include <fcntl.h>
 
 //#include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -25,6 +26,8 @@
 
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheStats.hh"
+
+#include "XrdOuc/XrdOucEnv.hh"
 
 using namespace XrdFileCache;
 
@@ -45,6 +48,31 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
 
 IOEntireFile::~IOEntireFile()
 {}
+
+int IOEntireFile::Fstat(struct stat &sbuff)
+{
+   XrdCl::URL url(m_io->Path());
+   std::string name = url.GetPath();
+   name += ".cinfo";
+   printf("AMT IOEntireFile::Fstat get stat for path%s \n", name.c_str());
+   if (m_cache.GetOss()->Stat(name.c_str(), &sbuff) == XrdOssOK) {
+       XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str()); 
+       XrdOucEnv myEnv; 
+       int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
+       if (res < 0) return res;
+       Info info(0);
+       if (info.Read(infoFile) < 0) return -1;
+       
+       sbuff.st_size = info.GetFileSize();
+       printf("AMT IONETIREFILE::Stat %ld\n",  sbuff.st_size);
+       infoFile->Close();
+       delete infoFile;
+       return 0;
+   }
+   else {
+      return m_io->Fstat(sbuff);
+   }
+}
 
 bool IOEntireFile::ioActive()
 {
@@ -72,11 +100,7 @@ void IOEntireFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int 
 
 int IOEntireFile::Read (char *buff, long long off, int size)
 {
-
-
    clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() [%p]  %lld@%d %s", this, off, size, m_io->Path());
-
-   return m_io->Read(buff, off, size);
 
    // protect from reads over the file size
    //   if (off >= m_io->FSize())
