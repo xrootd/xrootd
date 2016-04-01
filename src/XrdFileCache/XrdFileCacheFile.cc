@@ -109,55 +109,6 @@ File::~File()
 {
    clLog()->Debug(XrdCl::AppMsg, "File::~File() enter %p %s", (void*)this, lPath());
 
-   // assert if in debug mode
-   if (XrdCl::DefaultEnv::GetLog()->GetLevel() >= XrdCl::Log::DebugMsg ) {
-      m_stateCond.Lock();
-      assert (m_stopping == true);
-      m_stateCond.UnLock();
-   }
-
-   cache()->RemoveWriteQEntriesFor(this);
-
-   clLog()->Info(XrdCl::AppMsg, "File::~File() check write queues ...%s", lPath());
-   
-   while (true)
-   {
-      m_stateCond.Lock();
-      bool isPrefetching = (m_prefetchCurrentCnt > 0);
-      m_stateCond.UnLock();
-
-      if (isPrefetching == false)
-      {
-         m_downloadCond.Lock();
-         // remove failed blocks
-         BlockMap_i itr = m_block_map.begin();
-         while (itr != m_block_map.end()) {
-            if (itr->second->is_failed() && itr->second->m_refcnt == 1) {
-               BlockMap_i toErase = itr;
-               ++itr;
-               free_block(toErase->second);
-            }
-            else {
-               ++itr;
-            }
-         }
-
-         bool blockMapEmpty =  m_block_map.empty();
-         int blocksize = (int)m_block_map.size();
-         m_downloadCond.UnLock();
-         if ( blockMapEmpty)
-            break;
-         clLog()->Info(XrdCl::AppMsg, "File::~File() mapsize %d %s", blocksize,lPath());
-         for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it) {
-            Block* b = it->second;
-            clLog()->Debug(XrdCl::AppMsg, "File::~File() block idx=%d p=%d rcnt=%d dwnd=%d %s",
-                           b->m_offset/m_cfi.GetBufferSize(), b->m_prefetch, b->m_refcnt, b->m_downloaded, lPath());     
-         }
-      }
-      XrdSysTimer::Wait(10);
-   }
-   clLog()->Debug(XrdCl::AppMsg, "File::~File finished with writing %s",lPath() );
-
 
    // Wait disk sync
    bool do_sync = false;
@@ -202,15 +153,46 @@ bool File::InitiateClose()
    // Retruns true if delay is needed
    clLog()->Debug(XrdCl::AppMsg, "File::Initiate close start %s", lPath());
 
-   cache()->DeRegisterPrefetchFile(this);
 
    m_stateCond.Lock();
-   m_stopping = true;
+   bool firsttime = false;
+   if (!m_stopping) {
+      firsttime = true;
+      m_prefetchState = kCanceled;
+       cache()->DeRegisterPrefetchFile(this);
+      m_stopping = true;
+   }
    m_stateCond.UnLock();
-   m_prefetchState = kCanceled;
-   m_cfi.CheckComplete();
-   bool complete =  m_cfi.IsComplete();
-   return !complete;
+
+   if (firsttime) cache()->RemoveWriteQEntriesFor(this);
+
+   m_stateCond.Lock();
+   bool isPrefetching = (m_prefetchCurrentCnt > 0);
+   m_stateCond.UnLock();
+
+   if (isPrefetching == false)
+   {
+      m_downloadCond.Lock();
+      // remove failed blocks
+      BlockMap_i itr = m_block_map.begin();
+      while (itr != m_block_map.end()) {
+         if (itr->second->is_failed() && itr->second->m_refcnt == 1) {
+            BlockMap_i toErase = itr;
+            ++itr;
+            free_block(toErase->second);
+         }
+         else {
+            ++itr;
+         }
+      }
+      bool blockMapEmpty =  m_block_map.empty();
+      m_downloadCond.UnLock();
+
+      if ( blockMapEmpty)
+         return false;
+   }
+
+   return true;
 }
 
 //______________________________________________________________________________
