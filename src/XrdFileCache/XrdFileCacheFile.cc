@@ -95,6 +95,7 @@ m_prefetchCurrentCnt(0)
    if (!Open()) {
       clLog()->Error(XrdCl::AppMsg, "File::File() Open failed %s !!!", m_input->Path());
    }
+   printf("AMT open ended in File\n");
 }
 
 void File::BlockRemovedFromWriteQ(Block* b)
@@ -153,7 +154,6 @@ bool File::InitiateClose()
    // Retruns true if delay is needed
    clLog()->Debug(XrdCl::AppMsg, "File::Initiate close start %s", lPath());
 
-
    m_stateCond.Lock();
    bool firsttime = false;
    if (!m_stopping) {
@@ -164,8 +164,6 @@ bool File::InitiateClose()
    }
    m_stateCond.UnLock();
 
-   if (firsttime) cache()->RemoveWriteQEntriesFor(this);
-
    m_stateCond.Lock();
    bool isPrefetching = (m_prefetchCurrentCnt > 0);
    m_stateCond.UnLock();
@@ -173,6 +171,13 @@ bool File::InitiateClose()
    if (isPrefetching == false)
    {
       m_downloadCond.Lock();
+      /*
+      for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it) {
+         Block* b = it->second;
+         clLog()->Debug(XrdCl::AppMsg, "File::InitiateClose() block idx=%d p=%d rcnt=%d dwnd=%d %s",
+                        b->m_offset/m_cfi.GetBufferSize(), b->m_prefetch, b->m_refcnt, b->m_downloaded, lPath());
+      }
+      */
       // remove failed blocks
       BlockMap_i itr = m_block_map.begin();
       while (itr != m_block_map.end()) {
@@ -185,6 +190,7 @@ bool File::InitiateClose()
             ++itr;
          }
       }
+
       bool blockMapEmpty =  m_block_map.empty();
       m_downloadCond.UnLock();
 
@@ -259,8 +265,6 @@ bool File::Open()
    }
    else
    {
-      m_fileSize = m_cfi.GetSizeInBits();
-      printf("%lld file size \n", m_fileSize);
       clLog()->Debug(XrdCl::AppMsg, "Info file read from disk: %s", m_input->Path());
    }
 
@@ -641,7 +645,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
       delete direct_handler;
    }
-   clLog()->Debug(XrdCl::AppMsg, "File::Read() before assert %s.", lPath());
    assert(iUserSize >= bytes_read);
 
    // Last, stamp and release blocks, release file.
