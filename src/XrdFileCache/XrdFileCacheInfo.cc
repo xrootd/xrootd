@@ -57,7 +57,7 @@ Info::~Info()
 void Info::SetFileSize(long long fs)
 {
    m_fileSize = fs;
-   ResizeBits(m_fileSize/m_bufferSize);
+   ResizeBits((m_fileSize-1)/m_bufferSize + 1) ;
 }
 
 //______________________________________________________________________________
@@ -89,9 +89,9 @@ int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
    off += fp->Read(&m_bufferSize, off, sizeof(long long));
    if (off <= 0) return off;
 
-
-   off += fp->Read(&m_fileSize, off, sizeof(long long));
-   ResizeBits(m_fileSize/m_bufferSize);
+   long long fs;
+   off += fp->Read(&fs, off, sizeof(long long));
+   SetFileSize(fs);
 
    off += fp->Read(m_buff_fetched, off, GetSizeInBytes());
    assert (off == GetHeaderSize());
@@ -130,7 +130,6 @@ void Info::WriteHeader(XrdOssDF* fp)
    long long off = 0;
    off += fp->Write(&m_version, off, sizeof(int));
    off += fp->Write(&m_bufferSize, off, sizeof(long long));
-
 
    off += fp->Write(&m_fileSize, off, sizeof(long long));
    off += fp->Write(m_buff_write_called, off, GetSizeInBytes());
