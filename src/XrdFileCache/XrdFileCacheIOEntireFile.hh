@@ -100,6 +100,8 @@ namespace XrdFileCache
 
       private:
          File* m_file;
+         struct stat      *m_localStat;       
+         struct stat*     getValidLocalStat(const char* path);
    };
 
 }

@@ -36,42 +36,66 @@ using namespace XrdFileCache;
 
 IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache)
    : IO(io, stats, cache),
-     m_file(0)
+     m_file(0),
+     m_localStat(0)
 {
    clLog()->Info(XrdCl::AppMsg, "IO::IO() [%p] %s", this, m_io->Path());
    
    XrdCl::URL url(m_io->Path());
    std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
-   m_file = new File(io, fname, 0, 0);
+   struct stat st;
+   Fstat(st);
+   m_file = new File(io, fname, 0, st.st_size);
 }
 
 IOEntireFile::~IOEntireFile()
-{}
+{
+
+   delete m_localStat;
+}
 
 int IOEntireFile::Fstat(struct stat &sbuff)
 {
    XrdCl::URL url(m_io->Path());
    std::string name = url.GetPath();
    name += ".cinfo";
-   printf("AMT IOEntireFile::Fstat get stat for path%s \n", name.c_str());
-   if (m_cache.GetOss()->Stat(name.c_str(), &sbuff) == XrdOssOK) {
-       XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str()); 
-       XrdOucEnv myEnv; 
-       int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
-       if (res < 0) return res;
-       Info info(0);
-       if (info.Read(infoFile) < 0) return -1;
-       
-       sbuff.st_size = info.GetFileSize();
-       printf("AMT IONETIREFILE::Stat %ld\n",  sbuff.st_size);
-       infoFile->Close();
-       delete infoFile;
-       return 0;
+
+   struct stat* ls = getValidLocalStat(name.c_str());
+   if (ls) {
+      memcpy(&sbuff, ls, sizeof(struct stat));
+      return 0;
    }
    else {
       return m_io->Fstat(sbuff);
    }
+}
+
+
+struct stat* IOEntireFile::getValidLocalStat(const char* path)
+{
+   if (!m_localStat) {
+      m_localStat = new struct stat;
+      memset(m_localStat, 0, sizeof(struct stat));
+      if (m_cache.GetOss()->Stat(path, m_localStat) == XrdOssOK) {
+         m_localStat->st_size = 0;
+         XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str()); 
+         XrdOucEnv myEnv; 
+         int res = infoFile->Open(path, O_RDONLY, 0600, myEnv);
+         if (res >= 0) {
+             Info info(0);
+             if (info.Read(infoFile) > 0) {
+                 m_localStat->st_size = info.GetFileSize();
+             }
+         }
+         infoFile->Close();
+         delete infoFile;
+      }
+   }
+   if (m_localStat->st_size)
+      return m_localStat;
+   else return 0;
+   
 }
 
 bool IOEntireFile::ioActive()
