@@ -91,11 +91,10 @@ m_prefetchHitCnt(0),
 m_prefetchScore(1),
 m_prefetchCurrentCnt(0)
 {
-   clLog()->Debug(XrdCl::AppMsg, "File::File() %s", m_input->Path());
+   clLog()->Debug(XrdCl::AppMsg, "File::File() %s", m_temp_filename.c_str());
    if (!Open()) {
-      clLog()->Error(XrdCl::AppMsg, "File::File() Open failed %s !!!", m_input->Path());
+      clLog()->Error(XrdCl::AppMsg, "File::File() Open failed %s !!!", m_temp_filename.c_str());
    }
-   printf("AMT open ended in File\n");
 }
 
 void File::BlockRemovedFromWriteQ(Block* b)
@@ -155,9 +154,7 @@ bool File::InitiateClose()
    clLog()->Debug(XrdCl::AppMsg, "File::Initiate close start %s", lPath());
 
    m_stateCond.Lock();
-   bool firsttime = false;
    if (!m_stopping) {
-      firsttime = true;
       m_prefetchState = kCanceled;
        cache()->DeRegisterPrefetchFile(this);
       m_stopping = true;
@@ -209,7 +206,7 @@ bool File::InitiateClose()
 
 bool File::Open()
 {
-   clLog()->Dump(XrdCl::AppMsg, "File::Open() open file for disk cache %s", m_input->Path());
+   clLog()->Dump(XrdCl::AppMsg, "File::Open() open file for disk cache %s", m_temp_filename.c_str());
 
    XrdOss  &m_output_fs =  *Cache::GetInstance().GetOss();
    // Create the data file itself.
@@ -221,7 +218,7 @@ bool File::Open()
       int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
       if (res < 0)
       {
-         clLog()->Error(XrdCl::AppMsg, "File::Open() can't get data-FD for %s %s", m_temp_filename.c_str(), m_input->Path());
+         clLog()->Error(XrdCl::AppMsg, "File::Open() can't get data-FD for %s %s", m_temp_filename.c_str(), m_temp_filename.c_str());
          delete m_output;
          m_output = 0;
 
@@ -243,7 +240,7 @@ bool File::Open()
       int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
       if (res < 0)
       {
-         clLog()->Error(XrdCl::AppMsg, "File::Open() can't get info-FD %s  %s", ifn.c_str(), m_input->Path());
+         clLog()->Error(XrdCl::AppMsg, "File::Open() can't get info-FD %s  %s", ifn.c_str(), m_temp_filename.c_str());
          delete m_infoFile;
          m_infoFile = 0;
          return false;
@@ -256,16 +253,16 @@ bool File::Open()
 
    if (m_cfi.Read(m_infoFile, Cache::GetInstance().RefConfiguration().m_prefetch) <= 0)
    {
-      m_fileSize = m_input->FSize();
+      m_fileSize = m_fileSize;
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
-      clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_input->Path());
+      clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_temp_filename.c_str());
       m_cfi.SetFileSize(m_fileSize);
       m_cfi.WriteHeader(m_infoFile);
       m_infoFile->Fsync();
    }
    else
    {
-      clLog()->Debug(XrdCl::AppMsg, "Info file read from disk: %s", m_input->Path());
+      clLog()->Debug(XrdCl::AppMsg, "Info file read from disk: %s", m_temp_filename.c_str());
    }
 
 
@@ -330,7 +327,7 @@ Block* File::RequestBlock(int i, bool prefetch)
    const int last_block = m_cfi.GetSizeInBits() - 1;
 
    long long off     = i * BS;
-   long long this_bs = (i == last_block) ? m_input->FSize() - off : BS;
+   long long this_bs = (i == last_block) ? m_fileSize - off : BS;
 
    Block *b = new Block(this, off, this_bs, prefetch); // should block be reused to avoid recreation
 
@@ -674,7 +671,7 @@ void File::WriteBlockToDisk(Block* b)
    int retval = 0;
    // write block buffer into disk file
    long long offset = b->m_offset - m_offset;
-   long long size = (b->m_offset +  m_cfi.GetBufferSize()) > m_input->FSize() ? (m_input->FSize() - b->m_offset) : m_cfi.GetBufferSize();
+   long long size = (b->m_offset +  m_cfi.GetBufferSize()) > m_fileSize ? (m_fileSize - b->m_offset) : m_cfi.GetBufferSize();
    int buffer_remaining = size;
    int buffer_offset = 0;
    int cnt = 0;
