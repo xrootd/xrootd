@@ -44,7 +44,7 @@ void  Init(XrdPosixFile *fP)
 
 void  Release() {if (gaurdP) {gaurdP->updUnLock(); gaurdP = 0;}}
 
-      XrdPosixObjGaurd(XrdPosixFile *fP):fP(0) {Init(fP);}
+      XrdPosixObjGaurd(XrdPosixFile *fP): gaurdP(0) {Init(fP);}
      ~XrdPosixObjGaurd() {Release();}
 
 private:
