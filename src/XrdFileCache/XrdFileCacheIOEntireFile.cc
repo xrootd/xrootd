@@ -17,6 +17,7 @@
 //----------------------------------------------------------------------------------
 
 #include <stdio.h>
+#include <fcntl.h>
 
 //#include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -26,25 +27,76 @@
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheStats.hh"
 
+#include "XrdOuc/XrdOucEnv.hh"
+
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
 
 
-IOEntireFile::IOEntireFile(XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache & cache)
+IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache)
    : IO(io, stats, cache),
-     m_file(0)
+     m_file(0),
+     m_localStat(0)
 {
-   clLog()->Info(XrdCl::AppMsg, "IO::IO() [%p] %s", this, m_io.Path());
+   clLog()->Info(XrdCl::AppMsg, "IO::IO() [%p] %s", this, m_io->Path());
    
-   XrdCl::URL url(io.Path());
+   XrdCl::URL url(m_io->Path());
    std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
-   m_file = new File(io, fname, 0, io.FSize());
+   struct stat st;
+   Fstat(st);
+   m_file = new File(io, fname, 0, st.st_size);
 }
 
 IOEntireFile::~IOEntireFile()
-{}
+{
+
+   delete m_localStat;
+}
+
+int IOEntireFile::Fstat(struct stat &sbuff)
+{
+   XrdCl::URL url(m_io->Path());
+   std::string name = url.GetPath();
+   name += ".cinfo";
+
+   struct stat* ls = getValidLocalStat(name.c_str());
+   if (ls) {
+      memcpy(&sbuff, ls, sizeof(struct stat));
+      return 0;
+   }
+   else {
+      return m_io->Fstat(sbuff);
+   }
+}
+
+
+struct stat* IOEntireFile::getValidLocalStat(const char* path)
+{
+   if (!m_localStat) {
+      m_localStat = new struct stat;
+      memset(m_localStat, 0, sizeof(struct stat));
+      if (m_cache.GetOss()->Stat(path, m_localStat) == XrdOssOK) {
+         m_localStat->st_size = 0;
+         XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str()); 
+         XrdOucEnv myEnv; 
+         int res = infoFile->Open(path, O_RDONLY, 0600, myEnv);
+         if (res >= 0) {
+             Info info(0);
+             if (info.Read(infoFile) > 0) {
+                 m_localStat->st_size = info.GetFileSize();
+             }
+         }
+         infoFile->Close();
+         delete infoFile;
+      }
+   }
+   if (m_localStat->st_size)
+      return m_localStat;
+   else return 0;
+   
+}
 
 bool IOEntireFile::ioActive()
 {
@@ -55,7 +107,7 @@ XrdOucCacheIO *IOEntireFile::Detach()
 {
    m_statsGlobal.Add(m_file->GetStats());
 
-   XrdOucCacheIO * io = &m_io;
+   XrdOucCacheIO * io = m_io;
 
    delete m_file;
    m_file = 0;
@@ -72,24 +124,24 @@ void IOEntireFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int 
 
 int IOEntireFile::Read (char *buff, long long off, int size)
 {
-   clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
+   clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() [%p]  %lld@%d %s", this, off, size, m_io->Path());
 
    // protect from reads over the file size
-   if (off >= m_io.FSize())
-      return 0;
+   //   if (off >= m_io->FSize())
+   //   return 0;
    if (off < 0)
    {
       errno = EINVAL;
       return -1;
    }
-   if (off + size > m_io.FSize())
-      size = m_io.FSize() - off;
+   //if (off + size > m_io->FSize())
+   //  size = m_io->FSize() - off;
 
    ssize_t bytes_read = 0;
    ssize_t retval = 0;
 
    retval = m_file->Read(buff, off, size);
-   clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() read from File retval =  %d %s", retval, m_io.Path());
+   clLog()->Debug(XrdCl::AppMsg, "IOEntireFile::Read() read from File retval =  %d %s", retval, m_io->Path());
    if (retval >= 0)
    {
       bytes_read += retval;
@@ -97,11 +149,11 @@ int IOEntireFile::Read (char *buff, long long off, int size)
       size -= retval;
 
       if (size > 0)
-        clLog()->Warning(XrdCl::AppMsg, "IOEntireFile::Read() missed %d bytes %s", size, m_io.Path());
+        clLog()->Warning(XrdCl::AppMsg, "IOEntireFile::Read() missed %d bytes %s", size, m_io->Path());
    }      
    else
    {
-      clLog()->Error(XrdCl::AppMsg, "IOEntireFile::Read(), origin bytes read %d %s", retval, m_io.Path());
+      clLog()->Error(XrdCl::AppMsg, "IOEntireFile::Read(), origin bytes read %d %s", retval, m_io->Path());
    }
 
    return (retval < 0) ? retval : bytes_read;
@@ -113,7 +165,7 @@ int IOEntireFile::Read (char *buff, long long off, int size)
  */
 int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
 {
-   clLog()->Warning(XrdCl::AppMsg, "IOEntireFile::ReadV(), get %d requests %s", n, m_io.Path());
+   clLog()->Warning(XrdCl::AppMsg, "IOEntireFile::ReadV(), get %d requests %s", n, m_io->Path());
 
 
    return m_file->ReadV(readV, n);

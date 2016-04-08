@@ -30,11 +30,9 @@
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdFileCache.hh"
+#include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
-//#include "XrdFileCacheConfiguration.cc"
-//#include "XrdFileCachePurge.cc"
-
 
 using namespace XrdFileCache;
 
@@ -146,9 +144,9 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
       clLog()->Info(XrdCl::AppMsg, "Cache::Attach() %s", io->Path());
       IO* cio;
       if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
-         cio = new IOFileBlock(*io, m_stats, *this);
+         cio = new IOFileBlock(io, m_stats, *this);
       else
-         cio = new IOEntireFile(*io, m_stats, *this);
+         cio = new IOEntireFile(io, m_stats, *this);
 
       return cio;
    }
@@ -316,6 +314,7 @@ Cache::DeRegisterPrefetchFile(File* file)
    }
    m_prefetch_condVar.UnLock();
 }
+
 //______________________________________________________________________________
 
 File* 
@@ -335,6 +334,44 @@ Cache::GetNextFileToPrefetch()
    m_prefetch_condVar.UnLock();
    return f;
 }
+
+//______________________________________________________________________________
+//! Preapare the cache for a file open request. This method is called prior to
+//! actually opening a file. This method is meant to allow defering an open
+//! request or implementing the full I/O stack in the cache layer.
+//! @return <0 Error has occurred, return value is -errno; fail open request.
+//!         =0 Continue with open() request.
+//!         >0 Defer open but treat the file as actually being open. Use the
+//!            XrdOucCacheIO2::Open() method to open the file at a later time.
+//------------------------------------------------------------------------------
+
+int 
+Cache::Prepare(const char *url, int oflags, mode_t mode)
+{
+   std::string curl(url);
+   XrdCl::URL xx(curl);
+   const std::string& spath = xx.GetPath();
+
+   struct stat buf;
+   int res = m_output_fs->Stat(spath.c_str(), &buf);
+   if (res == 0) {
+      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch defer open %s", spath.c_str());
+      return 1;
+   }
+   else {
+      return 0;
+   }
+}
+
+//______________________________________________________________________________
+
+int 
+Cache::Stat(const char *curl, struct stat &sbuff)
+{
+   assert(0 && "Cache::Stat() should not be called.");
+   return 0;
+}
+
 
 //______________________________________________________________________________
 

@@ -99,6 +99,13 @@ namespace XrdFileCache
          // this is an obsolete method 
          virtual XrdOucCache* Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*);
 
+         // Virtual function of XrdOucCache2. Used for deferred open.
+         virtual int  Prepare(const char *url, int oflags, mode_t mode);
+
+
+         // virtual function of XrdOucCache2::Stat()
+         virtual int  Stat(const char *url, struct stat &sbuff);
+
          //--------------------------------------------------------------------
          //! \brief Makes decision if the original XrdOucCacheIO should be cached.
          //!

@@ -88,7 +88,7 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
          direct_handler = new DirectResponseHandler(1);
          // TODO check interface in the client file
          //         m_input.VectorRead(chunkVec, (void*) 0, direct_handler);
-         m_input.ReadV(*direct_handler, &chunkVec[0], chunkVec.size());
+         m_input->ReadV(*direct_handler, &chunkVec[0], chunkVec.size());
       }
    }
    

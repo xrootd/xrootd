@@ -43,7 +43,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor
          //------------------------------------------------------------------------
-         IOEntireFile(XrdOucCacheIO2 &io, XrdOucCacheStats &stats, Cache &cache);
+         IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
 
          //------------------------------------------------------------------------
          //! Destructor
@@ -95,8 +95,13 @@ namespace XrdFileCache
          //! Called to check if destruction needs to be done in a separate task.
          virtual bool ioActive();
 
+         virtual int  Fstat(struct stat &sbuff);
+         
+
       private:
          File* m_file;
+         struct stat      *m_localStat;       
+         struct stat*     getValidLocalStat(const char* path);
    };
 
 }

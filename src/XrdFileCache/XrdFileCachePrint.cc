@@ -71,8 +71,8 @@ void Print::printFile(const std::string& path)
    int cntd = 0;
    for (int i = 0; i < cfi.GetSizeInBits(); ++i) if (cfi.TestBit(i)) cntd++;
 
-   printf("version == %d, bufferSize %lld nBlocks %d nDownloaded %d %s\n",
-          cfi.GetVersion(), cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
+   printf("version == %d, fileSize %lld, bufferSize %lld nBlocks %d nDownloaded %d %s\n",
+          cfi.GetVersion(), cfi.GetFileSize(),cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
           (cfi.GetSizeInBits() == cntd) ? "complete" : "");
 
    if (m_verbose) {
