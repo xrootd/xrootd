@@ -74,7 +74,7 @@ File::File(XrdOucCacheIO2 *inputIO, std::string& disk_file_path, long long iOffs
 m_input(inputIO),
 m_output(NULL),
 m_infoFile(NULL),
-m_cfi(Cache::GetInstance().RefConfiguration().m_bufferSize),
+m_cfi(Cache::GetInstance().RefConfiguration().m_bufferSize, Cache::GetInstance().RefConfiguration().m_prefetch),
 m_temp_filename(disk_file_path),
 m_offset(iOffset),
 m_fileSize(iFileSize),
