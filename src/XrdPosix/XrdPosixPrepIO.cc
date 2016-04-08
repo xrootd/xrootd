@@ -31,7 +31,7 @@
 #include <iostream>
 #include <stdio.h>
 
-#include "XrdPosix/XrdPosixObjGaurd.hh"
+#include "XrdPosix/XrdPosixObjGuard.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
 
 /******************************************************************************/
@@ -49,7 +49,7 @@ extern bool psxDBG;
   
 bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 {
-   XrdPosixObjGaurd objGaurd(fileP);
+   XrdPosixObjGuard objGuard(fileP);
    XrdCl::XRootDStatus Status;
    static int maxCalls = 64;
 
