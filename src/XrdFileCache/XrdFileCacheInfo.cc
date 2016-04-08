@@ -36,9 +36,10 @@ const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
 using namespace XrdFileCache;
 
 
-Info::Info(long long iBufferSize) :
+Info::Info(long long iBufferSize, bool prefetchBuffer) :
    m_version(1),
    m_bufferSize(iBufferSize),
+   m_hasPrefetchBuffer(prefetchBuffer),
    m_sizeInBits(0),
    m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
    m_accessCnt(0),
@@ -63,14 +64,14 @@ void Info::SetFileSize(long long fs)
 //______________________________________________________________________________
 
 
-void Info::ResizeBits(int s, bool init_prefetch_buff)
+void Info::ResizeBits(int s)
 {
    m_sizeInBits = s;
    m_buff_fetched = (unsigned char*)malloc(GetSizeInBytes());
    m_buff_write_called = (unsigned char*)malloc(GetSizeInBytes());
    memset(m_buff_fetched, 0, GetSizeInBytes());
    memset(m_buff_write_called, 0, GetSizeInBytes());
-   if (init_prefetch_buff) {
+   if (m_hasPrefetchBuffer) {
       m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
       memset(m_buff_prefetch, 0, GetSizeInBytes());
    }

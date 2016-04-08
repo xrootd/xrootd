@@ -59,7 +59,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor.
          //------------------------------------------------------------------------
-         Info(long long bufferSize);
+      Info(long long bufferSize, bool prefetchBuffer = false);
 
          //------------------------------------------------------------------------
          //! Destructor.
@@ -92,7 +92,7 @@ namespace XrdFileCache
          //!
          //! @param n number of file blocks
          //---------------------------------------------------------------------
-         void ResizeBits(int n, bool prefetch_stat = false);
+         void ResizeBits(int n);
 
          //---------------------------------------------------------------------
          //! \brief Rea load content from cinfo file into this object
@@ -201,6 +201,7 @@ namespace XrdFileCache
 
          int            m_version;    //!< info version
          long long      m_bufferSize; //!< prefetch buffer size
+         bool           m_hasPrefetchBuffer; //!< constains current prefetch score
          long long      m_fileSize; //!< number of file blocks
          int            m_sizeInBits; //!< number of file blocks
          unsigned char *m_buff_fetched;       //!< download state vector
