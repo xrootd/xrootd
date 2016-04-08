@@ -1,8 +1,8 @@
-#ifndef __XRDPOSIXOBJGAURD_HH__
-#define __XRDPOSIXOBJGAURD_HH__
+#ifndef __XRDPOSIXOBJGUARD_HH__
+#define __XRDPOSIXOBJGUARD_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                   X r d P o s i x O b j G a u r d . h h                    */
+/*                   X r d P o s i x O b j G u a r d . h h                    */
 /*                                                                            */
 /* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -32,22 +32,22 @@
 
 #include "XrdPosix/XrdPosixFile.hh"
 
-class XrdPosixObjGaurd
+class XrdPosixObjGuard
 {
 public:
 
 void  Init(XrdPosixFile *fP)
-          {if (gaurdP) gaurdP->updUnLock();
-           gaurdP = fP;
-           gaurdP->updLock();
+          {if (guardP) guardP->updUnLock();
+           guardP = fP;
+           guardP->updLock();
           }
 
-void  Release() {if (gaurdP) {gaurdP->updUnLock(); gaurdP = 0;}}
+void  Release() {if (guardP) {guardP->updUnLock(); guardP = 0;}}
 
-      XrdPosixObjGaurd(XrdPosixFile *fP): gaurdP(0) {Init(fP);}
-     ~XrdPosixObjGaurd() {Release();}
+      XrdPosixObjGuard(XrdPosixFile *fP): guardP(0) {Init(fP);}
+     ~XrdPosixObjGuard() {Release();}
 
 private:
-XrdPosixFile *gaurdP;
+XrdPosixFile *guardP;
 };
 #endif
