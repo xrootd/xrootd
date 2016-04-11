@@ -726,7 +726,7 @@ void File::WriteBlockToDisk(Block* b)
          ++m_non_flushed_cnt;
       }
 
-      if (m_non_flushed_cnt >= 100 && (m_cfi.IsComplete() && m_non_flushed_cnt > 0))
+      if (m_non_flushed_cnt >= 100 )
       {
          schedule_sync     = true;
          m_in_sync         = true;
