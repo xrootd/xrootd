@@ -80,7 +80,7 @@ void Info::ResizeBits(int s)
 //______________________________________________________________________________
 
 
-int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
+int Info::Read(XrdOssDF* fp)
 {
    // does not need lock, called only in File::Open
    // before File::Run() starts
@@ -111,7 +111,7 @@ int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
    clLog()->Dump(XrdCl::AppMsg, "Info:::Read() complete %d access_cnt %d", m_complete, m_accessCnt);
 
 
-   if (init_prefetch_buff) {
+   if (m_hasPrefetchBuffer) {
       m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
       memset(m_buff_prefetch, 0, GetSizeInBytes());
    }
