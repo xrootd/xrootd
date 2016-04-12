@@ -52,7 +52,8 @@ namespace XrdFileCache
          m_diskUsageLWM(-1),
          m_diskUsageHWM(-1),
          m_bufferSize(1024*1024),
-    	 m_NRamBuffers(8000),
+    	 m_RamAbsAvailable(8*1024*1024),
+    	 m_NRamBuffers(-1),
          m_prefetch_max_blocks(10),
          m_hdfsbsize(128*1024*1024) {}
 
@@ -64,7 +65,8 @@ namespace XrdFileCache
       long long m_diskUsageHWM;       //!< cache purge high water mark
 
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
-      int       m_NRamBuffers;        //!< number of total in-memory cache blocks
+      int       m_RamAbsAvailable;     //!< available from configuration
+      int       m_NRamBuffers;        //!< number of total in-memory cache blocks, cached
       bool      m_prefetch;           //!< prefetch enable state        
       size_t    m_prefetch_max_blocks;//!< maximum number of blocks to prefetch per file
 
