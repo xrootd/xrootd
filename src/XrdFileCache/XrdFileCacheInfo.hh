@@ -59,7 +59,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor.
          //------------------------------------------------------------------------
-      Info(long long bufferSize, bool prefetchBuffer = false);
+         Info(long long bufferSize, bool prefetchBuffer = false);
 
          //------------------------------------------------------------------------
          //! Destructor.
