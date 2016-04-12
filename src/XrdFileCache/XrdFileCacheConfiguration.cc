@@ -156,11 +156,9 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       int loff = 0;
       char buff[2048];
       loff = snprintf(buff, sizeof(buff), "result\n"
-               "\tpfc.cachedir %s\n"
                "\tpfc.blocksize %lld\n"
                "\tpfc.prefetch %d\n"
                "\tpfc.nram %d\n\n",
-               m_configuration.m_cache_dir.c_str() , 
                m_configuration.m_bufferSize,
                m_configuration.m_prefetch, // AMT not sure what parsing should be
                m_configuration.m_NRamBuffers );
