@@ -547,7 +547,7 @@ namespace XrdCl
     if( itr == pPollerMap.end())
     {
       XrdSys::IOEvents::Poller* poller = GetNextPoller();
-      pPollerMap[socket->GetChannelID()] = std::make_pair(poller, 1);
+      pPollerMap[socket->GetChannelID()] = std::make_pair(poller, (size_t)1);
       return poller;
     }
 
