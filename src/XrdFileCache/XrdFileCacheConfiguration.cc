@@ -151,6 +151,8 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       }
    }
 
+   // get number of available RAM blocks after process configuration
+   m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
    if (retval)
    {
       int loff = 0;
@@ -158,7 +160,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       loff = snprintf(buff, sizeof(buff), "result\n"
                "\tpfc.blocksize %lld\n"
                "\tpfc.prefetch %d\n"
-               "\tpfc.nram %d\n\n",
+               "\tpfc.nramblocks %d\n\n",
                m_configuration.m_bufferSize,
                m_configuration.m_prefetch, // AMT not sure what parsing should be
                m_configuration.m_NRamBuffers );
@@ -269,7 +271,12 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
    }
    else if (part == "nram" )
    {
-      m_configuration.m_NRamBuffers = ::atoi(config.GetWord());
+      long long minRAM = 1024* 1024 * 1024;;
+      long long maxRAM = 100 * minRAM;
+      if ( XrdOuca2x::a2sz(m_log, "get RAM available", config.GetWord(), &m_RamAbsAvailable, minRAM, maxRAM))
+      {
+         return false;
+      }
    }
    else if ( part == "hdfsmode" )
    {
