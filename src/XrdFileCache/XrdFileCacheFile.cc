@@ -251,7 +251,7 @@ bool File::Open()
       return false;
    }
 
-   if (m_cfi.Read(m_infoFile, Cache::GetInstance().RefConfiguration().m_prefetch) <= 0)
+   if (m_cfi.Read(m_infoFile)
    {
       m_fileSize = m_fileSize;
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
