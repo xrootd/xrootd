@@ -225,12 +225,12 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
                errno = 0;
                float lwmf = strtod(minV.c_str(), &eP);
                if (errno || eP == minV.c_str()) {
-                    m_log.Emsg("Cache::ConfigParameters() error parsing diskusage parameter ", minV.c_str());
+                    m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", minV.c_str());
                     return false;
                }
                float hwmf = strtod(maxV.c_str(), &eP);
                if (errno || eP == maxV.c_str()) {
-                  m_log.Emsg("Cache::ConfigParameters() error parsing diskusage parameter ", maxV.c_str());
+                  m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", maxV.c_str());
                   return false;
                }
 
