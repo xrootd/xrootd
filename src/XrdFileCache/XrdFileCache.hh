@@ -223,8 +223,8 @@ namespace XrdFileCache
          WriteQ s_writeQ;
 
        // prefetching
-       typedef std::vector<File*>  FileList;
-       FileList  m_files;
+       typedef std::vector<File*>  PrefetchList;
+       PrefetchList  m_prefetchList;
    };
 
 }
