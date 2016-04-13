@@ -42,6 +42,7 @@
 
 
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 #include <vector>
 #include <arpa/inet.h>
 
@@ -1320,9 +1321,9 @@ int XrdHttpProtocol::InitSecurity() {
   OpenSSL_add_all_digests();
 
   const SSL_METHOD *meth;
-  meth = SSLv23_method();
+  meth = TLSv1_2_method();
   sslctx = SSL_CTX_new((SSL_METHOD *)meth);
-  SSL_CTX_set_options(sslctx, SSL_OP_NO_SSLv2);
+  //SSL_CTX_set_min_proto_version(sslctx, TLS1_2_VERSION);
   SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_SERVER);
   SSL_CTX_set_session_id_context(sslctx, s_server_session_id_context,
           s_server_session_id_context_len);
