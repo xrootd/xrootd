@@ -37,6 +37,7 @@
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPList.hh"
+#include "XrdOuc/XrdOucSid.hh"
 #include "XrdOss/XrdOss.hh"
 
 /******************************************************************************/
@@ -51,14 +52,11 @@ int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 
         // Constructor and destructor
-        XrdPssDir(const char *tid) : tident(tid), myDir(0), dirVec(0) {}
-       ~XrdPssDir() {if (dirVec) Close();}
+        XrdPssDir(const char *tid) : tident(tid), myDir(0) {}
+       ~XrdPssDir() {if (myDir) Close();}
 private:
 const    char      *tident;
          DIR       *myDir;
-         char     **dirVec;
-         int        curEnt;
-         int        numEnt;
 };
   
 /******************************************************************************/
@@ -147,6 +145,7 @@ const  char *P2CGI(int &cgilen, char *cbuff, int cblen,
                    const char *Cgi1, const char *Cgi2);
 static int   P2DST(int &retc, char *hBuff, int hBlen, PolAct pType,
                    const char *path);
+static char *P2ID (XrdOucSid::theSid *idVal, char *idBuff, int idBsz);
 static char *P2OUT(int &retc,  char *pbuff, int pblen,
                    const char *path, const char *Cgi, const char *Ident);
 static char *P2URL(int &retc, char *pbuff, int pblen,
@@ -170,6 +169,7 @@ static int          urlPlen;
 static int          hdrLen;
 static const char  *hdrData;
 static const char  *urlRdr;
+static int          Streams;
 static int          Workers;
 static int          Trace;
 
@@ -206,6 +206,8 @@ int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
 int    ConfigN2N();
 int    getCache();
+const
+char  *getDomain(const char *hName);
 int    xcach(XrdSysError *Eroute, XrdOucStream &Config);
 int    xcacl(XrdSysError *Eroute, XrdOucStream &Config);
 char  *xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff);

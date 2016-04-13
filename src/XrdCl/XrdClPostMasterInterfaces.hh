@@ -32,6 +32,8 @@
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClURL.hh"
 
+class XrdNetAddr;
+
 namespace XrdCl
 {
   class Channel;
@@ -236,6 +238,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Data structure that carries the handshake information
   //----------------------------------------------------------------------------
+
   struct HandShakeData
   {
     //--------------------------------------------------------------------------
@@ -252,7 +255,8 @@ namespace XrdCl
     uint16_t     streamId;       //!< Stream number
     uint16_t     subStreamId;    //!< Sub-stream id
     time_t       startTime;      //!< Timestamp of when the handshake started
-    const void  *serverAddr;     //!< Server address in the form of sockaddr
+    const
+    XrdNetAddr  *serverAddr;     //!< Server address
     std::string  clientName;     //!< Client name (an IPv6 representation)
     std::string  streamName;     //!< Name of the stream
   };

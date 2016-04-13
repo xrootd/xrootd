@@ -36,6 +36,8 @@ class XrdCmsCluster;
 class XrdOucTList;
 class XrdScheduler;
 
+class BL_Grip;
+
 class XrdCmsBlackList : public XrdJob
 {
 public:
@@ -52,23 +54,35 @@ public:
 //! @param  sP     Pointer to the scheduler object.
 //! @param  cP     Pointer to the cluster   object.
 //! @param  blfn   The path to the black list file or null.
-//! @param  chkt   Seconds between checks for blacklist changes.
+//! @param  chkt   Seconds between checks for blacklist changes. If the value
+//!                is negative, the blacklist is treated as a whitelist.
 //------------------------------------------------------------------------------
 
 static void  Init(XrdScheduler *sP,   XrdCmsCluster *cP,
                   const char   *blfn, int chkt=600);
 
 //------------------------------------------------------------------------------
-//! Check if host is in the black list.
+//! Check if host is in the black list and how it should be managed.
 //!
 //! @param  hName  Pointer to the host name or address.
 //! @param  bList  Optional pointer to a private black list.
+//! @param  rbuff  Pointer to the buffer to contain the redirect response. If
+//!                nil, the host is not redirected.
+//! @param  rblen  The size of rbuff. If zero or insufficiently large the host
+//!                is not redirected.
 //!
-//! @return true   Host is     in the black list.
-//! @return false  Host is not in the black list.
+//! @return < -1   Host is  in the black list and would      be redirected;
+//!                but either rbuff was nil or the buffer was too small. The
+//!                abs(returned value) is the size the buffer should have been.
+//! @return = -1   Host is  in the black list and should not be redirected.
+//! @return =  0   Host not in the black list.
+//! @return >  0   Host is  in the black list and should     be redirected.
+//!                The return value is the size of the redirect response placed
+//!                in the supplied buffer.
 //------------------------------------------------------------------------------
 
-static bool Present(const char *hName, XrdOucTList *bList=0);
+static int  Present(const char *hName, XrdOucTList *bList=0,
+                          char *rbuff=0, int rblen=0);
 
 //------------------------------------------------------------------------------
 //! Constructor and Destructor
@@ -77,7 +91,12 @@ static bool Present(const char *hName, XrdOucTList *bList=0);
             XrdCmsBlackList() : XrdJob("Black List Check") {}
            ~XrdCmsBlackList() {}
 private:
-static void AddBL(XrdOucTList *&bAnchor, char *hSpec);
-static bool GetBL(XrdOucTList *&bAnchor);
+static bool  AddBL(BL_Grip &bAnchor, char *hSpec,
+                   BL_Grip *rAnchor, char *rSpec);
+static int   AddRD(BL_Grip *rAnchor,    char *rSpec, char *hSpec);
+static bool  AddRD(XrdOucTList **rList, char *rSpec, char *hSpec);
+static
+XrdOucTList *Flatten(XrdOucTList *tList, int tPort);
+static bool  GetBL(XrdOucTList *&bList, XrdOucTList **&rList, int &rcnt);
 };
 #endif

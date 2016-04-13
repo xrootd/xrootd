@@ -77,9 +77,4 @@ XrdSysMutex   mlMutex;
 XrdCmsManRef *nextMan;
 XrdCmsManRef *allMans;
 };
-
-namespace XrdCms
-{
-extern    XrdCmsManList myMans;
-}
 #endif

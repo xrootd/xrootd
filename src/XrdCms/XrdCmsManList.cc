@@ -38,14 +38,6 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-using namespace XrdCms;
-
-/******************************************************************************/
-/*                        G l o b a l   O b j e c t s                         */
-/******************************************************************************/
-
-       XrdCmsManList  XrdCms::myMans;
-
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
@@ -111,7 +103,9 @@ void XrdCmsManList::Add(int ref, char *manp, int manport, int lvl)
 
 // Find the colon in the host name
 //
-   if (!(cp = index(manp, int(':')))) port = manport;
+   if (*manp != '[') cp = index(manp, int(':'));
+      else if ((cp = index(manp+1, ']'))) cp = index(cp+1, int(':'));
+   if (!cp) port = manport;
       else {if (!(port=atoi(cp+1)) || port > 0xffff) port=manport;
             *cp = '\0';
            }

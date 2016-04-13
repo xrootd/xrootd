@@ -561,7 +561,7 @@ namespace
       virtual ~XRootDSource()
       {
         CleanUpChunks();
-        pFile->Close();
+        XrdCl::XRootDStatus status = pFile->Close();
         delete pFile;
       }
 
@@ -574,6 +574,10 @@ namespace
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for reading",
                                 pUrl->GetURL().c_str() );
+
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+        pFile->SetProperty( "ReadRecovery", value );
 
         XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
         if( !st.IsOK() )
@@ -754,7 +758,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~XRootDSourceDynamic()
       {
-        pFile->Close();
+        XrdCl::XRootDStatus status = pFile->Close();
         delete pFile;
       }
 
@@ -767,6 +771,10 @@ namespace
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for reading",
                                 pUrl->GetURL().c_str() );
+
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+        pFile->SetProperty( "ReadRecovery", value );
 
         XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
         if( !st.IsOK() )
@@ -1197,6 +1205,10 @@ namespace
         log->Debug( UtilityMsg, "Opening %s for writing",
                                 pUrl->GetURL().c_str() );
 
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
+        pFile->SetProperty( "WriteRecovery", value );
+
         OpenFlags::Flags flags = OpenFlags::Update;
         if( pForce )
           flags |= OpenFlags::Delete;
@@ -1208,6 +1220,9 @@ namespace
 
         if( pCoerce )
           flags |= OpenFlags::Force;
+
+        if( pMakeDir)
+          flags |= OpenFlags::MakePath;
 
         Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
 
@@ -1436,6 +1451,7 @@ namespace XrdCl
         std::ostringstream o; o << src->GetSize();
         params["oss.asize"] = o.str();
         newDestUrl.SetParams( params );
+ //     makeDir = true; // Backward compatability for xroot destinations!!!
       }
       dest.reset( new XRootDDestination( &newDestUrl, parallelChunks ) );
     }

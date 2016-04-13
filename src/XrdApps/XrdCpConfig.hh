@@ -102,14 +102,15 @@ static const int    OpHelp     =  'h';
 static const int    DoHelp     =  0x00000040; // -h | --help
 
 static const int    OpIfile    =  'I';
-static const int    DoIfile    =  0x00100000; // -I | --infiles
+static const int    DoIfile    =  0x00000080; // -I | --infiles
 
 static const int    OpLicense  =  'H';        // -H | --license
 
-//atic const int    DoXyzzy    =  0x00000080; // Reserved
-
 static const int    OpNoPbar   =  'N';
 static const int    DoNoPbar   =  0x00000100; // -N | --nopbar | -np {legacy}
+
+static const int    OpPath     =  'p';
+static const int    DoPath     =  0x00800000; // -p | --path
 
 static const int    OpPosc     =  'P';
 static const int    DoPosc     =  0x00000200; // -P | --posc
@@ -152,7 +153,10 @@ static const int    OpParallel =  0x04;
 static const int    DoParallel =  0x00200000; //      --parallel
 
 static const int    OpDynaSrc  =  'Z';
-static const int    DoDynaSrc  =  0x00200000; //      --dynamic-src
+static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
+
+static const int    OpMetalink =  'M';
+static const int    DoMetalink =  0x01000000; // -M | --metalink
 
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.

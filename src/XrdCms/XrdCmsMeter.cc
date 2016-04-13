@@ -402,7 +402,6 @@ unsigned int XrdCmsMeter::TotalSpace(unsigned int &minfree)
 //
    if (fsminfr >> 31LL) minfree = 0x7fffffff;
       else              minfree = static_cast<unsigned int>(fsminfr);
-   fstotal = fstotal >> 10LL;
    if (fstotal == 0) fstotal = 1;
       else if (fstotal >> 31LL) fstotal = 0x7fffffff;
 

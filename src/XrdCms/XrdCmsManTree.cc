@@ -35,15 +35,42 @@
 #include "XrdCms/XrdCmsManTree.hh"
 #include "XrdCms/XrdCmsNode.hh"
 #include "XrdCms/XrdCmsTrace.hh"
-  
+
 using namespace XrdCms;
 
 /******************************************************************************/
-/*                        G l o b a l   O b j e c t s                         */
+/*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
-XrdCmsManTree XrdCms::ManTree;
 
+XrdCmsManTree::XrdCmsManTree(int maxC) : maxTMI(0),  numConn(0), maxConn(maxC),
+                                         atRoot(0), conLevel(0), conNID(-1),
+                                         numWaiting(0), myStatus(Active)
+{
+    snprintf(buff, sizeof(buff), "%d", maxC);
+}
+  
+/******************************************************************************/
+/*                                 A b o r t                                  */
+/******************************************************************************/
+
+void XrdCmsManTree::Abort()
+{
+   XrdSysMutexHelper Monitor(myMutex);
+
+// An abort may be issued to make sure no one is waiting to participate in
+// tree construction. It's usually issued when the manager object has been
+// permanently redirected.
+//
+   if (myStatus != Aborted && numWaiting)
+      {for (int i = 0; i < maxTMI; i++)
+           if (tmInfo[i].Status == Waiting) {tmInfo[i].Level = 0; Redrive(i);}
+      }
+
+// Indicate we have aborted
+//
+   myStatus = Aborted;
+}
+  
 /******************************************************************************/
 /*                               C o n n e c t                                */
 /******************************************************************************/
@@ -54,6 +81,10 @@ int XrdCmsManTree::Connect(int nID, XrdCmsNode *nP)
    XrdSysMutexHelper Monitor(myMutex);
    char mybuff[8];
    int i;
+
+// Rule 0: If we aborted tell the client to just stop doing this
+//
+   if (myStatus == Aborted) return 0;
 
 // Rule 1: If we are already connected, thell the caller to disband the
 //         connection as we must have a connection to an interior node.
@@ -133,16 +164,6 @@ int XrdCmsManTree::Register()
 }
 
 /******************************************************************************/
-/*                             s e t M a x C o n                              */
-/******************************************************************************/
-  
-void XrdCmsManTree::setMaxCon(int n)
-{
-    maxConn = n;
-    snprintf(buff, sizeof(buff), "%d", n);
-}
-
-/******************************************************************************/
 /*                                T r y i n g                                 */
 /******************************************************************************/
   
@@ -162,6 +183,10 @@ int XrdCmsManTree::Trying(int nID, int lvl)
 //
    myMutex.Lock();
    tmInfo[nID].Level  = lvl;
+
+// Rule 0: If we aborted tell the client to just stop doing this
+//
+   if (myStatus == Aborted) return -1;
 
 // Rule 1: If we are already connected at level >0 then the caller must wait
 //

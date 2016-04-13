@@ -82,6 +82,8 @@ static XrdPssSys   XrdProxySS;
 
 static XrdScheduler *schedP = 0;
 
+       XrdOucSid    *sidP   = 0;
+
 static const char *ofslclCGI = "ofs.lcl=1";
 static const int   ofslclCGL = strlen(ofslclCGI);
 
@@ -263,8 +265,8 @@ const char *XrdPssSys::Lfn2Pfn(const char *oldp, char *newp, int blen, int &rc)
 
 int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 {
-   int retc, CgiLen;
-   const char *Cgi = eP->Env(CgiLen);
+   int retc, CgiLen = 0;
+   const char *Cgi = (eP ? eP->Env(CgiLen) : 0);
    char pbuff[PBsz];
 
 // Verify we can write here
@@ -294,8 +296,8 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 */
 int XrdPssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
 {
-   int rc, CgiLen;
-   const char *Cgi  = eP->Env(CgiLen);
+   int rc, CgiLen = 0;
+   const char *Cgi  = (eP ? eP->Env(CgiLen) : 0);
    char pbuff[PBsz], cbuff[CBsz], *subPath;
 
 // Verify we can write here
@@ -357,8 +359,10 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 
 // Grab any cgi information
 //
-   oldCgi = oldenvP->Env(oldCgiLen);
-   newCgi = newenvP->Env(newCgiLen);
+   if (oldenvP) oldCgi = oldenvP->Env(oldCgiLen);
+      else     {oldCgi = 0; oldCgiLen = 0;}
+   if (newenvP) newCgi = newenvP->Env(newCgiLen);
+      else     {newCgi = 0; newCgiLen = 0;}
 
 // If we are not forwarding the request, manually execute it everywhere.
 //
@@ -399,9 +403,10 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 
 int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP)
 {
-   int CgiLen, retc;
+   int CgiLen = 0, retc;
    const char *Cgi = (eP ? eP->Env(CgiLen) : 0);
-   char pbuff[PBsz], cbuff[CBsz];
+   char *theID, idBuff[16], pbuff[PBsz], cbuff[CBsz];
+   XrdOucSid::theSid idVal;
 
 // Setup any required cgi information
 //
@@ -412,13 +417,20 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
                  }
       }
 
+// Generate an ID if we need to
+//
+   if (sidP) theID = P2ID(&idVal, idBuff, sizeof(idBuff));
+      else   theID = 0;
+
 // Convert path to URL
 //
-   if (!P2URL(retc, pbuff, PBsz, path, 0, Cgi, CgiLen)) return retc;
+   if (!P2URL(retc, pbuff, PBsz, path, 0, Cgi, CgiLen, theID)) return retc;
 
 // Return proxied stat
 //
-   return (XrdPosixXrootd::Stat(pbuff, buff) ? -errno : XrdOssOK);
+   retc = XrdPosixXrootd::Stat(pbuff, buff);
+   if (theID) sidP->Release(&idVal);
+   return (retc ? -errno : XrdOssOK);
 }
 
 /******************************************************************************/
@@ -437,8 +449,8 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 int XrdPssSys::Truncate(const char *path, unsigned long long flen,
                         XrdOucEnv *envP)
 {
-   int CgiLen, retc;
-   const char *Cgi = envP->Env(CgiLen);
+   int CgiLen = 0, retc;
+   const char *Cgi = (envP ? envP->Env(CgiLen) : 0);
    char pbuff[PBsz];
 
 // Make sure we can write here
@@ -469,8 +481,8 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen,
 */
 int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
-   int CgiLen, rc;
-   const char *Cgi = envP->Env(CgiLen);
+   int CgiLen = 0, rc;
+   const char *Cgi = (envP ? envP->Env(CgiLen) : 0);
    char *subPath, pbuff[PBsz], cbuff[CBsz];
 
 // Make sure we can write here
@@ -525,12 +537,10 @@ int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
    int CgiLen, retc;
    const char *Cgi = Env.Env(CgiLen);
    char pbuff[PBsz], *subPath;
-   int theUid = XrdPssSys::T2UID(tident);
 
 // Return an error if this object is already open
 //
-   if (dirVec || myDir) return -XRDOSS_E8001;
-   if (!XrdPssSys::outProxy && !XrdProxySS.cfgDone) return -EBUSY;
+   if (myDir) return -XRDOSS_E8001;
 
 // Open directories are not supported for object id's
 //
@@ -541,22 +551,10 @@ int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
    if (!(subPath = XrdPssSys::P2URL(retc,pbuff,PBsz,dir_path,0,Cgi,CgiLen)))
       return retc;
 
-// If we are an outgoing proxy then do the simple thing
+// Open the directory
 //
-   if (XrdPssSys::outProxy)
-      {myDir = XrdPosixXrootd::Opendir(pbuff);
-       if (!myDir) return -errno;
-       return XrdOssOK;
-      }
-
-// Return proxied result
-//
-   if ((numEnt = XrdFfsPosix_readdirall(pbuff, "", &dirVec, theUid)) < 0)
-       {int rc = -errno;
-        if (dirVec) {free(dirVec); dirVec = 0;}
-        return rc;
-        } else curEnt = 0;
-
+   myDir = XrdPosixXrootd::Opendir(pbuff);
+   if (!myDir) return -errno;
    return XrdOssOK;
 }
 
@@ -592,18 +590,9 @@ int XrdPssDir::Readdir(char *buff, int blen)
        return XrdOssOK;
       }
 
-// Check if this object is actually open
+// The directory is not open
 //
-   if (!dirVec) return -XRDOSS_E8002;
-
-// Return a single entry
-//
-   if (curEnt >= numEnt) *buff = 0;
-      else {strlcpy(buff, dirVec[curEnt], blen);
-            free(dirVec[curEnt]);
-            curEnt++;
-           }
-   return XrdOssOK;
+   return -XRDOSS_E8002;
 }
 
 /******************************************************************************/
@@ -619,7 +608,6 @@ int XrdPssDir::Readdir(char *buff, int blen)
 */
 int XrdPssDir::Close(long long *retsz)
 {
-   int i;
 
 // Close the directory proper if it exists
 //
@@ -629,16 +617,9 @@ int XrdPssDir::Close(long long *retsz)
        return XrdOssOK;
       }
 
-// Make sure this object is open
+// Directory is not open
 //
-   if (!dirVec) return -XRDOSS_E8002;
-
-// Free up remaining storage
-//
-   for (i = curEnt; i < numEnt; i++) free(dirVec[i]);
-   free(dirVec);
-   dirVec = 0;
-   return XrdOssOK;
+   return -XRDOSS_E8002;
 }
 
 /******************************************************************************/
@@ -995,6 +976,28 @@ int XrdPssSys::P2DST(int &retc, char *hBuff, int hBlen, XrdPssSys::PolAct pEnt,
 }
 
 /******************************************************************************/
+/*                                  P 2 I D                                   */
+/******************************************************************************/
+  
+char *XrdPssSys::P2ID(XrdOucSid::theSid *idVal, char *idBuff, int idBsz)
+{
+// Obtain a stream ID
+//
+   if (!(sidP->Obtain(idVal))) return 0;
+
+// Convert it to a user name (7 chars max plus hdr)
+//
+   if (idBsz <= snprintf(idBuff, idBsz, "=pxy%d@", idVal->sidS))
+      {sidP->Release(idVal);
+       return 0;
+      }
+
+// All done
+//
+   return idBuff;
+}
+
+/******************************************************************************/
 /*                                 P 2 O U T                                  */
 /******************************************************************************/
   
@@ -1094,9 +1097,12 @@ char *XrdPssSys::P2URL(int &retc, char *pbuff, int pblen,
 // If we have an Ident then usethe fd number as the userid. This allows us to
 // have one stream per open connection.
 //
-   if (Ident && (Ident = index(Ident, ':')))
-      {strncpy(idBuff, Ident+1, 7); idBuff[7] = 0;
-       if ((idP = index(idBuff, '@'))) {*(idP+1) = 0; theID = idBuff;}
+   if (Ident)
+      {if (*Ident == '=') theID = Ident+1;
+          else if ((Ident = index(Ident, ':')))
+                  {strncpy(idBuff, Ident+1, 7); idBuff[7] = 0;
+                   if ((idP = index(idBuff, '@'))) {*(idP+1)=0; theID=idBuff;}
+                  }
       }
 
 // Format the header into the buffer and check if we overflowed. Note that there

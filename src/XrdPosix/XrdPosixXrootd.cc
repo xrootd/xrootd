@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
@@ -63,6 +64,8 @@
 namespace XrdPosixGlobals
 {
 XrdScheduler  *schedP = 0;
+XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
+bool           psxDBG = (getenv("XRDPOSIX_DEBUG") != 0);
 };
 
 XrdOucCache   *XrdPosixXrootd::myCache  =  0;
@@ -143,29 +146,38 @@ int XrdPosixXrootd::Close(int fildes)
 {
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fP;
-   int ret;
+   bool ret;
 
    if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
       {errno = EBADF; return -1;}
 
-   if (fP->XCio->ioActive())
-   {
-      if (XrdPosixGlobals::schedP )
-      {
-         XrdPosixGlobals::schedP->Schedule(fP);
+// Close the file if there is no active I/O (possible caching). Delete the
+// object if the close was successful (it might not be).
+//
+   if (!(fP->XCio->ioActive()))
+      {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
+          else if (XrdPosixGlobals::psxDBG)
+                  {char eBuff[2048];
+                   snprintf(eBuff, sizeof(eBuff), "Posix: %s closing %s\n",
+                            Status.ToString().c_str(), fP->Path());
+                   std::cerr <<eBuff <<std::flush;
+                  }
+      } else ret = true;
+
+// If we still have a handle then we need to do a delayed delete on this
+// object because either the close failed or there is still active I/O
+//
+   if (fP)
+      {if (XrdPosixGlobals::schedP) XrdPosixGlobals::schedP->Schedule(fP);
+          else {pthread_t tid;
+                XrdSysThread::Run(&tid, XrdPosixFile::DelayedDestroy, fP, 0,
+                                        "PosixFileDestroy");
+               }
       }
-      else {
-         pthread_t tid;
-         XrdSysThread::Run(&tid, XrdPosixFile::DelayedDestroy, fP, 0, "PosixFileDestroy");
-      }
-      return 0;
-   }
-   else
-   {
-      ret = fP->Close(Status);
-      delete fP;
-      return (ret ? 0 : XrdPosixMap::Result(Status));
-   }
+
+// Return final result
+//
+   return (ret ? 0 : XrdPosixMap::Result(Status));
 }
 
 /******************************************************************************/
@@ -439,8 +451,17 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // If we failed, return the reason
 //
    if (!Status.IsOK())
-      {delete fp;
-       return XrdPosixMap::Result(Status);
+      {XrdPosixMap::Result(Status);
+       int rc = errno;
+       if (XrdPosixGlobals::psxDBG && rc != ENOENT && rc != ELOOP)
+          {char eBuff[2048];
+           snprintf(eBuff, sizeof(eBuff), "%s open %s\n",
+                    Status.ToString().c_str(), fp->Path());
+           std::cerr <<eBuff <<std::flush;
+          }
+       delete fp;
+       errno = rc;
+       return -1;
       }
 
 // Assign a file descriptor to this file
@@ -745,8 +766,13 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 
 // Issue the rename
 //
-   return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
-                                           newUrl.GetPathWithParams()));
+  std::string urlp    = admin.Url.GetPathWithParams();
+  std::string nurlp   = newUrl.GetPathWithParams();
+  int res = XrdPosixMap::Result(admin.Xrd.Mv(urlp, nurlp));
+  if (!res && myCache)
+     myCache->Rename(urlp.c_str(), nurlp.c_str());
+
+  return res;
 }
 
 /******************************************************************************/
@@ -780,7 +806,12 @@ int XrdPosixXrootd::Rmdir(const char *path)
 
 // Issue the rmdir
 //
-   return XrdPosixMap::Result(admin.Xrd.RmDir(admin.Url.GetPathWithParams()));
+   std::string urlp = admin.Url.GetPathWithParams();
+   int res = XrdPosixMap::Result(admin.Xrd.RmDir(urlp));
+   if (!res && myCache)
+      myCache->Rmdir(urlp.c_str());
+
+   return res;
 }
 
 /******************************************************************************/
@@ -974,8 +1005,14 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 // Issue the truncate
 //
-   return XrdPosixMap::Result(admin.Xrd.Truncate(admin.Url.GetPathWithParams(),
-                                                 tSize));
+  std::string urlp = admin.Url.GetPathWithParams();
+  int res = XrdPosixMap::Result(admin.Xrd.Truncate(urlp,tSize));
+
+  if (!res && myCache) {
+     myCache->Truncate(urlp.c_str(), tSize);
+  }
+
+  return res;
 }
 
 /******************************************************************************/
@@ -992,7 +1029,12 @@ int XrdPosixXrootd::Unlink(const char *path)
 
 // Issue the UnLink
 //
-   return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
+  std::string urlp = admin.Url.GetPathWithParams();
+  int res = XrdPosixMap::Result(admin.Xrd.Rm(urlp));
+  if (!res && myCache)
+     myCache->Unlink(urlp.c_str());
+
+  return res;
 }
 
 /******************************************************************************/
@@ -1283,10 +1325,21 @@ void XrdPosixXrootd::setDebug(int val, bool doDebug)
 void XrdPosixXrootd::setEnv(const char *kword, int kval)
 {
    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+   static bool dlfSet = false;
 
-// Set the env value
+// Check for internal envars before setting the external one
 //
-   env->PutInt((std::string)kword, kval);
+        if (!strcmp(kword, "DirlistAll"))
+           {XrdPosixGlobals::dlFlag = (kval ? XrdCl::DirListFlags::Locate
+                                            : XrdCl::DirListFlags::None);
+            dlfSet = true;
+           }
+   else if (!strcmp(kword, "DirlistDflt"))
+           {if (!dlfSet)
+            XrdPosixGlobals::dlFlag = (kval ? XrdCl::DirListFlags::Locate
+                                            : XrdCl::DirListFlags::None);
+           }
+   else env->PutInt((std::string)kword, kval);
 }
   
 /******************************************************************************/

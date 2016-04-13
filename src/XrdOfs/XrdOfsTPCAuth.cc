@@ -98,7 +98,10 @@ int XrdOfsTPCAuth::Add(XrdOfsTPC::Facts &Args)
 // Set the copy authorization information
 //
    if ((eMsg = Info.Set(Args.Key, Buff, Args.Lfn, Args.Dst)))
-      return Fatal(Args, eMsg, EINVAL);
+   {
+     authMutex.UnLock();
+     return Fatal(Args, eMsg, EINVAL);
+   }
 
 // Add this to queue
 //
@@ -266,7 +269,7 @@ do{authMutex.Lock();
    eNow = time(0); eWait = maxTTL; numExp = 0;
    while(cP)
         {if (eNow < cP->expT)
-            {eDiff = eNow - cP->expT;
+            {eDiff = cP->expT - eNow;
              if (eDiff < eWait) eWait = eDiff;
              pP = cP; cP = cP->Next;
             }

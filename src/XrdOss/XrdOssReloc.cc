@@ -137,7 +137,7 @@ int XrdOssSys::Reloc(const char *tident, const char *path,
 // Allocate space in the cache. Note that the target must be an xa cache
 //
    aInfo.aMode  = buf.st_mode & S_IAMB;
-   aInfo.cgSize = buf.st_size;
+   aInfo.cgSize = (Pure ? 0 : buf.st_size);
    aInfo.cgName = cgbuff;
    if ((PF.datfd = datfd = XrdOssCache::Alloc(aInfo)) < 0) return datfd;
    if (!aInfo.cgPsfx) return -ENOTSUP;

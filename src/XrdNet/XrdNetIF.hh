@@ -150,6 +150,14 @@ static
 const  int  haveIPv4 = 1;  //!< ifList == 0 && non-local ipv4 i/f found (or'd)
 static
 const  int  haveIPv6 = 2;  //!< ifList == 0 && non-local ipv6 i/f found (or'd)
+static
+const  int  havePrv4 = 4;  //!< ifList == 0 && private   ipv4 i/f found (or'd)
+static
+const  int  havePrv6 = 8;  //!< ifList == 0 && private   ipv6 i/f found (or'd)
+static
+const  int  havePub4 =16;  //!< ifList == 0 && public    ipv4 i/f found (or'd)
+static
+const  int  havePub6 =32;  //!< ifList == 0 && public    ipv6 i/f found (or'd)
 
 static int  GetIF(XrdOucTList **ifList, const char **eText=0);
 

@@ -33,6 +33,7 @@
 #include <unistd.h>
 
 #include "XrdCms/XrdCmsUtils.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -40,16 +41,99 @@
 #include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
+/*                         L o c a l   S t a t i c s                          */
+/******************************************************************************/
+  
+namespace
+{
+XrdOucTList *GetLocalSite()
+             {const char *sname = getenv("XRDSITE");
+              if (!sname || !(*sname)) sname = "local";
+              return new XrdOucTList(sname);
+             }
+
+XrdOucTList *siteList  = 0;
+int          siteIndex = 0;
+}
+
+/******************************************************************************/
+/* Private:                      D i s p l a y                                */
+/******************************************************************************/
+  
+void XrdCmsUtils::Display(XrdSysError *eDest, const char *hSpec,
+                                              const char *hName, bool isBad)
+{
+   XrdNetAddr *nP;
+   const char *eTxt, *eSfx = (isBad ? " *** Invalid ***" : 0);
+   int i, n, abLen, numIP = 0;
+   char *abP, aBuff[1024];
+
+// Get all of the addresses
+//
+   eTxt = XrdNetUtils::GetAddrs(hName, &nP, numIP, XrdNetUtils::prefAuto, 0);
+
+// Check for errors
+//
+   if (eTxt)
+      {eDest->Say("Config Manager ", hSpec, " -> ", hName, " ", eTxt);
+       return;
+      }
+   eDest->Say("Config Manager ", hSpec, " -> ", hName, eSfx);
+
+// Prepare the buffer
+//
+   n = strlen(hSpec)+4;
+   if (n+64 > (int)sizeof(aBuff)) return;
+   memset(aBuff, int(' '), n);
+   abP = aBuff+n; abLen = sizeof(aBuff) - n;
+
+// Format the addresses
+//
+   for (i = 0; i < numIP; i++)
+       {if (!nP[i].Format(abP, abLen, XrdNetAddrInfo::fmtAddr,
+                                      XrdNetAddrInfo::noPort)) break;
+        eDest->Say("Config Manager ", aBuff);
+       }
+
+// All done
+//
+   delete [] nP;
+}
+
+/******************************************************************************/
 /*                              P a r s e M a n                               */
 /******************************************************************************/
   
 bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
-                           char  *hSpec, char *hPort, int *sPort)
+                           char  *hSpec, char *hPort, int *sPort, bool hush)
 {
+   static const size_t maxSNLen = 63;
    XrdOucTList *newMans, *newP, *oldP, *appList = (oldMans ? *oldMans : 0);
+   XrdOucTList *sP = siteList;
    const char *eText;
-   char *plus;
-   int nPort, maxIP = 1;
+   char *plus, *atsn;
+   int nPort, maxIP = 1, snum = 0;
+   bool isBad;
+
+// Generate local site name if we haven't done so yet
+//
+   if (!siteList) siteList = GetLocalSite();
+
+// Handle site qualification first
+//
+   if ((atsn = index(hPort, '@')))
+      {if (*(atsn+1) == '\0')
+          {eDest->Emsg("Config", "site name missing for",  hSpec); return 0;}
+       *atsn++ = 0;
+       if (strlen(atsn) > maxSNLen)
+          {eDest->Emsg("Config", "site name too long for", hSpec); return 0;}
+       while(sP && strcmp(sP->text, atsn)) sP = sP->next;
+       if (sP) snum = sP->val;
+          else {siteIndex++;
+                siteList = new XrdOucTList(atsn, siteIndex, siteList);
+                snum = siteIndex;
+               }
+      }
 
 // Check if this is a multi request
 //
@@ -88,6 +172,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 //
    while((newP = newMans))
         {newMans = newMans->next;
+         newP->ival[1] = snum;
          oldP = *oldMans;
          while(oldP)
               {if (newP->val == oldP->val && !strcmp(newP->text, oldP->text))
@@ -97,9 +182,16 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
                   }
                oldP = oldP->next;
               }
+         if (!plus || strcmp(hSpec, newP->text)) isBad = false;
+            else {eDest->Say("Config warning: "
+                             "Cyclic DNS registration for ",newP->text,"\n"
+                             "Config warning: This cluster will exhibit "
+                             "undefined behaviour!!!");
+             isBad = true;
+            }
          if (!oldP) 
-            {newP->next = appList; appList = newP;
-             if (plus) eDest->Say("Config ",hSpec," -> all.manager ",newP->text);
+            {appList = SInsert(appList, newP);
+             if (plus && !hush) Display(eDest, hSpec, newP->text, isBad);
             }
         }
 
@@ -144,4 +236,45 @@ char *XrdCmsUtils::ParseManPort(XrdSysError *eDest, XrdOucStream &CFile,
 // All is well
 //
    return strdup(pSpec);
+}
+
+/******************************************************************************/
+/* Private:                      S I n s e r t                                */
+/******************************************************************************/
+
+XrdOucTList *XrdCmsUtils::SInsert(XrdOucTList *oldP, XrdOucTList *newP)
+{
+   XrdOucTList *fstP = oldP, *preP = 0;
+
+// We insert in logically increasing order
+//
+   while(oldP && (newP->val < oldP->val || strcmp(newP->text, oldP->text) < 0))
+        {preP = oldP; oldP = oldP->next;}
+
+// Insert the new element
+//
+   if (preP) preP->next = newP;
+      else   fstP       = newP;
+   newP->next = oldP;
+
+// Return the first element in the list (may have changed)
+//
+   return fstP;
+}
+  
+/******************************************************************************/
+/*                              S i t e N a m e                               */
+/******************************************************************************/
+  
+const char *XrdCmsUtils::SiteName(int snum)
+{
+   XrdOucTList *sP = siteList;
+
+// Find matching site
+//
+   while(sP && snum != sP->val) sP = sP->next;
+
+// Return result
+//
+   return (sP ? sP->text : "anonymous");
 }

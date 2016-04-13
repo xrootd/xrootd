@@ -146,7 +146,8 @@ namespace XrdCl
         return Take | RemoveHandler;
 
       case kXR_waitresp:
-        return Take;
+        pResponse = 0;
+        return Take | Ignore; // This must be handled synchronously!
 
       //------------------------------------------------------------------------
       // Handle the potential raw cases
@@ -261,11 +262,29 @@ namespace XrdCl
                  pRequest->GetDescription().c_str() );
       Message *embededMsg = new Message( rsp->hdr.dlen-8 );
       embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
-      delete msg;
+      XRDCL_SMART_PTR_T<Message> msgPtr( msg );
       pResponse = embededMsg; // this can never happen for oksofars
 
       // we need to unmarshall the header by hand
       XRootDTransport::UnMarshallHeader( embededMsg );
+
+      //------------------------------------------------------------------------
+      // Check if the dlen field of the embedded message is consistent with
+      // the dlen value of the original message
+      //------------------------------------------------------------------------
+      ServerResponse *embRsp = (ServerResponse *)embededMsg->GetBuffer();
+      if( embRsp->hdr.dlen != rsp->hdr.dlen-16 )
+      {
+        log->Error( XRootDMsg, "[%s] Sizes of the async response to %s and the "
+                    "embedded message are inconsistent. Expected %d, got %d.",
+                    pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
+                    rsp->hdr.dlen-16, embRsp->hdr.dlen);
+
+        pStatus = Status( stFatal, errInvalidMessage );
+        HandleResponse();
+        return;
+      }
+
       Process( embededMsg );
       return;
     }
@@ -321,7 +340,8 @@ namespace XrdCl
                    errmsg );
         delete [] errmsg;
 
-        HandleError( Status(stError, errErrorResponse), pResponse );
+        HandleError( Status(stError, errErrorResponse, rsp->body.error.errnum),
+                     pResponse );
         return;
       }
 
@@ -537,8 +557,10 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // kXR_waitresp - the response will be returned in some seconds
-      // as an unsolicited message
+      // kXR_waitresp - the response will be returned in some seconds as an
+      // unsolicited message. Currently all messages of this type are handled
+      // one step before in the XrdClStream::OnIncoming as they need to be
+      // processed synchronously.
       //------------------------------------------------------------------------
       case kXR_waitresp:
       {
@@ -1702,7 +1724,7 @@ namespace XrdCl
       return;
 
     Log *log = DefaultEnv::GetLog();
-    log->Error( XRootDMsg, "[%s] Handling error while processing %s: %s.",
+    log->Debug( XRootDMsg, "[%s] Handling error while processing %s: %s.",
                 pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
                 status.ToString().c_str() );
 
@@ -1721,7 +1743,7 @@ namespace XrdCl
           (status.errNo == kXR_FSError || status.errNo == kXR_IOError ||
           status.errNo == kXR_ServerError || status.errNo == kXR_NotFound) )
       {
-        UpdateTriedCGI();
+        UpdateTriedCGI(status.errNo);
         if( status.errNo == kXR_NotFound )
           SwitchOnRefreshFlag();
         HandleError( RetryAtServer( pLoadBalancer.url ) );
@@ -1793,10 +1815,19 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Update the "tried=" part of the CGI of the current message
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::UpdateTriedCGI()
+  void XRootDMsgHandler::UpdateTriedCGI(uint32_t errNo)
   {
     URL::ParamsMap cgi;
     std::string    tried = pUrl.GetHostName();
+
+    // Report the reason for the failure to the next location
+    //
+    if (errNo)
+       {     if (errNo == kXR_NotFound)     cgi["triedrc"] = "enoent";
+        else if (errNo == kXR_IOError)      cgi["triedrc"] = "ioerr";
+        else if (errNo == kXR_FSError)      cgi["triedrc"] = "fserr";
+        else if (errNo == kXR_ServerError)  cgi["triedrc"] = "srverr";
+       }
 
     //--------------------------------------------------------------------------
     // If our current load balancer is a metamanager and we failed either

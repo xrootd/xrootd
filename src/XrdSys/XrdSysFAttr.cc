@@ -52,6 +52,14 @@ namespace
 XrdSysFAttr  dfltXAttr;
 }
 
+// The following global symbol always points to the native implementation
+//
+XrdSysXAttr &XrdSysXAttrNative=  dfltXAttr;
+
+// The following global symbol always points to the active implementation
+//
+XrdSysXAttr *XrdSysXAttrActive= &dfltXAttr;
+
 XrdSysXAttr *XrdSysFAttr::Xat = &dfltXAttr;
 
 /******************************************************************************/
@@ -161,5 +169,5 @@ XrdSysFAttr::AList *XrdSysFAttr::getEnt(const char *Path,  int fd,
 void XrdSysFAttr::SetPlugin(XrdSysXAttr *xaP)
 {
    if (Xat && Xat != &dfltXAttr) delete Xat;
-   Xat = xaP;
+   XrdSysXAttrActive = Xat = xaP;
 }

@@ -168,7 +168,7 @@ virtual int  Set(const char *Aname, const void *Aval, int Avsz,
 
 //------------------------------------------------------------------------------
 //! Establish the error message routing. Unless it's established, no messages
-//! should be produced. A default impleentation is supplied.
+//! should be produced. A default implementation is supplied.
 //!
 //! @param  errP   -> Pointer to the error message object. If it is a nil
 //!                   pointer, no error messages should be produced.
@@ -226,4 +226,23 @@ XrdSysError *Say;
 
     where <name> is a 1- to 15-character unquoted name identifying your plugin.
 */
+
+/******************************************************************************/
+/*           X r d S y s X A t t r   I m p l e m e n t a t i o n s            */
+/******************************************************************************/
+
+//------------------------------------------------------------------------------
+//! Access the native implementation in libXrdUtils.so:
+//!
+//! extern XrdSysXAttr  XrdSysXAttrNative;
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+//! Access the active implementation in libXrdUtils.so:
+//!
+//! extern XrdSysXAttr *XrdSysXAttrActive;
+//!
+//! The active implementatiuon is the one being used. This may be a pointer to
+//! the native implementation or to a specified plugin loaded by the OFS layer.
+//------------------------------------------------------------------------------
 #endif

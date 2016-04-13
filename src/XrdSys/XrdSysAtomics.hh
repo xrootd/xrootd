@@ -58,6 +58,7 @@
 #define AtomicSub(x, y)     __sync_fetch_and_sub(&x, y)
 #define AtomicFSub(w,x,y)   w =  __sync_fetch_and_sub(&x, y)
 #define AtomicZAP(x)        __sync_fetch_and_and(&x, 0)
+#define AtomicRet(mtx, x)   return AtomicGet(x)
 #else
 #define AtomicBeg(Mtx)      Mtx.Lock()
 #define AtomicEnd(Mtx)      Mtx.UnLock()
@@ -72,6 +73,8 @@
 #define AtomicSub(x, y)     x -= y          // When assigning use AtomicFSub!
 #define AtomicFSub(w,x,y)  {w = x; x -= y;}
 #define AtomicZAP(x)        x = 0
+#define AtomicRet(mtx, x)   {mtx.Lock(); int _ ## x = x; \
+                             mtx.UnLock(); return _ ## x;}
 #endif
 #endif
 

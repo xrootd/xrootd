@@ -26,7 +26,9 @@
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheStats.hh"
 
+class XrdJob;
 class XrdOucIOVec;
+
 namespace XrdCl
 {
    class Log;
@@ -81,6 +83,12 @@ namespace XrdFileCache
          //! Used in XrdPosixXrootd::Close()
          //----------------------------------------------------------------------
          bool InitiateClose();
+
+         //----------------------------------------------------------------------
+         //! Sync file cache inf o and output data with disk
+         //----------------------------------------------------------------------
+         void Sync();
+
 
       protected:
          //! Read from disk, RAM, task, or client.
@@ -137,9 +145,6 @@ namespace XrdFileCache
          //! Open file handle for data file and info file on local disk.
          bool Open();
 
-         //! Write download state into cinfo file.
-         void RecordDownloadInfo();
-
          //! Short log alias.
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
@@ -157,7 +162,7 @@ namespace XrdFileCache
 
          //! Log path
          const char* lPath() const;
-
+          
          RAM             m_ram;            //!< in memory cache
 
          XrdOssDF       *m_output;         //!< file handle for data file on disk
@@ -176,12 +181,19 @@ namespace XrdFileCache
          bool            m_stopped;   //!< prefetch is stopped
          XrdSysCondVar   m_stateCond; //!< state condition variable
 
-         XrdSysMutex      m_downloadStatusMutex; //!< mutex locking access to m_cfi object
+         XrdSysMutex       m_downloadStatusMutex; //!< mutex locking access to m_cfi object
 
          std::deque<Task*> m_tasks_queue;  //!< download queue
          XrdSysCondVar     m_queueCond;    //!< m_tasks_queue condition variable
 
-         Stats            m_stats;      //!< cache statistics, used in IO detach
+         Stats             m_stats;      //!< cache statistics, used in IO detach
+
+         // fsync
+         XrdSysMutex       m_syncStatusMutex; //!< mutex locking fsync status
+         XrdJob           *m_syncer;
+         std::vector<int>  m_writes_during_sync;
+         int               m_non_flushed_cnt;
+         bool              m_in_sync;
    };
 }
 #endif

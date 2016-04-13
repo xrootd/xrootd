@@ -41,9 +41,10 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdLink;
-class XrdCmsDrop;
+class XrdCmsManList;
+class XrdCmsManTree;
 class XrdCmsNode;
-class XrdCmsServer;
+class XrdOucTList;
   
 /******************************************************************************/
 /*                   C l a s s   X r d C m s M a n a g e r                    */
@@ -54,35 +55,58 @@ class XrdCmsServer;
 class XrdCmsManager
 {
 public:
+friend class XrdCmsDelNode;
+
+XrdCmsManList *myMans;
+XrdCmsManTree *ManTree;
 
 static const int MTMax = 16;   // Maximum number of Managers
 
-XrdCmsNode *Add(XrdLink *lp, int Lvl);
+XrdCmsNode *Add(XrdLink *lp, int Lvl, bool &xit);
 
-void        Inform(const char *What, const char *Data, int Dlen);
-void        Inform(const char *What, struct iovec *vP, int vN, int vT=0);
-void        Inform(XrdCms::CmsReqCode rCode, int rMod, const char *Arg=0, int Alen=0);
-void        Inform(XrdCms::CmsRRHdr &Hdr, const char *Arg=0, int Alen=0);
+void        Delete(XrdCmsNode *nodeP);
 
-int         Present() {return MTHi >= 0;};
+void        Finished(const char *manP, int mPort);
+
+static void Inform(const char *What, const char *Data, int Dlen);
+static void Inform(const char *What, struct iovec *vP, int vN, int vT=0);
+static void Inform(XrdCms::CmsReqCode rCode, int rMod, const char *Arg=0, int Alen=0);
+static void Inform(XrdCms::CmsRRHdr &Hdr, const char *Arg=0, int Alen=0);
+
+static bool Present() {return MTHi >= 0;};
 
 void        Remove(XrdCmsNode *nP, const char *reason=0);
 
-void        Reset();
+void        Rerun(char *newMans);
 
-            XrdCmsManager();
+static void Reset();
+
+static bool Start(const XrdOucTList *mL);
+
+       bool Verify(XrdLink *lP, const char *sid, const char *sname);
+
+            XrdCmsManager(XrdOucTList *mlP, int snum);
            ~XrdCmsManager() {} // This object should never be deleted
 
 private:
+int         Run(XrdOucTList *manP);
 
-XrdSysMutex   MTMutex;
-XrdCmsNode   *MastTab[MTMax];
+// The following are common across all manager instances
+//
+static XrdSysMutex   MTMutex;
+static XrdCmsNode   *MastTab[MTMax];
+static char          MastSID[MTMax];
+static int           MTHi;
 
-int  MTHi;
+// The following are specific to a manager instance
+//
+XrdOucTList         *newManList;
+XrdOucTList         *curManList;
+char                *theSite;
+char                *theHost;
+char                *theSID;
+int                  curManCnt;
+short                siteID;
+bool                 wasRedir;
 };
-
-namespace XrdCms
-{
-extern    XrdCmsManager Manager;
-}
 #endif

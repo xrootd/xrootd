@@ -57,6 +57,7 @@ namespace XrdCl
     pTimeoutResolution = timeoutResolution;
 
     pSocket = new Socket();
+    pSocket->SetChannelID( pChannelData );
     pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
     pLastActivity = time(0);
   }
@@ -422,6 +423,11 @@ namespace XrdCl
 
     pStream->OnMessageSent( pSubStreamNum, pOutgoing, pOutMsgSize );
     pOutgoing = 0;
+
+    //--------------------------------------------------------------------------
+    // Disable the respective substream if empty
+    //--------------------------------------------------------------------------
+    pStream->DisableIfEmpty( pSubStreamNum );
   }
 
   //----------------------------------------------------------------------------

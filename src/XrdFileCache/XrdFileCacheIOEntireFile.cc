@@ -64,7 +64,6 @@ void IOEntireFile::StartPrefetch()
 {
    pthread_t tid;
    XrdSysThread::Run(&tid, PrefetchRunner, (void *)(m_prefetch), 0, "XrdFileCache Prefetcher");
-
 }
 
 
@@ -86,6 +85,17 @@ int IOEntireFile::Read (char *buff, long long off, int size)
 {
    clLog()->Debug(XrdCl::AppMsg, "IO::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
 
+   // protect from reads over the file size
+   if (off >= m_io.FSize())
+      return 0;
+   if (off < 0)
+   {
+      errno = EINVAL;
+      return -1;
+   }
+   if (off + size > m_io.FSize())
+      size = m_io.FSize() - off;
+
    ssize_t bytes_read = 0;
    ssize_t retval = 0;
 
@@ -93,19 +103,13 @@ int IOEntireFile::Read (char *buff, long long off, int size)
    clLog()->Debug(XrdCl::AppMsg, "IO::Read() read from prefetch retval =  %d %s", retval, m_io.Path());
    if (retval > 0)
    {
-
       bytes_read += retval;
       buff += retval;
       size -= retval;
+
+      if ((size > 0))
+         clLog()->Debug(XrdCl::AppMsg, "IO::Read() missed %d bytes %s", size, m_io.Path());
    }
-
-
-   if ((size > 0))
-   {
-      clLog()->Debug(XrdCl::AppMsg, "IO::Read() missed %d bytes %s", size, m_io.Path());
-      if (retval > 0) bytes_read += retval;
-   }
-
    if (retval < 0)
    {
       clLog()->Error(XrdCl::AppMsg, "IO::Read(), origin bytes read %d %s", retval, m_io.Path());

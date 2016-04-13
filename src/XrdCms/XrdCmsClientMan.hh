@@ -38,6 +38,7 @@
 #include "XrdCms/XrdCmsResp.hh"
 #include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdInet;
@@ -51,7 +52,7 @@ static char          doDebug;
 
 int                  delayResp(XrdOucErrInfo &Resp);
 
-inline int           isActive() {return Active;}
+inline int           isActive() {AtomicRet(myData, Active);}
 
 XrdCmsClientMan     *nextManager() {return Next;}
 
@@ -60,12 +61,18 @@ char                *NPfx() {return HPfx;}
 
 int                  manPort() {return Port;}
 
-int                  Send(char *msg, int mlen=0);
-int                  Send(const struct iovec *iov, int iovcnt, int iotot=0);
+int                  Send(unsigned int &iMan, char *msg, int mlen=0);
+int                  Send(unsigned int &iMan,  const struct iovec *iov,
+                                   int iovcnt, int iotot=0);
 
 void                *Start();
 
-inline int           Suspended() {if (Suspend) chkStatus(); return Suspend;}
+inline int           Suspended() {AtomicBeg(myData);
+                                  int sVal = AtomicGet(Suspend);
+                                  AtomicEnd(myData);
+                                  if (!sVal) return sVal;
+                                  return chkStatus();
+                                 }
 
 void                 setNext(XrdCmsClientMan *np) {Next = np;}
 
@@ -73,9 +80,10 @@ static void          setNetwork(XrdInet *nP) {Network = nP;}
 
 static void          setConfig(const char *cfn) {ConfigFN = cfn;}
 
-int                  whatsUp(const char *user, const char *path);
+int                  whatsUp(const char *user, const char *path,
+                             unsigned int iMan);
 
-inline int           waitTime() {return repWait;}
+inline int           waitTime() {AtomicRet(myData, repWait);}
 
                   XrdCmsClientMan(char *host,int port,int cw,int nr,int rw,int rd);
                  ~XrdCmsClientMan();
@@ -84,7 +92,7 @@ private:
 int   Hookup();
 int   Receive();
 void  relayResp();
-void  chkStatus();
+int   chkStatus();
 void  setStatus();
 
 static XrdSysMutex   manMutex;
@@ -102,6 +110,7 @@ XrdLink          *Link;
 char             *Host;
 char             *HPfx;
 int               Port;
+unsigned int      manInst;
 int               manMask;
 int               dally;
 int               Active;

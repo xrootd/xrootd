@@ -52,8 +52,9 @@ static int             Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
 
 static void            setSecFunc(void *secfP);
 
-static char           *setSystemID(XrdOucTList *tp, const char *iName,
-                                   const char  *iHost,    char  iType);
+static char           *setSystemID(XrdOucTList *tp,    const char *iName,
+                                   const char  *iHost, const char *iTag,
+                                         char   iType);
 
       XrdCmsSecurity() {}
      ~XrdCmsSecurity() {}

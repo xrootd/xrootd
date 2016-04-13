@@ -182,7 +182,7 @@ enum XDirlistRequestOption {
 };
 
 enum XOpenRequestOption {
-   kXR_compress = 1,
+   kXR_compress = 1,      // also locate (return unique hosts)
    kXR_delete   = 2,
    kXR_force    = 4,
    kXR_new      = 8,
@@ -755,6 +755,8 @@ static int mapError(int rc)
            case EISDIR:       return kXR_isDirectory;
            case EEXIST:       return kXR_InvalidRequest;
            case ETXTBSY:      return kXR_inProgress;
+           case ENODEV:       return kXR_FSError;
+           case EFAULT:       return kXR_ServerError;
            default:           return kXR_FSError;
           }
       }

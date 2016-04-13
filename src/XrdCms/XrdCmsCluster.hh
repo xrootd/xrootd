@@ -83,15 +83,16 @@ class SpaceData
 public:
 
 long long Total;    // Total space
+long long TotFr;    // Total space free
 int       wMinF;    // Free space minimum to select wFree node
-int       wFree;    // Free space for nodes providing r/w access
+int       wFree;    // Free space for nodes providing r/w access (largest one)
 int       wNum;     // Number of      nodes providing r/w access
-int       wUtil;    // Average utilization
-int       sFree;    // Free space for nodes providing staging
+int       wUtil;    // Average utilization (largest one)
+int       sFree;    // Free space for nodes providing staging    (largest one)
 int       sNum;     // Number of      nodes providing staging
-int       sUtil;    // Average utilization
+int       sUtil;    // Average utilization (largest one)
 
-          SpaceData() : Total(0), wMinF(0),
+          SpaceData() : Total(0), TotFr(0),wMinF(0),
                         wFree(0), wNum(0), wUtil(0),
                         sFree(0), sNum(0), sUtil(0) {}
          ~SpaceData() {}
@@ -173,6 +174,8 @@ long long       Refs() {return SelWcnt+SelWtot+SelRcnt+SelRtot;}
 
 // Called to remove a node from the cluster
 //
+void            Remove(XrdCmsNode *theNode);
+
 void            Remove(const char *reason, XrdCmsNode *theNode, int immed=0);
 
 // Called to reset the node reference counts for nodes matching smask
@@ -181,10 +184,18 @@ void            ResetRef(SMask_t smask);
 
 // Called to select the best possible node to serve a file (two forms)
 //
+static const int RetryErr = -3;
 int             Select(XrdCmsSelect &Sel);
 
 int             Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
                        int isrw, int isMulti, int ifWant);
+
+// Manipulate the global selection lock
+//
+void            SLock(bool dolock)
+                     {if (dolock) STMutex.Lock();
+                         else     STMutex.UnLock();
+                     }
 
 // Called to get cluster space (for managers and supervisors only)
 //
@@ -204,8 +215,9 @@ XrdCmsNode *AddAlt(XrdCmsClustID *cidP, XrdLink *lp, int port, int Status,
 XrdCmsNode *calcDelay(XrdCmsSelector &selR);
 int         Drop(int sent, int sinst, XrdCmsDrop *djp=0);
 void        Record(char *path, const char *reason, bool force=false);
+bool        maxBits(SMask_t mVec, int mbits);
 int         Multiple(SMask_t mVec);
-enum        {eExists, eDups, eROfs, eNoRep, eNoEnt}; // Passed to SelFail
+enum        {eExists, eDups, eROfs, eNoRep, eNoSel, eNoEnt}; // Passed to SelFail
 int         SelFail(XrdCmsSelect &Sel, int rc);
 int         SelNode(XrdCmsSelect &Sel, SMask_t  pmask, SMask_t  amask);
 XrdCmsNode *SelbyCost(SMask_t, XrdCmsSelector &selR);
@@ -218,9 +230,9 @@ void        setAltMan(int snum, XrdLink *lp, int port);
 int         Unreachable(XrdCmsSelect &Sel, bool none);
 int         Unuseable(XrdCmsSelect &Sel);
 
-// Number of IP:Port characters per entry
+// Number of <host>:Port characters per entry was INET6_ADDRSTRLEN+10
 //
-static const  int AltSize = INET6_ADDRSTRLEN+10;
+static const  int AltSize = 254; // We may revert to IP address
 
 XrdSysMutex   XXMutex;          // Protects cluster summary state variables
 XrdSysMutex   STMutex;          // Protects all node information  variables

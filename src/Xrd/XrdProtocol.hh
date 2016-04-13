@@ -42,6 +42,7 @@
 
 class XrdSysError;
 union XrdNetSockAddr;
+class XrdOucEnv;
 class XrdOucTrace;
 class XrdBuffManager;
 class XrdInet;
@@ -61,7 +62,7 @@ XrdInet        *NetTCP;      // Stable -> Network Object    (@ XrdgetProtocol)
 XrdBuffManager *BPool;       // Stable -> Buffer Pool Manager
 XrdScheduler   *Sched;       // Stable -> System Scheduler
 XrdStats       *Stats;       // Stable -> System Statistics (@ XrdgetProtocol)
-void           *Reserved;    // Stable -> Previously, the thread manager
+XrdOucEnv      *theEnv;      // Stable -> Additional environmental information
 XrdOucTrace    *Trace;       // Stable -> Trace Information
 
 // The following information must be duplicated; it is unstable.

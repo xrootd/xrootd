@@ -8,6 +8,10 @@ set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
  ${PROJECT_SOURCE_DIR}/cmake )
 
+if(NOT (CMAKE_VERSION VERSION_LESS "3.1"))
+  cmake_policy(SET CMP0054 OLD)
+endif()
+
 include( XRootDUtils )
 CheckBuildDirectory()
 
@@ -45,6 +49,7 @@ endmacro()
 # Build in subdirectories
 #-------------------------------------------------------------------------------
 add_subdirectory( src )
+add_subdirectory( bindings )
 
 if( BUILD_TESTS )
   ENABLE_TESTING()

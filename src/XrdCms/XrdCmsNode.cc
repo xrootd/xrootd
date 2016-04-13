@@ -48,7 +48,6 @@
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsManager.hh"
 #include "XrdCms/XrdCmsManList.hh"
-#include "XrdCms/XrdCmsManTree.hh"
 #include "XrdCms/XrdCmsMeter.hh"
 #include "XrdCms/XrdCmsPList.hh"
 #include "XrdCms/XrdCmsPrepare.hh"
@@ -90,7 +89,7 @@ XrdNetIF::ifType ifVec[4] = {XrdNetIF::PublicV4, XrdNetIF::Public46,
 /******************************************************************************/
   
 XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
-                       int port, int lvl, int id)
+                       int port, int lvl, int id) : nodeMutex(0, "nodeCV")
 {
     static XrdSysMutex   iMutex;
     static const SMask_t smask_1(1);
@@ -111,6 +110,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     isMan    =  0;
     isKnown  =  0;
     isPeer   =  0;
+    incUL    =  0;
     myCost   =  0;
     myLoad   =  0;
     myMass   =  0;
@@ -141,6 +141,11 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     TZValid  = 0;
     TimeZone = 0;
     subsPort = 0;
+    myVersion= kYR_Version;
+
+    lkCount  = 0;
+    ulCount  = 0;
+    Manager  = 0;
 
 // setName() will set the node identification information
 //
@@ -208,6 +213,87 @@ void XrdCmsNode::setName(XrdLink *lnkp, const char *theIF, int port)
 }
 
 /******************************************************************************/
+/*                                D e l e t e                                 */
+/******************************************************************************/
+
+void XrdCmsNode::Delete(XrdSysMutex &gMutex)
+{
+   EPNAME("Delete");
+   time_t tNow;
+   unsigned int theLKCnt;
+   int tmoWait = 60, totWait = 0;
+   bool doDel = true;
+
+// We need to make sure there are no references to this object. This is true
+// when the lkCount equals the ulCount. The lkCount is under control of the
+// global mutex passed to us. The ulCount is under control of the node lock.
+// we will wait until they are equal. As this node has been removed from all
+// table at this point, the lkCount cannot change and we need only to fetch
+// it once. However, we will refresh it if we timeout. Setting isGone will
+// signal us whenever the ulCount changes and is under global mutex control.
+//
+   gMutex.Lock();
+   theLKCnt = lkCount;
+   isGone = 1;
+   gMutex.UnLock();
+
+// Get the node lock and do some debugging
+//
+   nodeMutex.Lock();
+   DEBUG(Ident <<" locks=" <<theLKCnt <<" unlocks=" <<ulCount);
+
+// Now wait for things to simmer down. We wait for an appropriate time because
+// we don't want to occupy this thread forever.
+//
+   while(theLKCnt != ulCount)
+        {if (totWait >= Config.DELDelay) {doDel = false; break;}
+         tNow = time(0);
+         if (!nodeMutex.Wait(tmoWait)) totWait += (time(0) - tNow);
+            else {DeleteWarn(gMutex, theLKCnt);
+                  totWait += tmoWait;
+                  tmoWait  = tmoWait << 1;
+                  if (totWait + tmoWait > Config.DELDelay)
+                     {tmoWait = Config.DELDelay - totWait;
+                      if (tmoWait < 30) tmoWait = 30;
+                     }
+                 }
+        }
+
+// We can now safely delete this node
+//
+   nodeMutex.UnLock();
+   if (doDel) delete this;
+      else {char eBuff[256];
+            snprintf(eBuff, sizeof(eBuff),
+                     " (%p) delete timeout; node object lost!", this);
+            Say.Emsg("Delete", Ident, eBuff);
+           }
+}
+  
+/******************************************************************************/
+/* Private:                   D e l e t e W a r n                             */
+/******************************************************************************/
+
+void XrdCmsNode::DeleteWarn(XrdSysMutex &gMutex, unsigned int &lkVal)
+{
+   char eBuff[256];
+
+// Print warning
+//
+   snprintf(eBuff, sizeof(eBuff), "delete sync stall; lk %d != ul %d",
+            lkVal, ulCount);
+   Say.Emsg("Delete", Ident, eBuff);
+
+// Update the lock count
+//
+   nodeMutex.UnLock();
+   gMutex.Lock();
+   lkVal = lkCount;
+   gMutex.UnLock();
+   nodeMutex.Lock();
+}
+  
+/******************************************************************************/
 /*                                  D i s c                                   */
 /******************************************************************************/
 
@@ -216,7 +302,7 @@ void XrdCmsNode::Disc(const char *reason, int needLock)
 
 // Lock the object of not yet locked
 //
-   if (needLock) myMutex.Lock();
+   if (needLock) nodeMutex.Lock();
    isOffline = 1;
 
 // If we are still connected, initiate a teardown
@@ -229,7 +315,7 @@ void XrdCmsNode::Disc(const char *reason, int needLock)
 
 // Unlock ourselves if we locked ourselves
 //
-   if (needLock) myMutex.UnLock();
+   if (needLock) nodeMutex.UnLock();
 }
   
 /******************************************************************************/
@@ -343,11 +429,11 @@ const char *XrdCmsNode::do_Gone(XrdCmsRRData &Arg)
 
 // If we have no managers and we still have the file or never had it, return
 //
-   if (!Manager.Present() || !newgone) return 0;
+   if (!XrdCmsManager::Present() || !newgone) return 0;
 
 // Back-propogate the gone to all of our managers
 //
-   Manager.Inform(Arg.Request, Arg.Buff, Arg.Dlen);
+   XrdCmsManager::Inform(Arg.Request, Arg.Buff, Arg.Dlen);
 
 // All done
 //
@@ -395,11 +481,11 @@ const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 
 // Return if we have no managers or we already informed the managers
 //
-   if (!Manager.Present() || !isnew) return 0;
+   if (!XrdCmsManager::Present() || !isnew) return 0;
 
 // Back-propogate the have to all of our managers
 //
-   Manager.Inform(Arg.Request, Arg.Buff, Arg.Dlen);
+   XrdCmsManager::Inform(Arg.Request, Arg.Buff, Arg.Dlen);
 
 // All done
 //
@@ -497,7 +583,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    XrdCmsCluster::CmsLSOpts lsopts = XrdCmsCluster::LS_NULL;
    XrdNetIF::ifType ifType;
    int rc, bytes;
-   bool oksel = false, lsall = (*Arg.Path == '*');
+   bool lsuniq = false, oksel = false, lsall = (*Arg.Path == '*');
 
 // Get the right interface selection options
 //
@@ -509,10 +595,18 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    lsopts = (Arg.Opts & CmsLocateRequest::kYR_retname
           ?  XrdCmsCluster::LS_IDNT : XrdCmsCluster::LS_IPO);
 
+// Indicate if only a single server entry should be listed
+//
+   if (Arg.Opts & CmsLocateRequest::kYR_retuniq && baseFS.isDFS())
+      {lsuniq = true; *toP++='u';}
+
 // Indicate whether we can ignore network restrictions
 //
    if (Arg.Opts & CmsLocateRequest::kYR_listall)
       lsopts |= XrdCmsCluster::LS_ANY;
+
+// Indicate whether we ony want to list a single entry
+//
 
 // Handle private networks here
 //
@@ -526,7 +620,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    Sel.Opts = static_cast<int>(ifType) & XrdCmsSelect::ifWant;
    lsopts   = static_cast<XrdCmsCluster::CmsLSOpts>(lsopts | ifType);
 
-// Grab the refresh option (the only one we support)
+// Grab various options
 //
    if (Arg.Opts & CmsLocateRequest::kYR_refresh) 
       {Sel.Opts  = XrdCmsSelect::Refresh; *toP++='s';}
@@ -582,7 +676,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
       {Resp.Val           = htonl(rc);
        DEBUGR(Why <<Arg.Path);
       } else {
-       bytes = do_LocFmt(Resp.outbuff, sP, Sel.Vec.pf, Sel.Vec.wf, lsall)
+       bytes = do_LocFmt(Resp.outbuff, sP, Sel.Vec.pf, Sel.Vec.wf, lsall,lsuniq)
              + sizeof(Resp.Val) + 1;
        Resp.Val            = 0;
        Arg.Request.rrCode  = kYR_data;
@@ -601,13 +695,32 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 /******************************************************************************/
   
 int XrdCmsNode::do_LocFmt(char *buff, XrdCmsSelected *sP,
-                          SMask_t pfVec, SMask_t wfVec, bool lsall)
+                          SMask_t pfVec, SMask_t wfVec, bool lsall, bool lsuniq)
 {
    static const int Skip = (XrdCmsSelected::Disable | XrdCmsSelected::Offline);
    static const int Hung = (XrdCmsSelected::Disable | XrdCmsSelected::Offline
                          |  XrdCmsSelected::Suspend);
    XrdCmsSelected *pP;
    char *oP = buff;
+
+// If only unique entries are wanted then we need to only let through
+// all non-servers and one server (prefereably a r/w one)
+//
+if (!lsall && lsuniq)
+   {XrdCmsSelected *xP = 0;
+    bool haverw = false;
+    pP = sP;
+    while(pP)
+         {if (!(pP->Status & (XrdCmsSelected::isMangr | Skip)))
+             {if (haverw) pP->Status |= Skip;
+                 else {if (xP) xP->Status |= Skip;
+                       xP = pP;
+                       haverw = (pP->Mask & wfVec) != 0;
+                      }
+             }
+          pP = pP->next;
+         }
+   }
 
 // format out the request as follows:                   
 // 01234567810123456789212345678
@@ -773,6 +886,7 @@ const char *XrdCmsNode::do_Ping(XrdCmsRRData &Arg)
 // Process: ping
 // Respond: pong
 //
+   if (isBad & isDoomed) return ".redirected";
    Link->Send((char *)&pongIt, sizeof(pongIt));
    return 0;
 }
@@ -913,6 +1027,8 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 {
    EPNAME("do_Select")
+//                      kXR_NotFound  kXR_IOError  kXR_FSError  kXR_ServerError
+   static int rtEC[] = {kYR_ENOENT,   kYR_EIO,     kYR_FSError, kYR_SrvError};
    XrdCmsRRQInfo reqInfo(Instance,RSlot,Arg.Request.streamid,Config.QryMinum);
    XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.Path, Arg.PathLen-1);
    struct iovec ioV[2];
@@ -943,7 +1059,10 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
    else {if (Arg.Opts & CmsSelectRequest::kYR_trunc)   
            {Sel.Opts |= XrdCmsSelect::Write | XrdCmsSelect::Trunc; *toP++='t';}
          if (Arg.Opts & CmsSelectRequest::kYR_write)   
-           {Sel.Opts |= XrdCmsSelect::Write;                       *toP++='w';}
+           {Sel.Opts |= XrdCmsSelect::Write;                       *toP++='w';
+            if (Arg.Opts & CmsSelectRequest::kYR_mwfiles || !Config.DoMWChk)
+               {Sel.Opts |= XrdCmsSelect::MWFiles;                *(toP-1)='W';}
+            }
          if (Arg.Opts & CmsSelectRequest::kYR_metaop)
            {Sel.Opts |= XrdCmsSelect::Write|XrdCmsSelect::isMeta;  *toP++='m';}
          if (Arg.Opts & CmsSelectRequest::kYR_create)  
@@ -954,6 +1073,25 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
         }
    *toP = '\0';
 
+// If the client can override selection mode, check if this has been done. Note
+// that true packed selection turns off fast redirect.
+//
+   if (Config.sched_Force || !(Arg.Opts & CmsSelectRequest::kYR_aSpec))
+      {if (Config.sched_Pack)
+          {Sel.Opts |= XrdCmsSelect::Pack;
+           if (Config.sched_Pack > 1) Sel.InfoP = 0;
+           if (!Config.sched_Level) Sel.Opts |= XrdCmsSelect::UseRef;
+          }
+      } else {
+       if (Arg.Opts & CmsSelectRequest::kYR_aPack)
+          {Sel.Opts |= XrdCmsSelect::Pack;
+           if (Arg.Opts  & CmsSelectRequest::kYR_aWait) Sel.InfoP = 0;
+           if ((Arg.Opts & CmsSelectRequest::kYR_aPack) ==
+                           CmsSelectRequest::kYR_aStrict)
+              Sel.Opts |= XrdCmsSelect::UseRef;
+          }
+      }
+
 // Check if an avoid node present. If so, this is ineligible for fast redirect.
 //
    Sel.nmask = SMask_t(0);
@@ -961,6 +1099,8 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
       {XrdNetAddr avoidAddr;
        char *Comma;
        DEBUGR(theopts <<' ' <<Arg.Path <<" avoiding " <<Avoid);
+       if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL)
+          Sel.Opts |= XrdCmsSelect::NoTryLim;
        Sel.InfoP = 0;
        do {if ((Comma = index(Avoid,','))) *Comma = '\0';
            if (*Avoid == '+') Sel.nmask |= Cluster.getMask(Avoid+1);
@@ -980,7 +1120,11 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
            DEBUGR("delay " <<rc <<' ' <<Arg.Path);
           } else {
            Arg.Request.rrCode = kYR_error;
-           Sel.Resp.Port      = kYR_ENOENT;
+           if (rc != XrdCmsCluster::RetryErr) Sel.Resp.Port = kYR_ENOENT;
+              else {int rtRC = (Arg.Opts & CmsSelectRequest::kYR_tryMASK)
+                               >> CmsSelectRequest::kYR_trySHFT;
+                    Sel.Resp.Port = rtEC[rtRC];
+                   }
            DEBUGR("failed; " <<Sel.Resp.Data << ' ' <<Arg.Path);
           }
       } else if (!Sel.Resp.DLen) return 0;
@@ -1104,7 +1248,8 @@ const char *XrdCmsNode::do_Space(XrdCmsRRData &Arg)
 
 // Send the response
 //
-   if (Arg.Request.rrCode != kYR_space) Manager.Inform(mySpace.Hdr, buff, blen);
+   if (Arg.Request.rrCode != kYR_space)
+      XrdCmsManager::Inform(mySpace.Hdr, buff, blen);
       else {xmsg[0].iov_base = (char *)&mySpace;
             xmsg[0].iov_len  = sizeof(mySpace);
             xmsg[1].iov_base = buff;
@@ -1211,10 +1356,10 @@ void XrdCmsNode::do_StateDFS(XrdCmsBaseFR *rP, int rc)
 // point we will only inform the manager that actually wants to know. This
 // is encoded to the route passed to us.
 //
-   if (Manager.Present() && isNew
+   if (XrdCmsManager::Present() && isNew
    && !(rP->Mod & CmsStateRequest::kYR_noresp))
       {Request.rrCode   = kYR_have;
-       Manager.Inform(Request, rP->Path, rP->PathLen+1);
+       XrdCmsManager::Inform(Request, rP->Path, rP->PathLen+1);
       }
 }
   
@@ -1315,9 +1460,16 @@ const char *XrdCmsNode::do_StatFS(XrdCmsRRData &Arg)
 //
    if (Cache.Paths.Find(Arg.Path, pinfo) && pinfo.rovec)
       {Cluster.Space(theSpace, pinfo.rovec);
-       bytes = sprintf(buff, "%d %d %d %d %d %d",
-                       theSpace.wNum, theSpace.wFree>>10, theSpace.wUtil,
-                       theSpace.sNum, theSpace.sFree>>10, theSpace.sUtil) + 1;
+       if (Arg.Request.modifier &  CmsStatfsRequest::kYR_qvfs)
+          {bytes = sprintf(buff, "A %lld %lld %d",
+                       theSpace.Total, theSpace.TotFr,
+                      (theSpace.wFree < theSpace.sFree ? theSpace.sFree
+                                                       : theSpace.wFree)) + 1;
+          } else {
+           bytes = sprintf(buff, "%d %d %d %d %d %d",
+                       theSpace.wNum, theSpace.wFree, theSpace.wUtil,
+                       theSpace.sNum, theSpace.sFree, theSpace.sUtil) + 1;
+          }
       } else bytes = strlcpy(buff, "-1 -1 -1 -1 -1 -1", sizeof(buff)) + 1;
 
 // Send the response
@@ -1421,7 +1573,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 // Process reset requests. These are exclsuive to any other request
 //
    if (Reset)
-      {Manager.Reset();                // Propagate the reset to our managers
+      {XrdCmsManager::Reset();         // Propagate the reset to our managers
        Cache.Bounce(NodeMask, NodeID); // Now invalidate our cache lines
       }
 
@@ -1444,7 +1596,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
                      stgMsg = (isNoStage ? "(no staging)" : "(staging)");
                      port = ntohl(Arg.Request.streamid);
                      if (port && port != netIF.Port())
-                        {Lock(); netIF.Port(port); UnLock();
+                        {Lock(false); netIF.Port(port); UnLock();
                          DEBUGR("set data port to " <<port);
                         }
                     }
@@ -1515,7 +1667,7 @@ const char *XrdCmsNode::do_Try(XrdCmsRRData &Arg)
 
 // Add all the alternates to our alternate list
 //
-   myMans.Add(&netID, Arg.Path, Config.PortTCP, myLevel);
+   if (Manager) Manager->myMans->Add(&netID, Arg.Path, Config.PortTCP, myLevel);
 
 // Close the link and return an error
 //
@@ -1586,7 +1738,7 @@ void XrdCmsNode::Report_Usage(XrdLink *lp)   // Static!
    xmsg[1].iov_base = respbuff;
    xmsg[1].iov_len  = blen;
    if (lp) lp->Send(xmsg, 2);
-      else Manager.Inform("usage", xmsg, 2);
+      else XrdCmsManager::Inform("usage", xmsg, 2);
 
 // Do some debugging
 //

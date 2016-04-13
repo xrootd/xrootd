@@ -63,13 +63,16 @@ namespace XrdCl
   const int DefaultTCPKeepAliveInterval = 75;
   const int DefaultTCPKeepAliveProbes   = 9;
   const int DefaultMultiProtocol        = 0;
+  const int DefaultParallelEvtLoop      = 1;
 
-  const char * const DefaultPollerPreference   = "built-in,libevent";
+  const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";
   const char * const DefaultClientMonitor      = "";
   const char * const DefaultClientMonitorParam = "";
   const char * const DefaultPlugInConfDir      = "";
   const char * const DefaultPlugIn             = "";
+  const char * const DefaultReadRecovery       = "true";
+  const char * const DefaultWriteRecovery      = "true";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

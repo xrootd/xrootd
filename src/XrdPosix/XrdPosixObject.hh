@@ -86,6 +86,7 @@ static int              lastFD;
 static int              highFD;
 static int              baseFD;
 static int              freeFD;
+static int              posxFD;
 static int              devNull;
 };
 #endif

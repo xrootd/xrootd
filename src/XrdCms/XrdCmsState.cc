@@ -131,7 +131,7 @@ void *XrdCmsState::Monitor()
                     }
            if (isMan && RTsend)
               RTable.Send("status", (char *)&myStatus, sizeof(myStatus));
-           Manager.Inform(myStatus.Hdr);
+           XrdCmsManager::Inform(myStatus.Hdr);
           }
       } while(1);
 

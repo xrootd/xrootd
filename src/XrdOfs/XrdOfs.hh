@@ -374,7 +374,7 @@ char             *poscLog;        //    -> Directory for posc recovery log
 int               poscHold;       //       Seconds to hold a forced close
 short             poscAuto;       //  1 -> Automatic persist on close
 
-char              Rsvd1;          //  Reserved
+char              ossRW;          // The oss r/w capability
 bool              CksPfn;         // Checksum needs a pfn
 XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
 XrdCks           *Cks;            // Checksum manager
@@ -406,8 +406,10 @@ const char   *Fname(const char *);
 int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                       const char *arg1=0, const char *arg2=0,
                       XrdOucEnv  *Env1=0, XrdOucEnv  *Env2=0);
+int           Reformat(XrdOucErrInfo &);
 const char   *theRole(int opts);
 int           xcrds(XrdOucStream &, XrdSysError &);
+int           xexp(XrdOucStream &, XrdSysError &, bool);
 int           xforward(XrdOucStream &, XrdSysError &);
 int           xmaxd(XrdOucStream &, XrdSysError &);
 int           xnmsg(XrdOucStream &, XrdSysError &);

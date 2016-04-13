@@ -137,6 +137,7 @@ XrdOfs::XrdOfs()
    Balancer      = 0;
    evsObject     = 0;
    myRole        = strdup("server");
+   ossRW         =' ';
 
 // Obtain port number we will be using. Note that the constructor must occur
 // after the port number is known (i.e., this cannot be a global static).
@@ -439,7 +440,7 @@ int XrdOfsFile::open(const char          *path,      // In
    mode_t theMode = Mode & S_IAMB;
    const char *tpcKey;
    int retc, isPosc = 0, crOpts = 0, isRW = 0, open_flag = 0;
-   int find_flag = open_mode & (SFS_O_NOWAIT | SFS_O_RESET);
+   int find_flag = open_mode & (SFS_O_NOWAIT | SFS_O_RESET | SFS_O_MULTIW);
    XrdOucEnv Open_Env(info,0,client);
 
 // Trace entry
@@ -629,7 +630,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Set compression values and activate the handle
 //
-   if (oP.fP->isCompressed())
+   if (oP.fP->isCompressed() > 0)
       {oP.hP->isCompressed = 1;
        dorawio = (open_mode & SFS_O_RAWIO ? 1 : 0);
       }
@@ -1551,28 +1552,32 @@ int XrdOfs::fsctl(const int               cmd,
 // Process the LOCATE request
 //
    if (opcode == SFS_FSCTL_LOCATE)
-      {struct stat fstat;
+      {static const int locMask = (SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|
+                                   SFS_O_HNAME|SFS_O_RAWIO);
+       struct stat fstat;
        char pbuff[1024], rType[3];
        const char *Resp[2] = {rType, pbuff};
        const char *locArg, *opq, *Path = Split(args,&opq,pbuff,sizeof(pbuff));
        XrdNetIF::ifType ifType;
        int Resp1Len;
-       int find_flag = SFS_O_LOCATE
-                     | (cmd&(SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|SFS_O_HNAME));
-
-            if (*Path == '*')      {locArg = Path; Path++;}
-       else if (cmd & SFS_O_TRUNC) {locArg = (char *)"*";}
-       else                         locArg = Path;
+       int find_flag = SFS_O_LOCATE | (cmd & locMask);
        XrdOucEnv loc_Env(opq ? opq+1 : 0,0,client);
-       AUTHORIZE(client,0,AOP_Stat,"locate",Path,einfo);
+
+       if (cmd & SFS_O_TRUNC)           locArg = (char *)"*";
+          else {     if (*Path == '*') {locArg = Path; Path++;}
+                        else            locArg = Path;
+                AUTHORIZE(client,0,AOP_Stat,"locate",Path,einfo);
+               }
        if (Finder && Finder->isRemote()
        &&  (retc = Finder->Locate(einfo, locArg, find_flag, &loc_Env)))
           return fsError(einfo, retc);
 
-       if ((retc = XrdOfsOss->Stat(Path, &fstat, 0, &loc_Env)))
-          return XrdOfsFS->Emsg(epname, einfo, retc, "locate", Path);
-       rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
-       rType[1] =  (fstat.st_mode & S_IWUSR             ? 'w' : 'r');
+       if (cmd & SFS_O_TRUNC) {rType[0] = 'S'; rType[1] = ossRW;}
+          else {if ((retc = XrdOfsOss->Stat(Path, &fstat, 0, &loc_Env)))
+                   return XrdOfsFS->Emsg(epname, einfo, retc, "locate", Path);
+                rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
+                rType[1] =  (fstat.st_mode & S_IWUSR             ? 'w' : 'r');
+               }
        rType[2] = '\0';
 
        ifType = XrdNetIF::GetIFType((einfo.getUCap() & XrdOucEI::uIPv4)  != 0,
@@ -1594,7 +1599,7 @@ int XrdOfs::fsctl(const int               cmd,
        XrdOucEnv fs_Env(opq ? opq+1 : 0,0,client);
        AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Space(einfo, Path, &fs_Env))) 
+       &&  (retc = Finder->Space(einfo, Path, &fs_Env)))
           return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
        if ((retc = XrdOfsOss->StatFS(Path, bP, blen, &fs_Env)))
@@ -1610,9 +1615,13 @@ int XrdOfs::fsctl(const int               cmd,
        const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv statls_Env(opq ? opq+1 : 0,0,client);
        AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
-       if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Space(einfo, Path, &statls_Env)))
-          return fsError(einfo, retc);
+       if (Finder && Finder->isRemote())
+          {statls_Env.Put("cms.qvfs", "1");
+           if ((retc = Finder->Space(einfo, Path, &statls_Env)))
+              {if (retc == SFS_DATA) retc = Reformat(einfo);
+               return fsError(einfo, retc);
+              }
+          }
        bP = einfo.getMsgBuff(blen);
        if ((retc = XrdOfsOss->StatLS(statls_Env, Path, bP, blen)))
           return XrdOfsFS->Emsg(epname, einfo, retc, "statls", Path);
@@ -1749,7 +1758,15 @@ int XrdOfs::mkdir(const char             *path,    // In
 
 // If we have a redirector, tell it that we now have this path
 //
-   if (Balancer) Balancer->Added(path);
+   if (Balancer)
+      {if (!mkpath) Balancer->Added(path);
+          else     {char *slash, *myPath = strdup(path);
+                    do {Balancer->Added(myPath);
+                        if ((slash = rindex(myPath, '/'))) *slash = 0;
+                       } while(slash && slash != myPath);
+                    free(myPath);
+                   }
+      }
 
     return SFS_OK;
 }
@@ -2190,6 +2207,47 @@ int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
    if (rc > 0)             {OfsStats.Data.numDelays++;   return rc;          }
    if (rc == SFS_DATA)     {OfsStats.Data.numReplies++;  return SFS_DATA;    }
                            {OfsStats.Data.numErrors++;   return SFS_ERROR;   }
+}
+
+/******************************************************************************/
+/*                              R e f o r m a t                               */
+/******************************************************************************/
+  
+int XrdOfs::Reformat(XrdOucErrInfo &myError)
+{
+   static const char *fmt = "oss.cgroup=all&oss.space=%llu&oss.free=%llu"
+                            "&oss.maxf=%llu&oss.used=%llu&oss.quota=-1";
+   char qsFmt, *bP;
+   unsigned long long totSpace, totFree, maxFree;
+   int n, blen;
+
+// Get the buffer
+//
+   bP = myError.getMsgBuff(blen);
+
+// Scan out the values
+//
+   n = sscanf(bP, "%c %llu %llu %llu", &qsFmt, &totSpace, &totFree, &maxFree);
+
+// Validate the response. The response will be invalid for older cmsd's
+//
+   if (n != 4 || qsFmt != 'A')
+      {myError.setErrInfo(ENOTSUP,"space fctl operation not supported by cmsd");
+       return SFS_ERROR;
+      }
+
+// Change megabyte values to actual bytes
+//
+   totSpace = totSpace << 20LL;
+   totFree  = totFree  << 20LL;
+   maxFree  = maxFree  << 20LL;
+
+// Reformat the result
+//
+   blen = snprintf(bP,blen,fmt,totSpace,totFree,maxFree,(totSpace-totFree));
+                                 
+   myError.setErrCode(blen);
+   return SFS_DATA;
 }
 
 /******************************************************************************/

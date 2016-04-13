@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClTransportManager.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdOuc/XrdOucPreload.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysUtils.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
@@ -199,6 +200,7 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "TCPKeepAliveInterval", DefaultTCPKeepAliveInterval );
     REGISTER_VAR_INT( varsInt, "TCPKeepProbes",        DefaultTCPKeepAliveProbes   );
     REGISTER_VAR_INT( varsInt, "MultiProtocol",        DefaultMultiProtocol        );
+    REGISTER_VAR_INT( varsInt, "ParallelEvtLoop",      DefaultParallelEvtLoop      );
 
     REGISTER_VAR_STR( varsStr, "PollerPreference",     DefaultPollerPreference     );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",        DefaultClientMonitor        );
@@ -206,6 +208,8 @@ namespace XrdCl
     REGISTER_VAR_STR( varsStr, "NetworkStack",         DefaultNetworkStack         );
     REGISTER_VAR_STR( varsStr, "PlugIn",               DefaultPlugIn               );
     REGISTER_VAR_STR( varsStr, "PlugInConfDir",        DefaultPlugInConfDir        );
+    REGISTER_VAR_STR( varsStr, "ReadRecovery",         DefaultReadRecovery         );
+    REGISTER_VAR_STR( varsStr, "WriteRecovery",        DefaultWriteRecovery        );
 
     //--------------------------------------------------------------------------
     // Process the configuration files
@@ -311,31 +315,39 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   PostMaster *DefaultEnv::GetPostMaster()
   {
-    if( unlikely(!sPostMaster) )
+    PostMaster* postMaster = AtomicGet(sPostMaster);
+
+    if( unlikely( !postMaster ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
-      if( sPostMaster )
-        return sPostMaster;
-      sPostMaster = new PostMaster();
+      postMaster = AtomicGet(sPostMaster);
 
-      if( !sPostMaster->Initialize() )
+      if( postMaster )
+        return postMaster;
+
+      postMaster = new PostMaster();
+
+      if( !postMaster->Initialize() )
       {
-        delete sPostMaster;
-        sPostMaster = 0;
+        delete postMaster;
+        postMaster = 0;
         return 0;
       }
 
-      if( !sPostMaster->Start() )
+      if( !postMaster->Start() )
       {
-        sPostMaster->Finalize();
-        delete sPostMaster;
-        sPostMaster = 0;
+        postMaster->Finalize();
+        delete postMaster;
+        postMaster = 0;
         return 0;
       }
-      sForkHandler->RegisterPostMaster( sPostMaster );
-      sPostMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
+
+      sForkHandler->RegisterPostMaster( postMaster );
+      postMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
+      AtomicCAS(sPostMaster, sPostMaster, postMaster);
     }
-    return sPostMaster;
+
+    return postMaster;
   }
 
   //----------------------------------------------------------------------------
@@ -547,7 +559,6 @@ namespace XrdCl
     sPlugInManager->ProcessEnvironmentSettings();
     sForkHandler->RegisterFileTimer( sFileTimer );
 
-
     //--------------------------------------------------------------------------
     // MacOSX library loading is completely moronic. We cannot dlopen a library
     // from a thread other than a main thread, so we-pre dlopen all the
@@ -604,6 +615,7 @@ namespace XrdCl
 
     if( sMonitorLibHandle )
       sMonitorLibHandle->Unload();
+
     delete sMonitorLibHandle;
     sMonitorLibHandle = 0;
 
@@ -723,9 +735,6 @@ extern "C"
   //----------------------------------------------------------------------------
   static void prepare()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     Log         *log         = DefaultEnv::GetLog();
     Env         *env         = DefaultEnv::GetEnv();
@@ -749,17 +758,14 @@ extern "C"
   //----------------------------------------------------------------------------
   static void parent()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     Log         *log         = DefaultEnv::GetLog();
     Env         *env         = DefaultEnv::GetEnv();
     ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
     env->UnLock();
 
-    log->Debug( UtilityMsg, "In the parent fork handler for process %d",
-                getpid() );
+    pid_t pid = getpid();
+    log->Debug( UtilityMsg, "In the parent fork handler for process %d", pid );
 
     //--------------------------------------------------------------------------
     // Run the fork handler if it's enabled
@@ -767,7 +773,10 @@ extern "C"
     int runForkHandler = DefaultRunForkHandler;
     env->GetInt( "RunForkHandler", runForkHandler );
     if( runForkHandler )
+    {
+      log->SetPid(pid);
       forkHandler->Parent();
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -775,9 +784,6 @@ extern "C"
   //----------------------------------------------------------------------------
   static void child()
   {
-    //--------------------------------------------------------------------------
-    // Prepare
-    //--------------------------------------------------------------------------
     using namespace XrdCl;
     DefaultEnv::ReInitializeLogging();
     Log         *log         = DefaultEnv::GetLog();
@@ -785,8 +791,8 @@ extern "C"
     ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
     env->ReInitializeLock();
 
-    log->Debug( UtilityMsg, "In the child fork handler for process %d",
-                getpid() );
+    pid_t pid = getpid();
+    log->Debug( UtilityMsg, "In the child fork handler for process %d", pid );
 
     //--------------------------------------------------------------------------
     // Run the fork handler if it's enabled
@@ -794,7 +800,10 @@ extern "C"
     int runForkHandler = DefaultRunForkHandler;
     env->GetInt( "RunForkHandler", runForkHandler );
     if( runForkHandler )
+    {
+      log->SetPid(pid);
       forkHandler->Child();
+    }
   }
 }
 

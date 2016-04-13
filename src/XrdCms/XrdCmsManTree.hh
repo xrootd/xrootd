@@ -39,21 +39,19 @@ class XrdCmsManTree
 {
 public:
 
+void Abort();
+
 int  Connect(int nID, XrdCmsNode *nP);
 
 void Disc(int nID);
 
 int  Register();
 
-void setMaxCon(int i);
-
 int  Trying(int nID, int Lvl);
 
-enum connStat {Active, Connected, None, Pending, Waiting};
+enum connStat {Aborted, Active, Connected, None, Pending, Waiting};
 
-     XrdCmsManTree() : maxTMI(0),   numConn(0), maxConn(0),    atRoot(0),
-                       conLevel(0), conNID(-1), numWaiting(0),
-                       myStatus(Active) {};
+     XrdCmsManTree(int maxC);
     ~XrdCmsManTree() {};
 
 private:
@@ -92,9 +90,4 @@ int             conNID;
 int             numWaiting;
 connStat        myStatus;
 };
-
-namespace XrdCms
-{
-extern XrdCmsManTree ManTree;
-}
 #endif

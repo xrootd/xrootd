@@ -259,9 +259,14 @@ void XrdSysTimer::Wait4Midnight()
    while(clock_nanosleep(CLOCK_REALTIME,TIMER_ABSTIME,&Midnite,0) == EINTR) {}
 #else
    timespec tleft, Midnite = {Midnight(1) - time(0), 0};
-   while(nanosleep(&Midnite, &tleft) && EINTR == errno)
+   int ntpWait = 60;
+do{while(nanosleep(&Midnite, &tleft) && EINTR == errno)
         {Midnite.tv_sec  = tleft.tv_sec;
          Midnite.tv_nsec = tleft.tv_nsec;
         }
+   if (Midnight(1) - time(0) >= 60) break;
+   Midnite.tv_sec  = 1;
+   Midnite.tv_nsec = 0;
+  } while(ntpWait--);  // This avoids multiple wakeups when NTP adjusts clock
 #endif
 }

@@ -302,8 +302,8 @@ public:
 
     // Bounded array like access
     inline T &At(int pos) {
-	//        if ( (pos < 0) || (pos >= size) )
-	//            abort();
+           if ((pos < 0) || (static_cast<unsigned long>(pos) >=
+                             static_cast<unsigned long>(size))) abort();
 
 	return *( reinterpret_cast<T*>(rawdata + index[pos].offs));
     }

@@ -394,6 +394,23 @@ Debug        = 0x0003; // Produce some debug messages (levels 0, 1, 2, or 3)
 virtual
 XrdOucCache   *Create(Parms &Params, XrdOucCacheIO::aprParms *aprP=0) = 0;
 
+
+// Propagate  Unlink client request from posix layer to cache.
+virtual
+int           Unlink(const char* /*path*/) { return 0; }    
+
+// Propagate  Rmdir client request from posix layer to cache.
+virtual
+int           Rmdir(const char* /*path*/) { return 0; }      
+
+// Propagate  Rename client request from posix layer to cache.
+virtual
+int           Rename(const char* /*path*/, const char* /*newPath*/) { return 0; }                
+
+// Propagate  Truncate client request from posix layer to cache.
+virtual
+int           Truncate(const char* /*path*/, off_t /*size*/) { return 0; }    
+
 /* The following holds statistics for the cache itself. It is updated as
    associated cacheIO objects are deleted and their statistics are added.
 */

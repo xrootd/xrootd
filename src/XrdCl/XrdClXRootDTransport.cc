@@ -1352,7 +1352,7 @@ namespace XrdCl
     bool                 privateIPv6 = false;
     bool                 privateIPv4 = false;
 
-    if( (stacks & 0x03) == XrdNetUtils::hasIP64 )
+    if( (stacks & XrdNetUtils::hasIP64) == XrdNetUtils::hasIP64 )
     {
       dualStack = true;
       loginReq->ability  |= kXR_hasipv64;
@@ -1369,6 +1369,20 @@ namespace XrdCl
       privateIPv4 = true;
       loginReq->ability |= kXR_onlyprv4;
     }
+
+    // The following code snippet tries to overcome the problem that this host
+    // may still be dual-stacked but we don't know it because one of the
+    // interfaces was not registered in DNS.
+    //
+    if( !dualStack && hsData->serverAddr )
+      {if ( (stacks & XrdNetUtils::hasIPv4
+       &&    hsData->serverAddr->isIPType(XrdNetAddrInfo::IPv6))
+       ||   (stacks & XrdNetUtils::hasIPv6
+       &&    hsData->serverAddr->isIPType(XrdNetAddrInfo::IPv4)))
+          {dualStack = true;
+           loginReq->ability  |= kXR_hasipv64;
+          }
+      }
 
     //--------------------------------------------------------------------------
     // Check the username
@@ -1649,14 +1663,14 @@ namespace XrdCl
     // Loop over the possible protocols to find one that gives us valid
     // credentials
     //--------------------------------------------------------------------------
-    XrdNetAddr *srvAddr = (XrdNetAddr*)hsData->serverAddr;
+    XrdNetAddrInfo &srvAddrInfo = *const_cast<XrdNetAddr *>(hsData->serverAddr);
     while(1)
     {
       //------------------------------------------------------------------------
       // Get the protocol
       //------------------------------------------------------------------------
       info->authProtocol = (*authHandler)( hsData->url->GetHostName().c_str(),
-                                           *srvAddr,
+                                           srvAddrInfo,
                                            *info->authParams,
                                            &ei );
       if( !info->authProtocol )
@@ -2050,6 +2064,8 @@ namespace XrdCl
             o << "kXR_nowait ";
           if( sreq->options & kXR_force )
             o << "kXR_force ";
+          if( sreq->options & kXR_compress )
+            o << "kXR_compress ";
         }
         o << ")";
         break;

@@ -284,11 +284,13 @@ void XrdSys::IOEvents::Channel::Delete()
    bool isLocked = true;
 
 // Lock ourselves during the delete process. If the channel is disassociated
-// then we need do nothing more.
+// or the real poller is set to the error poller then this channel is clean
+// and can be deleted (i.e. the channel ran through Detach()).
 //
    chMutex.Lock();
    if (!chPollXQ || chPollXQ == &pollErr1)
       {chMutex.UnLock();
+       delete this;
        return;
       }
 
@@ -325,7 +327,7 @@ void XrdSys::IOEvents::Channel::Delete()
   
 bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 {
-   int eNum, newev, curev;
+   int eNum = 0, newev, curev;
    bool retval = true, isLocked = true;
 
 // Lock this channel
@@ -371,7 +373,7 @@ bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
                                        const char **eText)
 {
-   int eNum, newev, curev, tmoSet = 0;
+   int eNum = 0, newev, curev, tmoSet = 0;
    bool retval, setTO, isLocked = true;
 
 // Lock ourselves against any changes (this is a recursive mutex)
@@ -668,11 +670,14 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
            chDead       = false;
            cbkMHelp.UnLock();
            cP->chCB->Fatal(cP,cP->chCBA, eNum, eTxt);
-           return (chDead ? true : false);
+           if (chDead) return true;
+           cbkMHelp.Lock(&(cP->chMutex));
+           cP->inPSet   = 0;
+           return false;
           }
             if (REVENTS(cP->chEvents)) events = CallBack::ReadyToRead;
        else if (WEVENTS(cP->chEvents)) events = CallBack::ReadyToWrite;
-       else    {cP->chPoller = &pollErr1; cP->chFault = eNum;
+       else    {cP->chPoller = &pollErr1; cP->chFault = eNum; cP->inPSet = 0;
                 return false;
                }
       }
@@ -786,6 +791,8 @@ XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
 void XrdSys::IOEvents::Poller::Detach(XrdSys::IOEvents::Channel *cP,
                                       bool &isLocked, bool keep)
 {
+// The caller must hold the channel lock!
+//
    bool detFD = (cP->inPSet != 0);
 
 // First remove the channel from the timeout queue
@@ -814,7 +821,10 @@ void XrdSys::IOEvents::Poller::Detach(XrdSys::IOEvents::Channel *cP,
 // Exclude this channel from the associated poll set, don't hold the ad lock
 //
    adMutex.UnLock();
-   if (detFD && cmdFD >= 0) Exclude(cP, isLocked, !ISPOLLER);
+   if (detFD)
+      {cP->inPSet = 0;
+       if (cmdFD >= 0) Exclude(cP, isLocked, !ISPOLLER);
+      }
 }
   
 /******************************************************************************/

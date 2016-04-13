@@ -61,6 +61,12 @@
 #include <sys/types.h>
 #endif
 
+#if __cplusplus >= 201103L
+#define XRDCL_SMART_PTR_T std::unique_ptr
+#else
+#define XRDCL_SMART_PTR_T std::auto_ptr
+#endif
+
 //_____________________________________________________________________________
 XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize, int fd)
 {
@@ -400,7 +406,7 @@ int XrdClientSock::TryConnect_low(bool isUnix, int altport, int windowsz)
 	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low", "Trying SOCKS4 host " <<
 	     host << ":" << port);
 
-    std::auto_ptr<XrdNetSocket> s(new XrdNetSocket());
+    XRDCL_SMART_PTR_T<XrdNetSocket> s(new XrdNetSocket());
 
     // Log the attempt
     //

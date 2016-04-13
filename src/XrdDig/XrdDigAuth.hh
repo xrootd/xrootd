@@ -81,7 +81,8 @@ bool Failure(int lNum, const char *txt1, const char *txt2=0);
 bool OkGrp(const char *glist, const char *gname);
 bool Parse(XrdOucStream &aFile, int lNum);
 bool Refresh();
-bool SetupAuth();
+bool SetupAuth(bool isRefresh);
+bool SetupAuth(bool isRefresh, bool aOK);
 void Squash(char *bP);
 
 XrdSysMutex    authMutex;

@@ -399,6 +399,47 @@ int XrdOucUtils::is1of(char *val, const char **clist)
 }
 
 /******************************************************************************/
+/*                                  L o g 2                                   */
+/******************************************************************************/
+
+// Based on an algorithm produced by Todd Lehman. However, this one returns 0
+// when passed 0 (which is invalid). The caller must check the validity of
+// the input prior to calling Log2(). Essentially, the algorithm subtracts
+// away progressively smaller squares in the sequence
+// { 0 <= k <= 5: 2^(2^k) } = { 2**32, 2**16, 2**8 2**4 2**2, 2**1 } =
+//                          = { 4294967296, 65536, 256, 16, 4, 2 }
+// and sums the exponents k of the subtracted values. It is generally the
+// fastest way to compute log2 for a wide range of possible input values.
+
+int XrdOucUtils::Log2(unsigned long long n)
+{
+  int i = 0;
+
+  #define SHFT(k) if (n >= (1ULL << k)) { i += k; n >>= k; }
+
+  SHFT(32); SHFT(16); SHFT(8); SHFT(4); SHFT(2); SHFT(1); return i;
+
+  #undef SHFT
+}
+  
+/******************************************************************************/
+/*                                 L o g 1 0                                  */
+/******************************************************************************/
+
+int XrdOucUtils::Log10(unsigned long long n)
+{
+  int i = 0;
+
+  #define SHFT(k, m) if (n >= m) { i += k; n /= m; }
+
+  SHFT(16,10000000000000000ULL); SHFT(8,100000000ULL); 
+  SHFT(4,10000ULL);              SHFT(2,100ULL);       SHFT(1,10ULL);
+  return i;
+
+  #undef SHFT
+}
+  
+/******************************************************************************/
 /*                              m a k e H o m e                               */
 /******************************************************************************/
   

@@ -179,6 +179,11 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Disables respective uplink if empty
+      //------------------------------------------------------------------------
+      void DisableIfEmpty( uint16_t subStream );
+
+      //------------------------------------------------------------------------
       //! Call back when a message has been reconstructed
       //------------------------------------------------------------------------
       void OnIncoming( uint16_t  subStream,

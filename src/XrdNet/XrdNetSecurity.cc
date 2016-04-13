@@ -50,6 +50,7 @@ int innetgr(const char *netgroup, const char *host, const char *user,
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetSecurity.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
 /******************************************************************************/
@@ -85,21 +86,17 @@ const char *XrdNetSecurity::TraceID = "NetSecurity";
   
 void XrdNetSecurity::AddHost(char *hname)
 {
-   static const int fmtOpts = XrdNetAddr::old6Map4 | XrdNetAddr::noPort;
-   XrdNetAddr hAddr;
-   char ipbuff[64];
 
 // If this has no asterisks, then we can add it as is. Otherwise, add it to
 // the name pattern list.
 //
-   if (!index(hname, '*') && !hAddr.Set(hname,0)
-   &&  hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAdv6, fmtOpts))
-      {OKHosts.Add(ipbuff, 0, 0, Hash_data_is_key);
-      }
-      else {XrdOucNList *nlp = new XrdOucNList(hname);
-            HostList.Insert(nlp);
-            chkNetLst = true;
-           }
+   if (!index(hname, '*') && addHIP(hname)) return;
+
+// Add it to the pattern list
+//
+   XrdOucNList *nlp = new XrdOucNList(hname);
+   HostList.Insert(nlp);
+   chkNetLst = true;
 
 // Echo this back if debugging
 //
@@ -218,6 +215,40 @@ void XrdNetSecurity::Merge(XrdNetSecurity *srcp)
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                                a d d H I P                                 */
+/******************************************************************************/
+  
+bool XrdNetSecurity::addHIP(const char *hname)
+{
+   static const int fmtOpts = XrdNetAddr::old6Map4 | XrdNetAddr::noPort;
+   XrdNetAddr *iP;
+   const char *eTxt;
+   char ipbuff[64];
+   int i, iN;
+
+// Obatin all of the addresses associated with this host
+//
+   eTxt = XrdNetUtils::GetAddrs(hname, &iP, iN, XrdNetUtils::allIPMap, 0);
+   if (eTxt)
+      {DEBUG(hname <<"IP add to authorized hosts failed; " <<eTxt);
+       return false;
+      }
+
+// Add each IP address to the host hash
+//
+   for (i = 0; i < iN; i++)
+       if (iP[i].Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAdv6, fmtOpts))
+          {OKHosts.Add(ipbuff, 0, 0, Hash_data_is_key);
+           DEBUG(ipbuff <<" (" <<hname <<") added to authorized hosts.");
+          }
+
+// return success
+//
+   delete [] iP;
+   return true;
+}
+  
 /******************************************************************************/
 /*                                h o s t O K                                 */
 /******************************************************************************/

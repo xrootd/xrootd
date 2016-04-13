@@ -50,11 +50,10 @@ public:
 //!                  assigned to hSpec be considered for inclusion.
 //! @param  hPort    the port specification which can be a text number or a
 //!                  service name (e.g. xroot).
-//!         hWant    Maximum number of list entries wanted. If hWant is greater
-//!                  that eight it is set eigth.
 //! @param  sPort    If not nil, the *sPort will be set to the numeric hPort if
 //!                  the IP address in one of the entries matches the host
 //!                  address. Otherwise, the value is unchanged.
+//! @param  hush     When true does not print the dns name to host mappings.
 //!
 //! @return Success: True and if oldMans is supplied, the additional entries
 //!                  that do not duplicate existing entries are added to the
@@ -67,7 +66,7 @@ public:
 //------------------------------------------------------------------------------
 static
 bool     ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
-                  char  *hSpec, char *hPort, int *sPort=0);
+                  char  *hSpec, char *hPort, int *sPort=0, bool hush=false);
 
 //------------------------------------------------------------------------------
 //! Obtain the port for a manager specification
@@ -84,9 +83,24 @@ bool     ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 static
 char *ParseManPort(XrdSysError *eDest, XrdOucStream &CFile, char *hSpec);
 
+//------------------------------------------------------------------------------
+//! Translate site number to site name.
+//!
+//! @param  snum     The site number.
+//!
+//! @return Pointer to the corresponding site name (anonymous if none).
+//------------------------------------------------------------------------------
+static
+const char *SiteName(int snum);
+
          XrdCmsUtils() {}
         ~XrdCmsUtils();
 
 private:
+static
+void         Display(XrdSysError *eDest, const char *hSpec,
+                                         const char *hName, bool isBad);
+static
+XrdOucTList *SInsert(XrdOucTList *oldP, XrdOucTList *newP);
 };
 #endif

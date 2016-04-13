@@ -58,6 +58,7 @@ static int  AllocMem(void **memP, int slots);
                     {}
            ~PollPort() {Stop();}
 
+static const int pollER = POLLERR| POLLHUP;
 static const int pollOK = POLLIN | POLLRDNORM | POLLPRI | POLLOUT;
 static const int pollRD = POLLIN | POLLRDNORM | POLLPRI;
 static const int pollWR = POLLOUT;
@@ -226,17 +227,16 @@ void XrdSys::IOEvents::PollPort::Dispatch(XrdSys::IOEvents::Channel *cP,
 
 // Translate the event to something reasonable
 //
-   if (pollEv & pollOK)
-      {if (pollEv & pollRD) events |= CallBack::ReadyToRead;
-       if (pollEv & pollWR) events |= CallBack::ReadyToWrite;
-       eNum = 0; eTxt = 0;
-      } else {
-            if (pollEv & POLLHUP)  eNum = ECONNRESET;
-       else if (pollEv & POLLERR)  eNum = EPIPE;
-       else if (pollEv & POLLNVAL) eNum = EBADF;
-       else                        eNum = EIO;
-       eTxt = "polling";
-      }
+        if (pollEv & pollER)
+           {eTxt = "polling";
+            eNum = (pollEv & POLLERR ? EPIPE : ECONNRESET); // Error or HUP
+           }
+   else if (pollEv & pollOK)
+           {if (pollEv & pollRD) events |= CallBack::ReadyToRead;
+            if (pollEv & pollWR) events |= CallBack::ReadyToWrite;
+            eNum = 0; eTxt = 0;
+           }
+   else {eTxt = "polling"; eNum = EIO;}
 
 // Execute the callback
 //

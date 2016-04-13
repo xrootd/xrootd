@@ -113,9 +113,11 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 //
         if (IP.Addr.sa_family == AF_INET6)
            {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
-            if (fmtOpts & old6Map4 && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
-               {if (ipRaw) {strcpy(bAddr,  "::"); n = 2;}
-                   else    {strcpy(bAddr, "[::"); n = 3; addBrak=1;}
+            if (fmtOpts & (old6Map4 | prefipv4)
+            &&  IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
+               {     if (fmtOpts & prefipv4)  {n = 0; pFmt = ":%d";}
+                else if (ipRaw) {strcpy(bAddr,  "::"); n = 2;}
+                else    {strcpy(bAddr, "[::"); n = 3; addBrak=1;}
                 if (!inet_ntop(AF_INET, &IP.v6.sin6_addr.s6_addr32[3],
                                bAddr+n, bLen-n)) return QFill(bAddr, bLen);
                } else {
@@ -366,27 +368,54 @@ int XrdNetAddrInfo::Resolve()
 /******************************************************************************/
 /*                                  S a m e                                   */
 /******************************************************************************/
+
+#define IS_INET(x) (x == AF_INET || x == AF_INET6)
+
+#define MY_FAMILY IP.Addr.sa_family
+
+#define UR_FAMILY ipAddr->IP.Addr.sa_family
   
 int XrdNetAddrInfo::Same(const XrdNetAddrInfo *ipAddr, bool plusPort)
 {
+   static const int ipv4ASZ = sizeof(IP.v4.sin_addr);
 
-// Both address families must match
+   bool isINet = IS_INET(MY_FAMILY) && IS_INET(UR_FAMILY);
+
+// Do port comparison if requested and makes sense to do it
 //
-  if (IP.Addr.sa_family != ipAddr->IP.Addr.sa_family) return 0;
+   if (plusPort && isINet)
+      {in_port_t port1, port2;
+       port1 = (MY_FAMILY == AF_INET ? IP.v4.sin_port : IP.v6.sin6_port);
+       port2 = (UR_FAMILY == AF_INET ? ipAddr->IP.v4.sin_port
+                                     : ipAddr->IP.v6.sin6_port);
+       if (port1 != port2) return 0;
+      }
 
+// If address families do not match, they are the same if the hostnames match.
+// If we don't have a hostname and the addresses are convertable, we can
+// compare the actual addresses.
+//
+   if (MY_FAMILY != UR_FAMILY)
+      {if (!isINet) return 0;
+       if (hostName && ipAddr->hostName)
+          return !strcmp(hostName,ipAddr->hostName);
+       if (MY_FAMILY == AF_INET && ipAddr->isMapped())
+          return !memcmp(&IP.v4.sin_addr,
+                         &(ipAddr->IP.v6.sin6_addr.s6_addr32[3]), ipv4ASZ);
+       if (isMapped() && UR_FAMILY == AF_INET)
+          return !memcmp(&IP.v6.sin6_addr.s6_addr32[3],
+                         &(ipAddr->IP.v4.sin_addr), ipv4ASZ);
+       return 0;
+      }
+ 
 // Now process to do the match
 //
-        if (IP.Addr.sa_family == AF_INET)
-           {if (memcmp(&IP.v4.sin_addr,  &(ipAddr->IP.v4.sin_addr),
-                       sizeof(IP.v4.sin_addr))) return 0;
-            return (plusPort ? IP.v4.sin_port  == ipAddr->IP.v4.sin_port  : 1);
-           }
-   else if (IP.Addr.sa_family == AF_INET6)
-           {if (memcmp(&IP.v6.sin6_addr, &(ipAddr->IP.v6.sin6_addr),
-                       sizeof(IP.v6.sin6_addr))) return 0;
-            return (plusPort ? IP.v6.sin6_port == ipAddr->IP.v6.sin6_port : 1);
-           }
-   else if (IP.Addr.sa_family == AF_UNIX)
+        if (MY_FAMILY == AF_INET)
+           return !memcmp(&IP.v4.sin_addr, &(ipAddr->IP.v4.sin_addr), ipv4ASZ);
+   else if (MY_FAMILY == AF_INET6)
+           return !memcmp(&IP.v6.sin6_addr, &(ipAddr->IP.v6.sin6_addr),
+                          sizeof(IP.v6.sin6_addr));
+   else if (MY_FAMILY == AF_UNIX)
            return !strcmp(unixPipe->sun_path, ipAddr->unixPipe->sun_path);
 
    return 0;

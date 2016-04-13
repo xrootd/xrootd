@@ -125,7 +125,7 @@ namespace XrdCl
         ~FactoryHelper()
         {
           delete factory;
-          plugin->Unload();
+          if(plugin) plugin->Unload();
           delete plugin;
         }
         XrdOucPinLoader *plugin;

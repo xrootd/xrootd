@@ -884,6 +884,7 @@ XRootDStatus DoStat( FileSystem                      *fs,
   std::cout << "Path:   " << fullPath << std::endl;
   std::cout << "Id:     " << info->GetId() << std::endl;
   std::cout << "Size:   " << info->GetSize() << std::endl;
+  std::cout << "MTime:  " << info->GetModTimeAsString() << std::endl;
   std::cout << "Flags:  " << info->GetFlags() << " (" << flags << ")";
   std::cout << std::endl;
   if( query.length() != 0 )
@@ -939,19 +940,19 @@ XRootDStatus DoStatVFS( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   // Print the result
   //----------------------------------------------------------------------------
-  std::cout << "Path:                             ";
+  std::cout << "Path:                               ";
   std::cout << fullPath << std::endl;
-  std::cout << "Nodes with RW space:              ";
+  std::cout << "Nodes with RW space:                ";
   std::cout << info->GetNodesRW() << std::endl;
-  std::cout << "Size of RW space (MB):            ";
+  std::cout << "Size of largest RW space (MB):      ";
   std::cout << info->GetFreeRW() << std::endl;
-  std::cout << "Utilization of RW space (%):      ";
+  std::cout << "Utilization of RW space (%):        ";
   std::cout << (uint16_t)info->GetUtilizationRW() << std::endl;
-  std::cout << "Nodes with staging space:         ";
+  std::cout << "Nodes with staging space:           ";
   std::cout << info->GetNodesStaging() << std::endl;
-  std::cout << "Size of staging space (MB):       ";
+  std::cout << "Size of largest staging space (MB): ";
   std::cout << info->GetFreeStaging() << std::endl;
-  std::cout << "Utilization of staging space (%): ";
+  std::cout << "Utilization of staging space (%):   ";
   std::cout << (uint16_t)info->GetUtilizationStaging() << std::endl;
 
   delete info;
@@ -1094,6 +1095,12 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
       flags |= PrepareFlags::WriteMode;
     else
       files.push_back( args[i] );
+  }
+
+  if( files.empty() )
+  {
+    log->Error( AppMsg, "Filename missing." );
+    return XRootDStatus( stError, errInvalidArgs );
   }
 
   //----------------------------------------------------------------------------
@@ -1344,8 +1351,9 @@ XRootDStatus DoTail( FileSystem                      *fs,
   }
 
   StatInfo *info = 0;
-  file.Stat( false, info );
-  uint64_t size = info->GetSize();
+  uint64_t size = 0;
+  st = file.Stat( false, info );
+  if (st.IsOK()) size = info->GetSize();
 
   if( size < offset )
     offset = 0;
@@ -1385,7 +1393,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
   }
   delete [] buffer;
 
-  file.Close();
+  XRootDStatus stC = file.Close();
 
   return XRootDStatus();
 }
@@ -1591,9 +1599,16 @@ FSExecutor *CreateExecutor( const URL &url )
 //------------------------------------------------------------------------------
 // Execute command
 //------------------------------------------------------------------------------
-int ExecuteCommand( FSExecutor *ex, const std::string &commandline )
+int ExecuteCommand( FSExecutor *ex, int argc, char **argv )
 {
-  XRootDStatus st = ex->Execute( commandline );
+  // std::vector<std::string> args (argv, argv + argc);
+  std::vector<std::string> args;
+  args.reserve(argc);
+  for (int i = 0; i < argc; ++i)
+  {
+    args.push_back(argv[i]);
+  }
+  XRootDStatus st = ex->Execute( args );
   if( !st.IsOK() )
     std::cerr << st.ToStr() << std::endl;
   return st.GetShellCode();
@@ -1651,6 +1666,68 @@ std::string BuildPrompt( Env *env, const URL &url )
   return prompt.str();
 }
 
+//------------------------------------------------------------------------
+//! parse command line
+//!
+//! @ result : command parameters
+//! @ input  : string containing the command line
+//! @ return : true if the command has been completed, false otherwise
+//------------------------------------------------------------------------
+bool getArguments (std::vector<std::string> & result, const std::string &input)
+{
+  // the delimiter (space in the case of command line)
+  static const char delimiter = ' ';
+  // two types of quotes: single and double quotes
+  const char singleQuote = '\'', doubleQuote = '\"';
+  // if the current character of the command has been
+  // quoted 'currentQuote' holds the type of quote,
+  // otherwise it holds the null character
+  char currentQuote = '\0';
+
+  std::string tmp;
+  for (std::string::const_iterator it = input.begin (); it != input.end (); ++it)
+  {
+    // if we encountered a quote character ...
+    if (*it == singleQuote || *it == doubleQuote)
+    {
+      // if we are not within quoted text ...
+      if (!currentQuote)
+      {
+        currentQuote = *it; // set the type of quote
+        continue; // and continue, the quote character itself is not a part of the parameter
+      }
+      // otherwise if it is the closing quote character ...
+      else if (currentQuote == *it)
+      {
+        currentQuote = '\0'; // reset the current quote type
+        continue; // and continue, the quote character itself is not a part of the parameter
+      }
+    }
+    // if we are within quoted text or the character is not a delimiter ...
+    if (currentQuote || *it != delimiter)
+      {
+        // concatenate it
+        tmp += *it;
+      }
+    else
+      {
+        // otherwise add a parameter and erase the tmp string
+        if (!tmp.empty ())
+        {
+          result.push_back(tmp);
+          tmp.erase ();
+        }
+      }
+    }
+  // if the there are some remainders of the command add them
+  if (!tmp.empty())
+  {
+    result.push_back(tmp);
+  }
+  // return true if the quotation has been closed
+  return currentQuote == '\0';
+}
+
 //------------------------------------------------------------------------------
 // Execute interactive
 //------------------------------------------------------------------------------
@@ -1668,10 +1745,14 @@ int ExecuteInteractive( const URL &url )
   //----------------------------------------------------------------------------
   // Execute the commands
   //----------------------------------------------------------------------------
+  std::string cmdline;
   while(1)
   {
     char *linebuf = 0;
-    linebuf = readline( BuildPrompt( ex->GetEnv(), url ).c_str() );
+    // print new prompt only if the previous line was complete
+    // (a line is considered not to be complete if a quote has
+    // been opened but it has not been closed)
+    linebuf = readline( cmdline.empty() ? BuildPrompt( ex->GetEnv(), url ).c_str() : "> " );
     if( !linebuf || !strncmp( linebuf, "exit", 4 ) || !strncmp( linebuf, "quit", 4 ) )
     {
       std::cout << "Goodbye." << std::endl << std::endl;
@@ -1682,11 +1763,17 @@ int ExecuteInteractive( const URL &url )
       free( linebuf );
       continue;
     }
-    XRootDStatus st = ex->Execute( linebuf );
-    add_history( linebuf );
+    std::vector<std::string> args;
+    cmdline += linebuf;
     free( linebuf );
-    if( !st.IsOK() )
-      std::cerr << st.ToStr() << std::endl;
+    if (getArguments( args, cmdline ))
+    {
+      XRootDStatus st = ex->Execute( args );
+      add_history( cmdline.c_str() );
+      cmdline.erase();
+      if( !st.IsOK() )
+        std::cerr << st.ToStr() << std::endl;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -1713,7 +1800,7 @@ int ExecuteCommand( const URL &url, int argc, char **argv )
   }
 
   FSExecutor *ex = CreateExecutor( url );
-  int st = ExecuteCommand( ex, commandline );
+  int st = ExecuteCommand( ex, argc, argv );
   delete ex;
   return st;
 }

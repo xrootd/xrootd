@@ -151,9 +151,7 @@ struct OucTable {T           *Item;
                 union {char *Key;
                         int   Fnum;};
                  OucTable() {Item = 0; Key = 0;}
-                ~OucTable() {if (Key)  free(Key);
-                             if (Item) delete Item;
-                            }
+                ~OucTable() {if (Item) {delete Item; if (Key) free(Key);}}
                 };
 
 OucTable *Table;

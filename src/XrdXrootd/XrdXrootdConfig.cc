@@ -212,7 +212,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // transfer size to the buffer size (before it was a reasonable 256K).
 //
    if (!(as_miniosz = as_segsize/2)) as_miniosz = as_segsize;
-   maxTransz = maxBuffsz = BPool->MaxSize();
+   n = (pi->theEnv ? pi->theEnv->GetInt("MaxBuffSize") : 0);
+   maxTransz = maxBuffsz = (n ? n : BPool->MaxSize());
    memset(Route, 0, sizeof(Route));
 
 // Now process and configuration parameters
@@ -271,6 +272,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    myEnv.PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
    myEnv.PutPtr("XrdSecGetProtocol*", (void *)secGetProt);
    myEnv.PutPtr("XrdScheduler*", Sched);
+
+// Copy over the xrd environment which contains plugin argv's
+//
+   if (pi->theEnv) myEnv.PutPtr("xrdEnv*", pi->theEnv);
 
 // Get the filesystem to be used
 //
@@ -385,6 +390,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        char buff[1024], puff[1024], xCgi[RD_Num] = {0};
        if (isRedir) {cgi1 = "+"; cgi2 = getenv("XRDCMSCLUSTERID");}
           else      {cgi1 = "";  cgi2 = pi->myName;}
+       myCNlen = snprintf(buff, sizeof(buff), "%s%s", cgi1, cgi2);
+       myCName = strdup(buff);
        do {k = xp->Opts();
            if (Route[k].Host[0] == Route[k].Host[1]
            &&  Route[k].Port[0] == Route[k].Port[1]) *puff = 0;
@@ -395,10 +402,13 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
               {bool isdup = Route[k].Host[0] == Route[k].Host[1]
                          && Route[k].Port[0] == Route[k].Port[1];
                for (i = 0; i < 2; i++)
-                   {snprintf(buff,sizeof(buff), "%s?tried=%s%s",
-                             Route[k].Host[i], cgi1, cgi2);
+                   {n = snprintf(buff,sizeof(buff), "%s?tried=%s%s",
+                                 Route[k].Host[i], cgi1, cgi2);
                     free(Route[k].Host[i]); Route[k].Host[i] = strdup(buff);
-                    if (isdup) {Route[k].Host[1] = Route[k].Host[0]; break;}
+                    Route[k].RDSz[i] = n;
+                    if (isdup) {Route[k].Host[1] = Route[k].Host[0];
+                                Route[k].RDSz[1] = n; break;
+                               }
                    }
               }
            xCgi[k] = 1;
@@ -765,7 +775,7 @@ int XrdXrootdProtocol::xdig(XrdOucStream &Config)
 
 /* Function: xexp
 
-   Purpose:  To parse the directive: export <path> [lock|nolock]
+   Purpose:  To parse the directive: export <path> [lock|nolock] [mwfiles]
 
              <path>    the path to be exported.
 
@@ -786,9 +796,11 @@ int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 
 // Get export lock option
 //
-   if ((val = Config.GetWord()))
-      {if (!strcmp("nolock", val)) popt = XROOTDXP_NOLK;
-          else if (strcmp("lock", val)) Config.RetToken();
+   while((val = Config.GetWord()))
+      {     if (!strcmp( "nolock", val)) popt |=  XROOTDXP_NOLK;
+       else if (!strcmp(   "lock", val)) popt &= ~XROOTDXP_NOLK;
+       else if (!strcmp("mwfiles", val)) popt |=  XROOTDXP_NOMWCHK;
+       else {Config.RetToken(); break;}
       }
 
 // Add path to configuration
@@ -800,7 +812,8 @@ int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 
 int XrdXrootdProtocol::xexpdo(char *path, int popt)
 {
-   const char *opaque;
+   char *opaque;
+   int   xopt;
 
 // Check if we are exporting a generic name
 //
@@ -821,7 +834,8 @@ int XrdXrootdProtocol::xexpdo(char *path, int popt)
 
 // Record the path
 //
-   if (!Squash(path)) XPList.Insert(path, popt);
+   if (!(xopt = Squash(path)) || xopt != (popt|XROOTDXP_OK))
+      XPList.Insert(path, popt);
    return 0;
 }
   

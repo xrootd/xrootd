@@ -69,6 +69,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucUtils.hh
   XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucEnum.hh
+  XrdOuc/XrdOucCompiler.hh
   XrdPosix/XrdPosixCallBack.hh
   XrdPosix/XrdPosixExtern.hh
   XrdPosix/XrdPosixOsDep.hh
@@ -95,6 +96,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysTimer.hh
   XrdSys/XrdSysXAttr.hh
   XrdSys/XrdSysXSLock.hh
+  XrdXml/XrdXmlReader.hh
   XrdXrootd/XrdXrootdMonData.hh
   XrdXrootd/XrdXrootdBridge.hh
   XrdHttp/XrdHttpSecXtractor.hh

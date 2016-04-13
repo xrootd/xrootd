@@ -73,7 +73,7 @@ namespace XrdCl
           sTOD.tv_sec = 0; sTOD.tv_usec = 0;
           eTOD.tv_sec = 0; eTOD.tv_usec = 0;
         }
-        std::string server;  //!< user@host:port
+        std::string server;  //!< user\@host:port
         std::string auth;    //!< authentication protocol used or empty if none
         timeval     sTOD;    //!< gettimeofday() when login started
         timeval     eTOD;    //!< gettimeofday() when login ended
@@ -87,7 +87,7 @@ namespace XrdCl
       {
         DisconnectInfo(): rBytes(0), sBytes(0), cTime(0)
         {}
-        std::string server;  //!< user@host:port
+        std::string server;  //!< user\@host:port
         uint64_t    rBytes;  //!< Number of bytes received
         uint64_t    sBytes;  //!< Number of bytes sent
         time_t      cTime;   //!< Seconds connected to the server
@@ -195,7 +195,7 @@ namespace XrdCl
       {
         CheckSumInfo(): oTime(0), tTime(0), isOK(false) {}
         TransferInfo transfer;  //!< The transfer in question
-        std::string  cksum;     //!< Checksum as <type>:<value>
+        std::string  cksum;     //!< Checksum as \<type\>:\<value\>
         uint64_t     oTime;     //!< Microseconds to obtain cksum from origin
         uint64_t     tTime;     //!< Microseconds to obtain cksum from target
         bool         isOK;      //!< True if checksum matched, false otherwise
@@ -221,8 +221,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Inform the monitor of an event.
       //!
-      //! @parm evCode  is the event that occurred (see enum evNum)
-      //! @parm evInfo  is the event information structure describing the event
+      //! @param evCode is the event that occurred (see enum evNum)
+      //! @param evData is the event information structure describing the event
       //!               it is cast to (void *) so that one method can be used
       //!               and should be recast to the correct corresponding struct
       //------------------------------------------------------------------------

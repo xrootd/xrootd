@@ -378,6 +378,7 @@ const char *XrdOfsHandle::PoscUsr()
 
 int XrdOfsHandle::Retire(int &retc, long long *retsz, char *buff, int blen)
 {
+   XrdOssDF *mySSI;
    int numLeft;
 
 // Get the global lock as the links field can only be manipulated with it.
@@ -394,12 +395,16 @@ int XrdOfsHandle::Retire(int &retc, long long *retsz, char *buff, int blen)
           if (Posc) {Posc->Recycle(); Posc = 0;}
           if (Path.Val) {free((void *)Path.Val); Path.Val = (char *)"";}
           Path.Len = 0;
-          if (ssi && ssi != ossDF)
-             {retc = ssi->Close(retsz); delete ssi; ssi = ossDF;}
-         } else OfsEroute.Emsg("Retire", "Lost handle to", Path.Val);
-      } else numLeft = --Path.Links;
+          if ((mySSI = ssi) && ssi != ossDF)
+             {ssi = ossDF; myMutex.UnLock();
+              retc = mySSI->Close(retsz); delete mySSI;
+             } else myMutex.UnLock();
+         } else {
+          myMutex.UnLock();
+          OfsEroute.Emsg("Retire", "Lost handle to", Path.Val);
+        }
+      } else {numLeft = --Path.Links; myMutex.UnLock();}
    UnLock();
-   myMutex.UnLock();
    return numLeft;
 }
 

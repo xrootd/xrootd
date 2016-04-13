@@ -37,6 +37,8 @@ class XrdScheduler;
 class XrdOurError;
 class XrdXrootdStats;
 
+struct iovec;
+
 class XrdXrootdCallBack : public XrdOucEICB
 {
 public:
@@ -56,6 +58,10 @@ public:
         void        sendResp(XrdOucErrInfo *eInfo,
                              XResponseType  xrt,       int  *Data=0,
                              const char    *Msg=0,     int   Mlen=0);
+
+        void        sendVesp(XrdOucErrInfo *eInfo,
+                             XResponseType  xrt,
+                             struct iovec  *ioV,       int   ioN);
 
 static  void        setVals(XrdSysError    *erp,
                             XrdXrootdStats *SIp,

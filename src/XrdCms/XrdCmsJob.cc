@@ -100,6 +100,7 @@ void XrdCmsJob::DoIt()
    if ((rc = theProto->Execute(*theData)))
       if (rc == -EINPROGRESS)
          {Sched->Schedule((XrdJob *)this, theData->waitVal+time(0)); return;}
+   theProto->Ref(-1);
    Recycle();
 }
 

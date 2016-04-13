@@ -94,17 +94,22 @@ bool XrdDigAuth::Authorize(const XrdSecEntity  *client,
    XrdSysMutexHelper mHelp(&authMutex);
    time_t tNow = time(0);
    XrdDigAuthEnt *aP;
+   int rc;
 
 // Check if we need to refresh the auth list
 //
    if (tNow >= authCHK)
       {struct stat Stat;
-            if (stat(authFN, &Stat))
-               {eDest->Emsg("Config",errno,"stat dig auth file", authFN);
-                authCHK = tNow + 30;
-               }
-       else if (authTOD == Stat.st_mtime) authCHK = tNow + 5;
-       else if (!Refresh()) authCHK = tNow + 30;
+       if ((rc = stat(authFN, &Stat)) && errno != ENOENT)
+          {eDest->Emsg("Config",errno,"stat dig auth file", authFN);
+           authCHK = tNow + 30;
+          } else {
+                if (rc) {if (authList) {if (!Refresh()) authCHK = tNow + 30;}
+                            else                        authCHK = tNow + 60;
+                        }
+           else if (authTOD == Stat.st_mtime)           authCHK = tNow +  5;
+           else if (!Refresh())                         authCHK = tNow + 30;
+          }
       }
 
 // Clear aVec if so supplied (client's auth mask)
@@ -164,7 +169,6 @@ bool XrdDigAuth::Configure(const char *aFN)
 
   Output:   true upon success or false otherwise.
 */
-   const char *how = "succeeded.";
 
 // Establish the location of the auth file (stable string do not copy)
 //
@@ -176,13 +180,8 @@ bool XrdDigAuth::Configure(const char *aFN)
 // Initialize authorization
 //
    authFN = strdup(aFN);
-   if (!SetupAuth()) how = (authList ? "partially succeeded." : "failed.");
-
-// All done
-//
-
-   eDest->Say("------ Dig auth initialization ", how);
-   return authList != 0;
+   SetupAuth(false);
+   return true;
 }
 
 /******************************************************************************/
@@ -342,14 +341,14 @@ bool XrdDigAuth::Refresh() // authMutex must be locked!
 
 // Resetup the auth list
 //
-   return SetupAuth();
+   return SetupAuth(true);
 }
 
 /******************************************************************************/
 /* Private:                    S e t u p A u t h                              */
 /******************************************************************************/
 
-bool XrdDigAuth::SetupAuth()
+bool XrdDigAuth::SetupAuth(bool isRefresh)
 {
    XrdOucStream aFile(eDest);
    struct stat Stat;
@@ -357,26 +356,30 @@ bool XrdDigAuth::SetupAuth()
    int  authFD, retc, lNum = 1;
    bool NoGo = false;
 
-// Print warm-up message
-//
-   eDest->Say("++++++ Dig building auth list from ", authFN);
-
 // Clear summary flags
 //
    memset(accOK, 0, sizeof(accOK));
 
+// Print message
+//
+   eDest->Say("++++++ Dig ", (isRefresh ? "refreshing" : "initializing"),
+                             " from ", authFN);
+
 // Try to open the configuration file.
 //
    if ( (authFD = open(authFN, O_RDONLY, 0)) < 0)
-      {eDest->Emsg("Config",errno,"open dig auth file", authFN); return false;}
+      {NoGo = errno != ENOENT;
+       eDest->Say("Config ",strerror(errno)," opening dig auth file ", authFN);
+       return SetupAuth(isRefresh, !NoGo);
+      }
    aFile.Attach(authFD, 4096);
 
 // Get the time the file was ctreated
 //
    if (fstat(authFD, &Stat))
-      {eDest->Emsg("Config",errno,"stat dig auth file", authFN);
+      {eDest->Say("Config ",strerror(errno)," stating dig auth file ", authFN);
        close(authFD);
-       return false;
+       return SetupAuth(isRefresh, false);
       }
    authTOD = Stat.st_mtime;
 
@@ -390,12 +393,32 @@ bool XrdDigAuth::SetupAuth()
 // Now check if any errors occured during file i/o
 //
    if ((retc = aFile.LastError()))
-      {eDest->Emsg("Config", -retc, "read config file", authFN); NoGo = true;}
+      {eDest->Say("Config ",strerror(-retc)," reading config file ", authFN);
+       NoGo = true;
+      }
    aFile.Close();
 
 // All done
 //
-   return !NoGo;
+   return SetupAuth(isRefresh, !NoGo);
+}
+
+/******************************************************************************/
+  
+bool XrdDigAuth::SetupAuth(bool isRefresh, bool aOK)
+{
+
+// Indicate whether we are active or not
+//
+   if (!authList) eDest->Say("Config ","No users authorized to access digFS; "
+                                       "access suspended.");
+
+// All done
+//
+   eDest->Say("------ Dig auth ", (isRefresh ? "refresh" : "initialization"),
+              (aOK ? " succeeded." : " encountered errors."));
+
+   return aOK;
 }
 
 /******************************************************************************/

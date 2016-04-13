@@ -446,11 +446,13 @@ namespace XrdCl
     if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
       pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
 
-    if( mh.action & IncomingMsgHandler::NoProcess )
+    if( mh.action & (IncomingMsgHandler::NoProcess|IncomingMsgHandler::Ignore) )
     {
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
+      bool delit = ( mh.action & IncomingMsgHandler::Ignore );
       mh.Reset();
+      if (delit) delete msg;
       return;
     }
 
@@ -484,6 +486,19 @@ namespace XrdCl
     if( h.handler )
       h.handler->OnReadyToSend( h.msg, pStreamNum );
     return std::make_pair( h.msg, h.handler );
+  }
+
+  void Stream::DisableIfEmpty( uint16_t subStream )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log *log = DefaultEnv::GetLog();
+
+    if( pSubStreams[subStream]->outQueue->IsEmpty() )
+    {
+      log->Dump( PostMasterMsg, "[%s] All messages consumed, disable uplink",
+                 pSubStreams[subStream]->socket->GetStreamName().c_str() );
+      pSubStreams[subStream]->socket->DisableUplink();
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -887,7 +902,10 @@ namespace XrdCl
                                             pStreamNum,
                                             *pChannelData );
     if( !st.IsOK() )
+    {
+      scopedLock.UnLock();
       OnError( substream, st );
+    }
   }
 
   //----------------------------------------------------------------------------

@@ -46,16 +46,20 @@ namespace XrdFileCache
          //!
          //! @return decision
          //---------------------------------------------------------------------
-         virtual bool Decide(std::string &, XrdOss &) const = 0;
+         virtual bool Decide(const std::string &, XrdOss &) const = 0;
 
          //------------------------------------------------------------------------------
          //! Parse configuration arguments.
          //!
-         //! @param char* configuration parameters
+         //! @param params configuration parameters
          //!
          //! @return status of configuration
          //------------------------------------------------------------------------------
-         virtual bool ConfigDecision(const char*) { return true; }
+         virtual bool ConfigDecision(const char* params) 
+         { 
+           (void) params;
+           return true; 
+         }
    };
 }
 

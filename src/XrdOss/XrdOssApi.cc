@@ -113,7 +113,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 
 // If no library has been specified, return the default object
 //
-   if (!OssLib) {if (myOssSys.Init(Logger, config_fn)) return 0;
+   if (!OssLib) {if (myOssSys.Init(Logger, config_fn, envP)) return 0;
                     else return (XrdOss *)&myOssSys;
                 }
 
@@ -169,7 +169,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 
   Output:   Returns zero upon success otherwise (-errno).
 */
-int XrdOssSys::Init(XrdSysLogger *lp, const char *configfn)
+int XrdOssSys::Init(XrdSysLogger *lp, const char *configfn, XrdOucEnv *envP)
 {
      int retc;
 
@@ -180,7 +180,7 @@ int XrdOssSys::Init(XrdSysLogger *lp, const char *configfn)
 // Initialize the subsystems
 //
    XrdOssSS = this;
-   if ( (retc = Configure(configfn, OssEroute)) ) return retc;
+   if ( (retc = Configure(configfn, OssEroute, envP)) ) return retc;
 
 // All done.
 //

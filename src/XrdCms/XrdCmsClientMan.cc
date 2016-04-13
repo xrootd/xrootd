@@ -90,6 +90,7 @@ XrdCmsClientMan::XrdCmsClientMan(char *host, int port,
    chkCount= chkVal;
    lastUpdt= lastTOut = time(0);
    Next    = 0;
+   manInst = 1;
 
 // Compute dally value
 //
@@ -163,7 +164,7 @@ int XrdCmsClientMan::delayResp(XrdOucErrInfo &Resp)
 /*                                  S e n d                                   */
 /******************************************************************************/
   
-int XrdCmsClientMan::Send(char *msg, int mlen)
+int XrdCmsClientMan::Send(unsigned int &iMan, char *msg, int mlen)
 {
    int allok = 0;
 
@@ -173,16 +174,18 @@ int XrdCmsClientMan::Send(char *msg, int mlen)
 
 // Send the request
 //
+   myData.Lock();
+   iMan = manInst;
    if (Active)
-      {myData.Lock();
-       if (Link)
+      {if (Link)
           {if (!(allok = Link->Send(msg, mlen) > 0))
               {Active = 0;
                Link->Close(1);
+               manInst++;
               } else SendCnt++;
           }
-       myData.UnLock();
       }
+   myData.UnLock();
 
 // All done
 //
@@ -191,22 +194,24 @@ int XrdCmsClientMan::Send(char *msg, int mlen)
 
 /******************************************************************************/
   
-int XrdCmsClientMan::Send(const struct iovec *iov, int iovcnt, int iotot)
+int XrdCmsClientMan::Send(unsigned int &iMan, const struct iovec *iov, int iovcnt, int iotot)
 {
    int allok = 0;
 
 // Send the request
 //
+   myData.Lock();
+   iMan = manInst;
    if (Active)
-      {myData.Lock();
-       if (Link)
+      {if (Link)
           {if (!(allok = Link->Send(iov, iovcnt, iotot) > 0))
               {Active = 0;
                Link->Close(1);
+               manInst++;
               } else SendCnt++;
           }
-       myData.UnLock();
       }
+   myData.UnLock();
 
 // All done
 //
@@ -259,10 +264,13 @@ void *XrdCmsClientMan::Start()
 /*                               w h a t s U p                                */
 /******************************************************************************/
   
-int  XrdCmsClientMan::whatsUp(const char *user, const char *path)
+int  XrdCmsClientMan::whatsUp(const char *user, const char *path,
+                              unsigned int iMan)
 {
    EPNAME("whatsUp");
+   unsigned int xMan;
    int theDelay, inQ;
+   bool lClose = false;
 
 // The cmsd did not respond. Increase silent count and see if restart is needed
 // Otherwise, increase the wait interval just in case things are just slow.
@@ -274,7 +282,10 @@ int  XrdCmsClientMan::whatsUp(const char *user, const char *path)
               {Silent++;
                if (Silent > nrMax)
                   {Active = 0; Silent = 0; Suspend = 1;
-                   if (Link) Link->Close(1);
+                   if (Link && iMan == manInst)
+                      {Link->Close(1);
+                       manInst++; lClose = true;
+                      }
                   } else if (Silent & 0x02 && repWait < repWMax) repWait++;
               }
           } else {Active = RecvCnt; Silent = 0; lastTOut = time(0);}
@@ -285,14 +296,18 @@ int  XrdCmsClientMan::whatsUp(const char *user, const char *path)
 //
    inQ = XrdCmsClientMsg::inQ();
    theDelay = inQ * qTime;
+   xMan = manInst;
    myData.UnLock();
    theDelay = theDelay/1000 + (theDelay % 1000 ? 1 : 0);
-   if (theDelay < minDelay) return minDelay;
-   if (theDelay > maxDelay) return maxDelay;
+   if (theDelay < minDelay) theDelay = minDelay;
+   if (theDelay > maxDelay) theDelay = maxDelay;
 
 // Do Some tracing here
 //
-   TRACE(Redirect, user <<" no resp from " <<HPfx  <<"; inQ " <<inQ <<" wait " <<theDelay <<" path=" <<path);
+   TRACE(Redirect, user <<" no resp from inst " <<iMan <<" of "<<HPfx
+                   <<" in " <<repWait
+                   <<" inst " <<xMan <<(lClose ? " closed" : " steady")
+                   <<"; inQ " <<inQ <<" delay " <<theDelay <<" path=" <<path);
    return theDelay;
 }
 
@@ -428,17 +443,17 @@ void XrdCmsClientMan::relayResp()
 }
 
 /******************************************************************************/
-/*                             c h k S t a t u s                              */
+/* Private:                    c h k S t a t u s                              */
 /******************************************************************************/
 
-void XrdCmsClientMan::chkStatus()
+int XrdCmsClientMan::chkStatus()
 {
    static CmsUpdateRequest Updt = {{0, kYR_update, 0, 0}};
+   XrdSysMutexHelper mdMon(myData);
    time_t nowTime;
 
 // Count down the query count and ask again every 30 seconds
 //
-   myData.Lock();
    if (!chkCount--)
       {chkCount = chkVal;
        nowTime = time(0);
@@ -447,7 +462,7 @@ void XrdCmsClientMan::chkStatus()
            if (Active) Link->Send((char *)&Updt, sizeof(Updt));
           }
       }
-   myData.UnLock();
+   return Suspend;
 }
   
 /******************************************************************************/

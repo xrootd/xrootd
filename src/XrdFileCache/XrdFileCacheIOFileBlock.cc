@@ -126,6 +126,17 @@ bool IOFileBlock::ioActive()
 //______________________________________________________________________________
 int IOFileBlock::Read (char *buff, long long off, int size)
 {
+   // protect from reads over the file size
+   if (off >= m_io.FSize())
+      return 0;
+   if (off < 0)
+   {
+      errno = EINVAL;
+      return -1;
+   }
+   if (off + size > m_io.FSize())
+      size = m_io.FSize() - off;
+
    long long off0 = off;
    int idx_first = off0/m_blocksize;
    int idx_last = (off0+size-1)/m_blocksize;
@@ -192,15 +203,10 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          bytes_read += retvalBlock;
          buff += retvalBlock;
          off += retvalBlock;
-         long long remain = readBlockSize - retvalBlock;
-
-         // cancel read if not successfull
-         if (remain > 0)
-         {
-            clLog()->Warning(XrdCl::AppMsg, "IOFileBlock::Read() Incomplete prefetch block[%d] readSize =%d  offset[%lld], remain = %d %s",
-                                    blockIdx, readBlockSize, off, remain, m_io.Path());
-            return bytes_read;
-         }
+      }
+      else if (retvalBlock > 0) {
+         clLog()->Warning(XrdCl::AppMsg, "IOFileBlock::Read() incomplete read, missing bytes %d %s", readBlockSize-retvalBlock, m_io.Path());
+         return bytes_read + retvalBlock;
       }
       else
       {

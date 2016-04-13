@@ -47,6 +47,7 @@ int              XrdPosixObject::highFD   = -1;
 int              XrdPosixObject::lastFD   = -1;
 int              XrdPosixObject::baseFD   =  0;
 int              XrdPosixObject::freeFD   =  0;
+int              XrdPosixObject::posxFD   =  0;
 int              XrdPosixObject::devNull  = -1;
 
 /******************************************************************************/
@@ -63,8 +64,8 @@ bool XrdPosixObject::AssignFD(bool isStream)
 //
    if (baseFD)
       { if (isStream) return 0;
-        for (fd = freeFD; fd < baseFD && myFiles[fd]; fd++) {}
-        if (fd >= baseFD) return 0;
+        for (fd = freeFD; fd < posxFD && myFiles[fd]; fd++) {}
+        if (fd >= posxFD) return 0;
         freeFD = fd+1;
       } else {
         do{if ((fd = dup(devNull)) < 0) return false;
@@ -195,25 +196,34 @@ do{if (fd >= lastFD || fd < baseFD)
 
 int XrdPosixObject::Init(int fdnum)
 {
+   static const int maxFD = 1048576;
    struct rlimit rlim;
-   int isize;
+   int isize, limfd;
 
 // Initialize the /dev/null file descriptors, bail if we cannot
 //
    devNull = open("/dev/null", O_RDWR, 0744);
    if (devNull < 0) return -1;
 
+// Obtain the file descriptor limit but be careful of infinity
+//
+   if (getrlimit(RLIMIT_NOFILE, &rlim)
+   ||  rlim.rlim_max == RLIM_INFINITY || (int)rlim.rlim_max > maxFD)
+      {rlim.rlim_cur = 0; rlim.rlim_max = maxFD;}
+
+   limfd = static_cast<int>(rlim.rlim_max);
+
+   if (rlim.rlim_cur != rlim.rlim_max)
+      {rlim.rlim_cur  = rlim.rlim_max;
+       setrlimit(RLIMIT_NOFILE, &rlim);
+      }
+
 // Compute size of table. if the passed fdnum is negative then the caller does
 // not want us to shadow fd's (ther caller promises to be honest). Otherwise,
 // the actual fdnum limit will be based on the current limit.
 //
-   if (fdnum < 0)
-      {fdnum = -fdnum;
-       baseFD = ( getrlimit(RLIMIT_NOFILE, &rlim) ? 32768 : (int)rlim.rlim_cur);
-      } else {
-       if (!getrlimit(RLIMIT_NOFILE, &rlim))  fdnum = (int)rlim.rlim_cur;
-       if (fdnum > 65536) fdnum = 65536;
-      }
+   if (fdnum < 0) {posxFD = fdnum = -fdnum; baseFD = limfd;}
+      else         fdnum = limfd;
    isize = fdnum * sizeof(XrdPosixFile *);
 
 // Allocate the table for fd-type pointers

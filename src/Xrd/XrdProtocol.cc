@@ -45,6 +45,7 @@ NetTCP    = rhs.NetTCP;
 BPool     = rhs.BPool;
 Sched     = rhs.Sched;
 Stats     = rhs.Stats;
+theEnv    = rhs.theEnv;
 Trace     = rhs.Trace;
 
 ConfigFN  = rhs.ConfigFN ? strdup(rhs.ConfigFN) : 0;

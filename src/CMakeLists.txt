@@ -25,6 +25,7 @@ include( XrdServer )
 include( XrdDaemons )
 include( XrdFrm )
 
+include( XrdXml )
 include( XrdPosix )
 include( XrdFfs )
 include( XrdPlugins )
@@ -36,6 +37,10 @@ include( XrdFileCache )
 
 if( BUILD_HTTP )
   include( XrdHttp )
+endif()
+
+if( BUILD_CEPH )
+  include( XrdCeph )
 endif()
 
 #-------------------------------------------------------------------------------

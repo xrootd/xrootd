@@ -120,7 +120,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Log(): pLevel( NoMsg ), pTopicMaxLength( 18 )
+      Log(): pLevel( NoMsg ), pTopicMaxLength( 18 ), pPid(0)
       {
         pOutput = new LogOutCerr();
         int maxMask = (int)DumpMsg+1;
@@ -298,6 +298,14 @@ namespace XrdCl
 #endif
       }
 
+      //------------------------------------------------------------------------
+      //! Set pid
+      //------------------------------------------------------------------------
+      void SetPid(pid_t pid)
+      {
+        pPid = pid;
+      }
+
     private:
       typedef std::map<uint64_t, std::string> TopicMap;
       std::string LogLevelToString( LogLevel level );
@@ -313,6 +321,7 @@ namespace XrdCl
       LogOut     *pOutput;
       TopicMap    pTopicMap;
       uint32_t    pTopicMaxLength;
+      pid_t       pPid;
   };
 }
 

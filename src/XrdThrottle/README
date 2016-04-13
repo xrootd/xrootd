@@ -1,0 +1,77 @@
+
+INTRODUCTION
+
+This "file system" implementation for Xrootd throttles request rates
+passed through to the real underlying filesystem layer.  It has two
+goals:
+
+- Prevent users from overloading a filesystem through Xrootd.
+- Provide a level of fairness between different users.
+
+Here, "fairness" is loosely done - while it is done across all open
+file handles for a given user, it allows them to opportunistically
+utilize bandwidth allocated to, but not used by, others.  There's no
+concept of fairshare or history beyond the previous time interval (by default,
+1 second).  Fairness is enforced by trying to delaying IO the same
+amount *per user*, regardless of how many open file handles there are.
+
+When loaded, in order for the plugin to perform timings for IO, asynchronous
+requests are handled synchronously and mmap-based reads are disabled.  It is
+believed this impact is minimal.
+
+Once a throttle limit is hit, the plugin will start delaying the start of
+new IO requests until the server is back below the throttle.  The granularity
+of measurement, by default, is a 1 second interval; the overall amount of delay
+may be minimal if the server is only slightly above limits.
+
+USAGE
+
+To load the plugin, add it as the first xrootd.fslib in the configuration file:
+
+xrootd.fslib throttle default
+
+Unless limits are explicitly set, the plugin will only record (and, if configured,
+log) usage statistics.
+
+To set a throttle, add a line as follows:
+
+throttle.throttle [concurrency CONCUR] [data RATE]
+
+The two options are:
+
+  - CONCUR: Set the level of IO concurrency allowed.  This works in a similar
+    manner to system load in Linux; we sum up the total amount of time spent
+    waiting on all IO requests per second.  So, if there are two simultaneous
+    requests, each of which take 1 second to service, we have a concurrency of
+    2.  If we have 100 simultaneous IO requests, each of which is services in
+    1 millisecond, then the IO load is 0.1.
+  - RATE: Limit for the total data rate (MB/s) from the underlying filesystem.
+    This number is measured in bytes.
+
+NOTES:
+- The throttles are applied to the aggregate of reads and writes; they are not
+  considered seperately.
+- In almost all cases, service administrators will want to set concurrency, NOT,
+  data.  Concurrency measures how much work is being done by the filesystem;
+  data rate is weak indicator of filesystem activity due to the effects of
+  the page cache.  We do not offer the option to limit number of clients or
+  IOPS in this plugin for similar reasons: neither metric strongly corresponds
+  to filesystem activity (due to idle clients or IO requests serviced from cache).
+- As sites commonly run multiple servers, setting the data rate throttle is
+  not useful to limit wide area network traffic.  If you want to limit network
+  activity, investigate QoS on the site's network router.  Worst case, configuring
+  the host-level network queueing will be more CPU-efficient than setting the
+  data rates from within Xrootd.  The sole advantage of throttling data rates
+  from within Xrootd is being able to provide fairness across users.
+
+To log throttle-related activity, set:
+
+throttle.trace [all] [off|none] [bandwidth] [ioload] [debug]
+
+- all: All debugging statements are enabled.
+- off, none: No debugging statements are enabled.
+- bandwidth: Log bandwidth-usage-related statistics.
+- ioload: Log concurrency-related statistics.
+- debug: Log all throttle-related information; this is very chatty and aims
+  to provide developers with enough information to debug the throttle's activity.
+

@@ -81,7 +81,7 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NPrRsS:t:T:vVX:y:Z";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:Z:M";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -94,6 +94,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "infiles",   1, 0, XrdCpConfig::OpIfile},
       {OPT_TYPE "license",   0, 0, XrdCpConfig::OpLicense},
       {OPT_TYPE "nopbar",    0, 0, XrdCpConfig::OpNoPbar},
+      {OPT_TYPE "path",      0, 0, XrdCpConfig::OpPath},
       {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
       {OPT_TYPE "proxy",     1, 0, XrdCpConfig::OpProxy},
       {OPT_TYPE "recursive", 0, 0, XrdCpConfig::OpRecurse},
@@ -107,6 +108,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "version",   0, 0, XrdCpConfig::OpVersion},
       {OPT_TYPE "xrate",     1, 0, XrdCpConfig::OpXrate},
       {OPT_TYPE "parallel",  1, 0, XrdCpConfig::OpParallel},
+      {OPT_TYPE "metalink",  0, 0, XrdCpConfig::OpMetalink},
       {0,                    0, 0, 0}
      };
 
@@ -220,6 +222,8 @@ do{while(optind < Argc && Legacy(optind)) {}
                            break;
           case OpForce:    OpSpec |= DoForce;
                            break;
+          case OpMetalink: OpSpec |= DoMetalink;
+                           break;
           case OpHelp:     Usage(0);
                            break;
           case OpIfile:    if (inFile) free(inFile);
@@ -229,6 +233,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpLicense:  License();
                            break;
           case OpNoPbar:   OpSpec |= DoNoPbar;
+                           break;
+          case OpPath:     OpSpec |= DoPath;
                            break;
           case OpPosc:     OpSpec |= DoPosc;
                            break;
@@ -285,7 +291,7 @@ do{while(optind < Argc && Legacy(optind)) {}
 //
    if (inFile) {if (!parmCnt     ) UMSG("Destination not specified.");}
       else {    if (!parmCnt     ) UMSG("No files specified.");
-                if ( parmCnt == 1) UMSG("Destination not specified.");
+                if ( parmCnt == 1 && !( OpSpec & DoMetalink ) ) UMSG("Destination not specified.");
            }
 
 // Check for conflicts wit third party copy
@@ -300,26 +306,40 @@ do{while(optind < Argc && Legacy(optind)) {}
        Verbose = 0;
       }
 
+// Turn on auto-path creation if requested via envar
+//
+   if (getenv("XRD_MAKEPATH")) OpSpec |= DoPath;
+
+   if( parmCnt > 1 )
+   {
 // Process the destination first as it is special
 //
-   dstFile = new XrdCpFile(parmVal[--parmCnt], rc);
-   if (rc) FMSG("Invalid url, '" <<dstFile->Path <<"'.", 22);
+     dstFile = new XrdCpFile(parmVal[--parmCnt], rc);
+     if (rc) FMSG("Invalid url, '" <<dstFile->Path <<"'.", 22);
 
 // Do a protocol check
 //
-   if (dstFile->Protocol != XrdCpFile::isFile
-   &&  dstFile->Protocol != XrdCpFile::isStdIO
-   &&  dstFile->Protocol != XrdCpFile::isXroot)
-      {FMSG(dstFile->ProtName <<"file protocol is not supported.", 22)}
+     if (dstFile->Protocol != XrdCpFile::isFile
+     &&  dstFile->Protocol != XrdCpFile::isStdIO
+     &&  dstFile->Protocol != XrdCpFile::isXroot)
+        {FMSG(dstFile->ProtName <<"file protocol is not supported.", 22)}
 
 // Resolve this file if it is a local file
 //
-   isLcl = (dstFile->Protocol == XrdCpFile::isFile)
-         | (dstFile->Protocol == XrdCpFile::isStdIO);
-   if (isLcl && (rc = dstFile->Resolve()))
-      {if (rc != ENOENT || (Argc - optind - 1) > 1 || OpSpec & DoRecurse)
-          FMSG(strerror(rc) <<" processing " <<dstFile->Path, 2);
-      }
+     isLcl = (dstFile->Protocol == XrdCpFile::isFile)
+           | (dstFile->Protocol == XrdCpFile::isStdIO);
+     if (isLcl && (rc = dstFile->Resolve()))
+        {if (rc != ENOENT || (Argc - optind - 1) > 1 || OpSpec & DoRecurse)
+            FMSG(strerror(rc) <<" processing " <<dstFile->Path, 2);
+        }
+   }
+   else
+   {
+// Create an empty destination file
+//
+     dstFile = new XrdCpFile();
+     dstFile->Path = strdup( "" );
+   }
 
 // Now pick up all the source files from the command line
 //
@@ -346,7 +366,7 @@ do{while(optind < Argc && Legacy(optind)) {}
 
 // Check if we have an appropriate destination
 //
-   if (dstFile->Protocol == XrdCpFile::isFile && (numFiles > 1 
+   if (dstFile->Protocol == XrdCpFile::isFile && (numFiles > 1
    ||  (OpSpec & DoRecurse && srcFile->Protocol != XrdCpFile::isFile)))
       FMSG("Destination is neither remote nor a directory.", 2);
 
@@ -360,7 +380,7 @@ do{while(optind < Argc && Legacy(optind)) {}
    if (OpSpec & DoCksum)
       {if (CksData.Length && numFiles > 1)
           FMSG("Checksum with fixed value requires a single input file.", 2);
-       if (OpSpec & DoRecurse)
+       if (CksData.Length && OpSpec & DoRecurse)
           FMSG("Checksum with fixed value conflicts with '--recursive'.", 2);
       }
 
@@ -836,10 +856,10 @@ void XrdCpConfig::Usage(int rc)
    static const char *Options= "\n"
    "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--dynamic-src]\n"
    "         [--force] [--help] [--infiles <fn>] [--license] [--nopbar]\n"
-   "         [--posc] [--proxy <host>:<port>] [--recursive] [--retry <n>]\n"
-   "         [--server] [--silent] [--sources <n>] [--streams <n>]\n"
+   "         [--path] [--posc] [--proxy <host>:<port>] [--recursive]\n"
+   "         [--retry <n>] [--server] [--silent] [--sources <n>] [--streams <n>]\n"
    "         [--tpc {first|only}] [--verbose] [--version] [--xrate <rate>]\n"
-   "         [--parallel <n>]";
+   "         [--parallel <n>] [--metalink]";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
@@ -866,6 +886,7 @@ void XrdCpConfig::Usage(int rc)
    "-H | --license      prints license terms and conditions\n"
    "-I | --infiles      specifies the file that contains a list of input files\n"
    "-N | --nopbar       does not print the progress bar\n"
+   "-p | --path         automatically create remote destination path\n"
    "-P | --posc         enables persist on successful close semantics\n"
    "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
    "-r | --recursive    recursively copies all source files\n"
@@ -882,7 +903,8 @@ void XrdCpConfig::Usage(int rc)
    "-V | --version      prints the version number\n"
    "-X | --xrate <rate> limits the transfer to the specified rate. You can\n"
    "                    suffix the value with 'k', 'm', or 'g'\n"
-   "     --parallel <n> number of copy jobs to be run simultaneously\n\n"
+   "     --parallel <n> number of copy jobs to be run simultaneously\n"
+   "-M | --metalink     treats source as a metalink\n\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

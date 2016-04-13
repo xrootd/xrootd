@@ -15,6 +15,12 @@
     %endif
 %endif
 
+# Remove default rpm python bytecompiling scripts
+%global __os_install_post \
+    %(echo '%{__os_install_post}' | \
+      sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g \
+              s!/usr/lib[^[:space:]]*/brp-python-hardlink[[:space:]].*$!!g')
+
 #-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
@@ -31,7 +37,10 @@ URL:       http://xrootd.org/
 # cd xrootd
 # git-archive master | gzip -9 > ~/rpmbuild/SOURCES/xrootd.tgz
 Source0:   xrootd.tar.gz
+
+%if %{?_with_compat:1}%{!?_with_compat:0}
 Source1:   xrootd-3.3.6.tar.gz
+%endif
 
 BuildRoot: %{_tmppath}/%{name}-root
 
@@ -44,11 +53,16 @@ BuildRequires: libxml2-devel
 BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
+BuildRequires: python-devel
 
 BuildRequires: selinux-policy-devel
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
 BuildRequires: cppunit-devel
+%endif
+
+%if %{?_with_ceph:1}%{!?_with_ceph:0}
+BuildRequires: ceph-devel
 %endif
 
 BuildRequires:	doxygen
@@ -222,6 +236,17 @@ This package contains the FUSE (file system in user space) xrootd mount
 tool.
 
 #-------------------------------------------------------------------------------
+# python
+#-------------------------------------------------------------------------------
+%package python
+Summary:	Python bindings for XRootD
+Group:		Development/Libraries
+Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+%description python
+Python bindings for XRootD
+
+#-------------------------------------------------------------------------------
 # doc
 #-------------------------------------------------------------------------------
 %package doc
@@ -251,6 +276,18 @@ Requires:         selinux-policy
 SELinux policy extensions for running xrootd while in enforcing mode.
 
 #-------------------------------------------------------------------------------
+# ceph
+#-------------------------------------------------------------------------------
+%if %{?_with_ceph:1}%{!?_with_ceph:0}
+%package ceph
+Summary: Ceph back-end plug-in for XRootD
+Group:   Development/Tools
+Requires: %{name}-server = %{epoch}:%{version}-%{release}
+%description ceph
+Ceph back-end plug-in for XRootD.
+%endif
+
+#-------------------------------------------------------------------------------
 # tests
 #-------------------------------------------------------------------------------
 %if %{?_with_tests:1}%{!?_with_tests:0}
@@ -262,13 +299,13 @@ Requires: %{name}-client = %{epoch}:%{version}-%{release}
 This package contains a set of CPPUnit tests for xrootd.
 %endif
 
+%if %{?_with_compat:1}%{!?_with_compat:0}
 #-------------------------------------------------------------------------------
 # client-compat
 #-------------------------------------------------------------------------------
 %package client-compat
 Summary:	XRootD 3 compatibility client libraries
 Group:		System Environment/Libraries
-Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description client-compat
 This package contains compatibility libraries for xrootd 3 clients.
@@ -284,12 +321,17 @@ Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 %description server-compat
 This package contains compatibility binaries for xrootd 3 servers.
 
+%endif
+
 #-------------------------------------------------------------------------------
 # Build instructions
 #-------------------------------------------------------------------------------
 %prep
 %setup -c -n xrootd
+
+%if %{?_with_compat:1}%{!?_with_compat:0}
 %setup -T -D -n %{name} -a 1
+%endif
 
 %build
 cd xrootd
@@ -320,6 +362,7 @@ popd
 
 doxygen Doxyfile
 
+%if %{?_with_compat:1}%{!?_with_compat:0}
 pushd ../xrootd-3.3.6
 mkdir build
 pushd build
@@ -327,6 +370,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_PER
 make VERBOSE=1 %{?_smp_mflags}
 popd
 popd
+%endif
 
 #-------------------------------------------------------------------------------
 # Installation
@@ -337,6 +381,7 @@ rm -rf $RPM_BUILD_ROOT
 #-------------------------------------------------------------------------------
 # Install 3.3.6 compat
 #-------------------------------------------------------------------------------
+%if %{?_with_compat:1}%{!?_with_compat:0}
 pushd xrootd-3.3.6/build
 make install DESTDIR=$RPM_BUILD_ROOT
 rm -rf $RPM_BUILD_ROOT%{_includedir}
@@ -355,6 +400,7 @@ for i in cmsd frm_purged frm_xfrd xrootd; do
   mv $RPM_BUILD_ROOT%{_bindir}/$i $RPM_BUILD_ROOT%{_bindir}/${i}-3
 done
 popd
+%endif
 
 #-------------------------------------------------------------------------------
 # Install 4.x.y
@@ -362,10 +408,14 @@ popd
 pushd xrootd
 pushd  build
 make install DESTDIR=$RPM_BUILD_ROOT
+cat PYTHON_INSTALLED | sed -e "s|$RPM_BUILD_ROOT||g" > PYTHON_INSTALLED_FILES
 popd
 
 # configuration stuff
 rm -rf $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/*
+
+# ceph posix unversioned so
+rm -f $RPM_BUILD_ROOT%{_libdir}/libXrdCephPosix.so
 
 # var paths
 mkdir -p $RPM_BUILD_ROOT%{_var}/log/xrootd
@@ -545,6 +595,7 @@ fi
 %{_bindir}/xrdsssadmin
 %{_bindir}/xrdmapc
 %{_bindir}/xrootd
+%{_bindir}/xrdpfc_print
 %{_mandir}/man8/cmsd.8*
 %{_mandir}/man8/cns_ssi.8*
 %{_mandir}/man8/frm_admin.8*
@@ -556,6 +607,7 @@ fi
 %{_mandir}/man8/xrdpwdadmin.8*
 %{_mandir}/man8/xrdsssadmin.8*
 %{_mandir}/man8/xrootd.8*
+%{_mandir}/man8/xrdpfc_print.8*
 %{_datadir}/xrootd
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-clustered.cfg
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-standalone.cfg
@@ -580,6 +632,7 @@ fi
 %{_libdir}/libXrdCryptossl-4.so
 %{_libdir}/libXrdSec*-4.so
 %{_libdir}/libXrdUtils.so.*
+%{_libdir}/libXrdXml.so.*
 
 %files devel
 %defattr(-,root,root,-)
@@ -597,6 +650,8 @@ fi
 %{_libdir}/libXrdCrypto.so
 %{_libdir}/libXrdCryptoLite.so
 %{_libdir}/libXrdUtils.so
+%{_libdir}/libXrdXml.so
+%{_includedir}/xrootd/XrdXml/XrdXmlReader.hh
 
 %files client-libs
 %defattr(-,root,root,-)
@@ -626,9 +681,11 @@ fi
 %{_libdir}/libXrdPss-4.so
 %{_libdir}/libXrdXrootd-4.so
 %{_libdir}/libXrdFileCache-4.so
+%{_libdir}/libXrdBlacklistDecision-4.so
 %{_libdir}/libXrdHttp-4.so
 %{_libdir}/libXrdOssSIgpfsT-4.so
 %{_libdir}/libXrdServer.so.*
+%{_libdir}/libXrdThrottle-4.so
 
 %files server-devel
 %defattr(-,root,root,-)
@@ -671,9 +728,20 @@ fi
 %{_mandir}/man1/xrootdfs.1*
 %dir %{_sysconfdir}/xrootd
 
+%files python -f xrootd/build/PYTHON_INSTALLED_FILES
+%defattr(-,root,root,-)
+
 %files doc
 %defattr(-,root,root,-)
 %doc %{_docdir}/%{name}-%{version}
+
+%if %{?_with_ceph:1}%{!?_with_ceph:0}
+%files ceph
+%defattr(-,root,root,-)
+%{_libdir}/libXrdCeph-4.so
+%{_libdir}/libXrdCephXattr-4.so
+%{_libdir}/libXrdCephPosix.so*
+%endif
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
 %files tests
@@ -682,12 +750,17 @@ fi
 %{_libdir}/libXrdClTests.so
 %{_libdir}/libXrdClTestsHelper.so
 %{_libdir}/libXrdClTestMonitor*.so
+
+%if %{?_with_ceph:1}%{!?_with_ceph:0}
+%{_libdir}/libXrdCephTests*.so
+%endif
 %endif
 
 %files selinux
 %defattr(-,root,root)
 %{_datadir}/selinux/packages/%{name}/%{name}.pp
 
+%if %{?_with_compat:1}%{!?_with_compat:0}
 %files client-compat
 %defattr(-,root,root,-)
 %{_libdir}/libXrdAppUtils.so.0*
@@ -723,11 +796,18 @@ fi
 %{_libdir}/libXrdPss.so*
 %{_libdir}/libXrdServer.so.1*
 %{_libdir}/libXrdXrootd.so*
+%endif
 
 #-------------------------------------------------------------------------------
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Mon Mar 16 2015 Lukasz Janyst <ljanyst@cern.ch>
+- create the python package
+
+* Wed Mar 11 2015 Lukasz Janyst <ljanyst@cern.ch>
+- create the xrootd-ceph package
+
 * Thu Oct 30 2014 Lukasz Janyst <ljanyst@cern.ch>
 - update for 4.1 and introduce 3.3.6 compat packages
 

@@ -1354,7 +1354,7 @@ int XrdFrmConfig::xcks()
 */
 int XrdFrmConfig::xcnsd()
 {
-   int cnsMode;
+   int cnsMode = 0;
    char *val, *cnsPath = 0;
    struct cnsdopts {const char *opname; int opval;} cnsopt[] =
          {

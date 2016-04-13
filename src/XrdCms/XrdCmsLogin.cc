@@ -52,7 +52,8 @@ using namespace XrdCms;
 /* Public:                         A d m i t                                  */
 /******************************************************************************/
   
-int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
+int XrdCmsLogin::Admit(XrdLink    *Link, CmsLoginData &Data,
+                       const char *sid,  const char   *envP)
 {
    CmsRRHdr      myHdr;
    CmsLoginData  myData;
@@ -63,12 +64,6 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 //
    if ((eText = XrdCmsTalk::Attend(Link, myHdr, myBuff, myBlen, myDlen)))
       return Emsg(Link, eText, 0);
-
-// Check if this node is blacklisted
-//
-   if (!(Data.Mode & CmsLoginData::kYR_director)
-   &&  XrdCmsBlackList::Present(Link->AddrInfo()->Name()))
-      return SendErrorBL(Link);
 
 // If we need to do authentication, do so now
 //
@@ -87,6 +82,25 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 //
    if (!Parser.Parse(&Data, myBuff, myBuff+myDlen)) 
       return Emsg(Link, "invalid login data", 0);
+
+// Check if this node is blacklisted
+//
+   if (!(Data.Mode & CmsLoginData::kYR_director))
+      {static const int rbsz = 1024;
+       char *rbP, rbuff[rbsz];
+       int rc;
+       rbP = (myData.Version <= Data.Version ? rbuff : 0);
+       rc = XrdCmsBlackList::Present(Link->Host(), 0, rbP, rbsz);
+            if (rc > 0) return SendErrorBL(Link, rbuff, rc);
+       else if (rc < 0) return SendErrorBL(Link);
+      }
+
+// Fill out additional information if the client can accept it
+//
+   if (myData.Version <= Data.Version)
+      {myData.SID      = (kXR_char *)sid;
+       myData.envCGI   = (kXR_char *)envP;
+      }
 
 // Send off login reply
 //
@@ -113,9 +127,15 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data, int timeout)
    char WorkBuff[4096], *hList, *wP = WorkBuff;
    int n, dataLen;
 
-// Send the data
+// We can accept permanent redirects so indicate this
 //
-   if (sendData(Link, Data)) return kYR_EINVAL;
+   Data.Mode |= CmsLoginData::kYR_blredir;
+
+// Send the data and immediately clear the data structure of pointers
+//
+   n = sendData(Link, Data);
+   Data.Paths = Data.SID = Data.envCGI = 0;
+   if (n) return kYR_EINVAL;
 
 // Get the response.
 //
@@ -148,6 +168,8 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data, int timeout)
       {if (!XrdOucPup::Unpack(&wP, wP+dataLen, &hList, n))
           return Emsg(Link, "malformed try host data");
        Data.Paths = (kXR_char *)strdup(n ? hList : "");
+       if (!(LIHdr.modifier & CmsTryRequest::kYR_permtop))
+          Data.Mode &= ~CmsLoginData::kYR_blredir;
        return kYR_redirect;
       }
 
@@ -168,6 +190,11 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data, int timeout)
    if (LIHdr.rrCode != kYR_login
    || !Parser.Parse(&Data, WorkBuff, WorkBuff+dataLen))
       return Emsg(Link, "invalid login response");
+
+// Copy any strings that we are exporting
+//
+   if (Data.SID)    Data.SID    = (kXR_char *)strdup((const char *)Data.SID);
+   if (Data.envCGI) Data.envCGI = (kXR_char *)strdup((const char *)Data.envCGI);
    return 0;
 }
 
@@ -177,7 +204,7 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data, int timeout)
   
 int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 {
-   static const int xNum   = 18;
+   static const int xNum   = 20;
 
    int          n, iovcnt, iovnum;
    char         Work[xNum*12];
@@ -239,4 +266,24 @@ int XrdCmsLogin::SendErrorBL(XrdLink *Link)
 //
    Link->Send((const char *)&rData, n + sizeof(CmsRRHdr));
    return Emsg(Link, "blacklisted", 0);
+}
+
+/******************************************************************************/
+  
+int XrdCmsLogin::SendErrorBL(XrdLink *Link, char *rbuff, int rblen)
+{
+  CmsRRHdr Rsp = {0, kYR_try, CmsTryRequest::kYR_permtop, htons((unsigned short int)rblen)};
+  struct iovec iov[2] = {{(char *)&Rsp, sizeof(Rsp)},
+                                {rbuff, static_cast<size_t>(rblen)}};
+  char msgbuff[2048];
+
+// Send off the data
+//
+   Link->Send(iov, 2, sizeof(Rsp) + rblen);
+
+// Compose the right message
+//
+   snprintf(msgbuff, sizeof(msgbuff), "blacklisted; redirected to %s",
+            rbuff+sizeof(short));
+   return Emsg(Link, msgbuff, 0);
 }

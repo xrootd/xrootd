@@ -5,6 +5,7 @@
 #-------------------------------------------------------------------------------
 
 RCEXP='^[0-9]+\.[0-9]+\.[0-9]+\-rc.*$'
+CERNEXP='^[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.CERN.*$'
 
 #-------------------------------------------------------------------------------
 # Find a program
@@ -130,6 +131,14 @@ RELEASE=1
 if test x`echo $VERSION | egrep $RCEXP` != x; then
   RELEASE=0.`echo $VERSION | sed 's/.*-rc/rc/'`
   VERSION=`echo $VERSION | sed 's/-rc.*//'`
+fi
+
+#-------------------------------------------------------------------------------
+# Deal with CERN releases
+#-------------------------------------------------------------------------------
+if test x`echo $VERSION | egrep $CERNEXP` != x; then
+  RELEASE=`echo $VERSION | sed 's/.*-//'` 
+  VERSION=`echo $VERSION | sed 's/-.*\.CERN//'`
 fi
 
 VERSION=`echo $VERSION | sed 's/-/./g'`

@@ -1,0 +1,6 @@
+SERVER_URL  = 'root://localhost/'
+smallfile   = SERVER_URL + '/tmp/spam'
+smallcopy   = SERVER_URL + '/tmp/eggs'
+smallbuffer = 'gre\0en\neggs\nand\nham\n'
+bigfile     = SERVER_URL + '/tmp/bigfile'
+bigcopy     = SERVER_URL + '/tmp/bigcopy'

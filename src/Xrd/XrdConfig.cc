@@ -46,6 +46,7 @@
 
 #include "XrdVersion.hh"
 
+#include "Xrd/XrdBuffXL.hh"
 #include "Xrd/XrdConfig.hh"
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
@@ -85,6 +86,16 @@ namespace XrdNetSocketCFG
 extern int ka_Idle;
 extern int ka_Itvl;
 extern int ka_Icnt;
+};
+
+namespace XrdGlobal
+{
+XrdBuffXL xlBuff;
+}
+
+namespace
+{
+XrdOucEnv  theEnv;
 };
 
 /******************************************************************************/
@@ -170,7 +181,7 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    ProtInfo.Trace   = &Trace;           // Stable -> Trace Information
    ProtInfo.AdmPath = AdminPath;        // Stable -> The admin path
    ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
-   ProtInfo.Reserved= 0;                // Use to be the Thread Manager
+   ProtInfo.theEnv  = &theEnv;          // Additional information
 
    ProtInfo.Format   = XrdFORMATB;
    ProtInfo.WANPort  = 0;
@@ -212,11 +223,11 @@ int XrdConfig::Configure(int argc, char **argv)
    int pipeFD[2] = {-1, -1};
    const char *pidFN = 0;
    static const int myMaxc = 80;
-   char *myArgv[myMaxc], argBuff[myMaxc*3+8];
+   char **urArgv, *myArgv[myMaxc], argBuff[myMaxc*3+8];
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
    char *ifList = 0;
-   int   myArgc = 1, bindArg = 1;
-   bool ipV4 = false, ipV6 = false, pureLFN = false;
+   int   myArgc = 1, bindArg = 1, urArgc = argc, i;
+   bool noV6, ipV4 = false, ipV6 = false, pureLFN = false;
 
 // Obtain the protocol name we will be using
 //
@@ -241,12 +252,35 @@ int XrdConfig::Configure(int argc, char **argv)
   }
    myArgv[0] = argv[0];
 
+// Prescan the argument list to see if there is a passthrough option. In any
+// case, we will set the ephemeral argv/arg in the environment.
+//
+  i = 1;
+  while(i < argc)
+      {if (*(argv[i]) == '-' && *(argv[i]+1) == '+')
+          {int n = strlen(argv[i]+2), j = i+1, k = 1;
+           if (urArgc == argc) urArgc = i;
+           if (n) strncpy(buff, argv[i]+2, (n > 256 ? 256 : n));
+           strcpy(&(buff[n]), ".argv**");
+           while(j < argc && (*(argv[j]) != '-' || *(argv[j]+1) != '+')) j++;
+           urArgv = new char*[j-i+1];
+           urArgv[0] = argv[0];
+           i++;
+           while(i < j) urArgv[k++] = argv[i++];
+           urArgv[k] = 0;
+           theEnv.PutPtr(buff, urArgv);
+           strcpy(&(buff[n]), ".argc");
+           theEnv.PutInt(buff, static_cast<long>(k));
+          } else i++;
+      }
+   theEnv.PutPtr("argv[0]", argv[0]);
+
 // Process the options. Note that we cannot passthrough long options or
 // options that take arguments because getopt permutes the arguments.
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,":bc:dhHI:k:l:L:n:p:P:R:s:S:vz"))
+      while ((c = getopt(urArgc,argv,":bc:dhHI:k:l:L:n:p:P:R:s:S:vz"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -325,10 +359,17 @@ int XrdConfig::Configure(int argc, char **argv)
                 break;
        }
      }
+
 // The first thing we must do is to set the correct networking mode
 //
-   if (ipV4) XrdNetAddr::SetIPV4();
-      else if (ipV6) XrdNetAddr::SetIPV6();
+   noV6 = XrdNetAddr::IPV4Set();
+        if (ipV4) XrdNetAddr::SetIPV4();
+   else if (ipV6){if (noV6) Log.Say("Config warning: ipV6 appears to be broken;"
+                                    " forced ipV6 mode not advised!");
+                  XrdNetAddr::SetIPV6();
+                 }
+   else if (noV6) Log.Say("Config warning: ipV6 is misconfigured or "
+                          "unavailable; reverting to ipV4.");
 
 // Set the site name if we have one
 //
@@ -343,11 +384,14 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Pass over any parameters
 //
-   if (argc-optind+2 >= myMaxc)
+   if (urArgc-optind+2 >= myMaxc)
       {Log.Emsg("Config", "Too many command line arguments.");
        Usage(1);
       }
-   for ( ; optind < argc; optind++) myArgv[myArgc++] = argv[optind];
+   for ( ; optind < urArgc; optind++) myArgv[myArgc++] = argv[optind];
+
+// Record the actual arguments that we will pass on
+//
    myArgv[myArgc] = 0;
    ProtInfo.argc = myArgc;
    ProtInfo.argv = myArgv;
@@ -453,6 +497,10 @@ int XrdConfig::Configure(int argc, char **argv)
       {Trace.What = TRACE_ALL;
        XrdSysThread::setDebug(&Log);
       }
+
+// Put largest buffer size in the env
+//
+   theEnv.PutInt("MaxBuffSize", XrdGlobal::xlBuff.MaxSize());
 
 // Export the network interface list at this point
 //
@@ -796,6 +844,7 @@ void XrdConfig::setCFG()
   
 int XrdConfig::setFDL()
 {
+   static const int maxFD = 1048576;
    struct rlimit rlim;
    char buff[100];
 
@@ -806,10 +855,10 @@ int XrdConfig::setFDL()
 
 // Set the limit to the maximum allowed
 //
+   if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_max = maxFD;
    rlim.rlim_cur = rlim.rlim_max;
 #if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_5))
-   if (rlim.rlim_cur == RLIM_INFINITY || rlim.rlim_cur > OPEN_MAX)
-     rlim.rlim_cur = OPEN_MAX;
+   if (rlim.rlim_cur > OPEN_MAX) rlim.rlim_max = rlim.rlim_cur = OPEN_MAX;
 #endif
    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
       return Log.Emsg("Config", errno,"set FD limit");
@@ -838,7 +887,7 @@ int XrdConfig::setFDL()
       }
 #endif
 
-// We try to set the thread limit here but only if we can
+// The scheduler will have already set the thread limit. We just report it
 //
 #if defined(__linux__) && defined(RLIMIT_NPROC)
 
@@ -1106,7 +1155,9 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "allow target name not specified"); return 1;}
 
-    if (!Police) Police = new XrdNetSecurity();
+    if (!Police) {Police = new XrdNetSecurity();
+                  if (Trace.What == TRACE_ALL) Police->Trace(&Trace);
+                 }
     if (ishost)  Police->AddHost(val);
        else      Police->AddNetGroup(val);
 
@@ -1119,8 +1170,11 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
 
 /* Function: xbuf
 
-   Purpose:  To parse the directive: buffers <memsz> [<rint>]
+   Purpose:  To parse the directive: buffers [maxbsz <bsz>] <memsz> [<rint>]
 
+             <bsz>      maximum size of an individualbuffer. The default is 2m.
+                        Specify any value 2m < bsz <= 1g; if specified, it must
+                        appear before the <memsz> and <memsz> becomes optional.
              <memsz>    maximum amount of memory devoted to buffers
              <rint>     minimum buffer reshape interval in seconds
 
@@ -1128,12 +1182,24 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
 */
 int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 {
+    static const long long minBSZ = 1024*1024*2+1;  // 2mb
+    static const long long maxBSZ = 1024*1024*1024; // 1gb
     int bint = -1;
     long long blim;
     char *val;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "buffer memory limit not specified"); return 1;}
+
+    if (!strcmp("maxbsz", val))
+       {if (!(val = Config.GetWord()))
+           {eDest->Emsg("Config", "max buffer size not specified"); return 1;}
+        if (XrdOuca2x::a2sz(*eDest,"maxbz value",val,&blim,minBSZ,maxBSZ))
+           return 1;
+        XrdGlobal::xlBuff.Init(blim);
+        if (!(val = Config.GetWord())) return 0;
+       }
+
     if (XrdOuca2x::a2sz(*eDest,"buffer limit value",val,&blim,
                        (long long)1024*1024)) return 1;
 
@@ -1585,7 +1651,7 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     long long lpp;
-    int  i, ppp;
+    int  i, ppp = 0;
     int  V_mint = -1, V_maxt = -1, V_idle = -1, V_avlt = -1;
     struct schedopts {const char *opname; int minv; int *oploc;
                       const char *opmsg;} scopts[] =

@@ -60,6 +60,7 @@ int           haveMeta;     // Have a meta manager (only if we are a manager)
 char         *CMSPath;      // Path to the local cmsd for target nodes
 const char   *myHost;
 const char   *myName;
+      char   *cidTag;
 
 XrdOucTList  *ManList;      // List of managers for remote redirection
 XrdOucTList  *PanList;      // List of managers for proxy  redirection
@@ -71,7 +72,7 @@ enum {FailOver = 'f', RoundRob = 'r'};
       XrdCmsClientConfig() : ConWait(10), RepWait(3),  RepWaitMS(3000),
                              RepDelay(5), RepNone(8),  PrepWait(33),
                              FwdWait(0),  haveMeta(0), CMSPath(0),
-                             myHost(0),   myName(0),
+                             myHost(0),   myName(0),   cidTag(0),
                              ManList(0),  PanList(0),
                              SMode(FailOver), SModeP(FailOver),
                              isMeta(0), isMan(0) {}
@@ -84,6 +85,7 @@ int isMan;    // We are  a      manager
 int ConfigProc(const char *cfn);
 int ConfigXeq(char *var, XrdOucStream &Config);
 int xapath(XrdOucStream &Config);
+int xcidt(XrdOucStream  &Config);
 int xconw(XrdOucStream  &Config);
 int xmang(XrdOucStream  &Config);
 int xreqs(XrdOucStream  &Config);

@@ -226,6 +226,93 @@ namespace
 
 namespace XrdCl
 {
+  //------------------------------------------------------------------------
+  //! Holds a reference to a ResponceHandler
+  //! and allows to safely delete it
+  //------------------------------------------------------------------------
+  class ResponseHandlerHolder : public ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      ResponseHandlerHolder( ResponseHandler * handler ) : pHandler( handler ), pReferenceCounter( 1 ) {}
+      //------------------------------------------------------------------------
+      //! Destructor is private - use 'Destroy' in order to delete the object
+      //! Always destroys the actual ResponseHandler and deletes itself only
+      //! if this is the last reference
+      //------------------------------------------------------------------------
+      void Destroy()
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        // delete the actual handler
+        if( pHandler )
+        {
+          delete pHandler;
+          pHandler = 0;
+        }
+        // and than destroy myself if this is the last reference
+        DestroyMyself();
+      }
+      //------------------------------------------------------------------------
+      //! Increment reference counter
+      //------------------------------------------------------------------------
+      ResponseHandlerHolder* Self()
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        ++pReferenceCounter;
+        return this;
+      }
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      virtual void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                            XrdCl::AnyObject    *response,
+                                            XrdCl::HostList     *hostList )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        // delegate the job to the actual handler
+        if( pHandler )
+        {
+          pHandler->HandleResponseWithHosts( status, response, hostList );
+          // after handling a response the handler destroys itself,
+          // so we need to nullify the pointer
+          pHandler = 0;
+        }
+        // destroy the object if it is
+        DestroyMyself();
+      }
+
+    private:
+      //------------------------------------------------------------------------
+      //! Deletes itself only if this is the last reference
+      //------------------------------------------------------------------------
+      void DestroyMyself()
+      {
+        // decrement the reference counter
+        --pReferenceCounter;
+        // if the object is not used anymore delete it
+        if( pReferenceCounter == 0)
+          delete this;
+      }
+      //------------------------------------------------------------------------
+      //! Private Destructor (use 'Destroy' method)
+      //------------------------------------------------------------------------
+      ~ResponseHandlerHolder() {}
+      //------------------------------------------------------------------------
+      // The actual handler
+      //------------------------------------------------------------------------
+      ResponseHandler* pHandler;
+      //------------------------------------------------------------------------
+      // Reference counter
+      //------------------------------------------------------------------------
+      size_t pReferenceCounter;
+      //------------------------------------------------------------------------
+      // and respective mutex
+      //------------------------------------------------------------------------
+      mutable XrdSysRecMutex pMutex;
+  };
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
@@ -242,7 +329,8 @@ namespace XrdCl
     pSessionId( 0 ),
     pDoRecoverRead( true ),
     pDoRecoverWrite( true ),
-    pFollowRedirects( true )
+    pFollowRedirects( true ),
+    pReOpenHandler( 0 )
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
@@ -255,6 +343,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileStateHandler::~FileStateHandler()
   {
+    if( pReOpenHandler )
+      pReOpenHandler->Destroy();
+
     if( DefaultEnv::GetFileTimer() )
       DefaultEnv::GetFileTimer()->UnRegisterFileObject( this );
 
@@ -1206,8 +1297,8 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void FileStateHandler::Tick( time_t now )
   {
-    TimeOutRequests( now );
     XrdSysMutexHelper scopedLock( pMutex );
+    TimeOutRequests( now );
   }
 
   //----------------------------------------------------------------------------
@@ -1427,20 +1518,26 @@ namespace XrdCl
                this, pFileUrl->GetURL().c_str(), url.GetURL().c_str() );
 
     //--------------------------------------------------------------------------
-    // Remove the kXR_delete and kXR_new flags, we don't want the recovery
-    // procedure to delete a file that has been partially updated or fail
-    // it because a partially uploaded file already exists
+    // Remove the kXR_delete and kXR_new flags, as we don't want the recovery
+    // procedure to delete a file that has been partially updated or fail it
+    // because a partially uploaded file already exists.
     //--------------------------------------------------------------------------
-    pOpenFlags &= ~kXR_delete;
+    if (pOpenFlags & kXR_delete)
+    {
+      pOpenFlags &= ~kXR_delete;
+      pOpenFlags |=  kXR_open_updt;
+    }
+
     pOpenFlags &= ~kXR_new;
 
     Message           *msg;
     ClientOpenRequest *req;
+    URL u = url;
 
-    URL u = *pFileUrl;
     if( !url.GetPath().empty() )
-      u.SetPath( url.GetPath() );
-    std::string        path = u.GetPathWithParams();
+      u.SetPath( pFileUrl->GetPath() );
+
+    std::string path = u.GetPathWithParams();
     MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;
@@ -1449,13 +1546,34 @@ namespace XrdCl
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    OpenHandler *openHandler = new OpenHandler( this, 0 );
+    // the handler has been removed from the queue
+    // (because we are here) so we can destroy it
+    if( pReOpenHandler )
+    {
+      // in principle this should not happen because reopen
+      // is triggered only from StateHandler (Stat, Write, Read, etc.)
+      // but not from Open itself but it is better to be on the save side
+      pReOpenHandler->Destroy();
+      pReOpenHandler = 0;
+    }
+    // create a new reopen handler
+    // (it is not assigned to 'pReOpenHandler' in order not to bump the reference counter
+    //  until we know that 'SendMessage' was successful)
+    ResponseHandlerHolder *openHandler = new ResponseHandlerHolder( new OpenHandler( this, 0 ) );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
     Status st = MessageUtils::SendMessage( url, msg, openHandler, params );
+    // if there was a problem destroy the open handler
     if( !st.IsOK() )
-      delete openHandler;
+    {
+      openHandler->Destroy();
+    }
+    // otherwise keep the reference
+    else
+    {
+      pReOpenHandler = openHandler->Self();
+    }
     return st;
   }
 

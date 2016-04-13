@@ -1,15 +1,6 @@
 
 include( XRootDCommon )
 
-if( BUILD_LIBEVENT )
-  include_directories( ${LIBEVENT_INCLUDE_DIR} )
-  set( LIBEVENT_POLLER_FILES
-       XrdClPollerLibEvent.cc
-       XrdClPollerLibEvent.hh )
-else()
-  set( LIBEVENT_POLLER_FILES "" )
-endif()
-
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
@@ -71,16 +62,15 @@ add_library(
                               XrdClCopyJob.hh
   XrdClFileSystemUtils.cc     XrdClFileSystemUtils.hh
   XrdClTPFallBackCopyJob.cc   XrdClTPFallBackCopyJob.hh
-  ${LIBEVENT_POLLER_FILES}
+  XrdClMetalinkCopyJob.cc     XrdClMetalinkCopyJob.hh
 )
 
 target_link_libraries(
   XrdCl
+  XrdXml
   XrdUtils
   pthread
-  dl
-  ${LIBEVENT_LIB}
-  ${LIBEVENTPTHREADS_LIB})
+  dl)
 
 set_target_properties(
   XrdCl
@@ -147,6 +137,7 @@ install(
     XrdClPlugInManager.hh
     XrdClPropertyList.hh
     XrdClFileSystemUtils.hh
+    XrdClLog.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(

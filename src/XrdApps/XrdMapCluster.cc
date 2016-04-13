@@ -48,6 +48,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include "XProtocol/XProtocol.hh"
 #include "XrdCl/XrdClEnv.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -77,7 +78,7 @@ struct clMap
        clMap *nextLvl;
  const char  *state;
        char  *key;
-       char   name[285];
+       char   name[284];
        char   hasfile;
        char   verfile;
        char   valid;
@@ -108,7 +109,7 @@ extern int optind, optopt;
 
 namespace
 {
-bool listMan = true, listSrv = true, doVerify = false;
+bool listMan = true, listSrv = true, doVerify = false, doHush = false;
 
 clMap    *clLost = 0;
 
@@ -133,12 +134,77 @@ const char *MakeURL(const char *name, char *buff, int blen)
 };
 
 /******************************************************************************/
+/*                               M a p C o d e                                */
+/******************************************************************************/
+
+namespace
+{
+void MapCode(XrdCl::XRootDStatus &Status, clMap *node, bool nspl=false)
+{
+   char buff[128];
+
+   node->verfile = '?';
+
+   if (Status.code == XrdCl::errErrorResponse)
+      {switch(Status.errNo)
+             {case kXR_FSError:        node->state = " [fs error]";      break;
+              case kXR_IOError:        node->state = " [io error]";      break;
+              case kXR_NoMemory:       node->state = " [no memory]";     break;
+              case kXR_NotAuthorized:  node->state = " [not authorized]";break;
+              case kXR_NotFound:       if (nspl)
+                                          node->state = " [no subscribers]";
+                                          else {node->state = "";
+                                                node->verfile = '-';
+                                               }
+                                       break;
+              case kXR_NotFile:        node->state = " [not a file]";    break;
+              default: sprintf(buff, " [xrootd error %d]", Status.errNo);
+                                       node->state = strdup(buff);
+                                       break;
+             }
+       return;
+      }
+
+  switch(Status.code)
+        {case XrdCl::errInvalidAddr:        node->state = " [invalid addr]";
+                                            break;
+         case XrdCl::errSocketError:        node->state = " [socket error]";
+                                            break;
+         case XrdCl::errSocketTimeout:      node->state = " [timeout]";
+                                            break;
+         case XrdCl::errSocketDisconnected: node->state = " [disconnect]";
+                                            break;
+         case XrdCl::errStreamDisconnect:   node->state = " [disconnect]";
+                                            break;
+         case XrdCl::errConnectionError:    node->state = " [connect error]";
+                                            break;
+         case XrdCl::errHandShakeFailed:    node->state = " [handshake failed]";
+                                            break;
+         case XrdCl::errLoginFailed:        node->state = " [login failed]";
+                                            break;
+         case XrdCl::errAuthFailed:         node->state = " [auth failed]";
+                                            break;
+         case XrdCl::errOperationExpired:   node->state = " [op expired]";
+                                            break;
+         case XrdCl::errRedirectLimit:      node->state = " [redirect loop]";
+                                            break;
+         default: if (!(*Status.ToStr().c_str()))
+                     sprintf(buff, " [client error %d]", Status.code);
+                     else snprintf(buff, sizeof(buff), " [%s]",
+                                         Status.ToStr().c_str());
+                  node->state = strdup(buff);
+                  break;
+        }
+}
+};
+
+/******************************************************************************/
 /*                            M a p C l u s t e r                             */
 /******************************************************************************/
 
 namespace
 {
-void MapCluster(clMap *node)
+void MapCluster(clMap *node, clMap *origin)
 {
    static XrdCl::OpenFlags::Flags flags = XrdCl::OpenFlags::None;
    char buff[2048];
@@ -157,10 +223,10 @@ void MapCluster(clMap *node)
 // Make sure all went well
 //
    if (!Status.IsOK())
-      {EMSG("Unable to connect to " <<node->name <<"; "
-            <<Status.ToStr().c_str());
-       node->state = "unreachable";
-//cerr <<"MapCluster set state: " <<node->state <<endl;
+      {if (Status.errNo != kXR_NotFound && !doHush)
+          EMSG("Unable to get " <<node->name <<" subscribers; "
+                <<Status.ToStr().c_str());
+       MapCode(Status, origin, true);
        node->valid = 0;
        return;
       }
@@ -187,74 +253,16 @@ void MapCluster(clMap *node)
    clmP = node->nextMan;
    while(clmP)
         {branch = new clMap(clmP->name);
-         MapCluster(branch);
-         if (branch->nextSrv || branch->nextMan) clmP->nextLvl = branch;
-            else delete branch;
+         MapCluster(branch, clmP);
+//       if (branch->nextSrv || branch->nextMan || node->valid)
+            clmP->nextLvl = branch;
+//          else delete branch;
          clmP = clmP->nextMan;
         }
 
 // All done
 //
    delete info;
-}
-};
-
-/******************************************************************************/
-/*                               M a p C o d e                                */
-/******************************************************************************/
-
-namespace
-{
-void MapCode(XrdCl::XRootDStatus &Status, clMap *node)
-{
-   char buff[128];
-
-   node->verfile = '?';
-
-   if (Status.code == XrdCl::errErrorResponse)
-      {switch(Status.errNo)
-             {case kXR_FSError:        node->state = " fs error";       break;
-              case kXR_IOError:        node->state = " io error";       break;
-              case kXR_NoMemory:       node->state = " no memory";      break;
-              case kXR_NotAuthorized:  node->state = " not authorized"; break;
-              case kXR_NotFound:       node->state = "";
-                                       node->verfile = '-';             break;
-              case kXR_NotFile:        node->state = " not a file";     break;
-              default: sprintf(buff, " xrootd error %d", Status.errNo);
-                                       node->state = strdup(buff);
-                                       break;
-             }
-//cerr <<"MapCode set state: " <<node->state <<endl;
-       return;
-      }
-
-  switch(Status.code)
-        {case XrdCl::errInvalidAddr:        node->state = " invalid addr";
-                                            break;
-         case XrdCl::errSocketError:        node->state = " socket error";
-                                            break;
-         case XrdCl::errSocketTimeout:      node->state = " timeout";
-                                            break;
-         case XrdCl::errSocketDisconnected: node->state = " disconnect";
-                                            break;
-         case XrdCl::errStreamDisconnect:   node->state = " disconnect";
-                                            break;
-         case XrdCl::errConnectionError:    node->state = " connect error";
-                                            break;
-         case XrdCl::errHandShakeFailed:    node->state = " handshake failed";
-                                            break;
-         case XrdCl::errLoginFailed:        node->state = " login failed";
-                                            break;
-         case XrdCl::errAuthFailed:         node->state = " auth failed";
-                                            break;
-         case XrdCl::errOperationExpired:   node->state = " op expired";
-                                            break;
-         case XrdCl::errRedirectLimit:      node->state = " redirect loop";
-                                            break;
-         default: node->state = strdup(Status.ToStr().c_str());
-                                            break;
-        }
-//cerr <<"MapCode set state: " <<node->state <<endl;
 }
 };
   
@@ -286,10 +294,10 @@ void MapPath(clMap *node, const char *Path, bool doRefresh=false)
 // Make sure all went well
 //
    if (!Status.IsOK())
-      {EMSG("Unable to connect to " <<node->name <<"; "
-            <<Status.ToStr().c_str());
-       node->state = "unreachable";
-//cerr <<"MapPath set state: " <<node->state <<endl;
+      {if (Status.errNo != kXR_NotFound && !doHush)
+          EMSG("Unable to query " <<node->name <<" about path; "
+                <<Status.ToStr().c_str());
+       MapCode(Status, node);
        return;
       }
 
@@ -390,7 +398,7 @@ void PrintMap(clMap *clmP, int lvl)
                 {pfxbuff[1] = clnow->hasfile;
                  pfxbuff[2] = clnow->verfile;
                 }
-             cout <<' ' <<pfx <<"Srv " <<clnow->name <<' ' <<clnow->state <<endl;
+             cout <<' ' <<pfx <<"Srv " <<clnow->name <<clnow->state <<endl;
              clnow = clnow->nextSrv;
             }
       }
@@ -402,7 +410,7 @@ void PrintMap(clMap *clmP, int lvl)
        if (lvl) pfxbuff[2] = ' ';
        while(clnow)
             {if (lvl) pfxbuff[1] = clnow->hasfile;
-             cout <<lvl <<pfx <<"Man " <<clnow->name <<' ' <<clnow->state <<endl;
+             cout <<lvl <<pfx <<"Man " <<clnow->name <<clnow->state <<endl;
              if (clnow->valid && clnow->nextLvl) PrintMap(clnow->nextLvl,lvl+1);
              clnow = clnow->nextMan;
             }
@@ -444,11 +452,12 @@ void Usage(const char *emsg)
 {
    if (emsg) EMSG(emsg);
    cerr <<"Usage: xrdmapc [<opt>] <host>:<port> [<path>]\n"
-        <<"<opt>: [--help] [--list {all|m|s}] [--refresh] [--verify]" <<endl;
+        <<"<opt>: [--help] [--list {all|m|s}] [--quiet] [--refresh] [--verify]" <<endl;
    if (!emsg)
       {cerr <<
 "--list    | -1 'all' lists managers and servers (default), 'm' lists only\n"
 "               managers and 's' lists only servers.\n"
+"--quiet   | -q does not print error messages to cerr; errors appear inline.\n"
 "--refresh | -r does not use cached information but will refresh the cache.\n"
 "--verify  | -v verifies <path> existence status at each server.\n"
 "<path>         when specified, uses <host>:<port> to determine the locations\n"
@@ -470,6 +479,7 @@ int main(int argc, char *argv[])
      {
       {OPT_TYPE "help",      0, 0, (int)'h'},
       {OPT_TYPE "list",      1, 0, (int)'l'},
+      {OPT_TYPE "quiet",     0, 0, (int)'q'},
       {OPT_TYPE "refresh",   0, 0, (int)'r'},
       {OPT_TYPE "verify",    0, 0, (int)'v'},
       {0,                    0, 0, 0}
@@ -498,6 +508,8 @@ int main(int argc, char *argv[])
                          else if (!strcmp("s",  optarg))
                                  {listMan = false; listSrv = true;}
                          else Usage("Invalid list argument.");
+                         break;
+               case 'q': doHush    = true;
                          break;
                case 'r': doRefresh = true;
                          break;
@@ -544,7 +556,7 @@ int main(int argc, char *argv[])
 
 // Map the cluster
 //
-   MapCluster(baseNode);
+   MapCluster(baseNode, baseNode);
 
 // Check if we need to do a locate on a file and possibly verify results
 //
@@ -555,7 +567,7 @@ int main(int argc, char *argv[])
 
 // Print the first line
 //
-   cout <<eMsg <<baseNode->name <<endl;
+   cout <<eMsg <<baseNode->name <<baseNode->state <<endl;
    PrintMap(baseNode, 1);
 
 // Check if we have any phantom nodes
