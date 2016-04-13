@@ -251,7 +251,7 @@ bool File::Open()
       return false;
    }
 
-   if (m_cfi.Read(m_infoFile)
+   if (m_cfi.Read(m_infoFile))
    {
       m_fileSize = m_fileSize;
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
@@ -938,7 +938,7 @@ void File::CheckPrefetchStatRAM(Block* b)
 //______________________________________________________________________________
 void File::CheckPrefetchStatDisk(int idx)
 {
-   if (Cache::GetInstance().RefConfiguration().m_prefetch_max_block) {
+   if (Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks) {
       if (m_cfi.TestPrefetchBit(idx))
          m_prefetchHitCnt++;
    }

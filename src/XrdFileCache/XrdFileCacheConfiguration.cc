@@ -273,7 +273,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
    {
       long long minRAM = 1024* 1024 * 1024;;
       long long maxRAM = 100 * minRAM;
-      if ( XrdOuca2x::a2sz(m_log, "get RAM available", config.GetWord(), &m_RamAbsAvailable, minRAM, maxRAM))
+      if ( XrdOuca2x::a2sz(m_log, "get RAM available", config.GetWord(), &m_configuration.m_RamAbsAvailable, minRAM, maxRAM))
       {
          return false;
       }
