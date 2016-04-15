@@ -251,11 +251,11 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
          return false;
       }
    }
-   else if (part == "prefetch" )
+   else if (part == "prefetch_max_blocks" )
    {
        const char* params =  config.GetWord();
        if (params) {
-           int p = ::atoi(config.GetWord());
+           int p = ::atoi(params);
            if (p > 0) {
                printf("prefetch enabled, max blocks per file=%d\n", p);
                m_configuration.m_prefetch_max_blocks = p;
@@ -264,12 +264,13 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
                m_configuration.m_prefetch_max_blocks = 0;
            }
        }
+       else
        {
            m_log.Emsg("Config", "Error setting prefetch level.");
            return false;
        }
    }
-   else if (part == "nram" )
+   else if (part == "ram" )
    {
       long long minRAM = 1024* 1024 * 1024;;
       long long maxRAM = 100 * minRAM;
