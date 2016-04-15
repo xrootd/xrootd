@@ -251,7 +251,7 @@ bool File::Open()
       return false;
    }
 
-   if (m_cfi.Read(m_infoFile))
+   if (m_cfi.Read(m_infoFile) <= 0)
    {
       m_fileSize = m_fileSize;
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
