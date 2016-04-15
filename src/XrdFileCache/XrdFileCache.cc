@@ -168,6 +168,16 @@ int Cache::isAttached()
 void Cache::Detach(XrdOucCacheIO* io)
 {
    clLog()->Info(XrdCl::AppMsg, "Cache::Detach() %s", io->Path());
+   std::map<std::string, DiskNetIO>::iterator it = m_active.begin();
+   while (it != m_active.end() )
+   {
+      if (it->second.io == io) {
+         m_active.erase(it++);
+      }
+      else {
+         ++it;
+      }
+   }
 
    delete io;
 }
@@ -265,6 +275,25 @@ Cache::RAMBlockReleased()
    m_RAMblocks_used--;
 }
 
+//==============================================================================
+//======================= File relinquish at process of dying  ===================
+//======================================================================
+File* Cache::GetFileForLocalPath(std::string path, IO* io)
+{
+   typedef std::map<std::string, DiskNetIO> ActiveMap_t;
+   ActiveMap_t::iterator it = m_active.find(path);
+   if (it == m_active.end())
+   {
+      return 0;
+   }
+   else {
+      File* file = it->second.file;
+      it->second.io->RelinquishFile(file);
+      return file;
+   }
+}
+
+
 
 //==============================================================================
 //=======================  PREFETCH ===================================
@@ -306,7 +335,7 @@ Cache::DeRegisterPrefetchFile(File* file)
    //  called from last line File::InitiateClose()
 
    m_prefetch_condVar.Lock();
-   for (FileList::iterator it = m_prefetchList.begin(); it != m_prefetchList.end(); ++it) {
+   for (PrefetchList::iterator it = m_prefetchList.begin(); it != m_prefetchList.end(); ++it) {
       if (*it == file) {
          m_prefetchList.erase(it);
          break;

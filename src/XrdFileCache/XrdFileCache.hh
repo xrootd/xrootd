@@ -186,13 +186,14 @@ namespace XrdFileCache
          XrdOss* GetOss() const { return m_output_fs; }
 
          XrdSysError& GetSysError() { return m_log; }
-
+          
+         File* GetFileForLocalPath(std::string, IO*);
         
       private:
          bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
          bool xdlib(XrdOucStream &);
-         static Cache   *m_factory;   //!< this object
+         static Cache     *m_factory;   //!< this object
 
          XrdSysError       m_log;       //!< XrdFileCache namespace logger
          XrdOucCacheStats  m_stats;     //!< 
@@ -221,6 +222,14 @@ namespace XrdFileCache
          };
 
          WriteQ m_writeQ;
+
+         struct DiskNetIO
+         {
+            IO* io;
+            File* file;
+         };
+
+        std::map<std::string, DiskNetIO>  m_active;
 
        // prefetching
        typedef std::vector<File*>  PrefetchList;
