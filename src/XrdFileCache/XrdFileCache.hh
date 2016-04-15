@@ -52,8 +52,8 @@ namespace XrdFileCache
          m_diskUsageLWM(-1),
          m_diskUsageHWM(-1),
          m_bufferSize(1024*1024),
-	 m_NRamBuffers(8000),
-         m_prefetch(false),
+    	 m_RamAbsAvailable(8*1024*1024),
+    	 m_NRamBuffers(-1),
          m_prefetch_max_blocks(10),
          m_hdfsbsize(128*1024*1024) {}
 
@@ -65,7 +65,8 @@ namespace XrdFileCache
       long long m_diskUsageHWM;       //!< cache purge high water mark
 
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
-      int       m_NRamBuffers;        //!< number of total in-memory cache blocks
+      long long m_RamAbsAvailable;     //!< available from configuration
+      int       m_NRamBuffers;        //!< number of total in-memory cache blocks, cached
       bool      m_prefetch;           //!< prefetch enable state        
       size_t    m_prefetch_max_blocks;//!< maximum number of blocks to prefetch per file
 
@@ -185,13 +186,14 @@ namespace XrdFileCache
          XrdOss* GetOss() const { return m_output_fs; }
 
          XrdSysError& GetSysError() { return m_log; }
-
+          
+         File* GetFileForLocalPath(std::string, IO*);
         
       private:
          bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
          bool xdlib(XrdOucStream &);
-         static Cache   *m_factory;   //!< this object
+         static Cache     *m_factory;   //!< this object
 
          XrdSysError       m_log;       //!< XrdFileCache namespace logger
          XrdOucCacheStats  m_stats;     //!< 
@@ -219,11 +221,19 @@ namespace XrdFileCache
             std::list<Block*>     queue;    //!< container
          };
 
-         WriteQ s_writeQ;
+         WriteQ m_writeQ;
+
+         struct DiskNetIO
+         {
+            IO* io;
+            File* file;
+         };
+
+        std::map<std::string, DiskNetIO>  m_active;
 
        // prefetching
-       typedef std::vector<File*>  FileList;
-       FileList  m_files;
+       typedef std::vector<File*>  PrefetchList;
+       PrefetchList  m_prefetchList;
    };
 
 }

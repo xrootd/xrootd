@@ -151,16 +151,16 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       }
    }
 
+   // get number of available RAM blocks after process configuration
+   m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
    if (retval)
    {
       int loff = 0;
       char buff[2048];
       loff = snprintf(buff, sizeof(buff), "result\n"
-               "\tpfc.cachedir %s\n"
                "\tpfc.blocksize %lld\n"
                "\tpfc.prefetch %d\n"
-               "\tpfc.nram %d\n\n",
-               m_configuration.m_cache_dir.c_str() , 
+               "\tpfc.nramblocks %d\n\n",
                m_configuration.m_bufferSize,
                m_configuration.m_prefetch, // AMT not sure what parsing should be
                m_configuration.m_NRamBuffers );
@@ -227,12 +227,12 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
                errno = 0;
                float lwmf = strtod(minV.c_str(), &eP);
                if (errno || eP == minV.c_str()) {
-                    m_log.Emsg("Cache::ConfigParameters() error parsing diskusage parameter ", minV.c_str());
+                    m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", minV.c_str());
                     return false;
                }
                float hwmf = strtod(maxV.c_str(), &eP);
                if (errno || eP == maxV.c_str()) {
-                  m_log.Emsg("Cache::ConfigParameters() error parsing diskusage parameter ", maxV.c_str());
+                  m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", maxV.c_str());
                   return false;
                }
 
@@ -251,20 +251,33 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
          return false;
       }
    }
-   else if (part == "prefetch" )
+   else if (part == "prefetch_max_blocks" )
    {
-       int p = ::atoi(config.GetWord());
-       if (p > 0) {
-          printf("prefetch enabled, max blocks per file=%d\n", p);
-          m_configuration.m_prefetch = true;
-          m_configuration.m_prefetch_max_blocks = p;
-       } else {
-          m_configuration.m_prefetch = false;
+       const char* params =  config.GetWord();
+       if (params) {
+           int p = ::atoi(params);
+           if (p > 0) {
+               printf("prefetch enabled, max blocks per file=%d\n", p);
+               m_configuration.m_prefetch_max_blocks = p;
+           } else {
+               m_log.Emsg("Config", "Prefetch is disabled");
+               m_configuration.m_prefetch_max_blocks = 0;
+           }
+       }
+       else
+       {
+           m_log.Emsg("Config", "Error setting prefetch level.");
+           return false;
        }
    }
-   else if (part == "nram" )
+   else if (part == "ram" )
    {
-      m_configuration.m_NRamBuffers = ::atoi(config.GetWord());
+      long long minRAM = 1024* 1024 * 1024;;
+      long long maxRAM = 100 * minRAM;
+      if ( XrdOuca2x::a2sz(m_log, "get RAM available", config.GetWord(), &m_configuration.m_RamAbsAvailable, minRAM, maxRAM))
+      {
+         return false;
+      }
    }
    else if ( part == "hdfsmode" )
    {

@@ -168,6 +168,16 @@ int Cache::isAttached()
 void Cache::Detach(XrdOucCacheIO* io)
 {
    clLog()->Info(XrdCl::AppMsg, "Cache::Detach() %s", io->Path());
+   std::map<std::string, DiskNetIO>::iterator it = m_active.begin();
+   while (it != m_active.end() )
+   {
+      if (it->second.io == io) {
+         m_active.erase(it++);
+      }
+      else {
+         ++it;
+      }
+   }
 
    delete io;
 }
@@ -176,11 +186,11 @@ bool
 Cache::HaveFreeWritingSlots()
 {
    const static size_t maxWriteWaits=100000;
-   if ( s_writeQ.size < maxWriteWaits) {
+   if ( m_writeQ.size < maxWriteWaits) {
       return true;
    }
    else {
-       XrdCl::DefaultEnv::GetLog()->Info(XrdCl::AppMsg, "Cache::HaveFreeWritingSlots() negative", s_writeQ.size);
+       XrdCl::DefaultEnv::GetLog()->Info(XrdCl::AppMsg, "Cache::HaveFreeWritingSlots() negative", m_writeQ.size);
        return false;
    }
 }
@@ -189,22 +199,22 @@ void
 Cache::AddWriteTask(Block* b, bool fromRead)
 {
    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::AddWriteTask() bOff=%ld", b->m_offset);
-   s_writeQ.condVar.Lock();
+   m_writeQ.condVar.Lock();
    if (fromRead)
-       s_writeQ.queue.push_back(b);
+       m_writeQ.queue.push_back(b);
    else
-      s_writeQ.queue.push_front(b); // AMT should this not be the opposite
-   s_writeQ.size++;
-   s_writeQ.condVar.Signal();
-   s_writeQ.condVar.UnLock();
+      m_writeQ.queue.push_front(b); // AMT should this not be the opposite
+   m_writeQ.size++;
+   m_writeQ.condVar.Signal();
+   m_writeQ.condVar.UnLock();
 }
 
 //______________________________________________________________________________
 void Cache::RemoveWriteQEntriesFor(File *iFile)
 {
-   s_writeQ.condVar.Lock();
-   std::list<Block*>::iterator i = s_writeQ.queue.begin();
-   while (i != s_writeQ.queue.end())
+   m_writeQ.condVar.Lock();
+   std::list<Block*>::iterator i = m_writeQ.queue.begin();
+   while (i != m_writeQ.queue.end())
    {
       if ((*i)->m_file == iFile)
       {
@@ -212,15 +222,15 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
           XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Remove entries for %p path %s", (void*)(*i), iFile->lPath());
          std::list<Block*>::iterator j = i++;
           iFile->BlockRemovedFromWriteQ(*j);
-         s_writeQ.queue.erase(j);
-         --s_writeQ.size;
+         m_writeQ.queue.erase(j);
+         --m_writeQ.size;
       }
       else
       {
          ++i;
       }
    }
-   s_writeQ.condVar.UnLock();
+   m_writeQ.condVar.UnLock();
 }
 
 //______________________________________________________________________________
@@ -229,16 +239,16 @@ Cache::ProcessWriteTasks()
 {
    while (true)
    {
-      s_writeQ.condVar.Lock();
-      while (s_writeQ.queue.empty())
+      m_writeQ.condVar.Lock();
+      while (m_writeQ.queue.empty())
       {
-         s_writeQ.condVar.Wait();
+         m_writeQ.condVar.Wait();
       }
-      Block* block = s_writeQ.queue.front(); // AMT should not be back ???
-      s_writeQ.queue.pop_front();
-      s_writeQ.size--;
+      Block* block = m_writeQ.queue.front(); // AMT should not be back ???
+      m_writeQ.queue.pop_front();
+      m_writeQ.size--;
       XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::ProcessWriteTasks  for %p path %s", (void*)(block), block->m_file->lPath());
-      s_writeQ.condVar.UnLock();
+      m_writeQ.condVar.UnLock();
 
       block->m_file->WriteBlockToDisk(block);
    }
@@ -264,6 +274,25 @@ Cache::RAMBlockReleased()
    XrdSysMutexHelper lock(&m_RAMblock_mutex);
    m_RAMblocks_used--;
 }
+
+//==============================================================================
+//======================= File relinquish at process of dying  ===================
+//======================================================================
+File* Cache::GetFileForLocalPath(std::string path, IO* io)
+{
+   typedef std::map<std::string, DiskNetIO> ActiveMap_t;
+   ActiveMap_t::iterator it = m_active.find(path);
+   if (it == m_active.end())
+   {
+      return 0;
+   }
+   else {
+      File* file = it->second.file;
+      it->second.io->RelinquishFile(file);
+      return file;
+   }
+}
+
 
 
 //==============================================================================
@@ -291,7 +320,7 @@ Cache::RegisterPrefetchFile(File* file)
 
       XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Register new file BEGIN");
       m_prefetch_condVar.Lock();
-      m_files.push_back(file);
+      m_prefetchList.push_back(file);
       m_prefetch_condVar.Signal();
       m_prefetch_condVar.UnLock();
       XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Register new file End");
@@ -306,9 +335,9 @@ Cache::DeRegisterPrefetchFile(File* file)
    //  called from last line File::InitiateClose()
 
    m_prefetch_condVar.Lock();
-   for (FileList::iterator it = m_files.begin(); it != m_files.end(); ++it) {
+   for (PrefetchList::iterator it = m_prefetchList.begin(); it != m_prefetchList.end(); ++it) {
       if (*it == file) {
-         m_files.erase(it);
+         m_prefetchList.erase(it);
          break;
       }
    }
@@ -321,15 +350,15 @@ File*
 Cache::GetNextFileToPrefetch()
 {
    m_prefetch_condVar.Lock();
-   if (m_files.empty()) {
+   if (m_prefetchList.empty()) {
       m_prefetch_condVar.Wait();
    }
 
-   //  std::sort(m_files.begin(), m_files.end(), myobject);
+   //  std::sort(m_prefetchList.begin(), m_prefetchList.end(), myobject);
 
-   size_t l = m_files.size();
+   size_t l = m_prefetchList.size();
    int idx = rand() % l;
-   File* f = m_files[idx];
+   File* f = m_prefetchList[idx];
    f->MarkPrefetch();
    m_prefetch_condVar.UnLock();
    return f;

@@ -97,6 +97,7 @@ namespace XrdFileCache
 
          virtual int  Fstat(struct stat &sbuff);
          
+         virtual void RelinquishFile(File*);
 
       private:
          File* m_file;
