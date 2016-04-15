@@ -44,10 +44,15 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
    XrdCl::URL url(m_io->Path());
    std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
-   struct stat st;
-   Fstat(st);
-   m_file = new File(io, fname, 0, st.st_size);
+   if (!Cache::GetInstance().GetFileForLocalPath(fname, this))
+   {
+      struct stat st;
+      Fstat(st);
+      m_file = new File(io, fname, 0, st.st_size);
+   }
 }
+
+
 
 IOEntireFile::~IOEntireFile()
 {
@@ -69,6 +74,12 @@ int IOEntireFile::Fstat(struct stat &sbuff)
    else {
       return m_io->Fstat(sbuff);
    }
+}
+
+void IOEntireFile::RelinquishFile(File* f)
+{
+   assert(m_file == f);
+   m_file = 0;
 }
 
 
@@ -100,17 +111,21 @@ struct stat* IOEntireFile::getValidLocalStat(const char* path)
 
 bool IOEntireFile::ioActive()
 {
-   return m_file->InitiateClose();
+   if (!m_file)
+      return false;
+   else
+      return m_file->InitiateClose();
 }
 
 XrdOucCacheIO *IOEntireFile::Detach()
 {
-   m_statsGlobal.Add(m_file->GetStats());
-
    XrdOucCacheIO * io = m_io;
 
-   delete m_file;
-   m_file = 0;
+   if (m_file) {
+      m_statsGlobal.Add(m_file->GetStats());
+      delete m_file;
+      m_file = 0;
+   }
 
    // This will delete us!
    m_cache.Detach(this);
