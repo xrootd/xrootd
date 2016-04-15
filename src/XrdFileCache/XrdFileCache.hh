@@ -220,7 +220,7 @@ namespace XrdFileCache
             std::list<Block*>     queue;    //!< container
          };
 
-         WriteQ s_writeQ;
+         WriteQ m_writeQ;
 
        // prefetching
        typedef std::vector<File*>  PrefetchList;
