@@ -67,7 +67,6 @@ namespace XrdFileCache
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
       long long m_RamAbsAvailable;     //!< available from configuration
       int       m_NRamBuffers;        //!< number of total in-memory cache blocks, cached
-      bool      m_prefetch;           //!< prefetch enable state        
       size_t    m_prefetch_max_blocks;//!< maximum number of blocks to prefetch per file
 
       long long m_hdfsbsize;          //!< used with m_hdfsmode, default 128MB
