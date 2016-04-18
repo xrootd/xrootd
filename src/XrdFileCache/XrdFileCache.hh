@@ -52,7 +52,7 @@ namespace XrdFileCache
          m_diskUsageLWM(-1),
          m_diskUsageHWM(-1),
          m_bufferSize(1024*1024),
-    	 m_RamAbsAvailable(8*1024*1024),
+    	 m_RamAbsAvailable(0),
     	 m_NRamBuffers(-1),
          m_prefetch_max_blocks(10),
          m_hdfsbsize(128*1024*1024) {}
