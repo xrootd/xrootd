@@ -152,17 +152,23 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    }
 
    // get number of available RAM blocks after process configuration
+   if (m_configuration.m_RamAbsAvailable == 0 )
+   {
+         m_log.Emsg("Error", "RAM usage not specified. Please set pfc.ram value in configuration file.");
+         return false;
+   }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
+
    if (retval)
    {
       int loff = 0;
       char buff[2048];
       loff = snprintf(buff, sizeof(buff), "result\n"
                "\tpfc.blocksize %lld\n"
-               "\tpfc.prefetch %d\n"
+               "\tpfc.prefetch %ld\n"
                "\tpfc.nramblocks %d\n\n",
                m_configuration.m_bufferSize,
-               m_configuration.m_prefetch, // AMT not sure what parsing should be
+               m_configuration.m_prefetch_max_blocks, // AMT not sure what parsing should be
                m_configuration.m_NRamBuffers );
 
       if (m_configuration.m_hdfsmode)
@@ -196,7 +202,6 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
 
 bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
 {   
-   printf("part %s \n", part.c_str());
    XrdSysError err(0, "");
    if ( part == "user" )
    {
@@ -251,7 +256,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
          return false;
       }
    }
-   else if (part == "prefetch_max_blocks" )
+   else if (part == "prefetch" )
    {
        const char* params =  config.GetWord();
        if (params) {
