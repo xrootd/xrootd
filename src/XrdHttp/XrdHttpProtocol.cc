@@ -1321,7 +1321,21 @@ int XrdHttpProtocol::InitSecurity() {
   OpenSSL_add_all_digests();
 
   const SSL_METHOD *meth;
+  
+#ifdef TLS1_2_VERSION
   meth = TLSv1_2_method();
+  eDest.Say(" Using TLS 1.2");
+#elif TLS1_1_VERSION
+  eDest.Say(" Using deprecated TLS version 1.1.")
+  meth = TLSv1_1_method();
+#elif TLS1_VERSION
+  eDest.Say(" Using deprecated TLS version 1.")
+  meth = TLSv1_method();
+#else
+  eDest.Say(" warning: TLS is not available, falling back to SSL23 (deprecated).")
+  meth = SSLv23_method();
+#endif
+  
   sslctx = SSL_CTX_new((SSL_METHOD *)meth);
   //SSL_CTX_set_min_proto_version(sslctx, TLS1_2_VERSION);
   SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_SERVER);
