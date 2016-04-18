@@ -78,6 +78,12 @@ XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
    }
    err.Emsg("Retrieve", "Success - returning a factory.");
 
+   pthread_t tid1;
+   XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)(&factory), 0, "XrdFileCache WriteTasks ");
+
+   pthread_t tid2;
+   XrdSysThread::Run(&tid2, PrefetchThread, (void*)(&factory), 0, "XrdFileCache Prefetch ");
+
 
    pthread_t tid;
    XrdSysThread::Run(&tid, CacheDirCleanupThread, NULL, 0, "XrdFileCache CacheDirCleanup");
@@ -128,11 +134,6 @@ Cache::Cache() : XrdOucCache(),
      m_prefetch_condVar(0),
      m_RAMblocks_used(0)
 {
-   pthread_t tid1;
-   XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)this, 0, "XrdFileCache WriteTasks ");
-
-   pthread_t tid2;
-   XrdSysThread::Run(&tid2, PrefetchThread, (void*)this, 0, "XrdFileCache Prefetch ");
 }
 
 //______________________________________________________________________________
@@ -315,7 +316,7 @@ Cache::RegisterPrefetchFile(File* file)
 {
     //  called from File::Open()
 
-   if (Cache::GetInstance().RefConfiguration().m_prefetch)
+   if (Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
    {
 
       XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Register new file BEGIN");
@@ -408,7 +409,7 @@ Cache::Stat(const char *curl, struct stat &sbuff)
 void 
 Cache::Prefetch()
 {
-   const static int limitRAM= Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7;
+   int limitRAM= Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7;
 
    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch thread start");
 
