@@ -159,10 +159,10 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       char buff[2048];
       loff = snprintf(buff, sizeof(buff), "result\n"
                "\tpfc.blocksize %lld\n"
-               "\tpfc.prefetch %d\n"
+               "\tpfc.prefetch %ld\n"
                "\tpfc.nramblocks %d\n\n",
                m_configuration.m_bufferSize,
-               m_configuration.m_prefetch, // AMT not sure what parsing should be
+               m_configuration.m_prefetch_max_blocks, // AMT not sure what parsing should be
                m_configuration.m_NRamBuffers );
 
       if (m_configuration.m_hdfsmode)
