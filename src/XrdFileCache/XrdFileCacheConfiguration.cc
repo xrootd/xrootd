@@ -196,7 +196,6 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
 
 bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
 {   
-   printf("part %s \n", part.c_str());
    XrdSysError err(0, "");
    if ( part == "user" )
    {
@@ -251,7 +250,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
          return false;
       }
    }
-   else if (part == "prefetch_max_blocks" )
+   else if (part == "prefetch" )
    {
        const char* params =  config.GetWord();
        if (params) {
