@@ -152,7 +152,13 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    }
 
    // get number of available RAM blocks after process configuration
+   if (m_configuration.m_RamAbsAvailable == 0 )
+   {
+         m_log.Emsg("Error", "RAM usage not specified. Please set pfc.ram value in configuration file.");
+         return false;
+   }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
+
    if (retval)
    {
       int loff = 0;
