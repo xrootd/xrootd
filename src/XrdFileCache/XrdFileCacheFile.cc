@@ -110,21 +110,6 @@ File::~File()
    clLog()->Debug(XrdCl::AppMsg, "File::~File() enter %p %s", (void*)this, lPath());
 
 
-   // Wait disk sync
-   bool do_sync = false;
-   {
-      XrdSysMutexHelper _lck(&m_syncStatusMutex);
-      if (m_non_flushed_cnt > 0 || !m_writes_during_sync.empty())
-      {
-         do_sync = true;
-         m_in_sync = true;
-         clLog()->Info(XrdCl::AppMsg, "File::~File sync unflushed %d\n", m_non_flushed_cnt);
-      }
-   }
-   if (do_sync)
-   {
-      Sync();
-   }
    // write statistics in *cinfo file
    AppendIOStatToFileInfo();
 
@@ -142,7 +127,11 @@ File::~File()
       delete m_infoFile;
       m_infoFile = NULL;
    }
-   delete m_syncer;
+
+   m_syncStatusMutex.Lock();
+   bool syncEmpty = m_writes_during_sync.empty();
+   m_syncStatusMutex.UnLock();
+   if (!syncEmpty) Sync();
 
    // print just for curiosity
    clLog()->Debug(XrdCl::AppMsg, "File::~File() ended, prefetch score ...%d/%d=%.2f",  m_prefetchHitCnt, m_prefetchReadCnt, m_prefetchScore);
@@ -192,7 +181,15 @@ bool File::InitiateClose()
       m_downloadCond.UnLock();
 
       if ( blockMapEmpty)
-         return false;
+      {
+         // file is not active when block map is empty and sync is done
+         XrdSysMutexHelper _lck(&m_syncStatusMutex);
+         if (m_in_sync) {
+            delete m_syncer; 
+            m_syncer = NULL;
+            return false;
+         }
+      }
    }
 
    return true;
@@ -724,13 +721,13 @@ void File::WriteBlockToDisk(Block* b)
       {
          m_cfi.SetBitWriteCalled(pfIdx);
          ++m_non_flushed_cnt;
-      }
+         if (m_non_flushed_cnt >= 100 )
+         {
+            schedule_sync     = true;
+            m_in_sync         = true;
+            m_non_flushed_cnt = 0;
+         }
 
-      if (m_non_flushed_cnt >= 100 )
-      {
-         schedule_sync     = true;
-         m_in_sync         = true;
-         m_non_flushed_cnt = 0;
       }
    }
 
