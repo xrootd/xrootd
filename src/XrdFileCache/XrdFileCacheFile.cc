@@ -184,7 +184,7 @@ bool File::InitiateClose()
       {
          // file is not active when block map is empty and sync is done
          XrdSysMutexHelper _lck(&m_syncStatusMutex);
-         if (m_in_sync) {
+         if (m_in_sync == false) {
             delete m_syncer; 
             m_syncer = NULL;
             return false;
