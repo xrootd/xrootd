@@ -783,6 +783,7 @@ int XrdSecProtocolsss::getCred(XrdOucErrInfo    *einfo,
             return Fatal(einfo, "getCred", EINVAL, "Invalid id string.");
          switch(idType)
                {case XrdSecsssRR_Data::theLgid: lidP = idP; break;
+                case XrdSecsssRR_Data::theHost:             break;
                 case XrdSecsssRR_Data::theRand:             break;
                 default: return Fatal(einfo,"getCred",EINVAL,"Invalid id type.");
                }
