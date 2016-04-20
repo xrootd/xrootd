@@ -1322,14 +1322,14 @@ int XrdHttpProtocol::InitSecurity() {
 
   const SSL_METHOD *meth;
   
-#ifdef TLS1_2_VERSION
+#ifdef HAVE_TLS12
   meth = TLSv1_2_method();
   eDest.Say(" Using TLS 1.2");
-#elif TLS1_1_VERSION
-  eDest.Say(" Using deprecated TLS version 1.1.")
+#elif defined (HAVE_TLS11)
+  eDest.Say(" Using deprecated TLS version 1.1.");
   meth = TLSv1_1_method();
-#elif TLS1_VERSION
-  eDest.Say(" Using deprecated TLS version 1.")
+#elif defined (HAVE_TLS1)
+  eDest.Say(" Using deprecated TLS version 1.");
   meth = TLSv1_method();
 #else
   eDest.Say(" warning: TLS is not available, falling back to SSL23 (deprecated).")
