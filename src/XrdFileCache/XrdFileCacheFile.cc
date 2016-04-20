@@ -109,9 +109,17 @@ File::~File()
 {
    clLog()->Debug(XrdCl::AppMsg, "File::~File() enter %p %s", (void*)this, lPath());
 
-
+   m_syncStatusMutex.Lock();
+   bool needs_sync = ! m_writes_during_sync.empty();
+   m_syncStatusMutex.UnLock();
+   if (needs_sync || m_non_flushed_cnt > 0)
+   {
+     Sync();
+     m_cfi.WriteHeader(m_infoFile);
+   }
    // write statistics in *cinfo file
    AppendIOStatToFileInfo();
+   m_infoFile->Fsync();
 
    clLog()->Info(XrdCl::AppMsg, "File::~File close data file %p",(void*)this , lPath());
    if (m_output)
@@ -127,11 +135,6 @@ File::~File()
       delete m_infoFile;
       m_infoFile = NULL;
    }
-
-   m_syncStatusMutex.Lock();
-   bool syncEmpty = m_writes_during_sync.empty();
-   m_syncStatusMutex.UnLock();
-   if (!syncEmpty) Sync();
 
    // print just for curiosity
    clLog()->Debug(XrdCl::AppMsg, "File::~File() ended, prefetch score ...%d/%d=%.2f",  m_prefetchHitCnt, m_prefetchReadCnt, m_prefetchScore);
