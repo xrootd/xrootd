@@ -80,13 +80,19 @@ void Info::ResizeBits(int s)
 //______________________________________________________________________________
 
 
-int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
+int Info::Read(XrdOssDF* fp)
 {
    // does not need lock, called only in File::Open
    // before File::Run() starts
 
    int off = 0;
-   off += fp->Read(&m_version, off, sizeof(int));
+   int version;
+   off += fp->Read(&version, off, sizeof(int));
+   if (version != m_version) {
+       clLog()->Dump(XrdCl::AppMsg, "Info:::Read(), incomatible file version");
+       return 0;
+   }
+
    off += fp->Read(&m_bufferSize, off, sizeof(long long));
    if (off <= 0) return off;
 
@@ -105,7 +111,7 @@ int Info::Read(XrdOssDF* fp, bool init_prefetch_buff )
    clLog()->Dump(XrdCl::AppMsg, "Info:::Read() complete %d access_cnt %d", m_complete, m_accessCnt);
 
 
-   if (init_prefetch_buff) {
+   if (m_hasPrefetchBuffer) {
       m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
       memset(m_buff_prefetch, 0, GetSizeInBytes());
    }

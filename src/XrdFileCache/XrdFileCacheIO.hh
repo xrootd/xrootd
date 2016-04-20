@@ -32,7 +32,9 @@ namespace XrdFileCache
          virtual int Write(char *Buffer, long long Offset, int Length)
          { errno = ENOTSUP; return -1; }
 
-      virtual void Update(XrdOucCacheIO2 &iocp) { m_io = &iocp; }
+         virtual void Update(XrdOucCacheIO2 &iocp) { m_io = &iocp; }
+
+         virtual void RelinquishFile(File*) {}
 
       protected:
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
