@@ -163,13 +163,16 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    {
       int loff = 0;
       char buff[2048];
-      loff = snprintf(buff, sizeof(buff), "result\n"
-               "\tpfc.blocksize %lld\n"
-               "\tpfc.prefetch %ld\n"
-               "\tpfc.nramblocks %d\n\n",
+      float rg =  (m_configuration.m_RamAbsAvailable)/float(1024*1024*1024);
+      loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
+               "       pfc.blocksize %lld\n"
+               "       pfc.prefetch %ld\n"
+               "       pfc.ram %.fg",
+               config_filename,
                m_configuration.m_bufferSize,
                m_configuration.m_prefetch_max_blocks, // AMT not sure what parsing should be
-               m_configuration.m_NRamBuffers );
+               rg);
+
 
       if (m_configuration.m_hdfsmode)
       {
@@ -188,10 +191,10 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
         loff += snprintf(&buff[loff], strlen(unameBuff), "%s", unameBuff);
       }
      
-      m_log.Emsg("Config", buff);
+      m_log.Say( buff);
    }
 
-   m_log.Emsg("Config", "Configuration =  ", retval ? "Success" : "Fail");
+   m_log.Say("------ File Caching Proxy interface initialization ", retval ? "completed" : "failed");
 
    if (ofsCfg) delete ofsCfg;
    return retval;
