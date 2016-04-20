@@ -535,7 +535,7 @@ struct CmsStatfsRequest
 {      CmsRRHdr      Hdr;    // Modifier used with following options
 //     kXR_string    Path;
 
-enum  {kYR_qvfs    = 0x0001, // Virtual file system query
+enum  {kYR_qvfs    = 0x0001  // Virtual file system query
       };
 };
 

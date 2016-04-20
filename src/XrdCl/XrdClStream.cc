@@ -488,6 +488,19 @@ namespace XrdCl
     return std::make_pair( h.msg, h.handler );
   }
 
+  void Stream::DisableIfEmpty( uint16_t subStream )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log *log = DefaultEnv::GetLog();
+
+    if( pSubStreams[subStream]->outQueue->IsEmpty() )
+    {
+      log->Dump( PostMasterMsg, "[%s] All messages consumed, disable uplink",
+                 pSubStreams[subStream]->socket->GetStreamName().c_str() );
+      pSubStreams[subStream]->socket->DisableUplink();
+    }
+  }
+
   //----------------------------------------------------------------------------
   // Call when a message is written to the socket
   //----------------------------------------------------------------------------
