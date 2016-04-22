@@ -183,7 +183,9 @@ struct XrdXrootdMonFileTOD
 XrdXrootdMonFileHdr Hdr;      //  8
 int                 tBeg;     // time(0) of following record
 int                 tEnd;     // time(0) when packet was sent
+kXR_int64           sID;      // Server id in lower 48 bits
 };
+
 
 // The following variable length structure exists in XrdXrootdMonFileOPN if
 // "lfn" has been specified. It exists only when recFlag & hasLFN is TRUE.
