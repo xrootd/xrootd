@@ -345,7 +345,7 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
 //
    repTOD   = (XrdXrootdMonFileTOD *)(repBuff + sizeof(XrdXrootdMonHeader));
    repTOD->Hdr.recType = XrdXrootdMonFileHdr::isTime;
-   repTOD->Hdr.recFlag = 0;
+   repTOD->Hdr.recFlag = XrdXrootdMonFileHdr::hasSID;
    repTOD->Hdr.recSize = htons(sizeof(XrdXrootdMonFileTOD));
    repTOD->sID = static_cast<kXR_int64>(XrdXrootdMonInfo::mySID);
 
