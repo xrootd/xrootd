@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * [Server] Fixes #345 - add sid to TOD structure (ABI compliant).
   * [Server] Implement resource selection affinity (primarily for ssi).
 
 + **Major bug fixes**
