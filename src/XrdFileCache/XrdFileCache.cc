@@ -351,7 +351,7 @@ File*
 Cache::GetNextFileToPrefetch()
 {
    m_prefetch_condVar.Lock();
-   if (m_prefetchList.empty()) {
+   while (m_prefetchList.empty()) {
       m_prefetch_condVar.Wait();
    }
 
