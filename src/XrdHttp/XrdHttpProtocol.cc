@@ -1332,7 +1332,7 @@ int XrdHttpProtocol::InitSecurity() {
   eDest.Say(" Using deprecated TLS version 1.");
   meth = TLSv1_method();
 #else
-  eDest.Say(" warning: TLS is not available, falling back to SSL23 (deprecated).")
+  eDest.Say(" warning: TLS is not available, falling back to SSL23 (deprecated).");
   meth = SSLv23_method();
 #endif
   
