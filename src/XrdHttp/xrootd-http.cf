@@ -29,7 +29,7 @@ http.cadir /etc/grid-security/certificates
 # Usual basic xrd stuff
 #
 all.role server
-all.manager pcitsdcfab.cern.ch:1213
+all.manager <your_manager_host>:1213
 all.export /
 oss.localroot /tmp/xrdroot
 
