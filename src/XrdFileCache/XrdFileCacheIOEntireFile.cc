@@ -86,27 +86,25 @@ void IOEntireFile::RelinquishFile(File* f)
 struct stat* IOEntireFile::getValidLocalStat(const char* path)
 {
    if (!m_localStat) {
-      m_localStat = new struct stat;
-      memset(m_localStat, 0, sizeof(struct stat));
-      if (m_cache.GetOss()->Stat(path, m_localStat) == XrdOssOK) {
-         m_localStat->st_size = 0;
+      struct stat tmpStat;
+      if (m_cache.GetOss()->Stat(path, &tmpStat) == XrdOssOK) {
          XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str()); 
          XrdOucEnv myEnv; 
          int res = infoFile->Open(path, O_RDONLY, 0600, myEnv);
          if (res >= 0) {
-             Info info(0);
-             if (info.Read(infoFile) > 0) {
-                 m_localStat->st_size = info.GetFileSize();
-             }
+            Info info(0);
+            if (info.Read(infoFile) > 0) {
+               tmpStat.st_size = info.GetFileSize();
+               m_localStat = new struct stat;
+               memcpy(m_localStat, &tmpStat, sizeof(struct stat));
+            }
          }
          infoFile->Close();
          delete infoFile;
       }
    }
-   if (m_localStat->st_size)
-      return m_localStat;
-   else return 0;
-   
+
+   return m_localStat;   
 }
 
 bool IOEntireFile::ioActive()
