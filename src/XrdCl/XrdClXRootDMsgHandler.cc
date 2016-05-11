@@ -445,19 +445,55 @@ namespace XrdCl
         if( pUrl.GetPassword() != "" && newUrl.GetPassword() == "" )
           newUrl.SetPassword( pUrl.GetPassword() );
 
-        pUrl         = newUrl;
-        pRedirectUrl = newUrl.GetURL();
+	//----------------------------------------------------------------------
+	// Forward any "xrd.*" params from the original client request also to
+	// the new redirection url
+	//----------------------------------------------------------------------
+	std::ostringstream ossXrd;
+	const URL::ParamsMap &urlParams = pUrl.GetParams();
 
-        URL cgiURL;
-        if( urlComponents.size() > 1 )
-        {
-          std::ostringstream o;
-          o << "fake://fake:111//fake?";
-          o << urlComponents[1];
-          pRedirectUrl += "?";
-          pRedirectUrl += urlComponents[1];
-          cgiURL = URL( o.str() );
-        }
+	for(URL::ParamsMap::const_iterator it = urlParams.begin();
+	    it != urlParams.end(); ++it )
+	{
+	  if( it->first.compare( 0, 4, "xrd." ) )
+	    continue;
+
+	  ossXrd << it->first << '=' << it->second << '&';
+	}
+
+	std::string xrdCgi = ossXrd.str();
+	pUrl         = newUrl;
+	pRedirectUrl = newUrl.GetURL();
+
+	URL cgiURL;
+	if( urlComponents.size() > 1 )
+	{
+	  pRedirectUrl += "?";
+	  pRedirectUrl += urlComponents[1];
+	  std::ostringstream o;
+	  o << "fake://fake:111//fake?";
+	  o << urlComponents[1];
+
+	  if (!xrdCgi.empty())
+	  {
+	    o << '&' << xrdCgi;
+	    pRedirectUrl += '&';
+            pRedirectUrl += xrdCgi;
+	  }
+
+	  cgiURL = URL( o.str() );
+	}
+	else {
+	  if (!xrdCgi.empty())
+	  {
+	    std::ostringstream o;
+	    o << "fake://fake:111//fake?";
+	    o << xrdCgi;
+	    cgiURL = URL( o.str() );
+	    pRedirectUrl += '?';
+	    pRedirectUrl += xrdCgi;
+	  }
+	}
 
         //----------------------------------------------------------------------
         // Check if we need to return the URL as a response
@@ -1529,14 +1565,50 @@ namespace XrdCl
     pSidMgr->ReleaseSID( req->header.streamid );
     pSidMgr = 0;
     AnyObject sidMgrObj;
-    st = pPostMaster->QueryTransport( pUrl, XRootDQuery::SIDManager,
-                                      sidMgrObj );
+    // Append any "xrd.*" parameters present in newCgi so that any authentication
+    // requirements are properly enforced
+    std::string xrdCgi = "";
+    std::ostringstream ossXrd;
+    for(URL::ParamsMap::const_iterator it = newCgi.begin();
+	it != newCgi.end(); ++it )
+    {
+      if( it->first.compare( 0, 4, "xrd." ) )
+	continue;
+
+      ossXrd << it->first << '=' << it->second << '&';
+    }
+
+    xrdCgi = ossXrd.str();
+    // Redirection URL containing also any original xrd.* opaque parameters
+    XrdCl::URL authUrl;
+
+    if (xrdCgi.empty())
+    {
+      authUrl = pUrl;
+    }
+    else
+    {
+      std::string surl = pUrl.GetURL();
+      (surl.find('?') == std::string::npos) ? (surl += '?') :
+	((*surl.rbegin() != '&') ? (surl += '&') : (surl += ""));
+      surl += xrdCgi;
+
+      if (!authUrl.FromString(surl))
+      {
+	log->Error( XRootDMsg, "[%s] Failed to build redirection url from data:"
+		    "%s", surl.c_str());
+	return Status(stError, errInvalidRedirectURL);
+      }
+    }
+
+    st = pPostMaster->QueryTransport( authUrl, XRootDQuery::SIDManager,
+				      sidMgrObj );
 
     if( !st.IsOK() )
     {
       log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
-                  pUrl.GetHostId().c_str(),
-                  pRequest->GetDescription().c_str() );
+		  pUrl.GetHostId().c_str(),
+		  pRequest->GetDescription().c_str() );
       return st;
     }
 
@@ -1545,8 +1617,8 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
-                  pUrl.GetHostId().c_str(),
-                  pRequest->GetDescription().c_str() );
+		  pUrl.GetHostId().c_str(),
+		  pRequest->GetDescription().c_str() );
       return st;
     }
 
