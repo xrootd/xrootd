@@ -394,14 +394,43 @@ Cache::Prepare(const char *url, int oflags, mode_t mode)
 }
 
 //______________________________________________________________________________
+// virtual method of XrdOucCache2::Stat()
+//!
+//! @return <0 - Stat failed, value is -errno.
+//!         =0 - Stat succeeded, sbuff holds stat information.
+//!         >0 - Stat could not be done, forward operation to next level.
+//------------------------------------------------------------------------------
 
-int 
-Cache::Stat(const char *curl, struct stat &sbuff)
+int Cache::Stat(const char *curl, struct stat &sbuff)
 {
-   assert(0 && "Cache::Stat() should not be called.");
-   return 0;
-}
+   XrdCl::URL url(curl);
+   std::string name = url.GetPath();
 
+   if (m_output_fs->Stat(name.c_str(), &sbuff) == XrdOssOK) {
+      if ( S_ISDIR(sbuff.st_mode)) {
+         return 0;
+      }
+      else {
+         bool success = false;
+         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str()); 
+         XrdOucEnv myEnv; 
+         name += ".cinfo";
+         int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
+         if (res >= 0) {
+            Info info(0);
+            if (info.Read(infoFile) > 0) {
+               sbuff.st_size = info.GetFileSize();
+               success = true;
+            }
+         }
+         infoFile->Close();
+         delete infoFile;
+         return success ? 0 : 1;
+      }
+   }
+
+   return 1;
+}
 
 //______________________________________________________________________________
 
