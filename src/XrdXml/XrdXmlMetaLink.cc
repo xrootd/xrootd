@@ -547,7 +547,7 @@ bool XrdXmlMetaLink::UrlOK(char *url)
    n = colon - url + 1;
    if (n >= (int)sizeof(pBuff)) return false;
    strncpy(pBuff, url, n);
-   pBuff[n+1] = 0;
+   pBuff[n] = 0;
 
 // Return whether or not this os one of the acceptable protocols
 //
