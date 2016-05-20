@@ -88,7 +88,6 @@ int                XrdXrootdMonitor::rdrTOD     = 0;
 int                XrdXrootdMonitor::rdrWin     = 0;
 int                XrdXrootdMonitor::rdrNum     = 3;
 kXR_int32          XrdXrootdMonitor::sizeWindow = 60;
-long long          XrdXrootdMonitor::mySID      = 0;
 char               XrdXrootdMonitor::sidName[16]= {0};
 short              XrdXrootdMonitor::sidSize    = 0;
 char               XrdXrootdMonitor::monINFO    = 0;
@@ -106,6 +105,13 @@ char               XrdXrootdMonitor::monCLOCK   = 0;
 /******************************************************************************/
   
 extern          XrdOucTrace       *XrdXrootdTrace;
+
+namespace XrdXrootdMonInfo
+{
+long long mySID = 0;
+}
+
+using namespace XrdXrootdMonInfo;
 
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */

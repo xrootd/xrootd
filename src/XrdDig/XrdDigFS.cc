@@ -239,21 +239,30 @@ const char *XrdDigDirectory::nextEntry()
 
 // Read the next directory entry
 //
+#ifdef __linux__
 do{errno = 0;
-   if ((retc = readdir_r(dh, d_pnt, &rp)))
-      {if (retc && errno != 0)
-          XrdDigFS::Emsg(epname,error,retc,"read directory",fname);
+   rp = readdir(dh);
+   if (!rp)
+      {if (!(retc = errno)) {ateof = 1; error.clear();}
+          else XrdDigFS::Emsg(epname,error,retc,"read directory",fname);
+       d_pnt->d_name[0] = '\0';
+       return (const char *)0;
+      }
+#else
+do{if ((retc = readdir_r(dh, d_pnt, &rp)))
+      {XrdDigFS::Emsg(epname,error,retc,"read directory",fname);
        d_pnt->d_name[0] = '\0';
        return (const char *)0;
       }
 
 // Check if we have reached end of file
 //
-   if (retc || !rp || !d_pnt->d_name[0])
+   if (!rp || !d_pnt->d_name[0])
       {ateof = true;
        error.clear();
        return (const char *)0;
       }
+#endif
 
 // If autostat wanted, do so here
 //
@@ -261,11 +270,11 @@ do{errno = 0;
       {
 #ifdef HAVE_FSTATAT
        int sFlags = (isProc ?  AT_SYMLINK_NOFOLLOW : 0);
-       if (fstatat(dirFD, d_pnt->d_name, sBuff, sFlags)) continue;
+       if (fstatat(dirFD, rp->d_name, sBuff, sFlags)) continue;
        sBuff->st_mode = (sBuff->st_mode & wMask) | S_IRUSR;
 #else
        char dPath[2048];
-       snprintf(dPath, sizeof(dPath), "%s%s", fname, d_pnt->d_name);
+       snprintf(dPath, sizeof(dPath), "%s%s", fname, rp->d_name);
        if (stat(dPath, sBuff)) continue;
        sBuff->st_mode = (sBuff->st_mode & wMask) | S_IRUSR;
 #endif
@@ -279,12 +288,12 @@ do{errno = 0;
       {struct stat Stat, *sP = (sBuff ? sBuff : &Stat);
        char *dP;
        int n, rc;
-       rc = (sBuff ? 0:fstatat(dirFD,d_pnt->d_name,&Stat,AT_SYMLINK_NOFOLLOW));
+       rc = (sBuff ? 0:fstatat(dirFD,rp->d_name,&Stat,AT_SYMLINK_NOFOLLOW));
        if (!rc && !noTag && S_ISLNK(sP->st_mode))
-          {n = strlen(d_pnt->d_name);
-           dP = d_pnt->d_name + n + 4;
+          {n = strlen(rp->d_name);
+           dP = rp->d_name + n + 4;
            n = sizeof(dirent_full.nbf) - (n + 8);
-           if ((n = readlinkat(dirFD,d_pnt->d_name,dP,n)) < 0) strcpy(dP,"?");
+           if ((n = readlinkat(dirFD,rp->d_name,dP,n)) < 0) strcpy(dP,"?");
               else *(dP+n) = 0;
            strncpy(dP-4, " -> ", 4);
           }
@@ -293,7 +302,7 @@ do{errno = 0;
 
 // Return the actual entry
 //
-   return (const char *)(d_pnt->d_name);
+   return (const char *)(rp->d_name);
   } while(1);
    return 0; // Keep compiler happy
 }

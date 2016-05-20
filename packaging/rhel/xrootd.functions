@@ -139,10 +139,15 @@ function stopDaemon()
 {
   echo -n "Shutting down xrootd ($1, $5): "
   PIDFILE="/var/run/xrootd/$1-$5.pid"
-  killproc -p $PIDFILE $1
-  RETVAL=$?
+  if [ -e $PIDFILE ]; then
+    killproc -p $PIDFILE $1
+    RETVAL=$?
+    echo
+    return $RETVAL
+  fi
+  echo -n "$1-$5 not running"
   echo
-  return $RETVAL
+  return 0
 }
 
 #-------------------------------------------------------------------------------
