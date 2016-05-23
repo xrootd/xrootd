@@ -178,7 +178,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
                inc_ref_count(bi->second);
             clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d in map", block_idx);
          }
-         else if (m_cfi.TestBit(block_idx))
+         else if (m_cfi.TestBit(offsetIdx(block_idx)))
          {
             blocks_on_disk.AddEntry(block_idx, iov_idx);
             clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d , chunk idx = %d on disk", block_idx,iov_idx );
@@ -229,7 +229,7 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
          clLog()->Debug(XrdCl::AppMsg, "VReadFromDisk block=%d chunk=%d", blockIdx, chunkIdx);
          overlap(blockIdx, m_cfi.GetBufferSize(), readV[chunkIdx].offset, readV[chunkIdx].size, off, blk_off, size);
 
-         int rs = m_output->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off, size);
+         int rs = m_output->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off - m_offset, size);
          if (rs >=0 ) {
             bytes_read += rs;
          }
