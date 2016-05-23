@@ -58,6 +58,10 @@ XrdOucCacheIO* IOFileBlock::Detach()
    return io;
 }
 
+int IOFileBlock::Fstat(struct stat &sbuff)
+{
+ return m_io->Fstat(sbuff);
+}
 //______________________________________________________________________________
 void IOFileBlock::GetBlockSizeFromPath()
 {
