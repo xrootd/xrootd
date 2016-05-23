@@ -403,32 +403,34 @@ Cache::Prepare(const char *url, int oflags, mode_t mode)
 
 int Cache::Stat(const char *curl, struct stat &sbuff)
 {
-   XrdCl::URL url(curl);
-   std::string name = url.GetPath();
+   if (m_configuration.m_hdfsmode == false)
+   {
+      XrdCl::URL url(curl);
+      std::string name = url.GetPath();
 
-   if (m_output_fs->Stat(name.c_str(), &sbuff) == XrdOssOK) {
-      if ( S_ISDIR(sbuff.st_mode)) {
-         return 0;
-      }
-      else {
-         bool success = false;
-         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str()); 
-         XrdOucEnv myEnv; 
-         name += ".cinfo";
-         int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
-         if (res >= 0) {
-            Info info(0);
-            if (info.Read(infoFile) > 0) {
-               sbuff.st_size = info.GetFileSize();
-               success = true;
-            }
+      if (m_output_fs->Stat(name.c_str(), &sbuff) == XrdOssOK) {
+         if ( S_ISDIR(sbuff.st_mode)) {
+            return 0;
          }
-         infoFile->Close();
-         delete infoFile;
-         return success ? 0 : 1;
+         else {
+            bool success = false;
+            XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str()); 
+            XrdOucEnv myEnv; 
+            name += ".cinfo";
+            int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
+            if (res >= 0) {
+               Info info(0);
+               if (info.Read(infoFile) > 0) {
+                  sbuff.st_size = info.GetFileSize();
+                  success = true;
+               }
+            }
+            infoFile->Close();
+            delete infoFile;
+            return success ? 0 : 1;
+         }
       }
    }
-
    return 1;
 }
 
