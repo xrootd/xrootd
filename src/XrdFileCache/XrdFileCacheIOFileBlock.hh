@@ -64,6 +64,8 @@ namespace XrdFileCache
          //! Called to check if destruction needs to be done in a separate task.
          virtual bool ioActive();
 
+         virtual void RelinquishFile(File*);
+
       private:
          long long                  m_blocksize; //!< size of file-block
          std::map<int, File*>       m_blocks;    //!< map of created blocks

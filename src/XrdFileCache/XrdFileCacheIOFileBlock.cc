@@ -50,7 +50,6 @@ XrdOucCacheIO* IOFileBlock::Detach()
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
       m_statsGlobal.Add(it->second->GetStats());
-      delete it->second;
    }
 
    m_cache.Detach(this);  // This will delete us!
@@ -97,21 +96,49 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    fname = ss.str();
 
    clLog()->Debug(XrdCl::AppMsg, "FileBlock::FileBlock(), create XrdFileCacheFile. %s", m_io->Path());
-   File* prefetch = new File(m_io, fname, off, blocksize);
+   
+   File* file;
+   if (!(file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
+   {
+      file = new File(m_io, fname, off, m_io->FSize());
+      Cache::GetInstance().AddActive(this, file);
+   }
+      
+   return file;
+}
 
-   return prefetch;
+//______________________________________________________________________________
+void IOFileBlock::RelinquishFile(File* f)
+{
+   // called from Cache::Detach() or Cache::GetFileWithLocalPath()
+   // the object is in process of dying
+   
+   XrdSysMutexHelper lock(&m_mutex);
+   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+   {
+      if (it->second == f)
+      {
+         m_blocks.erase(it++);
+         break;
+      }
+      else
+      {
+         ++it;
+      }
+   }
 }
 
 //______________________________________________________________________________
 bool IOFileBlock::ioActive()
 {
-   bool res = false;
+   XrdSysMutexHelper lock(&m_mutex);
+
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it) {
       if (it->second->InitiateClose())
-         res = true;
+         return true;
    }
   
-   return res;
+   return false;
 }
 
 //______________________________________________________________________________

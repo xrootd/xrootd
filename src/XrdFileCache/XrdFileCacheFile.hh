@@ -140,6 +140,7 @@ namespace XrdFileCache
       float           m_prefetchScore; //cached
       int             m_prefetchCurrentCnt;
 
+
    public:
       //------------------------------------------------------------------------
       //! Constructor.
@@ -189,6 +190,7 @@ namespace XrdFileCache
       //! Log path
       const char* lPath() const;
 
+      std::string     GetLocalPath();
    private:
       bool overlap(int       blk,      // block to query
                    long long blk_size, //
@@ -227,7 +229,8 @@ namespace XrdFileCache
       void inc_ref_count(Block*);
       void dec_ref_count(Block*);
       void free_block(Block*);
-   
+    
+      int  offsetIdx(int idx);
    };
 
 

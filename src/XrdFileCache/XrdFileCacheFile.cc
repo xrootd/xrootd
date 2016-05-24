@@ -396,9 +396,8 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
-      long long rs = m_output->Read(req_buf + off, *ii * BS + blk_off, size);
+      long long rs = m_output->Read(req_buf + off, *ii * BS + blk_off -m_offset, size);
       clLog()->Dump(XrdCl::AppMsg, "File::ReadBlocksFromDisk block %d size %d %s", *ii, size, lPath());
-    
 
       if (rs < 0) {
          clLog()->Error(XrdCl::AppMsg, "File::ReadBlocksFromDisk neg retval %ld (%ld@%d) %s", rs, *ii * BS + blk_off, lPath());
@@ -464,7 +463,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          m_stats.m_BytesRam++; // AMT what if block fails
       }
       // On disk?
-      else if (m_cfi.TestBit(block_idx))
+      else if (m_cfi.TestBit(offsetIdx(block_idx)))
       {
          clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p read from disk %d %s", (void*)iUserBuff, block_idx, lPath());
          blks_on_disk.push_back(block_idx);
@@ -671,7 +670,7 @@ void File::WriteBlockToDisk(Block* b)
    int retval = 0;
    // write block buffer into disk file
    long long offset = b->m_offset - m_offset;
-   long long size = (b->m_offset +  m_cfi.GetBufferSize()) > m_fileSize ? (m_fileSize - b->m_offset) : m_cfi.GetBufferSize();
+   long long size = (offset +  m_cfi.GetBufferSize()) > m_fileSize ? (m_fileSize - offset) : m_cfi.GetBufferSize();
    int buffer_remaining = size;
    int buffer_offset = 0;
    int cnt = 0;
@@ -752,7 +751,7 @@ void File::Sync()
       XrdSysMutexHelper _lck(&m_syncStatusMutex);
       for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
       {
-         m_cfi.SetBitWriteCalled(*i);
+         m_cfi.SetBitWriteCalled(offsetIdx(*i));
       }
       written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
       m_writes_during_sync.clear();
@@ -862,6 +861,12 @@ return m_temp_filename.c_str();
 }
 
 //______________________________________________________________________________
+int File::offsetIdx(int iIdx)
+{
+   return iIdx - m_offset/m_cfi.GetBufferSize();
+}
+
+//______________________________________________________________________________
 void File::AppendIOStatToFileInfo()
 {
    // lock in case several IOs want to write in *cinfo file
@@ -896,6 +901,7 @@ void File::Prefetch()
          // clLog()->Dump(XrdCl::AppMsg, "File::Prefetch test bit %d", f);
          if (!m_cfi.TestBit(f))
          {    
+            f += m_offset/m_cfi.GetBufferSize();
             BlockMap_i bi = m_block_map.find(f);
             if (bi == m_block_map.end()) {
                clLog()->Dump(XrdCl::AppMsg, "File::Prefetch take block %d %s", f, lPath());
@@ -939,7 +945,7 @@ void File::CheckPrefetchStatRAM(Block* b)
 void File::CheckPrefetchStatDisk(int idx)
 {
    if (Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks) {
-      if (m_cfi.TestPrefetchBit(idx))
+      if (m_cfi.TestPrefetchBit(offsetIdx(idx)))
          m_prefetchHitCnt++;
    }
 }

@@ -169,19 +169,24 @@ int Cache::isAttached()
 void Cache::Detach(XrdOucCacheIO* io)
 {
    clLog()->Info(XrdCl::AppMsg, "Cache::Detach() %s", io->Path());
-   std::map<std::string, DiskNetIO>::iterator it = m_active.begin();
-   while (it != m_active.end() )
+
+   // Cache owns File objects
+   XrdSysMutexHelper lock(&m_active_mutex);
+   std::vector<DiskNetIO>::iterator it = m_active.begin();
+   while ( it != m_active.end() )
    {
-      if (it->second.io == io) {
-         m_active.erase(it++);
+      if (it->io == io) {
+         it->io->RelinquishFile(it->file);
+         delete it->file;
+         m_active.erase(it);
       }
-      else {
+      else
          ++it;
-      }
    }
 
    delete io;
 }
+
 //______________________________________________________________________________
 bool
 Cache::HaveFreeWritingSlots()
@@ -276,25 +281,30 @@ Cache::RAMBlockReleased()
    m_RAMblocks_used--;
 }
 
+void
+Cache::AddActive(IO* io, File* file)
+{
+   XrdSysMutexHelper lock(&m_active_mutex);
+   m_active.push_back(DiskNetIO(io, file));
+}
+
 //==============================================================================
 //======================= File relinquish at process of dying  ===================
 //======================================================================
-File* Cache::GetFileForLocalPath(std::string path, IO* io)
+File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
 {
-   typedef std::map<std::string, DiskNetIO> ActiveMap_t;
-   ActiveMap_t::iterator it = m_active.find(path);
-   if (it == m_active.end())
+   XrdSysMutexHelper lock(&m_active_mutex);
+   for ( std::vector<DiskNetIO>::iterator it = m_active.begin(); it != m_active.end(); ++it)
    {
-      return 0;
+      if (!strcmp(path.c_str(), it->file->lPath()))
+      {
+         it->io->RelinquishFile(it->file);
+         it->io = iIo;
+         return  it->file;
+      }
    }
-   else {
-      File* file = it->second.file;
-      it->second.io->RelinquishFile(file);
-      return file;
-   }
+   return 0;
 }
-
-
 
 //==============================================================================
 //=======================  PREFETCH ===================================
@@ -403,32 +413,34 @@ Cache::Prepare(const char *url, int oflags, mode_t mode)
 
 int Cache::Stat(const char *curl, struct stat &sbuff)
 {
-   XrdCl::URL url(curl);
-   std::string name = url.GetPath();
+   if (m_configuration.m_hdfsmode == false)
+   {
+      XrdCl::URL url(curl);
+      std::string name = url.GetPath();
 
-   if (m_output_fs->Stat(name.c_str(), &sbuff) == XrdOssOK) {
-      if ( S_ISDIR(sbuff.st_mode)) {
-         return 0;
-      }
-      else {
-         bool success = false;
-         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str()); 
-         XrdOucEnv myEnv; 
-         name += ".cinfo";
-         int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
-         if (res >= 0) {
-            Info info(0);
-            if (info.Read(infoFile) > 0) {
-               sbuff.st_size = info.GetFileSize();
-               success = true;
-            }
+      if (m_output_fs->Stat(name.c_str(), &sbuff) == XrdOssOK) {
+         if ( S_ISDIR(sbuff.st_mode)) {
+            return 0;
          }
-         infoFile->Close();
-         delete infoFile;
-         return success ? 0 : 1;
+         else {
+            bool success = false;
+            XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str()); 
+            XrdOucEnv myEnv; 
+            name += ".cinfo";
+            int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
+            if (res >= 0) {
+               Info info(0);
+               if (info.Read(infoFile) > 0) {
+                  sbuff.st_size = info.GetFileSize();
+                  success = true;
+               }
+            }
+            infoFile->Close();
+            delete infoFile;
+            return success ? 0 : 1;
+         }
       }
    }
-
    return 1;
 }
 
