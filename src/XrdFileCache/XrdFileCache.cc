@@ -169,19 +169,24 @@ int Cache::isAttached()
 void Cache::Detach(XrdOucCacheIO* io)
 {
    clLog()->Info(XrdCl::AppMsg, "Cache::Detach() %s", io->Path());
-   std::map<std::string, DiskNetIO>::iterator it = m_active.begin();
-   while (it != m_active.end() )
+
+   // Cache owns File objects
+   XrdSysMutexHelper lock(&m_active_mutex);
+   std::vector<DiskNetIO>::iterator it = m_active.begin();
+   while ( it != m_active.end() )
    {
-      if (it->second.io == io) {
-         m_active.erase(it++);
+      if (it->io == io) {
+         it->io->RelinquishFile(it->file);
+         delete it->file;
+         m_active.erase(it);
       }
-      else {
+      else
          ++it;
-      }
    }
 
    delete io;
 }
+
 //______________________________________________________________________________
 bool
 Cache::HaveFreeWritingSlots()
@@ -276,25 +281,30 @@ Cache::RAMBlockReleased()
    m_RAMblocks_used--;
 }
 
+void
+Cache::AddActive(IO* io, File* file)
+{
+   XrdSysMutexHelper lock(&m_active_mutex);
+   m_active.push_back(DiskNetIO(io, file));
+}
+
 //==============================================================================
 //======================= File relinquish at process of dying  ===================
 //======================================================================
-File* Cache::GetFileForLocalPath(std::string path, IO* io)
+File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
 {
-   typedef std::map<std::string, DiskNetIO> ActiveMap_t;
-   ActiveMap_t::iterator it = m_active.find(path);
-   if (it == m_active.end())
+   XrdSysMutexHelper lock(&m_active_mutex);
+   for ( std::vector<DiskNetIO>::iterator it = m_active.begin(); it != m_active.end(); ++it)
    {
-      return 0;
+      if (!strcmp(path.c_str(), it->file->lPath()))
+      {
+         it->io->RelinquishFile(it->file);
+         it->io = iIo;
+         return  it->file;
+      }
    }
-   else {
-      File* file = it->second.file;
-      it->second.io->RelinquishFile(file);
-      return file;
-   }
+   return 0;
 }
-
-
 
 //==============================================================================
 //=======================  PREFETCH ===================================

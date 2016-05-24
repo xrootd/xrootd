@@ -186,7 +186,9 @@ namespace XrdFileCache
 
          XrdSysError& GetSysError() { return m_log; }
           
-         File* GetFileForLocalPath(std::string, IO*);
+         File* GetFileWithLocalPath(std::string, IO* io);
+    
+         void AddActive(IO*, File*);
         
       private:
          bool ConfigParameters(std::string, XrdOucStream&);
@@ -224,11 +226,13 @@ namespace XrdFileCache
 
          struct DiskNetIO
          {
+            DiskNetIO(IO* iIO, File* iFile): io(iIO), file(iFile){}
             IO* io;
             File* file;
          };
 
-        std::map<std::string, DiskNetIO>  m_active;
+        std::vector<DiskNetIO>  m_active;
+        XrdSysMutex             m_active_mutex;
 
        // prefetching
        typedef std::vector<File*>  PrefetchList;
