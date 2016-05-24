@@ -34,7 +34,7 @@ namespace XrdFileCache
 
          virtual void Update(XrdOucCacheIO2 &iocp) { m_io = &iocp; }
 
-         virtual void RelinquishFile(File*) {}
+         virtual void RelinquishFile(File*) = 0;
 
       protected:
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
