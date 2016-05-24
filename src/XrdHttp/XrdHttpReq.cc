@@ -644,7 +644,7 @@ void XrdHttpReq::parseResource(char *res) {
     resource.assign(res, 0);
     
     // Sanitize the resource string, removing double slashes
-    int pos;
+    int pos = 0;
     do { 
       pos = resource.find("//", pos);
       if (pos != STR_NPOS)
