@@ -481,7 +481,7 @@ void XrdSysLogger::putEmsg(char *msg, int msz)
     unsigned long tID = XrdSysThread::Num();
     char tbuff[32];
     struct timeval tVal;
-    struct iovec eVec[2] = {{tbuff, 0}, {msg, msz}};
+    struct iovec eVec[2] = {{tbuff, 0}, {msg, (size_t)msz}};
     int retc;
 
 // Get current time
