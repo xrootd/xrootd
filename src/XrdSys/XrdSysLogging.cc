@@ -32,6 +32,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysLogging.hh"
