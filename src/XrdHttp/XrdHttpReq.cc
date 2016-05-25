@@ -638,10 +638,19 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
 void XrdHttpReq::parseResource(char *res) {
   // Look for the first '?'
   char *p = strchr(res, '?');
-
+  
   // Not found, then it's just a filename
   if (!p) {
     resource.assign(res, 0);
+    
+    // Sanitize the resource string, removing double slashes
+    int pos = 0;
+    do { 
+      pos = resource.find("//", pos);
+      if (pos != STR_NPOS)
+        resource.erase(pos, 1);
+    } while (pos != STR_NPOS);
+    
     return;
   }
 
@@ -653,7 +662,15 @@ void XrdHttpReq::parseResource(char *res) {
   // Whatever comes after is opaque data to be parsed
   if (strlen(p) > 1)
     opaque = new XrdOucEnv(p + 1);
-
+    
+  // Sanitize the resource string, removing double slashes
+  int pos = 0;
+  do { 
+    pos = resource.find("//", pos);
+    if (pos != STR_NPOS)
+      resource.erase(pos, 1);
+  } while (pos != STR_NPOS);
+  
 }
 
 int XrdHttpReq::ProcessHTTPReq() {

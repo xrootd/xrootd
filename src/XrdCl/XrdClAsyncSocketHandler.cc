@@ -423,6 +423,11 @@ namespace XrdCl
 
     pStream->OnMessageSent( pSubStreamNum, pOutgoing, pOutMsgSize );
     pOutgoing = 0;
+
+    //--------------------------------------------------------------------------
+    // Disable the respective substream if empty
+    //--------------------------------------------------------------------------
+    pStream->DisableIfEmpty( pSubStreamNum );
   }
 
   //----------------------------------------------------------------------------

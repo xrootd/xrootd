@@ -256,7 +256,6 @@ static int                isEnabled;
 static int                numMonitor;
 static int                monIdent;
 static int                monRlen;
-static long long          mySID;
 static char               sidName[16];
 static short              sidSize;
 static char               monIO;

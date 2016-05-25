@@ -42,6 +42,7 @@
 
 
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 #include <vector>
 #include <arpa/inet.h>
 
@@ -1320,9 +1321,23 @@ int XrdHttpProtocol::InitSecurity() {
   OpenSSL_add_all_digests();
 
   const SSL_METHOD *meth;
+  
+#ifdef HAVE_TLS12
+  meth = TLSv1_2_method();
+  eDest.Say(" Using TLS 1.2");
+#elif defined (HAVE_TLS11)
+  eDest.Say(" Using deprecated TLS version 1.1.");
+  meth = TLSv1_1_method();
+#elif defined (HAVE_TLS1)
+  eDest.Say(" Using deprecated TLS version 1.");
+  meth = TLSv1_method();
+#else
+  eDest.Say(" warning: TLS is not available, falling back to SSL23 (deprecated).");
   meth = SSLv23_method();
+#endif
+  
   sslctx = SSL_CTX_new((SSL_METHOD *)meth);
-  SSL_CTX_set_options(sslctx, SSL_OP_NO_SSLv2);
+  //SSL_CTX_set_min_proto_version(sslctx, TLS1_2_VERSION);
   SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_SERVER);
   SSL_CTX_set_session_id_context(sslctx, s_server_session_id_context,
           s_server_session_id_context_len);

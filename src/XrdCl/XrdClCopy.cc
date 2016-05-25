@@ -547,6 +547,7 @@ int main( int argc, char **argv )
   bool         coerce    = false;
   bool         makedir   = false;
   bool         dynSrc    = false;
+  bool         metalink  = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -557,6 +558,7 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoPath    ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc     = true;
+  if( config.Want( XrdCpConfig::DoMetalink ) ) metalink   = true;
 
   //----------------------------------------------------------------------------
   // Checksums
@@ -650,17 +652,24 @@ int main( int argc, char **argv )
   else if( config.dstFile->Protocol == XrdCpFile::isXroot )
   {
     URL target( dest );
-    FileSystem fs( target );
-    StatInfo *statInfo = 0;
-    XRootDStatus st = fs.Stat( target.GetPath(), statInfo );
-    if( st.IsOK() )
-      {if (statInfo->TestFlags( StatInfo::IsDir ) ) targetIsDir = true;}
-      else if (st.errNo == kXR_NotFound && config.Want( XrdCpConfig::DoPath ))
-              {int n = strlen(config.dstFile->Path);
-               if (config.dstFile->Path[n-1] == '/') targetIsDir = true;
-              }
+    //----------------------------------------------------------------------------
+    // In case of metalink we accept an empty path, otherwise we do a stat
+    // (the remaining part of the URL might be given in the metalink file)
+    //----------------------------------------------------------------------------
+    if( !( target.GetPath().empty() && config.Want( XrdCpConfig::DoMetalink ) ) )
+    {
+      FileSystem fs( target );
+      StatInfo *statInfo = 0;
+      XRootDStatus st = fs.Stat( target.GetPath(), statInfo );
+      if( st.IsOK() )
+        {if (statInfo->TestFlags( StatInfo::IsDir ) ) targetIsDir = true;}
+        else if (st.errNo == kXR_NotFound && config.Want( XrdCpConfig::DoPath ))
+                {int n = strlen(config.dstFile->Path);
+                 if (config.dstFile->Path[n-1] == '/') targetIsDir = true;
+                }
 
-    delete statInfo;
+      delete statInfo;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -754,6 +763,7 @@ int main( int argc, char **argv )
     properties.Set( "checkSumPreset", checkSumPreset );
     properties.Set( "chunkSize",      chunkSize      );
     properties.Set( "parallelChunks", parallelChunks );
+    properties.Set( "metalink",       metalink );
 
     XRootDStatus st = process.AddJob( properties, results );
     if( !st.IsOK() )

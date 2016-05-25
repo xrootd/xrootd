@@ -62,10 +62,12 @@ add_library(
                               XrdClCopyJob.hh
   XrdClFileSystemUtils.cc     XrdClFileSystemUtils.hh
   XrdClTPFallBackCopyJob.cc   XrdClTPFallBackCopyJob.hh
+  XrdClMetalinkCopyJob.cc     XrdClMetalinkCopyJob.hh
 )
 
 target_link_libraries(
   XrdCl
+  XrdXml
   XrdUtils
   pthread
   dl)
