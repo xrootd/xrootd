@@ -30,6 +30,7 @@
 
 class XrdOucStream;
 class XrdSysError;
+class XrdOucTrace;
 
 namespace XrdCl {
    class Log;
@@ -190,6 +191,8 @@ namespace XrdFileCache
     
          void AddActive(IO*, File*);
         
+
+       XrdOucTrace* GetTrace() { return  m_trace; }
       private:
          bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
@@ -197,6 +200,9 @@ namespace XrdFileCache
          static Cache     *m_factory;   //!< this object
 
          XrdSysError       m_log;       //!< XrdFileCache namespace logger
+         XrdOucTrace*      m_trace;
+         const char* m_traceID;
+
          XrdOucCacheStats  m_stats;     //!< 
          XrdOss           *m_output_fs; //!< disk cache file system
 

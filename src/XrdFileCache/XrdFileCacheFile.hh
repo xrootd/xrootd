@@ -140,6 +140,7 @@ namespace XrdFileCache
       float           m_prefetchScore; //cached
       int             m_prefetchCurrentCnt;
 
+       const char* m_traceID;
 
    public:
       //------------------------------------------------------------------------

@@ -28,17 +28,18 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 
 #include "XrdFileCache.hh"
+#include "XrdFileCacheTrace.hh"
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
 
 using namespace XrdFileCache;
 
-
-
 Cache * Cache::m_factory = NULL;
+
 
 void *CacheDirCleanupThread(void* cache_void)
 {
@@ -131,9 +132,12 @@ bool Cache::Decide(XrdOucCacheIO* io)
 
 Cache::Cache() : XrdOucCache(),
      m_log(0, "XrdFileCache_"),
+     m_trace(0),
+     m_traceID("Manager"),
      m_prefetch_condVar(0),
      m_RAMblocks_used(0)
 {
+    m_trace = new XrdOucTrace(&m_log);
 }
 
 //______________________________________________________________________________

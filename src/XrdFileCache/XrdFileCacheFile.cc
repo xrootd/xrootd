@@ -18,7 +18,7 @@
 
 
 #include "XrdFileCacheFile.hh"
-
+#include "XrdFileCacheTrace.hh"
 
 #include <stdio.h>
 #include <sstream>
@@ -39,6 +39,7 @@
 #include "Xrd/XrdScheduler.hh"
 
 using namespace XrdFileCache;
+
 
 namespace XrdPosixGlobals
 {
@@ -80,7 +81,6 @@ m_offset(iOffset),
 m_fileSize(iFileSize),
 m_stopping(false),
 m_stateCond(0), // We will explicitly lock the condition before use.
-
 m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
 m_non_flushed_cnt(0),
 m_in_sync(false),
@@ -89,7 +89,8 @@ m_prefetchState(kOn),
 m_prefetchReadCnt(0),
 m_prefetchHitCnt(0),
 m_prefetchScore(1),
-m_prefetchCurrentCnt(0)
+m_prefetchCurrentCnt(0),
+m_traceID("File")
 {
    clLog()->Debug(XrdCl::AppMsg, "File::File() %s", m_temp_filename.c_str());
    if (!Open()) {
