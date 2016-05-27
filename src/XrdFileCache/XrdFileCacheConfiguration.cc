@@ -1,4 +1,5 @@
 #include "XrdFileCache.hh"
+#include "XrdFileCacheTrace.hh"
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssCache.hh"
@@ -65,6 +66,37 @@ bool Cache::xdlib(XrdOucStream &Config)
    return true;
 }
 
+/* Function: xtrace
+
+   Purpose:  To parse the directive: trace <level>
+   Output: true upon success or false upon failure.
+ */
+bool Cache::xtrace(XrdOucStream &Config)
+{
+    char  *val;
+    static struct traceopts {const char *opname; int opval;} tropts[] =
+       {
+        {"none",    0},
+        {"error",   1},
+        {"warning", 2},
+        {"info",    3},
+        {"debug",   4},
+        {"dump",    5}
+       };
+    int  numopts = sizeof(tropts)/sizeof(struct traceopts);
+
+    if (!(val = Config.GetWord()))
+       {m_log.Emsg("Config", "trace option not specified"); return 1;}
+
+    for (int i = 0; i < numopts; i++)
+    {
+        if (!strcmp(val, tropts[i].opname))
+            m_trace->What = tropts[i].opval;
+        return true;
+    }
+    return 0;
+}
+
 //______________________________________________________________________________
 
 bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char *parameters)
@@ -123,7 +155,11 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       }
       else if (!strcmp(var,"pfc.decisionlib"))
       {
-         xdlib(Config);
+         retval = xdlib(Config);
+      }
+      else if (!strcmp(var,"pfc.trace"))
+      {
+         retval = xtrace(Config);
       }
       else if (!strncmp(var,"pfc.", 4))
       {
@@ -158,6 +194,10 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
          return false;
    }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
+
+   // Set tracing to debug if this is set in environment
+   char* cenv = getenv("XRDDEBUG");
+   if (cenv && !strcmp(cenv,"1")) m_trace->What = 4;
 
    if (retval)
    {
