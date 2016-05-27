@@ -14,7 +14,7 @@ namespace XrdFileCache
    {
       public:
          IO (XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache) :
-         m_io(io), m_statsGlobal(stats), m_cache(cache) {}
+             m_io(io), m_statsGlobal(stats), m_cache(cache), m_traceID("IO"){}
 
          //! Original data source.
          virtual XrdOucCacheIO *Base() { return m_io; }
@@ -42,6 +42,8 @@ namespace XrdFileCache
          XrdOucCacheIO2   *m_io;          //!< original data source
          XrdOucCacheStats &m_statsGlobal; //!< reference to Cache statistics
          Cache            &m_cache;       //!< reference to Cache needed in detach
+      
+         const char* m_traceID;
    };
 }
 
