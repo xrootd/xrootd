@@ -197,6 +197,7 @@ namespace XrdFileCache
          bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
          bool xdlib(XrdOucStream &);
+         bool xtrace(XrdOucStream &);
          static Cache     *m_factory;   //!< this object
 
          XrdSysError       m_log;       //!< XrdFileCache namespace logger
