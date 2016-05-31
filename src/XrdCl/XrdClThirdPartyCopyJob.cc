@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include <iostream>
@@ -411,9 +412,18 @@ namespace XrdCl
         }
         else
         {
-          st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
-                                         GetSource().GetHostId(),
-                                         GetSource().GetPath() );
+          bool virtRedirector = false;
+          VirtualRedirector *redirector = 0;
+          pProperties->Get( "metalink", virtRedirector );
+          std::string vrCheckSum;
+          if( virtRedirector &&
+              ( redirector = RedirectorRegistry::Instance().Get( GetSource() ) ) &&
+              !( vrCheckSum = redirector->GetCheckSum( checkSumType ) ).empty() )
+            sourceCheckSum = vrCheckSum;
+          else
+            st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
+                                         tpcSource.GetHostId(),
+                                         tpcSource.GetPath() );
         }
         gettimeofday( &oEnd, 0 );
         if( !st.IsOK() )
@@ -510,6 +520,9 @@ namespace XrdCl
     // Check if we can open the source file and whether the actual data server
     // can support the third party copy
     //--------------------------------------------------------------------------
+    bool virtRedirector = false;
+    properties->Get( "metalink", virtRedirector );
+
     File          sourceFile;
     // set WriteRecovery property
     std::string value;
@@ -525,7 +538,7 @@ namespace XrdCl
     log->Debug( UtilityMsg, "Trying to open %s for reading",
                 sourceURL.GetURL().c_str() );
     st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read, Access::None,
-                          timeLeft );
+                          timeLeft, virtRedirector );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Cannot open source file %s: %s",
@@ -536,10 +549,20 @@ namespace XrdCl
     std::string sourceUrl; sourceFile.GetProperty( "LastURL", sourceUrl );
     URL         sourceUrlU = sourceUrl;
     properties->Set( "tpcSource", sourceUrl );
-    StatInfo *statInfo;
-    st = sourceFile.Stat( false, statInfo );
-    if (st.IsOK()) properties->Set( "sourceSize", statInfo->GetSize() );
-    delete statInfo;
+
+    VirtualRedirector *redirector = 0;
+    long long size = -1;
+    if( virtRedirector &&
+        ( redirector = RedirectorRegistry::Instance().Get( sourceURL ) ) &&
+        ( size = redirector->GetSize() ) >= 0 )
+      properties->Set( "sourceSize", size );
+    else
+    {
+      StatInfo *statInfo;
+      st = sourceFile.Stat( false, statInfo );
+      if (st.IsOK()) properties->Set( "sourceSize", statInfo->GetSize() );
+      delete statInfo;
+    }
 
     if( hasInitTimeout )
     {

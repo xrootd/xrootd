@@ -374,8 +374,7 @@ namespace XrdCl
   bool URL::PathEndsWith(const std::string & sufix) const
   {
     if (sufix.size() > pPath.size()) return false;
-    std::string::const_iterator begin = pPath.end() - sufix.size();
-    return std::equal(sufix.begin(), sufix.end(), begin);
+    return std::equal(sufix.rbegin(), sufix.rend(), pPath.rbegin() );
   }
 
   //----------------------------------------------------------------------------
