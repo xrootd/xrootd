@@ -87,7 +87,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
             // XXXX MT - shouldn't we also check if it is currently opened?
 
             fh->Open(np.c_str(), O_RDONLY, 0600, env);
-            Info cinfo(Cache::GetInstance().GetTrace(), factory.RefConfiguration().m_bufferSize);
+            Info cinfo(Cache::GetInstance().GetTrace());
             time_t accessTime;
             cinfo.Read(fh);
             if (cinfo.GetLatestDetachTime(accessTime, fh))

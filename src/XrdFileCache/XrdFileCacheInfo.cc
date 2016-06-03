@@ -34,16 +34,16 @@
 #include "XrdFileCacheTrace.hh"
 
 const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
-const char* XrdFileCache::Info::m_traceID = "cinfo";
+const char* XrdFileCache::Info::m_traceID = "Cinfo";
 
 #define BIT(n)       (1ULL << (n))
 using namespace XrdFileCache;
 
 
-Info::Info(XrdOucTrace* trace, long long iBufferSize, bool prefetchBuffer) :
+Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
    m_trace(trace),
    m_version(1),
-   m_bufferSize(iBufferSize),
+   m_bufferSize(-1),
    m_hasPrefetchBuffer(prefetchBuffer),
    m_sizeInBits(0),
    m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
@@ -57,6 +57,13 @@ Info::~Info()
    if (m_buff_fetched) free(m_buff_fetched);
    if (m_buff_write_called) free(m_buff_write_called);
    if (m_buff_prefetch) free(m_buff_prefetch);
+}
+
+//______________________________________________________________________________
+void Info::SetBufferSize(long long bs)
+{
+   // Needed only info is created first time in File::Open()
+   m_bufferSize = bs;
 }
 
 //______________________________________________________________________________

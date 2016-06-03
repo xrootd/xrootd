@@ -62,7 +62,7 @@ void Print::printFile(const std::string& path)
    XrdSysLogger log;
    XrdSysError err(&log);
    XrdOucTrace tr(&err); tr.What = 1;
-   Info cfi(&tr, 0);
+   Info cfi(&tr);
    long long off = cfi.Read(fh);
 
    std::vector<Info::AStat> statv;

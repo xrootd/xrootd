@@ -90,7 +90,7 @@ struct stat* IOEntireFile::getValidLocalStat(const char* path)
          XrdOucEnv myEnv; 
          int res = infoFile->Open(path, O_RDONLY, 0600, myEnv);
          if (res >= 0) {
-            Info info(m_cache.GetTrace(), 0);
+            Info info(m_cache.GetTrace());
             if (info.Read(infoFile) > 0) {
                tmpStat.st_size = info.GetFileSize();
                m_localStat = new struct stat;
