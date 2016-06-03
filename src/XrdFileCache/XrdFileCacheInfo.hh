@@ -60,7 +60,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor.
          //------------------------------------------------------------------------
-         Info(XrdOucTrace* trace, long long bufferSize, bool prefetchBuffer = false);
+         Info(XrdOucTrace* trace, bool prefetchBuffer = false);
 
          //------------------------------------------------------------------------
          //! Destructor.
@@ -86,6 +86,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void SetBitPrefetch(int i);
 
+         void SetBufferSize(long long);
          void SetFileSize(long long);
 
          //---------------------------------------------------------------------

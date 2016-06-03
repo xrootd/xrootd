@@ -75,7 +75,7 @@ File::File(XrdOucCacheIO2 *inputIO, std::string& disk_file_path, long long iOffs
 m_input(inputIO),
 m_output(NULL),
 m_infoFile(NULL),
-m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_bufferSize, Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
+m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
 m_temp_filename(disk_file_path),
 m_offset(iOffset),
 m_fileSize(iFileSize),
@@ -254,6 +254,7 @@ bool File::Open()
       m_fileSize = m_fileSize;
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
       TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
+      m_cfi.SetBufferSize(Cache::GetInstance().RefConfiguration().m_bufferSize);
       m_cfi.SetFileSize(m_fileSize);
       m_cfi.WriteHeader(m_infoFile);
       m_infoFile->Fsync();
