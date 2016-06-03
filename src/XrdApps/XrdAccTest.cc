@@ -52,6 +52,8 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
@@ -106,9 +108,11 @@ int opcnt = sizeof(optab)/sizeof(optab[0]);
   
 int main(int argc, char **argv)
 {
-extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp,
-                                                     const char   *cfn,
-                                                     const char   *parm);
+static XrdVERSIONINFODEF(myVer, XrdAccTest, XrdVNUMBER, XrdVERSION);
+extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
+                                                     const char     *cfn,
+                                                     const char     *parm,
+                                                     XrdVersionInfo &myVer);
 void Usage(const char *);
 char *p2l(XrdAccPrivs priv, char *buff, int blen);
 int rc = 0, argnum, DebugON = 0;
@@ -131,7 +135,7 @@ char *ConfigFN = (char *)"./acc.cf";
 
 // Obtain the authorization object
 //
-if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0)))
+if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
    {cerr << "testaccess: Initialization failed." <<endl;
     exit(2);
    }
