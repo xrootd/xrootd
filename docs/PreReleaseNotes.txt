@@ -19,3 +19,4 @@ Prerelease Notes
   * [Server] Free Entity before replacing it from the cache (memleak).  
 
 + **Miscellaneous**
+  * [Apps] Add xrdacctest to the tools set to test access control databases.
