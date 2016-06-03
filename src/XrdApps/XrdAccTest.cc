@@ -115,7 +115,7 @@ extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
                                                      XrdVersionInfo &myVer);
 void Usage(const char *);
 char *p2l(XrdAccPrivs priv, char *buff, int blen);
-int rc = 0, argnum, DebugON = 0;
+int rc = 0, argnum;
 char c, *argval[32];
 int DoIt(int argnum, int argc, char **argv);
 XrdOucStream Command;
@@ -128,7 +128,6 @@ char *ConfigFN = (char *)"./acc.cf";
      { switch(c)
        {
        case 'c': ConfigFN = optarg;                  break;
-       case 'd': DebugON = 1;                        break;
        default:  Usage("Invalid option.");
        }
      }
@@ -263,7 +262,8 @@ char *PrivsConvert(XrdAccPrivCaps &ctab, char *buff, int blen)
 /******************************************************************************/
   
 void Usage(const char *msg)
-     {if (msg) cerr <<"testaccess: " <<msg <<endl;
-      cerr << "testaccess [-c cfn] [-d] [user host op path [path [. . .]]]" <<endl;
+     {if (msg) cerr <<"xrdacctest: " <<msg <<endl;
+      cerr << "Usage: xrdacctest [-c cfn] [<user> <host> {d|i|k|l|n|r|w} "
+                     "<path> [<path> [...]]]" <<endl;
       exit(1);
      }
