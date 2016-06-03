@@ -25,18 +25,23 @@
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucSxeq.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
+#include "XrdFileCacheStats.hh"
+#include "XrdFileCacheTrace.hh"
 
 const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
+const char* XrdFileCache::Info::m_traceID = "cinfo";
 
 #define BIT(n)       (1ULL << (n))
 using namespace XrdFileCache;
 
 
-Info::Info(long long iBufferSize, bool prefetchBuffer) :
+Info::Info(XrdOucTrace* trace, long long iBufferSize, bool prefetchBuffer) :
+   m_trace(trace),
    m_version(1),
    m_bufferSize(iBufferSize),
    m_hasPrefetchBuffer(prefetchBuffer),
@@ -89,7 +94,7 @@ int Info::Read(XrdOssDF* fp)
    int version;
    off += fp->Read(&version, off, sizeof(int));
    if (version != m_version) {
-       clLog()->Dump(XrdCl::AppMsg, "Info:::Read(), incomatible file version");
+      TRACE(Error, "Info:::Read(), incomatible file version");
        return 0;
    }
 
@@ -108,7 +113,7 @@ int Info::Read(XrdOssDF* fp)
 
 
    off += fp->Read(&m_accessCnt, off, sizeof(int));
-   clLog()->Dump(XrdCl::AppMsg, "Info:::Read() complete %d access_cnt %d", m_complete, m_accessCnt);
+   TRACE(Dump, "Info:::Read() complete "<< m_complete << " access_cnt " << m_accessCnt);
 
 
    if (m_hasPrefetchBuffer) {
@@ -132,7 +137,7 @@ int Info::GetHeaderSize() const
 void Info::WriteHeader(XrdOssDF* fp)
 {
    int flr = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait);
-   if (flr) clLog()->Error(XrdCl::AppMsg, "WriteHeader() lock failed %s \n", strerror(errno));
+   if (flr) TRACE(Error, "Info::WriteHeader() lock failed " << strerror(errno));
 
    long long off = 0;
    off += fp->Write(&m_version, off, sizeof(int));
@@ -142,7 +147,7 @@ void Info::WriteHeader(XrdOssDF* fp)
    off += fp->Write(m_buff_write_called, off, GetSizeInBytes());
 
    flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) clLog()->Error(XrdCl::AppMsg, "WriteHeader() un-lock failed \n");
+   if (flr) TRACE(Error, "Info::WriteHeader() un-lock failed");
 
    assert (off == GetHeaderSize());
 }
@@ -150,10 +155,13 @@ void Info::WriteHeader(XrdOssDF* fp)
 //______________________________________________________________________________
 void Info::AppendIOStat(AStat& as, XrdOssDF* fp)
 {
-   clLog()->Info(XrdCl::AppMsg, "Info:::AppendIOStat()");
+   TRACE(Dump, "Info:::AppendIOStat()");
 
    int flr = XrdOucSxeq::Serialize(fp->getFD(), 0);
-   if (flr) clLog()->Error(XrdCl::AppMsg, "AppendIOStat() lock failed \n");
+   if (flr) {
+      TRACE(Error, "Info::AppendIOStat() lock failed");
+      return;
+   }
 
    m_accessCnt++;
    long long off = GetHeaderSize();
@@ -162,7 +170,10 @@ void Info::AppendIOStat(AStat& as, XrdOssDF* fp)
  
    long long ws = fp->Write(&as, off, sizeof(AStat));
    flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) clLog()->Error(XrdCl::AppMsg, "AppenIOStat() un-lock failed \n");
+   if (flr) {
+      TRACE(Error, "Info::AppenIOStat() un-lock failed");
+      return;
+   }
 
    if ( ws != sizeof(AStat)) { assert(0); }
 }
@@ -173,7 +184,10 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
    bool res = false;
 
    int flr = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::Share);
-   if (flr) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
+   if (flr) {
+       TRACE(Error, "Info::GetLatestAttachTime() lock failed");
+       return false;
+   }
    if (m_accessCnt)
    {
       AStat     stat;
@@ -186,13 +200,14 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
       }
       else
       {
-         clLog()->Error(XrdCl::AppMsg, " Info::GetLatestAttachTime() can't get latest access stat. read bytes = %d", res);
+         TRACE(Error, " Info::GetLatestAttachTime() can't get latest access stat ");
+         return false;
       }
    }
 
 
    flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
+   if (flr) TRACE(Error, "Info::GetLatestAttachTime() lock failed");
 
    return res;
 }

@@ -75,7 +75,7 @@ File::File(XrdOucCacheIO2 *inputIO, std::string& disk_file_path, long long iOffs
 m_input(inputIO),
 m_output(NULL),
 m_infoFile(NULL),
-m_cfi(Cache::GetInstance().RefConfiguration().m_bufferSize, Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
+m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_bufferSize, Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
 m_temp_filename(disk_file_path),
 m_offset(iOffset),
 m_fileSize(iFileSize),
@@ -92,24 +92,19 @@ m_prefetchScore(1),
 m_prefetchCurrentCnt(0),
 m_traceID("File")
 {
-   clLog()->Debug(XrdCl::AppMsg, "File::File() %s", m_temp_filename.c_str());
-   if (!Open()) {
-      clLog()->Error(XrdCl::AppMsg, "File::File() Open failed %s !!!", m_temp_filename.c_str());
-   }
+   Open();
 }
 
 void File::BlockRemovedFromWriteQ(Block* b)
 {
  m_downloadCond.Lock();
  dec_ref_count(b);
- clLog()->Dump(XrdCl::AppMsg, "File::BlockRemovedFromWriteQ() check write queues %p %d...%s", (void*)b, b->m_offset/m_cfi.GetBufferSize(), lPath());
+ TRACEF(Dump, "File::BlockRemovedFromWriteQ() check write queues block = " << (void*)b << " idx= " << b->m_offset/m_cfi.GetBufferSize());
  m_downloadCond.UnLock();
 }
 
 File::~File()
 {
-   clLog()->Debug(XrdCl::AppMsg, "File::~File() enter %p %s", (void*)this, lPath());
-
    m_syncStatusMutex.Lock();
    bool needs_sync = ! m_writes_during_sync.empty();
    m_syncStatusMutex.UnLock();
@@ -122,7 +117,6 @@ File::~File()
    AppendIOStatToFileInfo();
    m_infoFile->Fsync();
 
-   clLog()->Info(XrdCl::AppMsg, "File::~File close data file %p",(void*)this , lPath());
    if (m_output)
    {
       m_output->Close();
@@ -131,20 +125,20 @@ File::~File()
    }
    if (m_infoFile)
    {
-      clLog()->Info(XrdCl::AppMsg, "File::~File close info file");
       m_infoFile->Close();
       delete m_infoFile;
       m_infoFile = NULL;
    }
 
    // print just for curiosity
-   clLog()->Debug(XrdCl::AppMsg, "File::~File() ended, prefetch score ...%d/%d=%.2f",  m_prefetchHitCnt, m_prefetchReadCnt, m_prefetchScore);
+   TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
 }
 
 bool File::InitiateClose()
 {
    // Retruns true if delay is needed
-   clLog()->Debug(XrdCl::AppMsg, "File::Initiate close start %s", lPath());
+   
+   TRACEF(Debug, "File::Initiate close start");
 
    m_stateCond.Lock();
    if (!m_stopping) {
@@ -161,19 +155,23 @@ bool File::InitiateClose()
    if (isPrefetching == false)
    {
       m_downloadCond.Lock();
-      /*
+
+      /*      
+      // dump print 
       for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it) {
          Block* b = it->second;
-         clLog()->Debug(XrdCl::AppMsg, "File::InitiateClose() block idx=%d p=%d rcnt=%d dwnd=%d %s",
-                        b->m_offset/m_cfi.GetBufferSize(), b->m_prefetch, b->m_refcnt, b->m_downloaded, lPath());
+         TRACEF(Dump, "File::InitiateClose() block idx = " <<  b->m_offset/m_cfi.GetBufferSize() << " prefetch = " << b->preferch <<  " refcnt " << b->refcnt);
+
       }
       */
+
       // remove failed blocks
       BlockMap_i itr = m_block_map.begin();
       while (itr != m_block_map.end()) {
          if (itr->second->is_failed() && itr->second->m_refcnt == 1) {
             BlockMap_i toErase = itr;
             ++itr;
+            TRACEF(Debug, "Remove failed block " <<  itr->second->m_offset/m_cfi.GetBufferSize());
             free_block(toErase->second);
          }
          else {
@@ -207,7 +205,7 @@ bool File::InitiateClose()
 
 bool File::Open()
 {
-   clLog()->Dump(XrdCl::AppMsg, "File::Open() open file for disk cache %s", m_temp_filename.c_str());
+   TRACEF(Dump, "File::Open() open file for disk cache ");
 
    XrdOss  &m_output_fs =  *Cache::GetInstance().GetOss();
    // Create the data file itself.
@@ -219,16 +217,15 @@ bool File::Open()
       int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
       if (res < 0)
       {
-         clLog()->Error(XrdCl::AppMsg, "File::Open() can't get data-FD for %s %s", m_temp_filename.c_str(), m_temp_filename.c_str());
+         TRACEF(Error, "File::Open() can't open data file");
          delete m_output;
          m_output = 0;
-
          return false;
       }
    }
    else
    {
-      clLog()->Error(XrdCl::AppMsg, "File::Open() can't get data holder ");
+      TRACEF(Error, "File::Open() can't get file handle");
       return false;
    }
 
@@ -241,7 +238,7 @@ bool File::Open()
       int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
       if (res < 0)
       {
-         clLog()->Error(XrdCl::AppMsg, "File::Open() can't get info-FD %s  %s", ifn.c_str(), m_temp_filename.c_str());
+         TRACEF(Error, "File::Open() can't open info file");
          delete m_infoFile;
          m_infoFile = 0;
          return false;
@@ -256,16 +253,15 @@ bool File::Open()
    {
       m_fileSize = m_fileSize;
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
-      clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_temp_filename.c_str());
+      TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
       m_cfi.SetFileSize(m_fileSize);
       m_cfi.WriteHeader(m_infoFile);
       m_infoFile->Fsync();
    }
    else
    {
-      clLog()->Debug(XrdCl::AppMsg, "Info file read from disk: %s", m_temp_filename.c_str());
+      TRACEF(Debug, "Successfully opened existing info file");
    }
-
 
    cache()->RegisterPrefetchFile(this);
    return true;
@@ -321,7 +317,6 @@ Block* File::RequestBlock(int i, bool prefetch)
    //
    // Reference count is 0 so increase it in calling function if you want to
    // catch the block while still in memory.
-   clLog()->Debug(XrdCl::AppMsg, "RequestBlock() %d pOn=(%d)", i, prefetch);
 
 
    const long long   BS = m_cfi.GetBufferSize();
@@ -332,10 +327,10 @@ Block* File::RequestBlock(int i, bool prefetch)
 
    Block *b = new Block(this, off, this_bs, prefetch); // should block be reused to avoid recreation
 
+   TRACEF(Dump, "File::RequestBlock() " <<  i << "prefetch" <<  prefetch << "address " << (void*)b);
    BlockResponseHandler* oucCB = new BlockResponseHandler(b);
    m_input->Read(*oucCB, (char*)b->get_buff(), off, (int)this_bs);
 
-   clLog()->Dump(XrdCl::AppMsg, "File::RequestBlock() this = %p, b=%p, this idx=%d  pOn=(%d) %s", (void*)this, (void*)b, i, prefetch, lPath());
    m_block_map[i] = b;
 
    if (m_prefetchState == kOn && m_block_map.size() > Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
@@ -367,7 +362,7 @@ int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
       m_input->Read( *handler, req_buf + off, *ii * BS + blk_off, size);
-      clLog()->Dump(XrdCl::AppMsg, "RequestBlockDirect success %d %ld %s", *ii, size, lPath());
+      TRACEF(Dump, "RequestBlockDirect success, idx = " <<  *ii << " size = " <<  size);
       
       total += size;
    }
@@ -380,8 +375,7 @@ int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
 int File::ReadBlocksFromDisk(std::list<int>& blocks,
                              char* req_buf, long long req_off, long long req_size)
 {
-
-   clLog()->Dump(XrdCl::AppMsg, "File::ReadBlocksFromDisk %ld %s", blocks.size(), lPath());
+   TRACEF(Dump, "File::ReadBlocksFromDisk " <<  blocks.size());
    const long long BS = m_cfi.GetBufferSize();
 
    long long total = 0;
@@ -398,17 +392,17 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
       long long rs = m_output->Read(req_buf + off, *ii * BS + blk_off -m_offset, size);
-      clLog()->Dump(XrdCl::AppMsg, "File::ReadBlocksFromDisk block %d size %d %s", *ii, size, lPath());
+      TRACEF(Dump, "File::ReadBlocksFromDisk block idx = " <<  *ii << " size= " << size);
 
       if (rs < 0) {
-         clLog()->Error(XrdCl::AppMsg, "File::ReadBlocksFromDisk neg retval %ld (%ld@%d) %s", rs, *ii * BS + blk_off, lPath());
+         TRACEF(Error, "File::ReadBlocksFromDisk neg retval = " <<  rs << " idx = " << *ii );
          return rs;
       }
 
 
       // AMT I think we should exit in this case too
       if (rs !=size) {
-         clLog()->Error(XrdCl::AppMsg, "File::ReadBlocksFromDisk incomplete %ld (%ld@%d) %s", rs, *ii * BS + blk_off, lPath());
+         TRACEF(Error, "File::ReadBlocksFromDisk incomplete size = " <<  rs << " idx = " << *ii);
          return -1;
       }
 
@@ -449,7 +443,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
    for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
    {
-      clLog()->Dump(XrdCl::AppMsg, "--- File::Read() idx %d %s \n", block_idx, lPath());
+      TRACEF(Dump, "File::Read() idx " << block_idx);
       BlockMap_i bi = m_block_map.find(block_idx);  
 
       // In RAM or incoming?
@@ -459,14 +453,14 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          // XXXX Or just push it and handle errors in one place later?
 
          inc_ref_count(bi->second);
-         clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p inc_ref_count for existing block %p %d %s", (void*)iUserBuff, (void*)bi->second, block_idx, lPath());
+         TRACEF(Dump, "File::Read() " << iUserBuff << "inc_ref_count for existing block << " << bi->second << " idx = " <<  block_idx);
          blks_to_process.push_front(bi->second);
          m_stats.m_BytesRam++; // AMT what if block fails
       }
       // On disk?
       else if (m_cfi.TestBit(offsetIdx(block_idx)))
       {
-         clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p read from disk %d %s", (void*)iUserBuff, block_idx, lPath());
+         TRACEF(Dump, "File::Read()  read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
          blks_on_disk.push_back(block_idx);
          m_stats.m_BytesDisk++;
       }
@@ -476,7 +470,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          // Is there room for one more RAM Block?
          if ( cache()->HaveFreeWritingSlots() && cache()->RequestRAMBlock())
          {
-            clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p inc_ref_count new %d %s", (void*)iUserBuff, block_idx, lPath());
+            TRACEF(Dump, "File::Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
             Block *b = RequestBlock(block_idx, false);
             // assert(b);
             if (!b) {
@@ -490,7 +484,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          // Nope ... read this directly without caching.
          else
          {
-            clLog()->Debug(XrdCl::AppMsg, "File::Read() direct block %d %s", block_idx, lPath());
+            TRACEF(Dump, "File::Read() direct block " << block_idx);
             blks_direct.push_back(block_idx);
             m_stats.m_BytesMissed++;
          }
@@ -525,13 +519,13 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          delete direct_handler;
          return -1;   // AMT ???
       }
-      clLog()->Dump(XrdCl::AppMsg, "File::Read() direct read %d. %s", direct_size, lPath());
+      TRACEF(Dump, "File::Read() direct read finished, size = " << direct_size);
    }
 
    // Second, read blocks from disk.
    if ((!blks_on_disk.empty()) && (bytes_read >= 0)) {
       int rc = ReadBlocksFromDisk(blks_on_disk, iUserBuff, iUserOff, iUserSize);
-      clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p, from disk %d. %s", (void*)iUserBuff, rc, lPath());
+      TRACEF(Dump, "File::Read() " << (void*)iUserBuff <<" from disk finished size = " << rc);
       if (rc >= 0)
       {
          bytes_read += rc;
@@ -539,7 +533,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       else
       {
          bytes_read = rc;
-         clLog()->Error(XrdCl::AppMsg, "File::Read() failed to read from disk. %s", lPath());
+         TRACEF(Error, "File::Read() failed read from disk");
          // AMT commented line below should not be an immediate return, can have block refcount increased and map increased
          // return rc;
       }
@@ -556,10 +550,9 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          BlockList_i bi = blks_to_process.begin();
          while (bi != blks_to_process.end())
          {
-            // clLog()->Dump(XrdCl::AppMsg, "File::Read() searcing for block %p finished", (void*)(*bi));
             if ((*bi)->is_finished())
             {
-               clLog()->Dump(XrdCl::AppMsg, "File::Read() found finished block %p %s", (void*)(*bi), lPath());
+               TRACEF(Dump, "File::Read() requested block downloaded " << (void*)(*bi));
                finished.push_back(*bi);
                BlockList_i bj = bi++;
                blks_to_process.erase(bj);
@@ -572,18 +565,16 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
          if (finished.empty())
          {
-
-            clLog()->Dump(XrdCl::AppMsg, "File::Read() wait block begin %s", lPath());
+            TRACEF(Dump, "File::Read() wait block begin" );
 
             m_downloadCond.Wait();
 
-            clLog()->Dump(XrdCl::AppMsg, "File::Read() wait block end %s", lPath());
+            TRACEF(Dump, "File::Read() wait block end");
 
             continue;
          }
       }
 
-      clLog()->Dump(XrdCl::AppMsg, "File::Read() bytes read before processing blocks %d %s\n", bytes_read, lPath());
 
       BlockList_i bi = finished.begin();
       while (bi != finished.end())
@@ -597,7 +588,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             // clLog()->Dump(XrdCl::AppMsg, "File::Read() Block finished ok.");
             overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
 
-            clLog()->Dump(XrdCl::AppMsg, "File::Read() u=%p, from finished block %d , size %d end %s", (void*)iUserBuff, (*bi)->m_offset/BS, size_to_copy, lPath());
+            TRACEF(Dump, "File::Read() ub=" << (void*)iUserBuff  << " from finished block  " << (*bi)->m_offset/BS << " size " << size_to_copy);
             memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
             bytes_read += size_to_copy;
 
@@ -605,7 +596,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          }
          else // it has failed ... krap up.
          {
-            clLog()->Error(XrdCl::AppMsg, "File::Read() Block finished with error %s.", lPath());
+            TRACEF(Error, "File::Read(), block  "<< (*bi)->m_offset/BS << "finished with error ");
             bytes_read = -1;
             errno = (*bi)->m_errno;
             break;
@@ -617,12 +608,10 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       finished.clear();
    }
 
-   clLog()->Dump(XrdCl::AppMsg, "File::Read() bytes read after processing blocks %d %s\n", bytes_read, lPath());
-
    // Fourth, make sure all direct requests have arrived
    if ((direct_handler != 0) && (bytes_read >= 0 ))
    {
-      clLog()->Debug(XrdCl::AppMsg, "File::Read() waiting for direct requests %s.", lPath());
+      TRACEF(Dump, "File::Read() waiting for direct requests ");
       XrdSysCondVarHelper _lck(direct_handler->m_cond);
 
       if (direct_handler->m_to_wait > 0)
@@ -655,7 +644,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
       for (BlockList_i bi = blks_processed.begin(); bi != blks_processed.end(); ++bi)
       {
-         clLog()->Dump(XrdCl::AppMsg, "File::Read() dec_ref_count b=%p, %d %s", (void*)(*bi), ((*bi)->m_offset/BufferSize()), lPath());
+         TRACEF(Dump, "File::Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/BufferSize()));
          dec_ref_count(*bi);
          // XXXX stamp block
       }
@@ -686,18 +675,17 @@ void File::WriteBlockToDisk(Block* b)
 
       if (buffer_remaining)
       {
-         clLog()->Warning(XrdCl::AppMsg, "File::WriteToDisk() reattempt[%d] writing missing %ld for block %d %s",
-                          cnt, buffer_remaining, b->m_offset, lPath());
+         TRACEF(Warning, "File::WriteToDisk() reattempt " << cnt << " writing missing " << buffer_remaining << " for block  offset " << b->m_offset);
       }
       if (cnt > PREFETCH_MAX_ATTEMPTS)
       {
-         clLog()->Error(XrdCl::AppMsg, "File::WriteToDisk() write failed too manny attempts %s", lPath());
+         TRACEF(Error, "File::WriteToDisk() write block with off = " <<  b->m_offset <<" failed too manny attempts ");
          return;
       }
    }
 
    // set bit fetched
-   clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() success set bit for block [%ld] size [%d] %s", b->m_offset, size, lPath());
+   TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size " <<  size);
    int pfIdx =  (b->m_offset - m_offset)/m_cfi.GetBufferSize();
 
    m_downloadCond.Lock();
@@ -744,7 +732,7 @@ void File::WriteBlockToDisk(Block* b)
 
 void File::Sync()
 {
-   clLog()->Dump(XrdCl::AppMsg, "File::Sync %s", lPath());
+   TRACEF( Dump, "File::Sync()");
    m_output->Fsync();
    m_cfi.WriteHeader(m_infoFile);
    int written_while_in_sync;
@@ -758,7 +746,7 @@ void File::Sync()
       m_writes_during_sync.clear();
       m_in_sync = false;
    }
-   clLog()->Dump(XrdCl::AppMsg, "File::Sync %d blocks written during sync.", written_while_in_sync);
+   TRACEF(Dump, "File::Sync() "<< written_while_in_sync  << " blocks written during sync.");
    m_infoFile->Fsync();
 }
 
@@ -768,7 +756,7 @@ void File::inc_ref_count(Block* b)
 {
    // Method always called under lock
    b->m_refcnt++;
-   clLog()->Dump(XrdCl::AppMsg, "File::inc_ref_count b=%p, %d %s ",(void*)b, b->m_refcnt, lPath());
+   TRACEF(Dump, "File::inc_ref_count " << b << " refcnt  " << b->m_refcnt);
 }
 
 //______________________________________________________________________________
@@ -788,12 +776,13 @@ void File::dec_ref_count(Block* b)
 void File::free_block(Block* b)
 {
    int i = b->m_offset/BufferSize();
-   clLog()->Dump(XrdCl::AppMsg, "File::free_block block (%p) %d %s ", (void*)b, i, lPath());
+   TRACEF(Dump, "File::free_block block " << b << "  idx =  " <<  i);
    delete m_block_map[i];
    size_t ret = m_block_map.erase(i);
    if (ret != 1)
    {
-      clLog()->Error(XrdCl::AppMsg, "File::OnBlockZeroRefCount did not erase %d from map.", i);
+      // assert might be a better option than a warning
+      TRACEF(Warning, "File::OnBlockZeroRefCount did not erase " <<  i  << " from map");
    }
    else
    {
@@ -814,13 +803,13 @@ void File::ProcessBlockResponse(Block* b, int res)
 
    m_downloadCond.Lock();
 
-   clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse %p, %d %s",(void*)b,(int)(b->m_offset/BufferSize()), lPath());
+   TRACEF(Dump, "File::ProcessBlockResponse " << (void*)b << "  " << b->m_offset/BufferSize());
    if (res >= 0) 
    {
       b->m_downloaded = true;
-      clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse %d  finished %d %s",(int)(b->m_offset/BufferSize()), b->is_finished(), lPath());
+      TRACEF(Dump, "File::ProcessBlockResponse " << (int)(b->m_offset/BufferSize()) << "  finished  " <<  b->is_finished());
       if (!m_stopping) { // AMT theoretically this should be under state lock, but then are double locks
-         clLog()->Debug(XrdCl::AppMsg, "File::ProcessBlockResponse inc_ref_count %d %s\n", (int)(b->m_offset/BufferSize()), lPath());
+         TRACEF(Dump, "File::ProcessBlockResponse inc_ref_count " <<  (int)(b->m_offset/BufferSize()));
         inc_ref_count(b);
         cache()->AddWriteTask(b, true);
       }
@@ -834,7 +823,7 @@ void File::ProcessBlockResponse(Block* b, int res)
    {
       // AMT how long to keep?
       // when to retry?
-      clLog()->Error(XrdCl::AppMsg, "File::ProcessBlockResponse block %p %d error=%d, %s",(void*)b,(int)(b->m_offset/BufferSize()), res, lPath());
+      TRACEF(Error, "File::ProcessBlockResponse block " << b << "  " << (int)(b->m_offset/BufferSize()) << " error=" << res);
       // XrdPosixMap::Result(*status);
       // AMT could notfiy global cache we dont need RAM for that block
       b->set_error_and_free(errno);
@@ -882,7 +871,7 @@ void File::AppendIOStatToFileInfo()
    }
    else
    {
-      clLog()->Warning(XrdCl::AppMsg, "File::AppendIOStatToFileInfo() info file not opened %s", lPath());
+      TRACEF(Warning, "File::AppendIOStatToFileInfo() info file not opened");
    }
 }
 
@@ -891,7 +880,7 @@ void File::Prefetch()
 {
    if (m_prefetchState == kOn)
    {
-      //  clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status \n");
+      TRACEF(Dump, "File::Prefetch enter to check download status");
       XrdSysCondVarHelper _lck(m_downloadCond);
       //      clLog()->Dump(XrdCl::AppMsg, "File::Prefetch enter to check download status BEGIN %s \n", lPath());
 
@@ -905,7 +894,7 @@ void File::Prefetch()
             f += m_offset/m_cfi.GetBufferSize();
             BlockMap_i bi = m_block_map.find(f);
             if (bi == m_block_map.end()) {
-               clLog()->Dump(XrdCl::AppMsg, "File::Prefetch take block %d %s", f, lPath());
+               TRACEF(Dump, "File::Prefetch take block " << f);
                cache()->RequestRAMBlock();
                RequestBlock(f, true);
                m_prefetchReadCnt++;
@@ -916,15 +905,13 @@ void File::Prefetch()
          }
       }
       if (!found)  { 
-         clLog()->Dump(XrdCl::AppMsg, "File::Prefetch no free blcok found ");
+         TRACEF(Dump, "File::Prefetch no free block found ");
          m_cfi.CheckComplete();
-         //  assert (m_cfi.IsComplete());
          // it is possible all missing blocks are in map but downlaoded status is still not complete
-         clLog()->Dump(XrdCl::AppMsg, "File::Prefetch -- unlikely to happen ... file seem to be complete %s", lPath());
+         // assert (m_cfi.IsComplete());
          // remove block from map
          cache()->DeRegisterPrefetchFile(this); 
       }
-      clLog()->Dump(XrdCl::AppMsg, "File::Prefetch end");
    }
 
    UnMarkPrefetch();
@@ -974,14 +961,18 @@ void File::UnMarkPrefetch()
    m_stateCond.UnLock();
 }
 
+
+XrdOucTrace* File::GetTrace()
+{
+   return Cache::GetInstance().GetTrace();
+}
+
 //==============================================================================
 //==================    RESPONSE HANDLER      ==================================
 //==============================================================================
 
 void BlockResponseHandler::Done(int res)
 {
-    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"BlockResponseHandler::Done()");
-
     m_block->m_file->ProcessBlockResponse(m_block, res);
 
    delete this;
@@ -991,7 +982,6 @@ void BlockResponseHandler::Done(int res)
 
 void DirectResponseHandler::Done(int res)
 {
-    XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg,"DirectResponseHandler::Done()");
    XrdSysCondVarHelper _lck(m_cond);
 
    --m_to_wait;

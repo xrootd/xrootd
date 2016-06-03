@@ -1,5 +1,6 @@
 #include "XrdFileCacheFile.hh"
 #include "XrdFileCache.hh"
+#include "XrdFileCacheTrace.hh"
 
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheStats.hh"
@@ -68,7 +69,7 @@ using namespace XrdFileCache;
 
 int File::ReadV (const XrdOucIOVec *readV, int n)
 {
-   clLog()->Debug(XrdCl::AppMsg, "ReadV for %d chunks", n);
+   TRACEF(Dump, "ReadV for %d chunks " << n);
 
    int bytesRead = 0;
    
@@ -153,7 +154,7 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
       delete i->arr;
    
 
-   clLog()->Debug(XrdCl::AppMsg, "VRead exit, total = %d", bytesRead);
+   TRACEF(Dump, "VRead exit, total = " << bytesRead);
    return bytesRead;
 }
 
@@ -170,18 +171,18 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
       for (int block_idx = blck_idx_first; block_idx <= blck_idx_last; ++block_idx)
       {
 
-        clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess chunk %lld@%lld", readV[iov_idx].size, readV[iov_idx].offset);
+         TRACEF(Dump, "VReadPreProcess chunk "<<  readV[iov_idx].size << "@"<< readV[iov_idx].offset);
          BlockMap_i bi = m_block_map.find(block_idx);
          if (bi != m_block_map.end())
          {
             if ( blocks_to_process.AddEntry(bi->second, iov_idx))
                inc_ref_count(bi->second);
-            clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d in map", block_idx);
+            TRACEF(Dump, "VReadPreProcess block "<< block_idx <<" in map");
          }
          else if (m_cfi.TestBit(offsetIdx(block_idx)))
          {
             blocks_on_disk.AddEntry(block_idx, iov_idx);
-            clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess block %d , chunk idx = %d on disk", block_idx,iov_idx );
+            TRACEF(Dump, "VReadPreProcess block "<< block_idx <<" , chunk idx = " << iov_idx << " on disk");
          }
          else {
             if ( Cache::GetInstance().HaveFreeWritingSlots() && Cache::GetInstance().RequestRAMBlock())
@@ -189,7 +190,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
                Block *b = RequestBlock(block_idx, false);
                if (!b) return false;
                blocks_to_process.AddEntry(b, iov_idx);
-               clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess request block  %d", block_idx);
+               TRACEF(Dump, "VReadPreProcess request block " << block_idx);
                inc_ref_count(b);
             }
             else {
@@ -199,7 +200,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& b
                const long long BS = m_cfi.GetBufferSize();
                overlap(block_idx, BS, readV[iov_idx].offset, readV[iov_idx].size, off, blk_off, size);
                chunkVec.push_back(XrdOucIOVec2(readV[iov_idx].data+off, BS*block_idx + blk_off,size));
-               clLog()->Debug(XrdCl::AppMsg, "VReadPreProcess direct read %d", block_idx);
+               TRACEF(Dump, "VReadPreProcess direct read " << block_idx);
             }
          }
       }
@@ -226,7 +227,7 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
          long long size;    // size to copy
       
 
-         clLog()->Debug(XrdCl::AppMsg, "VReadFromDisk block=%d chunk=%d", blockIdx, chunkIdx);
+         TRACEF(Dump, "VReadFromDisk block= " << blockIdx <<" chunk=" << chunkIdx);
          overlap(blockIdx, m_cfi.GetBufferSize(), readV[chunkIdx].offset, readV[chunkIdx].size, off, blk_off, size);
 
          int rs = m_output->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off - m_offset, size);
@@ -234,10 +235,8 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
             bytes_read += rs;
          }
          else {
-            // ofs read shoul set the errno
-
-             clLog()->Error(XrdCl::AppMsg, "VReadFromDisk FAILED block=%d chunk=%d off=%lld, blk_off=%lld, size=%lld, chunfoff =%lld", blockIdx, chunkIdx, off, blk_off, size,readV[chunkIdx].offset );
-       
+            // ofs read should set the errno
+            TRACEF(Error, "VReadFromDisk FAILED block=" << blockIdx << " chunk=" << chunkIdx << " off= " << off  << " blk_off=" <<  blk_off << " size = " << size <<  "chunOff " << readV[chunkIdx].offset);
             return -1;
          }
       }
@@ -311,6 +310,6 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
       finished.clear();
    }
 
-   clLog()->Info(XrdCl::AppMsg, "VReadProcessBlocks total read == %d", bytes_read);
+   TRACEF(Dump, "VReadProcessBlocks total read  " <<  bytes_read);
    return bytes_read;
 }
