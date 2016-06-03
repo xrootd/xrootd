@@ -101,7 +101,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    File* file;
    if (!(file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
    {
-      file = new File(m_io, fname, off, m_io->FSize());
+      file = new File(m_io, fname, off, blocksize);
       Cache::GetInstance().AddActive(this, file);
    }
       
