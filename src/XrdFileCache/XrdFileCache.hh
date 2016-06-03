@@ -192,7 +192,7 @@ namespace XrdFileCache
          void AddActive(IO*, File*);
         
 
-       XrdOucTrace* GetTrace() { return  m_trace; }
+         XrdOucTrace* GetTrace() { return  m_trace; }
       private:
          bool ConfigParameters(std::string, XrdOucStream&);
          bool ConfigXeq(char *, XrdOucStream &);
@@ -212,9 +212,6 @@ namespace XrdFileCache
          std::map<std::string, long long> m_filesInQueue;
 
          Configuration     m_configuration; //!< configurable parameters
-
-         //! Short log alias.
-         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
          XrdSysCondVar      m_prefetch_condVar; //!< central lock for this class
 
