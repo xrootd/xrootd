@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <iostream>
@@ -739,13 +740,37 @@ int main( int argc, char **argv )
                dest.c_str() );
 
     //--------------------------------------------------------------------------
+    // Create a virtual redirector if it is a metalink file
+    //--------------------------------------------------------------------------
+    if( metalink )
+    {
+      RedirectorRegistry &registry = RedirectorRegistry::Instance();
+      XRootDStatus st = registry.Register( source );
+      if( !st.IsOK() )
+      {
+        std::cerr << "RedirectorRegistry::Register " << source << " -> " << dest << ": ";
+        std::cerr << st.ToStr() << std::endl;
+        resultVect.push_back( results );
+        sourceFile = sourceFile->Next;
+        continue;
+      }
+    }
+
+    //--------------------------------------------------------------------------
     // Set up the job
     //--------------------------------------------------------------------------
     std::string target = dest;
-    if( targetIsDir )
+    if( targetIsDir)
     {
       target = dest + "/";
-      target += (sourceFile->Path+sourceFile->Doff);
+      // if it is a metalink we don't want to use the metalink name
+      if( metalink )
+      {
+        XrdCl::RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
+        VirtualRedirector *redirector = registry.Get( source );
+        target += redirector->GetTargetName();
+      }
+      else target += (sourceFile->Path+sourceFile->Doff);
     }
 
     AppendCGI( target, config.dstOpq );
@@ -768,7 +793,6 @@ int main( int argc, char **argv )
     XRootDStatus st = process.AddJob( properties, results );
     if( !st.IsOK() )
     {
-      delete results;
       std::cerr << "AddJob " << source << " -> " << target << ": ";
       std::cerr << st.ToStr() << std::endl;
     }

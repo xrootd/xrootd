@@ -52,6 +52,8 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
@@ -106,12 +108,14 @@ int opcnt = sizeof(optab)/sizeof(optab[0]);
   
 int main(int argc, char **argv)
 {
-extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp,
-                                                     const char   *cfn,
-                                                     const char   *parm);
+static XrdVERSIONINFODEF(myVer, XrdAccTest, XrdVNUMBER, XrdVERSION);
+extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
+                                                     const char     *cfn,
+                                                     const char     *parm,
+                                                     XrdVersionInfo &myVer);
 void Usage(const char *);
 char *p2l(XrdAccPrivs priv, char *buff, int blen);
-int rc = 0, argnum, DebugON = 0;
+int rc = 0, argnum;
 char c, *argval[32];
 int DoIt(int argnum, int argc, char **argv);
 XrdOucStream Command;
@@ -124,14 +128,13 @@ char *ConfigFN = (char *)"./acc.cf";
      { switch(c)
        {
        case 'c': ConfigFN = optarg;                  break;
-       case 'd': DebugON = 1;                        break;
        default:  Usage("Invalid option.");
        }
      }
 
 // Obtain the authorization object
 //
-if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0)))
+if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
    {cerr << "testaccess: Initialization failed." <<endl;
     exit(2);
    }
@@ -259,7 +262,8 @@ char *PrivsConvert(XrdAccPrivCaps &ctab, char *buff, int blen)
 /******************************************************************************/
   
 void Usage(const char *msg)
-     {if (msg) cerr <<"testaccess: " <<msg <<endl;
-      cerr << "testaccess [-c cfn] [-d] [user host op path [path [. . .]]]" <<endl;
+     {if (msg) cerr <<"xrdacctest: " <<msg <<endl;
+      cerr << "Usage: xrdacctest [-c cfn] [<user> <host> {d|i|k|l|n|r|w} "
+                     "<path> [<path> [...]]]" <<endl;
       exit(1);
      }

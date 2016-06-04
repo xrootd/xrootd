@@ -126,7 +126,7 @@ namespace XrdCl
       hostList(0), chunkList(0), redirectLimit(0) {}
     uint16_t         timeout;
     time_t           expires;
-    const HostInfo   loadBalancer;
+    HostInfo         loadBalancer;
     bool             followRedirects;
     bool             stateful;
     HostList        *hostList;

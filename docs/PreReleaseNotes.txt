@@ -14,7 +14,9 @@ Prerelease Notes
   * [Authentication/sss] Fix dynamic id incompatability introduced in 4.0.
 
 + **Minor bug fixes**
+  * [Server] Make sure lockfile time is updated in deprecated runmodeold.
   * [Server] Fixes #344 - squash path before checking for static redirect.
   * [Server] Free Entity before replacing it from the cache (memleak).  
 
 + **Miscellaneous**
+  * [Apps] Add xrdacctest to the tools set to test access control databases.

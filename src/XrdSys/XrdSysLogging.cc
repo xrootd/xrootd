@@ -28,7 +28,6 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <malloc.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -108,8 +107,8 @@ bool XrdSysLogging::Configure(XrdSysLogger &logr, Parms &parms)
 // Allocate a log buffer
 //
    int bsz = (parms.bufsz < 0 ? 65536 : parms.bufsz);
-   buffOrg = static_cast<char *>(memalign(getpagesize(), bsz));
-   if (!buffOrg) return EMsg(logr, "Unable to allocate log buffer!\n");
+   rc = posix_memalign(reinterpret_cast<void**>(&buffOrg), getpagesize(), bsz);
+   if (rc != 0 || !buffOrg) return EMsg(logr, "Unable to allocate log buffer!\n");
 
    buffBeg = buffOrg + buffOvhd;
    buffEnd = buffOrg + bsz;

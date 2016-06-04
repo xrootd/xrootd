@@ -37,6 +37,7 @@
 #include "XrdCl/XrdClResponseJob.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdClRedirectorRegistry.hh"
 
 #include <sstream>
 #include <memory>
@@ -330,6 +331,7 @@ namespace XrdCl
     pDoRecoverRead( true ),
     pDoRecoverWrite( true ),
     pFollowRedirects( true ),
+    pUseVirtRedirector( false ),
     pReOpenHandler( 0 )
   {
     pFileHandle = new uint8_t[4];
@@ -373,7 +375,8 @@ namespace XrdCl
                                        uint16_t           flags,
                                        uint16_t           mode,
                                        ResponseHandler   *handler,
-                                       uint16_t           timeout )
+                                       uint16_t           timeout,
+                                       bool               virtRedirector )
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
@@ -455,12 +458,29 @@ namespace XrdCl
     req->options   = flags | kXR_async | kXR_retstat;
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
+    msg->SetVirtualRedirections( virtRedirector );
 
     XRootDTransport::SetDescription( msg );
     OpenHandler *openHandler = new OpenHandler( this, handler );
     MessageSendParams params; params.timeout = timeout;
     params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
+
+    //--------------------------------------------------------------------------
+    // Register a virtual redirector
+    //--------------------------------------------------------------------------
+    if( virtRedirector )
+    {
+      RedirectorRegistry& registry = RedirectorRegistry::Instance();
+      XRootDStatus st = registry.Register( url, handler );
+      if( !st.IsOK() ) return st;
+      HostInfo info( url, true );
+      HostList *list = new HostList();
+      list->push_back( info );
+      params.loadBalancer = info;
+      params.hostList     = list;
+    }
+    pUseVirtRedirector = virtRedirector;
 
     Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
 
@@ -991,7 +1011,7 @@ namespace XrdCl
 
       pDataServer = new URL( hostList->back().url );
       pDataServer->SetParams( pFileUrl->GetParams() );
-      pDataServer->SetPath( pFileUrl->GetPath() );
+      if( !pUseVirtRedirector ) pDataServer->SetPath( pFileUrl->GetPath() );
       lastServer = pDataServer->GetHostId();
       HostList::const_iterator itC;
       URL::ParamsMap params = pDataServer->GetParams();
@@ -1545,6 +1565,7 @@ namespace XrdCl
     req->options   = pOpenFlags;
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
+    msg->SetVirtualRedirections( pUseVirtRedirector );
 
     // the handler has been removed from the queue
     // (because we are here) so we can destroy it
@@ -1563,6 +1584,19 @@ namespace XrdCl
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    //--------------------------------------------------------------------------
+    // If a virtual redirector is in use, set it up in send parameters
+    //--------------------------------------------------------------------------
+    if( pUseVirtRedirector )
+    {
+      HostInfo info( *pFileUrl, true );
+      HostList *list = new HostList();
+      list->push_back( info );
+      params.loadBalancer = info;
+      params.hostList     = list;
+    }
+
     Status st = MessageUtils::SendMessage( url, msg, openHandler, params );
     // if there was a problem destroy the open handler
     if( !st.IsOK() )

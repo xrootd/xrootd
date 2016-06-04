@@ -32,6 +32,7 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 
 #include <memory>
 #include <iostream>
@@ -548,10 +549,11 @@ namespace
       //------------------------------------------------------------------------
       XRootDSource( const XrdCl::URL *url,
                     uint32_t          chunkSize,
-                    uint8_t           parallelChunks ):
+                    uint8_t           parallelChunks,
+                    bool              virtRedirector ):
         pUrl( url ), pFile( new XrdCl::File() ), pSize( -1 ),
         pCurrentOffset( 0 ), pChunkSize( chunkSize ),
-        pParallel( parallelChunks )
+        pParallel( parallelChunks ), pVirtRedirector( virtRedirector )
       {
       }
 
@@ -579,7 +581,7 @@ namespace
         DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
         pFile->SetProperty( "ReadRecovery", value );
 
-        XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
+        XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read, Access::None, 0, pVirtRedirector );
         if( !st.IsOK() )
           return st;
 
@@ -691,9 +693,18 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        if( pVirtRedirector )
+        {
+          XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
+          checkSum = redirector->GetCheckSum( checkSumType );
+          if( !checkSum.empty() ) return XrdCl::XRootDStatus();
+        }
+
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
+        std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                dataServer, pUrl->GetPath() );
+                                                dataServer, XrdCl::URL( lastUrl ).GetPath() );
       }
 
     private:
@@ -735,6 +746,7 @@ namespace
       uint32_t                    pChunkSize;
       uint8_t                     pParallel;
       std::queue<ChunkHandler *>  pChunks;
+      bool                        pVirtRedirector;
   };
 
   //----------------------------------------------------------------------------
@@ -747,9 +759,10 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       XRootDSourceDynamic( const XrdCl::URL *url,
-                           uint32_t          chunkSize ):
+                           uint32_t          chunkSize,
+                           bool virtRedirector ):
         pUrl( url ), pFile( new XrdCl::File() ), pCurrentOffset( 0 ),
-        pChunkSize( chunkSize ), pDone( false )
+        pChunkSize( chunkSize ), pDone( false ), pVirtRedirector( virtRedirector )
       {
       }
 
@@ -776,7 +789,7 @@ namespace
         DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
         pFile->SetProperty( "ReadRecovery", value );
 
-        XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
+        XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read, Access::None, 0, pVirtRedirector );
         if( !st.IsOK() )
           return st;
 
@@ -852,9 +865,18 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        if( pVirtRedirector )
+        {
+          XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
+          checkSum = redirector->GetCheckSum( checkSumType );
+          if( !checkSum.empty() ) return XrdCl::XRootDStatus();
+        }
+
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
-        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                dataServer, pUrl->GetPath() );
+        std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
+        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType, dataServer,
+                                                XrdCl::URL( lastUrl ).GetPath() );
       }
 
     private:
@@ -865,6 +887,7 @@ namespace
       int64_t                     pCurrentOffset;
       uint32_t                    pChunkSize;
       bool                        pDone;
+      bool                        pVirtRedirector;
   };
 
   //----------------------------------------------------------------------------
@@ -1401,7 +1424,7 @@ namespace XrdCl
     std::string checkSumPreset;
     uint16_t    parallelChunks;
     uint32_t    chunkSize;
-    bool        posc, force, coerce, makeDir, dynamicSource;
+    bool        posc, force, coerce, makeDir, dynamicSource, virtRedirector = false;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
     pProperties->Get( "checkSumType",    checkSumType );
@@ -1413,6 +1436,7 @@ namespace XrdCl
     pProperties->Get( "coerce",          coerce );
     pProperties->Get( "makeDir",         makeDir );
     pProperties->Get( "dynamicSource",   dynamicSource );
+    pProperties->Get( "metalink",        virtRedirector );
 
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
@@ -1425,9 +1449,9 @@ namespace XrdCl
     else
     {
       if( dynamicSource )
-        src.reset( new XRootDSourceDynamic( &GetSource(), chunkSize ) );
+        src.reset( new XRootDSourceDynamic( &GetSource(), chunkSize, virtRedirector ) );
       else
-        src.reset( new XRootDSource( &GetSource(), chunkSize, parallelChunks ) );
+        src.reset( new XRootDSource( &GetSource(), chunkSize, parallelChunks, virtRedirector ) );
     }
 
     XRootDStatus st = src->Initialize();
