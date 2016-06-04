@@ -59,7 +59,7 @@ union
 XrdSysMutex     *MutexP() {return &myMutex;}
 
         bool     Open(XrdSsiService::Resource *resP, const char *epURL,
-                      unsigned short tOut);
+                      unsigned short tOut, bool finup);
 
         void     ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut=0);
 
@@ -105,6 +105,7 @@ XrdSsiTaskReal  *pendTask;
 short            nextTID;
 short            alocLeft;
 short            numPT;
+bool             doUnProv;
 bool             stopping;
 };
 #endif

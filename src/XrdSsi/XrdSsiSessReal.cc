@@ -99,6 +99,7 @@ void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName)
    myService = servP;
    nextTID   = 0;
    alocLeft  = XrdSsiRRInfo::maxID;
+   doUnProv  = false;
    stopping  = false;
    if (sName)
       {if (sessName) free(sessName);
@@ -133,7 +134,8 @@ int XrdSsiSessReal::MapErr(int xEnum)
   
 bool XrdSsiSessReal::Open(XrdSsiService::Resource *resP,
                           const char              *epURL,
-                          unsigned short           tOut)
+                          unsigned short           tOut,
+                          bool                     finup)
 {
    EPNAME("SessOpen");
    XrdCl::XRootDStatus epStatus;
@@ -141,6 +143,7 @@ bool XrdSsiSessReal::Open(XrdSsiService::Resource *resP,
 // Set resource, we will need to call ProvisionDone() on it later
 //
    resource = resP;
+   doUnProv = finup;
 
 // Issue the open and if the open was started, return success.
 //
@@ -315,10 +318,13 @@ void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
    XrdSsiTaskReal  *rtP;
    void            *objHandle;
 
-// If we have no task then we are really done here
+// If we have no task then we are really done here (we may need to unprovision)
 //
    DBG("Request="<<hex<<rqstP<<dec<<" cancel="<<cancel<<" task="<<hex<<tP<<dec);
-   if (!tP) return;
+   if (!tP)
+      {if (doUnProv) Unprovision();
+       return;
+      }
 
 // Since only we can set the task pointer we are allowed to down-cast it
 // to it's actual implementation. This is actualy a safe operation.
@@ -336,6 +342,10 @@ void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
       else {rtP->attList.next = pendTask; pendTask = rtP;
             DBG("Removal deferred; Task="<<tP<<dec<<" id=" <<nextTID-1);
            }
+
+// Finally, if this is a single session run then unprovision here
+//
+   if (doUnProv) Unprovision();
 }
 
 /******************************************************************************/

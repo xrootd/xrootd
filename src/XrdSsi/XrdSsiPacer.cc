@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d S s i R e q u e s t . c c                       */
+/*                        X r d S s i P a c e r . c c                         */
 /*                                                                            */
 /* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
@@ -27,132 +27,123 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
+#include <limits.h>
 
+#include "Xrd/XrdScheduler.hh"
+#include "XrdOuc/XrdOucHash.hh"
 #include "XrdSsi/XrdSsiPacer.hh"
-#include "XrdSsi/XrdSsiRespInfo.hh"
-#include "XrdSsi/XrdSsiRequest.hh"
-#include "XrdSsi/XrdSsiResource.hh"
-#include "XrdSsi/XrdSsiService.hh"
-#include "XrdSsi/XrdSsiSSRun.hh"
-  
+
 /******************************************************************************/
-/* Private:                     C o p y D a t a                               */
+/*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
-  
-bool XrdSsiRequest::CopyData(char *buff, int blen)
+
+namespace XrdSsi
 {
-   bool last;
-
-// Make sure the buffer length is valid
-//
-   if (blen <= 0)
-      {eInfo.Set("Buffer length invalid", EINVAL);
-       return false;
-      }
-
-// Check if we have any data here
-//
-   reqMutex.Lock();
-   if (Resp.blen > 0)
-      {if (Resp.blen > blen) last = false;
-          else {blen = Resp.blen; last = true;}
-       memcpy(buff, Resp.buff, blen);
-       Resp.buff += blen; Resp.blen -= blen;
-      } else {blen = 0; last = true;}
-   reqMutex.UnLock();
-
-// Invoke the callback
-//
-   ProcessResponseData(buff, blen, last);
-   return true;
-}
-
-/******************************************************************************/
-/*                              F i n i s h e d                               */
-/******************************************************************************/
-
-bool XrdSsiRequest::Finished(bool cancel)
-{
-   XrdSsiMutexMon(reqMutex);
-
-// If there is no session, return failure
-//
-   if (!theSession) return false;
-
-// Tell the session we are finished
-//
-   theSession->RequestFinished(this, Resp, cancel);
-
-// Clear response and error information
-//
-   Resp.Init();
-   eInfo.Clr();
-
-// Clear pointers and return
-//
-   theRespond = 0;
-   theSession = 0;
-   return true;
+extern XrdScheduler *schedP;
 }
   
 /******************************************************************************/
-/*                                 S S R u n                                  */
+/*                         L o c a l   O b j e c t s                          */
 /******************************************************************************/
   
-void XrdSsiRequest::SSRun(XrdSsiService  &srvc,
-                          XrdSsiResource &rsrc,
-                          unsigned short  tmo)
+namespace
 {
-   XrdSsiSSRun *runP;
+XrdOucHash<XrdSsiPacer>    reqMap;
+}
 
-// Make sure that atleats the resource name was specified
+XrdSsiMutex                XrdSsiPacer::pMutex;
+XrdSsiPacer                XrdSsiPacer::glbQ;
+int                        XrdSsiPacer::glbN = 0;
+
+/******************************************************************************/
+/*                                  H o l d                                   */
+/******************************************************************************/
+  
+void XrdSsiPacer::Hold(const char *reqID)
+{
+   XrdSsiMutexMon myLock(pMutex);
+
+// If no request ID given then simply queue this on the global chain
 //
-   if (!rsrc.rName || !(*rsrc.rName))
-      {eInfo.Set("Resource name missing.", EINVAL);
-       Resp.eMsg  = eInfo.Get();
-       Resp.eNum  = EINVAL;
-       Resp.rType = XrdSsiRespInfo::isError;
-       ProcessResponse(Resp, false);
+   if (!reqID)
+      {glbQ.Q_PushBack(this);
+       lclQ = 0;
+       glbN++;
        return;
       }
 
-// Now allocate memory to copy all the members
+// See if we have a local anchor for this request, if not, add one.
 //
-   runP = XrdSsiSSRun::Alloc(this, rsrc, tmo);
-   if (!runP)
-      {eInfo.Set(0, ENOMEM);
-       Resp.eMsg  = eInfo.Get();
-       Resp.eNum  = ENOMEM;
-       Resp.rType = XrdSsiRespInfo::isError;
-       ProcessResponse(Resp, false);
-       return;
+   lclQ = reqMap.Find(reqID);
+   if (!lclQ)
+      {lclQ = new XrdSsiPacer;
+       reqMap.Add(reqID, lclQ);
       }
 
-// Now provision the resource and we are done here. The SSRun object takes over.
+// Chain the entry
 //
-   srvc.Provision(runP, tmo);
+   lclQ->Q_PushBack(this);
 }
 
 /******************************************************************************/
-
-void XrdSsiRequest::SSRun(XrdSsiService  &srvc,
-                          const char     *rname,
-                          const char     *ruser,
-                          unsigned short  tmo)
-{
-   XrdSsiResource myRes(rname, ruser);
-
-   SSRun(srvc, myRes, tmo);
-}
-
-/******************************************************************************/
-/*                   R e s t a r t D a t a R e s p o n s e                    */
+/*                                 R e s e t                                  */
 /******************************************************************************/
   
-int  XrdSsiRequest::RestartDataResponse(int rnum, const char *reqid)
+void XrdSsiPacer::Reset()
 {
-   return XrdSsiPacer::Run(rnum, reqid);
+// If we are in a queue then remove ourselves
+//
+   if (!Singleton())
+      {const char *reqID;
+       pMutex.Lock();
+       Q_Remove();
+       if (!lclQ) glbN--;
+          else if (lclQ->Singleton() && (reqID=RequestID())) reqMap.Del(reqID);
+       pMutex.UnLock();
+      }
+}
+
+/******************************************************************************/
+/*                                   R u n                                    */
+/******************************************************************************/
+  
+int XrdSsiPacer::Run(int num, const char *reqID)
+{
+   XrdSsiMutexMon myLock(pMutex);
+   XrdSsiPacer   *anchor, *rItem;
+   int numRestart = 0;
+
+// Determine which anchor to use
+//
+   if (!reqID)   anchor = &glbQ;
+      else if (!(anchor = reqMap.Find(reqID))) return 0;
+
+// Check if only count wanted
+//
+   if (!num)
+      {if (!reqID) return glbN;
+       rItem = anchor->next;
+       while(rItem != anchor) {numRestart++; rItem = rItem->next;}
+       return numRestart;
+      }
+
+// Run as many as wanted
+//
+   if (num < 0) num = INT_MAX;
+   for (int n = 1; n <= num && !(anchor->Singleton()); n++)
+       {rItem = anchor->next;
+        rItem->Q_Remove();
+        rItem->lclQ = 0;
+        XrdSsi::schedP->Schedule(rItem);
+        numRestart++;
+       }
+
+// If this is a local queue, check if we removed the last element
+//
+   if (reqID && anchor->Singleton()) reqMap.Del(reqID);
+
+// Return number of items we ran
+//
+   if (!reqID) glbN -= numRestart;
+   return numRestart;
 }

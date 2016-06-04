@@ -626,15 +626,15 @@ int XrdSsiFile::open(const char          *path,      // In
        return eNum;
       }
 
-// Make sure the open flag is correct
+// Make sure the open flag is correct (we now open this R/O so don't check)
 //
 // if (open_mode != SFS_O_RDWR)
 //    return XrdSsiUtils::Emsg(epname, EPROTOTYPE, "open session", path, error);
 
 // Handle the cgi information
 //
-   fileResource.rUser = fsUser = GetUser(info);
-   fileResource.rInfo = info;
+   fileResource.rDesc.rUser = fsUser = GetUser(info);
+   fileResource.rDesc.rInfo = info;
 
 // Obtain a session
 //

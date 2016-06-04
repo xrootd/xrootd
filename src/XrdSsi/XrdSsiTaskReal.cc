@@ -132,6 +132,10 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 //
    DBG("Status = "<<statName[tStat]<<" mhPend="<<mhPend <<" id=" <<tskID);
 
+// Regardless of the state, remove this task from the hold queue if there
+//
+   Reset();
+
 // Affect proper procedure
 //
    switch(tStat)
@@ -163,6 +167,30 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
    return !mhPend;
 }
   
+/******************************************************************************/
+/*                               R e d r i v e                                */
+/******************************************************************************/
+  
+void XrdSsiTaskReal::Redrive()
+{
+   EPNAME("TaskRedrive");
+   XrdSsiRequest::PRD_Xeq prdVal;
+   bool last = tStat == isDone;
+
+// Simply call data response method again
+//
+   sessP->UnLock();
+   DBG("Redriving ProcessResponseData; len="<<dataRlen<<" last="<<last);
+   prdVal = rqstP->ProcessResponseData(dataBuff, dataRlen, last);
+   switch(prdVal)
+         {case XrdSsiRequest::PRD_Normal:                      break;
+          case XrdSsiRequest::PRD_Hold:    Hold(0);            break;
+          case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->reqID); break;
+          default: cerr <<"Redrive: ProcessResponseData() return invalid enum "
+                          " - " <<prdVal <<endl;
+         }
+}
+
 /******************************************************************************/
 /* Private:                      R e s p E r r                                */
 /******************************************************************************/
@@ -305,6 +333,7 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
    XrdCl::Buffer qBuff(sizeof(unsigned long long));
    union {uint32_t ubRead; int ibRead;};
    int dLen;
+   XrdSsiRequest::PRD_Xeq prdVal;
    bool last, aOK = status->IsOK();
 
 // Affect proper response
@@ -377,12 +406,22 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
 // Reflect the response to the request as this was an async receive. We may not
 // reference this object after the UnLock() as Finished() might be called.
 //
-   if (ibRead < dataRlen) tStat = isDone;
+   if (ibRead < dataRlen) {tStat = isDone; dataRlen = ibRead;}
    dBuff = dataBuff;
    mhPend = false;
    last = tStat == isDone;
    sessP->UnLock();
    DBG("Calling ProcessResponseData; len="<<ibRead<<" last="<<last);
-   rqstP->ProcessResponseData(dBuff, ibRead, last);
+   prdVal = rqstP->ProcessResponseData(dBuff, ibRead, last);
+
+// The processor requested a hold on further action for this request
+//
+   switch(prdVal)
+         {case XrdSsiRequest::PRD_Normal:                      break;
+          case XrdSsiRequest::PRD_Hold:    Hold(0);            break;
+          case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->reqID); break;
+          default: cerr <<"XeqEvent: ProcessResponseData() return invalid enum "
+                          " - " <<prdVal <<endl;
+         }
    return true;
 }

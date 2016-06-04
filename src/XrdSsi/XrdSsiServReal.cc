@@ -97,34 +97,34 @@ bool XrdSsiServReal::GenURL(XrdSsiService::Resource *rP,
 
 // Preprocess avoid list, if any
 //
-   if (!(rP->hAvoid) || !*(rP->hAvoid)) tVar = tVal = "";
+   if (!(rP->rDesc.hAvoid) || !*(rP->rDesc.hAvoid)) tVar = tVal = "";
       else {tVar = "?tried=";
-            tVal = rP->hAvoid;
+            tVal = rP->rDesc.hAvoid;
             xCGI = true;
            }
 
 // Preprocess affinity
 //
-   if (!(rP->affinity)) aVar = aVal = "";
+   if (!(rP->rDesc.affinity)) aVar = aVal = "";
       else {aVar = (xCGI ? "&cms.aff=" : "?cms.aff=");
-            aVal = &affTab[rP->affinity*2];
+            aVal = &affTab[rP->rDesc.affinity*2];
             xCGI = true;
            }
 
 // Check if we need to qualify the host with a user name
 //
-   if (!rP->rUser || !(*rP->rUser)) xUsr = xAt = uVar = uVal = "";
+   if (!rP->rDesc.rUser || !(*rP->rDesc.rUser)) xUsr = xAt = uVar = uVal = "";
       else {uVar = (xCGI ? "&ssi.user=" : "?ssi.user=");
-            uVal = rP->rUser;
+            uVal = rP->rDesc.rUser;
             xCGI = true;
             if (!uCon) xUsr = xAt = "";
-               else  {xUsr = rP->rUser; xAt = "@";}
+               else  {xUsr = rP->rDesc.rUser; xAt = "@";}
            }
 
 // Preprocess the cgi information
 //
-   if (!(rP->rInfo) || !*(rP->rInfo)) iSep = iVal = "";
-      else {iVal = rP->rInfo;
+   if (!(rP->rDesc.rInfo) || !*(rP->rDesc.rInfo)) iSep = iVal = "";
+      else {iVal = rP->rDesc.rInfo;
             if (xCGI) iSep = (*iVal == '&' ? "" : "&");
                else   iSep = (*iVal == '?' ? "" : "?");
            }
@@ -133,8 +133,8 @@ bool XrdSsiServReal::GenURL(XrdSsiService::Resource *rP,
 //                                             t   a   u   i
    n = snprintf(buff, blen, "xroot://%s%s%s/%s%s%s%s%s%s%s%s%s",
                              xUsr, xAt, manNode,
-                             rP->rName, tVar, tVal, aVar, aVal,
-                                        uVar, uVal, iSep, iVal);
+                             rP->rDesc.rName, tVar, tVal, aVar, aVal,
+                                              uVar, uVal, iSep, iVal);
 
 // Return overflow or not
 //
@@ -155,7 +155,7 @@ void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
 
 // Validate the resource name
 //
-   if (!resP->rName || !(*resP->rName))
+   if (!resP->rDesc.rName || !(*resP->rDesc.rName))
       {resP->eInfo.Set("Resource name missing.", EINVAL);
        resP->ProvisionDone(0);
        return;
@@ -171,7 +171,7 @@ void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
 
 // Obtain a new session object
 //
-   if (!(sObj = Alloc(resP->rName)))
+   if (!(sObj = Alloc(resP->rDesc.rName)))
       {resP->eInfo.Set("Insufficient memory.", ENOMEM);
        resP->ProvisionDone(0);
        return;
@@ -179,7 +179,8 @@ void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
 
 // Now just effect an open to this resource
 //
-   if (!(sObj->Open(resP, epURL, timeOut)))
+   if (!(sObj->Open(resP, epURL, timeOut,
+                    (resP->rDesc.rOpts & XrdSsiResource::autoUnP) != 0)))
       {Recycle(sObj);
        resP->ProvisionDone(0);
       }

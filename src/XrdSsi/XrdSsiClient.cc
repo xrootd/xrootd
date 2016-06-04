@@ -57,7 +57,8 @@ namespace XrdSsi
 XrdSysMutex   clMutex;
 XrdScheduler *schedP   = 0;
 XrdCl::Env   *clEnvP   = 0;
-int           maxTCB   = 300;
+short         maxTCB   = 300;
+short         maxCLW   =  30;
 bool          initDone = false;
 bool          dsTTLSet = false;
 bool          reqTOSet = false;
@@ -91,8 +92,7 @@ virtual rStat  QueryResource(const char *rName,
                              const char *contact=0
                             ) {return notPresent;}
 
-virtual void   SetCBThreads(int tNum)
-                           {clMutex.Lock(); maxTCB = tNum; clMutex.UnLock();}
+virtual void   SetCBThreads(int cbNum, int ntNum);
 
 virtual void   SetTimeout(tmoType what, int tmoval);
 
@@ -151,6 +151,25 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo &eInfo,
 }
 
 /******************************************************************************/
+/*    X r d S s i C l i e n t P r o v i d e r : : S e t C B T h r e a d s     */
+/******************************************************************************/
+
+void XrdSsiClientProvider::SetCBThreads(int cbNum, int ntNum)
+{
+// Validate thread number
+//
+   if (cbNum > 1)
+      {if (cbNum < 32767) cbNum = 32767; // Max short value
+       if (ntNum < 1) ntNum = cbNum*10/100;
+       if (ntNum < 3) ntNum = 0;
+       clMutex.Lock();
+       maxTCB = static_cast<short>(cbNum);
+       maxCLW = static_cast<short>(ntNum);
+       clMutex.UnLock();
+      }
+}
+  
+/******************************************************************************/
 /*    X r d S s i C l i e n t P r o v i d e r : : S e t S c h e d u l e r     */
 /******************************************************************************/
 
@@ -191,6 +210,13 @@ void XrdSsiClientProvider::SetScheduler()
 // Set thread count for callbacks
 //
    XrdSsi::schedP->setParms(-1, maxTCB, -1, -1, 0);
+
+// Set number of framework worker hreads if need be
+//
+   if (maxCLW)
+      {if (!XrdSsi::clEnvP) clEnvP = XrdCl::DefaultEnv::GetEnv();
+       clEnvP->PutInt("WorkerThreads", maxCLW);
+      }
 
 // Start the scheduler
 //

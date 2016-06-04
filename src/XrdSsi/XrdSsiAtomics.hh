@@ -29,6 +29,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string.h>
+
 #undef NEED_ATOMIC_MUTEX
 
 //-----------------------------------------------------------------------------

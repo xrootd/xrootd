@@ -27,14 +27,17 @@ XrdSsi/XrdSsiEvent.cc                  XrdSsi/XrdSsiEvent.hh
 XrdSsi/XrdSsiFile.cc                   XrdSsi/XrdSsiFile.hh
 XrdSsi/XrdSsiFileReq.cc                XrdSsi/XrdSsiFileReq.hh
 XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh
+XrdSsi/XrdSsiPacer.cc                  XrdSsi/XrdSsiPacer.hh
                                        XrdSsi/XrdSsiProvider.hh
                                        XrdSsi/XrdSsiRRInfo.hh
                                        XrdSsi/XrdSsiRRTable.hh
 XrdSsi/XrdSsiRequest.cc                XrdSsi/XrdSsiRequest.hh
                                        XrdSsi/XrdSsiResponder.hh
+                                       XrdSsi/XrdSsiResource.hh
 XrdSsi/XrdSsiServReal.cc               XrdSsi/XrdSsiServReal.hh
                                        XrdSsi/XrdSsiService.hh
 XrdSsi/XrdSsiSessReal.cc               XrdSsi/XrdSsiSessReal.hh
+XrdSsi/XrdSsiSSRun.cc                  XrdSsi/XrdSsiSSRun.hh
                                        XrdSsi/XrdSsiSession.hh
 XrdSsi/XrdSsiSfs.cc                    XrdSsi/XrdSsiSfs.hh
 XrdSsi/XrdSsiSfsConfig.cc              XrdSsi/XrdSsiSfsConfig.hh

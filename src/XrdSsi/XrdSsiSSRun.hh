@@ -1,10 +1,10 @@
-#ifndef __XRDSSITASKREAL_HH__
-#define __XRDSSITASKREAL_HH__
+#ifndef __XRDSSISSRUN_HH__
+#define __XRDSSISSRUN_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i T a s k R e a l . h h                      */
+/*                        X r d S s i S S R u n . h h                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,77 +29,34 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiEvent.hh"
-#include "XrdSsi/XrdSsiPacer.hh"
-#include "XrdSsi/XrdSsiStream.hh"
-#include "XrdSsi/XrdSsiResponder.hh"
+#include "XrdSsi/XrdSsiService.hh"
+  
+//-----------------------------------------------------------------------------
+//! The XrdSsiSSRun object effects the SSRun() methods in the SsiRequest object.
+//-----------------------------------------------------------------------------
 
 class XrdSsiRequest;
-class XrdSsiSessReal;
 
-class XrdSsiTaskReal : public XrdSsiEvent,     public XrdSsiPacer,
-                       public XrdSsiResponder, public XrdSsiStream
+class XrdSsiSSRun : public XrdSsiService::Resource
 {
 public:
 
-enum TaskStat {isWrite=0, isSync, isReady, isDone, isDead};
+static
+XrdSsiSSRun *Alloc(XrdSsiRequest *reqp, XrdSsiResource &rsrc,
+                   unsigned short tmo=0);
 
-void   Detach(bool force=false);
+void         ProvisionDone(XrdSsiSession *sessP);
 
-void  *Implementation() {return (void *)this;}
+             XrdSsiSSRun(XrdSsiRequest *reqp, unsigned short tmo=0)
+                        : XrdSsiService::Resource(0),
+                          theReq(reqp), tOut(tmo) {}
 
-bool   Kill();
-
-inline
-int    ID() {return tskID;}
-
-inline
-void   Init(XrdSsiRequest *rP, unsigned short tmo=0)
-           {rqstP = rP, tStat = isWrite; tmOut = tmo; mhPend = true;
-            attList.next = attList.prev = this;
-            if (mdResp) {delete mdResp; mdResp = 0;}
-           }
-
-void   Redrive();
-const 
-char  *RequestID() {return rqstP->reqID;}
-
-int    SetBuff(XrdSsiErrInfo &eInfo, char *buff, int blen, bool &last);
-
-bool   SetBuff(XrdSsiRequest *reqP, char *buff, int blen);
-
-void   SetTaskID(short tid) {tskID = tid;}
-
-bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
-
-       XrdSsiTaskReal(XrdSsiSessReal *sP, short tid)
-                     : XrdSsiEvent("TaskReal"),
-                       XrdSsiResponder(this, (void *)0),
-                       XrdSsiStream(XrdSsiStream::isPassive),
-                       sessP(sP), mdResp(0), tskID(tid)
-                    {}
-
-      ~XrdSsiTaskReal() {if (mdResp) delete mdResp;}
-
-void   RespErr(XrdCl::XRootDStatus *status);
-
-struct dlQ {XrdSsiTaskReal *next; XrdSsiTaskReal *prev;};
-dlQ             attList;
-
-enum respType     {isBad=0, isData, isStream};
+      ~XrdSsiSSRun() {}
 
 private:
-
-respType          GetResp(XrdCl::AnyObject **respP, char *&dbuf, int &dlen);
-
-XrdSsiSessReal   *sessP;
-XrdSsiRequest    *rqstP;
-XrdCl::AnyObject *mdResp;
-char             *dataBuff;
-int               dataRlen;
-TaskStat          tStat;
-unsigned short    tmOut;
-short             tskID;
-bool              mhPend;
+union {XrdSsiRequest  *theReq;
+       XrdSsiSSRun    *freeNext;
+      };
+unsigned short         tOut;
 };
 #endif

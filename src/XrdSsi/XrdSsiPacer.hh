@@ -1,10 +1,10 @@
-#ifndef __XRDSSITASKREAL_HH__
-#define __XRDSSITASKREAL_HH__
+#ifndef __XRDSSIPACER_HH__
+#define __XRDSSIPACER_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i T a s k R e a l . h h                      */
+/*                        X r d S s i P a c e r . h h                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,77 +29,54 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiEvent.hh"
-#include "XrdSsi/XrdSsiPacer.hh"
-#include "XrdSsi/XrdSsiStream.hh"
-#include "XrdSsi/XrdSsiResponder.hh"
+#include "Xrd/XrdJob.hh"
+#include "XrdSsi/XrdSsiAtomics.hh"
 
-class XrdSsiRequest;
-class XrdSsiSessReal;
-
-class XrdSsiTaskReal : public XrdSsiEvent,     public XrdSsiPacer,
-                       public XrdSsiResponder, public XrdSsiStream
+class XrdSsiPacer : public XrdJob
 {
 public:
 
-enum TaskStat {isWrite=0, isSync, isReady, isDone, isDead};
+void           DoIt() {Redrive();}
 
-void   Detach(bool force=false);
+void           Hold(const char *reqID=0);
 
-void  *Implementation() {return (void *)this;}
+void           Q_Insert(XrdSsiPacer *Node)
+                       {Node->next  = next;        // Chain in the item;
+                        next->prev  = Node;
+                        next        = Node;
+                        Node->prev  = this;
+                       }
 
-bool   Kill();
+void           Q_Remove()
+                       {prev->next = next;        // Unchain the item
+                        next->prev = prev;
+                        next       = this;
+                        prev       = this;
+                       }
 
-inline
-int    ID() {return tskID;}
+void           Q_PushBack(XrdSsiPacer *Node) {prev->Q_Insert(Node);}
 
-inline
-void   Init(XrdSsiRequest *rP, unsigned short tmo=0)
-           {rqstP = rP, tStat = isWrite; tmOut = tmo; mhPend = true;
-            attList.next = attList.prev = this;
-            if (mdResp) {delete mdResp; mdResp = 0;}
-           }
+virtual void   Redrive() {}            // Meant to be overridden
 
-void   Redrive();
-const 
-char  *RequestID() {return rqstP->reqID;}
+virtual
+const char    *RequestID() {return 0;} // Meant to be overridden
 
-int    SetBuff(XrdSsiErrInfo &eInfo, char *buff, int blen, bool &last);
+void           Reset();
 
-bool   SetBuff(XrdSsiRequest *reqP, char *buff, int blen);
+static int     Run(int num=1, const char *reqID=0);
 
-void   SetTaskID(short tid) {tskID = tid;}
+bool           Singleton() {return next == this;}
 
-bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
-
-       XrdSsiTaskReal(XrdSsiSessReal *sP, short tid)
-                     : XrdSsiEvent("TaskReal"),
-                       XrdSsiResponder(this, (void *)0),
-                       XrdSsiStream(XrdSsiStream::isPassive),
-                       sessP(sP), mdResp(0), tskID(tid)
-                    {}
-
-      ~XrdSsiTaskReal() {if (mdResp) delete mdResp;}
-
-void   RespErr(XrdCl::XRootDStatus *status);
-
-struct dlQ {XrdSsiTaskReal *next; XrdSsiTaskReal *prev;};
-dlQ             attList;
-
-enum respType     {isBad=0, isData, isStream};
+               XrdSsiPacer() : prev(this), next(this), lclQ(0) {}
+virtual       ~XrdSsiPacer() {Reset();}
 
 private:
 
-respType          GetResp(XrdCl::AnyObject **respP, char *&dbuf, int &dlen);
-
-XrdSsiSessReal   *sessP;
-XrdSsiRequest    *rqstP;
-XrdCl::AnyObject *mdResp;
-char             *dataBuff;
-int               dataRlen;
-TaskStat          tStat;
-unsigned short    tmOut;
-short             tskID;
-bool              mhPend;
+static XrdSsiMutex  pMutex;
+static XrdSsiPacer  glbQ;
+static int          glbN;
+XrdSsiPacer        *prev;
+XrdSsiPacer        *next;
+XrdSsiPacer        *lclQ;
 };
 #endif

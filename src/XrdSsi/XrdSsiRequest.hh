@@ -62,14 +62,17 @@
 //!                                         asynchronously received.
 //-----------------------------------------------------------------------------
 
+class XrdSsiPacer;
+class XrdSsiResource;
 class XrdSsiResponder;
+class XrdSsiService;
 class XrdSsiStream;
-class XrdSsiTaskReal;
 
 class XrdSsiRequest
 {
 public:
 friend class XrdSsiResponder;
+friend class XrdSsiSSRun;
 friend class XrdSsiTaskReal;
 
 //-----------------------------------------------------------------------------
@@ -95,14 +98,7 @@ XrdSsiErrInfo   eInfo;
 //!                not bound to a session. This indicates a logic error.
 //-----------------------------------------------------------------------------
 
-inline  bool    Finished(bool cancel=false)
-                        {XrdSsiMutexMon(reqMutex);
-                         if (!theSession) return false;
-                         theSession->RequestFinished(this, Resp, cancel);
-                         Resp.Init(); eInfo.Clr();
-                         theRespond = 0; theSession = 0;
-                         return true;
-                        }
+        bool    Finished(bool cancel=false);
 
 //-----------------------------------------------------------------------------
 //! Obtain the metadata associated with a response.
@@ -203,9 +199,77 @@ virtual bool    ProcessResponse(const XrdSsiRespInfo &rInfo, bool isOK=true)=0;
 //! @param blen  The number of bytes in buff or an error indication if blen < 0.
 //! @param last  true  This is the last stream segment, no more data remains.
 //! @param       false More data may remain in the stream.
+//! @return      One of the enum PRD_Xeq:
+//!              PRD_Normal  - Processing completeted normally, continue.
+//!              PRD_Hold    - Processing could not be done now, place request
+//!                            in the global FIFO hold queue and resume when
+//!                            RestartDataResponse() is called.
+//!              PRD_HoldLcl - Processing could not be done now, place request
+//!                            in the request ID FIFO local queue and resume when
+//!                            RestartDataResponse() is called with the ID that
+//!                            passed to the this request object constructor.
 //-----------------------------------------------------------------------------
 
-virtual void    ProcessResponseData(char *buff, int blen, bool last) {}
+enum PRD_Xeq {PRD_Normal = 0, PRD_Hold = 1, PRD_HoldLcl = 2};
+
+virtual PRD_Xeq ProcessResponseData(char *buff, int blen, bool last)
+                {return PRD_Normal;}
+
+//-----------------------------------------------------------------------------
+//! Restart a ProcessResponseData() call for a request that was previosly held
+//! (see return enums on ProcessResponseData method). This is a client-side
+//! only call and is ignored server-side. When a data response is restarted,
+//! ProcessResponseData() is called again when the same parameters as existed
+//! when the call resulted in a hold action.
+//!
+//! @param rnum  The number of data responses to restart, as follows:
+//!              rnum > 0 Restart up to the specified number.
+//!              rnum = 0 Only return the number in the queue, don't restart any.
+//!              rnum < 0 Restart all held responses.
+//! @param reqid Points to the requestID associated with a hold queue. When not
+//!              specified, then the global queue is used to restart responses.
+//!
+//! @return      The number of responses scheduled for restarting.
+//-----------------------------------------------------------------------------
+
+static int      RestartDataResponse(int rnum, const char *reqid=0);
+
+//-----------------------------------------------------------------------------
+//! Run this request using a single session (variant 1).
+//!
+//! @param srvc  Reference to the service object to be used.
+//! @param rsrc  Reference to the resource description for the request.
+//!              Members in this object are copied so the resource object may
+//!              be deleted upon return.
+//! @param tmo   the maximum number seconds the operation may last before
+//!              it is considered to fail. A zero value uses the default.
+//!
+//! @return      The results of this call are reflected to the request via
+//!              it's ProcessResponse() callback method.
+//-----------------------------------------------------------------------------
+
+virtual void    SSRun(XrdSsiService  &srvc,
+                      XrdSsiResource &rsrc,
+                      unsigned short  tmo=0);
+
+//-----------------------------------------------------------------------------
+//! Run this request using a single session (variant 2). Use the resource name
+//! and optional resource user with all other resource values defaulted.
+//!
+//! @param srvc  Reference to the service object to be used.
+//! @param rname Pointer to the resource name. It is copied.
+//! @param ruser Pointer to the resource user. It is copied.
+//! @param tmo   the maximum number seconds the operation may last before
+//!              it is considered to fail. A zero value uses the default.
+//!
+//! @return      The results of this call are reflected to the request via
+//!              it's ProcessResponse() callback method.
+//-----------------------------------------------------------------------------
+
+virtual void    SSRun(XrdSsiService  &srvc,
+                      const char     *rname,
+                      const char     *ruser=0,
+                      unsigned short  tmo=0);
 
 //-----------------------------------------------------------------------------
 //! A handy pointer to allow for chaining these objects. It is initialized to 0.
@@ -217,11 +281,17 @@ XrdSsiRequest  *nextRequest;
 
 //-----------------------------------------------------------------------------
 //! Constructor
+//!
+//! @param reqid   Pointer to a request ID that can be used to group requests.
+//!                See ProcessResponseData() and RestartDataReponse(). If reqid
+//!                is nil then held responses are placed in the global queue.
+//!                The pointer must be valid for the life of this object.
 //-----------------------------------------------------------------------------
 
-                XrdSsiRequest() : nextRequest(0),
-                                  reqMutex(XrdSsiMutex::Recursive),
-                                  theSession(0), theRespond(0) {}
+                XrdSsiRequest(const char *reqid=0)
+                             : nextRequest(0),
+                               reqMutex(XrdSsiMutex::Recursive), reqID(reqid),
+                               theSession(0), theRespond(0), thePacer(0) {}
 
 protected:
 //-----------------------------------------------------------------------------
@@ -229,7 +299,7 @@ protected:
 //! method is meant for server-side internal use only.
 //-----------------------------------------------------------------------------
 
-virtual void  BindDone(XrdSsiSession *sessP) {}
+virtual void    BindDone(XrdSsiSession *sessP) {}
 
 //-----------------------------------------------------------------------------
 //! Release the request buffer. Use this method to optimize storage use; this
@@ -268,7 +338,8 @@ const XrdSsiRespInfo *RespP() {return &Resp;}
 //! It can also be used to serialize access to the underlying object.
 //-----------------------------------------------------------------------------
 
-XrdSsiMutex     reqMutex;
+XrdSsiMutex      reqMutex;
+const char      *reqID;
 
 private:
         bool     CopyData(char *buff, int blen);
@@ -276,6 +347,7 @@ private:
 XrdSsiSession   *theSession; // Set via XrdSsiResponder::BindRequest()
 XrdSsiResponder *theRespond; // Set via XrdSsiResponder::BindRequest()
 XrdSsiRespInfo   Resp;       // Set via XrdSsiResponder::SetResponse()
+XrdSsiPacer     *thePacer;
 };
 
 //-----------------------------------------------------------------------------

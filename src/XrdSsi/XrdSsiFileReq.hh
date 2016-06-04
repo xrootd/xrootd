@@ -78,6 +78,13 @@ static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiFile *fP,
 
 static  void           SetMax(int mVal) {freeMax = mVal;}
 
+        void           SSRun(XrdSsiService &, XrdSsiResource &,
+                             unsigned short tmo=0) {(void)tmo;}
+
+        void           SSRun(XrdSsiService &, const char *,
+                             const char *ruser=0, unsigned short tmo=0)
+                            {(void)ruser; (void)tmo;}
+
         bool           WantResponse(XrdOucErrInfo &eInfo);
 
 // OucEICB methods

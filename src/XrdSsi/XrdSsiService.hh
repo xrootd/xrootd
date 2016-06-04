@@ -30,6 +30,7 @@
 /******************************************************************************/
 
 #include "XrdSsi/XrdSsiErrInfo.hh"
+#include "XrdSsi/XrdSsiResource.hh"
   
 //-----------------------------------------------------------------------------
 //! The XrdSsiService object is used by the Scalable Service Interface to
@@ -71,21 +72,8 @@ static const int SsiVersion = 0x00010000;
 class          Resource
 {
 public:
-const char    *rName;  //!< -> Name of the resource to be provisioned
-const char    *rUser;  //!< -> Name of the resource user (nil if anonymous)
-const char    *rInfo;  //!< -> Additional information in CGI format
-const char    *hAvoid; //!< -> Comma separated list of hosts to avoid
-XrdSsiEntity  *client; //!< -> Pointer to client identification (server-side)
-XrdSsiErrInfo  eInfo;  //!<    Holds error information upon failure
-
-enum Affinity {Default,//!< Use configured affinity
-               None,   //!< Resource has no affinity, any endpoint will do
-               Weak,   //!< Use resource on same node if possible, don't wait
-               Strong, //!< Use resource on same node even if wait required
-               Strict  //!< Always use same node for resource no matter what
-              };
-Affinity       affinity;//!< Resource affinity
-int            Reserved;
+XrdSsiResource rDesc;  //!< The resource description
+XrdSsiErrInfo  eInfo;  //!< Holds error information upon failure
 
 //-----------------------------------------------------------------------------
 //! Handle the ending results of a Provision() call. It is called by the
@@ -98,38 +86,17 @@ int            Reserved;
 virtual void   ProvisionDone(XrdSsiSession *sessP) = 0; //!< Callback
 
 //-----------------------------------------------------------------------------
-//! Constructor
-//!
-//! @param  rname    points to the name of the resource and must remain valid
-//!                  until provisioning ends. If using directory notation;
-//!                  duplicate slashes and dot-shashes are compressed out.
-//!                  The storage must remain valid until provisioning ends.
-//!
-//! @param  havoid   if not null then points to a comma separated list of
-//!                  hostnames to avoid using to provision the resource and
-//!                  must remain valid until provisioning ends. This argument
-//!                  is only meaningfull client-side. The storage must remain
-//!                  valid until provisioning ends.
-//!
-//! @param  ruser    points to the name of the resource user. If nil the user
-//!                  is considered anonymous. The users with the same namee
-//!                  share the TCP connection to any endpoint. Different users
-//!                  have separate connections only if userConn is set to true
-//!                  at the time the resource is provisioned (see Provision()).
-//!                  The storage must remain valid until provisioning ends.
-//!
-//! @param  rinfo    points to additional information to be passed to the
-//!                  endpoint that provides the resource. The string should be
-//!                  in cgi format (e.g. var=val&var2-val2&....). The storage
-//!                  must remain valid until provisioning ends.
+//! Constructor - See XrdSsiResource for details on the arguments as they are
+//! the same here as there. All XrdSsiResource member pointers must remain
+//! stable until ProvisionDone() is called.
 //-----------------------------------------------------------------------------
 
                Resource(const char *rname,
                         const char *havoid=0,
                         const char *ruser=0,
-                        const char *rinfo=0
-                       ) : rName(rname), rUser(ruser), rInfo(rinfo),
-                           hAvoid(havoid), affinity(Default), Reserved(0) {}
+                        const char *rinfo=0,
+                        XrdSsiResource::Affinity raff=XrdSsiResource::Default
+                       ) : rDesc(rname, havoid, ruser, rinfo, raff) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor
