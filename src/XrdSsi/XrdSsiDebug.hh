@@ -48,7 +48,7 @@ void  Beg(const char *epname=0)
           if (epname) std::cerr <<epname <<": ";
          }
 
-void  End() {std::cerr <<std::endl; pthread_mutex_unlock(&debugMutex);}
+void  End() {std::cerr <<'\n' <<std::flush; pthread_mutex_unlock(&debugMutex);}
 
       XrdSsiDebug() {pthread_mutex_init(&debugMutex, NULL);
                      isON = (getenv("XRDSSIDEBUG") != 0);
