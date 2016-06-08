@@ -129,7 +129,7 @@ pfc.osslib <lpath> [<params>] path to alternative plign for output file system
 
 pfc.decisionlib <lpath> [<prams>] path to decision library and plugin parameters
 
-pfc.trace <none|error|warning|info|debug|dump> default level is none, xrootd option -d sets debug level
+pfc.trace <none|error|warning|info|debug|dump> default level is warning, xrootd option -d sets debug level
 
 Examples 
 

@@ -138,6 +138,8 @@ Cache::Cache() : XrdOucCache(),
      m_RAMblocks_used(0)
 {
     m_trace = new XrdOucTrace(&m_log);
+    // default log level is Warning
+    m_trace->What = 2;
 }
 
 //______________________________________________________________________________
