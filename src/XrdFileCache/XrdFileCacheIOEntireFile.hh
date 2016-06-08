@@ -97,12 +97,15 @@ namespace XrdFileCache
 
          virtual int  Fstat(struct stat &sbuff);
          
+         virtual long long FSize();
+
          virtual void RelinquishFile(File*);
+
 
       private:
          File* m_file;
          struct stat      *m_localStat;       
-         struct stat*     getValidLocalStat(const char* path);
+         int     initCachedStat(const char* path);
    };
 
 }

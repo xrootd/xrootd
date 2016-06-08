@@ -45,7 +45,12 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
    if (!(m_file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
    {
       struct stat st;
-      Fstat(st);
+      int res = Fstat(st);
+
+      // this should not happen, but make a printout to see it
+      if (!res)
+          TRACEIO(Error, "IOEntireFile const, could not get valid stat");
+
       m_file = new File(io, fname, 0, st.st_size);
       Cache::GetInstance().AddActive(this, m_file);
    }
@@ -64,14 +69,20 @@ int IOEntireFile::Fstat(struct stat &sbuff)
    std::string name = url.GetPath();
    name += ".cinfo";
 
-   struct stat* ls = getValidLocalStat(name.c_str());
-   if (ls) {
-      memcpy(&sbuff, ls, sizeof(struct stat));
-      return 0;
+   if(!m_localStat) {
+      int ret = initCachedStat(name.c_str());
+      return ret;
    }
    else {
-      return m_io->Fstat(sbuff);
+      memcpy(&sbuff, m_localStat, sizeof(struct stat));
+      return 0;
    }
+}
+
+
+long long IOEntireFile::FSize()
+{
+   return m_localStat->st_size;
 }
 
 void IOEntireFile::RelinquishFile(File* f)
@@ -81,28 +92,37 @@ void IOEntireFile::RelinquishFile(File* f)
 }
 
 
-struct stat* IOEntireFile::getValidLocalStat(const char* path)
+int IOEntireFile::initCachedStat(const char* path)
 {
-   if (!m_localStat) {
-      struct stat tmpStat;
-      if (m_cache.GetOss()->Stat(path, &tmpStat) == XrdOssOK) {
-         XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str()); 
-         XrdOucEnv myEnv; 
-         int res = infoFile->Open(path, O_RDONLY, 0600, myEnv);
-         if (res >= 0) {
-            Info info(m_cache.GetTrace());
-            if (info.Read(infoFile) > 0) {
-               tmpStat.st_size = info.GetFileSize();
-               m_localStat = new struct stat;
-               memcpy(m_localStat, &tmpStat, sizeof(struct stat));
-            }
-         }
-         infoFile->Close();
-         delete infoFile;
-      }
-   }
+   // called indirectly from this constructor first time
 
-   return m_localStat;   
+   m_localStat = new struct stat;
+   struct stat tmpStat;
+   if (m_cache.GetOss()->Stat(path, &tmpStat) == XrdOssOK) {
+      XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str()); 
+      XrdOucEnv myEnv; 
+      int res = infoFile->Open(path, O_RDONLY, 0600, myEnv);
+      if (res >= 0) {
+         Info info(m_cache.GetTrace());
+         if (info.Read(infoFile) > 0) {
+            tmpStat.st_size = info.GetFileSize();
+            memcpy(m_localStat, &tmpStat, sizeof(struct stat));
+         }
+         else {
+          TRACEIO(Error, "IOEntireFile::initCachedStat failed to read file size from info file");
+          res = -1;
+         }
+      }
+      infoFile->Close();
+      delete infoFile;
+      TRACEIO(Debug, "IOEntireFile::initCachedStat successfuly read size from info file = " << m_localStat->st_size);
+      return res;
+   }
+   else {
+      int res = m_io->Fstat(*m_localStat);
+      TRACEIO(Debug, "IOEntireFile::initCachedStat  get stat from client res= " << res << "size = " << m_localStat->st_size);
+      return res;
+   }  
 }
 
 bool IOEntireFile::ioActive()
@@ -130,11 +150,19 @@ void IOEntireFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int 
 int IOEntireFile::Read (char *buff, long long off, int size)
 {
    TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size );
+ 
+   // protect from reads over the file size
+   if (off >= FSize())
+      return 0;
    if (off < 0)
    {
       errno = EINVAL;
       return -1;
    }
+   if (off + size > FSize())
+      size = FSize() - off;
+
+
    ssize_t bytes_read = 0;
    ssize_t retval = 0;
 
