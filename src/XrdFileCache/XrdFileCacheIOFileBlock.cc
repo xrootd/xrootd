@@ -25,6 +25,7 @@
 #include "XrdFileCacheIOFileBlock.hh"
 #include "XrdFileCache.hh"
 #include "XrdFileCacheStats.hh"
+#include "XrdFileCacheTrace.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -43,7 +44,7 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 //______________________________________________________________________________
 XrdOucCacheIO* IOFileBlock::Detach()
 {
-   clLog()->Info(XrdCl::AppMsg, "IOFileBlock::Detach() %s", m_io->Path());
+    TRACEIO(Info, "IOFileBlock::Detach() " );
    XrdOucCacheIO * io = m_io;
 
 
@@ -77,7 +78,7 @@ void IOFileBlock::GetBlockSizeFromPath()
             m_blocksize = atoi(path.substr(pos1).c_str());
        }
 
-        clLog()->Debug(XrdCl::AppMsg, "FileBlock::GetBlockSizeFromPath(), blocksize = %lld. %s", m_blocksize, m_io->Path());
+        TRACEIO(Debug, "FileBlock::GetBlockSizeFromPath(), blocksize = " <<  m_blocksize );
     }
 }
 
@@ -95,12 +96,12 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    ss << &offExt[0];
    fname = ss.str();
 
-   clLog()->Debug(XrdCl::AppMsg, "FileBlock::FileBlock(), create XrdFileCacheFile. %s", m_io->Path());
+   TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
    
    File* file;
    if (!(file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
    {
-      file = new File(m_io, fname, off, m_io->FSize());
+      file = new File(m_io, fname, off, blocksize);
       Cache::GetInstance().AddActive(this, file);
    }
       
@@ -159,7 +160,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
    int idx_first = off0/m_blocksize;
    int idx_last = (off0+size-1)/m_blocksize;
    int bytes_read = 0;
-   clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read() %lld@%d block range [%d-%d] \n %s", off, size, idx_first, idx_last, m_io->Path());
+   TRACEIO(Debug, "IOFileBlock::Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
 
    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
    {
@@ -179,7 +180,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          if (blockIdx == lastIOFileBlock )
          {
             pbs =  m_io->FSize() - blockIdx*m_blocksize;
-            clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read() last block, change output file size to %lld \n %s", pbs, m_io->Path());
+            // TRACEIO(Dump, "IOFileBlock::Read() last block, change output file size to " << pbs);
          }
 
          fb = newBlockFile(blockIdx*m_blocksize, pbs);
@@ -194,12 +195,12 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          if (blockIdx == idx_first)
          {
             readBlockSize = (blockIdx + 1) *m_blocksize - off0;
-            clLog()->Debug(XrdCl::AppMsg, "Read partially till the end of the block %s", m_io->Path());
+            TRACEIO(Dump, "Read partially till the end of the block");
          }
          else if (blockIdx == idx_last)
          {
             readBlockSize = (off0+size) - blockIdx*m_blocksize;
-            clLog()->Debug(XrdCl::AppMsg, "Read partially from beginning of block %s", m_io->Path());
+            TRACEIO(Dump, "Read partially till the end of the block %s");
          }
          else
          {
@@ -208,14 +209,14 @@ int IOFileBlock::Read (char *buff, long long off, int size)
       }
       assert(readBlockSize);
 
-      clLog()->Info(XrdCl::AppMsg, "IOFileBlock::Read() block[%d] read-block-size[%d], offset[%lld] %s", blockIdx, readBlockSize, off, m_io->Path());
+      TRACEIO(Debug, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
       long long min  = blockIdx*m_blocksize;
       if ( off < min) { assert(0); }
       assert(off+readBlockSize <= (min + m_blocksize));
       int retvalBlock = fb->Read(buff, off, readBlockSize);
 
-      clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read()  Block read returned %d %s", retvalBlock , m_io->Path());
+      TRACEIO(Dump, "IOFileBlock::Read()  Block read returned " << retvalBlock);
       if (retvalBlock ==  readBlockSize )
       {
          bytes_read += retvalBlock;
@@ -223,12 +224,12 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          off += retvalBlock;
       }
       else if (retvalBlock > 0) {
-         clLog()->Warning(XrdCl::AppMsg, "IOFileBlock::Read() incomplete read, missing bytes %d %s", readBlockSize-retvalBlock, m_io->Path());
+          TRACEIO(Warning, "IOFileBlock::Read() incomplete read, missing bytes " << readBlockSize-retvalBlock);
          return bytes_read + retvalBlock;
       }
       else
       {
-         clLog()->Error(XrdCl::AppMsg, "IOFileBlock::Read() read error, retval %d %s", retvalBlock, m_io->Path());
+          TRACEIO(Error, "IOFileBlock::Read() read error, retval" << retvalBlock);
          return retvalBlock;
       }
    }

@@ -140,6 +140,7 @@ namespace XrdFileCache
       float           m_prefetchScore; //cached
       int             m_prefetchCurrentCnt;
 
+       const char* m_traceID;
 
    public:
       //------------------------------------------------------------------------
@@ -190,7 +191,9 @@ namespace XrdFileCache
       //! Log path
       const char* lPath() const;
 
-      std::string     GetLocalPath();
+      std::string     GetLocalPath() { return m_temp_filename; }
+
+      XrdOucTrace*  GetTrace();
    private:
       bool overlap(int       blk,      // block to query
                    long long blk_size, //
@@ -214,7 +217,6 @@ namespace XrdFileCache
       int  VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blks_on_disk);
       int  VReadProcessBlocks(const XrdOucIOVec *readV, int n, std::vector<ReadVChunkListRAM>& blks_to_process, std::vector<ReadVChunkListRAM>& blks_rocessed);
 
-
       long long BufferSize();
       void AppendIOStatToFileInfo();
 
@@ -222,9 +224,6 @@ namespace XrdFileCache
       void CheckPrefetchStatDisk(int idx);
 
       void UnMarkPrefetch();
-
-      //! Short log alias.
-      XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
       void inc_ref_count(Block*);
       void dec_ref_count(Block*);

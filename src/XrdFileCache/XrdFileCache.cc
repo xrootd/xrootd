@@ -28,17 +28,18 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 
 #include "XrdFileCache.hh"
+#include "XrdFileCacheTrace.hh"
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
 
 using namespace XrdFileCache;
 
-
-
 Cache * Cache::m_factory = NULL;
+
 
 void *CacheDirCleanupThread(void* cache_void)
 {
@@ -131,9 +132,12 @@ bool Cache::Decide(XrdOucCacheIO* io)
 
 Cache::Cache() : XrdOucCache(),
      m_log(0, "XrdFileCache_"),
+     m_trace(0),
+     m_traceID("Manager"),
      m_prefetch_condVar(0),
      m_RAMblocks_used(0)
 {
+    m_trace = new XrdOucTrace(&m_log);
 }
 
 //______________________________________________________________________________
@@ -142,18 +146,19 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 {
    if (Cache::GetInstance().Decide(io))
    {
-      clLog()->Info(XrdCl::AppMsg, "Cache::Attach() %s", io->Path());
+      TRACE(Debug, "Cache::Attach() " << io->Path());
       IO* cio;
       if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
          cio = new IOFileBlock(io, m_stats, *this);
       else
          cio = new IOEntireFile(io, m_stats, *this);
 
+      TRACE(Info, "Cache::Attach() " << io->Path());
       return cio;
    }
    else
    {
-      clLog()->Info(XrdCl::AppMsg, "Cache::Attach() reject %s", io->Path());
+       TRACE(Info, "Cache::Attach() decision decline " << io->Path());
    }
    return io;
 }
@@ -168,7 +173,7 @@ int Cache::isAttached()
 
 void Cache::Detach(XrdOucCacheIO* io)
 {
-   clLog()->Info(XrdCl::AppMsg, "Cache::Detach() %s", io->Path());
+   TRACE(Info, "Cache::Detach() " << io->Path());
 
    // Cache owns File objects
    XrdSysMutexHelper lock(&m_active_mutex);
@@ -196,7 +201,7 @@ Cache::HaveFreeWritingSlots()
       return true;
    }
    else {
-       XrdCl::DefaultEnv::GetLog()->Info(XrdCl::AppMsg, "Cache::HaveFreeWritingSlots() negative", m_writeQ.size);
+       TRACE(Dump, "Cache::HaveFreeWritingSlots() negative " <<  m_writeQ.size);
        return false;
    }
 }
@@ -204,7 +209,7 @@ Cache::HaveFreeWritingSlots()
 void
 Cache::AddWriteTask(Block* b, bool fromRead)
 {
-   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::AddWriteTask() bOff=%ld", b->m_offset);
+   TRACE(Dump, "Cache::AddWriteTask() bOff=%ld " <<  b->m_offset);
    m_writeQ.condVar.Lock();
    if (fromRead)
        m_writeQ.queue.push_back(b);
@@ -224,10 +229,9 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
    {
       if ((*i)->m_file == iFile)
       {
-
-          XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Remove entries for %p path %s", (void*)(*i), iFile->lPath());
+         TRACE(Dump, "Cache::Remove entries for " <<  (void*)(*i) << " path " <<  iFile->lPath());
          std::list<Block*>::iterator j = i++;
-          iFile->BlockRemovedFromWriteQ(*j);
+         iFile->BlockRemovedFromWriteQ(*j);
          m_writeQ.queue.erase(j);
          --m_writeQ.size;
       }
@@ -253,7 +257,7 @@ Cache::ProcessWriteTasks()
       Block* block = m_writeQ.queue.front(); // AMT should not be back ???
       m_writeQ.queue.pop_front();
       m_writeQ.size--;
-      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::ProcessWriteTasks  for %p path %s", (void*)(block), block->m_file->lPath());
+      TRACE(Dump, "Cache::ProcessWriteTasks  for %p " <<  (void*)(block) << " path " << block->m_file->lPath());
       m_writeQ.condVar.UnLock();
 
       block->m_file->WriteBlockToDisk(block);
@@ -328,13 +332,10 @@ Cache::RegisterPrefetchFile(File* file)
 
    if (Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
    {
-
-      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Register new file BEGIN");
       m_prefetch_condVar.Lock();
       m_prefetchList.push_back(file);
       m_prefetch_condVar.Signal();
       m_prefetch_condVar.UnLock();
-      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Register new file End");
    }
 }
 
@@ -395,7 +396,7 @@ Cache::Prepare(const char *url, int oflags, mode_t mode)
    struct stat buf;
    int res = m_output_fs->Stat(spath.c_str(), &buf);
    if (res == 0) {
-      XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch defer open %s", spath.c_str());
+      TRACE( Dump, "Cache::Prefetch defer open " << spath);
       return 1;
    }
    else {
@@ -429,7 +430,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
             name += ".cinfo";
             int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
             if (res >= 0) {
-               Info info(0);
+               Info info(m_trace, 0);
                if (info.Read(infoFile) > 0) {
                   sbuff.st_size = info.GetFileSize();
                   success = true;
@@ -451,9 +452,6 @@ void
 Cache::Prefetch()
 {
    int limitRAM= Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7;
-
-   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::Prefetch thread start");
-
    while (true) {
       m_RAMblock_mutex.Lock();
       bool doPrefetch = (m_RAMblocks_used < limitRAM && HaveFreeWritingSlots());

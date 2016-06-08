@@ -1,4 +1,5 @@
 #include "XrdFileCache.hh"
+#include "XrdFileCacheTrace.hh"
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssCache.hh"
@@ -33,7 +34,7 @@ bool Cache::xdlib(XrdOucStream &Config)
    std::string libp;
    if (!(val = Config.GetWord()) || !val[0])
    {
-      clLog()->Info(XrdCl::AppMsg, " Cache::Config() decisionlib not specified; always caching files");
+      TRACE(Info," Cache::Config() decisionlib not specified; always caching files");
       return true;
    }
    else
@@ -54,15 +55,46 @@ bool Cache::xdlib(XrdOucStream &Config)
    Decision * d = ep(m_log);
    if (!d)
    {
-      clLog()->Error(XrdCl::AppMsg, "Cache::Config() decisionlib was not able to create a decision object");
+      TRACE(Error, "Cache::Config() decisionlib was not able to create a decision object");
       return false;
    }
    if (params)
       d->ConfigDecision(params);
 
    m_decisionpoints.push_back(d);
-   clLog()->Info(XrdCl::AppMsg, "Cache::Config() successfully created decision lib from %s", libp.c_str());
    return true;
+}
+
+/* Function: xtrace
+
+   Purpose:  To parse the directive: trace <level>
+   Output: true upon success or false upon failure.
+ */
+bool Cache::xtrace(XrdOucStream &Config)
+{
+    char  *val;
+    static struct traceopts {const char *opname; int opval;} tropts[] =
+       {
+        {"none",    0},
+        {"error",   1},
+        {"warning", 2},
+        {"info",    3},
+        {"debug",   4},
+        {"dump",    5}
+       };
+    int  numopts = sizeof(tropts)/sizeof(struct traceopts);
+
+    if (!(val = Config.GetWord()))
+       {m_log.Emsg("Config", "trace option not specified"); return 1;}
+
+    for (int i = 0; i < numopts; i++)
+    {
+       if (!strcmp(val, tropts[i].opname)) {
+            m_trace->What = tropts[i].opval;
+            return true;
+       }
+    }
+    return false;
 }
 
 //______________________________________________________________________________
@@ -80,14 +112,14 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
 
    if (!config_filename || !*config_filename)
    {
-      clLog()->Warning(XrdCl::AppMsg, "Cache::Config() configuration file not specified.");
+      TRACE(Error, "Cache::Config() configuration file not specified.");
       return false;
    }
 
    int fd;
    if ( (fd = open(config_filename, O_RDONLY, 0)) < 0)
    {
-      clLog()->Error(XrdCl::AppMsg, "Cache::Config() can't open configuration file %s", config_filename);
+      TRACE( Error, "Cache::Config() can't open configuration file " << config_filename);
       return false;
    }
 
@@ -106,7 +138,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    }
    else
    {
-      clLog()->Error(XrdCl::AppMsg, "Cache::Config() Unable to create an OSS object");
+      TRACE(Error, "Cache::Config() Unable to create an OSS object");
       m_output_fs = 0;
       return false;
    }
@@ -123,7 +155,11 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       }
       else if (!strcmp(var,"pfc.decisionlib"))
       {
-         xdlib(Config);
+         retval = xdlib(Config);
+      }
+      else if (!strcmp(var,"pfc.trace"))
+      {
+         retval = xtrace(Config);
       }
       else if (!strncmp(var,"pfc.", 4))
       {
@@ -133,7 +169,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       if (!retval)
       {
          retval = false;
-         clLog()->Error(XrdCl::AppMsg, "Cache::Config() error in parsing");
+         TRACE(Error, "Cache::Config() error in parsing");
          break;
       }
 
@@ -147,17 +183,20 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       if (m_output_fs->StatVS(&sP, "public", 1) >= 0) {
          m_configuration.m_diskUsageLWM = static_cast<long long>(0.90 * sP.Total + 0.5);
          m_configuration.m_diskUsageHWM = static_cast<long long>(0.95 * sP.Total + 0.5);
-         clLog()->Debug(XrdCl::AppMsg, "Default disk usage [%lld, %lld]", m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM);
       }
    }
 
    // get number of available RAM blocks after process configuration
    if (m_configuration.m_RamAbsAvailable == 0 )
    {
-         m_log.Emsg("Error", "RAM usage not specified. Please set pfc.ram value in configuration file.");
-         return false;
+       TRACE(Error, "RAM usage not specified. Please set pfc.ram value in configuration file.");
+       return false;
    }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
+
+   // Set tracing to debug if this is set in environment
+   char* cenv = getenv("XRDDEBUG");
+   if (cenv && !strcmp(cenv,"1")) m_trace->What = 4;
 
    if (retval)
    {
@@ -167,12 +206,13 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
                "       pfc.blocksize %lld\n"
                "       pfc.prefetch %ld\n"
-               "       pfc.ram %.fg",
+               "       pfc.ram %.fg"
+               "       pfc.trace %d",
                config_filename,
                m_configuration.m_bufferSize,
                m_configuration.m_prefetch_max_blocks, // AMT not sure what parsing should be
-               rg);
-
+               rg,
+               m_trace->What);
 
       if (m_configuration.m_hdfsmode)
       {

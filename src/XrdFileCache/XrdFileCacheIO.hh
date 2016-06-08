@@ -1,9 +1,12 @@
 #ifndef __XRDFILECACHE_CACHE_IO_HH__
 #define __XRDFILECACHE_CACHE_IO_HH__
 
+class XrdOucTrace;
+
 #include "XrdFileCache.hh"
 #include "XrdOuc/XrdOucCache2.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+
 
 namespace XrdFileCache
 {
@@ -14,7 +17,7 @@ namespace XrdFileCache
    {
       public:
          IO (XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache) :
-         m_io(io), m_statsGlobal(stats), m_cache(cache) {}
+             m_io(io), m_statsGlobal(stats), m_cache(cache), m_traceID("IO"){}
 
          //! Original data source.
          virtual XrdOucCacheIO *Base() { return m_io; }
@@ -36,12 +39,14 @@ namespace XrdFileCache
 
          virtual void RelinquishFile(File*) = 0;
 
-      protected:
-         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
+         XrdOucTrace* GetTrace() {return m_cache.GetTrace();}
 
+      protected:
          XrdOucCacheIO2   *m_io;          //!< original data source
          XrdOucCacheStats &m_statsGlobal; //!< reference to Cache statistics
          Cache            &m_cache;       //!< reference to Cache needed in detach
+      
+         const char* m_traceID;
    };
 }
 

@@ -22,8 +22,9 @@
 #include <time.h>
 #include <assert.h>
 
+class XrdOucTrace;
+
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
@@ -59,7 +60,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          //! Constructor.
          //------------------------------------------------------------------------
-         Info(long long bufferSize, bool prefetchBuffer = false);
+         Info(XrdOucTrace* trace, bool prefetchBuffer = false);
 
          //------------------------------------------------------------------------
          //! Destructor.
@@ -85,6 +86,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void SetBitPrefetch(int i);
 
+         void SetBufferSize(long long);
          void SetFileSize(long long);
 
          //---------------------------------------------------------------------
@@ -190,14 +192,12 @@ namespace XrdFileCache
 
 
          const static char* m_infoExtension;
+         const static char* m_traceID;
 
+         XrdOucTrace* GetTrace() const {return m_trace;}
       protected:
 
-         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
-
-         //---------------------------------------------------------------------
-         //! Cache statistics and time of access.
-         //---------------------------------------------------------------------
+         XrdOucTrace*   m_trace;
 
          int            m_version;    //!< info version
          long long      m_bufferSize; //!< prefetch buffer size
@@ -208,7 +208,7 @@ namespace XrdFileCache
          unsigned char *m_buff_write_called;  //!< disk written state vector
          unsigned char *m_buff_prefetch;  //!< prefetch state vector
          int            m_accessCnt;  //!< number of written AStat structs
-         bool           m_complete;   //!< cached
+         bool           m_complete;   //!< cached          
    };
 
    inline bool Info::TestBit(int i) const

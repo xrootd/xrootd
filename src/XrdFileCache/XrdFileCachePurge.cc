@@ -1,9 +1,11 @@
 #include "XrdFileCache.hh"
+#include "XrdFileCacheTrace.hh"
 
 using namespace XrdFileCache;
 
 #include <fcntl.h>
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 
 namespace
 {
@@ -48,6 +50,11 @@ namespace
       long long nByteReq;
       long long nByteAccum;
    };
+
+XrdOucTrace* GetTrace()
+{
+   // needed for logging macros
+   return Cache::GetInstance().GetTrace();
 }
 
 void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState& purgeState)
@@ -56,8 +63,8 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
    XrdOucEnv env;
    int rdr;
    const size_t InfoExtLen = strlen(XrdFileCache::Info::m_infoExtension);  // cached var
-   XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
 
+   static const char* m_traceID = "Purge";
    Cache& factory = Cache::GetInstance();
    while ((rdr = iOssDF->Readdir(&buff[0], 256)) >= 0)
    {
@@ -80,19 +87,19 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
             // XXXX MT - shouldn't we also check if it is currently opened?
 
             fh->Open(np.c_str(), O_RDONLY, 0600, env);
-            Info cinfo(factory.RefConfiguration().m_bufferSize);
+            Info cinfo(Cache::GetInstance().GetTrace());
             time_t accessTime;
             cinfo.Read(fh);
             if (cinfo.GetLatestDetachTime(accessTime, fh))
             {
-               log->Debug(XrdCl::AppMsg, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
+               TRACE(Dump, "FillFileMapRecurse() checking " << buff << " accessTime  " << accessTime);
                purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBytes());
             }
             else
             {
                // cinfo file does not contain any known accesses, use stat.mtime instead.
 
-               log->Info(XrdCl::AppMsg, "FillFileMapRecurse() could not get access time for %s, trying stat.\n", np.c_str());
+               TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np << ", trying stat");
 
                XrdOss* oss = Cache::GetInstance().GetOss();
                struct stat fstat;
@@ -100,18 +107,14 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                if (oss->Stat(np.c_str(), &fstat) == XrdOssOK)
                {
                   accessTime = fstat.st_mtime;
-                  log->Info(XrdCl::AppMsg, "FillFileMapRecurse() determined access time for %s via stat: %lld\n",
-                                                np.c_str(), accessTime);
-
+                  TRACE(Dump, "FillFileMapRecurse() have access time for " << np << " via stat: " << accessTime);
                   purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBytes());
                }
                else
                {
                   // This really shouldn't happen ... but if it does remove cinfo and the data file right away.
 
-                  log->Warning(XrdCl::AppMsg, "FillFileMapRecurse() could not get access time for %s. Purging directly.\n",
-                               np.c_str());
-
+                  TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np);
                   oss->Unlink(np.c_str());
                   np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
                   oss->Unlink(np.c_str());
@@ -128,7 +131,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
       }
    }
 }
-
+}
 void Cache::CacheDirCleanup()
 {
    // check state every sleep seconds
@@ -145,17 +148,17 @@ void Cache::CacheDirCleanup()
       long long bytesToRemove = 0;
       if (oss->StatVS(&sP, "public", 1) < 0)
       {
-         clLog()->Error(XrdCl::AppMsg, "Cache::CacheDirCleanup() can't get statvs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
+         TRACE(Error, "Cache::CacheDirCleanup() can't get statvs for dir " <<  m_configuration.m_cache_dir.c_str());
          exit(1);
       }
       else
       {
          long long ausage = sP.Total - sP.Free;
-         clLog()->Info(XrdCl::AppMsg, "Cache::CacheDirCleanup() occupates disk space == %lld", ausage);
+         TRACE(Debug, "Cache::CacheDirCleanup() occupates disk space == " <<  ausage);
          if (ausage > m_configuration.m_diskUsageHWM)
          {
             bytesToRemove = ausage - m_configuration.m_diskUsageLWM;
-            clLog()->Info(XrdCl::AppMsg, "Cache::CacheDirCleanup() need space for  %lld bytes", bytesToRemove);
+            TRACE(Debug, "Cache::CacheDirCleanup() need space for " <<  bytesToRemove << " bytes");
          }
       }
 
@@ -180,8 +183,7 @@ void Cache::CacheDirCleanup()
                {
                   bytesToRemove -= fstat.st_size;
                   oss->Unlink(path.c_str());
-                  clLog()->Info(XrdCl::AppMsg, "Cache::CacheDirCleanup() removed %s size %lld",
-                                                path.c_str(), fstat.st_size);
+                  TRACE(Info, "Cache::CacheDirCleanup()  removed  file:" <<  path <<  " size: " << fstat.st_size);
                }
 
                // remove data file
@@ -190,8 +192,7 @@ void Cache::CacheDirCleanup()
                {
                   bytesToRemove -= it->second.nByte;
                   oss->Unlink(path.c_str());
-                  clLog()->Info(XrdCl::AppMsg, "Cache::CacheDirCleanup() removed %s bytes %lld, stat_size %lld",
-                                                path.c_str(), it->second.nByte, fstat.st_size);
+                  TRACE(Info, "Cache::CacheDirCleanup() removed file: %s " << path << " size " << it->second.nByte);
                }
 
                if (bytesToRemove <= 0)
