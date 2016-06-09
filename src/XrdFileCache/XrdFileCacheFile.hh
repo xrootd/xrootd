@@ -95,7 +95,7 @@ namespace XrdFileCache
    class File
    {
    private:
-      enum PrefetchState_e { kOn, kHold, kCanceled };
+      enum PrefetchState_e { kOn, kHold, kStopped, kComplete };
 
       XrdOucCacheIO2 *m_input;          //!< original data source
       XrdOssDF       *m_output;         //!< file handle for data file on disk
@@ -105,8 +105,6 @@ namespace XrdFileCache
       std::string     m_temp_filename;  //!< filename of data file on disk
       long long       m_offset;         //!< offset of cached file for block-based operation
       long long       m_fileSize;       //!< size of cached disk file for block-based operation
-
-      bool m_stopping; //!< run thread should be stopped
 
       XrdSysCondVar m_stateCond; //!< state condition variable
 
