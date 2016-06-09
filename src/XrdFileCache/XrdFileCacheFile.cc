@@ -231,10 +231,15 @@ bool File::Open()
 
    // Create the info file
    std::string ifn = m_temp_filename + Info::m_infoExtension;
+
+   struct stat infoStat;
+   bool fileExisted = (Cache::GetInstance().GetOss()->Stat(ifn.c_str(), &infoStat) == XrdOssOK);
+
    m_output_fs.Create(Cache::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
    m_infoFile = m_output_fs.newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
    if (m_infoFile)
    {
+      if (fileExisted) assert(infoStat.st_size > 0);
       int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
       if (res < 0)
       {
@@ -243,27 +248,28 @@ bool File::Open()
          m_infoFile = 0;
          return false;
       }
+      else {
+         if (fileExisted)
+         {
+            int res = m_cfi.Read(m_infoFile);
+            TRACEF(Debug, "Reading existing info file bytes = " << res);
+         }
+         else {
+            m_fileSize = m_fileSize;
+            int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
+            TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
+            m_cfi.SetBufferSize(Cache::GetInstance().RefConfiguration().m_bufferSize);
+            m_cfi.SetFileSize(m_fileSize);
+            m_cfi.WriteHeader(m_infoFile);
+            m_infoFile->Fsync();
+         }
+      }
    }
    else
    {
+      // this should be a rare case wher FD can't be created
       return false;
    }
-
-   if (m_cfi.Read(m_infoFile) <= 0)
-   {
-      m_fileSize = m_fileSize;
-      int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
-      TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
-      m_cfi.SetBufferSize(Cache::GetInstance().RefConfiguration().m_bufferSize);
-      m_cfi.SetFileSize(m_fileSize);
-      m_cfi.WriteHeader(m_infoFile);
-      m_infoFile->Fsync();
-   }
-   else
-   {
-      TRACEF(Debug, "Successfully opened existing info file");
-   }
-
    cache()->RegisterPrefetchFile(this);
    return true;
 }
