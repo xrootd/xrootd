@@ -52,11 +52,9 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
           TRACEIO(Error, "IOEntireFile::IOEntireFile, could not get valid stat");
 
       m_file = new File(io, fname, 0, st.st_size);
-      Cache::GetInstance().AddActive(this, m_file);
    }
-   else {
-      // use system stat to init m_localStat if m_file is still in the map
-   }
+
+   Cache::GetInstance().AddActive(this, m_file);
 }
 
 
@@ -138,7 +136,7 @@ int IOEntireFile::initCachedStat(const char* path)
 
 bool IOEntireFile::ioActive()
 {
-   if (!m_file)
+   if ( ! m_file)
       return false;
    else
       return m_file->InitiateClose();
