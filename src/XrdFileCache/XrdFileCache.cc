@@ -377,7 +377,7 @@ Cache::GetNextFileToPrefetch()
    size_t l = m_prefetchList.size();
    int idx = rand() % l;
    File* f = m_prefetchList[idx];
-   f->MarkPrefetch();
+
    m_prefetch_condVar.UnLock();
    return f;
 }
