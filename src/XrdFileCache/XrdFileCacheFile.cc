@@ -882,11 +882,7 @@ void File::Prefetch()
 {
    {
       XrdSysCondVarHelper _lck(m_stateCond);
-      if (m_prefetchState == kComplete ) {
-         cache()->DeRegisterPrefetchFile(this); 
-         return;
-      }
-      else if (m_prefetchState == kHold || m_prefetchState == kStopped)
+      if (m_prefetchState != kOn)
          return;
    }
        
@@ -920,8 +916,6 @@ void File::Prefetch()
       m_stateCond.UnLock();
       cache()->DeRegisterPrefetchFile(this); 
    }
-   
-   UnMarkPrefetch();
 }
 
 
@@ -950,24 +944,6 @@ float File::GetPrefetchScore() const
 {
    return m_prefetchScore;
 }
-
-//______________________________________________________________________________
-void File::MarkPrefetch()
-{
-   m_stateCond.Lock();
-   m_prefetchCurrentCnt++;
-   m_stateCond.UnLock();
-
-}
-
-//______________________________________________________________________________
-void File::UnMarkPrefetch()
-{
-   m_stateCond.Lock();
-   m_prefetchCurrentCnt--;
-   m_stateCond.UnLock();
-}
-
 
 XrdOucTrace* File::GetTrace()
 {

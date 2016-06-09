@@ -184,8 +184,6 @@ namespace XrdFileCache
 
       float GetPrefetchScore() const;
 
-      void  MarkPrefetch();
-
       //! Log path
       const char* lPath() const;
 
@@ -222,8 +220,6 @@ namespace XrdFileCache
 
       void CheckPrefetchStatRAM(Block* b);
       void CheckPrefetchStatDisk(int idx);
-
-      void UnMarkPrefetch();
 
       void inc_ref_count(Block*);
       void dec_ref_count(Block*);
