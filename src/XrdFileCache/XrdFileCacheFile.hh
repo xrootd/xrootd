@@ -192,6 +192,8 @@ namespace XrdFileCache
       XrdOucTrace*  GetTrace();
 
       long long GetFileSize() { return m_fileSize;}
+
+      void WakeUp();
    private:
       bool overlap(int       blk,      // block to query
                    long long blk_size, //
