@@ -194,6 +194,8 @@ namespace XrdFileCache
       std::string     GetLocalPath() { return m_temp_filename; }
 
       XrdOucTrace*  GetTrace();
+
+      long long GetFileSize() { return m_fileSize;}
    private:
       bool overlap(int       blk,      // block to query
                    long long blk_size, //
