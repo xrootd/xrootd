@@ -913,7 +913,7 @@ void File::Prefetch()
       }
       if (!found)  { 
          TRACEF(Dump, "File::Prefetch no free block found ");
-         m_cfi.CheckComplete();
+         m_cfi.UpdateDownloadCompleteStatus();
          // it is possible all missing blocks are in map but downlaoded status is still not complete
          // assert (m_cfi.IsComplete());
          // remove block from map
