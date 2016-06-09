@@ -139,7 +139,7 @@ bool IOEntireFile::ioActive()
    if ( ! m_file)
       return false;
    else
-      return m_file->InitiateClose();
+      return m_file->ioActive();
 }
 
 XrdOucCacheIO *IOEntireFile::Detach()
