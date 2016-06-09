@@ -254,7 +254,7 @@ bool File::Open()
             // this method  is called from constructor, no need to lock downloadStaus
             bool complete = m_cfi.IsComplete();
             if (complete) m_prefetchState = kComplete;
-
+            m_downloadCond.UnLock();
          }
          else {
             m_fileSize = m_fileSize;
