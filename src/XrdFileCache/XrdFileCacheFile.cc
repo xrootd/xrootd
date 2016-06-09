@@ -134,7 +134,7 @@ File::~File()
    TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
 }
 
-bool File::InitiateClose()
+bool File::ioActive()
 {
    // Retruns true if delay is needed
    

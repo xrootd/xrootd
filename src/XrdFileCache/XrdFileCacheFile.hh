@@ -167,7 +167,7 @@ namespace XrdFileCache
       //! \brief Initiate close. Return true if still IO active.
       //! Used in XrdPosixXrootd::Close()
       //----------------------------------------------------------------------
-      bool InitiateClose();
+      bool ioActive();
 
       //----------------------------------------------------------------------
       //! Sync file cache inf o and output data with disk

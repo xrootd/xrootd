@@ -135,7 +135,7 @@ bool IOFileBlock::ioActive()
    XrdSysMutexHelper lock(&m_mutex);
 
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it) {
-      if (it->second->InitiateClose())
+      if (it->second->ioActive())
          return true;
    }
   
