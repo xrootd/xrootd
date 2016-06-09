@@ -42,8 +42,12 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
    XrdCl::URL url(m_io->Path());
    std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
-   if (!(m_file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
+   if ((m_file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
    {
+      m_file->WakeUp();
+   }
+   else {
+
       struct stat st;
       int res = Fstat(st);
 

@@ -146,11 +146,11 @@ bool File::ioActive()
       m_prefetchState = kStopped;
       cache()->DeRegisterPrefetchFile(this);
    }
+
    m_stateCond.UnLock();
 
-   m_stateCond.Lock();
-   m_stateCond.UnLock();
 
+   // remove failed blocks and check if map is empty
    m_downloadCond.Lock();
    /*      
    // high debug print 
@@ -160,7 +160,6 @@ bool File::ioActive()
 
    }
    */
-   // remove failed blocks
    BlockMap_i itr = m_block_map.begin();
    while (itr != m_block_map.end()) {
       if (itr->second->is_failed() && itr->second->m_refcnt == 1) {
@@ -191,7 +190,13 @@ bool File::ioActive()
 
 //______________________________________________________________________________
 
-
+void File::WakeUp()
+{
+   // called if this object is recycled by other IO
+   m_stateCond.Lock();
+   if (m_prefetchState != kComplete) m_prefetchState = kOn;
+   m_stateCond.UnLock();
+}
 
 //==============================================================================
 
