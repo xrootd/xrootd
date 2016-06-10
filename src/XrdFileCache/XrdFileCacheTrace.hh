@@ -33,7 +33,7 @@
 
 #define TRACEIO(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
-   {XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act <<x << " " <<  m_io->Path(); XRD_TRACE End();}
+   {XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act <<x << " " <<  GetPath(); XRD_TRACE End();}
 
 #define TRACEF(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \

@@ -6,7 +6,7 @@ class XrdOucTrace;
 #include "XrdFileCache.hh"
 #include "XrdOuc/XrdOucCache2.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
-
+#include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdFileCache
 {
@@ -16,8 +16,7 @@ namespace XrdFileCache
    class IO : public XrdOucCacheIO2
    {
       public:
-         IO (XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache) :
-             m_io(io), m_statsGlobal(stats), m_cache(cache), m_traceID("IO"){}
+         IO (XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
 
          //! Original data source.
          virtual XrdOucCacheIO *Base() { return m_io; }
@@ -35,18 +34,26 @@ namespace XrdFileCache
          virtual int Write(char *Buffer, long long Offset, int Length)
          { errno = ENOTSUP; return -1; }
 
-         virtual void Update(XrdOucCacheIO2 &iocp) { m_io = &iocp; }
+         virtual void Update(XrdOucCacheIO2 &iocp);
 
          virtual void RelinquishFile(File*) = 0;
 
          XrdOucTrace* GetTrace() {return m_cache.GetTrace();}
+ 
+         XrdOucCacheIO2* GetInput();
 
-      protected:
-         XrdOucCacheIO2   *m_io;          //!< original data source
+     protected:
          XrdOucCacheStats &m_statsGlobal; //!< reference to Cache statistics
          Cache            &m_cache;       //!< reference to Cache needed in detach
       
          const char* m_traceID;
+         std::string m_path;
+         const char* GetPath() { return m_path.c_str(); }
+
+      private:
+         XrdOucCacheIO2   *m_io;          //!< original data source
+         XrdSysRecMutex   updMutex;
+         void SetInput(XrdOucCacheIO2*);
    };
 }
 

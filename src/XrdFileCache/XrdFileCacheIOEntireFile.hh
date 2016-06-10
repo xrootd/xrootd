@@ -101,7 +101,6 @@ namespace XrdFileCache
 
          virtual void RelinquishFile(File*);
 
-
       private:
          File* m_file;
          struct stat      *m_localStat;       
