@@ -39,7 +39,7 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
      m_file(0),
      m_localStat(0)
 {
-   XrdCl::URL url(m_io->Path());
+   XrdCl::URL url(GetInput()->Path());
    std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
    if ((m_file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
@@ -55,10 +55,11 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
       if (res)
           TRACEIO(Error, "IOEntireFile::IOEntireFile, could not get valid stat");
 
-      m_file = new File(io, fname, 0, st.st_size);
+      m_file = new File(this, fname, 0, st.st_size);
    }
 
    Cache::GetInstance().AddActive(this, m_file);
+   std::cout << " IOEntireFile::IOEntireFile " << this << std::endl;
 }
 
 
@@ -70,7 +71,7 @@ IOEntireFile::~IOEntireFile()
 
 int IOEntireFile::Fstat(struct stat &sbuff)
 {
-   XrdCl::URL url(m_io->Path());
+   XrdCl::URL url(GetPath());
    std::string name = url.GetPath();
    name += ".cinfo";
 
@@ -108,9 +109,8 @@ int IOEntireFile::initCachedStat(const char* path)
    if (m_cache.GetOss()->Stat(path, &tmpStat) == XrdOssOK) {
       XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str()); 
       XrdOucEnv myEnv; 
-      if (infoFile->Open(path, O_RDONLY, 0600, myEnv) > 0) {
+      if (infoFile->Open(path, O_RDONLY, 0600, myEnv) == XrdOssOK) {
          Info info(m_cache.GetTrace());
-         printf("reading info file ..\n");
          if (info.Read(infoFile) > 0) {
             tmpStat.st_size = info.GetFileSize();
             TRACEIO(Info, "IOEntireFile::initCachedStat successfuly read size from info file = " << tmpStat.st_size);
@@ -126,7 +126,7 @@ int IOEntireFile::initCachedStat(const char* path)
    }
 
    if (res) {
-      res = m_io->Fstat(tmpStat);
+      res = GetInput()->Fstat(tmpStat);
       TRACEIO(Debug, "IOEntireFile::initCachedStat  get stat from client res= " << res << "size = " << tmpStat.st_size);
    }  
 
@@ -148,7 +148,7 @@ bool IOEntireFile::ioActive()
 
 XrdOucCacheIO *IOEntireFile::Detach()
 {
-   XrdOucCacheIO * io = m_io;
+   XrdOucCacheIO * io = GetInput();
 
    // This will delete us!
    m_cache.Detach(this);
@@ -203,6 +203,6 @@ int IOEntireFile::Read (char *buff, long long off, int size)
  */
 int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
 {
-   TRACE(Dump, "IO::ReadV(), get " <<  n << " requests,  " << m_io->Path());
+   TRACEIO(Dump, "IO::ReadV(), get " <<  n << " requests" );
    return m_file->ReadV(readV, n);
 }
