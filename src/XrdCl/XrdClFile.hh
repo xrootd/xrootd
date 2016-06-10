@@ -69,7 +69,7 @@ namespace XrdCl
                          Access::Mode       mode,
                          ResponseHandler   *handler,
                          uint16_t           timeout  = 0,
-                         bool               virtRedirector = false )
+                         bool               virtRedirector = true )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -86,7 +86,7 @@ namespace XrdCl
                          OpenFlags::Flags   flags,
                          Access::Mode       mode    = Access::None,
                          uint16_t           timeout = 0,
-                         bool               virtRedirector = false )
+                         bool               virtRedirector = true )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------

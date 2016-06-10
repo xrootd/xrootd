@@ -196,7 +196,7 @@ XRootDStatus MetalinkRedirector::Load( ResponseHandler *userHandler )
 {
   MetalinkOpenHandler * handler = new MetalinkOpenHandler( this, userHandler );
 
-  XRootDStatus st = pFile->Open( pUrl, OpenFlags::Read, Access::None, handler );
+  XRootDStatus st = pFile->Open( pUrl, OpenFlags::Read, Access::None, handler, 0, false );
 
   if( !st.IsOK() )
   {
@@ -310,7 +310,7 @@ Message* MetalinkRedirector::GetErrorMsg( const Message *msg ) const
 // or an error response if there are no more replicas to try.
 // The virtual response is being handled by the given stream.
 //----------------------------------------------------------------------------
-XRootDStatus MetalinkRedirector::Redirect( Message *msg, Stream *stream )
+XRootDStatus MetalinkRedirector::HandleRequest( Message *msg, Stream *stream )
 {
   XrdSysMutexHelper scopedLock( pMutex );
   // if the metalink data haven't been loaded yet, make it pending
@@ -320,10 +320,8 @@ XRootDStatus MetalinkRedirector::Redirect( Message *msg, Stream *stream )
     return XRootDStatus();
   }
   // otherwise generate a virtual response
-  Message    *resp = GetResponse( msg );
-  if( !resp ) resp = GetErrorMsg( msg ); // there are no more replicas to try
-  stream->ReceiveVirtual( resp );
-  return XRootDStatus();
+  Message *resp = GetResponse( msg );
+  return stream->ReceiveVirtual( resp );
 }
 
 //----------------------------------------------------------------------------
@@ -383,7 +381,7 @@ XRootDStatus MetalinkRedirector::GetReplica( const Message *msg, std::string &re
 //----------------------------------------------------------------------------
 XRootDStatus MetalinkRedirector::GetCgiInfo( const Message *msg, const std::string &key, std::string &value ) const
 {
-  const ClientQueryRequest *req = reinterpret_cast<const ClientQueryRequest*>( msg->GetBuffer() );
+  const ClientRequestHdr *req = reinterpret_cast<const ClientRequestHdr*>( msg->GetBuffer() );
   kXR_int32 dlen = msg->IsMarshalled() ? ntohl( req->dlen ) : req->dlen;
   std::string url( msg->GetBuffer( 24 ), dlen );
   size_t pos = url.find( '?' );

@@ -448,6 +448,8 @@ namespace XrdCl
     pOpenMode  = mode;
     pOpenFlags = flags;
 
+    pUseVirtRedirector = virtRedirector && pFileUrl->IsMetalink();
+
     Message           *msg;
     ClientOpenRequest *req;
     std::string        path = pFileUrl->GetPathWithParams();
@@ -458,7 +460,7 @@ namespace XrdCl
     req->options   = flags | kXR_async | kXR_retstat;
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-    msg->SetVirtualRedirections( virtRedirector );
+    msg->SetVirtualRedirections( pUseVirtRedirector );
 
     XRootDTransport::SetDescription( msg );
     OpenHandler *openHandler = new OpenHandler( this, handler );
@@ -469,7 +471,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Register a virtual redirector
     //--------------------------------------------------------------------------
-    if( virtRedirector )
+    if( pUseVirtRedirector )
     {
       RedirectorRegistry& registry = RedirectorRegistry::Instance();
       XRootDStatus st = registry.Register( url, handler );
@@ -480,7 +482,6 @@ namespace XrdCl
       params.loadBalancer = info;
       params.hostList     = list;
     }
-    pUseVirtRedirector = virtRedirector;
 
     Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
 

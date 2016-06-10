@@ -14,7 +14,7 @@
 namespace XrdCl
 {
 
-void DeallcArgs( XRootDStatus *status, AnyObject *response, HostList *hostList )
+void DeallocArgs( XRootDStatus *status, AnyObject *response, HostList *hostList )
 {
   delete status;
   delete response;
@@ -39,9 +39,9 @@ class LoadHandler : public ResponseHandler
         // call the user handler if present
         if( pUserHandler ) pUserHandler->HandleResponseWithHosts( status, response, hostList );
         // otherwise deallocate the function arguments
-        else DeallcArgs( status, response, hostList );
+        else DeallocArgs( status, response, hostList );
       }
-      else DeallcArgs( status, response, hostList );
+      else DeallocArgs( status, response, hostList );
 
       delete this;
     }
@@ -71,7 +71,7 @@ class SyncLoadHandler : public ResponseHandler
       // call the sync handler if present
       if( pSyncHandler ) pSyncHandler->HandleResponseWithHosts( status, response, hostList );
       // otherwise deallocate the function arguments
-      else DeallcArgs( status, response, hostList );
+      else DeallocArgs( status, response, hostList );
 
       delete this;
     }
@@ -97,6 +97,9 @@ RedirectorRegistry::~RedirectorRegistry()
 
 XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *handler )
 {
+  // we can only create a virtual redirector if
+  // a path to a metadata file has been provided
+  if( url.GetPath().empty() ) return XRootDStatus( stError, errNotSupported );
   XrdSysMutexHelper scopedLock( pMutex );
   // get the key and check if it is already in the registry
   const std::string key = url.GetLocation();

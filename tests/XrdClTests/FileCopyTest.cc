@@ -344,7 +344,6 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   results.Clear();
   properties.Set( "source",       metalinkURL );
   properties.Set( "target",       targetURL   );
-  properties.Set( "metalink",     true        );
   properties.Set( "checkSumMode", "end2end"   );
   properties.Set( "checkSumType", "zcrc32"    );
   CPPUNIT_ASSERT_XRDST( process5.AddJob( properties, &results ) );
@@ -359,7 +358,6 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "target",       targetURL );
   properties.Set( "checkSumMode", "end2end" );
   properties.Set( "checkSumType", "zcrc32"  );
-  properties.Set( "metalink",     false        );
 
   if( thirdParty )
     properties.Set( "thirdParty",   "only"    );

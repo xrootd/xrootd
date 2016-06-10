@@ -37,7 +37,7 @@ class VirtualRedirector
     //! or an error response if there are no more replicas to try.
     //! The virtual response is being handled by the given stream.
     //----------------------------------------------------------------------------
-    virtual XRootDStatus Redirect( Message *msg, Stream *stream ) = 0;
+    virtual XRootDStatus HandleRequest( Message *msg, Stream *stream ) = 0;
 
     //----------------------------------------------------------------------------
     //! Initializes the object with the content of the metalink file

@@ -57,7 +57,7 @@ class MetalinkRedirector : public VirtualRedirector
     //! or an error response if there are no more replicas to try.
     //! The virtual response is being handled by the given stream.
     //----------------------------------------------------------------------------
-    XRootDStatus Redirect( Message *msg, Stream *stream );
+    XRootDStatus HandleRequest( Message *msg, Stream *stream );
 
     //----------------------------------------------------------------------------
     //! Gets the file name as specified in the metalink
