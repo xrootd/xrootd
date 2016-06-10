@@ -95,7 +95,7 @@ namespace XrdFileCache
    class File
    {
    private:
-      enum PrefetchState_e { kOn, kHold, kCanceled };
+      enum PrefetchState_e { kOn, kHold, kStopped, kComplete };
 
       XrdOucCacheIO2 *m_input;          //!< original data source
       XrdOssDF       *m_output;         //!< file handle for data file on disk
@@ -105,8 +105,6 @@ namespace XrdFileCache
       std::string     m_temp_filename;  //!< filename of data file on disk
       long long       m_offset;         //!< offset of cached file for block-based operation
       long long       m_fileSize;       //!< size of cached disk file for block-based operation
-
-      bool m_stopping; //!< run thread should be stopped
 
       XrdSysCondVar m_stateCond; //!< state condition variable
 
@@ -167,7 +165,7 @@ namespace XrdFileCache
       //! \brief Initiate close. Return true if still IO active.
       //! Used in XrdPosixXrootd::Close()
       //----------------------------------------------------------------------
-      bool InitiateClose();
+      bool ioActive();
 
       //----------------------------------------------------------------------
       //! Sync file cache inf o and output data with disk
@@ -186,14 +184,16 @@ namespace XrdFileCache
 
       float GetPrefetchScore() const;
 
-      void  MarkPrefetch();
-
       //! Log path
       const char* lPath() const;
 
       std::string     GetLocalPath() { return m_temp_filename; }
 
       XrdOucTrace*  GetTrace();
+
+      long long GetFileSize() { return m_fileSize;}
+
+      void WakeUp();
    private:
       bool overlap(int       blk,      // block to query
                    long long blk_size, //
@@ -222,8 +222,6 @@ namespace XrdFileCache
 
       void CheckPrefetchStatRAM(Block* b);
       void CheckPrefetchStatDisk(int idx);
-
-      void UnMarkPrefetch();
 
       void inc_ref_count(Block*);
       void dec_ref_count(Block*);

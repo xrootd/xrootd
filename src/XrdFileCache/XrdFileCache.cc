@@ -138,6 +138,8 @@ Cache::Cache() : XrdOucCache(),
      m_RAMblocks_used(0)
 {
     m_trace = new XrdOucTrace(&m_log);
+    // default log level is Warning
+    m_trace->What = 2;
 }
 
 //______________________________________________________________________________
@@ -181,9 +183,12 @@ void Cache::Detach(XrdOucCacheIO* io)
    while ( it != m_active.end() )
    {
       if (it->io == io) {
-         it->io->RelinquishFile(it->file);
-         delete it->file;
+         if (it->file) {
+            it->io->RelinquishFile(it->file);
+            delete it->file;
+         }
          m_active.erase(it);
+         break;
       }
       else
          ++it;
@@ -302,9 +307,10 @@ File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
    {
       if (!strcmp(path.c_str(), it->file->lPath()))
       {
-         it->io->RelinquishFile(it->file);
-         it->io = iIo;
-         return  it->file;
+         File *ff = it->file;
+         it->io->RelinquishFile(ff);
+         it->file = 0;
+         return  ff;
       }
    }
    return 0;
@@ -371,7 +377,7 @@ Cache::GetNextFileToPrefetch()
    size_t l = m_prefetchList.size();
    int idx = rand() % l;
    File* f = m_prefetchList[idx];
-   f->MarkPrefetch();
+
    m_prefetch_condVar.UnLock();
    return f;
 }

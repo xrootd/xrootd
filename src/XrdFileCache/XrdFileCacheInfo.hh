@@ -178,7 +178,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Update complete status
          //---------------------------------------------------------------------
-         void CheckComplete();
+         void UpdateDownloadCompleteStatus();
 
          //---------------------------------------------------------------------
          //! Get number of accesses
@@ -272,7 +272,7 @@ namespace XrdFileCache
       return false;
    }
 
-   inline void Info::CheckComplete()
+   inline void Info::UpdateDownloadCompleteStatus()
    {
       m_complete = !IsAnythingEmptyInRng(0, m_sizeInBits-1);
    }

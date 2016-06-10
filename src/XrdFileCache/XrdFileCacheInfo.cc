@@ -99,9 +99,13 @@ int Info::Read(XrdOssDF* fp)
 
    int off = 0;
    int version;
-   off += fp->Read(&version, off, sizeof(int));
+   off = fp->Read(&version, off, sizeof(int));
+   if (off <= 0) {
+      TRACE(Warning, "Info:::Read() failed");
+      return 0;
+   }
    if (version != m_version) {
-      TRACE(Error, "Info:::Read(), incomatible file version");
+      TRACE(Error, "Info:::Read(), incompatible file version");
        return 0;
    }
 

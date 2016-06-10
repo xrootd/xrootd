@@ -10,6 +10,14 @@
 #define TRACE_Debug    4
 #define TRACE_Dump     5
 
+
+#define TRACE_STR_None    ""
+#define TRACE_STR_Error    "error "
+#define TRACE_STR_Warning  "warning "
+#define TRACE_STR_Info     "info "
+#define TRACE_STR_Debug    "debug "
+#define TRACE_STR_Dump     "dump "
+
 #ifndef NODEBUG
 
 #include "XrdSys/XrdSysHeaders.hh"
@@ -21,15 +29,15 @@
 
 #define TRACE(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
-      {XRD_TRACE Beg(m_traceID);   cerr <<x; XRD_TRACE End();}
+      {XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act  <<x; XRD_TRACE End();}
 
 #define TRACEIO(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
-   {XRD_TRACE Beg(m_traceID);   cerr <<x << " " <<  m_io->Path(); XRD_TRACE End();}
+   {XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act <<x << " " <<  m_io->Path(); XRD_TRACE End();}
 
 #define TRACEF(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
-   {XRD_TRACE Beg(m_traceID);   cerr <<x << " " <<  GetLocalPath(); XRD_TRACE End();}
+   {XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act << x << " " <<  GetLocalPath(); XRD_TRACE End();}
 
 
 
