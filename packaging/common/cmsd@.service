@@ -13,6 +13,7 @@ Type=simple
 Restart=on-abort
 RestartSec=0
 KillMode=control-group
+LimitNOFILE=65536
 
 [Install]
 RequiredBy=multi-user.target
