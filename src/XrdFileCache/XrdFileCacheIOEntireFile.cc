@@ -59,7 +59,6 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
    }
 
    Cache::GetInstance().AddActive(this, m_file);
-   std::cout << " IOEntireFile::IOEntireFile " << this << std::endl;
 }
 
 
