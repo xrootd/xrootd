@@ -305,7 +305,7 @@ File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
    XrdSysMutexHelper lock(&m_active_mutex);
    for ( std::vector<DiskNetIO>::iterator it = m_active.begin(); it != m_active.end(); ++it)
    {
-      if (!strcmp(path.c_str(), it->file->lPath()))
+      if (it->file && (!strcmp(path.c_str(), it->file->lPath())))
       {
          File *ff = it->file;
          it->io->RelinquishFile(ff);

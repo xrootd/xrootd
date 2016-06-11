@@ -18,6 +18,7 @@
 
 
 #include "XrdFileCacheFile.hh"
+#include "XrdFileCacheIO.hh"
 #include "XrdFileCacheTrace.hh"
 
 #include <stdio.h>
@@ -71,8 +72,8 @@ namespace
    Cache* cache() { return &Cache::GetInstance(); }
 }
 
-File::File(XrdOucCacheIO2 *inputIO, std::string& disk_file_path, long long iOffset, long long iFileSize) :
-m_input(inputIO),
+File::File(IO *io, std::string& disk_file_path, long long iOffset, long long iFileSize) :
+m_io(io),
 m_output(NULL),
 m_infoFile(NULL),
 m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
@@ -338,7 +339,7 @@ Block* File::RequestBlock(int i, bool prefetch)
 
    TRACEF(Dump, "File::RequestBlock() " <<  i << "prefetch" <<  prefetch << "address " << (void*)b);
    BlockResponseHandler* oucCB = new BlockResponseHandler(b);
-   m_input->Read(*oucCB, (char*)b->get_buff(), off, (int)this_bs);
+   m_io->GetInput()->Read(*oucCB, (char*)b->get_buff(), off, (int)this_bs);
 
    m_block_map[i] = b;
 
@@ -370,7 +371,7 @@ int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
 
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
-      m_input->Read( *handler, req_buf + off, *ii * BS + blk_off, size);
+      m_io->GetInput()->Read( *handler, req_buf + off, *ii * BS + blk_off, size);
       TRACEF(Dump, "RequestBlockDirect success, idx = " <<  *ii << " size = " <<  size);
       
       total += size;

@@ -45,7 +45,7 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 XrdOucCacheIO* IOFileBlock::Detach()
 {
     TRACEIO(Info, "IOFileBlock::Detach() " );
-   XrdOucCacheIO * io = m_io;
+    XrdOucCacheIO * io = GetInput();
 
 
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
@@ -62,7 +62,7 @@ XrdOucCacheIO* IOFileBlock::Detach()
 void IOFileBlock::GetBlockSizeFromPath()
 {
     const static std::string tag = "hdfsbsize=";
-    std::string path= m_io->Path();
+    std::string path= GetInput()->Path();
     size_t pos1 = path.find(tag);
     size_t t = tag.length();
     if ( pos1 != path.npos)
@@ -85,7 +85,7 @@ void IOFileBlock::GetBlockSizeFromPath()
 //______________________________________________________________________________
 File* IOFileBlock::newBlockFile(long long off, int blocksize)
 {
-   XrdCl::URL url(m_io->Path());
+   XrdCl::URL url(GetInput()->Path());
    std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
 
    std::stringstream ss;
@@ -101,7 +101,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    File* file;
    if (!(file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
    {
-      file = new File(m_io, fname, off, blocksize);
+      file = new File(this, fname, off, blocksize);
       Cache::GetInstance().AddActive(this, file);
    }
       
@@ -146,15 +146,18 @@ bool IOFileBlock::ioActive()
 int IOFileBlock::Read (char *buff, long long off, int size)
 {
    // protect from reads over the file size
-   if (off >= m_io->FSize())
+
+   long long fileSize = GetInput()->FSize();
+
+   if (off >= fileSize)
       return 0;
    if (off < 0)
    {
       errno = EINVAL;
       return -1;
    }
-   if (off + size > m_io->FSize())
-      size = m_io->FSize() - off;
+   if (off + size > fileSize)
+      size = fileSize - off;
 
    long long off0 = off;
    int idx_first = off0/m_blocksize;
@@ -176,10 +179,10 @@ int IOFileBlock::Read (char *buff, long long off, int size)
       {
          size_t pbs = m_blocksize;
          // check if this is last block
-         int lastIOFileBlock = (m_io->FSize()-1)/m_blocksize;
+         int lastIOFileBlock = (fileSize-1)/m_blocksize;
          if (blockIdx == lastIOFileBlock )
          {
-            pbs =  m_io->FSize() - blockIdx*m_blocksize;
+            pbs =  fileSize - blockIdx*m_blocksize;
             // TRACEIO(Dump, "IOFileBlock::Read() last block, change output file size to " << pbs);
          }
 
