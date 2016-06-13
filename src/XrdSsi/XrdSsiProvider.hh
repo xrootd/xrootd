@@ -196,7 +196,9 @@ virtual void   SetCBThreads(int cbNum, int ntNum=0) {(void)cbNum; (void)ntNum;}
 //! @param  tmoval   The timeout valid in seconds. A value of <= 0 is ignored.
 //-----------------------------------------------------------------------------
 
-enum    tmoType {idleClose=0, //!< Time before an idle socket is closed (client)
+enum    tmoType {connect_N=0, //!< Number of times to try connection    (client)
+                 connect_T,   //!< Time to wait for a connection        (client)
+                 idleClose,   //!< Time before an idle socket is closed (client)
                  request_T,   //!< Time to wait for a request to finsish(client)
                  response_T,  //!< Time for client to wait for a resp   (Server)
                  stream_T     //!< Time to wait for socket activity     (Client)

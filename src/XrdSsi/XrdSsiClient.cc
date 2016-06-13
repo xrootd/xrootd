@@ -242,13 +242,17 @@ void XrdSsiClientProvider::SetTimeout(XrdSsiProvider::tmoType what, int tmoval)
 // Set requested timeout
 //
    switch(what)
-         {case idleClose:  clEnvP->PutInt("DataServerTTL",  tmoval);
+         {case connect_N:  clEnvP->PutInt("onnectionRetry",   tmoval);
+                           break;
+          case connect_T:  clEnvP->PutInt("ConnectionWindow", tmoval);
+                           break;
+          case idleClose:  clEnvP->PutInt("DataServerTTL",    tmoval);
                            dsTTLSet = true;
                            break;
-          case request_T:  clEnvP->PutInt("RequestTimeout", tmoval);
+          case request_T:  clEnvP->PutInt("RequestTimeout",   tmoval);
                            reqTOSet = true;
                            break;
-          case stream_T:   clEnvP->PutInt("StreamTimeout",  tmoval);
+          case stream_T:   clEnvP->PutInt("StreamTimeout",    tmoval);
                            strTOSet = true;
                            break;
           default:         break;
