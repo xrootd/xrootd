@@ -4,7 +4,7 @@ xrdfs - xrootd file and directory meta-data utility
 .SH SYNOPSIS
 .nf
 
-\fBxrdfs\fR \fIhost[:port]\fR \fI[command [args]]\fR
+\fBxrdfs\fR \fI[--no-cwd]\fR \fIhost[:port]\fR \fI[command [args]]\fR
 
 \fBcommand\fR: help, chmod, ls, locate, mkdir, mv, stat, statvfs, query, rm, rmdir,
            truncate, prepare, cat, tail, spaceinfo
@@ -17,6 +17,11 @@ The \fBxrdfs\fR utility executes meta-data oriented operations
 Command help is available by invoking \fBxrdfs\fR with no command
 line options or parameters and then typing "help" in response to the
 input prompt.
+
+.SH OPTIONS
+\fB--no-cwd\fR
+.RS 3
+No CWD is being preset in interactive mode.
 
 .SH COMMANDS
 \fBchmod\fR \fIpath\fR \fI<user><group><other>\fR
