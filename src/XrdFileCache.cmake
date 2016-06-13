@@ -23,7 +23,7 @@ add_library(
   XrdFileCache/XrdFileCacheVRead.cc
   XrdFileCache/XrdFileCacheStats.hh
   XrdFileCache/XrdFileCacheInfo.cc          XrdFileCache/XrdFileCacheInfo.hh
-  XrdFileCache/XrdFileCacheIO.hh
+  XrdFileCache/XrdFileCacheIO.cc            XrdFileCache/XrdFileCacheIO.hh
   XrdFileCache/XrdFileCacheIOEntireFile.cc  XrdFileCache/XrdFileCacheIOEntireFile.hh
   XrdFileCache/XrdFileCacheIOFileBlock.cc   XrdFileCache/XrdFileCacheIOFileBlock.hh
   XrdFileCache/XrdFileCacheDecision.hh)
