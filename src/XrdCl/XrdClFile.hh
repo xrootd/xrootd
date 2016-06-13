@@ -68,7 +68,8 @@ namespace XrdCl
                          OpenFlags::Flags   flags,
                          Access::Mode       mode,
                          ResponseHandler   *handler,
-                         uint16_t           timeout  = 0 )
+                         uint16_t           timeout  = 0,
+                         bool               virtRedirector = true )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -84,7 +85,8 @@ namespace XrdCl
       XRootDStatus Open( const std::string &url,
                          OpenFlags::Flags   flags,
                          Access::Mode       mode    = Access::None,
-                         uint16_t           timeout = 0 )
+                         uint16_t           timeout = 0,
+                         bool               virtRedirector = true )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------

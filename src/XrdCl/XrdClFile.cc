@@ -69,7 +69,8 @@ namespace XrdCl
                            OpenFlags::Flags   flags,
                            Access::Mode       mode,
                            ResponseHandler   *handler,
-                           uint16_t           timeout )
+                           uint16_t           timeout,
+                           bool               virtRedirector )
   {
     //--------------------------------------------------------------------------
     // Check if we need to install and run a plug-in for this URL
@@ -95,7 +96,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Open( url, flags, mode, handler, timeout );
 
-    return pStateHandler->Open( url, flags, mode, handler, timeout );
+    return pStateHandler->Open( url, flags, mode, handler, timeout, virtRedirector );
   }
 
   //----------------------------------------------------------------------------
@@ -104,10 +105,11 @@ namespace XrdCl
   XRootDStatus File::Open( const std::string &url,
                            OpenFlags::Flags   flags,
                            Access::Mode       mode,
-                           uint16_t           timeout )
+                           uint16_t           timeout,
+                           bool               virtRedirector )
   {
     SyncResponseHandler handler;
-    Status st = Open( url, flags, mode, &handler, timeout );
+    Status st = Open( url, flags, mode, &handler, timeout, virtRedirector );
     if( !st.IsOK() )
       return st;
 

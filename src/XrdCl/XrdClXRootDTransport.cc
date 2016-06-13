@@ -817,6 +817,7 @@ namespace XrdCl
 
     req->header.requestid = htons( req->header.requestid );
     req->header.dlen      = htonl( req->header.dlen );
+    msg->SetIsMarshalled( true );
     return Status();
   }
 
@@ -837,6 +838,7 @@ namespace XrdCl
     Status st = MarshallRequest( msg );
     req->header.requestid = htons( req->header.requestid );
     req->header.dlen      = htonl( req->header.dlen );
+    msg->SetIsMarshalled( false );
     return st;
   }
 

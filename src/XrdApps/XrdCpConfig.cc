@@ -81,7 +81,7 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:Z:M";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:Z";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -108,7 +108,6 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "version",   0, 0, XrdCpConfig::OpVersion},
       {OPT_TYPE "xrate",     1, 0, XrdCpConfig::OpXrate},
       {OPT_TYPE "parallel",  1, 0, XrdCpConfig::OpParallel},
-      {OPT_TYPE "metalink",  0, 0, XrdCpConfig::OpMetalink},
       {0,                    0, 0, 0}
      };
 
@@ -222,8 +221,6 @@ do{while(optind < Argc && Legacy(optind)) {}
                            break;
           case OpForce:    OpSpec |= DoForce;
                            break;
-          case OpMetalink: OpSpec |= DoMetalink;
-                           break;
           case OpHelp:     Usage(0);
                            break;
           case OpIfile:    if (inFile) free(inFile);
@@ -289,9 +286,9 @@ do{while(optind < Argc && Legacy(optind)) {}
 
 // Make sure we have the right number of files
 //
-   if (inFile) {if (!parmCnt     ) UMSG("Destination not specified.");}
-      else {    if (!parmCnt     ) UMSG("No files specified.");
-                if ( parmCnt == 1 && !( OpSpec & DoMetalink ) ) UMSG("Destination not specified.");
+   if (inFile) {if (!parmCnt      ) UMSG("Destination not specified.");}
+      else {    if (!parmCnt      ) UMSG("No files specified.");
+                if ( parmCnt == 1 ) UMSG("Destination not specified.");
            }
 
 // Check for conflicts wit third party copy
@@ -332,13 +329,6 @@ do{while(optind < Argc && Legacy(optind)) {}
         {if (rc != ENOENT || (Argc - optind - 1) > 1 || OpSpec & DoRecurse)
             FMSG(strerror(rc) <<" processing " <<dstFile->Path, 2);
         }
-   }
-   else
-   {
-// Create an empty destination file
-//
-     dstFile = new XrdCpFile();
-     dstFile->Path = strdup( "" );
    }
 
 // Now pick up all the source files from the command line
@@ -859,7 +849,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--path] [--posc] [--proxy <host>:<port>] [--recursive]\n"
    "         [--retry <n>] [--server] [--silent] [--sources <n>] [--streams <n>]\n"
    "         [--tpc {first|only}] [--verbose] [--version] [--xrate <rate>]\n"
-   "         [--parallel <n>] [--metalink]";
+   "         [--parallel <n>]";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
@@ -903,8 +893,7 @@ void XrdCpConfig::Usage(int rc)
    "-V | --version      prints the version number\n"
    "-X | --xrate <rate> limits the transfer to the specified rate. You can\n"
    "                    suffix the value with 'k', 'm', or 'g'\n"
-   "     --parallel <n> number of copy jobs to be run simultaneously\n"
-   "-M | --metalink     treats source as a metalink\n\n"
+   "     --parallel <n> number of copy jobs to be run simultaneously\n\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

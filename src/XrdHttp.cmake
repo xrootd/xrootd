@@ -14,7 +14,7 @@ if( BUILD_HTTP )
   # The XrdHttp library
   #-----------------------------------------------------------------------------
   include_directories( ${OPENSSL_INCLUDE_DIR} )
-
+  
   add_library(
     ${LIB_XRD_HTTP}
     MODULE

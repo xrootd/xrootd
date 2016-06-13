@@ -39,6 +39,15 @@
 #include "XrdXrootd/XrdXrootdFileStats.hh"
 
 /******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+
+namespace XrdXrootdMonInfo
+{
+extern long long mySID;
+}
+
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
                           
@@ -71,7 +80,7 @@ char                 XrdXrootdMonFile::fsOPS    = 0;
 char                 XrdXrootdMonFile::fsSSQ    = 0;
 char                 XrdXrootdMonFile::fsXFR    = 0;
 char                 XrdXrootdMonFile::crecFlag = 0;
-
+  
 /******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/
@@ -336,8 +345,9 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
 //
    repTOD   = (XrdXrootdMonFileTOD *)(repBuff + sizeof(XrdXrootdMonHeader));
    repTOD->Hdr.recType = XrdXrootdMonFileHdr::isTime;
-   repTOD->Hdr.recFlag = 0;
+   repTOD->Hdr.recFlag = XrdXrootdMonFileHdr::hasSID;
    repTOD->Hdr.recSize = htons(sizeof(XrdXrootdMonFileTOD));
+   repTOD->sID = static_cast<kXR_int64>(XrdXrootdMonInfo::mySID);
 
 // Establish first real record in the buffer (always fixed)
 //

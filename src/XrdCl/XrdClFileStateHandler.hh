@@ -82,7 +82,8 @@ namespace XrdCl
                          uint16_t           flags,
                          uint16_t           mode,
                          ResponseHandler   *handler,
-                         uint16_t           timeout  = 0 );
+                         uint16_t           timeout  = 0,
+                         bool               virtRedirector = false );
 
       //------------------------------------------------------------------------
       //! Close the file object
@@ -422,6 +423,7 @@ namespace XrdCl
       bool                    pDoRecoverWrite;
       bool                    pFollowRedirects;
       bool                    pDoneInitOpen;
+      bool                    pUseVirtRedirector;
 
       //------------------------------------------------------------------------
       // Monitoring variables

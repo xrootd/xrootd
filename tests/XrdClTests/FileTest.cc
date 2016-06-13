@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 
 using namespace XrdClTests;
 
@@ -45,12 +46,14 @@ class FileTest: public CppUnit::TestCase
       CPPUNIT_TEST( ReadTest );
       CPPUNIT_TEST( WriteTest );
       CPPUNIT_TEST( VectorReadTest );
+      CPPUNIT_TEST( VirtualRedirectorTest );
       CPPUNIT_TEST( PlugInTest );
     CPPUNIT_TEST_SUITE_END();
     void RedirectReturnTest();
     void ReadTest();
     void WriteTest();
     void VectorReadTest();
+    void VirtualRedirectorTest();
     void PlugInTest();
 };
 
@@ -352,6 +355,94 @@ void FileTest::VectorReadTest()
 
   delete [] buffer1;
   delete [] buffer2;
+}
+
+void FileTest::VirtualRedirectorTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string mlUrl1 = address + "/" + dataPath + "/metalink/mlFileTest1.meta4";
+  std::string mlUrl2 = address + "/" + dataPath + "/metalink/mlFileTest2.meta4";
+  std::string mlUrl3 = address + "/" + dataPath + "/metalink/mlFileTest3.meta4";
+  std::string mlUrl4 = address + "/" + dataPath + "/metalink/mlFileTest4.meta4";
+
+  File f1, f2, f3, f4;
+
+  const std::string fileUrl = "root://srv1:1094//data/a048e67f-4397-4bb8-85eb-8d7e40d90763.dat";
+  const std::string key = "LastURL";
+  std::string value;
+
+  //----------------------------------------------------------------------------
+  // Open the 1st metalink file
+  // (the metalink contains just one file with a correct location)
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f1.Open( mlUrl1, OpenFlags::Read ) );
+  CPPUNIT_ASSERT( f1.GetProperty( key, value ) );
+  CPPUNIT_ASSERT( value == fileUrl );
+  CPPUNIT_ASSERT_XRDST( f1.Close() );
+
+  //----------------------------------------------------------------------------
+  // Open the 2nd metalink file
+  // (the metalink contains 2 files, the one with higher priority does not exist)
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f2.Open( mlUrl2, OpenFlags::Read ) );
+  CPPUNIT_ASSERT( f2.GetProperty( key, value ) );
+  CPPUNIT_ASSERT( value == fileUrl );
+  CPPUNIT_ASSERT_XRDST( f2.Close() );
+
+  //----------------------------------------------------------------------------
+  // Open the 3rd metalink file
+  // (the metalink contains 2 files, both don't exist)
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST_NOTOK( f3.Open( mlUrl3, OpenFlags::Read ), errErrorResponse );
+
+  //----------------------------------------------------------------------------
+  // Open the 4th metalink file
+  // (the metalink contains 2 files, both exist)
+  //----------------------------------------------------------------------------
+  const std::string replica1 = "root://srv3:1094//data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
+  const std::string replica2 = "root://srv2:1094//data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
+
+  CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
+  CPPUNIT_ASSERT( f4.GetProperty( key, value ) );
+  CPPUNIT_ASSERT( value == replica1 );
+  CPPUNIT_ASSERT_XRDST( f4.Close() );
+  //----------------------------------------------------------------------------
+  // Delete the replica that has been selected by the virtual redirector
+  //----------------------------------------------------------------------------
+  FileSystem fs( replica1 );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( "/data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat" ) );
+  //----------------------------------------------------------------------------
+  // Now reopen the file
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
+  CPPUNIT_ASSERT( f4.GetProperty( key, value ) );
+  CPPUNIT_ASSERT( value == replica2 );
+  CPPUNIT_ASSERT_XRDST( f4.Close() );
+  //----------------------------------------------------------------------------
+  // Recreate the deleted file
+  //----------------------------------------------------------------------------
+  CopyProcess  process;
+  PropertyList properties, results;
+  properties.Set( "source",       replica2 );
+  properties.Set( "target",       replica1 );
+  CPPUNIT_ASSERT_XRDST( process.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process.Run(0) );
 }
 
 //------------------------------------------------------------------------------

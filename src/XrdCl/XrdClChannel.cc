@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 
 #include <ctime>
 
@@ -279,10 +280,20 @@ namespace XrdCl
   Status Channel::Send( Message              *msg,
                         OutgoingMsgHandler   *handler,
                         bool                  stateful,
-                        time_t                expires )
+                        time_t                expires,
+                        VirtualRedirector    *redirector )
 
   {
     PathID path = pTransport->Multiplex( msg, pChannelData );
+
+    if( redirector )
+    {
+      XRootDStatus st = redirector->HandleRequest( msg, pStreams[path.down] );
+      if( st.IsOK() )
+        handler->OnStatusReady( msg, Status() );
+      return st;
+    }
+
     return pStreams[path.up]->Send( msg, handler, stateful, expires );
   }
 

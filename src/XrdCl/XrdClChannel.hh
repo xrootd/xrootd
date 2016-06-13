@@ -37,6 +37,7 @@ namespace XrdCl
 {
   class Stream;
   class JobManager;
+  class VirtualRedirector;
 
   //----------------------------------------------------------------------------
   //! A communication channel between the client and the server
@@ -101,8 +102,8 @@ namespace XrdCl
       Status Send( Message              *msg,
                    OutgoingMsgHandler   *handler,
                    bool                  stateful,
-                   time_t                expires );
-
+                   time_t                expires,
+                   VirtualRedirector    *redirector = 0 );
 
       //------------------------------------------------------------------------
       //! Synchronously receive a message - blocks until a message matching

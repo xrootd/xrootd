@@ -317,25 +317,43 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   Env *testEnv = TestEnv::GetEnv();
 
+  std::string metamanager;
   std::string manager1;
   std::string manager2;
   std::string sourceFile;
   std::string dataPath;
 
-  CPPUNIT_ASSERT( testEnv->GetString( "Manager1URL", manager1 ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "Manager2URL", manager2 ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",  sourceFile ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "DataPath",    dataPath ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", metamanager ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "Manager1URL",      manager1 ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "Manager2URL",      manager2 ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",     sourceFile ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath",         dataPath ) );
 
-  std::string sourceURL  = manager1 + "/" + sourceFile;
-  std::string targetPath = dataPath + "/tpcFile";
-  std::string targetURL  = manager2 + "/" + targetPath;
+  std::string sourceURL   = manager1 + "/" + sourceFile;
+  std::string targetPath  = dataPath + "/tpcFile";
+  std::string targetURL   = manager2 + "/" + targetPath;
+  std::string metalinkURL = metamanager + "/" + dataPath + "/metalink/mlTpcTest.meta4";
+
+  CopyProcess  process1, process2, process3, process4, process5;
+  PropertyList properties, results;
+  FileSystem fs( manager2 );
+
+  //----------------------------------------------------------------------------
+  // Copy from a Metalink
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source",       metalinkURL );
+  properties.Set( "target",       targetURL   );
+  properties.Set( "checkSumMode", "end2end"   );
+  properties.Set( "checkSumType", "zcrc32"    );
+  CPPUNIT_ASSERT_XRDST( process5.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process5.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process5.Run(0) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
 
   //----------------------------------------------------------------------------
   // Initialize and run the copy
   //----------------------------------------------------------------------------
-  CopyProcess  process1, process2, process3, process4;
-  PropertyList properties, results;
   properties.Set( "source",       sourceURL );
   properties.Set( "target",       targetURL );
   properties.Set( "checkSumMode", "end2end" );
@@ -351,7 +369,6 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   // Cleanup
   //----------------------------------------------------------------------------
-  FileSystem fs( manager2 );
   CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
 
   // the further tests are only valid for third party copy for now
@@ -387,6 +404,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process4.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process4.Prepare() );
   CPPUNIT_ASSERT_XRDST_NOTOK( process4.Run(0), errOperationExpired );
+
+
 }
 
 //------------------------------------------------------------------------------
