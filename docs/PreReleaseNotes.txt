@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * [Server] Allow objectid's to be specified in the authorization file.
   * [Server] Add new logging plugin interface.
   * [Server] Fixes #345 - add sid to TOD structure (ABI compliant).
   * [Server] Implement resource selection affinity (primarily for ssi).
