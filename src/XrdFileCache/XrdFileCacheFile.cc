@@ -236,13 +236,18 @@ bool File::Open()
    struct stat infoStat;
    bool fileExisted = (Cache::GetInstance().GetOss()->Stat(ifn.c_str(), &infoStat) == XrdOssOK);
 
+   // AMT: the folowing below is a sanity check, it is not expected to happen. Could be an assert
+   if (fileExisted && (infoStat.st_size == 0)) {
+      TRACEF(Error, "File::Open() info file stored zero data file size");
+      return false;
+   }
+
    if (m_output_fs.Create(Cache::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) !=  XrdOssOK)
    {
        TRACEF(Error, "File::Open() can't create info file, " << strerror(errno));
        return false;
    }
    m_infoFile = m_output_fs.newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
-   if (fileExisted) assert(infoStat.st_size > 0);
    if (m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
    {
       TRACEF(Error, "File::Open() can't get FD info file, " << strerror(errno));
