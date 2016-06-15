@@ -86,42 +86,46 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
          {
             // XXXX MT - shouldn't we also check if it is currently opened?
 
-            fh->Open(np.c_str(), O_RDONLY, 0600, env);
-            Info cinfo(Cache::GetInstance().GetTrace());
-            time_t accessTime;
-            cinfo.Read(fh);
-            if (cinfo.GetLatestDetachTime(accessTime, fh))
-            {
-               TRACE(Dump, "FillFileMapRecurse() checking " << buff << " accessTime  " << accessTime);
-               purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBytes());
-            }
-            else
-            {
-               // cinfo file does not contain any known accesses, use stat.mtime instead.
-
-               TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np << ", trying stat");
-
-               XrdOss* oss = Cache::GetInstance().GetOss();
-               struct stat fstat;
-
-               if (oss->Stat(np.c_str(), &fstat) == XrdOssOK)
+            if (fh->Open(np.c_str(), O_RDONLY, 0600, env) == XrdOssOK) {
+               Info cinfo(Cache::GetInstance().GetTrace());
+               time_t accessTime;
+               cinfo.Read(fh);
+               if (cinfo.GetLatestDetachTime(accessTime, fh))
                {
-                  accessTime = fstat.st_mtime;
-                  TRACE(Dump, "FillFileMapRecurse() have access time for " << np << " via stat: " << accessTime);
+                  TRACE(Dump, "FillFileMapRecurse() checking " << buff << " accessTime  " << accessTime);
                   purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBytes());
                }
                else
                {
-                  // This really shouldn't happen ... but if it does remove cinfo and the data file right away.
+                  // cinfo file does not contain any known accesses, use stat.mtime instead.
 
-                  TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np);
-                  oss->Unlink(np.c_str());
-                  np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
-                  oss->Unlink(np.c_str());
+                  TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np << ", trying stat");
+
+                  XrdOss* oss = Cache::GetInstance().GetOss();
+                  struct stat fstat;
+
+                  if (oss->Stat(np.c_str(), &fstat) == XrdOssOK)
+                  {
+                     accessTime = fstat.st_mtime;
+                     TRACE(Dump, "FillFileMapRecurse() have access time for " << np << " via stat: " << accessTime);
+                     purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBytes());
+                  }
+                  else
+                  {
+                     // This really shouldn't happen ... but if it does remove cinfo and the data file right away.
+
+                     TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np);
+                     oss->Unlink(np.c_str());
+                     np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
+                     oss->Unlink(np.c_str());
+                  }
                }
             }
+            else {
+               TRACE(Warning, "FillFileMapRecurse() cant open  " << np << " " << strerror(errno));
+            }
          }
-         else if (dh->Opendir(np.c_str(), env) >= 0)
+         else if (dh->Opendir(np.c_str(), env) == XrdOssOK)
          {
             FillFileMapRecurse(dh, np, purgeState);
          }
@@ -166,7 +170,7 @@ void Cache::CacheDirCleanup()
       {
          // make a sorted map of file patch by access time
          XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
-         if (dh->Opendir(m_configuration.m_cache_dir.c_str(), env) >= 0)
+         if (dh->Opendir(m_configuration.m_cache_dir.c_str(), env) == XrdOssOK)
          {
             FPurgeState purgeState(bytesToRemove * 5 / 4); // prepare 20% more volume than required
 
