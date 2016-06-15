@@ -82,24 +82,23 @@ class RedirectorRegistry
 
     //----------------------------------------------------------------------------
     //! Creates a new virtual redirector and registers it (async).
-    //! The response handler will be called only in case of failure!
-    //----------------------------------------------------------------------------
-    XRootDStatus Register( const URL &url, ResponseHandler *handler );
-
-    //----------------------------------------------------------------------------
-    //! Creates a new virtual redirector and registers it (async).
     //----------------------------------------------------------------------------
     XRootDStatus Register( const URL &url );
 
     //----------------------------------------------------------------------------
-    //! Erase a virtual redirector for the registry.
+    //! Creates a new virtual redirector and registers it (sync).
     //----------------------------------------------------------------------------
-    void Erase( const URL &url );
+    XRootDStatus RegisterAndWait( const URL &url );
 
     //----------------------------------------------------------------------------
     //! Get a virtual redirector associated with the given URL.
     //----------------------------------------------------------------------------
     VirtualRedirector* Get( const URL &url ) const;
+
+    //----------------------------------------------------------------------------
+    //! Release the virtual redirector associated with the given URL
+    //----------------------------------------------------------------------------
+    void Release( const URL &url );
 
   private:
 
@@ -123,7 +122,7 @@ class RedirectorRegistry
     //----------------------------------------------------------------------------
     RedirectorRegistry& operator=( const RedirectorRegistry & );
 
-    std::map< std::string, VirtualRedirector* > pRegistry;
+    std::map< std::string, std::pair<VirtualRedirector*, size_t> > pRegistry;
 
     mutable XrdSysMutex pMutex;
 };

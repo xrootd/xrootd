@@ -14,74 +14,6 @@
 namespace XrdCl
 {
 
-void DeallocArgs( XRootDStatus *status, AnyObject *response, HostList *hostList )
-{
-  delete status;
-  delete response;
-  delete hostList;
-}
-
-class LoadHandler : public ResponseHandler
-{
-  public:
-
-    LoadHandler( ResponseHandler *userHandler, const URL &url) : pUserHandler( userHandler ), pUrl( url ) {}
-
-    virtual void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
-    {
-      if( !status->IsOK() )
-      {
-        // remove the respective redirector from registry
-        RedirectorRegistry &registry   = RedirectorRegistry::Instance();
-        VirtualRedirector  *redirector = registry.Get( pUrl );
-        delete redirector;
-        registry.Erase( pUrl );
-        // call the user handler if present
-        if( pUserHandler ) pUserHandler->HandleResponseWithHosts( status, response, hostList );
-        // otherwise deallocate the function arguments
-        else DeallocArgs( status, response, hostList );
-      }
-      else DeallocArgs( status, response, hostList );
-
-      delete this;
-    }
-
-  private:
-
-    ResponseHandler *pUserHandler;
-    const URL pUrl;
-};
-
-class SyncLoadHandler : public ResponseHandler
-{
-  public:
-
-    SyncLoadHandler( SyncResponseHandler *syncHandler, const URL &url) : pSyncHandler( syncHandler ), pUrl( url ) {}
-
-    virtual void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
-    {
-      if( !status->IsOK() )
-      {
-        // remove the respective redirector from registry
-        RedirectorRegistry &registry   = RedirectorRegistry::Instance();
-        VirtualRedirector  *redirector = registry.Get( pUrl );
-        delete redirector;
-        registry.Erase( pUrl );
-      }
-      // call the sync handler if present
-      if( pSyncHandler ) pSyncHandler->HandleResponseWithHosts( status, response, hostList );
-      // otherwise deallocate the function arguments
-      else DeallocArgs( status, response, hostList );
-
-      delete this;
-    }
-
-  private:
-
-    SyncResponseHandler *pSyncHandler;
-    const URL pUrl;
-};
-
 RedirectorRegistry& RedirectorRegistry::Instance()
 {
   static RedirectorRegistry redirector;
@@ -90,9 +22,9 @@ RedirectorRegistry& RedirectorRegistry::Instance()
 
 RedirectorRegistry::~RedirectorRegistry()
 {
-  std::map< std::string, VirtualRedirector* >::iterator itr;
+  std::map< std::string, std::pair<VirtualRedirector*, size_t > >::iterator itr;
   for( itr = pRegistry.begin(); itr != pRegistry.end(); ++itr )
-    delete itr->second;
+    delete itr->second.first;
 }
 
 XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *handler )
@@ -103,7 +35,14 @@ XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *
   XrdSysMutexHelper scopedLock( pMutex );
   // get the key and check if it is already in the registry
   const std::string key = url.GetLocation();
-  if( pRegistry.find( key ) != pRegistry.end() ) return XRootDStatus();
+  std::map< std::string, std::pair<VirtualRedirector*, size_t > >::iterator itr = pRegistry.find( key );
+  if( itr != pRegistry.end() )
+  {
+    // increment user counter
+    ++itr->second.second;
+    if( handler ) handler->HandleResponseWithHosts( new XRootDStatus(), 0, 0 );
+    return XRootDStatus( stOK, suAlreadyDone );
+  }
   // If it is a Metalink create a MetalinkRedirector
   if( url.IsMetalink() )
   {
@@ -112,7 +51,7 @@ XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *
     if( !st.IsOK() )
       delete redirector;
     else
-      pRegistry[key] = redirector;
+      pRegistry[key] = std::make_pair( redirector, 1 );
     return st;
   }
   else
@@ -120,32 +59,17 @@ XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *
     return XRootDStatus( stError, errNotSupported );
 }
 
-XRootDStatus RedirectorRegistry::Register( const URL &url, ResponseHandler *handler )
-{
-  LoadHandler *loadHandler = new LoadHandler(handler, url );
-  XRootDStatus st = RegisterImpl( url, loadHandler );
-  if( !st.IsOK() ) delete loadHandler;
-  return st;
-}
-
 XRootDStatus RedirectorRegistry::Register( const URL &url )
 {
-  SyncResponseHandler handler;
-  SyncLoadHandler *syncHandler = new SyncLoadHandler( &handler, url );
-  Status st = RegisterImpl( url, syncHandler );
-  if( !st.IsOK() )
-  {
-    delete syncHandler;
-    return st;
-  }
-
-  return MessageUtils::WaitForStatus( &handler );
+  return RegisterImpl( url, 0 );
 }
 
-void RedirectorRegistry::Erase( const URL &url )
+XRootDStatus RedirectorRegistry::RegisterAndWait( const URL &url )
 {
-  XrdSysMutexHelper scopedLock( pMutex );
-  pRegistry.erase( url.GetURL() );
+  SyncResponseHandler handler;
+  Status st = RegisterImpl( url, &handler );
+  if( !st.IsOK() ) return st;
+  return MessageUtils::WaitForStatus( &handler );
 }
 
 VirtualRedirector* RedirectorRegistry::Get( const URL &url ) const
@@ -154,11 +78,33 @@ VirtualRedirector* RedirectorRegistry::Get( const URL &url ) const
   // get the key and return the value if it is in the registry
   // offset 24 is where the path has been stored
   const std::string key = url.GetLocation();
-  std::map< std::string, VirtualRedirector* >::const_iterator itr = pRegistry.find( key );
+  std::map< std::string, std::pair< VirtualRedirector*, size_t> >::const_iterator itr = pRegistry.find( key );
   if( itr != pRegistry.end() )
-    return itr->second;
+    return itr->second.first;
   // otherwise return null
   return 0;
+}
+
+//----------------------------------------------------------------------------
+// Release the virtual redirector associated with the given URL
+//----------------------------------------------------------------------------
+void RedirectorRegistry::Release( const URL &url )
+{
+  XrdSysMutexHelper scopedLock( pMutex );
+  // get the key and return the value if it is in the registry
+  // offset 24 is where the path has been stored
+  const std::string key = url.GetLocation();
+  std::map< std::string, std::pair< VirtualRedirector*, size_t> >::iterator itr = pRegistry.find( key );
+  if( itr == pRegistry.end() ) return;
+  // decrement user counter
+  --itr->second.second;
+  // if nobody is using it delete the object
+  // and remove it from the registry
+  if( !itr->second.second )
+  {
+    delete itr->second.first;
+    pRegistry.erase( itr );
+  }
 }
 
 } /* namespace XrdCl */

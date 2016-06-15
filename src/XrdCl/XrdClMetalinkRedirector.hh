@@ -92,10 +92,12 @@ class MetalinkRedirector : public VirtualRedirector
     XRootDStatus Parse( const std::string &metalink );
 
     //----------------------------------------------------------------------------
-    //! Handle pending redirects (those that were
-    //! submitted before the metalink has been loaded)
+    //! Finalize the initialization process:
+    //! - mark as ready
+    //! - setup the status
+    //! - and handle pending redirects
     //----------------------------------------------------------------------------
-    void HandlePending();
+    void FinalizeInitialization( const XRootDStatus &status = XRootDStatus() );
 
     //----------------------------------------------------------------------------
     //! Generates redirect response for the given request
@@ -105,7 +107,7 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     //! Generates error response for the given request
     //----------------------------------------------------------------------------
-    Message* GetErrorMsg( const Message *msg ) const;
+    Message* GetErrorMsg( const Message *msg, const std::string &errMsg, XErrorCode code ) const;
 
     //----------------------------------------------------------------------------
     //! Initializes checksum map
@@ -137,7 +139,8 @@ class MetalinkRedirector : public VirtualRedirector
     File            *pFile;
     CksumMap         pChecksums;
     ReplicaList      pReplicas;
-    bool             pInitialized;
+    bool             pReady;
+    XRootDStatus     pStatus;
     std::string      pTarget;
     long long        pFileSize;
 

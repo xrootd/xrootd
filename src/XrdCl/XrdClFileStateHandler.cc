@@ -361,6 +361,12 @@ namespace XrdCl
       ResetMonitoringVars();
     }
 
+    if( pUseVirtRedirector )
+    {
+      RedirectorRegistry& registry = RedirectorRegistry::Instance();
+      registry.Release( *pFileUrl );
+    }
+
     delete pStatInfo;
     delete pFileUrl;
     delete pDataServer;
@@ -474,7 +480,7 @@ namespace XrdCl
     if( pUseVirtRedirector )
     {
       RedirectorRegistry& registry = RedirectorRegistry::Instance();
-      XRootDStatus st = registry.Register( url, handler );
+      XRootDStatus st = registry.Register( *pFileUrl );
       if( !st.IsOK() ) return st;
       HostInfo info( url, true );
       HostList *list = new HostList();

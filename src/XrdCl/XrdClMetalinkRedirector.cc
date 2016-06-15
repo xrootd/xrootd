@@ -25,6 +25,14 @@
 
 namespace XrdCl
 {
+
+void DeallocArgs( XRootDStatus *status, AnyObject *response, HostList *hostList )
+{
+  delete status;
+  delete response;
+  delete hostList;
+}
+
 //----------------------------------------------------------------------------
 // Read metalink response handler.
 //
@@ -80,8 +88,7 @@ class MetalinkReadHandler : public ResponseHandler
             throw new XRootDStatus( st );
           }
           // clean up
-          delete response;
-          delete hostList;
+          DeallocArgs( 0, response, hostList );
         }
         else // we have the whole metalink file
         {
@@ -90,15 +97,20 @@ class MetalinkReadHandler : public ResponseHandler
           pRedirector->pFile = 0;
           // now we can parse the metalink file
           XRootDStatus st = pRedirector->Parse( pContent );
+          // now with the redirector fully initialized we can handle pending requests
+          pRedirector->FinalizeInitialization();
           // we are done, pass the status to the user (whatever it is)
-          pUserHandler->HandleResponseWithHosts( new XRootDStatus( st ), response, hostList );
+          if( pUserHandler ) pUserHandler->HandleResponseWithHosts( new XRootDStatus( st ), response, hostList );
+          else DeallocArgs( 0, response, hostList );
         }
       }
-      catch( XRootDStatus * status )
+      catch( XRootDStatus *status )
       {
+        pRedirector->FinalizeInitialization( *status );
         // if we were not able to read from the metalink,
         // propagate the error to the user handler
-        pUserHandler->HandleResponseWithHosts( status, response, hostList );
+        if( pUserHandler )pUserHandler->HandleResponseWithHosts( status, response, hostList );
+        else DeallocArgs( status, response, hostList );
       }
 
       delete this;
@@ -161,9 +173,11 @@ class MetalinkOpenHandler : public ResponseHandler
       }
       catch( XRootDStatus *status )
       {
+        pRedirector->FinalizeInitialization( *status );
         // if we were not able to schedule a read
         // pass an error to the user handler
-        pUserHandler->HandleResponseWithHosts( status, response, hostList );
+        if( pUserHandler ) pUserHandler->HandleResponseWithHosts( status, response, hostList );
+        else DeallocArgs( status, response, hostList );
       }
 
       delete this;
@@ -179,7 +193,7 @@ class MetalinkOpenHandler : public ResponseHandler
 // Constructor
 //----------------------------------------------------------------------------
 MetalinkRedirector::MetalinkRedirector( const std::string & url ):
-    pUrl( url ), pFile( new File ), pInitialized( false ), pFileSize( -1 ) {}
+    pUrl( url ), pFile( new File ), pReady( false ), pFileSize( -1 ) {}
 
 //----------------------------------------------------------------------------
 // Destructor
@@ -211,7 +225,6 @@ XRootDStatus MetalinkRedirector::Load( ResponseHandler *userHandler )
 //----------------------------------------------------------------------------
 XRootDStatus MetalinkRedirector::Parse( const std::string &metalink )
 {
-  XrdSysMutexHelper scopedLock( pMutex );
   Log *log = DefaultEnv::GetLog();
   // parse the metalink
   XrdXmlMetaLink parser;
@@ -233,28 +246,31 @@ XRootDStatus MetalinkRedirector::Parse( const std::string &metalink )
 
   InitCksum( fileInfos );
   InitReplicas( fileInfos );
-  pTarget = fileInfos[0]->GetTargetName();
+  pTarget   = fileInfos[0]->GetTargetName();
   pFileSize = fileInfos[0]->GetSize();
-  pInitialized = true;
 
   XrdXmlMetaLink::DeleteAll( fileInfos, size );
-
-  // now with the redirector fully initialized we can handle pending requests
-  HandlePending();
 
   return XRootDStatus();
 }
 
 //----------------------------------------------------------------------------
-// Handle pending redirects (those that were
-// submitted before the metalink has been loaded)
+// Finalize the initialization process:
+// - mark as ready
+// - setup the status
+// - and handle pending redirects
 //----------------------------------------------------------------------------
-void MetalinkRedirector::HandlePending()
+void MetalinkRedirector::FinalizeInitialization( const XRootDStatus &status )
 {
+  XrdSysMutexHelper scopedLock( pMutex );
+  pReady = true;
+  pStatus = status;
+  // Handle pending redirects (those that were
+  // submitted before the metalink has been loaded)
   while( !pPendingRedirects.empty() )
   {
-    const Message *msg = pPendingRedirects.front().first;
-    Stream *stream = pPendingRedirects.front().second;
+    const Message *msg    = pPendingRedirects.front().first;
+    Stream        *stream = pPendingRedirects.front().second;
     pPendingRedirects.pop_front();
     if( !stream || !msg ) continue;
     Message* resp = GetResponse( msg );
@@ -267,11 +283,12 @@ void MetalinkRedirector::HandlePending()
 //----------------------------------------------------------------------------
 Message* MetalinkRedirector::GetResponse( const Message *msg ) const
 {
+  if( !pStatus.IsOK() ) return GetErrorMsg( msg, "Could not load the Metalink file.", static_cast<XErrorCode>( XProtocol::mapError( pStatus.errNo ) ) );
   Message* resp = 0;
   const ClientRequestHdr *req = reinterpret_cast<const ClientRequestHdr*>( msg->GetBuffer() );
   // get the redirect location
   std::string replica;
-  if( !GetReplica( msg, replica ).IsOK() ) return GetErrorMsg( msg );
+  if( !GetReplica( msg, replica ).IsOK() ) return GetErrorMsg( msg, "No more replicas to try.", kXR_NotFound );
   resp = new Message( sizeof( ServerResponse ) );
   ServerResponse* response = reinterpret_cast<ServerResponse*>( resp->GetBuffer() );
   response->hdr.status = kXR_redirect;
@@ -286,10 +303,8 @@ Message* MetalinkRedirector::GetResponse( const Message *msg ) const
 //----------------------------------------------------------------------------
 // Generates error response for the given request
 //----------------------------------------------------------------------------
-Message* MetalinkRedirector::GetErrorMsg( const Message *msg ) const
+Message* MetalinkRedirector::GetErrorMsg( const Message *msg, const std::string &errMsg, XErrorCode code ) const
 {
-  static const char errMsg[] = "No more replicas to try.";
-
   const ClientRequestHdr *req = reinterpret_cast<const ClientRequestHdr*>( msg->GetBuffer() );
 
   Message* resp = new Message( sizeof( ServerResponse ) );
@@ -298,9 +313,9 @@ Message* MetalinkRedirector::GetErrorMsg( const Message *msg ) const
   response->hdr.status = kXR_error;
   response->hdr.streamid[0] = req->streamid[0];
   response->hdr.streamid[1] = req->streamid[1];
-  response->hdr.dlen = 4 + sizeof( errMsg );
-  response->body.error.errnum = htonl( kXR_NotFound );
-  memcpy( response->body.error.errmsg, errMsg, sizeof( errMsg ) );
+  response->hdr.dlen = 4 + errMsg.size();
+  response->body.error.errnum = htonl( code );
+  memcpy( response->body.error.errmsg, errMsg.c_str(), errMsg.size() );
 
   return resp;
 }
@@ -314,7 +329,7 @@ XRootDStatus MetalinkRedirector::HandleRequest( Message *msg, Stream *stream )
 {
   XrdSysMutexHelper scopedLock( pMutex );
   // if the metalink data haven't been loaded yet, make it pending
-  if( !pInitialized )
+  if( !pReady )
   {
     pPendingRedirects.push_back( std::make_pair( msg, stream ) );
     return XRootDStatus();
