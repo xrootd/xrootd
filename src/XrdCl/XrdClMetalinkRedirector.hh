@@ -125,9 +125,21 @@ class MetalinkRedirector : public VirtualRedirector
     XRootDStatus GetReplica( const Message *msg, std::string &replica ) const;
 
     //----------------------------------------------------------------------------
-    //! Extracts an element from url cgi
+    //! Extracts an element from URL cgi
     //----------------------------------------------------------------------------
     XRootDStatus GetCgiInfo( const Message *msg, const std::string &key, std::string &out ) const;
+
+    //----------------------------------------------------------------------------
+    //! Loads a local Metalink file
+    //----------------------------------------------------------------------------
+    XRootDStatus LoadLocalFile( ResponseHandler *userHandler );
+
+    //----------------------------------------------------------------------------
+    //! Checks if the given URL points to a local file
+    //! (by convention we assume that a file is local
+    //! if the host name equals to 'localfile')
+    //----------------------------------------------------------------------------
+    static bool IsLocalFile( const std::string &url );
 
 
     typedef std::list< std::pair<const Message*, Stream*> > RedirectList;
@@ -145,6 +157,8 @@ class MetalinkRedirector : public VirtualRedirector
     long long        pFileSize;
 
     XrdSysMutex      pMutex;
+
+    static const std::string LocalFile;
 
 };
 

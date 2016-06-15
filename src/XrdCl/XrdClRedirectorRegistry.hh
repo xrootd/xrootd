@@ -102,6 +102,8 @@ class RedirectorRegistry
 
   private:
 
+    typedef std::map< std::string, std::pair<VirtualRedirector*, size_t> > RedirectorMap;
+
     //----------------------------------------------------------------------------
     //! Register implementation.
     //----------------------------------------------------------------------------
@@ -122,7 +124,7 @@ class RedirectorRegistry
     //----------------------------------------------------------------------------
     RedirectorRegistry& operator=( const RedirectorRegistry & );
 
-    std::map< std::string, std::pair<VirtualRedirector*, size_t> > pRegistry;
+    RedirectorMap pRegistry;
 
     mutable XrdSysMutex pMutex;
 };

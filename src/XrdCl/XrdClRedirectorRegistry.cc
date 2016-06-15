@@ -22,7 +22,7 @@ RedirectorRegistry& RedirectorRegistry::Instance()
 
 RedirectorRegistry::~RedirectorRegistry()
 {
-  std::map< std::string, std::pair<VirtualRedirector*, size_t > >::iterator itr;
+  RedirectorMap::iterator itr;
   for( itr = pRegistry.begin(); itr != pRegistry.end(); ++itr )
     delete itr->second.first;
 }
@@ -35,7 +35,7 @@ XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *
   XrdSysMutexHelper scopedLock( pMutex );
   // get the key and check if it is already in the registry
   const std::string key = url.GetLocation();
-  std::map< std::string, std::pair<VirtualRedirector*, size_t > >::iterator itr = pRegistry.find( key );
+  RedirectorMap::iterator itr = pRegistry.find( key );
   if( itr != pRegistry.end() )
   {
     // increment user counter
@@ -78,7 +78,7 @@ VirtualRedirector* RedirectorRegistry::Get( const URL &url ) const
   // get the key and return the value if it is in the registry
   // offset 24 is where the path has been stored
   const std::string key = url.GetLocation();
-  std::map< std::string, std::pair< VirtualRedirector*, size_t> >::const_iterator itr = pRegistry.find( key );
+  RedirectorMap::const_iterator itr = pRegistry.find( key );
   if( itr != pRegistry.end() )
     return itr->second.first;
   // otherwise return null
@@ -94,7 +94,7 @@ void RedirectorRegistry::Release( const URL &url )
   // get the key and return the value if it is in the registry
   // offset 24 is where the path has been stored
   const std::string key = url.GetLocation();
-  std::map< std::string, std::pair< VirtualRedirector*, size_t> >::iterator itr = pRegistry.find( key );
+  RedirectorMap::iterator itr = pRegistry.find( key );
   if( itr == pRegistry.end() ) return;
   // decrement user counter
   --itr->second.second;

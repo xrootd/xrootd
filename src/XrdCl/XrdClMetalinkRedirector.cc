@@ -22,6 +22,7 @@
 #include "XProtocol/XProtocol.hh"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 namespace XrdCl
 {
@@ -189,6 +190,8 @@ class MetalinkOpenHandler : public ResponseHandler
     ResponseHandler    *pUserHandler;
 };
 
+const std::string MetalinkRedirector::LocalFile = "localfile";
+
 //----------------------------------------------------------------------------
 // Constructor
 //----------------------------------------------------------------------------
@@ -208,16 +211,64 @@ MetalinkRedirector::~MetalinkRedirector()
 //----------------------------------------------------------------------------
 XRootDStatus MetalinkRedirector::Load( ResponseHandler *userHandler )
 {
-  MetalinkOpenHandler * handler = new MetalinkOpenHandler( this, userHandler );
+  if( IsLocalFile( pUrl ) )
+    return LoadLocalFile( userHandler );
 
+  MetalinkOpenHandler *handler = new MetalinkOpenHandler( this, userHandler );
   XRootDStatus st = pFile->Open( pUrl, OpenFlags::Read, Access::None, handler, 0, false );
-
   if( !st.IsOK() )
-  {
     delete handler;
-  }
 
   return st;
+}
+
+//----------------------------------------------------------------------------
+// Loads a local Metalink file
+//----------------------------------------------------------------------------
+XRootDStatus MetalinkRedirector::LoadLocalFile( ResponseHandler *userHandler )
+{
+  URL u( pUrl );
+  int fd = open( u.GetPath().c_str(), O_RDONLY );
+  if( fd == -1 )
+  {
+    if( userHandler ) userHandler->HandleResponseWithHosts( new XRootDStatus( stError, errOSError, errno ), 0, 0 );
+    return XRootDStatus( stError, errOSError, errno );
+  }
+  const uint32_t toRead = DefaultCPChunkSize;
+  char *buffer = new char[toRead];
+  std::string content;
+  int64_t bytesRead = 0;
+  while( ( bytesRead = read( fd, buffer, toRead ) ) )
+  {
+    if( bytesRead < 0 )
+    {
+      close( fd );
+      delete buffer;
+      if( userHandler ) userHandler->HandleResponseWithHosts( new XRootDStatus( stError, errOSError, errno ), 0, 0 );
+      return XRootDStatus( stError, errOSError, errno );
+    }
+    content += std::string( buffer, bytesRead );
+  }
+  close( fd );
+  delete buffer;
+  XRootDStatus st = Parse( content );
+  FinalizeInitialization( st );
+  if( userHandler ) userHandler->HandleResponseWithHosts( new XRootDStatus( st ), 0, 0 );
+  return st;
+}
+
+//----------------------------------------------------------------------------
+// Checks if the given URL points to a local file
+// (by convention we assume that a file is local
+// if the host name equals to 'localfile')
+//----------------------------------------------------------------------------
+bool MetalinkRedirector::IsLocalFile( const std::string &url )
+{
+  Env *env = DefaultEnv::GetEnv();
+  int mlLocalFile = DefaultLocalMetalinkFile;
+  env->GetInt( "LocalMetalinkFile", mlLocalFile );
+  URL u( url );
+  return ( u.GetHostName() == LocalFile ) && mlLocalFile && u.IsMetalink();
 }
 
 //----------------------------------------------------------------------------
