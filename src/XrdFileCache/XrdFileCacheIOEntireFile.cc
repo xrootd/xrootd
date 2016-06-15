@@ -120,6 +120,9 @@ int IOEntireFile::initCachedStat(const char* path)
           TRACEIO(Error, "IOEntireFile::initCachedStat failed to read file size from info file");
          }
       }
+      else {
+         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << strerror(errno));
+      }
       infoFile->Close();
       delete infoFile;
    }
