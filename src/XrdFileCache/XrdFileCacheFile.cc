@@ -104,20 +104,29 @@ void File::BlockRemovedFromWriteQ(Block* b)
 
 File::~File()
 {
-   m_syncStatusMutex.Lock();
-   bool needs_sync = ! m_writes_during_sync.empty();
-   m_syncStatusMutex.UnLock();
-   if (needs_sync || m_non_flushed_cnt > 0)
+   if (m_infoFile)
    {
-     Sync();
-     m_cfi.WriteHeader(m_infoFile);
-   }
-   // write statistics in *cinfo file
-   AppendIOStatToFileInfo();
-   m_infoFile->Fsync();
+      m_syncStatusMutex.Lock();
 
-   delete m_syncer; 
-   m_syncer = NULL;
+      bool needs_sync = ! m_writes_during_sync.empty();
+      m_syncStatusMutex.UnLock();
+      if (needs_sync || m_non_flushed_cnt > 0)
+      {
+         Sync();
+         m_cfi.WriteHeader(m_infoFile);
+      }
+
+      // write statistics in *cinfo file
+      AppendIOStatToFileInfo();
+      m_infoFile->Fsync();
+
+      m_syncStatusMutex.UnLock();
+
+
+      m_infoFile->Close();
+      delete m_infoFile;
+      m_infoFile = NULL;
+   }
 
    if (m_output)
    {
@@ -125,12 +134,9 @@ File::~File()
       delete m_output;
       m_output = NULL;
    }
-   if (m_infoFile)
-   {
-      m_infoFile->Close();
-      delete m_infoFile;
-      m_infoFile = NULL;
-   }
+
+   delete m_syncer; 
+   m_syncer = NULL;
 
    // print just for curiosity
    TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
@@ -215,7 +221,7 @@ bool File::Open()
       int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
       if (res < 0)
       {
-         TRACEF(Error, "File::Open() can't open data file");
+         TRACEF(Error, "File::Open() can't open data file, " << strerror(errno));
          delete m_output;
          m_output = 0;
          return false;
@@ -241,7 +247,7 @@ bool File::Open()
       int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
       if (res < 0)
       {
-         TRACEF(Error, "File::Open() can't open info file");
+         TRACEF(Error, "File::Open() can't open info file, " << strerror(errno));
          delete m_infoFile;
          m_infoFile = 0;
          return false;
