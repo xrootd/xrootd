@@ -188,7 +188,7 @@ void Cache::Detach(XrdOucCacheIO* io)
             delete it->file;
          }
          m_active.erase(it);
-         break;
+         if (m_configuration.m_hdfsmode == false) break;
       }
       else
          ++it;

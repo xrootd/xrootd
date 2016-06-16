@@ -163,7 +163,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
    int idx_first = off0/m_blocksize;
    int idx_last = (off0+size-1)/m_blocksize;
    int bytes_read = 0;
-   TRACEIO(Debug, "IOFileBlock::Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
+   TRACEIO(Dump, "IOFileBlock::Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
 
    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
    {
@@ -212,7 +212,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
       }
       assert(readBlockSize);
 
-      TRACEIO(Debug, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
+      TRACEIO(Dump, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
       long long min  = blockIdx*m_blocksize;
       if ( off < min) { assert(0); }
