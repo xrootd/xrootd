@@ -59,6 +59,8 @@ pthread_t tid;
 XrdSysThread::Run(&tid, XrdPosixFile::DelayedDestroy, 0, 0, "PosixFileDestroy");
 return (XrdPosixFile *)0;
 }
+
+std::string dsProperty("DataServer");
 };
 
 XrdSysSemaphore XrdPosixFile::ddSem(0);
@@ -77,7 +79,7 @@ XrdPosixFile::XrdPosixFile(const char *path, XrdPosixCallBack *cbP, int Opts)
              : XCio((XrdOucCacheIO2 *)this), PrepIO(0),
                mySize(0), myMtime(0), myInode(0), myMode(0),
                theCB(cbP),
-               fPath(strdup(path)),
+               fPath(strdup(path)), fLoc(0),
                cOpt(0),
                isStream(Opts & isStrm ? 1 : 0)
 {
@@ -113,9 +115,10 @@ XrdPosixFile::~XrdPosixFile()
 //
    if (PrepIO) delete PrepIO;
 
-// Free the path
+// Free the path and location information
 //
    if (fPath) free(fPath);
+   if (fLoc)  free(fLoc);
 }
 
 /******************************************************************************/
@@ -298,6 +301,30 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
    delete status;
    delete response;
    if (rc) delete this;
+}
+
+/******************************************************************************/
+/*                              L o c a t i o n                               */
+/******************************************************************************/
+  
+const char *XrdPosixFile::Location()
+{
+
+// If the file is not open, then we have no location
+//
+   if (!clFile.IsOpen()) return 0;
+
+// If we have no location info, get it
+//
+   if (!fLoc)
+      {std::string currNode;
+       if (clFile.GetProperty(dsProperty, currNode))
+          fLoc = strdup(currNode.c_str());
+      }
+
+// Return location information
+//
+   return fLoc;
 }
 
 /******************************************************************************/

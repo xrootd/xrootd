@@ -76,6 +76,15 @@ public:
 
 virtual int  Fstat(struct stat &sbuff) {(void)sbuff; return 1;}
 
+//-----------------------------------------------------------------------------
+//! Get the file's location (i.e. endpoint hostname and port)
+//!
+//! @return A pointer to the file's location. It remains valid until the file
+//!         is closed. A null string means the file is not open or is unknown.
+//-----------------------------------------------------------------------------
+virtual
+const char  *Location() {return "";}
+
 //------------------------------------------------------------------------------
 //! Perform an asynchronous read (defaults to synchrnous).
 //!
