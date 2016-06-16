@@ -76,7 +76,7 @@ XrdCl::File     clFile;
                                return retOffset;
                               }
 
-static XrdPosixFile *Alloc(const char *path, XrdPosixCallBack *cbP, int Opts);
+//atic XrdPosixFile *Alloc(const char *path, XrdPosixCallBack *cbP, int Opts);
 
 static void*         DelayedDestroy(void*);
 
@@ -93,6 +93,8 @@ static void          DelayedDestroy(XrdPosixFile *fp);
                              }
 
        int           Fstat(struct stat &buf);
+
+       const char   *Location();
 
        void          HandleResponse(XrdCl::XRootDStatus *status,
                                     XrdCl::AnyObject    *response);
@@ -180,6 +182,7 @@ union {long long         currOffset;
       };
 
 char       *fPath;
+char       *fLoc;
 union {int  cOpt; int numTries;};
 char        isStream;
 };
