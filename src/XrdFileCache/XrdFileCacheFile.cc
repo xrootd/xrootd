@@ -268,12 +268,12 @@ bool File::Open()
    }
    else {
       m_fileSize = m_fileSize;
-      int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
-      TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
       m_cfi.SetBufferSize(Cache::GetInstance().RefConfiguration().m_bufferSize);
       m_cfi.SetFileSize(m_fileSize);
       m_cfi.WriteHeader(m_infoFile);
       m_infoFile->Fsync();
+      int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
+      TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
    }
 
    if (m_prefetchState != kComplete) cache()->RegisterPrefetchFile(this);
@@ -753,7 +753,7 @@ void File::Sync()
       XrdSysMutexHelper _lck(&m_syncStatusMutex);
       for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
       {
-         m_cfi.SetBitWriteCalled(offsetIdx(*i));
+         m_cfi.SetBitWriteCalled(*i);
       }
       written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
       m_writes_during_sync.clear();
