@@ -104,20 +104,29 @@ void File::BlockRemovedFromWriteQ(Block* b)
 
 File::~File()
 {
-   m_syncStatusMutex.Lock();
-   bool needs_sync = ! m_writes_during_sync.empty();
-   m_syncStatusMutex.UnLock();
-   if (needs_sync || m_non_flushed_cnt > 0)
+   if (m_infoFile)
    {
-     Sync();
-     m_cfi.WriteHeader(m_infoFile);
-   }
-   // write statistics in *cinfo file
-   AppendIOStatToFileInfo();
-   m_infoFile->Fsync();
+      m_syncStatusMutex.Lock();
 
-   delete m_syncer; 
-   m_syncer = NULL;
+      bool needs_sync = ! m_writes_during_sync.empty();
+      m_syncStatusMutex.UnLock();
+      if (needs_sync || m_non_flushed_cnt > 0)
+      {
+         Sync();
+         m_cfi.WriteHeader(m_infoFile);
+      }
+
+      // write statistics in *cinfo file
+      AppendIOStatToFileInfo();
+      m_infoFile->Fsync();
+
+      m_syncStatusMutex.UnLock();
+
+
+      m_infoFile->Close();
+      delete m_infoFile;
+      m_infoFile = NULL;
+   }
 
    if (m_output)
    {
@@ -125,12 +134,9 @@ File::~File()
       delete m_output;
       m_output = NULL;
    }
-   if (m_infoFile)
-   {
-      m_infoFile->Close();
-      delete m_infoFile;
-      m_infoFile = NULL;
-   }
+
+   delete m_syncer; 
+   m_syncer = NULL;
 
    // print just for curiosity
    TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
@@ -208,24 +214,21 @@ bool File::Open()
    XrdOss  &m_output_fs =  *Cache::GetInstance().GetOss();
    // Create the data file itself.
    XrdOucEnv myEnv;
-   m_output_fs.Create(Cache::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_output = m_output_fs.newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
-   if (m_output)
-   {
-      int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
-      if (res < 0)
-      {
-         TRACEF(Error, "File::Open() can't open data file");
-         delete m_output;
-         m_output = 0;
-         return false;
-      }
-   }
-   else
-   {
-      TRACEF(Error, "File::Open() can't get file handle");
+   if ( m_output_fs.Create(Cache::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) !=XrdOssOK)
+   { 
+      TRACEF(Error, "File::Open() can't create data file, " << strerror(errno));
       return false;
    }
+
+   m_output = m_output_fs.newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
+   if (m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
+   {
+      TRACEF(Error, "File::Open() can't get FD for data file, " << strerror(errno));
+      delete m_output;
+      m_output = 0;
+      return false;
+   }
+   
 
    // Create the info file
    std::string ifn = m_temp_filename + Info::m_infoExtension;
@@ -233,46 +236,46 @@ bool File::Open()
    struct stat infoStat;
    bool fileExisted = (Cache::GetInstance().GetOss()->Stat(ifn.c_str(), &infoStat) == XrdOssOK);
 
-   m_output_fs.Create(Cache::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_infoFile = m_output_fs.newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
-   if (m_infoFile)
-   {
-      if (fileExisted) assert(infoStat.st_size > 0);
-      int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
-      if (res < 0)
-      {
-         TRACEF(Error, "File::Open() can't open info file");
-         delete m_infoFile;
-         m_infoFile = 0;
-         return false;
-      }
-      else {
-         if (fileExisted)
-         {
-            int res = m_cfi.Read(m_infoFile);
-            TRACEF(Debug, "Reading existing info file bytes = " << res);
-            m_downloadCond.Lock();
-            // this method  is called from constructor, no need to lock downloadStaus
-            bool complete = m_cfi.IsComplete();
-            if (complete) m_prefetchState = kComplete;
-            m_downloadCond.UnLock();
-         }
-         else {
-            m_fileSize = m_fileSize;
-            int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
-            TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
-            m_cfi.SetBufferSize(Cache::GetInstance().RefConfiguration().m_bufferSize);
-            m_cfi.SetFileSize(m_fileSize);
-            m_cfi.WriteHeader(m_infoFile);
-            m_infoFile->Fsync();
-         }
-      }
-   }
-   else
-   {
-      // this should be a rare case wher FD can't be created
+   // AMT: the folowing below is a sanity check, it is not expected to happen. Could be an assert
+   if (fileExisted && (infoStat.st_size == 0)) {
+      TRACEF(Error, "File::Open() info file stored zero data file size");
       return false;
    }
+
+   if (m_output_fs.Create(Cache::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) !=  XrdOssOK)
+   {
+       TRACEF(Error, "File::Open() can't create info file, " << strerror(errno));
+       return false;
+   }
+   m_infoFile = m_output_fs.newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
+   if (m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
+   {
+      TRACEF(Error, "File::Open() can't get FD info file, " << strerror(errno));
+      delete m_infoFile;
+      m_infoFile = 0;
+      return false;
+   }
+
+   if (fileExisted)
+   {
+      int res = m_cfi.Read(m_infoFile);
+      TRACEF(Debug, "Reading existing info file bytes = " << res);
+      m_downloadCond.Lock();
+      // this method  is called from constructor, no need to lock downloadStaus
+      bool complete = m_cfi.IsComplete();
+      if (complete) m_prefetchState = kComplete;
+      m_downloadCond.UnLock();
+   }
+   else {
+      m_fileSize = m_fileSize;
+      int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
+      TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
+      m_cfi.SetBufferSize(Cache::GetInstance().RefConfiguration().m_bufferSize);
+      m_cfi.SetFileSize(m_fileSize);
+      m_cfi.WriteHeader(m_infoFile);
+      m_infoFile->Fsync();
+   }
+
    if (m_prefetchState != kComplete) cache()->RegisterPrefetchFile(this);
    return true;
 }
