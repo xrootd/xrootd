@@ -62,19 +62,6 @@ namespace XrdFileCache
          virtual int Read(char *Buffer, long long Offset, int Length);
 
          //---------------------------------------------------------------------
-         //! Asynchronous read.
-         //!
-         //! @param callback
-         //! @param Buffer
-         //! @param Offset
-         //! @param Length
-         //!
-         //! @return number of bytes read
-         //---------------------------------------------------------------------
-         virtual void Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen);
-
-
-         //---------------------------------------------------------------------
          //! Pass ReadV request to the corresponding File object.
          //!
          //! @param readV

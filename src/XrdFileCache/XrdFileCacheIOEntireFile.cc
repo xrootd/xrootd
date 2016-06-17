@@ -157,11 +157,6 @@ XrdOucCacheIO *IOEntireFile::Detach()
    return io;
 }
 
-void IOEntireFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen)
-{
-   iocb.Done(IOEntireFile::Read(buff, offs, rlen));
-}
-
 int IOEntireFile::Read (char *buff, long long off, int size)
 {
    TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size );
