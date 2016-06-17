@@ -421,10 +421,10 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
       total += rs;
 
-
       CheckPrefetchStatDisk(*ii);
    } 
 
+   m_stats.m_BytesDisk += total;
    return total;
 }
 
@@ -468,14 +468,12 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          inc_ref_count(bi->second);
          TRACEF(Dump, "File::Read() " << iUserBuff << "inc_ref_count for existing block << " << bi->second << " idx = " <<  block_idx);
          blks_to_process.push_front(bi->second);
-         m_stats.m_BytesRam++; // AMT what if block fails
       }
       // On disk?
       else if (m_cfi.TestBit(offsetIdx(block_idx)))
       {
          TRACEF(Dump, "File::Read()  read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
          blks_on_disk.push_back(block_idx);
-         m_stats.m_BytesDisk++;
       }
       // Then we have to get it ...
       else
@@ -492,14 +490,12 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             }
             inc_ref_count(b);
             blks_to_process.push_back(b);
-            m_stats.m_BytesRam++;
          }
          // Nope ... read this directly without caching.
          else
          {
             TRACEF(Dump, "File::Read() direct block " << block_idx);
             blks_direct.push_back(block_idx);
-            m_stats.m_BytesMissed++;
          }
       } 
 
@@ -604,7 +600,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             TRACEF(Dump, "File::Read() ub=" << (void*)iUserBuff  << " from finished block  " << (*bi)->m_offset/BS << " size " << size_to_copy);
             memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
             bytes_read += size_to_copy;
-
+            m_stats.m_BytesRam += size_to_copy;
             CheckPrefetchStatRAM(*bi);
          }
          else // it has failed ... krap up.
@@ -635,6 +631,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       if (direct_handler->m_errno == 0)
       {
          bytes_read += direct_size;
+         m_stats.m_BytesMissed += direct_size;
       }
       else
       {
