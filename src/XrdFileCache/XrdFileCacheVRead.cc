@@ -125,7 +125,10 @@ int File::ReadV (const XrdOucIOVec *readV, int n)
       if (direct_handler->m_errno == 0)
       {
          for (std::vector<XrdOucIOVec>::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
+         {
             bytesRead += i->size;
+            m_stats.m_BytesMissed += i->size;
+         }  
       }
       else
       {
@@ -234,6 +237,7 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
          int rs = m_output->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off - m_offset, size);
          if (rs >=0 ) {
             bytes_read += rs;
+            m_stats.m_BytesDisk += rs;
          }
          else {
             // ofs read should set the errno
@@ -295,6 +299,7 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
                overlap(block_idx, m_cfi.GetBufferSize(), readV[*chunkIt].offset, readV[*chunkIt].size, off, blk_off, size);
                memcpy(readV[*chunkIt].data + off,  &(bi->block->m_buff[blk_off]), size);
                bytes_read += size;
+               m_stats.m_BytesRam += size;
             }
          }
          else {
