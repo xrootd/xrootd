@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <values.h>
+#include <limits.h>
 
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysFD.hh"
@@ -193,7 +193,7 @@ XrdOucFileInfo *XrdXmlMetaLink::Convert(const char *fname, int blen)
           if (chkG && (gLFN = currFile->GetLfn()))
              {char lfnBuff[2048];
               snprintf(lfnBuff, sizeof(lfnBuff), "%s%s", gHdr, gLFN);
-              currFile->AddUrl(lfnBuff, 0, MAXINT);
+              currFile->AddUrl(lfnBuff, 0, INT_MAX);
               currFile->AddProtocol(rdProt);
              }
           currFile = 0;
