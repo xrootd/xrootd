@@ -44,9 +44,7 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 //______________________________________________________________________________
 XrdOucCacheIO* IOFileBlock::Detach()
 {
-    TRACEIO(Info, "IOFileBlock::Detach() " );
-    XrdOucCacheIO * io = GetInput();
-
+   XrdOucCacheIO * io = GetInput();
 
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
