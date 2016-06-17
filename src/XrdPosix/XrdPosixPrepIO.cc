@@ -95,6 +95,6 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 
 // Inform the cache that we have now have a new I/O object
 //
-   fileP->XCio->Update((XrdOucCacheIO2 &)*fileP);
+   fileP->XCio->Update(*fileP);
    return true;
 }
