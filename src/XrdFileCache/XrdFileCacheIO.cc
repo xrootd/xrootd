@@ -13,8 +13,9 @@ m_statsGlobal(stats), m_cache(cache), m_traceID("IO"), m_io(io)
 void IO::Update(XrdOucCacheIO2 &iocp)
 {
    SetInput(&iocp);
-   TRACE(Info, "IO::Update() " << Path() << " location: " <<
-         (Location() && Location()[0] != 0) ? Location() : "<not set>");
+   TRACE_PC(Info, const char* loc = Location(),
+            "IO::Update() " << Path() << " location: " <<
+            ((loc && loc[0] != 0) ? loc : "<not set>"));
 }
 
 void IO::SetInput(XrdOucCacheIO2* x)
