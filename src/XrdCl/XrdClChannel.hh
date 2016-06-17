@@ -96,6 +96,7 @@ namespace XrdCl
       //! @param expires unix timestamp after which a failure is reported
       //!                to the listener
       //! @param handler handler to be notified about the status
+      //! @param redirector virtual redirector to be used
       //! @return        success if the message was successfully inserted
       //!                into the send queues, failure otherwise
       //------------------------------------------------------------------------

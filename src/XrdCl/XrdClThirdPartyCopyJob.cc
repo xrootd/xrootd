@@ -198,7 +198,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Open the target file
     //--------------------------------------------------------------------------
-    File targetFile;
+    File targetFile( File::DisableVirtRedirect );
     // set WriteRecovery property
     std::string value;
     DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
@@ -219,7 +219,7 @@ namespace XrdCl
 
     XRootDStatus st;
     st = targetFile.Open( realTarget.GetURL(), targetFlags, Access::None,
-                          timeLeft, false );
+                          timeLeft );
 
     if( !st.IsOK() )
     {
@@ -280,13 +280,13 @@ namespace XrdCl
       return st;
     }
 
-    File sourceFile;
+    File sourceFile( File::DisableVirtRedirect );
     // set ReadRecovery property
     DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
     sourceFile.SetProperty( "ReadRecovery", value );
 
     st = sourceFile.Open( tpcSource.GetURL(), OpenFlags::Read, Access::None,
-                          timeLeft, false );
+                          timeLeft );
 
     if( !st.IsOK() )
     {

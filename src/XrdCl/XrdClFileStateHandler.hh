@@ -63,6 +63,14 @@ namespace XrdCl
       FileStateHandler();
 
       //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param useVirtRedirector if true Metalink files will be treated
+      //!                          as a VirtualRedirectors
+      //------------------------------------------------------------------------
+      FileStateHandler( bool useVirtRedirector );
+
+      //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       ~FileStateHandler();
@@ -82,8 +90,7 @@ namespace XrdCl
                          uint16_t           flags,
                          uint16_t           mode,
                          ResponseHandler   *handler,
-                         uint16_t           timeout  = 0,
-                         bool               virtRedirector = false );
+                         uint16_t           timeout  = 0 );
 
       //------------------------------------------------------------------------
       //! Close the file object

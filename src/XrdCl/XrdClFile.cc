@@ -45,6 +45,16 @@ namespace XrdCl
     pStateHandler = new FileStateHandler();
   }
 
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  File::File( VirtRedirect virtRedirect, bool enablePlugIns ):
+    pPlugIn(0),
+    pEnablePlugIns( enablePlugIns )
+  {
+    pStateHandler = new FileStateHandler( virtRedirect == EnableVirtRedirect );
+  }
+
   //------------------------------------------------------------------------
   // Destructor
   //------------------------------------------------------------------------
@@ -69,8 +79,7 @@ namespace XrdCl
                            OpenFlags::Flags   flags,
                            Access::Mode       mode,
                            ResponseHandler   *handler,
-                           uint16_t           timeout,
-                           bool               virtRedirector )
+                           uint16_t           timeout )
   {
     //--------------------------------------------------------------------------
     // Check if we need to install and run a plug-in for this URL
@@ -96,7 +105,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Open( url, flags, mode, handler, timeout );
 
-    return pStateHandler->Open( url, flags, mode, handler, timeout, virtRedirector );
+    return pStateHandler->Open( url, flags, mode, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -105,11 +114,10 @@ namespace XrdCl
   XRootDStatus File::Open( const std::string &url,
                            OpenFlags::Flags   flags,
                            Access::Mode       mode,
-                           uint16_t           timeout,
-                           bool               virtRedirector )
+                           uint16_t           timeout )
   {
     SyncResponseHandler handler;
-    Status st = Open( url, flags, mode, &handler, timeout, virtRedirector );
+    Status st = Open( url, flags, mode, &handler, timeout );
     if( !st.IsOK() )
       return st;
 

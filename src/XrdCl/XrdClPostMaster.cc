@@ -189,7 +189,7 @@ namespace XrdCl
       return Status( stError, errNotSupported );
 
     VirtualRedirector *redirector = 0;
-    if( msg->UseVirtualRedirections() )
+    if( dynamic_cast<VirtualMessage*>( msg ) )
     {
       RedirectorRegistry &registry   = RedirectorRegistry::Instance();
       redirector = registry.Get( url );

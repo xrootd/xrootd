@@ -196,7 +196,7 @@ const std::string MetalinkRedirector::LocalFile = "localfile";
 // Constructor
 //----------------------------------------------------------------------------
 MetalinkRedirector::MetalinkRedirector( const std::string & url ):
-    pUrl( url ), pFile( new File ), pReady( false ), pFileSize( -1 ) {}
+    pUrl( url ), pFile( new File( File::DisableVirtRedirect ) ), pReady( false ), pFileSize( -1 ) {}
 
 //----------------------------------------------------------------------------
 // Destructor
@@ -215,7 +215,7 @@ XRootDStatus MetalinkRedirector::Load( ResponseHandler *userHandler )
     return LoadLocalFile( userHandler );
 
   MetalinkOpenHandler *handler = new MetalinkOpenHandler( this, userHandler );
-  XRootDStatus st = pFile->Open( pUrl, OpenFlags::Read, Access::None, handler, 0, false );
+  XRootDStatus st = pFile->Open( pUrl, OpenFlags::Read, Access::None, handler, 0 );
   if( !st.IsOK() )
     delete handler;
 
