@@ -155,7 +155,8 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
       else
          cio = new IOEntireFile(io, m_stats, *this);
 
-      TRACE(Info, "Cache::Attach() " << io->Path());
+      TRACE(Info, "Cache::Attach() " << io->Path() << " location: " <<
+            (io->Location() && io->Location()[0] != 0) ? io->Location() : "<deferred open>");
       return cio;
    }
    else
