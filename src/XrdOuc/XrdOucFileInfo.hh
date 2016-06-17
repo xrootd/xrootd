@@ -32,6 +32,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
   
 //-----------------------------------------------------------------------------
 //! The XrdOucFileInfo object provides a uniform interface to describe a file
@@ -80,10 +81,18 @@ void            AddFileName(const char * filename);
 //-----------------------------------------------------------------------------
 //! Add logical filename to the file descriptions.
 //!
-//! @param  filename     Poiner to file name.
+//! @param  lfn          Poiner to logical file name.
 //-----------------------------------------------------------------------------
 
 void            AddLfn(const char * lfn);
+
+//-----------------------------------------------------------------------------
+//! Add protocol to the list of available protocols.
+//!
+//! @param  protname     Poiner to protocol name ending with a colon
+//-----------------------------------------------------------------------------
+
+void            AddProtocol(const char * protname);
 
 //-----------------------------------------------------------------------------
 //! Obtain the next digest that can be used to validate the file.
@@ -142,6 +151,17 @@ long long       GetSize() {return fSize;}
 const char     *GetUrl(char *cntry=0, int *prty=0);
 
 //-----------------------------------------------------------------------------
+//! Check if  protocol is in he list of protocols. This does not indicate that
+//! an actual url for the protocol was added to this object.
+//!
+//! @param  protname     Poiner to protocol name ending with a colon
+//!
+//! @return true if the protocol was encountered and false otherwise.
+//-----------------------------------------------------------------------------
+
+bool            HasProtocol(const char * protname);
+
+//-----------------------------------------------------------------------------
 //! Set file size.
 //!
 //! @param  fsz      Supposed size of the file.
@@ -183,5 +203,6 @@ XrdOucFIUrl   *fUrlNext;
 char          *fLfn;
 char          *fTargetName;
 long long      fSize;
+std::string    protList;
 };
 #endif
