@@ -1,5 +1,5 @@
 #include "XrdFileCacheIO.hh"
-#include "XrdSys/XrdSysAtomics.hh"
+#include "XrdFileCacheTrace.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 
 using namespace XrdFileCache;
@@ -13,19 +13,19 @@ m_statsGlobal(stats), m_cache(cache), m_traceID("IO"), m_io(io)
 void IO::Update(XrdOucCacheIO2 &iocp)
 {
    SetInput(&iocp);
+   TRACE_PC(Info, const char* loc = Location(),
+            "IO::Update() " << Path() << " location: " <<
+            ((loc && loc[0] != 0) ? loc : "<not set>"));
 }
-
 
 void IO::SetInput(XrdOucCacheIO2* x)
 {
-   updMutex.Lock();
+   XrdSysMutexHelper lock(&updMutex);
    m_io = x;
-   updMutex.UnLock();
 }
 
 XrdOucCacheIO2* IO::GetInput()
 {
-   AtomicBeg(updMutex);
+   XrdSysMutexHelper lock(&updMutex);
    return m_io;
-   AtomicEnd(updMutex);
 }

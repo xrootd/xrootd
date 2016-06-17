@@ -52,7 +52,7 @@ namespace XrdFileCache
 
       private:
          XrdOucCacheIO2   *m_io;          //!< original data source
-         XrdSysRecMutex   updMutex;
+         XrdSysMutex       updMutex;
          void SetInput(XrdOucCacheIO2*);
    };
 }
