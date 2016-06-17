@@ -31,6 +31,10 @@
    if (XRD_TRACE What >= TRACE_ ## act) \
       {XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act  <<x; XRD_TRACE End();}
 
+#define TRACE_PC(act, pre_code, x)           \
+   if (XRD_TRACE What >= TRACE_ ## act) \
+   {pre_code; XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act  <<x; XRD_TRACE End();}
+
 #define TRACEIO(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
    {XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act <<x << " " <<  GetPath(); XRD_TRACE End();}
@@ -39,12 +43,13 @@
    if (XRD_TRACE What >= TRACE_ ## act) \
    {XRD_TRACE Beg(m_traceID);   cerr << TRACE_STR_##act << x << " " <<  GetLocalPath(); XRD_TRACE End();}
 
-
-
-
 #else
 
 #define TRACE(act,x)
+#define TRACE_PC(act, pre_code, x)
+#define TRACEIO(act, x)
+#define TRACEF(act, x)
+
 #endif
 
 #endif
