@@ -128,6 +128,7 @@ XrdOucFileInfo *XrdXmlMetaLink::Convert(const char *fname, int blen)
 //
    if (rdHost && (rdProt || (prots && (colon = index(prots,':')))))
       {if (!rdProt) {rdProt = prots; *(colon+1) = 0;}
+          else colon = 0;
        snprintf(gHdr, sizeof(gHdr), "%s//%s/", rdProt, rdHost);
        if (colon) *(colon+1) = ':';
        chkG = true;
