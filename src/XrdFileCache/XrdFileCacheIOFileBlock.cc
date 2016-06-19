@@ -119,12 +119,8 @@ void IOFileBlock::RelinquishFile(File* f)
    {
       if (it->second == f)
       {
-         m_blocks.erase(it++);
+         m_blocks.erase(it);
          break;
-      }
-      else
-      {
-         ++it;
       }
    }
 }
