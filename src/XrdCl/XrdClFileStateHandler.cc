@@ -390,7 +390,7 @@ namespace XrdCl
       ResetMonitoringVars();
     }
 
-    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
+    if( pUseVirtRedirector && pFileUrl && pFileUrl->IsMetalink() )
     {
       RedirectorRegistry& registry = RedirectorRegistry::Instance();
       registry.Release( *pFileUrl );
