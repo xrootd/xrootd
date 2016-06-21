@@ -22,9 +22,6 @@ namespace XrdFileCache
          virtual XrdOucCacheIO *Base() { return m_io; }
 
          //! Original data source URL.
-         virtual long long FSize() { return m_io->FSize(); }
-
-         //! Original data source URL.
          virtual const char *Path() { return m_io->Path(); }
 
          virtual int Sync() { return 0; }
