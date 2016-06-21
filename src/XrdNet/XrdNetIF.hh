@@ -280,8 +280,8 @@ inline int  Port() {return ifPort;}
 //!
 //! @param x     The iftype variable that will have the private bit set.
 //------------------------------------------------------------------------------
-static
-inline void Privatize(ifType &x) {x = ifType(x | PrivateIF);}
+
+static void Privatize(ifType &x) {x = ifType(x | PrivateIF);}
 
 //------------------------------------------------------------------------------
 //! Set the assigned port number. This method is not thread safe!
