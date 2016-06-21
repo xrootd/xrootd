@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * [Server] Add new [no]rpipa option to xrd.network directive.
   * [Server] Allow objectid's to be specified in the authorization file.
   * [Server] Add new logging plugin interface.
   * [Server] Fixes #345 - add sid to TOD structure (ABI compliant).
@@ -16,6 +17,7 @@ Prerelease Notes
   * [Authentication/sss] Fix dynamic id incompatability introduced in 4.0.
 
 + **Minor bug fixes**
+  * [Server] Avoid XrdNetIF static initialization issues.
   * [Server] Honor DFS setting when forwarding operations.
   * [Server] Make sure lockfile time is updated in deprecated runmodeold.
   * [Server] Fixes #344 - squash path before checking for static redirect.
