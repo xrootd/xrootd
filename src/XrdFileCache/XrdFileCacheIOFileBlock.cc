@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <assert.h>
+#include <fcntl.h>
 
 #include "XrdFileCacheIOFileBlock.hh"
 #include "XrdFileCache.hh"
@@ -30,15 +31,17 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
+#include "XrdOuc/XrdOucEnv.hh"
 
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
 IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cache & cache)
-   : IO(io, statsGlobal, cache)
+   : IO(io, statsGlobal, cache), m_localStat(0)
 {
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
    GetBlockSizeFromPath();
+   initLocalStat();
 }
 
 //______________________________________________________________________________
@@ -102,9 +105,99 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
       file = new File(this, fname, off, blocksize);
       Cache::GetInstance().AddActive(this, file);
    }
+   else {
+      file->WakeUp();
+   }
       
    return file;
 }
+
+
+//______________________________________________________________________________
+int IOFileBlock::FStat(struct stat &sbuff)
+{
+   // local stat is create in constructor. if file was on disk before
+   // attach that the only way stat was not successful is becuse there
+   // were info file read errors
+    if (!m_localStat) return -1;
+
+    memcpy(&sbuff, m_localStat, sizeof(struct stat));
+    return 0;
+}
+
+//______________________________________________________________________________
+long long IOFileBlock::FSize()
+{
+   if (!m_localStat) return -1;
+   
+   return m_localStat->st_size;
+}
+
+//______________________________________________________________________________
+int IOFileBlock::initLocalStat()
+{
+   XrdCl::URL url(GetPath());
+   std::string path = url.GetPath();
+   path += ".cinfo";
+
+   int res = -1;
+   struct stat tmpStat;
+   XrdOucEnv myEnv; 
+
+   // try to read from existing file
+   if (m_cache.GetOss()->Stat(path.c_str(), &tmpStat) == XrdOssOK) {
+      XrdOssDF* infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str()); 
+      if (infoFile->Open(path.c_str(), O_RDONLY, 0600, myEnv) == XrdOssOK) {
+         Info info(m_cache.GetTrace());
+         if (info.Read(infoFile) > 0) {
+            tmpStat.st_size = info.GetFileSize();
+            TRACEIO(Info, "IOFileBlock::initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
+            res = 0;
+         }
+         else {
+            // file exist but can't read it
+          TRACEIO(Error, "IOFileBlock::initCachedStat failed to read file size from info file");
+         }
+      }
+   }
+
+   // if there is no local info file, try to read from clinet and then save stat into a new *cinfo file
+   if (res) {
+      res = GetInput()->Fstat(tmpStat);
+      TRACEIO(Debug, "IOFileBlock::initCachedStat  get stat from client res= " << res << "size = " << tmpStat.st_size);
+      if (res == 0) {
+         if (m_cache.GetOss()->Create(m_cache.RefConfiguration().m_username.c_str(), path.c_str(), 0600, myEnv, XRDOSS_mkpath) ==  XrdOssOK) {
+            XrdOssDF* infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
+            if (infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK) {
+               Info cfi(m_cache.GetTrace(), false);
+               cfi.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
+               cfi.SetFileSize(tmpStat.st_size);
+               cfi.WriteHeader(infoFile);
+               infoFile->Fsync();
+               infoFile->Close();
+            }
+            else {
+               TRACEIO(Error, "IOFileBlock::initCachedStat can't open info file path");
+            }
+            delete infoFile;
+         }
+         else {
+          TRACEIO(Error, "IOFileBlock::initCachedStat can't create info file path");
+         }
+      }
+   }
+
+  
+   if (res == 0) 
+   {
+      std::cerr << "local stat created \n";
+      m_localStat = new struct stat;
+      memcpy(m_localStat, &tmpStat, sizeof(struct stat));
+   }
+
+   return res;
+}
+
 
 //______________________________________________________________________________
 void IOFileBlock::RelinquishFile(File* f)
@@ -141,7 +234,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
 {
    // protect from reads over the file size
 
-   long long fileSize = GetInput()->FSize();
+   long long fileSize = FSize();
 
    if (off >= fileSize)
       return 0;
