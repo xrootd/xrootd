@@ -99,14 +99,15 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
 
    TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
    
-   File* file;
-   if (!(file = Cache::GetInstance().GetFileWithLocalPath(fname, this)))
+   File* file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
+   if (file)
+   {
+      file->WakeUp(this);
+   }
+   else
    {
       file = new File(this, fname, off, blocksize);
       Cache::GetInstance().AddActive(this, file);
-   }
-   else {
-      file->WakeUp();
    }
       
    return file;
@@ -149,7 +150,8 @@ int IOFileBlock::initLocalStat()
       XrdOssDF* infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str()); 
       if (infoFile->Open(path.c_str(), O_RDONLY, 0600, myEnv) == XrdOssOK) {
          Info info(m_cache.GetTrace());
-         if (info.Read(infoFile) > 0) {
+         if (info.Read(infoFile))
+         {
             tmpStat.st_size = info.GetFileSize();
             TRACEIO(Info, "IOFileBlock::initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
             res = 0;
@@ -258,7 +260,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
       File* fb;
       m_mutex.Lock();
       std::map<int, File*>::iterator it = m_blocks.find(blockIdx);
-      if ( it != m_blocks.end() )
+      if (it != m_blocks.end())
       {
          fb = it->second;
       }

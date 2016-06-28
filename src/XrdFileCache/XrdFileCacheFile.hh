@@ -96,9 +96,11 @@ namespace XrdFileCache
    class File
    {
    private:
-      enum PrefetchState_e { kOn, kHold, kStopped, kComplete };
+      enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
 
-      IO             *m_io;          //!< original data source
+      bool            m_is_open;        //!< open state
+
+      IO             *m_io;             //!< original data source
       XrdOssDF       *m_output;         //!< file handle for data file on disk
       XrdOssDF       *m_infoFile;       //!< file handle for data-info file on disk
       Info            m_cfi;            //!< download status of file blocks and access statistics
@@ -107,14 +109,14 @@ namespace XrdFileCache
       long long       m_offset;         //!< offset of cached file for block-based operation
       long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
-      XrdSysCondVar m_stateCond; //!< state condition variable
+      XrdSysCondVar   m_stateCond;      //!< state condition variable
 
       // fsync
-      XrdSysMutex m_syncStatusMutex; //!< mutex locking fsync status
-      XrdJob *m_syncer;
-      std::vector<int> m_writes_during_sync;
-      int  m_non_flushed_cnt;
-      bool m_in_sync;
+      XrdSysMutex       m_syncStatusMutex;  //!< mutex locking fsync status
+      XrdJob           *m_syncer;
+      std::vector<int>  m_writes_during_sync;
+      int               m_non_flushed_cnt;
+      bool              m_in_sync;
 
       typedef std::list<int>         IntList_t;
       typedef IntList_t::iterator    IntList_i;
@@ -139,7 +141,7 @@ namespace XrdFileCache
       float           m_prefetchScore; //cached
       int             m_prefetchCurrentCnt;
 
-       const char* m_traceID;
+      static const char *m_traceID;
 
    public:
       //------------------------------------------------------------------------
@@ -161,6 +163,11 @@ namespace XrdFileCache
       int ReadV (const XrdOucIOVec *readV, int n);
 
       int Read(char* buff, long long offset, int size);
+
+      //----------------------------------------------------------------------
+      //! \brief Data and cinfo files are open.
+      //----------------------------------------------------------------------
+      bool isOpen() const { return m_is_open; }
 
       //----------------------------------------------------------------------
       //! \brief Initiate close. Return true if still IO active.
@@ -194,7 +201,8 @@ namespace XrdFileCache
 
       long long GetFileSize() { return m_fileSize;}
 
-      void WakeUp();
+      void WakeUp(IO* io);
+
    private:
       bool overlap(int       blk,      // block to query
                    long long blk_size, //
@@ -214,6 +222,7 @@ namespace XrdFileCache
                                 char* req_buf, long long req_off, long long req_size);
 
       // VRead
+      bool VReadValidate  (const XrdOucIOVec *readV, int n);
       bool VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& blks_to_process,  ReadVBlockListDisk& blks_on_disk, std::vector<XrdOucIOVec>& chunkVec);
       int  VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blks_on_disk);
       int  VReadProcessBlocks(const XrdOucIOVec *readV, int n, std::vector<ReadVChunkListRAM>& blks_to_process, std::vector<ReadVChunkListRAM>& blks_rocessed);

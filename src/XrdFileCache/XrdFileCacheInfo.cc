@@ -33,12 +33,70 @@
 #include "XrdFileCacheStats.hh"
 #include "XrdFileCacheTrace.hh"
 
-const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
-const char* XrdFileCache::Info::m_traceID = "Cinfo";
+namespace
+{
+   struct FpHelper
+   {
+      XrdOssDF    *f_fp;
+      off_t        f_off;
+      XrdOucTrace *f_trace;
+      const char  *m_traceID;
+      const char  *f_ttext;
 
-#define BIT(n)       (1ULL << (n))
+      XrdOucTrace* GetTrace() const {return f_trace;}
+
+      FpHelper(XrdOssDF* fp, off_t off,
+               XrdOucTrace *trace, const char *tid, const char *ttext) :
+         f_fp(fp), f_off(off),
+         f_trace(trace), m_traceID(tid), f_ttext(ttext)
+      {}
+
+      // Returns true on error
+      bool Read(void *buf, ssize_t size)
+      {
+         ssize_t ret = f_fp->Read(buf, f_off, size);
+         if (ret != size)
+         {
+            TRACE(Warning, f_trace << " error=" << strerror(errno));
+            return true;
+         }
+         f_off += ret;
+         return false;
+      }
+
+      template<typename T> bool Read(T &loc)
+      {
+         return Read(&loc, sizeof(T));
+      }
+
+      // Returns true on error
+      bool Write(void *buf, ssize_t size)
+      {
+         ssize_t ret = f_fp->Write(buf, f_off, size);
+         if (ret != size)
+         {
+            TRACE(Warning, f_trace << " error=" << strerror(errno));
+            return true;
+         }
+         f_off += ret;
+         return false;
+      }
+
+      template<typename T> bool Write(T &loc)
+      {
+         return Write(&loc, sizeof(T));
+      }
+   };
+
+
+}
+
 using namespace XrdFileCache;
 
+const char* Info::m_infoExtension = ".cinfo";
+const char* Info::m_traceID       = "Cinfo";
+
+//------------------------------------------------------------------------------
 
 Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
    m_trace(trace),
@@ -49,94 +107,84 @@ Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
    m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
    m_accessCnt(0),
    m_complete(false)
-{
-}
+{}
 
 Info::~Info()
 {
-   if (m_buff_fetched) free(m_buff_fetched);
+   if (m_buff_fetched)      free(m_buff_fetched);
    if (m_buff_write_called) free(m_buff_write_called);
-   if (m_buff_prefetch) free(m_buff_prefetch);
+   if (m_buff_prefetch)     free(m_buff_prefetch);
 }
 
-//______________________________________________________________________________
+//------------------------------------------------------------------------------
+
 void Info::SetBufferSize(long long bs)
 {
    // Needed only info is created first time in File::Open()
    m_bufferSize = bs;
 }
 
-//______________________________________________________________________________
+//------------------------------------------------------------------------------
+
 void Info::SetFileSize(long long fs)
 {
    m_fileSize = fs;
-   ResizeBits((m_fileSize-1)/m_bufferSize + 1) ;
+   ResizeBits((m_fileSize - 1)/m_bufferSize + 1) ;
 }
 
-//______________________________________________________________________________
-
+//------------------------------------------------------------------------------
 
 void Info::ResizeBits(int s)
 {
    m_sizeInBits = s;
-   m_buff_fetched = (unsigned char*)malloc(GetSizeInBytes());
-   m_buff_write_called = (unsigned char*)malloc(GetSizeInBytes());
-   memset(m_buff_fetched, 0, GetSizeInBytes());
+   m_buff_fetched      = (unsigned char*) malloc(GetSizeInBytes());
+   m_buff_write_called = (unsigned char*) malloc(GetSizeInBytes());
+   memset(m_buff_fetched,      0, GetSizeInBytes());
    memset(m_buff_write_called, 0, GetSizeInBytes());
-   if (m_hasPrefetchBuffer) {
-      m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
+
+   if (m_hasPrefetchBuffer)
+   {
+      m_buff_prefetch = (unsigned char*) malloc(GetSizeInBytes());
       memset(m_buff_prefetch, 0, GetSizeInBytes());
    }
 }
 
-//______________________________________________________________________________
+//------------------------------------------------------------------------------
 
-
-int Info::Read(XrdOssDF* fp)
+bool Info::Read(XrdOssDF* fp)
 {
    // does not need lock, called only in File::Open
    // before File::Run() starts
 
-   int off = 0;
+   FpHelper r(fp, 0, m_trace, m_traceID, "Info:::Read() failed");
+
    int version;
-   off = fp->Read(&version, off, sizeof(int));
-   if (off <= 0) {
-      TRACE(Warning, "Info:::Read() failed");
-      return 0;
-   }
-   if (version != m_version) {
-      TRACE(Error, "Info:::Read(), incompatible file version");
-       return 0;
+   if (r.Read(version)) return false;
+   if (version != m_version)
+   {
+      TRACE(Warning, "Info:::Read() incompatible file version " << version);
+      return false;
    }
 
-   off += fp->Read(&m_bufferSize, off, sizeof(long long));
-   if (off <= 0) return off;
+   if (r.Read(m_bufferSize)) return false;
 
    long long fs;
-   off += fp->Read(&fs, off, sizeof(long long));
+   if (r.Read(fs)) return false;
    SetFileSize(fs);
 
-   off += fp->Read(m_buff_fetched, off, GetSizeInBytes());
+   if (r.Read(m_buff_fetched, GetSizeInBytes())) return false;
    assert (off == GetHeaderSize());
 
    memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
-   m_complete = IsAnythingEmptyInRng(0, m_sizeInBits - 1) ? false : true;
+   m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-
-   off += fp->Read(&m_accessCnt, off, sizeof(int));
+   if (r.Read(m_accessCnt)) return false;
    TRACE(Dump, "Info:::Read() complete "<< m_complete << " access_cnt " << m_accessCnt);
 
-
-   if (m_hasPrefetchBuffer) {
-      m_buff_prefetch = (unsigned char*)malloc(GetSizeInBytes());
-      memset(m_buff_prefetch, 0, GetSizeInBytes());
-   }
-
-   return off;
+   return true;
 }
 
-//______________________________________________________________________________
-
+//------------------------------------------------------------------------------
 
 int Info::GetHeaderSize() const
 {
@@ -144,58 +192,72 @@ int Info::GetHeaderSize() const
    return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes();
 }
 
-//______________________________________________________________________________
-void Info::WriteHeader(XrdOssDF* fp)
+//------------------------------------------------------------------------------
+
+bool Info::WriteHeader(XrdOssDF* fp)
 {
-   int flr = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait);
-   if (flr) TRACE(Error, "Info::WriteHeader() lock failed " << strerror(errno));
+   if (XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait))
+   {
+      TRACE(Error, "Info::WriteHeader() lock failed " << strerror(errno));
+      return false;
+   }
 
-   long long off = 0;
-   off += fp->Write(&m_version, off, sizeof(int));
-   off += fp->Write(&m_bufferSize, off, sizeof(long long));
+   FpHelper w(fp, 0, m_trace, m_traceID, "Info:::WriteHeader() failed");
 
-   off += fp->Write(&m_fileSize, off, sizeof(long long));
-   off += fp->Write(m_buff_write_called, off, GetSizeInBytes());
+   if (w.Write(m_version))    return false;
+   if (w.Write(m_bufferSize)) return false;
+   if (w.Write(m_fileSize))   return false;
 
-   flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) TRACE(Error, "Info::WriteHeader() un-lock failed");
+   if (w.Write(m_buff_write_called, GetSizeInBytes())) return false;
 
-   assert (off == GetHeaderSize());
+   // Can this really fail?
+   if (XrdOucSxeq::Release(fp->getFD()))
+   {
+      TRACE(Error, "Info::WriteHeader() un-lock failed");
+   }
+
+   return true;
 }
 
-//______________________________________________________________________________
-void Info::AppendIOStat(AStat& as, XrdOssDF* fp)
+//------------------------------------------------------------------------------
+
+bool Info::AppendIOStat(AStat& as, XrdOssDF* fp)
 {
    TRACE(Dump, "Info:::AppendIOStat()");
 
-   int flr = XrdOucSxeq::Serialize(fp->getFD(), 0);
-   if (flr) {
+   if (XrdOucSxeq::Serialize(fp->getFD(), 0))
+   {
       TRACE(Error, "Info::AppendIOStat() lock failed");
-      return;
+      return false;
    }
 
    m_accessCnt++;
-   long long off = GetHeaderSize();
-   off += fp->Write(&m_accessCnt, off, sizeof(int));
-   off += (m_accessCnt-1)*sizeof(AStat);
+
+   FpHelper w(fp, GetHeaderSize(), m_trace, m_traceID, "Info::AppendIOStat() write failed");
+
+   if (w.Write(m_accessCnt)) return false;
+
+   w.f_off += (m_accessCnt-1)*sizeof(AStat);
  
-   long long ws = fp->Write(&as, off, sizeof(AStat));
-   flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) {
+   if (w.Write(as)) return false;
+
+   if (XrdOucSxeq::Release(fp->getFD()))
+   {
       TRACE(Error, "Info::AppenIOStat() un-lock failed");
-      return;
    }
 
-   if ( ws != sizeof(AStat)) { assert(0); }
+   return true;
 }
 
-//______________________________________________________________________________
+//------------------------------------------------------------------------------
+
 bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
 {
    bool res = false;
 
    int flr = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::Share);
-   if (flr) {
+   if (flr)
+   {
        TRACE(Error, "Info::GetLatestAttachTime() lock failed");
        return false;
    }
@@ -215,7 +277,6 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
          return false;
       }
    }
-
 
    flr = XrdOucSxeq::Release(fp->getFD());
    if (flr) TRACE(Error, "Info::GetLatestAttachTime() lock failed");

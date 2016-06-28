@@ -86,10 +86,10 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
          {
             // XXXX MT - shouldn't we also check if it is currently opened?
 
-            if (fh->Open(np.c_str(), O_RDONLY, 0600, env) == XrdOssOK) {
-               Info cinfo(Cache::GetInstance().GetTrace());
+            Info cinfo(Cache::GetInstance().GetTrace());
+            if (fh->Open(np.c_str(), O_RDONLY, 0600, env) == XrdOssOK && cinfo.Read(fh))
+            {
                time_t accessTime;
-               cinfo.Read(fh);
                if (cinfo.GetLatestDetachTime(accessTime, fh))
                {
                   TRACE(Dump, "FillFileMapRecurse() checking " << buff << " accessTime  " << accessTime);
@@ -121,8 +121,10 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                   }
                }
             }
-            else {
-               TRACE(Warning, "FillFileMapRecurse() cant open  " << np << " " << strerror(errno));
+            else
+            {
+               TRACE(Warning, "FillFileMapRecurse() can't open or read " << np << " " << strerror(errno));
+               // XXXX Purge it!
             }
          }
          else if (dh->Opendir(np.c_str(), env) == XrdOssOK)

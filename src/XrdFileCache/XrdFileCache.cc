@@ -200,19 +200,6 @@ void Cache::Detach(XrdOucCacheIO* io)
 }
 
 //______________________________________________________________________________
-bool
-Cache::HaveFreeWritingSlots()
-{
-   const static size_t maxWriteWaits=100000;
-   if ( m_writeQ.size < maxWriteWaits) {
-      return true;
-   }
-   else {
-       TRACE(Dump, "Cache::HaveFreeWritingSlots() negative " <<  m_writeQ.size);
-       return false;
-   }
-}
-//______________________________________________________________________________
 void
 Cache::AddWriteTask(Block* b, bool fromRead)
 {
@@ -438,7 +425,8 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
          int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
          if (res >= 0) {
             Info info(m_trace, 0);
-            if (info.Read(infoFile) > 0) {
+            if (info.Read(infoFile))
+            {
                sbuff.st_size = info.GetFileSize();
                success = true;
             }
@@ -461,7 +449,7 @@ Cache::Prefetch()
    int limitRAM= Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7;
    while (true) {
       m_RAMblock_mutex.Lock();
-      bool doPrefetch = (m_RAMblocks_used < limitRAM && HaveFreeWritingSlots());
+      bool doPrefetch = (m_RAMblocks_used < limitRAM);
       m_RAMblock_mutex.UnLock();
 
       if (doPrefetch) {

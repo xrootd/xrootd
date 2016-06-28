@@ -63,11 +63,18 @@ void Print::printFile(const std::string& path)
    XrdSysError err(&log);
    XrdOucTrace tr(&err); tr.What = 1;
    Info cfi(&tr);
-   long long off = cfi.Read(fh);
+
+   if ( ! cfi.Read(fh))
+   {
+      return;
+   }
 
    std::vector<Info::AStat> statv;
 
-   for (int i = 0; i <cfi.GetAccessCnt(); ++i ) {
+   long long off = cfi.GetHeaderSize() + sizeof(int);
+
+   for (int i = 0; i < cfi.GetAccessCnt(); ++i)
+   {
       Info::AStat a;
       off += fh->Read(&a, off , sizeof(Info::AStat));
       statv.push_back(a);
@@ -80,16 +87,21 @@ void Print::printFile(const std::string& path)
           cfi.GetVersion(), cfi.GetFileSize(),cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
           (cfi.GetSizeInBits() == cntd) ? "complete" : "");
 
-   if (m_verbose) {
-      printf("printing %d blocks: \n", cfi.GetSizeInBits());
+   if (m_verbose)
+   {
+      printf("printing %d blocks:", cfi.GetSizeInBits());
       for (int i = 0; i < cfi.GetSizeInBits(); ++i)
-         printf("%c ", cfi.TestBit(i) ? 'x':'.');
+      {
+         if (i % 64 == 0)
+            printf("\n%4d ", i);
+         printf("%c", cfi.TestBit(i) ? 'x' : '.');
+      }
       printf("\n");
    }
 
-   for (int i=0; i < cfi.GetAccessCnt(); ++i)
+   for (int i = 0; i < cfi.GetAccessCnt(); ++i)
    {
-      printf("access %d >> ", i);
+      printf("access %3d: ", i);
       Info::AStat& a = statv[i];
       char s[1000];
       struct tm * p = localtime(&a.DetachTime);
