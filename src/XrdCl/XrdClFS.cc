@@ -995,7 +995,7 @@ XRootDStatus DoQuery( FileSystem                      *fs,
     qCode = QueryCode::Checksum;
   else if( args[1] == "opaque" )
     qCode = QueryCode::Opaque;
-  else if( args[1] == "opaqueFile" )
+  else if( args[1] == "opaquefile" )
     qCode = QueryCode::OpaqueFile;
   else if( args[1] == "prepare" )
     qCode = QueryCode::Prepare;
