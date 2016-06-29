@@ -89,19 +89,26 @@ void Print::printFile(const std::string& path)
 
    if (m_verbose)
    {
-      printf("printing %d blocks:", cfi.GetSizeInBits());
+      int n_db = 0;
+      { int x = cfi.GetSizeInBits(); while (x) { x /= 10; ++n_db; } }
+      static const char *nums = "0123456789";
+      printf("printing %d blocks:\n", cfi.GetSizeInBits());
+      printf("%*s  %10d%10d%10d%10d%10d%10d\n", n_db, "", 1, 2, 3, 4, 5, 6);
+      printf("%*s %s%s%s%s%s%s0123", n_db, "", nums, nums, nums, nums, nums, nums);
       for (int i = 0; i < cfi.GetSizeInBits(); ++i)
       {
          if (i % 64 == 0)
-            printf("\n%4d ", i);
+            printf("\n%*d ", n_db, i);
          printf("%c", cfi.TestBit(i) ? 'x' : '.');
       }
       printf("\n");
    }
 
+   int n_da = 0;
+   { int x = cfi.GetAccessCnt(); while (x) { x /= 10; ++n_da; } }
    for (int i = 0; i < cfi.GetAccessCnt(); ++i)
    {
-      printf("access %3d: ", i);
+      printf("access %*d: ", n_da, i);
       Info::AStat& a = statv[i];
       char s[1000];
       struct tm * p = localtime(&a.DetachTime);
