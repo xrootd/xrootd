@@ -217,7 +217,7 @@ void IOFileBlock::RelinquishFile(File* f)
 {
    // called from Cache::Detach() or Cache::GetFileWithLocalPath()
    // the object is in process of dying
-   
+
    XrdSysMutexHelper lock(&m_mutex);
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
@@ -316,26 +316,27 @@ int IOFileBlock::Read (char *buff, long long off, int size)
 
       TRACEIO(Dump, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
-      long long min  = blockIdx*m_blocksize;
+      long long min = blockIdx * m_blocksize;
       if ( off < min) { assert(0); }  // MT-XXXX
       // MT-XXXX
       assert(off+readBlockSize <= (min + m_blocksize));
       int retvalBlock = fb->Read(buff, off, readBlockSize);
 
       TRACEIO(Dump, "IOFileBlock::Read()  Block read returned " << retvalBlock);
-      if (retvalBlock ==  readBlockSize )
+      if (retvalBlock == readBlockSize)
       {
          bytes_read += retvalBlock;
          buff += retvalBlock;
          off += retvalBlock;
       }
-      else if (retvalBlock > 0) {
-          TRACEIO(Warning, "IOFileBlock::Read() incomplete read, missing bytes " << readBlockSize-retvalBlock);
+      else if (retvalBlock > 0)
+      {
+         TRACEIO(Warning, "IOFileBlock::Read() incomplete read, missing bytes " << readBlockSize-retvalBlock);
          return bytes_read + retvalBlock;
       }
       else
       {
-          TRACEIO(Error, "IOFileBlock::Read() read error, retval" << retvalBlock);
+         TRACEIO(Error, "IOFileBlock::Read() read error, retval" << retvalBlock);
          return retvalBlock;
       }
    }

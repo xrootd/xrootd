@@ -101,7 +101,7 @@ namespace XrdFileCache
          //!
          //! @return true on success
          //---------------------------------------------------------------------
-      bool Read(XrdOssDF* fp, const std::string &fname="<unknown>");
+         bool Read(XrdOssDF* fp, const std::string &fname="<unknown>");
 
          //---------------------------------------------------------------------
          //! Write number of blocks and read buffer size
@@ -315,5 +315,10 @@ namespace XrdFileCache
    {
       return m_bufferSize;
    }
+
+
+   //----------------------------------------------------------------
+   // XrdFileCacheInfoBlock
+   //----------------------------------------------------------------
 }
 #endif
