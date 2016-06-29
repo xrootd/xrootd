@@ -305,6 +305,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void MonitorDisconnection( Status status );
 
+      //------------------------------------------------------------------------
+      //! Send close after an open request timed out
+      //------------------------------------------------------------------------
+      Status RequestClose( Message  *resp );
+
       typedef std::vector<SubStreamData*> SubStreamList;
 
       //------------------------------------------------------------------------

@@ -33,6 +33,8 @@
 #include "XrdCl/XrdClOutQueue.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 
 #include <sys/types.h>
 #include <algorithm>
@@ -427,6 +429,26 @@ namespace
 
 namespace XrdCl
 {
+  Status Stream::RequestClose( Message *response )
+  {
+    ServerResponse *rsp = reinterpret_cast<ServerResponse*>( response->GetBuffer() );
+    if( rsp->hdr.dlen < 4 ) return Status( stError );
+    Message            *msg;
+    ClientCloseRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+    req->requestid = kXR_close;
+    memcpy( req->fhandle, reinterpret_cast<uint8_t*>( rsp->body.buffer.data ), 4 );
+    XRootDTransport::SetDescription( msg );
+    msg->SetSessionId( pSessionId );
+    NullResponseHandler *handler = new NullResponseHandler();
+    MessageSendParams params;
+    params.timeout         = 0;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+    return MessageUtils::SendMessage( *pUrl, msg, handler, params );
+  }
+
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
@@ -442,6 +464,13 @@ namespace XrdCl
                                                          *pChannelData );
     if( streamAction & TransportHandler::DigestMsg )
       return;
+
+    if( streamAction & TransportHandler::RequestClose )
+    {
+      RequestClose( msg );
+      delete msg;
+      return;
+    }
 
     //--------------------------------------------------------------------------
     // No handler, we cache and see what comes later

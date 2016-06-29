@@ -737,7 +737,7 @@ int main( int argc, char **argv )
     if( src.IsMetalink() )
     {
       RedirectorRegistry &registry = RedirectorRegistry::Instance();
-      XRootDStatus st = registry.Register( src );
+      XRootDStatus st = registry.RegisterAndWait( src );
       if( !st.IsOK() )
       {
         std::cerr << "RedirectorRegistry::Register " << source << " -> " << dest << ": ";

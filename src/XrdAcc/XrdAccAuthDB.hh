@@ -88,7 +88,7 @@ virtual int   Open(XrdSysError &eroute, const char *path=0) = 0;
 
 virtual char  getRec(char **recname) = 0;
 
-virtual int   getPP(char **path, char **priv) = 0;
+virtual int   getPP(char **path, char **priv, bool &istmplt) = 0;
 
 virtual int   Close() = 0;
 

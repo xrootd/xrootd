@@ -1201,7 +1201,7 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       XRootDDestination( const XrdCl::URL *url, uint8_t parallelChunks ):
-        pUrl( url ), pFile( new XrdCl::File() ), pParallel( parallelChunks )
+        pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ), pParallel( parallelChunks )
       {
       }
 
@@ -1245,7 +1245,7 @@ namespace
 
         Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
 
-        return pFile->Open( pUrl->GetURL(), flags, mode, 0, false );
+        return pFile->Open( pUrl->GetURL(), flags, mode );
       }
 
       //------------------------------------------------------------------------

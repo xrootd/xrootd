@@ -304,7 +304,8 @@ namespace XrdCl
                                //!< [not yet implemented]
         ResumeStream = 0x0008, //!< Resume sending requests
                                //!< [not yet implemented]
-        HoldStream   = 0x0010  //!< Stop sending requests [not yet implemented]
+        HoldStream   = 0x0010, //!< Stop sending requests [not yet implemented]
+        RequestClose = 0x0020  //!< Send a close request
       };
 
 

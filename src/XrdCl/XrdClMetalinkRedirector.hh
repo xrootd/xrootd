@@ -92,10 +92,12 @@ class MetalinkRedirector : public VirtualRedirector
     XRootDStatus Parse( const std::string &metalink );
 
     //----------------------------------------------------------------------------
-    //! Handle pending redirects (those that were
-    //! submitted before the metalink has been loaded)
+    //! Finalize the initialization process:
+    //! - mark as ready
+    //! - setup the status
+    //! - and handle pending redirects
     //----------------------------------------------------------------------------
-    void HandlePending();
+    void FinalizeInitialization( const XRootDStatus &status = XRootDStatus() );
 
     //----------------------------------------------------------------------------
     //! Generates redirect response for the given request
@@ -105,7 +107,7 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     //! Generates error response for the given request
     //----------------------------------------------------------------------------
-    Message* GetErrorMsg( const Message *msg ) const;
+    Message* GetErrorMsg( const Message *msg, const std::string &errMsg, XErrorCode code ) const;
 
     //----------------------------------------------------------------------------
     //! Initializes checksum map
@@ -123,9 +125,21 @@ class MetalinkRedirector : public VirtualRedirector
     XRootDStatus GetReplica( const Message *msg, std::string &replica ) const;
 
     //----------------------------------------------------------------------------
-    //! Extracts an element from url cgi
+    //! Extracts an element from URL cgi
     //----------------------------------------------------------------------------
     XRootDStatus GetCgiInfo( const Message *msg, const std::string &key, std::string &out ) const;
+
+    //----------------------------------------------------------------------------
+    //! Loads a local Metalink file
+    //----------------------------------------------------------------------------
+    XRootDStatus LoadLocalFile( ResponseHandler *userHandler );
+
+    //----------------------------------------------------------------------------
+    //! Checks if the given URL points to a local file
+    //! (by convention we assume that a file is local
+    //! if the host name equals to 'localfile')
+    //----------------------------------------------------------------------------
+    static bool IsLocalFile( const std::string &url );
 
 
     typedef std::list< std::pair<const Message*, Stream*> > RedirectList;
@@ -137,11 +151,14 @@ class MetalinkRedirector : public VirtualRedirector
     File            *pFile;
     CksumMap         pChecksums;
     ReplicaList      pReplicas;
-    bool             pInitialized;
+    bool             pReady;
+    XRootDStatus     pStatus;
     std::string      pTarget;
     long long        pFileSize;
 
     XrdSysMutex      pMutex;
+
+    static const std::string LocalFile;
 
 };
 

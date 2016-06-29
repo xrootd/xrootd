@@ -331,7 +331,36 @@ namespace XrdCl
     pDoRecoverRead( true ),
     pDoRecoverWrite( true ),
     pFollowRedirects( true ),
-    pUseVirtRedirector( false ),
+    pUseVirtRedirector( true ),
+    pReOpenHandler( 0 )
+  {
+    pFileHandle = new uint8_t[4];
+    ResetMonitoringVars();
+    DefaultEnv::GetForkHandler()->RegisterFileObject( this );
+    DefaultEnv::GetFileTimer()->RegisterFileObject( this );
+  }
+
+  //------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param useVirtRedirector if true Metalink files will be treated
+  //!                          as a VirtualRedirectors
+  //------------------------------------------------------------------------
+  FileStateHandler::FileStateHandler( bool useVirtRedirector ):
+    pFileState( Closed ),
+    pStatInfo( 0 ),
+    pFileUrl( 0 ),
+    pDataServer( 0 ),
+    pLoadBalancer( 0 ),
+    pStateRedirect( 0 ),
+    pFileHandle( 0 ),
+    pOpenMode( 0 ),
+    pOpenFlags( 0 ),
+    pSessionId( 0 ),
+    pDoRecoverRead( true ),
+    pDoRecoverWrite( true ),
+    pFollowRedirects( true ),
+    pUseVirtRedirector( useVirtRedirector ),
     pReOpenHandler( 0 )
   {
     pFileHandle = new uint8_t[4];
@@ -361,6 +390,12 @@ namespace XrdCl
       ResetMonitoringVars();
     }
 
+    if( pUseVirtRedirector && pFileUrl && pFileUrl->IsMetalink() )
+    {
+      RedirectorRegistry& registry = RedirectorRegistry::Instance();
+      registry.Release( *pFileUrl );
+    }
+
     delete pStatInfo;
     delete pFileUrl;
     delete pDataServer;
@@ -375,8 +410,7 @@ namespace XrdCl
                                        uint16_t           flags,
                                        uint16_t           mode,
                                        ResponseHandler   *handler,
-                                       uint16_t           timeout,
-                                       bool               virtRedirector )
+                                       uint16_t           timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
@@ -448,19 +482,19 @@ namespace XrdCl
     pOpenMode  = mode;
     pOpenFlags = flags;
 
-    pUseVirtRedirector = virtRedirector && pFileUrl->IsMetalink();
-
     Message           *msg;
     ClientOpenRequest *req;
     std::string        path = pFileUrl->GetPathWithParams();
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
+      MessageUtils::CreateRequest<VirtualMessage>( msg, req, path.length() );
+    else
+      MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;
     req->mode      = mode;
     req->options   = flags | kXR_async | kXR_retstat;
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-    msg->SetVirtualRedirections( pUseVirtRedirector );
 
     XRootDTransport::SetDescription( msg );
     OpenHandler *openHandler = new OpenHandler( this, handler );
@@ -471,10 +505,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Register a virtual redirector
     //--------------------------------------------------------------------------
-    if( pUseVirtRedirector )
+    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
     {
       RedirectorRegistry& registry = RedirectorRegistry::Instance();
-      XRootDStatus st = registry.Register( url, handler );
+      XRootDStatus st = registry.Register( *pFileUrl );
       if( !st.IsOK() ) return st;
       HostInfo info( url, true );
       HostList *list = new HostList();
@@ -1012,7 +1046,7 @@ namespace XrdCl
 
       pDataServer = new URL( hostList->back().url );
       pDataServer->SetParams( pFileUrl->GetParams() );
-      if( !pUseVirtRedirector ) pDataServer->SetPath( pFileUrl->GetPath() );
+      if( !( pUseVirtRedirector && pFileUrl->IsMetalink() ) ) pDataServer->SetPath( pFileUrl->GetPath() );
       lastServer = pDataServer->GetHostId();
       HostList::const_iterator itC;
       URL::ParamsMap params = pDataServer->GetParams();
@@ -1559,14 +1593,16 @@ namespace XrdCl
       u.SetPath( pFileUrl->GetPath() );
 
     std::string path = u.GetPathWithParams();
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
+      MessageUtils::CreateRequest<VirtualMessage>( msg, req, path.length() );
+    else
+      MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;
     req->mode      = pOpenMode;
     req->options   = pOpenFlags;
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-    msg->SetVirtualRedirections( pUseVirtRedirector );
 
     // the handler has been removed from the queue
     // (because we are here) so we can destroy it
@@ -1589,7 +1625,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // If a virtual redirector is in use, set it up in send parameters
     //--------------------------------------------------------------------------
-    if( pUseVirtRedirector )
+    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
     {
       HostInfo info( *pFileUrl, true );
       HostList *list = new HostList();

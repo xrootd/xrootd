@@ -43,10 +43,22 @@ namespace XrdCl
   class File
   {
     public:
+
+      enum VirtRedirect
+      {
+        EnableVirtRedirect,
+        DisableVirtRedirect
+      };
+
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
       File( bool enablePlugIns = true );
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      File( VirtRedirect virtRedirect, bool enablePlugIns = true );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -68,8 +80,7 @@ namespace XrdCl
                          OpenFlags::Flags   flags,
                          Access::Mode       mode,
                          ResponseHandler   *handler,
-                         uint16_t           timeout  = 0,
-                         bool               virtRedirector = true )
+                         uint16_t           timeout  = 0 )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -85,8 +96,7 @@ namespace XrdCl
       XRootDStatus Open( const std::string &url,
                          OpenFlags::Flags   flags,
                          Access::Mode       mode    = Access::None,
-                         uint16_t           timeout = 0,
-                         bool               virtRedirector = true )
+                         uint16_t           timeout = 0 )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------

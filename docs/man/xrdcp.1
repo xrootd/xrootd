@@ -186,7 +186,7 @@ equivalent to "\fB--sources 12\fR".
 .SH OPERANDS
 \fIsource\fR
 .RS 5
-a local file, a local directory name suffixed by /, or
+a dash (i.e. \fB-\fR) indicating stanard in, a local file, a local directory name suffixed by /, or
 an xrootd URL in the form of
 .ce 1
 \fBxroot://[\fIuser\fB@\fR]\fIhost[\fB:\fIport\fR]\fB/\fIabsolutepath\fR
@@ -424,6 +424,16 @@ XRD_TCPKEEPALIVEPROBES (-DITCPKeepProbes)
 .RS 5
 Number of unacknowledged probes before considering the connection dead
 (Linux only)
+.RE
+
+XRD_METALINKPROCESSING
+.RS 5
+Enable/Disable Metalink processing (enabled by default)
+.RE
+
+XRD_LOCALMETALINKFILE
+.RS 5
+Enable/Disable local Metalink file processing (by convention the following URL schema has to be used: root://localfile//path/filename.meta4) 
 .RE
 
 .SH NOTES
