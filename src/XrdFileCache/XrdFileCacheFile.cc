@@ -262,7 +262,7 @@ bool File::Open()
       return false;
    }
 
-   if (fileExisted && m_cfi.Read(m_infoFile))
+   if (fileExisted && m_cfi.Read(m_infoFile, ifn))
    {
       TRACEF(Debug, "Read existing info file.");
    }

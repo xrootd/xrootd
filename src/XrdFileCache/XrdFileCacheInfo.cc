@@ -43,7 +43,7 @@ namespace
       const char  *m_traceID;
       std::string  f_ttext;
 
-      XrdOucTrace* GetTrace() const {return f_trace;}
+      XrdOucTrace* GetTrace() const { return f_trace; }
 
       FpHelper(XrdOssDF* fp, off_t off,
                XrdOucTrace *trace, const char *tid, const std::string &ttext) :
@@ -57,7 +57,8 @@ namespace
          ssize_t ret = f_fp->Read(buf, f_off, size);
          if (ret != size)
          {
-            TRACE(Warning, f_trace << " error=" << strerror(errno));
+            TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
+                  << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
             return true;
          }
          f_off += ret;
@@ -75,7 +76,8 @@ namespace
          ssize_t ret = f_fp->Write(buf, f_off, size);
          if (ret != size)
          {
-            TRACE(Warning, f_trace << " error=" << strerror(errno));
+            TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
+                  << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
             return true;
          }
          f_off += ret;
@@ -87,8 +89,6 @@ namespace
          return Write(&loc, sizeof(T));
       }
    };
-
-
 }
 
 using namespace XrdFileCache;
@@ -181,7 +181,9 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-   if (r.Read(m_accessCnt)) return false;
+   // MT-XXXX it sucks to have this here! Unless it is written out in WriteHeader().
+   // Now hacking it to set access count to 0 on failure.
+   if (r.Read(m_accessCnt)) m_accessCnt = 0; // was: return false;
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_accessCnt);
 
    return true;

@@ -61,7 +61,7 @@ void Print::printFile(const std::string& path)
 
    XrdSysLogger log;
    XrdSysError err(&log);
-   XrdOucTrace tr(&err); tr.What = 1;
+   XrdOucTrace tr(&err); tr.What = 2;
    Info cfi(&tr);
 
    if ( ! cfi.Read(fh, path))
