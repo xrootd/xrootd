@@ -41,12 +41,12 @@ namespace
       off_t        f_off;
       XrdOucTrace *f_trace;
       const char  *m_traceID;
-      const char  *f_ttext;
+      std::string  f_ttext;
 
       XrdOucTrace* GetTrace() const {return f_trace;}
 
       FpHelper(XrdOssDF* fp, off_t off,
-               XrdOucTrace *trace, const char *tid, const char *ttext) :
+               XrdOucTrace *trace, const char *tid, const std::string &ttext) :
          f_fp(fp), f_off(off),
          f_trace(trace), m_traceID(tid), f_ttext(ttext)
       {}
@@ -151,18 +151,21 @@ void Info::ResizeBits(int s)
 
 //------------------------------------------------------------------------------
 
-bool Info::Read(XrdOssDF* fp)
+bool Info::Read(XrdOssDF* fp, const std::string &fname)
 {
    // does not need lock, called only in File::Open
    // before File::Run() starts
 
-   FpHelper r(fp, 0, m_trace, m_traceID, "Info:::Read() failed");
+   std::string trace_pfx("Info:::Read() ");
+   trace_pfx += fname + " ";
+
+   FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
 
    int version;
    if (r.Read(version)) return false;
    if (version != m_version)
    {
-      TRACE(Warning, "Info:::Read() incompatible file version " << version);
+      TRACE(Warning, trace_pfx << " incompatible file version " << version);
       return false;
    }
 
@@ -179,7 +182,7 @@ bool Info::Read(XrdOssDF* fp)
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
    if (r.Read(m_accessCnt)) return false;
-   TRACE(Dump, "Info:::Read() complete "<< m_complete << " access_cnt " << m_accessCnt);
+   TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_accessCnt);
 
    return true;
 }
@@ -194,15 +197,18 @@ int Info::GetHeaderSize() const
 
 //------------------------------------------------------------------------------
 
-bool Info::WriteHeader(XrdOssDF* fp)
+bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
 {
+   std::string trace_pfx("Info:::WriteHeader() ");
+   trace_pfx += fname + " ";
+
    if (XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait))
    {
-      TRACE(Error, "Info::WriteHeader() lock failed " << strerror(errno));
+      TRACE(Error, trace_pfx << " lock failed " << strerror(errno));
       return false;
    }
 
-   FpHelper w(fp, 0, m_trace, m_traceID, "Info:::WriteHeader() failed");
+   FpHelper w(fp, 0, m_trace, m_traceID, trace_pfx + "oss write failed");
 
    if (w.Write(m_version))    return false;
    if (w.Write(m_bufferSize)) return false;
@@ -213,7 +219,7 @@ bool Info::WriteHeader(XrdOssDF* fp)
    // Can this really fail?
    if (XrdOucSxeq::Release(fp->getFD()))
    {
-      TRACE(Error, "Info::WriteHeader() un-lock failed");
+      TRACE(Error, trace_pfx << "un-lock failed");
    }
 
    return true;
@@ -221,19 +227,22 @@ bool Info::WriteHeader(XrdOssDF* fp)
 
 //------------------------------------------------------------------------------
 
-bool Info::AppendIOStat(AStat& as, XrdOssDF* fp)
+bool Info::AppendIOStat(AStat& as, XrdOssDF* fp, const std::string &fname)
 {
-   TRACE(Dump, "Info:::AppendIOStat()");
+   std::string trace_pfx("Info:::AppendIOStat() ");
+   trace_pfx += fname + " ";
+
+   TRACE(Dump, trace_pfx);
 
    if (XrdOucSxeq::Serialize(fp->getFD(), 0))
    {
-      TRACE(Error, "Info::AppendIOStat() lock failed");
+      TRACE(Error, trace_pfx << "lock failed");
       return false;
    }
 
    m_accessCnt++;
 
-   FpHelper w(fp, GetHeaderSize(), m_trace, m_traceID, "Info::AppendIOStat() write failed");
+   FpHelper w(fp, GetHeaderSize(), m_trace, m_traceID, trace_pfx + "oss write failed");
 
    if (w.Write(m_accessCnt)) return false;
 
@@ -243,7 +252,7 @@ bool Info::AppendIOStat(AStat& as, XrdOssDF* fp)
 
    if (XrdOucSxeq::Release(fp->getFD()))
    {
-      TRACE(Error, "Info::AppenIOStat() un-lock failed");
+      TRACE(Error, trace_pfx << "un-lock failed");
    }
 
    return true;

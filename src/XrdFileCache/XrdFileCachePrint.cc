@@ -64,7 +64,7 @@ void Print::printFile(const std::string& path)
    XrdOucTrace tr(&err); tr.What = 1;
    Info cfi(&tr);
 
-   if ( ! cfi.Read(fh))
+   if ( ! cfi.Read(fh, path))
    {
       return;
    }

@@ -110,7 +110,7 @@ int IOEntireFile::initCachedStat(const char* path)
       if (infoFile->Open(path, O_RDONLY, 0600, myEnv) == XrdOssOK)
       {
          Info info(m_cache.GetTrace());
-         if (info.Read(infoFile))
+         if (info.Read(infoFile, path))
          {
             tmpStat.st_size = info.GetFileSize();
             TRACEIO(Info, "IOEntireFile::initCachedStat successfuly read size from info file = " << tmpStat.st_size);

@@ -82,12 +82,12 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
          XrdOssDF* dh = factory.GetOss()->newDir(factory.RefConfiguration().m_username.c_str());
          XrdOssDF* fh = factory.GetOss()->newFile(factory.RefConfiguration().m_username.c_str());
 
-         if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], XrdFileCache::Info::m_infoExtension, InfoExtLen) == 0)
+         if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen], XrdFileCache::Info::m_infoExtension, InfoExtLen) == 0)
          {
             // XXXX MT - shouldn't we also check if it is currently opened?
 
             Info cinfo(Cache::GetInstance().GetTrace());
-            if (fh->Open(np.c_str(), O_RDONLY, 0600, env) == XrdOssOK && cinfo.Read(fh))
+            if (fh->Open(np.c_str(), O_RDONLY, 0600, env) == XrdOssOK && cinfo.Read(fh, np))
             {
                time_t accessTime;
                if (cinfo.GetLatestDetachTime(accessTime, fh))

@@ -150,7 +150,7 @@ int IOFileBlock::initLocalStat()
       XrdOssDF* infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str()); 
       if (infoFile->Open(path.c_str(), O_RDONLY, 0600, myEnv) == XrdOssOK) {
          Info info(m_cache.GetTrace());
-         if (info.Read(infoFile))
+         if (info.Read(infoFile, path))
          {
             tmpStat.st_size = info.GetFileSize();
             TRACEIO(Info, "IOFileBlock::initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);

@@ -425,7 +425,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
          int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
          if (res >= 0) {
             Info info(m_trace, 0);
-            if (info.Read(infoFile))
+            if (info.Read(infoFile, name))
             {
                sbuff.st_size = info.GetFileSize();
                success = true;

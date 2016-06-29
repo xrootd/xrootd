@@ -96,23 +96,24 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! \brief Rea load content from cinfo file into this object
          //!
-         //! @param fp file handle
+         //! @param fp    file handle
+         //! @param fname optional file name for trace output
          //!
          //! @return true on success
          //---------------------------------------------------------------------
-         bool Read(XrdOssDF* fp);
+         bool Read(XrdOssDF* fp, const std::string &fname="<unknown>");
 
          //---------------------------------------------------------------------
          //! Write number of blocks and read buffer size
          //! @return true on success
          //---------------------------------------------------------------------
-         bool WriteHeader(XrdOssDF* fp);
+         bool WriteHeader(XrdOssDF* fp, const std::string &fname="<unknown>");
 
          //---------------------------------------------------------------------
          //! Append access time, and cache statistics
          //! @return true on success
          //---------------------------------------------------------------------
-         bool AppendIOStat(AStat& stat, XrdOssDF* fp);
+         bool AppendIOStat(AStat& stat, XrdOssDF* fp, const std::string &fname="<unknown>");
 
          //---------------------------------------------------------------------
          //! Check download status in given block range

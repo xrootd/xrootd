@@ -224,14 +224,16 @@ bool File::Open()
    // Create the data file itself.
    if (myOss.Create(myUser, m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    { 
-      TRACEF(Error, "File::Open() Create failed for data file, " << strerror(errno));
+      TRACEF(Error, "File::Open() Create failed for data file " << m_temp_filename
+             << ", err=" << strerror(errno));
       return false;
    }
 
    m_output = myOss.newFile(myUser);
    if (m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Open failed for data file, " << strerror(errno));
+      TRACEF(Error, "File::Open() Open failed for data file "  << m_temp_filename
+             << ", err=" << strerror(errno));
       delete m_output; m_output = 0;
       return false;
    }
@@ -244,7 +246,8 @@ bool File::Open()
 
    if (myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Create failed for info file, " << strerror(errno));
+      TRACEF(Error, "File::Open() Create failed for info file " << ifn
+             << ", err=" << strerror(errno));
       delete m_output; m_output = 0;
       return false;
    }
@@ -252,7 +255,8 @@ bool File::Open()
    m_infoFile = myOss.newFile(myUser);
    if (m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Open failed for info file, " << strerror(errno));
+      TRACEF(Error, "File::Open() Open failed for info file " << ifn
+             << ", err=" << strerror(errno));
       delete m_infoFile; m_infoFile = 0;
       delete m_output;   m_output   = 0;
       return false;
