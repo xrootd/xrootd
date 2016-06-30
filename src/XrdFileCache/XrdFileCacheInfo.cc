@@ -176,14 +176,11 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    SetFileSize(fs);
 
    if (r.Read(m_buff_fetched, GetSizeInBytes())) return false;
-   assert (off == GetHeaderSize());
 
    memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-   // MT-XXXX it sucks to have this here! Unless it is written out in WriteHeader().
-   // Now hacking it to set access count to 0 on failure.
-   if (r.Read(m_accessCnt)) m_accessCnt = 0; // was: return false;
+   if (r.Read(m_accessCnt))  return false;
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_accessCnt);
 
    return true;
