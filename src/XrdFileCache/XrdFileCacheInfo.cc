@@ -124,12 +124,13 @@ void Info::SetBufferSize(long long bs)
    m_bufferSize = bs;
 }
 
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------s
 
 void Info::SetFileSize(long long fs)
 {
    m_fileSize = fs;
-   ResizeBits((m_fileSize - 1)/m_bufferSize + 1) ;
+   if (m_bufferSize > 0)
+      ResizeBits((m_fileSize - 1)/m_bufferSize + 1) ;
 }
 
 //------------------------------------------------------------------------------
@@ -175,9 +176,12 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    if (r.Read(fs)) return false;
    SetFileSize(fs);
 
-   if (r.Read(m_buff_fetched, GetSizeInBytes())) return false;
+   if (m_bufferSize > 0) 
+   {
+      if (r.Read(m_buff_fetched, GetSizeInBytes())) return false;
+      memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
+   }
 
-   memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
    if (r.Read(m_accessCnt))  return false;
@@ -191,7 +195,10 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 int Info::GetHeaderSize() const
 {
    // version + buffersize + file-size + download-status-array
-   return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes();
+    if (m_bufferSize > 0 )
+        return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes();
+    else 
+        return sizeof(int) + sizeof(long long) + sizeof(long long);
 }
 
 //------------------------------------------------------------------------------
@@ -213,7 +220,11 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
    if (w.Write(m_bufferSize)) return false;
    if (w.Write(m_fileSize))   return false;
 
-   if (w.Write(m_buff_write_called, GetSizeInBytes())) return false;
+   if ( m_bufferSize > 0 )
+   {
+      if (w.Write(m_buff_write_called, GetSizeInBytes())) 
+          return false;
+   }
 
    // Can this really fail?
    if (XrdOucSxeq::Release(fp->getFD()))
