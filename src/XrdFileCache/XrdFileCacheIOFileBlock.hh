@@ -74,7 +74,9 @@ namespace XrdFileCache
          long long                  m_blocksize; //!< size of file-block
          std::map<int, File*>       m_blocks;    //!< map of created blocks
          XrdSysMutex                m_mutex;     //!< map mutex
-         struct stat               *m_localStat; 
+         struct stat               *m_localStat;
+         Info                       m_info; 
+         XrdOssDF*                  m_infoFile;
 
          void GetBlockSizeFromPath();
          int initLocalStat();
