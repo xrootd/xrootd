@@ -169,7 +169,7 @@ int IOFileBlock::initLocalStat()
    if (m_cache.GetOss()->Stat(path.c_str(), &tmpStat) == XrdOssOK)
    {
       m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str()); 
-      if (m_infoFile->Open(path.c_str(), O_RDONLY, 0600, myEnv) == XrdOssOK)
+      if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
       {
          Info info(m_cache.GetTrace());
          if (info.Read(m_infoFile, path))
