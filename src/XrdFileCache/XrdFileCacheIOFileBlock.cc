@@ -48,36 +48,41 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 XrdOucCacheIO* IOFileBlock::Detach()
 {
    XrdOucCacheIO * io = GetInput();
-
-   Stats stats;
-   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
-   {
-      Stats& fs = it->second->GetStats();
-      stats.m_BytesDisk   += fs.m_BytesDisk;
-      stats.m_BytesRam    += fs.m_BytesRam;
-      stats.m_BytesMissed += fs.m_BytesMissed;
-   }
-
-   // this is a dummy file with file size info which is used for defer open,
-   // we just need an access statistics for purge
-   if (m_infoFile)
-   {
-      if (m_info.GetSizeInBytes()) {
-         Info::AStat as;
-         as.DetachTime  = time(0);
-         as.BytesDisk   = stats.m_BytesDisk;
-         as.BytesRam    = stats.m_BytesRam;
-         as.BytesMissed = stats.m_BytesMissed;
-         m_info.AppendIOStat(as, m_infoFile);
-      }
-      m_infoFile->Fsync();
-      m_infoFile->Close();
-   }
-   delete m_infoFile;
-
+   CloseInfoFile();
    m_cache.Detach(this);  // This will delete us!
 
    return io;
+}
+
+//______________________________________________________________________________
+void IOFileBlock::CloseInfoFile()
+{
+    // write access statistics to info file and close it
+   if (m_infoFile)
+   {
+       Stats stats;
+       for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+       {
+           Stats& fs = it->second->GetStats();
+           stats.m_BytesDisk   += fs.m_BytesDisk;
+           stats.m_BytesRam    += fs.m_BytesRam;
+           stats.m_BytesMissed += fs.m_BytesMissed;
+       }
+
+       if (m_info.GetSizeInBytes()) {
+           Info::AStat as;
+           as.DetachTime  = time(0);
+           as.BytesDisk   = stats.m_BytesDisk;
+           as.BytesRam    = stats.m_BytesRam;
+           as.BytesMissed = stats.m_BytesMissed;
+           printf("append stat \n");
+           m_info.AppendIOStat(as, m_infoFile);
+       }
+       m_infoFile->Fsync();
+       m_infoFile->Close();
+   }
+   delete m_infoFile;
+   m_infoFile = 0;
 }
 
 //______________________________________________________________________________
@@ -171,10 +176,9 @@ int IOFileBlock::initLocalStat()
       m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str()); 
       if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
       {
-         Info info(m_cache.GetTrace());
-         if (info.Read(m_infoFile, path))
+         if (m_info.Read(m_infoFile, path))
          {
-            tmpStat.st_size = info.GetFileSize();
+            tmpStat.st_size = m_info.GetFileSize();
             TRACEIO(Info, "IOFileBlock::initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
             res = 0;
          }
@@ -198,13 +202,11 @@ int IOFileBlock::initLocalStat()
             m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
             if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
             {
-               // This is writing the top-level cinfo
-               // The info file is used to get file size on defer open
+               // This is writing the top-level cinfo               // The info file is used to get file size on defer open
                // Buffer does not hold useful information
-               Info cfi(m_cache.GetTrace(), false);
-               cfi.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
-               cfi.SetFileSize(tmpStat.st_size);
-               cfi.WriteHeader(m_infoFile, path);
+               m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
+               m_info.SetFileSize(tmpStat.st_size);
+               m_info.WriteHeader(m_infoFile, path);
                m_infoFile->Fsync();
             }
             else

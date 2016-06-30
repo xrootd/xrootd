@@ -81,6 +81,7 @@ namespace XrdFileCache
          void GetBlockSizeFromPath();
          int initLocalStat();
          File* newBlockFile(long long off, int blocksize);
+         void  CloseInfoFile();
    };
 }
 
