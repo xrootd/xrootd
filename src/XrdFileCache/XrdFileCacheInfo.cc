@@ -130,7 +130,7 @@ void Info::SetBufferSize(long long bs)
 void Info::SetFileSize(long long fs)
 {
    m_fileSize = fs;
-   if (m_bufferSize > 0)
+   if (m_version >= 0)
       ResizeBits((m_fileSize - 1)/m_bufferSize + 1) ;
 }
 
@@ -165,11 +165,12 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    int version;
    if (r.Read(version)) return false;
-   if (version != m_version)
+   if (abs(version) != abs(m_version))
    {
       TRACE(Warning, trace_pfx << " incompatible file version " << version);
       return false;
    }
+   m_version = version;
 
    if (r.Read(m_bufferSize)) return false;
 
@@ -177,7 +178,7 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    if (r.Read(fs)) return false;
    SetFileSize(fs);
 
-   if (m_bufferSize > 0) 
+   if (m_version > 0) 
    {
       if (r.Read(m_buff_fetched, GetSizeInBytes())) return false;
       memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
@@ -192,6 +193,11 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 }
 
 //------------------------------------------------------------------------------
+void Info::DisableDownloadStatus()
+{
+    // use version sign to skip downlaod status
+    m_version = -m_version;
+}
 
 int Info::GetHeaderSize() const
 {
@@ -218,7 +224,7 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
    if (w.Write(m_bufferSize)) return false;
    if (w.Write(m_fileSize))   return false;
 
-   if ( m_bufferSize > 0 )
+   if ( m_version >= 0 )
    {
       if (w.Write(m_buff_write_called, GetSizeInBytes())) 
           return false;
@@ -253,7 +259,6 @@ bool Info::AppendIOStat(AStat& as, XrdOssDF* fp, const std::string &fname)
    FpHelper w(fp, GetHeaderSize(), m_trace, m_traceID, trace_pfx + "oss write failed");
 
    if (w.Write(m_accessCnt)) return false;
-
    w.f_off += (m_accessCnt-1)*sizeof(AStat);
  
    if (w.Write(as)) return false;

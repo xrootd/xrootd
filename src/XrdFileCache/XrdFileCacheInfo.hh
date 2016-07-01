@@ -109,6 +109,11 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          bool WriteHeader(XrdOssDF* fp, const std::string &fname="<unknown>");
 
+          //---------------------------------------------------------------------
+         //! Disable allocating, writing, and reading of downlaod status
+         //---------------------------------------------------------------------
+         void DisableDownloadStatus();
+
          //---------------------------------------------------------------------
          //! Append access time, and cache statistics
          //! @return true on success

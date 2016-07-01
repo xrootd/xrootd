@@ -196,6 +196,8 @@ int IOFileBlock::initLocalStat()
                // This is writing the top-level cinfo
                // The info file is used to get file size on defer open
                // don't initalize buffer, it does not hold useful information in this case
+               m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
+               m_info.DisableDownloadStatus();
                m_info.SetFileSize(tmpStat.st_size);
                m_info.WriteHeader(m_infoFile, path);
                m_infoFile->Fsync();
@@ -214,7 +216,6 @@ int IOFileBlock::initLocalStat()
 
    if (res == 0) 
    {
-      std::cerr << "local stat created \n";
       m_localStat = new struct stat;
       memcpy(m_localStat, &tmpStat, sizeof(struct stat));
    }
