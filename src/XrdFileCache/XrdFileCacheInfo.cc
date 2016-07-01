@@ -103,6 +103,7 @@ Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
    m_version(1),
    m_bufferSize(-1),
    m_hasPrefetchBuffer(prefetchBuffer),
+   m_fileSize(0),
    m_sizeInBits(0),
    m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
    m_accessCnt(0),
@@ -195,10 +196,7 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 int Info::GetHeaderSize() const
 {
    // version + buffersize + file-size + download-status-array
-    if (m_bufferSize > 0 )
-        return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes();
-    else 
-        return sizeof(int) + sizeof(long long) + sizeof(long long);
+   return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes();
 }
 
 //------------------------------------------------------------------------------

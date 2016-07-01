@@ -250,7 +250,10 @@ namespace XrdFileCache
 
    inline int Info::GetSizeInBytes() const
    {
-      return ((m_sizeInBits - 1)/8 + 1);
+       if (m_sizeInBits)
+           return ((m_sizeInBits - 1)/8 + 1);
+       else
+           return 0;
    }
 
    inline int Info::GetSizeInBits() const
