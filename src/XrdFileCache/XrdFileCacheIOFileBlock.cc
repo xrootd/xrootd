@@ -48,7 +48,6 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 XrdOucCacheIO* IOFileBlock::Detach()
 {
    XrdOucCacheIO * io = GetInput();
-   CloseInfoFile();
    m_cache.Detach(this);  // This will delete us!
 
    return io;
@@ -58,31 +57,23 @@ XrdOucCacheIO* IOFileBlock::Detach()
 void IOFileBlock::CloseInfoFile()
 {
     // write access statistics to info file and close it
+    // detach time is needed for file purge
    if (m_infoFile)
    {
-       Stats stats;
-       for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
-       {
-           Stats& fs = it->second->GetStats();
-           stats.m_BytesDisk   += fs.m_BytesDisk;
-           stats.m_BytesRam    += fs.m_BytesRam;
-           stats.m_BytesMissed += fs.m_BytesMissed;
-       }
-
-       if (m_info.GetSizeInBytes()) {
+       if (m_info.GetFileSize() > 0) {
            Info::AStat as;
            as.DetachTime  = time(0);
-           as.BytesDisk   = stats.m_BytesDisk;
-           as.BytesRam    = stats.m_BytesRam;
-           as.BytesMissed = stats.m_BytesMissed;
-           printf("append stat \n");
-           m_info.AppendIOStat(as, m_infoFile);
+           as.BytesDisk   = 0;
+           as.BytesRam    = 0;
+           as.BytesMissed = 0;
+           m_info.AppendIOStat(as, m_infoFile, "IOFileBlock");
        }
        m_infoFile->Fsync();
        m_infoFile->Close();
+
+       delete m_infoFile;
+       m_infoFile = 0;
    }
-   delete m_infoFile;
-   m_infoFile = 0;
 }
 
 //______________________________________________________________________________
@@ -202,9 +193,9 @@ int IOFileBlock::initLocalStat()
             m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
             if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
             {
-               // This is writing the top-level cinfo               // The info file is used to get file size on defer open
-               // Buffer does not hold useful information
-               m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
+               // This is writing the top-level cinfo
+               // The info file is used to get file size on defer open
+               // don't initalize buffer, it does not hold useful information in this case
                m_info.SetFileSize(tmpStat.st_size);
                m_info.WriteHeader(m_infoFile, path);
                m_infoFile->Fsync();
@@ -251,8 +242,9 @@ void IOFileBlock::RelinquishFile(File* f)
 //______________________________________________________________________________
 bool IOFileBlock::ioActive()
 {
-   XrdSysMutexHelper lock(&m_mutex);
+   CloseInfoFile();
 
+   XrdSysMutexHelper lock(&m_mutex);
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
       if (it->second->ioActive())
