@@ -81,7 +81,6 @@ bool XrdPosixObject::AssignFD(bool isStream)
    myFiles[fd] = this;
    if (fd > highFD) highFD = fd;
    fdNum  = fd + baseFD;
-   fdMutex.UnLock();
 
 // All done.
 //
