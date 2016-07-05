@@ -206,16 +206,18 @@ int XrdPosixObject::Init(int fdnum)
 
 // Obtain the file descriptor limit but be careful of infinity
 //
-   if (getrlimit(RLIMIT_NOFILE, &rlim)
-   ||  rlim.rlim_max == RLIM_INFINITY || (int)rlim.rlim_max > maxFD)
-      {rlim.rlim_cur = 0; rlim.rlim_max = maxFD;}
-
-   limfd = static_cast<int>(rlim.rlim_max);
-
-   if (rlim.rlim_cur != rlim.rlim_max)
-      {rlim.rlim_cur  = rlim.rlim_max;
-       setrlimit(RLIMIT_NOFILE, &rlim);
-      }
+   if (getrlimit(RLIMIT_NOFILE, &rlim)) limfd = maxFD;
+      else {if (rlim.rlim_max == RLIM_INFINITY || (int)rlim.rlim_max > maxFD)
+               {rlim.rlim_cur = maxFD;
+                setrlimit(RLIMIT_NOFILE, &rlim);
+               } else {
+                if (rlim.rlim_cur != rlim.rlim_max)
+                   {rlim.rlim_cur  = rlim.rlim_max;
+                    setrlimit(RLIMIT_NOFILE, &rlim);
+                   }
+               }
+            limfd = static_cast<int>(rlim.rlim_cur);
+           }
 
 // Compute size of table. if the passed fdnum is negative then the caller does
 // not want us to shadow fd's (ther caller promises to be honest). Otherwise,

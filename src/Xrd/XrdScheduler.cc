@@ -141,10 +141,13 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 //
    if (!getrlimit(RLIMIT_NPROC, &rlim))
       {if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > theMax)
-          rlim.rlim_max = theMax;
-       if (rlim.rlim_cur != rlim.rlim_max)
-          {rlim.rlim_cur = rlim.rlim_max;
+          {rlim.rlim_cur = theMax;
            setrlimit(RLIMIT_NPROC, &rlim);
+          } else {
+           if (rlim.rlim_cur != rlim.rlim_max)
+              {rlim.rlim_cur = rlim.rlim_max;
+               setrlimit(RLIMIT_NPROC, &rlim);
+              }
           }
       }
 
