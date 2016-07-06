@@ -138,6 +138,11 @@ void Info::SetFileSize(long long fs)
 
 void Info::ResizeBits(int s)
 {
+    // drop buffer in case of failed/partial reads
+   if (m_buff_fetched)      free(m_buff_fetched);
+   if (m_buff_write_called) free(m_buff_write_called);
+   if (m_buff_prefetch)     free(m_buff_prefetch);
+
    m_sizeInBits = s;
    m_buff_fetched      = (unsigned char*) malloc(GetSizeInBytes());
    m_buff_write_called = (unsigned char*) malloc(GetSizeInBytes());

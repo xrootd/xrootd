@@ -184,6 +184,8 @@ int IOFileBlock::initLocalStat()
    // if there is no local info file, try to read from clinet and then save stat into a new *cinfo file
    if (res)
    {
+      if (m_infoFile) delete m_infoFile;
+
       res = GetInput()->Fstat(tmpStat);
       TRACEIO(Debug, "IOFileBlock::initCachedStat  get stat from client res= " << res << "size = " << tmpStat.st_size);
       if (res == 0)
