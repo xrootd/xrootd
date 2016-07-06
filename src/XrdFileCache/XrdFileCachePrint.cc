@@ -109,19 +109,19 @@ void Print::printFile(const std::string& path)
            }
            printf("\n");
        }
-
-       int n_da = 0;
-       { int x = cfi.GetAccessCnt(); while (x) { x /= 10; ++n_da; } }
-       for (int i = 0; i < cfi.GetAccessCnt(); ++i)
-       {
-           printf("access %*d: ", n_da, i);
-           Info::AStat& a = statv[i];
-           char s[1000];
-           struct tm * p = localtime(&a.DetachTime);
-           strftime(s, 1000, "%c", p);
-           printf("[%s], bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", s, a.BytesDisk, a.BytesRam, a.BytesMissed);
-       }
    }
+   int n_da = 0;
+   { int x = cfi.GetAccessCnt(); while (x) { x /= 10; ++n_da; } }
+   for (int i = 0; i < cfi.GetAccessCnt(); ++i)
+   {
+       printf("access %*d: ", n_da, i);
+       Info::AStat& a = statv[i];
+       char s[1000];
+       struct tm * p = localtime(&a.DetachTime);
+       strftime(s, 1000, "%c", p);
+       printf("[%s], bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", s, a.BytesDisk, a.BytesRam, a.BytesMissed);
+   }
+   
    delete fh;
    printf("\n");
 }
