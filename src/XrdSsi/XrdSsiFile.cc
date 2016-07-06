@@ -29,75 +29,20 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <string.h>
-#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/uio.h>
-
-#include "XrdNet/XrdNetAddrInfo.hh"
 
 #include "XrdOuc/XrdOucBuffer.hh"
-#include "XrdOuc/XrdOucERoute.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPList.hh"
-
-#include "XrdSec/XrdSecEntity.hh"
 
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsXio.hh"
 
-#include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiFile.hh"
-#include "XrdSsi/XrdSsiService.hh"
+#include "XrdSsi/XrdSsiFileSess.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
-#include "XrdSsi/XrdSsiStream.hh"
-#include "XrdSsi/XrdSsiTrace.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
-
-#include "XrdSys/XrdSysError.hh"
-  
-/******************************************************************************/
-/*                         L o c a l   C l a s s e s                          */
-/******************************************************************************/
-
-namespace XrdSsi
-{
-class FileResource : public XrdSsiService::Resource
-{
-public:
-
-void           ProvisionDone(XrdSsiSession *sessP) {mySess=sessP; mySem.Post();}
-
-void           ProvisionWait() {mySem.Wait();}
-
-XrdSsiSession *Session() {return mySess;}
-
-      FileResource(const char *path, const XrdSecEntity *entP, int atype)
-                  : XrdSsiService::Resource(path), mySem(0), mySess(0)
-                  {if (atype && entP)
-                      {strncpy(mySec.prot, entP->prot, XrdSsiPROTOIDSIZE);
-                       mySec.name = entP->name;
-                       mySec.host = (atype <= 1 ? entP->host
-                                    : entP->addrInfo->Name(entP->host));
-                       mySec.role = entP->vorg;
-                       mySec.role = entP->role;
-                       mySec.grps = entP->grps;
-                       mySec.endorsements = entP->endorsements;
-                       mySec.creds = entP->creds;
-                       mySec.credslen = entP->credslen;
-                       mySec.tident = entP->tident;
-                      }
-                  }
-     ~FileResource() {}
-
-private:
-XrdSysSemaphore mySem;
-XrdSsiSession  *mySess;
-XrdSsiEntity    mySec;
-};
-}
   
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -106,62 +51,19 @@ XrdSsiEntity    mySec;
 namespace XrdSsi
 {
        XrdOucBuffPool    EmsgPool;
-extern XrdOucBuffPool   *BuffPool;
-extern XrdSsiService    *Service;
 extern XrdSfsFileSystem *theFS;
 extern XrdOucPListAnchor FSPath;
 extern bool              fsChk;
-extern XrdSysError       Log;
-extern XrdOucTrace       Trace;
-extern int               respWT;
 };
 
 using namespace XrdSsi;
-
-namespace
-{
-class nullCallBack : public XrdOucEICB
-{
-public:
-
-void     Done(int &Result, XrdOucErrInfo *eInfo, const char *Path=0) {}
-
-int      Same(unsigned long long arg1, unsigned long long arg2) {return 0;}
-
-         nullCallBack() {}
-virtual ~nullCallBack() {}
-};
-
-nullCallBack nullCB;
-};
-  
-/******************************************************************************/
-/*                        S t a t i c   M e m b e r s                         */
-/******************************************************************************/
-
-int           XrdSsiFile::authXQ = 0;
-
-int           XrdSsiFile::maxRSZ = 0;
 
 /******************************************************************************/
 /*                X r d S s i F i l e   C o n s t r u c t o r                 */
 /******************************************************************************/
 
-XrdSsiFile::XrdSsiFile(const char *user, int monid) : XrdSfsFile(user, monid)
-{
-   tident     = (user ? user : "");
-   gigID      = 0;
-   fsFile     = 0;
-   fsUser     = 0;
-   xioP       = 0;
-   oucBuff    = 0;
-   reqSize    = 0;
-   reqLeft    = 0;
-   sessP      = 0;
-   isOpen     = false;
-   inProg     = false;
-   viaDel     = false;
-}
+XrdSsiFile::XrdSsiFile(const char *user, int monid)
+          : XrdSfsFile(user, monid), fsFile(0), fSessP(0), xioP(0) {}
 
 /******************************************************************************/
 /*                 X r d S s i F i l e   D e s t r u c t o r                  */
@@ -173,83 +75,7 @@ XrdSsiFile::~XrdSsiFile()
 // If we have a file object then delete it -- it needs to close. Else do it.
 //
    if (fsFile) delete fsFile;
-      else {viaDel = true; close();}
-
-// Release other buffers
-//
-   if (fsUser) free(fsUser);
-}
-/******************************************************************************/
-/*                              A t t n I n f o                               */
-/******************************************************************************/
-  
-bool XrdSsiFile::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
-                          int reqID) // Called with the request mutex locked!
-{
-   struct AttnResp {struct iovec ioV[4]; XrdSsiRRInfoAttn aHdr;};
-
-   AttnResp *attnResp;
-   char *mBuff;
-   int n, ioN = 2;
-   bool doFin;
-
-// If there is no data we can send back to the client in the attn response,
-// then simply reply with a short message to make the client come back.
-//
-   if (!respP->mdlen)
-      {if (respP->rType != XrdSsiRespInfo::isData
-       ||  respP->blen > XrdSsiResponder::MaxDirectXfr)
-          {eInfo.setErrInfo(0, "");
-           return false;
-          }
-      }
-
-// We will be constructing the response in the message buffer. This is
-// gauranteed to be big enough for our purposes so no need to check the size.
-//
-   mBuff = eInfo.getMsgBuff(n);
-
-// Initialize the response
-//
-   attnResp = (AttnResp *)mBuff;
-   memset(attnResp, 0, sizeof(AttnResp));
-   attnResp->aHdr.pfxLen = htons(sizeof(XrdSsiRRInfoAttn));
-
-// Fill out iovec to point to our header
-//
-   attnResp->ioV[0].iov_len  = sizeof(XrdSsiRRInfoAttn) + respP->mdlen;
-   attnResp->ioV[1].iov_base = mBuff+offsetof(struct AttnResp, aHdr);
-   attnResp->ioV[1].iov_len  = sizeof(XrdSsiRRInfoAttn);
-
-// Fill out the iovec for the metadata if we have some
-//
-   if (respP->mdlen)
-      {attnResp->ioV[2].iov_base = (void *)respP->mdata;
-       attnResp->ioV[2].iov_len  =         respP->mdlen; ioN = 3;
-       attnResp->aHdr.mdLen = htonl(respP->mdlen);
-      }
-
-// Check if we have actual data here as well and can send it along
-//
-   if (respP->rType == XrdSsiRespInfo::isData
-   &&  respP->blen+respP->mdlen <= XrdSsiResponder::MaxDirectXfr)
-      {if (respP->blen)
-          {attnResp->ioV[ioN].iov_base = (void *)respP->buff;
-           attnResp->ioV[ioN].iov_len  =         respP->blen; ioN++;
-          }
-         attnResp->aHdr.tag = XrdSsiRRInfoAttn::fullResp; doFin = true;
-      }
-   else {attnResp->aHdr.tag = XrdSsiRRInfoAttn::pendResp; doFin = false;}
-
-// If we sent the full response we must remove the request from the request
-// table as it will get finished off when the response is actually sent.
-//
-   if (doFin) rTab.Del(reqID, false);
-
-// Setup to have metadata actually sent to the requestor
-//
-   eInfo.setErrCode(ioN);
-   return doFin;
+   if (fSessP)        fSessP->Recycle();
 }
   
 /******************************************************************************/
@@ -265,53 +91,31 @@ int XrdSsiFile::close()
   Output:   Always returns SFS_OK
 */
 {
-   const char *epname = "close";
 
 // Route this request as needed (no callback possible)
 //
    if (fsFile)
       {int rc = fsFile->close();
-       return (rc ? CopyErr(epname, rc) : rc);
+       return (rc ? CopyErr("close", rc) : rc);
       }
 
-// Do some debugging
+// Forward this to the file session object
 //
-   DEBUG((gigID ? gigID : "???") <<" del=" <<viaDel);
-
-// Run through all outstanding requests and comlete them
-//
-   rTab.Reset();
-
-// Stop the session
-//
-   if (sessP) {sessP->Unprovision(viaDel); sessP = 0;}
-
-// Free any in-progress buffers
-//
-   if (inProg)
-      {if (oucBuff) {oucBuff->Recycle(); oucBuff = 0;}
-       inProg = false;
-      }
-
-// Clean up storage
-//
-   if (viaDel && gigID) {free(gigID); gigID = 0;}
-   isOpen = false;
-   return SFS_OK;
+   return fSessP->close();
 }
   
 /******************************************************************************/
 /* Private:                      C o p y E C B                                */
 /******************************************************************************/
   
-void XrdSsiFile::CopyECB()
+void XrdSsiFile::CopyECB(bool forOpen)
 {
    unsigned long long cbArg;
    XrdOucEICB        *cbVal = error.getErrCB(cbArg);
 
 // We only need to copy some information
 //
-   if (!isOpen) fsFile->error.setUCap(error.getUCap());
+   if (forOpen) fsFile->error.setUCap(error.getUCap());
    fsFile->error.setErrCB(cbVal, cbArg);
 }
 
@@ -390,7 +194,7 @@ int      XrdSsiFile::fctl(const int         cmd,
 
 // We don't support any other kind of command
 //
-   return XrdSsiUtils::Emsg("fctl", ENOTSUP, "fctl", gigID, out_error);
+   return XrdSsiUtils::Emsg("fctl",ENOTSUP,"fctl",fSessP->FName(),out_error);
 }
 
 /******************************************************************************/
@@ -400,56 +204,18 @@ int      XrdSsiFile::fctl(const int           cmd,
                           const char         *args,
                           const XrdSecEntity *client)
 {
-   static const char *epname = "fctl";
-   XrdSsiRRInfo      *rInfo;
-   XrdSsiFileReq     *rqstP;
-   int reqID;
 
 // Route this request as needed (callback possible)
 //
    if (fsFile)
       {CopyECB();
        int rc = fsFile->fctl(cmd, alen, args, client);
-       return (rc ? CopyErr(epname, rc) : rc);
+       return (rc ? CopyErr("fctl", rc) : rc);
       }
 
-// If this isn't the special query, then return an error
+// Forward this to the session object
 //
-   if (cmd != SFS_FCTL_SPEC1)
-      return XrdSsiUtils::Emsg(epname, ENOTSUP, "fctl", gigID, error);
-
-// Caller wishes to find out if a request is ready and wait if it is not
-//
-   if (!args || alen < (int)sizeof(XrdSsiRRInfo))
-      return XrdSsiUtils::Emsg(epname, EINVAL, "fctl", gigID, error);
-
-// Grab the request identifier
-//
-   rInfo = (XrdSsiRRInfo *)args;
-   reqID = rInfo->Id();
-
-// Do some debugging
-//
-   DEBUG(reqID <<':' <<gigID <<" query resp status");
-
-// Find the request
-//
-   if (!(rqstP = rTab.LookUp(reqID)))
-      return XrdSsiUtils::Emsg(epname, ESRCH, "fctl", gigID, error);
-
-// Check if a response is waiting for the caller
-//
-   if (rqstP->WantResponse(error))
-      {DEBUG(reqID <<':' <<gigID <<" resp ready");
-       return SFS_DATAVEC;
-      }
-
-// Put this client into callback state
-//
-   DEBUG(reqID <<':' <<gigID <<" resp not ready");
-   error.setErrCB((XrdOucEICB *)rqstP);
-   error.setErrInfo(respWT, "");
-   return SFS_STARTED;
+   return fSessP->fctl(cmd, alen, args, client);
 }
 
 /******************************************************************************/
@@ -463,9 +229,9 @@ const char *XrdSsiFile::FName()
 //
    if (fsFile) return fsFile->FName();
 
-// Return out name
+// Return our name
 //
-   return gigID;
+   return fSessP->FName();
 }
 
 /******************************************************************************/
@@ -523,64 +289,6 @@ int XrdSsiFile::getMmap(void **Addr, off_t &Size)         // Out
    Size = 0;
    return SFS_OK;
 }
-
-/******************************************************************************/
-/* Private:                      G e t U s e r                                */
-/******************************************************************************/
-  
-char *XrdSsiFile::GetUser(const char *incgi)
-{
-   const char *usr, *amp;
-   char *ubuff;
-   int n;
-
-// Find the user identification element
-//
-   if (!incgi || !(usr = strstr(incgi, "ssi.user="))) return 0;
-   usr += 9;
-
-// Extract out user
-//
-   n = ((amp = index(usr, '&')) ? amp-usr : strlen(usr));
-
-// Allocate a buffer for the user name if we have anything at all
-//
-   if (!n) return 0;
-   ubuff = (char *)malloc(n+1);
-
-// Copy username into buffer and return it
-//
-   strncpy(ubuff, usr, n); *(ubuff+n) = 0;
-   return ubuff;
-}
-
-/******************************************************************************/
-/* Private:                   N e w R e q u e s t                             */
-/******************************************************************************/
-  
-bool XrdSsiFile::NewRequest(int              reqid,
-                            XrdOucBuffer    *oP,
-                            XrdSfsXioHandle *bR,
-                            int              rSz)
-{
-   XrdSsiFileReq *reqP;
-
-// Allocate a new request object
-//
-   if ((reqid > XrdSsiRRInfo::maxID)
-   || !(reqP = XrdSsiFileReq::Alloc(&error, this, sessP, gigID, tident, reqid)))
-      return false;
-
-// Add it to the table
-//
-   rTab.Add(reqP, reqid);
-
-// Activate the request
-//
-   inProg = false;
-   reqP->Activate(oP, bR, rSz);
-   return true;
-}
   
 /******************************************************************************/
 /*                                  o p e n                                   */
@@ -604,90 +312,37 @@ int XrdSsiFile::open(const char          *path,      // In
 */
 {
    static const char *epname = "open";
-   FileResource fileResource(path, client, authXQ);
-   const char *eText;
    int eNum;
 
 // Verify that this object is not already associated with an open file
 //
-   if (isOpen)
+   if (fsFile || fSessP)
       return XrdSsiUtils::Emsg(epname, EADDRINUSE, "open session", path, error);
 
 // Open a regular file if this is wanted
 //
    if (fsChk && FSPath.Find(path))
-      {if (!(fsFile = theFS->newFile((char *)tident, error.getErrMid())))
+      {if (!(fsFile = theFS->newFile((char *)error.getErrUser(),
+                                             error.getErrMid())))
           return XrdSsiUtils::Emsg(epname, ENOMEM, "open file", path, error);
-       CopyECB();
+       CopyECB(true);
        if ((eNum = fsFile->open(path, open_mode, Mode, client, info)))
           {eNum = CopyErr(epname, eNum);
            delete fsFile; fsFile = 0;
-          } else isOpen = true;
+          }
        return eNum;
       }
 
-// Make sure the open flag is correct (we now open this R/O so don't check)
+// Convert opaque and security into an environment
 //
-// if (open_mode != SFS_O_RDWR)
-//    return XrdSsiUtils::Emsg(epname, EPROTOTYPE, "open session", path, error);
+   XrdOucEnv Open_Env(info, 0, client);
 
-// Handle the cgi information
+// Allocate file session and issue open
 //
-   fileResource.rDesc.rUser = fsUser = GetUser(info);
-   fileResource.rDesc.rInfo = info;
-
-// Obtain a session
-//
-   Service->Provision(&fileResource);
-   fileResource.ProvisionWait();
-   if ((sessP = fileResource.Session()))
-      {if (!fsUser) gigID = strdup(path);
-          else {char gBuff[2048];
-                snprintf(gBuff, sizeof(gBuff), "%s:%s", fsUser, path);
-                gigID = strdup(gBuff);
-               }
-       DEBUG(gigID);
-       isOpen = true;
-       return SFS_OK;
-      }
-
-// Get error information
-//
-   eText = fileResource.eInfo.Get(eNum);
-   if (!eNum)
-      {eNum = ENOMSG; eText = "Service returned invalid session response.";}
-
-// Decode the error
-//
-   switch(eNum)
-         {case EAGAIN:
-               if (!eText || !(*eText)) break;
-               eNum = fileResource.eInfo.GetArg();
-               DEBUG(path <<" --> " <<eText <<':' <<eNum);
-               error.setErrInfo(eNum, eText);
-               return SFS_REDIRECT;
-               break;
-          case EBUSY:
-               eNum = fileResource.eInfo.GetArg();
-               if (!eText || !(*eText)) eText = "Service is busy.";
-               DEBUG(path <<" dly " <<eNum <<' ' <<eText);
-               if (eNum <= 0) eNum = 1;
-               error.setErrInfo(eNum, eText);
-               return eNum;
-               break;
-          default:
-               if (!eText || !(*eText)) eText = strerror(eNum);
-               DEBUG(path <<" err " <<eNum <<' ' <<eText);
-               error.setErrInfo(eNum, eText);
-               return SFS_ERROR;
-               break;
-         };
-
-// Something is quite wrong here
-//
-   Log.Emsg(epname, "Service redirect returned no target host name!");
-   error.setErrInfo(ENOMSG, "Server logic error");
-   return SFS_ERROR;
+    fSessP = XrdSsiFileSess::Alloc(error, error.getErrUser());
+    eNum   = fSessP->open(path, Open_Env, open_mode);
+    if (eNum) {fSessP->Recycle(); fSessP = 0;}
+    return eNum;
 }
 
 /******************************************************************************/
@@ -737,45 +392,17 @@ XrdSfsXferSize XrdSsiFile::read(XrdSfsFileOffset  offset,    // In
   Output:   Returns the number of bytes read upon success and SFS_ERROR o/w.
 */
 {
-   static const char *epname = "read";
-   XrdSsiRRInfo   rInfo(offset);
-   XrdSsiFileReq *rqstP;
-   XrdSfsXferSize retval;
-   int            reqID = rInfo.Id();
-   bool           noMore = false;
 
 // Route to file system if need be (no callback possible)
 //
    if (fsFile)
       {int rc = fsFile->read(offset, buff, blen);
-       return (rc ? CopyErr(epname, rc) : rc);
+       return (rc ? CopyErr("read", rc) : rc);
       }
 
-// Find the request object. If not there we may have encountered an eof
+// Forward this to the file session
 //
-   if (!(rqstP = rTab.LookUp(reqID)))
-      {if (eofVec.IsSet(reqID))
-          {eofVec.UnSet(reqID);
-           return 0;
-          }
-        return XrdSsiUtils::Emsg(epname, ESRCH, "read", gigID, error);
-       }
-
-// Simply effect the read via the request object
-//
-   retval = rqstP->Read(noMore, buff, blen);
-
-// See if we just completed this request
-//
-   if (noMore)
-      {rqstP->Finalize();
-       rTab.Del(reqID);
-       eofVec.Set(reqID);
-      }
-
-// All done
-//
-   return retval;
+   return fSessP->read(offset, buff, blen);
 }
 
 /******************************************************************************/
@@ -784,17 +411,19 @@ XrdSfsXferSize XrdSsiFile::read(XrdSfsFileOffset  offset,    // In
   
 int XrdSsiFile::read(XrdSfsAio *aiop)
 {
-   EPNAME("readaio");
 
-// Do some debugging
+// Route to file system if need be (no callback possible)
 //
-   DEBUG("");
+   if (fsFile)
+      {int rc = fsFile->read(aiop);
+       return (rc ? CopyErr("readaio", rc) : rc);
+      }
 
 // Execute this request in a synchronous fashion
 //
-   aiop->Result = this->read((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
-                                       (char *)aiop->sfsAio.aio_buf,
-                               (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
+   aiop->Result = fSessP->read((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
+                                         (char *)aiop->sfsAio.aio_buf,
+                                 (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
    aiop->doneRead();
    return 0;
 }
@@ -816,16 +445,15 @@ XrdSfsXferSize XrdSsiFile::readv(XrdOucIOVec     *readV,     // In
   Output:   Returns an error as this is not supported.
 */
 {
-   static const char *epname = "readv";
 
 // Route this request to file system if need be (no callback possible)
 //
    if (fsFile)
       {int rc = fsFile->readv(readV, readCount);
-       return (rc ? CopyErr(epname, rc) : rc);
+       return (rc ? CopyErr("readv", rc) : rc);
       }
 
-   return XrdSsiUtils::Emsg(epname, ENOSYS, "readv", gigID, error);
+   return XrdSsiUtils::Emsg("readv", ENOSYS, "readv", fSessP->FName(), error);
 }
   
 /******************************************************************************/
@@ -836,34 +464,17 @@ int XrdSsiFile::SendData(XrdSfsDio         *sfDio,
                          XrdSfsFileOffset   offset,
                          XrdSfsXferSize     size)
 {
-   static const char *epname = "SendData";
-   XrdSsiRRInfo   rInfo(offset);
-   XrdSsiFileReq *rqstP;
-   int rc, reqID = rInfo.Id();
 
 // Route this request to file system if need be (no callback possible)
 //
    if (fsFile)
       {int rc = fsFile->SendData(sfDio, offset, size);
-       return (rc ? CopyErr(epname, rc) : rc);
+       return (rc ? CopyErr("SendData", rc) : rc);
       }
 
-// Find the request object
+// Forward this to the file session object
 //
-   if (!(rqstP = rTab.LookUp(reqID)))
-      return XrdSsiUtils::Emsg(epname, ESRCH, "send", gigID, error);
-
-// Simply effect the send via the request object
-//
-   rc = rqstP->Send(sfDio, size);
-
-// Determine how this ended
-//
-   if (rc > 0) rc = SFS_OK;
-      else {rqstP->Finalize();
-            rTab.Del(reqID);
-           }
-   return rc;
+   return fSessP->SendData(sfDio, offset, size);
 }
 
 /******************************************************************************/
@@ -880,11 +491,10 @@ int XrdSsiFile::stat(struct stat     *buf)         // Out
 */
 {
 
-// Route this request to file system if need be (callback possible)
+// Route this request to file system if need be (no callback possible)
 //
    if (fsFile)
-      {CopyECB();
-       int rc = fsFile->stat(buf);
+      {int rc = fsFile->stat(buf);
        return (rc ? CopyErr("stat", rc) : rc);
       }
 
@@ -907,19 +517,18 @@ int XrdSsiFile::sync()
   Output:   Returns SFS_OK if a response is ready or SFS_STARTED otherwise.
 */
 {
-   static const char *epname = "sync";
 
 // Route this request to file system if need be (callback possible)
 //
    if (fsFile)
       {CopyECB();
        int rc = fsFile->sync();
-       return (rc ? CopyErr(epname, rc) : rc);
+       return (rc ? CopyErr("sync", rc) : rc);
       }
 
 // We don't support this
 //
-   return XrdSsiUtils::Emsg(epname, ENOSYS, "sync", gigID, error);
+   return XrdSsiUtils::Emsg("sync", ENOSYS, "sync", fSessP->FName(), error);
 }
 
 /******************************************************************************/
@@ -929,11 +538,17 @@ int XrdSsiFile::sync()
 int XrdSsiFile::sync(XrdSfsAio *aiop)
 {
 
-// Execute this request in a synchronous fashion
+// Route this request to file system if need be (callback possible)
 //
-   aiop->Result = this->sync();
-   aiop->doneWrite();
-   return 0;
+   if (fsFile)
+      {CopyECB();
+       int rc = fsFile->sync(aiop);
+       return (rc ? CopyErr("syncaio", rc) : rc);
+      }
+
+// We don't support this
+//
+   return XrdSsiUtils::Emsg("syncaio", ENOSYS, "sync", fSessP->FName(), error);
 }
 
 /******************************************************************************/
@@ -949,41 +564,18 @@ int XrdSsiFile::truncate(XrdSfsFileOffset  flen)  // In
   Output:   Returns SFS_ERROR a this function is not supported.
 */
 {
-   static const char *epname = "trunc";
-   XrdSsiFileReq     *rqstP;
-   XrdSsiRRInfo       rInfo(flen);
-   XrdSsiRRInfo::Opc  reqXQ = rInfo.Cmd();
-   int reqID = rInfo.Id();
 
 // Route this request to file system if need be (callback possible)
 //
    if (fsFile)
       {CopyECB();
        int rc = fsFile->truncate(flen);
-       return (rc ? CopyErr(epname, rc) : rc);
+       return (rc ? CopyErr("trunc", rc) : rc);
       }
 
-// Find the request object. If not there we may have encountered an eof
+// Route this to the file session object
 //
-   if (!(rqstP = rTab.LookUp(reqID)))
-      {if (eofVec.IsSet(reqID))
-          {eofVec.UnSet(reqID);
-           return 0;
-          }
-        return XrdSsiUtils::Emsg(epname, ESRCH, "cancel", gigID, error);
-       }
-
-// Process request (this can only be a cancel request)
-//
-   if (reqXQ != XrdSsiRRInfo::Can)
-      return XrdSsiUtils::Emsg(epname, ENOSYS, "trunc", gigID, error);
-
-// Perform the cancellation
-//
-   DEBUG(reqID <<':' <<gigID <<" cancelled");
-   rqstP->Finalize();
-   rTab.Del(reqID);
-   return SFS_OK;
+   return fSessP->truncate(flen);
 }
 
 /******************************************************************************/
@@ -1008,131 +600,17 @@ XrdSfsXferSize XrdSsiFile::write(XrdSfsFileOffset      offset,    // In
             sync() call.
 */
 {
-   static const char *epname = "write";
-   XrdSsiRRInfo   rInfo(offset);
-   int reqID = rInfo.Id();
 
 // Route this request to file system if need be (no callback possible)
 //
    if (fsFile)
       {int rc = fsFile->write(offset, buff, blen);
-       return (rc ? CopyErr(epname, rc) : rc);
+       return (rc ? CopyErr("write", rc) : rc);
       }
 
-// Check if we are reading a request segment and handle that. This assumes that
-// writes to different requests cannot be interleaved (which they can't be).
+// Route this to the file session object
 //
-   if (inProg) return writeAdd(buff, blen, reqID);
-
-// Make sure this request does not refer to an active request
-//
-   if (rTab.LookUp(reqID))
-      return XrdSsiUtils::Emsg(epname, EADDRINUSE, "write", gigID, error);
-
-// The offset contains the actual size of the request, make sure it's OK
-//
-   reqSize = rInfo.Size();
-   if (reqSize <= 0 || reqSize > maxRSZ || reqSize < blen)
-      return XrdSsiUtils::Emsg(epname, EFBIG, "write", gigID, error);
-
-// Indicate we are in the progress of collecting the request arguments
-//
-   inProg = true;
-   eofVec.UnSet(reqID);
-
-// Do some debugging
-//
-   DEBUG(reqID <<':' <<gigID <<" rsz=" <<reqSize <<" wsz=" <<blen);
-
-// If the complete request is here then grab the buffer, transfer ownership to
-// the request object, and then activate it for processing.
-//
-   if (reqSize == blen && xioP)
-      {XrdSfsXioHandle *bRef;
-       XrdSfsXio::XioStatus xStat = xioP->Swap(buff, bRef);
-       if (xStat != XrdSfsXio::allOK)
-          {char etxt[16];
-           sprintf(etxt, "%d", xStat);
-           Log.Emsg(epname, "Xio.Swap() return error status of ", etxt);
-           return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
-          }
-       if (!NewRequest(reqID, 0, bRef, blen))
-          return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
-       return blen;
-      }
-
-// The full request is not present, so get a buffer to piece it together
-//
-   if (!(oucBuff = BuffPool->Alloc(reqSize)))
-      return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
-
-// Setup to buffer this
-//
-   reqLeft = reqSize - blen;
-   memcpy(oucBuff->Data(), buff, blen);
-   if (!reqLeft)
-      {oucBuff->SetLen(reqSize);
-
-       if (!NewRequest(reqID, oucBuff, 0, reqSize))
-          return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
-       oucBuff = 0;
-      } else oucBuff->SetLen(blen, blen);
-   return blen;
-}
-
-/******************************************************************************/
-/* Private:                     w r i t e A d d                               */
-/******************************************************************************/
-
-XrdSfsXferSize XrdSsiFile::writeAdd(const char     *buff,      // In
-                                    XrdSfsXferSize  blen,      // In
-                                    int             rid)
-/*
-  Function: Add `blen' bytes from 'buff' to request and return the actual
-            number of bytes added.
-
-  Input:    buff      - Address of the buffer from which to get the data.
-            blen      - The size of the buffer. This is the maximum number
-                        of bytes that will be added.
-
-  Output:   Returns the number of bytes added upon success and SFS_ERROR o/w.
-
-  Notes:    An error return may be delayed until the next write(), close(), or
-            sync() call.
-*/
-{
-   static const char *epname = "writeAdd";
-   int dlen;
-
-// Make sure the caller is not exceeding the size stated on the first write
-//
-   if (blen > reqLeft)
-      return XrdSsiUtils::Emsg(epname, EFBIG, "writeAdd", gigID, error);
-
-// Append the bytes
-//
-   memcpy(oucBuff->Data(dlen), buff, blen);
-
-// Adjust how much we have left
-//
-   reqLeft -= blen;
-   DEBUG(rid <<':' <<gigID <<" rsz=" <<reqLeft <<" wsz=" <<blen);
-
-// If we have a complete request. Transfer the buffer ownership to the request
-// object and activate processing.
-//
-   if (!reqLeft)
-      {oucBuff->SetLen(reqSize);
-       if (!NewRequest(rid, oucBuff, 0, reqSize))
-          return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, error);
-       oucBuff = 0;
-      }
-
-// Return how much we appended
-//
-   dlen += blen;
-   oucBuff->SetLen(dlen, dlen);
-   return blen;
+   return fSessP->write(offset, buff, blen);
 }
 
 /******************************************************************************/
@@ -1141,17 +619,19 @@ XrdSfsXferSize XrdSsiFile::writeAdd(const char     *buff,      // In
   
 int XrdSsiFile::write(XrdSfsAio *aiop)
 {
-   EPNAME("writeaio");
 
-// Do some debugging
+// Route to file system if need be (no callback possible)
 //
-   DEBUG("");
+   if (fsFile)
+      {int rc = fsFile->write(aiop);
+       return (rc ? CopyErr("writeaio", rc) : rc);
+      }
 
 // Execute this request in a synchronous fashion
 //
-   aiop->Result = this->write((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
-                                        (char *)aiop->sfsAio.aio_buf,
-                                (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
+   aiop->Result = fSessP->write((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
+                                          (char *)aiop->sfsAio.aio_buf,
+                                  (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
    aiop->doneWrite();
    return 0;
 }

@@ -44,7 +44,9 @@ inline bool  IsSet(int bval)
 
 inline void  UnSet(int bval) {bVec[bval/64] &= ~(0x01LL << (bval%64));}
 
-             XrdSsiBVec() {memset(bVec, 0, sizeof(bVec));}
+inline void  Reset() {memset(bVec, 0, sizeof(bVec));}
+
+             XrdSsiBVec() {Reset();}
             ~XrdSsiBVec() {}
 
 private:

@@ -1,10 +1,10 @@
-#ifndef __SSI_FILE_H__
-#define __SSI_FILE_H__
+#ifndef __SSI_FILESESS_H__
+#define __SSI_FILESESS_H__
 /******************************************************************************/
 /*                                                                            */
-/*                         X r d S s i F i l e . h h                          */
+/*                     X r d S s i F i l e S e s s . h h                      */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -33,82 +33,103 @@
 #include <sys/types.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSsi/XrdSsiBVec.hh"
+#include "XrdSsi/XrdSsiFileReq.hh"
+#include "XrdSsi/XrdSsiRRTable.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
-class  XrdSsiFileSess;
+class  XrdOucEnv;
+class  XrdSfsXioHandle;
+struct XrdSsiRespInfo;
+class  XrdSsiSession;
 
-class XrdSsiFile : public XrdSfsFile
+class XrdSsiFileSess
 {
 public:
 
-// SfsFile methods
-//
-        int              open(const char                *fileName,
-                                    XrdSfsFileOpenMode   openMode,
-                                    mode_t               createMode,
-                              const XrdSecEntity        *client = 0,
-                              const char                *opaque = 0);
-                        
-        int              close();
-                        
-        int              fctl(const int            cmd,
-                              const char          *args,
-                                    XrdOucErrInfo &out_error);
+static  XrdSsiFileSess  *Alloc(XrdOucErrInfo &einfo, const char *user);
 
+        bool             AttnInfo(      XrdOucErrInfo  &eInfo,
+                                  const XrdSsiRespInfo *respP, int reqID);
+
+        XrdOucErrInfo   *errInfo() {return eInfo;}
+                        
+        int              close(bool viaDel=false);
+                        
         int              fctl(const int            cmd,
                                     int            alen,
                               const char          *args,
                               const XrdSecEntity  *client);
                         
-        const char      *FName();
-                        
-        int              getCXinfo(char cxtype[4], int &cxrsz);
-                        
-        int              getMmap(void **Addr, off_t &Size);
-                        
-        int              read(XrdSfsFileOffset   fileOffset,
-                              XrdSfsXferSize     preread_sz);
-                        
+        const char      *FName() {return gigID;}
+
+        int              open(const char          *fileName,
+                              XrdOucEnv           &theEnv,
+                              XrdSfsFileOpenMode   openMode);
+
         XrdSfsXferSize   read(XrdSfsFileOffset   fileOffset,
                               char              *buffer,
                               XrdSfsXferSize     buffer_size);
+
+        void             Recycle();
                         
-        int              read(XrdSfsAio *aioparm);
-
-        XrdSfsXferSize   readv(XrdOucIOVec      *readV,
-                               int           readCount);
-
         int              SendData(XrdSfsDio         *sfDio,
                                   XrdSfsFileOffset   offset,
                                   XrdSfsXferSize     size);
 
+static  void             SetAuth(int axq) {authXQ = axq;}
+
+static  void             SetMaxSz(int mSz) {maxRSZ = mSz;}
+                        
         void             setXio(XrdSfsXio *xP) {xioP = xP;}
-                        
-        int              stat(struct stat *buf);
-                        
-        int              sync();
-                        
-        int              sync(XrdSfsAio *aiop);
                         
         int              truncate(XrdSfsFileOffset fileOffset);
                         
         XrdSfsXferSize   write(XrdSfsFileOffset   fileOffset,
                                const char        *buffer,
                                XrdSfsXferSize     buffer_size);
-                        
-        int              write(XrdSfsAio *aioparm);
-                        
-// Constructor and destructor
-//                      
-                         XrdSsiFile(const char *user, int MonID);
-                        
-virtual                 ~XrdSsiFile();
-                        
-private:                
-void                     CopyECB(bool forOpen=false);
-int                      CopyErr(const char *op, int rc);
 
-XrdSfsFile              *fsFile;
-XrdSsiFileSess          *fSessP;
+private:                
+                        
+// Constructor (via Alloc()) and destructor (via Recycle())
+//                      
+                         XrdSsiFileSess(XrdOucErrInfo &einfo, const char *user)
+                                       {Init(einfo, user, false);}
+                        ~XrdSsiFileSess() {} // Recycle() calls Reset()
+
+void                     Init(XrdOucErrInfo &einfo, const char *user, bool forReuse);
+bool                     NewRequest(int reqid, XrdOucBuffer *oP,
+                                    XrdSfsXioHandle *bR, int rSz);
+void                     Reset();
+XrdSfsXferSize           writeAdd(const char *buff, XrdSfsXferSize blen, int rid);
+
+static XrdSysMutex       arMutex;  // Alloc and Recycle protector
+static XrdSsiFileSess   *freeList;
+static int               freeNum;
+static int               freeNew;
+static int               freeMax;
+static int               freeAbs;
+
+static int               maxRSZ;
+static int               authXQ;
+
+char                    *tident;
+XrdOucErrInfo           *eInfo;
+char                    *gigID;
+char                    *fsUser;
+XrdSysMutex              myMutex;
 XrdSfsXio               *xioP;
+XrdOucBuffer            *oucBuff;
+union {
+       XrdSsiSession    *sessP;
+       XrdSsiFileSess   *nextFree;
+      };
+int                      reqSize;
+int                      reqLeft;
+bool                     isOpen;
+bool                     inProg;
+
+XrdSsiBVec               eofVec;
+XrdSsiRRTable<XrdSsiFileReq> rTab;
 };
 #endif

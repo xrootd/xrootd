@@ -42,7 +42,7 @@
 
 class  XrdOucErrInfo;
 class  XrdSfsXioHandle;
-class  XrdSsiFile;
+class  XrdSsiFileSess;
 class  XrdSsiRRInfo;
 class  XrdSsiStream;
 
@@ -54,9 +54,9 @@ public:
 
 // SsiRequest methods
 //
-static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiFile *fP,
-                             XrdSsiSession *sP, const char *sn,
-                             const char    *id, int         rnum);
+static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiFileSess *fP,
+                             XrdSsiSession *sP, const char     *sn,
+                             const char    *id, int             rnum);
 
         void           Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz);
 
@@ -136,7 +136,7 @@ unsigned long long     respCBarg;
 char                  *tident;
 const char            *sessN;
 XrdOucErrInfo         *cbInfo;
-XrdSsiFile            *fileP;
+XrdSsiFileSess        *fileP;
 XrdSsiSession         *sessP;
 char                  *respBuf;
 long long              respOff;

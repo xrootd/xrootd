@@ -52,6 +52,13 @@ void  Add(T *item, int itemID)
           if (tEnd[i] < i) tEnd[i] = j;
          }
 
+void  Clear() {memset(tEnd,-1, sizeof(tEnd));
+               memset(tPrm, 0, sizeof(tPrm));
+               memset(tVec, 0, sizeof(tVec));
+               tVec[0]    = tPrm;
+               tVecLast   = 0;
+              }
+
 void  Del(int itemID, bool finit=false)
          {XrdSsiMutexMon(rrtMutex);
           T **tP;
@@ -89,12 +96,7 @@ void  Reset()
             tVecLast =  0;
            }
 
-      XrdSsiRRTable() {memset(tEnd,-1, sizeof(tEnd));
-                       memset(tPrm, 0, sizeof(tPrm));
-                       memset(tVec, 0, sizeof(tVec));
-                       tVec[0]    = tPrm;
-                       tVecLast   = 0;
-                      }
+      XrdSsiRRTable() {Clear();}
 
      ~XrdSsiRRTable() {Reset();}
 

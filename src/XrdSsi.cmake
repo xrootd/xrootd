@@ -26,6 +26,7 @@ XrdSsi/XrdSsiDir.cc                    XrdSsi/XrdSsiDir.hh
 XrdSsi/XrdSsiEvent.cc                  XrdSsi/XrdSsiEvent.hh
 XrdSsi/XrdSsiFile.cc                   XrdSsi/XrdSsiFile.hh
 XrdSsi/XrdSsiFileReq.cc                XrdSsi/XrdSsiFileReq.hh
+XrdSsi/XrdSsiFileSess.cc               XrdSsi/XrdSsiFileSess.hh
 XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh
 XrdSsi/XrdSsiPacer.cc                  XrdSsi/XrdSsiPacer.hh
                                        XrdSsi/XrdSsiProvider.hh

@@ -37,8 +37,8 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsDio.hh"
 #include "XrdSfs/XrdSfsXio.hh"
-#include "XrdSsi/XrdSsiFile.hh"
 #include "XrdSsi/XrdSsiFileReq.hh"
+#include "XrdSsi/XrdSsiFileSess.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
@@ -116,12 +116,12 @@ void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
 /*                                 A l l o c                                  */
 /******************************************************************************/
 
-XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo *eiP,
-                                    XrdSsiFile    *fP,
-                                    XrdSsiSession *sP,
-                                    const char    *sID,
-                                    const char    *cID,
-                                    int            rnum)
+XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo  *eiP,
+                                    XrdSsiFileSess *fP,
+                                    XrdSsiSession  *sP,
+                                    const char     *sID,
+                                    const char     *cID,
+                                    int             rnum)
 {
    XrdSsiFileReq *nP;
 
@@ -249,7 +249,7 @@ void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 // We may need to delete the errinfo object if this callback was async. Note
 // that the following test is valid even if the file object has been deleted.
 //
-   if (eiP != &fileP->error) delete eiP;
+   if (eiP != fileP->errInfo()) delete eiP;
 
 // Check if we should finalize this request. This will be the case if the
 // complete response was sent.

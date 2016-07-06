@@ -45,8 +45,8 @@
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSsi/XrdSsiSfs.hh"
-#include "XrdSsi/XrdSsiFile.hh"
 #include "XrdSsi/XrdSsiFileReq.hh"
+#include "XrdSsi/XrdSsiFileSess.hh"
 #include "XrdSsi/XrdSsiLogger.hh"
 #include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiSfsConfig.hh"
@@ -343,7 +343,7 @@ int XrdSsiSfsConfig::ConfigObj()
 //
    if (maxRSZ < minRSZ) maxRSZ = minRSZ;
    BuffPool = new XrdOucBuffPool(minRSZ, maxRSZ);
-   XrdSsiFile::SetMaxSz(maxRSZ);
+   XrdSsiFileSess::SetMaxSz(maxRSZ);
    return 0;
 }
   
@@ -568,7 +568,7 @@ int XrdSsiSfsConfig::Xopts()
 
 // Set the values that were specified
 //
-    if (fAut >= 0) XrdSsiFile   ::SetAuth(static_cast<int>(fAut));
+    if (fAut >= 0) XrdSsiFileSess::SetAuth(static_cast<int>(fAut));
     if (rMax >= 0) maxRSZ = static_cast<int>(rMax);
     if (rObj >= 0) XrdSsiFileReq::SetMax(static_cast<int>(rObj));
     if (fRwt >= 0) respWT = fRwt;
