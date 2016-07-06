@@ -201,6 +201,8 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "TCPKeepProbes",        DefaultTCPKeepAliveProbes   );
     REGISTER_VAR_INT( varsInt, "MultiProtocol",        DefaultMultiProtocol        );
     REGISTER_VAR_INT( varsInt, "ParallelEvtLoop",      DefaultParallelEvtLoop      );
+    REGISTER_VAR_INT( varsInt, "MetalinkProcessing",   DefaultMetalinkProcessing   );
+    REGISTER_VAR_INT( varsInt, "LocalMetalinkFile",    DefaultLocalMetalinkFile    );
 
     REGISTER_VAR_STR( varsStr, "PollerPreference",     DefaultPollerPreference     );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",        DefaultClientMonitor        );

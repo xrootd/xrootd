@@ -17,6 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClStatus.hh"
+#include "XProtocol/XProtocol.hh"
 #include <cstring>
 
 namespace
@@ -119,7 +120,7 @@ namespace XrdCl
     // Add errno
     //--------------------------------------------------------------------------
     if( errNo )
-      o << ": " << strerror( errNo );
+      o << ": " << strerror( XProtocol::toErrno( errNo ) );
     return o.str();
   }
 }

@@ -54,7 +54,10 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
   if( path.empty() )
     return XRootDStatus( stError, errInvalidArgs );
 
-  if( path[0] == '/' )
+  int noCwd = 0;
+  env->GetInt( "NoCWD", noCwd );
+
+  if( path[0] == '/' || noCwd )
   {
     newPath = path;
     return XRootDStatus();
@@ -167,6 +170,11 @@ XRootDStatus DoCD( FileSystem                      *fs,
     log->Error( AppMsg, "Invalid arguments. Expected a path." );
     return XRootDStatus( stError, errInvalidArgs );
   }
+
+  //----------------------------------------------------------------------------
+  // cd excludes NoCWD
+  //----------------------------------------------------------------------------
+  env->PutInt( "NoCWD", 0 );
 
   std::string newPath;
   if( !BuildPath( newPath, env, args[1] ).IsOK() )
@@ -987,7 +995,7 @@ XRootDStatus DoQuery( FileSystem                      *fs,
     qCode = QueryCode::Checksum;
   else if( args[1] == "opaque" )
     qCode = QueryCode::Opaque;
-  else if( args[1] == "opaqueFile" )
+  else if( args[1] == "opaquefile" )
     qCode = QueryCode::OpaqueFile;
   else if( args[1] == "prepare" )
     qCode = QueryCode::Prepare;
@@ -1447,63 +1455,67 @@ XRootDStatus DoSpaceInfo( FileSystem                      *fs,
 XRootDStatus PrintHelp( FileSystem *, Env *,
                         const FSExecutor::CommandParams & )
 {
-  printf( "Usage:\n"                                                        );
-  printf( "   xrdfs host[:port]              - interactive mode\n"       );
-  printf( "   xrdfs host[:port] command args - batch mode\n\n"           );
+  printf( "Usage:\n"                                                          );
+  printf( "   xrdfs [--no-cwd] host[:port]              - interactive mode\n" );
+  printf( "   xrdfs            host[:port] command args - batch mode\n\n"     );
 
-  printf( "Available commands:\n\n"                                         );
+  printf( "Available options:\n\n"                                            );
 
-  printf( "   exit\n"                                                       );
-  printf( "     Exits from the program.\n\n"                                );
+  printf( "   --no-cwd no CWD is being preset\n\n"                            );
 
-  printf( "   help\n"                                                       );
-  printf( "     This help screen.\n\n"                                      );
+  printf( "Available commands:\n\n"                                           );
 
-  printf( "   cd <path>\n"                                                  );
-  printf( "     Change the current working directory\n\n"                   );
+  printf( "   exit\n"                                                         );
+  printf( "     Exits from the program.\n\n"                                  );
 
-  printf( "   chmod <path> <user><group><other>\n"                          );
-  printf( "     Modify permissions. Permission string example:\n"           );
-  printf( "     rwxr-x--x\n\n"                                              );
+  printf( "   help\n"                                                         );
+  printf( "     This help screen.\n\n"                                        );
 
-  printf( "   ls [-l] [-u] [dirname]\n"                                     );
-  printf( "     Get directory listing.\n"                                   );
-  printf( "     -l stat every entry and pring long listing\n"               );
-  printf( "     -u print paths as URLs\n\n"                                 );
+  printf( "   cd <path>\n"                                                    );
+  printf( "     Change the current working directory\n\n"                     );
 
-  printf( "   locate [-n] [-r] [-d] <path>\n"                               );
-  printf( "     Get the locations of the path.\n"                           );
-  printf( "     -r refresh, don't use cached locations\n"                   );
-  printf( "     -n make the server return the response immediately even\n"  );
-  printf( "        though it may be incomplete\n"                           );
-  printf( "     -d do a recursive (deep) locate\n"                          );
-  printf( "     -m|-h prefer host names to IP addresses\n"                  );
-  printf( "     -i ignore network dependencies\n\n"                         );
+  printf( "   chmod <path> <user><group><other>\n"                            );
+  printf( "     Modify permissions. Permission string example:\n"             );
+  printf( "     rwxr-x--x\n\n"                                                );
 
-  printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"              );
-  printf( "     Creates a directory/tree of directories.\n\n"               );
+  printf( "   ls [-l] [-u] [dirname]\n"                                       );
+  printf( "     Get directory listing.\n"                                     );
+  printf( "     -l stat every entry and pring long listing\n"                 );
+  printf( "     -u print paths as URLs\n\n"                                   );
 
-  printf( "   mv <path1> <path2>\n"                                         );
-  printf( "     Move path1 to path2 locally on the same server.\n\n"        );
+  printf( "   locate [-n] [-r] [-d] <path>\n"                                 );
+  printf( "     Get the locations of the path.\n"                             );
+  printf( "     -r refresh, don't use cached locations\n"                     );
+  printf( "     -n make the server return the response immediately even\n"    );
+  printf( "        though it may be incomplete\n"                             );
+  printf( "     -d do a recursive (deep) locate\n"                            );
+  printf( "     -m|-h prefer host names to IP addresses\n"                    );
+  printf( "     -i ignore network dependencies\n\n"                           );
 
-  printf( "   stat [-q query] <path>\n"                                     );
-  printf( "     Get info about the file or directory.\n"                    );
-  printf( "     -q query optional flag query parameter that makes\n"        );
-  printf( "              xrdfs return error code to the shell if the\n"     );
-  printf( "              requested flag combination is not present;\n"      );
-  printf( "              flags may be combined together using '|' or '&'\n" );
-  printf( "              Available flags:\n"                                );
-  printf( "              XBitSet, IsDir, Other, Offline, POSCPending,\n"    );
-  printf( "              IsReadable, IsWriteable\n\n"                       );
+  printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"                );
+  printf( "     Creates a directory/tree of directories.\n\n"                 );
 
-  printf( "   statvfs <path>\n"                                             );
-  printf( "     Get info about a virtual file system.\n\n"                  );
+  printf( "   mv <path1> <path2>\n"                                           );
+  printf( "     Move path1 to path2 locally on the same server.\n\n"          );
 
-  printf( "   query <code> <parms>\n"                                       );
-  printf( "     Obtain server information. Query codes:\n\n"                );
+  printf( "   stat [-q query] <path>\n"                                       );
+  printf( "     Get info about the file or directory.\n"                      );
+  printf( "     -q query optional flag query parameter that makes\n"          );
+  printf( "              xrdfs return error code to the shell if the\n"       );
+  printf( "              requested flag combination is not present;\n"        );
+  printf( "              flags may be combined together using '|' or '&'\n"   );
+  printf( "              Available flags:\n"                                  );
+  printf( "              XBitSet, IsDir, Other, Offline, POSCPending,\n"      );
+  printf( "              IsReadable, IsWriteable\n\n"                         );
 
-  printf( "     config         <what>   Server configuration; <what> is\n"  );
-  printf( "                             one of the following:\n"            );
+  printf( "   statvfs <path>\n"                                               );
+  printf( "     Get info about a virtual file system.\n\n"                    );
+
+  printf( "   query <code> <parms>\n"                                         );
+  printf( "     Obtain server information. Query codes:\n\n"                  );
+
+  printf( "     config         <what>   Server configuration; <what> is\n"    );
+  printf( "                             one of the following:\n"              );
   printf( "                               bind_max      - the maximum number of parallel streams\n"  );
   printf( "                               chksum        - the supported checksum\n"                  );
   printf( "                               pio_max       - maximum number of parallel I/O requests\n" );
@@ -1731,7 +1743,7 @@ bool getArguments (std::vector<std::string> & result, const std::string &input)
 //------------------------------------------------------------------------------
 // Execute interactive
 //------------------------------------------------------------------------------
-int ExecuteInteractive( const URL &url )
+int ExecuteInteractive( const URL &url, bool noCwd = false )
 {
   //----------------------------------------------------------------------------
   // Set up the environment
@@ -1741,6 +1753,9 @@ int ExecuteInteractive( const URL &url )
   rl_bind_key( '\t', rl_insert );
   read_history( historyFile.c_str() );
   FSExecutor *ex = CreateExecutor( url );
+
+  if( noCwd )
+    ex->GetEnv()->PutInt( "NoCWD", 1 );
 
   //----------------------------------------------------------------------------
   // Execute the commands
@@ -1800,6 +1815,7 @@ int ExecuteCommand( const URL &url, int argc, char **argv )
   }
 
   FSExecutor *ex = CreateExecutor( url );
+  ex->GetEnv()->PutInt( "NoCWD", 1 );
   int st = ExecuteCommand( ex, argc, argv );
   delete ex;
   return st;
@@ -1827,14 +1843,23 @@ int main( int argc, char **argv )
     return 0;
   }
 
-  URL url( argv[1] );
+  bool noCwd = false;
+  int urlIndex = 1;
+  if( !strcmp( argv[1], "--no-cwd") )
+  {
+    ++urlIndex;
+    noCwd = true;
+  }
+
+  URL url( argv[urlIndex] );
   if( !url.IsValid() )
   {
     PrintHelp( 0, 0, params );
     return 1;
   }
 
-  if( argc == 2 )
-    return ExecuteInteractive( url );
-  return ExecuteCommand( url, argc-2, argv+2 );
+  if( argc == urlIndex + 1 )
+    return ExecuteInteractive( url, noCwd );
+  int shift = urlIndex + 1;
+  return ExecuteCommand( url, argc-shift, argv+shift );
 }

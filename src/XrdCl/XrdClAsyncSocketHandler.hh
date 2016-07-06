@@ -144,7 +144,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Write the current message
       //------------------------------------------------------------------------
-      Status WriteCurrentMessage();
+      Status WriteCurrentMessage( Message *toWrite );
 
       //------------------------------------------------------------------------
       // Got a read readiness event
@@ -159,7 +159,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Read a message
       //------------------------------------------------------------------------
-      Status ReadMessage();
+      Status ReadMessage( Message *&toRead );
 
       //------------------------------------------------------------------------
       // Handle fault
@@ -197,7 +197,9 @@ namespace XrdCl
       std::string                    pStreamName;
       Socket                        *pSocket;
       Message                       *pIncoming;
+      Message                       *pHSIncoming;
       Message                       *pOutgoing;
+      Message                       *pHSOutgoing;
       XrdNetAddr                     pSockAddr;
       HandShakeData                 *pHandShakeData;
       bool                           pHandShakeDone;

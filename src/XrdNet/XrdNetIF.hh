@@ -280,8 +280,8 @@ inline int  Port() {return ifPort;}
 //!
 //! @param x     The iftype variable that will have the private bit set.
 //------------------------------------------------------------------------------
-static
-inline void Privatize(ifType &x) {x = ifType(x | PrivateIF);}
+
+static void Privatize(ifType &x) {x = ifType(x | PrivateIF);}
 
 //------------------------------------------------------------------------------
 //! Set the assigned port number. This method is not thread safe!
@@ -301,7 +301,7 @@ inline void Privatize(ifType &x) {x = ifType(x | PrivateIF);}
 //! @return The previous port number.
 //------------------------------------------------------------------------------
 
-static void PortDefault(int pnum=1094) {dfPort = pnum;}
+static void PortDefault(int pnum=1094);
 
 //------------------------------------------------------------------------------
 //! Routing() and SetIF() parameter.
@@ -367,7 +367,16 @@ static bool SetIFNames(char *ifnames);
 //!                  the err disposition must be set at initialization time.
 //------------------------------------------------------------------------------
 
-static void SetMsgs(XrdSysError *erp) {eDest = erp;}
+static void SetMsgs(XrdSysError *erp);
+
+//------------------------------------------------------------------------------
+//! Specify wheter or not private IP addresses should be resolved.
+//!
+//! @param  rval     When true, private IP addresses are resolved. Otherwise,
+//!                  the IP addresses is used as the hostname.
+//------------------------------------------------------------------------------
+
+static void SetRPIPA(bool rval);
 
 //------------------------------------------------------------------------------
 //! Constructor and Destructor
@@ -436,5 +445,6 @@ static
 netType        netRoutes;
 static int     dfPort;
 static ifData  ifNull;
+static bool    rPIPA;
 };
 #endif

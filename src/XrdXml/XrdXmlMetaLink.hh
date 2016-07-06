@@ -121,17 +121,27 @@ const char      *GetStatus(int &ecode) {ecode = eCode; return eText;}
 //!                  with a colon. They are specified without embedded spaces.
 //!                  Only urls using one of the listed protocols is returned.
 //!                  A nil pointer returns all urls regardless of the protocol.
+//! @param  rdprot   The protocol to be used when constructing the global file
+//!                  entry. If nil, the first protocol in protos is used. If
+//!                  nil, a global file is not constructed.
+//! @param  rdhost   The "<host>[<port>]" to use when constructing the global
+//!                  file. A global file entry is constructed only if rdhost
+//!                  is specified and a protocol is available, and a global
+//!                  file element exists in the xml file.
 //!
 //! @param  encode   Specifies the xml encoding. Currently, only UTF-8 is
 //!                  is supported and is signified by a nil pointer.
 //-----------------------------------------------------------------------------
 
                 XrdXmlMetaLink(const char *protos="root:xroot:",
+                               const char *rdprot="xroot:",
+                               const char *rdhost=0,
                                const char *encode=0
                               ) : reader(0),
                                   fileList(0), lastFile(0), currFile(0),
                                   prots(protos   ? strdup(protos) : 0),
                                   encType(encode ? strdup(encode) : 0),
+                                  rdProt(rdprot), rdHost(rdhost),
                                   fileCnt(0), eCode(0),
                                   doAll(false), noUrl(true)
                                {*eText = 0; *tmpFn = 0;}
@@ -162,6 +172,8 @@ XrdOucFileInfo *lastFile;
 XrdOucFileInfo *currFile;
 char           *prots;
 char           *encType;
+const char     *rdProt;
+const char     *rdHost;
 int             fileCnt;
 int             eCode;
 bool            doAll;

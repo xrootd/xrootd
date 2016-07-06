@@ -198,7 +198,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Open the target file
     //--------------------------------------------------------------------------
-    File targetFile;
+    File targetFile( File::DisableVirtRedirect );
     // set WriteRecovery property
     std::string value;
     DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
@@ -280,7 +280,7 @@ namespace XrdCl
       return st;
     }
 
-    File sourceFile;
+    File sourceFile( File::DisableVirtRedirect );
     // set ReadRecovery property
     DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
     sourceFile.SetProperty( "ReadRecovery", value );
@@ -412,11 +412,9 @@ namespace XrdCl
         }
         else
         {
-          bool virtRedirector = false;
           VirtualRedirector *redirector = 0;
-          pProperties->Get( "metalink", virtRedirector );
           std::string vrCheckSum;
-          if( virtRedirector &&
+          if( GetSource().IsMetalink() &&
               ( redirector = RedirectorRegistry::Instance().Get( GetSource() ) ) &&
               !( vrCheckSum = redirector->GetCheckSum( checkSumType ) ).empty() )
             sourceCheckSum = vrCheckSum;
@@ -520,9 +518,6 @@ namespace XrdCl
     // Check if we can open the source file and whether the actual data server
     // can support the third party copy
     //--------------------------------------------------------------------------
-    bool virtRedirector = false;
-    properties->Get( "metalink", virtRedirector );
-
     File          sourceFile;
     // set WriteRecovery property
     std::string value;
@@ -538,7 +533,7 @@ namespace XrdCl
     log->Debug( UtilityMsg, "Trying to open %s for reading",
                 sourceURL.GetURL().c_str() );
     st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read, Access::None,
-                          timeLeft, virtRedirector );
+                          timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Cannot open source file %s: %s",
@@ -552,7 +547,7 @@ namespace XrdCl
 
     VirtualRedirector *redirector = 0;
     long long size = -1;
-    if( virtRedirector &&
+    if( source.IsMetalink() &&
         ( redirector = RedirectorRegistry::Instance().Get( sourceURL ) ) &&
         ( size = redirector->GetSize() ) >= 0 )
       properties->Set( "sourceSize", size );

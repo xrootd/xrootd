@@ -523,7 +523,8 @@ namespace XrdCl
       //! Obtain status information for a path - sync
       //!
       //! @param path     file/directory path
-      //! @param response the response (to be deleted by the user)
+      //! @param response the response (to be deleted by the user only if the
+      //!                 procedure is successful)
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation

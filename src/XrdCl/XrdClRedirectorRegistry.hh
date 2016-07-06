@@ -37,7 +37,7 @@ class VirtualRedirector
     //! or an error response if there are no more replicas to try.
     //! The virtual response is being handled by the given stream.
     //----------------------------------------------------------------------------
-    virtual XRootDStatus Redirect( Message *msg, Stream *stream ) = 0;
+    virtual XRootDStatus HandleRequest( Message *msg, Stream *stream ) = 0;
 
     //----------------------------------------------------------------------------
     //! Initializes the object with the content of the metalink file
@@ -82,26 +82,27 @@ class RedirectorRegistry
 
     //----------------------------------------------------------------------------
     //! Creates a new virtual redirector and registers it (async).
-    //! The response handler will be called only in case of failure!
-    //----------------------------------------------------------------------------
-    XRootDStatus Register( const URL &url, ResponseHandler *handler );
-
-    //----------------------------------------------------------------------------
-    //! Creates a new virtual redirector and registers it (async).
     //----------------------------------------------------------------------------
     XRootDStatus Register( const URL &url );
 
     //----------------------------------------------------------------------------
-    //! Erase a virtual redirector for the registry.
+    //! Creates a new virtual redirector and registers it (sync).
     //----------------------------------------------------------------------------
-    void Erase( const URL &url );
+    XRootDStatus RegisterAndWait( const URL &url );
 
     //----------------------------------------------------------------------------
     //! Get a virtual redirector associated with the given URL.
     //----------------------------------------------------------------------------
     VirtualRedirector* Get( const URL &url ) const;
 
+    //----------------------------------------------------------------------------
+    //! Release the virtual redirector associated with the given URL
+    //----------------------------------------------------------------------------
+    void Release( const URL &url );
+
   private:
+
+    typedef std::map< std::string, std::pair<VirtualRedirector*, size_t> > RedirectorMap;
 
     //----------------------------------------------------------------------------
     //! Register implementation.
@@ -123,7 +124,7 @@ class RedirectorRegistry
     //----------------------------------------------------------------------------
     RedirectorRegistry& operator=( const RedirectorRegistry & );
 
-    std::map< std::string, VirtualRedirector* > pRegistry;
+    RedirectorMap pRegistry;
 
     mutable XrdSysMutex pMutex;
 };

@@ -390,7 +390,7 @@ void FileTest::VirtualRedirectorTest()
   // Open the 1st metalink file
   // (the metalink contains just one file with a correct location)
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST( f1.Open( mlUrl1, OpenFlags::Read, Access::None, 0, true ) );
+  CPPUNIT_ASSERT_XRDST( f1.Open( mlUrl1, OpenFlags::Read ) );
   CPPUNIT_ASSERT( f1.GetProperty( key, value ) );
   CPPUNIT_ASSERT( value == fileUrl );
   CPPUNIT_ASSERT_XRDST( f1.Close() );
@@ -399,7 +399,7 @@ void FileTest::VirtualRedirectorTest()
   // Open the 2nd metalink file
   // (the metalink contains 2 files, the one with higher priority does not exist)
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST( f2.Open( mlUrl2, OpenFlags::Read, Access::None, 0, true ) );
+  CPPUNIT_ASSERT_XRDST( f2.Open( mlUrl2, OpenFlags::Read ) );
   CPPUNIT_ASSERT( f2.GetProperty( key, value ) );
   CPPUNIT_ASSERT( value == fileUrl );
   CPPUNIT_ASSERT_XRDST( f2.Close() );
@@ -408,7 +408,7 @@ void FileTest::VirtualRedirectorTest()
   // Open the 3rd metalink file
   // (the metalink contains 2 files, both don't exist)
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST_NOTOK( f3.Open( mlUrl3, OpenFlags::Read, Access::None, 0, true ), errErrorResponse );
+  CPPUNIT_ASSERT_XRDST_NOTOK( f3.Open( mlUrl3, OpenFlags::Read ), errErrorResponse );
 
   //----------------------------------------------------------------------------
   // Open the 4th metalink file
@@ -417,7 +417,7 @@ void FileTest::VirtualRedirectorTest()
   const std::string replica1 = "root://srv3:1094//data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
   const std::string replica2 = "root://srv2:1094//data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
 
-  CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read, Access::None, 0, true ) );
+  CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
   CPPUNIT_ASSERT( f4.GetProperty( key, value ) );
   CPPUNIT_ASSERT( value == replica1 );
   CPPUNIT_ASSERT_XRDST( f4.Close() );
@@ -429,7 +429,7 @@ void FileTest::VirtualRedirectorTest()
   //----------------------------------------------------------------------------
   // Now reopen the file
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read, Access::None, 0, true ) );
+  CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
   CPPUNIT_ASSERT( f4.GetProperty( key, value ) );
   CPPUNIT_ASSERT( value == replica2 );
   CPPUNIT_ASSERT_XRDST( f4.Close() );

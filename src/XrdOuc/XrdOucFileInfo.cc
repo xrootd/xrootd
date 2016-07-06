@@ -182,6 +182,15 @@ void XrdOucFileInfo::AddLfn(const char * lfn)
   if(lfn)
     fLfn = strdup(lfn);
 }
+  
+/******************************************************************************/
+/*                           A d d P r o t o c o l                            */
+/******************************************************************************/
+  
+void XrdOucFileInfo::AddProtocol(const char * protname)
+{
+   if (protList.find(protname) == std::string::npos) protList.append(protname);
+}
 
 /******************************************************************************/
 /*                             G e t D i g e s t                              */
@@ -232,4 +241,13 @@ const char *XrdOucFileInfo::GetUrl(char *cntry, int *prty)
 // Return the url
 //
    return uP->fUrl;
+}
+
+/******************************************************************************/
+/*                           H a s P r o t o c o l                            */
+/******************************************************************************/
+  
+bool XrdOucFileInfo::HasProtocol(const char * protname)
+{
+   return (protList.find(protname) != std::string::npos);
 }

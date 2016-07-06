@@ -33,7 +33,7 @@ namespace XrdCl
       //! Constructor
       //------------------------------------------------------------------------
       Message( uint32_t size = 0 ):
-        Buffer( size ), pIsMarshalled( false ), pSessionId(0), pUseVirtualRedirections( false )
+        Buffer( size ), pIsMarshalled( false ), pSessionId(0)
       {
         if( size )
           Zero();
@@ -92,28 +92,21 @@ namespace XrdCl
         return pSessionId;
       }
 
-      //------------------------------------------------------------------------
-      //! Define if virtual redirections should be used for this message
-      //------------------------------------------------------------------------
-      void SetVirtualRedirections( bool use )
-      {
-        pUseVirtualRedirections = use;
-      }
-
-      //------------------------------------------------------------------------
-      //! Check if the message is suppose to use virtual redirections
-      //------------------------------------------------------------------------
-      bool UseVirtualRedirections() const
-      {
-        return pUseVirtualRedirections;
-      }
-
     private:
       bool         pIsMarshalled;
       uint64_t     pSessionId;
       std::string  pDescription;
-      bool         pUseVirtualRedirections;
   };
+
+  //----------------------------------------------------------------------------
+  //! A message that aims to use a VirtualRedirector
+  //----------------------------------------------------------------------------
+  class VirtualMessage: public Message
+  {
+    public:
+      VirtualMessage( uint32_t size = 0 ): Message( size ) {}
+  };
+
 }
 
 #endif // __XRD_CL_MESSAGE_HH__
