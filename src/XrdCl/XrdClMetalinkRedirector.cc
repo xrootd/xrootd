@@ -277,8 +277,11 @@ bool MetalinkRedirector::IsLocalFile( const std::string &url )
 XRootDStatus MetalinkRedirector::Parse( const std::string &metalink )
 {
   Log *log = DefaultEnv::GetLog();
+  Env *env = DefaultEnv::GetEnv();
+  std::string glfnRedirector;
+  env->GetString( "GlfnRedirector", glfnRedirector );
   // parse the metalink
-  XrdXmlMetaLink parser;
+  XrdXmlMetaLink parser( "root:xroot:", "xroot:", glfnRedirector.empty() ? 0 : glfnRedirector.c_str() );
   int size = 0;
   XrdOucFileInfo **fileInfos = parser.ConvertAll( metalink.c_str(), size, metalink.size() );
   if( !fileInfos )
