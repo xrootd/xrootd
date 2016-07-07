@@ -99,12 +99,10 @@ File::~File()
    if (m_infoFile)
    {
       m_syncStatusMutex.Lock();
-      if ((! m_writes_during_sync.empty()) || m_non_flushed_cnt > 0)
-      {
-         Sync();
-         m_non_flushed_cnt = 0;
-      }
+      bool need_sync = (!m_writes_during_sync.empty()) || m_non_flushed_cnt > 0;
       m_syncStatusMutex.UnLock();
+      if (need_sync)
+         Sync();
 
       // write statistics in *cinfo file
       AppendIOStatToFileInfo();
