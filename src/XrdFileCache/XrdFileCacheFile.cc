@@ -99,20 +99,16 @@ File::~File()
    if (m_infoFile)
    {
       m_syncStatusMutex.Lock();
-
-      bool needs_sync = ! m_writes_during_sync.empty();
-      m_syncStatusMutex.UnLock();
-      if (needs_sync || m_non_flushed_cnt > 0)
+      if ((! m_writes_during_sync.empty()) || m_non_flushed_cnt > 0)
       {
          Sync();
-         m_cfi.WriteHeader(m_infoFile);
+         m_non_flushed_cnt = 0;
       }
+      m_syncStatusMutex.UnLock();
 
       // write statistics in *cinfo file
       AppendIOStatToFileInfo();
       m_infoFile->Fsync();
-
-      m_syncStatusMutex.UnLock();
 
       m_infoFile->Close();
       delete m_infoFile;
@@ -762,6 +758,8 @@ void File::Sync()
       m_in_sync = false;
    }
    TRACEF(Dump, "File::Sync() "<< written_while_in_sync  << " blocks written during sync.");
+  
+   m_cfi.WriteHeader(m_infoFile);
    m_infoFile->Fsync();
 }
 
