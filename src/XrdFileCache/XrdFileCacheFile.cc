@@ -105,6 +105,7 @@ File::~File()
          Sync();
 
       // write statistics in *cinfo file
+      m_cfi.WriteHeader(m_infoFile);
       AppendIOStatToFileInfo();
       m_infoFile->Fsync();
 
@@ -146,11 +147,11 @@ bool File::ioActive()
    TRACEF(Debug, "File::Initiate close start");
 
    m_stateCond.Lock();
-   if (m_prefetchState != kStopped) {
+   if (m_prefetchState != kStopped)
+   {
       m_prefetchState = kStopped;
       cache()->DeRegisterPrefetchFile(this);
    }
-
    m_stateCond.UnLock();
 
    // remove failed blocks and check if map is empty
@@ -182,11 +183,13 @@ bool File::ioActive()
    bool blockMapEmpty =  m_block_map.empty();
    m_downloadCond.UnLock();
 
-   if ( blockMapEmpty)
+   if (blockMapEmpty)
    {
       // file is not active when block map is empty and sync is done
       XrdSysMutexHelper _lck(&m_syncStatusMutex);
-      if (m_in_sync == false) {
+      if ( ! m_in_sync)
+      {
+         m_in_sync = true;
          return false;
       }
    }
@@ -698,13 +701,10 @@ void File::WriteBlockToDisk(Block* b)
    TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size " <<  size);
    int pfIdx =  (b->m_offset - m_offset)/m_cfi.GetBufferSize();
 
-   m_downloadCond.Lock();
-   assert((m_cfi.TestBit(pfIdx) == false) && "Block not yet fetched.");
-   m_cfi.SetBitFetched(pfIdx);
-   m_downloadCond.UnLock();
-
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
+
+      m_cfi.SetBitFetched(pfIdx);
       // clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() dec_ref_count %d %s", pfIdx, lPath());
       dec_ref_count(b);
    }
@@ -722,7 +722,7 @@ void File::WriteBlockToDisk(Block* b)
       {
          m_cfi.SetBitWriteCalled(pfIdx);
          ++m_non_flushed_cnt;
-         if (m_non_flushed_cnt >= 100 )
+         if (m_non_flushed_cnt >= 100)
          {
             schedule_sync     = true;
             m_in_sync         = true;
@@ -741,9 +741,12 @@ void File::WriteBlockToDisk(Block* b)
 
 void File::Sync()
 {
-   TRACEF( Dump, "File::Sync()");
+   TRACEF(Dump, "File::Sync()");
    m_output->Fsync();
+
    m_cfi.WriteHeader(m_infoFile);
+   m_infoFile->Fsync();
+
    int written_while_in_sync;
    {
       XrdSysMutexHelper _lck(&m_syncStatusMutex);
@@ -756,9 +759,6 @@ void File::Sync()
       m_in_sync = false;
    }
    TRACEF(Dump, "File::Sync() "<< written_while_in_sync  << " blocks written during sync.");
-  
-   m_cfi.WriteHeader(m_infoFile);
-   m_infoFile->Fsync();
 }
 
 //------------------------------------------------------------------------------
@@ -779,7 +779,7 @@ void File::dec_ref_count(Block* b)
    assert(b->m_refcnt >= 0);
 
    //AMT ... this is ugly, ... File::Read() can decrease ref count before waiting to be , prefetch starts with refcnt 0
-   if ( b->m_refcnt == 0 && b->is_finished())
+   if (b->m_refcnt == 0 && b->is_finished())
    {
       free_block(b);
    }
@@ -789,15 +789,15 @@ void File::free_block(Block* b)
 {
    int i = b->m_offset/BufferSize();
    TRACEF(Dump, "File::free_block block " << b << "  idx =  " <<  i);
-   delete m_block_map[i];
    size_t ret = m_block_map.erase(i);
    if (ret != 1)
    {
       // assert might be a better option than a warning
-      TRACEF(Warning, "File::OnBlockZeroRefCount did not erase " <<  i  << " from map");
+      TRACEF(Error, "File::free_block did not erase " <<  i  << " from map");
    }
    else
    {
+      delete b;
       cache()->RAMBlockReleased();
    }
 
