@@ -103,6 +103,7 @@ Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
    m_version(1),
    m_bufferSize(-1),
    m_hasPrefetchBuffer(prefetchBuffer),
+   m_fileSize(0),
    m_sizeInBits(0),
    m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
    m_accessCnt(0),
@@ -124,18 +125,24 @@ void Info::SetBufferSize(long long bs)
    m_bufferSize = bs;
 }
 
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------s
 
 void Info::SetFileSize(long long fs)
 {
    m_fileSize = fs;
-   ResizeBits((m_fileSize - 1)/m_bufferSize + 1) ;
+   if (m_version >= 0)
+      ResizeBits((m_fileSize - 1)/m_bufferSize + 1) ;
 }
 
 //------------------------------------------------------------------------------
 
 void Info::ResizeBits(int s)
 {
+    // drop buffer in case of failed/partial reads
+   if (m_buff_fetched)      free(m_buff_fetched);
+   if (m_buff_write_called) free(m_buff_write_called);
+   if (m_buff_prefetch)     free(m_buff_prefetch);
+
    m_sizeInBits = s;
    m_buff_fetched      = (unsigned char*) malloc(GetSizeInBytes());
    m_buff_write_called = (unsigned char*) malloc(GetSizeInBytes());
@@ -163,11 +170,12 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    int version;
    if (r.Read(version)) return false;
-   if (version != m_version)
+   if (abs(version) != abs(m_version))
    {
       TRACE(Warning, trace_pfx << " incompatible file version " << version);
       return false;
    }
+   m_version = version;
 
    if (r.Read(m_bufferSize)) return false;
 
@@ -175,21 +183,26 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    if (r.Read(fs)) return false;
    SetFileSize(fs);
 
-   if (r.Read(m_buff_fetched, GetSizeInBytes())) return false;
-   assert (off == GetHeaderSize());
+   if (m_version > 0) 
+   {
+      if (r.Read(m_buff_fetched, GetSizeInBytes())) return false;
+      memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
+   }
 
-   memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-   // MT-XXXX it sucks to have this here! Unless it is written out in WriteHeader().
-   // Now hacking it to set access count to 0 on failure.
-   if (r.Read(m_accessCnt)) m_accessCnt = 0; // was: return false;
+   if (r.Read(m_accessCnt))  return false;
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_accessCnt);
 
    return true;
 }
 
 //------------------------------------------------------------------------------
+void Info::DisableDownloadStatus()
+{
+    // use version sign to skip downlaod status
+    m_version = -m_version;
+}
 
 int Info::GetHeaderSize() const
 {
@@ -216,7 +229,11 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
    if (w.Write(m_bufferSize)) return false;
    if (w.Write(m_fileSize))   return false;
 
-   if (w.Write(m_buff_write_called, GetSizeInBytes())) return false;
+   if ( m_version >= 0 )
+   {
+      if (w.Write(m_buff_write_called, GetSizeInBytes())) 
+          return false;
+   }
 
    // Can this really fail?
    if (XrdOucSxeq::Release(fp->getFD()))
@@ -247,7 +264,6 @@ bool Info::AppendIOStat(AStat& as, XrdOssDF* fp, const std::string &fname)
    FpHelper w(fp, GetHeaderSize(), m_trace, m_traceID, trace_pfx + "oss write failed");
 
    if (w.Write(m_accessCnt)) return false;
-
    w.f_off += (m_accessCnt-1)*sizeof(AStat);
  
    if (w.Write(as)) return false;

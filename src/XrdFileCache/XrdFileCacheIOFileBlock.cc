@@ -37,7 +37,7 @@ using namespace XrdFileCache;
 
 //______________________________________________________________________________
 IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cache & cache)
-   : IO(io, statsGlobal, cache), m_localStat(0)
+   : IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_infoFile(0)
 {
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
    GetBlockSizeFromPath();
@@ -48,15 +48,32 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 XrdOucCacheIO* IOFileBlock::Detach()
 {
    XrdOucCacheIO * io = GetInput();
-
-   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
-   {
-      m_statsGlobal.Add(it->second->GetStats());
-   }
-
    m_cache.Detach(this);  // This will delete us!
 
    return io;
+}
+
+//______________________________________________________________________________
+void IOFileBlock::CloseInfoFile()
+{
+    // write access statistics to info file and close it
+    // detach time is needed for file purge
+   if (m_infoFile)
+   {
+       if (m_info.GetFileSize() > 0) {
+           Info::AStat as;
+           as.DetachTime  = time(0);
+           as.BytesDisk   = 0;
+           as.BytesRam    = 0;
+           as.BytesMissed = 0;
+           m_info.AppendIOStat(as, m_infoFile, "IOFileBlock");
+       }
+       m_infoFile->Fsync();
+       m_infoFile->Close();
+
+       delete m_infoFile;
+       m_infoFile = 0;
+   }
 }
 
 //______________________________________________________________________________
@@ -147,13 +164,12 @@ int IOFileBlock::initLocalStat()
    // try to read from existing file
    if (m_cache.GetOss()->Stat(path.c_str(), &tmpStat) == XrdOssOK)
    {
-      XrdOssDF* infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str()); 
-      if (infoFile->Open(path.c_str(), O_RDONLY, 0600, myEnv) == XrdOssOK)
+      m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str()); 
+      if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
       {
-         Info info(m_cache.GetTrace());
-         if (info.Read(infoFile, path))
+         if (m_info.Read(m_infoFile, path))
          {
-            tmpStat.st_size = info.GetFileSize();
+            tmpStat.st_size = m_info.GetFileSize();
             TRACEIO(Info, "IOFileBlock::initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
             res = 0;
          }
@@ -161,7 +177,6 @@ int IOFileBlock::initLocalStat()
          {
             // file exist but can't read it
             TRACEIO(Error, "IOFileBlock::initCachedStat failed to read file size from info file");
-            // MT-XXXX need to close the file!
          }
       }
    }
@@ -169,31 +184,30 @@ int IOFileBlock::initLocalStat()
    // if there is no local info file, try to read from clinet and then save stat into a new *cinfo file
    if (res)
    {
+      if (m_infoFile) delete m_infoFile;
+
       res = GetInput()->Fstat(tmpStat);
       TRACEIO(Debug, "IOFileBlock::initCachedStat  get stat from client res= " << res << "size = " << tmpStat.st_size);
       if (res == 0)
       {
          if (m_cache.GetOss()->Create(m_cache.RefConfiguration().m_username.c_str(), path.c_str(), 0600, myEnv, XRDOSS_mkpath) ==  XrdOssOK)
          {
-            XrdOssDF* infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
-            if (infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
+            m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
+            if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
             {
-               // MT-XXXX This is writing the top-level cinfo?
-               // Why is it writing out block info?
-               // Reading this back consistently fails, reading too few bytes, it seems ...
-               // which is still a successful read from posix point of view so errno = 0.
-               Info cfi(m_cache.GetTrace(), false);
-               cfi.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
-               cfi.SetFileSize(tmpStat.st_size);
-               cfi.WriteHeader(infoFile);
-               infoFile->Fsync();
-               infoFile->Close();
+               // This is writing the top-level cinfo
+               // The info file is used to get file size on defer open
+               // don't initalize buffer, it does not hold useful information in this case
+               m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
+               m_info.DisableDownloadStatus();
+               m_info.SetFileSize(tmpStat.st_size);
+               m_info.WriteHeader(m_infoFile, path);
+               m_infoFile->Fsync();
             }
             else
             {
                TRACEIO(Error, "IOFileBlock::initCachedStat can't open info file path");
             }
-            delete infoFile;
          }
          else
          {
@@ -204,7 +218,6 @@ int IOFileBlock::initLocalStat()
 
    if (res == 0) 
    {
-      std::cerr << "local stat created \n";
       m_localStat = new struct stat;
       memcpy(m_localStat, &tmpStat, sizeof(struct stat));
    }
@@ -232,8 +245,9 @@ void IOFileBlock::RelinquishFile(File* f)
 //______________________________________________________________________________
 bool IOFileBlock::ioActive()
 {
-   XrdSysMutexHelper lock(&m_mutex);
+   CloseInfoFile();
 
+   XrdSysMutexHelper lock(&m_mutex);
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
       if (it->second->ioActive())

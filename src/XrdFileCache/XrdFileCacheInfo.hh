@@ -109,6 +109,11 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          bool WriteHeader(XrdOssDF* fp, const std::string &fname="<unknown>");
 
+          //---------------------------------------------------------------------
+         //! Disable allocating, writing, and reading of downlaod status
+         //---------------------------------------------------------------------
+         void DisableDownloadStatus();
+
          //---------------------------------------------------------------------
          //! Append access time, and cache statistics
          //! @return true on success
@@ -250,7 +255,10 @@ namespace XrdFileCache
 
    inline int Info::GetSizeInBytes() const
    {
-      return ((m_sizeInBits - 1)/8 + 1);
+       if (m_sizeInBits)
+           return ((m_sizeInBits - 1)/8 + 1);
+       else
+           return 0;
    }
 
    inline int Info::GetSizeInBits() const
