@@ -30,6 +30,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdVersion.hh"
 #include "XrdCeph/XrdCephOss.hh"
 #include "XrdCeph/XrdCephOssDir.hh"
@@ -75,6 +76,53 @@ XrdCephOss::XrdCephOss() {}
 
 XrdCephOss::~XrdCephOss() {
   ceph_posix_disconnect_all();
+}
+
+// declared and used in XrdCephPosix.cc
+extern unsigned int g_maxCephPoolIdx;
+int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute, XrdOucEnv *envP) {
+   int NoGo = 0;
+   XrdOucEnv myEnv;
+   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   // If there is no config file, nothing to be done
+   if (configfn && *configfn) {
+     // Try to open the configuration file.
+     int cfgFD;
+     if ((cfgFD = open(configfn, O_RDONLY, 0)) < 0) {
+       Eroute.Emsg("Config", errno, "open config file", configfn);
+       return 1;
+     }
+     Config.Attach(cfgFD);
+     // Now start reading records until eof.
+     char *var;
+     while((var = Config.GetMyFirstWord())) {
+       if (!strncmp(var, "ceph.nbconnections", 18)) {
+         var = Config.GetWord();
+         if (var) {
+           unsigned long value = strtoul(var, 0, 10);
+           if (value > 0 and value <= 100) {
+             g_maxCephPoolIdx = value;
+             break;
+           } else {
+             Eroute.Emsg("Config", "Invalid value for ceph.nbconnections in config file (must be between 1 and 100)", configfn, var);
+             return 1;
+           }
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.nbconnections in config file", configfn);
+           return 1;
+         }
+       }
+     }
+
+     // Now check if any errors occured during file i/o
+     int retc = Config.LastError();
+     if (retc) {
+       NoGo = Eroute.Emsg("Config", -retc, "read config file",
+                          configfn);
+     }
+     Config.Close();
+   }
+   return NoGo;
 }
 
 int XrdCephOss::Chmod(const char *path, mode_t mode, XrdOucEnv *envP) {

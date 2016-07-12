@@ -21,6 +21,7 @@ Version 4.4.0
   * **[XrdCl]** xrdcp: use cks.type cgi tag to select the checksum type.
   * **[XrdCl]** Support local metalink files.
   * **[XrdCl]** Add support for GLFN redirector of last resort.
+  * **[XrdCeph]** Implemented pools of ceph objects.
 
 + **Major bug fixes**
   * **[Posix]** Remove double unlock of a mutex.
@@ -34,6 +35,7 @@ Version 4.4.0
   * **[XrdCl]** Ensure DefaultEnv is finalized after last use of the object.
 
 + **Minor bug fixes**
+  * **[Proxy]**  Avoid SEGV when printing memory cache statistics.
   * **[Server]** Avoid XrdNetIF static initialization issues.
   * **[Server]** Honor DFS setting when forwarding operations.
   * **[Server]** Make sure lockfile time is updated in deprecated runmodeold.
@@ -51,6 +53,7 @@ Version 4.4.0
                   by mutex in the ceph plugin.
   * **[XrdCeph]** Fixed memory corruption in asynchronous read from ceph.
   * **[XrdXml]** Make sure c-string buffes are properly terminated.
+  * **[XtdHttp]** Don't trim printable characters.
 
 + **Miscellaneous**
   * **[Apps]** Add xrdacctest to the tools set to test access control databases.
