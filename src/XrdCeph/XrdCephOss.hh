@@ -55,6 +55,8 @@ public:
   XrdCephOss();
   virtual ~XrdCephOss();
 
+  int Configure(const char *, XrdSysError &, XrdOucEnv *envP);
+
   virtual int     Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
   virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
   virtual int     Init(XrdSysLogger *, const char*);
