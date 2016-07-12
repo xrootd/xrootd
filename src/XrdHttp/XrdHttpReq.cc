@@ -88,11 +88,11 @@
 void trim(std::string &str)
 {
   // Trim leading non-letters
-  while(str.size() && !isalnum(str[0])) str.erase(str.begin());
+  while( str.size() && !isgraph(str[0]) ) str.erase(str.begin());
 
   // Trim trailing non-letters
   
-  while(str.size() && !isalnum(str[str.size()-1]))
+  while( str.size() && !isgraph(str[str.size()-1]) )
     str.resize (str.size () - 1);
 
 }
@@ -160,7 +160,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
     char *val = line + pos + 1;
 
     // Trim left
-    while (!isalnum(*val) || (!*val)) val++;
+    while ( (!isgraph(*val) || (!*val)) && (val < line+len)) val++;
 
     // Here we are supposed to initialize whatever flag or variable that is needed
     // by looking at the first token of the line
