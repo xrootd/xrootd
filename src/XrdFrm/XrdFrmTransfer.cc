@@ -767,7 +767,7 @@ void XrdFrmTransfer::ThrowDone(XrdFrmTranChk *cP, time_t endTime)
       } else {
        struct stat Stat;
        strcpy(&xfrP->PFN[xfrP->pfnEnd], ".lock");
-       if (stat(xfrP->PFN, &Stat))
+       if (!stat(xfrP->PFN, &Stat))
           {struct utimbuf tbuff;
            tbuff.actime = tbuff.modtime = endTime;
            if (utime(xfrP->PFN, &tbuff))

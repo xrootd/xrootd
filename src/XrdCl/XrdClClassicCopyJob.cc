@@ -32,6 +32,7 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 
 #include <memory>
 #include <iostream>
@@ -691,9 +692,18 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        if( pUrl->IsMetalink() )
+        {
+          XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
+          checkSum = redirector->GetCheckSum( checkSumType );
+          if( !checkSum.empty() ) return XrdCl::XRootDStatus();
+        }
+
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
+        std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                dataServer, pUrl->GetPath() );
+                                                dataServer, XrdCl::URL( lastUrl ).GetPath() );
       }
 
     private:
@@ -852,9 +862,18 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        if( pUrl->IsMetalink() )
+        {
+          XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
+          checkSum = redirector->GetCheckSum( checkSumType );
+          if( !checkSum.empty() ) return XrdCl::XRootDStatus();
+        }
+
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
-        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                dataServer, pUrl->GetPath() );
+        std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
+        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType, dataServer,
+                                                XrdCl::URL( lastUrl ).GetPath() );
       }
 
     private:
@@ -1182,7 +1201,7 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       XRootDDestination( const XrdCl::URL *url, uint8_t parallelChunks ):
-        pUrl( url ), pFile( new XrdCl::File() ), pParallel( parallelChunks )
+        pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ), pParallel( parallelChunks )
       {
       }
 

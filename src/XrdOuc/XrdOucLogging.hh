@@ -1,10 +1,10 @@
-#ifndef __ACC_AUTHFILE__
-#define __ACC_AUTHFILE__
+#ifndef __XRDOUCLOGGING_HH__
+#define __XRDOUCLOGGING_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d A c c A u t h F i l e . h h                      */
+/*                      X r d O u c L o g g i n g . h h                       */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -29,50 +29,32 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
+  
+class XrdSysError;
+class XrdOucEnv;
 
-#include <limits.h>
-#include <netdb.h>
-#include <sys/param.h>
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucStream.hh"
-#include "XrdAcc/XrdAccAuthDB.hh"
-
-// This class is provided for obtaining capability information from a file.
-//
-class XrdAccAuthFile : public XrdAccAuthDB
+class XrdOucLogging
 {
 public:
 
-int      Open(XrdSysError &eroute, const char *path=0);
+       struct configLogInfo
+             {const char     *logArg;
+              XrdOucEnv      *xrdEnv;
+              const char     *iName;
+              const char     *cfgFn;
+              int             keepV;
+              bool            hiRes;
+              configLogInfo() : logArg(0), xrdEnv(0), iName(0), cfgFn(0),
+                                keepV(1),  hiRes(false) {}
+             };
 
-char     getRec(char **recname);
+static bool  configLog(XrdSysError &eDest, configLogInfo &logInfo);
 
-int      getPP(char **path, char **priv, bool &istmplt);
-
-int      Close();
-
-int      Changed(const char *dbpath);
-
-         XrdAccAuthFile(XrdSysError *erp);
-        ~XrdAccAuthFile();
+       XrdOucLogging() {}
+      ~XrdOucLogging() {}
 
 private:
-
-int  Bail(int retc, const char *txt1, const char *txt2=0);
-char *Copy(char *dp, char *sp, int dplen);
-
-enum DBflags {Noflags=0, inRec=1, isOpen=2, dbError=4}; // Values combined
-
-XrdSysError      *Eroute;
-DBflags           flags;
-XrdOucStream      DBfile;
-char             *authfn;
-char              rectype;
-time_t            modtime;
-XrdSysMutex       DBcontext;
-
-char recname_buff[MAXHOSTNAMELEN+1];   // Max record name by default
-char path_buff[PATH_MAX+2];          // Max path   name
+static char **configLPIArgs(XrdOucEnv *envP, int &argc);
+static char  *varVal(const char *var, char *line, char *&eol, char delim);
 };
 #endif

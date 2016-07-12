@@ -817,6 +817,7 @@ namespace XrdCl
 
     req->header.requestid = htons( req->header.requestid );
     req->header.dlen      = htonl( req->header.dlen );
+    msg->SetIsMarshalled( true );
     return Status();
   }
 
@@ -837,6 +838,7 @@ namespace XrdCl
     Status st = MarshallRequest( msg );
     req->header.requestid = htons( req->header.requestid );
     req->header.dlen      = htonl( req->header.dlen );
+    msg->SetIsMarshalled( false );
     return st;
   }
 
@@ -1049,7 +1051,23 @@ namespace XrdCl
       log->Error( XRootDTransportMsg, "Message 0x%x, stream [%d, %d] is a "
                   "response that we're no longer interested in (timed out)",
                   msg, rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
-      info->sidManager->ReleaseTimedOut( rsp->hdr.streamid );
+      //------------------------------------------------------------------------
+      // If it is kXR_waitresp there will be another one,
+      // so we don't release the sid yet
+      //------------------------------------------------------------------------
+      if( rsp->hdr.status != kXR_waitresp )
+        info->sidManager->ReleaseTimedOut( rsp->hdr.streamid );
+      //------------------------------------------------------------------------
+      // If it is a successful response to an open request
+      // that timed out, we need to send a close
+      //------------------------------------------------------------------------
+      uint16_t sid; memcpy( &sid, rsp->hdr.streamid, 2 );
+      std::set<uint16_t>::iterator sidIt = info->sentOpens.find( sid );
+      if( sidIt != info->sentOpens.end() )
+      {
+        info->sentOpens.erase( sidIt );
+        if( rsp->hdr.status == kXR_ok ) return RequestClose;
+      }
       delete msg;
       return DigestMsg;
     }

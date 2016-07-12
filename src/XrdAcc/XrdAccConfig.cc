@@ -533,6 +533,7 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
     XrdAccPrivCaps xprivs;
     XrdAccCapability mycap((char *)"", xprivs), *currcap, *lastcap = &mycap;
     XrdAccCapName *ncp;
+    bool istmplt;
   
    // Prepare the next record in the database
    //
@@ -585,10 +586,10 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
    // Now start getting <path> <priv> pairs until we hit the logical end
    //
    while(1) {NoGo = 0;
-             if (!Database->getPP(&path, &privs)) break;
+             if (!Database->getPP(&path, &privs, istmplt)) break;
              if (!path) continue;      // Skip pathless entries
              NoGo = 1;
-             if (*path != '/')
+             if (istmplt)
                 {if ((currcap = tabs.T_Hash->Find(path)))
                     currcap = new XrdAccCapability(currcap);
                     else {Eroute.Emsg("ConfigXeq", "Missing template -", path);

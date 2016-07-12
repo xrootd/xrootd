@@ -44,6 +44,8 @@ add_library(
                                 XrdSys/XrdSysHeaders.hh
   XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
   XrdSys/XrdSysLogger.cc        XrdSys/XrdSysLogger.hh
+  XrdSys/XrdSysLogging.cc       XrdSys/XrdSysLogging.hh
+                                XrdSys/XrdSysLogPI.hh
                                 XrdSys/XrdSysLinuxSemaphore.hh
   XrdSys/XrdSysXAttr.cc         XrdSys/XrdSysXAttr.hh
 
@@ -70,6 +72,7 @@ add_library(
   XrdOuc/XrdOucFileInfo.cc      XrdOuc/XrdOucFileInfo.hh
   XrdOuc/XrdOucGMap.cc          XrdOuc/XrdOucGMap.hh
   XrdOuc/XrdOucHashVal.cc
+  XrdOuc/XrdOucLogging.cc       XrdOuc/XrdOucLogging.hh
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
   XrdOuc/XrdOucName2Name.cc     XrdOuc/XrdOucName2Name.hh
   XrdOuc/XrdOucN2NLoader.cc     XrdOuc/XrdOucN2NLoader.hh

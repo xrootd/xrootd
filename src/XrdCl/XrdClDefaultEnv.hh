@@ -173,4 +173,11 @@ namespace XrdCl
   };
 }
 
+static struct EnvInitializer
+{
+    EnvInitializer();
+    ~EnvInitializer();
+    static int counter;
+} initializer;
+
 #endif // __XRD_CL_DEFAULT_ENV_HH__

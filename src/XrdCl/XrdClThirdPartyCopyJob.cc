@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include <iostream>
@@ -197,7 +198,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Open the target file
     //--------------------------------------------------------------------------
-    File targetFile;
+    File targetFile( File::DisableVirtRedirect );
     // set WriteRecovery property
     std::string value;
     DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
@@ -279,7 +280,7 @@ namespace XrdCl
       return st;
     }
 
-    File sourceFile;
+    File sourceFile( File::DisableVirtRedirect );
     // set ReadRecovery property
     DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
     sourceFile.SetProperty( "ReadRecovery", value );
@@ -411,9 +412,16 @@ namespace XrdCl
         }
         else
         {
-          st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
-                                         GetSource().GetHostId(),
-                                         GetSource().GetPath() );
+          VirtualRedirector *redirector = 0;
+          std::string vrCheckSum;
+          if( GetSource().IsMetalink() &&
+              ( redirector = RedirectorRegistry::Instance().Get( GetSource() ) ) &&
+              !( vrCheckSum = redirector->GetCheckSum( checkSumType ) ).empty() )
+            sourceCheckSum = vrCheckSum;
+          else
+            st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
+                                         tpcSource.GetHostId(),
+                                         tpcSource.GetPath() );
         }
         gettimeofday( &oEnd, 0 );
         if( !st.IsOK() )
@@ -536,10 +544,20 @@ namespace XrdCl
     std::string sourceUrl; sourceFile.GetProperty( "LastURL", sourceUrl );
     URL         sourceUrlU = sourceUrl;
     properties->Set( "tpcSource", sourceUrl );
-    StatInfo *statInfo;
-    st = sourceFile.Stat( false, statInfo );
-    if (st.IsOK()) properties->Set( "sourceSize", statInfo->GetSize() );
-    delete statInfo;
+
+    VirtualRedirector *redirector = 0;
+    long long size = -1;
+    if( source.IsMetalink() &&
+        ( redirector = RedirectorRegistry::Instance().Get( sourceURL ) ) &&
+        ( size = redirector->GetSize() ) >= 0 )
+      properties->Set( "sourceSize", size );
+    else
+    {
+      StatInfo *statInfo;
+      st = sourceFile.Stat( false, statInfo );
+      if (st.IsOK()) properties->Set( "sourceSize", statInfo->GetSize() );
+      delete statInfo;
+    }
 
     if( hasInitTimeout )
     {

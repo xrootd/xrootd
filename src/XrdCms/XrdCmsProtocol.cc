@@ -46,6 +46,7 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 
+#include "XrdCms/XrdCmsBaseFS.hh"
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
@@ -1070,18 +1071,33 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
 //
    if (!Cache.Paths.Find(Data.Path, pinfo)
    || (amask = pinfo.rwvec | pinfo.rovec) == 0)
-      {Say.Emsg("Job", Router.getName(Data.Request.rrCode),
+      {Say.Emsg(epname, Router.getName(Data.Request.rrCode),
                        "aborted; no servers handling", Data.Path);
        return;
+      }
+
+// While destructive operations should only go to r/w servers
+//
+   if (Data.Request.rrCode != kYR_prepdel)
+      {if (!(amask = pinfo.rwvec))
+          {Say.Emsg(epname, Router.getName(Data.Request.rrCode),
+                    "aborted; no r/w servers handling", Data.Path);
+           return;
+          }
       }
 
 // Do some debugging
 //
    DEBUG("FWD " <<Router.getName(Data.Request.rrCode) <<' ' <<Data.Path);
 
-// Now send off the message to all the nodes
+// Check for selective sending since DFS setups need only one notification.
+// Otherwise, send this message to all nodes.
 //
-   Cluster.Broadcast(amask, ioB, 2, sizeof(Data.Request)+Data.Dlen);
+   if (baseFS.isDFS() && Data.Request.rrCode != kYR_prepdel)
+      {Cluster.Broadsend(amask, Data.Request, Data.Buff, Data.Dlen);
+      } else {
+       Cluster.Broadcast(amask, ioB, 2, sizeof(Data.Request)+Data.Dlen);
+      }
 }
   
 /******************************************************************************/

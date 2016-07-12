@@ -166,6 +166,13 @@ int  ParseKeep(const char *arg);
 void Put(int iovcnt, struct iovec *iov);
 
 //-----------------------------------------------------------------------------
+//! Set call-out to logging plug-in on or off.
+//-----------------------------------------------------------------------------
+
+static
+void setForwarding(bool onoff) {doForward = onoff;}
+
+//-----------------------------------------------------------------------------
 //! Set log file timstamp to high resolution (hh:mm:ss.uuuu).
 //-----------------------------------------------------------------------------
 
@@ -226,6 +233,8 @@ private:
 int         FifoMake();
 void        FifoWait();
 int         Time(char *tbuff);
+static int  TimeStamp(struct timeval &tVal, unsigned long tID,
+                      char *tbuff, int tbsz, bool hires);
 
 struct mmMsg
       {mmMsg *next;
@@ -247,6 +256,8 @@ char      *fifoFN;
 bool       hiRes;
 bool       doLFR;
 pthread_t  lfhTID;
+
+static bool doForward;
 
 void   putEmsg(char *msg, int msz);
 int    ReBind(int dorename=1);

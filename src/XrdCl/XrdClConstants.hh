@@ -64,6 +64,8 @@ namespace XrdCl
   const int DefaultTCPKeepAliveProbes   = 9;
   const int DefaultMultiProtocol        = 0;
   const int DefaultParallelEvtLoop      = 1;
+  const int DefaultMetalinkProcessing   = 1;
+  const int DefaultLocalMetalinkFile    = 1;
 
   const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";
@@ -73,6 +75,7 @@ namespace XrdCl
   const char * const DefaultPlugIn             = "";
   const char * const DefaultReadRecovery       = "true";
   const char * const DefaultWriteRecovery      = "true";
+  const char * const DefaultGlfnRedirector     = "";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

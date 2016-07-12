@@ -97,6 +97,16 @@ namespace XrdCl
       uint64_t     pSessionId;
       std::string  pDescription;
   };
+
+  //----------------------------------------------------------------------------
+  //! A message that aims to use a VirtualRedirector
+  //----------------------------------------------------------------------------
+  class VirtualMessage: public Message
+  {
+    public:
+      VirtualMessage( uint32_t size = 0 ): Message( size ) {}
+  };
+
 }
 
 #endif // __XRD_CL_MESSAGE_HH__

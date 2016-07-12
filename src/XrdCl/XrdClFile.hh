@@ -43,10 +43,22 @@ namespace XrdCl
   class File
   {
     public:
+
+      enum VirtRedirect
+      {
+        EnableVirtRedirect,
+        DisableVirtRedirect
+      };
+
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
       File( bool enablePlugIns = true );
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      File( VirtRedirect virtRedirect, bool enablePlugIns = true );
 
       //------------------------------------------------------------------------
       //! Destructor

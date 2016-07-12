@@ -37,6 +37,7 @@ namespace XrdCl
 {
   class Stream;
   class JobManager;
+  class VirtualRedirector;
 
   //----------------------------------------------------------------------------
   //! A communication channel between the client and the server
@@ -95,14 +96,15 @@ namespace XrdCl
       //! @param expires unix timestamp after which a failure is reported
       //!                to the listener
       //! @param handler handler to be notified about the status
+      //! @param redirector virtual redirector to be used
       //! @return        success if the message was successfully inserted
       //!                into the send queues, failure otherwise
       //------------------------------------------------------------------------
       Status Send( Message              *msg,
                    OutgoingMsgHandler   *handler,
                    bool                  stateful,
-                   time_t                expires );
-
+                   time_t                expires,
+                   VirtualRedirector    *redirector = 0 );
 
       //------------------------------------------------------------------------
       //! Synchronously receive a message - blocks until a message matching

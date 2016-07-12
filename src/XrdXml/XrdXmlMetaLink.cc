@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysFD.hh"
@@ -111,6 +112,9 @@ XrdOucFileInfo *XrdXmlMetaLink::Convert(const char *fname, int blen)
                 char *mVal[] = {0};
    CleanUp onReturn;
    XrdOucFileInfo *fP;
+   const char *gLFN;
+   char *colon, gHdr[272];
+   bool chkG;
 
 // If we are converting a buffer, then generate the file
 //
@@ -119,6 +123,16 @@ XrdOucFileInfo *XrdXmlMetaLink::Convert(const char *fname, int blen)
        onReturn.delTFN = tmpFn;
        fname = tmpFn;
       }
+
+// Check if we should add a global file entry
+//
+   if (rdHost && (rdProt || (prots && (colon = index(prots,':')))))
+      {if (!rdProt) {rdProt = prots; *(colon+1) = 0;}
+          else colon = 0;
+       snprintf(gHdr, sizeof(gHdr), "%s//%s/", rdProt, rdHost);
+       if (colon) *(colon+1) = ':';
+       chkG = true;
+      } else chkG = false;
 
 // Get a file reader
 //
@@ -176,6 +190,12 @@ XrdOucFileInfo *XrdXmlMetaLink::Convert(const char *fname, int blen)
          {if (lastFile) lastFile ->nextFile = currFile;
              else       fileList = currFile;
           lastFile = currFile;
+          if (chkG && (gLFN = currFile->GetLfn()))
+             {char lfnBuff[2048];
+              snprintf(lfnBuff, sizeof(lfnBuff), "%s%s", gHdr, gLFN);
+              currFile->AddUrl(lfnBuff, 0, INT_MAX);
+              currFile->AddProtocol(rdProt);
+             }
           currFile = 0;
           fileCnt++; noUrl = true;
          }
@@ -245,8 +265,7 @@ XrdOucFileInfo **XrdXmlMetaLink::ConvertAll(const char *fname, int &count,
 // Return a vector of the file info objects
 //
    fvP = new XrdOucFileInfo* [fileCnt];
-   for (int i = 0; i < fileCnt; i++)
-       {fvP[i] = fP; fP = fP->nextFile;}
+   for (int i = 0; i < fileCnt; i++) {fvP[i] = fP; fP = fP->nextFile;}
    count = fileCnt;
    return fvP;
 }
@@ -455,7 +474,7 @@ bool XrdXmlMetaLink::GetUrl()
 
 // Check if we need to screen url protocols
 //
-   if (prots && !UrlOK(value))
+   if (!UrlOK(value))
       {free(value);
        return true;
       }
@@ -547,9 +566,14 @@ bool XrdXmlMetaLink::UrlOK(char *url)
    n = colon - url + 1;
    if (n >= (int)sizeof(pBuff)) return false;
    strncpy(pBuff, url, n);
-   pBuff[n+1] = 0;
+   pBuff[n] = 0;
+
+// Add this protocol to the list we found
+//
+   currFile->AddProtocol(pBuff);
 
 // Return whether or not this os one of the acceptable protocols
 //
-   return (strstr(prots, pBuff) != 0);
+   if (prots) return (strstr(prots, pBuff) != 0);
+   return true;
 }

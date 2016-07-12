@@ -89,6 +89,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysHeaders.hh
   XrdSys/XrdSysLinuxSemaphore.hh
   XrdSys/XrdSysLogger.hh
+  XrdSys/XrdSysLogPI.hh
   XrdSys/XrdSysPlatform.hh
   XrdSys/XrdSysPlugin.hh
   XrdSys/XrdSysPthread.hh
