@@ -53,6 +53,13 @@ namespace XrdCl
       //! up (usually removed from the queue and to the caller)
       //------------------------------------------------------------------------
       virtual bool Filter( const Message *msg ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get sid of the filter
+      //!
+      //! @return filter sid if exists, otherwise 0
+      //------------------------------------------------------------------------
+      virtual uint16_t GetSid() const = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -103,6 +110,13 @@ namespace XrdCl
       //!               the handler
       //------------------------------------------------------------------------
       virtual uint16_t Examine( Message *msg ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get handler sid
+      //!
+      //! return sid of the corresponding request, otherwise 0
+      //------------------------------------------------------------------------
+      virtual uint16_t GetSid() const = 0;
 
       //------------------------------------------------------------------------
       //! Process the message if it was "taken" by the examine action
