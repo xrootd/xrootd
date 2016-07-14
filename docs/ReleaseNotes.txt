@@ -56,6 +56,7 @@ Version 4.4.0
   * **[XtdHttp]** Don't trim printable characters.
 
 + **Miscellaneous**
+  * **[XrdCl]** Change the way handlers and messages are matched (use maps).
   * **[Apps]** Add xrdacctest to the tools set to test access control databases.
   * **[Packaging/RPM]** Set max open files limit to 65k for systemd services.
 
