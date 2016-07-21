@@ -56,11 +56,12 @@ XrdOucCacheIO* IOFileBlock::Detach()
 //______________________________________________________________________________
 void IOFileBlock::CloseInfoFile()
 {
-    // write access statistics to info file and close it
-    // detach time is needed for file purge
+   // write access statistics to info file and close it
+   // detach time is needed for file purge
    if (m_infoFile)
    {
-       if (m_info.GetFileSize() > 0) {
+       if (m_info.GetFileSize() > 0)
+       {
            Info::AStat as;
            as.DetachTime  = time(0);
            as.BytesDisk   = 0;
@@ -115,7 +116,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    fname = ss.str();
 
    TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
-   
+
    File* file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
    if (file)
    {
@@ -181,13 +182,13 @@ int IOFileBlock::initLocalStat()
       }
    }
 
-   // if there is no local info file, try to read from clinet and then save stat into a new *cinfo file
+   // if there is no local info file, try to read from client and then save stat into a new *cinfo file
    if (res)
    {
-      if (m_infoFile) delete m_infoFile;
+      if (m_infoFile) { delete m_infoFile; m_infoFile = 0; }
 
       res = GetInput()->Fstat(tmpStat);
-      TRACEIO(Debug, "IOFileBlock::initCachedStat  get stat from client res= " << res << "size = " << tmpStat.st_size);
+      TRACEIO(Debug, "IOFileBlock::initCachedStat get stat from client res= " << res << "size = " << tmpStat.st_size);
       if (res == 0)
       {
          if (m_cache.GetOss()->Create(m_cache.RefConfiguration().m_username.c_str(), path.c_str(), 0600, myEnv, XRDOSS_mkpath) ==  XrdOssOK)
@@ -258,7 +259,7 @@ bool IOFileBlock::ioActive()
 }
 
 //______________________________________________________________________________
-int IOFileBlock::Read (char *buff, long long off, int size)
+int IOFileBlock::Read(char *buff, long long off, int size)
 {
    // protect from reads over the file size
 
@@ -276,7 +277,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
 
    long long off0 = off;
    int idx_first = off0/m_blocksize;
-   int idx_last = (off0+size-1)/m_blocksize;
+   int idx_last = (off0 + size - 1) / m_blocksize;
    int bytes_read = 0;
    TRACEIO(Dump, "IOFileBlock::Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
 
@@ -297,7 +298,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          int lastIOFileBlock = (fileSize-1)/m_blocksize;
          if (blockIdx == lastIOFileBlock )
          {
-            pbs =  fileSize - blockIdx*m_blocksize;
+            pbs = fileSize - blockIdx*m_blocksize;
             // TRACEIO(Dump, "IOFileBlock::Read() last block, change output file size to " << pbs);
          }
 

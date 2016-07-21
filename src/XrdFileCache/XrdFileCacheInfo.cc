@@ -191,7 +191,7 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-   if (r.Read(m_accessCnt))  return false;
+   if (r.Read(m_accessCnt)) m_accessCnt = 0; // was: return false;
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_accessCnt);
 
    return true;
