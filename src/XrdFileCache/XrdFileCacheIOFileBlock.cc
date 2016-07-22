@@ -132,7 +132,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
 }
 
 //______________________________________________________________________________
-int IOFileBlock::FStat(struct stat &sbuff)
+int IOFileBlock::Fstat(struct stat &sbuff)
 {
    // local stat is create in constructor. if file was on disk before
    // attach that the only way stat was not successful is becuse there
