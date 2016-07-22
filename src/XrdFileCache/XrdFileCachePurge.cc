@@ -114,7 +114,8 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                   {
                      // This really shouldn't happen ... but if it does remove cinfo and the data file right away.
 
-                     TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np);
+                     TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np
+                           << "; purging.");
                      oss->Unlink(np.c_str());
                      np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
                      oss->Unlink(np.c_str());
@@ -123,8 +124,12 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
             }
             else
             {
-               TRACE(Warning, "FillFileMapRecurse() can't open or read " << np << " " << strerror(errno));
-               // XXXX Purge it!
+               TRACE(Warning, "FillFileMapRecurse() can't open or read " << np << ", err " << strerror(errno)
+                     << "; purging.");
+               XrdOss* oss = Cache::GetInstance().GetOss();
+               oss->Unlink(np.c_str());
+               np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
+               oss->Unlink(np.c_str());
             }
          }
          else if (dh->Opendir(np.c_str(), env) == XrdOssOK)
