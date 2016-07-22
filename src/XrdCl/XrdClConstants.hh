@@ -75,6 +75,7 @@ namespace XrdCl
   const char * const DefaultPlugIn             = "";
   const char * const DefaultReadRecovery       = "true";
   const char * const DefaultWriteRecovery      = "true";
+  const char * const DefaultGlfnRedirector     = "";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

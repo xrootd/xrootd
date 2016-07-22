@@ -241,6 +241,7 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
    char *val;
    int  retc, NoGo = XrdOssOK;
    pthread_t tid;
+   bool setfd = false;
 
 // Do the herald thing
 //
@@ -255,16 +256,27 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 // Establish the FD limit and the fence (half way)
 //
   if (getrlimit(RLIMIT_NOFILE, &rlim))
-     Eroute.Emsg("Config", errno, "get fd limit");
-     else {if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_max = maxFD;
-           if (rlim.rlim_cur != rlim.rlim_max)
-              {rlim.rlim_cur  = rlim.rlim_max;
-               if (setrlimit(RLIMIT_NOFILE, &rlim))
+     {Eroute.Emsg("Config", errno, "get fd limit");
+      rlim.rlim_cur = maxFD;
+     }
+     else {if (rlim.rlim_max == RLIM_INFINITY)
+              {rlim.rlim_cur = maxFD;
+               setfd = true;
+              } else {
+               if (rlim.rlim_cur != rlim.rlim_max)
+                  {rlim.rlim_cur  = rlim.rlim_max;
+                   setfd = true;
+                  }
+              }
+           if (setfd)
+              {if (setrlimit(RLIMIT_NOFILE, &rlim))
                   Eroute.Emsg("Config", errno, "set fd limit");
                   else FDLimit = rlim.rlim_cur;
               } else {FDFence = static_cast<int>(rlim.rlim_cur)>>1;
                       FDLimit = rlim.rlim_cur;
                      }
+          }
+   if (FDFence < 0 || FDFence >= FDLimit) FDFence = FDLimit >> 1;
 
 // Process the configuration file
 //
@@ -276,16 +288,6 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
       {if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute, envP);
        if (STT_Lib && !NoGo) NoGo |= ConfigStatLib(Eroute, envP);
       }
-
-// Establish the FD limit
-//
-    if (FDLimit <= 0) FDLimit = rlim.rlim_cur;
-       else {rlim.rlim_cur = FDLimit;
-            if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
-               NoGo = Eroute.Emsg("Config", errno,"set FD limit");
-            }
-    if (FDFence < 0 || FDFence >= FDLimit) FDFence = FDLimit >> 1;
-   }
 
 // Establish usage tracking and quotas, if need be. Note that if we are not
 // a true data server, those services will be initialized but then disabled.

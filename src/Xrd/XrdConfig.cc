@@ -847,8 +847,8 @@ int XrdConfig::setFDL()
 
 // Set the limit to the maximum allowed
 //
-   if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_max = maxFD;
-   rlim.rlim_cur = rlim.rlim_max;
+   if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_cur = maxFD;
+      else rlim.rlim_cur = rlim.rlim_max;
 #if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_5))
    if (rlim.rlim_cur > OPEN_MAX) rlim.rlim_max = rlim.rlim_cur = OPEN_MAX;
 #endif
