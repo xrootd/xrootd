@@ -139,7 +139,8 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
    if (bytesRead >= 0 && direct_handler != 0)
    {
       XrdSysCondVarHelper _lck(direct_handler->m_cond);
-      if (direct_handler->m_to_wait == 1)
+
+      while (direct_handler->m_to_wait > 0)
       {
          direct_handler->m_cond.Wait();
       }
@@ -323,15 +324,14 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
                ++bi;
             }
          }
-               
+
          if (finished.empty())
          {
             m_downloadCond.Wait();
             continue;
          }
       }
-            
-            
+
       std::vector<ReadVChunkListRAM>::iterator bi = finished.begin();
       while (bi != finished.end())
       {  

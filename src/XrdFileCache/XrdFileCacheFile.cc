@@ -578,12 +578,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
          if (finished.empty())
          {
-            TRACEF(Dump, "File::Read() wait block begin" );
-
             m_downloadCond.Wait();
-
-            TRACEF(Dump, "File::Read() wait block end");
-
             continue;
          }
       }
@@ -621,12 +616,12 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    }
 
    // Fourth, make sure all direct requests have arrived
-   if ((direct_handler != 0) && (bytes_read >= 0 ))
+   if (direct_handler != 0 && bytes_read >= 0)
    {
       TRACEF(Dump, "File::Read() waiting for direct requests ");
       XrdSysCondVarHelper _lck(direct_handler->m_cond);
 
-      if (direct_handler->m_to_wait > 0)
+      while (direct_handler->m_to_wait > 0)
       {
          direct_handler->m_cond.Wait();
       }
