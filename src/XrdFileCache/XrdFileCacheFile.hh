@@ -80,7 +80,9 @@ namespace XrdFileCache
          m_buff.resize(size);
       }
 
-      const char* get_buff(long long pos = 0) const { return &m_buff[pos]; }
+      char*     get_buff(long long pos = 0) { return &m_buff[pos]; }
+      int       get_size()   { return (int) m_buff.size(); }
+      long long get_offset() { return m_offset; }
 
       bool is_finished() { return m_downloaded || m_errno != 0; }
       bool is_ok()       { return m_downloaded; }
@@ -92,6 +94,7 @@ namespace XrdFileCache
          m_buff.resize(0);
       }
    };
+
 
    class File
    {
@@ -213,7 +216,8 @@ namespace XrdFileCache
                    long long &blk_off, // offset in block
                    long long &size);
       // Read
-      Block* RequestBlock(int i, bool prefetch);
+      Block* PrepareBlockRequest(int i, bool prefetch);
+      void   ProcessBlockRequests(BlockList_t& blks);
 
       int    RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
                                 char* buff, long long req_off, long long req_size);
