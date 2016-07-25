@@ -7,6 +7,60 @@ Release Notes
 
 
 -------------
+Version 4.4.0
+-------------
+
++ **New Features**
+  * **[Server]** Add new [no]rpipa option to xrd.network directive.
+  * **[Server]** Allow objectid's to be specified in the authorization file.
+  * **[Server]** Add new logging plugin interface.
+  * **[Server]** Fixes #345 - add sid to TOD structure (ABI compliant).
+  * **[Server]** Implement resource selection affinity (primarily for ssi).
+  * **[XrdCl]** Add Metalink support (xrdcp & API).
+  * **[XrdCl]** Enable metalink processing on default.
+  * **[XrdCl]** xrdcp: use cks.type cgi tag to select the checksum type.
+  * **[XrdCl]** Support local metalink files.
+  * **[XrdCl]** Add support for GLFN redirector of last resort.
+  * **[XrdCeph]** Implemented pools of ceph objects.
+
++ **Major bug fixes**
+  * **[Posix]** Remove double unlock of a mutex.
+  * **[Client]** Serialize security protocol manager to allow MT loads.
+  * **[Authentication/sss]** Fix dynamic id incompatability introduced in 4.0.
+  * **[XtdHttp]** Removed the deprecated cipher SSLv3, in favor of TLS1.2
+  * **[XrdCl]** Close file on open timeout.
+  * **[XrdCl]** Differentiate between a handshake and an xrootd request/response 
+                while processing an incoming/outgoing message.
+  * **[XrdCl]** Fix dangling pointer issue that occurs while forking.
+  * **[XrdCl]** Ensure DefaultEnv is finalized after last use of the object.
+
++ **Minor bug fixes**
+  * **[Proxy]**  Avoid SEGV when printing memory cache statistics.
+  * **[Server]** Avoid XrdNetIF static initialization issues.
+  * **[Server]** Honor DFS setting when forwarding operations.
+  * **[Server]** Make sure lockfile time is updated in deprecated runmodeold.
+  * **[Server]** Fixes #344 - squash path before checking for static redirect.
+  * **[Server]** Free Entity before replacing it from the cache (memleak).  
+  * **[XrdCl]** xrdfs ls does not include opaque info in a listing.
+  * **[XrdCl]** Eliminate unnecessary write notifications. 
+  * **[XrdCl]** Forward xrd.* parameters from the original to the redirection URL.
+  * **[XrdCl]** Do not preset CWD in batch mode.
+  * **[XrdCl]** Be complaint with file URI scheme.
+  * **[XrdCl]** Fix wrong query string used for opaquefile code.
+  * **[XrdCl]** Translate XRootD error code to errno before passing to strerror.
+  * **[XrdCeph]** Fixed thread safety of filedescriptors in the ceph plugin.
+  * **[XrdCeph]** Protected initialization of ioCtx object and striper objects
+                  by mutex in the ceph plugin.
+  * **[XrdCeph]** Fixed memory corruption in asynchronous read from ceph.
+  * **[XrdXml]** Make sure c-string buffes are properly terminated.
+  * **[XtdHttp]** Don't trim printable characters.
+
++ **Miscellaneous**
+  * **[XrdCl]** Change the way handlers and messages are matched (use maps).
+  * **[Apps]** Add xrdacctest to the tools set to test access control databases.
+  * **[Packaging/RPM]** Set max open files limit to 65k for systemd services.
+
+-------------
 Version 4.3.0
 -------------
 

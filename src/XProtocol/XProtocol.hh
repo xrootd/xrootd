@@ -294,6 +294,7 @@ enum XErrorCode {
    kXR_ChkLenErr,
    kXR_ChkSumErr,
    kXR_inProgress,
+   kXR_overQuota,
    kXR_noErrorYet = 10000
 };
 
@@ -757,6 +758,7 @@ static int mapError(int rc)
            case ETXTBSY:      return kXR_inProgress;
            case ENODEV:       return kXR_FSError;
            case EFAULT:       return kXR_ServerError;
+           case EDQUOT:       return kXR_overQuota;
            default:           return kXR_FSError;
           }
       }
@@ -785,6 +787,7 @@ static int toErrno( int xerr )
         case kXR_ChkLenErr:     return EDOM;
         case kXR_ChkSumErr:     return EDOM;
         case kXR_inProgress:    return EINPROGRESS;
+        case kXR_overQuota:     return EDQUOT;
         default:                return ENOMSG;
        }
 }

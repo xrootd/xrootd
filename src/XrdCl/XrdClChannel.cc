@@ -104,6 +104,17 @@ namespace
         return pMsg;
       }
 
+      //------------------------------------------------------------------------
+      // Get underlying message filter sid
+      //------------------------------------------------------------------------
+      uint16_t GetSid() const
+      {
+	if (pFilter)
+	  return pFilter->GetSid();
+
+	return 0;
+      }
+
     private:
       FilterHandler(const FilterHandler &other);
       FilterHandler &operator = (const FilterHandler &other);

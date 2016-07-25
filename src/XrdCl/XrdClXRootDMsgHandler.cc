@@ -243,6 +243,15 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get handler sid
+  //----------------------------------------------------------------------------
+  uint16_t XRootDMsgHandler::GetSid() const
+  {
+    ClientRequest* req = (ClientRequest*) pRequest->GetBuffer();
+    return ((uint16_t)req->header.streamid[1] << 8) | (uint16_t)req->header.streamid[0];
+  }
+
+  //----------------------------------------------------------------------------
   //! Process the message if it was "taken" by the examine action
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::Process( Message *msg )
