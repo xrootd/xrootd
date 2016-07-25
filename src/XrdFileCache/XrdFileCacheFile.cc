@@ -219,6 +219,8 @@ bool File::Open()
    XrdOucEnv   myEnv;
 
    // Create the data file itself.
+   char size_str[16]; sprintf(size_str, "%lld", m_fileSize);
+   myEnv.Put("oss.asize", size_str);
    if (myOss.Create(myUser, m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    { 
       TRACEF(Error, "File::Open() Create failed for data file " << m_temp_filename
@@ -241,6 +243,7 @@ bool File::Open()
    struct stat infoStat;
    bool fileExisted = (myOss.Stat(ifn.c_str(), &infoStat) == XrdOssOK);
 
+   myEnv.Put("oss.asize", "64k"); // MT-XXX Calculate? Do not know length of access lists ...
    if (myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    {
       TRACEF(Error, "File::Open() Create failed for info file " << ifn
@@ -612,7 +615,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             // clLog()->Dump(XrdCl::AppMsg, "File::Read() Block finished ok.");
             overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
 
-            TRACEF(Dump, "File::Read() ub=" << (void*)iUserBuff  << " from finished block  " << (*bi)->m_offset/BS << " size " << size_to_copy);
+            TRACEF(Dump, "File::Read() ub=" << (void*)iUserBuff  << " from finished block " << (*bi)->m_offset/BS << " size " << size_to_copy);
             memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
             bytes_read += size_to_copy;
             m_stats.m_BytesRam += size_to_copy;
@@ -620,9 +623,10 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          }
          else // it has failed ... krap up.
          {
-            TRACEF(Error, "File::Read(), block  "<< (*bi)->m_offset/BS << "finished with error ");
             bytes_read = -1;
             errno = (*bi)->m_errno;
+            TRACEF(Error, "File::Read(), block "<< (*bi)->m_offset/BS << " finished with error "
+                   << errno << " " << strerror(errno));
             break;
          }
          ++bi;
