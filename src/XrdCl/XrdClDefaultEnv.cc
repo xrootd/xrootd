@@ -308,14 +308,19 @@ namespace XrdCl
 
     XrdSysPwd pwdHandler;
     passwd *pwd = pwdHandler.Get( getuid() );
-    std::string userConfigFile = pwd->pw_dir;
-    userConfigFile += "/.xrootd/client.conf";
+    if( pwd )
+    {
+      std::string userConfigFile = pwd->pw_dir;
+      userConfigFile += "/.xrootd/client.conf";
 
-    st = Utils::ProcessConfig( userConfig, userConfigFile );
+      st = Utils::ProcessConfig( userConfig, userConfigFile );
 
-    if( !st.IsOK() )
-      log->Debug( UtilityMsg, "Unable to process user config file: %s",
-                  st.ToString().c_str() );
+      if( !st.IsOK() )
+        log->Debug( UtilityMsg, "Unable to process user config file: %s",
+                    st.ToString().c_str() );
+    }
+    else
+      log->Debug( UtilityMsg, "Unable to find user home directory." );
 
     std::map<std::string, std::string>::iterator it;
 
