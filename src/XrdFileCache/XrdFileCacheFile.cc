@@ -81,7 +81,7 @@ File::File(IO *io, std::string& disk_file_path, long long iOffset, long long iFi
    m_temp_filename(disk_file_path),
    m_offset(iOffset),
    m_fileSize(iFileSize),
-   m_stateCond(0), // We will explicitly lock the condition before use.
+   m_prefetchStateCond(0), // We will explicitly lock the condition before use.
    m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
    m_non_flushed_cnt(0),
    m_in_sync(false),
@@ -146,13 +146,13 @@ bool File::ioActive()
    
    TRACEF(Debug, "File::Initiate close start");
 
-   m_stateCond.Lock();
+   m_prefetchStateCond.Lock();
    if (m_prefetchState != kStopped)
    {
       m_prefetchState = kStopped;
       cache()->DeRegisterPrefetchFile(this);
    }
-   m_stateCond.UnLock();
+   m_prefetchStateCond.UnLock();
 
    // remove failed blocks and check if map is empty
    m_downloadCond.Lock();
@@ -202,10 +202,10 @@ bool File::ioActive()
 void File::WakeUp(IO *io)
 {
    // called if this object is recycled by other IO
-   m_stateCond.Lock();
+   m_prefetchStateCond.Lock();
    m_io = io;
    if (m_prefetchState != kComplete) m_prefetchState = kOn;
-   m_stateCond.UnLock();
+   m_prefetchStateCond.UnLock();
 }
 
 //------------------------------------------------------------------------------
@@ -901,7 +901,7 @@ void File::AppendIOStatToFileInfo()
 void File::Prefetch()
 {
    {
-      XrdSysCondVarHelper _lck(m_stateCond);
+      XrdSysCondVarHelper _lck(m_prefetchStateCond);
       if (m_prefetchState != kOn)
          return;
    }
@@ -941,9 +941,9 @@ void File::Prefetch()
    else
    { 
       TRACEF(Dump, "File::Prefetch no free block found ");
-      m_stateCond.Lock();
+      m_prefetchStateCond.Lock();
       m_prefetchState = kComplete;
-      m_stateCond.UnLock();
+      m_prefetchStateCond.UnLock();
       cache()->DeRegisterPrefetchFile(this); 
    }
 }

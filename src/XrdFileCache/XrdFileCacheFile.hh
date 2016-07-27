@@ -112,7 +112,7 @@ namespace XrdFileCache
       long long       m_offset;         //!< offset of cached file for block-based operation
       long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
-      XrdSysCondVar   m_stateCond;      //!< state condition variable
+      XrdSysCondVar   m_prefetchStateCond;      //!< state condition variable
 
       // fsync
       XrdSysMutex       m_syncStatusMutex;  //!< mutex locking fsync status
