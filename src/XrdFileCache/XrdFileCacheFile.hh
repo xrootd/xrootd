@@ -115,7 +115,6 @@ namespace XrdFileCache
       XrdSysCondVar   m_prefetchStateCond;      //!< state condition variable
 
       // fsync
-      XrdSysMutex       m_syncStatusMutex;  //!< mutex locking fsync status
       XrdJob           *m_syncer;
       std::vector<int>  m_writes_during_sync;
       int               m_non_flushed_cnt;

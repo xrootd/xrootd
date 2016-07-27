@@ -98,9 +98,9 @@ File::~File()
 {
    if (m_infoFile)
    {
-      m_syncStatusMutex.Lock();
+      m_downloadCond.Lock();
       bool need_sync = (!m_writes_during_sync.empty()) || m_non_flushed_cnt > 0;
-      m_syncStatusMutex.UnLock();
+      m_downloadCond.UnLock();
       if (need_sync)
          Sync();
 
@@ -186,7 +186,7 @@ bool File::ioActive()
    if (blockMapEmpty)
    {
       // file is not active when block map is empty and sync is done
-      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+      XrdSysCondVarHelper _lck(&m_downloadCond);
       if ( ! m_in_sync)
       {
          m_in_sync = true;
@@ -717,19 +717,16 @@ void File::WriteBlockToDisk(Block* b)
    TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size " <<  size);
    int pfIdx =  (b->m_offset - m_offset)/m_cfi.GetBufferSize();
 
+    bool schedule_sync = false;
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
 
       m_cfi.SetBitWritten(pfIdx);
       // clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() dec_ref_count %d %s", pfIdx, lPath());
       dec_ref_count(b);
-   }
 
-   // set bit synced
-   bool schedule_sync = false;
-   {
-      XrdSysMutexHelper _lck(&m_syncStatusMutex);
 
+      // set bit synced
       if (m_in_sync)
       {
          m_writes_during_sync.push_back(pfIdx);
@@ -765,7 +762,7 @@ void File::Sync()
 
    int written_while_in_sync;
    {
-      XrdSysMutexHelper _lck(&m_syncStatusMutex);
+      XrdSysCondVarHelper _lck(&m_downloadCond);
       for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
       {
          m_cfi.SetBitSynced(*i);
