@@ -105,15 +105,15 @@ Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
    m_hasPrefetchBuffer(prefetchBuffer),
    m_fileSize(0),
    m_sizeInBits(0),
-   m_buff_fetched(0), m_buff_write_called(0), m_buff_prefetch(0),
+   m_buff_written(0), m_buff_synced(0), m_buff_prefetch(0),
    m_accessCnt(0),
    m_complete(false)
 {}
 
 Info::~Info()
 {
-   if (m_buff_fetched)      free(m_buff_fetched);
-   if (m_buff_write_called) free(m_buff_write_called);
+   if (m_buff_written)      free(m_buff_written);
+   if (m_buff_synced)       free(m_buff_synced);
    if (m_buff_prefetch)     free(m_buff_prefetch);
 }
 
@@ -139,15 +139,15 @@ void Info::SetFileSize(long long fs)
 void Info::ResizeBits(int s)
 {
     // drop buffer in case of failed/partial reads
-   if (m_buff_fetched)      free(m_buff_fetched);
-   if (m_buff_write_called) free(m_buff_write_called);
+   if (m_buff_written)      free(m_buff_written);
+   if (m_buff_synced)       free(m_buff_synced);
    if (m_buff_prefetch)     free(m_buff_prefetch);
 
    m_sizeInBits = s;
-   m_buff_fetched      = (unsigned char*) malloc(GetSizeInBytes());
-   m_buff_write_called = (unsigned char*) malloc(GetSizeInBytes());
-   memset(m_buff_fetched,      0, GetSizeInBytes());
-   memset(m_buff_write_called, 0, GetSizeInBytes());
+   m_buff_written      = (unsigned char*) malloc(GetSizeInBytes());
+   m_buff_synced = (unsigned char*) malloc(GetSizeInBytes());
+   memset(m_buff_written,      0, GetSizeInBytes());
+   memset(m_buff_synced,       0, GetSizeInBytes());
 
    if (m_hasPrefetchBuffer)
    {
@@ -185,8 +185,8 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    if (m_version > 0) 
    {
-      if (r.Read(m_buff_fetched, GetSizeInBytes())) return false;
-      memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
+      if (r.Read(m_buff_written, GetSizeInBytes())) return false;
+      memcpy(m_buff_synced, m_buff_written, GetSizeInBytes());
    }
 
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
@@ -231,7 +231,7 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
 
    if ( m_version >= 0 )
    {
-      if (w.Write(m_buff_write_called, GetSizeInBytes())) 
+      if (w.Write(m_buff_synced, GetSizeInBytes())) 
           return false;
    }
 

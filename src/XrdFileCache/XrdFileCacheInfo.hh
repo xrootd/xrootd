@@ -69,13 +69,13 @@ namespace XrdFileCache
          //!
          //! @param i block index
          //---------------------------------------------------------------------
-         void SetBitFetched(int i);
+         void SetBitWritten(int i);
 
          //! \brief Mark block as disk written
          //!
          //! @param i block index
          //---------------------------------------------------------------------
-         void SetBitWriteCalled(int i);
+         void SetBitSynced(int i);
 
          //! \brief Mark block as written from prefetch
          //!
@@ -161,7 +161,7 @@ namespace XrdFileCache
          bool TestBit(int i) const;
 
          //---------------------------------------------------------------------
-         //! Test if block at the given index is prefetched
+         //! Test if block at the given index is prewritten
          //---------------------------------------------------------------------
          bool TestPrefetchBit(int i) const;
 
@@ -210,8 +210,8 @@ namespace XrdFileCache
          bool           m_hasPrefetchBuffer; //!< constains current prefetch score
          long long      m_fileSize;          //!< number of file blocks
          int            m_sizeInBits;        //!< number of file blocks
-         unsigned char *m_buff_fetched;      //!< download state vector
-         unsigned char *m_buff_write_called; //!< disk written state vector
+         unsigned char *m_buff_written;      //!< download state vector
+         unsigned char *m_buff_synced; //!< disk written state vector
          unsigned char *m_buff_prefetch;     //!< prefetch state vector
          int            m_accessCnt;         //!< number of written AStat structs
          bool           m_complete;          //!< cached
@@ -226,7 +226,7 @@ namespace XrdFileCache
       assert(cn < GetSizeInBytes());
 
       const int off = i - cn*8;
-      return (m_buff_fetched[cn] & cfiBIT(off)) == cfiBIT(off);
+      return (m_buff_written[cn] & cfiBIT(off)) == cfiBIT(off);
    }
 
    // AMT  could have only one function to test bit and pass an argument, but would loose clarity
@@ -236,7 +236,7 @@ namespace XrdFileCache
       assert(cn < GetSizeInBytes());
 
       const int off = i - cn*8;
-      return (m_buff_prefetch[cn] & cfiBIT(off)) == cfiBIT(off);
+      return (m_buff_written[cn] & cfiBIT(off)) == cfiBIT(off);
    }
 
    inline int Info::GetNDownloadedBlocks() const
@@ -291,22 +291,22 @@ namespace XrdFileCache
       m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
    }
 
-   inline void Info::SetBitWriteCalled(int i)
+   inline void Info::SetBitSynced(int i)
    {
       const int cn = i/8;
       assert(cn < GetSizeInBytes());
 
       const int off = i - cn*8;
-      m_buff_write_called[cn] |= cfiBIT(off);
+      m_buff_synced[cn] |= cfiBIT(off);
    }
 
-   inline void Info::SetBitFetched(int i)
+   inline void Info::SetBitWritten(int i)
    {
       const int cn = i/8;
       assert(cn < GetSizeInBytes());
 
       const int off = i - cn*8;
-      m_buff_fetched[cn] |= cfiBIT(off);
+      m_buff_written[cn] |= cfiBIT(off);
    }
 
    inline void Info::SetBitPrefetch(int i)

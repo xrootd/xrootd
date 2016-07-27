@@ -720,7 +720,7 @@ void File::WriteBlockToDisk(Block* b)
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
 
-      m_cfi.SetBitFetched(pfIdx);
+      m_cfi.SetBitWritten(pfIdx);
       // clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() dec_ref_count %d %s", pfIdx, lPath());
       dec_ref_count(b);
    }
@@ -736,7 +736,7 @@ void File::WriteBlockToDisk(Block* b)
       }
       else
       {
-         m_cfi.SetBitWriteCalled(pfIdx);
+         m_cfi.SetBitSynced(pfIdx);
          ++m_non_flushed_cnt;
          if (m_non_flushed_cnt >= 100)
          {
@@ -768,7 +768,7 @@ void File::Sync()
       XrdSysMutexHelper _lck(&m_syncStatusMutex);
       for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
       {
-         m_cfi.SetBitWriteCalled(*i);
+         m_cfi.SetBitSynced(*i);
       }
       written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
       m_writes_during_sync.clear();
