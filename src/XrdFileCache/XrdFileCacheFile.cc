@@ -81,7 +81,6 @@ File::File(IO *io, std::string& disk_file_path, long long iOffset, long long iFi
    m_temp_filename(disk_file_path),
    m_offset(iOffset),
    m_fileSize(iFileSize),
-   m_prefetchStateCond(0), // We will explicitly lock the condition before use.
    m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
    m_non_flushed_cnt(0),
    m_in_sync(false),
@@ -146,16 +145,16 @@ bool File::ioActive()
    
    TRACEF(Debug, "File::Initiate close start");
 
-   m_prefetchStateCond.Lock();
+
+   // remove failed blocks and check if map is empty
+   m_downloadCond.Lock();
+
    if (m_prefetchState != kStopped)
    {
       m_prefetchState = kStopped;
       cache()->DeRegisterPrefetchFile(this);
    }
-   m_prefetchStateCond.UnLock();
 
-   // remove failed blocks and check if map is empty
-   m_downloadCond.Lock();
    /*      
    // high debug print 
    for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it) {
@@ -202,10 +201,10 @@ bool File::ioActive()
 void File::WakeUp(IO *io)
 {
    // called if this object is recycled by other IO
-   m_prefetchStateCond.Lock();
+   m_downloadCond.Lock();
    m_io = io;
    if (m_prefetchState != kComplete) m_prefetchState = kOn;
-   m_prefetchStateCond.UnLock();
+   m_downloadCond.UnLock();
 }
 
 //------------------------------------------------------------------------------
@@ -897,39 +896,36 @@ void File::AppendIOStatToFileInfo()
 
 void File::Prefetch()
 {
-   {
-      XrdSysCondVarHelper _lck(m_prefetchStateCond);
-      if (m_prefetchState != kOn)
-         return;
-   }
-
    // Check that block is not on disk and not in RAM.
    // MT XXX: Could prefetch several blocks at once!
 
    BlockList_t blks;
 
    TRACEF(Dump, "File::Prefetch enter to check download status");
-
-   m_downloadCond.Lock();
-
-   for (int f = 0; f < m_cfi.GetSizeInBits(); ++f)
    {
-      if ( ! m_cfi.TestBit(f))
-      {    
-         f += m_offset/m_cfi.GetBufferSize();
-         BlockMap_i bi = m_block_map.find(f);
-         if (bi == m_block_map.end()) {
-            TRACEF(Dump, "File::Prefetch take block " << f);
-            cache()->RequestRAMBlock();
-            blks.push_back( PrepareBlockRequest(f, true) );
-            m_prefetchReadCnt++;
-            m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
-            break;
-         }
-      }
+       XrdSysCondVarHelper _lck(m_downloadCond);
+
+       if (m_prefetchState != kOn)
+         return;
+
+       for (int f = 0; f < m_cfi.GetSizeInBits(); ++f)
+       {
+           if ( ! m_cfi.TestBit(f))
+           {    
+               f += m_offset/m_cfi.GetBufferSize();
+               BlockMap_i bi = m_block_map.find(f);
+               if (bi == m_block_map.end()) {
+                   TRACEF(Dump, "File::Prefetch take block " << f);
+                   cache()->RequestRAMBlock();
+                   blks.push_back( PrepareBlockRequest(f, true) );
+                   m_prefetchReadCnt++;
+                   m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
+                   break;
+               }
+           }
+       }
    }
 
-   m_downloadCond.UnLock();
 
    if ( ! blks.empty())
    {
@@ -938,9 +934,9 @@ void File::Prefetch()
    else
    { 
       TRACEF(Dump, "File::Prefetch no free block found ");
-      m_prefetchStateCond.Lock();
+      m_downloadCond.Lock();
       m_prefetchState = kComplete;
-      m_prefetchStateCond.UnLock();
+      m_downloadCond.UnLock();
       cache()->DeRegisterPrefetchFile(this); 
    }
 }

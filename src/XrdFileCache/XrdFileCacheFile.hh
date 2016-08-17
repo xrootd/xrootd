@@ -112,8 +112,6 @@ namespace XrdFileCache
       long long       m_offset;         //!< offset of cached file for block-based operation
       long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
-      XrdSysCondVar   m_prefetchStateCond;      //!< state condition variable
-
       // fsync
       XrdJob           *m_syncer;
       std::vector<int>  m_writes_during_sync;
