@@ -53,13 +53,6 @@ namespace XrdFileCache
 
 namespace XrdFileCache
 {
-   class RefCounted
-   {
-      int m_refcnt;
-
-      RefCounted() : m_refcnt(0) {}
-   };
-
    class File;
 
    class Block
@@ -91,7 +84,8 @@ namespace XrdFileCache
       void set_error_and_free(int err)
       {
          m_errno = err;
-         m_buff.resize(0);
+         std::vector<char> x;
+         m_buff.swap(x);
       }
    };
 
@@ -141,7 +135,6 @@ namespace XrdFileCache
       int             m_prefetchReadCnt;
       int             m_prefetchHitCnt;
       float           m_prefetchScore; //cached
-      int             m_prefetchCurrentCnt;
 
       static const char *m_traceID;
 
@@ -225,10 +218,16 @@ namespace XrdFileCache
                                 char* req_buf, long long req_off, long long req_size);
 
       // VRead
-      bool VReadValidate  (const XrdOucIOVec *readV, int n);
-      bool VReadPreProcess(const XrdOucIOVec *readV, int n, ReadVBlockListRAM& blks_to_process,  ReadVBlockListDisk& blks_on_disk, std::vector<XrdOucIOVec>& chunkVec);
-      int  VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blks_on_disk);
-      int  VReadProcessBlocks(const XrdOucIOVec *readV, int n, std::vector<ReadVChunkListRAM>& blks_to_process, std::vector<ReadVChunkListRAM>& blks_rocessed);
+      bool VReadValidate     (const XrdOucIOVec *readV, int n);
+      bool VReadPreProcess   (const XrdOucIOVec *readV, int n,
+                              ReadVBlockListRAM&  blks_to_process,
+                              ReadVBlockListDisk& blks_on_disk,
+                              std::vector<XrdOucIOVec>& chunkVec);
+      int  VReadFromDisk     (const XrdOucIOVec *readV, int n,
+                              ReadVBlockListDisk& blks_on_disk);
+      int  VReadProcessBlocks(const XrdOucIOVec *readV, int n,
+                              std::vector<ReadVChunkListRAM>& blks_to_process,
+                              std::vector<ReadVChunkListRAM>& blks_rocessed);
 
       long long BufferSize();
       void AppendIOStatToFileInfo();

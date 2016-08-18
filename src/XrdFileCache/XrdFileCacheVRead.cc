@@ -101,8 +101,13 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
    std::vector<XrdOucIOVec>       chunkVec;
    DirectResponseHandler         *direct_handler = 0;
 
+   // XXXX The following call never fails (other than with out of mem exception).
+   // XXXX This should be implemented in PrepareBlockRequest().
    if ( ! VReadPreProcess(readV, n, blocks_to_process, blocks_on_disk, chunkVec))
+   {
       bytesRead = -1;
+      errno = ENOMEM;
+   }
 
    // issue a client read
 
@@ -324,7 +329,7 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
             if (bi->block->is_finished())
             {
                finished.push_back(ReadVChunkListRAM(bi->block, bi->arr));
-               //  std::vector<ReadVChunkListRAM>::iterator bj = bi++;
+               // Here we rely on the fact that std::vector does not reallocate on erase!
                blocks_to_process.erase(bi);
             }
             else

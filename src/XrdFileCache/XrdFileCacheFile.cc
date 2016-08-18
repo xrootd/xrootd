@@ -842,8 +842,7 @@ void File::ProcessBlockResponse(Block* b, int res)
       TRACEF(Error, "File::ProcessBlockResponse block " << b << "  " << (int)(b->m_offset/BufferSize()) << " error=" << res);
       // XrdPosixMap::Result(*status);
       // AMT could notfiy global cache we dont need RAM for that block
-      b->set_error_and_free(errno);
-      errno = 0;
+      b->set_error_and_free(res);
 
       // ??? AMT how long to keep
       inc_ref_count(b);
@@ -983,7 +982,7 @@ XrdOucTrace* File::GetTrace()
 }
 
 //==============================================================================
-//=======================    RESPONSE HANDLER    ===============================
+//=======================    RESPONSE HANDLERS    ==============================
 //==============================================================================
 
 void BlockResponseHandler::Done(int res)
@@ -1003,7 +1002,7 @@ void DirectResponseHandler::Done(int res)
 
    if (res < 0)
    {
-      m_errno = errno;
+      m_errno = res;
    }
 
    if (m_to_wait == 0)
