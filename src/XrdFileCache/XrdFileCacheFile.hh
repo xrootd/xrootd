@@ -231,9 +231,6 @@ namespace XrdFileCache
       long long BufferSize();
       void AppendIOStatToFileInfo();
 
-      void CheckPrefetchStatRAM(Block* b);
-      void CheckPrefetchStatDisk(int idx);
-
       void inc_ref_count(Block*);
       void dec_ref_count(Block*);
       void free_block(Block*);

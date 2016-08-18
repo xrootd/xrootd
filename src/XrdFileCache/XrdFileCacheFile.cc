@@ -431,8 +431,6 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
       }
 
       total += rs;
-
-      CheckPrefetchStatDisk(*ii);
    } 
 
    m_stats.m_BytesDisk += total;
@@ -572,6 +570,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    }
 
    // Third, loop over blocks that are available or incoming
+   int prefetchHitsRam = 0;
    while ( ! blks_to_process.empty() && bytes_read >= 0)
    {
       BlockList_t finished;
@@ -618,7 +617,8 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
             bytes_read += size_to_copy;
             m_stats.m_BytesRam += size_to_copy;
-            CheckPrefetchStatRAM(*bi);
+            if ((*bi)->m_prefetch)
+               prefetchHitsRam++;
          }
          else // it has failed ... krap up.
          {
@@ -676,6 +676,14 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          dec_ref_count(*bi);
          // XXXX stamp block
       }
+
+      // update prefetch score
+      m_prefetchHitCnt += prefetchHitsRam;
+      for (IntList_i d = blks_on_disk.begin(); d !=  blks_on_disk.end(); ++d) {
+         if (m_cfi.TestPrefetchBit(offsetIdx(*d)))
+            m_prefetchHitCnt++;
+      }
+      m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
    }
 
    return bytes_read;
@@ -941,30 +949,6 @@ void File::Prefetch()
    }
 }
 
-//------------------------------------------------------------------------------
-
-void File::CheckPrefetchStatRAM(Block* b)
-{
-   if (Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
-   {
-      if (b->m_prefetch)
-      {
-         m_prefetchHitCnt++;
-         m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
-      }
-   }
-}
-
-//------------------------------------------------------------------------------
-
-void File::CheckPrefetchStatDisk(int idx)
-{
-   if (Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
-   {
-      if (m_cfi.TestPrefetchBit(offsetIdx(idx)))
-         m_prefetchHitCnt++;
-   }
-}
 
 //------------------------------------------------------------------------------
 
