@@ -62,7 +62,7 @@ BuildRequires: cppunit-devel
 %endif
 
 %if %{?_with_ceph:1}%{!?_with_ceph:0}
-BuildRequires: ceph-devel
+BuildRequires: ceph-devel-compat
 %endif
 
 BuildRequires:	doxygen
