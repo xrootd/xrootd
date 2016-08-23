@@ -596,6 +596,7 @@ fi
 %{_bindir}/xrdmapc
 %{_bindir}/xrootd
 %{_bindir}/xrdpfc_print
+%{_bindir}/xrdacctest
 %{_mandir}/man8/cmsd.8*
 %{_mandir}/man8/cns_ssi.8*
 %{_mandir}/man8/frm_admin.8*
