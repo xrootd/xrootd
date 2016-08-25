@@ -100,21 +100,17 @@ const char* Info::m_traceID       = "Cinfo";
 
 Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
    m_trace(trace),
-   m_version(1),
-   m_bufferSize(-1),
    m_hasPrefetchBuffer(prefetchBuffer),
-   m_fileSize(0),
+   m_buff_written(0),  m_buff_prefetch(0),
    m_sizeInBits(0),
-   m_buff_written(0), m_buff_synced(0), m_buff_prefetch(0),
-   m_accessCnt(0),
    m_complete(false)
 {}
 
 Info::~Info()
 {
-   if (m_buff_written)      free(m_buff_written);
-   if (m_buff_synced)       free(m_buff_synced);
-   if (m_buff_prefetch)     free(m_buff_prefetch);
+   if (m_store.m_buff_synced)  free(m_store.m_buff_synced);
+   if (m_buff_written)         free(m_buff_written);
+   if (m_buff_prefetch)        free(m_buff_prefetch);
 }
 
 //------------------------------------------------------------------------------
@@ -122,16 +118,16 @@ Info::~Info()
 void Info::SetBufferSize(long long bs)
 {
    // Needed only info is created first time in File::Open()
-   m_bufferSize = bs;
+   m_store.m_bufferSize = bs;
 }
 
 //------------------------------------------------------------------------------s
 
 void Info::SetFileSize(long long fs)
 {
-   m_fileSize = fs;
-   if (m_version >= 0)
-      ResizeBits((m_fileSize - 1)/m_bufferSize + 1) ;
+   m_store.m_fileSize = fs;
+   if (m_store.m_version >= 0)
+      ResizeBits((m_store.m_fileSize - 1)/m_store.m_bufferSize + 1) ;
 }
 
 //------------------------------------------------------------------------------
@@ -139,15 +135,15 @@ void Info::SetFileSize(long long fs)
 void Info::ResizeBits(int s)
 {
     // drop buffer in case of failed/partial reads
-   if (m_buff_written)      free(m_buff_written);
-   if (m_buff_synced)       free(m_buff_synced);
-   if (m_buff_prefetch)     free(m_buff_prefetch);
+   if (m_store.m_buff_synced)       free(m_store.m_buff_synced);
+   if (m_buff_written)                 free(m_buff_written);
+   if (m_buff_prefetch)                free(m_buff_prefetch);
 
    m_sizeInBits = s;
    m_buff_written      = (unsigned char*) malloc(GetSizeInBytes());
-   m_buff_synced = (unsigned char*) malloc(GetSizeInBytes());
+   m_store.m_buff_synced = (unsigned char*) malloc(GetSizeInBytes());
    memset(m_buff_written,      0, GetSizeInBytes());
-   memset(m_buff_synced,       0, GetSizeInBytes());
+   memset(m_store.m_buff_synced,       0, GetSizeInBytes());
 
    if (m_hasPrefetchBuffer)
    {
@@ -170,29 +166,29 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    int version;
    if (r.Read(version)) return false;
-   if (abs(version) != abs(m_version))
+   if (abs(version) != abs(m_store.m_version))
    {
       TRACE(Warning, trace_pfx << " incompatible file version " << version);
       return false;
    }
-   m_version = version;
+   m_store.m_version = version;
 
-   if (r.Read(m_bufferSize)) return false;
+   if (r.Read(m_store.m_bufferSize)) return false;
 
    long long fs;
    if (r.Read(fs)) return false;
    SetFileSize(fs);
 
-   if (m_version > 0) 
+   if (m_store.m_version > 0) 
    {
       if (r.Read(m_buff_written, GetSizeInBytes())) return false;
-      memcpy(m_buff_synced, m_buff_written, GetSizeInBytes());
+      memcpy(m_store.m_buff_synced, m_buff_written, GetSizeInBytes());
    }
 
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-   if (r.Read(m_accessCnt)) m_accessCnt = 0; // was: return false;
-   TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_accessCnt);
+   if (r.Read(m_store.m_accessCnt)) m_store.m_accessCnt = 0; // was: return false;
+   TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
 
    return true;
 }
@@ -201,7 +197,7 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 void Info::DisableDownloadStatus()
 {
     // use version sign to skip downlaod status
-    m_version = -m_version;
+    m_store.m_version = -m_store.m_version;
 }
 
 int Info::GetHeaderSize() const
@@ -225,13 +221,13 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
 
    FpHelper w(fp, 0, m_trace, m_traceID, trace_pfx + "oss write failed");
 
-   if (w.Write(m_version))    return false;
-   if (w.Write(m_bufferSize)) return false;
-   if (w.Write(m_fileSize))   return false;
+   if (w.Write(m_store.m_version))    return false;
+   if (w.Write(m_store.m_bufferSize)) return false;
+   if (w.Write(m_store.m_fileSize))   return false;
 
-   if ( m_version >= 0 )
+   if ( m_store.m_version >= 0 )
    {
-      if (w.Write(m_buff_synced, GetSizeInBytes())) 
+      if (w.Write(m_store.m_buff_synced, GetSizeInBytes())) 
           return false;
    }
 
@@ -259,12 +255,12 @@ bool Info::AppendIOStat(AStat& as, XrdOssDF* fp, const std::string &fname)
       return false;
    }
 
-   m_accessCnt++;
+   m_store.m_accessCnt++;
 
    FpHelper w(fp, GetHeaderSize(), m_trace, m_traceID, trace_pfx + "oss write failed");
 
-   if (w.Write(m_accessCnt)) return false;
-   w.f_off += (m_accessCnt-1)*sizeof(AStat);
+   if (w.Write(m_store.m_accessCnt)) return false;
+   w.f_off += (m_store.m_accessCnt-1)*sizeof(AStat);
  
    if (w.Write(as)) return false;
 
@@ -288,10 +284,10 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
        TRACE(Error, "Info::GetLatestAttachTime() lock failed");
        return false;
    }
-   if (m_accessCnt)
+   if (m_store.m_accessCnt)
    {
       AStat     stat;
-      long long off      = GetHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
+      long long off      = GetHeaderSize() + sizeof(int) + (m_store.m_accessCnt-1)*sizeof(AStat);
       ssize_t   read_res = fp->Read(&stat, off, sizeof(AStat));
       if (read_res == sizeof(AStat))
       {

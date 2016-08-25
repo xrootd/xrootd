@@ -2,7 +2,7 @@
 #define __XRDFILECACHE_INFO_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
+// Author: Alja Mrak-Tadel, Matevz  Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -45,7 +45,20 @@ namespace XrdFileCache
    class Info
    {
    public:
-         // !Access statistics
+      struct Store {
+         int            m_version;           //!< info version
+         long long      m_bufferSize;        //!< prefetch buffer size
+         long long      m_fileSize;          //!< number of file blocks
+         unsigned char *m_buff_synced;       //!< disk written state vector
+         int            m_accessCnt;         //!< number of written AStat structs
+
+         Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0), m_accessCnt(0) {
+         }
+
+         
+      };
+
+      // !Access statistics
          struct AStat
          {
             time_t    DetachTime;  //! close time
@@ -188,12 +201,12 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Get number of accesses
          //---------------------------------------------------------------------
-         int GetAccessCnt() { return  m_accessCnt; }
+         int GetAccessCnt() { return  m_store.m_accessCnt; }
 
          //---------------------------------------------------------------------
          //! Get version
          //---------------------------------------------------------------------
-         int GetVersion() { return  m_version; }
+         int GetVersion() { return  m_store.m_version; }
 
 
          const static char* m_infoExtension;
@@ -202,18 +215,14 @@ namespace XrdFileCache
          XrdOucTrace* GetTrace() const {return m_trace;}
 
    protected:
-
          XrdOucTrace*   m_trace;
 
-         int            m_version;           //!< info version
-         long long      m_bufferSize;        //!< prefetch buffer size
+         Store          m_store;
          bool           m_hasPrefetchBuffer; //!< constains current prefetch score
-         long long      m_fileSize;          //!< number of file blocks
-         int            m_sizeInBits;        //!< number of file blocks
          unsigned char *m_buff_written;      //!< download state vector
-         unsigned char *m_buff_synced; //!< disk written state vector
-         unsigned char *m_buff_prefetch;     //!< prefetch state vector
-         int            m_accessCnt;         //!< number of written AStat structs
+         unsigned char *m_buff_prefetch;     //!< prefetch statistics
+
+         int            m_sizeInBits ;      //!cached
          bool           m_complete;          //!< cached
 
    private:
@@ -250,7 +259,7 @@ namespace XrdFileCache
 
    inline long long Info::GetNDownloadedBytes() const
    {
-      return m_bufferSize * GetNDownloadedBlocks();
+      return m_store.m_bufferSize * GetNDownloadedBlocks();
    }
 
    inline int Info::GetSizeInBytes() const
@@ -268,7 +277,7 @@ namespace XrdFileCache
 
    inline long long Info::GetFileSize() const
    {
-      return m_fileSize;
+      return m_store.m_fileSize;
    }
 
    inline bool Info::IsComplete() const
@@ -279,7 +288,7 @@ namespace XrdFileCache
    inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
    {
       // XXX rewrite to use full byte comparisons outside of edges ?
-      // Also, it is always called with fisrtsIdx = 0, lastIdx = m_sizeInBits.
+      // Also, it is always called with fisrtsdx = 0, lastIdx = m_sizeInBits.
       for (int i = firstIdx; i < lastIdx; ++i)
          if (!TestBit(i)) return true;
 
@@ -297,7 +306,7 @@ namespace XrdFileCache
       assert(cn < GetSizeInBytes());
 
       const int off = i - cn*8;
-      m_buff_synced[cn] |= cfiBIT(off);
+      m_store.m_buff_synced[cn] |= cfiBIT(off);
    }
 
    inline void Info::SetBitWritten(int i)
@@ -321,7 +330,7 @@ namespace XrdFileCache
 
    inline long long Info::GetBufferSize() const
    {
-      return m_bufferSize;
+      return m_store.m_bufferSize;
    }
 
 
