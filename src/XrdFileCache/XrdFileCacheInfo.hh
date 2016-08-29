@@ -29,6 +29,7 @@ class XrdOucTrace;
 #include "XrdCl/XrdClDefaultEnv.hh"
 
 class XrdOssDF;
+class XrdCksCalc;
 
 namespace XrdCl
 {
@@ -50,12 +51,11 @@ namespace XrdFileCache
          long long      m_bufferSize;        //!< prefetch buffer size
          long long      m_fileSize;          //!< number of file blocks
          unsigned char *m_buff_synced;       //!< disk written state vector
+         char           m_cksum[16];
          int            m_accessCnt;         //!< number of written AStat structs
 
          Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0), m_accessCnt(0) {
          }
-
-         
       };
 
       // !Access statistics
@@ -90,7 +90,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void SetBitSynced(int i);
 
-         //! \brief Mark block as written from prefetch
+         //! \brief Mark block as written from prefetchxs
          //!
          //! @param i block index
          //---------------------------------------------------------------------
@@ -209,8 +209,14 @@ namespace XrdFileCache
          int GetVersion() { return  m_store.m_version; }
 
 
+         //---------------------------------------------------------------------
+         //! Get md5 cksum
+         //---------------------------------------------------------------------
+      void GetCksum( unsigned char* buff, char* digest);
+
          const static char* m_infoExtension;
          const static char* m_traceID;
+         const static int   m_defaultVersion;
 
          XrdOucTrace* GetTrace() const {return m_trace;}
 
@@ -227,6 +233,7 @@ namespace XrdFileCache
 
    private:
          inline unsigned char cfiBIT(int n) const { return 1 << n; }
+         XrdCksCalc*   m_cksCalc;
    };
 
    inline bool Info::TestBit(int i) const

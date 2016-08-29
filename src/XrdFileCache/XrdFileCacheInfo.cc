@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 
 #include "XrdOss/XrdOss.hh"
+#include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdOuc/XrdOucSxeq.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdCl/XrdClLog.hh"
@@ -93,8 +94,9 @@ namespace
 
 using namespace XrdFileCache;
 
-const char* Info::m_infoExtension = ".cinfo";
-const char* Info::m_traceID       = "Cinfo";
+const char* Info::m_infoExtension  = ".cinfo";
+const char* Info::m_traceID        = "Cinfo";
+const int   Info::m_defaultVersion = 2;
 
 //------------------------------------------------------------------------------
 
@@ -152,6 +154,7 @@ void Info::ResizeBits(int s)
    }
 }
 
+
 //------------------------------------------------------------------------------
 
 bool Info::Read(XrdOssDF* fp, const std::string &fname)
@@ -164,14 +167,11 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
 
-   int version;
-   if (r.Read(version)) return false;
-   if (abs(version) != abs(m_store.m_version))
-   {
-      TRACE(Warning, trace_pfx << " incompatible file version " << version);
-      return false;
+   if (r.Read(m_store.m_version)) return false;
+
+   if (m_store.m_version == 0) {
+      TRACE(Warning, trace_pfx << " File version 0 non supported");
    }
-   m_store.m_version = version;
 
    if (r.Read(m_store.m_bufferSize)) return false;
 
@@ -179,20 +179,36 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    if (r.Read(fs)) return false;
    SetFileSize(fs);
 
-   if (m_store.m_version > 0) 
+   if (r.Read(m_store.m_buff_synced, GetSizeInBytes())) return false;
+   memcpy(m_buff_written, m_store.m_buff_synced, GetSizeInBytes());
+
+   if (m_store.m_version > 1)
    {
-      if (r.Read(m_buff_written, GetSizeInBytes())) return false;
-      memcpy(m_store.m_buff_synced, m_buff_written, GetSizeInBytes());
+      if (r.Read(m_store.m_cksum)) return false;
+      char tmpCksum[16];
+      GetCksum(m_store.m_buff_synced, &tmpCksum[0]);
+      if (tmpCksum != m_store.m_cksum) {
+         TRACE(Warning, trace_pfx << " buffer cksum and saved cksum don't match \n");
+      }
    }
+ 
+   if (r.Read(m_store.m_accessCnt)) m_store.m_accessCnt = 0; // was: return false;
 
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
-
-   if (r.Read(m_store.m_accessCnt)) m_store.m_accessCnt = 0; // was: return false;
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
-
+   
    return true;
 }
 
+
+//------------------------------------------------------------------------------
+void Info::GetCksum( unsigned char* buff, char* digest)
+{
+   XrdCksCalcmd5 calc;
+   calc.Update((const char*)buff, GetSizeInBits());
+   memcpy(digest, calc.Final(), 16);
+}
+   
 //------------------------------------------------------------------------------
 void Info::DisableDownloadStatus()
 {
@@ -202,8 +218,15 @@ void Info::DisableDownloadStatus()
 
 int Info::GetHeaderSize() const
 {
-   // version + buffersize + file-size + download-status-array
-   return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes();
+   if (m_store.m_version == 1) {
+      // version + buffersize + file-size + download-status-array
+      return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes();
+   }
+   else // if (m_store.m_version == 2)
+   {
+      // version + buffersize + file-size + download-status-array + hash value
+      return sizeof(int) + sizeof(long long) + sizeof(long long) + GetSizeInBytes() + 16;
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -225,12 +248,12 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
    if (w.Write(m_store.m_bufferSize)) return false;
    if (w.Write(m_store.m_fileSize))   return false;
 
-   if ( m_store.m_version >= 0 )
-   {
-      if (w.Write(m_store.m_buff_synced, GetSizeInBytes())) 
-          return false;
-   }
+   if (w.Write(m_store.m_buff_synced, GetSizeInBytes())) return false;
 
+   GetCksum(m_store.m_buff_synced, &m_store.m_cksum[0]);
+   if (w.Write(m_store.m_cksum))   return false;
+   
+   
    // Can this really fail?
    if (XrdOucSxeq::Release(fp->getFD()))
    {
