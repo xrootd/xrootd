@@ -186,9 +186,19 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    {
       if (r.Read(m_store.m_cksum)) return false;
       char tmpCksum[16];
-      GetCksum(m_store.m_buff_synced, &tmpCksum[0]);
-      if (tmpCksum != m_store.m_cksum) {
-         TRACE(Warning, trace_pfx << " buffer cksum and saved cksum don't match \n");
+      GetCksum(&m_store.m_buff_synced[0], &tmpCksum[0]);
+
+      /*
+      for (int i =0; i < 16; ++i) 
+          printf("%x", tmpCksum[i] & 0xff);
+
+      for (int i =0; i < 16; ++i) 
+          printf("%x", m_store.m_cksum[i] & 0xff);
+      */
+
+      if (strncmp(m_store.m_cksum, &tmpCksum[0], 16)) {
+         TRACE(Error, trace_pfx << " buffer cksum and saved cksum don't match \n");
+         return false;
       }
    }
  
@@ -205,7 +215,7 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 void Info::GetCksum( unsigned char* buff, char* digest)
 {
    XrdCksCalcmd5 calc;
-   calc.Update((const char*)buff, GetSizeInBits());
+   calc.Update((const char*)buff, GetSizeInBytes());
    memcpy(digest, calc.Final(), 16);
 }
    
@@ -244,13 +254,14 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
 
    FpHelper w(fp, 0, m_trace, m_traceID, trace_pfx + "oss write failed");
 
+   m_store.m_version = m_defaultVersion;
    if (w.Write(m_store.m_version))    return false;
    if (w.Write(m_store.m_bufferSize)) return false;
    if (w.Write(m_store.m_fileSize))   return false;
 
    if (w.Write(m_store.m_buff_synced, GetSizeInBytes())) return false;
 
-   GetCksum(m_store.m_buff_synced, &m_store.m_cksum[0]);
+   GetCksum(&m_store.m_buff_synced[0], &m_store.m_cksum[0]);
    if (w.Write(m_store.m_cksum))   return false;
    
    
