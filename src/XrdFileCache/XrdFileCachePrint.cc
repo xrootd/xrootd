@@ -81,9 +81,9 @@ void Print::printFile(const std::string& path)
    }
 
    if (cfi.GetVersion() < 0) {
-        // Top level info file for file block mode
-        printf("version == %d, fileSize %lld, bufferSize %lld \n",
-               abs(cfi.GetVersion()), cfi.GetFileSize(),cfi.GetBufferSize());
+       // Top level info file for file block mode
+       printf("version == %d, fileSize %lld, bufferSize %lld \n",
+              abs(cfi.GetVersion()), cfi.GetFileSize(),cfi.GetBufferSize());
    }
    else {
        int cntd = 0;
@@ -92,24 +92,25 @@ void Print::printFile(const std::string& path)
        printf("version == %d, fileSize %lld, bufferSize %lld nBlocks %d nDownloaded %d %s\n",
               cfi.GetVersion(), cfi.GetFileSize(),cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
               (cfi.GetSizeInBits() == cntd) ? "complete" : "");
-
-       if (m_verbose)
-       {
-           int n_db = 0;
-           { int x = cfi.GetSizeInBits(); while (x) { x /= 10; ++n_db; } }
-           static const char *nums = "0123456789";
-           printf("printing %d blocks:\n", cfi.GetSizeInBits());
-           printf("%*s  %10d%10d%10d%10d%10d%10d\n", n_db, "", 1, 2, 3, 4, 5, 6);
-           printf("%*s %s%s%s%s%s%s0123", n_db, "", nums, nums, nums, nums, nums, nums);
-           for (int i = 0; i < cfi.GetSizeInBits(); ++i)
-           {
-               if (i % 64 == 0)
-                   printf("\n%*d ", n_db, i);
-               printf("%c", cfi.TestBit(i) ? 'x' : '.');
-           }
-           printf("\n");
-       }
    }
+
+   if (m_verbose)
+   {
+       int n_db = 0;
+       { int x = cfi.GetSizeInBits(); while (x) { x /= 10; ++n_db; } }
+       static const char *nums = "0123456789";
+       printf("printing %d blocks:\n", cfi.GetSizeInBits());
+       printf("%*s  %10d%10d%10d%10d%10d%10d\n", n_db, "", 1, 2, 3, 4, 5, 6);
+       printf("%*s %s%s%s%s%s%s0123", n_db, "", nums, nums, nums, nums, nums, nums);
+       for (int i = 0; i < cfi.GetSizeInBits(); ++i)
+       {
+           if (i % 64 == 0)
+               printf("\n%*d ", n_db, i);
+           printf("%c", cfi.TestBit(i) ? 'x' : '.');
+       }
+       printf("\n");
+   }
+
    int n_da = 0;
    { int x = cfi.GetAccessCnt(); while (x) { x /= 10; ++n_da; } }
    for (int i = 0; i < cfi.GetAccessCnt(); ++i)
