@@ -405,41 +405,11 @@ int XrdConfig::Configure(int argc, char **argv)
 #endif
    }
 
-// Bind the log file if we have one
-//
-   if (LogInfo.logArg)
-      {LogInfo.xrdEnv = &theEnv;
-       LogInfo.iName  = myInsName;
-       LogInfo.cfgFn  = ConfigFN;
-       if (!XrdOucLogging::configLog(Log, LogInfo)) _exit(16);
-       Log.logger()->AddMsg(XrdBANNER);
-      }
-
-// Get the full host name. In theory, we should always get some kind of name.
-// We must define myIPAddr here because we may need to run in v4 mode and
-// that doesn't get set until after the options are scanned.
+// Get the full host name. We must define myIPAddr here because we may need to
+// run in v4 mode and that doesn't get set until after the options are scanned.
 //
    static XrdNetAddr *myIPAddr = new XrdNetAddr((int)0);
-   if (!(myName = myIPAddr->Name(0, &temp)))
-      {Log.Emsg("Config", "Unable to determine host name; ",
-                           (temp ? temp : "reason unknown"),
-                           "; execution terminated.");
-       _exit(16);
-      }
-
-// Verify that we have a real name. We've had problems with people setting up
-// bad /etc/hosts files that can cause connection failures if "allow" is used.
-// Otherwise, determine our domain name.
-//
-   if (!myIPAddr->isRegistered())
-      {Log.Emsg("Config",myName,"does not appear to be registered in the DNS.");
-       Log.Emsg("Config","Verify that the '/etc/hosts' file is correct and "
-                         "this machine is registered in DNS.");
-       Log.Emsg("Config", "Execution continues but connection failures may occur.");
-       myDomain = 0;
-      } else if (!(myDomain = index(myName, '.')))
-                Log.Say("Config warning: this hostname, ", myName,
-                            ", is registered without a domain qualification.");
+   if (!(myName = myIPAddr->Name(0, &temp))) myName = "";
 
 // Get our IP address and FQN
 //
@@ -459,6 +429,30 @@ int XrdConfig::Configure(int argc, char **argv)
    XrdOucEnv::Export("XRDHOST", myName);
    XrdOucEnv::Export("XRDNAME", ProtInfo.myInst);
    XrdOucEnv::Export("XRDPROG", myProg);
+
+// Bind the log file if we have one
+//
+   if (LogInfo.logArg)
+      {LogInfo.xrdEnv = &theEnv;
+       LogInfo.iName  = myInsName;
+       LogInfo.cfgFn  = ConfigFN;
+       if (!XrdOucLogging::configLog(Log, LogInfo)) _exit(16);
+       Log.logger()->AddMsg(XrdBANNER);
+      }
+
+// We now test for host name. In theory, we should always get some kind of name.
+// We can't really continue without some kind of name at this point. Note that
+// vriable temp should still be valid from the previous NetAddr call.
+//
+   if (!(*myName))
+      {Log.Emsg("Config", "Unable to determine host name; ",
+                           (temp ? temp : "reason unknown"),
+                           "; execution terminated.");
+       _exit(16);
+      }
+
+// Tell NetIF what logger to use as it's been properly setup by now.
+//
    XrdNetIF::SetMsgs(&Log);
 
 // Put out the herald
@@ -468,6 +462,20 @@ int XrdConfig::Configure(int argc, char **argv)
    XrdSysUtils::FmtUname(buff+retc, sizeof(buff)-retc);
    Log.Say(0, buff);
    Log.Say(XrdBANNER);
+
+// Verify that we have a real name. We've had problems with people setting up
+// bad /etc/hosts files that can cause connection failures if "allow" is used.
+// Otherwise, determine our domain name.
+//
+   if (!myIPAddr->isRegistered())
+      {Log.Emsg("Config",myName,"does not appear to be registered in the DNS.");
+       Log.Emsg("Config","Verify that the '/etc/hosts' file is correct and "
+                         "this machine is registered in DNS.");
+       Log.Emsg("Config", "Execution continues but connection failures may occur.");
+       myDomain = 0;
+      } else if (!(myDomain = index(myName, '.')))
+                Log.Say("Config warning: this hostname, ", myName,
+                            ", is registered without a domain qualification.");
 
 // Setup the initial required protocol.
 //
