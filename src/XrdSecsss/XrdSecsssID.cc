@@ -168,6 +168,7 @@ int XrdSecsssID::Register(const char *lid, XrdSecEntity *eP, int doRep)
 {
    sssID *idP;
    int    rc;
+   int    hOpt = (doRep ? Hash_replace : Hash_default) | Hash_dofree;
 
 // Check if we are simply deleting an entry
 //
@@ -178,7 +179,7 @@ int XrdSecsssID::Register(const char *lid, XrdSecEntity *eP, int doRep)
 //
    if (!(idP = genID(eP))) return 0;
    myMutex.Lock(); 
-   rc = (Registry.Add(lid, idP, (doRep ? Hash_replace : Hash_default)) ? 0:1);
+   rc = (Registry.Add(lid, idP, hOpt) ? 0 : 1);
    myMutex.UnLock();
    return rc;
 }
