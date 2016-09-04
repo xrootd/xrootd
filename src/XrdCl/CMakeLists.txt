@@ -64,6 +64,7 @@ add_library(
   XrdClTPFallBackCopyJob.cc   XrdClTPFallBackCopyJob.hh
   XrdClMetalinkRedirector.cc  XrdClMetalinkRedirector.hh
   XrdClRedirectorRegistry.cc  XrdClRedirectorRegistry.hh
+  XrdClZipArchiveReader.cc    XrdClZipArchiveReader.hh
 )
 
 target_link_libraries(

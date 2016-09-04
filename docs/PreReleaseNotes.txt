@@ -10,5 +10,6 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  * Fix memory leak in sss protocol.
 
 + **Miscellaneous**

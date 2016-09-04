@@ -427,7 +427,7 @@ namespace XrdCl
         pFileState == Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
-    pStatus = OpenInProgress;
+    pFileState = OpenInProgress;
 
     //--------------------------------------------------------------------------
     // Check if the parameters are valid
@@ -550,7 +550,7 @@ namespace XrdCl
         pFileState == Recovering || !pInTheFly.empty() )
       return XRootDStatus( stError, errInvalidOp );
 
-    pStatus = CloseInProgress;
+    pFileState = CloseInProgress;
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[0x%x@%s] Sending a close command for handle 0x%x to "

@@ -126,7 +126,7 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp-old XrdAppUtils xrdmapc
+  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp-old XrdAppUtils xrdmapc xrdacctest
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 

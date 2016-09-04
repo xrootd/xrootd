@@ -15,6 +15,10 @@
     %endif
 %endif
 
+%if %{?_with_ceph11:1}%{!?_with_ceph11:0}
+    %define _with_ceph 1
+%endif
+
 # Remove default rpm python bytecompiling scripts
 %global __os_install_post \
     %(echo '%{__os_install_post}' | \
@@ -62,7 +66,12 @@ BuildRequires: cppunit-devel
 %endif
 
 %if %{?_with_ceph:1}%{!?_with_ceph:0}
-BuildRequires: ceph-devel
+    %if %{?_with_ceph11:1}%{!?_with_ceph11:0}
+BuildRequires: librados-devel >= 11.0
+BuildRequires: libradosstriper-devel >= 11.0
+    %else
+BuildRequires: ceph-devel >= 0.87
+    %endif
 %endif
 
 BuildRequires:	doxygen
@@ -596,6 +605,7 @@ fi
 %{_bindir}/xrdmapc
 %{_bindir}/xrootd
 %{_bindir}/xrdpfc_print
+%{_bindir}/xrdacctest
 %{_mandir}/man8/cmsd.8*
 %{_mandir}/man8/cns_ssi.8*
 %{_mandir}/man8/frm_admin.8*
