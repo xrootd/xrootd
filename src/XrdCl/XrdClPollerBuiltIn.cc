@@ -161,7 +161,7 @@ namespace XrdCl
     {
       PollerHelper *helper = (PollerHelper*)it->second;
       Socket       *socket = it->first;
-      helper->channel = new IOEvents::Channel( GetPoller( socket ), socket->GetFD(),
+      helper->channel = new IOEvents::Channel( RegisterAndGetPoller( socket ), socket->GetFD(),
                                                helper->callBack );
       if( helper->readEnabled )
       {
@@ -283,7 +283,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Create the socket helper
     //--------------------------------------------------------------------------
-    XrdSys::IOEvents::Poller* poller = GetPoller( socket );
+    XrdSys::IOEvents::Poller* poller = RegisterAndGetPoller( socket );
 
     PollerHelper *helper = new PollerHelper();
     helper->callBack = new ::SocketCallBack( socket, handler );
@@ -319,11 +319,8 @@ namespace XrdCl
     log->Debug( PollerMsg, "%s Removing socket from the poller",
                            socket->GetName().c_str() );
 
-    // decrement the counter associated with the respective channel ID
-    --(pPollerMap[socket->GetChannelID()].second);
-    // if this was the last socket remove the entry
-    if( pPollerMap[socket->GetChannelID()].second == 0 )
-      pPollerMap.erase(socket->GetChannelID());
+    // unregister from the poller it's currently associated with
+    UnregisterFromPoller( socket );
 
     //--------------------------------------------------------------------------
     // Remove the socket
@@ -377,7 +374,7 @@ namespace XrdCl
     }
 
     PollerHelper *helper = (PollerHelper*)it->second;
-    XrdSys::IOEvents::Poller* poller = pPollerMap[socket->GetChannelID()].first;
+    XrdSys::IOEvents::Poller *poller = GetPoller( socket );
 
     //--------------------------------------------------------------------------
     // Enable read notifications
@@ -462,7 +459,7 @@ namespace XrdCl
     }
 
     PollerHelper *helper = (PollerHelper*)it->second;
-    XrdSys::IOEvents::Poller* poller = pPollerMap[socket->GetChannelID()].first;
+    XrdSys::IOEvents::Poller *poller = GetPoller( socket );
 
     //--------------------------------------------------------------------------
     // Enable write notifications
@@ -533,6 +530,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XrdSys::IOEvents::Poller* PollerBuiltIn::GetNextPoller()
   {
+    if( pPollerPool.empty() ) return 0;
+
     PollerPool::iterator ret = pNext;
     ++pNext;
     if( pNext == pPollerPool.end() )
@@ -543,17 +542,35 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Return the poller associated with the respective channel
   //----------------------------------------------------------------------------
-  XrdSys::IOEvents::Poller* PollerBuiltIn::GetPoller(const Socket * socket)
+  XrdSys::IOEvents::Poller* PollerBuiltIn::RegisterAndGetPoller(const Socket * socket)
   {
-    PollerMap::iterator itr = pPollerMap.find(socket->GetChannelID());
-    if( itr == pPollerMap.end())
+    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    if( itr == pPollerMap.end() )
     {
       XrdSys::IOEvents::Poller* poller = GetNextPoller();
-      pPollerMap[socket->GetChannelID()] = std::make_pair(poller, (size_t)1);
+      if( poller )
+        pPollerMap[socket->GetChannelID()] = std::make_pair( poller, size_t( 1 ) );
       return poller;
     }
 
-    ++(itr->second.second);
+    ++( itr->second.second );
+    return itr->second.first;
+  }
+
+  void PollerBuiltIn::UnregisterFromPoller( const Socket *socket )
+  {
+    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    if( itr == pPollerMap.end() ) return;
+    --itr->second.second;
+    if( itr->second.second == 0 )
+      pPollerMap.erase( itr );
+
+  }
+
+  XrdSys::IOEvents::Poller* PollerBuiltIn::GetPoller(const Socket * socket)
+  {
+    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    if( itr == pPollerMap.end() ) return 0;
     return itr->second.first;
   }
 
