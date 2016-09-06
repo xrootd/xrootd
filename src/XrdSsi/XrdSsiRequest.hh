@@ -222,17 +222,43 @@ virtual PRD_Xeq ProcessResponseData(char *buff, int blen, bool last)
 //! ProcessResponseData() is called again when the same parameters as existed
 //! when the call resulted in a hold action.
 //!
-//! @param rnum  The number of data responses to restart, as follows:
-//!              rnum > 0 Restart up to the specified number.
-//!              rnum = 0 Only return the number in the queue, don't restart any.
-//!              rnum < 0 Restart all held responses.
+//! @param rhow  An enum (see below) that specfies the action to be taken.
+//!              RDR_All   - runs all queued responses and then deletes the
+//!                          queue identified by reqid, unless it is nil.
+//!              RDR_Hold  - sets the allowed restart count to zero and does
+//!                          not restart any queued responses.
+//!              RDR_Immed - restarts one response if it is queued. The allowed
+//!                          count is left unchanged.
+//!              RDR_Query - returns information about the queue but otherwise
+//!                          does not restart any queued responses.
+//!              RDR_One   - Sets the allowed restart count to one. If a
+//!                          response is queued, it is restarted and the count
+//!                          is set to zero.
+//!              RDR_Post  - Adds one to the allowed restart count. If a
+//!                          response is queued, it is restarted and one is
+//!                          substracted from the allowed restart count.
+//!
 //! @param reqid Points to the requestID associated with a hold queue. When not
 //!              specified, then the global queue is used to restart responses.
+//!              Note that the memory associated with the named queue may be
+//!              lost if the queue is left with an allowed value > 0.To avoid
+//!              this issue the call with RDR_All to clean it up when it is no
+//!              longer needed (this will avoid having hung responses).
 //!
-//! @return      The number of responses scheduled for restarting.
+//! @return      Information about the the queue (see struct RDR_Info).
 //-----------------------------------------------------------------------------
 
-static int      RestartDataResponse(int rnum, const char *reqid=0);
+enum   RDR_How {RDR_All=0, RDR_Hold, RDR_Immed, RDR_Query, RDR_One, RDR_Post};
+
+struct RDR_Info{int rCount; //!< Number restarted
+                int qCount; //!< Number of queued request remaining
+                int iAllow; //!< Initial value of the allowed restart count
+                int fAllow; //!< Final   value of the allowed restart count
+
+                RDR_Info() : rCount(0), qCount(0), iAllow(0), fAllow(0) {}
+               };
+
+static RDR_Info RestartDataResponse(RDR_How rhow, const char *reqid=0);
 
 //-----------------------------------------------------------------------------
 //! Run this request using a single session (variant 1).

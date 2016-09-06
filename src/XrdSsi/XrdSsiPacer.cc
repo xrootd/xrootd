@@ -51,9 +51,8 @@ namespace
 XrdOucHash<XrdSsiPacer>    reqMap;
 }
 
-XrdSsiMutex                XrdSsiPacer::pMutex;
+XrdSsiMutex                XrdSsiPacer::pMutex(XrdSsiMutex::Recursive);
 XrdSsiPacer                XrdSsiPacer::glbQ;
-int                        XrdSsiPacer::glbN = 0;
 
 /******************************************************************************/
 /*                                  H o l d                                   */
@@ -63,26 +62,21 @@ void XrdSsiPacer::Hold(const char *reqID)
 {
    XrdSsiMutexMon myLock(pMutex);
 
-// If no request ID given then simply queue this on the global chain
+// Establish correct anchor
 //
-   if (!reqID)
-      {glbQ.Q_PushBack(this);
-       lclQ = 0;
-       glbN++;
-       return;
-      }
+   if (!reqID) theQ = &glbQ;
+      else if (!(theQ = reqMap.Find(reqID)))
+              {theQ = new XrdSsiPacer;
+               reqMap.Add(reqID, theQ);
+              }
 
-// See if we have a local anchor for this request, if not, add one.
+// Before queing, check we can actually run this right away
 //
-   lclQ = reqMap.Find(reqID);
-   if (!lclQ)
-      {lclQ = new XrdSsiPacer;
-       reqMap.Add(reqID, lclQ);
-      }
-
-// Chain the entry
-//
-   lclQ->Q_PushBack(this);
+   if (theQ->aCnt)
+      {XrdSsi::schedP->Schedule(this);
+       theQ->aCnt--;
+       if (reqID && theQ->Singleton() && theQ->aCnt == 0) reqMap.Del(reqID);
+      } else theQ->Q_PushBack(this);
 }
 
 /******************************************************************************/
@@ -91,15 +85,16 @@ void XrdSsiPacer::Hold(const char *reqID)
   
 void XrdSsiPacer::Reset()
 {
+   XrdSsiMutexMon myLock(pMutex);
+
 // If we are in a queue then remove ourselves
 //
    if (!Singleton())
-      {const char *reqID;
-       pMutex.Lock();
-       Q_Remove();
-       if (!lclQ) glbN--;
-          else if (lclQ->Singleton() && (reqID=RequestID())) reqMap.Del(reqID);
-       pMutex.UnLock();
+      {Q_Remove();
+       if (theQ && theQ != &glbQ)
+          {const char *reqID = RequestID();
+           if (reqID && theQ->Singleton() && theQ->aCnt == 0) reqMap.Del(reqID);
+          }
       }
 }
 
@@ -107,43 +102,73 @@ void XrdSsiPacer::Reset()
 /*                                   R u n                                    */
 /******************************************************************************/
   
-int XrdSsiPacer::Run(int num, const char *reqID)
+void XrdSsiPacer::Run(XrdSsiRequest::RDR_Info &rInfo,
+                      XrdSsiRequest::RDR_How   rHow, const char *reqID)
 {
    XrdSsiMutexMon myLock(pMutex);
    XrdSsiPacer   *anchor, *rItem;
-   int numRestart = 0;
+   int allowed;
 
 // Determine which anchor to use
 //
-   if (!reqID)   anchor = &glbQ;
-      else if (!(anchor = reqMap.Find(reqID))) return 0;
+        if (!reqID) anchor = &glbQ;
+   else if ((anchor = reqMap.Find(reqID))) {}
+   else if (rHow == XrdSsiRequest::RDR_One || rHow == XrdSsiRequest::RDR_Post)
+           {anchor = new XrdSsiPacer;
+            reqMap.Add(reqID, anchor);
+           }
+   else return;
 
-// Check if only count wanted
+// Preset the information we will return
 //
-   if (!num)
-      {if (!reqID) return glbN;
-       rItem = anchor->next;
-       while(rItem != anchor) {numRestart++; rItem = rItem->next;}
-       return numRestart;
-      }
+   rInfo.iAllow = allowed = anchor->aCnt;
 
-// Run as many as wanted
+// Process as request
 //
-   if (num < 0) num = INT_MAX;
-   for (int n = 1; n <= num && !(anchor->Singleton()); n++)
-       {rItem = anchor->next;
-        rItem->Q_Remove();
-        rItem->lclQ = 0;
-        XrdSsi::schedP->Schedule(rItem);
-        numRestart++;
-       }
+   switch(rHow)
+         {case XrdSsiRequest::RDR_All:
+               allowed = anchor->qCnt;
+               break;
+          case XrdSsiRequest::RDR_Hold:
+               rInfo.qCount = anchor->qCnt;
+               rInfo.fAllow = 0;
+               anchor->aCnt = 0;
+               return;
+               break;
+          case XrdSsiRequest::RDR_Immed:
+               allowed = 1;
+               break;
+          case XrdSsiRequest::RDR_Query:
+               rInfo.fAllow = rInfo.iAllow;
+               rInfo.qCount = anchor->qCnt;
+               return;
+               break;
+          case XrdSsiRequest::RDR_One:
+               allowed = 1;
+               break;
+          case XrdSsiRequest::RDR_Post:
+               allowed++;
+               break;
+          default: return; break;
+         }
+
+// Run responses
+//
+   while(allowed && anchor->qCnt)
+        {rItem = anchor->next;
+         rItem->Q_Remove();
+         XrdSsi::schedP->Schedule(rItem);
+         rInfo.rCount++;
+         allowed--;
+        }
+
+// Set returned information
+//
+   rInfo.qCount = anchor->qCnt;
+   if (rHow != XrdSsiRequest::RDR_Immed) anchor->aCnt = allowed;
+   rInfo.fAllow = anchor->aCnt;
 
 // If this is a local queue, check if we removed the last element
 //
-   if (reqID && anchor->Singleton()) reqMap.Del(reqID);
-
-// Return number of items we ran
-//
-   if (!reqID) glbN -= numRestart;
-   return numRestart;
+   if (reqID && anchor->Singleton() && anchor->aCnt == 0) reqMap.Del(reqID);
 }

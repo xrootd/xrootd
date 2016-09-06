@@ -31,6 +31,7 @@
 
 #include "Xrd/XrdJob.hh"
 #include "XrdSsi/XrdSsiAtomics.hh"
+#include "XrdSsi/XrdSsiRequest.hh"
 
 class XrdSsiPacer : public XrdJob
 {
@@ -45,6 +46,7 @@ void           Q_Insert(XrdSsiPacer *Node)
                         next->prev  = Node;
                         next        = Node;
                         Node->prev  = this;
+                        theQ->qCnt++;
                        }
 
 void           Q_Remove()
@@ -52,6 +54,7 @@ void           Q_Remove()
                         next->prev = prev;
                         next       = this;
                         prev       = this;
+                        theQ->qCnt--;
                        }
 
 void           Q_PushBack(XrdSsiPacer *Node) {prev->Q_Insert(Node);}
@@ -63,20 +66,23 @@ const char    *RequestID() {return 0;} // Meant to be overridden
 
 void           Reset();
 
-static int     Run(int num=1, const char *reqID=0);
+static void    Run(XrdSsiRequest::RDR_Info &rInfo,
+                   XrdSsiRequest::RDR_How   rhow, const char *reqid=0);
 
 bool           Singleton() {return next == this;}
 
-               XrdSsiPacer() : prev(this), next(this), lclQ(0) {}
+               XrdSsiPacer() : prev(this), next(this), theQ(this),
+                               qCnt(0),    aCnt(0) {}
 virtual       ~XrdSsiPacer() {Reset();}
 
 private:
 
 static XrdSsiMutex  pMutex;
 static XrdSsiPacer  glbQ;
-static int          glbN;
 XrdSsiPacer        *prev;
 XrdSsiPacer        *next;
-XrdSsiPacer        *lclQ;
+XrdSsiPacer        *theQ;
+int                 qCnt;
+int                 aCnt;
 };
 #endif

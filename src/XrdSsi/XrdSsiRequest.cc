@@ -152,7 +152,13 @@ void XrdSsiRequest::SSRun(XrdSsiService  &srvc,
 /*                   R e s t a r t D a t a R e s p o n s e                    */
 /******************************************************************************/
   
-int  XrdSsiRequest::RestartDataResponse(int rnum, const char *reqid)
+XrdSsiRequest::RDR_Info XrdSsiRequest::RestartDataResponse
+                                      (XrdSsiRequest::RDR_How  rhow,
+                                       const char             *reqid
+                                      )
 {
-   return XrdSsiPacer::Run(rnum, reqid);
+   RDR_Info rInfo;
+
+   XrdSsiPacer::Run(rInfo, rhow, reqid);
+   return rInfo;
 }
