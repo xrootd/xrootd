@@ -104,11 +104,11 @@ extern XrdOucPListAnchor FSPath;
 
 extern bool              fsChk;
 
-       XrdSysError       Log(0);
+extern XrdSysError       Log;
 
-       XrdSysLogger     *Logger;
+extern XrdSysLogger     *Logger;
 
-       XrdOucTrace       Trace(&Log);
+extern XrdOucTrace       Trace;
 };
 
 using namespace XrdSsi;

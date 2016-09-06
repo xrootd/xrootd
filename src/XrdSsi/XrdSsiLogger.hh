@@ -80,6 +80,24 @@ static void Msgf(const char *pfx, const char *fmt, ...);
 static void Msgv(const char *pfx, const char *fmt, va_list aP);
 
 //-----------------------------------------------------------------------------
+//! Set a message callback function for messages issued via this object. This
+//! method should be called only once during client-side initialization in the
+//! main thread (i.e. before starting any other threads).
+//!
+//! @param  mCB   Reference to the message callback function as defined by
+//!               the typedef MCB_t.
+//!
+//! @return bool  A value of true indicates success, otherwise false returned.
+//-----------------------------------------------------------------------------
+
+typedef void (MCB_t)(struct timeval const &mtime, //!< TOD of message
+                     unsigned long         tID,   //!< Thread issuing msg
+                     const char           *msg,   //!< Message text
+                     int                   mlen); //!< Length of message text
+
+static bool SetMCB(MCB_t &mcbP);
+
+//-----------------------------------------------------------------------------
 //! Define helper functions to allow ostream cerr output to appear in the log.
 //! The following two functions are used with the macros below.
 //! The SSI_LOG macro preceeds the message with a timestamp; SSI_SAY does not.
@@ -99,4 +117,22 @@ static void        TEnd();
          XrdSsiLogger() {}
         ~XrdSsiLogger() {}
 };
+
+/******************************************************************************/
+/*          S e r v e r - S i d e   L o g g i n g   C a l l b a c k           */
+/******************************************************************************/
+
+//-----------------------------------------------------------------------------
+//! To establisg a log message callback to route messages to you own logging
+//! framework, you must include the following definition at file level.
+//!
+//! XrdSsiLogger::MCB_t *XrdSsiLoggerMCB = &<your_log_function>
+//!
+//! For instance:
+//!
+//! void LogMsg(struct timeval const &mtime, unsigned long tID,
+//!             const char *msg, int mlen) {...}
+//!
+//! XrdSsiLogger::MCB_t *XrdSsiLoggerMCB = &LogMsg;
+//-----------------------------------------------------------------------------
 #endif

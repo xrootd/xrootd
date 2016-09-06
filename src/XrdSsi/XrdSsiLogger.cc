@@ -27,13 +27,26 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
+#include "XrdVersion.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSsi/XrdSsiSfsConfig.hh"
 #include "XrdSsi/XrdSsiLogger.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysLogPI.hh"
+#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSys/XrdSysPthread.hh"
  
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -41,11 +54,162 @@
   
 namespace XrdSsi
 {
-extern XrdSysError     Log;
-extern XrdSysLogger   *Logger;
-};
+          XrdSysError     Log(0);
+          XrdSysLogger   *Logger;
+          XrdOucTrace     Trace(&Log);
+}
 
 using namespace XrdSsi;
+
+/******************************************************************************/
+/*                      L o g   P l u g i n   H o o k s                       */
+/******************************************************************************/
+/******************************************************************************/
+/*                             C o n f i g L o g                              */
+/******************************************************************************/
+
+namespace
+{
+XrdSsiLogger::MCB_t   *msgCB = 0;
+
+void ConfigLog(const char *cFN)
+{
+   XrdVERSIONINFODEF(myVersion, ssi, XrdVNUMBER, XrdVERSION);
+   const char *lName;
+   char eBuff[2048], *var, *val, **lDest, *logPath = 0, *svcPath = 0;
+   XrdSysPlugin *myLib;
+   XrdSsiLogger::MCB_t **theCB;
+   XrdOucEnv myEnv;
+   XrdOucStream cStrm(0, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   int  cfgFD, retc, NoGo = 0;
+
+// Try to open the configuration file.
+//
+   if ((cfgFD = open(cFN, O_RDONLY, 0)) < 0)
+      {cerr <<"Config " <<strerror(errno) <<" opening " <<cFN <<endl;
+       return;
+      }
+   cStrm.Attach(cfgFD);
+
+// Now start reading records until eof.
+//
+   while((var = cStrm.GetMyFirstWord()))
+        {     if (!strcmp(var, "ssi.loglib")) {lDest = &logPath; lName = "log";}
+         else if (!strcmp(var, "ssi.svclib")) {lDest = &svcPath; lName = "svc";}
+         else continue;
+         if (!(val = cStrm.GetWord()) || !val[0])
+            {cerr <<"Config "<<lName<<"lib path not specified."<<endl; NoGo=1;}
+            else {if (*lDest) free(*lDest);
+                  *lDest = strdup(val);
+                 }
+        }
+
+// Now check if any errors occured during file i/o
+//
+   if ((retc = cStrm.LastError()))
+      {cerr <<"Config " <<strerror(-retc) <<" reading " <<cFN <<endl;
+       NoGo = 1;
+      }
+   cStrm.Close();
+
+// If we don't have a loglib then revert to using svclib
+//
+   if (!logPath) {logPath = svcPath; svcPath = 0; lName = "svclib";}
+      else lName = "loglib";
+
+// Check if we have a logPath (we must)
+//
+   if (!NoGo && !logPath)
+      {cerr <<"Config neither ssi.loglib nor ssi.svclib directive specified in "
+            <<cFN <<endl;
+       return;
+      }
+
+// Create a plugin object
+//
+   if (!(myLib = new XrdSysPlugin(eBuff, sizeof(eBuff), logPath, lName,
+                                  &myVersion)))
+      {cerr <<"Config " <<eBuff <<endl;
+       return;
+      }
+
+// Now get the entry point of the message callback function
+//
+   theCB = (XrdSsiLogger::MCB_t **)(myLib->getPlugin("XrdSsiLoggerMCB"));
+   if (!theCB) cerr <<"Config " <<eBuff <<endl;
+      else {msgCB = *theCB;
+            myLib->Persist();
+           }
+
+// All done
+//
+   delete myLib;
+}
+
+/******************************************************************************/
+/*              C l i e n t   L o g g i n g   I n t e r c e p t               */
+/******************************************************************************/
+
+class LogMCB : public XrdCl::LogOut
+{
+public:
+
+virtual void Write(const std::string &msg);
+
+             LogMCB(XrdSsiLogger::MCB_t *pMCB) : mcbP(pMCB) {}
+virtual     ~LogMCB() {}
+
+private:
+XrdSsiLogger::MCB_t *mcbP;
+};
+
+void LogMCB::Write(const std::string &msg)
+{
+   timeval tNow;
+   const char *brak, *cBeg, *cMsg = msg.c_str();
+   unsigned long tID = XrdSysThread::Num();
+   int cLen = msg.size();
+
+// Get the actual time right now
+//
+   gettimeofday(&tNow, 0);
+
+// Client format: [tod][loglvl][topic] and [pid] may follow
+//
+   cBeg = cMsg;
+   for (int i = 0; i < 4; i++)
+       {if (*cMsg != '[' || !(brak = index(cMsg, ']'))) break;
+        cMsg = brak+1;
+       }
+
+// Skip leading spaces now
+//
+   while(*cMsg == ' ') cMsg++;
+
+// Recalculate string length
+//
+   cLen = cLen - (cMsg - cBeg);
+   if (cLen < 0) cLen = strlen(cMsg);
+   mcbP(tNow, tID, cMsg, cLen);
+}
+}
+  
+/******************************************************************************/
+/*                        X r d S y s L o g P I n i t                         */
+/******************************************************************************/
+ 
+extern "C"
+{
+XrdSysLogPI_t  XrdSysLogPInit(const char *cfgfn, char **argv, int argc)
+          {if (cfgfn && *cfgfn) ConfigLog(cfgfn);
+           if (!msgCB)
+              cerr <<"Config '-l@' requires a logmsg callback function "
+                   <<"but it was found!" <<endl;
+           return msgCB;
+          }
+}
+
+XrdVERSIONINFO(XrdSysLogPInit,XrdSsiLPI);
 
 /******************************************************************************/
 /*                                   M s g                                    */
@@ -103,6 +267,24 @@ void XrdSsiLogger::Msgv(const char *pfx, const char *fmt, va_list aP)
 //
    if (pfx) Log.Emsg(pfx, buffer);
       else  Log.Say(buffer);
+}
+
+/******************************************************************************/
+/*                                S e t M C B                                 */
+/******************************************************************************/
+  
+bool XrdSsiLogger::SetMCB(XrdSsiLogger::MCB_t &mcbP)
+{
+// First step is to getthe client logging object
+//
+   XrdCl::Log *logP = XrdCl::DefaultEnv::GetLog();
+   if (!logP) return false;
+
+// Allocate a new log intercept object and pass it t o the logger
+//
+   logP->SetOutput(new LogMCB(&mcbP));
+// msgCB = mcbP;
+   return true;
 }
 
 /******************************************************************************/

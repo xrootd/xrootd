@@ -415,6 +415,12 @@ int XrdSsiSfsConfig::ConfigXeq(char *var)
     if (!strcmp("cmslib", var)) return Xlib("cmslib", &CmsLib, &CmsParms);
     if (!strcmp("svclib", var)) return Xlib("svclib", &SvcLib, &SvcParms);
     if (!strcmp("fspath", var)) return Xfsp();
+    if (!strcmp("loglib", var)){char *theLib=0, *theParms=0;
+                                int rc=Xlib("loglib", &theLib, &theParms);
+                                if (theLib)   free(theLib);
+                                if (theParms) free(theParms);
+                                return rc;
+                               }
     if (!strcmp("opts",   var)) return Xopts();
     if (!strcmp("role",   var)) return Xrole();
     if (!strcmp("trace",  var)) return Xtrace();
