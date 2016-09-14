@@ -105,7 +105,7 @@ void IOFileBlock::GetBlockSizeFromPath()
 File* IOFileBlock::newBlockFile(long long off, int blocksize)
 {
    XrdCl::URL url(GetInput()->Path());
-   std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
+   std::string fname = url.GetPath();
 
    std::stringstream ss;
    ss << fname;

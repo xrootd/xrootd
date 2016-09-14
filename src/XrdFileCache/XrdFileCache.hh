@@ -50,30 +50,44 @@ namespace XrdFileCache
    {
       Configuration() :
          m_hdfsmode(false),
+         m_data_space("public"),
+         m_meta_space("public"),
          m_diskUsageLWM(-1),
          m_diskUsageHWM(-1),
+         m_purgeInterval(300),
          m_bufferSize(1024*1024),
     	 m_RamAbsAvailable(0),
     	 m_NRamBuffers(-1),
          m_prefetch_max_blocks(10),
-         m_hdfsbsize(128*1024*1024) {}
+         m_hdfsbsize(128*1024*1024)
+      {}
 
       bool m_hdfsmode;      //!< flag for enabling block-level operation
-      std::string m_cache_dir;        //!< path of disk cache
       std::string m_username;         //!< username passed to oss plugin
+      std::string m_data_space;       //!< oss space for data files
+      std::string m_meta_space;       //!< oss space for metadata files (cinfo)
 
       long long m_diskUsageLWM;       //!< cache purge low water mark
       long long m_diskUsageHWM;       //!< cache purge high water mark
+      int       m_purgeInterval;      //!< sleep interval between cache purges
 
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
-      long long m_RamAbsAvailable;     //!< available from configuration
+      long long m_RamAbsAvailable;    //!< available from configuration
       int       m_NRamBuffers;        //!< number of total in-memory cache blocks, cached
       size_t    m_prefetch_max_blocks;//!< maximum number of blocks to prefetch per file
 
       long long m_hdfsbsize;          //!< used with m_hdfsmode, default 128MB
    };
 
+   struct TmpConfiguration
+   {
+      std::string m_diskUsageLWM;
+      std::string m_diskUsageHWM;
 
+      TmpConfiguration() :
+         m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95")
+      {}
+   };
 
    //----------------------------------------------------------------------------
    //! Attaches/creates and detaches/deletes cache-io objects for disk based cache.
@@ -181,15 +195,15 @@ namespace XrdFileCache
          XrdOss* GetOss() const { return m_output_fs; }
 
          XrdSysError& GetSysError() { return m_log; }
-          
+
          File* GetFileWithLocalPath(std::string, IO* io);
-    
+
          void AddActive(IO*, File*);
-        
 
          XrdOucTrace* GetTrace() { return  m_trace; }
+
       private:
-         bool ConfigParameters(std::string, XrdOucStream&);
+         bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
          bool ConfigXeq(char *, XrdOucStream &);
          bool xdlib(XrdOucStream &);
          bool xtrace(XrdOucStream &);

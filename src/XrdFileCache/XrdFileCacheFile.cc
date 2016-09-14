@@ -219,7 +219,8 @@ bool File::Open()
 
    // Create the data file itself.
    char size_str[16]; sprintf(size_str, "%lld", m_fileSize);
-   myEnv.Put("oss.asize", size_str);
+   myEnv.Put("oss.asize",  size_str);
+   myEnv.Put("oss.cgroup", Cache::GetInstance().RefConfiguration().m_data_space.c_str());
    if (myOss.Create(myUser, m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    { 
       TRACEF(Error, "File::Open() Create failed for data file " << m_temp_filename
@@ -243,6 +244,7 @@ bool File::Open()
    bool fileExisted = (myOss.Stat(ifn.c_str(), &infoStat) == XrdOssOK);
 
    myEnv.Put("oss.asize", "64k"); // MT-XXX Calculate? Do not know length of access lists ...
+   myEnv.Put("oss.cgroup", Cache::GetInstance().RefConfiguration().m_meta_space.c_str());
    if (myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    {
       TRACEF(Error, "File::Open() Create failed for info file " << ifn

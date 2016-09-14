@@ -40,7 +40,7 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
      m_localStat(0)
 {
    XrdCl::URL url(GetInput()->Path());
-   std::string fname = Cache::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
+   std::string fname = url.GetPath();
 
    m_file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
    if (m_file)

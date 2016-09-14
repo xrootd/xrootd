@@ -52,26 +52,29 @@ namespace
       {}
 
       // Returns true on error
-      bool Read(void *buf, ssize_t size)
+      bool ReadRaw(void *buf, ssize_t size, bool warnp=true)
       {
          ssize_t ret = f_fp->Read(buf, f_off, size);
          if (ret != size)
          {
-            TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
-                  << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
+            if (warnp)
+            {
+               TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
+                     << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
+            }
             return true;
          }
          f_off += ret;
          return false;
       }
 
-      template<typename T> bool Read(T &loc)
+      template<typename T> bool Read(T &loc, bool warnp=true)
       {
-         return Read(&loc, sizeof(T));
+         return ReadRaw(&loc, sizeof(T), warnp);
       }
 
       // Returns true on error
-      bool Write(void *buf, ssize_t size)
+      bool WriteRaw(void *buf, ssize_t size)
       {
          ssize_t ret = f_fp->Write(buf, f_off, size);
          if (ret != size)
@@ -86,7 +89,7 @@ namespace
 
       template<typename T> bool Write(T &loc)
       {
-         return Write(&loc, sizeof(T));
+         return WriteRaw(&loc, sizeof(T));
       }
    };
 }
@@ -131,7 +134,7 @@ void Info::SetFileSize(long long fs)
 {
    m_fileSize = fs;
    if (m_version >= 0)
-      ResizeBits((m_fileSize - 1)/m_bufferSize + 1) ;
+      ResizeBits((m_fileSize - 1)/m_bufferSize + 1);
 }
 
 //------------------------------------------------------------------------------
@@ -139,15 +142,15 @@ void Info::SetFileSize(long long fs)
 void Info::ResizeBits(int s)
 {
     // drop buffer in case of failed/partial reads
-   if (m_buff_written)      free(m_buff_written);
-   if (m_buff_synced)       free(m_buff_synced);
-   if (m_buff_prefetch)     free(m_buff_prefetch);
+   if (m_buff_written)    free(m_buff_written);
+   if (m_buff_synced)     free(m_buff_synced);
+   if (m_buff_prefetch)   free(m_buff_prefetch);
 
    m_sizeInBits = s;
-   m_buff_written      = (unsigned char*) malloc(GetSizeInBytes());
-   m_buff_synced = (unsigned char*) malloc(GetSizeInBytes());
-   memset(m_buff_written,      0, GetSizeInBytes());
-   memset(m_buff_synced,       0, GetSizeInBytes());
+   m_buff_written = (unsigned char*) malloc(GetSizeInBytes());
+   m_buff_synced  = (unsigned char*) malloc(GetSizeInBytes());
+   memset(m_buff_written, 0, GetSizeInBytes());
+   memset(m_buff_synced,  0, GetSizeInBytes());
 
    if (m_hasPrefetchBuffer)
    {
@@ -185,13 +188,13 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    if (m_version > 0) 
    {
-      if (r.Read(m_buff_written, GetSizeInBytes())) return false;
+      if (r.ReadRaw(m_buff_written, GetSizeInBytes())) return false;
       memcpy(m_buff_synced, m_buff_written, GetSizeInBytes());
    }
 
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-   if (r.Read(m_accessCnt)) m_accessCnt = 0; // was: return false;
+   if (r.Read(m_accessCnt, false)) m_accessCnt = 0; // was: return false;
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_accessCnt);
 
    return true;
@@ -231,7 +234,7 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
 
    if ( m_version >= 0 )
    {
-      if (w.Write(m_buff_synced, GetSizeInBytes())) 
+      if (w.WriteRaw(m_buff_synced, GetSizeInBytes())) 
           return false;
    }
 
