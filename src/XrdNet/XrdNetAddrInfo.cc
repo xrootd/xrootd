@@ -249,6 +249,37 @@ char *XrdNetAddrInfo::LowCase(char *str)
 }
   
 /******************************************************************************/
+/*                            i s H o s t N a m e                             */
+/******************************************************************************/
+
+bool XrdNetAddrInfo::isHostName(const char *name)
+{
+   const char *dot;
+   int dnum;
+
+// First check for Iv6 format or hostname
+//
+   if (*name == '[')    return false;
+   if (!isdigit(*name)) return true;
+
+// The IPv4 case is more complicated. The fastest way here is this is a
+// host name if there are no dots or if the last component is not a digit
+// according to the RFC spec.
+//
+   if (!(dot = rindex(name, '.')) || !isdigit(*(dot+1))) return true;
+
+// We are not out of the woods yet. Now we need to do a full check.
+//
+   name++; dnum = 0;
+   while(*name)
+        {if (*name == '.') dnum++;
+            else if (!isdigit(*name)) return true;
+         name++;
+        }
+   return (dnum == 3 ? false : true);
+}
+  
+/******************************************************************************/
 /*                                  N a m e                                   */
 /******************************************************************************/
   

@@ -109,6 +109,20 @@ int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtAuto, int fmtOpts=0)
 bool        isLoopback();
 
 //------------------------------------------------------------------------------
+//! Indicate whether or not a string is a possible hostname and not IP address.
+//! The return value does not aimply any kind of validity. For instance, a
+//! false return indicates this is not a valid hostname does not mean it is
+//! a valid IP address.
+//!
+//! @param name      The string to check.
+//!
+//! @return True:    This is     a possible hostname (i.e. not IP address).
+//! @return False:   This is not a possible hostname.
+//------------------------------------------------------------------------------
+
+static bool isHostName(const char *name);
+
+//------------------------------------------------------------------------------
 //! Indicate whether or not our address is if the desired type.
 //!
 //! @param ipType    The IP address version to test (see enum below).
