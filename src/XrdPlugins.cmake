@@ -120,6 +120,7 @@ add_library(
 target_link_libraries(
   ${LIB_XRD_SSI}
   XrdSsiLib
+  XrdUtils
   XrdServer )
 
 set_target_properties(
