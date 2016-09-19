@@ -11,5 +11,6 @@ Prerelease Notes
 
 + **Minor bug fixes**
   * Fix memory leak in sss protocol.
+  * Allow hostnames to begin with a digit.
 
 + **Miscellaneous**

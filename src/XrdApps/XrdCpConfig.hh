@@ -82,6 +82,8 @@ const char         *CksVal;        // -> Cks argument (0 if none)
 XrdCpFile          *srcFile;       // List of source files
 XrdCpFile          *dstFile;       // The destination for the copy
 
+char               *zipFile;       // The file name if the URL points to a ZIP archive
+
 static XrdSysError *Log;           // -> Error message object
 
 static const int    OpCksum    =  'C';        // -adler -MD5 legacy -> DoCksrc
@@ -154,6 +156,9 @@ static const int    DoParallel =  0x00200000; //      --parallel
 
 static const int    OpDynaSrc  =  'Z';
 static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
+
+static const int    OpZip      =  'z';
+static const int    DoZip      =  0x01000000;//       --zip
 
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.

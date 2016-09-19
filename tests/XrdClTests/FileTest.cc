@@ -32,6 +32,7 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClZipArchiveReader.hh"
 
 using namespace XrdClTests;
 
@@ -197,6 +198,45 @@ void FileTest::ReadTest()
   delete [] buffer2;
 
   CPPUNIT_ASSERT_XRDST( f.Close() );
+
+  //----------------------------------------------------------------------------
+  // Read ZIP archive test
+  //----------------------------------------------------------------------------
+  std::string archiveUrl = address + "/" + dataPath + "/data.zip";
+
+  ZipArchiveReader zip;
+  CPPUNIT_ASSERT_XRDST( zip.Open( archiveUrl ) );
+
+  //----------------------------------------------------------------------------
+  // There are 3 files in the data.zip archive:
+  //  - athena.log
+  //  - paper.txt
+  //  - EastAsianWidth.txt
+  //----------------------------------------------------------------------------
+
+  struct
+  {
+      std::string file;        // file name
+      uint64_t    offset;      // offset in the file
+      uint32_t    size;        // number of characters to be read
+      char        buffer[100]; // the buffer
+      std::string expected;    // expected result
+  } testset[] =
+  {
+      { "athena.log",         65530, 99, {0}, "D__Jet" }, // reads past the end of the file (there are just 6 characters to read not 99)
+      { "paper.txt",          1024,  65, {0}, "igh rate (the order of 100 kHz), the data are usually distributed" },
+      { "EastAsianWidth.txt", 2048,  18, {0}, "8;Na # DIGIT EIGHT" }
+  };
+
+  for( int i = 0; i < 3; ++i )
+  {
+    uint32_t bytesRead;
+    CPPUNIT_ASSERT_XRDST( zip.Read( testset[i].file, testset[i].offset, testset[i].size, testset[i].buffer, bytesRead ) );
+    std::string result( testset[i].buffer, bytesRead );
+    CPPUNIT_ASSERT( testset[i].expected == result );
+  }
+
+  CPPUNIT_ASSERT_XRDST( zip.Close() );
 }
 
 

@@ -333,10 +333,26 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string targetPath  = dataPath + "/tpcFile";
   std::string targetURL   = manager2 + "/" + targetPath;
   std::string metalinkURL = metamanager + "/" + dataPath + "/metalink/mlTpcTest.meta4";
+  std::string zipURL      = metamanager + "/" + dataPath + "/data.zip";
+  std::string fileInZip   = "paper.txt";
 
-  CopyProcess  process1, process2, process3, process4, process5;
+  CopyProcess  process1, process2, process3, process4, process5, process6;
   PropertyList properties, results;
   FileSystem fs( manager2 );
+
+  //----------------------------------------------------------------------------
+  // Copy from a ZIP archive
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source",       zipURL    );
+  properties.Set( "target",       targetURL );
+  properties.Set( "zipArchive",   true      );
+  properties.Set( "zipSource",    fileInZip );
+  CPPUNIT_ASSERT_XRDST( process6.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process6.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process6.Run(0) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  properties.Clear();
 
   //----------------------------------------------------------------------------
   // Copy from a Metalink
@@ -350,6 +366,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process5.Prepare() );
   CPPUNIT_ASSERT_XRDST( process5.Run(0) );
   CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  properties.Clear();
 
   //----------------------------------------------------------------------------
   // Initialize and run the copy

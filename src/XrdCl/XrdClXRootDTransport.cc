@@ -1339,8 +1339,8 @@ namespace XrdCl
     env->GetString( "MonInfo", monInfo );
     snprintf( cgiBuffer, 1024,
               "?xrd.cc=%s&xrd.tz=%d&xrd.appname=%s&xrd.info=%s&"
-              "xrd.hostname=%s", countryCode.c_str(), timeZone,
-              appName.c_str(), monInfo.c_str(), hostName );
+              "xrd.hostname=%s&xrd.rn=%s", countryCode.c_str(), timeZone,
+              appName.c_str(), monInfo.c_str(), hostName, XrdVERSION );
     uint16_t cgiLen = strlen( cgiBuffer );
     free( hostName );
 

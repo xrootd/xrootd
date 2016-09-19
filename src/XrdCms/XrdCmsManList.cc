@@ -112,7 +112,7 @@ void XrdCmsManList::Add(int ref, char *manp, int manport, int lvl)
 
 // Get the full name of the host target unless it is an actual address
 //
-   if (*manp == '[' || isdigit((int)*manp)) ipname = strdup(manp);
+   if (XrdNetAddrInfo::isHostName(manp)) ipname = strdup(manp);
       else {XrdNetAddr  redAddr;
             const char *redName;
             if (redAddr.Set(manp,0) || !(redName = redAddr.Name())) return;

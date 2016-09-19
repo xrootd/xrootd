@@ -228,8 +228,8 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
 
 // Check if we need to convert an ipv4 address to an ipv6 one
 //
-   if (hints.ai_family == AF_INET6
-   &&  isdigit(aBuff.ipAdr[0]) && index(aBuff.ipAdr, '.'))
+   if (hints.ai_family == AF_INET6 && aBuff.ipAdr[0] != '['
+   && !XrdNetAddrInfo::isHostName(aBuff.ipAdr))
       {strncpy(aBuff.ipMap, "::ffff:", 7);
        ipAddr = aBuff.ipMap;
       } else ipAddr = hnBeg;

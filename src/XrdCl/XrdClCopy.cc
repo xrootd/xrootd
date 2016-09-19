@@ -601,6 +601,16 @@ int main( int argc, char **argv )
     }
   }
 
+  //----------------------------------------------------------------------------
+  // ZIP archive
+  //----------------------------------------------------------------------------
+  std::string zipFile;
+  bool        zip = false;
+  if( config.Want( XrdCpConfig::DoZip ) )
+  {
+    zipFile = config.zipFile;
+    zip = true;
+  }
 
   //----------------------------------------------------------------------------
   // Environment settings
@@ -756,7 +766,11 @@ int main( int argc, char **argv )
     {
       target = dest + "/";
       // if it is a metalink we don't want to use the metalink name
-      if( src.IsMetalink() )
+      if( zip )
+      {
+        target += zipFile;
+      }
+      else if( src.IsMetalink() )
       {
         XrdCl::RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
         VirtualRedirector *redirector = registry.Get( source );
@@ -780,6 +794,11 @@ int main( int argc, char **argv )
     properties.Set( "checkSumPreset", checkSumPreset );
     properties.Set( "chunkSize",      chunkSize      );
     properties.Set( "parallelChunks", parallelChunks );
+    properties.Set( "zipArchive",     zip            );
+
+    if( zip )
+      properties.Set( "zipSource",    zipFile        );
+
 
     XRootDStatus st = process.AddJob( properties, results );
     if( !st.IsOK() )

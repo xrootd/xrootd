@@ -12,7 +12,7 @@ xrdcp - copy files
 [\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR]
 [\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
 [\fB--tpc\fR \fIfirst\fR|\fIonly\fR] [\fB--verbose\fR] [\fB--version\fR]
-[\fB--xrate\fR \fIrate\fR]
+[\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -127,6 +127,11 @@ displays summary output.
 \fB-V\fR | \fB-version\fR
 .RS 5
 displays version information and immediately exits.
+
+.RE
+\fB-z\fR | \fB--zip\fR
+.RS 5
+copy given file from a ZIP archive.
 
 .RE
 \fB-X\fR | \fB--xrate\fR \fIrate\fR
