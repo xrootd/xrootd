@@ -63,7 +63,7 @@ namespace XrdFileCache
       File               *m_file;
       bool                m_prefetch;
       int                 m_refcnt;
-      int                 m_errno;
+      int                 m_errno;      // stores negative errno
       bool                m_downloaded;
 
       Block(File *f, long long off, int size, bool m_prefetch) :

@@ -143,8 +143,7 @@ bool File::ioActive()
 {
    // Retruns true if delay is needed
    
-   TRACEF(Debug, "File::Initiate close start");
-
+   TRACEF(Debug, "File::ioActive start");
 
    // remove failed blocks and check if map is empty
    m_downloadCond.Lock();
@@ -155,14 +154,15 @@ bool File::ioActive()
       cache()->DeRegisterPrefetchFile(this);
    }
 
-   /*      
-   // high debug print 
-   for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it) {
-   Block* b = it->second;
-   TRACEF(Dump, "File::InitiateClose() block idx = " <<  b->m_offset/m_cfi.GetBufferSize() << " prefetch = " << b->preferch <<  " refcnt " << b->refcnt);
 
-   }
-   */
+   // High debug print
+   // for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it)
+   // {
+   //    Block* b = it->second;
+   //    TRACEF(Dump, "File::ioActive block idx = " <<  b->m_offset/m_cfi.GetBufferSize() << " prefetch = " << b->prefetch <<  " refcnt " << b->refcnt);
+   // }
+   TRACEF(Info, "ioActive block_map.size() = " << m_block_map.size());
+
    BlockMap_i itr = m_block_map.begin();
    while (itr != m_block_map.end())
    {
@@ -625,7 +625,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          else // it has failed ... krap up.
          {
             bytes_read = -1;
-            errno = (*bi)->m_errno;
+            errno = - (*bi)->m_errno;
             TRACEF(Error, "File::Read(), block "<< (*bi)->m_offset/BS << " finished with error "
                    << errno << " " << strerror(errno));
             break;
@@ -655,7 +655,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       }
       else
       {
-         errno = direct_handler->m_errno;
+         errno = - direct_handler->m_errno;
          bytes_read = -1;
       }
 
