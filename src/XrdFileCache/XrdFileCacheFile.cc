@@ -202,6 +202,7 @@ void File::WakeUp(IO *io)
 {
    // called if this object is recycled by other IO
    m_downloadCond.Lock();
+   m_io->RelinquishFile(this);
    m_io = io;
    if (m_prefetchState != kComplete) m_prefetchState = kOn;
    m_downloadCond.UnLock();

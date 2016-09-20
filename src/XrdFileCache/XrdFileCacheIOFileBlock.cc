@@ -47,9 +47,17 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 //______________________________________________________________________________
 XrdOucCacheIO* IOFileBlock::Detach()
 {
+   // this is called when this IO is no longer active
    XrdOucCacheIO * io = GetInput();
-   m_cache.Detach(this);  // This will delete us!
 
+   while (!m_blocks.empty())
+   {
+      std::map<int, File*>::iterator it = m_blocks.begin();
+      m_cache.Detach(it->second);
+      m_blocks.erase(it);
+   }
+   delete this;
+   
    return io;
 }
 
@@ -118,14 +126,10 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
 
    File* file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
-   if (file)
-   {
-      file->WakeUp(this);
-   }
-   else
+   if (!file)
    {
       file = new File(this, fname, off, blocksize);
-      Cache::GetInstance().AddActive(this, file);
+      Cache::GetInstance().AddActive(file);
    }
 
    return file;

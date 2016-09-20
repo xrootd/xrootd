@@ -176,7 +176,7 @@ namespace XrdFileCache
          void Prefetch();
 
          //! Decrease attached count. Called from IO::Detach().
-         void Detach(XrdOucCacheIO *);
+         void Detach(File*);
 
          XrdOss* GetOss() const { return m_output_fs; }
 
@@ -184,7 +184,7 @@ namespace XrdFileCache
           
          File* GetFileWithLocalPath(std::string, IO* io);
     
-         void AddActive(IO*, File*);
+         void AddActive(File*);
         
 
          XrdOucTrace* GetTrace() { return  m_trace; }
@@ -230,7 +230,7 @@ namespace XrdFileCache
             File* file;
          };
 
-        std::vector<DiskNetIO>  m_active;
+        std::map<std::string, File*>         m_active;
         XrdSysMutex             m_active_mutex;
 
        // prefetching

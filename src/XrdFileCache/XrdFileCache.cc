@@ -175,28 +175,20 @@ int Cache::isAttached()
     return true;
 }
 
-void Cache::Detach(XrdOucCacheIO* io)
+void Cache::Detach(File* file)
 {
-   TRACE(Info, "Cache::Detach() " << io->Path());
+   TRACE(Info, "Cache::Detach() " << file->GetLocalPath());
 
-   // Cache owns File objects
    XrdSysMutexHelper lock(&m_active_mutex);
-   std::vector<DiskNetIO>::iterator it = m_active.begin();
-   while ( it != m_active.end() )
+   for ( std::map<std::string, File*>::iterator it = m_active.begin(); it != m_active.end(); ++it)
    {
-      if (it->io == io) {
-         if (it->file) {
-            it->io->RelinquishFile(it->file);
-            delete it->file;
-         }
+      if (it->second == file)
+      {
          m_active.erase(it);
-         if (m_configuration.m_hdfsmode == false) break;
       }
-      else
-         ++it;
+      delete file;
+      break;
    }
-
-   delete io;
 }
 
 //______________________________________________________________________________
@@ -280,10 +272,10 @@ Cache::RAMBlockReleased()
 }
 
 void
-Cache::AddActive(IO* io, File* file)
+Cache::AddActive(File* file)
 {
    XrdSysMutexHelper lock(&m_active_mutex);
-   m_active.push_back(DiskNetIO(io, file));
+   m_active[file->GetLocalPath()] = file;
 }
 
 //==============================================================================
@@ -292,16 +284,14 @@ Cache::AddActive(IO* io, File* file)
 File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
 {
    XrdSysMutexHelper lock(&m_active_mutex);
-   for ( std::vector<DiskNetIO>::iterator it = m_active.begin(); it != m_active.end(); ++it)
-   {
-      if (it->file && (!strcmp(path.c_str(), it->file->lPath())))
-      {
-         File *ff = it->file;
-         it->io->RelinquishFile(ff);
-         it->file = 0;
-         return  ff;
-      }
+
+   std::map<std::string, File*>::iterator it = m_active.find(path);
+   if (it != m_active.end()) {
+      it->second->WakeUp(iIo);
+      return it->second;
    }
+    
+   
    return 0;
 }
 
