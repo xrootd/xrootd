@@ -183,6 +183,7 @@ namespace XrdFileCache
          XrdSysError& GetSysError() { return m_log; }
           
          File* GetFileWithLocalPath(std::string, IO* io);
+         bool  HaveActiveFileWithLocalPath(std::string);
     
          void AddActive(File*);
         

@@ -186,24 +186,27 @@ void Cache::CacheDirCleanup()
             // loop over map and remove files with highest value of access time
             for (FPurgeState::map_i it = purgeState.fmap.begin(); it != purgeState.fmap.end(); ++it)
             {
-               // XXXX MT - shouldn't we re-check if the file is currently opened?
 
-               std::string path = it->second.path;
+               std::string infoPath = it->second.path;
+               std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::m_infoExtension));
+
+               if (HaveActiveFileWithLocalPath(dataPath)) 
+                   continue;
+               
                // remove info file
-               if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
+               if (oss->Stat(infoPath.c_str(), &fstat) == XrdOssOK)
                {
                   bytesToRemove -= fstat.st_size;
-                  oss->Unlink(path.c_str());
-                  TRACE(Info, "Cache::CacheDirCleanup()  removed  file:" <<  path <<  " size: " << fstat.st_size);
+                  oss->Unlink(infoPath.c_str());
+                  TRACE(Info, "Cache::CacheDirCleanup()  removed  file:" <<  infoPath <<  " size: " << fstat.st_size);
                }
 
                // remove data file
-               path = path.substr(0, path.size() - strlen(XrdFileCache::Info::m_infoExtension));
-               if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
+               if (oss->Stat(dataPath.c_str(), &fstat) == XrdOssOK)
                {
                   bytesToRemove -= it->second.nByte;
-                  oss->Unlink(path.c_str());
-                  TRACE(Info, "Cache::CacheDirCleanup() removed file: %s " << path << " size " << it->second.nByte);
+                  oss->Unlink(dataPath.c_str());
+                  TRACE(Info, "Cache::CacheDirCleanup() removed file: %s " << dataPath << " size " << it->second.nByte);
                }
 
                if (bytesToRemove <= 0)

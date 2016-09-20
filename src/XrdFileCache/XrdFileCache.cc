@@ -278,9 +278,7 @@ Cache::AddActive(File* file)
    m_active[file->GetLocalPath()] = file;
 }
 
-//==============================================================================
-//======================= File relinquish at process of dying  ===================
-//======================================================================
+
 File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
 {
    XrdSysMutexHelper lock(&m_active_mutex);
@@ -294,6 +292,16 @@ File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
    
    return 0;
 }
+
+bool Cache::HaveActiveFileWithLocalPath(std::string path)
+{
+   XrdSysMutexHelper lock(&m_active_mutex);
+
+   std::map<std::string, File*>::iterator it = m_active.find(path);
+
+   return (it != m_active.end());
+}
+
 
 //==============================================================================
 //=======================  PREFETCH ===================================
