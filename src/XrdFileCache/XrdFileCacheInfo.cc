@@ -105,7 +105,8 @@ Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
    m_hasPrefetchBuffer(prefetchBuffer),
    m_buff_written(0),  m_buff_prefetch(0),
    m_sizeInBits(0),
-   m_complete(false)
+   m_complete(false),
+   m_cksCalc(0)
 {}
 
 Info::~Info()
@@ -113,6 +114,7 @@ Info::~Info()
    if (m_store.m_buff_synced)  free(m_store.m_buff_synced);
    if (m_buff_written)         free(m_buff_written);
    if (m_buff_prefetch)        free(m_buff_prefetch);
+   delete m_cksCalc;
 }
 
 //------------------------------------------------------------------------------
@@ -214,9 +216,13 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 //------------------------------------------------------------------------------
 void Info::GetCksum( unsigned char* buff, char* digest)
 {
-   XrdCksCalcmd5 calc;
-   calc.Update((const char*)buff, GetSizeInBytes());
-   memcpy(digest, calc.Final(), 16);
+    if (m_cksCalc)
+        m_cksCalc->Init();
+    else
+        m_cksCalc = new XrdCksCalcmd5();
+
+   m_cksCalc->Update((const char*)buff, GetSizeInBytes());
+   memcpy(digest, m_cksCalc->Final(), 16);
 }
    
 //------------------------------------------------------------------------------
