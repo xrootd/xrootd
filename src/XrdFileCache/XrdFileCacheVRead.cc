@@ -160,7 +160,7 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
       }
       else
       {
-         errno = direct_handler->m_errno;
+         errno = - direct_handler->m_errno;
          bytesRead = -1;
       }
    }
@@ -366,7 +366,7 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
          else
          {
             bytes_read = -1;
-            errno = bi->block->m_errno;
+            errno = - bi->block->m_errno;
             break;
          }
 

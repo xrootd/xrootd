@@ -143,8 +143,7 @@ bool File::ioActive()
 {
    // Retruns true if delay is needed
    
-   TRACEF(Debug, "File::Initiate close start");
-
+   TRACEF(Debug, "File::ioActive start");
 
    // remove failed blocks and check if map is empty
    m_downloadCond.Lock();
@@ -155,14 +154,15 @@ bool File::ioActive()
       cache()->DeRegisterPrefetchFile(this);
    }
 
-   /*      
-   // high debug print 
-   for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it) {
-   Block* b = it->second;
-   TRACEF(Dump, "File::InitiateClose() block idx = " <<  b->m_offset/m_cfi.GetBufferSize() << " prefetch = " << b->preferch <<  " refcnt " << b->refcnt);
 
-   }
-   */
+   // High debug print
+   // for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it)
+   // {
+   //    Block* b = it->second;
+   //    TRACEF(Dump, "File::ioActive block idx = " <<  b->m_offset/m_cfi.GetBufferSize() << " prefetch = " << b->prefetch <<  " refcnt " << b->refcnt);
+   // }
+   TRACEF(Info, "ioActive block_map.size() = " << m_block_map.size());
+
    BlockMap_i itr = m_block_map.begin();
    while (itr != m_block_map.end())
    {
@@ -220,7 +220,8 @@ bool File::Open()
 
    // Create the data file itself.
    char size_str[16]; sprintf(size_str, "%lld", m_fileSize);
-   myEnv.Put("oss.asize", size_str);
+   myEnv.Put("oss.asize",  size_str);
+   myEnv.Put("oss.cgroup", Cache::GetInstance().RefConfiguration().m_data_space.c_str());
    if (myOss.Create(myUser, m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    { 
       TRACEF(Error, "File::Open() Create failed for data file " << m_temp_filename
@@ -244,6 +245,7 @@ bool File::Open()
    bool fileExisted = (myOss.Stat(ifn.c_str(), &infoStat) == XrdOssOK);
 
    myEnv.Put("oss.asize", "64k"); // MT-XXX Calculate? Do not know length of access lists ...
+   myEnv.Put("oss.cgroup", Cache::GetInstance().RefConfiguration().m_meta_space.c_str());
    if (myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    {
       TRACEF(Error, "File::Open() Create failed for info file " << ifn
@@ -624,7 +626,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          else // it has failed ... krap up.
          {
             bytes_read = -1;
-            errno = (*bi)->m_errno;
+            errno = - (*bi)->m_errno;
             TRACEF(Error, "File::Read(), block "<< (*bi)->m_offset/BS << " finished with error "
                    << errno << " " << strerror(errno));
             break;
@@ -654,7 +656,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       }
       else
       {
-         errno = direct_handler->m_errno;
+         errno = - direct_handler->m_errno;
          bytes_read = -1;
       }
 

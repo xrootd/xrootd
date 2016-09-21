@@ -53,26 +53,29 @@ namespace
       {}
 
       // Returns true on error
-      bool Read(void *buf, ssize_t size)
+      bool ReadRaw(void *buf, ssize_t size, bool warnp=true)
       {
          ssize_t ret = f_fp->Read(buf, f_off, size);
          if (ret != size)
          {
-            TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
-                  << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
+            if (warnp)
+            {
+               TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
+                     << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
+            }
             return true;
          }
          f_off += ret;
          return false;
       }
 
-      template<typename T> bool Read(T &loc)
+      template<typename T> bool Read(T &loc, bool warnp=true)
       {
-         return Read(&loc, sizeof(T));
+         return ReadRaw(&loc, sizeof(T), warnp);
       }
 
       // Returns true on error
-      bool Write(void *buf, ssize_t size)
+      bool WriteRaw(void *buf, ssize_t size)
       {
          ssize_t ret = f_fp->Write(buf, f_off, size);
          if (ret != size)
@@ -87,7 +90,7 @@ namespace
 
       template<typename T> bool Write(T &loc)
       {
-         return Write(&loc, sizeof(T));
+         return WriteRaw(&loc, sizeof(T));
       }
    };
 }
@@ -129,6 +132,7 @@ void Info::SetBufferSize(long long bs)
 
 void Info::SetFileSize(long long fs)
 {
+
    m_store.m_fileSize = fs;
    if (m_store.m_version >= 0)
       ResizeBits((m_store.m_fileSize - 1)/m_store.m_bufferSize + 1) ;
@@ -139,6 +143,7 @@ void Info::SetFileSize(long long fs)
 void Info::ResizeBits(int s)
 {
     // drop buffer in case of failed/partial reads
+
    if (m_store.m_buff_synced)       free(m_store.m_buff_synced);
    if (m_buff_written)                 free(m_buff_written);
    if (m_buff_prefetch)                free(m_buff_prefetch);
@@ -173,6 +178,7 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    if (m_store.m_version == 0) {
       TRACE(Warning, trace_pfx << " File version 0 non supported");
+      return false;
    }
 
    if (r.Read(m_store.m_bufferSize)) return false;
@@ -181,12 +187,12 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    if (r.Read(fs)) return false;
    SetFileSize(fs);
 
-   if (r.Read(m_store.m_buff_synced, GetSizeInBytes())) return false;
+   if (r.ReadRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
    memcpy(m_buff_written, m_store.m_buff_synced, GetSizeInBytes());
 
    if (m_store.m_version > 1)
    {
-      if (r.Read(m_store.m_cksum)) return false;
+       if (r.ReadRaw(m_store.m_cksum, 16)) return false;
       char tmpCksum[16];
       GetCksum(&m_store.m_buff_synced[0], &tmpCksum[0]);
 
@@ -203,10 +209,10 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
          return false;
       }
    }
- 
-   if (r.Read(m_store.m_accessCnt)) m_store.m_accessCnt = 0; // was: return false;
-
+   
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
+  
+   if (r.Read(m_store.m_accessCnt, false)) m_store.m_accessCnt = 0; // was: return false;
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
    
    return true;
@@ -265,7 +271,7 @@ bool Info::WriteHeader(XrdOssDF* fp, const std::string &fname)
    if (w.Write(m_store.m_bufferSize)) return false;
    if (w.Write(m_store.m_fileSize))   return false;
 
-   if (w.Write(m_store.m_buff_synced, GetSizeInBytes())) return false;
+   if (w.WriteRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
 
    GetCksum(&m_store.m_buff_synced[0], &m_store.m_cksum[0]);
    if (w.Write(m_store.m_cksum))   return false;

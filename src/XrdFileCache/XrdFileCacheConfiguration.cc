@@ -130,11 +130,11 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                                                 &XrdVERSIONINFOVAR(XrdOucGetCache2));
    if (!ofsCfg) return false;
 
+   TmpConfiguration tmpc;
 
-   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))  {
+   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))
+   {
       ofsCfg->Plugin(m_output_fs);
-      XrdOssCache_FS* ocfs = XrdOssCache::Find("public");
-      ocfs->Add(m_configuration.m_cache_dir.c_str());
    }
    else
    {
@@ -163,10 +163,10 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       }
       else if (!strncmp(var,"pfc.", 4))
       {
-         retval = ConfigParameters(std::string(var+4), Config);
+         retval = ConfigParameters(std::string(var+4), Config, tmpc);
       }
 
-      if (!retval)
+      if ( ! retval)
       {
          retval = false;
          TRACE(Error, "Cache::Config() error in parsing");
@@ -176,21 +176,50 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    }
 
    Config.Close();
+
    // sets default value for disk usage
-   if (m_configuration.m_diskUsageLWM < 0 || m_configuration.m_diskUsageHWM < 0)
    {
       XrdOssVSInfo sP;
-      if (m_output_fs->StatVS(&sP, "public", 1) >= 0) {
-         m_configuration.m_diskUsageLWM = static_cast<long long>(0.90 * sP.Total + 0.5);
-         m_configuration.m_diskUsageHWM = static_cast<long long>(0.95 * sP.Total + 0.5);
+      if (m_output_fs->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
+      {
+         m_log.Emsg("Cache::ConfigParameters() error obtaining stat info for space ", m_configuration.m_data_space.c_str());
+         return false;
+      }
+
+      if (::isalpha(*(tmpc.m_diskUsageLWM.rbegin())) && ::isalpha(*(tmpc.m_diskUsageHWM.rbegin())))
+      {
+         if (XrdOuca2x::a2sz(m_log, "Error getting disk usage low watermark",  tmpc.m_diskUsageLWM.c_str(), &m_configuration.m_diskUsageLWM, 0, sP.Total) ||
+             XrdOuca2x::a2sz(m_log, "Error getting disk usage high watermark", tmpc.m_diskUsageHWM.c_str(), &m_configuration.m_diskUsageHWM, 0, sP.Total))
+         {
+            return false;
+         }
+      }
+      else
+      {
+         char* eP;
+         errno = 0;
+         double lwmf = strtod(tmpc.m_diskUsageLWM.c_str(), &eP);
+         if (errno || eP == tmpc.m_diskUsageLWM.c_str())
+         {
+            m_log.Emsg("Cache::ConfigParameters() error parsing diskusage parameter ", tmpc.m_diskUsageLWM.c_str());
+            return false;
+         }
+         double hwmf = strtod(tmpc.m_diskUsageHWM.c_str(), &eP);
+         if (errno || eP == tmpc.m_diskUsageHWM.c_str()) {
+            m_log.Emsg("Cache::ConfigParameters() error parsing diskusage parameter ", tmpc.m_diskUsageHWM.c_str());
+            return false;
+         }
+
+         m_configuration.m_diskUsageLWM = static_cast<long long>(sP.Total * lwmf + 0.5);
+         m_configuration.m_diskUsageHWM = static_cast<long long>(sP.Total * hwmf + 0.5);
       }
    }
 
    // get number of available RAM blocks after process configuration
-   if (m_configuration.m_RamAbsAvailable == 0 )
+   if (m_configuration.m_RamAbsAvailable == 0)
    {
-       TRACE(Error, "RAM usage not specified. Please set pfc.ram value in configuration file.");
-       return false;
+      TRACE(Error, "RAM usage not specified. Please set pfc.ram value in configuration file.");
+      return false;
    }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
 
@@ -204,15 +233,22 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       char buff[2048];
       float rg =  (m_configuration.m_RamAbsAvailable)/float(1024*1024*1024);
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
-               "       pfc.blocksize %lld\n"
-               "       pfc.prefetch %ld\n"
-               "       pfc.ram %.fg"
-               "       pfc.trace %d",
-               config_filename,
-               m_configuration.m_bufferSize,
-               m_configuration.m_prefetch_max_blocks, // AMT not sure what parsing should be
-               rg,
-               m_trace->What);
+                      "       pfc.blocksize %lld\n"
+                      "       pfc.prefetch %ld\n"
+                      "       pfc.ram %.fg\n"
+                      "       pfc.diskusage %lld %lld sleep %d\n"
+                      "       pfc.spaces %s %s\n"
+                      "       pfc.trace %d",
+                      config_filename,
+                      m_configuration.m_bufferSize,
+                      m_configuration.m_prefetch_max_blocks, // AMT not sure what parsing should be
+                      rg,
+                      m_configuration.m_diskUsageLWM,
+                      m_configuration.m_diskUsageHWM,
+                      m_configuration.m_purgeInterval,
+                      m_configuration.m_data_space.c_str(),
+                      m_configuration.m_meta_space.c_str(),
+                      m_trace->What);
 
       if (m_configuration.m_hdfsmode)
       {
@@ -223,12 +259,12 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
 
       char  unameBuff[256];
       if (m_configuration.m_username.empty()) {
-	XrdOucUtils::UserName(getuid(), unameBuff, sizeof(unameBuff));
-	m_configuration.m_username = unameBuff;
+         XrdOucUtils::UserName(getuid(), unameBuff, sizeof(unameBuff));
+         m_configuration.m_username = unameBuff;
       }
       else {
-        snprintf(unameBuff, sizeof(unameBuff), "\tpfc.user %s \n", m_configuration.m_username.c_str());
-        loff += snprintf(&buff[loff], strlen(unameBuff), "%s", unameBuff);
+         snprintf(unameBuff, sizeof(unameBuff), "\tpfc.user %s \n", m_configuration.m_username.c_str());
+         loff += snprintf(&buff[loff], strlen(unameBuff), "%s", unameBuff);
       }
      
       m_log.Say( buff);
@@ -237,56 +273,37 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    m_log.Say("------ File Caching Proxy interface initialization ", retval ? "completed" : "failed");
 
    if (ofsCfg) delete ofsCfg;
+
    return retval;
 }
 
 //______________________________________________________________________________
 
 
-bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
+bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfiguration &tmpc)
 {   
    XrdSysError err(0, "");
    if ( part == "user" )
    {
       m_configuration.m_username = config.GetWord();
    }
-   else if ( part == "cachedir" )
-   {
-      m_configuration.m_cache_dir = config.GetWord();
-   }
    else if ( part == "diskusage" )
    {
-      std::string minV = config.GetWord();
-      std::string maxV = config.GetWord();
-      if (!minV.empty() && !maxV.empty()) {
-         XrdOssVSInfo sP;
-         if (m_output_fs->StatVS(&sP, "public", 1) >= 0)
-         {
-            if (::isalpha(*(minV.rbegin())) && ::isalpha(*(minV.rbegin()))) {
-               if ( XrdOuca2x::a2sz(m_log, "Error getting disk usage low watermark",  minV.c_str(), &m_configuration.m_diskUsageLWM, 0, sP.Total) 
-                 || XrdOuca2x::a2sz(m_log, "Error getting disk usage high watermark", maxV.c_str(), &m_configuration.m_diskUsageHWM, 0, sP.Total))
-               {
-                  return false;
-               }
-            }
-            else 
-            {
-               char* eP;
-               errno = 0;
-               float lwmf = strtod(minV.c_str(), &eP);
-               if (errno || eP == minV.c_str()) {
-                    m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", minV.c_str());
-                    return false;
-               }
-               float hwmf = strtod(maxV.c_str(), &eP);
-               if (errno || eP == maxV.c_str()) {
-                  m_log.Emsg("Factory::ConfigParameters() error parsing diskusage parameter ", maxV.c_str());
-                  return false;
-               }
+      tmpc.m_diskUsageLWM = config.GetWord();
+      tmpc.m_diskUsageHWM = config.GetWord();
 
-               m_configuration.m_diskUsageLWM = static_cast<long long>(sP.Total * lwmf + 0.5);
-               m_configuration.m_diskUsageHWM = static_cast<long long>(sP.Total * hwmf + 0.5);
-            }
+      if (tmpc.m_diskUsageHWM.empty())
+      {
+         m_log.Emsg("Config", "Error: diskusage parameter requires two arguments.");
+         return false;
+      }
+      const char *p = config.GetWord();
+      if (p && strcmp(p, "sleep") == 0)
+      {
+         p = config.GetWord();
+         if (XrdOuca2x::a2i(m_log, "Error getting purge interval", p, &m_configuration.m_purgeInterval, 60, 3600))
+         {
+            return false;
          }
       }
    }
@@ -294,12 +311,12 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
    {
       long long minBSize = 64 * 1024;
       long long maxBSize = 16 * 1024 * 1024;
-      if ( XrdOuca2x::a2sz(m_log, "get block size", config.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
+      if (XrdOuca2x::a2sz(m_log, "get block size", config.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
       {
          return false;
       }
    }
-   else if (part == "prefetch" )
+   else if ( part == "prefetch" )
    {
        const char* params =  config.GetWord();
        if (params) {
@@ -318,12 +335,25 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
            return false;
        }
    }
-   else if (part == "ram" )
+   else if ( part == "ram" )
    {
-      long long minRAM = 1024* 1024 * 1024;;
-      long long maxRAM = 100 * minRAM;
+      long long minRAM = 1024 * 1024 * 1024;
+      long long maxRAM = 256 * minRAM;
       if ( XrdOuca2x::a2sz(m_log, "get RAM available", config.GetWord(), &m_configuration.m_RamAbsAvailable, minRAM, maxRAM))
       {
+         return false;
+      }
+   }
+   else if ( part == "spaces" )
+   {
+      const char *par;
+      par = config.GetWord();
+      if (par) m_configuration.m_data_space = par;
+      par = config.GetWord();
+      if (par) m_configuration.m_meta_space = par;
+      else
+      {
+         m_log.Emsg("Config", "spacenames requires two parameters: <data-space> <metadata-space>.");
          return false;
       }
    }
@@ -331,18 +361,21 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
    {
       m_configuration.m_hdfsmode = true;
 
-      const char* params =  config.GetWord();
-      if (params) {
-         if (!strncmp("hdfsbsize", params, 9)) {
-            long long minBlSize = 128 * 1024;
-            long long maxBlSize = 1024 * 1024 * 1024;
+      const char* params = config.GetWord();
+      if (params)
+      {
+         if (!strncmp("hdfsbsize", params, 9))
+         {
+            long long minBlSize =  32 * 1024;
+            long long maxBlSize = 128 * 1024 * 1024;
             params = config.GetWord();
             if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", params, &m_configuration.m_hdfsbsize, minBlSize, maxBlSize))
             {
                return false;
             }
          }
-         else {
+         else
+         {
             m_log.Emsg("Config", "Error setting the fragment size parameter name");
             return false;        
          }
@@ -354,7 +387,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config )
       return false;
    }
 
-   assert ( config.GetWord() == 0 && "Cache::ConfigParameters() lost argument"); 
+   assert (config.GetWord() == 0 && "Cache::ConfigParameters() lost argument"); 
 
    return true;
 }

@@ -145,31 +145,27 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
 }
 void Cache::CacheDirCleanup()
 {
-   // check state every sleep seconds
-   const static int sleept = 300;
-   struct stat fstat;
-   XrdOucEnv env;
-
-   XrdOss* oss = Cache::GetInstance().GetOss();
+   XrdOucEnv    env;
+   XrdOss*      oss = Cache::GetInstance().GetOss();
    XrdOssVSInfo sP;
 
    while (1)
    {
       // get amount of space to erase
       long long bytesToRemove = 0;
-      if (oss->StatVS(&sP, "public", 1) < 0)
+      if (oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
-         TRACE(Error, "Cache::CacheDirCleanup() can't get statvs for dir " <<  m_configuration.m_cache_dir.c_str());
+         TRACE(Error, "Cache::CacheDirCleanup() can't get statvs for oss space " << m_configuration.m_data_space);
          exit(1);
       }
       else
       {
          long long ausage = sP.Total - sP.Free;
-         TRACE(Debug, "Cache::CacheDirCleanup() occupates disk space == " <<  ausage);
+         TRACE(Info, "Cache::CacheDirCleanup() used disk space " << ausage << " bytes.");
          if (ausage > m_configuration.m_diskUsageHWM)
          {
             bytesToRemove = ausage - m_configuration.m_diskUsageLWM;
-            TRACE(Debug, "Cache::CacheDirCleanup() need space for " <<  bytesToRemove << " bytes");
+            TRACE(Info, "Cache::CacheDirCleanup() need to remove " <<  bytesToRemove << " bytes.");
          }
       }
 
@@ -177,13 +173,14 @@ void Cache::CacheDirCleanup()
       {
          // make a sorted map of file patch by access time
          XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
-         if (dh->Opendir(m_configuration.m_cache_dir.c_str(), env) == XrdOssOK)
+         if (dh->Opendir("", env) == XrdOssOK)
          {
             FPurgeState purgeState(bytesToRemove * 5 / 4); // prepare 20% more volume than required
 
-            FillFileMapRecurse(dh, m_configuration.m_cache_dir, purgeState);
+            FillFileMapRecurse(dh, "", purgeState);
 
             // loop over map and remove files with highest value of access time
+            struct stat  fstat;
             for (FPurgeState::map_i it = purgeState.fmap.begin(); it != purgeState.fmap.end(); ++it)
             {
 
@@ -196,15 +193,17 @@ void Cache::CacheDirCleanup()
                // remove info file
                if (oss->Stat(infoPath.c_str(), &fstat) == XrdOssOK)
                {
-                  bytesToRemove -= fstat.st_size;
+                  // cinfo file can be on another oss.space, do not subtract for now.
+                  // bytesToRemove -= fstat.st_size;
                   oss->Unlink(infoPath.c_str());
-                  TRACE(Info, "Cache::CacheDirCleanup()  removed  file:" <<  infoPath <<  " size: " << fstat.st_size);
+                  TRACE(Info, "Cache::CacheDirCleanup() removed file:" <<  infoPath <<  " size: " << fstat.st_size);
                }
 
                // remove data file
                if (oss->Stat(dataPath.c_str(), &fstat) == XrdOssOK)
                {
                   bytesToRemove -= it->second.nByte;
+
                   oss->Unlink(dataPath.c_str());
                   TRACE(Info, "Cache::CacheDirCleanup() removed file: %s " << dataPath << " size " << it->second.nByte);
                }
@@ -214,9 +213,9 @@ void Cache::CacheDirCleanup()
             }
          }
 	 dh->Close();
-	 delete dh; dh =0;
+	 delete dh; dh = 0;
       }
 
-      sleep(sleept);
+      sleep(m_configuration.m_purgeInterval);
    }
 }
