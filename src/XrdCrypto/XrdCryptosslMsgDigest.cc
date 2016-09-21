@@ -73,29 +73,27 @@ int XrdCryptosslMsgDigest::Init(const char *dgst)
    // Initialize the buffer for the message digest calculation
    EPNAME("MsgDigest::Init");
 
+   // We use the input digest type; or the old one; or the default, sha-256
+   if (dgst) {
+      SetType(dgst);
+   } else if (!Type()) {
+      SetType("sha256");
+   }
+
    // Get message digest handle
    const EVP_MD *md = 0;
-   // We first try the one input, if any
-   if (dgst)
-      md = EVP_get_digestbyname(dgst);
-
-   // If it did not work, we reuse the old one, or we use the default
-   if (!md) {
-      if (Type())
-         md = EVP_get_digestbyname(Type());
-      else
-         md = EVP_get_digestbyname("sha1");
-   }
-   if (!md) {
-      DEBUG("cannot get msg digest by name");
+   if (!(md = EVP_get_digestbyname(Type()))) {
+      PRINT("EROOR: cannot get msg digest by name");
       return -1;
    }
 
    // Init digest machine
-   EVP_DigestInit(&mdctx, md);
+   if (!EVP_DigestInit_ex(&mdctx, md, NULL)) {
+      PRINT("ERROR: cannot initialize digest");
+      return -1;
+   }
 
    // Successful initialization
-   SetType(dgst);
    valid = 1;
 
    // OK
@@ -113,9 +111,7 @@ int XrdCryptosslMsgDigest::Reset(const char *dgst)
    }
    valid = 0;
    Init(dgst);
-   if (!valid)
-      // unsuccessful initialization
-      return -1;
+   if (!valid) return -1;
 
    return 0;
 }
@@ -148,13 +144,16 @@ int XrdCryptosslMsgDigest::Final()
 
    if (Type()) {
       // Finalize what we have
-      EVP_DigestFinal(&mdctx, mdval, &mdlen);
-      // Save result
-      SetBuffer(mdlen,(const char *)mdval);
-      // Notify, if requested
-      DEBUG("result length is "<<mdlen <<
-            " bytes (hex: " << AsHexString() <<")");
-      return 0;
+      if (EVP_DigestFinal_ex(&mdctx, mdval, &mdlen) == 1) {
+         // Save result
+         SetBuffer(mdlen,(const char *)mdval);
+         // Notify, if requested
+         DEBUG("result length is "<<mdlen <<
+               " bytes (hex: " << AsHexString() <<")");
+         return 0;
+      } else {
+         PRINT("ERROR: problems finalizing digest");
+      }
    }
    return -1;   
 }
