@@ -42,7 +42,7 @@
 //-----------------------------------------------------------------------------
 
 class XrdSsiRequest;
-class XrdSsiRespInfo;
+struct XrdSsiRespInfo;
 class XrdSsiTask;
 
 class XrdSsiSession
