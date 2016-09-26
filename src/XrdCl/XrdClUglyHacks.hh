@@ -28,12 +28,6 @@
 #include "XrdSys/XrdSysLinuxSemaphore.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
-#define USE_LIBC_SEMAPHORE (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 21))  // in libc >= 2.21 the semaphore problem has been fixed
-#else
-#define USE_LIBC_SEMAPHORE 0
-#endif
-
 namespace XrdCl
 {
 #if defined(__linux__) && defined(HAVE_ATOMICS) && !USE_LIBC_SEMAPHORE
