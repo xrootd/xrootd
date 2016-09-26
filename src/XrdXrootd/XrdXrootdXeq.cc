@@ -40,6 +40,7 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
@@ -854,6 +855,12 @@ int XrdXrootdProtocol::do_Login()
    addrP = Link->AddrInfo();
    if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
       clientPV |= XrdOucEI::uIPv4;
+// WORKAROUND: XrdCl 4.0.x often identifies worker nodes as being IPv6-only.
+// Rather than breaking a significant number of our dual-stack workers, we
+// automatically denote IPv6 connections as also supporting IPv4 - regardless
+// of what the remote client claims.
+   else if (XrdInet::GetAssumeV4())
+      clientPV |= XrdOucEI::uIPv64;
 
 // Mark the client as being on a private net if the address is private
 //

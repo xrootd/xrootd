@@ -58,6 +58,11 @@ void        Secure(XrdNetSecurity *secp);
             XrdInet(XrdSysError *erp, XrdOucTrace *tP, XrdNetSecurity *secp=0)
                       : XrdNet(erp,0), Patrol(secp), XrdTrace(tP) {}
            ~XrdInet() {}
+
+static void SetAssumeV4(bool newVal) {AssumeV4 = newVal;}
+
+static bool GetAssumeV4() {return AssumeV4;}
+
 static
 XrdNetIF    netIF;
 
@@ -66,5 +71,6 @@ private:
 XrdNetSecurity    *Patrol;
 XrdOucTrace       *XrdTrace;
 static const char *TraceID;
+static  bool       AssumeV4;
 };
 #endif
