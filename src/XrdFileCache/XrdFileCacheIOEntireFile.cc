@@ -60,6 +60,7 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
 
 IOEntireFile::~IOEntireFile()
 {
+     TRACEIO(Debug, "IOEntireFile::~IOEntireFile() ");
    delete m_localStat;
 }
 
@@ -142,17 +143,26 @@ int IOEntireFile::initCachedStat(const char* path)
 
 bool IOEntireFile::ioActive()
 {
-   if ( ! m_file)
+   if ( ! m_file) {
       return false;
-   else
-      return m_file->ioActive();
+   }
+   else {
+      bool active = m_file->ioActive();
+      if (!active && m_file) {
+          TRACEIO(Debug, "IOEntireFile::ioActive() detaching file");
+          m_cache.Detach(m_file);
+          m_file = 0;
+      }
+      return active;
+   }
 }
 
 XrdOucCacheIO *IOEntireFile::Detach()
 {
+   TRACEIO(Debug, "IOEntireFile::Detach() ");
+
    XrdOucCacheIO * io = GetInput();
 
-   m_cache.Detach(m_file);
    delete this;
    return io;
 }
