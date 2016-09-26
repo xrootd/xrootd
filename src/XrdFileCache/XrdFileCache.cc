@@ -177,18 +177,12 @@ int Cache::isAttached()
 
 void Cache::Detach(File* file)
 {
-   TRACE(Info, "Cache::Detach() " << file->GetLocalPath());
-
-   XrdSysMutexHelper lock(&m_active_mutex);
-   for ( std::map<std::string, File*>::iterator it = m_active.begin(); it != m_active.end(); ++it)
-   {
-      if (it->second == file)
-      {
-         m_active.erase(it);
-      }
-      delete file;
-      break;
-   }
+   TRACE(Debug, "Cache::Detach() file = " << file);
+   
+   std::map<std::string, File*>::iterator it = m_active.find(file->GetLocalPath());
+   assert (it != m_active.end());
+   m_active.erase(it);
+   delete file;
 }
 
 //______________________________________________________________________________
