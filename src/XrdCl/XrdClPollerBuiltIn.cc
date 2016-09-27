@@ -210,6 +210,21 @@ namespace XrdCl
       return true;
     }
 
+    while( !pPollerPool.empty() )
+    {
+      XrdSys::IOEvents::Poller *poller = pPollerPool.back();
+      pPollerPool.pop_back();
+
+      if( !poller ) continue;
+
+      scopedLock.UnLock();
+      poller->Stop();
+      delete poller;
+      scopedLock.Lock( &pMutex );
+    }
+    pNext = pPollerPool.end();
+    pPollerMap.clear();
+
     SocketMap::iterator  it;
     const char          *errMsg = 0;
 
@@ -226,21 +241,6 @@ namespace XrdCl
       helper->channel->Delete();
       helper->channel = 0;
     }
-
-    while( !pPollerPool.empty() )
-    {
-      XrdSys::IOEvents::Poller *poller = pPollerPool.back();
-      pPollerPool.pop_back();
-
-      if( !poller ) continue;
-
-      scopedLock.UnLock();
-      poller->Stop();
-      delete poller;
-      scopedLock.Lock( &pMutex );
-    }
-    pNext == pPollerPool.end();
-    pPollerMap.clear();
 
     return true;
   }
