@@ -62,6 +62,9 @@ int              LoginAT;      // Stats: Number of   attempted     logins
 int              LoginAU;      // Stats: Number of   authenticated logins
 int              LoginUA;      // Stats: Number of unauthenticated logins
 int              AuthBad;      // Stats: Number of authentication failures
+int              aokSCnt;      // Stats: Number of signature successes
+int              badSCnt;      // Stats: Number of signature failures
+int              ignSCnt;      // Stats: Number of signature ignored
 
 void             setFS(XrdSfsFileSystem *fsp) {fsP = fsp;}
 

@@ -39,6 +39,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecProtector.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
@@ -155,6 +156,7 @@ int XrdXrootdProtocol::do_Auth()
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
       {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
+       if (DHS) Protect = DHS->New4Server(*AuthProt,clientPV&XrdOucEI::uVMask);
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
        logLogin(true);
        return rc;
@@ -830,7 +832,8 @@ int XrdXrootdProtocol::do_Login()
        sessID.Sid  = mySID;
        sendSID = 1;
        if (!clientPV)
-          {        if (i >  kXR_ver003) clientPV = (int)0x0300;
+          {        if (i >= kXR_ver004) clientPV = (int)0x0310;
+              else if (i == kXR_ver003) clientPV = (int)0x0300;
               else if (i == kXR_ver003) clientPV = (int)0x0299;
               else if (i == kXR_ver002) clientPV = (int)0x0290;
               else if (i == kXR_ver001) clientPV = (int)0x0200;
@@ -1489,17 +1492,15 @@ int XrdXrootdProtocol::do_Prepare()
   
 int XrdXrootdProtocol::do_Protocol(int retRole)
 {
-   static ServerResponseBody_Protocol RespNew
-                = {static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION)), myRole};
+   static kXR_int32 verNum = static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION));
 
-   static ServerResponseBody_Protocol RespOld
-                = {static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION)),
-                   static_cast<kXR_int32>(isRedir ? htonl(kXR_LBalServer)
-                                                  : htonl(kXR_DataServer))
-                  };
+   static ServerResponseBody_Protocol RespOld =
+                             {verNum, static_cast<kXR_int32>(htonl(myRolf))};
 
-          ServerResponseBody_Protocol *Resp = &RespOld;
-          int RespLen = sizeof(RespOld);
+          ServerResponseBody_Protocol RespNew = {verNum, myRole};
+
+          ServerResponseBody_Protocol *Resp;
+          int RespLen;
 
 // Keep Statistics
 //
@@ -1509,9 +1510,16 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
 //
    if (Request.protocol.clientpv)
       {Resp = &RespNew; RespLen = sizeof(RespNew);
+       int cvn = XrdOucEI::uVMask & ntohl(Request.protocol.clientpv);
        if (!Status || !(clientPV & XrdOucEI::uVMask))
-          clientPV = (clientPV & ~XrdOucEI::uVMask)
-                   | (XrdOucEI::uVMask & ntohl(Request.protocol.clientpv));
+          clientPV = (clientPV & ~XrdOucEI::uVMask) | cvn;
+          else cvn = (clientPV &  XrdOucEI::uVMask);
+       if (DHS && cvn >= kXR_PROTSIGNVERSION)
+          RespNew.flags |= DHS->ProtResp(*(Link->AddrInfo()), cvn);
+          RespNew.flags = static_cast<kXR_int32>(htonl(RespNew.flags));
+      } else {
+       Resp    = &RespOld;
+       RespLen = sizeof(RespOld);
       }
 
 // Return info

@@ -78,6 +78,7 @@ int             add2token(XrdSysError &erp,char *,char **,int &,XrdSecPMask_t &)
 int             ConfigFile(const char *cfn);
 int             ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute);
 int             ProtBind_Complete(XrdSysError &Eroute);
+int             xlevel(XrdOucStream &Config, XrdSysError &Eroute);
 int             xpbind(XrdOucStream &Config, XrdSysError &Eroute);
 int             xpparm(XrdOucStream &Config, XrdSysError &Eroute);
 int             xprot(XrdOucStream &Config, XrdSysError &Eroute);

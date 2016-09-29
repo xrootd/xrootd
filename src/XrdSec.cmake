@@ -5,6 +5,7 @@ include( XRootDCommon )
 # Modules
 #-------------------------------------------------------------------------------
 set( LIB_XRD_SEC        XrdSec-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_PROT   XrdSecProt-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_PWD    XrdSecpwd-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_SSS    XrdSecsss-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_UNIX   XrdSecunix-${PLUGIN_VERSION} )
@@ -32,6 +33,32 @@ target_link_libraries(
 
 set_target_properties(
   ${LIB_XRD_SEC}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# The XrdSecpwd module
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_SEC_PROT}
+  MODULE
+  XrdSec/XrdSecProtect.cc             XrdSec/XrdSecProtect.hh
+  XrdSec/XrdSecProtector.cc           XrdSec/XrdSecProtector.hh )
+
+if( BUILD_CRYPTO )
+  target_link_libraries(
+    ${LIB_XRD_SEC_PROT}
+    pthread
+    ${OPENSSL_CRYPTO_LIBRARY} )
+else()
+  target_link_libraries(
+    ${LIB_XRD_SEC_PROT}
+    pthread )
+endif()
+
+set_target_properties(
+  ${LIB_XRD_SEC_PROT}
   PROPERTIES
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
