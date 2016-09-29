@@ -35,6 +35,11 @@ if( CMAKE_COMPILER_IS_GNUCXX )
   if( (GCC_VERSION VERSION_GREATER 4.9.2) AND (USE_LIBC_SEMAPHORE EQUAL 0) )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer" )
   endif()
+
+  # gcc 6.0 is more pedantic
+  if( GCC_VERSION VERSION_GREATER 6.0 OR GCC_VERSION VERSION_EQUAL 6.0 )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=misleading-indentation" )
+  endif()
 endif()
 
 #-------------------------------------------------------------------------------
