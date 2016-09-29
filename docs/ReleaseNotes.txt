@@ -6,6 +6,18 @@ Release Notes
 =============
 
 -------------
+Version 4.2.4
+-------------
++ **Major bug fixes**
+  * **[XrdCl]** Use posix semaphores for fedora >= 22.
+  * **[XrdCl]** Disable omit-frame-pointer for gcc >= 4.9.3 (only if custom 
+                semaphores are not being used).
+  * **[Client/Posix]** Fix broken readdir_r() and readdir_r64() functions.
+  
++ **Minor bug fixes**
+  * **[XrdClient]** Changes to allow for Fedora rawhide c++11 compilation.
+
+-------------
 Version 4.2.3
 -------------
 
