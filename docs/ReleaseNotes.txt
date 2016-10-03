@@ -5,6 +5,14 @@ XRootD
 Release Notes
 =============
 
+-------------
+Version 4.4.1
+-------------
++ **Major bug fixes**
+  * **[XrdCl]** Use posix semaphores for fedora >= 22.
+  * **[XrdCl]** Disable omit-frame-pointer for gcc >= 4.9.3 (only if custom 
+                semaphores are being used).
+  * **[XrdCl]** Fix deadlock in XrdCl::PollerBuiltIn during finalize.
 
 -------------
 Version 4.4.0
