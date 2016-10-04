@@ -66,6 +66,7 @@ namespace XrdCl
   const int DefaultParallelEvtLoop      = 1;
   const int DefaultMetalinkProcessing   = 1;
   const int DefaultLocalMetalinkFile    = 1;
+  const int DefaultXCpBlockSize         = 134217728; // DefaultCPChunkSize * DefaultCPParallelChunks * 2
 
   const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";

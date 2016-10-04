@@ -60,6 +60,11 @@ class VirtualRedirector
     //! or a negative number if size was not specified
     //----------------------------------------------------------------------------
     virtual long long GetSize() const = 0;
+
+    //----------------------------------------------------------------------------
+    //! Returns a vector with replicas as given in the meatlink file
+    //----------------------------------------------------------------------------
+    virtual const std::vector<std::string>& GetReplicas() = 0;
 };
 
 //--------------------------------------------------------------------------------
