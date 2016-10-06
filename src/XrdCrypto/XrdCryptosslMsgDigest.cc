@@ -37,13 +37,12 @@
 #include "XrdCrypto/XrdCryptosslMsgDigest.hh"
 
 //_____________________________________________________________________________
-XrdCryptosslMsgDigest::XrdCryptosslMsgDigest(const char *dgst) : 
-                     XrdCryptoMsgDigest()
+XrdCryptosslMsgDigest::XrdCryptosslMsgDigest(const char *dgst)
+                      : XrdCryptoMsgDigest(), valid(0), mdctx(0)
 {
    // Constructor.
    // Init the message digest calculation
 
-   valid = 0;
    SetType(0);
    Init(dgst);
 }
@@ -55,7 +54,8 @@ XrdCryptosslMsgDigest::~XrdCryptosslMsgDigest()
 
    if (valid) {
       unsigned char mdval[EVP_MAX_MD_SIZE];
-      EVP_DigestFinal(&mdctx, mdval, 0);
+      EVP_DigestFinal_ex(mdctx, mdval, 0);
+      EVP_MD_CTX_destroy(mdctx);
    }
 }
 
@@ -88,8 +88,10 @@ int XrdCryptosslMsgDigest::Init(const char *dgst)
    }
 
    // Init digest machine
-   if (!EVP_DigestInit_ex(&mdctx, md, NULL)) {
+   mdctx = EVP_MD_CTX_create();
+   if (!EVP_DigestInit_ex(mdctx, md, NULL)) {
       PRINT("ERROR: cannot initialize digest");
+      EVP_MD_CTX_destroy(mdctx);
       return -1;
    }
 
@@ -106,8 +108,9 @@ int XrdCryptosslMsgDigest::Reset(const char *dgst)
    // Re-Init the message digest calculation
    if (valid) {
       unsigned char mdval[EVP_MAX_MD_SIZE];
-      EVP_DigestFinal(&mdctx, mdval, 0);
+      EVP_DigestFinal_ex(mdctx, mdval, 0);
       SetBuffer(0,0);
+      EVP_MD_CTX_destroy(mdctx);
    }
    valid = 0;
    Init(dgst);
@@ -124,7 +127,7 @@ int XrdCryptosslMsgDigest::Update(const char *b, int l)
    // Returns -1 if unsuccessful (digest not initialized), 0 otherwise.
 
    if (Type()) {
-      EVP_DigestUpdate(&mdctx, (char *)b, l);
+      EVP_DigestUpdate(mdctx, (char *)b, l);
       return 0;
    }
    return -1;   
@@ -144,7 +147,7 @@ int XrdCryptosslMsgDigest::Final()
 
    if (Type()) {
       // Finalize what we have
-      if (EVP_DigestFinal_ex(&mdctx, mdval, &mdlen) == 1) {
+      if (EVP_DigestFinal_ex(mdctx, mdval, &mdlen) == 1) {
          // Save result
          SetBuffer(mdlen,(const char *)mdval);
          // Notify, if requested
