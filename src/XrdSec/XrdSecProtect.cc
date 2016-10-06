@@ -60,11 +60,17 @@ unsigned char   secHash[SHA256_DIGEST_LENGTH];
 ClientRequest   orgReq;
 };
 
-const ClientSigverRequest initSigVer = {{0,0}, htons(kXR_sigver), 0,
-                                        kXR_secver_0, kXR_sessKey, 0,
-                                        kXR_SHA256, {0, 0, 0},
-                                        htonl(SHA256_DIGEST_LENGTH)
-                                       };
+inline const ClientSigverRequest* InitSigVer()
+{
+  static const ClientSigverRequest initSigVer = {{0,0}, htons(kXR_sigver), 0,
+      kXR_secver_0, kXR_sessKey, 0,
+      kXR_SHA256, {0, 0, 0},
+      htonl(SHA256_DIGEST_LENGTH)
+     };
+
+  return &initSigVer;
+}
+
 XrdSysMutex seqMutex;
 kXR_unt64   seqNum = 1;
 }
@@ -236,7 +242,7 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
 
 // Setup the security request (we only support signing)
 //
-   memcpy(&(myReq.P->secReq), &initSigVer, sizeof(initSigVer));
+   memcpy(&(myReq.P->secReq), InitSigVer(), sizeof(ClientSigverRequest));
    memcpy(&(myReq.P->secReq.header.streamid ), thereq.header.streamid,
           sizeof(myReq.P->secReq.header.streamid));
    memcpy(&(myReq.P->secReq.sigver.expectrid),&thereq.header.requestid,
