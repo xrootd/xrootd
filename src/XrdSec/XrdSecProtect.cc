@@ -55,9 +55,9 @@ namespace
 {
 struct XrdSecReq
 {
-SecurityRequest secReq;
-unsigned char   secHash[SHA256_DIGEST_LENGTH];
-ClientRequest   orgReq;
+       SecurityRequest secReq;
+       unsigned char   secSig;  // This is atleast size of the hash
+//     ClientRequest   orgReq;  ** This always follows the secSig
 };
 
 inline const ClientSigverRequest* InitSigVer()
@@ -65,7 +65,7 @@ inline const ClientSigverRequest* InitSigVer()
   static const ClientSigverRequest initSigVer = {{0,0}, htons(kXR_sigver), 0,
       kXR_secver_0, kXR_sessKey, 0,
       kXR_SHA256, {0, 0, 0},
-      htonl(SHA256_DIGEST_LENGTH)
+      0
      };
 
   return &initSigVer;
@@ -232,48 +232,40 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
    struct iovec  iov[iovNum];
    buffHold      myReq;
    kXR_unt64     mySeq;
+   const char    *sigBuff, *payload = thedata;
+   char          *buff;
    unsigned char secHash[SHA256_DIGEST_LENGTH];
-   int           rc, n;
-
-// Allocate a new request object
-//
-   myReq.P = (XrdSecReq *)malloc(sizeof(XrdSecReq));
-   if (!myReq.P) return -ENOMEM;
-
-// Setup the security request (we only support signing)
-//
-   memcpy(&(myReq.P->secReq), InitSigVer(), sizeof(ClientSigverRequest));
-   memcpy(&(myReq.P->secReq.header.streamid ), thereq.header.streamid,
-          sizeof(myReq.P->secReq.header.streamid));
-   memcpy(&(myReq.P->secReq.sigver.expectrid),&thereq.header.requestid,
-          sizeof(myReq.P->secReq.sigver.expectrid));
-   memcpy(&(myReq.P->orgReq), &thereq, sizeof(myReq.P->orgReq));
+   int           sigSize, n, newSize, rc;
+   int           paysize = 0, reqsize = sizeof(ClientRequest);
 
 // Generate a new sequence number
 //
    AtomicBeg(seqMutex);
    mySeq = AtomicInc(seqNum);
    AtomicEnd(seqMutex);
-   myReq.P->secReq.sigver.seqno = htonll(mySeq);
 
-// Determine if we are going to sign the payload
+// Determine if we are going to sign the payload and its location
 //
    if (thereq.header.dlen)
       {kXR_unt16 reqid = htons(thereq.header.requestid);
+       paysize = ntohl(thereq.header.dlen);
+       if (!payload)
+          {payload = ((char *)&thereq) + sizeof(ClientRequest);
+           reqsize = paysize           + sizeof(ClientRequest);
+          }
        if (reqid == kXR_write || reqid == kXR_verifyw) n = (secVerData ? 3 : 2);
           else n = 3;
       }   else n = 2;
 
-
 // Fill out the iovec
 //
-   iov[0].iov_base = &(myReq.P->secReq.sigver.seqno);
+   iov[0].iov_base = &mySeq;
    iov[0].iov_len  = sizeof(mySeq);
    iov[1].iov_base = &thereq;
    iov[1].iov_len  = sizeof(ClientRequest);
    if (n < 3) myReq.P->secReq.sigver.flags |= kXR_nodata;
-      else {iov[2].iov_base = (void *)thedata;
-            iov[2].iov_len  = ntohl(thereq.header.dlen);
+      else {iov[2].iov_base = (void *)payload;
+            iov[2].iov_len  = paysize;
            }
 
 // Compute the hash
@@ -285,14 +277,39 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
    if (edOK)
       {rc = authProt->Encrypt((const char *)secHash,sizeof(secHash),&myReq.bP);
        if (rc < 0) return rc;
-       if (myReq.bP->size != (int)sizeof(secHash)) return -ERANGE;
+       sigSize = myReq.bP->size;
+       sigBuff = myReq.bP->buffer;
+      } else {
+       sigSize = sizeof(secHash);
+       sigBuff = (char *)secHash;
       }
 
-// Move the signature to the request and return new request
+// Allocate a new request object
 //
-   memcpy(myReq.P->secHash, myReq.bP, sizeof(secHash));
+   newSize = sizeof(SecurityRequest) + sigSize + reqsize;
+   myReq.P = (XrdSecReq *)malloc(newSize);
+   if (!myReq.P) return -ENOMEM;
+
+// Setup the security request (we only support signing)
+//
+   memcpy(&(myReq.P->secReq), InitSigVer(), sizeof(ClientSigverRequest));
+   memcpy(&(myReq.P->secReq.header.streamid ), thereq.header.streamid,
+          sizeof(myReq.P->secReq.header.streamid));
+   memcpy(&(myReq.P->secReq.sigver.expectrid),&thereq.header.requestid,
+          sizeof(myReq.P->secReq.sigver.expectrid));
+   myReq.P->secReq.sigver.seqno = htonll(mySeq);
+   myReq.P->secReq.sigver.dlen  = htonl(sigSize);
+
+// Append the signature to the request
+//
+   memcpy(&(myReq.P->secSig), sigBuff, sigSize);
+
+// Copy the whole request (which may include the payload) to the buffer
+//
+   buff = ((char *)myReq.P) + sizeof(SecurityRequest) + sigSize;
+   memcpy(buff, &thereq, reqsize);
    newreq = &(myReq.P->secReq); myReq.P = 0;
-   return (int)sizeof(XrdSecReq);
+   return newSize;
 }
 
 /******************************************************************************/
@@ -383,8 +400,6 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
 // Now get the hash information
 //
    dlen = ntohl(secreq.header.dlen);
-   if (dlen != (int)sizeof(secHash))
-      return "Invalid signature hash length";
    inHash = (unsigned char *)(&secreq+sizeof(SecurityRequest));
 
 // Now decrypt the hash
@@ -392,6 +407,8 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
    if (edOK)
       {rc = authProt->Decrypt((const char *)inHash, sizeof(secHash), &myReq.bP);
        if (rc < 0) return strerror(-rc);
+       if (myReq.bP->size != (int)sizeof(secHash))
+          return "Invalid signature hash length";
       }
 
 // Fill out the iovec to recompute the hash

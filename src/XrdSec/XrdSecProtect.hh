@@ -89,12 +89,17 @@ virtual void         Delete() {delete this;}
 //! @param  newreq  A reference to a pointer where the new request, if needed,
 //!                 will be placed. The new request will consist of a either a
 //!                 kXR_sigver or kXR_decrypt request followed by an optional
-//!                 hash and then the oldreq header. This new request is to
-//!                 replace the old request and the memory area must be freed
-//!                 using free() after it is no longer needed.
+//!                 hash and then the oldreq header and the request data if the
+//!                 data was actually physically part of the original request.
+//!                 This new request is to replace the old request and the
+//!                 memory area must be freed using free() after it s no longer
+//!                 needed.
 //! @param  thereq  Reference to the client request header/body that needs to
 //!                 be secured. The request must be in network byte order.
-//! @aparam thedata The request data whose length resides in theReq.dlen.
+//! @aparam thedata The request data whose length resides in theReq.dlen. If
+//!                 thedata is nil but thereq.dlen is not zero then the request
+//!                 data must follow the request header in the thereq buffer.
+//!                 In this case, such data is also copied to newreq.
 //!
 //! @return <0      An error occurred and the return value is -errno.
 //! @return >0      The length of the new request whose pointer is in newreq.

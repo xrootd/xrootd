@@ -338,7 +338,7 @@ XrdSecProtect             *Protect;
 
 ClientRequest              sigReq2Ver;   // Request to verify
 SecurityRequest            sigReq;       // Signature request
-char                       sigBuff[32];  // Signature payload SHA256
+char                       sigBuff[64];  // Signature payload SHA256 + blowfish
 bool                       sigNeed;      // Signature target  present
 bool                       sigHere;      // Signature request present
 bool                       sigRead;      // Signature being read
