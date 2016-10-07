@@ -31,6 +31,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 
 class XrdSysPlugin;
+class XrdSecProtect;
 
 namespace XrdCl
 {
@@ -303,6 +304,11 @@ namespace XrdCl
       // Clean up the data structures created for the authentication process
       //------------------------------------------------------------------------
       Status CleanUpAuthentication( XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Clean up the data structures created for the protection purposes
+      //------------------------------------------------------------------------
+      Status CleanUpProtection( XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Get the authentication function handle

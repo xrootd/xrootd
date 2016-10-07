@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
+#include "XrdCl/XrdClXRootDChannelInfo.hh"
 #include <netinet/tcp.h>
 
 namespace XrdCl
@@ -371,6 +372,11 @@ namespace XrdCl
 
       pOutgoing->SetCursor( 0 );
       pOutMsgSize = pOutgoing->GetSize();
+
+      //------------------------------------------------------------------------
+      // Secure the message if necessary
+      //------------------------------------------------------------------------
+      SecureMsg( pOutgoing );
     }
 
     //--------------------------------------------------------------------------
@@ -767,5 +773,27 @@ namespace XrdCl
     time_t now = time(0);
     if( now > pConnectionStarted+pConnectionTimeout )
       OnFaultWhileHandshaking( Status( stError, errSocketTimeout ) );
+  }
+
+  Status AsyncSocketHandler::SecureMsg( Message *toSign )
+  {
+    XRootDChannelInfo *info = 0;
+    pChannelData->Get( info );
+    if( info && info->protection )
+    {
+      SecurityRequest *newreq  = 0;
+      ClientRequest   *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
+      // check if we have to secure the request in the first place
+      if( !NEED2SECURE ( info->protection )( *thereq ) ) return Status();
+      // secure (sign/encrypt) the request
+      int rc = info->protection->Secure( newreq, *thereq, 0 );
+      // there was an error
+      if( rc < 0 )
+        return Status( stError, errInternal, -rc );
+
+      toSign->Free();
+      toSign->Grab( reinterpret_cast<char*>( newreq ), rc );
+    }
+    return Status();
   }
 }

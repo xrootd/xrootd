@@ -28,8 +28,8 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClXRootDChannelInfo.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -52,97 +52,6 @@ XrdVERSIONINFOREF( XrdCl );
 
 namespace XrdCl
 {
-  //----------------------------------------------------------------------------
-  //! Information holder for XRootDStreams
-  //----------------------------------------------------------------------------
-  struct XRootDStreamInfo
-  {
-    //--------------------------------------------------------------------------
-    // Define the stream status for the link negotiation purposes
-    //--------------------------------------------------------------------------
-    enum StreamStatus
-    {
-      Disconnected,
-      Broken,
-      HandShakeSent,
-      HandShakeReceived,
-      LoginSent,
-      AuthSent,
-      BindSent,
-      EndSessionSent,
-      Connected
-    };
-
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-    XRootDStreamInfo(): status( Disconnected ), pathId( 0 )
-    {
-    }
-
-    StreamStatus status;
-    uint8_t      pathId;
-  };
-
-  //----------------------------------------------------------------------------
-  //! Information holder for xrootd channels
-  //----------------------------------------------------------------------------
-  struct XRootDChannelInfo
-  {
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-    XRootDChannelInfo():
-      serverFlags(0),
-      protocolVersion(0),
-      firstLogIn(true),
-      sidManager(0),
-      authBuffer(0),
-      authProtocol(0),
-      authParams(0),
-      authEnv(0),
-      openFiles(0),
-      waitBarrier(0)
-    {
-      sidManager = new SIDManager();
-      memset( sessionId, 0, 16 );
-      memset( oldSessionId, 0, 16 );
-    }
-
-    //--------------------------------------------------------------------------
-    // Destructor
-    //--------------------------------------------------------------------------
-    ~XRootDChannelInfo()
-    {
-      delete    sidManager;
-      delete [] authBuffer;
-    }
-
-    typedef std::vector<XRootDStreamInfo> StreamInfoVector;
-
-    //--------------------------------------------------------------------------
-    // Data
-    //--------------------------------------------------------------------------
-    uint32_t          serverFlags;
-    uint32_t          protocolVersion;
-    uint8_t           sessionId[16];
-    uint8_t           oldSessionId[16];
-    bool              firstLogIn;
-    SIDManager       *sidManager;
-    char             *authBuffer;
-    XrdSecProtocol   *authProtocol;
-    XrdSecParameters *authParams;
-    XrdOucEnv        *authEnv;
-    StreamInfoVector  stream;
-    std::string       streamName;
-    std::string       authProtocolName;
-    std::set<uint16_t> sentOpens;
-    std::set<uint16_t> sentCloses;
-    uint32_t          openFiles;
-    time_t            waitBarrier;
-    XrdSysMutex       mutex;
-  };
-
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
@@ -968,6 +877,8 @@ namespace XrdCl
       info->openFiles   = 0;
       info->waitBarrier = 0;
     }
+
+    CleanUpProtection( info );
   }
 
   //------------------------------------------------------------------------
@@ -1352,7 +1263,7 @@ namespace XrdCl
 
     loginReq->requestid = kXR_login;
     loginReq->pid       = ::getpid();
-    loginReq->capver[0] = kXR_asyncap | kXR_ver003;
+    loginReq->capver[0] = kXR_asyncap | kXR_ver004;
     loginReq->role[0]   = kXR_useruser;
     loginReq->dlen      = cgiLen;
     loginReq->ability   = kXR_fullurl | kXR_readrdok;
@@ -1592,6 +1503,28 @@ namespace XrdCl
       else if( rsp->hdr.status == kXR_ok )
       {
         info->authProtocolName = info->authProtocol->Entity.prot;
+
+        int rc = XrdSecGetProtection( info->protection, *info->authProtocol, info->serverFlags );
+        if( rc > 0 )
+        {
+          log->Debug( XRootDTransportMsg,
+                      "[%s] XrdSecProtect loaded.", hsData->streamName.c_str() );
+          info->signprot = info->authProtocol;
+          info->authProtocol = 0;
+        }
+        else if( rc == 0 )
+        {
+          log->Debug( XRootDTransportMsg,
+                      "[%s] XrdSecProtect: no protection needed.",
+                      hsData->streamName.c_str() );
+        }
+        else
+        {
+          log->Debug( XRootDTransportMsg,
+                      "[%s] Failed to load XrdSecProtect: %s",
+                      hsData->streamName.c_str(), strerror( -rc ) );
+        }
+
         CleanUpAuthentication( info );
 
         log->Debug( XRootDTransportMsg,
@@ -1731,6 +1664,26 @@ namespace XrdCl
     info->authProtocol = 0;
     info->authParams   = 0;
     info->authEnv      = 0;
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Clean up the data structures created for the protection purposes
+  //------------------------------------------------------------------------
+  Status XRootDTransport::CleanUpProtection( XRootDChannelInfo *info )
+  {
+    if( info->protection )
+    {
+      info->protection->Delete();
+      info->protection = 0;
+    }
+
+    if( info->signprot )
+    {
+      info->signprot->Delete();
+      info->signprot = 0;
+    }
+
     return Status();
   }
 

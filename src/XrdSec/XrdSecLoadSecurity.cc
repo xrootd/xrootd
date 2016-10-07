@@ -227,6 +227,8 @@ int XrdSecGetProtection(XrdSecProtect *&protP,
           {char eBuff[2048];
            if ((XrdSecProtection::protRC = Load(eBuff, sizeof(eBuff), 0)))
               std::cerr <<"SecLoad: " <<eBuff <<'\n' <<std::flush;
+           else
+              pObj = XrdSecProtection::theProtector;
           }
        if ((rc = XrdSecProtection::protRC))
           {protMutex.UnLock();
