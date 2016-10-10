@@ -1070,9 +1070,10 @@ int XrdSecProtocolgsi::Encrypt(const char *inbuf,  // Data to be encrypted
       return -EINVAL;
 
    // Get output buffer
-   char *buf = (char *)malloc(sessionKey->EncOutLength(inlen));
-   if (!buf)
-      return -ENOMEM;
+   int sz = sessionKey->EncOutLength(inlen);
+   char *buf = (char *)malloc(sz);
+   if (!buf) return -ENOMEM;
+   memset(buf, 0, sz);
 
    // Encrypt
    int len = sessionKey->Encrypt(inbuf, inlen, buf);
@@ -1109,9 +1110,10 @@ int XrdSecProtocolgsi::Decrypt(const char *inbuf,  // Data to be decrypted
       return -EINVAL;
 
    // Get output buffer
-   char *buf = (char *)malloc(sessionKey->DecOutLength(inlen));
-   if (!buf)
-      return -ENOMEM;
+   int sz = sessionKey->DecOutLength(inlen);
+   char *buf = (char *)malloc(sz);
+   if (!buf) return -ENOMEM;
+   memset(buf, 0, sz);
 
    // Decrypt
    int len = sessionKey->Decrypt(inbuf, inlen, buf);
