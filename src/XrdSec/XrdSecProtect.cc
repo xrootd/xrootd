@@ -56,8 +56,7 @@ namespace
 struct XrdSecReq
 {
        SecurityRequest secReq;
-       unsigned char   secSig;  // This is atleast size of the hash
-//     ClientRequest   orgReq;  ** This always follows the secSig
+       unsigned char   secSig;  // The encrypted hash follows starting here
 };
 
 inline const ClientSigverRequest* InitSigVer()
@@ -70,9 +69,6 @@ inline const ClientSigverRequest* InitSigVer()
 
   return &initSigVer;
 }
-
-XrdSysMutex seqMutex;
-kXR_unt64   seqNum = 1;
 }
 
 /******************************************************************************/
@@ -111,43 +107,40 @@ char  Vec[XrdSecProtectParms::secFence-1][kXR_REQFENCE-kXR_auth];
   
 namespace
 {
-static const int sec_Ignore = 0;
-static const int sec_Likely = 1;
-static const int sec_Needed = 2;
 
 XrdSecVec secTable(0,
-//             Compatible  Standard    Intense     Pedantic
-kXR_admin,     sec_Needed, sec_Needed, sec_Needed, sec_Needed, 
-kXR_auth,      sec_Ignore, sec_Ignore, sec_Ignore, sec_Ignore, 
-kXR_bind,      sec_Ignore, sec_Ignore, sec_Needed, sec_Needed,
-kXR_chmod,     sec_Needed, sec_Needed, sec_Needed, sec_Needed, 
-kXR_close,     sec_Ignore, sec_Ignore, sec_Needed, sec_Needed,
-kXR_decrypt,   sec_Ignore, sec_Ignore, sec_Ignore, sec_Ignore, 
-kXR_dirlist,   sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_endsess,   sec_Ignore, sec_Ignore, sec_Needed, sec_Needed,
-kXR_getfile,   sec_Needed, sec_Needed, sec_Needed, sec_Needed, 
-kXR_locate,    sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_login,     sec_Ignore, sec_Ignore, sec_Ignore, sec_Ignore, 
-kXR_mkdir,     sec_Ignore, sec_Needed, sec_Needed, sec_Needed,
-kXR_mv,        sec_Needed, sec_Needed, sec_Needed, sec_Needed, 
-kXR_open,      sec_Likely, sec_Needed, sec_Needed, sec_Needed, 
-kXR_ping,      sec_Ignore, sec_Ignore, sec_Ignore, sec_Ignore, 
-kXR_prepare,   sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_protocol,  sec_Ignore, sec_Ignore, sec_Ignore, sec_Ignore, 
-kXR_putfile,   sec_Needed, sec_Needed, sec_Needed, sec_Needed, 
-kXR_query,     sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_read,      sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_readv,     sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_rm,        sec_Needed, sec_Needed, sec_Needed, sec_Needed, 
-kXR_rmdir,     sec_Needed, sec_Needed, sec_Needed, sec_Needed, 
-kXR_set,       sec_Likely, sec_Likely, sec_Needed, sec_Needed, 
-kXR_sigver,    sec_Ignore, sec_Ignore, sec_Ignore, sec_Ignore, 
-kXR_stat,      sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_statx,     sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_sync,      sec_Ignore, sec_Ignore, sec_Ignore, sec_Needed,
-kXR_truncate,  sec_Needed, sec_Needed, sec_Needed, sec_Needed, 
-kXR_verifyw,   sec_Ignore, sec_Ignore, sec_Needed, sec_Needed,
-kXR_write,     sec_Ignore, sec_Ignore, sec_Needed, sec_Needed,
+//             Compatible      Standard        Intense         Pedantic
+kXR_admin,     kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_auth,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
+kXR_bind,      kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
+kXR_chmod,     kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_close,     kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
+kXR_decrypt,   kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
+kXR_dirlist,   kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
+kXR_endsess,   kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
+kXR_getfile,   kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_locate,    kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
+kXR_login,     kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
+kXR_mkdir,     kXR_signIgnore, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded,
+kXR_mv,        kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_open,      kXR_signLikely, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_ping,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
+kXR_prepare,   kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
+kXR_protocol,  kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
+kXR_putfile,   kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_query,     kXR_signIgnore, kXR_signIgnore, kXR_signLikely, kXR_signNeeded,
+kXR_read,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
+kXR_readv,     kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
+kXR_rm,        kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_rmdir,     kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_set,       kXR_signLikely, kXR_signLikely, kXR_signNeeded, kXR_signNeeded, 
+kXR_sigver,    kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
+kXR_stat,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
+kXR_statx,     kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
+kXR_sync,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
+kXR_truncate,  kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_verifyw,   kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
+kXR_write,     kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
 0);
 }
 
@@ -196,8 +189,8 @@ bool XrdSecProtect::Screen(ClientRequest &thereq)
 
 // If we need not secure this or we definitely do then return result
 //
-   if (theLvl == sec_Ignore) return false;
-   if (theLvl != sec_Likely) return true;
+   if (theLvl == kXR_signIgnore) return false;
+   if (theLvl != kXR_signLikely) return true;
 
 // Security is conditional based on open() trying to modify something.
 //
@@ -206,9 +199,27 @@ bool XrdSecProtect::Screen(ClientRequest &thereq)
        return (opts & rwOpen) != 0;
       }
 
+// Security is conditional based on query() trying to modify something.
+//
+   if (reqCode == kXR_query)
+      {short qopt = (short)ntohs(thereq.query.infotype);
+       switch(qopt)
+             {case kXR_QStats:  return false;
+              case kXR_Qcksum:  return false;
+              case kXR_Qckscan: return false;
+              case kXR_Qconfig: return false;
+              case kXR_Qspace:  return false;
+              case kXR_Qxattr:  return false;
+              case kXR_Qopaque:
+              case kXR_Qopaquf: return true;
+              case kXR_Qopaqug: return true;
+              default:          return false;
+             }
+      }
+
 // Security is conditional based on set() trying to modify something.
 //
-   if (reqCode == kXR_set) return thereq.set.subCode != 0;
+   if (reqCode == kXR_set) return thereq.set.modifier != 0;
 
 // At this point we force security as we don't understand this code
 //
@@ -233,26 +244,21 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
    buffHold      myReq;
    kXR_unt64     mySeq;
    const char    *sigBuff, *payload = thedata;
-   char          *buff;
    unsigned char secHash[SHA256_DIGEST_LENGTH];
-   int           sigSize, n, newSize, rc;
-   int           paysize = 0, reqsize = sizeof(ClientRequest);
+   int           sigSize, n, newSize, rc, paysize = 0;
+   bool          nodata = false;
 
 // Generate a new sequence number
 //
-   AtomicBeg(seqMutex);
-   mySeq = AtomicInc(seqNum);
-   AtomicEnd(seqMutex);
+   mySeq = nextSeqno++;
+   mySeq = htonll(mySeq);
 
 // Determine if we are going to sign the payload and its location
 //
    if (thereq.header.dlen)
       {kXR_unt16 reqid = htons(thereq.header.requestid);
        paysize = ntohl(thereq.header.dlen);
-       if (!payload)
-          {payload = ((char *)&thereq) + sizeof(ClientRequest);
-           reqsize = paysize           + sizeof(ClientRequest);
-          }
+       if (!payload) payload = ((char *)&thereq) + sizeof(ClientRequest);
        if (reqid == kXR_write || reqid == kXR_verifyw) n = (secVerData ? 3 : 2);
           else n = 3;
       }   else n = 2;
@@ -263,7 +269,7 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
    iov[0].iov_len  = sizeof(mySeq);
    iov[1].iov_base = &thereq;
    iov[1].iov_len  = sizeof(ClientRequest);
-   if (n < 3) myReq.P->secReq.sigver.flags |= kXR_nodata;
+   if (n < 3) nodata = true;
       else {iov[2].iov_base = (void *)payload;
             iov[2].iov_len  = paysize;
            }
@@ -286,7 +292,7 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
 
 // Allocate a new request object
 //
-   newSize = sizeof(SecurityRequest) + sigSize + reqsize;
+   newSize = sizeof(SecurityRequest) + sigSize;
    myReq.P = (XrdSecReq *)malloc(newSize);
    if (!myReq.P) return -ENOMEM;
 
@@ -297,17 +303,16 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
           sizeof(myReq.P->secReq.header.streamid));
    memcpy(&(myReq.P->secReq.sigver.expectrid),&thereq.header.requestid,
           sizeof(myReq.P->secReq.sigver.expectrid));
-   myReq.P->secReq.sigver.seqno = htonll(mySeq);
+   myReq.P->secReq.sigver.seqno = mySeq;
+   if (nodata) myReq.P->secReq.sigver.flags |= kXR_nodata;
    myReq.P->secReq.sigver.dlen  = htonl(sigSize);
 
 // Append the signature to the request
 //
    memcpy(&(myReq.P->secSig), sigBuff, sigSize);
 
-// Copy the whole request (which may include the payload) to the buffer
+// Return pointer to he security request and its size
 //
-   buff = ((char *)myReq.P) + sizeof(SecurityRequest) + sigSize;
-   memcpy(buff, &thereq, reqsize);
    newreq = &(myReq.P->secReq); myReq.P = 0;
    return newSize;
 }
@@ -316,45 +321,53 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
 /* Private:                S e t P r o t e c t i o n                          */
 /******************************************************************************/
   
-kXR_int32 XrdSecProtect::SetProtection(const XrdSecProtectParms &parms)
+void XrdSecProtect::SetProtection(const ServerResponseReqs_Protocol &inReqs)
 {
-   kXR_int32 pResp;
-   XrdSecProtectParms::secLevel lvl = parms.level;
+   unsigned int lvl, vsz;
 
 // Check for no security, the simlplest case
 //
-   if (lvl <= XrdSecProtectParms::secNone)
-      {secVec = 0;
+   if (inReqs.secvsz == 0 && inReqs.seclvl == 0)
+      {memset(&myReqs, 0, sizeof(myReqs));
+       secVec     = 0;
        secEncrypt = false;
        secVerData = false;
-       return 0;
+       return;
       }
 
-// Validate the level
+// Precheck the security level
 //
-   if (lvl >= XrdSecProtectParms::secFence)
-       lvl  = XrdSecProtectParms::secPedantic;
+   lvl = inReqs.seclvl;
+   if (lvl > kXR_secPedantic) lvl = kXR_secPedantic;
 
-// Insert the security level in the response token
+// Perform the default setup (the usual case)
 //
-   pResp = ((int)lvl)<<kXR_secLvlSft | kXR_secver_0<<kXR_sftVersft;
+   secVec        = secTable.Vec[lvl-1];
+   myReqs.seclvl = lvl;
+   myReqs.secvsz = 0;
+   myReqs.secver = kXR_secver_0;
+   myReqs.secopt = inReqs.secopt;
 
-// Add additional options
+// Set options
 //
-   if ((secEncrypt = (parms.opts & XrdSecProtectParms::useEnc) != 0))
-      pResp |= kXR_secOEnc;
-   if ((secVerData = (parms.opts & XrdSecProtectParms::doData) != 0))
-      pResp |= kXR_secOData;
-   if ((             (parms.opts & XrdSecProtectParms::force)  != 0))
-      pResp |= kXR_secOFrce;
+   secEncrypt    = (inReqs.secopt & kXR_secOEnc ) != 0;
+   secVerData    = (inReqs.secopt & kXR_secOData) != 0;
 
-// Now establish the security decision vector
+// Create a modified vectr if there are overrides
 //
-   secVec = secTable.Vec[lvl-1];
-
-// All done
-//
-   return pResp;
+   if (inReqs.secvsz != 0)
+      {const ServerResponseSVec_Protocol *urVec = &inReqs.secvec;
+       memcpy(myVec, secVec, maxRIX);
+       vsz = inReqs.secvsz;
+       for (unsigned int i = 0; i < vsz; i++, urVec++)
+           {if (urVec->reqindx < maxRIX)
+               {if (urVec->reqsreq > kXR_signNeeded)
+                        myVec[urVec->reqindx] = kXR_signNeeded;
+                   else myVec[urVec->reqindx] = urVec->reqsreq;
+               }
+           }
+       secVec = myVec;
+       }
 }
 
 /******************************************************************************/
@@ -377,10 +390,10 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
    int           dlen, n, rc;
 
 // First check for replay attacks. The incomming sequence number must be greater
-// the previous onw we haveseen. Since it is in network byte order we can use
+// the previous one we have seen. Since it is in network byte order we can use
 // a simple byte for byte compare (no need for byte swapping).
 //
-   if (memcmp(&lastSeqno, &secreq.sigver.seqno, sizeof(lastSeqno)) <= 0)
+   if (memcmp(&lastSeqno, &secreq.sigver.seqno, sizeof(lastSeqno)) >= 0)
       return "Incorrect signature sequence";
 
 // Do basic verification for this request
@@ -390,22 +403,22 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
       return "Signature streamid mismatch";
    if (secreq.sigver.expectrid != thereq.header.requestid)
       return "Signature requestid mismatch";
-   if (thereq.sigver.version   != kXR_secver_0)
+   if (secreq.sigver.version   != kXR_secver_0)
       return "Unsupported signature version";
-   if (thereq.sigver.hash      != kXR_SHA256)
+   if (secreq.sigver.hash      != kXR_SHA256)
       return "Unsupported signature hash";
-   if (thereq.sigver.flags & kXR_rsaKey)
+   if (secreq.sigver.flags & kXR_rsaKey)
       return "Unsupported signature key";
 
 // Now get the hash information
 //
    dlen = ntohl(secreq.header.dlen);
-   inHash = (unsigned char *)(&secreq+sizeof(SecurityRequest));
+   inHash = ((unsigned char *)&secreq)+sizeof(SecurityRequest);
 
 // Now decrypt the hash
 //
    if (edOK)
-      {rc = authProt->Decrypt((const char *)inHash, sizeof(secHash), &myReq.bP);
+      {rc = authProt->Decrypt((const char *)inHash, dlen, &myReq.bP);
        if (rc < 0) return strerror(-rc);
        if (myReq.bP->size != (int)sizeof(secHash))
           return "Invalid signature hash length";
@@ -433,7 +446,8 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
    if (memcmp(secHash, myReq.bP->buffer, sizeof(secHash)))
       return "Signature hash mismatch";
 
-// This request has been verified
+// This request has been verified (update the seqno)
 //
+   lastSeqno = secreq.sigver.seqno;
    return 0;
 }

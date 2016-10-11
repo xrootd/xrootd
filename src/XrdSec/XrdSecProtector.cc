@@ -66,12 +66,18 @@ XrdVERSIONINFO(XrdSecProtObjectP,"secProt");
 
 namespace
 {
-struct ProtInfo {XrdSecProtect *theProt;
-                 kXR_int32      theResp;
-                 bool           relaxed;
-                 bool           force;
-                 ProtInfo() : theProt(0), theResp(0), relaxed(false),
-                              force(false) {}
+struct ProtInfo {XrdSecProtect               *theProt;
+                 ServerResponseReqs_Protocol  reqs;
+                 bool                         relaxed;
+                 bool                         force;
+                 ProtInfo() : theProt(0), relaxed(false), force(false)
+                             {reqs.theTag = 'S';
+                              reqs.rsvd   = 0;
+                              reqs.secver = kXR_secver_0;
+                              reqs.secopt = 0;
+                              reqs.seclvl = kXR_secNone;
+                              reqs.secvsz = 0;
+                             }
                 } lrTab[XrdSecProtector::isLR];
 
 bool           lrSame  = true;
@@ -95,6 +101,7 @@ bool XrdSecProtector::Config(const XrdSecProtectParms &lclParms,
                              const XrdSecProtectParms &rmtParms,
                                    XrdSysLogger       &logr)
 {
+
 // Set the logger right off
 //
    Say.logger(&logr);
@@ -102,8 +109,9 @@ bool XrdSecProtector::Config(const XrdSecProtectParms &lclParms,
 // Setup local protection
 //
    if (lclParms.level != XrdSecProtectParms::secNone)
-      {lrTab[isLcl].theProt = new XrdSecProtect;
-       lrTab[isLcl].theResp = lrTab[isLcl].theProt->SetProtection(lclParms);
+      {Config(lclParms, lrTab[isLcl].reqs);
+       lrTab[isLcl].theProt = new XrdSecProtect;
+       lrTab[isLcl].theProt->SetProtection(lrTab[isLcl].reqs);
       }
 
 // Setup remote protection (check for reuse of local protection)
@@ -114,8 +122,9 @@ bool XrdSecProtector::Config(const XrdSecProtectParms &lclParms,
       } else {
        lrSame = false;
        if (rmtParms.level != XrdSecProtectParms::secNone)
-          {lrTab[isRmt].theProt = new XrdSecProtect;
-           lrTab[isRmt].theResp = lrTab[isRmt].theProt->SetProtection(rmtParms);
+          {Config(rmtParms, lrTab[isRmt].reqs);
+           lrTab[isRmt].theProt = new XrdSecProtect;
+           lrTab[isRmt].theProt->SetProtection(lrTab[isRmt].reqs);
           }
       }
 
@@ -133,6 +142,39 @@ bool XrdSecProtector::Config(const XrdSecProtectParms &lclParms,
 // All done
 //
    return true;
+}
+
+/******************************************************************************/
+  
+void XrdSecProtector::Config(const XrdSecProtectParms    &parms,
+                             ServerResponseReqs_Protocol &reqs)
+{
+   unsigned int lvl;
+
+// Setup options
+//
+   if ((parms.opts & XrdSecProtectParms::useEnc) != 0)
+      reqs.secopt |= kXR_secOEnc;
+   if ((parms.opts & XrdSecProtectParms::doData) != 0)
+      reqs.secopt |= kXR_secOData;
+   if ((parms.opts & XrdSecProtectParms::force)  != 0)
+      reqs.secopt |= kXR_secOFrce;
+
+// Setup level
+//
+   switch(parms.level)
+         {case XrdSecProtectParms::secCompatible: lvl = kXR_secCompatible;
+                                                  break;
+          case XrdSecProtectParms::secStandard:   lvl = kXR_secStandard;
+                                                  break;
+          case XrdSecProtectParms::secIntense:    lvl = kXR_secIntense;
+                                                  break;
+          case XrdSecProtectParms::secPedantic:   lvl = kXR_secPedantic;
+                                                  break;
+          default:                                lvl = kXR_secNone;
+                                                  break;
+         }
+    reqs.seclvl = lvl;
 }
 
 /******************************************************************************/
@@ -159,34 +201,33 @@ const char *XrdSecProtector::LName(XrdSecProtectParms::secLevel level)
 /*                            N e w 4 C l i e n t                             */
 /******************************************************************************/
   
-XrdSecProtect *XrdSecProtector::New4Client(XrdSecProtocol &aprot,
-                                           kXR_int32       presp)
+XrdSecProtect *XrdSecProtector::New4Client(XrdSecProtocol              &aprot,
+                                     const ServerResponseReqs_Protocol &inReqs,
+                                           unsigned int                 reqLen)
 {
-   XrdSecProtect     *secP;
-   XrdSecProtectParms myParms;
-   int  n;
-   bool okED = aprot.getKey() > 0;
+   static const unsigned int hdrLen = sizeof(ServerResponseBody_Protocol)
+                                    - sizeof(ServerResponseSVec_Protocol);
+   XrdSecProtect *secP;
+   unsigned int vLen = static_cast<unsigned int>(inReqs.secvsz)
+                     * sizeof(ServerResponseSVec_Protocol);
+   bool okED;
 
-// Check if we need any security at all
+// Validate the incomming struct (if it's bad skip the security) and that any
+// security is actually wanted.
 //
-   n = (presp & kXR_secLvl);
-   if (n == 0 || (!okED && ((presp & kXR_secOFrce) == 0))) return 0;
+   if (vLen+hdrLen > reqLen
+   ||  (inReqs.secvsz == 0 && inReqs.seclvl == kXR_secNone)) return 0;
 
-// Get security level
+// If the auth protocol doesn't support encryption, see if we still need to
+// send off signed requests (mostly for testng)
 //
-   myParms.level = static_cast<XrdSecProtectParms::secLevel>(n>>kXR_secLvlSft);
-
-// Get additional options
-//
-   if ((presp & kXR_secOEnc)  != 0)
-      myParms.opts |= XrdSecProtectParms::useEnc;
-   if ((presp & kXR_secOData) != 0)
-      myParms.opts |= XrdSecProtectParms::doData;
+   okED = aprot.getKey() > 0;
+   if (!okED && (inReqs.secopt & kXR_secOFrce) == 0) return 0;
 
 // Get a new security object and set its security level
 //
    secP = new XrdSecProtect(&aprot, okED);
-   secP->SetProtection(myParms);
+   secP->SetProtection(inReqs);
 
 // All done
 //
@@ -250,15 +291,27 @@ XrdSecProtect *XrdSecProtector::New4Server(XrdSecProtocol &aprot, int plvl)
 /*                              P r o t R e s p                               */
 /******************************************************************************/
 
-kXR_int32 XrdSecProtector::ProtResp(XrdNetAddrInfo &nai, int pver)
+int XrdSecProtector::ProtResp(ServerResponseReqs_Protocol &resp,
+                              XrdNetAddrInfo &nai, int pver)
 {
+   static const int rsplen = sizeof(ServerResponseReqs_Protocol)
+                           - sizeof(ServerResponseSVec_Protocol);
+   ServerResponseReqs_Protocol *myResp;
 
 // Check if we need any response at all
 //
    if (noProt) return 0;
 
-// Return the right response
+// Get the right response
 //
-   if (lrSame || XrdNetIF::InDomain(&nai)) return lrTab[isLcl].theResp;
-   return lrTab[isRmt].theResp;
+   if (lrSame || XrdNetIF::InDomain(&nai)) myResp = &lrTab[isLcl].reqs;
+      else myResp = &lrTab[isRmt].reqs;
+
+// Return result
+//
+   resp.secver = myResp->secver;
+   resp.secopt = myResp->secopt;
+   resp.seclvl = myResp->seclvl;
+   resp.secvsz = 0;
+   return rsplen;
 }

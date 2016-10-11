@@ -67,17 +67,6 @@
 #define kXR_attrProxy 0x00000200
 #define kXR_attrSuper 0x00000400
 
-// The below are defined for protocol version 3.1.0 or higher
-// These are the required security level and security protocol version being
-// used encoded in the kXR_protool response. The level and version are
-// established by the XrdSecurity class. See that class for details.
-//
-#define kXR_secLvl    0x000f0000
-#define kXR_secVer    0x00f00000
-#define kXR_secOpt    0x0f000000
-#define kXR_secLvlSft 16
-#define kXR_sftVersft 20
-
 #define kXR_maxReqRetry 10
 
 // Kind of error inside a XTNetFile's routine (temporary)
@@ -218,6 +207,10 @@ enum XOpenRequestOption {
    kXR_open_wrto=32768
 };
 
+enum XProtocolRequestFlags {
+   kXR_secreqs  = 1      // Return security requirements
+};
+
 enum XQueryType {
    kXR_QStats = 1,
    kXR_QPrep  = 2,
@@ -253,25 +246,19 @@ enum XPrepRequestOption {
    kXR_fresh  = 64
 };
 
-// Version used for kXR_decrypt and kXR_sigver
-enum XSecVersion {
-   kXR_secver_0 = 0   // Set in SigverRequest:: or DecryptRequest::version
-};
-
-// Options reflected in protocol response
-//
-#define kXR_secOEnc  0x01000000
-#define kXR_secOData 0x02000000
-#define kXR_secOFrce 0x04000000
+// Version used for kXR_decrypt and kXR_sigver and is set in
+// Set in SigverRequest::version, DecryptRequest::version and
+// ServerResponseReqs_Protocol::secver
+#define kXR_secver_0  0
 
 // Keytype used for kXR_decrypt and kXR_sigver
 enum XSecFlags {
    kXR_sessKey  = 0, // Set in SigverRequest:: or DecryptRequest::flags
-   kXR_rsaKey   = 1,
-   kXR_nodata   = 2
+   kXR_rsaKey   = 1, // Currently not used
+   kXR_nodata   = 2  // Request payload was not hashed or encrypted
 };
 
-// Version used for kXR_sigver
+// Hash used for kXR_sigver
 enum XSecHash {
    kXR_SHA256 = 0    // Set in SigverRequest::hash
 };
@@ -470,7 +457,8 @@ struct ClientProtocolRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
    kXR_int32 clientpv;      // 2.9.7 or higher
-   kXR_char  reserved[12];
+   kXR_char  flags;         // 3.1.0 or higher
+   kXR_char  reserved[11];
    kXR_int32 dlen;
 };
 struct ClientPrepareRequest {
@@ -530,7 +518,7 @@ struct ClientSetRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
    kXR_char reserved[15];
-   kXR_char  subCode;   // For security purposes, should be zero
+   kXR_char  modifier;  // For security purposes, should be zero
    kXR_int32  dlen;
 };
 struct ClientSigverRequest {
@@ -675,11 +663,56 @@ struct ServerResponseBody_Open {
    kXR_char cptype[4]; // kXR_retstat is specified
 }; // info will follow if kXR_retstat is specified
 
+// The following information is returned in the response body when kXR_secreqs
+// is set in ClientProtocolRequest::flags. Note that the size of secvec is
+// defined by secvsz and will not be present when secvsz == 0.
+struct ServerResponseSVec_Protocol {
+   kXR_char  reqindx;     // Request index
+   kXR_char  reqsreq;     // Request signing requirement
+};
+
+struct ServerResponseReqs_Protocol {
+   kXR_char  theTag;      // Always the character 'S' to identify struct
+   kXR_char  rsvd;        // Reserved for the future (always 0 for now)
+   kXR_char  secver;      // Security version
+   kXR_char  secopt;      // Security options
+   kXR_char  seclvl;      // Security level when secvsz == 0
+   kXR_char  secvsz;      // Number of items in secvec (i.e. its length/2)
+   ServerResponseSVec_Protocol secvec;
+};
+
+// Options reflected in protocol response ServerResponseReqs_Protocol::secopt
+//
+#define kXR_secOEnc  0x01
+#define kXR_secOData 0x02
+#define kXR_secOFrce 0x04
+
+// Security level definitions (these are predefined but can be over-ridden)
+//
+#define kXR_secNone       0
+#define kXR_secCompatible 1
+#define kXR_secStandard   2
+#define kXR_secIntense    3
+#define kXR_secPedantic   4
+
+// Requirements one of which set in each ServerResponseReqs_Protocol::secvec
+//
+#define kXR_signIgnore    0
+#define kXR_signLikely    1
+#define kXR_signNeeded    2
+
 // Body for the kXR_protocol response... useful
 struct ServerResponseBody_Protocol {
    kXR_int32 pval;
    kXR_int32 flags;
+   ServerResponseReqs_Protocol secreq; // Only for V3.1.0+ && if requested
 };
+
+// Handy definition of the size of the protocol response when the security
+// information is not present.
+//
+#define kXR_ShortProtRespLen sizeof(ServerResponseBody_Protocol)-\
+                             sizeof(ServerResponseReqs_Protocol)
 
 struct ServerResponseBody_Login {
    kXR_char  sessid[16];

@@ -1493,14 +1493,11 @@ int XrdXrootdProtocol::do_Prepare()
 int XrdXrootdProtocol::do_Protocol(int retRole)
 {
    static kXR_int32 verNum = static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION));
+   static kXR_int32 theRle = static_cast<kXR_int32>(htonl(myRole));
+   static kXR_int32 theRlf = static_cast<kXR_int32>(htonl(myRolf));
 
-   static ServerResponseBody_Protocol RespOld =
-                             {verNum, static_cast<kXR_int32>(htonl(myRolf))};
-
-          ServerResponseBody_Protocol RespNew = {verNum, myRole};
-
-          ServerResponseBody_Protocol *Resp;
-          int RespLen;
+   ServerResponseBody_Protocol theResp;
+   int RespLen = kXR_ShortProtRespLen;
 
 // Keep Statistics
 //
@@ -1509,22 +1506,22 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
 // Determine which response to provide
 //
    if (Request.protocol.clientpv)
-      {Resp = &RespNew; RespLen = sizeof(RespNew);
-       int cvn = XrdOucEI::uVMask & ntohl(Request.protocol.clientpv);
+      {int cvn = XrdOucEI::uVMask & ntohl(Request.protocol.clientpv);
        if (!Status || !(clientPV & XrdOucEI::uVMask))
           clientPV = (clientPV & ~XrdOucEI::uVMask) | cvn;
           else cvn = (clientPV &  XrdOucEI::uVMask);
-       if (DHS && cvn >= kXR_PROTSIGNVERSION)
-          RespNew.flags |= DHS->ProtResp(*(Link->AddrInfo()), cvn);
-          RespNew.flags = static_cast<kXR_int32>(htonl(RespNew.flags));
+       if (DHS && cvn >= kXR_PROTSIGNVERSION
+       &&  Request.protocol.flags & kXR_secreqs)
+          RespLen += DHS->ProtResp(theResp.secreq, *(Link->AddrInfo()), cvn);
+       theResp.flags = theRle;
       } else {
-       Resp    = &RespOld;
-       RespLen = sizeof(RespOld);
+       theResp.flags = theRlf;
       }
 
 // Return info
 //
-    return (retRole ? Resp->flags : Response.Send((void *)Resp, RespLen));
+    theResp.pval = verNum;
+    return (retRole ? theResp.flags : Response.Send((void *)&theResp,RespLen));
 }
 
 /******************************************************************************/

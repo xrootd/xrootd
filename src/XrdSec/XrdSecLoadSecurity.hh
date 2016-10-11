@@ -68,8 +68,9 @@ XrdSecGetProt_t XrdSecLoadSecFactory(      char       *eBuff,
 /*                   X r d S e c G e t P r o t e c t i o n                    */
 /******************************************************************************/
 
-class XrdSecProtect;
-class XrdSecProtector;
+class  XrdSecProtect;
+class  XrdSecProtector;
+struct ServerResponseBody_Protocol;
 
 //------------------------------------------------------------------------------
 //! Obtain an instance of a security protection object based on the kXR_protocol
@@ -79,8 +80,8 @@ class XrdSecProtector;
 //! @param  aprot   Uses the authentication protocol to protect requests. It
 //!                 must be supplied and must be he protocol the client used
 //!                 for authentication. Hence, authentication must occur first.
-//! @param  presp   The protocol value returned in response to kXR_protocol.
-//!                 The value must be host byte order.
+//! @param  resp    Reference to the response body returned by kXR_protocol.
+//! @param  resplen Length of the response body.
 //!
 //! @return >0      pointer to the protect object placed in protP.
 //! @return =0      No protection is needed, protP set to zero.
@@ -88,8 +89,10 @@ class XrdSecProtector;
 //!                 return value is -errno and protP has been set to zero.
 //------------------------------------------------------------------------------
 
-int XrdSecGetProtection(XrdSecProtect *&protP, XrdSecProtocol &aprot,
-                        kXR_int32 presp);
+int XrdSecGetProtection(XrdSecProtect              *&protP,
+                        XrdSecProtocol              &aprot,
+                        ServerResponseBody_Protocol &resp,
+                        unsigned int                 resplen);
   
 /******************************************************************************/
 /*                  X r d S e c L o a d S e c S e r v i c e                   */

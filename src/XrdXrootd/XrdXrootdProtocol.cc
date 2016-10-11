@@ -414,7 +414,7 @@ int XrdXrootdProtocol::Process2()
 //
    if (sigNeed)
       {const char *eText = "Request not signed";
-       if (!sigHere || (eText = Protect->Verify(sigReq, Request, argp->buff)))
+       if (!sigHere || (eText = Protect->Verify(sigReq,sigReq2Ver,argp->buff)))
           {Response.Send(kXR_SigVerErr, eText);
            TRACEP(REQ, "req=" <<XProtocol::reqName(Request.header.requestid)
                   <<" verification failed; " <<eText);

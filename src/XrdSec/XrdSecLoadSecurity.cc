@@ -203,19 +203,29 @@ XrdSecGetProt_t XrdSecLoadSecFactory(char *eBuff, int eBlen, const char *seclib)
 
 // This is used client-side only
 
-int XrdSecGetProtection(XrdSecProtect *&protP,
-                        XrdSecProtocol &aprot,
-                        kXR_int32       presp)
+int XrdSecGetProtection(XrdSecProtect              *&protP,
+                        XrdSecProtocol              &aprot,
+                        ServerResponseBody_Protocol &resp,
+                        unsigned int                 resplen)
 {
+   static const unsigned int hdrLen = sizeof(ServerResponseReqs_Protocol) - 2;
+   static const unsigned int minLen = kXR_ShortProtRespLen + hdrLen;
    XrdSecProtector *pObj;
+   unsigned int vLen;
    int rc;
+
+// First validate the response before passing it to anyone
+//
+   protP = 0;
+   if (resplen <= kXR_ShortProtRespLen) return 0;
+   if (resplen < minLen) return -EINVAL;
+   vLen = static_cast<unsigned int>(resp.secreq.secvsz)
+        * sizeof(ServerResponseSVec_Protocol);
+   if (vLen + minLen > resplen) return -EINVAL;
 
 // Our first step is to see if any protection is required
 //
-   if (!(presp & kXR_secLvl))
-      {protP = 0;
-       return 0;
-      }
+   if (vLen == 0 && resp.secreq.seclvl == kXR_secNone) return 0;
 
 // The next step is to see if we have a protector object. If we do not then
 // we need to load the library that provides such objects. This needs to be
@@ -232,7 +242,6 @@ int XrdSecGetProtection(XrdSecProtect *&protP,
           }
        if ((rc = XrdSecProtection::protRC))
           {protMutex.UnLock();
-           protP = 0;
            return -rc;
           }
       }
@@ -240,7 +249,7 @@ int XrdSecGetProtection(XrdSecProtect *&protP,
 
 // Return new protection object
 //
-   protP = pObj->New4Client(aprot, presp);
+   protP = pObj->New4Client(aprot, resp.secreq, resplen-kXR_ShortProtRespLen);
    return (protP ? 1 : 0);
 }
   

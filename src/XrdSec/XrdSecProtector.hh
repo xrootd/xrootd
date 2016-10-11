@@ -64,6 +64,7 @@ static const int   force  = 0x0000008; //!< Allow unencryted hash
 //! The XrdSecProtector manages the XrdSecProtect objects.
 //------------------------------------------------------------------------------
 
+struct ServerResponseReqs_Protocol;
 class  XrdNetAddrInfo;
 class  XrdSecProtect;
 class  XrdSecProtocol;
@@ -104,14 +105,17 @@ virtual const char  *LName(XrdSecProtectParms::secLevel level);
 //! @param  aprot   Sets the authentication protocol used and is the protocol
 //!                 used to secure requests. It must be supplied. Security is
 //!                 meaningless unless successful authentication has occured.
-//! @param  presp   The protocol value returned in response to kXR_protocol;
-//!                 converted to host byte order.
+//! @param  inReqs  Reference to the security information returned in the
+//!                 kXR_protocol request.
+//! @param  reqLen  The actual length of inReqs (is validated).
 //!
 //! @return Pointer to a security object upon success and nil if security is
 //!                 not needed.
 //------------------------------------------------------------------------------
 
-virtual XrdSecProtect *New4Client(XrdSecProtocol &aprot, kXR_int32 presp);
+virtual XrdSecProtect *New4Client(      XrdSecProtocol              &aprot,
+                                  const ServerResponseReqs_Protocol &inReqs,
+                                        unsigned int                 reqLen);
 
 //------------------------------------------------------------------------------
 //! Obtain a new instance of a security object based on security setting for
@@ -130,13 +134,15 @@ virtual XrdSecProtect *New4Server(XrdSecProtocol &aprot, int plvl);
 //------------------------------------------------------------------------------
 //! Obtain the proper kXR_protocol response (server-side only)
 //!
+//! @param  resp    Reference to the place where the response is to be placed.
 //! @param  nai     Reference to the client's network address.
 //! @param  pver    Client's protocol version in host byte order.
 //!
-//! @return The protocol response flags to be used in host byte order.
+//! @return The length of the protocol response security information.
 //------------------------------------------------------------------------------
 
-virtual kXR_int32      ProtResp(XrdNetAddrInfo &nai, int pver);
+virtual int            ProtResp(ServerResponseReqs_Protocol &resp,
+                                XrdNetAddrInfo &nai, int pver);
 
 //------------------------------------------------------------------------------
 //! Destructor
@@ -149,5 +155,9 @@ enum lrType     {isLcl=0, isRmt=1, isLR=2};
 protected:
 
                 XrdSecProtector() {}
+
+private:
+void  Config(const XrdSecProtectParms    &parms,
+             ServerResponseReqs_Protocol &reqs);
 };
 #endif

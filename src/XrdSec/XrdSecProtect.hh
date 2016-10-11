@@ -88,18 +88,14 @@ virtual void         Delete() {delete this;}
 //!
 //! @param  newreq  A reference to a pointer where the new request, if needed,
 //!                 will be placed. The new request will consist of a either a
-//!                 kXR_sigver or kXR_decrypt request followed by an optional
-//!                 hash and then the oldreq header and the request data if the
-//!                 data was actually physically part of the original request.
-//!                 This new request is to replace the old request and the
-//!                 memory area must be freed using free() after it s no longer
-//!                 needed.
+//!                 kXR_sigver or kXR_decrypt request followed by hash if the
+//!                 request is kXR_sigver. The request buffer must be freed
+//!                 using free() when it is no longer needed.
 //! @param  thereq  Reference to the client request header/body that needs to
 //!                 be secured. The request must be in network byte order.
 //! @aparam thedata The request data whose length resides in theReq.dlen. If
 //!                 thedata is nil but thereq.dlen is not zero then the request
 //!                 data must follow the request header in the thereq buffer.
-//!                 In this case, such data is also copied to newreq.
 //!
 //! @return <0      An error occurred and the return value is -errno.
 //! @return >0      The length of the new request whose pointer is in newreq.
@@ -139,13 +135,13 @@ virtual ~XrdSecProtect() {}
 
 protected:
 
-         XrdSecProtect(XrdSecProtocol *aprot=0, bool edok=true)
+         XrdSecProtect(XrdSecProtocol *aprot=0, bool edok=true)     // Client!
                       : Need2Secure(&XrdSecProtect::Screen),
-                        authProt(aprot), secVec(0), lastSeqno(0),
+                        authProt(aprot), secVec(0), lastSeqno(1),
                         edOK(edok), secEncrypt(false), secVerData(false)
                         {}
 
-         XrdSecProtect(XrdSecProtocol *aprot, XrdSecProtect &pRef,
+         XrdSecProtect(XrdSecProtocol *aprot, XrdSecProtect &pRef, // Server!
                        bool edok=true)
                       : Need2Secure(&XrdSecProtect::Screen),
                         authProt(aprot), secVec(pRef.secVec),
@@ -153,17 +149,22 @@ protected:
                         secEncrypt(pRef.secEncrypt),
                         secVerData(pRef.secVerData) {}
 
-kXR_int32       SetProtection(const XrdSecProtectParms &parms);
+void     SetProtection(const ServerResponseReqs_Protocol &inReqs);
 
 private:
 bool            GetSHA2(unsigned char *hBuff, struct iovec *iovP, int iovN);
 bool            Screen(ClientRequest &thereq);
 
-XrdSecProtocol *authProt;
-const char     *secVec;
-kXR_unt64       lastSeqno;
-bool            edOK;
-bool            secEncrypt;
-bool            secVerData;
+XrdSecProtocol              *authProt;
+const char                  *secVec;
+ServerResponseReqs_Protocol  myReqs;
+union {kXR_unt64             lastSeqno;  // Used by Secure()
+       kXR_unt64             nextSeqno;  // Used by Verify()
+      };
+bool                         edOK;
+bool                         secEncrypt;
+bool                         secVerData;
+static const unsigned int    maxRIX = kXR_REQFENCE-kXR_auth;
+char                         myVec[maxRIX];
 };
 #endif
