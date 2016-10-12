@@ -396,7 +396,8 @@ struct ClientMkdirRequest {
 struct ClientMvRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
-   kXR_char reserved[16];
+   kXR_char reserved[14];
+   kXR_int16  arg1len;
    kXR_int32  dlen;
 };
 struct ClientOpenRequest {
