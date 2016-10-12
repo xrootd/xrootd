@@ -777,12 +777,15 @@ namespace XrdCl
 
   Status AsyncSocketHandler::SecureMsg( Message *toSign )
   {
+    ClientRequest *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
+    kXR_unt16 reqid = ntohs( thereq->header.requestid );
+    if( reqid == kXR_sigver ) return Status(); // the message is already signed
+
     XRootDChannelInfo *info = 0;
     pChannelData->Get( info );
     if( info && info->protection )
     {
       SecurityRequest *newreq  = 0;
-      ClientRequest   *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
       // check if we have to secure the request in the first place
       if( !NEED2SECURE ( info->protection )( *thereq ) ) return Status();
       // secure (sign/encrypt) the request

@@ -769,7 +769,7 @@ namespace XrdCl
         // kXR_protocol
         //----------------------------------------------------------------------
         case kXR_protocol:
-          if( m->hdr.dlen != 8 )
+          if( m->hdr.dlen < 8 )
             return Status( stError, errInvalidMessage );
           m->body.protocol.pval  = ntohl( m->body.protocol.pval );
           m->body.protocol.flags = ntohl( m->body.protocol.flags );
@@ -1081,6 +1081,7 @@ namespace XrdCl
 
     proto->requestid = htons(kXR_protocol);
     proto->clientpv  = htonl(kXR_PROTOCOLVERSION);
+    proto->flags     = kXR_secreqs;
     return msg;
   }
 
@@ -1166,6 +1167,9 @@ namespace XrdCl
 
     if( rsp->body.protocol.pval >= 0x297 )
       info->serverFlags = rsp->body.protocol.flags;
+
+    info->protRespBody = new ServerResponseBody_Protocol( rsp->body.protocol );
+    info->protRespSize = rsp->hdr.dlen;
 
     log->Debug( XRootDTransportMsg,
                 "[%s] kXR_protocol successful (%s, protocol version %x)",
@@ -1504,7 +1508,7 @@ namespace XrdCl
       {
         info->authProtocolName = info->authProtocol->Entity.prot;
 
-        int rc = XrdSecGetProtection( info->protection, *info->authProtocol, info->serverFlags );
+        int rc = XrdSecGetProtection( info->protection, *info->authProtocol, *info->protRespBody, info->protRespSize );
         if( rc > 0 )
         {
           log->Debug( XRootDTransportMsg,
@@ -1517,12 +1521,14 @@ namespace XrdCl
           log->Debug( XRootDTransportMsg,
                       "[%s] XrdSecProtect: no protection needed.",
                       hsData->streamName.c_str() );
+          CleanUpProtection( info );
         }
         else
         {
           log->Debug( XRootDTransportMsg,
                       "[%s] Failed to load XrdSecProtect: %s",
                       hsData->streamName.c_str(), strerror( -rc ) );
+          CleanUpProtection( info );
         }
 
         CleanUpAuthentication( info );
@@ -1682,6 +1688,13 @@ namespace XrdCl
     {
       info->signprot->Delete();
       info->signprot = 0;
+    }
+
+    if( info->protRespBody )
+    {
+      delete info->protRespBody;
+      info->protRespBody = 0;
+      info->protRespSize = 0;
     }
 
     return Status();

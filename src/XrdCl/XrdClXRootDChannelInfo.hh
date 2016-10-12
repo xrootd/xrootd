@@ -73,13 +73,13 @@ namespace XrdCl
       openFiles(0),
       waitBarrier(0),
       protection(0),
-      signprot(0)
+      signprot(0),
+      protRespBody(0),
+      protRespSize(0)
     {
       sidManager = new SIDManager();
       memset( sessionId, 0, 16 );
       memset( oldSessionId, 0, 16 );
-
-      // TODO cleanup protection and signprot
     }
 
     //--------------------------------------------------------------------------
@@ -89,6 +89,13 @@ namespace XrdCl
     {
       delete    sidManager;
       delete [] authBuffer;
+      delete    protRespBody;
+
+      if( protection )
+        protection->Delete();
+
+      if( signprot )
+        signprot->Delete();
     }
 
     typedef std::vector<XRootDStreamInfo> StreamInfoVector;
@@ -96,26 +103,28 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Data
     //--------------------------------------------------------------------------
-    uint32_t          serverFlags;
-    uint32_t          protocolVersion;
-    uint8_t           sessionId[16];
-    uint8_t           oldSessionId[16];
-    bool              firstLogIn;
-    SIDManager       *sidManager;
-    char             *authBuffer;
-    XrdSecProtocol   *authProtocol;
-    XrdSecParameters *authParams;
-    XrdOucEnv        *authEnv;
-    StreamInfoVector  stream;
-    std::string       streamName;
-    std::string       authProtocolName;
-    std::set<uint16_t> sentOpens;
-    std::set<uint16_t> sentCloses;
-    uint32_t          openFiles;
-    time_t            waitBarrier;
-    XrdSecProtect    *protection;
-    XrdSecProtocol   *signprot;
-    XrdSysMutex       mutex;
+    uint32_t                     serverFlags;
+    uint32_t                     protocolVersion;
+    uint8_t                      sessionId[16];
+    uint8_t                      oldSessionId[16];
+    bool                         firstLogIn;
+    SIDManager                  *sidManager;
+    char                        *authBuffer;
+    XrdSecProtocol              *authProtocol;
+    XrdSecParameters            *authParams;
+    XrdOucEnv                   *authEnv;
+    StreamInfoVector             stream;
+    std::string                  streamName;
+    std::string                  authProtocolName;
+    std::set<uint16_t>           sentOpens;
+    std::set<uint16_t>           sentCloses;
+    uint32_t                     openFiles;
+    time_t                       waitBarrier;
+    XrdSecProtect               *protection;
+    XrdSecProtocol              *signprot;
+    ServerResponseBody_Protocol *protRespBody;
+    unsigned int                 protRespSize;
+    XrdSysMutex                  mutex;
   };
 
 };
