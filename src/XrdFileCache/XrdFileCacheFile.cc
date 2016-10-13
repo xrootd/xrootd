@@ -20,7 +20,6 @@
 #include "XrdFileCacheFile.hh"
 #include "XrdFileCacheIO.hh"
 #include "XrdFileCacheTrace.hh"
-
 #include <stdio.h>
 #include <sstream>
 #include <fcntl.h>
@@ -88,7 +87,8 @@ File::File(IO *io, std::string& disk_file_path, long long iOffset, long long iFi
    m_prefetchState(kOff),
    m_prefetchReadCnt(0),
    m_prefetchHitCnt(0),
-   m_prefetchScore(1)
+   m_prefetchScore(1),
+   m_detachTimeIsLogged(false)
 {
    Open();
 }
@@ -97,17 +97,7 @@ File::~File()
 {
    if (m_infoFile)
    {
-      m_downloadCond.Lock();
-      bool need_sync = (!m_writes_during_sync.empty()) || m_non_flushed_cnt > 0;
-      m_downloadCond.UnLock();
-      if (need_sync)
-         Sync();
-
-      // write statistics in *cinfo file
-      m_cfi.WriteHeader(m_infoFile);
-      AppendIOStatToFileInfo();
-      m_infoFile->Fsync();
-
+      TRACEF(Debug, "File::~File() close info ");
       m_infoFile->Close();
       delete m_infoFile;
       m_infoFile = NULL;
@@ -115,6 +105,7 @@ File::~File()
 
    if (m_output)
    {
+      TRACEF(Debug, "File::~File() close output  ");
       m_output->Close();
       delete m_output;
       m_output = NULL;
@@ -144,6 +135,9 @@ bool File::ioActive()
    // Retruns true if delay is needed
    
    TRACEF(Debug, "File::ioActive start");
+
+   if (!m_is_open) return false;
+   
 
    // remove failed blocks and check if map is empty
    m_downloadCond.Lock();
@@ -184,13 +178,38 @@ bool File::ioActive()
 
    if (blockMapEmpty)
    {
-      // file is not active when block map is empty and sync is done
-      XrdSysCondVarHelper _lck(&m_downloadCond);
-      if ( ! m_in_sync)
-      {
-         m_in_sync = true;
-         return false;
-      }
+       // file is not active when block map is empty and sync is done
+       bool schedule_sync = false;
+
+       {
+           XrdSysCondVarHelper _lck(m_downloadCond);
+           
+           if (m_in_sync) return true;
+           
+           if (m_writes_during_sync.empty()  && m_non_flushed_cnt == 0)
+           {
+               if (!m_detachTimeIsLogged) {
+                   AppendIOStatToFileInfo();
+                   m_detachTimeIsLogged = true;
+                   schedule_sync = true;
+               }
+           }
+           else
+           {
+               // write leftovers
+               schedule_sync = true;
+           }
+
+           if (schedule_sync)
+               m_in_sync = true;  
+       }
+       
+       if (schedule_sync) {
+           XrdPosixGlobals::schedP->Schedule(m_syncer);
+       }
+       else {
+           return false;
+       }
    }
 
    return true;

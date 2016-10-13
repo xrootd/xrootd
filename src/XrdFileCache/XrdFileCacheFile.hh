@@ -133,6 +133,7 @@ namespace XrdFileCache
       int             m_prefetchReadCnt;
       int             m_prefetchHitCnt;
       float           m_prefetchScore; //cached
+      bool            m_detachTimeIsLogged; 
 
       static const char *m_traceID;
 
