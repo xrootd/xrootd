@@ -422,6 +422,10 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
        if (rc < 0) return strerror(-rc);
        if (myReq.bP->size != (int)sizeof(secHash))
           return "Invalid signature hash length";
+       inHash = (unsigned char *)myReq.bP->buffer;
+      } else {
+       if (dlen != (int)sizeof(secHash))
+          return "Invalid signature hash length";
       }
 
 // Fill out the iovec to recompute the hash
@@ -443,7 +447,7 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
 
 // Compare this hash with the hash we were given
 //
-   if (memcmp(secHash, myReq.bP->buffer, sizeof(secHash)))
+   if (memcmp(secHash, inHash, sizeof(secHash)))
       return "Signature hash mismatch";
 
 // This request has been verified (update the seqno)

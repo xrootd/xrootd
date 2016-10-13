@@ -292,10 +292,10 @@ int dlen, rc;
         memcpy(&Request, hsRqst, sizeof(Request));
         memcpy(hsprot.Hdr.streamid,hsRqst->streamid,sizeof(hsprot.Hdr.streamid));
         rspLen              = do_Protocol(&hsprot.Rsp);
-        iov[1].iov_len      = rspLen;
         hsprot.Hdr.dlen     = htonl(rspLen);
         hsprot.Hdr.status   = 0;
-        rc = lp->Send(iov, 2, sizeof(hsresp)+rspLen);
+        iov[1].iov_len      = sizeof(hsprot.Hdr) + rspLen;
+        rc = lp->Send(iov, 2, sizeof(hsresp)+sizeof(hsprot.Hdr)+rspLen);
        }
 
 // Verify that our handshake response was actually sent
