@@ -155,7 +155,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Open();
        int   do_Ping();
        int   do_Prepare();
-       int   do_Protocol(int retRole=0);
+       int   do_Protocol(ServerResponseBody_Protocol *rsp=0);
        int   do_Putfile();
        int   do_Qconf();
        int   do_Qfh();

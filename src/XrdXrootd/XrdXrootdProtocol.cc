@@ -286,16 +286,16 @@ int dlen, rc;
                 struct ServerResponseBody_Protocol Rsp;
                }                                   hsprot;
         struct iovec iov[2] = {{(char *)&hsresp, sizeof(hsresp)},
-                               {(char *)&hsprot, sizeof(hsprot)}
+                               {(char *)&hsprot, 0}
                               };
-        static const int rspLen = sizeof(hsresp)+sizeof(hsprot);
+        int rspLen;
         memcpy(&Request, hsRqst, sizeof(Request));
         memcpy(hsprot.Hdr.streamid,hsRqst->streamid,sizeof(hsprot.Hdr.streamid));
+        rspLen              = do_Protocol(&hsprot.Rsp);
+        iov[1].iov_len      = rspLen;
+        hsprot.Hdr.dlen     = htonl(rspLen);
         hsprot.Hdr.status   = 0;
-        hsprot.Hdr.dlen     = htonl(sizeof(hsprot.Rsp));
-        hsprot.Rsp.pval     = htonl(kXR_PROTOCOLVERSION);
-        hsprot.Rsp.flags    = do_Protocol(1);
-        rc = lp->Send(iov, 2, rspLen);
+        rc = lp->Send(iov, 2, sizeof(hsresp)+rspLen);
        }
 
 // Verify that our handshake response was actually sent
