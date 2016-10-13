@@ -309,9 +309,6 @@ int XrdSecProtector::ProtResp(ServerResponseReqs_Protocol &resp,
 
 // Return result
 //
-   resp.secver = myResp->secver;
-   resp.secopt = myResp->secopt;
-   resp.seclvl = myResp->seclvl;
-   resp.secvsz = 0;
+   memcpy(&resp, myResp, rsplen);
    return rsplen;
 }
