@@ -147,6 +147,11 @@ namespace XrdCl
       Status WriteCurrentMessage( Message *toWrite );
 
       //------------------------------------------------------------------------
+      // Write the message and its signature
+      //------------------------------------------------------------------------
+      Status WriteSignedMessage( Message *toWrite, Message *sign );
+
+      //------------------------------------------------------------------------
       // Got a read readiness event
       //------------------------------------------------------------------------
       void OnRead();
@@ -187,9 +192,19 @@ namespace XrdCl
       void OnTimeoutWhileHandshaking();
 
       //------------------------------------------------------------------------
-      // Sign a message
+      // Get signature for given message
       //------------------------------------------------------------------------
-      Status SecureMsg( Message *toSign );
+      Status GetSignature( Message *toSign, Message *&sign );
+
+      //------------------------------------------------------------------------
+      // Initialize the iovec with given message
+      //------------------------------------------------------------------------
+      inline void ToIov( Message &msg, iovec &iov );
+
+      //------------------------------------------------------------------------
+      // Update iovec after write
+      //------------------------------------------------------------------------
+      inline void UpdateAfterWrite( Message &msg, iovec &iov, int &bytesRead );
 
       //------------------------------------------------------------------------
       // Data members
@@ -204,6 +219,7 @@ namespace XrdCl
       Message                       *pIncoming;
       Message                       *pHSIncoming;
       Message                       *pOutgoing;
+      Message                       *pSignature;
       Message                       *pHSOutgoing;
       XrdNetAddr                     pSockAddr;
       HandShakeData                 *pHandShakeData;

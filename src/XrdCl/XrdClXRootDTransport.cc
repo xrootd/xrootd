@@ -863,6 +863,9 @@ namespace XrdCl
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
     XrdSysMutexHelper scopedLock( info->mutex );
+
+    CleanUpProtection( info );
+
     if( !info->stream.empty() )
     {
       XRootDStreamInfo &sInfo = info->stream[subStreamId];
@@ -877,8 +880,6 @@ namespace XrdCl
       info->openFiles   = 0;
       info->waitBarrier = 0;
     }
-
-    CleanUpProtection( info );
   }
 
   //------------------------------------------------------------------------
@@ -1168,8 +1169,11 @@ namespace XrdCl
     if( rsp->body.protocol.pval >= 0x297 )
       info->serverFlags = rsp->body.protocol.flags;
 
-    info->protRespBody = new ServerResponseBody_Protocol( rsp->body.protocol );
-    info->protRespSize = rsp->hdr.dlen;
+    if( rsp->hdr.dlen > 8 )
+    {
+      info->protRespBody = new ServerResponseBody_Protocol( rsp->body.protocol );
+      info->protRespSize = rsp->hdr.dlen;
+    }
 
     log->Debug( XRootDTransportMsg,
                 "[%s] kXR_protocol successful (%s, protocol version %x)",
@@ -1508,30 +1512,33 @@ namespace XrdCl
       {
         info->authProtocolName = info->authProtocol->Entity.prot;
 
-        int rc = XrdSecGetProtection( info->protection, *info->authProtocol, *info->protRespBody, info->protRespSize );
-        if( rc > 0 )
+        //----------------------------------------------------------------------
+        // Do we need protection?
+        //----------------------------------------------------------------------
+        if( info->protRespBody )
         {
-          log->Debug( XRootDTransportMsg,
-                      "[%s] XrdSecProtect loaded.", hsData->streamName.c_str() );
-          info->signprot = info->authProtocol;
-          info->authProtocol = 0;
-        }
-        else if( rc == 0 )
-        {
-          log->Debug( XRootDTransportMsg,
-                      "[%s] XrdSecProtect: no protection needed.",
-                      hsData->streamName.c_str() );
-          CleanUpProtection( info );
-        }
-        else
-        {
-          log->Debug( XRootDTransportMsg,
-                      "[%s] Failed to load XrdSecProtect: %s",
-                      hsData->streamName.c_str(), strerror( -rc ) );
-          CleanUpProtection( info );
+          int rc = XrdSecGetProtection( info->protection, *info->authProtocol, *info->protRespBody, info->protRespSize );
+          if( rc > 0 )
+          {
+            log->Debug( XRootDTransportMsg,
+                        "[%s] XrdSecProtect loaded.", hsData->streamName.c_str() );
+          }
+          else if( rc == 0 )
+          {
+            log->Debug( XRootDTransportMsg,
+                        "[%s] XrdSecProtect: no protection needed.",
+                        hsData->streamName.c_str() );
+          }
+          else
+          {
+            log->Debug( XRootDTransportMsg,
+                        "[%s] Failed to load XrdSecProtect: %s",
+                        hsData->streamName.c_str(), strerror( -rc ) ); // TODO probably we need to fail more dramatically
+          }
         }
 
-        CleanUpAuthentication( info );
+        if( !info->protection )
+          CleanUpAuthentication( info );
 
         log->Debug( XRootDTransportMsg,
                     "[%s] Authenticated with %s.", hsData->streamName.c_str(),
@@ -1682,12 +1689,8 @@ namespace XrdCl
     {
       info->protection->Delete();
       info->protection = 0;
-    }
 
-    if( info->signprot )
-    {
-      info->signprot->Delete();
-      info->signprot = 0;
+      CleanUpAuthentication( info );
     }
 
     if( info->protRespBody )

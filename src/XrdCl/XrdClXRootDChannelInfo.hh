@@ -73,7 +73,6 @@ namespace XrdCl
       openFiles(0),
       waitBarrier(0),
       protection(0),
-      signprot(0),
       protRespBody(0),
       protRespSize(0)
     {
@@ -93,9 +92,6 @@ namespace XrdCl
 
       if( protection )
         protection->Delete();
-
-      if( signprot )
-        signprot->Delete();
     }
 
     typedef std::vector<XRootDStreamInfo> StreamInfoVector;
@@ -121,7 +117,6 @@ namespace XrdCl
     uint32_t                     openFiles;
     time_t                       waitBarrier;
     XrdSecProtect               *protection;
-    XrdSecProtocol              *signprot;
     ServerResponseBody_Protocol *protRespBody;
     unsigned int                 protRespSize;
     XrdSysMutex                  mutex;

@@ -42,6 +42,7 @@ namespace XrdCl
     pIncoming( 0 ),
     pHSIncoming( 0 ),
     pOutgoing( 0 ),
+    pSignature( 0 ),
     pHSOutgoing( 0 ),
     pHandShakeData( 0 ),
     pHandShakeDone( false ),
@@ -72,6 +73,7 @@ namespace XrdCl
   {
     Close();
     delete pSocket;
+    delete pSignature;
   }
 
   //----------------------------------------------------------------------------
@@ -376,7 +378,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Secure the message if necessary
       //------------------------------------------------------------------------
-      SecureMsg( pOutgoing );
+      XRootDStatus st = GetSignature( pOutgoing, pSignature );
+      if( !st.IsOK() )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( AsyncSockMsg, "[%s] Failed to sign the request: "
+                   "%s (0x%x).", pStreamName.c_str(),
+                   pOutgoing->GetDescription().c_str(), pOutgoing );
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -385,7 +394,7 @@ namespace XrdCl
     Status st;
     if( !pOutMsgDone )
     {
-      if( !(st = WriteCurrentMessage( pOutgoing )).IsOK() )
+      if( !(st = WriteSignedMessage( pOutgoing, pSignature )).IsOK() )
       {
         OnFault( st );
         return;
@@ -500,6 +509,56 @@ namespace XrdCl
       }
       msg->AdvanceCursor( status );
       leftToBeWritten -= status;
+    }
+
+    //--------------------------------------------------------------------------
+    // We have written the message successfully
+    //--------------------------------------------------------------------------
+    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
+               pStreamName.c_str(), toWrite->GetDescription().c_str(),
+               toWrite, toWrite->GetSize() );
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Write the message and its signature
+  //----------------------------------------------------------------------------
+  Status AsyncSocketHandler::WriteSignedMessage( Message *toWrite, Message *sign )
+  {
+    if( !sign ) return WriteCurrentMessage( toWrite );
+
+    Log *log = DefaultEnv::GetLog();
+
+    const size_t iovcnt = 2;
+    iovec iov[iovcnt];
+    ToIov( *sign,    iov[0] );
+    ToIov( *toWrite, iov[1] );
+
+    uint32_t  leftToBeWritten = iov[0].iov_len + iov[1].iov_len;
+
+    while( leftToBeWritten )
+    {
+      int bytesRead = pSocket->WriteV( iov, iovcnt );
+      if( bytesRead <= 0 )
+      {
+        //----------------------------------------------------------------------
+        // Writing operation would block! So we are done for now, but we will
+        // return
+        //----------------------------------------------------------------------
+        if( errno == EAGAIN || errno == EWOULDBLOCK )
+          return Status( stOK, suRetry );
+
+        //----------------------------------------------------------------------
+        // Actual socket error error!
+        //----------------------------------------------------------------------
+        sign->SetCursor( 0 );
+        toWrite->SetCursor( 0 );
+        return Status( stError, errSocketError, errno );
+      }
+
+      leftToBeWritten -= bytesRead;
+      UpdateAfterWrite( *sign,    iov[0], bytesRead );
+      UpdateAfterWrite( *toWrite, iov[1], bytesRead );
     }
 
     //--------------------------------------------------------------------------
@@ -775,11 +834,21 @@ namespace XrdCl
       OnFaultWhileHandshaking( Status( stError, errSocketTimeout ) );
   }
 
-  Status AsyncSocketHandler::SecureMsg( Message *toSign )
+  //------------------------------------------------------------------------
+  // Get signature for given message
+  //------------------------------------------------------------------------
+  Status AsyncSocketHandler::GetSignature( Message *toSign, Message *&sign )
   {
     ClientRequest *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
-    kXR_unt16 reqid = ntohs( thereq->header.requestid );
-    if( reqid == kXR_sigver ) return Status(); // the message is already signed
+
+    if( sign )
+    {
+      SecurityRequest *sec = reinterpret_cast<SecurityRequest*>( sign->GetBuffer() );
+      kXR_unt16 reqid = ntohs( thereq->header.requestid );
+      kXR_unt16 expid = ntohs( sec->sigver.expectrid );
+      if( expid == reqid ) return Status(); // it's the correct signature for the request
+      delete sign; sign = 0; // otherwise delete the signature
+    }
 
     XRootDChannelInfo *info = 0;
     pChannelData->Get( info );
@@ -794,9 +863,32 @@ namespace XrdCl
       if( rc < 0 )
         return Status( stError, errInternal, -rc );
 
-      toSign->Free();
-      toSign->Grab( reinterpret_cast<char*>( newreq ), rc );
+      sign = new Message();
+      sign->Grab( reinterpret_cast<char*>( newreq ), rc );
     }
+    else
+      return Status( stError, errInternal );
+
     return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Initialize the iovec with given message
+  //------------------------------------------------------------------------
+  void AsyncSocketHandler::ToIov( Message &msg, iovec &iov )
+  {
+    iov.iov_base = msg.GetBufferAtCursor();
+    iov.iov_len  = msg.GetSize() - msg.GetCursor();
+  }
+
+  //------------------------------------------------------------------------
+  // Update iovec after write
+  //------------------------------------------------------------------------
+  void AsyncSocketHandler::UpdateAfterWrite( Message &msg, iovec &iov, int &bytesRead )
+  {
+    size_t advance = ( bytesRead < (int)iov.iov_len ) ? bytesRead : iov.iov_len;
+    bytesRead -= advance;
+    msg.AdvanceCursor( advance );
+    ToIov( msg, iov );
   }
 }
