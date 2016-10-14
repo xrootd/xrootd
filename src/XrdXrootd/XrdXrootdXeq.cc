@@ -994,7 +994,7 @@ int XrdXrootdProtocol::do_Mv()
 //
    oldp = newp = argp->buff;
    if (Request.mv.arg1len)
-      {int n = Request.mv.arg1len;
+      {int n = ntohs(Request.mv.arg1len);
        if (n < 0 || n >= Request.mv.dlen || *(argp->buff+n) != ' ')
           return Response.Send(kXR_ArgInvalid, "invalid path specification");
        *(oldp+n) = 0;
