@@ -251,16 +251,16 @@ enum XPrepRequestOption {
 // ServerResponseReqs_Protocol::secver
 #define kXR_secver_0  0
 
-// Keytype used for kXR_decrypt and kXR_sigver
+// Flags for kXR_decrypt and kXR_sigver
 enum XSecFlags {
-   kXR_sessKey  = 0, // Set in SigverRequest:: or DecryptRequest::flags
-   kXR_rsaKey   = 1, // Currently not used
-   kXR_nodata   = 2  // Request payload was not hashed or encrypted
+   kXR_nodata   = 1  // Request payload was not hashed or encrypted
 };
 
-// Hash used for kXR_sigver
-enum XSecHash {
-   kXR_SHA256 = 0    // Set in SigverRequest::hash
+// Cryptography used for kXR_sigver SigverRequest::crypto
+enum XSecCrypto {
+   kXR_SHA256   = 0x01,   // Hash used
+   kXR_HashMask = 0x0f,   // Mak to extract the hash type
+   kXR_rsaKey   = 0x80    // The rsa key was used
 };
 
 //_______________________________________________
@@ -528,7 +528,7 @@ struct ClientSigverRequest {
    kXR_char  version;   // Security version being used (see XSecVersion)
    kXR_char  flags;     // One or more flags defined in enum (see XSecFlags)
    kXR_unt64 seqno;     // Monotonically increasing number (part of hash)
-   kXR_char  hash;      // Hash used (see XSecHash)
+   kXR_char  crypto;    // Cryptography used (see XSecCrypto)
    kXR_char  rsvd2[3];
    kXR_int32 dlen;
 };
@@ -683,9 +683,8 @@ struct ServerResponseReqs_Protocol {
 
 // Options reflected in protocol response ServerResponseReqs_Protocol::secopt
 //
-#define kXR_secOEnc  0x01
-#define kXR_secOData 0x02
-#define kXR_secOFrce 0x04
+#define kXR_secOData 0x01
+#define kXR_secOFrce 0x02
 
 // Security level definitions (these are predefined but can be over-ridden)
 //

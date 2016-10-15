@@ -47,10 +47,9 @@ enum    secLevel {secNone = 0,
 secLevel   level;   //!< In:  The desired level.
 int        opts;    //!< In:  Options:
 
-static const int   useEnc = 0x0000001; //!< Use encryption
-static const int   doData = 0x0000002; //!< Secure data
-static const int   relax  = 0x0000004; //!< relax old clients
-static const int   force  = 0x0000008; //!< Allow unencryted hash
+static const int   doData = 0x0000001; //!< Secure data
+static const int   relax  = 0x0000002; //!< relax old clients
+static const int   force  = 0x0000004; //!< Allow unencryted hash
 
             XrdSecProtectParms() : level(secNone), opts(0) {}
            ~XrdSecProtectParms() {}

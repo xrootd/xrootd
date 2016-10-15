@@ -138,7 +138,7 @@ protected:
          XrdSecProtect(XrdSecProtocol *aprot=0, bool edok=true)     // Client!
                       : Need2Secure(&XrdSecProtect::Screen),
                         authProt(aprot), secVec(0), lastSeqno(1),
-                        edOK(edok), secEncrypt(false), secVerData(false)
+                        edOK(edok), secVerData(false)
                         {}
 
          XrdSecProtect(XrdSecProtocol *aprot, XrdSecProtect &pRef, // Server!
@@ -146,7 +146,6 @@ protected:
                       : Need2Secure(&XrdSecProtect::Screen),
                         authProt(aprot), secVec(pRef.secVec),
                         lastSeqno(0), edOK(edok),
-                        secEncrypt(pRef.secEncrypt),
                         secVerData(pRef.secVerData) {}
 
 void     SetProtection(const ServerResponseReqs_Protocol &inReqs);
@@ -162,7 +161,6 @@ union {kXR_unt64             lastSeqno;  // Used by Secure()
        kXR_unt64             nextSeqno;  // Used by Verify()
       };
 bool                         edOK;
-bool                         secEncrypt;
 bool                         secVerData;
 static const unsigned int    maxRIX = kXR_REQFENCE-kXR_auth;
 char                         myVec[maxRIX];

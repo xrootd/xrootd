@@ -58,17 +58,6 @@ struct XrdSecReq
        SecurityRequest secReq;
        unsigned char   secSig;  // The encrypted hash follows starting here
 };
-
-inline const ClientSigverRequest* InitSigVer()
-{
-  static const ClientSigverRequest initSigVer = {{0,0}, htons(kXR_sigver), 0,
-      kXR_secver_0, kXR_sessKey, 0,
-      kXR_SHA256, {0, 0, 0},
-      0
-     };
-
-  return &initSigVer;
-}
 }
 
 /******************************************************************************/
@@ -234,6 +223,10 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
                           ClientRequest    &thereq,
                           const char       *thedata)
 {
+   static const ClientSigverRequest initSigVer = {{0,0}, htons(kXR_sigver),
+                                                  0, kXR_secver_0, 0, 0,
+                                                  kXR_SHA256, {0, 0, 0}, 0
+                                                 };
    struct buffHold {XrdSecReq    *P;
                     XrdSecBuffer *bP;
                     buffHold() : P(0), bP(0) {}
@@ -298,14 +291,14 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
 
 // Setup the security request (we only support signing)
 //
-   memcpy(&(myReq.P->secReq), InitSigVer(), sizeof(ClientSigverRequest));
+   memcpy(&(myReq.P->secReq), &initSigVer, sizeof(ClientSigverRequest));
    memcpy(&(myReq.P->secReq.header.streamid ), thereq.header.streamid,
           sizeof(myReq.P->secReq.header.streamid));
    memcpy(&(myReq.P->secReq.sigver.expectrid),&thereq.header.requestid,
           sizeof(myReq.P->secReq.sigver.expectrid));
    myReq.P->secReq.sigver.seqno = mySeq;
    if (nodata) myReq.P->secReq.sigver.flags |= kXR_nodata;
-   myReq.P->secReq.sigver.dlen  = htonl(sigSize);
+   myReq.P->secReq.sigver.dlen   = htonl(sigSize);
 
 // Append the signature to the request
 //
@@ -330,7 +323,6 @@ void XrdSecProtect::SetProtection(const ServerResponseReqs_Protocol &inReqs)
    if (inReqs.secvsz == 0 && inReqs.seclvl == 0)
       {memset(&myReqs, 0, sizeof(myReqs));
        secVec     = 0;
-       secEncrypt = false;
        secVerData = false;
        return;
       }
@@ -350,7 +342,6 @@ void XrdSecProtect::SetProtection(const ServerResponseReqs_Protocol &inReqs)
 
 // Set options
 //
-   secEncrypt    = (inReqs.secopt & kXR_secOEnc ) != 0;
    secVerData    = (inReqs.secopt & kXR_secOData) != 0;
 
 // Create a modified vectr if there are overrides
@@ -405,9 +396,9 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
       return "Signature requestid mismatch";
    if (secreq.sigver.version   != kXR_secver_0)
       return "Unsupported signature version";
-   if (secreq.sigver.hash      != kXR_SHA256)
+   if ((secreq.sigver.crypto & kXR_HashMask) != kXR_SHA256)
       return "Unsupported signature hash";
-   if (secreq.sigver.flags & kXR_rsaKey)
+   if (secreq.sigver.crypto & kXR_rsaKey)
       return "Unsupported signature key";
 
 // Now get the hash information

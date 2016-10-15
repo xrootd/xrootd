@@ -153,8 +153,6 @@ void XrdSecProtector::Config(const XrdSecProtectParms    &parms,
 
 // Setup options
 //
-   if ((parms.opts & XrdSecProtectParms::useEnc) != 0)
-      reqs.secopt |= kXR_secOEnc;
    if ((parms.opts & XrdSecProtectParms::doData) != 0)
       reqs.secopt |= kXR_secOData;
    if ((parms.opts & XrdSecProtectParms::force)  != 0)
