@@ -3122,7 +3122,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    } else {
       NOTIFY("WARNING: list of digests supported by server missing"
             " - using default");
-      md = "md5";
+      md = "sha256";
    }
    if (!(sessionMD = sessionCF->MsgDigest(md.c_str()))) {
       emsg = "could not instantiate digest object";

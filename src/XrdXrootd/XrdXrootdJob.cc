@@ -636,7 +636,8 @@ void XrdXrootdJob::CleanUp(XrdXrootdJob2Do *jp)
            Sched->Schedule((XrdJob *)jp);
    else if (theStatus == XrdXrootdJob2Do::Job_Active)
            jp->jobStream.Drain();
-        if (theStatus == XrdXrootdJob2Do::Job_Waiting) numJobs--;
+
+   if (theStatus == XrdXrootdJob2Do::Job_Waiting) numJobs--;
 }
 
 /******************************************************************************/

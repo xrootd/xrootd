@@ -2256,7 +2256,7 @@ int XrdSecProtocolpwd::ExportCreds(XrdSutBucket *creds)
       int fd = open(filecreds.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
       if (fd < 0) {
          PRINT("problems creating file - errno: " << errno);
-         if (buf) free(buf); buf = 0;
+         if (buf) {free(buf); buf = 0;}
          SafeDelete(out);
          return -1;
       }
@@ -2293,7 +2293,7 @@ int XrdSecProtocolpwd::ExportCreds(XrdSutBucket *creds)
       }
     
       // Cleanup temporary buffers
-      if (buf) free(buf); buf = 0;
+      if (buf) {free(buf); buf = 0;}
       SafeDelete(out);
       close(fd);
    }

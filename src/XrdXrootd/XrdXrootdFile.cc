@@ -240,14 +240,15 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, bool monF)
 //
 if (XTab)
   {for (i = 0; i < XTnum; i++)
-       if (XTab[i])
+      {if (XTab[i])
           {if (monP) monP->Close(XTab[i]->Stats.FileID,
                                  XTab[i]->Stats.xfr.read+XTab[i]->Stats.xfr.readv,
                                  XTab[i]->Stats.xfr.write);
            if (monF) XrdXrootdMonFile::Close(&(XTab[i]->Stats), true);
            delete XTab[i];
           }
-       free(XTab); XTab = 0; XTnum = 0; XTfree = 0;
+       }
+   free(XTab); XTab = 0; XTnum = 0; XTfree = 0;
   }
 
 // Delete this object

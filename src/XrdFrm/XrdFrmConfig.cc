@@ -906,7 +906,8 @@ int XrdFrmConfig::ConfigPaths()
 // Create the admin directory if it does not exists and set QPath
 //
    if (!(xPath = XrdFrcUtils::makePath(insName, xPath, AdminMode))) return 1;
-   if (AdminPath) free(AdminPath); AdminPath = xPath;
+   if (AdminPath) free(AdminPath);
+   AdminPath = xPath;
    if (!QPath) QPath = AdminPath;
 
 // Create the purge stop file name

@@ -993,10 +993,18 @@ int XrdXrootdProtocol::do_Mv()
 // Find the space separator between the old and new paths
 //
    oldp = newp = argp->buff;
-   while(*newp && *newp != ' ') newp++;
-   if (*newp) {*newp = '\0'; newp++;
-               while(*newp && *newp == ' ') newp++;
-              }
+   if (Request.mv.arg1len)
+      {int n = ntohs(Request.mv.arg1len);
+       if (n < 0 || n >= Request.mv.dlen || *(argp->buff+n) != ' ')
+          return Response.Send(kXR_ArgInvalid, "invalid path specification");
+       *(oldp+n) = 0;
+       newp += n+1;
+      } else {
+       while(*newp && *newp != ' ') newp++;
+       if (*newp) {*newp = '\0'; newp++;
+                   while(*newp && *newp == ' ') newp++;
+                  }
+      }
 
 // Get rid of relative paths and multiple slashes
 //

@@ -307,8 +307,8 @@ void XrdCryptolocalCipher::Cleanup()
 {
    // Cleanup temporary buffers used for key agreement
 
-   if (bpub) delete[] bpub; bpub = 0;
-   if (bpriv) delete[] bpriv; bpriv = 0;
+   if (bpub)  {delete[] bpub; bpub = 0;}
+   if (bpriv) {delete[] bpriv; bpriv = 0;}
 }
 
 //____________________________________________________________________________

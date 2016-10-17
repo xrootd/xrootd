@@ -15,6 +15,12 @@
     %endif
 %endif
 
+%if %{?fedora}%{!?fedora:0} >= 22
+    %define use_libc_semaphore 1
+%else
+    %define use_libc_semaphore 0
+%endif
+
 %if %{?_with_ceph11:1}%{!?_with_ceph11:0}
     %define _with_ceph 1
 %endif
@@ -144,6 +150,9 @@ development.
 Summary:	Libraries used by xrootd clients
 Group:		System Environment/Libraries
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
+%if %{use_libc_semaphore}
+Requires:       glibc >= 2.21
+%endif
 
 %description client-libs
 This package contains libraries used by xrootd clients.
@@ -357,9 +366,9 @@ export CXX=clang++
 mkdir build
 pushd build
 %if %{?_with_tests:1}%{!?_with_tests:0}
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=TRUE ../
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=TRUE -DUSE_LIBC_SEMAPHORE=%{use_libc_semaphore} ../
 %else
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_LIBC_SEMAPHORE=%{use_libc_semaphore} ../
 %endif
 
 make -i VERBOSE=1 %{?_smp_mflags}

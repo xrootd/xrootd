@@ -801,6 +801,13 @@ namespace XrdCl
         break;
 
       //------------------------------------------------------------------------
+      // kXR_mv
+      //------------------------------------------------------------------------
+      case kXR_mv:
+        req->mv.arg1len = htons( req->mv.arg1len );
+        break;
+
+      //------------------------------------------------------------------------
       // kXR_readv
       //------------------------------------------------------------------------
       case kXR_readv:
@@ -2095,21 +2102,13 @@ namespace XrdCl
       case kXR_mv:
       {
         ClientMvRequest *sreq = (ClientMvRequest *)msg->GetBuffer();
-        char *fn = GetDataAsString( msg );
-        char *fn1 = 0;
-        for( uint16_t i = 0; i < sreq->dlen; ++i )
-        {
-          if( fn[i] == ' ' )
-          {
-            fn[i] = 0;
-            fn1 = fn+i+1;
-          }
-        }
-
         o << "kXR_mv (";
-        o << "source: " << fn << ", ";
-        o << "destination: " << fn1 << ")";
-        delete [] fn;
+        o << "source: ";
+        o.write( msg->GetBuffer( sizeof( ClientMvRequest ) ), sreq->arg1len );
+        o << ", ";
+        o << "destination: ";
+        o.write( msg->GetBuffer( sizeof( ClientMvRequest ) + sreq->arg1len + 1 ), sreq->dlen - sreq->arg1len - 1 );
+        o << ")";
         break;
       }
 
