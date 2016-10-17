@@ -237,7 +237,7 @@ int XrdSecProtocolsss::eMsg(const char *epname, int rc,
    if (rc>0)  cerr <<"; " <<strerror(rc);
    if (txt2)  cerr <<txt2;
    if (txt3)  cerr <<txt3;
-   if (txt4)  cerr <<txt4;
+   if (txt4) {cerr <<txt4;}
               cerr <<endl;
 
    return (rc ? (rc < 0 ? rc : -rc) : -1);

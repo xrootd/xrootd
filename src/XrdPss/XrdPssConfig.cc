@@ -959,7 +959,7 @@ do {if (!(val = Config.GetWord()))
 
     for (i = 0; i < PolNum; i++)
         {if (pType[i])
-            {if (!Police[i]) Police[i] = new XrdNetSecurity();
+            {if (!Police[i]){Police[i] = new XrdNetSecurity();}
                              Police[i]->AddHost(val);
             }
         }

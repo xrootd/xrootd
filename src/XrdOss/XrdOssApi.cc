@@ -309,7 +309,7 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *envP)
 // Create the directory or full path only in the loal file system
 //
    if (!mkdir(local_path, mode))  return XrdOssOK;
-   if (mkpath && errno == ENOENT) return Mkpath(local_path, mode);
+   if (mkpath && errno == ENOENT){return Mkpath(local_path, mode);}
                                   return -errno;
 }
 

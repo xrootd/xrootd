@@ -137,7 +137,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
       {if (!(val = Config.GetWord()) || *val != '?')
           {if (eDest)
               eDest->Emsg("Config","'?var' missing after 'defined' in",what);
-              return -1;
+           return -1;
           }
        // Get environment if we have none
        //
@@ -155,18 +155,18 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
        if (strcmp(val, "&&"))
           {if (eDest)
               eDest->Emsg("Config",val,"is invalid for defined test in",what);
-              return -1;
+           return -1;
           } else {
            if (!(val = Config.GetWord()))
               {if (eDest)
                    eDest->Emsg("Config","missing keyword after '&&' in",what);
-                   return -1;
+               return -1;
               }
           }
        if (!is1of(val, brk))
           {if (eDest)
               eDest->Emsg("Config",val,"is invalid after '&&' in",what);
-              return -1;
+           return -1;
           }
       }
 
@@ -177,7 +177,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
       {if (!(val = Config.GetWord()) || !strcmp(val, "&&"))
           {if (eDest)
               eDest->Emsg("Config","Program name missing after 'if exec' in",what);
-              return -1;
+           return -1;
           }
 
        // Check if we are one of the programs.
@@ -193,12 +193,12 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
        if (!(val = Config.GetWord()))
           {if (eDest)
               eDest->Emsg("Config","Keyword missing after '&&' in",what);
-              return -1;
+           return -1;
           }
        if (strcmp(val, "named"))
           {if (eDest)
               eDest->Emsg("Config",val,"is invalid after '&&' in",what);
-              return -1;
+           return -1;
           }
       }
 

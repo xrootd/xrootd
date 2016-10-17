@@ -459,7 +459,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
          }
       }     
       // Cleanup
-      if (ktmp) delete[] ktmp; ktmp = 0;
+      if (ktmp) {delete[] ktmp; ktmp = 0;}
    }
 
    // Cleanup, if invalid
@@ -613,7 +613,7 @@ bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
          }
       }     
       // Cleanup
-      if (ktmp) delete[] ktmp; ktmp = 0;
+      if (ktmp) {delete[] ktmp; ktmp = 0;}
    }
 
    // Cleanup, if invalid

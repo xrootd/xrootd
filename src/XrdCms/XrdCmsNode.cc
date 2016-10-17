@@ -1437,7 +1437,7 @@ int XrdCmsNode::do_StateFWD(XrdCmsRRData &Arg)
 // differs from shared-everything because pending status applies to all nodes.
 //
    if (Sel.Vec.hf != 0) return CmsHaveRequest::Online;
-   if (Sel.Vec.pf != 0) return CmsHaveRequest::Pending;
+   if (Sel.Vec.pf != 0){return CmsHaveRequest::Pending;}
                         return 0;
 }
 
