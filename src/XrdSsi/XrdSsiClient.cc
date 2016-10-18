@@ -59,7 +59,7 @@ XrdScheduler *schedP   = 0;
 XrdCl::Env   *clEnvP   = 0;
 short         maxTCB   = 300;
 short         maxCLW   =  30;
-Atomic(bool)  initDone = false;
+Atomic(bool)  initDone(false);
 bool          dsTTLSet = false;
 bool          reqTOSet = false;
 bool          strTOSet = false;
