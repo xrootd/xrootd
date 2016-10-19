@@ -81,13 +81,19 @@ static void Msgv(const char *pfx, const char *fmt, va_list aP);
 
 //-----------------------------------------------------------------------------
 //! Set a message callback function for messages issued via this object. This
-//! method should be called only once during client-side initialization in the
-//! main thread (i.e. before starting any other threads).
+//! method should be called during static initialization (this means the call
+//! needs to occur at global scope).
 //!
 //! @param  mCB   Reference to the message callback function as defined by
 //!               the typedef MCB_t.
+//! @param  mcbt  Specifies the type of callback being set, as follows:
+//!               mcbAll    - callback for client-side and server-side logging.
+//!               mcbClient - Callback for client-side logging.
+//!               mcbServer - Callback for server-side logging.
 //!
 //! @return bool  A value of true indicates success, otherwise false returned.
+//!               The return value can generally be ignored and is provided as
+//!               a means to call this method via dynamic global initialization.
 //-----------------------------------------------------------------------------
 
 typedef void (MCB_t)(struct timeval const &mtime, //!< TOD of message
@@ -95,7 +101,9 @@ typedef void (MCB_t)(struct timeval const &mtime, //!< TOD of message
                      const char           *msg,   //!< Message text
                      int                   mlen); //!< Length of message text
 
-static bool SetMCB(MCB_t &mcbP);
+enum mcbType {mcbAll=0, mcbClient, mcbServer};
+
+static bool SetMCB(MCB_t &mcbP, mcbType mcbt=mcbAll);
 
 //-----------------------------------------------------------------------------
 //! Define helper functions to allow ostream cerr output to appear in the log.
@@ -123,8 +131,11 @@ static void        TEnd();
 /******************************************************************************/
 
 //-----------------------------------------------------------------------------
-//! To establisg a log message callback to route messages to you own logging
-//! framework, you must include the following definition at file level.
+//! To establish a log message callback to route messages to you own logging
+//! framework, you normally use the SetMCB() method. This is called at part of
+//! your shared library initialization at load time (i.e. SetMCB() is called at
+//! global scope). If this is not convenient on the server-side you can use
+//! the following alternative; include the following definition at file level:
 //!
 //! XrdSsiLogger::MCB_t *XrdSsiLoggerMCB = &<your_log_function>
 //!

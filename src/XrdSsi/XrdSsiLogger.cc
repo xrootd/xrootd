@@ -133,13 +133,17 @@ void ConfigLog(const char *cFN)
        return;
       }
 
-// Now get the entry point of the message callback function
+// Now get the entry point of the message callback function if the dynamic
+// initialization of the plugin library hasn't already set it.
 //
-   theCB = (XrdSsiLogger::MCB_t **)(myLib->getPlugin("XrdSsiLoggerMCB"));
-   if (!theCB) cerr <<"Config " <<eBuff <<endl;
-      else {msgCB = *theCB;
-            myLib->Persist();
-           }
+   if (!msgCB)
+      {theCB = (XrdSsiLogger::MCB_t **)(myLib->getPlugin("XrdSsiLoggerMCB"));
+       if (!theCB) cerr <<"Config " <<eBuff <<endl;
+          else {msgCB = *theCB;
+                myLib->Persist();
+               }
+      }
+      else myLib->Persist();
 
 // All done
 //
@@ -273,17 +277,24 @@ void XrdSsiLogger::Msgv(const char *pfx, const char *fmt, va_list aP)
 /*                                S e t M C B                                 */
 /******************************************************************************/
   
-bool XrdSsiLogger::SetMCB(XrdSsiLogger::MCB_t &mcbP)
+bool XrdSsiLogger::SetMCB(XrdSsiLogger::MCB_t  &mcbP,
+                          XrdSsiLogger::mcbType mcbt)
 {
-// First step is to getthe client logging object
+// Record the callback, this may be on the server or the client
 //
-   XrdCl::Log *logP = XrdCl::DefaultEnv::GetLog();
-   if (!logP) return false;
+   if (mcbt == mcbAll || mcbt == mcbServer) msgCB = mcbP;
 
-// Allocate a new log intercept object and pass it t o the logger
+// If setting the clientside, get the client logging object and set a new
+// logging intercept object that will route the messages here.
 //
-   logP->SetOutput(new LogMCB(&mcbP));
-// msgCB = mcbP;
+   if (mcbt == mcbAll || mcbt == mcbClient)
+      {XrdCl::Log *logP = XrdCl::DefaultEnv::GetLog();
+       if (!logP) return false;
+       logP->SetOutput(new LogMCB(&mcbP));
+      }
+
+// All done
+//
    return true;
 }
 
