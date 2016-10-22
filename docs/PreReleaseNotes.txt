@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * Allow specifying a different timeout for null cached entries; fixes #413
 
 + **Major bug fixes**
 
