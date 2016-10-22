@@ -378,7 +378,7 @@ int XrdCmsConfig::Configure2()
 //
    if (QryDelay < 0) QryDelay = LUPDelay;
    if (isManager) 
-      NoGo = !Cache.Init(cachelife, LUPDelay, QryDelay, baseFS.isDFS());
+      NoGo = !Cache.Init(cachelife,LUPDelay,QryDelay,baseFS.isDFS(),emptylife);
 
 // Issue warning if the adminpath resides in /tmp
 //
@@ -709,6 +709,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    pidPath  = strdup("/tmp");
    Police   = 0;
    cachelife= 8*60*60;
+   emptylife= 0;
    pendplife=   60*60*24*7;
    DiskLinger=0;
    ProgCH   = 0;
@@ -1791,9 +1792,10 @@ int XrdCmsConfig::xfsxq(XrdSysError *eDest, XrdOucStream &CFile)
 
 /* Function: xfxhld
 
-   Purpose:  To parse the directive: fxhold <sec>
+   Purpose:  To parse the directive: fxhold [noloc <nls>] <sec>
 
-             <sec>  number of seconds (or M, H, etc) to cache file existence
+             <nls>  number of seconds (or M, H, etc) to cache file non-existence
+             <sec>  number of seconds (or M, H, etc) to cache file     existence
 
    Type: Manager only, dynamic.
 
@@ -1809,6 +1811,15 @@ int XrdCmsConfig::xfxhld(XrdSysError *eDest, XrdOucStream &CFile)
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "fxhold value not specified."); return 1;}
+
+    if (!strcmp(val, "noloc"))
+       {if (!(val = CFile.GetWord()))
+           {eDest->Emsg("Config","fxhold noloc value not specified."); return 1;}
+        if (XrdOuca2x::a2tm(*eDest, "fxhold noloc value", val, &ct,
+                                    XrdCmsCache:: min_nxTime)) return 1;
+        emptylife = ct;
+        if (!(val = CFile.GetWord())) return 0;
+       }
 
     if (XrdOuca2x::a2tm(*eDest, "fxhold value", val, &ct, 60)) return 1;
 

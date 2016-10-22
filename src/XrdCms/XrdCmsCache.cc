@@ -135,6 +135,7 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
    if (iP)
       {if (!mask)
           {iP->Loc.deadline = QDelay + time(0);
+           iP->Loc.lifeline = nilTMO + iP->Loc.deadline;
            iP->Loc.hfvec = 0; iP->Loc.pfvec = 0; iP->Loc.qfvec = 0;
            iP->Loc.TOD_B = BClock;
            iP->Key.TOD = Tock;
@@ -161,6 +162,7 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
                      iP->Loc.TOD_B    = BClock;
                      iP->Loc.qfvec    = 0;
                      iP->Loc.deadline = QDelay + time(0);
+                     iP->Loc.lifeline = nilTMO + iP->Loc.deadline;
                      Sel.Path.Ref     = iP->Key.Ref;
                      Sel.Path.TODRef  = iP; isnew = 1;
                     }
@@ -200,10 +202,12 @@ int XrdCmsCache::DelFile(XrdCmsSelect &Sel, SMask_t mask)
    if ((iP = CTable.Find(Sel.Path)))
       {iP->Loc.hfvec &= ~mask;
        iP->Loc.pfvec &= ~mask;
-       if ((gone4good = (iP->Loc.hfvec == 0))
-       && (!(Sel.Opts & XrdCmsSelect::Advisory))
-       && (XrdCmsKeyItem::Unload(iP) && !CTable.Recycle(iP)))
-          Say.Emsg("DelFile", "Delete failed for", iP->Key.Val);
+       if ((gone4good = (iP->Loc.hfvec == 0)))
+          {if (nilTMO) iP->Loc.lifeline = nilTMO + time(0);
+           if (!(Sel.Opts & XrdCmsSelect::Advisory)
+           &&  XrdCmsKeyItem::Unload(iP) && !CTable.Recycle(iP))
+              Say.Emsg("DelFile", "Delete failed for", iP->Key.Val);
+          }
       } else gone4good = 0;
 
 // All done
@@ -244,11 +248,16 @@ int  XrdCmsCache::GetFile(XrdCmsSelect &Sel, SMask_t mask)
            iP->Loc.pfvec &= ~bVec;
            iP->Loc.qfvec &= ~mask;
            iP->Loc.deadline = QDelay + time(0);
+           iP->Loc.lifeline = nilTMO + iP->Loc.deadline;
            retc = -1;
           } else if (iP->Loc.deadline)
                     if (iP->Loc.deadline > time(0)) retc = -1;
                        else {iP->Loc.deadline = 0;  retc =  1;}
                     else retc = 1;
+
+       if (nilTMO && retc == 1 && iP->Loc.hfvec == 0
+       &&  iP->Loc.lifeline <= time(0)) retc = 0;
+
        Sel.Vec.hf      = okVec & iP->Loc.hfvec;
        Sel.Vec.pf      = okVec & iP->Loc.pfvec;
        Sel.Vec.bf      = okVec & (bVec | iP->Loc.qfvec); iP->Loc.qfvec = 0;
@@ -368,7 +377,7 @@ void XrdCmsCache::Drop(SMask_t smask, int SNum, int xHi)
 /* public                           I n i t                                   */
 /******************************************************************************/
   
-int XrdCmsCache::Init(int fxHold, int fxDelay, int fxQuery, int seFS)
+int XrdCmsCache::Init(int fxHold, int fxDelay, int fxQuery, int seFS, int nxHold)
 {
    XrdCmsKeyItem *iP;
    pthread_t tid;
@@ -382,6 +391,15 @@ int XrdCmsCache::Init(int fxHold, int fxDelay, int fxQuery, int seFS)
 //
    DLTime = fxDelay; QDelay = fxQuery;
    if (!(Tick = fxHold/XrdCmsKeyItem::TickRate)) Tick = 1;
+
+// Set the timeout for nil entries if one needs to be set. Since this may cause
+// an infinite lookup delay, adjust it to be no less than 10 minutes longer
+// than the overall deadline for lookups (QDelay/fxQuery).
+//
+   if (nxHold)
+      {if (nxHold < fxQuery+min_nxTime) nxHold = fxQuery+min_nxTime;
+       nilTMO = static_cast<unsigned int>(nxHold);
+      }
 
 // Start the clock thread
 //

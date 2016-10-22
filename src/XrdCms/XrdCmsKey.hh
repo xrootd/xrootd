@@ -93,7 +93,7 @@ SMask_t        hfvec;    // Servers that are staging or have the file
 SMask_t        pfvec;    // Servers that are staging         the file
 SMask_t        qfvec;    // Servers that are not yet queried
 unsigned int   TOD_B;    // Server currency clock
-unsigned int   Reserved;
+int            lifeline; // TOD when nil entry should expire
 union {
 unsigned int   HashSave; // Where hash goes upon item unload
 int            deadline;
@@ -105,11 +105,12 @@ inline
 XrdCmsKeyLoc&  operator=(const XrdCmsKeyLoc &rhs)
                            {hfvec=rhs.hfvec; pfvec=rhs.pfvec; TOD_B=rhs.TOD_B;
                             deadline = rhs.deadline;
+                            lifeline = rhs.lifeline;
                             roPend = rhs.roPend; rwPend = rhs.rwPend;
                             return *this;
                            }
 
-               XrdCmsKeyLoc() : roPend(0), rwPend(0) {}
+               XrdCmsKeyLoc() : lifeline(0), roPend(0), rwPend(0) {}
               ~XrdCmsKeyLoc() {}
 };
   
