@@ -184,6 +184,7 @@ static char         allRm;
 static char         allTrunc;
 
 static char         cfgDone;   // Configuration completed
+static char        *sUrlPrefix; // URL prefix
 
          XrdPssSys();
 virtual ~XrdPssSys() {}
@@ -199,6 +200,7 @@ char              *cPath;    // -> Cache path
 char              *cParm;    // -> Cache parameters
 XrdVersionInfo    *myVersion;// -> Compilation version
 int                TraceLvl; // Tracing options
+
 
 int    buildHdr();
 int    Configure(const char *);
@@ -220,5 +222,6 @@ int    xorig(XrdSysError *errp,   XrdOucStream &Config);
 int    xsopt(XrdSysError *Eroute, XrdOucStream &Config);
 int    xtrac(XrdSysError *Eroute, XrdOucStream &Config);
 int    xnml (XrdSysError *Eroute, XrdOucStream &Config);
+int    xurlp(XrdSysError *Eroute, XrdOucStream& Config);
 };
 #endif

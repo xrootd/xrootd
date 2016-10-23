@@ -107,7 +107,8 @@ char         XrdPssSys::allRm     =  0;
 char         XrdPssSys::allRmdir  =  0;
 char         XrdPssSys::allTrunc  =  0;
 
-char         XrdPssSys::cfgDone   =  0;
+char         XrdPssSys::cfgDone    =  0;
+char        *XrdPssSys::sUrlPrefix = 0;
 
 bool         XrdPssSys::outProxy  = false;
 bool         XrdPssSys::pfxProxy  = false;
@@ -433,6 +434,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_Xeq("namelib",       xnml);
    TS_Xeq("defaults",      xdef);
    TS_Xeq("export",        xexp);
+   TS_Xeq("urlprefix",     xurlp);
 
    // Copy the variable name as this may change because it points to an
    // internal buffer in Config. The vagaries of effeciency. Then get value.
@@ -1087,4 +1089,44 @@ int XrdPssSys::xtrac(XrdSysError *Eroute, XrdOucStream &Config)
          }
     XrdPosixXrootd::setDebug(trval);
     return 0;
+}
+
+
+/******************************************************************************/
+/*                                 x u r l p                                  */
+/******************************************************************************/
+
+/* Function: xurlp
+
+   Purpose:  To parse the directive: urlprefix <value>
+
+             <value>   URL prefix to add to any incoming traffic
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdPssSys::xurlp(XrdSysError *Eroute, XrdOucStream &Config)
+{
+  char* val;
+
+  if (!(val = Config.GetWord())) {
+    Eroute->Emsg("Config","URL prefix not specified");
+    return 1;
+  }
+
+  if (strncmp(val, "root://", 7) && strncmp(val, "xroot://", 8)) {
+    Eroute->Emsg("Config", "URL prefix not valid, must be root or xroot");
+    return 1;
+  }
+
+  // Check that the URL ends with two slashes
+  char* end = val + strlen(val) - 2;
+
+  if (strncmp(end, "//", 2)) {
+    Eroute->Emsg("Config", "URL prefix must end with two slashes");
+    return 1;
+  }
+
+  sUrlPrefix = strdup(val);
+  return 0;
 }

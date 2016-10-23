@@ -130,7 +130,7 @@ XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
 XrdPssSys::XrdPssSys() : LocalRoot(0), N2NLib(0), N2NParms(0), theN2N(0),
                          DirFlags(0), cPath(0), cParm(0),
                          myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem)),
-                         TraceLvl(0) {}
+			 TraceLvl(0) {}
 
 /******************************************************************************/
 /*                                  i n i t                                   */
@@ -1056,6 +1056,13 @@ char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
 // Create the new path
 //
    n = snprintf(pbuff,pblen,"root://%s%s/%s%s%s",theID,hBuff,path,Quest,Cgi);
+
+// If an url prefix is set then append it to the current url
+//
+   if (sUrlPrefix && strlen(sUrlPrefix)) {
+     n = snprintf(pbuff, pblen, "%sroot://%s/%s%s%s", sUrlPrefix,
+		  hBuff, path, Quest, Cgi);
+   }
 
 // Make sure the path will fit
 //
