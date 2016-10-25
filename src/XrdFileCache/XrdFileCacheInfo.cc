@@ -266,22 +266,26 @@ bool Info::ReadV1(XrdOssDF* fp, const std::string &fname)
     TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
 
    
-    int vs = m_store.m_accessCnt < m_maxNumAccess ? m_store.m_accessCnt : m_maxNumAccess;
-    m_store.m_astats.resize(vs);
-    int startFillIdx = m_store.m_accessCnt -vs;
-    r.f_off += startFillIdx * sizeof(AStatV1);
+    int startFillIdx = m_store.m_accessCnt < m_maxNumAccess ? 0 : m_store.m_accessCnt - m_maxNumAccess;
     AStatV1 av1;
-    for (int i = 0 ; i < vs; ++i) {
-        if (r.ReadRaw(&av1, sizeof(AStatV1))) return false;
-        AStat av2;
-        av2.AttachTime  =  av1.DetachTime;
-        av2.DetachTime  =  av1.DetachTime;
-        av2.BytesDisk   =  av2.BytesDisk;
-        av2.BytesRam    =  av2.BytesRam;
-        av2.BytesMissed =  av2.BytesMissed;
-        if (i >= startFillIdx) m_store.m_astats.push_back(av2);
-    }
+    for (int i = 0 ; i < m_store.m_accessCnt; ++i)
+    {
+       if (r.ReadRaw(&av1, sizeof(AStatV1))) return false;
+       
+       if (i >= startFillIdx) {
+          AStat av2;
+          av2.AttachTime  =  av1.DetachTime;
+          av2.DetachTime  =  av1.DetachTime;
+          av2.BytesDisk   =  av1.BytesDisk;
+          av2.BytesRam    =  av1.BytesRam;
+          av2.BytesMissed =  av1.BytesMissed;
+     
+          m_store.m_astats.push_back(av2);
+       }
 
+       if (i == 0) m_store.m_creationTime = av1.DetachTime;
+    }
+    
     return true;
 }
 
