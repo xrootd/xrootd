@@ -151,7 +151,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 install(
   TARGETS
-  ${LIB_XRD_SEC} ${LIB_XRD_SEC_PWD} ${LIB_XRD_SEC_SSS} ${LIB_XRD_SEC_UNIX}
+  ${LIB_XRD_SEC} ${LIB_XRD_SEC_PWD} ${LIB_XRD_SEC_SSS} ${LIB_XRD_SEC_UNIX} ${LIB_XRD_SEC_PROT}
   xrdsssadmin xrdpwdadmin
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
