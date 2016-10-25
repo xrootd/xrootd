@@ -69,30 +69,21 @@ void Print::printFile(const std::string& path)
       return;
    }
 
-   std::vector<Info::AStat> statv;
+   
+   int cntd = 0;
+   for (int i = 0; i < cfi.GetSizeInBits(); ++i) if (cfi.TestBit(i)) cntd++;
 
-   long long off = cfi.GetHeaderSize() + sizeof(int);
+   const Info::Store& store = cfi.RefStoredData();
+   char creationBuff[1000];
+   time_t creationTime = store.m_creationTime;
+   strftime(creationBuff, 1000, "%c", localtime(&creationTime));
 
-   for (int i = 0; i < cfi.GetAccessCnt(); ++i)
-   {
-      Info::AStat a;
-      off += fh->Read(&a, off , sizeof(Info::AStat));
-      statv.push_back(a);
-   }
-
-   if (cfi.GetVersion() < 0) {
-       // Top level info file for file block mode
-       printf("version == %d, fileSize %lld, bufferSize %lld \n",
-              abs(cfi.GetVersion()), cfi.GetFileSize(),cfi.GetBufferSize());
-   }
-   else {
-       int cntd = 0;
-       for (int i = 0; i < cfi.GetSizeInBits(); ++i) if (cfi.TestBit(i)) cntd++;
-
-       printf("version == %d, fileSize %lld, bufferSize %lld nBlocks %d nDownloaded %d %s\n",
-              cfi.GetVersion(), cfi.GetFileSize(),cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
-              (cfi.GetSizeInBits() == cntd) ? "complete" : "");
-   }
+   printf("version %d, creation %s\n",  cfi.GetVersion(), creationBuff);
+   
+   printf("fileSize %lld, bufferSize %lld nBlocks %d nDownloaded %d %s\n",
+          cfi.GetFileSize(),cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
+          (cfi.GetSizeInBits() == cntd) ? "complete" : "");
+   
 
    if (m_verbose)
    {
@@ -110,17 +101,22 @@ void Print::printFile(const std::string& path)
        }
        printf("\n");
    }
-
-   int n_da = 0;
-   { int x = cfi.GetAccessCnt(); while (x) { x /= 10; ++n_da; } }
-   for (int i = 0; i < cfi.GetAccessCnt(); ++i)
+  
+   // printf("\nlatest access statistics:\n");
+   int startIdx = cfi.GetAccessCnt() < cfi.GetMaxNumAccess() ? 0 : cfi.GetAccessCnt() - cfi.GetMaxNumAccess();
+   for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)
    {
-       printf("access %*d: ", n_da, i);
-       Info::AStat& a = statv[i];
-       char s[1000];
-       struct tm * p = localtime(&a.DetachTime);
-       strftime(s, 1000, "%c", p);
-       printf("[%s], bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", s, a.BytesDisk, a.BytesRam, a.BytesMissed);
+       printf("access %d: ", startIdx++);
+       char as[1000];
+       strftime(as, 1000, "%c", localtime(&(it->AttachTime)));
+       char ds[1000];
+       strftime(ds, 1000, "%c", localtime(&(it->DetachTime)));
+       int lasting = it->DetachTime - it->AttachTime;
+       int hours = lasting/3600;
+       int min   = (lasting - hours * 3600)/60;
+       int sec   = lasting % 60;
+       
+       printf("%s, openedTime %02d:%02d:%02d, bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", as, hours, min, sec, it->BytesDisk, it->BytesRam, it->BytesMissed);
    }
    
    delete fh;

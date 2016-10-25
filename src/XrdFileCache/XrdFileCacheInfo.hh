@@ -21,8 +21,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
-
-class XrdOucTrace;
+#include <vector>
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -30,6 +29,8 @@ class XrdOucTrace;
 
 class XrdOssDF;
 class XrdCksCalc;
+class XrdOucTrace;
+
 
 namespace XrdCl
 {
@@ -46,26 +47,33 @@ namespace XrdFileCache
    class Info
    {
    public:
-      struct Store {
-         int            m_version;           //!< info version
-         long long      m_bufferSize;        //!< prefetch buffer size
-         long long      m_fileSize;          //!< number of file blocks
-         unsigned char *m_buff_synced;       //!< disk written state vector
-         char           m_cksum[16];
-         int            m_accessCnt;         //!< number of written AStat structs
+       // !Access statistics
+       struct AStat
+       {
+           time_t    AttachTime;  //! open time
+           time_t    DetachTime;  //! close time
+           long long BytesDisk;   //! read from disk
+           long long BytesRam;    //! read from ram
+           long long BytesMissed; //! read remote client
 
-         Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0), m_accessCnt(0) {
-         }
-      };
+           AStat() :AttachTime(0), DetachTime(0), BytesDisk(0), BytesRam(0), BytesMissed(0) {}
+       };
+       
+       struct Store {
+           int                m_version;           //!< info version
+           long long          m_bufferSize;        //!< prefetch buffer size
+           long long          m_fileSize;          //!< number of file blocks
+           unsigned char     *m_buff_synced;       //!< disk written state vector
+           char               m_cksum[16];         //!< cksum of downloaded information
+           time_t             m_creationTime;      //!< time the info file was created           
+           int                m_accessCnt;         //!< number of written AStat structs
+           std::vector<AStat> m_astats;            //!< number of last m_maxAcessCnts
 
-      // !Access statistics
-         struct AStat
-         {
-            time_t    DetachTime;  //! close time
-            long long BytesDisk;   //! read from disk
-            long long BytesRam;    //! read from ram
-            long long BytesMissed; //! read remote client
-         };
+           Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0),m_creationTime(0), m_accessCnt(0) {
+           }
+       };
+
+       
 
          //------------------------------------------------------------------------
          //! Constructor.
@@ -120,7 +128,7 @@ namespace XrdFileCache
          //! Write number of blocks and read buffer size
          //! @return true on success
          //---------------------------------------------------------------------
-         bool WriteHeader(XrdOssDF* fp, const std::string &fname="<unknown>");
+         bool Write(XrdOssDF* fp, const std::string &fname="<unknown>");
 
           //---------------------------------------------------------------------
          //! Disable allocating, writing, and reading of downlaod status
@@ -128,11 +136,15 @@ namespace XrdFileCache
          void DisableDownloadStatus();
 
          //---------------------------------------------------------------------
-         //! Append access time, and cache statistics
-         //! @return true on success
+         //! Write open time in the last entry of access statistics
          //---------------------------------------------------------------------
-         bool AppendIOStat(AStat& stat, XrdOssDF* fp, const std::string &fname="<unknown>");
+         void WriteIOStatAttach();
 
+         //---------------------------------------------------------------------
+         //! Write close time together with bytes missed, hits, and disk
+         //---------------------------------------------------------------------
+         void WriteIOStatDetach(Stats& s);
+       
          //---------------------------------------------------------------------
          //! Check download status in given block range
          //---------------------------------------------------------------------
@@ -152,16 +164,11 @@ namespace XrdFileCache
          //! Get file size
          //---------------------------------------------------------------------
          long long GetFileSize() const;
-
-         //----------------------------------------------------------------------
-         //! Get header size.
-         //----------------------------------------------------------------------
-         int GetHeaderSize() const;
-
+       
          //---------------------------------------------------------------------
          //! Get latest detach time
          //---------------------------------------------------------------------
-         bool GetLatestDetachTime(time_t& t, XrdOssDF* fp) const;
+         bool GetLatestDetachTime(time_t& t) const;
 
          //---------------------------------------------------------------------
          //! Get prefetch buffer size
@@ -197,7 +204,7 @@ namespace XrdFileCache
          //! Update complete status
          //---------------------------------------------------------------------
          void UpdateDownloadCompleteStatus();
-
+       
          //---------------------------------------------------------------------
          //! Get number of accesses
          //---------------------------------------------------------------------
@@ -208,18 +215,25 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          int GetVersion() { return  m_store.m_version; }
 
-
+         //---------------------------------------------------------------------
+         //! Get stored data
+         //---------------------------------------------------------------------
+         const Store& RefStoredData() const { return m_store; }
+       
          //---------------------------------------------------------------------
          //! Get md5 cksum
          //---------------------------------------------------------------------
-      void GetCksum( unsigned char* buff, char* digest);
+         void GetCksum( unsigned char* buff, char* digest);
 
          const static char* m_infoExtension;
          const static char* m_traceID;
          const static int   m_defaultVersion;
+         const static int   m_maxNumAccess;
 
          XrdOucTrace* GetTrace() const {return m_trace;}
 
+         static int GetMaxNumAccess() { return m_maxNumAccess; }
+       
    protected:
          XrdOucTrace*   m_trace;
 
@@ -233,6 +247,9 @@ namespace XrdFileCache
 
    private:
          inline unsigned char cfiBIT(int n) const { return 1 << n; }
+
+       // split reading for V1
+       bool ReadV1(XrdOssDF* fp, const std::string &fname);
          XrdCksCalc*   m_cksCalc;
    };
 

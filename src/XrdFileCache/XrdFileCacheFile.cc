@@ -189,7 +189,7 @@ bool File::ioActive()
            if (m_writes_during_sync.empty()  && m_non_flushed_cnt == 0)
            {
                if (!m_detachTimeIsLogged) {
-                   AppendIOStatToFileInfo();
+                   m_cfi.WriteIOStatDetach(m_stats);
                    m_detachTimeIsLogged = true;
                    schedule_sync = true;
                }
@@ -291,12 +291,13 @@ bool File::Open()
    {
       m_cfi.SetBufferSize(Cache::GetInstance().RefConfiguration().m_bufferSize);
       m_cfi.SetFileSize(m_fileSize);
-      m_cfi.WriteHeader(m_infoFile);
+      m_cfi.Write(m_infoFile);
       m_infoFile->Fsync();
       int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
       TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
    }
 
+   m_cfi.WriteIOStatAttach();
    m_downloadCond.Lock();
    m_is_open = true;
    m_prefetchState = (m_cfi.IsComplete()) ? kComplete : kOn;
@@ -786,7 +787,7 @@ void File::Sync()
    TRACEF(Dump, "File::Sync()");
    m_output->Fsync();
 
-   m_cfi.WriteHeader(m_infoFile);
+   m_cfi.Write(m_infoFile);
    m_infoFile->Fsync();
 
    int written_while_in_sync;
@@ -901,25 +902,6 @@ int File::offsetIdx(int iIdx)
    return iIdx - m_offset/m_cfi.GetBufferSize();
 }
 
-//------------------------------------------------------------------------------
-
-void File::AppendIOStatToFileInfo()
-{
-   // lock in case several IOs want to write in *cinfo file
-   if (m_infoFile)
-   {
-      Info::AStat as;
-      as.DetachTime = time(0);
-      as.BytesDisk = m_stats.m_BytesDisk;
-      as.BytesRam = m_stats.m_BytesRam;
-      as.BytesMissed = m_stats.m_BytesMissed;
-      m_cfi.AppendIOStat(as, (XrdOssDF*)m_infoFile);
-   }
-   else
-   {
-      TRACEF(Warning, "File::AppendIOStatToFileInfo() info file not opened");
-   }
-}
 
 //------------------------------------------------------------------------------
 

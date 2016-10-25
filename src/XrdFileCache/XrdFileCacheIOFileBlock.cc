@@ -42,6 +42,7 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
    GetBlockSizeFromPath();
    initLocalStat();
+   if (m_infoFile) m_info.WriteIOStatAttach();
 }
 
 //______________________________________________________________________________
@@ -70,12 +71,8 @@ void IOFileBlock::CloseInfoFile()
    {
        if (m_info.GetFileSize() > 0)
        {
-           Info::AStat as;
-           as.DetachTime  = time(0);
-           as.BytesDisk   = 0;
-           as.BytesRam    = 0;
-           as.BytesMissed = 0;
-           m_info.AppendIOStat(as, m_infoFile, "IOFileBlock");
+           Stats as;
+           m_info.WriteIOStatDetach(as);
        }
        m_infoFile->Fsync();
        m_infoFile->Close();
@@ -206,7 +203,7 @@ int IOFileBlock::initLocalStat()
                m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
                m_info.DisableDownloadStatus();
                m_info.SetFileSize(tmpStat.st_size);
-               m_info.WriteHeader(m_infoFile, path);
+               m_info.Write(m_infoFile, path);
                m_infoFile->Fsync();
             }
             else
