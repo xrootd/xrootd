@@ -21,7 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
-#include "XrdCl/XrdClXRootDChannelInfo.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 #include <netinet/tcp.h>
 
 namespace XrdCl
@@ -381,10 +381,8 @@ namespace XrdCl
       XRootDStatus st = GetSignature( pOutgoing, pSignature );
       if( !st.IsOK() )
       {
-        Log *log = DefaultEnv::GetLog();
-        log->Error( AsyncSockMsg, "[%s] Failed to sign the request: "
-                   "%s (0x%x).", pStreamName.c_str(),
-                   pOutgoing->GetDescription().c_str(), pOutgoing );
+        OnFault( st );
+        return;
       }
     }
 
@@ -839,37 +837,12 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status AsyncSocketHandler::GetSignature( Message *toSign, Message *&sign )
   {
-    ClientRequest *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
-
-    if( sign )
-    {
-      SecurityRequest *sec = reinterpret_cast<SecurityRequest*>( sign->GetBuffer() );
-      kXR_unt16 reqid = ntohs( thereq->header.requestid );
-      kXR_unt16 expid = ntohs( sec->sigver.expectrid );
-      if( expid == reqid ) return Status(); // it's the correct signature for the request
-      delete sign; sign = 0; // otherwise delete the signature
-    }
-
-    XRootDChannelInfo *info = 0;
-    pChannelData->Get( info );
-    if( info && info->protection )
-    {
-      SecurityRequest *newreq  = 0;
-      // check if we have to secure the request in the first place
-      if( !NEED2SECURE ( info->protection )( *thereq ) ) return Status();
-      // secure (sign/encrypt) the request
-      int rc = info->protection->Secure( newreq, *thereq, 0 );
-      // there was an error
-      if( rc < 0 )
-        return Status( stError, errInternal, -rc );
-
-      sign = new Message();
-      sign->Grab( reinterpret_cast<char*>( newreq ), rc );
-    }
-    else
-      return Status( stError, errInternal );
-
-    return Status();
+    // ideally the 'GetSignature' method should be in  TransportHandler interface
+    // however due to ABI compatibility for the time being this workaround has to
+    // be employed
+    XRootDTransport *xrootdTransport = dynamic_cast<XRootDTransport*>( pTransport );
+    if( !xrootdTransport ) return Status( stError, errNotSupported );
+    return xrootdTransport->GetSignature( toSign, sign, *pChannelData );
   }
 
   //------------------------------------------------------------------------

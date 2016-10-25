@@ -28,8 +28,9 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdCl/XrdClXRootDChannelInfo.hh"
+#include "XrdCl/XrdClTransportManager.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -38,6 +39,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
+#include "XrdSec/XrdSecProtect.hh"
 #include "XrdVersion.hh"
 
 #include <arpa/inet.h>
@@ -52,12 +54,148 @@ XrdVERSIONINFOREF( XrdCl );
 
 namespace XrdCl
 {
+  struct PluginUnloadHandler
+  {
+      PluginUnloadHandler() : unloaded( false ) { }
+
+      static void UnloadHandler()
+      {
+        UnloadHandler( "root" );
+        UnloadHandler( "xroot" );
+      }
+
+      static void UnloadHandler( const std::string &trProt )
+      {
+        TransportManager *trManager    = DefaultEnv::GetTransportManager();
+        TransportHandler *trHandler    = trManager->GetHandler( trProt );
+        XRootDTransport  *xrdTransport = dynamic_cast<XRootDTransport*>( trHandler );
+        if( !xrdTransport ) return;
+
+        PluginUnloadHandler *me = xrdTransport->pSecUnloadHandler;
+        XrdSysRWLockHelper scope( me->lock, false ); // obtain write lock
+        me->unloaded = true;
+      }
+
+      void Register( const std::string &protocol )
+      {
+        XrdSysRWLockHelper scope( lock, false ); // obtain write lock
+        std::pair< std::set<std::string>::iterator, bool > ret = protocols.insert( protocol );
+        // if that's the first time we are using the protocol, the sec lib
+        // was just loaded so now's the time to register the atexit handler
+        if( ret.second )
+        {
+          atexit( UnloadHandler );
+        }
+      }
+
+      XrdSysRWLock          lock;
+      bool                  unloaded;
+      std::set<std::string> protocols;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Information holder for XRootDStreams
+  //----------------------------------------------------------------------------
+  struct XRootDStreamInfo
+  {
+    //--------------------------------------------------------------------------
+    // Define the stream status for the link negotiation purposes
+    //--------------------------------------------------------------------------
+    enum StreamStatus
+    {
+      Disconnected,
+      Broken,
+      HandShakeSent,
+      HandShakeReceived,
+      LoginSent,
+      AuthSent,
+      BindSent,
+      EndSessionSent,
+      Connected
+    };
+
+    //--------------------------------------------------------------------------
+    // Constructor
+    //--------------------------------------------------------------------------
+    XRootDStreamInfo(): status( Disconnected ), pathId( 0 )
+    {
+    }
+
+    StreamStatus status;
+    uint8_t      pathId;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Information holder for xrootd channels
+  //----------------------------------------------------------------------------
+  struct XRootDChannelInfo
+  {
+    //--------------------------------------------------------------------------
+    // Constructor
+    //--------------------------------------------------------------------------
+    XRootDChannelInfo():
+      serverFlags(0),
+      protocolVersion(0),
+      firstLogIn(true),
+      sidManager(0),
+      authBuffer(0),
+      authProtocol(0),
+      authParams(0),
+      authEnv(0),
+      openFiles(0),
+      waitBarrier(0),
+      protection(0),
+      protRespBody(0),
+      protRespSize(0)
+    {
+      sidManager = new SIDManager();
+      memset( sessionId, 0, 16 );
+      memset( oldSessionId, 0, 16 );
+    }
+
+    //--------------------------------------------------------------------------
+    // Destructor
+    //--------------------------------------------------------------------------
+    ~XRootDChannelInfo()
+    {
+      delete    sidManager;
+      delete [] authBuffer;
+    }
+
+    typedef std::vector<XRootDStreamInfo> StreamInfoVector;
+
+    //--------------------------------------------------------------------------
+    // Data
+    //--------------------------------------------------------------------------
+    uint32_t                     serverFlags;
+    uint32_t                     protocolVersion;
+    uint8_t                      sessionId[16];
+    uint8_t                      oldSessionId[16];
+    bool                         firstLogIn;
+    SIDManager                  *sidManager;
+    char                        *authBuffer;
+    XrdSecProtocol              *authProtocol;
+    XrdSecParameters            *authParams;
+    XrdOucEnv                   *authEnv;
+    StreamInfoVector             stream;
+    std::string                  streamName;
+    std::string                  authProtocolName;
+    std::set<uint16_t>           sentOpens;
+    std::set<uint16_t>           sentCloses;
+    uint32_t                     openFiles;
+    time_t                       waitBarrier;
+    XrdSecProtect               *protection;
+    ServerResponseBody_Protocol *protRespBody;
+    unsigned int                 protRespSize;
+    XrdSysMutex                  mutex;
+  };
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
   XRootDTransport::XRootDTransport():
-    pSecLibHandle(0),
-    pAuthHandler(0)
+    pAuthHandler(0),
+    pSecUnloadHandler( new PluginUnloadHandler() )
   {
   }
 
@@ -66,7 +204,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDTransport::~XRootDTransport()
   {
-    delete pSecLibHandle; pSecLibHandle = 0;
+    delete pSecUnloadHandler; pSecUnloadHandler = 0;
   }
 
   //----------------------------------------------------------------------------
@@ -1058,6 +1196,46 @@ namespace XrdCl
       info->sentCloses.insert( sid );
   }
 
+
+  //------------------------------------------------------------------------
+  // Get signature for given message
+  //------------------------------------------------------------------------
+  Status XRootDTransport::GetSignature( Message *toSign, Message *&sign, AnyObject &channelData )
+  {
+    XrdSysRWLockHelper scope( pSecUnloadHandler->lock );
+    if( pSecUnloadHandler->unloaded ) return Status( stError, errInvalidOp );
+
+    ClientRequest *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
+    if( sign )
+    {
+      SecurityRequest *sec = reinterpret_cast<SecurityRequest*>( sign->GetBuffer() );
+      kXR_unt16 reqid = ntohs( thereq->header.requestid );
+      kXR_unt16 expid = ntohs( sec->sigver.expectrid );
+      if( expid == reqid ) return Status(); // it's the correct signature for the request
+      delete sign; sign = 0; // otherwise delete the signature
+    }
+
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    if( !info ) return Status( stError, errInternal );
+    if( info->protection )
+    {
+      SecurityRequest *newreq  = 0;
+      // check if we have to secure the request in the first place
+      if( !NEED2SECURE ( info->protection )( *thereq ) ) return Status();
+      // secure (sign/encrypt) the request
+      int rc = info->protection->Secure( newreq, *thereq, 0 );
+      // there was an error
+      if( rc < 0 )
+        return Status( stError, errInternal, -rc );
+
+      sign = new Message();
+      sign->Grab( reinterpret_cast<char*>( newreq ), rc );
+    }
+
+    return Status();
+  }
+
   //----------------------------------------------------------------------------
   // Generate the message to be sent as an initial handshake
   // (handshake+kXR_protocol)
@@ -1533,12 +1711,17 @@ namespace XrdCl
           {
             log->Debug( XRootDTransportMsg,
                         "[%s] Failed to load XrdSecProtect: %s",
-                        hsData->streamName.c_str(), strerror( -rc ) ); // TODO probably we need to fail more dramatically
+                        hsData->streamName.c_str(), strerror( -rc ) );
+            CleanUpAuthentication( info );
+
+            return Status( stError, errAuthFailed, -rc );
           }
         }
 
         if( !info->protection )
           CleanUpAuthentication( info );
+        else
+          pSecUnloadHandler->Register( info->authProtocolName );
 
         log->Debug( XRootDTransportMsg,
                     "[%s] Authenticated with %s.", hsData->streamName.c_str(),
@@ -1685,6 +1868,9 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status XRootDTransport::CleanUpProtection( XRootDChannelInfo *info )
   {
+    XrdSysRWLockHelper scope( pSecUnloadHandler->lock );
+    if( pSecUnloadHandler->unloaded ) return Status( stError, errInvalidOp );
+
     if( info->protection )
     {
       info->protection->Delete();
