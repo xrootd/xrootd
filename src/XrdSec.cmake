@@ -49,11 +49,13 @@ add_library(
 if( BUILD_CRYPTO )
   target_link_libraries(
     ${LIB_XRD_SEC_PROT}
+    XrdUtils
     pthread
     ${OPENSSL_CRYPTO_LIBRARY} )
 else()
   target_link_libraries(
     ${LIB_XRD_SEC_PROT}
+    XrdUtils
     pthread )
 endif()
 
