@@ -31,14 +31,17 @@
 
 using namespace XrdFileCache;
 
-Print::Print(XrdOss* oss, bool v, const char* path): m_oss(oss), m_verbose(v), m_ossUser("nobody")
+Print::Print(XrdOss* oss, bool v, const char* path) : m_oss(oss), m_verbose(v), m_ossUser("nobody")
 {
-   if (isInfoFile(path)) {
+   if (isInfoFile(path))
+   {
       printFile(std::string(path));
    }
-   else {
+   else
+   {
       XrdOssDF* dh = m_oss->newDir(m_ossUser);
-      if ( dh->Opendir(path, m_env)  >= 0 ) {
+      if ( dh->Opendir(path, m_env)  >= 0 )
+      {
          printDir(dh, path);
       }
    }
@@ -53,8 +56,8 @@ bool Print::isInfoFile(const char* path) {
 }
 
 
-void Print::printFile(const std::string& path) 
-{ 
+void Print::printFile(const std::string& path)
+{
    printf("printing %s ...\n", path.c_str());
    XrdOssDF* fh = m_oss->newFile(m_ossUser);
    fh->Open((path).c_str(),O_RDONLY, 0600, m_env);
@@ -69,9 +72,10 @@ void Print::printFile(const std::string& path)
       return;
    }
 
-   
+
    int cntd = 0;
-   for (int i = 0; i < cfi.GetSizeInBits(); ++i) if (cfi.TestBit(i)) cntd++;
+   for (int i = 0; i < cfi.GetSizeInBits(); ++i)
+      if (cfi.TestBit(i)) cntd++;
 
    const Info::Store& store = cfi.RefStoredData();
    char creationBuff[1000];
@@ -79,60 +83,66 @@ void Print::printFile(const std::string& path)
    strftime(creationBuff, 1000, "%c", localtime(&creationTime));
 
    printf("version %d, creation %s\n",  cfi.GetVersion(), creationBuff);
-   
+
    printf("fileSize %lld, bufferSize %lld nBlocks %d nDownloaded %d %s\n",
           cfi.GetFileSize(),cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
           (cfi.GetSizeInBits() == cntd) ? "complete" : "");
-   
+
 
    if (m_verbose)
    {
-       int n_db = 0;
-       { int x = cfi.GetSizeInBits(); while (x) { x /= 10; ++n_db; } }
-       static const char *nums = "0123456789";
-       printf("printing %d blocks:\n", cfi.GetSizeInBits());
-       printf("%*s  %10d%10d%10d%10d%10d%10d\n", n_db, "", 1, 2, 3, 4, 5, 6);
-       printf("%*s %s%s%s%s%s%s0123", n_db, "", nums, nums, nums, nums, nums, nums);
-       for (int i = 0; i < cfi.GetSizeInBits(); ++i)
-       {
-           if (i % 64 == 0)
-               printf("\n%*d ", n_db, i);
-           printf("%c", cfi.TestBit(i) ? 'x' : '.');
-       }
-       printf("\n");
+      int n_db = 0;
+      { int x = cfi.GetSizeInBits(); while (x)
+        {
+           x /= 10; ++n_db;
+        }
+      }
+      static const char *nums = "0123456789";
+      printf("printing %d blocks:\n", cfi.GetSizeInBits());
+      printf("%*s  %10d%10d%10d%10d%10d%10d\n", n_db, "", 1, 2, 3, 4, 5, 6);
+      printf("%*s %s%s%s%s%s%s0123", n_db, "", nums, nums, nums, nums, nums, nums);
+      for (int i = 0; i < cfi.GetSizeInBits(); ++i)
+      {
+         if (i % 64 == 0)
+            printf("\n%*d ", n_db, i);
+         printf("%c", cfi.TestBit(i) ? 'x' : '.');
+      }
+      printf("\n");
    }
-  
+
    // printf("\nlatest access statistics:\n");
    int startIdx = cfi.GetAccessCnt() < cfi.GetMaxNumAccess() ? 0 : cfi.GetAccessCnt() - cfi.GetMaxNumAccess();
    for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)
    {
-       printf("access %d: ", startIdx++);
-       char as[1000];
-       strftime(as, 1000, "%c", localtime(&(it->AttachTime)));
-       char ds[1000];
-       strftime(ds, 1000, "%c", localtime(&(it->DetachTime)));
-       int lasting = it->DetachTime - it->AttachTime;
-       int hours = lasting/3600;
-       int min   = (lasting - hours * 3600)/60;
-       int sec   = lasting % 60;
-       
-       printf("%s, openedTime %02d:%02d:%02d, bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", as, hours, min, sec, it->BytesDisk, it->BytesRam, it->BytesMissed);
+      printf("access %d: ", startIdx++);
+      char as[1000];
+      strftime(as, 1000, "%c", localtime(&(it->AttachTime)));
+      char ds[1000];
+      strftime(ds, 1000, "%c", localtime(&(it->DetachTime)));
+      int lasting = it->DetachTime - it->AttachTime;
+      int hours = lasting/3600;
+      int min   = (lasting - hours * 3600)/60;
+      int sec   = lasting % 60;
+
+      printf("%s, openedTime %02d:%02d:%02d, bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", as, hours, min, sec, it->BytesDisk, it->BytesRam, it->BytesMissed);
    }
-   
+
    delete fh;
    printf("\n");
 }
 
-void Print::printDir(XrdOssDF* iOssDF, const std::string& path) 
+void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
 {
    // printf("---------> print dir %s \n", path.c_str());
    char buff[256];
    int rdr;
    while ( (rdr = iOssDF->Readdir(&buff[0], 256)) >= 0)
    {
-      if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1)) {
+      if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
+      {
 
-         if (strlen(buff) == 0) {
+         if (strlen(buff) == 0)
+         {
             break; // end of readdir
          }
          std::string np = path + "/" + std::string(&buff[0]);
@@ -140,9 +150,11 @@ void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
          {
             printFile(np);
          }
-         else {
+         else
+         {
             XrdOssDF* dh = m_oss->newDir(m_ossUser);
-            if (dh->Opendir(np.c_str(), m_env) >= 0) {
+            if (dh->Opendir(np.c_str(), m_env) >= 0)
+            {
                printDir(dh, np);
             }
             delete dh; dh = 0;
@@ -155,11 +167,11 @@ void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
 //______________________________________________________________________________
 
 int main(int argc, char *argv[])
-{ 
+{
    static const char* usage = "Usage: pfc_print [-c config_file] [-v] path\n\n";
    bool verbose = false;
    const char* cfgn = 0;
-  
+
    XrdOucEnv myEnv;
 
    XrdSysLogger log;
@@ -167,7 +179,7 @@ int main(int argc, char *argv[])
 
 
    XrdOucStream Config(&err, getenv("XRDINSTANCE"), &myEnv, "=====> ");
-   XrdOucArgs Spec(&err, "pfc_print: ",    "", 
+   XrdOucArgs Spec(&err, "pfc_print: ",    "",
                    "verbose",        1, "v",
                    "config",       1, "c",
                    (const char *)0);
@@ -180,46 +192,53 @@ int main(int argc, char *argv[])
    {
       switch(theOpt)
       {
-         case 'c': {
-            cfgn = Spec.getarg();
-            int fd = open(cfgn, O_RDONLY, 0);
-            Config.Attach(fd);
-            break;
-         }
-         case 'v': {
-            verbose = true;
-            break;
-         }
-         default: {
-            printf("%s", usage);
-            exit(1);
-         }
+      case 'c':
+      {
+         cfgn = Spec.getarg();
+         int fd = open(cfgn, O_RDONLY, 0);
+         Config.Attach(fd);
+         break;
+      }
+      case 'v':
+      {
+         verbose = true;
+         break;
+      }
+      default:
+      {
+         printf("%s", usage);
+         exit(1);
+      }
       }
    }
 
 
    // suppress oss init messages
-   int efs = open("/dev/null",O_RDWR, 0); 
+   int efs = open("/dev/null",O_RDWR, 0);
    XrdSysLogger ossLog(efs);
    XrdSysError ossErr(&ossLog, "print");
-   XrdOss *oss; 
+   XrdOss *oss;
    XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(cfgn,&Config,&ossErr);
    bool ossSucc = ofsCfg->Load(XrdOfsConfigPI::theOssLib);
-   if (!ossSucc) {
+   if (! ossSucc)
+   {
       printf("can't load oss\n");
       exit(1);
    }
    ofsCfg->Plugin(oss);
 
    const char* path = Spec.getarg();
-   if (!path) {
+   if (! path)
+   {
       printf("%s", usage);
       exit(1);
    }
 
    // append oss.localroot if path starts with 'root://'
-   if (!strncmp(&path[0], "root:/", 6)) {
-      if (Config.FDNum() < 0) {
+   if (! strncmp(&path[0], "root:/", 6))
+   {
+      if (Config.FDNum() < 0)
+      {
          printf("Configuration file not specified.\n");
          exit(1);
       }
@@ -227,18 +246,17 @@ int main(int argc, char *argv[])
       while((var = Config.GetFirstWord()))
       {
          // printf("var %s \n", var);
-         if (!strncmp(var,"oss.localroot", strlen("oss.localroot")))
+         if (! strncmp(var,"oss.localroot", strlen("oss.localroot")))
          {
             std::string tmp = Config.GetWord();
             tmp += &path[6];
-            // printf("Absolute path %s \n", tmp.c_str());  
+            // printf("Absolute path %s \n", tmp.c_str());
             XrdFileCache::Print p(oss, verbose, tmp.c_str());
          }
       }
    }
-   else {
-       XrdFileCache::Print p(oss, verbose, path);
+   else
+   {
+      XrdFileCache::Print p(oss, verbose, path);
    }
 }
-
-

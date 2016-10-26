@@ -37,56 +37,56 @@ using namespace XrdFileCache;
 
 //______________________________________________________________________________
 IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cache & cache)
-   : IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_infoFile(0)
+    : IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_infoFile(0)
 {
-   m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
-   GetBlockSizeFromPath();
-   initLocalStat();
-   if (m_infoFile) m_info.WriteIOStatAttach();
+    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
+    GetBlockSizeFromPath();
+    initLocalStat();
+    if (m_infoFile) m_info.WriteIOStatAttach();
 }
 
 //______________________________________________________________________________
 XrdOucCacheIO* IOFileBlock::Detach()
 {
-   // this is called when this IO is no longer active
-   XrdOucCacheIO * io = GetInput();
+    // this is called when this IO is no longer active
+    XrdOucCacheIO * io = GetInput();
 
-   while (!m_blocks.empty())
-   {
-      std::map<int, File*>::iterator it = m_blocks.begin();
-      m_cache.Detach(it->second);
-      m_blocks.erase(it);
-   }
-   delete this;
-   
-   return io;
+    while (! m_blocks.empty())
+    {
+        std::map<int, File*>::iterator it = m_blocks.begin();
+        m_cache.Detach(it->second);
+        m_blocks.erase(it);
+    }
+    delete this;
+
+    return io;
 }
 
 //______________________________________________________________________________
 void IOFileBlock::CloseInfoFile()
 {
-   // write access statistics to info file and close it
-   // detach time is needed for file purge
-   if (m_infoFile)
-   {
-       if (m_info.GetFileSize() > 0)
-       {
-           Stats as;
-           m_info.WriteIOStatDetach(as);
-       }
-       m_infoFile->Fsync();
-       m_infoFile->Close();
+    // write access statistics to info file and close it
+    // detach time is needed for file purge
+    if (m_infoFile)
+    {
+        if (m_info.GetFileSize() > 0)
+        {
+            Stats as;
+            m_info.WriteIOStatDetach(as);
+        }
+        m_infoFile->Fsync();
+        m_infoFile->Close();
 
-       delete m_infoFile;
-       m_infoFile = 0;
-   }
+        delete m_infoFile;
+        m_infoFile = 0;
+    }
 }
 
 //______________________________________________________________________________
 void IOFileBlock::GetBlockSizeFromPath()
 {
     const static std::string tag = "hdfsbsize=";
-    std::string path= GetInput()->Path();
+    std::string path = GetInput()->Path();
     size_t pos1 = path.find(tag);
     size_t t = tag.length();
     if ( pos1 != path.npos)
@@ -98,9 +98,10 @@ void IOFileBlock::GetBlockSizeFromPath()
             std::string bs = path.substr(pos1, pos2 - pos1);
             m_blocksize = atoi(bs.c_str());
         }
-       else {
+        else
+        {
             m_blocksize = atoi(path.substr(pos1).c_str());
-       }
+        }
 
         TRACEIO(Debug, "FileBlock::GetBlockSizeFromPath(), blocksize = " <<  m_blocksize );
     }
@@ -109,35 +110,35 @@ void IOFileBlock::GetBlockSizeFromPath()
 //______________________________________________________________________________
 File* IOFileBlock::newBlockFile(long long off, int blocksize)
 {
-   XrdCl::URL url(GetInput()->Path());
-   std::string fname = url.GetPath();
+    XrdCl::URL url(GetInput()->Path());
+    std::string fname = url.GetPath();
 
-   std::stringstream ss;
-   ss << fname;
-   char offExt[64];
-   // filename like <origpath>___<size>_<offset>
-   sprintf(&offExt[0],"___%lld_%lld", m_blocksize, off );
-   ss << &offExt[0];
-   fname = ss.str();
+    std::stringstream ss;
+    ss << fname;
+    char offExt[64];
+    // filename like <origpath>___<size>_<offset>
+    sprintf(&offExt[0],"___%lld_%lld", m_blocksize, off );
+    ss << &offExt[0];
+    fname = ss.str();
 
-   TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
+    TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
 
-   File* file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
-   if (!file)
-   {
-      file = new File(this, fname, off, blocksize);
-      Cache::GetInstance().AddActive(file);
-   }
+    File* file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
+    if (! file)
+    {
+        file = new File(this, fname, off, blocksize);
+        Cache::GetInstance().AddActive(file);
+    }
 
-   return file;
+    return file;
 }
 
 //______________________________________________________________________________
 int IOFileBlock::Fstat(struct stat &sbuff)
 {
-   // local stat is create in constructor. if file was on disk before
-   // attach that the only way stat was not successful is becuse there
-   // were info file read errors
+    // local stat is create in constructor. if file was on disk before
+    // attach that the only way stat was not successful is becuse there
+    // were info file read errors
     if ( ! m_localStat) return -1;
 
     memcpy(&sbuff, m_localStat, sizeof(struct stat));
@@ -147,215 +148,215 @@ int IOFileBlock::Fstat(struct stat &sbuff)
 //______________________________________________________________________________
 long long IOFileBlock::FSize()
 {
-   if ( ! m_localStat) return -1;
-   
-   return m_localStat->st_size;
+    if ( ! m_localStat) return -1;
+
+    return m_localStat->st_size;
 }
 
 //______________________________________________________________________________
 int IOFileBlock::initLocalStat()
 {
-   XrdCl::URL url(GetPath());
-   std::string path = url.GetPath();
-   path += ".cinfo";
+    XrdCl::URL url(GetPath());
+    std::string path = url.GetPath();
+    path += ".cinfo";
 
-   int res = -1;
-   struct stat tmpStat;
-   XrdOucEnv myEnv; 
+    int res = -1;
+    struct stat tmpStat;
+    XrdOucEnv myEnv;
 
-   // try to read from existing file
-   if (m_cache.GetOss()->Stat(path.c_str(), &tmpStat) == XrdOssOK)
-   {
-      m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str()); 
-      if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
-      {
-         if (m_info.Read(m_infoFile, path))
-         {
-            tmpStat.st_size = m_info.GetFileSize();
-            TRACEIO(Info, "IOFileBlock::initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
-            res = 0;
-         }
-         else
-         {
-            // file exist but can't read it
-            TRACEIO(Error, "IOFileBlock::initCachedStat failed to read file size from info file");
-         }
-      }
-   }
-
-   // if there is no local info file, try to read from client and then save stat into a new *cinfo file
-   if (res)
-   {
-      if (m_infoFile) { delete m_infoFile; m_infoFile = 0; }
-
-      res = GetInput()->Fstat(tmpStat);
-      TRACEIO(Debug, "IOFileBlock::initCachedStat get stat from client res= " << res << "size = " << tmpStat.st_size);
-      if (res == 0)
-      {
-         if (m_cache.GetOss()->Create(m_cache.RefConfiguration().m_username.c_str(), path.c_str(), 0600, myEnv, XRDOSS_mkpath) ==  XrdOssOK)
-         {
-            m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
-            if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
+    // try to read from existing file
+    if (m_cache.GetOss()->Stat(path.c_str(), &tmpStat) == XrdOssOK)
+    {
+        m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
+        if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
+        {
+            if (m_info.Read(m_infoFile, path))
             {
-               // This is writing the top-level cinfo
-               // The info file is used to get file size on defer open
-               // don't initalize buffer, it does not hold useful information in this case
-               m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
-               m_info.DisableDownloadStatus();
-               m_info.SetFileSize(tmpStat.st_size);
-               m_info.Write(m_infoFile, path);
-               m_infoFile->Fsync();
+                tmpStat.st_size = m_info.GetFileSize();
+                TRACEIO(Info, "IOFileBlock::initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
+                res = 0;
             }
             else
             {
-               TRACEIO(Error, "IOFileBlock::initCachedStat can't open info file path");
+                // file exist but can't read it
+                TRACEIO(Error, "IOFileBlock::initCachedStat failed to read file size from info file");
             }
-         }
-         else
-         {
-            TRACEIO(Error, "IOFileBlock::initCachedStat can't create info file path");
-         }
-      }
-   }
+        }
+    }
 
-   if (res == 0) 
-   {
-      m_localStat = new struct stat;
-      memcpy(m_localStat, &tmpStat, sizeof(struct stat));
-   }
+    // if there is no local info file, try to read from client and then save stat into a new *cinfo file
+    if (res)
+    {
+        if (m_infoFile) { delete m_infoFile; m_infoFile = 0; }
 
-   return res;
+        res = GetInput()->Fstat(tmpStat);
+        TRACEIO(Debug, "IOFileBlock::initCachedStat get stat from client res= " << res << "size = " << tmpStat.st_size);
+        if (res == 0)
+        {
+            if (m_cache.GetOss()->Create(m_cache.RefConfiguration().m_username.c_str(), path.c_str(), 0600, myEnv, XRDOSS_mkpath) ==  XrdOssOK)
+            {
+                m_infoFile = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
+                if (m_infoFile->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
+                {
+                    // This is writing the top-level cinfo
+                    // The info file is used to get file size on defer open
+                    // don't initalize buffer, it does not hold useful information in this case
+                    m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
+                    m_info.DisableDownloadStatus();
+                    m_info.SetFileSize(tmpStat.st_size);
+                    m_info.Write(m_infoFile, path);
+                    m_infoFile->Fsync();
+                }
+                else
+                {
+                    TRACEIO(Error, "IOFileBlock::initCachedStat can't open info file path");
+                }
+            }
+            else
+            {
+                TRACEIO(Error, "IOFileBlock::initCachedStat can't create info file path");
+            }
+        }
+    }
+
+    if (res == 0)
+    {
+        m_localStat = new struct stat;
+        memcpy(m_localStat, &tmpStat, sizeof(struct stat));
+    }
+
+    return res;
 }
 
 //______________________________________________________________________________
 void IOFileBlock::RelinquishFile(File* f)
 {
-   // called from Cache::Detach() or Cache::GetFileWithLocalPath()
-   // the object is in process of dying
+    // called from Cache::Detach() or Cache::GetFileWithLocalPath()
+    // the object is in process of dying
 
-   XrdSysMutexHelper lock(&m_mutex);
-   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
-   {
-      if (it->second == f)
-      {
-         m_blocks.erase(it);
-         break;
-      }
-   }
+    XrdSysMutexHelper lock(&m_mutex);
+    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+    {
+        if (it->second == f)
+        {
+            m_blocks.erase(it);
+            break;
+        }
+    }
 }
 
 //______________________________________________________________________________
 bool IOFileBlock::ioActive()
 {
-   CloseInfoFile();
+    CloseInfoFile();
 
-   XrdSysMutexHelper lock(&m_mutex);
-   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
-   {
-      if (it->second->ioActive())
-         return true;
-   }
+    XrdSysMutexHelper lock(&m_mutex);
+    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+    {
+        if (it->second->ioActive())
+            return true;
+    }
 
-   return false;
+    return false;
 }
 
 //______________________________________________________________________________
 int IOFileBlock::Read(char *buff, long long off, int size)
 {
-   // protect from reads over the file size
+    // protect from reads over the file size
 
-   long long fileSize = FSize();
+    long long fileSize = FSize();
 
-   if (off >= fileSize)
-      return 0;
-   if (off < 0)
-   {
-      errno = EINVAL;
-      return -1;
-   }
-   if (off + size > fileSize)
-      size = fileSize - off;
+    if (off >= fileSize)
+        return 0;
+    if (off < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    if (off + size > fileSize)
+        size = fileSize - off;
 
-   long long off0 = off;
-   int idx_first = off0/m_blocksize;
-   int idx_last = (off0 + size - 1) / m_blocksize;
-   int bytes_read = 0;
-   TRACEIO(Dump, "IOFileBlock::Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
+    long long off0 = off;
+    int idx_first = off0/m_blocksize;
+    int idx_last = (off0 + size - 1) / m_blocksize;
+    int bytes_read = 0;
+    TRACEIO(Dump, "IOFileBlock::Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
 
-   for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
-   {
-      // locate block
-      File* fb;
-      m_mutex.Lock();
-      std::map<int, File*>::iterator it = m_blocks.find(blockIdx);
-      if (it != m_blocks.end())
-      {
-         fb = it->second;
-      }
-      else
-      {
-         size_t pbs = m_blocksize;
-         // check if this is last block
-         int lastIOFileBlock = (fileSize-1)/m_blocksize;
-         if (blockIdx == lastIOFileBlock )
-         {
-            pbs = fileSize - blockIdx*m_blocksize;
-            // TRACEIO(Dump, "IOFileBlock::Read() last block, change output file size to " << pbs);
-         }
+    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
+    {
+        // locate block
+        File* fb;
+        m_mutex.Lock();
+        std::map<int, File*>::iterator it = m_blocks.find(blockIdx);
+        if (it != m_blocks.end())
+        {
+            fb = it->second;
+        }
+        else
+        {
+            size_t pbs = m_blocksize;
+            // check if this is last block
+            int lastIOFileBlock = (fileSize-1)/m_blocksize;
+            if (blockIdx == lastIOFileBlock )
+            {
+                pbs = fileSize - blockIdx*m_blocksize;
+                // TRACEIO(Dump, "IOFileBlock::Read() last block, change output file size to " << pbs);
+            }
 
-         fb = newBlockFile(blockIdx*m_blocksize, pbs);
-         m_blocks.insert(std::pair<int,File*>(blockIdx, (File*) fb));
-      }
-      m_mutex.UnLock();
+            fb = newBlockFile(blockIdx*m_blocksize, pbs);
+            m_blocks.insert(std::pair<int,File*>(blockIdx, (File*) fb));
+        }
+        m_mutex.UnLock();
 
-      // edit size if read request is reaching more than a block
-      int readBlockSize = size;
-      if (idx_first != idx_last)
-      {
-         if (blockIdx == idx_first)
-         {
-            readBlockSize = (blockIdx + 1) *m_blocksize - off0;
-            TRACEIO(Dump, "Read partially till the end of the block");
-         }
-         else if (blockIdx == idx_last)
-         {
-            readBlockSize = (off0+size) - blockIdx*m_blocksize;
-            TRACEIO(Dump, "Read partially till the end of the block %s");
-         }
-         else
-         {
-            readBlockSize = m_blocksize;
-         }
-      }
-      // MT-XXXX
-      assert(readBlockSize);
+        // edit size if read request is reaching more than a block
+        int readBlockSize = size;
+        if (idx_first != idx_last)
+        {
+            if (blockIdx == idx_first)
+            {
+                readBlockSize = (blockIdx + 1) *m_blocksize - off0;
+                TRACEIO(Dump, "Read partially till the end of the block");
+            }
+            else if (blockIdx == idx_last)
+            {
+                readBlockSize = (off0+size) - blockIdx*m_blocksize;
+                TRACEIO(Dump, "Read partially till the end of the block %s");
+            }
+            else
+            {
+                readBlockSize = m_blocksize;
+            }
+        }
+        // MT-XXXX
+        assert(readBlockSize);
 
-      TRACEIO(Dump, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
+        TRACEIO(Dump, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
-      long long min = blockIdx * m_blocksize;
-      if ( off < min) { assert(0); }  // MT-XXXX
-      // MT-XXXX
-      assert(off+readBlockSize <= (min + m_blocksize));
-      int retvalBlock = fb->Read(buff, off, readBlockSize);
+        long long min = blockIdx * m_blocksize;
+        if ( off < min) { assert(0); } // MT-XXXX
+        // MT-XXXX
+        assert(off+readBlockSize <= (min + m_blocksize));
+        int retvalBlock = fb->Read(buff, off, readBlockSize);
 
-      TRACEIO(Dump, "IOFileBlock::Read()  Block read returned " << retvalBlock);
-      if (retvalBlock == readBlockSize)
-      {
-         bytes_read += retvalBlock;
-         buff += retvalBlock;
-         off += retvalBlock;
-      }
-      else if (retvalBlock > 0)
-      {
-         TRACEIO(Warning, "IOFileBlock::Read() incomplete read, missing bytes " << readBlockSize-retvalBlock);
-         return bytes_read + retvalBlock;
-      }
-      else
-      {
-         TRACEIO(Error, "IOFileBlock::Read() read error, retval" << retvalBlock);
-         return retvalBlock;
-      }
-   }
+        TRACEIO(Dump, "IOFileBlock::Read()  Block read returned " << retvalBlock);
+        if (retvalBlock == readBlockSize)
+        {
+            bytes_read += retvalBlock;
+            buff += retvalBlock;
+            off += retvalBlock;
+        }
+        else if (retvalBlock > 0)
+        {
+            TRACEIO(Warning, "IOFileBlock::Read() incomplete read, missing bytes " << readBlockSize-retvalBlock);
+            return bytes_read + retvalBlock;
+        }
+        else
+        {
+            TRACEIO(Error, "IOFileBlock::Read() read error, retval" << retvalBlock);
+            return retvalBlock;
+        }
+    }
 
-   return bytes_read;
+    return bytes_read;
 }

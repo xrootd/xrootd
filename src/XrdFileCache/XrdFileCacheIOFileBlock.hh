@@ -30,59 +30,59 @@ class XrdOssDF;
 
 namespace XrdFileCache
 {
-   //----------------------------------------------------------------------------
-   //! \brief Downloads original file into multiple files, chunked into
-   //! blocks. Only blocks that are asked for are downloaded.
-   //! Handles read requests as they come along.
-   //----------------------------------------------------------------------------
-   class IOFileBlock : public IO
-   {
-      public:
-         //------------------------------------------------------------------------
-         //! Constructor.
-         //------------------------------------------------------------------------
-         IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
+//----------------------------------------------------------------------------
+//! \brief Downloads original file into multiple files, chunked into
+//! blocks. Only blocks that are asked for are downloaded.
+//! Handles read requests as they come along.
+//----------------------------------------------------------------------------
+class IOFileBlock : public IO
+{
+public:
+    //------------------------------------------------------------------------
+    //! Constructor.
+    //------------------------------------------------------------------------
+    IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
 
-         //------------------------------------------------------------------------
-         //! Destructor.
-         //------------------------------------------------------------------------
-         ~IOFileBlock(){}
+    //------------------------------------------------------------------------
+    //! Destructor.
+    //------------------------------------------------------------------------
+    ~IOFileBlock(){}
 
-         //---------------------------------------------------------------------
-         //! Detach from Cache. Note: this will delete the object.
-         //!
-         //! @return original source \ref XrdPosixFile
-         //---------------------------------------------------------------------
-         virtual XrdOucCacheIO *Detach();
+    //---------------------------------------------------------------------
+    //! Detach from Cache. Note: this will delete the object.
+    //!
+    //! @return original source \ref XrdPosixFile
+    //---------------------------------------------------------------------
+    virtual XrdOucCacheIO *Detach();
 
-         //---------------------------------------------------------------------
-         //! Pass Read request to the corresponding File object.
-         //---------------------------------------------------------------------
-         virtual int Read(char *Buffer, long long Offset, int Length);
+    //---------------------------------------------------------------------
+    //! Pass Read request to the corresponding File object.
+    //---------------------------------------------------------------------
+    virtual int Read(char *Buffer, long long Offset, int Length);
 
-         //! \brief Virtual method of XrdOucCacheIO. 
-         //! Called to check if destruction needs to be done in a separate task.
-         virtual bool ioActive();
+    //! \brief Virtual method of XrdOucCacheIO.
+    //! Called to check if destruction needs to be done in a separate task.
+    virtual bool ioActive();
 
-         virtual int  Fstat(struct stat &sbuff);
-         
-         virtual long long FSize();
+    virtual int  Fstat(struct stat &sbuff);
 
-         virtual void RelinquishFile(File*);
+    virtual long long FSize();
 
-      private:
-         long long                  m_blocksize; //!< size of file-block
-         std::map<int, File*>       m_blocks;    //!< map of created blocks
-         XrdSysMutex                m_mutex;     //!< map mutex
-         struct stat               *m_localStat;
-         Info                       m_info; 
-         XrdOssDF*                  m_infoFile;
+    virtual void RelinquishFile(File*);
 
-         void GetBlockSizeFromPath();
-         int initLocalStat();
-         File* newBlockFile(long long off, int blocksize);
-         void  CloseInfoFile();
-   };
+private:
+    long long m_blocksize;                       //!< size of file-block
+    std::map<int, File*>       m_blocks;         //!< map of created blocks
+    XrdSysMutex m_mutex;                         //!< map mutex
+    struct stat               *m_localStat;
+    Info m_info;
+    XrdOssDF*                  m_infoFile;
+
+    void GetBlockSizeFromPath();
+    int initLocalStat();
+    File* newBlockFile(long long off, int blocksize);
+    void  CloseInfoFile();
+};
 }
 
 #endif

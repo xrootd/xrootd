@@ -25,30 +25,30 @@ namespace XrdFileCache
 {
 class Print {
 public:
-   //------------------------------------------------------------------------
-   //! Constructor.
-   //------------------------------------------------------------------------
-   Print(XrdOss* oss, bool v, const char* path);
+    //------------------------------------------------------------------------
+    //! Constructor.
+    //------------------------------------------------------------------------
+    Print(XrdOss* oss, bool v, const char* path);
 
 private:
-   XrdOss*     m_oss;      //! file system
-   XrdOucEnv   m_env;      //! env used by file system
-   bool        m_verbose;  //! print each block
-   const char* m_ossUser;  //! file system user
+    XrdOss*     m_oss;     //! file system
+    XrdOucEnv m_env;       //! env used by file system
+    bool m_verbose;        //! print each block
+    const char* m_ossUser; //! file system user
 
-   //---------------------------------------------------------------------
-   //! Check file ends with *.cinfo suffix
-   //---------------------------------------------------------------------
-   bool isInfoFile(const char* path);
+    //---------------------------------------------------------------------
+    //! Check file ends with *.cinfo suffix
+    //---------------------------------------------------------------------
+    bool isInfoFile(const char* path);
 
-   //---------------------------------------------------------------------
-   //! Print information in meta-data file
-   //---------------------------------------------------------------------
-   void printFile(const std::string& path);
+    //---------------------------------------------------------------------
+    //! Print information in meta-data file
+    //---------------------------------------------------------------------
+    void printFile(const std::string& path);
 
-   //---------------------------------------------------------------------
-   //! Print information in meta-data file recursivly
-   //---------------------------------------------------------------------
-   void printDir(XrdOssDF* iOssDF, const std::string& path);
+    //---------------------------------------------------------------------
+    //! Print information in meta-data file recursivly
+    //---------------------------------------------------------------------
+    void printDir(XrdOssDF* iOssDF, const std::string& path);
 };
 }

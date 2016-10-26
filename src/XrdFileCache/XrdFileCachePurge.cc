@@ -9,47 +9,47 @@ using namespace XrdFileCache;
 
 namespace
 {
-   class FPurgeState
+class FPurgeState
+{
+public:
+struct FS
+{
+   std::string path;
+   long long nByte;
+
+   FS(const char* p, long long n) : path(p), nByte(n) {}
+};
+
+typedef std::multimap<time_t, FS> map_t;
+typedef map_t::iterator map_i;
+
+FPurgeState(long long iNByteReq) : nByteReq(iNByteReq), nByteAccum(0) {}
+
+map_t fmap;
+
+void checkFile (time_t iTime, const char* iPath,  long long iNByte)
+{
+   if (nByteAccum < nByteReq || iTime < fmap.rbegin()->first)
    {
-   public:
-      struct FS
+      fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNByte)));
+      nByteAccum += iNByte;
+
+      // remove newest files from map if necessary
+      while (nByteAccum > nByteReq)
       {
-         std::string path;
-         long long   nByte;
-
-         FS(const char* p, long long n) : path(p), nByte(n) {}
-      };
-
-      typedef std::multimap<time_t, FS> map_t;
-      typedef map_t::iterator map_i;
-
-      FPurgeState(long long iNByteReq) : nByteReq(iNByteReq), nByteAccum(0) {}
-
-      map_t fmap;
-
-      void checkFile (time_t iTime, const char* iPath,  long long iNByte)
-      {
-         if (nByteAccum < nByteReq || iTime < fmap.rbegin()->first)
-         {
-            fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNByte)));
-            nByteAccum += iNByte;
-
-            // remove newest files from map if necessary
-            while (nByteAccum > nByteReq)
-            {
-               time_t nt = fmap.begin()->first;
-               std::pair<map_i, map_i> ret = fmap.equal_range(nt); 
-               for (map_i it2 = ret.first; it2 != ret.second; ++it2)
-                  nByteAccum -= it2->second.nByte;
-               fmap.erase(ret.first, ret.second);
-            }
-         }
+         time_t nt = fmap.begin()->first;
+         std::pair<map_i, map_i> ret = fmap.equal_range(nt);
+         for (map_i it2 = ret.first; it2 != ret.second; ++it2)
+            nByteAccum -= it2->second.nByte;
+         fmap.erase(ret.first, ret.second);
       }
+   }
+}
 
-   private:
-      long long nByteReq;
-      long long nByteAccum;
-   };
+private:
+long long nByteReq;
+long long nByteAccum;
+};
 
 XrdOucTrace* GetTrace()
 {
@@ -115,7 +115,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                      // This really shouldn't happen ... but if it does remove cinfo and the data file right away.
 
                      TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np
-                           << "; purging.");
+                                                                                          << "; purging.");
                      oss->Unlink(np.c_str());
                      np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
                      oss->Unlink(np.c_str());
@@ -125,7 +125,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
             else
             {
                TRACE(Warning, "FillFileMapRecurse() can't open or read " << np << ", err " << strerror(errno)
-                     << "; purging.");
+                                                                         << "; purging.");
                XrdOss* oss = Cache::GetInstance().GetOss();
                oss->Unlink(np.c_str());
                np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
@@ -145,7 +145,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
 }
 void Cache::CacheDirCleanup()
 {
-   XrdOucEnv    env;
+   XrdOucEnv env;
    XrdOss*      oss = Cache::GetInstance().GetOss();
    XrdOssVSInfo sP;
 
@@ -180,16 +180,16 @@ void Cache::CacheDirCleanup()
             FillFileMapRecurse(dh, "", purgeState);
 
             // loop over map and remove files with highest value of access time
-            struct stat  fstat;
+            struct stat fstat;
             for (FPurgeState::map_i it = purgeState.fmap.begin(); it != purgeState.fmap.end(); ++it)
             {
 
                std::string infoPath = it->second.path;
                std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::m_infoExtension));
 
-               if (HaveActiveFileWithLocalPath(dataPath)) 
-                   continue;
-               
+               if (HaveActiveFileWithLocalPath(dataPath))
+                  continue;
+
                // remove info file
                if (oss->Stat(infoPath.c_str(), &fstat) == XrdOssOK)
                {
@@ -212,8 +212,8 @@ void Cache::CacheDirCleanup()
                   break;
             }
          }
-	 dh->Close();
-	 delete dh; dh = 0;
+         dh->Close();
+         delete dh; dh = 0;
       }
 
       sleep(m_configuration.m_purgeInterval);
