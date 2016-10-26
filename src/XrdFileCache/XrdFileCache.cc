@@ -99,13 +99,6 @@ Cache &Cache::GetInstance()
    return *m_factory;
 }
 
-// !AMT will be obsolete in future
-XrdOucCache *Cache::Create(Parms & parms, XrdOucCacheIO::aprParms * prParms)
-{
-   return this;
-}
-
-
 //______________________________________________________________________________
 
 bool Cache::Decide(XrdOucCacheIO* io)

@@ -112,9 +112,6 @@ public:
    virtual int isAttached();
 
    //---------------------------------------------------------------------
-   // this is an obsolete method
-   virtual XrdOucCache* Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*);
-
    // Virtual function of XrdOucCache2. Used for deferred open.
    virtual int  Prepare(const char *url, int oflags, mode_t mode);
 
