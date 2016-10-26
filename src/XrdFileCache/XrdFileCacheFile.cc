@@ -757,6 +757,10 @@ void File::WriteBlockToDisk(Block* b)
       XrdSysCondVarHelper _lck(m_downloadCond);
 
       m_cfi.SetBitWritten(pfIdx);
+
+      if (b->m_prefetch)
+         m_cfi.SetBitPrefetch();
+      
       // clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() dec_ref_count %d %s", pfIdx, lPath());
       dec_ref_count(b);
 

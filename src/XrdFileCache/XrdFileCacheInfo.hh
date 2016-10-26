@@ -261,14 +261,16 @@ inline bool Info::TestBit(int i) const
     return (m_buff_written[cn] & cfiBIT(off)) == cfiBIT(off);
 }
 
-// AMT  could have only one function to test bit and pass an argument, but would loose clarity
+
 inline bool Info::TestPrefetchBit(int i) const
 {
+   if (m_buff_prefetch) return false;
+   
     const int cn = i/8;
     assert(cn < GetSizeInBytes());
 
     const int off = i - cn*8;
-    return (m_buff_written[cn] & cfiBIT(off)) == cfiBIT(off);
+    return (m_buff_prefetch[cn] & cfiBIT(off)) == cfiBIT(off);
 }
 
 inline int Info::GetNDownloadedBlocks() const
