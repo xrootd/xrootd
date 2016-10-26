@@ -378,6 +378,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Secure the message if necessary
       //------------------------------------------------------------------------
+      delete pSignature; pSignature = 0;
       XRootDStatus st = GetSignature( pOutgoing, pSignature );
       if( !st.IsOK() )
       {
@@ -521,7 +522,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Write the message and its signature
   //----------------------------------------------------------------------------
-  Status AsyncSocketHandler::WriteSignedMessage( Message *toWrite, Message *sign )
+  Status AsyncSocketHandler::WriteSignedMessage( Message *toWrite, Message *&sign )
   {
     if( !sign ) return WriteCurrentMessage( toWrite );
 

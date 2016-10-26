@@ -1206,15 +1206,6 @@ namespace XrdCl
     if( pSecUnloadHandler->unloaded ) return Status( stError, errInvalidOp );
 
     ClientRequest *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
-    if( sign )
-    {
-      SecurityRequest *sec = reinterpret_cast<SecurityRequest*>( sign->GetBuffer() );
-      kXR_unt16 reqid = ntohs( thereq->header.requestid );
-      kXR_unt16 expid = ntohs( sec->sigver.expectrid );
-      if( expid == reqid ) return Status(); // it's the correct signature for the request
-      delete sign; sign = 0; // otherwise delete the signature
-    }
-
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
     if( !info ) return Status( stError, errInternal );

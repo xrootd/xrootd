@@ -149,7 +149,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Write the message and its signature
       //------------------------------------------------------------------------
-      Status WriteSignedMessage( Message *toWrite, Message *sign );
+      Status WriteSignedMessage( Message *toWrite, Message *&sign );
 
       //------------------------------------------------------------------------
       // Got a read readiness event
