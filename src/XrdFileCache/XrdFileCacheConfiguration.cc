@@ -243,7 +243,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                         "       pfc.trace %d",
                         config_filename,
                         m_configuration.m_bufferSize,
-                        m_configuration.m_prefetch_max_blocks, // AMT not sure what parsing should be
+                        m_configuration.m_prefetch_max_blocks,
                         rg,
                         m_configuration.m_diskUsageLWM,
                         m_configuration.m_diskUsageHWM,

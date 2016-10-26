@@ -187,7 +187,7 @@ Cache::AddWriteTask(Block* b, bool fromRead)
    if (fromRead)
       m_writeQ.queue.push_back(b);
    else
-      m_writeQ.queue.push_front(b); // AMT should this not be the opposite
+      m_writeQ.queue.push_front(b);
    m_writeQ.size++;
    m_writeQ.condVar.Signal();
    m_writeQ.condVar.UnLock();
@@ -227,7 +227,7 @@ Cache::ProcessWriteTasks()
       {
          m_writeQ.condVar.Wait();
       }
-      Block* block = m_writeQ.queue.front(); // AMT should not be back ???
+      Block* block = m_writeQ.queue.front();
       m_writeQ.queue.pop_front();
       m_writeQ.size--;
       TRACE(Dump, "Cache::ProcessWriteTasks  for %p " <<  (void*)(block) << " path " << block->m_file->lPath());

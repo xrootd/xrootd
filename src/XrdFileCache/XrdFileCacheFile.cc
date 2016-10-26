@@ -449,7 +449,6 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
          return rs;
       }
 
-      // AMT I think we should exit in this case too
       if (rs != size)
       {
          TRACEF(Error, "File::ReadBlocksFromDisk incomplete size = " <<  rs << " idx = " << *ii);
@@ -550,7 +549,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    {
       for (BlockList_i i = blks_to_process.begin(); i != blks_to_process.end(); ++i)
          dec_ref_count(*i);
-      return -1;   // AMT ???
+      return -1;
    }
 
    ProcessBlockRequests(blks_to_request);
@@ -573,7 +572,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          for (BlockList_i i = blks_to_process.begin(); i!= blks_to_process.end(); ++i )
             dec_ref_count(*i);
          delete direct_handler;
-         return -1;   // AMT ???
+         return -1;
       }
       TRACEF(Dump, "File::Read() direct read finished, size = " << direct_size);
    }
@@ -591,8 +590,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       {
          bytes_read = rc;
          TRACEF(Error, "File::Read() failed read from disk");
-         // AMT commented line below should not be an immediate return, can have block refcount increased and map increased
-         // return rc;
+         return -1;
       }
    }
 
@@ -692,8 +690,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
 
-      // AMT what is stamp block ???
-
       // blks_to_process can be non-empty, if we're exiting with an error.
       std::copy(blks_to_process.begin(), blks_to_process.end(), std::back_inserter(blks_processed));
 
@@ -759,7 +755,7 @@ void File::WriteBlockToDisk(Block* b)
       m_cfi.SetBitWritten(pfIdx);
 
       if (b->m_prefetch)
-         m_cfi.SetBitPrefetch();
+         m_cfi.SetBitPrefetch(pfIdx);
       
       // clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() dec_ref_count %d %s", pfIdx, lPath());
       dec_ref_count(b);
@@ -830,7 +826,7 @@ void File::dec_ref_count(Block* b)
    b->m_refcnt--;
    assert(b->m_refcnt >= 0);
 
-   //AMT ... this is ugly, ... File::Read() can decrease ref count before waiting to be , prefetch starts with refcnt 0
+   // File::Read() can decrease ref count before waiting to be , prefetch starts with refcnt 0
    if (b->m_refcnt == 0 && b->is_finished())
    {
       free_block(b);
@@ -876,14 +872,10 @@ void File::ProcessBlockResponse(Block* b, int res)
    }
    else
    {
-      // AMT how long to keep?
-      // when to retry?
+      // TODO: how long to keep? when to retry?
       TRACEF(Error, "File::ProcessBlockResponse block " << b << "  " << (int)(b->m_offset/BufferSize()) << " error=" << res);
       // XrdPosixMap::Result(*status);
-      // AMT could notfiy global cache we dont need RAM for that block
       b->set_error_and_free(res);
-
-      // ??? AMT how long to keep
       inc_ref_count(b);
    }
 
