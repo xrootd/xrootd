@@ -25,6 +25,12 @@
     %define _with_ceph 1
 %endif
 
+%if %{?fedora}%{!?fedora:0} >= 26
+    %define use_compat_openssl 1
+%else
+    %define use_compat_openssl 0
+%endif
+
 # Remove default rpm python bytecompiling scripts
 %global __os_install_post \
     %(echo '%{__os_install_post}' | \
@@ -57,13 +63,17 @@ BuildRoot: %{_tmppath}/%{name}-root
 BuildRequires: cmake
 BuildRequires: krb5-devel
 BuildRequires: readline-devel
-BuildRequires: openssl-devel
 BuildRequires: fuse-devel
 BuildRequires: libxml2-devel
 BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
 BuildRequires: python-devel
+%if %{use_compat_openssl}
+BuildRequires: compat-openssl10-devel
+%else 
+BuildRequires: openssl-devel
+%endif
 
 BuildRequires: selinux-policy-devel
 
