@@ -31,10 +31,12 @@
 #include "XrdOuc/XrdOucEnv.hh"
 
 class XrdSysPlugin;
+class XrdSecProtect;
 
 namespace XrdCl
 {
   struct XRootDChannelInfo;
+  struct PluginUnloadHandler;
 
   //----------------------------------------------------------------------------
   //! XRootD related protocol queries
@@ -223,6 +225,12 @@ namespace XrdCl
                                 uint32_t   bytesSent,
                                 AnyObject &channelData );
 
+      //------------------------------------------------------------------------
+      //! Get signature for given message
+      //------------------------------------------------------------------------
+      virtual Status GetSignature( Message *toSign, Message *&sign,
+                                   AnyObject &channelData );
+
     private:
 
       //------------------------------------------------------------------------
@@ -305,6 +313,11 @@ namespace XrdCl
       Status CleanUpAuthentication( XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
+      // Clean up the data structures created for the protection purposes
+      //------------------------------------------------------------------------
+      Status CleanUpProtection( XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
       // Get the authentication function handle
       //------------------------------------------------------------------------
       XrdSecGetProt_t GetAuthHandler();
@@ -331,8 +344,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static std::string FileHandleToStr( const unsigned char handle[4] );
 
-      XrdSysPlugin    *pSecLibHandle;
-      XrdSecGetProt_t  pAuthHandler;
+      XrdSecGetProt_t      pAuthHandler;
+
+      friend struct PluginUnloadHandler;
+      PluginUnloadHandler *pSecUnloadHandler;
   };
 }
 

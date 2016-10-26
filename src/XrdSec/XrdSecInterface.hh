@@ -481,6 +481,39 @@ typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *,
 */
  
 /******************************************************************************/
+/*                   X r d S e c G e t P r o t e c t i o n                    */
+/*                                                                            */
+/*                  C l i e n t   S i d e   U s e   O n l y                   */
+/******************************************************************************/
+  
+/*! The XrdSecGetProtection function returns a protection object to secure
+    an XRootD request stream from injection attacks. An object is returned
+    when the response to kXR_protocol request indicates that the server
+    requires that the client secure the connection. This protection is based
+    on the authentication method used. Therefore, authentication must occur
+    before a protection object can be obtained. Usually, a protection object
+    is requested right after authentication. The function description is
+
+    @param  rc      Where an error return code is to be placed.
+    @param  aprot   Uses the authentication protocol to protect requests. It
+                    must be supplied and must be he protocol the client used
+                    for authentication. Hence, authentication must occur first.
+    @param  presp   The protocol value returned in response to kXR_protocol.
+                    The value must be host byte order.
+
+    @return >0      pointer to the protect object placed in protP.
+    @return =0      No protection is needed, protP set to zero.
+    @return <0      An error occured getting the protection object the
+                    return value is -errno and protP has been set to zero.
+
+    Simply declare the following in the place where this is called:
+
+    extern int XrdSecGetProtection(XrdSecProtect *&protP,
+                                   XrdSecProtocol &aprot,
+                                   kXR_int32 presp);
+*/
+
+/******************************************************************************/
 /*                         X r d S e c S e r v i c e                          */
 /*                                                                            */
 /*                  S e r v e r   S i d e   U s e   O n l y                   */

@@ -145,7 +145,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    XrdOucEnv myEnv;
    XrdXrootdXPath *xp;
-   XrdSecGetProt_t secGetProt = 0;
    char *adminp, *rdf, *bP, *tmp, c, buff[1024];
    int i, n, deper = 0;
 
@@ -251,15 +250,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Initialize the security system if this is wanted
 //
-   if (!SecLib) eDest.Say("Config warning: 'xrootd.seclib' not specified;"
-                          " strong authentication disabled!");
-      else {TRACE(DEBUG, "Loading security library " <<SecLib);
-            if (!(CIA = XrdSecLoadSecService(&eDest, pi->ConfigFN,
-                        (strcmp(SecLib,"default") ? SecLib : 0), &secGetProt)))
-               {eDest.Emsg("Config", "Unable to load security system.");
-                return 0;
-               }
-           }
+   if (!ConfigSecurity(myEnv, pi->ConfigFN)) return 0;
 
 // Set up the network for self-identification and display it
 //
@@ -270,7 +261,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    myEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
    myEnv.PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
-   myEnv.PutPtr("XrdSecGetProtocol*", (void *)secGetProt);
    myEnv.PutPtr("XrdScheduler*", Sched);
 
 // Copy over the xrd environment which contains plugin argv's
@@ -367,7 +357,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
       } 
    if (getenv("XRDREDPROXY"))  myRole |=kXR_attrProxy;
-   myRole = htonl(myRole); myRolf = htonl(myRolf);
 
 // Check if we are redirecting anything
 //
@@ -525,6 +514,44 @@ void XrdXrootdProtocol::PidFile()
     if (xop) eDest.Emsg("Config", errno, xop, pidFN);
 }
 
+/******************************************************************************/
+/*                        C o n f i g S e c u r i t y                         */
+/******************************************************************************/
+
+int XrdXrootdProtocol::ConfigSecurity(XrdOucEnv &xEnv, const char *cfn)
+{
+   XrdSecGetProt_t secGetProt = 0;
+
+// Check if we need to loadanything
+//
+   if (!SecLib)
+      {eDest.Say("Config warning: 'xrootd.seclib' not specified;"
+                 " strong authentication disabled!");
+       xEnv.PutPtr("XrdSecGetProtocol*", (void *)0);
+       xEnv.PutPtr("XrdSecProtector*"  , (void *)0);
+       return 1;
+      }
+
+// Blad some debugging info
+//
+   TRACE(DEBUG, "Loading security library " <<SecLib);
+
+// Load the security server
+//
+   if (!(CIA = XrdSecLoadSecService(&eDest, cfn,
+               (strcmp(SecLib,"default") ? SecLib : 0),
+               &secGetProt, &DHS)))
+      {eDest.Emsg("Config", "Unable to load security system.");
+       return 0;
+      }
+
+// Set environmental pointers
+//
+   xEnv.PutPtr("XrdSecGetProtocol*", (void *)secGetProt);
+   xEnv.PutPtr("XrdSecProtector*"  , (void *)DHS);
+   return 1;
+}
+  
 /******************************************************************************/
 /*                                x a s y n c                                 */
 /******************************************************************************/

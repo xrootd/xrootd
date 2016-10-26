@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <cstdlib>
 #include <cstring>
+#include <sys/uio.h>
 
 namespace XrdCl
 {
@@ -431,6 +432,14 @@ namespace XrdCl
 #else
     return ::write( pSocket, buffer, size );
 #endif
+  }
+
+  //------------------------------------------------------------------------
+  // Wrapper around writev
+  //------------------------------------------------------------------------
+  ssize_t Socket::WriteV( iovec *iov, int iovcnt )
+  {
+    return ::writev( pSocket, iov, iovcnt );
   }
 
   //----------------------------------------------------------------------------
