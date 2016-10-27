@@ -70,12 +70,12 @@ struct Configuration
 
    long long m_diskUsageLWM;            //!< cache purge low water mark
    long long m_diskUsageHWM;            //!< cache purge high water mark
-   int m_purgeInterval;                 //!< sleep interval between cache purges
+   int       m_purgeInterval;           //!< sleep interval between cache purges
 
    long long m_bufferSize;              //!< prefetch buffer size, default 1MB
    long long m_RamAbsAvailable;         //!< available from configuration
-   int m_NRamBuffers;                   //!< number of total in-memory cache blocks, cached
-   size_t m_prefetch_max_blocks;        //!< maximum number of blocks to prefetch per file
+   int       m_NRamBuffers;             //!< number of total in-memory cache blocks, cached
+   size_t    m_prefetch_max_blocks;     //!< maximum number of blocks to prefetch per file
 
    long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
 };

@@ -59,12 +59,12 @@ class Block
 {
 public:
    std::vector<char>   m_buff;
-   long long m_offset;
+   long long           m_offset;
    File               *m_file;
-   bool m_prefetch;
-   int m_refcnt;
-   int m_errno;                         // stores negative errno
-   bool m_downloaded;
+   bool                m_prefetch;
+   int                 m_refcnt;
+   int                 m_errno;                         // stores negative errno
+   bool                m_downloaded;
 
    Block(File *f, long long off, int size, bool m_prefetch) :
       m_offset(off), m_file(f), m_prefetch(m_prefetch), m_refcnt(0),
@@ -130,10 +130,11 @@ private:
 
    PrefetchState_e m_prefetchState;
 
-   int m_prefetchReadCnt;
-   int m_prefetchHitCnt;
+   int   m_prefetchReadCnt;
+   int   m_prefetchHitCnt;
    float m_prefetchScore;              //cached
-   bool m_detachTimeIsLogged;
+   
+   bool  m_detachTimeIsLogged;
 
    static const char *m_traceID;
 
