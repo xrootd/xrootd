@@ -138,8 +138,8 @@ void ConfigLog(const char *cFN)
 //
    if (!msgCB)
       {theCB = (XrdSsiLogger::MCB_t **)(myLib->getPlugin("XrdSsiLoggerMCB"));
-       if (!theCB) cerr <<"Config " <<eBuff <<endl;
-          else {msgCB = *theCB;
+       if (!msgCB && !theCB) cerr <<"Config " <<eBuff <<endl;
+          else {if (!msgCB) msgCB = *theCB;
                 myLib->Persist();
                }
       }
