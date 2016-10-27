@@ -53,6 +53,7 @@ struct ReadVChunkListDisk;
 
 namespace XrdFileCache
 {
+
 class File;
 
 class Block
@@ -89,55 +90,40 @@ public:
    }
 };
 
+// ================================================================
+
+class BlockResponseHandler : public XrdOucCacheIOCB
+{
+public:
+   Block *m_block;
+
+   BlockResponseHandler(Block *b) : m_block(b) {}
+
+   virtual void Done(int result);
+};
+
+// ================================================================
+
+class DirectResponseHandler : public XrdOucCacheIOCB
+{
+public:
+   XrdSysCondVar m_cond;
+   int m_to_wait;
+   int m_errno;
+
+   DirectResponseHandler(int to_wait) : m_cond(0), m_to_wait(to_wait), m_errno(0) {}
+
+   bool is_finished() { XrdSysCondVarHelper _lck(m_cond); return m_to_wait == 0; }
+   bool is_ok()       { XrdSysCondVarHelper _lck(m_cond); return m_to_wait == 0 && m_errno == 0; }
+   bool is_failed()   { XrdSysCondVarHelper _lck(m_cond); return m_errno != 0; }
+
+   virtual void Done(int result);
+};
+
+// ================================================================
 
 class File
 {
-private:
-   enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
-
-   bool m_is_open;                      //!< open state
-
-   IO             *m_io;                //!< original data source
-   XrdOssDF       *m_output;            //!< file handle for data file on disk
-   XrdOssDF       *m_infoFile;          //!< file handle for data-info file on disk
-   Info m_cfi;                          //!< download status of file blocks and access statistics
-
-   std::string m_temp_filename;         //!< filename of data file on disk
-   long long m_offset;                  //!< offset of cached file for block-based operation
-   long long m_fileSize;                //!< size of cached disk file for block-based operation
-
-   // fsync
-   XrdJob           *m_syncer;
-   std::vector<int>  m_writes_during_sync;
-   int m_non_flushed_cnt;
-   bool m_in_sync;
-
-   typedef std::list<int>         IntList_t;
-   typedef IntList_t::iterator IntList_i;
-
-   typedef std::list<Block*>      BlockList_t;
-   typedef BlockList_t::iterator BlockList_i;
-
-   typedef std::map<int, Block*>  BlockMap_t;
-   typedef BlockMap_t::iterator BlockMap_i;
-
-
-   BlockMap_t m_block_map;
-
-   XrdSysCondVar m_downloadCond;
-
-   Stats m_stats;                   //!< cache statistics, used in IO detach
-
-   PrefetchState_e m_prefetchState;
-
-   int   m_prefetchReadCnt;
-   int   m_prefetchHitCnt;
-   float m_prefetchScore;              //cached
-   
-   bool  m_detachTimeIsLogged;
-
-   static const char *m_traceID;
-
 public:
    //------------------------------------------------------------------------
    //! Constructor.
@@ -198,7 +184,52 @@ public:
 
    void WakeUp(IO* io);
 
+
 private:
+   enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
+
+   bool m_is_open;                      //!< open state
+
+   IO             *m_io;                //!< original data source
+   XrdOssDF       *m_output;            //!< file handle for data file on disk
+   XrdOssDF       *m_infoFile;          //!< file handle for data-info file on disk
+   Info m_cfi;                          //!< download status of file blocks and access statistics
+
+   std::string    m_temp_filename;      //!< filename of data file on disk
+   long long      m_offset;             //!< offset of cached file for block-based operation
+   long long      m_fileSize;           //!< size of cached disk file for block-based operation
+
+   // fsync
+   XrdJob           *m_syncer;
+   std::vector<int>  m_writes_during_sync;
+   int m_non_flushed_cnt;
+   bool m_in_sync;
+
+   typedef std::list<int>         IntList_t;
+   typedef IntList_t::iterator IntList_i;
+
+   typedef std::list<Block*>      BlockList_t;
+   typedef BlockList_t::iterator BlockList_i;
+
+   typedef std::map<int, Block*>  BlockMap_t;
+   typedef BlockMap_t::iterator BlockMap_i;
+
+
+   BlockMap_t m_block_map;
+
+   XrdSysCondVar m_downloadCond;
+
+   Stats m_stats;                   //!< cache statistics, used in IO detach
+
+   PrefetchState_e m_prefetchState;
+
+   int   m_prefetchReadCnt;
+   int   m_prefetchHitCnt;
+   float m_prefetchScore;              //cached
+   
+   bool  m_detachTimeIsLogged;
+
+   static const char *m_traceID;
    bool overlap(int blk,               // block to query
                 long long blk_size,    //
                 long long req_off,     // offset of user request
@@ -209,6 +240,7 @@ private:
                 long long &size);
    // Read
    Block* PrepareBlockRequest(int i, bool prefetch);
+   
    void   ProcessBlockRequests(BlockList_t& blks);
 
    int    RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
@@ -240,33 +272,6 @@ private:
 };
 
 
-// ================================================================
-
-class BlockResponseHandler : public XrdOucCacheIOCB
-{
-public:
-   Block *m_block;
-
-   BlockResponseHandler(Block *b) : m_block(b) {}
-
-   virtual void Done(int result);
-};
-
-class DirectResponseHandler : public XrdOucCacheIOCB
-{
-public:
-   XrdSysCondVar m_cond;
-   int m_to_wait;
-   int m_errno;
-
-   DirectResponseHandler(int to_wait) : m_cond(0), m_to_wait(to_wait), m_errno(0) {}
-
-   bool is_finished() { XrdSysCondVarHelper _lck(m_cond); return m_to_wait == 0; }
-   bool is_ok()       { XrdSysCondVarHelper _lck(m_cond); return m_to_wait == 0 && m_errno == 0; }
-   bool is_failed()   { XrdSysCondVarHelper _lck(m_cond); return m_errno != 0; }
-
-   virtual void Done(int result);
-};
 
 }
 

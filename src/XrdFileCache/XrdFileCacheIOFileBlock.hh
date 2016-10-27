@@ -71,11 +71,11 @@ public:
    virtual void RelinquishFile(File*);
 
 private:
-   long long m_blocksize;                        //!< size of file-block
+   long long                  m_blocksize;       //!< size of file-block
    std::map<int, File*>       m_blocks;          //!< map of created blocks
-   XrdSysMutex m_mutex;                          //!< map mutex
+   XrdSysMutex                m_mutex;           //!< map mutex
    struct stat               *m_localStat;
-   Info m_info;
+   Info                       m_info;
    XrdOssDF*                  m_infoFile;
 
    void GetBlockSizeFromPath();

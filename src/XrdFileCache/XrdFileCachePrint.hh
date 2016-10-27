@@ -32,8 +32,8 @@ public:
 
 private:
    XrdOss*     m_oss;      //! file system
-   XrdOucEnv m_env;        //! env used by file system
-   bool m_verbose;         //! print each block
+   XrdOucEnv   m_env;      //! env used by file system
+   bool        m_verbose;  //! print each block
    const char* m_ossUser;  //! file system user
 
    //---------------------------------------------------------------------

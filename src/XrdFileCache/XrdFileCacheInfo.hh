@@ -50,8 +50,8 @@ public:
    // !Access statistics
    struct AStat
    {
-      time_t AttachTime;          //! open time
-      time_t DetachTime;          //! close time
+      time_t    AttachTime;       //! open time
+      time_t    DetachTime;       //! close time
       long long BytesDisk;        //! read from disk
       long long BytesRam;         //! read from ram
       long long BytesMissed;      //! read remote client
@@ -60,13 +60,13 @@ public:
    };
 
    struct Store {
-      int m_version;                               //!< info version
-      long long m_bufferSize;                      //!< prefetch buffer size
-      long long m_fileSize;                        //!< number of file blocks
+      int                m_version;                //!< info version
+      long long          m_bufferSize;             //!< prefetch buffer size
+      long long          m_fileSize;               //!< number of file blocks
       unsigned char     *m_buff_synced;            //!< disk written state vector
-      char m_cksum[16];                            //!< cksum of downloaded information
-      time_t m_creationTime;                       //!< time the info file was created
-      int m_accessCnt;                             //!< number of written AStat structs
+      char               m_cksum[16];              //!< cksum of downloaded information
+      time_t             m_creationTime;           //!< time the info file was created
+      int                m_accessCnt;              //!< number of written AStat structs
       std::vector<AStat> m_astats;                 //!< number of last m_maxAcessCnts
 
       Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0),m_creationTime(0), m_accessCnt(0) {}
@@ -104,6 +104,7 @@ public:
    void SetBitPrefetch(int i);
 
    void SetBufferSize(long long);
+   
    void SetFileSize(long long);
 
    //---------------------------------------------------------------------
@@ -226,8 +227,8 @@ public:
 
    const static char* m_infoExtension;
    const static char* m_traceID;
-   const static int m_defaultVersion;
-   const static int m_maxNumAccess;
+   const static int   m_defaultVersion;
+   const static int   m_maxNumAccess;
 
    XrdOucTrace* GetTrace() const {return m_trace; }
 
@@ -236,12 +237,12 @@ public:
 protected:
    XrdOucTrace*   m_trace;
 
-   Store m_store;
-   bool m_hasPrefetchBuffer;                 //!< constains current prefetch score
+   Store          m_store;
+   bool           m_hasPrefetchBuffer;       //!< constains current prefetch score
    unsigned char *m_buff_written;            //!< download state vector
    unsigned char *m_buff_prefetch;           //!< prefetch statistics
 
-   int m_sizeInBits;                        //!cached
+   int m_sizeInBits;                         //!cached
    bool m_complete;                          //!< cached
 
 private:
@@ -357,7 +358,6 @@ inline long long Info::GetBufferSize() const
 {
    return m_store.m_bufferSize;
 }
-
 
 //----------------------------------------------------------------
 // XrdFileCacheInfoBlock
