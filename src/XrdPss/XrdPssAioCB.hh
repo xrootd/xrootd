@@ -1,10 +1,11 @@
-#ifndef __OUC_IOVEC_H__
-#define __OUC_IOVEC_H__
+#ifndef __PSS_AIOCB_HH__
+#define __PSS_AIOCB_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c I O V e c . h h                         */
+/*                        X r d P s s A i o C B . h h                         */
 /*                                                                            */
-/* (c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,31 +30,35 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-//-----------------------------------------------------------------------------
-//! XrdOucIOVec
-//!
-//! The struct defined here is a generic data structure that is used whenever
-//! we need to pass a vector of file offsets, lengths, and the corresponding
-//! target buffer pointers. It is used by the sfs, ofs, and oss components.
-//-----------------------------------------------------------------------------
+#include "XrdPosix/XrdPosixCallBack.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
-struct XrdOucIOVec
+class XrdSfsAio;
+  
+class XrdPssAioCB : public XrdPosixCallBackIO
 {
-       long long offset;    // Offset into the file.
-       int       size;      // Size of I/O to perform.
-       int       info;      // Available for arbitrary use
-       char     *data;      // Location to read into.
-};
+public:
 
-// Add backward compatible constructor to XrdOucIOVec
-//
-struct XrdOucIOVec2 : public XrdOucIOVec
-{
-       XrdOucIOVec2(char *buff, long long offs, int sz, int inf=0)
-                   {XrdOucIOVec::offset = offs;
-                    XrdOucIOVec::size   = sz;
-                    XrdOucIOVec::info   = inf;
-                    XrdOucIOVec::data   = buff;
-                   }
+static XrdPssAioCB  *Alloc(XrdSfsAio *aiop, bool isWr);
+
+virtual void         Complete(ssize_t Result);
+
+        void         Recycle();
+
+static  void         SetMax(int mval) {maxFree = mval;}
+
+private:
+             XrdPssAioCB() : theAIOP(0), isWrite(false) {}
+virtual     ~XrdPssAioCB() {}
+
+static  XrdSysMutex  myMutex;
+static  XrdPssAioCB *freeCB;
+static  int          numFree;
+static  int          maxFree;
+
+union  {XrdSfsAio   *theAIOP;
+        XrdPssAioCB *next;
+       };
+bool                 isWrite;
 };
 #endif

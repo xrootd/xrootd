@@ -42,7 +42,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCache2.hh"
 
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixObject.hh"
@@ -53,68 +53,103 @@
 /******************************************************************************/
 
 class XrdPosixCallBack;
+class XrdPosixPrepIO;
 
 class XrdPosixFile : public XrdPosixObject, 
-                     public XrdOucCacheIO,
+                     public XrdOucCacheIO2,
                      public XrdCl::ResponseHandler,
                      public XrdJob
 {
 public:
 
-XrdOucCacheIO *XCio;
-XrdCl::File    clFile;
+XrdOucCacheIO2 *XCio;
+XrdPosixPrepIO *PrepIO;
+XrdCl::File     clFile;
 
        long long     addOffset(long long offs, int updtSz=0)
-                              {currOffset += offs;
+                              {updMutex.Lock();
+                               currOffset += offs;
                                if (updtSz && currOffset > (long long)mySize)
                                   mySize = currOffset;
-                               return currOffset;
+                               long long retOffset = currOffset;
+                               updMutex.UnLock();
+                               return retOffset;
                               }
 
-static XrdPosixFile *Alloc(const char *path, XrdPosixCallBack *cbP, int Opts);
+//atic XrdPosixFile *Alloc(const char *path, XrdPosixCallBack *cbP, int Opts);
 
 static void*         DelayedDestroy(void*);
 
+static void          DelayedDestroy(XrdPosixFile *fp);
+
        bool          Close(XrdCl::XRootDStatus &Status);
 
-       bool          Finalize(XrdCl::XRootDStatus &Status);
+       bool          Finalize(XrdCl::XRootDStatus *Status);
 
-       long long     FSize() {return static_cast<long long>(mySize);}
+       long long     FSize() {AtomicBeg(updMutex);
+                              long long retSize = AtomicGet(mySize);
+                              AtomicEnd(updMutex);
+                              return retSize;
+                             }
+
+       int           Fstat(struct stat &buf);
+
+       const char   *Location();
 
        void          HandleResponse(XrdCl::XRootDStatus *status,
                                     XrdCl::AnyObject    *response);
 
        void          isOpen();
 
-       long long     Offset() {return currOffset;}
+       void          updLock()   {updMutex.Lock();}
 
-       const char   *Path();
+       void          updUnLock() {updMutex.UnLock();}
+
+       long long     Offset() {AtomicRet(updMutex, currOffset);}
+
+       const char   *Path() {return fPath;}
 
        int           Read (char *Buff, long long Offs, int Len);
 
+       void          Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,
+                           int rlen);
+
        int           ReadV (const XrdOucIOVec *readV, int n);
 
+       void          ReadV (XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV,
+                            int n);
+
        long long     setOffset(long long offs)
-                              {currOffset = offs;
-                               return currOffset;
+                              {updMutex.Lock();
+                               currOffset = offs;
+                               updMutex.UnLock();
+                               return offs;
                               }
 
        bool          Stat(XrdCl::XRootDStatus &Status, bool force=false);
 
        int           Sync() {return XrdPosixMap::Result(clFile.Sync());}
 
+       void          Sync(XrdOucCacheIOCB &iocb);
+
        int           Trunc(long long Offset)
                           {return XrdPosixMap::Result(clFile.Truncate((uint64_t)Offset));}
+
+       void          UpdtSize(size_t newsz)
+                              {updMutex.Lock();
+                               if (newsz > mySize) mySize = newsz;
+                               updMutex.UnLock();
+                              }
 
        using         XrdPosixObject::Who;
 
        bool          Who(XrdPosixFile **fileP)
                           {*fileP = this; return true;}
 
-       int           Write(char *Buff, long long Offs, int Len)
-                          {return XrdPosixMap::Result(clFile.Write((uint64_t)Offs,
-                                                         (uint32_t)Len, Buff));
-                          }
+       int           Write(char *Buff, long long Offs, int Len);
+
+       void          Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
+                           int wlen);
 
        void          DoIt();
 
@@ -124,10 +159,13 @@ static void*         DelayedDestroy(void*);
        ino_t         myInode;
        mode_t        myMode;
 
-static XrdOucCache *CacheR;
-static XrdOucCache *CacheW;
-static char        *sfSFX;
-static int          sfSLN;
+static
+XrdSysSemaphore      ddSem;
+static XrdSysMutex   ddMutex;
+static XrdPosixFile *ddList;
+static char         *sfSFX;
+static int           sfSLN;
+static bool          ddPosted;
 
 static const int realFD = 1;
 static const int isStrm = 2;
@@ -140,10 +178,12 @@ private:
 
 union {long long         currOffset;
        XrdPosixCallBack *theCB;
+       XrdPosixFile     *nextFile;
       };
 
 char       *fPath;
-int         cOpt;
+char       *fLoc;
+union {int  cOpt; int numTries;};
 char        isStream;
 };
 #endif

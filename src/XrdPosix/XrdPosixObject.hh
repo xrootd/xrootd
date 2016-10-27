@@ -32,6 +32,7 @@
 
 #include <sys/types.h>
 
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdPosixDir;
@@ -53,6 +54,21 @@ static  XrdPosixFile *File(int fildes, bool glk=false);
 
 static  int           Init(int numfd);
 
+        void          Lock(bool wr=true)
+                          {if (wr) objMutex.WriteLock();
+                              else objMutex.ReadLock();
+                          }
+
+        void          Ref()    {AtomicBeg(updMutex);
+                                AtomicInc(refCnt);
+                                AtomicEnd(updMutex);
+                               }
+        int           Refs()   {AtomicRet(updMutex, refCnt);}
+        void          unRef()  {AtomicBeg(updMutex);
+                                AtomicDec(refCnt);
+                                AtomicEnd(updMutex);
+                               }
+
 static  void          Release(XrdPosixObject *oP, bool needlk=true);
 
 static  XrdPosixDir  *ReleaseDir( int fildes);
@@ -71,12 +87,14 @@ virtual bool          Who(XrdPosixDir  **dirP)  {return false;}
 
 virtual bool          Who(XrdPosixFile **fileP) {return false;}
 
-                      XrdPosixObject() : fdNum(-1) {}
+                      XrdPosixObject() : fdNum(-1), refCnt(0) {}
 virtual              ~XrdPosixObject() {if (fdNum >= 0) Release(this);}
 
 protected:
+       XrdSysRecMutex   updMutex;
        XrdSysRWLock     objMutex;
        int              fdNum;
+       int              refCnt;
 
 private:
 

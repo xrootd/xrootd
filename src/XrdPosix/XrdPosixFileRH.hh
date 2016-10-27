@@ -1,10 +1,11 @@
-#ifndef __OUC_IOVEC_H__
-#define __OUC_IOVEC_H__
+#ifndef __POSIX_FILERH_HH__
+#define __POSIX_FILERH_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c I O V e c . h h                         */
+/*                      X r d P o s i x F l e R H . h h                       */
 /*                                                                            */
-/* (c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,31 +30,52 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-//-----------------------------------------------------------------------------
-//! XrdOucIOVec
-//!
-//! The struct defined here is a generic data structure that is used whenever
-//! we need to pass a vector of file offsets, lengths, and the corresponding
-//! target buffer pointers. It is used by the sfs, ofs, and oss components.
-//-----------------------------------------------------------------------------
+#include "XrdCl/XrdClFile.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
-struct XrdOucIOVec
-{
-       long long offset;    // Offset into the file.
-       int       size;      // Size of I/O to perform.
-       int       info;      // Available for arbitrary use
-       char     *data;      // Location to read into.
-};
+class XrdOucCacheIOCB;
+class XrdPosixFile;
 
-// Add backward compatible constructor to XrdOucIOVec
-//
-struct XrdOucIOVec2 : public XrdOucIOVec
+/******************************************************************************/
+/*                        X r d P o s i x F i l e R H                         */
+/******************************************************************************/
+  
+class XrdPosixFileRH : public XrdJob,
+                       public XrdCl::ResponseHandler
 {
-       XrdOucIOVec2(char *buff, long long offs, int sz, int inf=0)
-                   {XrdOucIOVec::offset = offs;
-                    XrdOucIOVec::size   = sz;
-                    XrdOucIOVec::info   = inf;
-                    XrdOucIOVec::data   = buff;
-                   }
+public:
+
+enum ioType {nonIO = 0, isRead = 1, isReadV = 2, isWrite = 3};
+
+static XrdPosixFileRH  *Alloc(XrdOucCacheIOCB *cbp, XrdPosixFile *fp,
+                              long long offs, int xResult, ioType typeIO);
+
+        void            DoIt() {theCB->Done(result); Recycle();}
+
+        void            HandleResponse(XrdCl::XRootDStatus *status,
+                                       XrdCl::AnyObject    *response);
+
+        void            Recycle();
+
+static  void            SetMax(int mval) {maxFree = mval;}
+
+        void            Sched(int result);
+
+private:
+             XrdPosixFileRH() : theCB(0),theFile(0),result(0),typeIO(nonIO) {}
+virtual     ~XrdPosixFileRH() {}
+
+static  XrdSysMutex      myMutex;
+static  XrdPosixFileRH  *freeRH;
+static  int              numFree;
+static  int              maxFree;
+
+union  {XrdOucCacheIOCB *theCB;
+        XrdPosixFileRH  *next;
+       };
+XrdPosixFile            *theFile;
+long long                offset;
+int                      result;
+ioType                   typeIO;
 };
 #endif
