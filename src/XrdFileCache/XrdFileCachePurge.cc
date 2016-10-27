@@ -12,43 +12,41 @@ namespace
 class FPurgeState
 {
 public:
-struct FS
-{
-   std::string path;
-   long long nByte;
-
-   FS(const char* p, long long n) : path(p), nByte(n) {}
-};
-
-typedef std::multimap<time_t, FS> map_t;
-typedef map_t::iterator map_i;
-
-FPurgeState(long long iNByteReq) : nByteReq(iNByteReq), nByteAccum(0) {}
-
-map_t fmap;
-
-void checkFile (time_t iTime, const char* iPath,  long long iNByte)
-{
-   if (nByteAccum < nByteReq || iTime < fmap.rbegin()->first)
+   struct FS
    {
-      fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNByte)));
-      nByteAccum += iNByte;
+      std::string path;
+      long long nByte;
+      FS(const char* p, long long n) : path(p), nByte(n) {}
+   };
 
-      // remove newest files from map if necessary
-      while (nByteAccum > nByteReq)
+   typedef std::multimap<time_t, FS> map_t;
+   typedef map_t::iterator map_i;
+   map_t fmap;
+   
+   FPurgeState(long long iNByteReq) : nByteReq(iNByteReq), nByteAccum(0) {}
+
+   void checkFile (time_t iTime, const char* iPath,  long long iNByte)
+   {
+      if (nByteAccum < nByteReq || iTime < fmap.rbegin()->first)
       {
-         time_t nt = fmap.begin()->first;
-         std::pair<map_i, map_i> ret = fmap.equal_range(nt);
-         for (map_i it2 = ret.first; it2 != ret.second; ++it2)
-            nByteAccum -= it2->second.nByte;
-         fmap.erase(ret.first, ret.second);
+         fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNByte)));
+         nByteAccum += iNByte;
+
+         // remove newest files from map if necessary
+         while (nByteAccum > nByteReq)
+         {
+            time_t nt = fmap.begin()->first;
+            std::pair<map_i, map_i> ret = fmap.equal_range(nt);
+            for (map_i it2 = ret.first; it2 != ret.second; ++it2)
+               nByteAccum -= it2->second.nByte;
+            fmap.erase(ret.first, ret.second);
+         }
       }
    }
-}
 
 private:
-long long nByteReq;
-long long nByteAccum;
+   long long nByteReq;
+   long long nByteAccum;
 };
 
 XrdOucTrace* GetTrace()
@@ -84,8 +82,8 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
 
          if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen], XrdFileCache::Info::m_infoExtension, InfoExtLen) == 0)
          {
-            // XXXX MT - shouldn't we also check if it is currently opened?
-
+            // We could also check if it is currently opened with Cache::HaveActiveFileWihtLocalPath()
+            // This is not relay necessary because we do that check before unlinking the file
             Info cinfo(Cache::GetInstance().GetTrace());
             if (fh->Open(np.c_str(), O_RDONLY, 0600, env) == XrdOssOK && cinfo.Read(fh, np))
             {

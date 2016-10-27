@@ -266,7 +266,7 @@ bool File::Open()
    struct stat infoStat;
    bool fileExisted = (myOss.Stat(ifn.c_str(), &infoStat) == XrdOssOK);
 
-   myEnv.Put("oss.asize", "64k"); // MT-XXX Calculate? Do not know length of access lists ...
+   myEnv.Put("oss.asize", "64k"); // TODO: Calculate? Get it from configuration? Do not know length of access lists ...
    myEnv.Put("oss.cgroup", Cache::GetInstance().RefConfiguration().m_meta_space.c_str());
    if (myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    {
@@ -397,7 +397,7 @@ int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
 {
    const long long BS = m_cfi.GetBufferSize();
 
-   // XXX Use readv to load more at the same time.
+   // TODO Use readv to load more at the same time.
 
    long long total = 0;
 
@@ -429,7 +429,7 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
    long long total = 0;
 
-   // XXX Coalesce adjacent reads.
+   // Coalesce adjacent reads.
 
    for (IntList_i ii = blocks.begin(); ii != blocks.end(); ++ii)
    {
@@ -487,8 +487,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
 
    m_downloadCond.Lock();
 
-   // XXX Check for blocks to free? Later ...
-
    const int idx_first = iUserOff / BS;
    const int idx_last  = (iUserOff + iUserSize - 1) / BS;
 
@@ -503,9 +501,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       // In RAM or incoming?
       if (bi != m_block_map.end())
       {
-         // XXXX if failed before -- retry if timestamp sufficient or fail?
-         // XXXX Or just push it and handle errors in one place later?
-
          inc_ref_count(bi->second);
          TRACEF(Dump, "File::Read() " << iUserBuff << "inc_ref_count for existing block << " << bi->second << " idx = " <<  block_idx);
          blks_to_process.push_front(bi->second);
@@ -524,7 +519,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          {
             TRACEF(Dump, "File::Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
             Block *b = PrepareBlockRequest(block_idx, false);
-            // MT XXX this can not fail (other than out of memory which we don't handle).
             if ( ! b)
             {
                preProcOK = false;
@@ -557,7 +551,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    long long bytes_read = 0;
 
    // First, send out any direct requests.
-   // XXX Could send them all out in a single vector read.
+   // TODO Could send them all out in a single vector read.
    DirectResponseHandler *direct_handler = 0;
    int direct_size = 0;
 
@@ -697,7 +691,6 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       {
          TRACEF(Dump, "File::Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/BufferSize()));
          dec_ref_count(*bi);
-         // XXXX stamp block
       }
 
       // update prefetch score
@@ -909,7 +902,7 @@ int File::offsetIdx(int iIdx)
 void File::Prefetch()
 {
    // Check that block is not on disk and not in RAM.
-   // MT XXX: Could prefetch several blocks at once!
+   // TODO: Could prefetch several blocks at once!
 
    BlockList_t blks;
 

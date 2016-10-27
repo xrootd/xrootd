@@ -313,7 +313,7 @@ inline bool Info::IsComplete() const
 
 inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
 {
-   // XXX rewrite to use full byte comparisons outside of edges ?
+   // TODO rewrite to use full byte comparisons outside of edges ?
    // Also, it is always called with fisrtsdx = 0, lastIdx = m_sizeInBits.
    for (int i = firstIdx; i < lastIdx; ++i)
       if (! TestBit(i)) return true;

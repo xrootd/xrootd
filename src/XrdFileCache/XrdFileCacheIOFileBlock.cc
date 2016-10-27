@@ -328,15 +328,9 @@ int IOFileBlock::Read(char *buff, long long off, int size)
             readBlockSize = m_blocksize;
          }
       }
-      // MT-XXXX
-      assert(readBlockSize);
 
       TRACEIO(Dump, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
-      long long min = blockIdx * m_blocksize;
-      if ( off < min) { assert(0); }   // MT-XXXX
-      // MT-XXXX
-      assert(off+readBlockSize <= (min + m_blocksize));
       int retvalBlock = fb->Read(buff, off, readBlockSize);
 
       TRACEIO(Dump, "IOFileBlock::Read()  Block read returned " << retvalBlock);

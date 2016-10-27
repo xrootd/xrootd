@@ -101,8 +101,8 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
    std::vector<XrdOucIOVec>       chunkVec;
    DirectResponseHandler         *direct_handler = 0;
 
-   // XXXX The following call never fails (other than with out of mem exception).
-   // XXXX This should be implemented in PrepareBlockRequest().
+   // TODO The following call never fails (other than with out of mem exception).
+   // This should be implemented in PrepareBlockRequest().
    if ( ! VReadPreProcess(readV, n, blocks_to_process, blocks_on_disk, chunkVec))
    {
       bytesRead = -1;
@@ -242,7 +242,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n,
             if (Cache::GetInstance().RequestRAMBlock())
             {
                Block *b = PrepareBlockRequest(block_idx, false);
-               // MT XXX this can not fail (other than out of memory which we don't handle).
+               // TODO this can not fail (other than out of memory which we don't handle).
                if (! b) return false;
                inc_ref_count(b);
                blocks_to_process.AddEntry(b, iov_idx);
