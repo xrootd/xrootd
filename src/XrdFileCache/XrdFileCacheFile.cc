@@ -52,16 +52,16 @@ const int PREFETCH_MAX_ATTEMPTS = 10;
 class DiskSyncer : public XrdJob
 {
 private:
-   File *m_file;
+File *m_file;
 public:
-   DiskSyncer(File *pref, const char *desc = "") :
-      XrdJob(desc),
-      m_file(pref)
-   {}
-   void DoIt()
-   {
-      m_file->Sync();
-   }
+DiskSyncer(File *pref, const char *desc = "") :
+   XrdJob(desc),
+   m_file(pref)
+{}
+void DoIt()
+{
+   m_file->Sync();
+}
 };
 
 Cache* cache() { return &Cache::GetInstance(); }
@@ -756,7 +756,7 @@ void File::WriteBlockToDisk(Block* b)
 
       if (b->m_prefetch)
          m_cfi.SetBitPrefetch(pfIdx);
-      
+
       // clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() dec_ref_count %d %s", pfIdx, lPath());
       dec_ref_count(b);
 

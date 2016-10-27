@@ -10,7 +10,7 @@
 // (at your option) any later version.
 //
 // XRootD is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// but WITHOUT ANY emacs WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
@@ -62,22 +62,22 @@ struct Configuration
       m_hdfsbsize(128*1024*1024)
    {}
 
-   bool        m_hdfsmode;              //!< flag for enabling block-level operation
-   
+   bool m_hdfsmode;                     //!< flag for enabling block-level operation
+
    std::string m_username;              //!< username passed to oss plugin
    std::string m_data_space;            //!< oss space for data files
    std::string m_meta_space;            //!< oss space for metadata files (cinfo)
 
-   long long   m_diskUsageLWM;          //!< cache purge low water mark
-   long long   m_diskUsageHWM;          //!< cache purge high water mark
-   int         m_purgeInterval;         //!< sleep interval between cache purges
+   long long m_diskUsageLWM;            //!< cache purge low water mark
+   long long m_diskUsageHWM;            //!< cache purge high water mark
+   int m_purgeInterval;                 //!< sleep interval between cache purges
 
-   long long   m_bufferSize;            //!< prefetch buffer size, default 1MB
-   long long   m_RamAbsAvailable;       //!< available from configuration
-   int         m_NRamBuffers;           //!< number of total in-memory cache blocks, cached
-   size_t      m_prefetch_max_blocks;   //!< maximum number of blocks to prefetch per file
+   long long m_bufferSize;              //!< prefetch buffer size, default 1MB
+   long long m_RamAbsAvailable;         //!< available from configuration
+   int m_NRamBuffers;                   //!< number of total in-memory cache blocks, cached
+   size_t m_prefetch_max_blocks;        //!< maximum number of blocks to prefetch per file
 
-   long long   m_hdfsbsize;             //!< used with m_hdfsmode, default 128MB
+   long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
 };
 
 struct TmpConfiguration

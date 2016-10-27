@@ -40,58 +40,58 @@ namespace XrdFileCache
 class IOEntireFile : public IO
 {
 public:
-    //------------------------------------------------------------------------
-    //! Constructor
-    //------------------------------------------------------------------------
-    IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
+   //------------------------------------------------------------------------
+   //! Constructor
+   //------------------------------------------------------------------------
+   IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
 
-    //------------------------------------------------------------------------
-    //! Destructor
-    //------------------------------------------------------------------------
-    ~IOEntireFile();
+   //------------------------------------------------------------------------
+   //! Destructor
+   //------------------------------------------------------------------------
+   ~IOEntireFile();
 
-    //---------------------------------------------------------------------
-    //! Pass Read request to the corresponding File object.
-    //!
-    //! @param Buffer
-    //! @param Offset
-    //! @param Length
-    //!
-    //! @return number of bytes read
-    //---------------------------------------------------------------------
-    virtual int Read(char *Buffer, long long Offset, int Length);
+   //---------------------------------------------------------------------
+   //! Pass Read request to the corresponding File object.
+   //!
+   //! @param Buffer
+   //! @param Offset
+   //! @param Length
+   //!
+   //! @return number of bytes read
+   //---------------------------------------------------------------------
+   virtual int Read(char *Buffer, long long Offset, int Length);
 
-    //---------------------------------------------------------------------
-    //! Pass ReadV request to the corresponding File object.
-    //!
-    //! @param readV
-    //! @param n number of XrdOucIOVecs
-    //!
-    //! @return total bytes read
-    //---------------------------------------------------------------------
-    virtual int ReadV(const XrdOucIOVec *readV, int n);
+   //---------------------------------------------------------------------
+   //! Pass ReadV request to the corresponding File object.
+   //!
+   //! @param readV
+   //! @param n number of XrdOucIOVecs
+   //!
+   //! @return total bytes read
+   //---------------------------------------------------------------------
+   virtual int ReadV(const XrdOucIOVec *readV, int n);
 
-    //---------------------------------------------------------------------
-    //! Detach itself from Cache. Note: this will delete the object.
-    //!
-    //! @return original source \ref XrdPosixFile
-    //---------------------------------------------------------------------
-    virtual XrdOucCacheIO* Detach();
+   //---------------------------------------------------------------------
+   //! Detach itself from Cache. Note: this will delete the object.
+   //!
+   //! @return original source \ref XrdPosixFile
+   //---------------------------------------------------------------------
+   virtual XrdOucCacheIO* Detach();
 
-    //! \brief Virtual method of XrdOucCacheIO.
-    //! Called to check if destruction needs to be done in a separate task.
-    virtual bool ioActive();
+   //! \brief Virtual method of XrdOucCacheIO.
+   //! Called to check if destruction needs to be done in a separate task.
+   virtual bool ioActive();
 
-    virtual int  Fstat(struct stat &sbuff);
+   virtual int  Fstat(struct stat &sbuff);
 
-    virtual long long FSize();
+   virtual long long FSize();
 
-    virtual void RelinquishFile(File*);
+   virtual void RelinquishFile(File*);
 
 private:
-    File* m_file;
-    struct stat      *m_localStat;
-    int     initCachedStat(const char* path);
+   File* m_file;
+   struct stat      *m_localStat;
+   int     initCachedStat(const char* path);
 };
 
 }

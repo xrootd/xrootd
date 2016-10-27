@@ -40,6 +40,6 @@ extern "C"
 {
 XrdFileCache::Decision *XrdFileCacheGetDecision(XrdSysError &)
 {
-    return new AllowDecision();
+   return new AllowDecision();
 }
 }

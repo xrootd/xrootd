@@ -16,41 +16,41 @@ namespace XrdFileCache
 class IO : public XrdOucCacheIO2
 {
 public:
-    IO (XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
+   IO (XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
 
-    //! Original data source.
-    virtual XrdOucCacheIO *Base() { return m_io; }
+   //! Original data source.
+   virtual XrdOucCacheIO *Base() { return m_io; }
 
-    //! Original data source URL.
-    virtual const char *Path() { return m_io->Path(); }
+   //! Original data source URL.
+   virtual const char *Path() { return m_io->Path(); }
 
-    virtual int Sync() { return 0; }
+   virtual int Sync() { return 0; }
 
-    virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
+   virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
 
-    virtual int Write(char *Buffer, long long Offset, int Length)
-    { errno = ENOTSUP; return -1; }
+   virtual int Write(char *Buffer, long long Offset, int Length)
+   { errno = ENOTSUP; return -1; }
 
-    virtual void Update(XrdOucCacheIO2 &iocp);
+   virtual void Update(XrdOucCacheIO2 &iocp);
 
-    virtual void RelinquishFile(File*) = 0;
+   virtual void RelinquishFile(File*) = 0;
 
-    XrdOucTrace* GetTrace() {return m_cache.GetTrace(); }
+   XrdOucTrace* GetTrace() {return m_cache.GetTrace(); }
 
-    XrdOucCacheIO2* GetInput();
+   XrdOucCacheIO2* GetInput();
 
 protected:
-    XrdOucCacheStats &m_statsGlobal;      //!< reference to Cache statistics
-    Cache            &m_cache;            //!< reference to Cache needed in detach
+   XrdOucCacheStats &m_statsGlobal;       //!< reference to Cache statistics
+   Cache            &m_cache;             //!< reference to Cache needed in detach
 
-    const char* m_traceID;
-    std::string m_path;
-    const char* GetPath() { return m_path.c_str(); }
+   const char* m_traceID;
+   std::string m_path;
+   const char* GetPath() { return m_path.c_str(); }
 
 private:
-    XrdOucCacheIO2   *m_io;               //!< original data source
-    XrdSysMutex updMutex;
-    void SetInput(XrdOucCacheIO2*);
+   XrdOucCacheIO2   *m_io;                //!< original data source
+   XrdSysMutex updMutex;
+   void SetInput(XrdOucCacheIO2*);
 };
 }
 

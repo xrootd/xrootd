@@ -30,31 +30,31 @@ namespace XrdFileCache
 class Stats : public XrdOucCacheStats
 {
 public:
-    //----------------------------------------------------------------------
-    //! Constructor.
-    //----------------------------------------------------------------------
-    Stats() {
-        m_BytesDisk = m_BytesRam = m_BytesMissed = 0;
-    }
+   //----------------------------------------------------------------------
+   //! Constructor.
+   //----------------------------------------------------------------------
+   Stats() {
+      m_BytesDisk = m_BytesRam = m_BytesMissed = 0;
+   }
 
-    long long m_BytesDisk;        //!< number of bytes served from disk cache
-    long long m_BytesRam;         //!< number of bytes served from RAM cache
-    long long m_BytesMissed;      //!< number of bytes served directly from XrdCl
+   long long m_BytesDisk;         //!< number of bytes served from disk cache
+   long long m_BytesRam;          //!< number of bytes served from RAM cache
+   long long m_BytesMissed;       //!< number of bytes served directly from XrdCl
 
-    inline void AddStat(Stats &Src)
-    {
-        XrdOucCacheStats::Add(Src);
+   inline void AddStat(Stats &Src)
+   {
+      XrdOucCacheStats::Add(Src);
 
-        m_MutexXfc.Lock();
-        m_BytesDisk += Src.m_BytesDisk;
-        m_BytesRam += Src.m_BytesRam;
-        m_BytesMissed += Src.m_BytesMissed;
+      m_MutexXfc.Lock();
+      m_BytesDisk += Src.m_BytesDisk;
+      m_BytesRam += Src.m_BytesRam;
+      m_BytesMissed += Src.m_BytesMissed;
 
-        m_MutexXfc.UnLock();
-    }
+      m_MutexXfc.UnLock();
+   }
 
 private:
-    XrdSysMutex m_MutexXfc;
+   XrdSysMutex m_MutexXfc;
 };
 }
 
