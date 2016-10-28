@@ -328,7 +328,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          int p = ::atoi(params);
          if (p > 0)
          {
-            printf("prefetch enabled, max blocks per file=%d\n", p);
+            // m_log.Emsg("prefetch enabled, max blocks per file ", params);
             m_configuration.m_prefetch_max_blocks = p;
          }
          else
