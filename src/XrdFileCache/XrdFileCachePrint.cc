@@ -50,8 +50,10 @@ Print::Print(XrdOss* oss, bool v, const char* path) : m_oss(oss), m_verbose(v), 
 
 
 bool Print::isInfoFile(const char* path) {
-   if (strncmp(&path[strlen(path)-6], ".cinfo", 6))
+   if (strncmp(&path[strlen(path)-6], ".cinfo", 6)) {
+      printf("%s is not cinfo file.\n\n", path);
       return false;
+   }
    return true;
 }
 
@@ -115,16 +117,28 @@ void Print::printFile(const std::string& path)
    for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)
    {
       printf("access %lu: ", startIdx++);
-      char as[1000];
-      strftime(as, 1000, "%c", localtime(&(it->AttachTime)));
-      char ds[1000];
-      strftime(ds, 1000, "%c", localtime(&(it->DetachTime)));
-      int lasting = it->DetachTime - it->AttachTime;
-      int hours = lasting/3600;
-      int min   = (lasting - hours * 3600)/60;
-      int sec   = lasting % 60;
+      char as[500];
+      strftime(as, 500, "%c", localtime(&(it->AttachTime)));
 
-      printf("%s, openedTime %02d:%02d:%02d, bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", as, hours, min, sec, it->BytesDisk, it->BytesRam, it->BytesMissed);
+      char ot[500];
+      if (cfi.GetVersion() == 1)
+      {
+         snprintf(ot, 500, "--:--:--");
+      }
+      else if (it->DetachTime == 0)
+      {
+         snprintf(ot, 500, "--:--:--");
+      }
+      else
+      {
+         int lasting = it->DetachTime - it->AttachTime;
+         int hours = lasting/3600;
+         int min   = (lasting - hours * 3600)/60;
+         int sec   = lasting % 60;
+         snprintf(ot, 500, "%02d:%02d:%02d", hours, min, sec);
+      }
+
+      printf("%s, openedTime %s, bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", as, ot, it->BytesDisk, it->BytesRam, it->BytesMissed);
    }
 
    delete fh;
@@ -227,36 +241,39 @@ int main(int argc, char *argv[])
    }
    ofsCfg->Plugin(oss);
 
-   const char* path = Spec.getarg();
-   if (! path)
+   const char* path;
+   while ((path = Spec.getarg()))
    {
-      printf("%s", usage);
-      exit(1);
-   }
-
-   // append oss.localroot if path starts with 'root://'
-   if (! strncmp(&path[0], "root:/", 6))
-   {
-      if (Config.FDNum() < 0)
+      if (! path)
       {
-         printf("Configuration file not specified.\n");
+         printf("%s", usage);
          exit(1);
       }
-      char *var;
-      while((var = Config.GetFirstWord()))
+      
+      // append oss.localroot if path starts with 'root://'
+      if (! strncmp(&path[0], "root:/", 6))
       {
-         // printf("var %s \n", var);
-         if (! strncmp(var,"oss.localroot", strlen("oss.localroot")))
+         if (Config.FDNum() < 0)
          {
-            std::string tmp = Config.GetWord();
-            tmp += &path[6];
-            // printf("Absolute path %s \n", tmp.c_str());
-            XrdFileCache::Print p(oss, verbose, tmp.c_str());
+            printf("Configuration file not specified.\n");
+            exit(1);
+         }
+         char *var;
+         while((var = Config.GetFirstWord()))
+         {
+            // printf("var %s \n", var);
+            if (! strncmp(var,"oss.localroot", strlen("oss.localroot")))
+            {
+               std::string tmp = Config.GetWord();
+               tmp += &path[6];
+               // printf("Absolute path %s \n", tmp.c_str());
+               XrdFileCache::Print p(oss, verbose, tmp.c_str());
+            }
          }
       }
-   }
-   else
-   {
-      XrdFileCache::Print p(oss, verbose, path);
+      else
+      {
+         XrdFileCache::Print p(oss, verbose, path);
+      }
    }
 }
