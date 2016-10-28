@@ -51,7 +51,7 @@
 /*                      S t r u c t   X r d S e c R e q                       */
 /******************************************************************************/
   
-namespace
+namespace XrdSecProtection
 {
 struct XrdSecReq
 {
@@ -59,6 +59,8 @@ struct XrdSecReq
        unsigned char   secSig;  // The encrypted hash follows starting here
 };
 }
+
+using namespace XrdSecProtection; // Fix warnings from slc5 compiler!
 
 /******************************************************************************/
 /*                       C l a s s   X r d S e c V e c                        */
