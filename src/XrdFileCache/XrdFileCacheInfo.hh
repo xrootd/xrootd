@@ -66,7 +66,7 @@ public:
       unsigned char     *m_buff_synced;            //!< disk written state vector
       char               m_cksum[16];              //!< cksum of downloaded information
       time_t             m_creationTime;           //!< time the info file was created
-      int                m_accessCnt;              //!< number of written AStat structs
+      size_t             m_accessCnt;              //!< number of written AStat structs
       std::vector<AStat> m_astats;                 //!< number of last m_maxAcessCnts
 
       Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0),m_creationTime(0), m_accessCnt(0) {}
@@ -208,7 +208,7 @@ public:
    //---------------------------------------------------------------------
    //! Get number of accesses
    //---------------------------------------------------------------------
-   int GetAccessCnt() { return m_store.m_accessCnt; }
+   size_t GetAccessCnt() { return m_store.m_accessCnt; }
 
    //---------------------------------------------------------------------
    //! Get version
@@ -225,14 +225,14 @@ public:
    //---------------------------------------------------------------------
    void GetCksum( unsigned char* buff, char* digest);
 
-   const static char* m_infoExtension;
-   const static char* m_traceID;
-   const static int   m_defaultVersion;
-   const static int   m_maxNumAccess;
+   const static char*   m_infoExtension;
+   const static char*   m_traceID;
+   const static int     m_defaultVersion;
+   const static size_t  m_maxNumAccess;
 
    XrdOucTrace* GetTrace() const {return m_trace; }
 
-   static int GetMaxNumAccess() { return m_maxNumAccess; }
+   static size_t GetMaxNumAccess() { return m_maxNumAccess; }
 
 protected:
    XrdOucTrace*   m_trace;

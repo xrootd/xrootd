@@ -97,10 +97,10 @@ struct FpHelper
 
 using namespace XrdFileCache;
 
-const char* Info::m_infoExtension  = ".cinfo";
-const char* Info::m_traceID        = "Cinfo";
-const int Info::m_defaultVersion = 2;
-const int Info::m_maxNumAccess   = 3;
+const char*  Info::m_infoExtension  = ".cinfo";
+const char*  Info::m_traceID        = "Cinfo";
+const int    Info::m_defaultVersion = 2;
+const size_t Info::m_maxNumAccess   = 3;
 
 //------------------------------------------------------------------------------
 
@@ -268,9 +268,9 @@ bool Info::ReadV1(XrdOssDF* fp, const std::string &fname)
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
 
 
-   int startFillIdx = m_store.m_accessCnt < m_maxNumAccess ? 0 : m_store.m_accessCnt - m_maxNumAccess;
+   size_t startFillIdx = m_store.m_accessCnt < m_maxNumAccess ? 0 : m_store.m_accessCnt - m_maxNumAccess;
    AStatV1 av1;
-   for (int i = 0; i < m_store.m_accessCnt; ++i)
+   for (size_t i = 0; i < m_store.m_accessCnt; ++i)
    {
       if (r.ReadRaw(&av1, sizeof(AStatV1))) return false;
 

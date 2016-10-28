@@ -111,10 +111,10 @@ void Print::printFile(const std::string& path)
    }
 
    // printf("\nlatest access statistics:\n");
-   int startIdx = cfi.GetAccessCnt() < cfi.GetMaxNumAccess() ? 0 : cfi.GetAccessCnt() - cfi.GetMaxNumAccess();
+   size_t startIdx = cfi.GetAccessCnt() < cfi.GetMaxNumAccess() ? 0 : cfi.GetAccessCnt() - cfi.GetMaxNumAccess();
    for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)
    {
-      printf("access %d: ", startIdx++);
+      printf("access %lu: ", startIdx++);
       char as[1000];
       strftime(as, 1000, "%c", localtime(&(it->AttachTime)));
       char ds[1000];
