@@ -263,8 +263,7 @@ bool Info::ReadV1(XrdOssDF* fp, const std::string &fname)
 
 
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
-
-   if (r.Read(m_store.m_accessCnt, false)) m_store.m_accessCnt = 0;  // was: return false;
+   if (r.ReadRaw(&m_store.m_accessCnt, sizeof(int), false)) m_store.m_accessCnt = 0;  // was: return false;
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
 
 
