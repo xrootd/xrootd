@@ -835,7 +835,6 @@ int XrdXrootdProtocol::do_Login()
        if (!clientPV)
           {        if (i >= kXR_ver004) clientPV = (int)0x0310;
               else if (i == kXR_ver003) clientPV = (int)0x0300;
-              else if (i == kXR_ver003) clientPV = (int)0x0299;
               else if (i == kXR_ver002) clientPV = (int)0x0290;
               else if (i == kXR_ver001) clientPV = (int)0x0200;
               else                      clientPV = (int)0x0100;
@@ -861,9 +860,11 @@ int XrdXrootdProtocol::do_Login()
 // WORKAROUND: XrdCl 4.0.x often identifies worker nodes as being IPv6-only.
 // Rather than breaking a significant number of our dual-stack workers, we
 // automatically denote IPv6 connections as also supporting IPv4 - regardless
-// of what the remote client claims.
-   else if (XrdInet::GetAssumeV4())
-      clientPV |= XrdOucEI::uIPv64;
+// of what the remote client claims. This was fixed in 4.3.x but we can't
+// tell release differences until 4.5 when we can safely ignore this as we
+// also don't want to misidentify IPv6-only clients either.
+   else if (i < kXR_ver004 && XrdInet::GetAssumeV4())
+           clientPV |= XrdOucEI::uIPv64;
 
 // Mark the client as being on a private net if the address is private
 //
