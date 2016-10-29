@@ -9,6 +9,7 @@ set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
 set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
 set( LIB_XRD_ZCRC32     XrdCksCalczcrc32-${PLUGIN_VERSION} )
 set( LIB_XRD_SSI        XrdSsi-${PLUGIN_VERSION} )
+set( LIB_XRD_SSILOG     XrdSsiLog-${PLUGIN_VERSION} )
 set( LIB_XRD_THROTTLE   XrdThrottle-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
@@ -125,6 +126,27 @@ target_link_libraries(
 
 set_target_properties(
   ${LIB_XRD_SSI}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# The XrdSsiLog lib
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_SSILOG}
+  SHARED
+  XrdSsi/XrdSsiLogging.cc
+)
+
+target_link_libraries(
+  ${LIB_XRD_SSILOG}
+  XrdSsiLib
+  XrdUtils
+  XrdServer )
+
+set_target_properties(
+  ${LIB_XRD_SSILOG}
   PROPERTIES
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
