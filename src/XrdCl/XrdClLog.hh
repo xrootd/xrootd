@@ -29,9 +29,6 @@
 #include <string>
 #include <map>
 #include <stdint.h>
-
-#include "XrdCl/XrdClOptimizers.hh"
-
 #include "XrdSys/XrdSysPthread.hh"
 
 //------------------------------------------------------------------------------
@@ -139,87 +136,27 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Report an error
       //------------------------------------------------------------------------
-      void Error( uint64_t topic, const char *format, ... )
-      {
-        if( unlikely( GetLevel() < ErrorMsg ) )
-          return;
-
-        if( unlikely( (topic & pMask[ErrorMsg]) == 0 ) )
-          return;
-
-        va_list argList;
-        va_start( argList, format );
-        Say( ErrorMsg, topic, format, argList );
-        va_end( argList );
-      }
+      void Error( uint64_t topic, const char *format, ... );
 
       //------------------------------------------------------------------------
       //! Report a warning
       //------------------------------------------------------------------------
-      void Warning( uint64_t topic, const char *format, ... )
-      {
-        if( unlikely( GetLevel() < WarningMsg ) )
-          return;
-
-        if( unlikely( (topic & pMask[WarningMsg]) == 0 ) )
-          return;
-
-        va_list argList;
-        va_start( argList, format );
-        Say( WarningMsg, topic, format, argList );
-        va_end( argList );
-      }
+      void Warning( uint64_t topic, const char *format, ... );
 
       //------------------------------------------------------------------------
       //! Print an info
       //------------------------------------------------------------------------
-      void Info( uint64_t topic, const char *format, ... )
-      {
-        if( likely( GetLevel() < InfoMsg ) )
-          return;
-
-        if( unlikely( (topic & pMask[InfoMsg]) == 0 ) )
-          return;
-
-        va_list argList;
-        va_start( argList, format );
-        Say( InfoMsg, topic, format, argList );
-        va_end( argList );
-      }
+      void Info( uint64_t topic, const char *format, ... );
 
       //------------------------------------------------------------------------
       //! Print a debug message
       //------------------------------------------------------------------------
-      void Debug( uint64_t topic, const char *format, ... )
-      {
-        if( likely( GetLevel() < DebugMsg ) )
-          return;
-
-        if( unlikely( (topic & pMask[DebugMsg]) == 0 ) )
-          return;
-
-        va_list argList;
-        va_start( argList, format );
-        Say( DebugMsg, topic, format, argList );
-        va_end( argList );
-      }
+      void Debug( uint64_t topic, const char *format, ... );
 
       //------------------------------------------------------------------------
       //! Print a dump message
       //------------------------------------------------------------------------
-      void Dump( uint64_t topic, const char *format, ... )
-      {
-        if( likely( GetLevel() < DumpMsg ) )
-          return;
-
-        if( unlikely( (topic & pMask[DumpMsg]) == 0 ) )
-          return;
-
-        va_list argList;
-        va_start( argList, format );
-        Say( DumpMsg, topic, format, argList );
-        va_end( argList );
-      }
+      void Dump( uint64_t topic, const char *format, ... );
 
       //------------------------------------------------------------------------
       //! Always print the message

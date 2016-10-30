@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 #include <netinet/tcp.h>
 
 namespace XrdCl
