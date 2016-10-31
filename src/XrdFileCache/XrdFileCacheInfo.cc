@@ -100,7 +100,7 @@ using namespace XrdFileCache;
 const char*  Info::m_infoExtension  = ".cinfo";
 const char*  Info::m_traceID        = "Cinfo";
 const int    Info::m_defaultVersion = 2;
-const size_t Info::m_maxNumAccess   = 3;
+const size_t Info::m_maxNumAccess   = 20;
 
 //------------------------------------------------------------------------------
 
