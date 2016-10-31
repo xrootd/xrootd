@@ -74,6 +74,7 @@ void IOFileBlock::CloseInfoFile()
          Stats as;
          m_info.WriteIOStatDetach(as);
       }
+      m_info.Write(m_infoFile);
       m_infoFile->Fsync();
       m_infoFile->Close();
 
@@ -251,13 +252,13 @@ bool IOFileBlock::ioActive()
    CloseInfoFile();
 
    XrdSysMutexHelper lock(&m_mutex);
+   bool active = false;
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
-      if (it->second->ioActive())
-         return true;
+      if (it->second->ioActive()) active = true;
    }
 
-   return false;
+   return active;
 }
 
 //______________________________________________________________________________
