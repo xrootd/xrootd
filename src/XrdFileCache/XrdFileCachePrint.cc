@@ -84,7 +84,7 @@ void Print::printFile(const std::string& path)
    time_t creationTime = store.m_creationTime;
    strftime(creationBuff, 1000, "%c", localtime(&creationTime));
 
-   printf("version %d, creation %s\n",  cfi.GetVersion(), creationBuff);
+   printf("version %d, created %s\n",  cfi.GetVersion(), creationBuff);
 
    printf("fileSize %lld, bufferSize %lld nBlocks %d nDownloaded %d %s\n",
           cfi.GetFileSize(),cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
@@ -138,7 +138,7 @@ void Print::printFile(const std::string& path)
          snprintf(ot, 500, "%02d:%02d:%02d", hours, min, sec);
       }
 
-      printf("%s, openedTime %s, bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", as, ot, it->BytesDisk, it->BytesRam, it->BytesMissed);
+      printf("%s, duration %s, bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", as, ot, it->BytesDisk, it->BytesRam, it->BytesMissed);
    }
 
    delete fh;
