@@ -44,13 +44,14 @@ namespace XrdCl
       SyncResponseHandler():
         pStatus(0),
         pResponse(0),
-        pCondVar(0) {}
+        pSem( new Semaphore(0) ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       virtual ~SyncResponseHandler()
       {
+        delete pSem;
       }
 
 
@@ -60,10 +61,9 @@ namespace XrdCl
       virtual void HandleResponse( XRootDStatus *status,
                                    AnyObject    *response )
       {
-        XrdSysCondVarHelper scopedLock(pCondVar);
         pStatus = status;
         pResponse = response;
-        pCondVar.Broadcast();
+        pSem->Post();
       }
 
       //------------------------------------------------------------------------
@@ -87,10 +87,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void WaitForResponse()
       {
-        XrdSysCondVarHelper scopedLock(pCondVar);
-        while (pStatus == 0) {
-          pCondVar.Wait();
-        }
+        pSem->Wait();
       }
 
     private:
@@ -99,9 +96,8 @@ namespace XrdCl
 
       XRootDStatus    *pStatus;
       AnyObject       *pResponse;
-      XrdSysCondVar    pCondVar;
+      Semaphore       *pSem;
   };
-
 
   //----------------------------------------------------------------------------
   // We're not interested in the response just commit suicide
