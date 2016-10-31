@@ -265,7 +265,7 @@ inline bool Info::TestBit(int i) const
 
 inline bool Info::TestPrefetchBit(int i) const
 {
-   if (m_buff_prefetch) return false;
+   if (!m_buff_prefetch) return false;
 
    const int cn = i/8;
    assert(cn < GetSizeInBytes());
@@ -346,6 +346,8 @@ inline void Info::SetBitWritten(int i)
 
 inline void Info::SetBitPrefetch(int i)
 {
+   if (!m_buff_prefetch) return;
+      
    const int cn = i/8;
    assert(cn < GetSizeInBytes());
 
