@@ -26,9 +26,8 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <ctime>
-
 #include <XrdOuc/XrdOucTokenizer.hh>
-
+#include "XrdCl/XrdClOptimizers.hh"
 #include "XrdCl/XrdClLog.hh"
 
 namespace XrdCl
@@ -94,9 +93,9 @@ namespace XrdCl
   // Print an error message
   //----------------------------------------------------------------------------
   void Log::Say( LogLevel    level,
-                 uint64_t    topic,
-                 const char *format,
-                 va_list     list )
+		 uint64_t    topic,
+		 const char *format,
+		 va_list     list )
   {
     //--------------------------------------------------------------------------
     // Build the user message
@@ -114,13 +113,13 @@ namespace XrdCl
 
       if( ret < 0 )
       {
-        snprintf( buffer, size, "Error while processing a log message \"%s\" \n", format);
-        pOutput->Write(buffer);
-        delete [] buffer;
-        return;
+	snprintf( buffer, size, "Error while processing a log message \"%s\" \n", format);
+	pOutput->Write(buffer);
+	delete [] buffer;
+	return;
       }
       else if( ret < size )
-        break;
+	break;
 
       size *= 2;
       delete [] buffer;
@@ -168,7 +167,7 @@ namespace XrdCl
       pTopicMaxLength = len;
       TopicMap::iterator it;
       for( it = pTopicMap.begin(); it != pTopicMap.end(); ++it )
-        it->second.append( len-it->second.length(), ' ' );
+	it->second.append( len-it->second.length(), ' ' );
     }
     else
       name.append( pTopicMaxLength-len, ' ' );
@@ -183,17 +182,17 @@ namespace XrdCl
     switch( level )
     {
       case ErrorMsg:
-        return "Error  ";
+	return "Error  ";
       case WarningMsg:
-        return "Warning";
+	return "Warning";
       case InfoMsg:
-        return "Info   ";
+	return "Info   ";
       case DebugMsg:
-        return "Debug  ";
+	return "Debug  ";
       case DumpMsg:
-        return "Dump   ";
+	return "Dump   ";
       default:
-        return "Unknown Level";
+	return "Unknown Level";
     }
   }
 
@@ -223,5 +222,90 @@ namespace XrdCl
     o << "0x" << std::setw(pTopicMaxLength-2) << std::setfill( '0' );
     o << std::setbase(16) << topic;
     return o.str();
+  }
+
+  //----------------------------------------------------------------------------
+  // Report an error
+  //----------------------------------------------------------------------------
+  void Log::Error( uint64_t topic, const char *format, ... )
+  {
+    if( unlikely( GetLevel() < ErrorMsg ) )
+      return;
+
+    if( unlikely( (topic & pMask[ErrorMsg]) == 0 ) )
+      return;
+
+    va_list argList;
+    va_start( argList, format );
+    Say( ErrorMsg, topic, format, argList );
+    va_end( argList );
+  }
+
+  //----------------------------------------------------------------------------
+  // Report a warning
+  //----------------------------------------------------------------------------
+  void Log::Warning( uint64_t topic, const char *format, ... )
+  {
+    if( unlikely( GetLevel() < WarningMsg ) )
+      return;
+
+    if( unlikely( (topic & pMask[WarningMsg]) == 0 ) )
+      return;
+
+    va_list argList;
+    va_start( argList, format );
+    Say( WarningMsg, topic, format, argList );
+    va_end( argList );
+  }
+
+  //----------------------------------------------------------------------------
+  // Print an info
+  //----------------------------------------------------------------------------
+  void Log::Info( uint64_t topic, const char *format, ... )
+  {
+    if( likely( GetLevel() < InfoMsg ) )
+      return;
+
+    if( unlikely( (topic & pMask[InfoMsg]) == 0 ) )
+      return;
+
+    va_list argList;
+    va_start( argList, format );
+    Say( InfoMsg, topic, format, argList );
+    va_end( argList );
+  }
+
+  //----------------------------------------------------------------------------
+  // Print a debug message
+  //----------------------------------------------------------------------------
+  void Log::Debug( uint64_t topic, const char *format, ... )
+  {
+    if( likely( GetLevel() < DebugMsg ) )
+      return;
+
+    if( unlikely( (topic & pMask[DebugMsg]) == 0 ) )
+      return;
+
+    va_list argList;
+    va_start( argList, format );
+    Say( DebugMsg, topic, format, argList );
+    va_end( argList );
+  }
+
+  //----------------------------------------------------------------------------
+  // Print a dump message
+  //----------------------------------------------------------------------------
+  void Log::Dump( uint64_t topic, const char *format, ... )
+  {
+    if( likely( GetLevel() < DumpMsg ) )
+      return;
+
+    if( unlikely( (topic & pMask[DumpMsg]) == 0 ) )
+      return;
+
+    va_list argList;
+    va_start( argList, format );
+    Say( DumpMsg, topic, format, argList );
+    va_end( argList );
   }
 }
