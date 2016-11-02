@@ -481,6 +481,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("redirect",      xred);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("trace",         xtrace);
+             else if TS_Xeq("limit",         xlimit);
              else {eDest.Say("Config warning: ignoring unknown directive '",var,"'.");
                    Config.Echo();
                    continue;
@@ -1546,4 +1547,43 @@ int XrdXrootdProtocol::xtrace(XrdOucStream &Config)
          }
     XrdXrootdTrace->What = trval;
     return 0;
+}
+
+/******************************************************************************/
+/*                                x l i m i t                                 */
+/******************************************************************************/
+
+/* Function: xlimit
+
+   Purpose:  To parse the directive: limit [prepare <count>] [noerror]
+
+             prepare <count> The maximum number of prepares that are allowed
+                             during the course of a single connection
+
+             noerror         When possible, do not issue an error when a limit
+                             is hit.
+
+   Output: 0 upon success or 1 upon failure.
+*/
+int XrdXrootdProtocol::xlimit(XrdOucStream &Config)
+{
+   int plimit = -1;
+   const char *word;
+
+// Look for various limits set
+//
+   while ( (word = Config.GetWord()) ) {
+      if (!strcmp(word, "prepare")) {
+          if (!(word = Config.GetWord()))
+          {
+             eDest.Emsg("Config", "'limit prepare' value not specified");
+             return 1;
+          }
+          if (XrdOuca2x::a2i(eDest, "limit prepare", word, &plimit, 0)) { return 1; }
+      } else if (!strcmp(word, "noerror")) {
+          LimitError = false;
+      }
+   }
+   if (plimit >= 0) {PrepareLimit = plimit;}
+   return 0;
 }

@@ -1416,6 +1416,16 @@ int XrdXrootdProtocol::do_Prepare()
    XrdXrootdPrepArgs pargs(0, 0);
    XrdSfsPrep fsprep;
 
+// Apply prepare limits, as necessary.
+   if ((PrepareLimit >= 0) && (++PrepareCount > PrepareLimit)) {
+      if (LimitError) {
+         return Response.Send(kXR_noserver,
+                              "Surpassed this connection's prepare limit.");
+      } else {
+         return Response.Send();
+      }
+   }
+
 // Grab the options
 //
    opts = Request.prepare.options;
