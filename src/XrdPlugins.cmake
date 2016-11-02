@@ -180,5 +180,5 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_SSI} ${LIB_XRD_THROTTLE}
+  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_SSI} ${LIB_XRD_SSILOG} ${LIB_XRD_THROTTLE}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
