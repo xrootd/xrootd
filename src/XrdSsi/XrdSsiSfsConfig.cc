@@ -64,7 +64,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucPList.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 
 #include "XrdNet/XrdNetIF.hh"
 
@@ -103,8 +102,6 @@ namespace XrdSsi
        bool                    fsChk    = false;
 
 extern XrdSfsFileSystem       *theFS;
-
-extern XrdOucTrace             Trace;
 
 extern XrdSysError             Log;
 };
@@ -171,7 +168,7 @@ bool XrdSsiSfsConfig::Configure(const char *cFN)
 
 // Preset all variables with common defaults
 //
-   if (getenv("XRDDEBUG")) Trace.What = TRACE_ALL | TRACE_Debug;
+   if (getenv("XRDDEBUG")) Trace.What = TRACESSI_ALL | TRACESSI_Debug;
 
 // If there is no config file, return with an error.
 //
@@ -693,8 +690,8 @@ int XrdSsiSfsConfig::Xtrace()
 {
     static struct traceopts {const char *opname; int opval;} tropts[] =
        {
-        {"all",      TRACE_ALL},
-        {"debug",    TRACE_Debug}
+        {"all",      TRACESSI_ALL},
+        {"debug",    TRACESSI_Debug}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
     char *val;

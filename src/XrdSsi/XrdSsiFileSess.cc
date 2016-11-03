@@ -109,7 +109,6 @@ namespace XrdSsi
 extern XrdOucBuffPool   *BuffPool;
 extern XrdSsiService    *Service;
 extern XrdSysError       Log;
-extern XrdOucTrace       Trace;
 extern int               respWT;
 };
 
@@ -446,7 +445,7 @@ int XrdSsiFileSess::open(const char         *path,      // In
                 snprintf(gBuff, sizeof(gBuff), "%s:%s", fsUser, path);
                 gigID = strdup(gBuff);
                }
-       DEBUG(gigID);
+       DEBUG(gigID <<" provisioned.");
        isOpen = true;
        return SFS_OK;
       }

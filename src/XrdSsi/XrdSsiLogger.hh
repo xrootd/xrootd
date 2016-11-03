@@ -35,6 +35,8 @@
 //! The XrdSsiLogger object is used to route messages to the default logfile.
 //-----------------------------------------------------------------------------
 
+struct iovec;
+
 class XrdSsiLogger
 {
 public:
@@ -78,6 +80,16 @@ static void Msgf(const char *pfx, const char *fmt, ...);
 //-----------------------------------------------------------------------------
 
 static void Msgv(const char *pfx, const char *fmt, va_list aP);
+
+//-----------------------------------------------------------------------------
+//! Insert a formated error message into the log file using a iovec.
+//!
+//! @param  iovP pointer to an iovec that contains the message.
+//!              that a newline character is always appended to the message.
+//! @param  iobN the number of elements in the iovec.
+//-----------------------------------------------------------------------------
+
+static void Msgv(struct iovec *iovP, int iovN);
 
 //-----------------------------------------------------------------------------
 //! Set a message callback function for messages issued via this object. This

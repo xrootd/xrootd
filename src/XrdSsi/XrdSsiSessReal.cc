@@ -35,12 +35,14 @@
 #include <sys/types.h>
 #include <netinet/in.h>
   
-#include "XrdSsi/XrdSsiDebug.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
 #include "XrdSsi/XrdSsiSessReal.hh"
+#include "XrdSsi/XrdSsiTrace.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+
+using namespace XrdSsi;
 
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
@@ -70,6 +72,7 @@
 namespace
 {
    std::string dsProperty("DataServer");
+   const char *tident = 0;
 }
 
 /******************************************************************************/
@@ -147,7 +150,7 @@ bool XrdSsiSessReal::Open(XrdSsiService::Resource *resP,
 
 // Issue the open and if the open was started, return success.
 //
-   DBG("Opening " <<epURL);
+   DEBUG("Opening " <<epURL);
    epStatus = epFile.Open((const std::string)epURL,
                           XrdCl::OpenFlags::Read, (XrdCl::Access::Mode)0,
                           (XrdCl::ResponseHandler *)this, tOut);
@@ -199,7 +202,7 @@ void XrdSsiSessReal::ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut)
 // Initialize the task
 //
    tP->Init(reqP, tOut);
-   DBG("Task="<<hex<<tP<<dec<<" processing id=" <<nextTID-1);
+   DEBUG("Task=" <<tP <<" processing id=" <<nextTID-1);
 
 // Construct the info for this request
 //
@@ -251,7 +254,7 @@ void XrdSsiSessReal::Recycle(XrdSsiTaskReal *tP) // myMutex locked!
           else  pendTask          = ntP->attList.next;
        RelTask(tP);
       } else {
-       DBG("Task="<<hex<<tP<<dec<<" not found; id="<<" id="<<tP->ID());
+       DEBUG("Task=" <<tP <<" not found; id="<<" id="<<tP->ID());
        delete tP;
       }
 
@@ -278,7 +281,7 @@ void XrdSsiSessReal::RelTask(XrdSsiTaskReal *tP) // myMutex locked!
 
 // Delete this task or place it on the free list
 //
-   DBG("dodel="<<stopping<<" id="<<tP->ID());
+   DEBUG("dodel="<<stopping<<" id="<<tP->ID());
    if (stopping) delete tP;
       else {tP->ClrEvent();
             tP->attList.next = freeTask;
@@ -320,7 +323,7 @@ void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
 
 // If we have no task then we are really done here (we may need to unprovision)
 //
-   DBG("Request="<<hex<<rqstP<<dec<<" cancel="<<cancel<<" task="<<hex<<tP<<dec);
+   DEBUG("Request="<<rqstP<<" cancel="<<cancel<<" task="<<tP);
    if (!tP)
       {if (doUnProv) Unprovision();
        return;
@@ -340,7 +343,7 @@ void XrdSsiSessReal::RequestFinished(XrdSsiRequest        *rqstP,
 //
    if (rtP->Kill()) RelTask(rtP);
       else {rtP->attList.next = pendTask; pendTask = rtP;
-            DBG("Removal deferred; Task="<<tP<<dec<<" id=" <<nextTID-1);
+            DEBUG("Removal deferred; Task="<<tP<<" id=" <<nextTID-1);
            }
 
 // Finally, if this is a single session run then unprovision here

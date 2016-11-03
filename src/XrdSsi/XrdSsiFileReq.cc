@@ -56,7 +56,6 @@
 
 namespace XrdSsi
 {
-extern XrdOucTrace    Trace;
 extern XrdSysError    Log;
 extern XrdScheduler  *Sched;
 };
@@ -854,7 +853,7 @@ void XrdSsiFileReq::WakeUp() // Called with reqMutex locked!
 
 // Do some debugging
 //
-   DEBUGXQ("respCBarg=" <<hex <<respCBarg <<dec);
+   DEBUGXQ("respCBarg=" <<Xrd::hex <<respCBarg <<Xrd::dec);
 
 // Setup the wakeup data. If this is the complete response, then make sure we
 // get a callback to do the finalization. Otherwise, we don't need a callback

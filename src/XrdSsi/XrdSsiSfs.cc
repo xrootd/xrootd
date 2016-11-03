@@ -59,13 +59,13 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucTList.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -108,7 +108,7 @@ extern XrdSysError       Log;
 
 extern XrdSysLogger     *Logger;
 
-extern XrdOucTrace       Trace;
+extern XrdSysTrace       Trace;
 };
 
 using namespace XrdSsi;
@@ -142,6 +142,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *nativeFS,
    Log.SetPrefix("ssi_");
    Log.logger(logger);
    Logger = logger;
+   Trace.SetLogger(logger);
 
 // Initialize the subsystems
 //

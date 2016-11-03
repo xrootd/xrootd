@@ -40,13 +40,16 @@
 #include "XrdNet/XrdNetAddr.hh"
 
 #include "XrdSsi/XrdSsiAtomics.hh"
-#include "XrdSsi/XrdSsiDebug.hh"
+#include "XrdSsi/XrdSsiLogger.hh"
 #include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
+#include "XrdSsi/XrdSsiTrace.hh"
 
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysLogging.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTrace.hh"
   
 /******************************************************************************/
 /*                    N a m e   S p a c e   G l o b a l s                     */
@@ -54,15 +57,21 @@
 
 namespace XrdSsi
 {
-XrdSysMutex   clMutex;
-XrdScheduler *schedP   = 0;
-XrdCl::Env   *clEnvP   = 0;
-short         maxTCB   = 300;
-short         maxCLW   =  30;
-Atomic(bool)  initDone(false);
-bool          dsTTLSet = false;
-bool          reqTOSet = false;
-bool          strTOSet = false;
+extern XrdSysError          Log;
+extern XrdSysLogger        *Logger;
+extern XrdSysTrace          Trace;
+extern XrdSsiLogger::MCB_t *msgCB;
+extern XrdSsiLogger::MCB_t *msgCBCl;
+
+       XrdSysMutex   clMutex;
+       XrdScheduler *schedP   = 0;
+       XrdCl::Env   *clEnvP   = 0;
+       short         maxTCB   = 300;
+       short         maxCLW   =  30;
+       Atomic(bool)  initDone(false);
+       bool          dsTTLSet = false;
+       bool          reqTOSet = false;
+       bool          strTOSet = false;
 }
 
 using namespace XrdSsi;
@@ -100,6 +109,7 @@ virtual void   SetTimeout(tmoType what, int tmoval);
 virtual       ~XrdSsiClientProvider() {}
 
 private:
+void SetLogger();
 void SetScheduler();
 };
 
@@ -121,6 +131,7 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo &eInfo,
 //
   if (!Atomic_GET(initDone))
      {clMutex.Lock();
+      if (!Logger)   SetLogger();
       if (!schedP)   SetScheduler();
       if (!clEnvP)   clEnvP = XrdCl::DefaultEnv::GetEnv();
       if (!dsTTLSet) clEnvP->PutInt("DataServerTTL",  maxTMO);
@@ -168,21 +179,13 @@ void XrdSsiClientProvider::SetCBThreads(int cbNum, int ntNum)
        clMutex.UnLock();
       }
 }
-  
+ 
 /******************************************************************************/
-/*    X r d S s i C l i e n t P r o v i d e r : : S e t S c h e d u l e r     */
+/*       X r d S s i C l i e n t P r o v i d e r : : S e t L o g g e r        */
 /******************************************************************************/
-
-namespace
-{
-XrdSysError myLog(0, "Ssi");
-
-XrdOucTrace myTrc(&myLog);
-}
   
-void XrdSsiClientProvider::SetScheduler()
+void XrdSsiClientProvider::SetLogger()
 {
-   XrdSysLogger *logP;
    int eFD;
 
 // Get a file descriptor mirroring standard error
@@ -196,16 +199,41 @@ void XrdSsiClientProvider::SetScheduler()
 
 // Now we need to get a logger object. We make this a real dumb one.
 //
-   logP = new XrdSysLogger(eFD, 0);
-   myLog.logger(logP);
+   Logger = new XrdSysLogger(eFD, 0);
+   Log.logger(Logger);
+   Trace.SetLogger(Logger);
+   if (getenv("XRDSSIDEBUG") != 0) Trace.What = TRACESSI_Debug;
 
-// Now construct the proper trace object
+// Check for a message callback object. This must be set at global init time.
 //
-   if (XrdSsi::DeBug.isON) myTrc.What = TRACE_SCHED;
+   if (msgCBCl)
+      {XrdSysLogging::Parms logParms;
+       msgCB = msgCBCl;
+       logParms.logpi = msgCBCl;
+       logParms.bufsz = 0;
+       XrdSysLogging::Configure(*Logger, logParms);
+      }
+}
+  
+/******************************************************************************/
+/*    X r d S s i C l i e n t P r o v i d e r : : S e t S c h e d u l e r     */
+/******************************************************************************/
+
+// This may not be called before the logger object is created!
+  
+void XrdSsiClientProvider::SetScheduler()
+{
+   static XrdOucTrace myTrc(&Log);
+
+// Now construct the proper trace object (note that we do not set tracing if
+// message forwarding is on because these messages will not be forwarded).
+// This must be fixed when xrootd starts using XrdSysTrace!!!
+//
+   if (!msgCBCl && Trace.What & TRACESSI_Debug) myTrc.What = TRACE_SCHED;
 
 // We can now set allocate a scheduler
 //
-   XrdSsi::schedP = new XrdScheduler(&myLog, &myTrc);
+   XrdSsi::schedP = new XrdScheduler(&Log, &myTrc);
 
 // Set thread count for callbacks
 //
@@ -242,7 +270,7 @@ void XrdSsiClientProvider::SetTimeout(XrdSsiProvider::tmoType what, int tmoval)
 // Set requested timeout
 //
    switch(what)
-         {case connect_N:  clEnvP->PutInt("onnectionRetry",   tmoval);
+         {case connect_N:  clEnvP->PutInt("ConnectionRetry",  tmoval);
                            break;
           case connect_T:  clEnvP->PutInt("ConnectionWindow", tmoval);
                            break;

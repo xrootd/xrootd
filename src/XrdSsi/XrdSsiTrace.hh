@@ -30,22 +30,24 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSys/XrdSysError.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-
-#define TRACE_ALL       0xffff
-#define TRACE_Debug     0x0001
+#define TRACESSI_ALL       0xffff
+#define TRACESSI_Debug     0x0001
 
 #ifndef NODEBUG
 
-#include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
-#define QTRACE(act) Trace.What & TRACE_ ## act
+#define QTRACE(act) Trace.What & TRACESSI_ ## act
 
-#define DEBUG(y) if (Trace.What & TRACE_Debug) \
-                 {Trace.Beg(epname, tident); cerr <<y; Trace.End();}
+#define DEBUG(y) if (Trace.What & TRACESSI_Debug) \
+                 {Trace.Beg(tident, epname) <<y; Trace.End();}
 
 #define EPNAME(x) static const char *epname = x;
+
+namespace XrdSsi
+{
+extern    XrdSysTrace Trace;
+}
 
 #else
 
@@ -54,10 +56,4 @@
 #define QTRACE(act) false
 
 #endif
-
-namespace XrdSsi
-{
-extern    XrdOucTrace Trace;
-extern    XrdSysError Log;
-}
 #endif

@@ -32,21 +32,20 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include "XrdVersion.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSsi/XrdSsiSfsConfig.hh"
 #include "XrdSsi/XrdSsiLogger.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysLogPI.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTrace.hh"
  
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -54,10 +53,11 @@
   
 namespace XrdSsi
 {
-          XrdSysError          Log(0);
-          XrdSysLogger        *Logger;
-          XrdOucTrace          Trace(&Log);
-          XrdSsiLogger::MCB_t *msgCB = 0;
+          XrdSysError          Log(0, "ssi_");
+          XrdSysLogger        *Logger = 0;
+          XrdSysTrace          Trace("Ssi", Logger);
+          XrdSsiLogger::MCB_t *msgCB   = 0;
+          XrdSsiLogger::MCB_t *msgCBCl = 0;
 }
 
 using namespace XrdSsi;
@@ -171,6 +171,13 @@ void XrdSsiLogger::Msgv(const char *pfx, const char *fmt, va_list aP)
 }
 
 /******************************************************************************/
+
+void XrdSsiLogger::Msgv(struct iovec *iovP, int iovN)
+{
+   Logger->Put(iovN, iovP);
+}
+
+/******************************************************************************/
 /*                                S e t M C B                                 */
 /******************************************************************************/
   
@@ -188,6 +195,7 @@ bool XrdSsiLogger::SetMCB(XrdSsiLogger::MCB_t  &mcbP,
       {XrdCl::Log *logP = XrdCl::DefaultEnv::GetLog();
        if (!logP) return false;
        logP->SetOutput(new LogMCB(&mcbP));
+       msgCBCl = mcbP;
       }
 
 // All done
