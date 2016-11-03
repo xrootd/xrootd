@@ -65,12 +65,15 @@
 /******************************************************************************/
 
 class XrdNetSocket;
+class XrdOucEnv;
 class XrdOucErrInfo;
 class XrdOucReqID;
 class XrdOucStream;
 class XrdOucTList;
 class XrdOucTokenizer;
 class XrdOucTrace;
+class XrdSecProtect;
+class XrdSecProtector;
 class XrdSfsDirectory;
 class XrdSfsFileSystem;
 class XrdSecProtocol;
@@ -104,6 +107,8 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Process2();
 
+       int           ProcSig();
+
        void          Recycle(XrdLink *lp, int consec, const char *reason);
 
        int           SendFile(int fildes);
@@ -116,6 +121,7 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
 static int           StatGen(struct stat &buf, char *xxBuff);
 
+//            XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
               XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs);
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
@@ -149,7 +155,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Open();
        int   do_Ping();
        int   do_Prepare();
-       int   do_Protocol(int retRole=0);
+       int   do_Protocol(ServerResponseBody_Protocol *rsp=0);
        int   do_Putfile();
        int   do_Qconf();
        int   do_Qfh();
@@ -184,6 +190,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
 static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
+static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError,
                      const char *Path, char *Cgi);
        int   fsRedir(RD_func xfnc);
@@ -230,6 +237,7 @@ static XrdXrootdXPath        XPList;    // Exported   paths
 static XrdSfsFileSystem     *osFS;      // The filesystem
 static XrdSfsFileSystem     *digFS;     // The filesystem (digFS)
 static XrdSecService        *CIA;       // Authentication Server
+static XrdSecProtector      *DHS;       // Protection     Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager
@@ -326,6 +334,15 @@ unsigned char              CapVer;
 XrdSecEntity              *Client;
 XrdSecProtocol            *AuthProt;
 XrdSecEntity               Entity;
+XrdSecProtect             *Protect;
+
+ClientRequest              sigReq2Ver;   // Request to verify
+SecurityRequest            sigReq;       // Signature request
+char                       sigBuff[64];  // Signature payload SHA256 + blowfish
+bool                       sigNeed;      // Signature target  present
+bool                       sigHere;      // Signature request present
+bool                       sigRead;      // Signature being read
+bool                       sigWarn;      // Once for unneeded signature
 
 // Buffer information, used to drive DoIt(), getData(), and (*Resume)()
 //

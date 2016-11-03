@@ -411,7 +411,7 @@ const char *XrdCryptosslX509::IssuerHash(int alg)
    // (for v>=1.0.0) when alg = 1
    EPNAME("X509::IssuerHash");
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(__APPLE__))
    if (alg == 1) {
       // md5 based
       if (issueroldhash.length() <= 0) {
@@ -457,7 +457,7 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
    // (for v>=1.0.0) when alg = 1
    EPNAME("X509::SubjectHash");
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(__APPLE__))
    if (alg == 1) {
       // md5 based
       if (subjectoldhash.length() <= 0) {

@@ -10,11 +10,16 @@ set( XRD_ZCRC32_VERSION   2.0.0 )
 set( XRD_ZCRC32_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
-# The XrdSys library
+# The XrdUtils library
 #-------------------------------------------------------------------------------
 add_library(
   XrdUtils
   SHARED
+
+  #-----------------------------------------------------------------------------
+  # XProtocol
+  #-----------------------------------------------------------------------------
+  XProtocol/XProtocol.cc        XProtocol/XProtocol.hh
 
   #-----------------------------------------------------------------------------
   # XrdSys
@@ -28,6 +33,7 @@ add_library(
   XrdSys/XrdSysPthread.cc       XrdSys/XrdSysPthread.hh
                                 XrdSys/XrdSysSemWait.hh
   XrdSys/XrdSysTimer.cc         XrdSys/XrdSysTimer.hh
+  XrdSys/XrdSysTrace.cc         XrdSys/XrdSysTrace.hh
   XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
   XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
   XrdSys/XrdSysFAttr.cc         XrdSys/XrdSysFAttr.hh

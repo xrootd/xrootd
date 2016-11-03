@@ -67,6 +67,9 @@ LoginAT  = 0;     // Stats: Number of   attempted     logins
 LoginAU  = 0;     // Stats: Number of   authenticated logins
 LoginUA  = 0;     // Stats: Number of unauthenticated logins
 AuthBad  = 0;     // Stats: Number of authentication failures
+aokSCnt  = 0;     // Stats: Number of signature successes
+badSCnt  = 0;     // Stats: Number of signature failures
+ignSCnt  = 0;     // Stats: Number of signature ignored
 }
 
 /******************************************************************************/
@@ -79,6 +82,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
    "<ops><open>%d</open><rf>%d</rf><rd>%lld</rd><pr>%lld</pr>"
    "<rv>%lld</rv><rs>%lld</rs><wr>%lld</wr>"
    "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
+   "<sig><ok>%d</ok><bad>%d</bad><ign>%d</ign></sig>"
    "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio>"
    "<err>%d</err><rdr>%lld</rdr><dly>%d</dly>"
    "<lgn><num>%d</num><af>%d</af><au>%d</au><ua>%d</ua></lgn></stats>";
@@ -94,6 +98,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
        len = snprintf(dummy, sizeof(dummy), statfmt, INMax, INMax, INMax, LLMax,
                       LLMax, LLMax, LLMax, LLMax, INMax, INMax,
                       INMax, INMax,
+                      INMax, INMax, INMax,
                       LLMax, INMax, LLMax, INMax, LLMax, INMax,
                       INMax, INMax, INMax, INMax);
        return len + (fsP ? fsP->getStats(0,0) : 0);
@@ -105,6 +110,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
    len = snprintf(buff, blen, statfmt, Count, openCnt, Refresh, readCnt,
                   prerCnt, rvecCnt, rsegCnt, writeCnt, syncCnt, getfCnt,
                   putfCnt, miscCnt,
+                  aokSCnt, badSCnt, ignSCnt,
                   AsyncNum, AsyncMax, AsyncRej, errorCnt, redirCnt, stallCnt,
                   LoginAT, AuthBad, LoginAU, LoginUA);
    statsMutex.UnLock();

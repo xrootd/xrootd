@@ -246,6 +246,7 @@ int               isSolo;
 char             *perfpgm;
 int               perfint;
 int               cachelife;
+int               emptylife;
 int               pendplife;
 int               FSlim;
 };

@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClTransportManager.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -38,6 +39,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
+#include "XrdSec/XrdSecProtect.hh"
 #include "XrdVersion.hh"
 
 #include <arpa/inet.h>
@@ -52,6 +54,45 @@ XrdVERSIONINFOREF( XrdCl );
 
 namespace XrdCl
 {
+  struct PluginUnloadHandler
+  {
+      PluginUnloadHandler() : unloaded( false ) { }
+
+      static void UnloadHandler()
+      {
+        UnloadHandler( "root" );
+        UnloadHandler( "xroot" );
+      }
+
+      static void UnloadHandler( const std::string &trProt )
+      {
+        TransportManager *trManager    = DefaultEnv::GetTransportManager();
+        TransportHandler *trHandler    = trManager->GetHandler( trProt );
+        XRootDTransport  *xrdTransport = dynamic_cast<XRootDTransport*>( trHandler );
+        if( !xrdTransport ) return;
+
+        PluginUnloadHandler *me = xrdTransport->pSecUnloadHandler;
+        XrdSysRWLockHelper scope( me->lock, false ); // obtain write lock
+        me->unloaded = true;
+      }
+
+      void Register( const std::string &protocol )
+      {
+        XrdSysRWLockHelper scope( lock, false ); // obtain write lock
+        std::pair< std::set<std::string>::iterator, bool > ret = protocols.insert( protocol );
+        // if that's the first time we are using the protocol, the sec lib
+        // was just loaded so now's the time to register the atexit handler
+        if( ret.second )
+        {
+          atexit( UnloadHandler );
+        }
+      }
+
+      XrdSysRWLock          lock;
+      bool                  unloaded;
+      std::set<std::string> protocols;
+  };
+
   //----------------------------------------------------------------------------
   //! Information holder for XRootDStreams
   //----------------------------------------------------------------------------
@@ -102,7 +143,10 @@ namespace XrdCl
       authParams(0),
       authEnv(0),
       openFiles(0),
-      waitBarrier(0)
+      waitBarrier(0),
+      protection(0),
+      protRespBody(0),
+      protRespSize(0)
     {
       sidManager = new SIDManager();
       memset( sessionId, 0, 16 );
@@ -123,32 +167,35 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Data
     //--------------------------------------------------------------------------
-    uint32_t          serverFlags;
-    uint32_t          protocolVersion;
-    uint8_t           sessionId[16];
-    uint8_t           oldSessionId[16];
-    bool              firstLogIn;
-    SIDManager       *sidManager;
-    char             *authBuffer;
-    XrdSecProtocol   *authProtocol;
-    XrdSecParameters *authParams;
-    XrdOucEnv        *authEnv;
-    StreamInfoVector  stream;
-    std::string       streamName;
-    std::string       authProtocolName;
-    std::set<uint16_t> sentOpens;
-    std::set<uint16_t> sentCloses;
-    uint32_t          openFiles;
-    time_t            waitBarrier;
-    XrdSysMutex       mutex;
+    uint32_t                     serverFlags;
+    uint32_t                     protocolVersion;
+    uint8_t                      sessionId[16];
+    uint8_t                      oldSessionId[16];
+    bool                         firstLogIn;
+    SIDManager                  *sidManager;
+    char                        *authBuffer;
+    XrdSecProtocol              *authProtocol;
+    XrdSecParameters            *authParams;
+    XrdOucEnv                   *authEnv;
+    StreamInfoVector             stream;
+    std::string                  streamName;
+    std::string                  authProtocolName;
+    std::set<uint16_t>           sentOpens;
+    std::set<uint16_t>           sentCloses;
+    uint32_t                     openFiles;
+    time_t                       waitBarrier;
+    XrdSecProtect               *protection;
+    ServerResponseBody_Protocol *protRespBody;
+    unsigned int                 protRespSize;
+    XrdSysMutex                  mutex;
   };
 
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
   XRootDTransport::XRootDTransport():
-    pSecLibHandle(0),
-    pAuthHandler(0)
+    pAuthHandler(0),
+    pSecUnloadHandler( new PluginUnloadHandler() )
   {
   }
 
@@ -157,7 +204,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDTransport::~XRootDTransport()
   {
-    delete pSecLibHandle; pSecLibHandle = 0;
+    delete pSecUnloadHandler; pSecUnloadHandler = 0;
   }
 
   //----------------------------------------------------------------------------
@@ -867,7 +914,7 @@ namespace XrdCl
         // kXR_protocol
         //----------------------------------------------------------------------
         case kXR_protocol:
-          if( m->hdr.dlen != 8 )
+          if( m->hdr.dlen < 8 )
             return Status( stError, errInvalidMessage );
           m->body.protocol.pval  = ntohl( m->body.protocol.pval );
           m->body.protocol.flags = ntohl( m->body.protocol.flags );
@@ -961,6 +1008,9 @@ namespace XrdCl
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
     XrdSysMutexHelper scopedLock( info->mutex );
+
+    CleanUpProtection( info );
+
     if( !info->stream.empty() )
     {
       XRootDStreamInfo &sInfo = info->stream[subStreamId];
@@ -1153,6 +1203,37 @@ namespace XrdCl
       info->sentCloses.insert( sid );
   }
 
+
+  //------------------------------------------------------------------------
+  // Get signature for given message
+  //------------------------------------------------------------------------
+  Status XRootDTransport::GetSignature( Message *toSign, Message *&sign, AnyObject &channelData )
+  {
+    XrdSysRWLockHelper scope( pSecUnloadHandler->lock );
+    if( pSecUnloadHandler->unloaded ) return Status( stError, errInvalidOp );
+
+    ClientRequest *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    if( !info ) return Status( stError, errInternal );
+    if( info->protection )
+    {
+      SecurityRequest *newreq  = 0;
+      // check if we have to secure the request in the first place
+      if( !NEED2SECURE ( info->protection )( *thereq ) ) return Status();
+      // secure (sign/encrypt) the request
+      int rc = info->protection->Secure( newreq, *thereq, 0 );
+      // there was an error
+      if( rc < 0 )
+        return Status( stError, errInternal, -rc );
+
+      sign = new Message();
+      sign->Grab( reinterpret_cast<char*>( newreq ), rc );
+    }
+
+    return Status();
+  }
+
   //----------------------------------------------------------------------------
   // Generate the message to be sent as an initial handshake
   // (handshake+kXR_protocol)
@@ -1177,6 +1258,7 @@ namespace XrdCl
 
     proto->requestid = htons(kXR_protocol);
     proto->clientpv  = htonl(kXR_PROTOCOLVERSION);
+    proto->flags     = kXR_secreqs;
     return msg;
   }
 
@@ -1262,6 +1344,12 @@ namespace XrdCl
 
     if( rsp->body.protocol.pval >= 0x297 )
       info->serverFlags = rsp->body.protocol.flags;
+
+    if( rsp->hdr.dlen > 8 )
+    {
+      info->protRespBody = new ServerResponseBody_Protocol( rsp->body.protocol );
+      info->protRespSize = rsp->hdr.dlen;
+    }
 
     log->Debug( XRootDTransportMsg,
                 "[%s] kXR_protocol successful (%s, protocol version %x)",
@@ -1359,7 +1447,7 @@ namespace XrdCl
 
     loginReq->requestid = kXR_login;
     loginReq->pid       = ::getpid();
-    loginReq->capver[0] = kXR_asyncap | kXR_ver003;
+    loginReq->capver[0] = kXR_asyncap | kXR_ver004;
     loginReq->role[0]   = kXR_useruser;
     loginReq->dlen      = cgiLen;
     loginReq->ability   = kXR_fullurl | kXR_readrdok;
@@ -1599,7 +1687,39 @@ namespace XrdCl
       else if( rsp->hdr.status == kXR_ok )
       {
         info->authProtocolName = info->authProtocol->Entity.prot;
-        CleanUpAuthentication( info );
+
+        //----------------------------------------------------------------------
+        // Do we need protection?
+        //----------------------------------------------------------------------
+        if( info->protRespBody )
+        {
+          int rc = XrdSecGetProtection( info->protection, *info->authProtocol, *info->protRespBody, info->protRespSize );
+          if( rc > 0 )
+          {
+            log->Debug( XRootDTransportMsg,
+                        "[%s] XrdSecProtect loaded.", hsData->streamName.c_str() );
+          }
+          else if( rc == 0 )
+          {
+            log->Debug( XRootDTransportMsg,
+                        "[%s] XrdSecProtect: no protection needed.",
+                        hsData->streamName.c_str() );
+          }
+          else
+          {
+            log->Debug( XRootDTransportMsg,
+                        "[%s] Failed to load XrdSecProtect: %s",
+                        hsData->streamName.c_str(), strerror( -rc ) );
+            CleanUpAuthentication( info );
+
+            return Status( stError, errAuthFailed, -rc );
+          }
+        }
+
+        if( !info->protection )
+          CleanUpAuthentication( info );
+        else
+          pSecUnloadHandler->Register( info->authProtocolName );
 
         log->Debug( XRootDTransportMsg,
                     "[%s] Authenticated with %s.", hsData->streamName.c_str(),
@@ -1738,6 +1858,32 @@ namespace XrdCl
     info->authProtocol = 0;
     info->authParams   = 0;
     info->authEnv      = 0;
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Clean up the data structures created for the protection purposes
+  //------------------------------------------------------------------------
+  Status XRootDTransport::CleanUpProtection( XRootDChannelInfo *info )
+  {
+    XrdSysRWLockHelper scope( pSecUnloadHandler->lock );
+    if( pSecUnloadHandler->unloaded ) return Status( stError, errInvalidOp );
+
+    if( info->protection )
+    {
+      info->protection->Delete();
+      info->protection = 0;
+
+      CleanUpAuthentication( info );
+    }
+
+    if( info->protRespBody )
+    {
+      delete info->protRespBody;
+      info->protRespBody = 0;
+      info->protRespSize = 0;
+    }
+
     return Status();
   }
 

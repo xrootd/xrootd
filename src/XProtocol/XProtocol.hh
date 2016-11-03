@@ -43,10 +43,12 @@
 
 // The following is the binary representation of the protocol version here.
 // Protocol version is repesented as three base10 digits x.y.z with x having no
-// upper limit (i.e. n.9.9 + 1 -> n+1.0.0).
+// upper limit (i.e. n.9.9 + 1 -> n+1.0.0). The kXR_PROTSIGNVERSION defines the
+// protocol version where request signing became available.
 //
-#define kXR_PROTOCOLVERSION  0x00000300
-#define kXR_PROTOCOLVSTRING "3.0.0"
+#define kXR_PROTOCOLVERSION  0x00000310
+#define kXR_PROTSIGNVERSION  0x00000310
+#define kXR_PROTOCOLVSTRING "3.1.0"
 
 #include "XProtocol/XPtypes.hh"
 
@@ -57,6 +59,7 @@
 #define kXR_LBalServer 0
 
 // The below are defined for protocol version 2.9.7 or higher
+// These are the flag value in the kXR_protool response
 //
 #define kXR_isManager 0x00000002
 #define kXR_isServer  0x00000001
@@ -66,7 +69,6 @@
 
 #define kXR_maxReqRetry 10
 
-//
 // Kind of error inside a XTNetFile's routine (temporary)
 //
 enum XReqErrorType {
@@ -112,7 +114,10 @@ enum XRequestTypes {
    kXR_readv,   // 3025
    kXR_verifyw, // 3026
    kXR_locate,  // 3027
-   kXR_truncate // 3028
+   kXR_truncate,// 3028
+   kXR_sigver,  // 3029
+   kXR_decrypt, // 3030
+   kXR_REQFENCE // Always last valid request code +1
 };
 
 // OPEN MODE FOR A REMOTE FILE
@@ -157,7 +162,8 @@ enum XLoginVersion {
    kXR_ver000 = 0,  // Old clients predating history
    kXR_ver001 = 1,  // Generally implemented 2005 protocol
    kXR_ver002 = 2,  // Same as 1 but adds asyncresp recognition
-   kXR_ver003 = 3   // The 2011-2012 rewritten client
+   kXR_ver003 = 3,  // The 2011-2012 rewritten client
+   kXR_ver004 = 4   // The 2016 sign-capable   client
 };
 
 enum XStatRequestOption {
@@ -201,6 +207,10 @@ enum XOpenRequestOption {
    kXR_open_wrto=32768
 };
 
+enum XProtocolRequestFlags {
+   kXR_secreqs  = 1      // Return security requirements
+};
+
 enum XQueryType {
    kXR_QStats = 1,
    kXR_QPrep  = 2,
@@ -234,6 +244,23 @@ enum XPrepRequestOption {
    kXR_wmode  = 16,
    kXR_coloc  = 32,
    kXR_fresh  = 64
+};
+
+// Version used for kXR_decrypt and kXR_sigver and is set in
+// Set in SigverRequest::version, DecryptRequest::version and
+// ServerResponseReqs_Protocol::secver
+#define kXR_secver_0  0
+
+// Flags for kXR_decrypt and kXR_sigver
+enum XSecFlags {
+   kXR_nodata   = 1  // Request payload was not hashed or encrypted
+};
+
+// Cryptography used for kXR_sigver SigverRequest::crypto
+enum XSecCrypto {
+   kXR_SHA256   = 0x01,   // Hash used
+   kXR_HashMask = 0x0f,   // Mak to extract the hash type
+   kXR_rsaKey   = 0x80    // The rsa key was used
 };
 
 //_______________________________________________
@@ -295,6 +322,9 @@ enum XErrorCode {
    kXR_ChkSumErr,
    kXR_inProgress,
    kXR_overQuota,
+   kXR_SigVerErr,
+   kXR_DecryptErr,
+   kXR_ERRFENCE,    // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
 
@@ -345,6 +375,15 @@ struct ClientCloseRequest {
    kXR_int64 fsize;
    kXR_char reserved[4];
    kXR_int32  dlen;
+};
+struct ClientDecryptRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_unt16 expectrid; // Request code of subsequent request
+   kXR_char  version;   // Security version being used (see enum XSecVersion)
+   kXR_char  flags;     // One or more flags defined in enum XSecFlags
+   kXR_char  reserved[12];
+   kXR_int32 dlen;
 };
 struct ClientDirlistRequest {
    kXR_char  streamid[2];
@@ -419,7 +458,8 @@ struct ClientProtocolRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
    kXR_int32 clientpv;      // 2.9.7 or higher
-   kXR_char  reserved[12];
+   kXR_char  flags;         // 3.1.0 or higher
+   kXR_char  reserved[11];
    kXR_int32 dlen;
 };
 struct ClientPrepareRequest {
@@ -478,8 +518,20 @@ struct ClientRmdirRequest {
 struct ClientSetRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
-   kXR_char reserved[16];
+   kXR_char reserved[15];
+   kXR_char  modifier;  // For security purposes, should be zero
    kXR_int32  dlen;
+};
+struct ClientSigverRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_unt16 expectrid; // Request code of subsequent request
+   kXR_char  version;   // Security version being used (see XSecVersion)
+   kXR_char  flags;     // One or more flags defined in enum (see XSecFlags)
+   kXR_unt64 seqno;     // Monotonically increasing number (part of hash)
+   kXR_char  crypto;    // Cryptography used (see XSecCrypto)
+   kXR_char  rsvd2[3];
+   kXR_int32 dlen;
 };
 struct ClientStatRequest {
    kXR_char  streamid[2];
@@ -538,6 +590,7 @@ typedef union {
    struct ClientBindRequest bind;
    struct ClientChmodRequest chmod;
    struct ClientCloseRequest close;
+   struct ClientDecryptRequest decrypt;
    struct ClientDirlistRequest dirlist;
    struct ClientEndsessRequest endsess;
    struct ClientGetfileRequest getfile;
@@ -556,11 +609,18 @@ typedef union {
    struct ClientRmRequest rm;
    struct ClientRmdirRequest rmdir;
    struct ClientSetRequest set;
+   struct ClientSigverRequest sigver;
    struct ClientStatRequest stat;
    struct ClientSyncRequest sync;
    struct ClientTruncateRequest truncate;
    struct ClientWriteRequest write;
 } ClientRequest;
+
+typedef union {
+   struct ClientRequestHdr header;
+   struct ClientDecryptRequest decrypt;
+   struct ClientSigverRequest sigver;
+} SecurityRequest;
 
 struct readahead_list {
    kXR_char fhandle[4];
@@ -604,11 +664,55 @@ struct ServerResponseBody_Open {
    kXR_char cptype[4]; // kXR_retstat is specified
 }; // info will follow if kXR_retstat is specified
 
+// The following information is returned in the response body when kXR_secreqs
+// is set in ClientProtocolRequest::flags. Note that the size of secvec is
+// defined by secvsz and will not be present when secvsz == 0.
+struct ServerResponseSVec_Protocol {
+   kXR_char  reqindx;     // Request index
+   kXR_char  reqsreq;     // Request signing requirement
+};
+
+struct ServerResponseReqs_Protocol {
+   kXR_char  theTag;      // Always the character 'S' to identify struct
+   kXR_char  rsvd;        // Reserved for the future (always 0 for now)
+   kXR_char  secver;      // Security version
+   kXR_char  secopt;      // Security options
+   kXR_char  seclvl;      // Security level when secvsz == 0
+   kXR_char  secvsz;      // Number of items in secvec (i.e. its length/2)
+   ServerResponseSVec_Protocol secvec;
+};
+
+// Options reflected in protocol response ServerResponseReqs_Protocol::secopt
+//
+#define kXR_secOData 0x01
+#define kXR_secOFrce 0x02
+
+// Security level definitions (these are predefined but can be over-ridden)
+//
+#define kXR_secNone       0
+#define kXR_secCompatible 1
+#define kXR_secStandard   2
+#define kXR_secIntense    3
+#define kXR_secPedantic   4
+
+// Requirements one of which set in each ServerResponseReqs_Protocol::secvec
+//
+#define kXR_signIgnore    0
+#define kXR_signLikely    1
+#define kXR_signNeeded    2
+
 // Body for the kXR_protocol response... useful
 struct ServerResponseBody_Protocol {
    kXR_int32 pval;
    kXR_int32 flags;
+   ServerResponseReqs_Protocol secreq; // Only for V3.1.0+ && if requested
 };
+
+// Handy definition of the size of the protocol response when the security
+// information is not present.
+//
+#define kXR_ShortProtRespLen sizeof(ServerResponseBody_Protocol)-\
+                             sizeof(ServerResponseReqs_Protocol)
 
 struct ServerResponseBody_Login {
    kXR_char  sessid[16];
@@ -759,7 +863,10 @@ static int mapError(int rc)
            case ETXTBSY:      return kXR_inProgress;
            case ENODEV:       return kXR_FSError;
            case EFAULT:       return kXR_ServerError;
+           case EDOM:         return kXR_ChkSumErr;
            case EDQUOT:       return kXR_overQuota;
+           case EILSEQ:       return kXR_SigVerErr;
+           case ERANGE:       return kXR_DecryptErr;
            default:           return kXR_FSError;
           }
       }
@@ -789,11 +896,14 @@ static int toErrno( int xerr )
         case kXR_ChkSumErr:     return EDOM;
         case kXR_inProgress:    return EINPROGRESS;
         case kXR_overQuota:     return EDQUOT;
+        case kXR_SigVerErr:     return EILSEQ;
+        case kXR_DecryptErr:    return ERANGE;
         default:                return ENOMSG;
        }
 }
 
+static const char *errName(kXR_int32 errCode);
+
+static const char *reqName(kXR_unt16 reqCode);
 };
-
-
 #endif

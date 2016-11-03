@@ -1239,13 +1239,14 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int  i, n, V_keep = -1, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1;
+    int  i, n, V_keep = -1, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1, V_assumev4;
     int  v_rpip = -1;
     long long llp;
     struct netopts {const char *opname; int hasarg; int opval;
                            int *oploc;  const char *etxt;}
            ntopts[] =
        {
+        {"assumev4",   0, 1, &V_assumev4, "option"},
         {"keepalive",  0, 1, &V_keep,   "option"},
         {"nokeepalive",0, 0, &V_keep,   "option"},
         {"kaparms",    4, 0, &V_keep,   "option"},
@@ -1328,6 +1329,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 
      if (V_ct >= 0) XrdNetAddr::SetCache(V_ct);
      if (v_rpip >= 0) XrdInet::netIF.SetRPIPA(v_rpip != 0);
+     if (V_assumev4 >= 0) XrdInet::SetAssumeV4(true);
      return 0;
 }
 

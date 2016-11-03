@@ -34,6 +34,7 @@
 #include "Xrd/XrdLink.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdSec/XrdSecProtect.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -64,6 +65,7 @@ char                 *XrdXrootdProtocol::digLib   = 0;
 char                 *XrdXrootdProtocol::digParm  = 0;
 XrdXrootdFileLock    *XrdXrootdProtocol::Locker;
 XrdSecService        *XrdXrootdProtocol::CIA      = 0;
+XrdSecProtector      *XrdXrootdProtocol::DHS      = 0;
 char                 *XrdXrootdProtocol::SecLib   = 0;
 char                 *XrdXrootdProtocol::pidPath  = strdup("/tmp");
 XrdScheduler         *XrdXrootdProtocol::Sched;
@@ -208,6 +210,7 @@ XrdXrootdProtocol XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
 {
 // Reset all common fields
 //
+   abort();
    Reset();
 
 // Now copy the relevant fields only
@@ -224,7 +227,7 @@ XrdXrootdProtocol XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
    AuthProt      = rhs.AuthProt;
    return *this;
 }
-  
+
 /******************************************************************************/
 /*                                 M a t c h                                  */
 /******************************************************************************/
@@ -283,16 +286,16 @@ int dlen, rc;
                 struct ServerResponseBody_Protocol Rsp;
                }                                   hsprot;
         struct iovec iov[2] = {{(char *)&hsresp, sizeof(hsresp)},
-                               {(char *)&hsprot, sizeof(hsprot)}
+                               {(char *)&hsprot, 0}
                               };
-        static const int rspLen = sizeof(hsresp)+sizeof(hsprot);
+        int rspLen;
         memcpy(&Request, hsRqst, sizeof(Request));
         memcpy(hsprot.Hdr.streamid,hsRqst->streamid,sizeof(hsprot.Hdr.streamid));
+        rspLen              = do_Protocol(&hsprot.Rsp);
+        hsprot.Hdr.dlen     = htonl(rspLen);
         hsprot.Hdr.status   = 0;
-        hsprot.Hdr.dlen     = htonl(sizeof(hsprot.Rsp));
-        hsprot.Rsp.pval     = htonl(kXR_PROTOCOLVERSION);
-        hsprot.Rsp.flags    = do_Protocol(1);
-        rc = lp->Send(iov, 2, rspLen);
+        iov[1].iov_len      = sizeof(hsprot.Hdr) + rspLen;
+        rc = lp->Send(iov, 2, sizeof(hsresp)+sizeof(hsprot.Hdr)+rspLen);
        }
 
 // Verify that our handshake response was actually sent
@@ -334,6 +337,7 @@ int dlen, rc;
 int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
 {
    int rc;
+   kXR_unt16 reqID;
 
 // Check if we are servicing a slow link
 //
@@ -350,12 +354,21 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
 //
    if ((rc=getData("request",(char *)&Request,sizeof(Request))) != 0) return rc;
 
+// Check if we need to copy the request prior to unmarshalling it
+//
+   reqID = ntohs(Request.header.requestid);
+   if (reqID != kXR_sigver && NEED2SECURE(Protect)(Request))
+      {memcpy(&sigReq2Ver, &Request, sizeof(ClientRequest));
+       sigNeed = true;
+      }
+
 // Deserialize the data
 //
-   Request.header.requestid = ntohs(Request.header.requestid);
+   Request.header.requestid = reqID;
    Request.header.dlen      = ntohl(Request.header.dlen);
    Response.Set(Request.header.streamid);
-   TRACEP(REQ, "req=" <<Request.header.requestid <<" dlen=" <<Request.header.dlen);
+   TRACEP(REQ, "req=" <<XProtocol::reqName(reqID)
+               <<" dlen=" <<Request.header.dlen);
 
 // Every request has an associated data length. It better be >= 0 or we won't
 // be able to know how much data to read.
@@ -365,10 +378,14 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
        return Link->setEtext("protocol data length error");
       }
 
+// Process sigver requests now as they appear ahead of a request
+//
+   if (reqID == kXR_sigver) return ProcSig();
+
 // Read any argument data at this point, except when the request is a write.
 // The argument may have to be segmented and we're not prepared to do that here.
 //
-   if (Request.header.requestid != kXR_write && Request.header.dlen)
+   if (reqID != kXR_write && Request.header.dlen)
       {if (!argp || Request.header.dlen+1 > argp->bsize)
           {if (argp) BPool->Release(argp);
            if (!(argp = BPool->Obtain(Request.header.dlen+1)))
@@ -393,6 +410,32 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
   
 int XrdXrootdProtocol::Process2()
 {
+// If we are verifying requests, see if this request needs to be verified
+//
+   if (sigNeed)
+      {const char *eText = "Request not signed";
+       if (!sigHere || (eText = Protect->Verify(sigReq,sigReq2Ver,argp->buff)))
+          {Response.Send(kXR_SigVerErr, eText);
+           TRACEP(REQ, "req=" <<XProtocol::reqName(Request.header.requestid)
+                  <<" verification failed; " <<eText);
+           SI->Bump(SI->badSCnt);
+           return Link->setEtext(eText);
+          } else {
+           SI->Bump(SI->aokSCnt);
+           sigNeed = sigHere = false;
+         }
+      } else {
+       if (sigHere)
+          {TRACEP(REQ, "req=" <<XProtocol::reqName(Request.header.requestid)
+                     <<" unneeded signature discarded.");
+           if (sigWarn)
+              {eDest.Emsg("Protocol","Client is needlessly signing requests.");
+               sigWarn = false;
+              }
+           SI->Bump(SI->ignSCnt);
+           sigHere = false;
+          }
+      }
 
 // If the user is not yet logged in, restrict what the user can do
 //
@@ -497,6 +540,48 @@ int XrdXrootdProtocol::Process2()
 // Whatever we have, it's not valid
 //
    Response.Send(kXR_InvalidRequest, "Invalid request code");
+   return 0;
+}
+
+/******************************************************************************/
+/*                               P r o c S i g                                */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::ProcSig()
+{
+   int rc;
+
+// Check if we completed reading the signature and if so, we are done
+//
+   if (sigRead)
+      {sigRead = false;
+       sigHere = true;
+       return 0;
+      }
+
+// Verify that the hash is not longer that what we support and is present
+//
+   if (Request.header.dlen <= 0
+   ||  Request.header.dlen > (int)sizeof(sigBuff))
+      {Response.Send(kXR_ArgInvalid, "Invalid signature data length");
+       return Link->setEtext("signature data length error");
+      }
+
+// Save relevant information for the next round
+//
+   memcpy(&sigReq, &Request, sizeof(ClientSigverRequest));
+   sigReq.header.dlen = htonl(Request.header.dlen);
+
+// Now read in the signature
+//
+   sigRead = true;
+   if ((rc = getData("arg", sigBuff, Request.header.dlen)))
+      {Resume = &XrdXrootdProtocol::ProcSig; return rc;}
+   sigRead = false;
+
+// All done
+//
+   sigHere = true;
    return 0;
 }
 
@@ -681,6 +766,7 @@ void XrdXrootdProtocol::Cleanup()
 // Handle authentication protocol
 //
    if (AuthProt) {AuthProt->Delete(); AuthProt = 0;}
+   if (Protect)  {Protect->Delete();  Protect  = 0;}
 
 // Handle parallel I/O appendages
 //
@@ -747,6 +833,7 @@ void XrdXrootdProtocol::Reset()
    hcNow              =13;
    Client             = 0;
    AuthProt           = 0;
+   Protect            = 0;
    mySID              = 0;
    CapVer             = 0;
    clientPV           = 0;
@@ -755,6 +842,8 @@ void XrdXrootdProtocol::Reset()
    rvSeq              = 0;
    pioFree = pioFirst = pioLast = 0;
    isActive = isDead  = isNOP = isBound = 0;
+   sigNeed = sigHere = sigRead = false;
+   sigWarn = true;
    rdType             = 0;
    memset(&Entity, 0, sizeof(Entity));
    memset(Stream,  0, sizeof(Stream));

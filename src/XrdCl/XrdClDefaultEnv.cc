@@ -27,6 +27,7 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClTransportManager.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 #include "XrdOuc/XrdOucPreload.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysUtils.hh"

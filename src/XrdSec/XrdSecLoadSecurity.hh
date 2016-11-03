@@ -65,6 +65,36 @@ XrdSecGetProt_t XrdSecLoadSecFactory(      char       *eBuff,
                                      const char       *seclib=0);
 
 /******************************************************************************/
+/*                   X r d S e c G e t P r o t e c t i o n                    */
+/******************************************************************************/
+
+class  XrdSecProtect;
+class  XrdSecProtector;
+struct ServerResponseBody_Protocol;
+
+//------------------------------------------------------------------------------
+//! Obtain an instance of a security protection object based on the kXR_protocol
+//! response. This is only used client-side.
+//!
+//! @param  protP   Place where the protection object point is placed.
+//! @param  aprot   Uses the authentication protocol to protect requests. It
+//!                 must be supplied and must be he protocol the client used
+//!                 for authentication. Hence, authentication must occur first.
+//! @param  resp    Reference to the response body returned by kXR_protocol.
+//! @param  resplen Length of the response body.
+//!
+//! @return >0      pointer to the protect object placed in protP.
+//! @return =0      No protection is needed, protP set to zero.
+//! @return <0      An error occured getting the protection object the
+//!                 return value is -errno and protP has been set to zero.
+//------------------------------------------------------------------------------
+
+int XrdSecGetProtection(XrdSecProtect              *&protP,
+                        XrdSecProtocol              &aprot,
+                        ServerResponseBody_Protocol &resp,
+                        unsigned int                 resplen);
+  
+/******************************************************************************/
 /*                  X r d S e c L o a d S e c S e r v i c e                   */
 /******************************************************************************/
   
@@ -79,6 +109,8 @@ XrdSecGetProt_t XrdSecLoadSecFactory(      char       *eBuff,
 //!               pointer is passed, then the defalt library is used.
 //! @param getP   Upon success and if supplied, the pointer to the function
 //!               XrdSecGetProtocol() used to get protocol objects.
+//! @param proP   Upon success and ifsupplied, the pointer to the class
+//!               that provides protection services (nill means non wanted).
 //!
 //! @return !0    Pointer to the XrdSecService object suitable for server use.
 //!               This object is persisted and will not be deleted until exit.
@@ -93,5 +125,6 @@ class XrdSysError;
 XrdSecService *XrdSecLoadSecService(XrdSysError      *eDest,
                                     const char       *cfn,
                                     const char       *seclib=0,
-                                    XrdSecGetProt_t  *getP=0);
+                                    XrdSecGetProt_t  *getP=0,
+                                    XrdSecProtector **proP=0);
 #endif

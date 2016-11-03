@@ -162,11 +162,20 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Portable wrapper around SIGPIPE free send
       //!
-      //! @param buffer       data to be written
-      //! @param size         size of the data buffer
-      //! @param bytesWritten the amount of data actually written
+      //! @param buffer : data to be written
+      //! @param size   : size of the data buffer
+      //! @return       : the amount of data actually written
       //------------------------------------------------------------------------
       ssize_t Send( void *buffer, uint32_t size );
+
+      //------------------------------------------------------------------------
+      //! Wrapper around writev
+      //!
+      //! @param iov    : buffers to be written
+      //! @param iovcnt : number of buffers
+      //! @return       : the amount of data actually written
+      //------------------------------------------------------------------------
+      ssize_t WriteV( iovec *iov, int iovcnt );
 
       //------------------------------------------------------------------------
       //! Get the file descriptor

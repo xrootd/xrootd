@@ -17,6 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include "TestEnv.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 
 namespace XrdClTests {
 

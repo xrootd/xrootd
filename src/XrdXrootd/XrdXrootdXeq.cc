@@ -39,7 +39,9 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecProtector.hh"
 #include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
@@ -155,6 +157,7 @@ int XrdXrootdProtocol::do_Auth()
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
       {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
+       if (DHS) Protect = DHS->New4Server(*AuthProt,clientPV&XrdOucEI::uVMask);
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
        logLogin(true);
        return rc;
@@ -830,8 +833,8 @@ int XrdXrootdProtocol::do_Login()
        sessID.Sid  = mySID;
        sendSID = 1;
        if (!clientPV)
-          {        if (i >  kXR_ver003) clientPV = (int)0x0300;
-              else if (i == kXR_ver003) clientPV = (int)0x0299;
+          {        if (i >= kXR_ver004) clientPV = (int)0x0310;
+              else if (i == kXR_ver003) clientPV = (int)0x0300;
               else if (i == kXR_ver002) clientPV = (int)0x0290;
               else if (i == kXR_ver001) clientPV = (int)0x0200;
               else                      clientPV = (int)0x0100;
@@ -854,6 +857,14 @@ int XrdXrootdProtocol::do_Login()
    addrP = Link->AddrInfo();
    if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
       clientPV |= XrdOucEI::uIPv4;
+// WORKAROUND: XrdCl 4.0.x often identifies worker nodes as being IPv6-only.
+// Rather than breaking a significant number of our dual-stack workers, we
+// automatically denote IPv6 connections as also supporting IPv4 - regardless
+// of what the remote client claims. This was fixed in 4.3.x but we can't
+// tell release differences until 4.5 when we can safely ignore this as we
+// also don't want to misidentify IPv6-only clients either.
+   else if (i < kXR_ver004 && XrdInet::GetAssumeV4())
+           clientPV |= XrdOucEI::uIPv64;
 
 // Mark the client as being on a private net if the address is private
 //
@@ -1495,19 +1506,15 @@ int XrdXrootdProtocol::do_Prepare()
 /*                           d o _ P r o t o c o l                            */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_Protocol(int retRole)
+int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
 {
-   static ServerResponseBody_Protocol RespNew
-                = {static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION)), myRole};
+   static kXR_int32 verNum = static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION));
+   static kXR_int32 theRle = static_cast<kXR_int32>(htonl(myRole));
+   static kXR_int32 theRlf = static_cast<kXR_int32>(htonl(myRolf));
 
-   static ServerResponseBody_Protocol RespOld
-                = {static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION)),
-                   static_cast<kXR_int32>(isRedir ? htonl(kXR_LBalServer)
-                                                  : htonl(kXR_DataServer))
-                  };
-
-          ServerResponseBody_Protocol *Resp = &RespOld;
-          int RespLen = sizeof(RespOld);
+   ServerResponseBody_Protocol theResp;
+   ServerResponseBody_Protocol *respP = (rsp ? rsp : &theResp);
+   int RespLen = kXR_ShortProtRespLen;
 
 // Keep Statistics
 //
@@ -1516,15 +1523,22 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
 // Determine which response to provide
 //
    if (Request.protocol.clientpv)
-      {Resp = &RespNew; RespLen = sizeof(RespNew);
+      {int cvn = XrdOucEI::uVMask & ntohl(Request.protocol.clientpv);
        if (!Status || !(clientPV & XrdOucEI::uVMask))
-          clientPV = (clientPV & ~XrdOucEI::uVMask)
-                   | (XrdOucEI::uVMask & ntohl(Request.protocol.clientpv));
+          clientPV = (clientPV & ~XrdOucEI::uVMask) | cvn;
+          else cvn = (clientPV &  XrdOucEI::uVMask);
+       if (DHS && cvn >= kXR_PROTSIGNVERSION
+       &&  Request.protocol.flags & kXR_secreqs)
+          RespLen += DHS->ProtResp(respP->secreq, *(Link->AddrInfo()), cvn);
+       respP->flags = theRle;
+      } else {
+       respP->flags = theRlf;
       }
 
 // Return info
 //
-    return (retRole ? Resp->flags : Response.Send((void *)Resp, RespLen));
+    respP->pval = verNum;
+    return (rsp ? RespLen : Response.Send((void *)&theResp,RespLen));
 }
 
 /******************************************************************************/

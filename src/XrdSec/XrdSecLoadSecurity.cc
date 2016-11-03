@@ -27,12 +27,18 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <iostream>
+
 #include "XrdVersion.hh"
+
+#include "XProtocol/XProtocol.hh"
 
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
+#include "XrdSec/XrdSecProtector.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -41,6 +47,14 @@
 namespace
 {
 static XrdVERSIONINFODEF(myVersion, XrdSecLoader, XrdVNUMBER, XrdVERSION);
+
+XrdSysMutex    protMutex;
+}
+
+namespace XrdSecProtection
+{
+XrdSecProtector *theProtector = 0;
+int              protRC  = 0;
 }
 
 /******************************************************************************/
@@ -115,6 +129,47 @@ int Load(      char       *eBuff,      int         eBlen,
 }
 
 /******************************************************************************/
+
+namespace
+{
+int Load(      char       *eBuff,   int             eBlen,
+         const char       *protlib, XrdSysError    *eDest=0)
+{
+   XrdSecProtector **protPP;
+   XrdOucPinLoader *piP;
+   const char *myProtLib = "libXrdSecProt.so";
+
+// Check for default path
+//
+   if (!protlib) protlib = myProtLib;
+
+// Get a plugin loader object
+//
+   if (eDest) piP = new XrdOucPinLoader(eDest,
+                                        &myVersion, "protlib", protlib);
+      else    piP = new XrdOucPinLoader(eBuff, eBlen,
+                                        &myVersion, "protlib", protlib);
+
+// Get the protection object which also is a factory object.
+//
+   protPP = (XrdSecProtector **)piP->Resolve("XrdSecProtObjectP");
+   if (protPP)
+      {XrdSecProtection::theProtector = *protPP;
+       delete piP;
+       return 0;
+      }
+      return 1;
+
+// We failed, so bail out
+//
+   if (eDest)
+      eDest->Say("Config ","Unable to create protection framework via ",protlib);
+   piP->Unload(true);
+   return ENOENT;
+}
+}
+
+/******************************************************************************/
 /*                     X r d S e c L o a d F a c t o r y                      */
 /******************************************************************************/
 
@@ -143,17 +198,99 @@ XrdSecGetProt_t XrdSecLoadSecFactory(char *eBuff, int eBlen, const char *seclib)
 }
 
 /******************************************************************************/
+/*                   X r d S e c G e t P r o t e c t i o n                    */
+/******************************************************************************/
+
+// This is used client-side only
+
+int XrdSecGetProtection(XrdSecProtect              *&protP,
+                        XrdSecProtocol              &aprot,
+                        ServerResponseBody_Protocol &resp,
+                        unsigned int                 resplen)
+{
+   static const unsigned int hdrLen = sizeof(ServerResponseReqs_Protocol) - 2;
+   static const unsigned int minLen = kXR_ShortProtRespLen + hdrLen;
+   XrdSecProtector *pObj;
+   unsigned int vLen;
+   int rc;
+
+// First validate the response before passing it to anyone
+//
+   protP = 0;
+   if (resplen <= kXR_ShortProtRespLen) return 0;
+   if (resplen < minLen) return -EINVAL;
+   vLen = static_cast<unsigned int>(resp.secreq.secvsz)
+        * sizeof(ServerResponseSVec_Protocol);
+   if (vLen + minLen > resplen) return -EINVAL;
+
+// Our first step is to see if any protection is required
+//
+   if (vLen == 0 && resp.secreq.seclvl == kXR_secNone) return 0;
+
+// The next step is to see if we have a protector object. If we do not then
+// we need to load the library that provides such objects. This needs to be
+// MT-safe as it may be called at any time by any thread.
+//
+   protMutex.Lock();
+   if (!(pObj = XrdSecProtection::theProtector))
+      {if (!XrdSecProtection::protRC)
+          {char eBuff[2048];
+           if ((XrdSecProtection::protRC = Load(eBuff, sizeof(eBuff), 0)))
+              std::cerr <<"SecLoad: " <<eBuff <<'\n' <<std::flush;
+           else
+              pObj = XrdSecProtection::theProtector;
+          }
+       if ((rc = XrdSecProtection::protRC))
+          {protMutex.UnLock();
+           return -rc;
+          }
+      }
+   protMutex.UnLock();
+
+// Return new protection object
+//
+   protP = pObj->New4Client(aprot, resp.secreq, resplen-kXR_ShortProtRespLen);
+   return (protP ? 1 : 0);
+}
+  
+/******************************************************************************/
+/*                  X r d S e c L o a d P r o t e c t i o n                   */
+/******************************************************************************/
+
+// This is a one-time server-side call
+
+XrdSecProtector *XrdSecLoadProtection(XrdSysError &erP)
+{
+
+// Load the protection object. This is done in the main thread do no mutex
+//
+   XrdSecProtection::protRC = Load(0, 0, 0, &erP);
+
+// All done, return result
+//
+   return (XrdSecProtection::protRC ? 0 : XrdSecProtection::theProtector);
+}
+
+/******************************************************************************/
 /*                  X r d S e c L o a d S e c S e r v i c e                   */
 /******************************************************************************/
 
 XrdSecService *XrdSecLoadSecService(XrdSysError     *eDest,
                                     const char      *cfn,
                                     const char      *seclib,
-                                    XrdSecGetProt_t *getP)
+                                    XrdSecGetProt_t *getP,
+                                    XrdSecProtector**proP)
 {
    XrdSecService   *CIA;
 
 // Load required plugin nd obtain pointers
 //
-   return (Load(0, 0, cfn, seclib, getP, &CIA, eDest) ? 0 : CIA);
+   if (Load(0, 0, cfn, seclib, getP, &CIA, eDest)) return 0;
+
+// Set the protectorobject. Note that the securityservice will load it if
+// is needed and we will havecaptured its pointer. This sort of a hack but
+// we can't change the SecService object as it is a public interface.
+//
+   if (proP) *proP = XrdSecProtection::theProtector;
+   return CIA;
 }
