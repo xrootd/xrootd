@@ -33,6 +33,7 @@ add_library(
   XrdSys/XrdSysPthread.cc       XrdSys/XrdSysPthread.hh
                                 XrdSys/XrdSysSemWait.hh
   XrdSys/XrdSysTimer.cc         XrdSys/XrdSysTimer.hh
+  XrdSys/XrdSysTrace.cc         XrdSys/XrdSysTrace.hh
   XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
   XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
   XrdSys/XrdSysFAttr.cc         XrdSys/XrdSysFAttr.hh
