@@ -390,7 +390,9 @@ namespace XrdCl
       ResetMonitoringVars();
     }
 
-    if( pUseVirtRedirector && pFileUrl && pFileUrl->IsMetalink() )
+    // check if the logger is still there, this is only for root, as root might
+    // have unload us already so in this case we don't want to do anything
+    if( DefaultEnv::GetLog() && pUseVirtRedirector && pFileUrl && pFileUrl->IsMetalink() )
     {
       RedirectorRegistry& registry = RedirectorRegistry::Instance();
       registry.Release( *pFileUrl );
