@@ -6,12 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
-  * Allow specifying a different timeout for null cached entries; fixes #413
 
 + **Major bug fixes**
 
 + **Minor bug fixes**
-  * Fix memory leak in sss protocol.
-  * Allow hostnames to begin with a digit.
 
 + **Miscellaneous**

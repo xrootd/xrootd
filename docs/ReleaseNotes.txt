@@ -7,6 +7,38 @@ Release Notes
 
 
 -------------
+Version 4.5.0
+-------------
+
++ **New Features**
+  * **[XrdCms]** Allow specifying a different timeout for null cached entries; fixes #413
+  * **[XProtocol/XrdSec/Server/XrdCl]** Implement request signing.
+  * **[XrdCl]** Add ZIP extracting capability to xrdcp.
+  * **[XrdCl]** Include the release number in client Login request cgi.
+  * **[XrdCl]** Add support for spaces in file names for mv operation.
+
++ **Major bug fixes**
+  * **[XrdCrypto/Secgsi]** Fix XrdCryptosslMsgDigest::Init ; set 'sha256' as
+                           default algorithm.
+  * **[XrdCl]** Use posix semaphores for fedora >= 22. Disable
+                omit-frame-ponter for gcc >= 4.9.3 if custom semaphores are used.
+
++ **Minor bug fixes**
+  * **[XrdSecsss]** Fix memory leak in sss protocol.
+  * **[XrdNet]** Allow hostnames to begin with a digit.
+  * **[XrdCl]** Fix segfault in case a user cannot be mapped to a home directory.
+  * **[XrdCl]** Make sure a socket is always associated with a proper poller
+                object (not null).
+  * **[XrdCl]** Fix deadlock in XrdCl::PollerBuiltIn during finalize.
+  * **[XrdCrypto]** Do not use md5 checksum on OSX platform.
+
++ **Miscellaneous**
+  * **[RPM]** Include xrdacctest in xrootd-server package.
+  * **[RPM]** Add conditional BuildRequires for ceph >= 11.
+  * **[RPM]** Use compat-openssl10-devel for fedora>=26.
+  * **[XrdCl]** Make sure the Log class can be used by any client plugin implementation.
+
+-------------
 Version 4.4.0
 -------------
 
