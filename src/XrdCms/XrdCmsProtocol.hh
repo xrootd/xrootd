@@ -84,6 +84,7 @@ void            Pander(const char *manager, int mport);
 void            Reissue(XrdCmsRRData &Data);
 void            Reply_Delay(XrdCmsRRData &Data, kXR_unt32 theDelay);
 void            Reply_Error(XrdCmsRRData &Data, int ecode, const char *etext);
+bool            SendPing();
 void            Sync();
 
 static XrdSysMutex     ProtMutex;
@@ -106,5 +107,6 @@ const  char           *myMan;
        int             refCount;
        short           RSlot;      // True only for redirectors
        char            loggedIn;   // True if login succeeded
+       bool            isNBSQ;     // True if nbsq is active
 };
 #endif

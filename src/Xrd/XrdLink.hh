@@ -57,6 +57,7 @@ class XrdNetAddr;
 class XrdPoll;
 class XrdOucTrace;
 class XrdScheduler;
+class XrdSendQ;
 class XrdSysError;
 
 class XrdLink : XrdJob
@@ -90,6 +91,8 @@ XrdNetAddrInfo *AddrInfo() {return (XrdNetAddrInfo *)&Addr;}
 //-----------------------------------------------------------------------------
 
 static XrdLink *Alloc(XrdNetAddr &peer, int opts=0);
+
+int           Backlog();
 
 void          Bind() {}                // Obsolete
 void          Bind(pthread_t tid) { (void)tid; }   // Obsolete
@@ -223,6 +226,8 @@ static void   setKWT(int wkSec, int kwSec);
 
 void          setLocation(XrdNetAddrInfo::LocInfo &loc) {Addr.SetLocation(loc);}
 
+bool          setNB();
+
 XrdProtocol  *setProtocol(XrdProtocol *pp);
 
 void          setRef(int cnt);                          // ASYNC Mode
@@ -301,7 +306,7 @@ XrdSysMutex         rdMutex;
 XrdSysMutex         wrMutex;
 XrdSysSemaphore     IOSemaphore;
 XrdSysCondVar      *KillcvP;        // Protected by opMutex!
-XrdLink            *Next;
+XrdSendQ           *sendQ;
 XrdProtocol        *Protocol;
 XrdProtocol        *ProtoAlt;
 XrdPoll            *Poller;

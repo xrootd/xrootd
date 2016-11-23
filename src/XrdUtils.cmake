@@ -164,6 +164,7 @@ add_library(
                                 Xrd/XrdPollPoll.icc
   Xrd/XrdProtocol.cc            Xrd/XrdProtocol.hh
   Xrd/XrdScheduler.cc           Xrd/XrdScheduler.hh
+  Xrd/XrdSendQ.cc               Xrd/XrdSendQ.hh
                                 Xrd/XrdTrace.hh
 
   #-----------------------------------------------------------------------------

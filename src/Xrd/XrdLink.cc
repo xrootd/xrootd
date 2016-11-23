@@ -59,6 +59,7 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "Xrd/XrdSendQ.hh"
 
 #define  TRACELINK this
 #define  XRD_TRACE XrdTrace->
@@ -163,7 +164,7 @@ void XrdLink::Reset()
   Lname[1] = '\0';
   ID       = &Uname[sizeof(Uname)-2];
   Comment  = ID;
-  Next     = 0;
+  sendQ    = 0;
   Protocol = 0; 
   ProtoAlt = 0;
   conTime  = time(0);
@@ -268,6 +269,19 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
 }
 
 /******************************************************************************/
+/*                               B a c k l o g                                */
+/******************************************************************************/
+  
+int XrdLink::Backlog()
+{
+   XrdSysMutexHelper(wrMutex);
+
+// Return backlog information
+//
+   return (sendQ ? sendQ->Backlog() : 0);
+}
+
+/******************************************************************************/
 /*                                C l i e n t                                 */
 /******************************************************************************/
   
@@ -293,6 +307,12 @@ int XrdLink::Client(char *nbuf, int nbsz)
   
 int XrdLink::Close(int defer)
 {   int csec, fd, rc = 0;
+
+// We need to disband any non-blocking appendage we may have now
+//
+   wrMutex.Lock();
+   if (sendQ) {sendQ->Terminate(); sendQ = 0;}
+   wrMutex.UnLock();
 
 // If a defer close is requested, we can close the descriptor but we must
 // keep the slot number to prevent a new client getting the same fd number.
@@ -673,6 +693,15 @@ int XrdLink::Send(const char *Buff, int Blen)
 //
    wrMutex.Lock();
    isIdle = 0;
+   AtomicAdd(BytesOut, myBytes);
+
+// Do non-blocking writes if we are setup to do so.
+//
+   if (sendQ)
+      {retc = sendQ->Send(Buff, Blen);
+       wrMutex.UnLock();
+       return retc;
+      }
 
 // Write the data out
 //
@@ -686,7 +715,6 @@ int XrdLink::Send(const char *Buff, int Blen)
 
 // All done
 //
-   AtomicAdd(BytesOut, myBytes);
    wrMutex.UnLock();
    if (retc >= 0) return Blen;
    XrdLog->Emsg("Link", errno, "send to", ID);
@@ -704,13 +732,20 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 // Add up bytes if they were not given to us
 //
    if (!bytes) for (i = 0; i < iocnt; i++) bytes += iov[i].iov_len;
-   bytesleft = static_cast<ssize_t>(bytes);
 
 // Get a lock and assume we will be successful (statistically we are)
 //
    wrMutex.Lock();
    isIdle = 0;
    AtomicAdd(BytesOut, bytes);
+
+// Do non-blocking writes if we are setup to do so.
+//
+   if (sendQ)
+      {retc = sendQ->Send(iov, iocnt, bytes);
+       wrMutex.UnLock();
+       return retc;
+      }
 
 // Write the data out. On some version of Unix (e.g., Linux) a writev() may
 // end at any time without writing all the bytes when directed to a socket.
@@ -719,6 +754,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 // series of writes if need be. We must do this inline because we must hold
 // the lock until all the bytes are written or an error occurs.
 //
+   bytesleft = static_cast<ssize_t>(bytes);
    while(bytesleft)
         {do {retc = writev(FD, iov, iocnt);} while(retc < 0 && errno == EINTR);
          if (retc >= bytesleft || retc < 0) break;
@@ -932,6 +968,30 @@ void XrdLink::setID(const char *userid, int procid)
 }
  
 /******************************************************************************/
+/*                                 s e t N B                                  */
+/******************************************************************************/
+  
+bool XrdLink::setNB()
+{
+// We don't support non-blocking I/O except for Linux at the moment
+//
+#if !defined(__linux__)
+   return false;
+#else
+// Trace this request
+//
+   TRACEI(DEBUG,"enabling non-blocking output");
+
+// If we don't already have a sendQ object get one
+//
+   wrMutex.Lock();
+   if (!sendQ) sendQ = new XrdSendQ(*this, wrMutex);
+   wrMutex.UnLock();
+   return true;
+#endif
+}
+
+/******************************************************************************/
 /*                                 S e t u p                                  */
 /******************************************************************************/
 
@@ -968,6 +1028,12 @@ int XrdLink::Setup(int maxfds, int idlewait)
        XrdSched->Schedule((XrdJob *)ls, ichk+time(0));
       }
 
+// Initialize the send queue
+//
+   XrdSendQ::Init(XrdLog, XrdSched);
+
+// All done
+//
    return 1;
 }
   

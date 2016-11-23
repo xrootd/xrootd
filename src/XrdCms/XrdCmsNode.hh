@@ -130,6 +130,8 @@ inline int    ID(int &INum) {INum = Instance; return NodeID;}
 
 inline int    Inst() {return Instance;}
 
+       bool   inDomain() {return netIF.InDomain(&netID);}
+
 inline int    isNode(SMask_t smask) {return (smask & NodeMask) != 0;}
 inline int    isNode(const char *hn)
                     {return Link && !strcmp(Link->Host(), hn);}
