@@ -105,7 +105,7 @@ void          DoIt();
 
 void          Enable();
 
-int           FDnum() {return FD;}
+int           FDnum() {int fd = FD; return (fd < 0 ? -fd : fd);}
 
 static XrdLink *fd2link(int fd)
                 {if (fd < 0) fd = -fd; 
@@ -234,6 +234,8 @@ void          setRef(int cnt);                          // ASYNC Mode
 
 static int    Setup(int maxfd, int idlewait);
 
+       void   Shutdown(bool getLock);
+
 static int    Stats(char *buff, int blen, int do_sync=0);
 
        void   syncStats(int *ctime=0);
@@ -306,7 +308,7 @@ XrdSysMutex         rdMutex;
 XrdSysMutex         wrMutex;
 XrdSysSemaphore     IOSemaphore;
 XrdSysCondVar      *KillcvP;        // Protected by opMutex!
-XrdSendQ           *sendQ;
+XrdSendQ           *sendQ;          // Protected by wrMutex && opMutex
 XrdProtocol        *Protocol;
 XrdProtocol        *ProtoAlt;
 XrdPoll            *Poller;
@@ -321,7 +323,7 @@ char                LockReads;
 char                KeepFD;
 char                isEnabled;
 char                isIdle;
-char                inQ;
+char                rsvd;
 char                isBridged;
 char                KillCnt;        // Protected by opMutex!
 static const char   KillMax =   60;

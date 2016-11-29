@@ -1153,9 +1153,11 @@ bool XrdCmsProtocol::SendPing()
 {
    static CmsPingRequest Ping = {{0, kYR_ping,  0, 0}};
 
-// We do not send ping requests to servers that are backlogged
+// We would like not send ping requests to servers that are backlogged but if
+// we don't (currently) it will look to one of the parties that the other party
+// if not functional. We should try to fix this, sigh.
 //
-   if (isNBSQ && Link->Backlog()) return true;
+// if (isNBSQ && Link->Backlog()) return true;
 
 // Send the ping
 //

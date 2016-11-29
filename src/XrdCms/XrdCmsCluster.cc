@@ -392,14 +392,16 @@ SMask_t XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod,
 //
    for (i = 0; i <= STHi; i++)
        {if ((nP = NodeTab[i]) && nP->isNode(bmask))
-           {nP->Lock(true);
-            STMutex.UnLock();
-            if (nP->Send(iod, iovcnt, iotot) < 0) 
-               {unQueried |= nP->Mask();
-                DEBUG(nP->Ident <<" is unreachable");
-               }
-            nP->UnLock();
-            STMutex.Lock();
+           {if (nP->isOffline) unQueried |= nP->Mask();
+               else {nP->Lock(true);
+                     STMutex.UnLock();
+                     if (nP->Send(iod, iovcnt, iotot) < 0)
+                        {unQueried |= nP->Mask();
+                         DEBUG(nP->Ident <<" is unreachable");
+                        }
+                     nP->UnLock();
+                     STMutex.Lock();
+                    }
            }
        }
    STMutex.UnLock();
@@ -470,7 +472,8 @@ int XrdCmsCluster::Broadsend(SMask_t Who, XrdCms::CmsRRHdr &Hdr,
 //
 do{for (i = Beg; i <= Fin; i++)
        {if ((nP = NodeTab[i]) && nP->isNode(Who))
-           {nP->Lock(true);
+           {if (nP->isOffline) continue;
+            nP->Lock(true);
             STMutex.UnLock();
             if (nP->Send(ioV, 2, ioTot) >= 0) {nP->UnLock(); return 1;}
             DEBUG(nP->Ident <<" is unreachable");
@@ -814,7 +817,7 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 
 // Mark node as being offline and remove any drop job from it
 //
-   theNode->isOffline = 1;
+   theNode->isOffline = 1; // STMutex is held here
 
 // If the node is connected the simply close the connection. This will cause
 // the connection handler to re-initiate the node removal. The LockHandler
@@ -1416,7 +1419,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 // Cleanup status
 //
    NodeTab[sent] = 0;
-   nP->isOffline = 1;
+   nP->isOffline = 1; // STMutex is locked
    nP->DropTime  = 0;
    nP->DropJob   = 0;
    nP->isBound   = 0;

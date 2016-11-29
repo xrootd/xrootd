@@ -162,7 +162,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
   
 XrdCmsNode::~XrdCmsNode()
 {
-   isOffline = 1;
+   isOffline = 1;  // STMutex not needed here
    if (isLocked) UnLock();
 
 // Delete other appendages
@@ -299,17 +299,18 @@ void XrdCmsNode::DeleteWarn(XrdSysMutex &gMutex, unsigned int &lkVal)
 
 void XrdCmsNode::Disc(const char *reason, int needLock)
 {
-
-// Lock the object of not yet locked
+// Indicate we are offline. If a lock is not need then we only need to set the
+// offline flag as it's already properly protected. Otherwise, set the flag
+// after we get the lock. This is indeed messy.
 //
    if (needLock) nodeMutex.Lock();
-   isOffline = 1;
+   isOffline = 1;         // STMutex is already held if needed
 
 // If we are still connected, initiate a teardown
 //
    if (isConn)
       {Link->setEtext(reason);
-       Link->Close(1);
+       Link->Close();
        isConn = 0;
       }
 
@@ -393,7 +394,7 @@ const char *XrdCmsNode::do_Disc(XrdCmsRRData &Arg)
 
 // Close the link and return an error
 //
-   isOffline = 1;
+   isOffline = 1;  // STMutex not needed here
    Link->Close(1);
    return ".";   // Signal disconnect
 }
@@ -1296,6 +1297,10 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
                 Arg.Request.modifier = rc;
    else     return 0;
 
+// Trace response
+//
+   TRACER(Files,Arg.Path <<" responding have!");
+
 // Respond appropriately
 //
    if (Arg.Request.modifier && !noResp)
@@ -1602,7 +1607,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
                     }
        else         {add2Activ =  0; srvMsg = 0;}
 
-// Get the most important message out
+// Get the most important message out (advisory isOffline doen't need STMutex)
 //
         if (isOffline)          {srvMsg = "service offline";     stgMsg = 0;}
    else if (isBad & isDisabled) {srvMsg = "service disabled";    stgMsg = 0;}
@@ -1656,6 +1661,7 @@ const char *XrdCmsNode::do_Trunc(XrdCmsRRData &Arg)
 
 // Try requests from a manager indicate that we are being displaced and should
 // hunt for another manager. The request provides hints as to where to try.
+// Note that this method is no longer called but handled in XrdCmsProtocol!
 //
 const char *XrdCmsNode::do_Try(XrdCmsRRData &Arg)
 {

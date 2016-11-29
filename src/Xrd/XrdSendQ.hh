@@ -43,7 +43,7 @@ class XrdSendQ : public XrdJob
 {
 public:
 
-         int  Backlog() {return inQ;}
+unsigned int  Backlog() {return inQ;}
 
 virtual  void DoIt();
 
@@ -53,11 +53,13 @@ static   void Init(XrdSysError *eP, XrdScheduler *sP) {Say = eP; Sched = sP;}
 
          int  Send(const struct iovec *iov, int iovcnt, int iotot);
 
+static   void SetAQ(bool onoff)         {qPerm = onoff;}
+
 static   void SetQM(unsigned int qmVal) {qMax  = qmVal;}
 
 static   void SetQW(unsigned int qwVal) {qWarn = qwVal;}
 
-         void Terminate();
+         void Terminate(XrdLink *lP=0);
 
          XrdSendQ(XrdLink &lP, XrdSysMutex &mP);
 
@@ -83,6 +85,7 @@ static XrdScheduler *Sched;
 static XrdSysError  *Say;
 static unsigned int  qWarn;
 static unsigned int  qMax;
+static bool          qPerm;
 XrdLink             &mLink;
 XrdSysMutex         &wMutex;
 

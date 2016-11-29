@@ -41,6 +41,29 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+  
+class LinkShutdown : public XrdJob
+{
+public:
+
+virtual void DoIt() {myLink->Shutdown(true);
+                     myLink->setRef(-1);
+                     delete this;
+                    }
+
+             LinkShutdown(XrdLink *link)
+                         : XrdJob("SendQ Shutdown"), myLink(link) {}
+
+virtual     ~LinkShutdown() {}
+
+private:
+
+XrdLink *myLink;
+};
+
+/******************************************************************************/
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
 
@@ -48,16 +71,18 @@ XrdScheduler *XrdSendQ::Sched = 0;
 XrdSysError  *XrdSendQ::Say   = 0;
 unsigned int  XrdSendQ::qWarn = 3;
 unsigned int  XrdSendQ::qMax  = 0xffffffff;
+bool          XrdSendQ::qPerm = false;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdSendQ::XrdSendQ(XrdLink &lP, XrdSysMutex &mP) : XrdJob("sendQ runner"),
-                  mLink(lP), wMutex(mP),
-                  fMsg(0), lMsg(0), delQ(0), theFD(lP.FDnum()),
-                  inQ(0), qWmsg(qWarn), discards(0),
-                  active(false), terminate(false) {}
+XrdSendQ::XrdSendQ(XrdLink &lP, XrdSysMutex &mP)
+                  : XrdJob("sendQ runner"),
+                    mLink(lP), wMutex(mP),
+                    fMsg(0), lMsg(0), delQ(0), theFD(lP.FDnum()),
+                    inQ(0), qWmsg(qWarn), discards(0),
+                    active(false), terminate(false) {}
   
 /******************************************************************************/
 /*                                  D o I t                                   */
@@ -355,8 +380,11 @@ int XrdSendQ::SendNB(const struct iovec *iov, int iocnt, int bytes, int &iovX)
 
 // This must be called with wMutex locked!
   
-void XrdSendQ::Terminate()
+void XrdSendQ::Terminate(XrdLink *lP)
 {
+// First step is to see if we need to schedule a shutdown prior to quiting
+//
+   if (lP) Sched->Schedule((XrdJob *)new LinkShutdown(lP));
 
 // If there is an active thread then we need to let the thread handle the
 // termination of this object. Otherwise, we can do it now.

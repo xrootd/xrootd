@@ -176,7 +176,7 @@ void XrdLink::Reset()
   PollEnt  = 0;
   isEnabled= 0;
   isIdle   = 0;
-  inQ      = 0;
+  rsvd     = 0;
   isBridged= 0;
   BytesOut = BytesIn = BytesOutTot = BytesInTot = 0;
   doPost   = 0;
@@ -306,13 +306,8 @@ int XrdLink::Client(char *nbuf, int nbsz)
 /******************************************************************************/
   
 int XrdLink::Close(int defer)
-{   int csec, fd, rc = 0;
-
-// We need to disband any non-blocking appendage we may have now
-//
-   wrMutex.Lock();
-   if (sendQ) {sendQ->Terminate(); sendQ = 0;}
-   wrMutex.UnLock();
+{  XrdSysMutexHelper opHelper(opMutex);
+   int csec, fd, rc = 0;
 
 // If a defer close is requested, we can close the descriptor but we must
 // keep the slot number to prevent a new client getting the same fd number.
@@ -321,33 +316,44 @@ int XrdLink::Close(int defer)
 // the connection or an event occurs that causes an operation restart. We
 // portably solve this problem by issuing a shutdown() on the socket prior
 // closing it. On most platforms, this informs readers that the connection is
-// gone (though not on old (i.e. <= 2.3) versions of Linux, sigh).
+// gone (though not on old (i.e. <= 2.3) versions of Linux, sigh). Also, if
+// nonblocking mode is enabled, we need to do this in a separate thread as
+// a shutdown may block for a pretty long time is lot of messages are queued.
+// We will ask the SendQ object to schedule the shutdown for us before it
+// commits suicide.
+// Note that we can hold the opMutex while we also get the wrMutex.
 //
-   opMutex.Lock();
    if (defer)
-      {TRACEI(DEBUG, "Closing FD only");
-       if (FD > 1)
-          {fd = FD; FD = -FD; csec = Instance; Instance = 0;
-           if (!KeepFD)
-              {shutdown(fd, SHUT_RDWR);
-               if (dup2(devNull, fd) < 0)
-                  {FD = fd; Instance = csec;
-                   XrdLog->Emsg("Link",errno,"close FD for",ID);
-                  }
-              }
-          }
-       opMutex.UnLock();
+      {if (!sendQ) Shutdown(false);
+          else {TRACEI(DEBUG, "Shutdown FD only via SendQ");
+                InUse++;
+                FD = -FD;
+                wrMutex.Lock();
+                sendQ->Terminate(this);
+                sendQ = 0;
+                wrMutex.UnLock();
+               }
        return 0;
+      }
+
+// If we got here then this is not a defered close so we just need to check
+// if there is a sendq appendage we need to get rid of.
+//
+   if (sendQ)
+      {wrMutex.Lock();
+       sendQ->Terminate();
+       sendQ = 0;
+       wrMutex.UnLock();
       }
 
 // Multiple protocols may be bound to this link. If it is in use, defer the
 // actual close until the use count drops to one.
 //
    while(InUse > 1)
-      {opMutex.UnLock();
+      {opHelper.UnLock();
        TRACEI(DEBUG, "Close defered, use count=" <<InUse);
        Serialize();
-       opMutex.Lock();
+       opHelper.Lock(&opMutex);
       }
    InUse--;
    Instance = 0;
@@ -381,12 +387,12 @@ int XrdLink::Close(int defer)
    if (FD != -1)
       {if (Poller) {XrdPoll::Detach(this); Poller = 0;}
        FD = -1;
-       opMutex.UnLock();
+       opHelper.UnLock();
        LTMutex.Lock();
        LinkBat[fd] = XRDLINK_FREE;
        if (fd == LTLast) while(LTLast && !(LinkBat[LTLast])) LTLast--;
        LTMutex.UnLock();
-      } else opMutex.UnLock();
+      } else opHelper.UnLock();
 
 // Close the file descriptor if it isn't being shared. Do it as the last
 // thing because closes and accepts and not interlocked.
@@ -973,7 +979,7 @@ void XrdLink::setID(const char *userid, int procid)
   
 bool XrdLink::setNB()
 {
-// We don't support non-blocking I/O except for Linux at the moment
+// We don't support non-blocking output except for Linux at the moment
 //
 #if !defined(__linux__)
    return false;
@@ -982,11 +988,16 @@ bool XrdLink::setNB()
 //
    TRACEI(DEBUG,"enabling non-blocking output");
 
-// If we don't already have a sendQ object get one
+// If we don't already have a sendQ object get one. This is a one-time call
+// so to optimize checking if this object exists we also get the opMutex.'
 //
-   wrMutex.Lock();
-   if (!sendQ) sendQ = new XrdSendQ(*this, wrMutex);
-   wrMutex.UnLock();
+   opMutex.Lock();
+   if (!sendQ)
+      {wrMutex.Lock();
+       sendQ = new XrdSendQ(*this, wrMutex);
+       wrMutex.UnLock();
+      }
+   opMutex.UnLock();
    return true;
 #endif
 }
@@ -1111,6 +1122,39 @@ void XrdLink::setRef(int use)
     else opMutex.UnLock();
 }
  
+/******************************************************************************/
+/*                              S h u t d o w n                               */
+/******************************************************************************/
+
+void XrdLink::Shutdown(bool getLock)
+{
+   int temp, theFD;
+
+// Trace the entry
+//
+   TRACEI(DEBUG, (getLock ? "Async" : "Sync") <<" link shutdown in progress");
+
+// Get the lock if we need too (external entry via another thread)
+//
+   if (getLock) opMutex.Lock();
+
+// If there is something to do, do it now
+//
+   temp = Instance; Instance = 0;
+   if (!KeepFD)
+      {theFD = (FD < 0 ? -FD : FD);
+       shutdown(theFD, SHUT_RDWR);
+       if (dup2(devNull, theFD) < 0)
+          {Instance = temp;
+           XrdLog->Emsg("Link", errno, "shutdown FD for", ID);
+          }
+      }
+
+// All done
+//
+   if (getLock) opMutex.UnLock();
+}
+
 /******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
