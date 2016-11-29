@@ -84,7 +84,8 @@ typedef int (*XrdCryptoX509ParseBucket_t)(XrdSutBucket *,
                                           XrdCryptoX509Chain *);
 // Proxies
 // The OID of the extension
-#define gsiProxyCertInfo_OID "1.3.6.1.4.1.3536.1.222"
+#define gsiProxyCertInfo_OLD_OID "1.3.6.1.4.1.3536.1.222"
+#define gsiProxyCertInfo_OID     "1.3.6.1.5.5.7.1.14"
 // check presence of proxyCertInfo extension (RFC 3820)
 typedef bool (*XrdCryptoProxyCertInfo_t)(const void *, int &, bool *);
 // set path length constraint

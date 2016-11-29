@@ -43,6 +43,16 @@
 
 #include <openssl/pem.h>
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
+{
+    if (pkey->type != EVP_PKEY_RSA) {
+        return NULL;
+    }
+    return pkey->pkey.rsa;
+}
+#endif
+
 #define BIO_PRINT(b,c) \
    BUF_MEM *bptr; \
    BIO_get_mem_ptr(b, &bptr); \
@@ -154,7 +164,7 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
       if ((evpp = PEM_read_PrivateKey(fk,0,0,0))) {
          DEBUG("RSA key completed ");
          // Test consistency
-         if (RSA_check_key(evpp->pkey.rsa) != 0) {
+         if (RSA_check_key(EVP_PKEY_get0_RSA(evpp)) != 0) {
             // Save it in pki
             pki = new XrdCryptosslRSA(evpp);
          }
@@ -418,7 +428,7 @@ const char *XrdCryptosslX509::IssuerHash(int alg)
          // Make sure we have a certificate
          if (cert) {
             char chash[15] = {0};
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(cert->cert_info->issuer));
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(X509_get_issuer_name(cert)));
             issueroldhash = chash;
          } else {
             DEBUG("WARNING: no certificate available - cannot extract issuer hash (md5)");
@@ -438,7 +448,7 @@ const char *XrdCryptosslX509::IssuerHash(int alg)
       if (cert) {
          char chash[15] = {0};
          if (chash[0] == 0)
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash(cert->cert_info->issuer));
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(X509_get_issuer_name(cert)));
          issuerhash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract issuer hash (default)");
@@ -464,7 +474,7 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
          // Make sure we have a certificate
          if (cert) {
             char chash[15] = {0};
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(cert->cert_info->subject));
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(X509_get_subject_name(cert)));
             subjectoldhash = chash;
          } else {
             DEBUG("WARNING: no certificate available - cannot extract subject hash (md5)");
@@ -484,7 +494,7 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
       if (cert) {
          char chash[15] = {0};
          if (chash[0] == 0)
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash(cert->cert_info->subject));
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(X509_get_subject_name(cert)));
          subjecthash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract subject hash (default)");
@@ -633,12 +643,12 @@ bool XrdCryptosslX509::IsCA()
       return 0;
 
    // Analyse the structure
-   unsigned char *p = ext->value->data;
+   unsigned char *p = X509_EXTENSION_get_data(ext)->data;
 #if OPENSSL_VERSION_NUMBER >= 0x0090800f
    BASIC_CONSTRAINTS *bc =
-      d2i_BASIC_CONSTRAINTS(0, const_cast<const unsigned char**>(&p), ext->value->length);
+      d2i_BASIC_CONSTRAINTS(0, const_cast<const unsigned char**>(&p), X509_EXTENSION_get_data(ext)->length);
 #else
-   BASIC_CONSTRAINTS *bc = d2i_BASIC_CONSTRAINTS(0, &p, ext->value->length);
+   BASIC_CONSTRAINTS *bc = d2i_BASIC_CONSTRAINTS(0, &p, X509_EXTENSION_get_data(ext)->length);
 #endif
 
    // CA?
@@ -774,8 +784,8 @@ int XrdCryptosslX509::DumpExtensions()
       PRINT("found extension '"<<s<<"', critical: " << crit);
       // Dump its content
       rc = 0;
-      XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) xpiext->value->data; 
-      long length = xpiext->value->length;
+      XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) X509_EXTENSION_get_data(xpiext)->data;
+      long length = X509_EXTENSION_get_data(xpiext)->length;
       int ret = FillUnknownExt(&pp, length);
       PRINT("ret: " << ret);
    }
@@ -886,13 +896,11 @@ int XrdCryptosslX509::FillUnknownExt(XRDGSI_CONST unsigned char **pp, long lengt
                PRINT("ERROR:AOBJ: BAD OBJECT");
             }
          } else if (tag == V_ASN1_BOOLEAN) {
-            opp = op;
-            int ii = d2i_ASN1_BOOLEAN(NULL,&opp,len+hl);
-            if (ii < 0) {
+            if (len != 1) {
                PRINT("ERROR:BOOL: Bad boolean");
                goto end;
             }
-            PRINT("BOOL:"<< ii);
+            PRINT("BOOL:"<< p[0]);
          } else if (tag == V_ASN1_BMPSTRING) {
             /* do the BMP thang */
          } else if (tag == V_ASN1_OCTET_STRING) {
@@ -930,7 +938,7 @@ int XrdCryptosslX509::FillUnknownExt(XRDGSI_CONST unsigned char **pp, long lengt
                }
             }
             if (os) {
-               M_ASN1_OCTET_STRING_free(os);
+               ASN1_OCTET_STRING_free(os);
                os = 0;
             }
          } else if (tag == V_ASN1_INTEGER) {
@@ -956,7 +964,7 @@ int XrdCryptosslX509::FillUnknownExt(XRDGSI_CONST unsigned char **pp, long lengt
             } else {
                PRINT("ERROR:AINT: BAD INTEGER");
             }
-            M_ASN1_INTEGER_free(bs);
+            ASN1_INTEGER_free(bs);
          } else if (tag == V_ASN1_ENUMERATED) {
             ASN1_ENUMERATED *bs;
             int i;
@@ -980,7 +988,7 @@ int XrdCryptosslX509::FillUnknownExt(XRDGSI_CONST unsigned char **pp, long lengt
             } else {
                PRINT("ERROR:AENU: BAD ENUMERATED");
             }
-            M_ASN1_ENUMERATED_free(bs);
+            ASN1_ENUMERATED_free(bs);
          }
 
          if (!nl) PRINT(" ");
@@ -996,7 +1004,7 @@ int XrdCryptosslX509::FillUnknownExt(XRDGSI_CONST unsigned char **pp, long lengt
    ret = 1;
 end:
    if (o) ASN1_OBJECT_free(o);
-   if (os) M_ASN1_OCTET_STRING_free(os);
+   if (os) ASN1_OCTET_STRING_free(os);
    *pp = p;
    PRINT("ret: "<<ret);
 

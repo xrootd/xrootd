@@ -56,6 +56,20 @@
 #include "XrdOuc/XrdOucString.hh"
 static pthread_key_t cm_key;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static HMAC_CTX* HMAC_CTX_new() {
+  HMAC_CTX *ctx = (HMAC_CTX *)OPENSSL_malloc(sizeof(HMAC_CTX));
+  if (ctx) HMAC_CTX_init(ctx);
+  return ctx;
+}
+
+static void HMAC_CTX_free(HMAC_CTX *ctx) {
+  if (ctx) {
+    HMAC_CTX_cleanup(ctx);
+    OPENSSL_free(ctx);
+  }
+}
+#endif
 
 
 // GetHost from URL
@@ -65,7 +79,7 @@ int parseURL(char *url, char *host, int &port, char **path) {
   // http://x.y.z.w:p/path
 
   *path = 0;
-  
+
   // look for the second slash
   char *p = strstr(url, "//");
   if (!p) return -1;
@@ -76,7 +90,7 @@ int parseURL(char *url, char *host, int &port, char **path) {
   // look for the end of the host:port
   char *p2 = strchr(p, '/');
   if (!p2) return -1;
-  
+
   *path = p2;
 
   char buf[256];
@@ -166,7 +180,7 @@ char *mystrchrnul(const char *s, int c) {
 // - hash is a string that will be filled with the hash
 //
 // - fn: the original filename that was requested
-// - dhost: target redirection hostname 
+// - dhost: target redirection hostname
 // - client: address:port of the client
 // - tim: creation time of the url
 // - tim_grace: validity time before and after creation time
@@ -190,7 +204,7 @@ void calcHashes(
         const char *key) {
 
 
-  HMAC_CTX ctx;
+  HMAC_CTX *ctx;
   unsigned int len;
   unsigned char mdbuf[EVP_MAX_MD_SIZE];
   char buf[64];
@@ -214,43 +228,46 @@ void calcHashes(
     return;
   }
 
-  HMAC_CTX_init(&ctx);
+  ctx = HMAC_CTX_new();
+
+  if (!ctx) {
+    return;
+  }
 
 
 
-
-  HMAC_Init_ex(&ctx, (const void *) key, strlen(key), EVP_sha256(), 0);
+  HMAC_Init_ex(ctx, (const void *) key, strlen(key), EVP_sha256(), 0);
 
 
   if (fn)
-    HMAC_Update(&ctx, (const unsigned char *) fn,
+    HMAC_Update(ctx, (const unsigned char *) fn,
           strlen(fn) + 1);
 
-  HMAC_Update(&ctx, (const unsigned char *) &request,
+  HMAC_Update(ctx, (const unsigned char *) &request,
           sizeof (request));
 
   if (secent->name)
-    HMAC_Update(&ctx, (const unsigned char *) secent->name,
+    HMAC_Update(ctx, (const unsigned char *) secent->name,
           strlen(secent->name) + 1);
 
   if (secent->vorg)
-    HMAC_Update(&ctx, (const unsigned char *) secent->vorg,
+    HMAC_Update(ctx, (const unsigned char *) secent->vorg,
           strlen(secent->vorg) + 1);
 
   if (secent->host)
-    HMAC_Update(&ctx, (const unsigned char *) secent->host,
+    HMAC_Update(ctx, (const unsigned char *) secent->host,
           strlen(secent->host) + 1);
 
   localtime_r(&tim, &tms);
   strftime(buf, sizeof (buf), "%s", &tms);
-  HMAC_Update(&ctx, (const unsigned char *) buf,
+  HMAC_Update(ctx, (const unsigned char *) buf,
           strlen(buf) + 1);
 
-  HMAC_Final(&ctx, mdbuf, &len);
+  HMAC_Final(ctx, mdbuf, &len);
 
   Tobase64(mdbuf, len / 2, hash);
 
-  HMAC_CTX_cleanup(&ctx);
+  HMAC_CTX_free(ctx);
 }
 
 int compareHash(

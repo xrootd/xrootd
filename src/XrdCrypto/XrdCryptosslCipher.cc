@@ -47,6 +47,91 @@
 //
 // ---------------------------------------------------------------------------//
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static void DH_get0_pqg(const DH *dh,
+                        const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
+{
+    if (p != NULL)
+        *p = dh->p;
+    if (q != NULL)
+        *q = dh->q;
+    if (g != NULL)
+        *g = dh->g;
+}
+
+static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
+{
+    /* If the fields p and g in d are NULL, the corresponding input
+     * parameters MUST be non-NULL.  q may remain NULL.
+     */
+    if ((dh->p == NULL && p == NULL) || (dh->g == NULL && g == NULL))
+        return 0;
+    if (p != NULL) {
+        BN_free(dh->p);
+        dh->p = p;
+    }
+    if (q != NULL) {
+        BN_free(dh->q);
+        dh->q = q;
+    }
+    if (g != NULL) {
+        BN_free(dh->g);
+        dh->g = g;
+    }
+    if (q != NULL) {
+        dh->length = BN_num_bits(q);
+    }
+    return 1;
+}
+
+static void DH_get0_key(const DH *dh,
+                        const BIGNUM **pub_key, const BIGNUM **priv_key)
+{
+    if (pub_key != NULL)
+        *pub_key = dh->pub_key;
+    if (priv_key != NULL)
+        *priv_key = dh->priv_key;
+}
+
+static int DH_set0_key(DH *dh, BIGNUM *pub_key, BIGNUM *priv_key)
+{
+    /* If the field pub_key in dh is NULL, the corresponding input
+     * parameters MUST be non-NULL.  The priv_key field may
+     * be left NULL.
+     */
+    if (dh->pub_key == NULL && pub_key == NULL)
+        return 0;
+    if (pub_key != NULL) {
+        BN_free(dh->pub_key);
+        dh->pub_key = pub_key;
+    }
+    if (priv_key != NULL) {
+        BN_free(dh->priv_key);
+        dh->priv_key = priv_key;
+    }
+    return 1;
+}
+
+static int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
+{
+    /* If the field pub_key in d is NULL, the corresponding input
+     * parameters MUST be non-NULL.  The priv_key field may
+     * be left NULL.
+     */
+    if (d->pub_key == NULL && pub_key == NULL)
+        return 0;
+    if (pub_key != NULL) {
+        BN_free(d->pub_key);
+        d->pub_key = pub_key;
+    }
+    if (priv_key != NULL) {
+        BN_free(d->priv_key);
+        d->priv_key = priv_key;
+    }
+    return 1;
+}
+#endif
+
 //_____________________________________________________________________________
 bool XrdCryptosslCipher::IsSupported(const char *cip)
 {
@@ -64,6 +149,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(const char *t, int l)
    // Used to create ciphers
 
    valid = 0;
+   ctx = 0;
    fIV = 0;
    lIV = 0;
    cipher = 0;
@@ -73,7 +159,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(const char *t, int l)
    // Check and set type
    char cipnam[64] = {"bf-cbc"};
    if (t && strcmp(t,"default")) {
-      strcpy(cipnam,t); 
+      strcpy(cipnam,t);
       cipnam[63] = 0;
    }
    cipher = EVP_get_cipherbyname(cipnam);
@@ -87,25 +173,27 @@ XrdCryptosslCipher::XrdCryptosslCipher(const char *t, int l)
       char *ktmp = XrdSutRndm::GetBuffer(lgen);
       if (ktmp) {
          // Init context
-         EVP_CIPHER_CTX_init(&ctx);
-         valid = 1;
-         // Try setting the key length
-         if (l && l != ldef) {
-            EVP_CipherInit_ex(&ctx, cipher, 0, 0, 0, 1);
-            EVP_CIPHER_CTX_set_key_length(&ctx,l);
-            EVP_CipherInit_ex(&ctx, 0, 0, (unsigned char *)ktmp, 0, 1);
-            if (l == EVP_CIPHER_CTX_key_length(&ctx)) {
-               // Use the l bytes at ktmp
-               SetBuffer(l,ktmp);
-               deflength = 0;
+         ctx = EVP_CIPHER_CTX_new();
+         if (ctx) {
+            valid = 1;
+            // Try setting the key length
+            if (l && l != ldef) {
+               EVP_CipherInit_ex(ctx, cipher, 0, 0, 0, 1);
+               EVP_CIPHER_CTX_set_key_length(ctx,l);
+               EVP_CipherInit_ex(ctx, 0, 0, (unsigned char *)ktmp, 0, 1);
+               if (l == EVP_CIPHER_CTX_key_length(ctx)) {
+                  // Use the l bytes at ktmp
+                  SetBuffer(l,ktmp);
+                  deflength = 0;
+               }
             }
+            if (!Length()) {
+               EVP_CipherInit_ex(ctx, cipher, 0, (unsigned char *)ktmp, 0, 1);
+               SetBuffer(ldef,ktmp);
+            }
+            // Set also the type
+            SetType(cipnam);
          }
-         if (!Length()) {
-            EVP_CipherInit_ex(&ctx, cipher, 0, (unsigned char *)ktmp, 0, 1);
-            SetBuffer(ldef,ktmp);
-         }
-         // Set also the type
-         SetType(cipnam);
          // Cleanup
          delete[] ktmp;
       }
@@ -125,6 +213,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(const char *t, int l,
    // the initialization vector at iv.
    // Used to import ciphers.
    valid = 0;
+   ctx = 0;
    fIV = 0;
    lIV = 0;
    fDH = 0;
@@ -134,22 +223,24 @@ XrdCryptosslCipher::XrdCryptosslCipher(const char *t, int l,
    // Check and set type
    char cipnam[64] = {"bf-cbc"};
    if (t && strcmp(t,"default")) {
-      strcpy(cipnam,t); 
+      strcpy(cipnam,t);
       cipnam[63] = 0;
    }
    cipher = EVP_get_cipherbyname(cipnam);
 
    if (cipher) {
       // Init context
-      EVP_CIPHER_CTX_init(&ctx);
-      // Set the key
-      SetBuffer(l,k);
-      if (l != EVP_CIPHER_key_length(cipher))
-         deflength = 0;
-      // Set also the type
-      SetType(cipnam);
-      // Set validity flag
-      valid = 1;
+      ctx = EVP_CIPHER_CTX_new();
+      if (ctx) {
+         // Set the key
+         SetBuffer(l,k);
+         if (l != EVP_CIPHER_key_length(cipher))
+            deflength = 0;
+         // Set also the type
+         SetType(cipnam);
+         // Set validity flag
+         valid = 1;
+      }
    }
    //
    // Init cipher
@@ -159,11 +250,11 @@ XrdCryptosslCipher::XrdCryptosslCipher(const char *t, int l,
       SetIV(liv,iv);
 
       if (deflength) {
-         EVP_CipherInit_ex(&ctx, cipher, 0, (unsigned char *)Buffer(), 0, 1);
+         EVP_CipherInit_ex(ctx, cipher, 0, (unsigned char *)Buffer(), 0, 1);
       } else {
-         EVP_CipherInit_ex(&ctx, cipher, 0, 0, 0, 1);
-         EVP_CIPHER_CTX_set_key_length(&ctx,Length());
-         EVP_CipherInit_ex(&ctx, 0, 0, (unsigned char *)Buffer(), 0, 1);
+         EVP_CipherInit_ex(ctx, cipher, 0, 0, 0, 1);
+         EVP_CIPHER_CTX_set_key_length(ctx,Length());
+         EVP_CipherInit_ex(ctx, 0, 0, (unsigned char *)Buffer(), 0, 1);
       }
    }
 }
@@ -175,6 +266,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
    // Initialize a cipher of type t and length l using the key at k
    // Used to import ciphers.
    valid = 0;
+   ctx = 0;
    fIV = 0;
    lIV = 0;
    fDH = 0;
@@ -222,7 +314,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
                SetType(buf);
             } else {
                valid = 0;
-            } 
+            }
             delete[] buf;
          } else
             valid = 0;
@@ -258,13 +350,15 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
       if (lp > 0 || lg > 0 || lpub > 0 || lpri > 0) {
          if ((fDH = DH_new())) {
             char *buf = 0;
+            BIGNUM *p = NULL, *g = NULL;
+            BIGNUM *pub = NULL, *pri = NULL;
             // p
             if (lp > 0) {
                buf = new char[lp+1];
                if (buf) {
                   memcpy(buf,bp+cur,lp);
                   buf[lp] = 0;
-                  BN_hex2bn(&(fDH->p),buf);
+                  BN_hex2bn(&p,buf);
                   delete[] buf;
                } else
                   valid = 0;
@@ -276,19 +370,20 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
                if (buf) {
                   memcpy(buf,bp+cur,lg);
                   buf[lg] = 0;
-                  BN_hex2bn(&(fDH->g),buf);
+                  BN_hex2bn(&g,buf);
                   delete[] buf;
                } else
                   valid = 0;
                cur += lg;
             }
+            DH_set0_pqg(fDH, p, NULL, g);
             // pub_key
             if (lpub > 0) {
                buf = new char[lpub+1];
                if (buf) {
                   memcpy(buf,bp+cur,lpub);
                   buf[lpub] = 0;
-                  BN_hex2bn(&(fDH->pub_key),buf);
+                  BN_hex2bn(&pub,buf);
                   delete[] buf;
                } else
                   valid = 0;
@@ -300,12 +395,13 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
                if (buf) {
                   memcpy(buf,bp+cur,lpri);
                   buf[lpri] = 0;
-                  BN_hex2bn(&(fDH->priv_key),buf);
+                  BN_hex2bn(&pri,buf);
                   delete[] buf;
                } else
                   valid = 0;
                cur += lpri;
             }
+            DH_set0_key(fDH, pub, pri);
             int dhrc = 0;
             DH_check(fDH,&dhrc);
             if (dhrc == 0)
@@ -318,15 +414,19 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
    // Init cipher
    if (valid) {
       // Init context
-      EVP_CIPHER_CTX_init(&ctx);
-      if (deflength) {
-         EVP_CipherInit_ex(&ctx, cipher, 0, (unsigned char *)Buffer(), 0, 1);
-      } else {
-         EVP_CipherInit_ex(&ctx, cipher, 0, 0, 0, 1);
-         EVP_CIPHER_CTX_set_key_length(&ctx,Length());
-         EVP_CipherInit_ex(&ctx, 0, 0, (unsigned char *)Buffer(), 0, 1);
-      }
-   } else {
+      ctx = EVP_CIPHER_CTX_new();
+      if (ctx) {
+         if (deflength) {
+            EVP_CipherInit_ex(ctx, cipher, 0, (unsigned char *)Buffer(), 0, 1);
+         } else {
+            EVP_CipherInit_ex(ctx, cipher, 0, 0, 0, 1);
+            EVP_CIPHER_CTX_set_key_length(ctx,Length());
+            EVP_CipherInit_ex(ctx, 0, 0, (unsigned char *)Buffer(), 0, 1);
+         }
+      } else
+         valid = 0;
+   }
+   if (!valid) {
       Cleanup();
    }
 }
@@ -346,6 +446,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
    EPNAME("sslCipher::XrdCryptosslCipher");
 
    valid = 0;
+   ctx = 0;
    fIV = 0;
    lIV = 0;
    fDH = 0;
@@ -356,19 +457,21 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
       DEBUG("generate DH full key");
       //
       // at least 128 bits
-      bits = (bits < kDHMINBITS) ? kDHMINBITS : bits; 
+      bits = (bits < kDHMINBITS) ? kDHMINBITS : bits;
       //
       // Generate params for DH object
-      if ((fDH = DH_generate_parameters(bits,DH_GENERATOR_5,0,0))) {
+      fDH = DH_new();
+      if (fDH && DH_generate_parameters_ex(fDH, bits, DH_GENERATOR_5, NULL)) {
          int prc = 0;
          DH_check(fDH,&prc);
          if (prc == 0) {
             //
             // Generate DH key
             if (DH_generate_key(fDH)) {
-               valid = 1;
                // Init context
-               EVP_CIPHER_CTX_init(&ctx);
+               ctx = EVP_CIPHER_CTX_new();
+               if (ctx)
+                  valid = 1;
             }
          }
       }
@@ -427,37 +530,39 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
       // If a valid key has been computed, set the cipher
       if (valid) {
          // Init context
-         EVP_CIPHER_CTX_init(&ctx);
-
-         // Check and set type
-         char cipnam[64] = {"bf-cbc"};
-         if (t && strcmp(t,"default")) {
-            strcpy(cipnam,t); 
-            cipnam[63] = 0;
-         }
-         if ((cipher = EVP_get_cipherbyname(cipnam))) {
-            // At most EVP_MAX_KEY_LENGTH bytes
-            ltmp = (ltmp > EVP_MAX_KEY_LENGTH) ? EVP_MAX_KEY_LENGTH : ltmp;
-            int ldef = EVP_CIPHER_key_length(cipher);
-            // Try setting the key length
-            if (ltmp != ldef) {
-               EVP_CipherInit_ex(&ctx, cipher, 0, 0, 0, 1);
-               EVP_CIPHER_CTX_set_key_length(&ctx,ltmp);
-               EVP_CipherInit_ex(&ctx, 0, 0, (unsigned char *)ktmp, 0, 1);
-               if (ltmp == EVP_CIPHER_CTX_key_length(&ctx)) {
-                  // Use the ltmp bytes at ktmp
-                  SetBuffer(ltmp,ktmp);
-                  deflength = 0;
+         ctx = EVP_CIPHER_CTX_new();
+         if (ctx) {
+            // Check and set type
+            char cipnam[64] = {"bf-cbc"};
+            if (t && strcmp(t,"default")) {
+               strcpy(cipnam,t);
+               cipnam[63] = 0;
+            }
+            if ((cipher = EVP_get_cipherbyname(cipnam))) {
+               // At most EVP_MAX_KEY_LENGTH bytes
+               ltmp = (ltmp > EVP_MAX_KEY_LENGTH) ? EVP_MAX_KEY_LENGTH : ltmp;
+               int ldef = EVP_CIPHER_key_length(cipher);
+               // Try setting the key length
+               if (ltmp != ldef) {
+                  EVP_CipherInit_ex(ctx, cipher, 0, 0, 0, 1);
+                  EVP_CIPHER_CTX_set_key_length(ctx,ltmp);
+                  EVP_CipherInit_ex(ctx, 0, 0, (unsigned char *)ktmp, 0, 1);
+                  if (ltmp == EVP_CIPHER_CTX_key_length(ctx)) {
+                     // Use the ltmp bytes at ktmp
+                     SetBuffer(ltmp,ktmp);
+                     deflength = 0;
+                  }
                }
+               if (!Length()) {
+                  EVP_CipherInit_ex(ctx, cipher, 0, (unsigned char *)ktmp, 0, 1);
+                  SetBuffer(ldef,ktmp);
+               }
+               // Set also the type
+               SetType(cipnam);
             }
-            if (!Length()) {
-               EVP_CipherInit_ex(&ctx, cipher, 0, (unsigned char *)ktmp, 0, 1);
-               SetBuffer(ldef,ktmp);
-            }
-            // Set also the type
-            SetType(cipnam);
-         }
-      }     
+         } else
+           valid = 0;
+      }
       // Cleanup
       if (ktmp) {delete[] ktmp; ktmp = 0;}
    }
@@ -476,10 +581,12 @@ XrdCryptosslCipher::XrdCryptosslCipher(const XrdCryptosslCipher &c)
    // Basics
    deflength = c.deflength;
    valid = c.valid;
+   ctx = 0;
    // IV
    lIV = 0;
    fIV = 0;
    SetIV(c.lIV,c.fIV);
+
    // Cipher
    cipher = c.cipher;
    // Set the key
@@ -491,10 +598,12 @@ XrdCryptosslCipher::XrdCryptosslCipher(const XrdCryptosslCipher &c)
    if (valid && c.fDH) {
       valid = 0;
       if ((fDH = DH_new())) {
-         if (c.fDH->p) fDH->p = BN_dup(c.fDH->p);
-         if (c.fDH->g) fDH->g = BN_dup(c.fDH->g);
-         if (c.fDH->pub_key) fDH->pub_key = BN_dup(c.fDH->pub_key);
-         if (c.fDH->priv_key) fDH->priv_key = BN_dup(c.fDH->priv_key);
+         const BIGNUM *p, *g;
+         DH_get0_pqg(c.fDH, &p, NULL, &g);
+         DH_set0_pqg(fDH, p ? BN_dup(p) : NULL, NULL, g ? BN_dup(g) : NULL);
+         const BIGNUM *pub, *pri;
+         DH_get0_key(c.fDH, &pub, &pri);
+         DH_set0_key(fDH, pub ? BN_dup(pub) : NULL, pri ? BN_dup(pri) : NULL);
          int dhrc = 0;
          DH_check(fDH,&dhrc);
          if (dhrc == 0)
@@ -503,8 +612,11 @@ XrdCryptosslCipher::XrdCryptosslCipher(const XrdCryptosslCipher &c)
    }
    if (valid) {
       // Init context
-      EVP_CIPHER_CTX_init(&ctx);
-   } else {
+      ctx = EVP_CIPHER_CTX_new();
+      if (!ctx)
+         valid = 0;
+   }
+   if (!valid) {
       Cleanup();
    }
 }
@@ -520,7 +632,7 @@ XrdCryptosslCipher::~XrdCryptosslCipher()
 
    // Cleanups
    if (valid)
-      EVP_CIPHER_CTX_cleanup(&ctx);
+      EVP_CIPHER_CTX_free(ctx);
    Cleanup();
 }
 
@@ -586,7 +698,7 @@ bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
          // Check and set type
          char cipnam[64] = {"bf-cbc"};
          if (t && strcmp(t,"default")) {
-            strcpy(cipnam,t); 
+            strcpy(cipnam,t);
             cipnam[63] = 0;
          }
          if ((cipher = EVP_get_cipherbyname(cipnam))) {
@@ -595,30 +707,30 @@ bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
             int ldef = EVP_CIPHER_key_length(cipher);
             // Try setting the key length
             if (ltmp != ldef) {
-               EVP_CipherInit_ex(&ctx, cipher, 0, 0, 0, 1);
-               EVP_CIPHER_CTX_set_key_length(&ctx,ltmp);
-               EVP_CipherInit_ex(&ctx, 0, 0, (unsigned char *)ktmp, 0, 1);
-               if (ltmp == EVP_CIPHER_CTX_key_length(&ctx)) {
+               EVP_CipherInit_ex(ctx, cipher, 0, 0, 0, 1);
+               EVP_CIPHER_CTX_set_key_length(ctx,ltmp);
+               EVP_CipherInit_ex(ctx, 0, 0, (unsigned char *)ktmp, 0, 1);
+               if (ltmp == EVP_CIPHER_CTX_key_length(ctx)) {
                   // Use the ltmp bytes at ktmp
                   SetBuffer(ltmp,ktmp);
                   deflength = 0;
                }
             }
             if (!Length()) {
-               EVP_CipherInit_ex(&ctx, cipher, 0, (unsigned char *)ktmp, 0, 1);
+               EVP_CipherInit_ex(ctx, cipher, 0, (unsigned char *)ktmp, 0, 1);
                SetBuffer(ldef,ktmp);
             }
             // Set also the type
             SetType(cipnam);
          }
-      }     
+      }
       // Cleanup
       if (ktmp) {delete[] ktmp; ktmp = 0;}
    }
 
    // Cleanup, if invalid
    if (!valid) {
-      EVP_CIPHER_CTX_cleanup(&ctx);
+      EVP_CIPHER_CTX_free(ctx);
       Cleanup();
    }
 
@@ -629,7 +741,7 @@ bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
 //_____________________________________________________________________________
 int XrdCryptosslCipher::Publen()
 {
-   // Minimu length of export format of public key 
+   // Minimum length of export format of public key
    static int lhdr = strlen("-----BEGIN DH PARAMETERS-----"
                             "-----END DH PARAMETERS-----") + 3;
    if (fDH) {
@@ -655,7 +767,9 @@ char *XrdCryptosslCipher::Public(int &lpub)
    if (fDH) {
       //
       // Calculate and write public key hex
-      char *phex = BN_bn2hex(fDH->pub_key);
+      const BIGNUM *pub;
+      DH_get0_key(fDH, &pub, NULL);
+      char *phex = BN_bn2hex(pub);
       int lhex = strlen(phex);
       //
       // Prepare bio to export info buffer
@@ -714,7 +828,7 @@ void XrdCryptosslCipher::PrintPublic(BIGNUM *pub)
       // Use a DSA structure to export the public part
       DSA *dsa = DSA_new();
       if (dsa) {
-         dsa->pub_key = BN_dup(pub);
+         DSA_set0_key(dsa, BN_dup(pub), NULL);
          // Write public key to BIO
          PEM_write_bio_DSA_PUBKEY(biop,dsa);
          // Read key from BIO to buf
@@ -746,10 +860,14 @@ XrdSutBucket *XrdCryptosslCipher::AsBucket()
       kXR_int32 lbuf = Length();
       kXR_int32 ltyp = Type() ? strlen(Type()) : 0;
       kXR_int32 livc = lIV;
-      char *cp = (fDH && fDH->p) ? BN_bn2hex(fDH->p) : 0;
-      char *cg = (fDH && fDH->g) ? BN_bn2hex(fDH->g) : 0;
-      char *cpub = (fDH && fDH->pub_key) ? BN_bn2hex(fDH->pub_key) : 0;
-      char *cpri = (fDH && fDH->priv_key) ? BN_bn2hex(fDH->priv_key) : 0;
+      const BIGNUM *p, *g;
+      const BIGNUM *pub, *pri;
+      DH_get0_pqg(fDH, &p, NULL, &g);
+      DH_get0_key(fDH, &pub, &pri);
+      char *cp = BN_bn2hex(p);
+      char *cg = BN_bn2hex(g);
+      char *cpub = BN_bn2hex(pub);
+      char *cpri = BN_bn2hex(pri);
       kXR_int32 lp = cp ? strlen(cp) : 0;
       kXR_int32 lg = cg ? strlen(cg) : 0;
       kXR_int32 lpub = cpub ? strlen(cpub) : 0;
@@ -893,16 +1011,16 @@ int XrdCryptosslCipher::EncDec(int enc, const char *in, int lin, char *out)
    // The outbut buffer must be provided by the caller for at least
    // EncOutLength(lin) or DecOutLength(lin) bytes.
    // Returns number of meaningful bytes in out, or 0 in case of problems
-   EPNAME("Cipher::EncDec"); 
+   EPNAME("Cipher::EncDec");
 
    int lout = 0;
 
    // Check inputs
    if (!in || lin <= 0 || !out) {
-      DEBUG("wrong inputs arguments"); 
-      if (!in) DEBUG("in: "<<in); 
-      if (lin <= 0) DEBUG("lin: "<<lin); 
-      if (!out) DEBUG("out: "<<out); 
+      DEBUG("wrong inputs arguments");
+      if (!in) DEBUG("in: "<<in);
+      if (lin <= 0) DEBUG("lin: "<<lin);
+      if (!out) DEBUG("out: "<<out);
       return 0;
    }
 
@@ -918,35 +1036,35 @@ int XrdCryptosslCipher::EncDec(int enc, const char *in, int lin, char *out)
    // Action depend on the length of the key wrt default length
    if (deflength) {
       // Init ctx, set key (default length) and set IV
-      if (!EVP_CipherInit_ex(&ctx, cipher, 0, (unsigned char *)Buffer(), iv, enc)) {
-         DEBUG("error initializing"); 
+      if (!EVP_CipherInit_ex(ctx, cipher, 0, (unsigned char *)Buffer(), iv, enc)) {
+         DEBUG("error initializing");
          return 0;
       }
    } else {
       // Init ctx
-      if (!EVP_CipherInit_ex(&ctx, cipher, 0, 0, 0, enc)) {
-         DEBUG("error initializing - 1"); 
+      if (!EVP_CipherInit_ex(ctx, cipher, 0, 0, 0, enc)) {
+         DEBUG("error initializing - 1");
          return 0;
       }
       // Set key length
-      EVP_CIPHER_CTX_set_key_length(&ctx,Length());
+      EVP_CIPHER_CTX_set_key_length(ctx,Length());
       // Set key and IV
-      if (!EVP_CipherInit_ex(&ctx, 0, 0, (unsigned char *)Buffer(), iv, enc)) {
-         DEBUG("error initializing - 2"); 
+      if (!EVP_CipherInit_ex(ctx, 0, 0, (unsigned char *)Buffer(), iv, enc)) {
+         DEBUG("error initializing - 2");
          return 0;
       }
    }
 
    // Encrypt / Decrypt
    int ltmp = 0;
-   if (!EVP_CipherUpdate(&ctx, (unsigned char *)&out[0], &ltmp,
+   if (!EVP_CipherUpdate(ctx, (unsigned char *)&out[0], &ltmp,
                                (unsigned char *)in, lin)) {
-      DEBUG("error encrypting"); 
+      DEBUG("error encrypting");
       return 0;
    }
    lout = ltmp;
-   if (!EVP_CipherFinal_ex(&ctx, (unsigned char *)&out[lout], &ltmp)) {
-      DEBUG("error finalizing"); 
+   if (!EVP_CipherFinal_ex(ctx, (unsigned char *)&out[lout], &ltmp)) {
+      DEBUG("error finalizing");
       return 0;
    }
 
@@ -960,7 +1078,7 @@ int XrdCryptosslCipher::EncOutLength(int l)
 {
    // Required buffer size for encrypting l bytes
 
-   return (l+EVP_CIPHER_CTX_block_size(&ctx));
+   return (l+EVP_CIPHER_CTX_block_size(ctx));
 }
 
 //____________________________________________________________________________
@@ -968,7 +1086,7 @@ int XrdCryptosslCipher::DecOutLength(int l)
 {
    // Required buffer size for decrypting l bytes
 
-   int lout = l+EVP_CIPHER_CTX_block_size(&ctx)+1;
+   int lout = l+EVP_CIPHER_CTX_block_size(ctx)+1;
    lout = (lout <= 0) ? l : lout;
    return lout;
 }

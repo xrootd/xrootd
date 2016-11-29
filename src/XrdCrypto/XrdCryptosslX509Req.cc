@@ -189,7 +189,7 @@ const char *XrdCryptosslX509Req::SubjectHash(int alg)
          // Make sure we have a certificate
          if (creq) {
             char chash[15] = {0};
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(creq->req_info->subject));
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(X509_REQ_get_subject_name(creq)));
             subjectoldhash = chash;
          } else {
             DEBUG("WARNING: no certificate available - cannot extract subject hash (md5)");
@@ -209,7 +209,7 @@ const char *XrdCryptosslX509Req::SubjectHash(int alg)
       if (creq) {
          char chash[15] = {0};
          if (chash[0] == 0)
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash(creq->req_info->subject));
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(X509_REQ_get_subject_name(creq)));
          subjecthash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract subject hash (default)");
