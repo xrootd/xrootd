@@ -228,18 +228,20 @@ void XrdCmsNode::Delete(XrdSysMutex &gMutex)
 // when the lkCount equals the ulCount. The lkCount is under control of the
 // global mutex passed to us. The ulCount is under control of the node lock.
 // we will wait until they are equal. As this node has been removed from all
-// table at this point, the lkCount cannot change and we need only to fetch
-// it once. However, we will refresh it if we timeout. Setting isGone will
-// signal us whenever the ulCount changes and is under global mutex control.
+// tables at this point, the lkCount cannot increase but it may decrease when
+// Ref2G() is called which happens for none lock-free operations (e.g. Send).
+// However, we will refresh it if we timeout.
 //
    gMutex.Lock();
    theLKCnt = lkCount;
-   isGone = 1;
    gMutex.UnLock();
 
-// Get the node lock and do some debugging
+// Get the node lock and do some debugging. Set tghe isGone flag even though it
+// should be set. We need to do that under the node lock to make sure we get
+// signalled whenever the node gets unlocked by some thread (ulCount changed).
 //
    nodeMutex.Lock();
+   isGone = 1;
    DEBUG(Ident <<" locks=" <<theLKCnt <<" unlocks=" <<ulCount);
 
 // Now wait for things to simmer down. We wait for an appropriate time because
