@@ -816,21 +816,24 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 //
    theNode->isOffline = 1; // STMutex is held here
 
-// If the node is connected the simply close the connection. This will cause
-// the connection handler to re-initiate the node removal. The LockHandler
-// destructor will release the node table and node object locks as needed.
-// This condition exists only if one node is being displaced by another node.
+// If the node is connected we simply close the connection. This will cause
+// the connection handler to re-initiate the node removal. This condition
+// exists only if one node is being displaced by another node. The Disc()
+// may take a long time, but it's done async by default on the WAN and sync
+// on the LAN (local connections are fast enough and error-free for this).
 //
    if (theNode->isConn)
       {theNode->Disc(reason, 0);
-       theNode->isGone = 1;
+       theNode->isGone = 1; // Disc() sets the isOffline flag
        return;
       }
 
 // If we are not the primary node, then get rid of this node post-haste
 //
    if (!(NodeTab[NodeID] == theNode))
-      {Say.Emsg("Remove_Node", theNode->Ident, "dropped as alternate.");
+      {const char *why = (theNode->isMan ? "dropped as alternate."
+                                         : "dropped and redirected.");
+       Say.Emsg("Remove_Node", theNode->Ident, why);
        LockHandler.doDrop = true;
        return;
       }

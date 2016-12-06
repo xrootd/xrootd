@@ -308,11 +308,12 @@ void XrdCmsNode::Disc(const char *reason, int needLock)
    if (needLock) nodeMutex.Lock();
    isOffline = 1;         // STMutex is already held if needed
 
-// If we are still connected, initiate a teardown
+// If we are still connected, initiate a teardown. This may be done async as
+// we are asking for a defered close which will be followed by a full close.
 //
    if (isConn)
       {Link->setEtext(reason);
-       Link->Close();
+       Link->Close(1);
        isConn = 0;
       }
 
