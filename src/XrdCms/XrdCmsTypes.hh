@@ -36,8 +36,7 @@ typedef unsigned long long SMask_t;
 
 // The following defines our cell size (maximum subscribers)
 //
-//#define STMax 64
-#define STMax 1
+#define STMax 64
 
 // The following defines the maximum number of redirectors. It is one greater
 // than the actual maximum as the zeroth is never used.
