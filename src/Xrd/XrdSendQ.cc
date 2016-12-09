@@ -311,7 +311,7 @@ int XrdSendQ::SendNB(const char *Buff, int Blen)
 #if !defined(__linux__)
    return -1;
 #else
-   ssize_t retc, bytesleft = Blen;
+   ssize_t retc = 0, bytesleft = Blen;
 
 // Write the data out
 //
