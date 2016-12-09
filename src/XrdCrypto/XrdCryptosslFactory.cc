@@ -498,6 +498,14 @@ XrdCryptoX509SignProxyReq_t XrdCryptosslFactory::X509SignProxyReq()
 }
 
 //______________________________________________________________________________
+XrdCryptoX509CheckProxy3_t XrdCryptosslFactory::X509CheckProxy3()
+{
+   // Check consistency of a GSI 3 compliant proxy
+
+   return &XrdCryptosslX509CheckProxy3;
+}
+
+//______________________________________________________________________________
 XrdCryptoX509GetVOMSAttr_t XrdCryptosslFactory::X509GetVOMSAttr()
 {
    // Get VOMS attributes, if any
