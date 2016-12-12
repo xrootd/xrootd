@@ -333,8 +333,12 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   // This will fill the XrdSec thing with VOMS info, if VOMS is
   // installed. If we have no sec extractor then do nothing, just plain https
   // will work.
-  if (secxtractor)
-    secxtractor->GetSecData(lp, SecEntity, ssl);
+  if (secxtractor) {
+    int r = secxtractor->GetSecData(lp, SecEntity, ssl);
+    if (r)
+      TRACEI(ALL, " Certificate data extraction failed: " << peer_cert->name << " Failed. err: " << r);
+    return r;
+  }
   
   return 0;
 }
