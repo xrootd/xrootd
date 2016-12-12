@@ -94,6 +94,19 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY} )
 
 #-------------------------------------------------------------------------------
+# xrdgsitest
+#-------------------------------------------------------------------------------
+add_executable(
+  xrdgsitest
+  XrdSecgsi/XrdSecgsitest.cc )
+
+target_link_libraries(
+  xrdgsitest
+  XrdCrypto
+  XrdUtils
+  ${OPENSSL_CRYPTO_LIBRARY} )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
@@ -103,6 +116,7 @@ install(
   ${LIB_XRD_SEC_GSI_AUTHZVO}
   ${LIB_XRD_SEC_GSI_GMAPDN}
   xrdgsiproxy
+  xrdgsitest
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
