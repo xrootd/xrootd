@@ -123,4 +123,5 @@ install(
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdgsiproxy.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdgsitest.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
