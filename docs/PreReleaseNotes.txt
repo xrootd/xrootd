@@ -8,7 +8,10 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * **[XrdCrypto]** Improved determination of X509 certificate type, including proxy version
 
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * **[XrdSecgsi]** Re-activate xrdgsitest
+  * **[RPM]** Include xrdgsitest in xrootd-client-devel package.
