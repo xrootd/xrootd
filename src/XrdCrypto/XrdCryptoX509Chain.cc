@@ -56,7 +56,10 @@ static const char *X509ChainErrStr[] = {
    "extension not found",                // 9
    "signature verification failed",      // 10
    "issuer had no signing rights",       // 11
-   "CA issued by another CA"             // 12
+   "CA issued by another CA",            // 12
+   "invalid or missing EEC",             // 13
+   "too many EEC",                       // 14
+   "invalid proxy"                       // 15
 };
 
 //___________________________________________________________________________
