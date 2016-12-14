@@ -77,6 +77,9 @@ int XrdSslgsiX509DumpExtensions(XrdCryptoX509 *);
 //
 // Get VOMS attributes, if any
 int XrdSslgsiX509GetVOMSAttr(XrdCryptoX509 *, XrdOucString &);
+//
+// Check GSI 3 proxy info extension
+int XrdSslgsiX509CheckProxy3(XrdCryptoX509 *, XrdOucString &);
 
 /******************************************************************************/
 /*          E r r o r s   i n   P r o x y   M a n i p u l a t i o n s         */

@@ -106,6 +106,9 @@ typedef int (*XrdCryptoX509CreateProxyReq_t)(XrdCryptoX509 *,
 // sign a proxy certificate request
 typedef int (*XrdCryptoX509SignProxyReq_t)(XrdCryptoX509 *, XrdCryptoRSA *,
                                            XrdCryptoX509Req *, XrdCryptoX509 **);
+// check consistency of a GSI 3 compliant proxy
+typedef int (*XrdCryptoX509CheckProxy3_t)(XrdCryptoX509 *, XrdOucString &);
+
 // get VOMS attributes
 typedef int (*XrdCryptoX509GetVOMSAttr_t)(XrdCryptoX509 *, XrdOucString &);
 
@@ -178,6 +181,7 @@ public:
    virtual XrdCryptoX509CreateProxy_t X509CreateProxy();
    virtual XrdCryptoX509CreateProxyReq_t X509CreateProxyReq();
    virtual XrdCryptoX509SignProxyReq_t X509SignProxyReq();
+   virtual XrdCryptoX509CheckProxy3_t X509CheckProxy3();
    virtual XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr();
 
    // Equality operator

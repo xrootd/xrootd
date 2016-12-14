@@ -93,6 +93,7 @@ void Display(XrdCryptoX509 *xp);
 //
 int          Mode     = kM_undef;
 bool         Debug = 0;
+bool         DumpExtensions = 0;
 bool         Exists = 0;
 XrdCryptoFactory *gCryptoFactory = 0;
 XrdOucString CryptoMod = "ssl";
@@ -458,6 +459,8 @@ int ParseArguments(int argc, char **argv)
                argc++;
                argv--;
             }
+         } else if (CheckOption(opt,"extensions",ival)) {
+            DumpExtensions = 1;
          } else {
             PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             PRT("+ Ignoring unrecognized option: "<<*argv);
@@ -667,6 +670,7 @@ void Menu()
    PRT("    -e,-exists [options]   returns 0 if valid proxy exists, 1 otherwise;");
    PRT("                           valid options: '-valid <hh:mm>', -bits <bits>");
    PRT("    -clockskew <secs>      max clock-skewness allowed when checking time validity [30 secs]");
+   PRT("    -extensions            low-level dump of certificate extensions");
    PRT(" ");
 }
 
@@ -709,6 +713,13 @@ void Display(XrdCryptoX509 *xp)
 
    // File
    PRT("file        : "<<PXcert);
+   // Type
+   if (xp->type != XrdCryptoX509::kProxy) {
+      PRT("type        : "<<xp->Type());
+   } else {
+      PRT("type        : "<<xp->Type()<<" ("<<xp->ProxyType()<<")");
+   }
+
    // Issuer
    PRT("issuer      : "<<xp->Issuer());
    // Subject
@@ -737,6 +748,12 @@ void Display(XrdCryptoX509 *xp)
       while ((from = vatts.tokenize(vat, from, ',')) != -1) {
          if (vat.length() > 0) PRT("VOMS attributes: "<<vat);
       }
+      PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+   }
+   // Dump extensions if requested
+   if (DumpExtensions) {
+      gCryptoFactory->SetTrace(cryptoTRACE_Debug);
+      xp->DumpExtensions(0);
       PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
    }
 }

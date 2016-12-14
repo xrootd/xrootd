@@ -83,6 +83,8 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *,
 // Sign a proxy certificate request
 int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *, XrdCryptoRSA *,
                               XrdCryptoX509Req *, XrdCryptoX509 **);
+// Check a proxy certificate GSI 3
+int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *, XrdOucString &);
 // Get VOMS attributes, if any
 int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *, XrdOucString &);
 

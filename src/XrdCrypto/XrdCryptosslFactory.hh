@@ -103,6 +103,7 @@ public:
    XrdCryptoX509CreateProxy_t X509CreateProxy();
    XrdCryptoX509CreateProxyReq_t X509CreateProxyReq();
    XrdCryptoX509SignProxyReq_t X509SignProxyReq();
+   XrdCryptoX509CheckProxy3_t X509CheckProxy3();
    XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr();
 
    // Required SSL mutexes.

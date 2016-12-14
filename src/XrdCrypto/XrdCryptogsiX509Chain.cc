@@ -101,19 +101,48 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
    if (plen > -1)
       plen -= 1;
    //
-   // Check the end-point entity (or sub-CA) certificate
-   while (node->Next() && strcmp(node->Next()->Cert()->Type(), "Proxy")) {
+   // Check sub-CA's certificate, if any
+   while (node->Next() && node->Next()->Cert()->type == XrdCryptoX509::kCA) {
       xsig = xcer;
       node = node->Next();
       xcer = node->Cert();
-      if (!XrdCryptoX509Chain::Verify(errcode, "EEC or sub-CA: ",
-                                      XrdCryptoX509::kUnknown,
+      if (!XrdCryptoX509Chain::Verify(errcode, "Sub-CA: ",
+                                      XrdCryptoX509::kCA,
                                       when, xcer, xsig, crl))
          return 0;
       //
       // Update the max path depth len
       if (plen > -1)
          plen -= 1;
+   }
+   //
+   // Check the end-point entity certificate
+   if (node->Next() && node->Next()->Cert()->type != XrdCryptoX509::kEEC) {
+      errcode = kNoEEC;
+      lastError = X509ChainError(errcode);
+      return 0;
+   }
+
+   //
+   // Check the end-point entity certificate
+   xsig = xcer;
+   node = node->Next();
+   xcer = node->Cert();
+   if (!XrdCryptoX509Chain::Verify(errcode, "EEC: ",
+                                   XrdCryptoX509::kUnknown,
+                                   when, xcer, xsig, crl))
+      return 0;
+   //
+   // Update the max path depth len
+   if (plen > -1)
+      plen -= 1;
+
+   //
+   // Only one end-point entity certificate
+   if (node->Next() && node->Next()->Cert()->type == XrdCryptoX509::kEEC) {
+      errcode = kTooManyEEC;
+      lastError = X509ChainError(errcode);
+      return 0;
    }
 
    //
@@ -124,6 +153,14 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
 
       // Attache to certificate
       xcer = node->Cert();
+
+      //
+      // Must be a recognized proxy certificate
+      if (xcer && xcer->type != XrdCryptoX509::kProxy) {
+         errcode = kInvalidProxy;
+         lastError = X509ChainError(errcode);
+         return 0;
+      }
 
       // Proxy subject name must follow some rules
       if (!SubjectOK(errcode, xcer))
@@ -163,7 +200,6 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
    // We are done (successfully!)
    return 1;
 }
-
 
 //___________________________________________________________________________
 bool XrdCryptogsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *xcer)

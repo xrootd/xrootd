@@ -3520,7 +3520,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    // Finalize chain: get a copy of it (we do not touch the reference)
    hs->Chain = new X509Chain(hs->Chain);
    if (!(hs->Chain)) {
-      cmsg = "cannot suplicate reference chain";
+      cmsg = "cannot duplicate reference chain";
       return -1;
    }
    // The new chain must be deleted at destruction

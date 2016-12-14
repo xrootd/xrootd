@@ -696,6 +696,7 @@ fi
 
 %files client-devel
 %defattr(-,root,root,-)
+%{_bindir}/xrdgsitest
 %{_includedir}/xrootd/XrdCl
 %{_includedir}/xrootd/XrdClient
 %{_includedir}/xrootd/XrdPosix
@@ -749,6 +750,7 @@ fi
 %{_mandir}/man1/xrdcp-old.1*
 %{_mandir}/man1/xrdfs.1*
 %{_mandir}/man1/xrdgsiproxy.1*
+%{_mandir}/man1/xrdgsitest.1*
 %{_mandir}/man1/xrdstagetool.1*
 
 %files fuse
@@ -831,6 +833,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Tue Dec 13 2016 Gerardo Ganis <gerardo.ganis@cern.ch>
+- Add xrdgsitest to xrootd-client-devel
+
 * Mon Mar 16 2015 Lukasz Janyst <ljanyst@cern.ch>
 - create the python package
 

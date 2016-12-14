@@ -1323,3 +1323,75 @@ end:
 
    return ret;
 }
+
+//____________________________________________________________________________
+int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
+   //
+   // Check GSI 3 proxy info extension
+   EPNAME("X509CheckProxy3");
+
+   // Point to the cerificate
+   X509 *cert = (X509 *)(xcpi->Opaque());
+
+   // Are there any extension?
+   int numext = X509_get_ext_count(cert);
+   if (numext <= 0) {
+      emsg = "certificate has got no extensions";
+      return -1;
+   }
+   TRACE(ALL,"certificate has "<<numext<<" extensions");
+
+   X509_EXTENSION *ext = 0;
+   PROXY_CERT_INFO_EXTENSION *pci = 0;
+   for (int i = 0; i < numext; i++) {
+      // Get the extension
+      X509_EXTENSION *xext = X509_get_ext(cert, i);
+      // We are looking for gsiProxyCertInfo_OID     ("1.3.6.1.5.5.7.1.14")
+      //                 or gsiProxyCertInfo_OLD_OID ("1.3.6.1.4.1.3536.1.222")
+      char s[256];
+      OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xext), 1);
+      DEBUG(i << ": got: "<< s);
+      if (!strncmp(s, gsiProxyCertInfo_OID, sizeof(gsiProxyCertInfo_OID))) {
+         if (ext == 0) {
+            ext = xext;
+            // Now get the extension
+            unsigned char *p = X509_EXTENSION_get_data(ext)->data;
+            pci = d2i_PROXY_CERT_INFO_EXTENSION(0, (XRDGSI_CONST unsigned char **)(&p), X509_EXTENSION_get_data(ext)->length);
+         } else {
+            PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
+         }
+      }
+      else if (!strncmp(s, gsiProxyCertInfo_OLD_OID, sizeof(gsiProxyCertInfo_OLD_OID))) {
+         if (ext == 0) {
+            ext = xext;
+            // Now get the extension
+            unsigned char *p = X509_EXTENSION_get_data(ext)->data;
+            pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, (XRDGSI_CONST unsigned char **)(&p), X509_EXTENSION_get_data(ext)->length);
+         } else {
+            PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
+         }
+      }
+   }
+   if (!ext) {
+      emsg = "proxyCertInfo extension not found";
+      return -1;
+   }
+   if (!pci) {
+      emsg = "proxyCertInfo extension could not be deserialized";
+      return -1;
+   }
+
+   // Check if there is a policy
+   if ((pci->proxyPolicy) == 0) {
+      emsg = "could not access policy from proxyCertInfo extension";
+      return -1;
+   }
+
+   if ((pci->proxyPolicy->policyLanguage) == 0) {
+      emsg = "could not access policy language from proxyCertInfo extension";
+      return -1;
+   }
+
+   // Done
+   return 0;
+}
