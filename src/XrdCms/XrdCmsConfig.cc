@@ -2005,7 +2005,7 @@ int XrdCmsConfig::xnbsq(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val, xopt[16];
     int  ival;
-    bool xAll, xOff, xRmt;
+    bool xAll = false, xOff = false, xRmt = false;
 
 //  Process the optional "all", "off" or "remote"
 //
