@@ -101,6 +101,53 @@ XrdSysError XrdHttpProtocol::eDest = 0; // Error message handler
 XrdSecService *XrdHttpProtocol::CIA = 0; // Authentication Server
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
 /******************************************************************************/
@@ -298,6 +345,8 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   // No external plugin, hence we fill our XrdSec with what we can do here
   peer_cert = SSL_get_peer_certificate(ssl);
   TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
+  ERR_print_errors(sslbio_err);
+  
   if (peer_cert && peer_cert->name) {
     
     // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
@@ -404,12 +453,17 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           return -1;
         }
 
+      // If a secxtractorhas been loaded
+      // maybe it wants to add its own initialization bits
+      if (secxtractor)
+        secxtractor->InitSSL(ssl, sslcadir);
+        
       SSL_set_bio(ssl, sbio, sbio);
       //SSL_set_connect_state(ssl);
 
       //SSL_set_fd(ssl, Link->FDnum());
       struct timeval tv;
-      tv.tv_sec = 1;
+      tv.tv_sec = 10;
       tv.tv_usec = 0;
       setsockopt(Link->FDnum(), SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
       setsockopt(Link->FDnum(), SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
@@ -425,12 +479,18 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         }
 
       if (res < 0) {
+          ERR_print_errors(sslbio_err);
           SSL_free(ssl);
           ssl = 0;
           return -1;
         }
       BIO_set_nbio(sbio, 0);
 
+      res = SSL_get_verify_result(ssl);
+      TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
+      ERR_print_errors(sslbio_err);
+            
+      
       // Get the voms string and auth information
       if (GetVOMSData(Link)) {
           SSL_free(ssl);
@@ -438,10 +498,39 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           return -1;
       }
         
+        
+        
+/*        
+        // Double verification ?
+        X509_STORE *store;
+        
+        store = SSL_CTX_get_cert_store(sslctx);
+        
+        X509 *peer_cert;
+        peer_cert = SSL_get_peer_certificate(ssl);
+        
+        X509_STORE_CTX *csc = X509_STORE_CTX_new();
+        if(!X509_STORE_CTX_init(csc,store,peer_cert,0))
+          return -1;
+
+        int ret = X509_verify_cert(csc);
+        if (ret) {
+          int err = X509_STORE_CTX_get_error(csc);
+          fprintf(stderr, "  err %i:%s\n", err, X509_verify_cert_error_string(err));
+          X509_STORE_CTX_free(csc);
+          return -1;
+          
+        }
+        
+        
+        X509_STORE_CTX_free(csc);
+        
+        
+        
       ERR_print_errors(sslbio_err);
       res = SSL_get_verify_result(ssl);
       TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
-      ERR_print_errors(sslbio_err);
+      ERR_print_errors(sslbio_err);*/
 
       if (res != X509_V_OK) return -1;
       ssldone = true;
@@ -1349,28 +1438,6 @@ int XrdHttpProtocol::InitSecurity() {
   /* An error write context */
   sslbio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 
-
-
-
-  // Enable proxy certificates
-  X509_STORE *store;
-  X509_VERIFY_PARAM *param;
-
-  store = SSL_CTX_get_cert_store(sslctx);
-  param = X509_VERIFY_PARAM_new();
-  if (!param) {
-    ERR_print_errors(sslbio_err);
-    exit(1);
-    /* ERROR */
-  }
-  X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_ALLOW_PROXY_CERTS);
-  X509_STORE_set1_param(store, param);
-  X509_VERIFY_PARAM_free(param);
-
-
-
-
-
   /* Load server certificate into the SSL context */
   if (SSL_CTX_use_certificate_file(sslctx, sslcert,
           SSL_FILETYPE_PEM) <= 0) {
@@ -1400,19 +1467,15 @@ int XrdHttpProtocol::InitSecurity() {
   }
   
   
-  
-  
+  SSL_CTX_set_cipher_list(sslctx, "ALL:!LOW:!EXP:!MD5:!MD2");    
+  //SSL_CTX_set_purpose(sslctx, X509_PURPOSE_ANY);
+  SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
   
   //eDest.Say(" Setting verify depth to ", itoa(sslverifydepth), "'.");
   SSL_CTX_set_verify_depth(sslctx, sslverifydepth);
   ERR_print_errors(sslbio_err);
-  //SSL_CTX_set_verify(sslctx,
-  //        SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
   SSL_CTX_set_verify(sslctx,
-		     SSL_VERIFY_PEER, verify_callback);
-  
-  
-  
+          SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
   
   //
   // Check existence of GRID map file
@@ -1432,7 +1495,7 @@ int XrdHttpProtocol::InitSecurity() {
     
   }
   
-  if (secxtractor) secxtractor->Init(sslctx, XrdHttpTrace->What);
+  if (secxtractor) secxtractor->InitCTX(sslctx, XrdHttpTrace->What);
 
   ERR_print_errors(sslbio_err);
   return 0;
@@ -1449,18 +1512,26 @@ void XrdHttpProtocol::Cleanup() {
   }
 
   if (ssl) {
+    
+    
     if (SSL_shutdown(ssl) != 1) {
       TRACE(ALL, " SSL_shutdown failed");
       ERR_print_errors(sslbio_err);
     }
-    else
-     SSL_free(ssl);
+    
+    if (secxtractor)
+        secxtractor->FreeSSL(ssl);
+      
+    SSL_free(ssl);
+
   }
 
+  
   ssl = 0;
   sbio = 0;
 
   if (SecEntity.vorg) free(SecEntity.vorg);
+  if (SecEntity.role) free(SecEntity.role);
   if (SecEntity.name) free(SecEntity.name);
   if (SecEntity.host) free(SecEntity.host);
   if (SecEntity.moninfo) free(SecEntity.moninfo);
