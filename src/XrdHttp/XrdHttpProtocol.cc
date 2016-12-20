@@ -101,53 +101,6 @@ XrdSysError XrdHttpProtocol::eDest = 0; // Error message handler
 XrdSecService *XrdHttpProtocol::CIA = 0; // Authentication Server
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
 /******************************************************************************/
@@ -372,7 +325,7 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     TRACEI(DEBUG, " Setting link name: " << SecEntity.name);
     lp->setID(SecEntity.name, 0);
   }
-  else return 1;
+  else return 0; // Don't fail if no cert
   
   if (peer_cert) X509_free(peer_cert);
 
@@ -499,39 +452,6 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       }
         
         
-        
-/*        
-        // Double verification ?
-        X509_STORE *store;
-        
-        store = SSL_CTX_get_cert_store(sslctx);
-        
-        X509 *peer_cert;
-        peer_cert = SSL_get_peer_certificate(ssl);
-        
-        X509_STORE_CTX *csc = X509_STORE_CTX_new();
-        if(!X509_STORE_CTX_init(csc,store,peer_cert,0))
-          return -1;
-
-        int ret = X509_verify_cert(csc);
-        if (ret) {
-          int err = X509_STORE_CTX_get_error(csc);
-          fprintf(stderr, "  err %i:%s\n", err, X509_verify_cert_error_string(err));
-          X509_STORE_CTX_free(csc);
-          return -1;
-          
-        }
-        
-        
-        X509_STORE_CTX_free(csc);
-        
-        
-        
-      ERR_print_errors(sslbio_err);
-      res = SSL_get_verify_result(ssl);
-      TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
-      ERR_print_errors(sslbio_err);*/
-
       if (res != X509_V_OK) return -1;
       ssldone = true;
     }
@@ -1314,12 +1234,6 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 
 
 
-
-
-
-
-
-
   // Schedule protocol object cleanup
   //
   ProtStack.Set(pi->Sched, XrdHttpTrace, TRACE_MEM);
@@ -1360,32 +1274,6 @@ extern "C" int verify_callback(int ok, X509_STORE_CTX * store) {
 
   return ok;
 }
-
-//
-///* Check that the common name matches the host name*/ 
-//void check_cert_chain(SSL *ssl, char *host) {
-//
-//    X509 *peer; 
-//    char peer_CN[256];
-//    if(SSL_get_verify_result(ssl)!=X509_V_OK) 
-//              berr_exit("Certificate doesn't verify");
-//
-//    /*Check the common name*/ 
-//   peer=SSL_get_peer_certificate(ssl); 
-//   X509_NAME_get_text_by_NID ( 
-//            X509_get_subject_name (peer),  NID_commonName,  peer_CN, 256); 
-//   if(strcasecmp(peer_CN, host)) 
-//            err_exit("Common name doesn't match host name");
-//
-//  } 
-//
-//
-//
-
-
-
-
-
 
 
 
@@ -1475,7 +1363,7 @@ int XrdHttpProtocol::InitSecurity() {
   SSL_CTX_set_verify_depth(sslctx, sslverifydepth);
   ERR_print_errors(sslbio_err);
   SSL_CTX_set_verify(sslctx,
-          SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
+          SSL_VERIFY_PEER, verify_callback);
   
   //
   // Check existence of GRID map file
