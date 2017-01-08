@@ -9,6 +9,7 @@ Prerelease Notes
 
 + **Major bug fixes**
   * **[XrdCrypto]** Improved determination of X509 certificate type, including proxy version
+    **[XrdHttp]** Fix memory leak in Bridge protocol (affects HTTP).
 
 + **Minor bug fixes**
 
