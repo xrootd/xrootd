@@ -73,6 +73,7 @@
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
+#include "XrdXrootd/XrdXrootdTransit.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
 #include "Xrd/XrdBuffer.hh"
@@ -332,10 +333,12 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    XrdXrootdFile::Init(Locker, as_nosf == 0);
    if (as_nosf) eDest.Say("Config warning: sendfile I/O has been disabled!");
 
-// Schedule protocol object cleanup
+// Schedule protocol object cleanup (also advise the transit protocol)
 //
    ProtStack.Set(pi->Sched, XrdXrootdTrace, TRACE_MEM);
-   ProtStack.Set((pi->ConnMax/3 ? pi->ConnMax/3 : 30), 60*60);
+   n = (pi->ConnMax/3 ? pi->ConnMax/3 : 30);
+   ProtStack.Set(n, 60*60);
+   XrdXrootdTransit::Init(pi->Sched, n, 60*60);
 
 // Initialize the request ID generation object
 //
