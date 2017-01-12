@@ -123,3 +123,4 @@ XrdFileCache::Decision *XrdFileCacheGetDecision(XrdSysError &err)
    return new BlacklistDecision(err);
 }
 }
+
