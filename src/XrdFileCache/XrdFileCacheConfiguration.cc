@@ -236,7 +236,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       float rg =  (m_configuration.m_RamAbsAvailable)/float(1024*1024*1024);
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
                       "       pfc.blocksize %lld\n"
-                      "       pfc.prefetch %ld\n"
+                      "       pfc.prefetch %zu\n"
                       "       pfc.ram %.fg\n"
                       "       pfc.diskusage %lld %lld sleep %d\n"
                       "       pfc.spaces %s %s\n"
