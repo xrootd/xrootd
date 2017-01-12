@@ -114,12 +114,11 @@ CONFIGURATION
 
 pfc.blocksize: prefetch buffer size, default 1M
 
-pfc.nread: number of in memory cached blocks reserved for read tasks
+pfc.ram [bytes[g]]: maximum allowed RAM usage for caching proxy 
 
-pfc.nprefetch: number of in memory cached blocks reserved for prefetch tasks
+pfc.prefetch <n>: prefetch level, default is 10. Value zero disables prefetching.
 
-pfc.diskusage <lwm fraction> <hwm fraction>: high / low watermarks for disk cache
-purge operation (default 0.9 and 0.95)
+pfc.diskusage <low> <hig> diskusage boundaries, can be specified relative in percantage or in g or T bytes
 
 pfc.user <username>: username used by XrdOss plugin
 
@@ -130,12 +129,14 @@ pfc.osslib <lpath> [<params>] path to alternative plign for output file system
 
 pfc.decisionlib <lpath> [<prams>] path to decision library and plugin parameters
 
+pfc.trace <none|error|warning|info|debug|dump> default level is warning, xrootd option -d sets debug level
+
 Examples 
 
 a) Enable proxy file prefetching:
 pps.cachelib libXrdFileCache.so
 pfc.localroot  /data/xrd-file-cache
-pfc.nprefetch 1
+pfc.ram 5g
 
 
 b) enable file block mode, with block size 64 MB:

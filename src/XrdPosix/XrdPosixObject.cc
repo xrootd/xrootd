@@ -258,7 +258,7 @@ void XrdPosixObject::Release(XrdPosixObject *oP, bool needlk)
        close(oP->fdNum);
       }
 
-// Zorch the object fd and relese the global lock (object lock still held)
+// Zorch the object fd and release the global lock
 //
    oP->fdNum = -1;
    fdMutex.UnLock();

@@ -24,149 +24,360 @@
 #include <sys/stat.h>
 
 #include "XrdOss/XrdOss.hh"
+#include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdOuc/XrdOucSxeq.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
+#include "XrdFileCacheStats.hh"
+#include "XrdFileCacheTrace.hh"
 
-const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
+namespace
+{
+struct FpHelper
+{
+   XrdOssDF    *f_fp;
+   off_t f_off;
+   XrdOucTrace *f_trace;
+   const char  *m_traceID;
+   std::string f_ttext;
 
-#define BIT(n)       (1ULL << (n))
+   XrdOucTrace* GetTrace() const { return f_trace; }
+
+   FpHelper(XrdOssDF* fp, off_t off,
+            XrdOucTrace *trace, const char *tid, const std::string &ttext) :
+      f_fp(fp), f_off(off),
+      f_trace(trace), m_traceID(tid), f_ttext(ttext)
+   {}
+
+   // Returns true on error
+   bool ReadRaw(void *buf, ssize_t size, bool warnp = true)
+   {
+      ssize_t ret = f_fp->Read(buf, f_off, size);
+      if (ret != size)
+      {
+         if (warnp)
+         {
+            TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
+                                   << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
+         }
+         return true;
+      }
+      f_off += ret;
+      return false;
+   }
+
+   template<typename T> bool Read(T &loc, bool warnp = true)
+   {
+      return ReadRaw(&loc, sizeof(T), warnp);
+   }
+
+   // Returns true on error
+   bool WriteRaw(void *buf, ssize_t size)
+   {
+      ssize_t ret = f_fp->Write(buf, f_off, size);
+      if (ret != size)
+      {
+         TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
+                                << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
+         return true;
+      }
+      f_off += ret;
+      return false;
+   }
+
+   template<typename T> bool Write(T &loc)
+   {
+      return WriteRaw(&loc, sizeof(T));
+   }
+};
+}
+
 using namespace XrdFileCache;
 
+const char*  Info::m_infoExtension  = ".cinfo";
+const char*  Info::m_traceID        = "Cinfo";
+const int    Info::m_defaultVersion = 2;
+const size_t Info::m_maxNumAccess   = 20;
 
-Info::Info(long long iBufferSize) :
-   m_version(0),
-   m_bufferSize(iBufferSize),
-   m_sizeInBits(0), m_buff_fetched(0), m_buff_write_called(0),
-   m_accessCnt(0),
-   m_complete(false)
-{
-}
+//------------------------------------------------------------------------------
+
+Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
+   m_trace(trace),
+   m_hasPrefetchBuffer(prefetchBuffer),
+   m_buff_written(0),  m_buff_prefetch(0),
+   m_sizeInBits(0),
+   m_complete(false),
+   m_cksCalc(0)
+{}
 
 Info::~Info()
 {
-   if (m_buff_fetched) free(m_buff_fetched);
-   if (m_buff_write_called) free(m_buff_write_called);
+   if (m_store.m_buff_synced) free(m_store.m_buff_synced);
+   if (m_buff_written) free(m_buff_written);
+   if (m_buff_prefetch) free(m_buff_prefetch);
+   delete m_cksCalc;
 }
 
-//______________________________________________________________________________
+//------------------------------------------------------------------------------
 
+void Info::SetBufferSize(long long bs)
+{
+   // Needed only info is created first time in File::Open()
+   m_store.m_bufferSize = bs;
+}
+
+//------------------------------------------------------------------------------s
+
+void Info::SetFileSize(long long fs)
+{
+   m_store.m_fileSize = fs;
+   ResizeBits((m_store.m_fileSize - 1)/m_store.m_bufferSize + 1);
+   m_store.m_creationTime = time(0);
+}
+
+//------------------------------------------------------------------------------
 
 void Info::ResizeBits(int s)
 {
+   // drop buffer in case of failed/partial reads
+
+   if (m_store.m_buff_synced) free(m_store.m_buff_synced);
+   if (m_buff_written) free(m_buff_written);
+   if (m_buff_prefetch) free(m_buff_prefetch);
+
    m_sizeInBits = s;
-   m_buff_fetched = (unsigned char*)malloc(GetSizeInBytes());
-   m_buff_write_called = (unsigned char*)malloc(GetSizeInBytes());
-   memset(m_buff_fetched, 0, GetSizeInBytes());
-   memset(m_buff_write_called, 0, GetSizeInBytes());
-}
+   m_buff_written      = (unsigned char*) malloc(GetSizeInBytes());
+   m_store.m_buff_synced = (unsigned char*) malloc(GetSizeInBytes());
+   memset(m_buff_written,      0, GetSizeInBytes());
+   memset(m_store.m_buff_synced,       0, GetSizeInBytes());
 
-//______________________________________________________________________________
-
-
-int Info::Read(XrdOssDF* fp)
-{
-   // does not need lock, called only in Prefetch::Open
-   // before Prefetch::Run() starts
-
-   int off = 0;
-   off += fp->Read(&m_version, off, sizeof(int));
-   off += fp->Read(&m_bufferSize, off, sizeof(long long));
-   if (off <= 0) return off;
-
-   int sb;
-   off += fp->Read(&sb, off, sizeof(int));
-   ResizeBits(sb);
-
-   off += fp->Read(m_buff_fetched, off, GetSizeInBytes());
-   assert (off == GetHeaderSize());
-
-   memcpy(m_buff_write_called, m_buff_fetched, GetSizeInBytes());
-   m_complete = IsAnythingEmptyInRng(0, sb-1) ? false : true;
-
-
-   off += fp->Read(&m_accessCnt, off, sizeof(int));
-   clLog()->Dump(XrdCl::AppMsg, "Info:::Read() complete %d access_cnt %d", m_complete, m_accessCnt);
-   return off;
-}
-
-//______________________________________________________________________________
-
-
-int Info::GetHeaderSize() const
-{
-   // version + buffersize + download-status-array-size + download-status-array
-   return sizeof(int) + sizeof(long long) + sizeof(int) + GetSizeInBytes();
-}
-
-//______________________________________________________________________________
-void Info::WriteHeader(XrdOssDF* fp)
-{
-   int flr = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait);
-   if (flr) clLog()->Error(XrdCl::AppMsg, "WriteHeader() lock failed %s \n", strerror(errno));
-
-   long long off = 0;
-   off += fp->Write(&m_version, off, sizeof(int));
-   off += fp->Write(&m_bufferSize, off, sizeof(long long));
-
-   int nb = GetSizeInBits();
-   off += fp->Write(&nb, off, sizeof(int));
-   off += fp->Write(m_buff_write_called, off, GetSizeInBytes());
-
-   flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) clLog()->Error(XrdCl::AppMsg, "WriteHeader() un-lock failed \n");
-
-   assert (off == GetHeaderSize());
-}
-
-//______________________________________________________________________________
-void Info::AppendIOStat(AStat& as, XrdOssDF* fp)
-{
-   clLog()->Info(XrdCl::AppMsg, "Info:::AppendIOStat()");
-
-   int flr = XrdOucSxeq::Serialize(fp->getFD(), 0);
-   if (flr) clLog()->Error(XrdCl::AppMsg, "AppendIOStat() lock failed \n");
-
-   m_accessCnt++;
-   long long off = GetHeaderSize();
-   off += fp->Write(&m_accessCnt, off, sizeof(int));
-   off += (m_accessCnt-1)*sizeof(AStat);
- 
-   long long ws = fp->Write(&as, off, sizeof(AStat));
-   flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) clLog()->Error(XrdCl::AppMsg, "AppenIOStat() un-lock failed \n");
-
-   if ( ws != sizeof(AStat)) { assert(0); }
-}
-
-//______________________________________________________________________________
-bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
-{
-   bool res = false;
-
-   int flr = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::Share);
-   if (flr) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
-   if (m_accessCnt)
+   if (m_hasPrefetchBuffer)
    {
-      AStat     stat;
-      long long off      = GetHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
-      ssize_t   read_res = fp->Read(&stat, off, sizeof(AStat));
-      if (read_res == sizeof(AStat))
-      {
-         t = stat.DetachTime;
-         res = true;
-      }
-      else
-      {
-         clLog()->Error(XrdCl::AppMsg, " Info::GetLatestAttachTime() can't get latest access stat. read bytes = %d", res);
-      }
+      m_buff_prefetch = (unsigned char*) malloc(GetSizeInBytes());
+      memset(m_buff_prefetch, 0, GetSizeInBytes());
+   }
+}
+
+
+//------------------------------------------------------------------------------
+
+bool Info::Read(XrdOssDF* fp, const std::string &fname)
+{
+   // does not need lock, called only in File::Open
+   // before File::Run() starts
+
+   std::string trace_pfx("Info:::Read() ");
+   trace_pfx += fname + " ";
+
+   FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
+
+   if (r.Read(m_store.m_version)) return false;
+
+   if (m_store.m_version == 0)
+   {
+      TRACE(Warning, trace_pfx << " File version 0 non supported");
+      return false;
+   }
+   else if (abs(m_store.m_version) == 1)
+      return ReadV1(fp, fname);
+
+   if (r.Read(m_store.m_bufferSize)) return false;
+
+   long long fs;
+   if (r.Read(fs)) return false;
+   SetFileSize(fs);
+
+   if (r.ReadRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
+   memcpy(m_buff_written, m_store.m_buff_synced, GetSizeInBytes());
+
+
+   if (r.ReadRaw(m_store.m_cksum, 16)) return false;
+   char tmpCksum[16];
+   GetCksum(&m_store.m_buff_synced[0], &tmpCksum[0]);
+
+   /*
+      // debug print cksum
+      for (int i =0; i < 16; ++i)
+      printf("%x", tmpCksum[i] & 0xff);
+
+      for (int i =0; i < 16; ++i)
+      printf("%x", m_store.m_cksum[i] & 0xff);
+    */
+   if (strncmp(m_store.m_cksum, &tmpCksum[0], 16))
+   {
+      TRACE(Error, trace_pfx << " buffer cksum and saved cksum don't match \n");
+      return false;
+   }
+
+   // cache complete status
+   m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
+
+
+   // read creation time
+   if (r.Read(m_store.m_creationTime)) return false;
+
+   // get number of accessess
+   if (r.Read(m_store.m_accessCnt, false)) m_store.m_accessCnt = 0;  // was: return false;
+   TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
+
+   // read access statistics
+   int vs = m_store.m_accessCnt < m_maxNumAccess ? m_store.m_accessCnt : m_maxNumAccess;
+   m_store.m_astats.resize(vs);
+   for (std::vector<AStat>::iterator it = m_store.m_astats.begin(); it != m_store.m_astats.end(); ++it)
+   {
+      if (r.Read(*it, sizeof(AStat))) return false;
    }
 
 
-   flr = XrdOucSxeq::Release(fp->getFD());
-   if (flr) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
+   return true;
+}
 
-   return res;
+bool Info::ReadV1(XrdOssDF* fp, const std::string &fname)
+{
+   struct AStatV1 {
+      time_t DetachTime;       //! close time
+      long long BytesDisk;     //! read from disk
+      long long BytesRam;      //! read from ram
+      long long BytesMissed;   //! read remote client
+   };
+
+   std::string trace_pfx("Info:::ReadV1() ");
+   trace_pfx += fname + " ";
+
+   FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
+
+
+
+   if (r.Read(m_store.m_version)) return false;
+   if (r.Read(m_store.m_bufferSize)) return false;
+
+   long long fs;
+   if (r.Read(fs)) return false;
+   SetFileSize(fs);
+
+   if (r.ReadRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
+   memcpy(m_buff_written, m_store.m_buff_synced, GetSizeInBytes());
+
+
+   m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
+   if (r.ReadRaw(&m_store.m_accessCnt, sizeof(int), false)) m_store.m_accessCnt = 0;  // was: return false;
+   TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
+
+
+   size_t startFillIdx = m_store.m_accessCnt < m_maxNumAccess ? 0 : m_store.m_accessCnt - m_maxNumAccess;
+   AStatV1 av1;
+   for (size_t i = 0; i < m_store.m_accessCnt; ++i)
+   {
+      if (r.ReadRaw(&av1, sizeof(AStatV1))) return false;
+
+      if (i >= startFillIdx)
+      {
+         AStat av2;
+         av2.AttachTime  =  av1.DetachTime;
+         av2.DetachTime  =  av1.DetachTime;
+         av2.BytesDisk   =  av1.BytesDisk;
+         av2.BytesRam    =  av1.BytesRam;
+         av2.BytesMissed =  av1.BytesMissed;
+
+         m_store.m_astats.push_back(av2);
+      }
+
+      if (i == 0) m_store.m_creationTime = av1.DetachTime;
+   }
+
+   return true;
+}
+
+//------------------------------------------------------------------------------
+void Info::GetCksum( unsigned char* buff, char* digest)
+{
+   if (m_cksCalc)
+      m_cksCalc->Init();
+   else
+      m_cksCalc = new XrdCksCalcmd5();
+
+   m_cksCalc->Update((const char*)buff, GetSizeInBytes());
+   memcpy(digest, m_cksCalc->Final(), 16);
+}
+
+//------------------------------------------------------------------------------
+void Info::DisableDownloadStatus()
+{
+   // use version sign to skip downlaod status
+   m_store.m_version = -m_store.m_version;
+}
+//------------------------------------------------------------------------------
+
+bool Info::Write(XrdOssDF* fp, const std::string &fname)
+{
+   std::string trace_pfx("Info:::Write() ");
+   trace_pfx += fname + " ";
+
+   if (XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait))
+   {
+      TRACE(Error, trace_pfx << " lock failed " << strerror(errno));
+      return false;
+   }
+
+   FpHelper w(fp, 0, m_trace, m_traceID, trace_pfx + "oss write failed");
+
+   m_store.m_version = m_defaultVersion;
+   if (w.Write(m_store.m_version)) return false;
+   if (w.Write(m_store.m_bufferSize)) return false;
+   if (w.Write(m_store.m_fileSize)) return false;
+
+   if (w.WriteRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
+
+   GetCksum(&m_store.m_buff_synced[0], &m_store.m_cksum[0]);
+   if (w.Write(m_store.m_cksum)) return false;
+
+   if (w.Write(m_store.m_creationTime)) return false;
+
+   if (w.Write(m_store.m_accessCnt)) return false;
+   for (std::vector<AStat>::iterator it = m_store.m_astats.begin(); it != m_store.m_astats.end(); ++it)
+   {
+      if (w.WriteRaw(&(*it), sizeof(AStat))) return false;
+   }
+
+   // Can this really fail?
+   if (XrdOucSxeq::Release(fp->getFD()))
+   {
+      TRACE(Error, trace_pfx << "un-lock failed");
+   }
+
+   return true;
+}
+
+//------------------------------------------------------------------------------
+
+void Info::WriteIOStatDetach(Stats& s)
+{
+   m_store.m_astats.back().DetachTime  = time(0);
+   m_store.m_astats.back().BytesDisk   = s.m_BytesDisk;
+   m_store.m_astats.back().BytesRam    = s.m_BytesRam;
+   m_store.m_astats.back().BytesMissed = s.m_BytesMissed;
+}
+
+void Info::WriteIOStatAttach()
+{
+   m_store.m_accessCnt++;
+   if ( m_store.m_astats.size() >= m_maxNumAccess)
+      m_store.m_astats.erase( m_store.m_astats.begin());
+
+   AStat as;
+   as.AttachTime = time(0);
+   m_store.m_astats.push_back(as);
+}
+
+//------------------------------------------------------------------------------
+
+bool Info::GetLatestDetachTime(time_t& t) const
+{
+   if (! m_store.m_accessCnt) return false;
+
+   t =  m_store.m_astats[m_store.m_accessCnt-1].DetachTime;
+   return true;
 }

@@ -1,10 +1,9 @@
-#ifndef __OUC_IOVEC_H__
-#define __OUC_IOVEC_H__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c I O V e c . h h                         */
+/*                   X r d P o s i x C a l l B a c k . c c                    */
 /*                                                                            */
-/* (c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,31 +28,26 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-//-----------------------------------------------------------------------------
-//! XrdOucIOVec
-//!
-//! The struct defined here is a generic data structure that is used whenever
-//! we need to pass a vector of file offsets, lengths, and the corresponding
-//! target buffer pointers. It is used by the sfs, ofs, and oss components.
-//-----------------------------------------------------------------------------
+#include <errno.h>
 
-struct XrdOucIOVec
+#include "XrdPosix/XrdPosixCallBack.hh"
+#include "XrdPosix/XrdPosixFile.hh"
+
+/******************************************************************************/
+/*                                  D o n e                                   */
+/******************************************************************************/
+  
+void XrdPosixCallBackIO::Done(int result)
 {
-       long long offset;    // Offset into the file.
-       int       size;      // Size of I/O to perform.
-       int       info;      // Available for arbitrary use
-       char     *data;      // Location to read into.
-};
-
-// Add backward compatible constructor to XrdOucIOVec
+// Unreference the file so that the callback is able to close it.
 //
-struct XrdOucIOVec2 : public XrdOucIOVec
-{
-       XrdOucIOVec2(char *buff, long long offs, int sz, int inf=0)
-                   {XrdOucIOVec::offset = offs;
-                    XrdOucIOVec::size   = sz;
-                    XrdOucIOVec::info   = inf;
-                    XrdOucIOVec::data   = buff;
-                   }
-};
-#endif
+   theFile->unRef();
+
+// Diagnose the problem here, if there is a problem
+//
+   if (result < 0) {errno = -result; result = -1;}
+
+// Invoke the callback
+//
+   Complete((ssize_t)result);
+}
