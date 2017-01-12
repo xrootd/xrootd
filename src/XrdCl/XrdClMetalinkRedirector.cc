@@ -243,14 +243,14 @@ XRootDStatus MetalinkRedirector::LoadLocalFile( ResponseHandler *userHandler )
     if( bytesRead < 0 )
     {
       close( fd );
-      delete buffer;
+      delete[] buffer;
       if( userHandler ) userHandler->HandleResponseWithHosts( new XRootDStatus( stError, errOSError, errno ), 0, 0 );
       return XRootDStatus( stError, errOSError, errno );
     }
     content += std::string( buffer, bytesRead );
   }
   close( fd );
-  delete buffer;
+  delete[] buffer;
   XRootDStatus st = Parse( content );
   FinalizeInitialization( st );
   if( userHandler ) userHandler->HandleResponseWithHosts( new XRootDStatus( st ), 0, 0 );

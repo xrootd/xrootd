@@ -36,6 +36,7 @@
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
+#include <sys/stat.h>
 
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixFile.hh"
