@@ -29,3 +29,4 @@ XrdOucCacheIO2* IO::GetInput()
    XrdSysMutexHelper lock(&updMutex);
    return m_io;
 }
+

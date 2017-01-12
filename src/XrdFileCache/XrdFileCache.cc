@@ -441,7 +441,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
 void
 Cache::Prefetch()
 {
-   int limitRAM = Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7;
+   int limitRAM = int( Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7 );
    while (true)
    {
       m_RAMblock_mutex.Lock();
@@ -459,3 +459,4 @@ Cache::Prefetch()
       }
    }
 }
+
