@@ -392,7 +392,7 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
    idMap = XrdSecsssID::getObj(aType, &staticID, staticIDsz);
    switch(aType)
          {case XrdSecsssID::idDynamic:  isMutual = 1; break;
-          case XrdSecsssID::idStaticM:  isMutual = 1;
+          case XrdSecsssID::idStaticM:  isMutual = 1; [[gnu::fallthrough]];
           case XrdSecsssID::idStatic:
                default:                 idMap    = 0; break;
           }

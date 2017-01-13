@@ -482,8 +482,8 @@ const char *XrdCryptosslX509Crl::IssuerHash(int alg)
       if (issueroldhash.length() <= 0) {
          // Make sure we have a certificate
          if (crl) {
-            char chash[15] = {0};
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(crl->crl->issuer));
+            char chash[30] = {0};
+            snprintf(chash, sizeof(chash), "%08lx.0", X509_NAME_hash_old(crl->crl->issuer));
             issueroldhash = chash;
          } else {
             DEBUG("WARNING: no certificate available - cannot extract issuer hash (md5)");
@@ -501,9 +501,8 @@ const char *XrdCryptosslX509Crl::IssuerHash(int alg)
 
       // Make sure we have a certificate
       if (crl) {
-         char chash[15] = {0};
-         if (chash[0] == 0)
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash(crl->crl->issuer));
+         char chash[30] = {0};
+         snprintf(chash, sizeof(chash), "%08lx.0", X509_NAME_hash(crl->crl->issuer));
          issuerhash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract issuer hash (default)");

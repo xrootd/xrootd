@@ -544,7 +544,7 @@ void XrdCnsSsi::ApplyLogRec(char *lP)
                                            theDir->Files->Del(fnP);
                                                                 break;
            case XrdCnsLogRec::lrRmdir:  hInv->Del(lfn);         break;
-           case XrdCnsLogRec::lrMv:     if (AddDel(lfn, lP))    break;
+           case XrdCnsLogRec::lrMv:     if (AddDel(lfn, lP))    break; [[gnu::fallthrough]];
            default: if (fnP)  *(fnP -1) = '/';
                     Say.V("Invalid log record ", lP);
                     nErrs++;

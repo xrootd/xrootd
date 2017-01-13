@@ -1584,6 +1584,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               return -1;
             }
           }
+          [[gnu::fallthrough]];
           default: //read or readv
           {
 	    // Close() if this was the third state of a readv, otherwise read the next chunk

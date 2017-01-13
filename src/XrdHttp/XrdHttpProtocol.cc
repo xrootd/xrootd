@@ -1161,7 +1161,7 @@ int XrdHttpProtocol::SendData(char *body, int bodylen) {
 
 int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen) {
   char outhdr[512];
-  char b[16];
+  char b[32];
   long long l;
   const char *crlf = "\r\n";
   outhdr[0] = '\0';

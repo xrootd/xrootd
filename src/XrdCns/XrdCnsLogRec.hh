@@ -58,8 +58,8 @@ struct Ctl
 
 struct Arg
       {char Type;                   // Event code
-       char Mode[3];                // Mode (create, inv, mkdir)
-       char SorT[12];               // Size (closew, inv) | TOD (eol)
+       char Mode[6];                // Mode (create, inv, mkdir)
+       char SorT[24];               // Size (closew, inv) | TOD (eol)
        char Mount;                  // Mount Index
        char Space;                  // Space Index
        char Rsvd[6];                // Reserved (blank filled)

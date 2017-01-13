@@ -243,7 +243,7 @@ class ZipArchiveReaderImpl
     {
       delete pBuffer;
       ClearRecords();
-      pArchive.Close();
+      XRootDStatus st = pArchive.Close();
     }
 
     File                           pArchive;
