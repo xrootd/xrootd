@@ -418,10 +418,9 @@ int main( int argc, char **argv )
 
    switch (Action) {
    case kA_update:
-      //
       // Like 'add', forcing write
-      Force = 1;
    case kA_add:
+      if (Action == kA_update) Force = 1;
       //
       // Add / Update entry
       //
@@ -967,15 +966,15 @@ int main( int argc, char **argv )
       break;
 
    case kA_trim:
-      //
-      // Trim the file
-      ff.Trim();
-
    case kA_browse:
    default:
       //
+      // Trim the file first before browsing
+      if (Action == kA_trim) ff.Trim();
+      //
       // Browse
       ff.Browse();
+      break;
    }
 
    exit(0);
