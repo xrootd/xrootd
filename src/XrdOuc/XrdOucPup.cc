@@ -209,7 +209,7 @@ int XrdOucPup::Pack(struct iovec *iovP, struct iovec *iovE, XrdOucPupArgs *pup,
               case PT_Mark:
                    *Base.B08 = (char *)vP;
                    if (pP->Dtype == PT_Mark) break;
-
+                   [[gnu::fallthrough]];
               case PT_Skip:
                    vP++;
                    break;
@@ -224,6 +224,7 @@ int XrdOucPup::Pack(struct iovec *iovP, struct iovec *iovE, XrdOucPupArgs *pup,
 
               case PT_EndFill: 
                    *Base.B16 = htons(static_cast<unsigned short>(TotLen));
+                   [[gnu::fallthrough]];
               case PT_End:     
                    return static_cast<int>(vP-iovP);
 

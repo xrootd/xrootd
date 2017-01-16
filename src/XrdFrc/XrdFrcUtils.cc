@@ -192,10 +192,10 @@ int XrdFrcUtils::MapR2Q(char Opc, int *Flags)
    switch(Opc)
          {case 0  :
           case '+': return XrdFrcRequest::stgQ;
-          case '^': if (Flags) *Flags = XrdFrcRequest::Purge;
+          case '^': if (Flags) *Flags = XrdFrcRequest::Purge; [[gnu::fallthrough]];
           case '&': return XrdFrcRequest::migQ;
           case '<': return XrdFrcRequest::getQ;
-          case '=': if (Flags) *Flags |= XrdFrcRequest::Purge;
+          case '=': if (Flags) *Flags |= XrdFrcRequest::Purge; [[gnu::fallthrough]];
           case '>': return XrdFrcRequest::putQ;
           default:  break;
          }

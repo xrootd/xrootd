@@ -503,7 +503,7 @@ void XrdFrmTransfer::Start()
          xfrP->PFN[xfrP->pfnEnd] = 0;
 
          if (xfrP->RetCode || Config.Verbose)
-            {char buff1[80], buff2[80];
+            {char buff1[280], buff2[80];
              sprintf(buff1, "%s for %s", xfrP->RetCode ? "failed" : "complete",
                                           xfrP->reqData.User);
              if (xfrP->RetCode == 0) *buff2 = 0;

@@ -1009,6 +1009,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
       // We set some options in the option field of a pwdStatus_t structure
       if (hs->Tty || (AutoLogin > 0))
          SessionSt.options = kOptsClntTty;
+      [[gnu::fallthrough]];
 
    case kXPS_puk:
       // After auto-reg request, server puk have been saved in ParseClientInput:
@@ -1037,6 +1038,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
             break;
          }
       }
+      [[gnu::fallthrough]];
 
    case kXPS_signedrtag:     // (after kXRC_verifysrv)
       //
@@ -1378,6 +1380,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       }
       // Creds, if any, should be checked, unles we allow auto-registration
       savecreds = (entst != kPFE_allowed) ? 0 : 1;
+      [[gnu::fallthrough]];
 
    case kXPC_creds:
       //

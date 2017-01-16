@@ -188,10 +188,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
       while ((c=getopt(pi->argc,pi->argv,"mrst")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
-       case 'r': deper = 1;
+       case 'r': deper = 1; [[gnu::fallthrough]];
        case 'm': XrdOucEnv::Export("XRDREDIRECT", "R");
                  break;
-       case 't': deper = 1;
+       case 't': deper = 1; [[gnu::fallthrough]];
        case 's': XrdOucEnv::Export("XRDRETARGET", "1");
                  break;
        case 'y': XrdOucEnv::Export("XRDREDPROXY", "1");

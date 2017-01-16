@@ -150,6 +150,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                     else NoGo = NAPath("'-a'", Spec.argval);
                  break;
        case 'B': Opts |= optNoCns;
+                 [[gnu::fallthrough]];
        case 'b': bPath = Spec.argval;
                  break;
        case 'c': cPath = Spec.argval;

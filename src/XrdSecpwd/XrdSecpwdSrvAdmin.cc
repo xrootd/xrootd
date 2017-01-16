@@ -421,6 +421,7 @@ int main( int argc, char **argv )
       //
       // Like 'add', forcing write
       Force = 1;
+      [[gnu::fallthrough]];
    case kA_add:
       //
       // Add / Update entry
@@ -970,6 +971,7 @@ int main( int argc, char **argv )
       //
       // Trim the file
       ff.Trim();
+      [[gnu::fallthrough]];
 
    case kA_browse:
    default:

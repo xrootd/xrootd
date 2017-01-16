@@ -96,6 +96,7 @@ void XrdCnsDaemon::getEvents(XrdOucStream &Events, const char *Who)
                            break;
                       case XrdCnsLogRec::lrMkdir:
                            evP->setSize(-1);
+                           [[gnu::fallthrough]];
                       case XrdCnsLogRec::lrCreate:
                            if (!(tp=Events.GetToken())) {Miss = "mode";  break;}
                            Mode = strtol(tp, &etp, 8);
