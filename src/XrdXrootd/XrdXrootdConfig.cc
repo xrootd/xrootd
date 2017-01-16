@@ -189,9 +189,13 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
      { switch(c)
        {
        case 'r': deper = 1;
+                 XrdOucEnv::Export("XRDREDIRECT", "R");
+                 break;
        case 'm': XrdOucEnv::Export("XRDREDIRECT", "R");
                  break;
        case 't': deper = 1;
+                 XrdOucEnv::Export("XRDRETARGET", "1");
+                 break;
        case 's': XrdOucEnv::Export("XRDRETARGET", "1");
                  break;
        case 'y': XrdOucEnv::Export("XRDREDPROXY", "1");
