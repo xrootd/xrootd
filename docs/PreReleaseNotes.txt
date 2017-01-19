@@ -11,6 +11,7 @@ Prerelease Notes
   * **[XrdCeph] Account for return Ceph xattr return codes.
   * **[XrdCrypto]** Improved determination of X509 certificate type, including proxy version
     **[XrdHttp]** Fix memory leak in Bridge protocol (affects HTTP).
+    **[XrdSecgsi]** Several improvements in the way CRLs are checked and reloaded.
 
 + **Minor bug fixes**
 
