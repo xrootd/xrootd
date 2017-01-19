@@ -185,12 +185,15 @@ int XrdCryptosslX509Crl::Init(const char *cf)
    if (!PEM_read_X509_CRL(fc, &crl, 0, 0)) {
       DEBUG("Unable to load CRL from file");
       return -1;
-   } else {
-      DEBUG("CRL successfully loaded");
    }
    //
    // Close the file
    fclose(fc);
+
+   //
+   // Notify
+   DEBUG("CRL successfully loaded from "<< cf);
+
    //
    // Save source file name
    srcfile = cf;
