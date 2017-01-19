@@ -104,17 +104,24 @@ std::map<unsigned int, CephFileRef> g_fds;
 unsigned int g_nextCephFd = 0;
 /// mutex protecting the map of file descriptors and the openForWrite multiset
 XrdSysMutex g_fd_mutex;
+/// mutex protecting initialization of ceph clusters
+XrdSysMutex g_init_mutex;
 
 /// Accessor to next ceph pool index
 /// Note that this is not thread safe, but we do not care
 /// as we only want a rough load balancing
 unsigned int getCephPoolIdxAndIncrease() {
   if (g_radosStripers.size() == 0) {
-    // initialization phase : allocate corresponding places in the vectors
-    for (unsigned int i = 0; i < g_maxCephPoolIdx; i++) {
-      g_radosStripers.push_back(StriperDict());
-      g_ioCtx.push_back(IOCtxDict());
-      g_cluster.push_back(0);
+    // make sure we do not have a race condition here
+    XrdSysMutexHelper lock(g_init_mutex);
+    // double check now that we have the lock
+    if (g_radosStripers.size() == 0) {
+      // initialization phase : allocate corresponding places in the vectors
+      for (unsigned int i = 0; i < g_maxCephPoolIdx; i++) {
+        g_radosStripers.push_back(StriperDict());
+        g_ioCtx.push_back(IOCtxDict());
+        g_cluster.push_back(0);
+      }
     }
   }
   unsigned int res = g_cephPoolIdx;
