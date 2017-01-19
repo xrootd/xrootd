@@ -222,6 +222,7 @@ static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
 static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
 static int   xsecl(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
+static int   xlimit(XrdOucStream &Config);
 
 static XrdObjectQ<XrdXrootdProtocol> ProtStack;
 XrdObject<XrdXrootdProtocol>         ProtLink;
@@ -388,6 +389,13 @@ short                      PathID;
 char                       doWrite;
 char                       doWriteC;
 char                       rvSeq;
+
+// Track usage limts.
+//
+static bool                LimitError;  // Indicates that hitting a limit should result in an error response.
+                                        // If false, when possible, silently ignore errors.
+int                        PrepareCount;
+static int                 PrepareLimit;
 
 // Buffers to handle client requests
 //
