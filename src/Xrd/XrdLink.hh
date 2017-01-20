@@ -301,8 +301,11 @@ char                Uname[24];       // Uname and Lname must be adjacent!
 char                Lname[232];
 char               *HostName;
 int                 HNlen;
-pthread_t           TID;
-
+#if defined( __linux__ ) || defined( __solaris__ )
+pthread_t           TID;     // Hack to keep abi compatability
+#else
+XrdLink            *Next;    // Only used by PollPoll.icc
+#endif
 XrdSysMutex         opMutex;
 XrdSysMutex         rdMutex;
 XrdSysMutex         wrMutex;
@@ -323,7 +326,7 @@ char                LockReads;
 char                KeepFD;
 char                isEnabled;
 char                isIdle;
-char                rsvd;
+char                inQ;    // Only used by PollPoll.icc
 char                isBridged;
 char                KillCnt;        // Protected by opMutex!
 static const char   KillMax =   60;

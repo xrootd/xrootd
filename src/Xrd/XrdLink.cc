@@ -164,6 +164,9 @@ void XrdLink::Reset()
   Lname[1] = '\0';
   ID       = &Uname[sizeof(Uname)-2];
   Comment  = ID;
+#if !defined( __linux__ ) && !defined( __solaris__ )
+  Next     = 0;
+#endif
   sendQ    = 0;
   Protocol = 0; 
   ProtoAlt = 0;
@@ -176,7 +179,7 @@ void XrdLink::Reset()
   PollEnt  = 0;
   isEnabled= 0;
   isIdle   = 0;
-  rsvd     = 0;
+  inQ      = 0;
   isBridged= 0;
   BytesOut = BytesIn = BytesOutTot = BytesInTot = 0;
   doPost   = 0;
