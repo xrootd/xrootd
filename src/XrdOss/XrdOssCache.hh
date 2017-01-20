@@ -113,6 +113,7 @@ dev_t               fsid;
 const char         *path;
 time_t              updt;
 int                 stat;
+unsigned int        seen;
 
        XrdOssCache_FSData(const char *, STATFS_t &, dev_t);
       ~XrdOssCache_FSData() {if (path) free((void *)path);}

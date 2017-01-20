@@ -97,6 +97,7 @@ XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp,
      updt = time(0);
      next = 0;
      stat = 0;
+     seen = 0;
 }
   
 /******************************************************************************/
@@ -283,6 +284,7 @@ int XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, const char *sname)
   
 int XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, XrdOssCache_Group *fsg)
 {
+   static unsigned int seenVal = 0;
    XrdOssCache_FS     *fsp;
    XrdOssCache_FSData *fsd;
    int pnum = 0;
@@ -292,13 +294,15 @@ int XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, XrdOssCache_Group *fsg)
    Space.Total = 0;
    Space.Free  = 0;
 
-// Prepare to accumulate the stats
+// Prepare to accumulate the stats. Note that a file system may appear in
+// multiple cache groups. The code below only counts those once.
 //
    XrdOssCache::Mutex.Lock();
+   seenVal++;
    Space.Usage = fsg->Usage; Space.Quota = fsg->Quota;
    if ((fsp = XrdOssCache::fsfirst)) do
-      {if (fsp->fsgroup == fsg)
-          {fsd = fsp->fsdata; pnum++;
+      {if (fsp->fsgroup == fsg && fsp->fsdata->seen != seenVal)
+          {fsd = fsp->fsdata; pnum++; fsd->seen = seenVal;
            Space.Total += fsd->size;      Space.Free   += fsd->frsz;
            if (fsd->frsz > Space.Maxfree) Space.Maxfree = fsd->frsz;
            if (fsd->size > Space.Largest) Space.Largest = fsd->size;
