@@ -964,7 +964,7 @@ int XrdXrootdProtocol::xfsL(XrdOucStream &Config, char *val, int lix)
    if (!(Slash = rindex(val, '/'))) Slash = val;
       else Slash++;
    if (!strcmp(Slash, "libXrdOfs.so"))
-      eDest.Say("Config warning: ignoring fslib; libXrdOfs.so is built-in.");
+      eDest.Say("Config warning: 'fslib libXrdOfs.so' is actually built-in.");
       else {FSLib[lix] = strdup(val); FSLvn[lix] = lvn;}
    return 0;
 }
