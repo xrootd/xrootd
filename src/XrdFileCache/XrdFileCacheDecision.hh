@@ -27,40 +27,41 @@ class XrdSysError;
 
 namespace XrdFileCache
 {
-   //----------------------------------------------------------------------------
-   //! Base class for selecting which files should be cached.
-   //----------------------------------------------------------------------------
-   class Decision
+//----------------------------------------------------------------------------
+//! Base class for selecting which files should be cached.
+//----------------------------------------------------------------------------
+class Decision
+{
+public:
+   //--------------------------------------------------------------------------
+   //! Destructor
+   //--------------------------------------------------------------------------
+   virtual ~Decision() {}
+
+   //---------------------------------------------------------------------
+   //! Decide if original source will be cached.
+   //!
+   //! @param & path
+   //! @param & file system
+   //!
+   //! @return decision
+   //---------------------------------------------------------------------
+   virtual bool Decide(const std::string &, XrdOss &) const = 0;
+
+   //------------------------------------------------------------------------------
+   //! Parse configuration arguments.
+   //!
+   //! @param params configuration parameters
+   //!
+   //! @return status of configuration
+   //------------------------------------------------------------------------------
+   virtual bool ConfigDecision(const char* params)
    {
-      public:
-         //--------------------------------------------------------------------------
-         //! Destructor
-         //--------------------------------------------------------------------------
-         virtual ~Decision() {}
-
-         //---------------------------------------------------------------------
-         //! Decide if original source will be cached.
-         //!
-         //! @param & path
-         //! @param & file system
-         //!
-         //! @return decision
-         //---------------------------------------------------------------------
-         virtual bool Decide(const std::string &, XrdOss &) const = 0;
-
-         //------------------------------------------------------------------------------
-         //! Parse configuration arguments.
-         //!
-         //! @param params configuration parameters
-         //!
-         //! @return status of configuration
-         //------------------------------------------------------------------------------
-         virtual bool ConfigDecision(const char* params) 
-         { 
-           (void) params;
-           return true; 
-         }
-   };
+      (void) params;
+      return true;
+   }
+};
 }
 
 #endif
+

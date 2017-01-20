@@ -16,13 +16,17 @@ add_library(
   XrdPosix
   SHARED
   XrdPosix/XrdPosixAdmin.cc        XrdPosix/XrdPosixAdmin.hh
+                                   XrdPosix/XrdPosixCacheBC.hh
+  XrdPosix/XrdPosixCallBack.cc     XrdPosix/XrdPosixCallBack.hh
   XrdPosix/XrdPosixDir.cc          XrdPosix/XrdPosixDir.hh
   XrdPosix/XrdPosixFile.cc         XrdPosix/XrdPosixFile.hh
+  XrdPosix/XrdPosixFileRH.cc       XrdPosix/XrdPosixFileRH.hh
   XrdPosix/XrdPosixMap.cc          XrdPosix/XrdPosixMap.hh
   XrdPosix/XrdPosixObject.cc       XrdPosix/XrdPosixObject.hh
+                                   XrdPosix/XrdPosixObjGuard.hh
+  XrdPosix/XrdPosixPrepIO.cc       XrdPosix/XrdPosixPrepIO.hh
   XrdPosix/XrdPosixXrootd.cc       XrdPosix/XrdPosixXrootd.hh
   XrdPosix/XrdPosixXrootdPath.cc   XrdPosix/XrdPosixXrootdPath.hh
-                                   XrdPosix/XrdPosixCallBack.hh
                                    XrdPosix/XrdPosixOsDep.hh    )
 
 target_link_libraries(

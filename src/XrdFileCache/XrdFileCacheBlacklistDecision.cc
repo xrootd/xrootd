@@ -26,90 +26,89 @@
 
 class BlacklistDecision : public XrdFileCache::Decision
 {
-   //----------------------------------------------------------------------------
-   //! A decision library that allows all files to be cached except for a blacklist
-   //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! A decision library that allows all files to be cached except for a blacklist
+//----------------------------------------------------------------------------
 
-   public:
-      virtual bool Decide(const std::string & url, XrdOss &) const
+public:
+virtual bool Decide(const std::string & url, XrdOss &) const
+{
+   size_t slashslash = url.find("//");
+   const char *fname = url.c_str();
+   if (slashslash != std::string::npos)
+   {
+      fname += slashslash+2;
+      fname = strchr(fname, '/');
+      if (! fname) {return true; }
+   }
+   std::string url_path = fname;
+   size_t question = url_path.find("?");
+   if (question != std::string::npos)
+   {
+      url_path[question] = '\0';
+      fname = url_path.c_str();
+   }
+   if ((strlen(fname) > 1) && (fname[0] == '/') && (fname[1] == '/'))
+   {
+      fname++;
+   }
+   //m_log.Emsg("BlacklistDecide", "Deciding whether to cache file", fname);
+   for (std::vector<std::string>::const_iterator it = m_blacklist.begin(); it != m_blacklist.end(); it++)
+   {
+      if (! fnmatch(it->c_str(), fname, FNM_PATHNAME))
       {
-         size_t slashslash = url.find("//");
-         const char *fname = url.c_str();
-         if (slashslash != std::string::npos)
-         {
-            fname += slashslash+2;
-            fname = strchr(fname, '/');
-            if (!fname) {return true;}
-         }
-         std::string url_path = fname;
-         size_t question = url_path.find("?");
-         if (question != std::string::npos)
-         {
-            url_path[question] = '\0';
-            fname = url_path.c_str();
-         }
-         if ((strlen(fname) > 1) && (fname[0] == '/') && (fname[1] == '/'))
-         {
-            fname++;
-         }
-         //m_log.Emsg("BlacklistDecide", "Deciding whether to cache file", fname);
-         for (std::vector<std::string>::const_iterator it = m_blacklist.begin(); it != m_blacklist.end(); it++)
-         {
-            if (!fnmatch(it->c_str(), fname, FNM_PATHNAME))
-            {
-               //m_log.Emsg("BlacklistDecide", "Not caching file as it matches blacklist entry", it->c_str());
-               return false;
-            }
-         }
-         //m_log.Emsg("BlacklistDecide", "Caching file", fname);
-         return true;
+         //m_log.Emsg("BlacklistDecide", "Not caching file as it matches blacklist entry", it->c_str());
+         return false;
       }
+   }
+   //m_log.Emsg("BlacklistDecide", "Caching file", fname);
+   return true;
+}
 
-      BlacklistDecision(XrdSysError &log)
-       : m_log(log)
-      {
-      }
+BlacklistDecision(XrdSysError &log)
+   : m_log(log)
+{}
 
-      virtual bool ConfigDecision(const char * parms)
-      {
-         if (!parms || !parms[0] || (strlen(parms) == 0))
-         {
-            m_log.Emsg("ConfigDecision", "Blacklist file not specified.");
-            return false;
-         }
-         m_log.Emsg("ConfigDecision", "Using blacklist", parms);
-         FILE * fp = fopen(parms, "r");
-         if (fp == 0)
-         {
-            m_log.Emsg("ConfigDecision", errno, "Failed to open blacklist:", parms);
-            return false;
-         }
+virtual bool ConfigDecision(const char * parms)
+{
+   if (! parms || ! parms[0] || (strlen(parms) == 0))
+   {
+      m_log.Emsg("ConfigDecision", "Blacklist file not specified.");
+      return false;
+   }
+   m_log.Emsg("ConfigDecision", "Using blacklist", parms);
+   FILE * fp = fopen(parms, "r");
+   if (fp == 0)
+   {
+      m_log.Emsg("ConfigDecision", errno, "Failed to open blacklist:", parms);
+      return false;
+   }
 
-         char line[4096];
-         while(fgets(line, sizeof(line), fp))
-         {
-            char *trimmed = line;
-            while (trimmed[0] && isspace(trimmed[0])) {trimmed++;}
-            if (trimmed[0] == 0) {continue;}
-            size_t filelen = strlen(trimmed);
-            if (trimmed[filelen-1] == '\n') {trimmed[filelen-1] = '\0';}
-            m_blacklist.push_back(trimmed);
-         }
-         if (!feof(fp))
-         {
-            m_log.Emsg("ConfigDecision", errno, "Failed to parse blacklist");
-         }
-         fclose(fp);
-         for (std::vector<std::string>::const_iterator it=m_blacklist.begin(); it!=m_blacklist.end(); it++)
-         {
-            m_log.Emsg("ConfigDecision", "Cache is blacklisting paths matching", it->c_str());
-         }
-         return true;
-      }
+   char line[4096];
+   while(fgets(line, sizeof(line), fp))
+   {
+      char *trimmed = line;
+      while (trimmed[0] && isspace(trimmed[0])) {trimmed++; }
+      if (trimmed[0] == 0) {continue; }
+      size_t filelen = strlen(trimmed);
+      if (trimmed[filelen-1] == '\n') {trimmed[filelen-1] = '\0'; }
+      m_blacklist.push_back(trimmed);
+   }
+   if (! feof(fp))
+   {
+      m_log.Emsg("ConfigDecision", errno, "Failed to parse blacklist");
+   }
+   fclose(fp);
+   for (std::vector<std::string>::const_iterator it = m_blacklist.begin(); it!=m_blacklist.end(); it++)
+   {
+      m_log.Emsg("ConfigDecision", "Cache is blacklisting paths matching", it->c_str());
+   }
+   return true;
+}
 
-   private:
-      std::vector<std::string> m_blacklist;
-      XrdSysError &m_log;
+private:
+std::vector<std::string> m_blacklist;
+XrdSysError &m_log;
 };
 
 /******************************************************************************/

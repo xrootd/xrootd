@@ -105,7 +105,8 @@ int         P_pag;        // % PAG Capacity in load factor
 
 char        DoMWChk;      // When true (default) perform multiple write check
 char        DoHnTry;      // When true (default) use hostnames for try redirs
-char        Rsvd[2];      // Reserved for alignment
+char        nbSQ;         // Non-blocking send queue handling option
+char        Rsvd;         // Reserved for alignment
 
 int         DiskMin;      // Minimum MB needed of space in a partition
 int         DiskHWM;      // Minimum MB needed of space to requalify
@@ -210,6 +211,7 @@ int  xfsxq(XrdSysError *edest, XrdOucStream &CFile);
 int  xfxhld(XrdSysError *edest, XrdOucStream &CFile);
 int  xlclrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xmang(XrdSysError *edest, XrdOucStream &CFile);
+int  xnbsq(XrdSysError *edest, XrdOucStream &CFile);
 int  xnml(XrdSysError *edest, XrdOucStream &CFile);
 int  xolib(XrdSysError *edest, XrdOucStream &CFile);
 int  xperf(XrdSysError *edest, XrdOucStream &CFile);

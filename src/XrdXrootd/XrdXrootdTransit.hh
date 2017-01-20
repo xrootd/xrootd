@@ -45,6 +45,7 @@
 //-----------------------------------------------------------------------------
 
 class  XrdOucSFVec;
+class  XrdScheduler;
 class  XrdXrootdTransPend;
 struct iovec;
 
@@ -76,6 +77,12 @@ static int    Attn(XrdLink *lP, short *theSID, int rcode,
 //-----------------------------------------------------------------------------
 
 bool          Disc();
+
+//-----------------------------------------------------------------------------
+//! Perform one-time initialization
+//-----------------------------------------------------------------------------
+
+static void Init(XrdScheduler *schedP, int qMax, int qTTL);
 
 //-----------------------------------------------------------------------------
 //! Handle link activation (replaces parent activation).
@@ -149,7 +156,7 @@ void          SetWait(int wtime, bool notify=false)
 //! Constructor & Destructor
 //-----------------------------------------------------------------------------
 
-              XrdXrootdTransit() : waitJob(this) {}
+              XrdXrootdTransit() : TranLink(this), waitJob(this) {}
 virtual      ~XrdXrootdTransit() {}
 
 private:
@@ -179,8 +186,8 @@ class WaitReq : public XrdJob
       XrdXrootdTransit *spanP;
      };
 
-static XrdObjectQ<XrdXrootdTransit> ProtStack;
-XrdObject<XrdXrootdTransit>         ProtLink;
+static XrdObjectQ<XrdXrootdTransit> TranStack;
+XrdObject<XrdXrootdTransit>         TranLink;
 
 WaitReq                      waitJob;
 XrdSysMutex                  runMutex;

@@ -238,7 +238,7 @@ public:
    void Add(T *t) {
       char k[40]; snprintf(k, 40, "%p", t); 
       mtx.Lock();
-      if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count);
+      if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count); // We need an additional count
       stack.Add(k, t, 0, Hash_count);
       mtx.UnLock();
    }

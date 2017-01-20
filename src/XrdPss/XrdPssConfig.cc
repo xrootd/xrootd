@@ -56,7 +56,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCache2.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
@@ -64,6 +64,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucCache2.hh"
 
 #include "XrdPosix/XrdPosixXrootd.hh"
 
@@ -209,7 +210,7 @@ int XrdPssSys::Configure(const char *cfn)
 
 // Tell xrootd to disable async I/O as it just will slow everything down.
 //
-   XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
+// XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
 
 // Thell xrootd to disable POSC mode as this is meaningless here
 //
@@ -461,21 +462,41 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 int XrdPssSys::getCache()
 {
    XrdOucPinLoader  myLib(&eDest,myVersion,"cachelib",cPath);
-   XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
-   XrdOucCache     *theCache;
+   const char *cName;
+   bool isCache2;
 
-// Now get the entry point of the object creator
+// First find out if this is a cache2 or old cache library
 //
-   ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
-                    (myLib.Resolve("XrdOucGetCache"));
-   if (!ep) return 0;
+   if (myLib.Resolve("?XrdOucGetCache2") == 0)
+      {cName = "XrdOucGetCache";  isCache2 = false;
+      } else {
+       cName = "XrdOucGetCache2"; isCache2 = true;
+      } 
 
 // Get the Object now
 //
-   theCache = ep(eDest.logger(), ConfigFN, cParm);
-   if (theCache) {XrdPosixXrootd::setCache(theCache);}
-      else eDest.Emsg("Config", "Unable to get cache object from", cPath);
-   return theCache != 0;
+   if (isCache2) {
+      XrdOucCache2     *(*ep)(XrdSysLogger *, const char *, const char *);
+      ep = (XrdOucCache2 *(*)(XrdSysLogger *, const char *, const char *))
+         (myLib.Resolve(cName));
+
+      if (!ep) return 0;
+
+      XrdOucCache2* theCache2 = ep(eDest.logger(), ConfigFN, cParm);
+      if (theCache2) XrdPosixXrootd::setCache(theCache2);
+      return theCache2 != 0;
+   }
+   else {
+      XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
+      ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
+         (myLib.Resolve(cName));
+
+      if (!ep) return 0;
+
+      XrdOucCache* theCache = ep(eDest.logger(), ConfigFN, cParm);
+      if (theCache) XrdPosixXrootd::setCache(theCache);
+      return theCache != 0;
+   }
 }
   
 /******************************************************************************/

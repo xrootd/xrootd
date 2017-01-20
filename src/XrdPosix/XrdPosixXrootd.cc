@@ -47,14 +47,18 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+#include "XrdOuc/XrdOucCache2.hh"
 #include "XrdOuc/XrdOucCacheDram.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdPosix/XrdPosixAdmin.hh"
+#include "XrdPosix/XrdPosixCacheBC.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixDir.hh"
 #include "XrdPosix/XrdPosixFile.hh"
+#include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixMap.hh"
+#include "XrdPosix/XrdPosixPrepIO.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
 /******************************************************************************/
@@ -63,14 +67,62 @@
 
 namespace XrdPosixGlobals
 {
-XrdScheduler  *schedP = 0;
+XrdScheduler   *schedP = 0;
+XrdOucCache2   *theCache = 0;
 XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 bool           psxDBG = (getenv("XRDPOSIX_DEBUG") != 0);
 };
 
 XrdOucCache   *XrdPosixXrootd::myCache  =  0;
+XrdOucCache2  *XrdPosixXrootd::myCache2 =  0;
 int            XrdPosixXrootd::baseFD    = 0;
 int            XrdPosixXrootd::initDone  = 0;
+  
+/******************************************************************************/
+/*                       L o c a l   F u n c t i o n s                        */
+/******************************************************************************/
+
+namespace
+{
+
+/******************************************************************************/
+/*                             O p e n D e f e r                              */
+/******************************************************************************/
+
+int OpenDefer(XrdPosixFile           *fp,
+              XrdPosixCallBack       *cbP,
+              XrdCl::OpenFlags::Flags XOflags,
+              XrdCl::Access::Mode     XOmode,
+              bool                    isStream)
+{
+
+// Assign a file descriptor to this file
+//
+   if (!(fp->AssignFD(isStream)))
+      {delete fp;
+       errno = EMFILE;
+       return -1;
+      }
+
+// Allocate a prepare I/O object to defer this open
+//
+   fp->PrepIO = new XrdPosixPrepIO(fp, XOflags, XOmode);
+
+// Finalize this file object. A null argument indicates it is defered.
+//
+   fp->Finalize(0);
+
+// For sync opens we just need to return the file descriptor
+//
+   if (!cbP) return fp->FDNum();
+
+// For async opens do the callback here and return an inprogress
+//
+   cbP->Complete(fp->FDNum());
+   errno = EINPROGRESS;
+   return -1;
+}
+};
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -148,13 +200,16 @@ int XrdPosixXrootd::Close(int fildes)
    XrdPosixFile *fP;
    bool ret;
 
+// Map the file number to the file object. In the prcess we relese the file
+// number so no one can reference this file again.
+//
    if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
       {errno = EBADF; return -1;}
 
 // Close the file if there is no active I/O (possible caching). Delete the
 // object if the close was successful (it might not be).
 //
-   if (!(fP->XCio->ioActive()))
+   if (!fP->Refs() && !(fP->XCio->ioActive()))
       {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
           else if (XrdPosixGlobals::psxDBG)
                   {char eBuff[2048];
@@ -167,13 +222,7 @@ int XrdPosixXrootd::Close(int fildes)
 // If we still have a handle then we need to do a delayed delete on this
 // object because either the close failed or there is still active I/O
 //
-   if (fP)
-      {if (XrdPosixGlobals::schedP) XrdPosixGlobals::schedP->Schedule(fP);
-          else {pthread_t tid;
-                XrdSysThread::Run(&tid, XrdPosixFile::DelayedDestroy, fP, 0,
-                                        "PosixFileDestroy");
-               }
-      }
+   if (fP) XrdPosixFile::DelayedDestroy(fP);
 
 // Return final result
 //
@@ -245,25 +294,33 @@ int XrdPosixXrootd::endPoint(int FD, char *Buff, int Blen)
 int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
 {
    XrdPosixFile *fp;
+   int rc;
 
 // Find the file object
 //
    if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
-// Return what little we can
+// First initialize the stat buffer
 //
    initStat(buf);
-   buf->st_size   = fp->mySize;
-   buf->st_atime  = buf->st_mtime = buf->st_ctime = fp->myMtime;
-   buf->st_blocks = buf->st_size/512+1;
-   buf->st_ino    = fp->myInode;
-   buf->st_rdev   = fp->myRdev;
-   buf->st_mode   = fp->myMode;
 
-// All done
+// Check if we can get the stat information from the cache.
 //
+   rc = fp->XCio->Fstat(*buf);
+   if (rc <= 0)
+      {fp->UnLock();
+       if (!rc) return 0;
+       errno = -rc;
+       return -1;
+      }
+
+// At this point we can call the file's Fstat() and if the file is not open
+// it will be opened.
+//
+   rc = fp->Fstat(*buf);
    fp->UnLock();
-   return 0;
+   if (rc < 0) {errno = -rc; rc = -1;}
+   return rc;
 }
   
 /******************************************************************************/
@@ -285,6 +342,21 @@ int XrdPosixXrootd::Fsync(int fildes)
    return 0;
 }
   
+/******************************************************************************/
+  
+void XrdPosixXrootd::Fsync(int fildes, XrdPosixCallBackIO *cbp)
+{
+   XrdPosixFile *fp;
+
+// Find the file object and do the sync
+//
+   if ((fp = XrdPosixObject::File(fildes)))
+      {cbp->theFile = fp;
+       fp->Ref(); fp->UnLock();
+       fp->XCio->Sync(*cbp);
+      } else cbp->Complete(-1);
+}
+
 /******************************************************************************/
 /*                             F t r u n c a t e                              */
 /******************************************************************************/
@@ -354,13 +426,17 @@ off_t   XrdPosixXrootd::Lseek(int fildes, off_t offset, int whence)
 //
    if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
-// Set the new offset
+// Set the new offset. Note that SEEK_END requires that the file be opened.
+// An open may occur by calling the FSize() method via the cache pointer.
 //
-   if (whence == SEEK_SET) curroffset = fp->setOffset(offset);
-      else if (whence == SEEK_CUR) curroffset = fp->addOffset(offset);
-              else if (whence == SEEK_END)
-                      curroffset = fp->setOffset(fp->mySize+offset);
-                      else return Fault(fp, EINVAL);
+        if (whence == SEEK_SET) curroffset = fp->setOffset(offset);
+   else if (whence == SEEK_CUR) curroffset = fp->addOffset(offset);
+   else if (whence == SEEK_END)
+           {curroffset = fp->XCio->FSize();
+            if (curroffset < 0) return Fault(fp,static_cast<int>(-curroffset));
+            curroffset = fp->setOffset(curroffset+offset);
+           }
+   else return Fault(fp, EINVAL);
 
 // All done
 //
@@ -442,6 +518,15 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
        return -1;
       }
 
+// If we have a cache, then issue a prepare as the cache may want to defer the
+// open request ans we have a lot more work to do.
+//
+   if (myCache2)
+      {int rc = myCache2->Prepare(path, oflags, mode);
+       if (rc > 0) return OpenDefer(fp, cbP, XOflags, XOmode, oflags&isStream);
+       if (rc < 0) {errno = -rc; return -1;}
+      }
+
 // Open the file (sync or async)
 //
    if (!cbP) Status = fp->clFile.Open((std::string)path, XOflags, XOmode);
@@ -476,10 +561,10 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // finalization is defered until the callback happens.
 //
    if (cbP) {errno = EINPROGRESS; return -1;}
-   if (fp->Finalize(Status)) return fp->FDNum();
+   if (fp->Finalize(&Status)) return fp->FDNum();
    return XrdPosixMap::Result(Status);
 }
-
+  
 /******************************************************************************/
 /*                               O p e n d i r                                */
 /******************************************************************************/
@@ -547,6 +632,40 @@ ssize_t XrdPosixXrootd::Pread(int fildes, void *buf, size_t nbyte, off_t offset)
 }
 
 /******************************************************************************/
+  
+void XrdPosixXrootd::Pread(int fildes, void *buf, size_t nbyte, off_t offset,
+                           XrdPosixCallBackIO *cbp)
+{
+   XrdPosixFile *fp;
+   long long     offs;
+   int           iosz;
+
+// Find the file object
+//
+   if (!(fp = XrdPosixObject::File(fildes))) {cbp->Complete(-1); return;}
+
+// Make sure the size is not too large
+//
+   if (nbyte > (size_t)0x7fffffff)
+      {fp->UnLock();
+       errno = EOVERFLOW;
+       cbp->Complete(-1);
+       return;
+      }
+
+// Prepare for the read
+//
+   cbp->theFile = fp;
+   fp->Ref(); fp->UnLock();
+   iosz = static_cast<int>(nbyte);
+   offs = static_cast<long long>(offset);
+
+// Issue the read
+//
+   fp->XCio->Read(*cbp, (char *)buf, offs, (int)iosz);
+}
+
+/******************************************************************************/
 /*                                P w r i t e                                 */
 /******************************************************************************/
   
@@ -573,9 +692,43 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
 
 // All went well
 //
-   if (offs+iosz > (long long)fp->mySize) fp->mySize = offs + iosz;
+   fp->UpdtSize(offs + iosz);
    fp->UnLock();
    return (ssize_t)iosz;
+}
+
+/******************************************************************************/
+  
+void XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte,
+                            off_t offset, XrdPosixCallBackIO *cbp)
+{
+   XrdPosixFile *fp;
+   long long     offs;
+   int           iosz;
+
+// Find the file object
+//
+   if (!(fp = XrdPosixObject::File(fildes))) {cbp->Complete(-1); return;}
+
+// Make sure the size is not too large
+//
+   if (nbyte > (size_t)0x7fffffff)
+      {fp->UnLock();
+       errno = EOVERFLOW;
+       cbp->Complete(-1);
+       return;
+      }
+
+// Prepare for the writing
+//
+   cbp->theFile = fp;
+   fp->Ref(); fp->UnLock();
+   iosz = static_cast<int>(nbyte);
+   offs = static_cast<long long>(offset);
+
+// Issue the read
+//
+   fp->XCio->Write(*cbp, (char *)buf, offs, (int)iosz);
 }
 
 /******************************************************************************/
@@ -653,6 +806,22 @@ ssize_t XrdPosixXrootd::VRead(int fildes, const XrdOucIOVec *readV, int n)
 //
    fp->UnLock();
    return bytes;
+}
+
+/******************************************************************************/
+
+void XrdPosixXrootd::VRead(int fildes, const XrdOucIOVec *readV, int n,
+                           XrdPosixCallBackIO *cbp)
+{
+   XrdPosixFile *fp;
+
+// Find the file object and issue read
+//
+   if ((fp = XrdPosixObject::File(fildes)))
+      {cbp->theFile = fp;
+       fp->Ref(); fp->UnLock();
+       fp->XCio->ReadV(*cbp, readV, n);
+      } else cbp->Complete(-1);
 }
 
 /******************************************************************************/
@@ -769,8 +938,8 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
   std::string urlp    = admin.Url.GetPathWithParams();
   std::string nurlp   = newUrl.GetPathWithParams();
   int res = XrdPosixMap::Result(admin.Xrd.Mv(urlp, nurlp));
-  if (!res && myCache)
-     myCache->Rename(urlp.c_str(), nurlp.c_str());
+  if (!res && XrdPosixGlobals::theCache)
+     XrdPosixGlobals::theCache->Rename(urlp.c_str(), nurlp.c_str());
 
   return res;
 }
@@ -808,8 +977,8 @@ int XrdPosixXrootd::Rmdir(const char *path)
 //
    std::string urlp = admin.Url.GetPathWithParams();
    int res = XrdPosixMap::Result(admin.Xrd.RmDir(urlp));
-   if (!res && myCache)
-      myCache->Rmdir(urlp.c_str());
+   if (!res && XrdPosixGlobals::theCache)
+      XrdPosixGlobals::theCache->Rmdir(urlp.c_str());
 
    return res;
 }
@@ -850,13 +1019,29 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
    time_t stMtime;
    mode_t stFlags;
 
+// Make sure the admin is OK
+//
+   if (!admin.isOK()) return -1;
+
+// Initialize the stat buffer
+//
+   initStat(buf);
+
+// Check if we can get the stat informatation from the cache
+//
+  if (myCache2)
+     {std::string urlp = admin.Url.GetPathWithParams();
+      int rc = myCache2->Stat(urlp.c_str(), *buf);
+      if (!rc) return 0;
+      if (rc < 0) {errno = -rc; return -1;}
+     }
+
 // Issue the stat and verify that all went well
 //
    if (!admin.Stat(&stFlags, &stMtime, &stSize, &stId, &stRdev)) return -1;
 
 // Return what little we can
 //
-   initStat(buf);
    buf->st_size   = stSize;
    buf->st_blocks = stSize/512+1;
    buf->st_atime  = buf->st_mtime = buf->st_ctime = stMtime;
@@ -1008,8 +1193,8 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
   std::string urlp = admin.Url.GetPathWithParams();
   int res = XrdPosixMap::Result(admin.Xrd.Truncate(urlp,tSize));
 
-  if (!res && myCache) {
-     myCache->Truncate(urlp.c_str(), tSize);
+  if (!res && XrdPosixGlobals::theCache) {
+     XrdPosixGlobals::theCache->Truncate(urlp.c_str(), tSize);
   }
 
   return res;
@@ -1031,8 +1216,8 @@ int XrdPosixXrootd::Unlink(const char *path)
 //
   std::string urlp = admin.Url.GetPathWithParams();
   int res = XrdPosixMap::Result(admin.Xrd.Rm(urlp));
-  if (!res && myCache)
-     myCache->Unlink(urlp.c_str());
+  if (!res && XrdPosixGlobals::theCache)
+     XrdPosixGlobals::theCache->Unlink(urlp.c_str());
 
   return res;
 }
@@ -1104,8 +1289,10 @@ void XrdPosixXrootd::initEnv()
 
 // Now we must check if we have a new cache over-ride
 //
-   if ((evar = getenv("XRDPOSIX_CACHE")) && *evar) initEnv(evar);
-      else if (myCache) {char ebuf[] = {0};        initEnv(ebuf);}
+   if (!myCache2)
+      {if ((evar = getenv("XRDPOSIX_CACHE")) && *evar) initEnv(evar);
+          else if (myCache) {char ebuf[] = {0};        initEnv(ebuf);}
+      } else XrdPosixGlobals::theCache = myCache2;
 }
 
 /******************************************************************************/
@@ -1134,8 +1321,8 @@ void XrdPosixXrootd::initEnv(char *eData)
    XrdOucEnv theEnv(eData);
    XrdOucCache::Parms myParms;
    XrdOucCacheIO::aprParms apParms;
+   XrdOucCache *v1Cache;
    long long Val;
-   int isRW = 0;
    char * tP;
 
 // Get numeric type variable (errors force a default)
@@ -1181,7 +1368,7 @@ void XrdPosixXrootd::initEnv(char *eData)
       myParms.Options |= XrdOucCache::logStats;
    if ((tP = theEnv.Get("optpr")) && *tP && *tP != '0')
       myParms.Options |= XrdOucCache::canPreRead;
-   if ((tP = theEnv.Get("optwr")) && *tP && *tP != '0') isRW = 1;
+// if ((tP = theEnv.Get("optwr")) && *tP && *tP != '0') isRW = 1;
 
 // Use the default cache if one was not provided
 //
@@ -1191,9 +1378,9 @@ void XrdPosixXrootd::initEnv(char *eData)
 // additional but unnecessary locking.
 //
    myParms.Options |= XrdOucCache::Serialized;
-   if (!(XrdPosixFile::CacheR = myCache->Create(myParms, &apParms)))
+   if (!(v1Cache = myCache->Create(myParms, &apParms)))
       cerr <<"XrdPosix: " <<strerror(errno) <<" creating cache." <<endl;
-      else {if (isRW) XrdPosixFile::CacheW = XrdPosixFile::CacheR;}
+      else XrdPosixGlobals::theCache = new XrdPosixCacheBC(v1Cache);
 }
 
 /******************************************************************************/
@@ -1292,10 +1479,9 @@ long long XrdPosixXrootd::QueryOpaque(const char *path, char *value, int size)
 /*                              s e t C a c h e                               */
 /******************************************************************************/
 
-void XrdPosixXrootd::setCache(XrdOucCache *cP)
-{
-     myCache = cP;
-}
+void XrdPosixXrootd::setCache(XrdOucCache  *cP) {myCache  = cP;}
+
+void XrdPosixXrootd::setCache(XrdOucCache2 *cP) {myCache2 = cP;}
   
 /******************************************************************************/
 /*                              s e t D e b u g                               */
@@ -1354,6 +1540,15 @@ void XrdPosixXrootd::setIPV4(bool usev4)
 // Set the env value
 //
    env->PutString((std::string)"NetworkStack", (const std::string)ipmode);
+}
+  
+/******************************************************************************/
+/*                              s e t N u m C B                               */
+/******************************************************************************/
+
+void XrdPosixXrootd::setNumCB(int numcb)
+{
+    if (numcb >= 0) XrdPosixFileRH::SetMax(numcb);
 }
   
 /******************************************************************************/

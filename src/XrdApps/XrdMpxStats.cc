@@ -473,6 +473,7 @@ int main(int argc, char *argv[])
                  else {Say.Emsg(":", "Invalid format - ", optarg); Usage(1);}
                  break;
        case 'h': Usage(0);
+                 break;
        case 'p': if (!(Port = atoi(optarg)))
                     {Say.Emsg(":", "Invalid port number - ", optarg); Usage(1);}
                  break;
@@ -482,6 +483,7 @@ int main(int argc, char *argv[])
                  if (c == ':') Say.Emsg(":", buff, "value not specified.");
                     else Say.Emsg(0, buff, "option is invalid");
                  Usage(1);
+                 break;
        }
      }
 

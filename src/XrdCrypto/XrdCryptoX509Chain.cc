@@ -334,9 +334,16 @@ void XrdCryptoX509Chain::Remove(XrdCryptoX509 *c)
 
    // Now we have all the information to remove
    if (prev) {
-      current  = curr->Next();
-      prev->SetNext(current);
-      previous = curr;
+      if (curr != end) {
+         current  = curr->Next();
+         prev->SetNext(current);
+         previous = prev;
+      } else {
+         end = prev;
+         previous = end;
+         current = 0;
+         prev->SetNext(current);
+      }
    } else if (curr == begin) {
       // First buffer
       current  = curr->Next();

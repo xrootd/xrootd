@@ -124,6 +124,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSysGetXAttrObject          )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetMonitor               )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetPlugIn                )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  4, secxtractorlib                )\
                              { 0, 0, 0,  0,  0, 0}
 
 #define XrdVERSIONPLUGIN_Maxim(procMode, majorVer, minorVer, piPfx, piSfx)\

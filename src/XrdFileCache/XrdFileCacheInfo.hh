@@ -2,7 +2,7 @@
 #define __XRDFILECACHE_INFO_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
+// Author: Alja Mrak-Tadel, Matevz  Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -21,248 +21,348 @@
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
+#include <vector>
 
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
 class XrdOssDF;
+class XrdCksCalc;
+class XrdOucTrace;
+
 
 namespace XrdCl
 {
-   class Log;
+class Log;
 }
 
 namespace XrdFileCache
 {
-   class Stats;
+class Stats;
 
-   //----------------------------------------------------------------------------
-   //! Status of cached file. Can be read from and written into a binary file.
-   //----------------------------------------------------------------------------
-   class Info
+//----------------------------------------------------------------------------
+//! Status of cached file. Can be read from and written into a binary file.
+//----------------------------------------------------------------------------
+class Info
+{
+public:
+   // !Access statistics
+   struct AStat
    {
-      private:
-         static unsigned char cfiBIT(int n) { return 1 << n; }
+      time_t    AttachTime;       //! open time
+      time_t    DetachTime;       //! close time
+      long long BytesDisk;        //! read from disk
+      long long BytesRam;         //! read from ram
+      long long BytesMissed;      //! read remote client
 
-      public:
-         // !Access statistics
-         struct AStat
-         {
-            time_t    DetachTime;  //! close time
-            long long BytesDisk;   //! read from disk
-            long long BytesRam;    //! read from ram
-            long long BytesMissed; //! read remote client
-         };
-
-         //------------------------------------------------------------------------
-         //! Constructor.
-         //------------------------------------------------------------------------
-         Info(long long bufferSize);
-
-         //------------------------------------------------------------------------
-         //! Destructor.
-         //------------------------------------------------------------------------
-         ~Info();
-
-         //---------------------------------------------------------------------
-         //! \brief Mark block as downloaded
-         //!
-         //! @param i block index
-         //---------------------------------------------------------------------
-         void SetBitFetched(int i);
-
-         //! \brief Mark block as disk written
-         //!
-         //! @param i block index
-         //---------------------------------------------------------------------
-         void SetBitWriteCalled(int i);
-
-         //---------------------------------------------------------------------
-         //! \brief Reserve buffer for fileSize/bufferSize bytes
-         //!
-         //! @param n number of file blocks
-         //---------------------------------------------------------------------
-         void ResizeBits(int n);
-
-         //---------------------------------------------------------------------
-         //! \brief Rea load content from cinfo file into this object
-         //!
-         //! @param fp file handle
-         //!
-         //! @return number of bytes read
-         //---------------------------------------------------------------------
-         int Read(XrdOssDF* fp);
-
-         //---------------------------------------------------------------------
-         //! Write number of blocks and prefetch buffer size
-         //---------------------------------------------------------------------
-         void  WriteHeader(XrdOssDF* fp);
-
-         //---------------------------------------------------------------------
-         //! Append access time, and cache statistics
-         //---------------------------------------------------------------------
-         void AppendIOStat(AStat& stat, XrdOssDF* fp);
-
-         //---------------------------------------------------------------------
-         //! Check download status in given block range
-         //---------------------------------------------------------------------
-         bool IsAnythingEmptyInRng(int firstIdx, int lastIdx) const;
-
-         //---------------------------------------------------------------------
-         //! Get size of download-state bit-vector in bytes.
-         //---------------------------------------------------------------------
-         int GetSizeInBytes() const;
-
-         //---------------------------------------------------------------------
-         //! Get number of blocks represented in download-state bit-vector.
-         //---------------------------------------------------------------------
-         int GetSizeInBits() const;
-
-         //----------------------------------------------------------------------
-         //! Get header size.
-         //----------------------------------------------------------------------
-         int GetHeaderSize() const;
-
-         //---------------------------------------------------------------------
-         //! Get latest detach time
-         //---------------------------------------------------------------------
-         bool GetLatestDetachTime(time_t& t, XrdOssDF* fp) const;
-
-         //---------------------------------------------------------------------
-         //! Get prefetch buffer size
-         //---------------------------------------------------------------------
-         long long GetBufferSize() const;
-
-         //---------------------------------------------------------------------
-         //! Test if block at the given index is downlaoded
-         //---------------------------------------------------------------------
-         bool TestBit(int i) const;
-
-         //---------------------------------------------------------------------
-         //! Get complete status
-         //---------------------------------------------------------------------
-         bool IsComplete() const;
-
-         //---------------------------------------------------------------------
-         //! Get number of downloaded blocks
-         //---------------------------------------------------------------------
-         int GetNDownloadedBlocks() const;
-
-         //---------------------------------------------------------------------
-         //! Get number of downloaded bytes
-         //---------------------------------------------------------------------
-         long long GetNDownloadedBytes() const;
-
-         //---------------------------------------------------------------------
-         //! Update complete status
-         //---------------------------------------------------------------------
-         void CheckComplete();
-
-         //---------------------------------------------------------------------
-         //! Get number of accesses
-         //---------------------------------------------------------------------
-         int GetAccessCnt() { return  m_accessCnt; }
-
-         //---------------------------------------------------------------------
-         //! Get version
-         //---------------------------------------------------------------------
-         int GetVersion() { return  m_version; }
-
-
-         const static char* m_infoExtension;
-
-      protected:
-
-         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
-
-         //---------------------------------------------------------------------
-         //! Cache statistics and time of access.
-         //---------------------------------------------------------------------
-
-         int            m_version;    //!< info version
-         long long      m_bufferSize; //!< prefetch buffer size
-         int            m_sizeInBits; //!< number of file blocks
-         unsigned char *m_buff_fetched;       //!< download state vector
-         unsigned char *m_buff_write_called;  //!< disk written state vector
-         int            m_accessCnt;  //!< number of written AStat structs
-         bool           m_complete;   //!< cached
+      AStat() : AttachTime(0), DetachTime(0), BytesDisk(0), BytesRam(0), BytesMissed(0) {}
    };
 
-   inline bool Info::TestBit(int i) const
-   {
-      int cn = i/8;
-      assert(cn < GetSizeInBytes());
+   struct Store {
+      int                m_version;                //!< info version
+      long long          m_bufferSize;             //!< prefetch buffer size
+      long long          m_fileSize;               //!< number of file blocks
+      unsigned char     *m_buff_synced;            //!< disk written state vector
+      char               m_cksum[16];              //!< cksum of downloaded information
+      time_t             m_creationTime;           //!< time the info file was created
+      size_t             m_accessCnt;              //!< number of written AStat structs
+      std::vector<AStat> m_astats;                 //!< number of last m_maxAcessCnts
 
-      int off = i - cn*8;
-      return (m_buff_fetched[cn] & cfiBIT(off)) == cfiBIT(off);
-   }
+      Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0),m_creationTime(0), m_accessCnt(0) {}
+   };
 
 
-   inline int Info::GetNDownloadedBlocks() const
-   {
-      int cntd = 0;
-      for (int i = 0; i < m_sizeInBits; ++i)
-         if (TestBit(i)) cntd++;
 
-      return cntd;
-   }
+   //------------------------------------------------------------------------
+   //! Constructor.
+   //------------------------------------------------------------------------
+   Info(XrdOucTrace* trace, bool prefetchBuffer = false);
 
-   inline long long Info::GetNDownloadedBytes() const
-   {
-      return m_bufferSize * GetNDownloadedBlocks();
-   }
+   //------------------------------------------------------------------------
+   //! Destructor.
+   //------------------------------------------------------------------------
+   ~Info();
 
-   inline int Info::GetSizeInBytes() const
-   {
-      return ((m_sizeInBits -1)/8 + 1);
-   }
+   //---------------------------------------------------------------------
+   //! \brief Mark block as downloaded
+   //!
+   //! @param i block index
+   //---------------------------------------------------------------------
+   void SetBitWritten(int i);
 
-   inline int Info::GetSizeInBits() const
-   {
-      return m_sizeInBits;
-   }
+   //! \brief Mark block as disk written
+   //!
+   //! @param i block index
+   //---------------------------------------------------------------------
+   void SetBitSynced(int i);
 
-   inline bool Info::IsComplete() const
-   {
-      return m_complete;
-   }
+   //! \brief Mark block as written from prefetchxs
+   //!
+   //! @param i block index
+   //---------------------------------------------------------------------
+   void SetBitPrefetch(int i);
 
-   inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
-   {
-      for (int i = firstIdx; i <= lastIdx; ++i)
-         if (!TestBit(i)) return true;
+   void SetBufferSize(long long);
+   
+   void SetFileSize(long long);
 
-      return false;
-   }
+   //---------------------------------------------------------------------
+   //! \brief Reserve buffer for fileSize/bufferSize bytes
+   //!
+   //! @param n number of file blocks
+   //---------------------------------------------------------------------
+   void ResizeBits(int n);
 
-   inline void Info::CheckComplete()
-   {
-      m_complete = !IsAnythingEmptyInRng(0, m_sizeInBits-1);
-   }
+   //---------------------------------------------------------------------
+   //! \brief Rea load content from cinfo file into this object
+   //!
+   //! @param fp    file handle
+   //! @param fname optional file name for trace output
+   //!
+   //! @return true on success
+   //---------------------------------------------------------------------
+   bool Read(XrdOssDF* fp, const std::string &fname = "<unknown>");
 
-   inline void Info::SetBitWriteCalled(int i)
-   {
-      int cn = i/8;
-      assert(cn < GetSizeInBytes());
+   //---------------------------------------------------------------------
+   //! Write number of blocks and read buffer size
+   //! @return true on success
+   //---------------------------------------------------------------------
+   bool Write(XrdOssDF* fp, const std::string &fname = "<unknown>");
 
-      int off = i - cn*8;
-      m_buff_write_called[cn] |= cfiBIT(off);
-   }
+   //---------------------------------------------------------------------
+   //! Disable allocating, writing, and reading of downlaod status
+   //---------------------------------------------------------------------
+   void DisableDownloadStatus();
 
-   inline void Info::SetBitFetched(int i)
-   {
-      int cn = i/8;
-      assert(cn < GetSizeInBytes());
+   //---------------------------------------------------------------------
+   //! Write open time in the last entry of access statistics
+   //---------------------------------------------------------------------
+   void WriteIOStatAttach();
 
-      int off = i - cn*8;
-      m_buff_fetched[cn] |= cfiBIT(off);
-   }
+   //---------------------------------------------------------------------
+   //! Write close time together with bytes missed, hits, and disk
+   //---------------------------------------------------------------------
+   void WriteIOStatDetach(Stats& s);
 
-   inline long long Info::GetBufferSize() const
-   {
-      return m_bufferSize;
-   }
+   //---------------------------------------------------------------------
+   //! Check download status in given block range
+   //---------------------------------------------------------------------
+   bool IsAnythingEmptyInRng(int firstIdx, int lastIdx) const;
+
+   //---------------------------------------------------------------------
+   //! Get size of download-state bit-vector in bytes.
+   //---------------------------------------------------------------------
+   int GetSizeInBytes() const;
+
+   //---------------------------------------------------------------------
+   //! Get number of blocks represented in download-state bit-vector.
+   //---------------------------------------------------------------------
+   int GetSizeInBits() const;
+
+   //---------------------------------------------------------------------
+   //! Get file size
+   //---------------------------------------------------------------------
+   long long GetFileSize() const;
+
+   //---------------------------------------------------------------------
+   //! Get latest detach time
+   //---------------------------------------------------------------------
+   bool GetLatestDetachTime(time_t& t) const;
+
+   //---------------------------------------------------------------------
+   //! Get prefetch buffer size
+   //---------------------------------------------------------------------
+   long long GetBufferSize() const;
+
+   //---------------------------------------------------------------------
+   //! Test if block at the given index is downlaoded
+   //---------------------------------------------------------------------
+   bool TestBit(int i) const;
+
+   //---------------------------------------------------------------------
+   //! Test if block at the given index is prewritten
+   //---------------------------------------------------------------------
+   bool TestPrefetchBit(int i) const;
+
+   //---------------------------------------------------------------------
+   //! Get complete status
+   //---------------------------------------------------------------------
+   bool IsComplete() const;
+
+   //---------------------------------------------------------------------
+   //! Get number of downloaded blocks
+   //---------------------------------------------------------------------
+   int GetNDownloadedBlocks() const;
+
+   //---------------------------------------------------------------------
+   //! Get number of downloaded bytes
+   //---------------------------------------------------------------------
+   long long GetNDownloadedBytes() const;
+
+   //---------------------------------------------------------------------
+   //! Update complete status
+   //---------------------------------------------------------------------
+   void UpdateDownloadCompleteStatus();
+
+   //---------------------------------------------------------------------
+   //! Get number of accesses
+   //---------------------------------------------------------------------
+   size_t GetAccessCnt() { return m_store.m_accessCnt; }
+
+   //---------------------------------------------------------------------
+   //! Get version
+   //---------------------------------------------------------------------
+   int GetVersion() { return m_store.m_version; }
+
+   //---------------------------------------------------------------------
+   //! Get stored data
+   //---------------------------------------------------------------------
+   const Store& RefStoredData() const { return m_store; }
+
+   //---------------------------------------------------------------------
+   //! Get md5 cksum
+   //---------------------------------------------------------------------
+   void GetCksum( unsigned char* buff, char* digest);
+
+   const static char*   m_infoExtension;
+   const static char*   m_traceID;
+   const static int     m_defaultVersion;
+   const static size_t  m_maxNumAccess;
+
+   XrdOucTrace* GetTrace() const {return m_trace; }
+
+   static size_t GetMaxNumAccess() { return m_maxNumAccess; }
+
+protected:
+   XrdOucTrace*   m_trace;
+
+   Store          m_store;
+   bool           m_hasPrefetchBuffer;       //!< constains current prefetch score
+   unsigned char *m_buff_written;            //!< download state vector
+   unsigned char *m_buff_prefetch;           //!< prefetch statistics
+
+   int m_sizeInBits;                         //!cached
+   bool m_complete;                          //!< cached
+
+private:
+   inline unsigned char cfiBIT(int n) const { return 1 << n; }
+
+   // split reading for V1
+   bool ReadV1(XrdOssDF* fp, const std::string &fname);
+   XrdCksCalc*   m_cksCalc;
+};
+
+inline bool Info::TestBit(int i) const
+{
+   const int cn = i/8;
+   assert(cn < GetSizeInBytes());
+
+   const int off = i - cn*8;
+   return (m_buff_written[cn] & cfiBIT(off)) == cfiBIT(off);
+}
+
+
+inline bool Info::TestPrefetchBit(int i) const
+{
+   if (!m_buff_prefetch) return false;
+
+   const int cn = i/8;
+   assert(cn < GetSizeInBytes());
+
+   const int off = i - cn*8;
+   return (m_buff_prefetch[cn] & cfiBIT(off)) == cfiBIT(off);
+}
+
+inline int Info::GetNDownloadedBlocks() const
+{
+   int cntd = 0;
+   for (int i = 0; i < m_sizeInBits; ++i)
+      if (TestBit(i)) cntd++;
+
+   return cntd;
+}
+
+inline long long Info::GetNDownloadedBytes() const
+{
+   return m_store.m_bufferSize * GetNDownloadedBlocks();
+}
+
+inline int Info::GetSizeInBytes() const
+{
+   if (m_sizeInBits)
+      return ((m_sizeInBits - 1)/8 + 1);
+   else
+      return 0;
+}
+
+inline int Info::GetSizeInBits() const
+{
+   return m_sizeInBits;
+}
+
+inline long long Info::GetFileSize() const
+{
+   return m_store.m_fileSize;
+}
+
+inline bool Info::IsComplete() const
+{
+   return m_complete;
+}
+
+inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
+{
+   // TODO rewrite to use full byte comparisons outside of edges ?
+   // Also, it is always called with fisrtsdx = 0, lastIdx = m_sizeInBits.
+   for (int i = firstIdx; i < lastIdx; ++i)
+      if (! TestBit(i)) return true;
+
+   return false;
+}
+
+inline void Info::UpdateDownloadCompleteStatus()
+{
+   m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
+}
+
+inline void Info::SetBitSynced(int i)
+{
+   const int cn = i/8;
+   assert(cn < GetSizeInBytes());
+
+   const int off = i - cn*8;
+   m_store.m_buff_synced[cn] |= cfiBIT(off);
+}
+
+inline void Info::SetBitWritten(int i)
+{
+   const int cn = i/8;
+   assert(cn < GetSizeInBytes());
+
+   const int off = i - cn*8;
+   m_buff_written[cn] |= cfiBIT(off);
+}
+
+inline void Info::SetBitPrefetch(int i)
+{
+   if (!m_buff_prefetch) return;
+      
+   const int cn = i/8;
+   assert(cn < GetSizeInBytes());
+
+   const int off = i - cn*8;
+   m_buff_prefetch[cn] |= cfiBIT(off);
+}
+
+
+inline long long Info::GetBufferSize() const
+{
+   return m_store.m_bufferSize;
+}
+
+//----------------------------------------------------------------
+// XrdFileCacheInfoBlock
+//----------------------------------------------------------------
 }
 #endif

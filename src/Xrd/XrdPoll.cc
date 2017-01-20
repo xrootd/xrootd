@@ -188,7 +188,8 @@ void XrdPoll::Detach(XrdLink *lp)
       {XrdLog->Emsg("Poll","Underflow detaching", lp->ID); abort();}
    pp->numAttached--;
    doingAttach.UnLock();
-   TRACEI(POLL, "FD " <<lp->FD <<" detached from poller " <<pp->PID <<"; num=" <<pp->numAttached);
+   TRACEI(POLL, "FD " <<lp->FDnum() <<" detached from poller " <<pp->PID
+                <<"; num=" <<pp->numAttached);
 }
 
 /******************************************************************************/

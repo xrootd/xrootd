@@ -517,8 +517,9 @@ const char *XrdCryptosslX509::IssuerHash(int alg)
       if (issueroldhash.length() <= 0) {
          // Make sure we have a certificate
          if (cert) {
-            char chash[15] = {0};
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(X509_get_issuer_name(cert)));
+            char chash[30] = {0};
+            snprintf(chash, sizeof(chash),
+                     "%08lx.0",X509_NAME_hash_old(X509_get_issuer_name(cert)));
             issueroldhash = chash;
          } else {
             DEBUG("WARNING: no certificate available - cannot extract issuer hash (md5)");
@@ -536,9 +537,9 @@ const char *XrdCryptosslX509::IssuerHash(int alg)
 
       // Make sure we have a certificate
       if (cert) {
-         char chash[15] = {0};
-         if (chash[0] == 0)
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash(X509_get_issuer_name(cert)));
+         char chash[30] = {0};
+         snprintf(chash, sizeof(chash),
+                  "%08lx.0",X509_NAME_hash(X509_get_issuer_name(cert)));
          issuerhash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract issuer hash (default)");
@@ -563,8 +564,9 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
       if (subjectoldhash.length() <= 0) {
          // Make sure we have a certificate
          if (cert) {
-            char chash[15] = {0};
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(X509_get_subject_name(cert)));
+            char chash[30] = {0};
+            snprintf(chash, sizeof(chash),
+                     "%08lx.0",X509_NAME_hash_old(X509_get_subject_name(cert)));
             subjectoldhash = chash;
          } else {
             DEBUG("WARNING: no certificate available - cannot extract subject hash (md5)");
@@ -582,9 +584,9 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
 
       // Make sure we have a certificate
       if (cert) {
-         char chash[15] = {0};
-         if (chash[0] == 0)
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash(X509_get_subject_name(cert)));
+         char chash[30] = {0};
+         snprintf(chash, sizeof(chash),
+                  "%08lx.0",X509_NAME_hash(X509_get_subject_name(cert)));
          subjecthash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract subject hash (default)");

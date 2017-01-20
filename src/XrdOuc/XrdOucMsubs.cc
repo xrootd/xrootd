@@ -240,6 +240,8 @@ char *XrdOucMsubs::getVal(XrdOucMsubsInfo &Info, int vNum)
                   break;
 
       case vRID:  if (Info.Rid) return (char *)Info.Rid;
+                  return (char *)Info.Tid;
+
       case vTID:  return (char *)Info.Tid;
 
       case vCGI:  if (!(op = Info.Env->Env(n))) op = (char *)"";
