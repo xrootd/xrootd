@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[XrdCms] Add non-blocking sends to avoid slow links.
 
 + **Major bug fixes**
   * **[XrdCeph] Account for return Ceph xattr return codes.
