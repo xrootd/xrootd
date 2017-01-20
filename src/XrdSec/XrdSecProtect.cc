@@ -260,12 +260,12 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
 
 // Fill out the iovec
 //
-   iov[0].iov_base = &mySeq;
+   iov[0].iov_base = (char *)&mySeq;
    iov[0].iov_len  = sizeof(mySeq);
-   iov[1].iov_base = &thereq;
+   iov[1].iov_base = (char *)&thereq;
    iov[1].iov_len  = sizeof(ClientRequest);
    if (n < 3) nodata = true;
-      else {iov[2].iov_base = (void *)payload;
+      else {iov[2].iov_base = (char *)payload;
             iov[2].iov_len  = paysize;
            }
 
@@ -423,12 +423,12 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
 
 // Fill out the iovec to recompute the hash
 //
-   iov[0].iov_base = &secreq.sigver.seqno;
+   iov[0].iov_base = (char *)&secreq.sigver.seqno;
    iov[0].iov_len  = sizeof(secreq.sigver.seqno);
-   iov[1].iov_base = &thereq;
+   iov[1].iov_base = (char *)&thereq;
    iov[1].iov_len  = sizeof(ClientRequest);
    if (thereq.header.dlen == 0 || secreq.sigver.flags & kXR_nodata) n = 2;
-      else {iov[2].iov_base = (void *)thedata;
+      else {iov[2].iov_base = (char *)thedata;
             iov[2].iov_len  = ntohl(thereq.header.dlen);
             n = 3;
            }

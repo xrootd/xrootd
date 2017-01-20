@@ -371,8 +371,8 @@ int XrdSendQ::SendNB(const struct iovec *iov, int iocnt, int bytes, int &iovX)
 // All done
 //
    return 0;
-}
 #endif
+}
   
 /******************************************************************************/
 /*                             T e r m i n a t e                              */

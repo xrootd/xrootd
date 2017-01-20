@@ -96,7 +96,7 @@ void XrdSysTrace::End()
 // Make sure and endline character appears
 //
    if (vPnt >= iovMax) vPnt = iovMax-1;
-   ioVec[vPnt]  .iov_base = (void *)"\n";
+   ioVec[vPnt]  .iov_base = (char *)"\n";
    ioVec[vPnt++].iov_len  = 1;
 
 // Output the line
@@ -119,10 +119,10 @@ XrdSysTrace& XrdSysTrace::operator<<(bool val)
 //
    if (vPnt < iovMax)
       {if (val)
-          {ioVec[vPnt]  .iov_base = (void *)"True";
+          {ioVec[vPnt]  .iov_base = (char *)"True";
            ioVec[vPnt++].iov_len  = 4;
           } else {
-           ioVec[vPnt]  .iov_base = (void *)"False";
+           ioVec[vPnt]  .iov_base = (char *)"False";
            ioVec[vPnt++].iov_len  = 5;
           }
       }
@@ -141,13 +141,13 @@ XrdSysTrace& XrdSysTrace::operator<<(char val)
 //
    if (vPnt < iovMax && dFree > 1)
       {if (doHex)
-          {ioVec[vPnt]  .iov_base = (void *)(&dBuff[dPnt]);
+          {ioVec[vPnt]  .iov_base = (char *)(&dBuff[dPnt]);
            ioVec[vPnt++].iov_len  = 2;
            dBuff[dPnt++] = hv[(val >> 4) & 0x0f];
            dBuff[dPnt++] = hv[ val       & 0xf0];
            dFree -= 2;
           } else {
-           ioVec[vPnt]  .iov_base = (void *)(&dBuff[dPnt]);
+           ioVec[vPnt]  .iov_base = (char *)(&dBuff[dPnt]);
            ioVec[vPnt++].iov_len  = 1;
            dBuff[dPnt++] = val; dFree--;
           }
@@ -165,7 +165,7 @@ XrdSysTrace& XrdSysTrace::operator<<(const char *val)
 // If we have enough space then format the value
 //
    if (vPnt < iovMax)
-      {ioVec[vPnt]  .iov_base = (void *)val;
+      {ioVec[vPnt]  .iov_base = (char *)val;
        ioVec[vPnt++].iov_len  = strlen(val);
       }
    return *this;

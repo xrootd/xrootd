@@ -158,7 +158,7 @@ int XrdSysLogging::CopyTrunc(char *mbuff, struct iovec *iov, int iovcnt)
 
 bool XrdSysLogging::EMsg(XrdSysLogger &logr, const char *msg)
 {
-   struct iovec iov[] = {{0,0}, {(void *)msg,0}};
+   struct iovec iov[] = {{0,0}, {(char *)msg,0}};
 
    iov[1].iov_len = strlen((const char *)iov[1].iov_base);
    logr.Put(2, iov);

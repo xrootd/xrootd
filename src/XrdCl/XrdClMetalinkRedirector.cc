@@ -385,7 +385,8 @@ XRootDStatus MetalinkRedirector::HandleRequest( Message *msg, Stream *stream )
   // if the metalink data haven't been loaded yet, make it pending
   if( !pReady )
   {
-    pPendingRedirects.push_back( std::make_pair( msg, stream ) );
+   pPendingRedirects.push_back(
+           std::make_pair( const_cast<const XrdCl::Message*>( msg), stream ) );
     return XRootDStatus();
   }
   // otherwise generate a virtual response
