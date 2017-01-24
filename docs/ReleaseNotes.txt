@@ -7,6 +7,37 @@ Release Notes
 
 
 -------------
+Version 4.6.0
+-------------
+
++ **New Features**
+  * **[XrdCms]** Add non-blocking sends to avoid slow links.
+  * **[XrdFileCache]** File caching proxy V2 (and new pss async interface).
+
++ **Major bug fixes**
+  * **[XrdCeph]** Account for return Ceph xattr return codes.
+  * **[XrdCeph]** Fixed initialization of Ceph clusters when stripers are not used.
+  * **[XrdCrypto]** Improved determination of X509 certificate type, 
+                    including proxy version
+  * **[XrdHttp]** Fix memory leak in Bridge protocol (affects HTTP).
+  * **[XrdSecgsi]** Several improvements in the way CRLs are checked and reloaded.
+  * **[XrdCl]** Protect against spurious wakeups in SyncResponseHandler.
+
++ **Minor bug fixes**
+  * **[XrdCl]** Check if the file was correctly closed upon ZipArchiveReader destruction.
+  * **[Server]** Add limits for prepare requests.
+  * **[Server]** Delete buffers when the buffer manager is deleted. Fixes #414
+  * **[Server]** Do not double count overlapping spaces. Fixes #425 
+  * **[XrdHttp]** Allow unauthenticated https clients.
+  * **[XrdHttp]** Make Xrdhttp secure by default (rejecting proxy cert in the absence 
+                  of a proper SecXtractor plugin)
+
++ **Miscellaneous**
+  * **[XrdSecgsi]** Re-activate xrdgsitest
+  * **[RPM]** Include xrdgsitest in xrootd-client-devel package.
+  * **[XrdFileCache]** Add example of filecache configuration.
+
+-------------
 Version 4.5.0
 -------------
 
