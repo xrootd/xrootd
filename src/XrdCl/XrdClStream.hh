@@ -226,7 +226,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! On read timeout
       //------------------------------------------------------------------------
-      void OnReadTimeout( uint16_t subStream );
+      void OnReadTimeout( uint16_t subStream, bool &isBroken );
 
       //------------------------------------------------------------------------
       //! On write timeout

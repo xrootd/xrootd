@@ -903,8 +903,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnReadTimeout( uint16_t substream )
+  void Stream::OnReadTimeout( uint16_t substream, bool &isBroken )
   {
+    isBroken = false;
+
     //--------------------------------------------------------------------------
     // We only take the main stream into account
     //--------------------------------------------------------------------------
@@ -953,6 +955,7 @@ namespace XrdCl
                                             *pChannelData );
     if( !st.IsOK() )
     {
+      isBroken =  true;
       scopedLock.UnLock();
       OnError( substream, st );
     }
