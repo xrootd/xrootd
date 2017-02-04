@@ -106,7 +106,9 @@ virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.Recycle(false);}
         bool    Finished(bool cancel=false);
 
 //-----------------------------------------------------------------------------
-//! Obtain the detached request time to live value.
+//! Obtain the detached request time to live value. If the value is non-zero,
+//! the request is detached. Otherwise, it is an attached request and requires a
+//! live TCP connection during it execution.
 //!
 //! @return The detached time to live value in seconds.
 //-----------------------------------------------------------------------------
@@ -135,7 +137,8 @@ const char     *GetMetadata(int &dlen)
 //-----------------------------------------------------------------------------
 //! Obtain the request data sent by a client.
 //!
-//! Note: This method may be called with the object's recursive mutex unlocked!
+//! This method is duplicated in XrdSsiResponder to allow calling consistency.
+//! This method may be called with the object's recursive mutex unlocked!
 //!
 //! @param  dlen  holds the length of the request after the call.
 //!
@@ -144,7 +147,6 @@ const char     *GetMetadata(int &dlen)
 //-----------------------------------------------------------------------------
 
 virtual char   *GetRequest(int &dlen) = 0;
-
 
 //-----------------------------------------------------------------------------
 //! Get the request ID established at object creation time.

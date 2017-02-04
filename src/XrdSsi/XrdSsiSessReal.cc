@@ -154,7 +154,7 @@ bool XrdSsiSessReal::Execute(XrdSsiRequest *reqP)
 
 // We now need to change the binding to the task.
 //
-   BindRequest(*reqP, (XrdSsiResponder *)tP);
+   tP->BindRequest(*reqP);
    numAT++;
    return true;
 }

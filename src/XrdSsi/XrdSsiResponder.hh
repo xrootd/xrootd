@@ -84,6 +84,24 @@ friend class XrdSsiRequest;
 
 static const int MaxDirectXfr = 2097152; //< Max (metadata+data) direct xfr
 
+//-----------------------------------------------------------------------------
+//! Take ownership of a request object by binding the request object to a
+//! responder object. This method must be called by the responder before
+//! posting any responses.
+//!
+//! @param  rqstR reference to the request object.
+//-----------------------------------------------------------------------------
+
+inline  void    BindRequest(XrdSsiRequest   &rqstR)
+                           {XrdSsiMutexMon(rqstR.rrMutex);
+                            rqstR.theRespond = this;
+                            reqP    = &rqstR;
+                            rrMutex = rqstR.rrMutex;
+                            rqstR.Resp.Init();
+                            rqstR.errInfo.Clr();
+                            rqstR.BindDone();
+                           }
+
 protected:
 
 //-----------------------------------------------------------------------------
@@ -100,28 +118,6 @@ inline  void   Alert(XrdSsiRespInfoMsg &aMsg)
                      if (reqP) reqP->Alert(aMsg);
                         else aMsg.Recycle(false);
                     }
-
-//-----------------------------------------------------------------------------
-//! Take ownership of a request object by binding the request object to a
-//! responder object. This method must be called by the responder before
-//! posting any responses.
-//!
-//! @param  rqstP reference to the request   object.
-//! @param  respP pointer   to the responder object if it differs from this
-//!               object (i.e. setting on behalf of someone else).
-//-----------------------------------------------------------------------------
-
-inline  void    BindRequest(XrdSsiRequest   &rqstR,
-                            XrdSsiResponder *respP=0)
-                           {XrdSsiMutexMon(rqstR.rrMutex);
-                            if (!respP) respP = this;
-                            rqstR.theRespond = respP;
-                            respP->reqP = &rqstR;
-                            respP->rrMutex = rqstR.rrMutex;
-                            rqstR.Resp.Init();
-                            rqstR.errInfo.Clr();
-                            rqstR.BindDone();
-                           }
 
 //-----------------------------------------------------------------------------
 //! Notify the responder that a request either completed or was canceled. This
@@ -143,10 +139,25 @@ virtual void   Finished(      XrdSsiRequest  &rqstR,
                               bool            cancel=false) = 0;
 
 //-----------------------------------------------------------------------------
-//! Release the request buffer of the request bound to this object. This is
-//! tricky member that requires atomics to correctly synchronize request ptr.
-//! This is a convenience function as the same method may be called on the
-//! request object itself.
+//! Obtain the request data sent by a client.
+//!
+//! Note: This method may be called with the object's recursive mutex unlocked!
+//!
+//! @param  dlen  holds the length of the request after the call.
+//!
+//! @return =0    No request data available, dlen has been set to zero.
+//! @return !0    Pointer to the buffer holding the request, dlen has the length
+//-----------------------------------------------------------------------------
+
+inline  char  *GetRequest(int &dlen) {XrdSsiMutexMon(rrMutex);
+                                      if (reqP) return reqP->GetRequest(dlen);
+                                      dlen = 0; return 0;
+                                     }
+
+//-----------------------------------------------------------------------------
+//! Release the request buffer of the request bound to this object. This method
+//! duplicates the protected method of the same name in XrdSsiRequest and exists
+//! here for calling safety and consistency relative to the responder.
 //-----------------------------------------------------------------------------
 
 inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
