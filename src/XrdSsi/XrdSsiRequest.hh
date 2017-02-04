@@ -29,63 +29,68 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiErrInfo.hh"
 #include "XrdSsi/XrdSsiRespInfo.hh"
-#include "XrdSsi/XrdSsiSession.hh"
 
 //-----------------------------------------------------------------------------
 //! The XrdSsiRequest class describes a client request and is used to effect a
 //! response to the request via a companion object described by XrdSsiResponder.
 //! Client-Side: Use this object to encapsulate your request and hand it off
-//!              to XrdSsiSession::ProcessRequest() either use GetResponseData()
-//!              or the actual response tructure to get the response data.
+//!              to XrdSsiService::Execute() either use GetResponseData() or
+//!              the actual response structure to get the response data once the
+//!              ProcessResponse() callback is invoked.
 //!
-//! Server-side: XrdSsiSession::ProcessRequest() is called with this object.
+//! Server-side: XrdSsiService::ProcessRequest() is called with this object.
 //!              Use the XrdSsiResponder object to post a response.
 //!
-//! In either case, once the the XrdSsiRequest::Finished() must be invoked
-//! after the client-server exchange is complete in order to revert ownership
-//! of this object to the object's creator. After which, the object me be
-//! deleted or reused.
+//! In either case, the client must invoke XrdSsiRequest::Finished() after the
+//! client-server exchange is complete in order to revert ownership of this
+//! object to the object's creator to allow it to be deleted or reused.
 //!
 //! This is an abstract class and several methods need to be implemented:
 //!
+//! Alert()               Optional, allows receiving of server alerts.
 //! GetRequest()          Manndatory to supply the buffer holding the request
 //!                       along with its length.
 //! RelRequestBuffer()    Optional, allows memory optimization.
 //! ProcessResponse()     Initial response: Mandatary
-//! ProcessResponseData() Data    response: Mandatory ony if response data is
+//! ProcessResponseData() Data    response: Mandatory only if response data is
 //!                                         asynchronously received.
 //-----------------------------------------------------------------------------
 
 class XrdSsiPacer;
-class XrdSsiResource;
 class XrdSsiResponder;
-class XrdSsiService;
-class XrdSsiStream;
 
 class XrdSsiRequest
 {
 public:
 friend class XrdSsiResponder;
-friend class XrdSsiSSRun;
 friend class XrdSsiTaskReal;
 
 //-----------------------------------------------------------------------------
-//! The following object is used to relay error information from any method
-//! dealing with the request object that returns a failure. Also, any error
-//! response sent by a server will be recorded in the eInfo object as well.
+//! @brief Send or receive a server generated alert.
+//!
+//! The Alert() method is used server-side to send one or more alerts before a
+//! response is posted (alerts afterwards are ignored). To avoid race conditions,
+//! server-side alerts should be sent via the Responder's Alert() method.
+//! Clients must implement this method in order to receive alerts.
+//!
+//! @param  aMsg   Reference to the message object containing the alert message.
+//!                Non-positive alert lengths cause the alert call to be
+//!                ignored. You should call the message Recycle() method once
+//!                you have consumed the message to release its resources.
 //-----------------------------------------------------------------------------
 
-XrdSsiErrInfo   eInfo;
+virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.Recycle(false);}
 
 //-----------------------------------------------------------------------------
 //! Indicate that request processing has been finished. This method calls
-//! XrdSsiSession::Complete() on the session object associated with Request().
+//! XrdSsiResponder::Finished() on the associated responder object.
 //!
 //! Note: This method locks the object's recursive mutex.
 //!
@@ -93,15 +98,24 @@ XrdSsiErrInfo   eInfo;
 //!                True  -> the request/response sequence aborted because of an
 //!                         error or the client cancelled the request.
 //!
-//! @return true   Complete accepted. Request object may be reclaimed.
-//! @return false  Complete cannot be accepted because this request object is
-//!                not bound to a session. This indicates a logic error.
+//! @return true   Finish accepted. Request object may be reclaimed.
+//! @return false  Finish cannot be accepted because this request object is
+//!                not bound to a responder. This indicates a logic error.
 //-----------------------------------------------------------------------------
 
         bool    Finished(bool cancel=false);
 
 //-----------------------------------------------------------------------------
+//! Obtain the detached request time to live value.
+//!
+//! @return The detached time to live value in seconds.
+//-----------------------------------------------------------------------------
+
+inline uint32_t GetDetachTTL() {return detTTL;}
+
+//-----------------------------------------------------------------------------
 //! Obtain the metadata associated with a response.
+//!
 //!
 //! Note: This method locks the object's recursive mutex.
 //!
@@ -113,7 +127,7 @@ XrdSsiErrInfo   eInfo;
 
 inline
 const char     *GetMetadata(int &dlen)
-                           {XrdSsiMutexMon(reqMutex);
+                           {XrdSsiMutexMon(rrMutex);
                             if ((dlen = Resp.mdlen)) return Resp.mdata;
                             return 0;
                            }
@@ -131,62 +145,54 @@ const char     *GetMetadata(int &dlen)
 
 virtual char   *GetRequest(int &dlen) = 0;
 
+
 //-----------------------------------------------------------------------------
-//! Obtain the responder associated with this request. This member is set by the
-//! responder and needs serialization.
+//! Get the request ID established at object creation time.
 //!
-//! Note: This method locks the object's recursive mutex.
-//!
-//! @return !0    - pointer to the responder object.
-//! @retuen =0    - no alternate responder associated with this request.
+//! @return Pointer to the request ID or nil if there is none.
 //-----------------------------------------------------------------------------
+
 inline
-XrdSsiResponder*GetResponder() {XrdSsiMutexMon(reqMutex); return theRespond;}
+const   char   *GetRequestID() {return reqID;}
 
 //-----------------------------------------------------------------------------
 //! Asynchronously obtain response data. This is a helper method that allows a
 //! client to deal with a passive stream response. This method also handles
 //! data response, albeit ineffeciently by copying the data response. However,
 //! this allows for uniform response processing regardless of response type.
-//! See the other from of GetResponseData() for a possible better approach.
 //!
 //! @param  buff  pointer to the buffer to receive the data. The buffer must
-//!               remain valid until the ProcessResponse() is called.
+//!               remain valid until ProcessResponseData() is called.
 //! @param  blen  the length of the buffer (i.e. maximum that can be returned).
 //!
 //! @return true  A data return has been successfully scheduled.
-//! @return false The stream could not be scheduled; eInfo holds the reason.
+//! @return false The stream could not be scheduled; eRef holds the reason.
 //-----------------------------------------------------------------------------
 
-        bool    GetResponseData(char *buff, int  blen);
+        void    GetResponseData(char *buff, int  blen);
 
 //-----------------------------------------------------------------------------
-//! Obtain the session associated with this request. This member is set by the
-//! responder and needs seririalization.
+//! Get timeout for initiating the request.
 //!
-//! Note: This method locks the object's recursive mutex.
-//!
-//! @return !0    - pointer to the session object.
-//! @retuen =0    - no session associated with this request.
+//! @return The timeout value.
 //-----------------------------------------------------------------------------
-inline
-XrdSsiSession  *GetSession() {XrdSsiMutexMon(reqMutex); return theSession;}
+
+        uint16_t GetTimeOut() {return tOut;}
 
 //-----------------------------------------------------------------------------
 //! Notify request that a response is ready to be processed. This method must
 //! be supplied by the request object's implementation.
 //!
-//! Note: This method is called with the object's recursive mutex locked.
-//!
+//! @param  eInfo Error information. You can check if an error occured using
+//!               eInfo.hasError() or eInfo.isOK().
 //! @param  rInfo Raw response information.
-//! @param  isOK  True:  Normal response.
-//!               False: Error  response, the eInfo object holds information.
 //!
 //! @return true  Response processed.
 //! @return false Response could not be processed, the request is not active.
 //-----------------------------------------------------------------------------
 
-virtual bool    ProcessResponse(const XrdSsiRespInfo &rInfo, bool isOK=true)=0;
+virtual bool    ProcessResponse(const XrdSsiErrInfo  &eInfo,
+                                const XrdSsiRespInfo &rInfo)=0;
 
 //-----------------------------------------------------------------------------
 //! Handle incomming async stream data or error. This method is called by a
@@ -195,25 +201,28 @@ virtual bool    ProcessResponse(const XrdSsiRespInfo &rInfo, bool isOK=true)=0;
 //!
 //! Note: This method is called with the object's recursive mutex locked.
 //!
-//! @param buff  Pointer to the buffer given to XrdSsiStream::SetBuff().
-//! @param blen  The number of bytes in buff or an error indication if blen < 0.
-//! @param last  true  This is the last stream segment, no more data remains.
-//! @param       false More data may remain in the stream.
-//! @return      One of the enum PRD_Xeq:
-//!              PRD_Normal  - Processing completeted normally, continue.
-//!              PRD_Hold    - Processing could not be done now, place request
-//!                            in the global FIFO hold queue and resume when
-//!                            RestartDataResponse() is called.
-//!              PRD_HoldLcl - Processing could not be done now, place request
-//!                            in the request ID FIFO local queue and resume when
-//!                            RestartDataResponse() is called with the ID that
-//!                            passed to the this request object constructor.
+//! @param  eInfo Error information. You can check if an error occured using
+//!               eInfo.hasError() or eInfo.isOK().
+//! @param  buff  Pointer to the buffer given to XrdSsiStream::SetBuff().
+//! @param  blen  The number of bytes in buff or an error indication if blen < 0.
+//! @param  last  true  This is the last stream segment, no more data remains.
+//! @param        false More data may remain in the stream.
+//! @return       One of the enum PRD_Xeq:
+//!               PRD_Normal  - Processing completeted normally, continue.
+//!               PRD_Hold    - Processing could not be done now, place request
+//!                             in the global FIFO hold queue and resume when
+//!                             RestartDataResponse() is called.
+//!               PRD_HoldLcl - Processing could not be done now, place request
+//!                             in the request ID FIFO local queue and resume
+//!                             when RestartDataResponse() is called with the ID
+//!                             that was passed to the this request object
+//!                             constructor.
 //-----------------------------------------------------------------------------
 
 enum PRD_Xeq {PRD_Normal = 0, PRD_Hold = 1, PRD_HoldLcl = 2};
 
-virtual PRD_Xeq ProcessResponseData(char *buff, int blen, bool last)
-                {return PRD_Normal;}
+virtual PRD_Xeq ProcessResponseData(const XrdSsiErrInfo  &eInfo, char *buff,
+                                    int blen, bool last) {return PRD_Normal;}
 
 //-----------------------------------------------------------------------------
 //! Restart a ProcessResponseData() call for a request that was previosly held
@@ -261,49 +270,31 @@ struct RDR_Info{int rCount; //!< Number restarted
 static RDR_Info RestartDataResponse(RDR_How rhow, const char *reqid=0);
 
 //-----------------------------------------------------------------------------
-//! Run this request using a single session (variant 1).
+//! @brief Set the detached request time to live value.
 //!
-//! @param srvc  Reference to the service object to be used.
-//! @param rsrc  Reference to the resource description for the request.
-//!              Members in this object are copied so the resource object may
-//!              be deleted upon return.
-//! @param tmo   the maximum number seconds the operation may last before
-//!              it is considered to fail. A zero value uses the default.
+//! By deafult, rqeuests are executed in the foreground (i.e. during its
+//! execution, if the TCP connection drops, the request is automatically
+//! cancelled. When a non-zero time to live is set, the request is executed in
+//! the background (i.e. detached) and no persistent TCP connection is required.
+//! You must use the XrdSsiService::Attach() method to foreground such a
+//! request within the number of seconds specified for dttl or the request is
+//! automatically cancelled. The value must be set before passing the request
+//! to XrdSsiService::ProcessRequest(). Once the request is started, a request
+//! handle is returned which can be passed to XrdSsiService::Attach().
 //!
-//! @return      The results of this call are reflected to the request via
-//!              it's ProcessResponse() callback method.
+//! @param  detttl The detach time to live value.
 //-----------------------------------------------------------------------------
 
-virtual void    SSRun(XrdSsiService  &srvc,
-                      XrdSsiResource &rsrc,
-                      unsigned short  tmo=0);
+inline void     SetDetachTTL(uint32_t dttl) {detTTL = dttl;}
 
 //-----------------------------------------------------------------------------
-//! Run this request using a single session (variant 2). Use the resource name
-//! and optional resource user with all other resource values defaulted.
+//! Set timeout for initiating the request. If a non-default value is desired,
+//! it must be set prior to calling XrdSsiService::ProcessRequest().
 //!
-//! @param srvc  Reference to the service object to be used.
-//! @param rname Pointer to the resource name. It is copied.
-//! @param ruser Pointer to the resource user. It is copied.
-//! @param tmo   the maximum number seconds the operation may last before
-//!              it is considered to fail. A zero value uses the default.
-//!
-//! @return      The results of this call are reflected to the request via
-//!              it's ProcessResponse() callback method.
+//! @param tmo     The timeout value.
 //-----------------------------------------------------------------------------
 
-virtual void    SSRun(XrdSsiService  &srvc,
-                      const char     *rname,
-                      const char     *ruser=0,
-                      unsigned short  tmo=0);
-
-//-----------------------------------------------------------------------------
-//! A handy pointer to allow for chaining these objects. It is initialized to 0.
-//! It should only be touched by any object that is the current owner of this
-//! object (e.g. the XrdSsiSession object after its ProcessRequest() is called).
-//-----------------------------------------------------------------------------
-
-XrdSsiRequest  *nextRequest;
+       void     SetTimeOut(uint16_t tmo) {tOut = tmo;}
 
 //-----------------------------------------------------------------------------
 //! Constructor
@@ -312,26 +303,33 @@ XrdSsiRequest  *nextRequest;
 //!                See ProcessResponseData() and RestartDataReponse(). If reqid
 //!                is nil then held responses are placed in the global queue.
 //!                The pointer must be valid for the life of this object.
+//!
+//! @param tmo     The request initiation timeout value 0 equals default).
 //-----------------------------------------------------------------------------
 
-                XrdSsiRequest(const char *reqid=0)
-                             : nextRequest(0),
-                               reqMutex(XrdSsiMutex::Recursive), reqID(reqid),
-                               theSession(0), theRespond(0), thePacer(0) {}
+                XrdSsiRequest(const char *reqid=0, uint16_t tmo=0)
+                             : rrMutex(0), reqID(reqid),
+                               nextRequest(0), theRespond(0), thePacer(0),
+                               detTTL(0), tOut(0) {}
+
+// The following are for internal use only!
+//
+void            SetMutex(XrdSsiMutex *mP) {rrMutex = mP;}
 
 protected:
+
 //-----------------------------------------------------------------------------
-//! Notify the underlying object that the request was bound to a session. This
-//! method is meant for server-side internal use only.
+//! Notify the underlying object that the request was bound to a responder.
+//! This method is meant for server-side internal use only.
 //-----------------------------------------------------------------------------
 
-virtual void    BindDone(XrdSsiSession *sessP) {}
+virtual void    BindDone() {}
 
 //-----------------------------------------------------------------------------
 //! Release the request buffer. Use this method to optimize storage use; this
 //! is especially relevant for long-running requests. If the request buffer
 //! has been consumed and is no longer needed, early return of the buffer will
-//! minimize memory usage. This method is only invoked via XrdSsiResponder.
+//! minimize memory usage. This method is also invoked via XrdSsiResponder.
 //!
 //!
 //! Note: This method is called with the object's recursive mutex locked when
@@ -342,10 +340,10 @@ virtual void    BindDone(XrdSsiSession *sessP) {}
 virtual void    RelRequestBuffer() {}
 
 //-----------------------------------------------------------------------------
-//! Destructor. This object can only be deleted by the object creator. When the
-//! object is passed and accepted by XrdSsiSession::ProcessRequest() it may
-//! only be deleted after Finished() is called to allow the session object to
-//! reclaim any resources granted to the request object.
+//! Destructor. This object can only be deleted by the object creator. Once the
+//! object is passed to XrdSsiService::ProcessRequest() it may only be deleted
+//! after Finished() is called to allow the service to reclaim any resources
+//! allocated for the request object.
 //-----------------------------------------------------------------------------
 
 virtual        ~XrdSsiRequest() {}
@@ -364,31 +362,18 @@ const XrdSsiRespInfo *RespP() {return &Resp;}
 //! It can also be used to serialize access to the underlying object.
 //-----------------------------------------------------------------------------
 
-XrdSsiMutex      reqMutex;
+XrdSsiMutex     *rrMutex;
 const char      *reqID;
 
 private:
         bool     CopyData(char *buff, int blen);
 
-XrdSsiSession   *theSession; // Set via XrdSsiResponder::BindRequest()
+XrdSsiRequest   *nextRequest;
 XrdSsiResponder *theRespond; // Set via XrdSsiResponder::BindRequest()
 XrdSsiRespInfo   Resp;       // Set via XrdSsiResponder::SetResponse()
+XrdSsiErrInfo    errInfo;
 XrdSsiPacer     *thePacer;
+uint32_t         detTTL;
+uint16_t         tOut;
 };
-
-//-----------------------------------------------------------------------------
-//! We define the GetResponseData() helper method here as we need it to be
-//! available in all compilation units and it depends on XrdSsiStream.
-//-----------------------------------------------------------------------------
-
-#include "XrdSsi/XrdSsiStream.hh"
-
-inline  bool    XrdSsiRequest::GetResponseData(char *buff, int  blen)
-                      {XrdSsiMutexMon(reqMutex);
-                       if (Resp.rType == XrdSsiRespInfo::isStream)
-                          return Resp.strmP->SetBuff(this, buff, blen);
-                       if (Resp.rType == XrdSsiRespInfo::isData)
-                          return CopyData(buff, blen);
-                       eInfo.Set(0, ENODATA); return false;
-                      }
 #endif

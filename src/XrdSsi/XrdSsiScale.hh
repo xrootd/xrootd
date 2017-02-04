@@ -1,10 +1,10 @@
-#ifndef __XRDSSISSRUN_HH__
-#define __XRDSSISSRUN_HH__
+#ifndef __XRDSSISCALE_HH__
+#define __XRDSSISCALE_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d S s i S S R u n . h h                         */
+/*                        X r d S s i S c a l e . h h                         */
 /*                                                                            */
-/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,34 +29,49 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiService.hh"
-  
-//-----------------------------------------------------------------------------
-//! The XrdSsiSSRun object effects the SSRun() methods in the SsiRequest object.
-//-----------------------------------------------------------------------------
+#include <string.h>
 
-class XrdSsiRequest;
+#include "XrdSys/XrdSysPthread.hh"
 
-class XrdSsiSSRun : public XrdSsiService::Resource
+class XrdSsiScale
 {
 public:
 
-static
-XrdSsiSSRun *Alloc(XrdSsiRequest *reqp, XrdSsiResource &rsrc,
-                   unsigned short tmo=0);
+static const int          maxEnt  = 32;
+static const unsigned int maxPend = 65500;
 
-void         ProvisionDone(XrdSsiSession *sessP);
+int   getEnt() {entMutex.Lock();
+                if (pendCnt[nowEnt] < maxPend) 
+                   {pendCnt[nowEnt]++;
+                    entMutex.UnLock();
+                    return nowEnt;
+                   }
+                int xEnt = (nowEnt < maxEnt ? nowEnt+1 : 0);
+                int zEnt = maxEnt;
+                do {for (int i = xEnt; i < zEnt; i++)
+                        {if (pendCnt[i] < maxPend)
+                            {pendCnt[i]++;
+                             nowEnt = i;
+                             entMutex.UnLock();
+                             return i;
+                            }
+                        }
+                    if (!xEnt) break;
+                    xEnt = 0; zEnt = nowEnt;
+                   } while(true);
+                 entMutex.UnLock();
+                 return -1;
+                }
 
-             XrdSsiSSRun(XrdSsiRequest *reqp, unsigned short tmo=0)
-                        : XrdSsiService::Resource(0),
-                          theReq(reqp), tOut(tmo) {}
+void  retEnt(int xEnt) {entMutex.Lock(); pendCnt[xEnt]--; entMutex.UnLock();}
 
-      ~XrdSsiSSRun() {}
+      XrdSsiScale() : nowEnt(0) {memset(pendCnt, 0, sizeof(uint16_t)*maxEnt);}
+     ~XrdSsiScale() {}
 
 private:
-union {XrdSsiRequest  *theReq;
-       XrdSsiSSRun    *freeNext;
-      };
-unsigned short         tOut;
+
+XrdSysMutex entMutex;
+uint16_t    pendCnt[maxEnt];
+int         nowEnt;
 };
 #endif

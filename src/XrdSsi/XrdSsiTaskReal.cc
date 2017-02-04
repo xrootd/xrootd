@@ -27,17 +27,22 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string>
+
+#include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
+#include "XrdSsi/XrdSsiScale.hh"
 #include "XrdSsi/XrdSsiSessReal.hh"
 #include "XrdSsi/XrdSsiTaskReal.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
+#include "XrdSsi/XrdSsiUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
 using namespace XrdSsi;
 
 /******************************************************************************/
-/*                           G l o b a l   D a t a                            */
+/*                         L o c a l   S t a t i c s                          */
 /******************************************************************************/
   
 namespace
@@ -45,12 +50,88 @@ namespace
 const char *statName[] = {"isWrite", "isSync", "isReady",
                           "isDone",  "isDead"};
 
-XrdSsiSessReal voidSession(0, "voidSession");
+XrdSsiSessReal voidSession(0, "voidSession", 0);
 
-char        zedData = 0;
+std::string pName("ReadRecovery");
+std::string pValue("false");
+
 const char *tident  = 0;
+char        zedData = 0;
+}
+
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
+namespace XrdSsi
+{
+extern XrdSsiScale sidScale;
 }
   
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+  
+namespace
+{
+class AlertMsg : public XrdSsiRespInfoMsg
+{
+public:
+
+void Recycle(bool sent=true) {delete respObj; delete this;}
+
+     AlertMsg(XrdCl::AnyObject *resp, char *dbuff, int dlen)
+             : XrdSsiRespInfoMsg(dbuff, dlen), respObj(resp) {}
+
+    ~AlertMsg() {}
+
+private:
+XrdCl::AnyObject *respObj;
+};
+}
+
+/******************************************************************************/
+/* Private:                     A s k 4 R e s p                               */
+/******************************************************************************/
+
+// Called with session mutex locked and returns with it unlocked!
+
+bool XrdSsiTaskReal::Ask4Resp()
+{
+   EPNAME("Ask4Resp");
+
+   XrdCl::XRootDStatus epStatus;
+   XrdSsiRRInfo        rInfo;
+   XrdCl::Buffer       qBuff(sizeof(unsigned long long));
+
+// Disable read recovery
+//
+   sessP->epFile.SetProperty(pName, pValue);
+
+// Compose request to wait for the response
+//
+   rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Rwt);
+   memcpy(qBuff.GetBuffer(), rInfo.Data(), sizeof(long long));
+
+// Do some debugging
+//
+   DEBUG("Calling fcntl id=" <<tskID);
+
+// Issue the command to field the response
+//
+   epStatus = sessP->epFile.Fcntl(qBuff, (ResponseHandler *)this, tmOut);
+
+// Dianose any errors. If any occurred we simply return an error response but
+// otherwise let this go as it really is not a logic error.
+//
+   if (!epStatus.IsOK()) return RespErr(&epStatus);
+   mhPend = true;
+   defer  = false;
+   tStat  = isSync;
+   sessP->UnLock();
+   return true;
+}
+
 /******************************************************************************/
 /*                                D e t a c h                                 */
 /******************************************************************************/
@@ -58,6 +139,30 @@ const char *tident  = 0;
 void XrdSsiTaskReal::Detach(bool force)
 {   tStat = isDead;
     if (force) sessP = &voidSession;
+}
+
+/******************************************************************************/
+/*                              F i n i s h e d                               */
+/******************************************************************************/
+
+// Note that if we are called then Finished() must have been called while we
+// were still in the open phase.
+  
+void XrdSsiTaskReal::Finished(XrdSsiRequest        &rqstR,
+                              const XrdSsiRespInfo &rInfo, bool cancel)
+{
+   EPNAME("TaskReqFin");
+   XrdSsiMutexMon rHelp(sessP->MutexP());
+
+// Do some debugging
+//
+   DEBUG("Request="<<&rqstR<<" cancel="<<cancel<<" task="<<this);
+
+// If we can kill this task right now, clean up. Otherwise, the message
+// handler will clean things up.
+//
+   if (Kill()) sessP->TaskFinished(this);
+      else {DEBUG("Removal deferred; Task="<<this<<" id=" <<tskID);}
 }
 
 /******************************************************************************/
@@ -85,12 +190,20 @@ XrdSsiTaskReal::respType XrdSsiTaskReal::GetResp(XrdCl::AnyObject **respP,
 
 // Validate the header
 //
-   if ((n=buffP->GetSize()) <= sizeof(XrdSsiRRInfoAttn)) return isBad;
+   if ((n=buffP->GetSize()) < sizeof(XrdSsiRRInfoAttn)) return isBad;
    mdP = (XrdSsiRRInfoAttn *)cdP;
    mdL = ntohl(mdP->mdLen);
    pxL = ntohs(mdP->pfxLen);
    dbL = n - mdL - pxL;
    if (pxL < sizeof(XrdSsiRRInfoAttn) || dbL < 0) return isBad;
+
+// This may be an alert message, check for that now
+//
+   if (mdP->tag == XrdSsiRRInfoAttn::alrtResp)
+      {dbuff = cdP+pxL; dbL = mdL;
+       DEBUG("Responding with alert id=" <<tskID);
+       return isAlert;
+      }
 
 // Extract out the metadata
 //
@@ -133,7 +246,8 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 
 // Do some debugging
 //
-   DEBUG("Status = "<<statName[tStat]<<" mhPend="<<mhPend <<" id=" <<tskID);
+   DEBUG("Status="<<statName[tStat]<<" defer=" <<defer<<" mhPend="<<mhPend
+         <<" id=" <<tskID);
 
 // Regardless of the state, remove this task from the hold queue if there
 //
@@ -146,9 +260,9 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
           case isSync:  break;
           case isReady: break;
           case isDone:  tStat = isDead;
-                        return true;
+                        return !(mhPend || defer);
                         break;
-          case isDead:  return false;
+          case isDead:  return !(mhPend || defer);
                         break;
           default: cerr <<"XrdSsiTaskReal: Invalid state " <<tStat <<endl;
                tStat = isDead;
@@ -167,7 +281,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 // the message handler will dispose of the task.
 //
    tStat = isDead;
-   return !mhPend;
+   return !(mhPend || defer);
 }
   
 /******************************************************************************/
@@ -184,11 +298,11 @@ void XrdSsiTaskReal::Redrive()
 //
    sessP->UnLock();
    DEBUG("Redriving ProcessResponseData; len="<<dataRlen<<" last="<<last);
-   prdVal = rqstP->ProcessResponseData(dataBuff, dataRlen, last);
+   prdVal = rqstP->ProcessResponseData(rqstP->errInfo,dataBuff,dataRlen,last);
    switch(prdVal)
-         {case XrdSsiRequest::PRD_Normal:                      break;
-          case XrdSsiRequest::PRD_Hold:    Hold(0);            break;
-          case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->reqID); break;
+         {case XrdSsiRequest::PRD_Normal:                               break;
+          case XrdSsiRequest::PRD_Hold:    Hold(0);                     break;
+          case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->GetRequestID()); break;
           default: cerr <<"Redrive: ProcessResponseData() return invalid enum "
                           " - " <<prdVal <<endl;
          }
@@ -198,40 +312,36 @@ void XrdSsiTaskReal::Redrive()
 /* Private:                      R e s p E r r                                */
 /******************************************************************************/
   
-void XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status) // Session is locked!
+bool XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status) // Session is locked!
 {
-   XrdSsiErrInfo eInfo;
-   const char *eText;
-   int   eNum;
-
-// Get the error information
-//
-   XrdSsiSessReal::SetErr(*status, eInfo);
+   std::string eTxt;
+   int         eNum = XrdSsiUtils::GetErr(*status, eTxt);
 
 // Indicate we are done and unlock the session. We also indicate we are no
 // longer in the message handler, even though we might be in ProcessResponse()
 // when Complete() is called. That's OK since we will not be referencing this
 // object no matter what so all is well
 //
-   tStat = isDone;
+   tStat  = isDone;
    mhPend = false;
+   defer  = false;
    if (sessP) sessP->UnLock();
 
 // Reflect an error to the request object.
 //
-   eText = eInfo.Get(eNum);
-   SetErrResponse(eText, eNum);
+   SetErrResponse(eTxt.c_str(), eNum);
+   return false;
 }
 
 /******************************************************************************/
 /*                               S e t B u f f                                */
 /******************************************************************************/
   
-int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
+int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef,
                             char *buff, int blen, bool &last)
 {
    EPNAME("TaskSetBuff");
-   XrdSysMutexHelper rHelp(sessP->MutexP());
+   XrdSsiMutexMon rHelp(sessP->MutexP());
    XrdCl::XRootDStatus epStatus;
    XrdSsiRRInfo rrInfo;
    union {uint32_t ubRead; int ibRead;};
@@ -241,7 +351,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
    DEBUG("Sync Status=" <<statName[tStat] <<" id=" <<tskID);
    if (tStat != isReady)
       {if (tStat == isDone) return 0;
-       eInfo.Set("Stream is not active", ENODEV);
+       eRef.Set("Stream is not active", ENODEV);
        return -1;
       }
 
@@ -259,7 +369,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
 
 // We failed, return an error
 //
-   XrdSsiSessReal::SetErr(epStatus, eInfo);
+   XrdSsiUtils::SetErr(epStatus, eRef);
    tStat = isDone;
    DEBUG("Task Sync SetBuff error id=" <<tskID);
    return -1;
@@ -267,10 +377,10 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eInfo,
 
 /******************************************************************************/
   
-bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
+bool XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen)
 {
    EPNAME("TaskSetBuff");
-   XrdSysMutexHelper rHelp(sessP->MutexP());
+   XrdSsiMutexMon rHelp(sessP->MutexP());
    XrdCl::XRootDStatus epStatus;
    XrdSsiRRInfo rrInfo;
 
@@ -278,21 +388,21 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
 //
    DEBUG("Async Status=" <<statName[tStat] <<" id=" <<tskID);
    if (tStat != isReady)
-      {reqP->eInfo.Set("Stream is not active", ENODEV);
+      {eRef.Set("Stream is not active", ENODEV);
        return false;
       }
 
 // We only support (for now) one read at a time
 //
    if (mhPend)
-      {reqP->eInfo.Set("Stream is already active", EINPROGRESS);
+      {eRef.Set("Stream is already active", EINPROGRESS);
        return false;
       }
 
 // Make sure the buffer length is valid
 //
    if (blen <= 0)
-      {reqP->eInfo.Set("Buffer length invalid", EINVAL);
+      {eRef.Set("Buffer length invalid", EINVAL);
        return false;
       }
 
@@ -302,7 +412,7 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
 
 // Issue a read
 //
-   dataBuff = buff; dataRlen = blen; rqstP = reqP;
+   dataBuff = buff; dataRlen = blen;
    epStatus = sessP->epFile.Read(rrInfo.Info(), (uint32_t)blen, buff,
                                 (XrdCl::ResponseHandler *)this, tmOut);
 
@@ -312,12 +422,40 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiRequest *reqP, char *buff, int blen)
 
 // We failed, return an error
 //
-   XrdSsiSessReal::SetErr(epStatus, reqP->eInfo);
+   XrdSsiUtils::SetErr(epStatus, eRef);
    tStat = isDone;
    DEBUG("Task Async SetBuff error id=" <<tskID);
    return false;
 }
+
+/******************************************************************************/
+/* Private:                       X e q E n d                                 */
+/******************************************************************************/
   
+bool XrdSsiTaskReal::XeqEnd(bool getLock)
+{
+   EPNAME("TaskXeqEnd");
+
+// Obtain a lock if we need to
+//
+   if (getLock) sessP->Lock();
+
+// Check if finished has been called while we were defered
+//
+   if (tStat == isDead)
+      {DEBUG("Task Handler calling TaskFinished.");
+       sessP->UnLock();
+       sessP->TaskFinished(this);
+       return false;
+      }
+
+// We can continue, no deferals are needed at this point
+//
+   defer = false;
+   sessP->UnLock();
+   return true;
+}
+
 /******************************************************************************/
 /*                              X e q E v e n t                               */
 /******************************************************************************/
@@ -326,48 +464,52 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
                               XrdCl::AnyObject   **respP)
 {
    EPNAME("TaskXeqEvent");
-   static std::string pName("ReadRecovery");
-   static std::string pValue("false");
 
-   XrdCl::XRootDStatus epStatus;
    XrdCl::AnyObject   *response = *respP;
-   XrdSsiRRInfo        rInfo;
+   XrdSsiRespInfoMsg  *aMsg;
    char *dBuff;
-   XrdCl::Buffer qBuff(sizeof(unsigned long long));
    union {uint32_t ubRead; int ibRead;};
    int dLen;
    XrdSsiRequest::PRD_Xeq prdVal;
    bool last, aOK = status->IsOK();
 
-// Affect proper response
+// Obtain a lock and indicate the any Finish() calls should be defered until
+// we return from this method. The reason is that any callback that we do here
+// may precipitate a Finish() call not to mention some other thread doing so.
 //
    sessP->Lock();
+   defer  = true;
+   mhPend = false;
+
+// Do some debugging
+//
    DEBUG(" sess="<<(sessP==&voidSession?"no":"ok") <<" id=" <<tskID
-              <<" Status="<<aOK<<' '<<statName[tStat]
+              <<" aOK="<<aOK<<' '<<statName[tStat]
               <<" clrT=" <<Xrd::hex <<myCaller
               <<" xeqT=" <<pthread_self() <<Xrd::dec);
 
+// Affect proper response
+//
    switch(tStat)
          {case isWrite:
-               if (!aOK) {RespErr(status); return true;}
-               tStat = isSync;
-               sessP->epFile.SetProperty(pName, pValue);
-               rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Rwt);
+               if (!aOK) return RespErr(status); // Unlocks the mutex!
                DEBUG("Calling RelBuff id=" <<tskID);
                ReleaseRequestBuffer();
-               DEBUG("Calling fcntl id=" <<tskID);
-               memcpy(qBuff.GetBuffer(), rInfo.Data(), sizeof(long long));
-               epStatus = sessP->epFile.Fcntl(qBuff,
-                                             (ResponseHandler *)this,
-                                             tmOut);
-               if (!epStatus.IsOK()) {RespErr(&epStatus); return true;}
-               sessP->UnLock();
-               return true; break;
+               if (tStat == isWrite) return Ask4Resp();
+               return XeqEnd(false);
+
           case isSync:
-               if (!aOK) {RespErr(status); return true;}
-               mhPend = false;
+               if (!aOK) return RespErr(status);
                if (response) switch(GetResp(respP, dBuff, dLen))
-                  {case isData:   tStat = isDone;  sessP->UnLock();
+                  {case isAlert:  aMsg = new AlertMsg(*respP, dBuff, dLen);
+                                  *respP = 0;
+                                  sessP->UnLock();
+                                  rqstP->Alert(*aMsg);
+                                  sessP->Lock();
+                                  if (tStat == isSync) return Ask4Resp();
+                                     else return XeqEnd(false);
+                                  break;
+                   case isData:   tStat = isDone;  sessP->UnLock();
                                   SetResponse(dBuff, dLen);
                                   break;
                    case isStream: tStat = isReady; sessP->UnLock();
@@ -376,21 +518,27 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
                    default:       tStat = isDone;  sessP->UnLock();
                                   SetErrResponse("Invalid response", EFAULT);
                                   break;
+                  } else {
+                   tStat = isDone;  sessP->UnLock();
+                   SetErrResponse("Missing response", EFAULT);
                   }
-               return true; break;
+               return XeqEnd(true);
+
           case isReady:
                break;
+
           case isDead:
                if (sessP != &voidSession)
-                  {DEBUG("Task Handler calling Recycle.");
-                   sessP->Recycle(this);
+                  {DEBUG("Task Handler calling TaskFinished.");
                    sessP->UnLock();
+                   sessP->TaskFinished(this);
                   } else {
                    DEBUG("Deleting task.");
                    sessP->UnLock();
                    delete this;
                   }
-               return false; break;
+               return false;
+
           default: cerr <<"XrdSsiTaskReal: Invalid state " <<tStat <<endl;
                return false;
          }
@@ -399,8 +547,8 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
 //
    if (!aOK || !response)
       {ibRead = -1;
-       if (!aOK) XrdSsiSessReal::SetErr(*status, rqstP->eInfo);
-          else   rqstP->eInfo.Set("Missing response", EFAULT);
+       if (!aOK) XrdSsiUtils::SetErr(*status, rqstP->errInfo);
+          else   rqstP->errInfo.Set("Missing response", EFAULT);
       } else {
        XrdCl::ChunkInfo *cInfo = 0;
        response->Get(cInfo);
@@ -412,18 +560,21 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
 //
    if (ibRead < dataRlen) {tStat = isDone; dataRlen = ibRead;}
    dBuff = dataBuff;
-   mhPend = false;
    last = tStat == isDone;
    sessP->UnLock();
    DEBUG("Calling ProcessResponseData; len="<<ibRead<<" last="<<last);
-   prdVal = rqstP->ProcessResponseData(dBuff, ibRead, last);
+   prdVal = rqstP->ProcessResponseData(rqstP->errInfo, dBuff, ibRead, last);
+
+// If finished was called then we need stop any further action
+//
+   if (!XeqEnd(true)) return false;
 
 // The processor requested a hold on further action for this request
 //
    switch(prdVal)
-         {case XrdSsiRequest::PRD_Normal:                      break;
-          case XrdSsiRequest::PRD_Hold:    Hold(0);            break;
-          case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->reqID); break;
+         {case XrdSsiRequest::PRD_Normal:                               break;
+          case XrdSsiRequest::PRD_Hold:    Hold(0);                     break;
+          case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->GetRequestID()); break;
           default: cerr <<"XeqEvent: ProcessResponseData() return invalid enum "
                           " - " <<prdVal <<endl;
          }

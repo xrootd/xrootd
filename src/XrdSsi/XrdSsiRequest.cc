@@ -33,10 +33,9 @@
 
 #include "XrdSsi/XrdSsiPacer.hh"
 #include "XrdSsi/XrdSsiRespInfo.hh"
+#include "XrdSsi/XrdSsiResponder.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
-#include "XrdSsi/XrdSsiResource.hh"
-#include "XrdSsi/XrdSsiService.hh"
-#include "XrdSsi/XrdSsiSSRun.hh"
+#include "XrdSsi/XrdSsiStream.hh"
   
 /******************************************************************************/
 /* Private:                     C o p y D a t a                               */
@@ -49,24 +48,24 @@ bool XrdSsiRequest::CopyData(char *buff, int blen)
 // Make sure the buffer length is valid
 //
    if (blen <= 0)
-      {eInfo.Set("Buffer length invalid", EINVAL);
+      {errInfo.Set("Buffer length invalid", EINVAL);
        return false;
       }
 
 // Check if we have any data here
 //
-   reqMutex.Lock();
+   rrMutex->Lock();
    if (Resp.blen > 0)
       {if (Resp.blen > blen) last = false;
           else {blen = Resp.blen; last = true;}
        memcpy(buff, Resp.buff, blen);
        Resp.buff += blen; Resp.blen -= blen;
       } else {blen = 0; last = true;}
-   reqMutex.UnLock();
+   rrMutex->UnLock();
 
 // Invoke the callback
 //
-   ProcessResponseData(buff, blen, last);
+   ProcessResponseData(errInfo, buff, blen, last);
    return true;
 }
 
@@ -76,76 +75,46 @@ bool XrdSsiRequest::CopyData(char *buff, int blen)
 
 bool XrdSsiRequest::Finished(bool cancel)
 {
-   XrdSsiMutexMon(reqMutex);
+   XrdSsiResponder *respP;
 
-// If there is no session, return failure
+// Obtain the responder
 //
-   if (!theSession) return false;
-
-// Tell the session we are finished
-//
-   theSession->RequestFinished(this, Resp, cancel);
-
-// Clear response and error information
-//
-   Resp.Init();
-   eInfo.Clr();
-
-// Clear pointers and return
-//
+   rrMutex->Lock();
+   if ((respP = theRespond)) theRespond->reqP = 0;
    theRespond = 0;
-   theSession = 0;
+   rrMutex->UnLock();
+
+// If there is no responder, return failure
+//
+   if (!respP) return false;
+
+// Tell any responder we are finished
+//
+   respP->Finished(*this, Resp, cancel);
    return true;
 }
+
+/******************************************************************************/
+/*                       G e t R e s p o n s e D a t a                        */
+/******************************************************************************/
   
-/******************************************************************************/
-/*                                 S S R u n                                  */
-/******************************************************************************/
-  
-void XrdSsiRequest::SSRun(XrdSsiService  &srvc,
-                          XrdSsiResource &rsrc,
-                          unsigned short  tmo)
+void XrdSsiRequest::GetResponseData(char *buff, int  blen)
 {
-   XrdSsiSSRun *runP;
+   XrdSsiMutexMon mHelper(rrMutex);
 
-// Make sure that atleats the resource name was specified
+// If this is really a stream then just call the stream object to get the data.
+// In the degenrate case, it's actually a data response, then we must copy it.
 //
-   if (!rsrc.rName || !(*rsrc.rName))
-      {eInfo.Set("Resource name missing.", EINVAL);
-       Resp.eMsg  = eInfo.Get();
-       Resp.eNum  = EINVAL;
-       Resp.rType = XrdSsiRespInfo::isError;
-       ProcessResponse(Resp, false);
-       return;
-      }
+        if (Resp.rType == XrdSsiRespInfo::isStream)
+           {if (Resp.strmP->SetBuff(errInfo, buff, blen)) return;}
+   else if (Resp.rType == XrdSsiRespInfo::isData)
+           {if (CopyData(buff, blen)) return;}
+   else    errInfo.Set("Not a stream", ENODATA);
 
-// Now allocate memory to copy all the members
+// If we got here then an error occured during the setup, reflect the error
+// via the callback (in the future we will schedule a new thread).
 //
-   runP = XrdSsiSSRun::Alloc(this, rsrc, tmo);
-   if (!runP)
-      {eInfo.Set(0, ENOMEM);
-       Resp.eMsg  = eInfo.Get();
-       Resp.eNum  = ENOMEM;
-       Resp.rType = XrdSsiRespInfo::isError;
-       ProcessResponse(Resp, false);
-       return;
-      }
-
-// Now provision the resource and we are done here. The SSRun object takes over.
-//
-   srvc.Provision(runP, tmo);
-}
-
-/******************************************************************************/
-
-void XrdSsiRequest::SSRun(XrdSsiService  &srvc,
-                          const char     *rname,
-                          const char     *ruser,
-                          unsigned short  tmo)
-{
-   XrdSsiResource myRes(rname, ruser);
-
-   SSRun(srvc, myRes, tmo);
+   ProcessResponseData(errInfo, buff, -1, true);
 }
 
 /******************************************************************************/

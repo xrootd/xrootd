@@ -1,10 +1,8 @@
-#ifndef __XRDSSISERVREAL_HH__
-#define __XRDSSISERVREAL_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i S e r v R e a l . h h                      */
+/*                 X r d S s i F i l e R e s o u r c e . c c                  */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,37 +27,55 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiService.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <stdlib.h>
 
-class XrdSsiResource;
-class XrdSsiSessReal;
+#include "XrdOuc/XrdOucEnv.hh"
 
-class XrdSsiServReal : public XrdSsiService
+#include "XrdNet/XrdNetAddrInfo.hh"
+#include "XrdSec/XrdSecEntity.hh"
+#include "XrdSsi/XrdSsiFileResource.hh"
+
+/******************************************************************************/
+/*                                  I n i t                                   */
+/******************************************************************************/
+  
+void XrdSsiFileResource::Init(const char *path, XrdOucEnv &envX, int atype)
 {
-public:
+   const XrdSecEntity *entP = envX.secEnv();
+   const char *rVal;
+   int n;
 
-void           ProcessRequest(XrdSsiRequest &reqRef, XrdSsiResource &resRef);
+// Always supply the trace identity
+//
+   mySec.tident = (entP ? entP->tident : "ssi");
 
-void           Recycle(XrdSsiSessReal *sObj);
+// Construct the security information
+//
+   if (atype && entP)
+      {strncpy(mySec.prot, entP->prot, XrdSsiPROTOIDSIZE);
+       mySec.name = entP->name;
+       mySec.host = (atype <= 1 ? entP->host
+                                : entP->addrInfo->Name(entP->host));
+       mySec.role = entP->vorg;
+       mySec.role = entP->role;
+       mySec.grps = entP->grps;
+       mySec.endorsements = entP->endorsements;
+       mySec.creds = entP->creds;
+       mySec.credslen = entP->credslen;
+       client = &mySec;
+      }
 
-bool           Stop();
+// Fill out the resource name and user
+//
+   rName = path;
+   if ((rVal = envX.Get("ssi.user"))) rUser = rVal;
+      else rUser.clear();
 
-               XrdSsiServReal(const char *contact, int hObj)
-                             : manNode(strdup(contact)), freeSes(0),
-                               freeCnt(0), freeMax(hObj), actvSes(0) {}
-
-              ~XrdSsiServReal();
-private:
-
-XrdSsiSessReal *Alloc(const char *sName, int uent, bool hold=false);
-bool            GenURL(XrdSsiResource *rP, char *buff, int blen, int uEnt);
-
-char           *manNode;
-XrdSysMutex     myMutex;
-XrdSsiSessReal *freeSes;
-int             freeCnt;
-int             freeMax;
-int             actvSes;
-};
-#endif
+// Fill out the the optional cgi info
+//
+   if (!(rVal = envX.Get("ssi.cgi"))) rInfo.clear();
+      else {rVal = envX.Env(n);
+            if (!(rVal = strstr(rVal, "ssi.cgi="))) rInfo.clear();
+               else rInfo = rVal+8;
+           }
+}

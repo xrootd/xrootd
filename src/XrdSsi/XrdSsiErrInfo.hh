@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
+#include <string>
 #include <string.h>
   
 //-----------------------------------------------------------------------------
@@ -45,43 +45,27 @@ public:
 //! Reset and clear error information.
 //-----------------------------------------------------------------------------
 
-       void  Clr() {if (errText) {free(errText); errText = 0;};
-                    errArg = errNum = 0;
-                   }
-
-//-----------------------------------------------------------------------------
-//! Determine whether or not error information is present.
-//!
-//! @return true  Error information is  present.
-//! @return false Error information not present.
-//-----------------------------------------------------------------------------
-
-       bool  Dirty() {return errText != 0;}
+       void  Clr() {errText.clear(); errArg = errNum = 0;}
 
 //-----------------------------------------------------------------------------
 //! Get current error information.
 //!
 //! @param  eNum  place where the error number is to be placed.
 //!
-//! @return =0    no error information is available, eNum also is zero.
-//! @return !0    pointer to a string describing the error associated with eNum.
-//!               The pointer is valid until the object is deleted or Set().
+//! @return The error text and the error number value.
 //-----------------------------------------------------------------------------
 
-const  char *Get(int &eNum)
-                {if (!(eNum = errNum)) return 0;
-                 return errText;
-                }
+const
+std::string &Get(int &eNum) const {eNum = errNum; return errText;}
 
 //-----------------------------------------------------------------------------
 //! Get current error text.
 //!
-//! @return =0    no error information is available.
-//! @return !0    pointer to a string describing the error.
-//!               The pointer is valid until the object is deleted or Set().
+//! @return The error text.
 //-----------------------------------------------------------------------------
 
-const  char *Get() {return errText;}
+const
+std::string &Get() const {return errText;}
 
 //-----------------------------------------------------------------------------
 //! Get current error argument.
@@ -89,20 +73,41 @@ const  char *Get() {return errText;}
 //! @return       the error argument value.
 //-----------------------------------------------------------------------------
 
-       int   GetArg() {return errArg;}
+       int   GetArg() const {return errArg;}
 
 //-----------------------------------------------------------------------------
-//! Set new error information.
+//! Check if there is an error.
 //!
-//! @param  eMsg  pointer to a string describing the error. If zero, the eNum
+//! @return       True if an error exists and false otherwise.
+//-----------------------------------------------------------------------------
+
+       bool  hasError() const {return errNum != 0;}
+
+//-----------------------------------------------------------------------------
+//! Check if there is no error.
+//!
+//! @return       True if no error exists and false otherwise.
+//-----------------------------------------------------------------------------
+
+       bool  isOK() const {return errNum == 0;}
+
+//-----------------------------------------------------------------------------
+//! Set new error information. There are two obvious variations.
+//!
+//! @param  eMsg  pointer to a string describing the error. If nil, the eNum
 //!               is taken as errno and strerror(eNum) is used.
 //! @param  eNum  the error number associated with the error.
 //! @param  eArg  the error argument, if any (see XrdSsiService::Provision()).
 //-----------------------------------------------------------------------------
 
        void  Set(const char *eMsg=0, int eNum=0, int eArg=0)
-                {if (errText) free(errText);
-                 errText = strdup((eMsg && *eMsg ? eMsg : strerror(eNum)));
+                {errText = (eMsg && *eMsg ? eMsg : strerror(eNum));
+                 errNum  = eNum;
+                 errArg  = eArg;
+                }
+
+       void  Set(const std::string &eMsg, int eNum=0, int eArg=0)
+                {errText = (eMsg.empty() ? strerror(eNum) : eMsg);
                  errNum  = eNum;
                  errArg  = eArg;
                 }
@@ -127,14 +132,14 @@ XrdSsiErrInfo &operator=(XrdSsiErrInfo const &rhs)
 //! Constructor and Destructor
 //-----------------------------------------------------------------------------
 
-      XrdSsiErrInfo() : errText(0), errNum(0), errArg(0) {}
+      XrdSsiErrInfo() : errNum(0), errArg(0) {}
 
-     ~XrdSsiErrInfo() {Clr();}
+     ~XrdSsiErrInfo() {}
 
 private:
 
-char *errText;
-int   errNum;
-int   errArg;
+std::string errText;
+int         errNum;
+int         errArg;
 };
 #endif

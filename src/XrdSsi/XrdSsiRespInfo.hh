@@ -69,4 +69,60 @@ struct  XrdSsiRespInfo
         XrdSsiRespInfo() {Init();}
        ~XrdSsiRespInfo() {}
        };
+
+/******************************************************************************/
+/*                         X r d S s i R e s p M s g                          */
+/******************************************************************************/
+  
+//-----------------------------------------------------------------------------
+//! The RespInfoMsg class describes an async response message sent to the
+//! XrdSsiRequest::Alert() method. It encapsulates the message sent and is
+//! responsible for recovering any resources used by the message via Recycle().
+//-----------------------------------------------------------------------------
+
+class XrdSsiRespInfoMsg
+{
+public:
+
+//-----------------------------------------------------------------------------
+//! Obtain the message associated with the message object.
+//!
+//! @param  mlen  holds the length of the message after the call.
+//!
+//! @return =0    No message available, dlen has been set to zero.
+//! @return !0    Pointer to the buffer holding the message, dlen has the length
+//-----------------------------------------------------------------------------
+
+inline  char    *GetMsg(int &mlen) {mlen = msgLen; return msgBuf;}
+
+//-----------------------------------------------------------------------------
+//! Release resources used by the message. This method must be called after the
+//! message is processed by the XrdSsiRequest::Alert() method.
+//!
+//! Qparam  sent  When true, the message was sent. Otherwise, it was not sent.
+//-----------------------------------------------------------------------------
+
+virtual void     Recycle(bool sent=true) = 0;
+
+//-----------------------------------------------------------------------------
+//! Contructor
+//!
+//! @param  msgP  Pointer to the message buffer.
+//! @param  mlen  length of the message.
+//-----------------------------------------------------------------------------
+
+                 XrdSsiRespInfoMsg(char *msgP, int mlen)
+                                  : msgBuf(msgP), msgLen(mlen) {}
+
+protected:
+
+//-----------------------------------------------------------------------------
+//! Destructor. This object may not be deleted. Use Recycle() instead.
+//-----------------------------------------------------------------------------
+
+virtual         ~XrdSsiRespInfoMsg() {}
+
+char            *msgBuf;
+int              msgLen;
+};
 #endif

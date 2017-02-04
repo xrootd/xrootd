@@ -46,6 +46,10 @@ enum TaskStat {isWrite=0, isSync, isReady, isDone, isDead};
 
 void   Detach(bool force=false);
 
+void   Finished(      XrdSsiRequest  &rqstR,
+                const XrdSsiRespInfo &rInfo,
+                      bool            cancel=false);
+
 void  *Implementation() {return (void *)this;}
 
 bool   Kill();
@@ -55,18 +59,19 @@ int    ID() {return tskID;}
 
 inline
 void   Init(XrdSsiRequest *rP, unsigned short tmo=0)
-           {rqstP = rP, tStat = isWrite; tmOut = tmo; mhPend = true;
+           {rqstP = rP, tStat = isWrite; tmOut = tmo;
+            mhPend = true; defer = false;
             attList.next = attList.prev = this;
             if (mdResp) {delete mdResp; mdResp = 0;}
            }
 
 void   Redrive();
 const 
-char  *RequestID() {return rqstP->reqID;}
+char  *RequestID() {return rqstP->GetRequestID();}
 
-int    SetBuff(XrdSsiErrInfo &eInfo, char *buff, int blen, bool &last);
+int    SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen, bool &last);
 
-bool   SetBuff(XrdSsiRequest *reqP, char *buff, int blen);
+bool   SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen);
 
 void   SetTaskID(short tid) {tskID = tid;}
 
@@ -74,24 +79,27 @@ bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
 
        XrdSsiTaskReal(XrdSsiSessReal *sP, short tid)
                      : XrdSsiEvent("TaskReal"),
-                       XrdSsiResponder(this, (void *)0),
                        XrdSsiStream(XrdSsiStream::isPassive),
-                       sessP(sP), mdResp(0), tskID(tid)
+                       sessP(sP), mdResp(0), tskID(tid),
+                       mhPend(false), defer(false)
                     {}
 
       ~XrdSsiTaskReal() {if (mdResp) delete mdResp;}
 
-void   RespErr(XrdCl::XRootDStatus *status);
-
 struct dlQ {XrdSsiTaskReal *next; XrdSsiTaskReal *prev;};
 dlQ             attList;
 
-enum respType     {isBad=0, isData, isStream};
+enum respType     {isBad=0, isAlert, isData, isStream};
 
 private:
 
+bool              Ask4Resp();
 respType          GetResp(XrdCl::AnyObject **respP, char *&dbuf, int &dlen);
+bool              RespErr(XrdCl::XRootDStatus *status);
+bool              XeqEnd(bool getLock);
 
+XrdSysRecMutex    rrMutex;
+XrdSysMutex       taskMutex;
 XrdSsiSessReal   *sessP;
 XrdSsiRequest    *rqstP;
 XrdCl::AnyObject *mdResp;
@@ -101,5 +109,6 @@ TaskStat          tStat;
 unsigned short    tmOut;
 short             tskID;
 bool              mhPend;
+bool              defer;
 };
 #endif

@@ -29,7 +29,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string>
+
+namespace XrdCl {class XRootDStatus;}
+
 class XrdOucErrInfo;
+class XrdSsiErrInfo;
+class XrdSsiRequest;
 
 class XrdSsiUtils
 {
@@ -40,6 +46,14 @@ static int  Emsg(const char    *pfx,    // Message prefix value
                  const char    *op,     // Operation being performed
                  const char    *path,   // Operation target
                  XrdOucErrInfo &eDest); // Plase to put error
+
+static int  GetErr(XrdCl::XRootDStatus &Status, std::string &eText);
+
+static int  MapErr(int xEnum);
+
+static void RetErr(XrdSsiRequest &reqP, const char *eTxt, int eNum);
+
+static void SetErr(XrdCl::XRootDStatus &Status, XrdSsiErrInfo &eInfo);
 
             XrdSsiUtils() {}
            ~XrdSsiUtils() {}

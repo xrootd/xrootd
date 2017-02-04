@@ -15,6 +15,7 @@ set( XRD_SSI_SHMAP_SOVERSION 1 )
 add_library(
   XrdSsiLib
   SHARED
+XrdSsi/XrdSsiAlert.cc                  XrdSsi/XrdSsiAlert.hh
                                        XrdSsi/XrdSsiAtomics.hh
                                        XrdSsi/XrdSsiBVec.hh
 XrdSsi/XrdSsiClient.cc
@@ -22,6 +23,7 @@ XrdSsi/XrdSsiClient.cc
 XrdSsi/XrdSsiCms.cc                    XrdSsi/XrdSsiCms.hh
                                        XrdSsi/XrdSsiErrInfo.hh
 XrdSsi/XrdSsiEvent.cc                  XrdSsi/XrdSsiEvent.hh
+XrdSsi/XrdSsiFileResource.cc           XrdSsi/XrdSsiFileResource.hh
 XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh
 XrdSsi/XrdSsiPacer.cc                  XrdSsi/XrdSsiPacer.hh
                                        XrdSsi/XrdSsiProvider.hh
@@ -30,11 +32,10 @@ XrdSsi/XrdSsiPacer.cc                  XrdSsi/XrdSsiPacer.hh
 XrdSsi/XrdSsiRequest.cc                XrdSsi/XrdSsiRequest.hh
                                        XrdSsi/XrdSsiResponder.hh
                                        XrdSsi/XrdSsiResource.hh
+                                       XrdSsi/XrdSsiScale.hh
 XrdSsi/XrdSsiServReal.cc               XrdSsi/XrdSsiServReal.hh
                                        XrdSsi/XrdSsiService.hh
 XrdSsi/XrdSsiSessReal.cc               XrdSsi/XrdSsiSessReal.hh
-XrdSsi/XrdSsiSSRun.cc                  XrdSsi/XrdSsiSSRun.hh
-                                       XrdSsi/XrdSsiSession.hh
                                        XrdSsi/XrdSsiStream.hh
 XrdSsi/XrdSsiTaskReal.cc               XrdSsi/XrdSsiTaskReal.hh
                                        XrdSsi/XrdSsiTrace.hh

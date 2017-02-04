@@ -31,8 +31,23 @@
 #include <stdio.h>
 #include <string.h>
   
+#include "XrdSsi/XrdSsiResource.hh"
+#include "XrdSsi/XrdSsiScale.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
 #include "XrdSsi/XrdSsiSessReal.hh"
+#include "XrdSsi/XrdSsiTrace.hh"
+#include "XrdSsi/XrdSsiUtils.hh"
+  
+/******************************************************************************/
+/*                     S t a t i c s   &   G l o b a l s                      */
+/******************************************************************************/
+  
+namespace XrdSsi
+{
+       XrdSsiScale   sidScale;
+}
+
+using namespace XrdSsi;
 
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
@@ -58,11 +73,11 @@ XrdSsiServReal::~XrdSsiServReal()
 /* Private:                        A l l o c                                  */
 /******************************************************************************/
 
-XrdSsiSessReal *XrdSsiServReal::Alloc(const char *sName)
+XrdSsiSessReal *XrdSsiServReal::Alloc(const char *sName, int uent, bool hold)
 {
    XrdSsiSessReal *sP;
 
-// Check if we can grab this from out queue
+// Reuse or allocate a new session object and return it
 //
    myMutex.Lock();
    actvSes++;
@@ -70,71 +85,73 @@ XrdSsiSessReal *XrdSsiServReal::Alloc(const char *sName)
       {freeCnt--;
        freeSes = sP->nextSess;
        myMutex.UnLock();
-       sP->InitSession(this, sName);
+       sP->InitSession(this, sName, uent, hold);
       } else {
        myMutex.UnLock();
-       if (!(sP = new XrdSsiSessReal(this, sName)))
+       if (!(sP = new XrdSsiSessReal(this, sName, uent, hold)))
           {myMutex.Lock(); actvSes--; myMutex.UnLock();}
       }
-
-// Return the pointer
-//
    return sP;
 }
-
+  
 /******************************************************************************/
 /* Private:                       G e n U R L                                 */
 /******************************************************************************/
   
-bool XrdSsiServReal::GenURL(XrdSsiService::Resource *rP,
-                            char *buff, int blen, bool uCon)
+bool XrdSsiServReal::GenURL(XrdSsiResource *rP, char *buff, int blen, int uEnt)
 {
    static const char affTab[] = "\0\0n\0w\0s\0S";
-   const char *xUsr, *xAt, *iSep, *iVal, *tVar, *tVal, *uVar, *uVal;
-   const char *aVar, *aVal;
+   const char *xUsr, *xAt,  *iSep, *iVal, *tVar, *tVal, *uVar, *uVal;
+   const char *aVar, *aVal, *qVal = "";
+   char uBuff[8];
    int n;
-   bool xCGI = false;
 
 // Preprocess avoid list, if any
 //
-   if (!(rP->rDesc.hAvoid) || !*(rP->rDesc.hAvoid)) tVar = tVal = "";
-      else {tVar = "?tried=";
-            tVal = rP->rDesc.hAvoid;
-            xCGI = true;
+   if (rP->hAvoid.length() == 0) tVar = tVal = "";
+      else {tVar = "&tried=";
+            tVal = rP->hAvoid.c_str();
+            qVal = "?";
            }
 
 // Preprocess affinity
 //
-   if (!(rP->rDesc.affinity)) aVar = aVal = "";
-      else {aVar = (xCGI ? "&cms.aff=" : "?cms.aff=");
-            aVal = &affTab[rP->rDesc.affinity*2];
-            xCGI = true;
+   if (!(rP->affinity)) aVar = aVal = "";
+      else {aVar = "&cms.aff=";
+            aVal = &affTab[rP->affinity*2];
+            qVal = "?";
            }
 
-// Check if we need to qualify the host with a user name
+// Check if we need to add a user name
 //
-   if (!rP->rDesc.rUser || !(*rP->rDesc.rUser)) xUsr = xAt = uVar = uVal = "";
-      else {uVar = (xCGI ? "&ssi.user=" : "?ssi.user=");
-            uVal = rP->rDesc.rUser;
-            xCGI = true;
-            if (!uCon) xUsr = xAt = "";
-               else  {xUsr = rP->rDesc.rUser; xAt = "@";}
+   if (rP->rUser.length() == 0) uVar = uVal = "";
+      else {uVar = "&ssi.user=";
+            uVal = rP->rUser.c_str();
+            qVal = "?";
            }
 
 // Preprocess the cgi information
 //
-   if (!(rP->rDesc.rInfo) || !*(rP->rDesc.rInfo)) iSep = iVal = "";
-      else {iVal = rP->rDesc.rInfo;
-            if (xCGI) iSep = (*iVal == '&' ? "" : "&");
-               else   iSep = (*iVal == '?' ? "" : "?");
+   if (rP->rInfo.length() == 0) iSep = iVal = "";
+      else {iVal = rP->rInfo.c_str();
+            iSep = "&ssi.cgi=";
+            qVal = "?";
+           }
+
+// Check if we need to qualify the host with a user index
+//
+   if (uEnt == 0) xUsr = xAt = "";
+      else {snprintf(uBuff, sizeof(uBuff), "%d", uEnt);
+            uVal = uBuff;
+            xAt = "@";
            }
 
 // Generate appropriate url
-//                                             t   a   u   i
-   n = snprintf(buff, blen, "xroot://%s%s%s/%s%s%s%s%s%s%s%s%s",
-                             xUsr, xAt, manNode,
-                             rP->rDesc.rName, tVar, tVal, aVar, aVal,
-                                              uVar, uVal, iSep, iVal);
+//                                             ? t   a   u   i
+   n = snprintf(buff, blen, "xroot://%s%s%s/%s%s%s%s%s%s%s%s%s%s",
+                             xUsr, xAt, manNode, rP->rName.c_str(), qVal,
+                             tVar, tVal, aVar, aVal,
+                             uVar, uVal, iSep, iVal);
 
 // Return overflow or not
 //
@@ -142,48 +159,50 @@ bool XrdSsiServReal::GenURL(XrdSsiService::Resource *rP,
 }
 
 /******************************************************************************/
-/*                             P r o v i s i o n                              */
+/*                        P r o c e s s R e q u e s t                         */
 /******************************************************************************/
-  
-void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
-                               unsigned short           timeOut,
-                               bool                     userConn
-                              )
+
+void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
+                                    XrdSsiResource &resRef)
 {
    XrdSsiSessReal *sObj;
-   char            epURL[4096];
+   int  uEnt;
+   char epURL[4096];
 
 // Validate the resource name
 //
-   if (!resP->rDesc.rName || !(*resP->rDesc.rName))
-      {resP->eInfo.Set("Resource name missing.", EINVAL);
-       resP->ProvisionDone(0);
+   if (resRef.rName.length() == 0)
+      {XrdSsiUtils::RetErr(reqRef, "Resource name missing.", EINVAL);
+       return;
+      }
+
+// Get a sid entry number
+//
+   if ((uEnt = sidScale.getEnt()) < 0)
+      {XrdSsiUtils::RetErr(reqRef, "Out of stream resources.", ENOSR);
        return;
       }
 
 // Construct url
 //
-   if (!GenURL(resP, epURL, sizeof(epURL), userConn))
-      {resP->eInfo.Set("Resource url is too long.", ENAMETOOLONG);
-       resP->ProvisionDone(0);
+   if (!GenURL(&resRef, epURL, sizeof(epURL), uEnt))
+      {XrdSsiUtils::RetErr(reqRef, "Resource url is too long.", ENAMETOOLONG);
+       sidScale.retEnt(uEnt);
        return;
       }
 
-// Obtain a new session object
+// Obtain a new session object (note the first request uses the session mutex)
 //
-   if (!(sObj = Alloc(resP->rDesc.rName)))
-      {resP->eInfo.Set("Insufficient memory.", ENOMEM);
-       resP->ProvisionDone(0);
+   if (!(sObj = Alloc(resRef.rName.c_str(), uEnt)))
+      {XrdSsiUtils::RetErr(reqRef, "Insufficient memory.", ENOMEM);
+       sidScale.retEnt(uEnt);
        return;
-      }
+      } else reqRef.SetMutex(sObj->MutexP());
 
-// Now just effect an open to this resource
+// Now just provision this resource which will execute the request should it
+// be successful.
 //
-   if (!(sObj->Open(resP, epURL, timeOut,
-                    (resP->rDesc.rOpts & XrdSsiResource::autoUnP) != 0)))
-      {Recycle(sObj);
-       resP->ProvisionDone(0);
-      }
+   if (!(sObj->Provision(&reqRef, epURL))) Recycle(sObj);
 }
 
 /******************************************************************************/
@@ -192,11 +211,14 @@ void XrdSsiServReal::Provision(XrdSsiService::Resource *resP,
   
 void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj)
 {
+   EPNAME("Recycle");
+   static const char *tident = "ServReal";
 
 // Add to queue unless we have too many of these
 //
    myMutex.Lock();
    actvSes--;
+   DEBUG("Sessions: free=" <<freeCnt <<" active=" <<actvSes);
    if (freeCnt >= freeMax) {myMutex.UnLock(); delete sObj;}
       else {sObj->ClrEvent();
             sObj->nextSess = freeSes;
@@ -204,22 +226,6 @@ void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj)
             freeCnt++;
             myMutex.UnLock();
            }
-}
-
-/******************************************************************************/
-/* Private:                       R e t E r r                                 */
-/******************************************************************************/
-  
-XrdSsiSession *XrdSsiServReal::RetErr(XrdSsiErrInfo &eInfo,
-                                     const char    *eTxt, int eNum, bool async)
-{
-// Set the error information
-//
-   eInfo.Set(eTxt, eNum);
-
-// Now return dependent on the processing mode
-//
-   return (async ? (XrdSsiSession *)-1 : 0);
 }
 
 /******************************************************************************/

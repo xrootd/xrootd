@@ -32,80 +32,77 @@
 #include <string.h>
   
 #include "XrdCl/XrdClFile.hh"
+#include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiEvent.hh"
 #include "XrdSsi/XrdSsiResponder.hh"
-#include "XrdSsi/XrdSsiService.hh"
-#include "XrdSsi/XrdSsiSession.hh"
-#include "XrdSsi/XrdSsiTaskReal.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdSsiServReal;
+class XrdSsiTaskReal;
 
-class XrdSsiSessReal : public XrdSsiSession, public XrdSsiResponder,
-                       public XrdSsiEvent
+class XrdSsiSessReal : public XrdSsiEvent, public XrdSsiResponder
 {
 public:
 
-union
-{XrdSsiSessReal          *nextSess;
- XrdSsiService::Resource *resource;
-};
+XrdSsiSessReal  *nextSess;
 
+        bool     Execute(XrdSsiRequest *reqP);
 
-        void     InitSession(XrdSsiServReal *servP=0, const char *sName=0);
+        void     Finished(      XrdSsiRequest  &rqstR,
+                          const XrdSsiRespInfo &rInfo,
+                                bool            cancel=false);
 
-        void     Lock() {myMutex.Lock();}
+        void     InitSession(XrdSsiServReal *servP,
+                             const char     *sName,
+                             int             uent,
+                             bool            hold);
 
-XrdSysMutex     *MutexP() {return &myMutex;}
+        void     Lock() {sessMutex.Lock();}
 
-        bool     Open(XrdSsiService::Resource *resP, const char *epURL,
-                      unsigned short tOut, bool finup);
+XrdSsiMutex     *MutexP() {return &sessMutex;}
 
-        void     ProcessRequest(XrdSsiRequest *reqP, unsigned short tOut=0);
+        bool     Provision(XrdSsiRequest *reqP, const char *epURL);
 
-        void     Recycle(XrdSsiTaskReal *tP);
+        void     TaskFinished(XrdSsiTaskReal *tP);
 
-        void     RequestFinished(      XrdSsiRequest  *reqP,
-                                 const XrdSsiRespInfo &rInfo,
-                                       bool cancel=false);
-
-static  void     SetErr(XrdCl::XRootDStatus &Status,
-                        int &eNum, const char **eText);
-
-static  void     SetErr(XrdCl::XRootDStatus &Status, XrdSsiErrInfo &eInfo);
-
-        void     UnLock() {myMutex.UnLock();}
-
-        bool     Unprovision(bool forced=false);
+        void     UnLock() {sessMutex.UnLock();}
 
         bool     XeqEvent(XrdCl::XRootDStatus *status,
                           XrdCl::AnyObject   **respP);
 
-                 XrdSsiSessReal(XrdSsiServReal *servP, const char *sName)
-                               : XrdSsiSession(strdup(sName), 0),
-                                 XrdSsiResponder(this, (void *)0),
-                                 XrdSsiEvent("SessReal")
-                                 {InitSession(servP);}
+                 XrdSsiSessReal(XrdSsiServReal *servP,
+                                const char     *sName,
+                                int             uent,
+                                bool            hold=false)
+                               : XrdSsiEvent("SessReal"),
+                                 sessMutex(XrdSsiMutex::Recursive),
+                                 sessName(0), sessNode(0)
+                                 {InitSession(servP, sName, uent, hold);}
 
                 ~XrdSsiSessReal();
 
-XrdCl::File      epFile;
+XrdCl::File         epFile;
 
 private:
-static int       MapErr(int xEnum);
+XrdSsiTaskReal  *NewTask(XrdSsiRequest *reqP);
 void             RelTask(XrdSsiTaskReal *tP);
-void             RequestFailed(XrdSsiRequest *rqstP,const char *eText,int eCode);
 void             Shutdown(XrdCl::XRootDStatus &epStatus);
+void             Unprovision();
 
-XrdSysRecMutex   myMutex;
+XrdSsiMutex      sessMutex;
 XrdSsiServReal  *myService;
 XrdSsiTaskReal  *attBase;
 XrdSsiTaskReal  *freeTask;
 XrdSsiTaskReal  *pendTask;
-short            nextTID;
-short            alocLeft;
-short            numPT;
-bool             doUnProv;
-bool             stopping;
+XrdSsiRequest   *requestP;
+char            *sessName;
+char            *sessNode;
+int16_t          nextTID;
+int16_t          alocLeft;
+int16_t          numAT;    // Number of active tasks
+int16_t          uEnt;     // User index for scaling
+bool             isHeld;
+bool             inOpen;
+bool             doStop;
 };
 #endif

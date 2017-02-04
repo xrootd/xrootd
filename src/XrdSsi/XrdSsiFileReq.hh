@@ -42,8 +42,12 @@
 
 class  XrdOucErrInfo;
 class  XrdSfsXioHandle;
+class  XrdSsiAlert;
+class  XrdSsiFileResource;
 class  XrdSsiFileSess;
+class  XrdSsiRespInfoMsg;
 class  XrdSsiRRInfo;
+class  XrdSsiService;
 class  XrdSsiStream;
 
 class XrdSsiFileReq : public XrdSsiRequest, public XrdSsiResponder,
@@ -54,19 +58,28 @@ public:
 
 // SsiRequest methods
 //
-static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiFileSess *fP,
-                             XrdSsiSession *sP, const char     *sn,
-                             const char    *id, int             rnum);
-
         void           Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz);
 
-        void           BindDone(XrdSsiSession *sP);
+        void           Alert(XrdSsiRespInfoMsg &aMsg);
+
+static  XrdSsiFileReq *Alloc(XrdOucErrInfo  *eP, XrdSsiFileResource *rP,
+                             XrdSsiFileSess *fP, const char         *sn,
+                             const char     *id, int                 rnum);
+
+        void           BindDone();
 
         void           Finalize();
 
+        using          XrdSsiRequest::Finished;
+
+        void           Finished(      XrdSsiRequest  &rqstR,
+                                const XrdSsiRespInfo &rInfo,
+                                      bool            cancel=false) {}
+
         char          *GetRequest(int &rLen);
 
-        bool           ProcessResponse(const XrdSsiRespInfo &resp, bool isOK);
+        bool           ProcessResponse(const XrdSsiErrInfo  &eInfo,
+                                       const XrdSsiRespInfo &resp);
 
         XrdSfsXferSize Read(bool           &done,
                             char           *buffer,
@@ -77,13 +90,6 @@ static  XrdSsiFileReq *Alloc(XrdOucErrInfo *eP, XrdSsiFileSess *fP,
         int            Send(XrdSfsDio *sfDio, XrdSfsXferSize size);
 
 static  void           SetMax(int mVal) {freeMax = mVal;}
-
-        void           SSRun(XrdSsiService &, XrdSsiResource &,
-                             unsigned short tmo=0) {(void)tmo;}
-
-        void           SSRun(XrdSsiService &, const char *,
-                             const char *ruser=0, unsigned short tmo=0)
-                            {(void)ruser; (void)tmo;}
 
         bool           WantResponse(XrdOucErrInfo &eInfo);
 
@@ -101,7 +107,8 @@ static  void           SetMax(int mVal) {freeMax = mVal;}
 // Constructor and destructor
 //
                        XrdSsiFileReq(const char *cID=0)
-                                 : XrdSsiResponder(this, (void *)0) {Init(cID);}
+                                    : frqMutex(XrdSsiMutex::Recursive)
+                                      {Init(cID);}
 
 virtual               ~XrdSsiFileReq() {if (tident) free(tident);}
 
@@ -121,23 +128,28 @@ XrdSfsXferSize         readStrmP(XrdSsiStream *strmP, char *buff,
 int                    sendStrmA(XrdSsiStream *strmP, XrdSfsDio *sfDio,
                                  XrdSfsXferSize blen);
 void                   Recycle();
-void                   WakeUp();
+void                   WakeUp(XrdSsiAlert *aP=0);
 
 static XrdSysMutex     aqMutex;
 static XrdSsiFileReq  *freeReq;
 static int             freeCnt;
 static int             freeMax;
 
+XrdSsiMutex            frqMutex;
 XrdSsiFileReq         *nextReq;
 XrdSysSemaphore       *finWait;
 XrdOucEICB            *respCB;
 unsigned long long     respCBarg;
 
+XrdSsiAlert           *alrtSent;
+XrdSsiAlert           *alrtPend;
+XrdSsiAlert           *alrtLast;
+
 char                  *tident;
 const char            *sessN;
 XrdOucErrInfo         *cbInfo;
+XrdSsiFileResource    *fileR;
 XrdSsiFileSess        *fileP;
-XrdSsiSession         *sessP;
 char                  *respBuf;
 long long              respOff;
 union {long long       fileSz;
@@ -154,6 +166,7 @@ bool                   respWait;
 bool                   strmEOF;
 bool                   schedDone;
 bool                   isPerm;
+bool                   isEnding;
 char                   rID[8];
 };
 #endif

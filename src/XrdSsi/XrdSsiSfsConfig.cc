@@ -33,6 +33,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -380,8 +381,10 @@ int XrdSsiSfsConfig::ConfigSvc(char **myArgv, int myArgc)
 
 // Initialize the provider
 //
-   if (!(Provider->Init(&SsiLogger, (XrdSsiCluster *)SsiCms, ConfigFN,
-                          SvcParms, myArgc, myArgv)))
+   if (!(Provider->Init(&SsiLogger, (XrdSsiCluster *)SsiCms, 
+                        std::string(ConfigFN),
+                        std::string(SvcParms ? SvcParms : ""),
+                        myArgc, myArgv)))
       {Log.Emsg("Config", "Provider initialization failed.");
        return 1;
       }
@@ -392,8 +395,8 @@ int XrdSsiSfsConfig::ConfigSvc(char **myArgv, int myArgc)
 
 // Otherwise we need to get the service object (we get only one)
 //
-   if (!(Service = Provider->GetService(eInfo, 0)))
-      {const char *eText = eInfo.Get();
+   if (!(Service = Provider->GetService(eInfo, "")))
+      {const char *eText = eInfo.Get().c_str();
        Log.Emsg("Config", "Unable to obtain server-side service object;",
                           (eText ? eText : "reason unknown."));
       }

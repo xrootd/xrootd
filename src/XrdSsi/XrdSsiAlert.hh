@@ -1,10 +1,11 @@
-#ifndef __XRDSSISERVREAL_HH__
-#define __XRDSSISERVREAL_HH__
+#ifndef _XRDSSIALERT_H
+#define _XRDSSIALERT_H
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i S e r v R e a l . h h                      */
+/*                        X r d S s i A l e r t . h h                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,37 +30,43 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiService.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-class XrdSsiResource;
-class XrdSsiSessReal;
-
-class XrdSsiServReal : public XrdSsiService
+class XrdSsiAlert : public XrdOucEICB
 {
 public:
 
-void           ProcessRequest(XrdSsiRequest &reqRef, XrdSsiResource &resRef);
+XrdSsiAlert            *next;
 
-void           Recycle(XrdSsiSessReal *sObj);
+static XrdSsiAlert     *Alloc(XrdSsiRespInfoMsg &aMsg);
 
-bool           Stop();
+       void             Recycle();
 
-               XrdSsiServReal(const char *contact, int hObj)
-                             : manNode(strdup(contact)), freeSes(0),
-                               freeCnt(0), freeMax(hObj), actvSes(0) {}
+       void             SetInfo(XrdOucErrInfo  &eInfo);
 
-              ~XrdSsiServReal();
+static void             SetMax(int maxval) {fMax = maxval;}
+
+// OucEICB methods
+//
+        void           Done(int &Result, XrdOucErrInfo *cbInfo,
+                            const char *path=0);
+
+        int            Same(unsigned long long arg1, unsigned long long arg2)
+                           {return 0;}
+
+                        XrdSsiAlert() {}
+                       ~XrdSsiAlert() {}
 private:
 
-XrdSsiSessReal *Alloc(const char *sName, int uent, bool hold=false);
-bool            GenURL(XrdSsiResource *rP, char *buff, int blen, int uEnt);
+static XrdSysMutex      aMutex;
+static XrdSsiAlert     *free;
+static int              fNum;
+static int              fMax;
 
-char           *manNode;
-XrdSysMutex     myMutex;
-XrdSsiSessReal *freeSes;
-int             freeCnt;
-int             freeMax;
-int             actvSes;
+static const int        fmaxDflt = 100;
+
+XrdSsiRespInfoMsg      *theMsg;
 };
 #endif

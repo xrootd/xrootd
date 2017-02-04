@@ -34,7 +34,7 @@
 //! for two purposes:
 //! 1) To ascertain the availability of a resource on a server node in an SSI
 //!    cluster.
-//! 2) To obtain a service object that can provision one or more resources.
+//! 2) To obtain a service object that can process one or more requests.
 //!
 //! Client-side: A providor object is predefined in libXrdSsi.so and must be
 //!              used by the client code to get service objects, as follows:
@@ -74,39 +74,54 @@
 //!              oss.statlib  -2 <path>/libXrdSsi.so
 //-----------------------------------------------------------------------------
 
+#include <errno.h>
+
+#include "XrdSsi/XrdSsiErrInfo.hh"
+#include "XrdSsi/XrdSsiResource.hh"
+
 class XrdSsiCluster;
-class XrdSsiErrInfo;
 class XrdSsiLogger;
 class XrdSsiService;
-
 
 class XrdSsiProvider
 {
 public:
 
 //-----------------------------------------------------------------------------
-//! Obtain a client-side service object.
+//! Obtain a service object (client-side or server-side).
 //!
 //! @param  eInfo    the object where error status is to be placed.
-//! @param  contact  the point of first contact when provisioning the service.
+//! @param  contact  the point of first contact when processing a request.
 //!                  The contact may be "host:port" where "host" is a DNS name,
 //!                  an IPV4 address (i.e. d.d.d.d), or an IPV6 address
 //!                  (i.e. [x:x:x:x:x:x]), and "port" is either a numeric port
 //!                  number or the service name assigned to the port number.
-//!                  This pointer is nil if the call is being made server-side.
+//!                  This is a null string if the call is being made server-side.
 //!                  Note that only one service object is obtained by a server.
-//! @param  oHold    the maximum number of session objects that should be held
-//!                  in reserve for future Provision() calls.
+//! @param  oHold    the maximum number of request objects that should be held
+//!                  in reserve for future calls.
 //!
 //! @return =0       A service object could not be created, eInfo has the reason.
 //! @return !0       Pointer to a service object.
 //-----------------------------------------------------------------------------
 
 virtual
-XrdSsiService *GetService(XrdSsiErrInfo &eInfo,
-                          const char    *contact,
-                          int            oHold=256
-                         ) {return 0;}
+XrdSsiService *GetService(XrdSsiErrInfo     &eInfo,
+                          const std::string &contact,
+                          int                oHold=256
+                         ) {eInfo.Set("Service not implemented!", ENOTSUP);
+                            return 0;
+                           }
+
+//-----------------------------------------------------------------------------
+//! Obtain the version of the abstract class used by underlying implementation.
+//! The version returned must match the version compiled in the loading library.
+//! If it does not, initialization fails.
+//-----------------------------------------------------------------------------
+
+static const int SsiVersion = 0x00010000;
+
+       int     GetVersion() {return SsiVersion;}
 
 //-----------------------------------------------------------------------------
 //! Initialize server-side processing. This method is invoked prior to any
@@ -116,8 +131,8 @@ XrdSsiService *GetService(XrdSsiErrInfo &eInfo,
 //! @param  clsP   pointer to the cluster management object. This pointer is nil
 //!                when a service object is being obtained by an unclustered
 //!                system (i.e. a stand-alone server).
-//! @param  cfgFn  pointer to the conifiguration file name.
-//! @param  parms  pointer to the conifiguration parameters or nil if none.
+//! @param  cfgFn  file path to the the conifiguration file.
+//! @param  parms  conifiguration parameters, if any.
 //! @param  argc   The count of command line arguments (always >= 1).
 //! @param  argv   Pointer to a null terminated array of tokenized command line
 //!                arguments. These arguments are taken from the command line
@@ -131,21 +146,45 @@ XrdSsiService *GetService(XrdSsiErrInfo &eInfo,
 
 virtual bool   Init(XrdSsiLogger  *logP,
                     XrdSsiCluster *clsP,
-                    const char    *cfgFn,
-                    const char    *parms,
+                    std::string    cfgFn,
+                    std::string    parms,
                     int            argc,
                     char         **argv
                    ) = 0;
 
 //-----------------------------------------------------------------------------
-//! Obtain the version of the abstract class used by underlying implementation.
-//! The version returned must match the version compiled in the loading library.
-//! If it does not, initialization fails.
+//! @brief Prepare for processing subsequent resource request.
+//!
+//! This method is meant to be used server-side to optimize subsequent request
+//! processing, perform authorization, and allow a provider to stall or redirect
+//! requests. It is optional and a default implementation is provided.
+//!
+//! @param  eInfo    The object where error information is to be placed.
+//! @param  rDesc    Reference to the resource object that describes the
+//!                  resource subsequent requests will use.
+//!
+//! @return true     Continue normally, no issues detected.
+//!         false    An exception occurred, the eInfo object has the reason.
+//!
+//! Special notes for server-side processing:
+//!
+//! 1) Two special errors are recognized that allow for a client retry:
+//!
+//!    resP->eInfo.eNum = EAGAIN (client should retry elsewhere)
+//!    resP->eInfo.eMsg = the host name where the client is redirected
+//!    resP->eInfo.eArg = the port number to be used by the client
+//!
+//!    resP->eInfo.eNum = EBUSY  (client should wait and then retry).
+//!    resP->eInfo.eMsg = an optional reason for the wait.
+//!    resP->eInfo.eArg = the number of seconds the client should wait.
 //-----------------------------------------------------------------------------
 
-static const int SsiVersion = 0x00010000;
-
-       int     GetVersion() {return SsiVersion;}
+virtual bool   Prepare(XrdSsiErrInfo &eInfo, const XrdSsiResource &rDesc)
+                      {if (QueryResource(rDesc.rName.c_str()) != notPresent)
+                          return true;
+                       eInfo.Set("Resource not available.", ENOENT);
+                       return false;
+                      }
 
 //-----------------------------------------------------------------------------
 //! Obtain the status of a resource.
@@ -153,13 +192,14 @@ static const int SsiVersion = 0x00010000;
 //!               resource relative to a particular endpoint.
 //! Server-Side:  When configured via oss.statlib directive, this is called
 //!               server-side by the XrdSsiCluster object to see if the resource
-//!               can be provided by the providor via a service object.
+//!               can be provided by the providor via a service object. This
+//!               method is also used server-side to determine resource status.
 //!
 //! @param  rName    Pointer to the resource name.
-//! @param  contact  the point of first contact that would be used to provision
-//!                  the resource (see client-side GetService() for details).
+//! @param  contact  the point of first contact that would be used to process
+//!                  the request relative to the resource (see ProcessRequest()).
 //!                  A nil pointer indicates a query for availibity at the
-//!                  local node (e.g. a cmsd query for resource availability).
+//!                  local node (e.g. a query for local resource availability).
 //!
 //! @return          One of the rStat enums, as follows:
 //!                  notPresent - resource not present on this node.

@@ -28,10 +28,13 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
+
+#include <stdint.h>
+#include <string>
   
 //-----------------------------------------------------------------------------
 //! The XrdSsiResource object is used by the Scalable Service Interface to
-//! describe a resource that may be provisioned by XrdSsiService.
+//! describe the resource that a request needs in order to execute.
 //-----------------------------------------------------------------------------
 
 class XrdSsiEntity;
@@ -40,10 +43,10 @@ class XrdSsiResource
 {
 public:
 
-const char    *rName;   //!< -> Name of the resource to be provisioned
-const char    *rUser;   //!< -> Name of the resource user (nil if anonymous)
-const char    *rInfo;   //!< -> Additional information in CGI format
-const char    *hAvoid;  //!< -> Comma separated list of hosts to avoid
+std::string    rName;   //!< -> Name of the resource to be used
+std::string    rUser;   //!< -> Name of the resource user (nil if anonymous)
+std::string    rInfo;   //!< -> Additional information in CGI format
+std::string    hAvoid;  //!< -> Comma separated list of hosts to avoid
 XrdSsiEntity  *client;  //!< -> Pointer to client identification (server-side)
 
 enum Affinity {Default, //!< Use configured affinity
@@ -55,43 +58,48 @@ enum Affinity {Default, //!< Use configured affinity
 Affinity       affinity;//!< Resource affinity
 
 static const
-unsigned short autoUnP = 0x0001; //!< Auto unprovision on Finish()
+uint16_t       reusable= 0x0001; //!< Make this resource is reusable
 
-unsigned short rOpts;   //!< Resource options (see above)
-unsigned short rsvd;
+uint16_t       rOpts;   //!< Resource options (see above)
+uint16_t       reUse;   //!< Number of minutes resource may be reused
 
 //-----------------------------------------------------------------------------
 //! Constructor
 //!
-//! @param  rname    points to the name of the resource. If using directory
+//! @param  rname    the name of the resource. If using directory
 //!                  notation (i.e. slash separated names); duplicate slashes
 //!                  and dot-shashes are compressed out.
 //!
 //! @param  havoid   if not null then points to a comma separated list of
-//!                  hostnames to avoid when provisioning the resource. This
+//!                  hostnames to avoid when finding the resource. This
 //!                  argument is only meaningful client-side.
 //!
-//! @param  ruser    points to the name of the resource user. If nil the user
-//!                  is anonymous (unnamed). By default, all resources share
+//! @param  ruser    the name of the resource user. If nil the user is
+//!                  anonymous (unnamed). By default, all resources share
 //!                  the TCP connection to any endpoint. Different users have
-//!                  separate connections only if so requested during the
-//!                  provision call (see XrdSsiService::Provision()).
+//!                  separate connections only if so requested vis the newConn
+//!                  option (see options above).
 //!
-//! @param  rinfo    points to additional information to be passed to the
-//!                  endpoint that provides the resource. The string should be
-//!                  in cgi format (e.g. var=val&var2-val2&....).
+//! @param  rinfo    additional information to be passed to the endpoint that
+//!                  that provides the resource. The string should be in cgi
+//!                  format (e.g. var=val&var2=val2&....).
 //!
 //! @param  raff     resource affinity (see Affinity enum).
+//!
+//! @param  ropts    resource handling options (see  enum).
+//!
+//! @param  reUse    number of times the resource may be reused.
 //-----------------------------------------------------------------------------
 
-               XrdSsiResource(const char *rname,
-                              const char *havoid=0,
-                              const char *ruser=0,
-                              const char *rinfo=0,
+               XrdSsiResource(std::string rname,
+                              std::string havoid="",
+                              std::string ruser="",
+                              std::string rinfo="",
+                              uint16_t    ropts=0,
                               Affinity    raff=Default
                              ) : rName(rname), rUser(ruser), rInfo(rinfo),
-                                 hAvoid(havoid), client(0), affinity(Default),
-                                 rOpts(0), rsvd(0) {}
+                                 hAvoid(havoid), client(0), affinity(raff),
+                                 rOpts(ropts), reUse(0) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor

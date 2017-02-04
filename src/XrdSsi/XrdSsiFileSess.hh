@@ -35,13 +35,13 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSsi/XrdSsiBVec.hh"
 #include "XrdSsi/XrdSsiFileReq.hh"
+#include "XrdSsi/XrdSsiFileResource.hh"
 #include "XrdSsi/XrdSsiRRTable.hh"
 #include "XrdSys/XrdSysPthread.hh"
   
 class  XrdOucEnv;
 class  XrdSfsXioHandle;
 struct XrdSsiRespInfo;
-class  XrdSsiSession;
 
 class XrdSsiFileSess
 {
@@ -72,7 +72,9 @@ static  XrdSsiFileSess  *Alloc(XrdOucErrInfo &einfo, const char *user);
                               XrdSfsXferSize     buffer_size);
 
         void             Recycle();
-                        
+
+XrdSsiFileResource      &Resource() {return fileResource;}
+
         int              SendData(XrdSfsDio         *sfDio,
                                   XrdSfsFileOffset   offset,
                                   XrdSfsXferSize     size);
@@ -113,6 +115,7 @@ static int               freeAbs;
 static int               maxRSZ;
 static int               authXQ;
 
+XrdSsiFileResource       fileResource;
 char                    *tident;
 XrdOucErrInfo           *eInfo;
 char                    *gigID;
@@ -120,10 +123,7 @@ char                    *fsUser;
 XrdSysMutex              myMutex;
 XrdSfsXio               *xioP;
 XrdOucBuffer            *oucBuff;
-union {
-       XrdSsiSession    *sessP;
-       XrdSsiFileSess   *nextFree;
-      };
+XrdSsiFileSess          *nextFree;
 int                      reqSize;
 int                      reqLeft;
 bool                     isOpen;

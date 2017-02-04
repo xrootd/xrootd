@@ -87,13 +87,14 @@ int                reqSize;
 
 struct  XrdSsiRRInfoAttn
 {
+static   const int  alrtResp = '!';  // In tag: response data is an alert
 static   const int  fullResp = ':';  // In tag: response data is present
 static   const int  pendResp = '*';  // In tag: response data is pending
 
          char  tag;
          char  flags;
 unsigned short pfxLen;   // Length of prefix
-unsigned int   mdLen;    // Length of metadata
+unsigned int   mdLen;    // Length of alert or meta data
          int   rsvd1;
          int   rsvd2;
 };

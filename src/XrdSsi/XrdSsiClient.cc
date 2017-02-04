@@ -29,8 +29,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <string>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
+#include <sys/types.h>
   
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdTrace.hh"
@@ -84,15 +88,15 @@ class XrdSsiClientProvider : public XrdSsiProvider
 {
 public:
 
-XrdSsiService *GetService(XrdSsiErrInfo &eInfo,
-                          const char    *contact,
-                          int            oHold=256
+XrdSsiService *GetService(XrdSsiErrInfo     &eInfo,
+                          const std::string &contact,
+                          int                oHold=256
                          );
 
 virtual bool   Init(XrdSsiLogger  *logP,
                     XrdSsiCluster *clsP,
-                    const char    *cfgFn,
-                    const char    *parms,
+                    std::string    cfgFn,
+                    std::string    parms,
                     int            argc,
                     char         **argv
                    ) {return true;}
@@ -117,9 +121,9 @@ void SetScheduler();
 /*      X r d S s i C l i e n t P r o v i d e r : : G e t S e r v i c e       */
 /******************************************************************************/
   
-XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo &eInfo,
-                                                const char    *contact,
-                                                int            oHold)
+XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo     &eInfo,
+                                                const std::string &contact,
+                                                int                oHold)
 {
    static const int maxTMO = 0x7fffffff;
    XrdNetAddr netAddr;
@@ -143,12 +147,12 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo &eInfo,
 
 // If no contact is given then declare an error
 //
-   if (!contact || !(*contact))
+   if (contact.empty())
       {eInfo.Set("Contact not specified.", EINVAL); return 0;}
 
 // Validate the given contact
 //
-   if ((eText = netAddr.Set(contact)))
+   if ((eText = netAddr.Set(contact.c_str())))
       {eInfo.Set(eText, EINVAL); return 0;}
 
 // Construct new binding

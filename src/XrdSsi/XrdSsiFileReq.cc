@@ -37,8 +37,11 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsDio.hh"
 #include "XrdSfs/XrdSfsXio.hh"
+#include "XrdSsi/XrdSsiAlert.hh"
 #include "XrdSsi/XrdSsiFileReq.hh"
+#include "XrdSsi/XrdSsiFileResource.hh"
 #include "XrdSsi/XrdSsiFileSess.hh"
+#include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
@@ -58,6 +61,7 @@ namespace XrdSsi
 {
 extern XrdSysError    Log;
 extern XrdScheduler  *Sched;
+extern XrdSsiService *Service;
 };
 
 using namespace XrdSsi;
@@ -112,15 +116,61 @@ void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
 }
 
 /******************************************************************************/
+/*                                 A l e r t                                  */
+/******************************************************************************/
+
+void XrdSsiFileReq::Alert(XrdSsiRespInfoMsg &aMsg)
+{
+   EPNAME("Alert");
+   const XrdSsiRespInfo *rP = RespP();
+   XrdSsiAlert *aP;
+   int msgLen;
+
+// Do some debugging
+//
+   aMsg.GetMsg(msgLen);
+   DEBUGXQ(msgLen <<" byte alert presented wtr=" <<respWait);
+
+// Lock this object
+//
+   frqMutex.Lock();
+
+// Validate the length and whether this call is allowed
+//
+   if (msgLen <= 0 || rP->rType != XrdSsiRespInfo::isNone || isEnding)
+      {frqMutex.UnLock();
+       aMsg.Recycle();
+       return;
+      }
+
+// Allocate an alert object and chain it into the pending queue
+//
+   aP = XrdSsiAlert::Alloc(aMsg);
+
+// If the client is waiting for a response then we can send the alert now.
+// Otherwise, we need to queue it until he client comes back to us.
+//
+   if (respWait) WakeUp(aP);
+      else {if (alrtLast) alrtLast->next = aP;
+               else alrtPend = aP;
+            alrtLast = aP;
+           }
+
+// All done
+//
+   frqMutex.UnLock();
+}
+  
+/******************************************************************************/
 /*                                 A l l o c                                  */
 /******************************************************************************/
 
-XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo  *eiP,
-                                    XrdSsiFileSess *fP,
-                                    XrdSsiSession  *sP,
-                                    const char     *sID,
-                                    const char     *cID,
-                                    int             rnum)
+XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo      *eiP,
+                                    XrdSsiFileResource *rP,
+                                    XrdSsiFileSess     *fP,
+                                    const char         *sID,
+                                    const char         *cID,
+                                    int                 rnum)
 {
    XrdSsiFileReq *nP;
 
@@ -141,7 +191,7 @@ XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo  *eiP,
 //
    if (nP)
       {nP->sessN  = sID;
-       nP->sessP  = sP;
+       nP->fileR  = rP;
        nP->fileP  = fP;
        nP->cbInfo = eiP;
        nP->reqID = rnum;
@@ -157,19 +207,19 @@ XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo  *eiP,
 /*                              B i n d D o n e                               */
 /******************************************************************************/
 
-// This is called with reqMutex locked!
+// This is called with frqMutex locked!
 
-void XrdSsiFileReq::BindDone(XrdSsiSession *sP)
+void XrdSsiFileReq::BindDone()
 {
    EPNAME("BindDone");
 
 // Do some debugging
 //
-   DEBUGXQ("Bind called; session " <<(sP ? "set" : "nil"));
+   DEBUGXQ("Bind called; for request " <<reqID);
 
 // Processing depends on the current state. Only listed states are valid.
 // When the state is done, a finished event occuured between the time the
-// request was handed off to the session but before the session bound it.
+// request was handed off to the service but before the service bound it.
 //
    switch(urState)
          {case isBegun:  urState = isBound;
@@ -197,7 +247,7 @@ void XrdSsiFileReq::BindDone(XrdSsiSession *sP)
 void XrdSsiFileReq::DoIt()
 {
    EPNAME("DoIt");
-   XrdSsiMutexMon mHelper(reqMutex);
+   XrdSsiMutexMon mHelper(frqMutex);
    bool cancel;
 
 // Processing is determined by the responder's state. Only listed states are
@@ -205,12 +255,13 @@ void XrdSsiFileReq::DoIt()
 //
    switch(urState)
          {case isNew:    myState = xqReq; urState = isBegun;
-                         DEBUGXQ("Calling session Process");
+                         DEBUGXQ("Calling service processor");
                          mHelper.UnLock();
-                         sessP->ProcessRequest((XrdSsiRequest *)this);
+                         Service->ProcessRequest((XrdSsiRequest      &)*this,
+                                                 (XrdSsiFileResource &)*fileR);
                          return;
                          break;
-          case isAbort:  DEBUGXQ("Skipped calling session Process");
+          case isAbort:  DEBUGXQ("Skipped calling service processor");
                          mHelper.UnLock();
                          Recycle();
                          return;
@@ -243,7 +294,7 @@ void XrdSsiFileReq::DoIt()
 void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 {
    EPNAME("Done");
-   XrdSsiMutexMon(reqMutex);
+   XrdSsiMutexMon mHelper(frqMutex);
 
 // We may need to delete the errinfo object if this callback was async. Note
 // that the following test is valid even if the file object has been deleted.
@@ -312,7 +363,7 @@ int XrdSsiFileReq::Emsg(const char    *pfx,    // Message prefix value
 
 // Get correct error code and message
 //
-   eMsg = eObj.Get(eNum);
+   eMsg = eObj.Get(eNum).c_str();
    if (eNum <= 0) eNum = EFAULT;
    if (!eMsg || !(*eMsg)) eMsg = "reason unknown";
 
@@ -337,8 +388,20 @@ int XrdSsiFileReq::Emsg(const char    *pfx,    // Message prefix value
 void XrdSsiFileReq::Finalize()
 {
    EPNAME("Finalize");
-   XrdSsiMutexMon mHelper(reqMutex);
+   XrdSsiMutexMon mHelper(frqMutex);
    bool cancel = (myState != odRsp);
+
+// Release any unsent alerts (prevent any new alerts from being accepted)
+//
+   isEnding = true;
+   if (alrtSent || alrtPend)
+      {XrdSsiAlert *dP, *aP = alrtSent;
+       if (aP) aP->next = alrtPend;
+          else aP       = alrtPend;
+       mHelper.UnLock();
+       while((dP = aP)) {aP = aP->next; dP->Recycle();}
+       mHelper.Lock(frqMutex);
+      }
 
 // Processing is determined by the responder's state
 //
@@ -420,8 +483,10 @@ void XrdSsiFileReq::Init(const char *cID)
    cbInfo     = 0;
    respCB     = 0;
    respCBarg  = 0;
+   alrtSent   = 0;
+   alrtPend   = 0;
+   alrtLast   = 0;
    sessN      = "???";
-   sessP      = 0;
    oucBuff    = 0;
    sfsBref    = 0;
    strBuff    = 0;
@@ -436,16 +501,19 @@ void XrdSsiFileReq::Init(const char *cID)
    respWait   = false;
    strmEOF    = false;
    isPerm     = false;
+   isEnding   = false;
+   SetMutex(&frqMutex);
 }
 
 /******************************************************************************/
 /* Protected:            P r o c e s s R e s p o n s e                        */
 /******************************************************************************/
 
-bool XrdSsiFileReq::ProcessResponse(const XrdSsiRespInfo &Resp, bool isOK)
+bool XrdSsiFileReq::ProcessResponse(const XrdSsiErrInfo  &eInfo,
+                                    const XrdSsiRespInfo &Resp)
 {
    EPNAME("ProcessResponse");
-   XrdSsiMutexMon mHelper(reqMutex);
+   XrdSsiMutexMon mHelper(frqMutex);
 
 // Do some debugging
 //
@@ -673,7 +741,7 @@ void XrdSsiFileReq::Recycle()
 void XrdSsiFileReq::RelRequestBuffer()
 {
    EPNAME("RelReqBuff");
-   XrdSsiMutexMon mHelper(reqMutex);
+   XrdSsiMutexMon mHelper(frqMutex);
 
 // Do some debugging
 //
@@ -814,8 +882,31 @@ int XrdSsiFileReq::sendStrmA(XrdSsiStream *strmP,
   
 bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
 {
-   XrdSsiMutexMon(reqMutex);
-   const XrdSsiRespInfo *rspP = RespP();
+   EPNAME("WantResp");
+   XrdSsiMutexMon frqMon;
+   const XrdSsiRespInfo *rspP;
+
+// Check if we have a previos alert that was sent (we need to recycle it). We
+// don't need a lock for this as it's fully serialized via serial fsctl calls.
+//
+   if (alrtSent) {alrtSent->Recycle(); alrtSent = 0;}
+
+// Serialize the remainder of this code
+//
+   frqMon.Lock(frqMutex);
+   rspP = RespP();
+
+// If we have a pending alert then we need to send it now. Suppress the callback
+// as we will recycle the alert on the next call (there should be one).
+//
+   if (alrtPend)
+      {alrtSent = alrtPend;
+       if (!(alrtPend = alrtPend->next)) alrtLast = 0;
+       alrtSent->SetInfo(eInfo);
+       eInfo.setErrCB((XrdOucEICB *)0);
+       DEBUGXQ("alert sent; " <<(alrtPend ? "" : "no ") <<"more pending");
+       return true;
+      }
 
 // Check if a response is here (well, ProcessResponse was called)
 //
@@ -843,7 +934,7 @@ bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
 /* Private:                       W a k e U p                                 */
 /******************************************************************************/
   
-void XrdSsiFileReq::WakeUp() // Called with reqMutex locked!
+void XrdSsiFileReq::WakeUp(XrdSsiAlert *aP) // Called with frqMutex locked!
 {
    EPNAME("WakeUp");
    XrdOucErrInfo *wuInfo = 
@@ -855,15 +946,21 @@ void XrdSsiFileReq::WakeUp() // Called with reqMutex locked!
 //
    DEBUGXQ("respCBarg=" <<Xrd::hex <<respCBarg <<Xrd::dec);
 
-// Setup the wakeup data. If this is the complete response, then make sure we
-// get a callback to do the finalization. Otherwise, we don't need a callback
+// Setup the wakeup data. This may be for an alert or for an actual response.
+// If this is an alert or the complete response, then make sure we get a
+// callback to do the finalization. Otherwise, we don't need a callback
 // and the callback handler will simply delete the error object for us.
 //
-   if (fileP->AttnInfo(*wuInfo, rspP, reqID))
-      {wuInfo->setErrCB((XrdOucEICB *)this, respCBarg); myState = odRsp;}
+   if (aP)
+      {aP->SetInfo(*wuInfo);
+       wuInfo->setErrCB((XrdOucEICB *)aP, respCBarg);
+      } else {
+       if (fileP->AttnInfo(*wuInfo, rspP, reqID))
+          {wuInfo->setErrCB((XrdOucEICB *)this, respCBarg); myState = odRsp;}
+      }
 
-// Tell the client to issue a read now or handle the full response.
+// Tell the client to issue a read now or handle the alert or full response.
 //
-   respWait  = false;
+   respWait = false;
    respCB->Done(respCode, wuInfo, sessN);
 }

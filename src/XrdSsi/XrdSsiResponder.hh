@@ -35,71 +35,45 @@
 #include "XrdSsi/XrdSsiRequest.hh"
 
 //-----------------------------------------------------------------------------
-//! The XrdSsiResponder.hh class provides the session object and its agents a way to
+//! The XrdSsiResponder.hh class provides a request processing object a way to
 //! respond to a request. It is a companion (friend) class of XrdSsiRequest.
 //! This class is only practically meaningful server-side.
 //!
 //! Any class that needs to post a response, release a request buffer or post
 //! stream data to the request object should inherit this class and use its
-//! methods to get access to the request object. Typically, the XrdSsiSession
-//! implementation class and its agent classes (i.e. classes that do work on
-//! its behalf) inherit this class.
+//! methods to get access to the request object. Typically, a task class that
+//! is created by XrdSsiService::Execute() to handle te request would inherit
+//! this class so it can respond. The object that wantsto post a response must
+//! first call BindRequest() to establish the request-responder association.
 //!
 //! When the XrdSsiResponder::SetResponse() method is called to post a response
 //! the request object's ProcessResponse() method is called. Ownership of the
 //! request object does not revert back to the object's creator until the
-//! XrdSsiRequest::Finished() method returns. This allows the session to
+//! XrdSsiRequest::Finished() method returns. That method first calls
+//! XrdSsiResponder::Finished() to break the request-responder association and
 //! reclaim any response data buffer or stream resource before it gives up
-//! control of the request object.
-//!
-//! This is a real class that interposes itself between the abstract request
-//! object and the real (i.e. derived class) session object or its agent.
+//! control of the request object. This means you must provide an implementation
+//! To the Finished() method defined here.
 //-----------------------------------------------------------------------------
 
-#define SSI_VAL_RESPONSE(rX)    XrdSsiRequest *rX = Atomic_GET(reqP);\
-                                if (!rX) return notPosted; \
-                                Atomic_SET(reqP, 0); \
-                                rX->reqMutex.Lock(); \
-                                if (rX->theRespond != this) \
-                                   {rX->reqMutex.UnLock(); return notActive;}
+#define SSI_VAL_RESPONSE(rX) rrMutex->Lock();\
+                             XrdSsiRequest *rX = reqP;\
+                             if (!rX)\
+                                {rrMutex->UnLock(); return notActive;}\
+                             reqP = 0;\
+                             if (rX->theRespond != this)\
+                                {rrMutex->UnLock(); return notActive;}
 
-#define SSI_XEQ_RESPONSE(rX,oK) rX->reqMutex.UnLock(); \
-                                return (rP->ProcessResponse(rX->Resp, oK)\
-                                       ? wasPosted : notActive)
+#define SSI_XEQ_RESPONSE(rX) rrMutex->UnLock();\
+                             return (rX->ProcessResponse(rX->errInfo,rX->Resp)\
+                                    ? wasPosted : notActive)
 
-class XrdSsiSession;
+class XrdSsiStream;
 
 class XrdSsiResponder
 {
 public:
-
-//-----------------------------------------------------------------------------
-//! Obtain the object that inherited this responder (Version 1). Use this
-//! version if the object is identified by an int type value. This member is
-//! set at construction time and does not need serialization.
-//!
-//! @param  oType Place to put object's type established at construction time.
-//! @param  oInfo Place to put Object's info established at construction time.
-//!
-//! @return The pointer to the object expressed as a void pointer along with
-//!         oType set to the object's type and oInfo set to any information.
-//-----------------------------------------------------------------------------
-
-inline void   *GetObject(int &oType, int &oInfo)
-                        {oType=objIdent[0]; oInfo=objIdent[1]; return objVal;}
-
-//-----------------------------------------------------------------------------
-//! Obtain the object that inherited this responder (Version 2). Use this
-//! version if the object is identified by void * handle (e.g. constructor).
-//! This member is set at construction time and does not need serialization.
-//!
-//! @param  oHndl Place to put Object's handle established at construction time.
-//!
-//! @return The pointer to object expressed as a void pointer along with
-//!         oHndl set the the object's handle.
-//-----------------------------------------------------------------------------
-
-inline void   *GetObject(void *&oHndl) {oHndl = objHandle; return objVal;}
+friend class XrdSsiRequest;
 
 //-----------------------------------------------------------------------------
 //! The maximum amount of metedata+data (i.e. the sum of two blen arguments in
@@ -113,34 +87,70 @@ static const int MaxDirectXfr = 2097152; //< Max (metadata+data) direct xfr
 protected:
 
 //-----------------------------------------------------------------------------
-//! Take ownership of a request object by binding a request object, to a session
-//! object and a responder object if it differs from the session object.
-//! This method should only be used by the session object or its agent.
+//! Send an alert message to the request. This is a convenience method that
+//! avoids race condistions with Finished() so it is safe to use in all cases.
+//! This is a server-side call. The service is responsible for creating a
+//! RespInfoMsg object containing the message and supplying a Recycle() method.
 //!
-//! @param  rqstP the pointer to the request   object.
-//! @param  sessP the pointer to the session   object.
-//! @param  respP the pointer to the responder object (optional).
+//! @param  aMsg  reference to the message to be sent.
 //-----------------------------------------------------------------------------
 
-inline  void    BindRequest(XrdSsiRequest   *rqstP,
-                            XrdSsiSession   *sessP,
+inline  void   Alert(XrdSsiRespInfoMsg &aMsg)
+                    {XrdSsiMutexMon(rrMutex);
+                     if (reqP) reqP->Alert(aMsg);
+                        else aMsg.Recycle(false);
+                    }
+
+//-----------------------------------------------------------------------------
+//! Take ownership of a request object by binding the request object to a
+//! responder object. This method must be called by the responder before
+//! posting any responses.
+//!
+//! @param  rqstP reference to the request   object.
+//! @param  respP pointer   to the responder object if it differs from this
+//!               object (i.e. setting on behalf of someone else).
+//-----------------------------------------------------------------------------
+
+inline  void    BindRequest(XrdSsiRequest   &rqstR,
                             XrdSsiResponder *respP=0)
-                           {XrdSsiMutexMon(rqstP->reqMutex);
-                            rqstP->theSession = sessP;
-                            rqstP->theRespond =(respP ? respP : this);
-                            if (respP) {Atomic_SET(respP->reqP, rqstP);}
-                               else    {Atomic_SET(reqP, rqstP);}
-                            rqstP->Resp.Init();
-                            rqstP->BindDone(sessP);
+                           {XrdSsiMutexMon(rqstR.rrMutex);
+                            if (!respP) respP = this;
+                            rqstR.theRespond = respP;
+                            respP->reqP = &rqstR;
+                            respP->rrMutex = rqstR.rrMutex;
+                            rqstR.Resp.Init();
+                            rqstR.errInfo.Clr();
+                            rqstR.BindDone();
                            }
+
+//-----------------------------------------------------------------------------
+//! Notify the responder that a request either completed or was canceled. This
+//! allows the responder to release any resources given to the request object
+//! (e.g. data response buffer or a stream). Upon return the object is owned by
+//! the request object's creator who is responsible for releaasing or recycling
+//! the object. This method is automatically invoked by XrdSsiRequest::Finish().
+//!
+//! @param  rqstP  reference to the object describing the request.
+//! @param  rInfo  reference to the object describing the response.
+//! @param  cancel False -> the request/response interaction completed.
+//!                True  -> the request/response interaction aborted because
+//!                         of an error or the client requested that the
+//!                         request be canceled.
+//-----------------------------------------------------------------------------
+
+virtual void   Finished(      XrdSsiRequest  &rqstR,
+                        const XrdSsiRespInfo &rInfo,
+                              bool            cancel=false) = 0;
 
 //-----------------------------------------------------------------------------
 //! Release the request buffer of the request bound to this object. This is
 //! tricky member that requires atomics to correctly synchronize request ptr.
+//! This is a convenience function as the same method may be called on the
+//! request object itself.
 //-----------------------------------------------------------------------------
 
-inline  void   ReleaseRequestBuffer() {XrdSsiRequest *rP = Atomic_GET(reqP);
-                                       if (rP) rP->RelRequestBuffer();
+inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
+                                       if (reqP) reqP->RelRequestBuffer();
                                       }
 
 //-----------------------------------------------------------------------------
@@ -159,22 +169,20 @@ enum Status {wasPosted=0, //!< Success: The response was successfully posted
 //! Set a pointer to metadata to be sent out-of-band ahead of the response.
 //!
 //! @param  buff  pointer to a buffer holding the metadata. The buffer must
-//!               remain valid until XrdSsiSession::RequestFinished() is called.
+//!               remain valid until XrdSsiResponder::Finished() is called.
 //! @param  blen  the length of the metadata in buff that is to be sent. It must
 //!               in the range 0 <= blen <= MaxMetaDataSZ.
 //!
 //! @return       See Status enum for possible values.
 //-----------------------------------------------------------------------------
 
-static const int MaxMetaDataSZ = 2097152; //< 2MB metadata limit
+static const int MaxMetaDataSZ = 2097152; //!< 2MB metadata limit
 
 inline Status  SetMetadata(const char *buff, int blen)
-                          {XrdSsiRequest *rP = Atomic_GET(reqP);
-                           if (!rP || blen < 0 || blen > MaxMetaDataSZ)
+                          {XrdSsiMutexMon(rrMutex);
+                           if (!reqP || blen < 0 || blen > MaxMetaDataSZ)
                               return notPosted;
-                           rP->reqMutex.Lock();
-                           rP->Resp.mdata = buff; rP->Resp.mdlen = blen;
-                           rP->reqMutex.UnLock();
+                           reqP->Resp.mdata = buff; reqP->Resp.mdlen = blen;
                            return wasPosted;
                           }
 
@@ -190,10 +198,10 @@ inline Status  SetMetadata(const char *buff, int blen)
 
 inline Status  SetErrResponse(const char *eMsg, int eNum)
                           {SSI_VAL_RESPONSE(rP);
-                           rP->eInfo.Set(eMsg, eNum);
-                           rP->Resp.eMsg  = rP->eInfo.Get(rP->Resp.eNum);
+                           rP->errInfo.Set(eMsg, eNum);
+                           rP->Resp.eMsg  = rP->errInfo.Get(rP->Resp.eNum).c_str();
                            rP->Resp.rType = XrdSsiRespInfo::isError;
-                           SSI_XEQ_RESPONSE(rP,false);
+                           SSI_XEQ_RESPONSE(rP);
                           }
 
 //-----------------------------------------------------------------------------
@@ -208,7 +216,7 @@ inline Status  SetNilResponse() {return SetResponse((const char *)0,0);}
 //! Set a memory buffer containing data as the request response.
 //!
 //! @param  buff  pointer to a buffer holding the response. The buffer must
-//!               remain valid until XrdSsiSession::RequestFinished() is called.
+//!               remain valid until XrdSsiResponder::Finished() is called.
 //! @param  blen  the length of the response in buff that is to be sent.
 //!
 //! @return       See Status enum for possible values.
@@ -218,7 +226,7 @@ inline Status  SetResponse(const char *buff, int blen)
                           {SSI_VAL_RESPONSE(rP);
                            rP->Resp.buff  = buff; rP->Resp.blen  = blen;
                            rP->Resp.rType = XrdSsiRespInfo::isData;
-                           SSI_XEQ_RESPONSE(rP,true);
+                           SSI_XEQ_RESPONSE(rP);
                           }
 
 //-----------------------------------------------------------------------------
@@ -235,7 +243,7 @@ inline Status  SetResponse(long long fsize, int fdnum)
                            rP->Resp.fdnum = fdnum;
                            rP->Resp.fsize = fsize;
                            rP->Resp.rType = XrdSsiRespInfo::isFile;
-                           SSI_XEQ_RESPONSE(rP,true);
+                           SSI_XEQ_RESPONSE(rP);
                           }
 
 //-----------------------------------------------------------------------------
@@ -252,48 +260,19 @@ inline Status  SetResponse(XrdSsiStream *strmP)
                            rP->Resp.eNum  = 0;
                            rP->Resp.strmP = strmP;
                            rP->Resp.rType = XrdSsiRespInfo::isStream;
-                           SSI_XEQ_RESPONSE(rP,true);
+                           SSI_XEQ_RESPONSE(rP);
                           }
 
-//-----------------------------------------------------------------------------
-//! Get the request bound to this object.
-//!
-//! @return A pointer to the request object. If it is nil then no request
-//!         is currently bound to this object.
-//-----------------------------------------------------------------------------
-inline
-XrdSsiRequest *TheRequest() {return Atomic_GET(reqP);}
 
 //-----------------------------------------------------------------------------
-//! The constructor is protected. This class is meant to be inherited by an
-//! object (e.g. XrdSsiSession) that will actually post responses. This version
-//! should be used if the object that inherited the responder is identified by
-//! an integer type.
-//!
-//! @param  objP  Pointer to the underlying object (i.e. this pointer).
-//! @param  oType The value that identifies the object's type.
-//! @param  oInfo Optional additional information associated with the object.
+//! This class is meant to be inherited by an object that will actually posts
+//! responses.
 //-----------------------------------------------------------------------------
 
-               XrdSsiResponder(void *objP, int oType, int oInfo=0)
-                              : reqP(0), objVal(objP)
-                              {objIdent[0] = oType; objIdent[1] = oInfo;}
+               XrdSsiResponder() : reqP(0) {}
 
 //-----------------------------------------------------------------------------
-//! The constructor is protected. This class is meant to be inherited by an
-//! object (e.g. XrdSsiSession) that will actually post responses. This version
-//! should be used if the object that inherited the responder is identified by
-//! a void * handle (e.g. the underlying constructor).
-//!
-//! @param  objP  Pointer to the underlying object (i.e. this pointer).
-//! @param  objH  The handle value that identifies the object's type.
-//-----------------------------------------------------------------------------
-
-               XrdSsiResponder(void *objP, void *objH)
-                              : reqP(0), objVal(objP), objHandle(objH) {}
-
-//-----------------------------------------------------------------------------
-//! Destructor is protected. You cannot use delete on a respond object, as it
+//! Destructor is protected. You cannot use delete on a responder object, as it
 //! is meant to be inherited by a class and not separately instantiated.
 //-----------------------------------------------------------------------------
 
@@ -302,10 +281,9 @@ protected:
 virtual       ~XrdSsiResponder() {}
 
 private:
-Atomic(XrdSsiRequest *)  reqP;     // Can be set or retrieved w/o a mutex
-void                    *objVal;
-union          {int      objIdent[2];
-                void    *objHandle;
-               };
+inline void    Unbind() {rrMutex->Lock(); reqP = 0; rrMutex->UnLock();}
+
+XrdSsiMutex   *rrMutex;
+XrdSsiRequest *reqP;
 };
 #endif

@@ -31,10 +31,23 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "XProtocol/XProtocol.hh"
+
+#include "Xrd/XrdScheduler.hh"
+
+#include "XrdCl/XrdClXRootDResponses.hh"
+
 #include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+
 #include "XrdSfs/XrdSfsInterface.hh"
+
+#include "XrdSsi/XrdSsiAtomics.hh"
+#include "XrdSsi/XrdSsiErrInfo.hh"
+#include "XrdSsi/XrdSsiRequest.hh"
+#include "XrdSsi/XrdSsiResponder.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
+
 #include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
@@ -43,10 +56,56 @@
 
 namespace XrdSsi
 {
-extern XrdSysError       Log;
+extern XrdSysError   Log;
+extern XrdScheduler *schedP;
 };
 
 using namespace XrdSsi;
+
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+  
+class PostError : public XrdJob, public XrdSsiResponder
+{
+public:
+
+void     DoIt() {myMutex.Lock();
+                 if ( isActive) SetErrResponse(eTxt, eNum);
+                 if (!isActive) delete this;
+                    else {isActive = false;
+                          myMutex.UnLock();
+                         }
+                }
+
+virtual void   Finished(      XrdSsiRequest  &rqstR,
+                        const XrdSsiRespInfo &rInfo,
+                              bool            cancel=false)
+                       {myMutex.Lock();
+                        if (!isActive) delete this;
+                           else {isActive = false;
+                                 myMutex.UnLock();
+                                }
+                       }
+
+         PostError(XrdSsiRequest *rP, char *emsg, int ec)
+                  : myMutex(XrdSsiMutex::Recursive),
+                    reqP(rP), eTxt(emsg), eNum(ec), isActive(true)
+                    {rP->SetMutex(&myMutex);
+                     BindRequest(*reqP);
+                    }
+
+virtual ~PostError() {myMutex.UnLock();
+                      if (eTxt) free(eTxt);
+                     }
+
+private:
+XrdSsiMutex        myMutex; // Allow possible rentry via SetErrResponse()
+XrdSsiRequest     *reqP;
+char              *eTxt;
+int                eNum;
+bool               isActive;
+};
 
 /******************************************************************************/
 /*                                  E m s g                                   */
@@ -77,4 +136,74 @@ int XrdSsiUtils::Emsg(const char    *pfx,    // Message prefix value
 //
    eDest.setErrInfo(ecode, buffer);
    return SFS_ERROR;
+}
+
+
+/******************************************************************************/
+/*                                G e t E r r                                 */
+/******************************************************************************/
+  
+int XrdSsiUtils::GetErr(XrdCl::XRootDStatus &Status, std::string &eText)
+{
+
+// If this is an xrootd error then get the xrootd generated error
+//
+   if (Status.code == XrdCl::errErrorResponse)
+      {eText = Status.GetErrorMessage();
+       return MapErr(Status.errNo);
+      }
+
+// Internal error, we will need to copy strings here
+//
+   eText = Status.ToStr();
+   return (Status.errNo ? Status.errNo : EFAULT);
+}
+
+/******************************************************************************/
+/*                                M a p E r r                                 */
+/******************************************************************************/
+
+int XrdSsiUtils::MapErr(int xEnum)
+{
+    switch(xEnum)
+       {case kXR_NotFound:      return ENOENT;
+        case kXR_NotAuthorized: return EACCES;
+        case kXR_IOError:       return EIO;
+        case kXR_NoMemory:      return ENOMEM;
+        case kXR_NoSpace:       return ENOSPC;
+        case kXR_ArgTooLong:    return ENAMETOOLONG;
+        case kXR_noserver:      return EHOSTUNREACH;
+        case kXR_NotFile:       return ENOTBLK;
+        case kXR_isDirectory:   return EISDIR;
+        case kXR_FSError:       return ENOSYS;
+        default:                return ECANCELED;
+       }
+}
+
+/******************************************************************************/
+/*                                R e t E r r                                 */
+/******************************************************************************/
+  
+void XrdSsiUtils::RetErr(XrdSsiRequest &reqP, const char *eTxt, int eNum)
+{
+
+// Schedule an error callback
+//
+   XrdSsi::schedP->Schedule(new PostError(&reqP, strdup(eTxt), eNum));
+}
+
+/******************************************************************************/
+/*                                S e t E r r                                 */
+/******************************************************************************/
+  
+void XrdSsiUtils::SetErr(XrdCl::XRootDStatus &Status, XrdSsiErrInfo &eInfo)
+{
+
+// If this is an xrootd error then get the xrootd generated error
+//
+   if (Status.code == XrdCl::errErrorResponse)
+      {eInfo.Set(Status.GetErrorMessage().c_str(), MapErr(Status.errNo));
+      } else {
+       eInfo.Set(Status.ToStr().c_str(), (Status.errNo ? Status.errNo:EFAULT));
+      }
 }

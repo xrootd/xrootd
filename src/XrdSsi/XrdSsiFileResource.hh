@@ -1,10 +1,10 @@
-#ifndef __XRDSSISERVREAL_HH__
-#define __XRDSSISERVREAL_HH__
+#ifndef __SSI_FILERESOURCE_H__
+#define __SSI_FILERESOURCE_H__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d S s i S e r v R e a l . h h                      */
+/*                 X r d S s i F i l e R e s o u r c e . h h                  */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,37 +29,27 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiService.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
-class XrdSsiResource;
-class XrdSsiSessReal;
+#include "XrdSsi/XrdSsiEntity.hh"
+#include "XrdSsi/XrdSsiResource.hh"
 
-class XrdSsiServReal : public XrdSsiService
+class XrdOucEnv;
+
+class XrdSsiFileResource : public XrdSsiResource
 {
 public:
 
-void           ProcessRequest(XrdSsiRequest &reqRef, XrdSsiResource &resRef);
+void        Init(const char *path, XrdOucEnv &envP, int atype);
 
-void           Recycle(XrdSsiSessReal *sObj);
+            XrdSsiFileResource() : XrdSsiResource(std::string(""))
+                                   {memset(&mySec, 0, sizeof(mySec));}
 
-bool           Stop();
+           ~XrdSsiFileResource() {}
 
-               XrdSsiServReal(const char *contact, int hObj)
-                             : manNode(strdup(contact)), freeSes(0),
-                               freeCnt(0), freeMax(hObj), actvSes(0) {}
-
-              ~XrdSsiServReal();
 private:
-
-XrdSsiSessReal *Alloc(const char *sName, int uent, bool hold=false);
-bool            GenURL(XrdSsiResource *rP, char *buff, int blen, int uEnt);
-
-char           *manNode;
-XrdSysMutex     myMutex;
-XrdSsiSessReal *freeSes;
-int             freeCnt;
-int             freeMax;
-int             actvSes;
+XrdSsiEntity    mySec;
 };
 #endif

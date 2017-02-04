@@ -31,10 +31,13 @@
 
 #include <errno.h>
 
+#include "XrdSsi/XrdSsiErrInfo.hh"
+
 //-----------------------------------------------------------------------------
 //! The XrdSsiStream class describes an object capable of providing data for a
 //! response in real time. A pointer to such an object may be used to set this
 //! response mode via XrdSsiResponder::SetResponse(). Two kinds of streams exist:
+//!
 //! Active  the stream supplies the buffer that contains the response data.
 //!         The buffer is recycled via Buffer::Recycle() once the response data
 //!         is sent. Active streams are supported only server-side.
@@ -46,9 +49,6 @@
 //! The type of stream must be declared at the time the stream is created. You
 //! must supply an implementation for the associated stream type.
 //-----------------------------------------------------------------------------
-
-class XrdSsiErrInfo;
-class XrdSsiRequest;
 
 class XrdSsiStream
 {
@@ -75,7 +75,7 @@ virtual        ~Buffer() {}
 //-----------------------------------------------------------------------------
 //! Synchronously obtain data from an active stream (server-side only).
 //!
-//! @param  eInfo The object to receive any error description.
+//! @param  eRef The object to receive any error description.
 //! @param  dlen  input:  the optimal amount of data wanted (this is a hint)
 //!               output: the actual amount of data returned in the buffer.
 //! @param  last  input:  should be set to false.
@@ -84,36 +84,38 @@ virtual        ~Buffer() {}
 //!
 //! @return =0    No more data remains or an error occurred:
 //!               last = true:  No more data remains.
-//!               last = false: A fatal error occurred, eInfo has the reason.
+//!               last = false: A fatal error occurred, eRef has the reason.
 //! @return !0    Pointer to the Buffer object that contains a pointer to the
 //!               the data (see below). The buffer must be returned to the
 //!               stream using Buffer::Recycle(). The next member is usable.
 //-----------------------------------------------------------------------------
 
-virtual Buffer *GetBuff(XrdSsiErrInfo &eInfo, int &dlen, bool &last)
-                   {eInfo.Set("Not an active stream", EOPNOTSUPP); return 0;}
+virtual Buffer *GetBuff(XrdSsiErrInfo &eRef, int &dlen, bool &last)
+                   {eRef.Set("Not an active stream", EOPNOTSUPP); return 0;}
 
 //-----------------------------------------------------------------------------
 //! Asynchronously obtain data from a passive stream (client-side only).
 //!
-//! @param  rqstP The request object whose ProcessResponseData() method is to be
-//!               called when data or an async error is ready for proccesing.
+//! @param  eRef  reference to where error information is to be placed for
+//!               encountered before during the stream initiation. When data is
+//!               ready for processing, the ProcessResponseData() callback is
+//!               called on the request associated with this stream.
 //!               Also see XrdSsiRequest::GetResponseData() helper method.
 //! @param  buff  pointer to the buffer to receive the data. The buffer must
-//!               remain valid until rqstP->ProcessResponse() is called.
+//!               remain valid until ProcessResponse() is called.
 //! @param  blen  the length of the buffer (i.e. maximum that can be returned).
 //!
 //! @return true  The stream has been successfully scheduled to return the data.
-//! @return false The stream could not be scheduled; rqstP->eInfo holds the
-//!               the reson for the failure.
+//! @return false The stream could not be scheduled; eRef holds the reason.
 //-----------------------------------------------------------------------------
 
-virtual bool    SetBuff(XrdSsiRequest *rqstP, char *buff, int  blen);
+virtual bool    SetBuff(XrdSsiErrInfo &eRef, char *buff, int  blen)
+                   {eRef.Set("Not a passive stream", EOPNOTSUPP); return false;}
 
 //-----------------------------------------------------------------------------
 //! Synchronously obtain data from a passive stream (client- or server-side).
 //!
-//! @param  eInfo The object to receive any error description.
+//! @param  eRef  The object to receive any error description.
 //! @param  buff  pointer to the buffer to receive the data.
 //!               request object is notified that the operation completed.
 //! @param  blen  the length of the buffer (i.e. maximum that can be returned).
@@ -123,11 +125,11 @@ virtual bool    SetBuff(XrdSsiRequest *rqstP, char *buff, int  blen);
 //!
 //! @return >0    The number of bytes placed in buff.
 //! @return =0    No more data remains and the stream becomes invalid.
-//! @return <0    Fatal error occured; eInfo holds the reason.
+//! @return <0    Fatal error occured; eRef holds the reason.
 //-----------------------------------------------------------------------------
 
-virtual int     SetBuff(XrdSsiErrInfo &eInfo, char *buff, int blen, bool &last)
-                   {eInfo.Set("Not a passive stream", EOPNOTSUPP); return 0;}
+virtual int     SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen, bool &last)
+                   {eRef.Set("Not a passive stream", EOPNOTSUPP); return 0;}
 
 //-----------------------------------------------------------------------------
 //! Stream type descriptor:
@@ -157,20 +159,4 @@ protected:
 
 const StreamType SType;
 };
-
-//-----------------------------------------------------------------------------
-//! The following are default implementation for methods within this class so
-//! that unneeded methods needs not be supplied. This implementation must be
-//! available for all compilation units and is relies on XrdSsiRequest. Be
-//! aware that server-side passive streams you must supply an synchronous
-//! implementation. Normally, you will get better performance server-side using
-//! an active stream as data will not be copied before it is sent to the client.
-//-----------------------------------------------------------------------------
-
-#include "XrdSsi/XrdSsiRequest.hh"
-
-inline  bool    XrdSsiStream::SetBuff(XrdSsiRequest *rqstP, char *buff, int blen)
-                   {rqstP->eInfo.Set("Not a passive stream", EOPNOTSUPP);
-                    return false;
-                   }
 #endif

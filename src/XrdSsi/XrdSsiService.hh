@@ -29,8 +29,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSsi/XrdSsiErrInfo.hh"
-#include "XrdSsi/XrdSsiResource.hh"
+#include <stdint.h>
+#include <string>
   
 //-----------------------------------------------------------------------------
 //! The XrdSsiService object is used by the Scalable Service Interface to
@@ -47,8 +47,8 @@
 //!              XrdSsiProviderServer defined in the plugin shared library.
 //-----------------------------------------------------------------------------
 
-class XrdSsiEntity;
-class XrdSsiSession;
+class XrdSsiRequest;
+class XrdSsiResource;
 
 class XrdSsiService
 {
@@ -60,91 +60,61 @@ public:
 //! If it does not, initialization fails.
 //-----------------------------------------------------------------------------
 
-static const int SsiVersion = 0x00010000;
+static const int SsiVersion = 0x00020000;
 
        int     GetVersion() {return SsiVersion;}
 
 //-----------------------------------------------------------------------------
-//! The Resource class describes the session resource to be provisioned and is
-//! and is used to communicate the results of the provisioning request.
-//-----------------------------------------------------------------------------
-
-class          Resource
-{
-public:
-XrdSsiResource rDesc;  //!< The resource description
-XrdSsiErrInfo  eInfo;  //!< Holds error information upon failure
-
-//-----------------------------------------------------------------------------
-//! Handle the ending results of a Provision() call. It is called by the
-//! Service object when provisioning that has actually started completes.
+//! @brief Attach to a backgrounded request.
 //!
-//! @param  sessP    !0 -> to the successfully provisioned session object.
-//!                  =0 Provisioning failed, the eInfo object holds the reason.
+//! When a client calls Attach() the server-side Attach() is invoked to
+//! indicate that the backgrounded request is now a foreground request. Many
+//! times such notfication is not needed so a default nil implementation is
+//! provided. Server-side Attach() calls are always passed the original request
+//! object reference so that it can pair up the request with the attach.
+//!
+//! @param  reqRef   Reference to the request object that is to attach to the
+//!                  backgrounded request. It need not be the original request
+//!                  object (client-side) but it always is the original request
+//!                  object server-side.
+//!
+//! @param  handle   The handle provided to the XrdSsiRequest::ProcessResponse()
+//!                  callback method via isHandle message type.
+//!
+//! @return All results are returned via the request object callback methods.
 //-----------------------------------------------------------------------------
 
-virtual void   ProvisionDone(XrdSsiSession *sessP) = 0; //!< Callback
+virtual void   Attach(XrdSsiRequest &reqRef, std::string handle) {}
 
 //-----------------------------------------------------------------------------
-//! Constructor - See XrdSsiResource for details on the arguments as they are
-//! the same here as there. All XrdSsiResource member pointers must remain
-//! stable until ProvisionDone() is called.
+//! @brief Process a request; client-side or server-side.
+//!
+//! When a client calls ProcessRequest() the same method is called server-side
+//! with the same parameters that the client specified except for timeOut which
+//! is always set to zero server-side.
+//!
+//! @param  reqRef   Reference to the Request  object that describes the
+//!                  request.
+//!
+//! @param  resRef   Reference to the Resource object that describes the
+//!                  resource that the request will be using.
+//!
+//! @return All results are returned via the request object callback methods.
+//!         For background queries, the XrdSsiRequest::ProcessResponse() is 
+//!         called with a response type of isHandle when the request is handed
+//!         off to the endpoint for execution (see XrdSsiRequest::SetDetachTTL).
 //-----------------------------------------------------------------------------
 
-               Resource(const char *rname,
-                        const char *havoid=0,
-                        const char *ruser=0,
-                        const char *rinfo=0,
-                        XrdSsiResource::Affinity raff=XrdSsiResource::Default
-                       ) : rDesc(rname, havoid, ruser, rinfo, raff) {}
+virtual void   ProcessRequest(XrdSsiRequest  &reqRef,
+                              XrdSsiResource &resRef
+                             ) = 0;
 
 //-----------------------------------------------------------------------------
-//! Destructor
-//-----------------------------------------------------------------------------
-
-virtual       ~Resource() {}
-};
-
-//-----------------------------------------------------------------------------
-//! Provision of service session; client-side or server-side.
-//!
-//! @param  resP     Pointer to the Resource object (see above) that describes
-//!                  the resource to be provisioned.
-//!
-//! @param  timeOut  the maximum number seconds the operation may last before
-//!                  it is considered to fail. A zero value uses the default.
-//!
-//! @param  userConn when false, prexisting TCP connections are shared even when
-//!                  rUser is unique. Otherwise, TCP connections are only
-//!                  shared for the same rUser to the same endpoint.
-//!
-//! @return The method returns all results via resP->ProvisionDone() callback
-//!         which may use the calling thread or a new thread.
-//!
-//! Special notes for server-side processing:
-//!
-//! 1) Two special errors are recognized that allow for a client retry:
-//!
-//!    resP->eInfo.eNum = EAGAIN (client should retry elsewhere)
-//!    resP->eInfo.eMsg = the host name where the client is redirected
-//!    resP->eInfo.eArg = the port number to be used by the client
-//!
-//!    resP->eInfo.eNum = EBUSY  (client should wait and then retry).
-//!    resP->eInfo.eMsg = an optional reason for the wait.
-//!    resP->eInfo.eArg = the number of seconds the client should wait.
-//-----------------------------------------------------------------------------
-
-virtual void   Provision(Resource       *resP,
-                         unsigned short  timeOut=0,
-                         bool            userConn=false
-                        ) = 0;
-
-//-----------------------------------------------------------------------------
-//! Stop the client-side service. This is never called server-side.
+//! @brief Stop the client-side service. This is never called server-side.
 //!
 //! @return true     Service has been stopped and this object has been deleted.
 //! @return false    Service cannot be stopped because there are still active
-//!                  sessions. Unprovision all the sessions then call Stop().
+//!                  foreground requests. Cancel the requests then call Stop().
 //-----------------------------------------------------------------------------
 
 virtual bool   Stop() {return false;}

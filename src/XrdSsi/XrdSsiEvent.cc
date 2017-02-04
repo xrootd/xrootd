@@ -137,8 +137,8 @@ void XrdSsiEvent::DoIt()
    EventData myEvent, *edP = &myEvent;
 
 // Process all of the events in our list. This is a tricky proposition because
-// the event executor may delete us (it returns false if so). To prevent
-// double frees and the like, we move out the event and work off a local copy.
+// the event executor may delete us when false is returned. To prevent double
+// frees and the like, we move out the event and work off a local copy.
 //
    evMutex.Lock();
 do{thisEvent.Move2(myEvent);

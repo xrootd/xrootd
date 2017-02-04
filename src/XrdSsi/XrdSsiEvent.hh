@@ -51,8 +51,9 @@ virtual void HandleResponse(XrdCl::XRootDStatus *status,
 
 virtual bool XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject **resp) = 0;
 
-             XrdSsiEvent(const char *hName="") : XrdJob(hName), lastEvent(0),
-                                                 running(false) {}
+             XrdSsiEvent(const char *hName="") : XrdJob(hName),  lastEvent(0),
+                                                 running(false)
+                                                 {}
 
             ~XrdSsiEvent() {ClrEvent();}
 

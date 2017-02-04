@@ -51,7 +51,7 @@
 
 #include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiFileSess.hh"
-#include "XrdSsi/XrdSsiService.hh"
+#include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
@@ -60,60 +60,23 @@
 #include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
-/*                         L o c a l   C l a s s e s                          */
-/******************************************************************************/
-
-namespace XrdSsi
-{
-class FileResource : public XrdSsiService::Resource
-{
-public:
-
-void           ProvisionDone(XrdSsiSession *sessP) {mySess=sessP; mySem.Post();}
-
-void           ProvisionWait() {mySem.Wait();}
-
-XrdSsiSession *Session() {return mySess;}
-
-      FileResource(const char *path, const XrdSecEntity *entP, int atype)
-                  : XrdSsiService::Resource(path), mySem(0), mySess(0)
-                  {if (atype && entP)
-                      {strncpy(mySec.prot, entP->prot, XrdSsiPROTOIDSIZE);
-                       mySec.name = entP->name;
-                       mySec.host = (atype <= 1 ? entP->host
-                                    : entP->addrInfo->Name(entP->host));
-                       mySec.role = entP->vorg;
-                       mySec.role = entP->role;
-                       mySec.grps = entP->grps;
-                       mySec.endorsements = entP->endorsements;
-                       mySec.creds = entP->creds;
-                       mySec.credslen = entP->credslen;
-                       mySec.tident = entP->tident;
-                      }
-                  }
-     ~FileResource() {}
-
-private:
-XrdSysSemaphore mySem;
-XrdSsiSession  *mySess;
-XrdSsiEntity    mySec;
-};
-}
-  
-/******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
 namespace XrdSsi
 {
 extern XrdOucBuffPool   *BuffPool;
-extern XrdSsiService    *Service;
+extern XrdSsiProvider   *Provider;
 extern XrdSysError       Log;
 extern int               respWT;
 };
 
 using namespace XrdSsi;
 
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+  
 namespace
 {
 class nullCallBack : public XrdOucEICB
@@ -218,7 +181,7 @@ bool XrdSsiFileSess::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
 
 // Fill out iovec to point to our header
 //
-   attnResp->ioV[0].iov_len  = sizeof(XrdSsiRRInfoAttn) + respP->mdlen;
+//?attnResp->ioV[0].iov_len  = sizeof(XrdSsiRRInfoAttn) + respP->mdlen;
    attnResp->ioV[1].iov_base = mBuff+offsetof(struct AttnResp, aHdr);
    attnResp->ioV[1].iov_len  = sizeof(XrdSsiRRInfoAttn);
 
@@ -275,10 +238,6 @@ int XrdSsiFileSess::close(bool viaDel)
 // Run through all outstanding requests and comlete them
 //
    rTab.Reset();
-
-// Stop the session
-//
-   if (sessP) {sessP->Unprovision(viaDel); sessP = 0;}
 
 // Free any in-progress buffers
 //
@@ -358,7 +317,6 @@ void XrdSsiFileSess::Init(XrdOucErrInfo &einfo, const char *user, bool forReuse)
    fsUser     = 0;
    xioP       = 0;
    oucBuff    = 0;
-   sessP      = 0;
    reqSize    = 0;
    reqLeft    = 0;
    isOpen     = false;
@@ -383,7 +341,7 @@ bool XrdSsiFileSess::NewRequest(int              reqid,
 // Allocate a new request object
 //
    if ((reqid > XrdSsiRRInfo::maxID)
-   || !(reqP = XrdSsiFileReq::Alloc(eInfo, this, sessP, gigID, tident, reqid)))
+   || !(reqP = XrdSsiFileReq::Alloc(eInfo,&fileResource,this,gigID,tident,reqid)))
       return false;
 
 // Add it to the table
@@ -415,9 +373,9 @@ int XrdSsiFileSess::open(const char         *path,      // In
 */
 {
    static const char *epname = "open";
-   FileResource fileResource(path, theEnv.secEnv(), authXQ);
-   const char *eText, *usr;
-   int eNum, n;
+   XrdSsiErrInfo errInfo;
+   const char *eText;
+   int eNum;
 
 // Verify that this object is not already associated with an open file
 //
@@ -429,46 +387,43 @@ int XrdSsiFileSess::open(const char         *path,      // In
 // if (open_mode != SFS_O_RDWR)
 //    return XrdSsiUtils::Emsg(epname, EPROTOTYPE, "open session", path, *eInfo);
 
-// Handle the cgi information
+// Setup the file resource object
 //
-   fileResource.rDesc.rUser = fsUser = ((usr = theEnv.Get("ssi.user"))
-                                     ? strdup(usr) : 0);
-   fileResource.rDesc.rInfo = theEnv.Env(n);
+   fileResource.Init(path, theEnv, authXQ);
 
-// Obtain a session
+// Notify the provider that we will be executing a request
 //
-   Service->Provision(&fileResource);
-   fileResource.ProvisionWait();
-   if ((sessP = fileResource.Session()))
-      {if (!fsUser) gigID = strdup(path);
+   if (Provider->Prepare(errInfo, fileResource))
+      {const char *usr = fileResource.rUser.c_str();
+       if (!(*usr)) gigID = strdup(path);
           else {char gBuff[2048];
-                snprintf(gBuff, sizeof(gBuff), "%s:%s", fsUser, path);
+                snprintf(gBuff, sizeof(gBuff), "%s:%s", usr, path);
                 gigID = strdup(gBuff);
                }
-       DEBUG(gigID <<" provisioned.");
+       DEBUG(gigID <<" prepared.");
        isOpen = true;
        return SFS_OK;
       }
 
 // Get error information
 //
-   eText = fileResource.eInfo.Get(eNum);
+   eText = errInfo.Get(eNum).c_str();
    if (!eNum)
-      {eNum = ENOMSG; eText = "Service returned invalid session response.";}
+      {eNum = ENOMSG; eText = "Provider returned invalid prepare response.";}
 
 // Decode the error
 //
    switch(eNum)
          {case EAGAIN:
                if (!eText || !(*eText)) break;
-               eNum = fileResource.eInfo.GetArg();
+               eNum = errInfo.GetArg();
                DEBUG(path <<" --> " <<eText <<':' <<eNum);
                eInfo->setErrInfo(eNum, eText);
                return SFS_REDIRECT;
                break;
           case EBUSY:
-               eNum = fileResource.eInfo.GetArg();
-               if (!eText || !(*eText)) eText = "Service is busy.";
+               eNum = errInfo.GetArg();
+               if (!eText || !(*eText)) eText = "Provider is busy.";
                DEBUG(path <<" dly " <<eNum <<' ' <<eText);
                if (eNum <= 0) eNum = 1;
                eInfo->setErrInfo(eNum, eText);
@@ -484,7 +439,7 @@ int XrdSsiFileSess::open(const char         *path,      // In
 
 // Something is quite wrong here
 //
-   Log.Emsg(epname, "Service redirect returned no target host name!");
+   Log.Emsg(epname, "Provider redirect returned no target host name!");
    eInfo->setErrInfo(ENOMSG, "Server logic error");
    return SFS_ERROR;
 }
