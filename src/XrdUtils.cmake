@@ -63,6 +63,7 @@ add_library(
   XrdOuc/XrdOucBackTrace.cc     XrdOuc/XrdOucBackTrace.hh
   XrdOuc/XrdOucBuffer.cc        XrdOuc/XrdOucBuffer.hh
                                 XrdOuc/XrdOucCache.hh
+                                XrdOuc/XrdOucCache2.hh
   XrdOuc/XrdOucCacheData.cc     XrdOuc/XrdOucCacheData.hh
   XrdOuc/XrdOucCacheDram.cc     XrdOuc/XrdOucCacheDram.hh
   XrdOuc/XrdOucCacheReal.cc     XrdOuc/XrdOucCacheReal.hh
@@ -163,6 +164,7 @@ add_library(
                                 Xrd/XrdPollPoll.icc
   Xrd/XrdProtocol.cc            Xrd/XrdProtocol.hh
   Xrd/XrdScheduler.cc           Xrd/XrdScheduler.hh
+  Xrd/XrdSendQ.cc               Xrd/XrdSendQ.hh
                                 Xrd/XrdTrace.hh
 
   #-----------------------------------------------------------------------------

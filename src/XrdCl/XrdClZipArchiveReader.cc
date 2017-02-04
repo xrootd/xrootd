@@ -22,10 +22,12 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#include "XrdClZipArchiveReader.hh"
-
-#include "XrdClFile.hh"
-#include "XrdClMessageUtils.hh"
+#include "XrdCl/XrdClZipArchiveReader.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClConstants.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -243,7 +245,15 @@ class ZipArchiveReaderImpl
     {
       delete pBuffer;
       ClearRecords();
-      pArchive.Close();
+      if( pArchive.IsOpen() )
+      {
+        XRootDStatus st = pArchive.Close();
+        if( !st.IsOK() )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Warning( FileMsg, "ZipArchiveReader failed to close file upon destruction: %s.", st.ToString().c_str() );
+        }
+      }
     }
 
     File                           pArchive;

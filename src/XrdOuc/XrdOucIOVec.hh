@@ -44,4 +44,16 @@ struct XrdOucIOVec
        int       info;      // Available for arbitrary use
        char     *data;      // Location to read into.
 };
+
+// Add backward compatible constructor to XrdOucIOVec
+//
+struct XrdOucIOVec2 : public XrdOucIOVec
+{
+       XrdOucIOVec2(char *buff, long long offs, int sz, int inf=0)
+                   {XrdOucIOVec::offset = offs;
+                    XrdOucIOVec::size   = sz;
+                    XrdOucIOVec::info   = inf;
+                    XrdOucIOVec::data   = buff;
+                   }
+};
 #endif

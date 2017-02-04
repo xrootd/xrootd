@@ -3520,7 +3520,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    // Finalize chain: get a copy of it (we do not touch the reference)
    hs->Chain = new X509Chain(hs->Chain);
    if (!(hs->Chain)) {
-      cmsg = "cannot suplicate reference chain";
+      cmsg = "cannot duplicate reference chain";
       return -1;
    }
    // The new chain must be deleted at destruction
@@ -3986,7 +3986,13 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
             if (crl->Verify(xcasig)) {
                // Ok, we are done
                SafeDelete(xcasig);
-               return crl;
+               if (CRLCheck < 3 ||
+                  (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
+                  // Good CRL
+                  return crl;
+               } else {
+                  NOTIFY("CRL is expired (CRLCheck: "<<CRLCheck<<")");
+               }
             } else {
                PRINT("CA signature verification failed!");
             }
@@ -4021,7 +4027,13 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
          if (crl->Verify(xcasig)) {
             // Ok, we are done
             SafeDelete(xcasig);
-            return crl;
+            if (CRLCheck < 3 ||
+               (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
+               // Good CRL
+               return crl;
+            } else {
+               NOTIFY("Downloaded CRL (CA) is expired (CRLCheck: "<<CRLCheck<<")");
+            }
          } else {
             PRINT("CA signature verification failed!");
          }
@@ -4059,7 +4071,13 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
                if (crl->Verify(xcasig)) {
                   // Ok, we are done
                   SafeDelete(xcasig);
-                  return crl;
+                  if (CRLCheck < 3 ||
+                     (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
+                     // Good CRL
+                     return crl;
+                  } else {
+                     NOTIFY("Downloaded CRL (.crl_url file) is expired (CRLCheck: "<<CRLCheck<<")");
+                  }
                } else {
                   PRINT("CA signature verification failed!");
                }
@@ -4107,7 +4125,13 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
             if (crl->Verify(xcasig)) {
                // Ok, we are done
                SafeDelete(xcasig);
-               break;
+               if (CRLCheck < 3 ||
+                  (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
+                  // Good CRL
+                  break;
+               } else {
+                  NOTIFY("Candidate CRL from file "<< crlfile <<" is expired (CRLCheck: "<<CRLCheck<<")");
+               }
             } else {
                PRINT("CA signature verification failed!");
             }
@@ -4273,6 +4297,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // Return 0 if ok, -1 if not available, -2 if CRL not ok
    EPNAME("GetCA");
    XrdSutCacheRef pfeRef;
+   int rc = 0;
 
    // We nust have got a CA hash
    if (!cahash || !cf) {
@@ -4313,34 +4338,44 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             cent->buf1.buf = 0;
             if (!cacheCA.Remove(tag.c_str())) {
                PRINT("problems removing entry from CA cache");
-               return -1;
+               rc = -1;
             }
          }      
       }
-      XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
-      // If the CA is not good, we reload the CRL in any case
-      if (goodca && ((CRLRefresh <= 0) || ((timestamp - cent->mtime) < CRLRefresh))) {
-         if (hs) hs->Crl = crl;
-         // Add to the stack for proper cleaning of invalidated CRLs
-         stackCRL.Add(crl);
-         return 0;
-      } else {
-         PRINT("CRL entry for '"<<tag<<"' needs refreshing: clean the related entry cache first");
-         // Entry needs refreshing: we remove it from the stack, so it gets deleted when
-         // the last handshake using it is over 
-         stackCRL.Del(crl);
-         cent->buf2.buf = 0;
-         if (goodca && !cacheCA.Remove(tag.c_str())) {
-            PRINT("problems removing entry from CA cache");
-            return -1;
+      if (rc == 0) {
+         XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
+         bool goodcrl = (crl) ? 1 : 0;
+         if (goodcrl && CRLCheck >= 3 && crl->IsExpired()) goodcrl = 0;
+         if (goodcrl && CRLRefresh > 0 && ((timestamp - cent->mtime) > CRLRefresh)) goodcrl = 0;
+         // If the CA is not good, we reload the CRL in any case
+         if (goodca && goodcrl) {
+            if (hs) hs->Crl = crl;
+            // Add to the stack for proper cleaning of invalidated CRLs
+            stackCRL.Add(crl);
+            pfeRef.UnLock();
+            return 0;
+         } else {
+            PRINT("CRL entry for '"<<tag<<"' needs refreshing: clean the related entry cache first ("<<cent<<")");
+            // Entry needs refreshing: we remove it from the stack, so it gets deleted when
+            // the last handshake using it is over 
+            stackCRL.Del(crl);
+            cent->buf2.buf = 0;
          }
       }
       chain = 0;
+   } else {
+      if (!(cent = cacheCA.Add(pfeRef, tag.c_str()))) {
+         PRINT("could not create a cache entry for this CA (" << tag <<")");
+         rc = -1;
+      }
    }
 
-   // This is the last time we use cent so release the lock and zero the ptr
    //
-   if (cent) {cent = 0; pfeRef.UnLock();}
+   // If any failure, return
+   if (rc != 0) {
+      pfeRef.UnLock();
+      return rc;
+   }
 
    // If not, prepare the file name
    String fnam = GetCApath(cahash);
@@ -4351,12 +4386,12 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    chain = (createchain) ? new X509Chain() : hs->Chain;
    if (!chain) {
       PRINT("could not attach-to or create new GSI chain");
-      return -1;
+      rc = -1;
    }
 
    // Get the parse function
    XrdCryptoX509ParseFile_t ParseFile = cf->X509ParseFile();
-   if (ParseFile) {
+   if (rc == 0 && ParseFile) {
       int nci = (createchain) ? (*ParseFile)(fnam.c_str(), chain) : 1;
       bool ok = 0, verified = 0;
       if (nci == 1) {
@@ -4365,37 +4400,30 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
          XrdCryptoX509Crl *crl = 0;
          if (verified) {
             // Get CRL, if required
-            if (CRLCheck > 0)
-               crl = LoadCRL(chain->Begin(), cahash, cf, CRLDownload);
-            // Apply requirements
-            if (CRLCheck < 2 || crl) {
-               if (CRLCheck < 3 ||
-                  (CRLCheck == 3 && crl && !(crl->IsExpired(timestamp)))) {
+            ok = 1;
+            if (CRLCheck > 0) {
+               if ((crl = LoadCRL(chain->Begin(), cahash, cf, CRLDownload))) {
                   // Good CA
-                  ok = 1;
+                  DEBUG("CRL successfully loaded");
                } else {
-                  NOTIFY("CRL is expired (CRLCheck: "<<CRLCheck<<")");
+                  ok = 0;
+                  NOTIFY("CRL is missing or expired (CRLCheck: "<<CRLCheck<<")");
                }
-            } else {
-               NOTIFY("CRL is missing (CRLCheck: "<<CRLCheck<<")");
             }
          }
          //
          if (ok) {
             // Add to the cache
-            cent = cacheCA.Add(pfeRef, tag.c_str());
-            if (cent) {
-               cent->buf1.buf = (char *)(chain);
-               cent->buf1.len = 0;      // Just a flag
-               if (crl) {
-                  cent->buf2.buf = (char *)(crl);
-                  cent->buf2.len = 0;      // Just a flag
-                  stackCRL.Add(crl);
-               }
-               cent->mtime = timestamp;
-               cent->status = kPFE_ok;
-               cent->cnt = 0;
+            cent->buf1.buf = (char *)(chain);
+            cent->buf1.len = 0;      // Just a flag
+            if (crl) {
+               cent->buf2.buf = (char *)(crl);
+               cent->buf2.len = 0;      // Just a flag
+               stackCRL.Add(crl);
             }
+            cent->mtime = timestamp;
+            cent->status = kPFE_ok;
+            cent->cnt = 0;
             // Fill output, if required
             if (hs) {
                hs->Chain = chain;
@@ -4404,12 +4432,12 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             }
          } else {
             SafeDelete(crl);
-            return -2;
+            rc = -2;
          }
       } else {
          NOTIFY("certificate not found or invalid (nci: "<<nci<<", CA: "<<
                (int)(verified)<<")");
-         return -1;
+         rc = -1;
       }
    }
 
@@ -4418,7 +4446,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    cacheCA.Rehash(1);
 
    // We are done
-   return 0;
+   return (rc != 0) ? rc : 0;
 }
 
 //______________________________________________________________________________

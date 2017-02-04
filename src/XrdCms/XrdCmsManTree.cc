@@ -79,7 +79,7 @@ int XrdCmsManTree::Connect(int nID, XrdCmsNode *nP)
 {
    static CmsDiscRequest discRequest = {{0, kYR_disc, 0, 0}};
    XrdSysMutexHelper Monitor(myMutex);
-   char mybuff[8];
+   char mybuff[16];
    int i;
 
 // Rule 0: If we aborted tell the client to just stop doing this

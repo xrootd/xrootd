@@ -393,6 +393,7 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
    switch(aType)
          {case XrdSecsssID::idDynamic:  isMutual = 1; break;
           case XrdSecsssID::idStaticM:  isMutual = 1;
+                                        idMap    = 0; break;
           case XrdSecsssID::idStatic:
                default:                 idMap    = 0; break;
           }

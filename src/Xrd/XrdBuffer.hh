@@ -93,7 +93,7 @@ int         Stats(char *buff, int blen, int do_sync=0);
 
             XrdBuffManager(XrdSysError *lP, XrdOucTrace *tP, int minrst=20*60);
 
-           ~XrdBuffManager() {} // The buffmanager is never deleted
+           ~XrdBuffManager();   // The buffmanager is never deleted
 
 private:
 

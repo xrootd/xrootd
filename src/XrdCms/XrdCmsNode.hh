@@ -130,6 +130,8 @@ inline int    ID(int &INum) {INum = Instance; return NodeID;}
 
 inline int    Inst() {return Instance;}
 
+       bool   inDomain() {return netIF.InDomain(&netID);}
+
 inline int    isNode(SMask_t smask) {return (smask & NodeMask) != 0;}
 inline int    isNode(const char *hn)
                     {return Link && !strcmp(Link->Host(), hn);}
@@ -142,6 +144,28 @@ inline int    isNode(XrdLink *lp, const char *nid, int port)
 inline char  *Name()   {return (myName ? myName : (char *)"?");}
 
 inline SMask_t Mask() {return NodeMask;}
+
+inline void    g2Ref(XrdSysMutex &gMutex) {lkCount++; gMutex.UnLock();}
+
+inline void    Ref2g(XrdSysMutex &gMutex) {gMutex.Lock(); lkCount--;}
+
+inline void    g2nLock(XrdSysMutex &gMutex)
+                      {lkCount++;        // gMutex must be held
+                       gMutex.UnLock();  // Safe because lkCount != ulCount
+                       nodeMutex.Lock(); // Downgrade to node lock
+                       incUL = 1;
+                       isLocked = 1;
+                      }
+
+inline void    n2gLock(XrdSysMutex &gMutex)
+                      {isLocked = 0;
+                       if (incUL)
+                          {ulCount++; incUL = 0;
+                           if (isGone) nodeMutex.Signal();
+                          }
+                       nodeMutex.UnLock(); // Release this node
+                       gMutex.Lock();      // Upgade to global mutex
+                      }
 
 inline void    Lock(bool doinc)
                    {if (!doinc) nodeMutex.Lock();

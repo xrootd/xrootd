@@ -267,6 +267,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        case 'f': Fix = 1;
                  break;
        case 'h': Usage(0);
+                 break;
        case 'k': if (!(bindArg = Say.logger()->ParseKeep(optarg)))
                     {Say.Emsg("Config","Invalid -k argument -",optarg);
                      Usage(1);

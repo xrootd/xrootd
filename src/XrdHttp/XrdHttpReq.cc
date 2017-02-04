@@ -1583,6 +1583,10 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Error man!", 0);
               return -1;
             }
+            
+            prot->SendSimpleResp(500, NULL, NULL, (char *) "This line should never be reached, you have been able to.", 0);
+            return -1;
+            
           }
           default: //read or readv
           {

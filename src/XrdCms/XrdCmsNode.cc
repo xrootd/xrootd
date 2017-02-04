@@ -162,7 +162,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
   
 XrdCmsNode::~XrdCmsNode()
 {
-   isOffline = 1;
+   isOffline = 1;  // STMutex not needed here
    if (isLocked) UnLock();
 
 // Delete other appendages
@@ -228,18 +228,20 @@ void XrdCmsNode::Delete(XrdSysMutex &gMutex)
 // when the lkCount equals the ulCount. The lkCount is under control of the
 // global mutex passed to us. The ulCount is under control of the node lock.
 // we will wait until they are equal. As this node has been removed from all
-// table at this point, the lkCount cannot change and we need only to fetch
-// it once. However, we will refresh it if we timeout. Setting isGone will
-// signal us whenever the ulCount changes and is under global mutex control.
+// tables at this point, the lkCount cannot increase but it may decrease when
+// Ref2G() is called which happens for none lock-free operations (e.g. Send).
+// However, we will refresh it if we timeout.
 //
    gMutex.Lock();
    theLKCnt = lkCount;
-   isGone = 1;
    gMutex.UnLock();
 
-// Get the node lock and do some debugging
+// Get the node lock and do some debugging. Set tghe isGone flag even though it
+// should be set. We need to do that under the node lock to make sure we get
+// signalled whenever the node gets unlocked by some thread (ulCount changed).
 //
    nodeMutex.Lock();
+   isGone = 1;
    DEBUG(Ident <<" locks=" <<theLKCnt <<" unlocks=" <<ulCount);
 
 // Now wait for things to simmer down. We wait for an appropriate time because
@@ -299,13 +301,15 @@ void XrdCmsNode::DeleteWarn(XrdSysMutex &gMutex, unsigned int &lkVal)
 
 void XrdCmsNode::Disc(const char *reason, int needLock)
 {
-
-// Lock the object of not yet locked
+// Indicate we are offline. If a lock is not need then we only need to set the
+// offline flag as it's already properly protected. Otherwise, set the flag
+// after we get the lock. This is indeed messy.
 //
    if (needLock) nodeMutex.Lock();
-   isOffline = 1;
+   isOffline = 1;         // STMutex is already held if needed
 
-// If we are still connected, initiate a teardown
+// If we are still connected, initiate a teardown. This may be done async as
+// we are asking for a defered close which will be followed by a full close.
 //
    if (isConn)
       {Link->setEtext(reason);
@@ -393,7 +397,7 @@ const char *XrdCmsNode::do_Disc(XrdCmsRRData &Arg)
 
 // Close the link and return an error
 //
-   isOffline = 1;
+   isOffline = 1;  // STMutex not needed here
    Link->Close(1);
    return ".";   // Signal disconnect
 }
@@ -1296,6 +1300,10 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
                 Arg.Request.modifier = rc;
    else     return 0;
 
+// Trace response
+//
+   TRACER(Files,Arg.Path <<" responding have!");
+
 // Respond appropriately
 //
    if (Arg.Request.modifier && !noResp)
@@ -1602,7 +1610,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
                     }
        else         {add2Activ =  0; srvMsg = 0;}
 
-// Get the most important message out
+// Get the most important message out (advisory isOffline doen't need STMutex)
 //
         if (isOffline)          {srvMsg = "service offline";     stgMsg = 0;}
    else if (isBad & isDisabled) {srvMsg = "service disabled";    stgMsg = 0;}
@@ -1656,6 +1664,7 @@ const char *XrdCmsNode::do_Trunc(XrdCmsRRData &Arg)
 
 // Try requests from a manager indicate that we are being displaced and should
 // hunt for another manager. The request provides hints as to where to try.
+// Note that this method is no longer called but handled in XrdCmsProtocol!
 //
 const char *XrdCmsNode::do_Try(XrdCmsRRData &Arg)
 {

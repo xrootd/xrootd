@@ -41,7 +41,6 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdBuffer.hh"
-//??#include "Xrd/XrdBuffXL.hh"
 #include "XrdBuffXL.hh"
 
 #define XRD_TRACE XrdTrace->
@@ -105,6 +104,23 @@ XrdBuffManager::XrdBuffManager(XrdSysError *lP, XrdOucTrace *tP, int minrst) :
    rsinprog = 0;
    minrsw   = minrst;
    memset(static_cast<void *>(bucket), 0, sizeof(bucket));
+}
+
+/******************************************************************************/
+/*                            D e s t r u c t o r                             */
+/******************************************************************************/
+  
+XrdBuffManager::~XrdBuffManager()
+{
+   XrdBuffer *bP;
+
+   for (int i = 0; i < XRD_BUCKETS; i++)
+       {while((bP = bucket[i].bnext))
+             {bucket[i].bnext = bP->next;
+              delete bP;
+             }
+        bucket[i].numbuf = 0;
+       }
 }
 
 /******************************************************************************/

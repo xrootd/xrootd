@@ -149,32 +149,33 @@ inline int           setLfn2(const char *lfn)
                              return n;
                             }
 
-inline void          setMode(mode_t    Mode) {char Save = *Rec.Data.SorT;
+inline void          setMode(mode_t    Mode) {char mBuff[8];
                                               Rec.Hdr.Mode = Mode;
-                                              snprintf(Rec.Data.Mode,
-                                              sizeof(Rec.Data.Mode),  "%03o",
+                                              snprintf(mBuff,sizeof(mBuff),"%03o",
                                               511 & static_cast<int>(Mode));
-                                              *Rec.Data.SorT = Save;
+                                              memcpy(Rec.Data.Mode, mBuff,
+                                                     sizeof(Rec.Data.Mode));
                                              }
 
 inline void          setMount(char mCode) {Rec.Data.Mount = mCode;}
 
-inline void          setSize(long long Size) {char Save = Rec.Data.Mount;
+inline void          setSize(long long Size) {char tBuff[24];
                                               Rec.Hdr.Size = Size;
-                                              snprintf(Rec.Data.SorT,
-                                              sizeof(Rec.Data.SorT), "%12lld",
+                                              snprintf(tBuff, sizeof(tBuff),
+                                              "%12lld",
                                               (Size > 0 ? Size & 0x7fffffffffLL
                                                         : Size));
-                                              Rec.Data.Mount = Save;
+                                              memcpy(Rec.Data.SorT, tBuff,
+                                                     sizeof(Rec.Data.SorT));
                                              }
 
 inline void          setSpace(char sCode) {Rec.Data.Space = sCode;}
 
-inline void          setTime(long TOD=time(0)){char Save = Rec.Data.Mount;
-                                               snprintf(Rec.Data.SorT,
-                                               sizeof(Rec.Data.SorT), "%12ld",
-                                                       TOD-tBase);
-                                               Rec.Data.Mount = Save;
+inline void          setTime(long TOD=time(0)){char tBuff[24];
+                                               snprintf(tBuff, sizeof(tBuff),
+                                                        "%12ld", TOD-tBase);
+                                               memcpy(Rec.Data.SorT, tBuff,
+                                                      sizeof(Rec.Data.SorT));
                                               }
 
 inline void          setType(const char evt) {Rec.Data.Type = evt;}

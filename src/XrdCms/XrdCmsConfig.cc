@@ -45,6 +45,7 @@
 
 #include "XrdVersion.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "Xrd/XrdSendQ.hh"
 
 #include "XrdCms/XrdCmsAdmin.hh"
 #include "XrdCms/XrdCmsBaseFS.hh"
@@ -257,6 +258,11 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 //
    sprintf(buff, "%s@%s", XrdOucUtils::InstName(myInsName), myName);
    myInstance = strdup(buff);
+
+// This is somewhat poor but we need to establish the default non-blocking
+// message queue limit for the cms (this being 30) which can be overriden.
+//
+   XrdSendQ::SetQM(30);
 
 // Print herald
 //
@@ -491,6 +497,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("localroot",     xlclrt);  // Any,     non-dynamic
    TS_Xeq("manager",       xmang);   // Server,  non-dynamic
    TS_Xeq("namelib",       xnml);    // Server,  non-dynamic
+   TS_Xeq("nbsendq",       xnbsq);   // Any      non-dynamic
    TS_Xeq("osslib",        xolib);   // Any,     non-dynamic
    TS_Xeq("perf",          xperf);   // Server,  non-dynamic
    TS_Xeq("pidpath",       xpidf);   // Any,     non-dynamic
@@ -731,6 +738,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    adsPort     = 0;
    adsMon      = 0;
    adsProt     = 0;
+   nbSQ        = 1;
 
 // Compute the time zone we are in
 //
@@ -1973,6 +1981,67 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
 // Parse the specification and return
 //
    return (XrdCmsUtils::ParseMan(eDest, theList, hSpec, hPort, myPort) ? 0 : 1);
+}
+  
+/******************************************************************************/
+/*                                 x n b s q                                  */
+/******************************************************************************/
+
+/* Function: xnbsq
+
+   Purpose:  To parse the directive: nbsendq [<opt>] [warn <nw>] [maxq <mq>]
+
+             <opt>     One of: all | off | remote
+             <nw>      Warning will be issued    at a <nw> backlog.
+             <mq>      Message will be discarded at a <mq> backlog (<mq> may
+                       also be the word "none").
+
+   Defaults: remote warn 3 maxq 30
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xnbsq(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val, xopt[16];
+    int  ival;
+    bool xAll = false, xOff = false, xRmt = false;
+
+//  Process the optional "all", "off" or "remote"
+//
+    if ((val = CFile.GetWord()))
+       {if ((xAll = !strcmp("all",    val))
+        ||  (xOff = !strcmp("off",    val))
+        ||  (xRmt = !strcmp("remote", val)))
+            {     if (xAll) nbSQ = 2;
+             else if (xRmt) nbSQ = 1;
+             else           nbSQ = 0;
+             val = CFile.GetWord();
+           }
+       } else {eDest->Emsg("Config","nbsendq option not specified"); return 1;}
+
+// Now scan for the other options
+//
+   while(val && *val)
+        {strncpy(xopt, val, sizeof(xopt));
+         if (!(val= CFile.GetWord()) || *val == 0)
+            {eDest->Emsg("Config","nbsendq ", xopt, " argument not specified");
+             return 1;
+            }
+              if (!strcmp(xopt, "maxq"))
+                 {if (!strcmp("val", "none")) ival = -1;
+                     else if (XrdOuca2x::a2i(*eDest,"nbsendq maxq",val,&ival,0))
+                             return 1;
+                  XrdSendQ::SetQM(ival);
+                 }
+         else if (!strcmp(xopt, "warn"))
+                 {if (XrdOuca2x::a2i(*eDest,"nbsendq warn",val,&ival,0)) return 1;
+                  XrdSendQ::SetQW(ival);
+                 }
+         else eDest->Say("Config warning: ignoring invalid nbsendq option '",xopt,"'.");
+         val = CFile.GetWord();
+        }
+   return 0;
 }
   
 /******************************************************************************/

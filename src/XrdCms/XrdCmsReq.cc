@@ -135,16 +135,27 @@ void XrdCmsReq::Reply_Error(int ecode, const char *emsg, int elen)
 //
    switch(ecode)
          {case ENOENT:       eval = kYR_ENOENT;
+                             break;
           case EPERM:        eval = kYR_EPERM;
+                             break;
           case EACCES:       eval = kYR_EACCES;
+                             break;
           case EIO:          eval = kYR_EIO;
+                             break;
           case ENOMEM:       eval = kYR_ENOMEM;
+                             break;
           case ENOSPC:       eval = kYR_ENOSPC;
+                             break;
           case ENAMETOOLONG: eval = kYR_ENAMETOOLONG;
+                             break;
           case ENETUNREACH:  eval = kYR_ENETUNREACH;
+                             break;
           case ENOTBLK:      eval = kYR_ENOTBLK;
+                             break;
           case EISDIR:       eval = kYR_EISDIR;
+                             break;
           default:           eval = kYR_EINVAL;
+                             break;
          };
 
 // Make sure that elen includes a null byte

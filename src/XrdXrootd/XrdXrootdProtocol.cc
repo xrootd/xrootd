@@ -118,6 +118,9 @@ int                   XrdXrootdProtocol::myPID = static_cast<int>(getpid());
 int                   XrdXrootdProtocol::myRole = 0;
 int                   XrdXrootdProtocol::myRolf = 0;
 
+int                   XrdXrootdProtocol::PrepareLimit = -1;
+bool                  XrdXrootdProtocol::LimitError = true;
+
 struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[RD_Num];
 
 /******************************************************************************/
@@ -847,4 +850,5 @@ void XrdXrootdProtocol::Reset()
    rdType             = 0;
    memset(&Entity, 0, sizeof(Entity));
    memset(Stream,  0, sizeof(Stream));
+   PrepareCount       = 0;
 }

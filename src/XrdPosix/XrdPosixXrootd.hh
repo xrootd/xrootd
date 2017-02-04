@@ -51,8 +51,10 @@ struct XrdOucIOVec;
 
 class XrdScheduler;
 class XrdOucCache;
+class XrdOucCache2;
 class XrdOucEnv;
 class XrdPosixCallBack;
+class XrdPosixCallBackIO;
 class XrdPosixFile;
 
 //-----------------------------------------------------------------------------
@@ -105,6 +107,8 @@ static int     Fstat(int fildes, struct stat *buf);
 //-----------------------------------------------------------------------------
 
 static int     Fsync(int fildes);
+
+static void    Fsync(int fildes, XrdPosixCallBackIO *cbp); // Async extension!
 
 //-----------------------------------------------------------------------------
 //! Ftruncate() conforms to POSIX.1-2001 ftruncate()
@@ -175,11 +179,17 @@ static DIR*    Opendir(const char *path);
   
 static ssize_t Pread(int fildes, void *buf, size_t nbyte, off_t offset);
 
+static void    Pread(int fildes, void *buf, size_t nbyte, off_t offset,
+                     XrdPosixCallBackIO *cbp); // Async extension!
+
 //-----------------------------------------------------------------------------
 //! Pwrite() conforms to POSIX.1-2001 pwrite()
 //-----------------------------------------------------------------------------
 
 static ssize_t Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
+
+static void    Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset,
+                      XrdPosixCallBackIO *cbp); // Async extension!
 
 //-----------------------------------------------------------------------------
 //! QueryChksum() is a POSIX extension and returns a file's modification time
@@ -311,11 +321,16 @@ static int     Unlink(const char *path);
 //!                 each offset of the specifiued length is placed in buffer.
 //! @param  n       the number of elements in the readV vector.
 //!
+//! @param  cbp     pointer to the callback object for async execution.
+//!
 //! @return Upon success returns the total number of bytes read. Otherwise, -1
 //!         is returned and errno is appropriately set.
 //-----------------------------------------------------------------------------
 
 static ssize_t VRead(int fildes, const XrdOucIOVec *readV, int n);
+
+static void    VRead(int fildes, const XrdOucIOVec *readV, int n,
+                     XrdPosixCallBackIO *cbp); // Async extension!
 
 //-----------------------------------------------------------------------------
 //! Write() conforms to POSIX.1-2001 write()
@@ -342,11 +357,15 @@ static bool    myFD(int fd);
 
 static void    setCache(XrdOucCache *cP);
 
+static void    setCache(XrdOucCache2 *cP);
+
 static void    setDebug(int val, bool doDebug=false);
 
 static void    setEnv(const char *kword, int kval);
 
 static void    setIPV4(bool userv4);
+
+static void    setNumCB(int numcb);
 
 static void    setSched(XrdScheduler *sP);
 
@@ -366,14 +385,14 @@ static void    setSched(XrdScheduler *sP);
 
 private:
 
-static void                  initEnv();
-static void                  initEnv(char *eData);
-static void                  initEnv(XrdOucEnv &, const char *, long long &);
-static int                   Fault(XrdPosixFile *fp, int ecode);
-static void                  initStat(struct stat *buf);
-static void                  initXdev(dev_t &st_dev, dev_t &st_rdev);
-
+static void initEnv();
+static void initEnv(char *eData);
+static void initEnv(XrdOucEnv &, const char *, long long &);
+static int  Fault(XrdPosixFile *fp, int ecode);
+static void initStat(struct stat *buf);
+static void initXdev(dev_t &st_dev, dev_t &st_rdev);
 static XrdOucCache   *myCache;
+static XrdOucCache2  *myCache2;
 static int            baseFD;
 static int            initDone;
 };

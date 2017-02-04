@@ -64,7 +64,7 @@ public:
    XrdCryptoX509data Opaque() { return (XrdCryptoX509data)cert; }
 
    // Dump extensions
-   int DumpExtensions();
+   int DumpExtensions(bool dumpunknown = 0);
 
    // Access certificate key
    XrdCryptoRSA *PKI() { return pki; }
@@ -75,6 +75,9 @@ public:
 
    // Parent file
    const char *ParentFile() { return (const char *)(srcfile.c_str()); }
+
+   // Proxy type
+   const char *ProxyType() const { return cpxytype[pxytype]; }
 
    // Key strength
    int BitStrength() { return ((cert) ? EVP_PKEY_bits(X509_get_pubkey(cert)) : -1);}
@@ -114,11 +117,13 @@ private:
    XrdOucString srcfile;    // source file name, if any;
    XrdSutBucket *bucket;    // Bucket for export operations
    XrdCryptoRSA *pki;       // PKI of the certificate
+   int          pxytype;    // Type of proxy (RFC, gsi 3, legacy gsi 2)
 
-   bool         IsCA();     // Find out if we are a CA
-
-   int          FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length);
+   int          FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length, bool dump = 0);
    int          Asn1PrintInfo(int tag, int xclass, int constructed, int indent);
+   void         CertType();
+
+   static const char *cpxytype[5];  // Names of types
 };
 
 #endif

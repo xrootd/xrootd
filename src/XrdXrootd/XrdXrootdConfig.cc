@@ -73,6 +73,7 @@
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
+#include "XrdXrootd/XrdXrootdTransit.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
 #include "Xrd/XrdBuffer.hh"
@@ -188,9 +189,13 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
      { switch(c)
        {
        case 'r': deper = 1;
+                 XrdOucEnv::Export("XRDREDIRECT", "R");
+                 break;
        case 'm': XrdOucEnv::Export("XRDREDIRECT", "R");
                  break;
        case 't': deper = 1;
+                 XrdOucEnv::Export("XRDRETARGET", "1");
+                 break;
        case 's': XrdOucEnv::Export("XRDRETARGET", "1");
                  break;
        case 'y': XrdOucEnv::Export("XRDREDPROXY", "1");
@@ -332,10 +337,12 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    XrdXrootdFile::Init(Locker, as_nosf == 0);
    if (as_nosf) eDest.Say("Config warning: sendfile I/O has been disabled!");
 
-// Schedule protocol object cleanup
+// Schedule protocol object cleanup (also advise the transit protocol)
 //
    ProtStack.Set(pi->Sched, XrdXrootdTrace, TRACE_MEM);
-   ProtStack.Set((pi->ConnMax/3 ? pi->ConnMax/3 : 30), 60*60);
+   n = (pi->ConnMax/3 ? pi->ConnMax/3 : 30);
+   ProtStack.Set(n, 60*60);
+   XrdXrootdTransit::Init(pi->Sched, n, 60*60);
 
 // Initialize the request ID generation object
 //
@@ -474,6 +481,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("redirect",      xred);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("trace",         xtrace);
+             else if TS_Xeq("limit",         xlimit);
              else {eDest.Say("Config warning: ignoring unknown directive '",var,"'.");
                    Config.Echo();
                    continue;
@@ -956,7 +964,7 @@ int XrdXrootdProtocol::xfsL(XrdOucStream &Config, char *val, int lix)
    if (!(Slash = rindex(val, '/'))) Slash = val;
       else Slash++;
    if (!strcmp(Slash, "libXrdOfs.so"))
-      eDest.Say("Config warning: ignoring fslib; libXrdOfs.so is built-in.");
+      eDest.Say("Config warning: 'fslib libXrdOfs.so' is actually built-in.");
       else {FSLib[lix] = strdup(val); FSLvn[lix] = lvn;}
    return 0;
 }
@@ -1539,4 +1547,43 @@ int XrdXrootdProtocol::xtrace(XrdOucStream &Config)
          }
     XrdXrootdTrace->What = trval;
     return 0;
+}
+
+/******************************************************************************/
+/*                                x l i m i t                                 */
+/******************************************************************************/
+
+/* Function: xlimit
+
+   Purpose:  To parse the directive: limit [prepare <count>] [noerror]
+
+             prepare <count> The maximum number of prepares that are allowed
+                             during the course of a single connection
+
+             noerror         When possible, do not issue an error when a limit
+                             is hit.
+
+   Output: 0 upon success or 1 upon failure.
+*/
+int XrdXrootdProtocol::xlimit(XrdOucStream &Config)
+{
+   int plimit = -1;
+   const char *word;
+
+// Look for various limits set
+//
+   while ( (word = Config.GetWord()) ) {
+      if (!strcmp(word, "prepare")) {
+          if (!(word = Config.GetWord()))
+          {
+             eDest.Emsg("Config", "'limit prepare' value not specified");
+             return 1;
+          }
+          if (XrdOuca2x::a2i(eDest, "limit prepare", word, &plimit, 0)) { return 1; }
+      } else if (!strcmp(word, "noerror")) {
+          LimitError = false;
+      }
+   }
+   if (plimit >= 0) {PrepareLimit = plimit;}
+   return 0;
 }

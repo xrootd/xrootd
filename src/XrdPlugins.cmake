@@ -23,6 +23,7 @@ add_library(
   ${LIB_XRD_PSS}
   MODULE
   XrdPss/XrdPssAio.cc
+  XrdPss/XrdPssAioCB.cc      XrdPss/XrdPssAioCB.hh
   XrdPss/XrdPss.cc           XrdPss/XrdPss.hh
   XrdPss/XrdPssCks.cc        XrdPss/XrdPssCks.hh
   XrdPss/XrdPssConfig.cc )

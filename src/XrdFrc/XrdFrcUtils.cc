@@ -193,9 +193,11 @@ int XrdFrcUtils::MapR2Q(char Opc, int *Flags)
          {case 0  :
           case '+': return XrdFrcRequest::stgQ;
           case '^': if (Flags) *Flags = XrdFrcRequest::Purge;
+                    return XrdFrcRequest::migQ;
           case '&': return XrdFrcRequest::migQ;
           case '<': return XrdFrcRequest::getQ;
           case '=': if (Flags) *Flags |= XrdFrcRequest::Purge;
+                    return XrdFrcRequest::putQ;
           case '>': return XrdFrcRequest::putQ;
           default:  break;
          }

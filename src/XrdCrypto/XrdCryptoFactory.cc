@@ -356,6 +356,15 @@ XrdCryptoX509SignProxyReq_t XrdCryptoFactory::X509SignProxyReq()
 }
 
 //______________________________________________________________________________
+XrdCryptoX509CheckProxy3_t XrdCryptoFactory::X509CheckProxy3()
+{
+   // Sign a proxy request
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509CheckProxy3");
+   return 0;
+}
+
+//______________________________________________________________________________
 XrdCryptoX509GetVOMSAttr_t XrdCryptoFactory::X509GetVOMSAttr()
 {
    // Get VOMS attributes, if any

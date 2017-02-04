@@ -51,7 +51,7 @@ XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *
     if( !st.IsOK() )
       delete redirector;
     else
-      pRegistry[key] = std::make_pair( redirector, 1 );
+      pRegistry[key] = std::pair<VirtualRedirector*, size_t>( redirector, 1 );
     return st;
   }
   else

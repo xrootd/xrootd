@@ -993,7 +993,11 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    nextstep = kXPC_none;
    switch (hs->Step) {
 
-   case kXPS_init:
+   case kXPS_init:  // The following 3 cases may fall through
+   case kXPS_puk:
+   case kXPS_signedrtag:     // (after kXRC_verifysrv)
+if (hs->Step == kXPS_init)
+   {
       //
       // Add bucket with cryptomod to the global list
       // (This must be always visible from now on)
@@ -1009,8 +1013,10 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
       // We set some options in the option field of a pwdStatus_t structure
       if (hs->Tty || (AutoLogin > 0))
          SessionSt.options = kOptsClntTty;
-
-   case kXPS_puk:
+   }
+// case kXPS_puk:
+if (hs->Step == kXPS_puk)
+   {
       // After auto-reg request, server puk have been saved in ParseClientInput:
       // we need to start a full normal login now
 
@@ -1037,8 +1043,10 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
             break;
          }
       }
-
-   case kXPS_signedrtag:     // (after kXRC_verifysrv)
+   }
+// case kXPS_signedrtag:     // (after kXRC_verifysrv)
+if (hs->Step == kXPS_signedrtag)
+   {
       //
       // Add the username
       if (hs->User.length()) {
@@ -1073,6 +1081,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
          SessionSt.options |= kOptsChngPwd;
       //
       nextstep = kXPC_normal;
+   }
       break;
 
    case kXPS_credsreq:
@@ -1350,6 +1359,9 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       break;
 
    case kXPC_normal:
+   case kXPC_creds:
+if (hs->Step == kXPC_normal)
+   {
       //
       // Complete login sequence: check user and creds
       if (QueryUser(entst,ClntMsg) != 0)
@@ -1378,8 +1390,9 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       }
       // Creds, if any, should be checked, unles we allow auto-registration
       savecreds = (entst != kPFE_allowed) ? 0 : 1;
+   }
 
-   case kXPC_creds:
+// case kXPC_creds:  (falls into here from _normal)
       //
       // Final login sequence: extract and check creds
       // Extract credentials from main buffer

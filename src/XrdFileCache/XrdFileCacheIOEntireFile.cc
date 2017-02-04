@@ -17,107 +17,195 @@
 //----------------------------------------------------------------------------------
 
 #include <stdio.h>
+#include <fcntl.h>
 
-//#include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheStats.hh"
-#include "XrdFileCacheFactory.hh"
+#include "XrdFileCacheTrace.hh"
+
+#include "XrdOuc/XrdOucEnv.hh"
 
 using namespace XrdFileCache;
 
-void *PrefetchRunner(void * prefetch_void)
-{
-   XrdFileCache::Prefetch *prefetch = static_cast<XrdFileCache::Prefetch *>(prefetch_void);
-   if (prefetch)
-      prefetch->Run();
-   return NULL;
-}
 //______________________________________________________________________________
 
 
-IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
+IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache)
    : IO(io, stats, cache),
-     m_prefetch(0)
+   m_file(0),
+   m_localStat(0)
 {
-   clLog()->Info(XrdCl::AppMsg, "IO::IO() [%p] %s", this, m_io.Path());
+   XrdCl::URL url(GetInput()->Path());
+   std::string fname = url.GetPath();
 
-   std::string fname;
-   m_cache.getFilePathFromURL(io.Path(), fname);
+   m_file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
+   if (! m_file)
+   {
+      struct stat st;
+      int res = Fstat(st);
 
-   m_prefetch = new Prefetch(io, fname, 0, io.FSize());
+      // This should not happen, but make a printout to see it.
+      if (res)
+         TRACEIO(Error, "IOEntireFile::IOEntireFile, could not get valid stat");
 
+      m_file = new File(this, fname, 0, st.st_size);
+   }
+
+   Cache::GetInstance().AddActive(m_file);
 }
 
 IOEntireFile::~IOEntireFile()
-{}
+{
+   TRACEIO(Debug, "IOEntireFile::~IOEntireFile() ");
+   delete m_localStat;
+}
+
+int IOEntireFile::Fstat(struct stat &sbuff)
+{
+   XrdCl::URL url(GetPath());
+   std::string name = url.GetPath();
+   name += Info::m_infoExtension;
+
+   int res = 0;
+   if( ! m_localStat)
+   {
+      res =  initCachedStat(name.c_str());
+      if (res) return res;
+   }
+
+   memcpy(&sbuff, m_localStat, sizeof(struct stat));
+   return 0;
+}
+
+long long IOEntireFile::FSize()
+{
+   return m_file->GetFileSize();
+}
+
+void IOEntireFile::RelinquishFile(File* f)
+{
+   TRACEIO(Info, "IOEntireFile::RelinquishFile");
+   assert(m_file == f);
+   m_file = 0;
+}
+
+int IOEntireFile::initCachedStat(const char* path)
+{
+   // Called indirectly from the constructor.
+
+   int res = -1;
+   struct stat tmpStat;
+
+   if (m_cache.GetOss()->Stat(path, &tmpStat) == XrdOssOK)
+   {
+      XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
+      XrdOucEnv myEnv;
+      if (infoFile->Open(path, O_RDONLY, 0600, myEnv) == XrdOssOK)
+      {
+         Info info(m_cache.GetTrace());
+         if (info.Read(infoFile, path))
+         {
+            tmpStat.st_size = info.GetFileSize();
+            TRACEIO(Info, "IOEntireFile::initCachedStat successfuly read size from info file = " << tmpStat.st_size);
+            res = 0;
+         }
+         else
+         {
+            // file exist but can't read it
+            TRACEIO(Error, "IOEntireFile::initCachedStat failed to read file size from info file");
+         }
+      }
+      else
+      {
+         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << strerror(errno));
+      }
+      infoFile->Close();
+      delete infoFile;
+   }
+
+   if (res)
+   {
+      res = GetInput()->Fstat(tmpStat);
+      TRACEIO(Debug, "IOEntireFile::initCachedStat  get stat from client res= " << res << "size = " << tmpStat.st_size);
+   }
+
+   if (res == 0)
+   {
+      m_localStat = new struct stat;
+      memcpy(m_localStat, &tmpStat, sizeof(struct stat));
+   }
+   return res;
+}
 
 bool IOEntireFile::ioActive()
 {
-   return m_prefetch->InitiateClose();
+   if ( ! m_file)
+   {
+      return false;
+   }
+   else
+   {
+      bool active = m_file->ioActive();
+      if (! active && m_file)
+      {
+         TRACEIO(Debug, "IOEntireFile::ioActive() detaching file");
+         m_cache.Detach(m_file);
+         m_file = 0;
+      }
+      return active;
+   }
 }
-
-void IOEntireFile::StartPrefetch()
-{
-   pthread_t tid;
-   XrdSysThread::Run(&tid, PrefetchRunner, (void *)(m_prefetch), 0, "XrdFileCache Prefetcher");
-}
-
 
 XrdOucCacheIO *IOEntireFile::Detach()
 {
-   m_statsGlobal.Add(m_prefetch->GetStats());
+   TRACEIO(Debug, "IOEntireFile::Detach() ");
 
-   XrdOucCacheIO * io = &m_io;
+   XrdOucCacheIO * io = GetInput();
 
-   delete m_prefetch;
-   m_prefetch = 0;
-
-   // This will delete us!
-   m_cache.Detach(this);
+   delete this;
    return io;
 }
 
 int IOEntireFile::Read (char *buff, long long off, int size)
 {
-   clLog()->Debug(XrdCl::AppMsg, "IO::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
+   TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size );
 
    // protect from reads over the file size
-   if (off >= m_io.FSize())
+   if (off >= FSize())
       return 0;
    if (off < 0)
    {
       errno = EINVAL;
       return -1;
    }
-   if (off + size > m_io.FSize())
-      size = m_io.FSize() - off;
+   if (off + size > FSize())
+      size = FSize() - off;
+
 
    ssize_t bytes_read = 0;
    ssize_t retval = 0;
 
-   retval = m_prefetch->Read(buff, off, size);
-   clLog()->Debug(XrdCl::AppMsg, "IO::Read() read from prefetch retval =  %d %s", retval, m_io.Path());
-   if (retval > 0)
+   retval = m_file->Read(buff, off, size);
+   if (retval >= 0)
    {
       bytes_read += retval;
       buff += retval;
       size -= retval;
 
-      if ((size > 0))
-         clLog()->Debug(XrdCl::AppMsg, "IO::Read() missed %d bytes %s", size, m_io.Path());
+      if (size > 0)
+         TRACEIO(Warning, "IOEntireFile::Read() bytes missed " <<  size );
    }
-   if (retval < 0)
+   else
    {
-      clLog()->Error(XrdCl::AppMsg, "IO::Read(), origin bytes read %d %s", retval, m_io.Path());
+      TRACEIO(Warning, "IOEntireFile::Read() pass to origin bytes ret " << retval );
    }
 
    return (retval < 0) ? retval : bytes_read;
 }
-
 
 
 /*
@@ -125,8 +213,7 @@ int IOEntireFile::Read (char *buff, long long off, int size)
  */
 int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
 {
-   clLog()->Warning(XrdCl::AppMsg, "IO::ReadV(), get %d requests %s", n, m_io.Path());
-
-
-   return m_prefetch->ReadV(readV, n);
+   TRACEIO(Dump, "IO::ReadV(), get " <<  n << " requests" );
+   return m_file->ReadV(readV, n);
 }
+

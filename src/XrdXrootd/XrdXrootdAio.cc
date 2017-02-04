@@ -168,6 +168,7 @@ void XrdXrootdAio::doneWrite()
 // requests are outstanding. It is impossible to have a zero length with more
 // requests outstanding.
 //
+//cerr <<"doneWrite left " <<aioReq->numActive  <<' ' <<aioReq->myIOLen <<endl;
    if (aioReq->myIOLen > 0)
       {Next = aioReq->aioFree; aioReq->aioFree = this;}
       else {if (!(aioReq->numActive)) Sched->Schedule((XrdJob *)aioReq);

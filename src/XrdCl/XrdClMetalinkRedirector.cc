@@ -243,14 +243,14 @@ XRootDStatus MetalinkRedirector::LoadLocalFile( ResponseHandler *userHandler )
     if( bytesRead < 0 )
     {
       close( fd );
-      delete buffer;
+      delete[] buffer;
       if( userHandler ) userHandler->HandleResponseWithHosts( new XRootDStatus( stError, errOSError, errno ), 0, 0 );
       return XRootDStatus( stError, errOSError, errno );
     }
     content += std::string( buffer, bytesRead );
   }
   close( fd );
-  delete buffer;
+  delete[] buffer;
   XRootDStatus st = Parse( content );
   FinalizeInitialization( st );
   if( userHandler ) userHandler->HandleResponseWithHosts( new XRootDStatus( st ), 0, 0 );
@@ -385,7 +385,8 @@ XRootDStatus MetalinkRedirector::HandleRequest( Message *msg, Stream *stream )
   // if the metalink data haven't been loaded yet, make it pending
   if( !pReady )
   {
-    pPendingRedirects.push_back( std::make_pair( msg, stream ) );
+   pPendingRedirects.push_back(
+           std::make_pair( const_cast<const XrdCl::Message*>( msg), stream ) );
     return XRootDStatus();
   }
   // otherwise generate a virtual response
