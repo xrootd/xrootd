@@ -22,6 +22,8 @@ Version 4.6.0
   * **[XrdHttp]** Fix memory leak in Bridge protocol (affects HTTP).
   * **[XrdSecgsi]** Several improvements in the way CRLs are checked and reloaded.
   * **[XrdCl]** Protect against spurious wakeups in SyncResponseHandler.
+  * **[XrdCl]** On read-timeout, if the stream is broken, make sure the request and 
+                its handler are not double deleted.
 
 + **Minor bug fixes**
   * **[XrdCl]** Check if the file was correctly closed upon ZipArchiveReader destruction.
