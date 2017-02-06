@@ -1015,7 +1015,7 @@ if (hs->Step == kXPS_init)
          SessionSt.options = kOptsClntTty;
    }
 // case kXPS_puk:
-if (hs->Step == kXPS_puk)
+if ((hs->Step == kXPS_init) || (hs->Step == kXPS_puk))
    {
       // After auto-reg request, server puk have been saved in ParseClientInput:
       // we need to start a full normal login now
@@ -1045,8 +1045,6 @@ if (hs->Step == kXPS_puk)
       }
    }
 // case kXPS_signedrtag:     // (after kXRC_verifysrv)
-if (hs->Step == kXPS_signedrtag)
-   {
       //
       // Add the username
       if (hs->User.length()) {
@@ -1081,7 +1079,6 @@ if (hs->Step == kXPS_signedrtag)
          SessionSt.options |= kOptsChngPwd;
       //
       nextstep = kXPC_normal;
-   }
       break;
 
    case kXPS_credsreq:
