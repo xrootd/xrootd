@@ -47,6 +47,7 @@
 //!              XrdSsiProviderServer defined in the plugin shared library.
 //-----------------------------------------------------------------------------
 
+class XrdSsiErrInfo;
 class XrdSsiRequest;
 class XrdSsiResource;
 
@@ -85,6 +86,37 @@ static const int SsiVersion = 0x00020000;
 //-----------------------------------------------------------------------------
 
 virtual void   Attach(XrdSsiRequest &reqRef, std::string handle) {}
+
+//-----------------------------------------------------------------------------
+//! @brief Prepare for processing subsequent resource request.
+//!
+//! This method is meant to be used server-side to optimize subsequent request
+//! processing, perform authorization, and allow a service to stall or redirect
+//! requests. It is optional and a default implementation is provided that
+//! simply asks the provider if the resource exists on the server. Clients need
+//! not call or implement this method.
+//!
+//! @param  eInfo    The object where error information is to be placed.
+//! @param  rDesc    Reference to the resource object that describes the
+//!                  resource subsequent requests will use.
+//!
+//! @return true     Continue normally, no issues detected.
+//!         false    An exception occurred, the eInfo object has the reason.
+//!
+//! Special notes for server-side processing:
+//!
+//! 1) Two special errors are recognized that allow for a client retry:
+//!
+//!    resP->eInfo.eNum = EAGAIN (client should retry elsewhere)
+//!    resP->eInfo.eMsg = the host name where the client is redirected
+//!    resP->eInfo.eArg = the port number to be used by the client
+//!
+//!    resP->eInfo.eNum = EBUSY  (client should wait and then retry).
+//!    resP->eInfo.eMsg = an optional reason for the wait.
+//!    resP->eInfo.eArg = the number of seconds the client should wait.
+//-----------------------------------------------------------------------------
+
+virtual bool   Prepare(XrdSsiErrInfo &eInfo, const XrdSsiResource &rDesc);
 
 //-----------------------------------------------------------------------------
 //! @brief Process a request; client-side or server-side.

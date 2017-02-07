@@ -86,7 +86,7 @@ friend class XrdSsiTaskReal;
 //!                you have consumed the message to release its resources.
 //-----------------------------------------------------------------------------
 
-virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.Recycle(false);}
+virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.RecycleMsg(false);}
 
 //-----------------------------------------------------------------------------
 //! Indicate that request processing has been finished. This method calls

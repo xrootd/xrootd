@@ -34,7 +34,7 @@ XrdSsi/XrdSsiRequest.cc                XrdSsi/XrdSsiRequest.hh
                                        XrdSsi/XrdSsiResource.hh
                                        XrdSsi/XrdSsiScale.hh
 XrdSsi/XrdSsiServReal.cc               XrdSsi/XrdSsiServReal.hh
-                                       XrdSsi/XrdSsiService.hh
+XrdSsi/XrdSsiService.cc                XrdSsi/XrdSsiService.hh
 XrdSsi/XrdSsiSessReal.cc               XrdSsi/XrdSsiSessReal.hh
                                        XrdSsi/XrdSsiStream.hh
 XrdSsi/XrdSsiTaskReal.cc               XrdSsi/XrdSsiTaskReal.hh

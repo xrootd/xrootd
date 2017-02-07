@@ -76,8 +76,8 @@ struct  XrdSsiRespInfo
   
 //-----------------------------------------------------------------------------
 //! The RespInfoMsg class describes an async response message sent to the
-//! XrdSsiRequest::Alert() method. It encapsulates the message sent and is
-//! responsible for recovering any resources used by the message via Recycle().
+//! XrdSsiRequest::Alert() method. It encapsulates the message sent and must
+//! recover any resources used by the message when RecycleMsg() is called.
 //-----------------------------------------------------------------------------
 
 class XrdSsiRespInfoMsg
@@ -99,10 +99,10 @@ inline  char    *GetMsg(int &mlen) {mlen = msgLen; return msgBuf;}
 //! Release resources used by the message. This method must be called after the
 //! message is processed by the XrdSsiRequest::Alert() method.
 //!
-//! Qparam  sent  When true, the message was sent. Otherwise, it was not sent.
+//! @param  sent  When true, the message was sent. Otherwise, it was not sent.
 //-----------------------------------------------------------------------------
 
-virtual void     Recycle(bool sent=true) = 0;
+virtual void     RecycleMsg(bool sent=true) = 0;
 
 //-----------------------------------------------------------------------------
 //! Contructor

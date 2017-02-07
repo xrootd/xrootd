@@ -108,7 +108,7 @@ protected:
 //! Send an alert message to the request. This is a convenience method that
 //! avoids race condistions with Finished() so it is safe to use in all cases.
 //! This is a server-side call. The service is responsible for creating a
-//! RespInfoMsg object containing the message and supplying a Recycle() method.
+//! RespInfoMsg object containing the message and supplying a RecycleMsg() method.
 //!
 //! @param  aMsg  reference to the message to be sent.
 //-----------------------------------------------------------------------------
@@ -116,7 +116,7 @@ protected:
 inline  void   Alert(XrdSsiRespInfoMsg &aMsg)
                     {XrdSsiMutexMon(rrMutex);
                      if (reqP) reqP->Alert(aMsg);
-                        else aMsg.Recycle(false);
+                        else aMsg.RecycleMsg(false);
                     }
 
 //-----------------------------------------------------------------------------

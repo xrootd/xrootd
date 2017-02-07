@@ -139,7 +139,7 @@ void XrdSsiFileReq::Alert(XrdSsiRespInfoMsg &aMsg)
 //
    if (msgLen <= 0 || rP->rType != XrdSsiRespInfo::isNone || isEnding)
       {frqMutex.UnLock();
-       aMsg.Recycle();
+       aMsg.RecycleMsg();
        return;
       }
 

@@ -78,7 +78,7 @@ class AlertMsg : public XrdSsiRespInfoMsg
 {
 public:
 
-void Recycle(bool sent=true) {delete respObj; delete this;}
+void RecycleMsg(bool sent=true) {delete respObj; delete this;}
 
      AlertMsg(XrdCl::AnyObject *resp, char *dbuff, int dlen)
              : XrdSsiRespInfoMsg(dbuff, dlen), respObj(resp) {}

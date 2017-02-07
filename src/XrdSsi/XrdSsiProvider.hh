@@ -153,40 +153,6 @@ virtual bool   Init(XrdSsiLogger  *logP,
                    ) = 0;
 
 //-----------------------------------------------------------------------------
-//! @brief Prepare for processing subsequent resource request.
-//!
-//! This method is meant to be used server-side to optimize subsequent request
-//! processing, perform authorization, and allow a provider to stall or redirect
-//! requests. It is optional and a default implementation is provided.
-//!
-//! @param  eInfo    The object where error information is to be placed.
-//! @param  rDesc    Reference to the resource object that describes the
-//!                  resource subsequent requests will use.
-//!
-//! @return true     Continue normally, no issues detected.
-//!         false    An exception occurred, the eInfo object has the reason.
-//!
-//! Special notes for server-side processing:
-//!
-//! 1) Two special errors are recognized that allow for a client retry:
-//!
-//!    resP->eInfo.eNum = EAGAIN (client should retry elsewhere)
-//!    resP->eInfo.eMsg = the host name where the client is redirected
-//!    resP->eInfo.eArg = the port number to be used by the client
-//!
-//!    resP->eInfo.eNum = EBUSY  (client should wait and then retry).
-//!    resP->eInfo.eMsg = an optional reason for the wait.
-//!    resP->eInfo.eArg = the number of seconds the client should wait.
-//-----------------------------------------------------------------------------
-
-virtual bool   Prepare(XrdSsiErrInfo &eInfo, const XrdSsiResource &rDesc)
-                      {if (QueryResource(rDesc.rName.c_str()) != notPresent)
-                          return true;
-                       eInfo.Set("Resource not available.", ENOENT);
-                       return false;
-                      }
-
-//-----------------------------------------------------------------------------
 //! Obtain the status of a resource.
 //! Client-side:  This method can be called to obtain the availability of a
 //!               resource relative to a particular endpoint.

@@ -98,7 +98,7 @@ void XrdSsiAlert::Recycle()
 
 // Issue callback to release the message if we have one
 //
-   if (theMsg) theMsg->Recycle();
+   if (theMsg) theMsg->RecycleMsg();
 
 // Place object on the queue unless we have too many
 //

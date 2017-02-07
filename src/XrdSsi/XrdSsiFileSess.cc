@@ -52,6 +52,7 @@
 #include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiFileSess.hh"
 #include "XrdSsi/XrdSsiProvider.hh"
+#include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
@@ -67,6 +68,7 @@ namespace XrdSsi
 {
 extern XrdOucBuffPool   *BuffPool;
 extern XrdSsiProvider   *Provider;
+extern XrdSsiService    *Service;
 extern XrdSysError       Log;
 extern int               respWT;
 };
@@ -393,7 +395,7 @@ int XrdSsiFileSess::open(const char         *path,      // In
 
 // Notify the provider that we will be executing a request
 //
-   if (Provider->Prepare(errInfo, fileResource))
+   if (Service->Prepare(errInfo, fileResource))
       {const char *usr = fileResource.rUser.c_str();
        if (!(*usr)) gigID = strdup(path);
           else {char gBuff[2048];
