@@ -48,6 +48,16 @@
 static int gErrVerifyChain = 0;
 XrdOucTrace *sslTrace = 0;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
+{
+    if (pkey->type != EVP_PKEY_RSA) {
+        return NULL;
+    }
+    return pkey->pkey.rsa;
+}
+#endif
+
 //____________________________________________________________________________
 int XrdCryptosslX509VerifyCB(int ok, X509_STORE_CTX *ctx)
 {
@@ -444,15 +454,12 @@ int XrdCryptosslX509ParseFile(const char *fname,
                   // Get the public key
                   EVP_PKEY *evpp = X509_get_pubkey((X509 *)(cert->Opaque()));
                   if (evpp) {
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-                     // evpp gets reset by the other call on >=1.0.0; to be investigated
-                     if (PEM_read_bio_RSAPrivateKey(bkey,&(evpp->pkey.rsa),0,0)) {
-#else
-                     if (PEM_read_bio_PrivateKey(bkey,&evpp,0,0)) {
-#endif
+                     RSA *rsa = 0;
+                     if (PEM_read_bio_RSAPrivateKey(bkey,&rsa,0,0)) {
+                        EVP_PKEY_assign_RSA(evpp, rsa);
                         DEBUG("RSA key completed for '"<<cert->Subject()<<"'");
                         // Test consistency
-                        int rc = RSA_check_key(evpp->pkey.rsa);
+                        int rc = RSA_check_key(EVP_PKEY_get0_RSA(evpp));
                         if (rc != 0) {
                            // Update PKI in certificate
                            cert->SetPKI((XrdCryptoX509data)evpp);
@@ -567,10 +574,12 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
                   // Get the public key
                   EVP_PKEY *evpp = X509_get_pubkey((X509 *)(cert->Opaque()));
                   if (evpp) {
-                     if (PEM_read_bio_PrivateKey(bkey,&evpp,0,0)) {
+                     RSA *rsa = 0;
+                     if (PEM_read_bio_RSAPrivateKey(bkey,&rsa,0,0)) {
+                        EVP_PKEY_assign_RSA(evpp, rsa);
                         DEBUG("RSA key completed ");
                         // Test consistency
-                        int rc = RSA_check_key(evpp->pkey.rsa);
+                        int rc = RSA_check_key(EVP_PKEY_get0_RSA(evpp));
                         if (rc != 0) {
                            // Update PKI in certificate
                            cert->SetPKI((XrdCryptoX509data)evpp);
@@ -598,7 +607,7 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
 }
 
 //____________________________________________________________________________
-int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1)
+int XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
 {
    // Function to convert from ASN1 time format into UTC
    // since Epoch (Jan 1, 1970) 

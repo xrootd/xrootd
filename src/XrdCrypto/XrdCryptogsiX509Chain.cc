@@ -176,6 +176,7 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
       int pxplen = -1; bool b;
       if (opt & kOptsRfc3820) {
          const void *extdata = xcer->GetExtension(gsiProxyCertInfo_OID);
+         if (!extdata) extdata = xcer->GetExtension(gsiProxyCertInfo_OLD_OID);
          if (!extdata || !cfact || !(cfact && (*(cfact->ProxyCertInfo()))(extdata, pxplen, &b))) {
             errcode = kMissingExtension;
             lastError = "rfc3820: ";
@@ -244,7 +245,7 @@ bool XrdCryptogsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *xce
       if (pcn) {
          char *pcnn = 0;
          while ((pcnn = (char *) strstr(pcn+1,"/CN=")))
-	    pcn = pcnn;
+            pcn = pcnn;
          ilen = (int)(pcn - xcer->Issuer());
       }
       if (strncmp(xcer->Subject() + ilen,"/CN=",4)) {

@@ -62,6 +62,7 @@ XrdSysMutex *XrdCryptosslFactory::CryptoMutexPool[SSLFACTORY_MAX_CRYPTO_MUTEX];
 /******************************************************************************/
 /*             T h r e a d - S a f e n e s s   F u n c t i o n s              */
 /******************************************************************************/
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 #ifdef __solaris__
 extern "C" {
 #endif
@@ -69,7 +70,7 @@ static unsigned long sslfactory_id_callback(void) {
   return (unsigned long)XrdSysThread::ID();
 }
 
-void sslfactory_lock(int mode, int n, const char *file, int line)
+static void sslfactory_lock(int mode, int n, const char *file, int line)
 {
   if (mode & CRYPTO_LOCK) {
     if (XrdCryptosslFactory::CryptoMutexPool[n]) {
@@ -83,6 +84,7 @@ void sslfactory_lock(int mode, int n, const char *file, int line)
 }
 #ifdef __solaris__
 }
+#endif
 #endif
 
 
