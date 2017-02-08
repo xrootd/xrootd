@@ -46,6 +46,9 @@ endif()
 
 set ( CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES} )
 
+check_function_exists(TLS_method HAVE_TLS)
+compiler_define_if_found(HAVE_TLS HAVE_TLS)
+
 check_function_exists(TLSv1_2_method HAVE_TLS12)
 compiler_define_if_found(HAVE_TLS12 HAVE_TLS12)
 

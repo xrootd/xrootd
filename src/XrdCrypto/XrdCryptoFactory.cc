@@ -358,7 +358,7 @@ XrdCryptoX509SignProxyReq_t XrdCryptoFactory::X509SignProxyReq()
 //______________________________________________________________________________
 XrdCryptoX509CheckProxy3_t XrdCryptoFactory::X509CheckProxy3()
 {
-   // Sign a proxy request
+   // Check consistency of a GSI 3 compliant proxy
 
    ABSTRACTMETHOD("XrdCryptoFactory::X509CheckProxy3");
    return 0;
