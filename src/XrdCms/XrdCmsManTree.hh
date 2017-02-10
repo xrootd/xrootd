@@ -80,7 +80,7 @@ struct TreeInfo
 
        }         tmInfo[XrdCmsManager::MTMax];
 
-char            buff[8];
+char            buff[16];
 int             maxTMI;
 int             numConn;
 int             maxConn;

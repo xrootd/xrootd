@@ -74,11 +74,14 @@ void        Bounce(SMask_t smask, int SNum);
 
 void        Drop(SMask_t mask, int SNum, int xHi);
 
-int         Init(int fxHold, int fxDelay, int fxQuery, int seFS);
+int         Init(int fxHold, int fxDelay, int fxQuery, int seFS, int nxHold);
 
 void       *TickTock();
 
+static const int min_nxTime = 60;
+
             XrdCmsCache() : okVec(0), Tick(8*60*60), Tock(0), BClock(0), 
+                            nilTMO(0),
                             DLTime(5), QDelay(5), Bhits(0), Bmiss(0), vecHi(-1),
                             isDFS(0)
                           {memset(Bounced,  0, sizeof(Bounced));
@@ -106,6 +109,7 @@ SMask_t       okVec;
 unsigned int  Tick;
 unsigned int  Tock;
 unsigned int  BClock;
+         int  nilTMO;
          int  DLTime;
          int  QDelay;
          int  Bhits;

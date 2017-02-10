@@ -68,6 +68,7 @@ typedef unsigned int   kXR_unt32;
 //#if defined(_WIN32)
 //typedef __int64        kXR_int64;
 //#else
-typedef long long      kXR_int64;
+typedef long long          kXR_int64;
+typedef unsigned long long kXR_unt64;
 //#endif
 #endif

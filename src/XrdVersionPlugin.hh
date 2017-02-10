@@ -96,6 +96,7 @@
         XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocolPort            )\
         XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdHttpGetSecXtractor         )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSysLogPInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssGetStorageSystem        )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssStatInfoInit            )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOucGetCache                )\
@@ -123,6 +124,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSysGetXAttrObject          )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetMonitor               )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetPlugIn                )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  4, secxtractorlib                )\
                              { 0, 0, 0,  0,  0, 0}
 
 #define XrdVERSIONPLUGIN_Maxim(procMode, majorVer, minorVer, piPfx, piSfx)\

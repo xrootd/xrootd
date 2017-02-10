@@ -75,11 +75,12 @@ public:
 
    // Dump information
    virtual void Dump();
-   virtual int DumpExtensions(); // extensions
+   virtual int DumpExtensions(bool = 0); // extensions
 
    const char *Type(EX509Type t = kUnknown) const
                  { return ((t == kUnknown) ? ctype[type+1] : ctype[t+1]); }
    virtual const char *ParentFile();
+   virtual const char *ProxyType() const { return ""; }
 
    // Key strength
    virtual int BitStrength();

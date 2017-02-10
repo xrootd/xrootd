@@ -27,6 +27,7 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClTransportManager.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 #include "XrdOuc/XrdOucPreload.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysUtils.hh"
@@ -45,6 +46,88 @@
 #include <unistd.h>
 
 XrdVERSIONINFO( XrdCl, client );
+
+//------------------------------------------------------------------------------
+// Forking functions
+//------------------------------------------------------------------------------
+extern "C"
+{
+  //----------------------------------------------------------------------------
+  // Prepare for the forking
+  //----------------------------------------------------------------------------
+  static void prepare()
+  {
+    using namespace XrdCl;
+    Log         *log         = DefaultEnv::GetLog();
+    Env         *env         = DefaultEnv::GetEnv();
+    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
+
+    log->Debug( UtilityMsg, "In the prepare fork handler for process %d",
+                getpid() );
+
+    //--------------------------------------------------------------------------
+    // Run the fork handler if it's enabled
+    //--------------------------------------------------------------------------
+    int runForkHandler = DefaultRunForkHandler;
+    env->GetInt( "RunForkHandler", runForkHandler );
+    if( runForkHandler )
+      forkHandler->Prepare();
+    env->WriteLock();
+  }
+
+  //----------------------------------------------------------------------------
+  // Parent handler
+  //----------------------------------------------------------------------------
+  static void parent()
+  {
+    using namespace XrdCl;
+    Log         *log         = DefaultEnv::GetLog();
+    Env         *env         = DefaultEnv::GetEnv();
+    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
+    env->UnLock();
+
+    pid_t pid = getpid();
+    log->Debug( UtilityMsg, "In the parent fork handler for process %d", pid );
+
+    //--------------------------------------------------------------------------
+    // Run the fork handler if it's enabled
+    //--------------------------------------------------------------------------
+    int runForkHandler = DefaultRunForkHandler;
+    env->GetInt( "RunForkHandler", runForkHandler );
+    if( runForkHandler )
+    {
+      log->SetPid(pid);
+      forkHandler->Parent();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Child handler
+  //----------------------------------------------------------------------------
+  static void child()
+  {
+    using namespace XrdCl;
+    DefaultEnv::ReInitializeLogging();
+    Log         *log         = DefaultEnv::GetLog();
+    Env         *env         = DefaultEnv::GetEnv();
+    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
+    env->ReInitializeLock();
+
+    pid_t pid = getpid();
+    log->Debug( UtilityMsg, "In the child fork handler for process %d", pid );
+
+    //--------------------------------------------------------------------------
+    // Run the fork handler if it's enabled
+    //--------------------------------------------------------------------------
+    int runForkHandler = DefaultRunForkHandler;
+    env->GetInt( "RunForkHandler", runForkHandler );
+    if( runForkHandler )
+    {
+      log->SetPid(pid);
+      forkHandler->Child();
+    }
+  }
+}
 
 namespace
 {
@@ -201,6 +284,8 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "TCPKeepProbes",        DefaultTCPKeepAliveProbes   );
     REGISTER_VAR_INT( varsInt, "MultiProtocol",        DefaultMultiProtocol        );
     REGISTER_VAR_INT( varsInt, "ParallelEvtLoop",      DefaultParallelEvtLoop      );
+    REGISTER_VAR_INT( varsInt, "MetalinkProcessing",   DefaultMetalinkProcessing   );
+    REGISTER_VAR_INT( varsInt, "LocalMetalinkFile",    DefaultLocalMetalinkFile    );
 
     REGISTER_VAR_STR( varsStr, "PollerPreference",     DefaultPollerPreference     );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",        DefaultClientMonitor        );
@@ -210,6 +295,7 @@ namespace XrdCl
     REGISTER_VAR_STR( varsStr, "PlugInConfDir",        DefaultPlugInConfDir        );
     REGISTER_VAR_STR( varsStr, "ReadRecovery",         DefaultReadRecovery         );
     REGISTER_VAR_STR( varsStr, "WriteRecovery",        DefaultWriteRecovery        );
+    REGISTER_VAR_STR( varsStr, "GlfnRedirector",       DefaultGlfnRedirector       );
 
     //--------------------------------------------------------------------------
     // Process the configuration files
@@ -223,14 +309,19 @@ namespace XrdCl
 
     XrdSysPwd pwdHandler;
     passwd *pwd = pwdHandler.Get( getuid() );
-    std::string userConfigFile = pwd->pw_dir;
-    userConfigFile += "/.xrootd/client.conf";
+    if( pwd )
+    {
+      std::string userConfigFile = pwd->pw_dir;
+      userConfigFile += "/.xrootd/client.conf";
 
-    st = Utils::ProcessConfig( userConfig, userConfigFile );
+      st = Utils::ProcessConfig( userConfig, userConfigFile );
 
-    if( !st.IsOK() )
-      log->Debug( UtilityMsg, "Unable to process user config file: %s",
-                  st.ToString().c_str() );
+      if( !st.IsOK() )
+        log->Debug( UtilityMsg, "Unable to process user config file: %s",
+                    st.ToString().c_str() );
+    }
+    else
+      log->Debug( UtilityMsg, "Unable to find user home directory." );
 
     std::map<std::string, std::string>::iterator it;
 
@@ -300,6 +391,11 @@ namespace XrdCl
       std::transform( name.begin(), name.end(), name.begin(), ::toupper );
       ImportString( varsStr[i].name, name );
     }
+
+    //--------------------------------------------------------------------------
+    // Register fork handlers
+    //--------------------------------------------------------------------------
+    pthread_atfork( prepare, parent, child );
   }
 
   //----------------------------------------------------------------------------
@@ -725,111 +821,29 @@ namespace XrdCl
   }
 }
 
-//------------------------------------------------------------------------------
-// Forking functions
-//------------------------------------------------------------------------------
-extern "C"
-{
-  //----------------------------------------------------------------------------
-  // Prepare for the forking
-  //----------------------------------------------------------------------------
-  static void prepare()
-  {
-    using namespace XrdCl;
-    Log         *log         = DefaultEnv::GetLog();
-    Env         *env         = DefaultEnv::GetEnv();
-    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
-
-    log->Debug( UtilityMsg, "In the prepare fork handler for process %d",
-                getpid() );
-
-    //--------------------------------------------------------------------------
-    // Run the fork handler if it's enabled
-    //--------------------------------------------------------------------------
-    int runForkHandler = DefaultRunForkHandler;
-    env->GetInt( "RunForkHandler", runForkHandler );
-    if( runForkHandler )
-      forkHandler->Prepare();
-    env->WriteLock();
-  }
-
-  //----------------------------------------------------------------------------
-  // Parent handler
-  //----------------------------------------------------------------------------
-  static void parent()
-  {
-    using namespace XrdCl;
-    Log         *log         = DefaultEnv::GetLog();
-    Env         *env         = DefaultEnv::GetEnv();
-    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
-    env->UnLock();
-
-    pid_t pid = getpid();
-    log->Debug( UtilityMsg, "In the parent fork handler for process %d", pid );
-
-    //--------------------------------------------------------------------------
-    // Run the fork handler if it's enabled
-    //--------------------------------------------------------------------------
-    int runForkHandler = DefaultRunForkHandler;
-    env->GetInt( "RunForkHandler", runForkHandler );
-    if( runForkHandler )
-    {
-      log->SetPid(pid);
-      forkHandler->Parent();
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Child handler
-  //----------------------------------------------------------------------------
-  static void child()
-  {
-    using namespace XrdCl;
-    DefaultEnv::ReInitializeLogging();
-    Log         *log         = DefaultEnv::GetLog();
-    Env         *env         = DefaultEnv::GetEnv();
-    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
-    env->ReInitializeLock();
-
-    pid_t pid = getpid();
-    log->Debug( UtilityMsg, "In the child fork handler for process %d", pid );
-
-    //--------------------------------------------------------------------------
-    // Run the fork handler if it's enabled
-    //--------------------------------------------------------------------------
-    int runForkHandler = DefaultRunForkHandler;
-    env->GetInt( "RunForkHandler", runForkHandler );
-    if( runForkHandler )
-    {
-      log->SetPid(pid);
-      forkHandler->Child();
-    }
-  }
-}
 
 //------------------------------------------------------------------------------
 // Static initialization and finalization
 //------------------------------------------------------------------------------
-namespace
+int EnvInitializer::counter = 0;
+
+//------------------------------------------------------------------------------
+// The constructor will be invoked in every translation unit
+// that includes XrdClDefaultEnv.hh, but the DefaultEnv will
+// be initialized only in the first one
+//------------------------------------------------------------------------------
+EnvInitializer::EnvInitializer ()
 {
-
-  static struct EnvInitializer
-  {
-    //--------------------------------------------------------------------------
-    // Initializer
-    //--------------------------------------------------------------------------
-    EnvInitializer()
-    {
-      XrdCl::DefaultEnv::Initialize();
-      pthread_atfork( prepare, parent, child );
-    }
-
-    //--------------------------------------------------------------------------
-    // Finalizer
-    //--------------------------------------------------------------------------
-    ~EnvInitializer()
-    {
-      XrdCl::DefaultEnv::Finalize();
-    }
-  } finalizer;
+  if( counter++ == 0 ) XrdCl::DefaultEnv::Initialize();
 }
+
+//------------------------------------------------------------------------------
+// The destructor will be invoked in every translation unit
+// that includes XrdClDefaultEnv.hh, but the DefaultEnv will
+// be finalized only once in the last one
+//------------------------------------------------------------------------------
+EnvInitializer::~EnvInitializer ()
+{
+  if( --counter == 0 ) XrdCl::DefaultEnv::Finalize();
+}
+

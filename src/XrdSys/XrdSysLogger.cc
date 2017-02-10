@@ -47,6 +47,7 @@
 
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysLogging.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -58,6 +59,8 @@
 /******************************************************************************/
 
 #define BLAB(x) cerr <<"Logger " <<x <<"!!!" <<endl
+
+bool XrdSysLogger::doForward = false;
 
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -255,14 +258,29 @@ int XrdSysLogger::ParseKeep(const char *arg)
   
 void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 {
+    struct timeval tVal;
+    unsigned long  tID = XrdSysThread::Num();
     int retc;
     char tbuff[32];
+
+// Get current time
+//
+   gettimeofday(&tVal, 0);
+
+// Forward the message if there is a plugin involved here
+//
+   if (doForward)
+      {bool xEnd;
+       if (iov[0].iov_base) xEnd = XrdSysLogging::Forward(tVal,tID,iov,iovcnt);
+          else xEnd = XrdSysLogging::Forward(tVal, tID, &iov[1], iovcnt-1);
+       if (xEnd) return;
+      }
 
 // Prefix message with time if calle wants it so
 //
    if (!iov[0].iov_base)
       {iov[0].iov_base = tbuff;
-       iov[0].iov_len  = (int)Time(tbuff);
+       iov[0].iov_len  = TimeStamp(tVal, tID, tbuff, sizeof(tbuff), hiRes);
       }
 
 // Obtain the serailization mutex if need be
@@ -281,7 +299,7 @@ void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 }
   
 /******************************************************************************/
-/*                                  T i m e                                   */
+/* Private:                         T i m e                                   */
 /******************************************************************************/
   
 int XrdSysLogger::Time(char *tbuff)
@@ -297,7 +315,6 @@ int XrdSysLogger::Time(char *tbuff)
 
 // Format the time in human terms
 //
-   tbuff[minblen-1] = '\0'; // tbuff must be at least 32 bytes long
    localtime_r((const time_t *) &tVal.tv_sec, &tNow);
 
 // Choose appropriate output
@@ -314,6 +331,39 @@ int XrdSysLogger::Time(char *tbuff)
                     XrdSysThread::Num());
       }
    return (i >= minblen ? minblen-1 : i);
+}
+  
+/******************************************************************************/
+/* Private:                    T i m e S t a m p                              */
+/******************************************************************************/
+  
+int XrdSysLogger::TimeStamp(struct timeval &tVal, unsigned long tID,
+                            char *tbuff, int tbsz, bool hires)
+{
+    struct tm tNow;
+    int i;
+
+// Validate tbuff size
+//
+   if (tbsz <= 0) return 0;
+
+// Format the time in human terms
+//
+   localtime_r((const time_t *) &tVal.tv_sec, &tNow);
+
+// Choose appropriate output
+//
+   if (hires)
+      {i = snprintf(tbuff, tbsz,    "%02d%02d%02d %02d:%02d:%02d.%06d %03ld ",
+                    tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
+                    tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
+                    static_cast<int>(tVal.tv_usec), tID);
+      } else {
+       i = snprintf(tbuff, tbsz,    "%02d%02d%02d %02d:%02d:%02d %03ld ",
+                    tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
+                    tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec, tID);
+      }
+   return (i >= tbsz ? tbsz-1 : i);
 }
 
 /******************************************************************************/
@@ -428,16 +478,23 @@ void XrdSysLogger::FifoWait()
 
 void XrdSysLogger::putEmsg(char *msg, int msz)
 {
-    struct iovec eVec[2];
-    int retc;
+    unsigned long tID = XrdSysThread::Num();
     char tbuff[32];
+    struct timeval tVal;
+    struct iovec eVec[2] = {{tbuff, 0}, {msg, (size_t)msz}};
+    int retc;
+
+// Get current time
+//
+   gettimeofday(&tVal, 0);
+
+// Forward the message if there is a plugin involved here
+//
+   if (doForward && XrdSysLogging::Forward(tVal, tID, &eVec[1], 1)) return;
 
 // Prefix message with time
 //
-   eVec[0].iov_base = tbuff;
-   eVec[0].iov_len  = (int)Time(tbuff);
-   eVec[1].iov_base = msg;
-   eVec[1].iov_len  = msz;
+   eVec[0].iov_len = TimeStamp(tVal, tID, tbuff, sizeof(tbuff), hiRes);
 
 // In theory, writev may write out a partial list. This rarely happens in
 // practice and so we ignore that possibility (recovery is pretty tough).

@@ -140,6 +140,33 @@ XrdSysMutex sMutex;
 };
 
 /******************************************************************************/
+/*                       X r d O u c C a c h e I O C B                        */
+/******************************************************************************/
+
+//-----------------------------------------------------------------------------
+//! The XrdOucCacheIOCB defines a callback object that must be used to handle
+//! asynchronous I/O operations.
+//-----------------------------------------------------------------------------
+
+class XrdOucCacheIOCB
+{
+public:
+
+//------------------------------------------------------------------------------
+//! Handle result from a previous async operation.
+//!
+//! @param result is result from a previous operation. Successful results are
+//!               always values >= 0 while errors are negative values and are
+//!               always '-errno' indicate the reason for the error.
+//------------------------------------------------------------------------------
+virtual
+void     Done(int result) = 0;
+
+         XrdOucCacheIOCB() {}
+virtual ~XrdOucCacheIOCB() {}
+};
+
+/******************************************************************************/
 /*                   C l a s s   X r d O u c C a c h e I O                    */
 /******************************************************************************/
 

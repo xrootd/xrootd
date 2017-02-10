@@ -52,6 +52,8 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
@@ -106,39 +108,42 @@ int opcnt = sizeof(optab)/sizeof(optab[0]);
   
 int main(int argc, char **argv)
 {
-extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp,
-                                                     const char   *cfn,
-                                                     const char   *parm);
+static XrdVERSIONINFODEF(myVer, XrdAccTest, XrdVNUMBER, XrdVERSION);
+extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
+                                                     const char     *cfn,
+                                                     const char     *parm,
+                                                     XrdVersionInfo &myVer);
 void Usage(const char *);
 char *p2l(XrdAccPrivs priv, char *buff, int blen);
-int rc = 0, argnum, DebugON = 0;
+int rc = 0, argnum;
 char c, *argval[32];
-int DoIt(int argnum, int argc, char **argv);
+int DoIt(int argnum, int argc, char **argv, int singleshot);
 XrdOucStream Command;
 const int maxargs = sizeof(argval)/sizeof(argval[0]);
 char *ConfigFN = (char *)"./acc.cf";
+int singleshot = 0;
 
 // Get all of the options.
 //
-   while ((c=getopt(argc,argv,"c:d")) != (char)EOF)
+   while ((c=getopt(argc,argv,"c:ds")) != (char)EOF)
      { switch(c)
        {
        case 'c': ConfigFN = optarg;                  break;
-       case 'd': DebugON = 1;                        break;
+       case 's': singleshot = 1;                      break;
        default:  Usage("Invalid option.");
        }
      }
 
 // Obtain the authorization object
 //
-if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0)))
+if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
    {cerr << "testaccess: Initialization failed." <<endl;
     exit(2);
    }
 
 // If command line options specified, process this
 //
-   if (optind < argc) {rc = DoIt(optind, argc, argv); exit(rc);}
+   if (optind < argc) {rc = DoIt(optind, argc, argv, singleshot); exit(rc);}
 
 // Start accepting command from standard in until eof
 //
@@ -149,7 +154,7 @@ if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0)))
             {for (argnum=2;
                   argnum < maxargs && (argval[argnum]=Command.GetToken());
                   argnum++) {}
-             rc |= DoIt(1, argnum, argval);
+             rc |= DoIt(1, argnum, argval, singleshot=0);
             }
 
 // All done
@@ -157,7 +162,7 @@ if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0)))
    exit(rc);
 }
 
-int DoIt(int argpnt, int argc, char **argv)
+int DoIt(int argpnt, int argc, char **argv, int singleshot)
 {
 char *user, *host, *path, *result, buff[16];
 Access_Operation cmd2op(char *opname);
@@ -204,7 +209,8 @@ XrdSecEntity Entity("");
                   result = PrivsConvert(pargs, buff, sizeof(buff));
                  }
          cout <<result <<": " <<path <<endl;
-        }
+         if (singleshot) return !auth;
+       }
 
 return 0;
 }
@@ -259,7 +265,8 @@ char *PrivsConvert(XrdAccPrivCaps &ctab, char *buff, int blen)
 /******************************************************************************/
   
 void Usage(const char *msg)
-     {if (msg) cerr <<"testaccess: " <<msg <<endl;
-      cerr << "testaccess [-c cfn] [-d] [user host op path [path [. . .]]]" <<endl;
+     {if (msg) cerr <<"xrdacctest: " <<msg <<endl;
+      cerr << "Usage: xrdacctest [-c cfn] [<user> <host> {d|i|k|l|n|r|w} "
+                     "<path> [<path> [...]]]" <<endl;
       exit(1);
      }

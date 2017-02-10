@@ -20,7 +20,7 @@
 #define __XRD_CL_IN_QUEUE_HH__
 
 #include <XrdSys/XrdSysPthread.hh>
-#include <list>
+#include <map>
 #include <utility>
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
@@ -85,11 +85,25 @@ namespace XrdCl
       void ReportTimeout( time_t now = 0 );
 
     private:
+
+      //------------------------------------------------------------------------
+      //! Discard messages that don't meet basic criteria and extract the
+      //! message sid
+      //!
+      //! @param msg message object
+      //! @param sid extracted message sid used later for matching with the
+      //!        handler
+      //!
+      //! @return true if message discarded, otherwise false
+      //------------------------------------------------------------------------
+      bool DiscardMessage(Message* msg, uint16_t& sid) const;
+
       typedef std::pair<IncomingMsgHandler *, time_t> HandlerAndExpire;
-      typedef std::list<HandlerAndExpire> HandlerList;
-      std::list<Message *> pMessages;
-      HandlerList          pHandlers;
-      XrdSysMutex          pMutex;
+      typedef std::map<uint16_t, HandlerAndExpire> HandlerMap;
+      typedef std::map<uint16_t, Message*> MessageMap;
+      MessageMap pMessages;
+      HandlerMap pHandlers;
+      XrdSysMutex pMutex;
   };
 }
 

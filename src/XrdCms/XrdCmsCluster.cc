@@ -268,8 +268,9 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
                       nP->isBad & XrdCmsNode::isSuspend ? 0 : 1,
                       nP->isNoStage ? 0 : 1);
 
-// All done
+// All done. Return the node locked.
 //
+   nP->Lock(false);
    return nP;
 }
   
@@ -348,8 +349,7 @@ void XrdCmsCluster::BlackList(XrdOucTList *blP)
            {inBL = (blP && (blRD = XrdCmsBlackList::Present(nP->Name(), blP)));
             if ((!inBL && !(nP->isBad & XrdCmsNode::isBlisted))
             ||  ( inBL &&  (nP->isBad & XrdCmsNode::isBlisted))) continue;
-            nP->Lock(true);
-            STMutex.UnLock();
+            nP->g2nLock(STMutex); // Downgrade to only node lock
             if (inBL)
                {nP->isBad |= XrdCmsNode::isBlisted | XrdCmsNode::isDoomed;
                 if (blRD < -1)
@@ -364,8 +364,7 @@ void XrdCmsCluster::BlackList(XrdOucTList *blP)
                 nP->isBad &= ~(XrdCmsNode::isBlisted | XrdCmsNode::isDoomed);
                 Say.Emsg("Manager", nP->Name(), "removed from blacklist.");
                }
-            nP->UnLock();
-            STMutex.Lock();
+            nP->n2gLock(STMutex);
            }
        }
    STMutex.UnLock();
@@ -388,18 +387,20 @@ SMask_t XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod,
    STMutex.Lock();
    bmask = smask & peerMask;
 
-// Run through the table looking for nodes to send messages to
+// Run through the table looking for nodes to send messages to. We don't need
+// the node lock for this but we do need to up the reference count to keep the
+// node pointer valid for the duration of the send() (may or may not block).
 //
    for (i = 0; i <= STHi; i++)
        {if ((nP = NodeTab[i]) && nP->isNode(bmask))
-           {nP->Lock(true);
-            STMutex.UnLock();
-            if (nP->Send(iod, iovcnt, iotot) < 0) 
-               {unQueried |= nP->Mask();
-                DEBUG(nP->Ident <<" is unreachable");
-               }
-            nP->UnLock();
-            STMutex.Lock();
+           {if (nP->isOffline) unQueried |= nP->Mask();
+               else {nP->g2Ref(STMutex);
+                     if (nP->Send(iod, iovcnt, iotot) < 0)
+                        {unQueried |= nP->Mask();
+                         DEBUG(nP->Ident <<" is unreachable");
+                        }
+                     nP->Ref2g(STMutex);
+                    }
            }
        }
    STMutex.UnLock();
@@ -466,16 +467,17 @@ int XrdCmsCluster::Broadsend(SMask_t Who, XrdCms::CmsRRHdr &Hdr,
    Beg = Start = (Start <= STHi ? Start+1 : 0);
    Fin = STHi;
 
-// Run through the table looking for a node to send the message to
+// Run through the table looking for nodes to send messages to. We don't need
+// the node lock for this but we do need to up the reference count to keep the
+// node pointer valid for the duration of the send() (may or may not block).
 //
 do{for (i = Beg; i <= Fin; i++)
        {if ((nP = NodeTab[i]) && nP->isNode(Who))
-           {nP->Lock(true);
-            STMutex.UnLock();
+           {if (nP->isOffline) continue;
+            nP->g2Ref(STMutex);
             if (nP->Send(ioV, 2, ioTot) >= 0) {nP->UnLock(); return 1;}
             DEBUG(nP->Ident <<" is unreachable");
-            nP->UnLock();
-            STMutex.Lock();
+            nP->Ref2g(STMutex);
            }
        }
     if (!Beg) break;
@@ -726,11 +728,9 @@ void *XrdCmsCluster::MonRefs()
            {for (i = 0; i <= STHi; i++)
                 if ((nP = NodeTab[i])
                 &&  (resetWR || (doReset && nP->isNode(resetMask))) )
-                    {nP->Lock(true);
-                     if (resetW || doReset) nP->RefW=0;
+                    {if (resetW || doReset) nP->RefW=0;
                      if (resetR || doReset) nP->RefR=0;
                      nP->Shrem = nP->Share;
-                     nP->UnLock();
                     }
             if (resetWR)
                {if (resetW) {SelWtot += SelWcnt; SelWcnt = 0;}
@@ -814,23 +814,26 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 
 // Mark node as being offline and remove any drop job from it
 //
-   theNode->isOffline = 1;
+   theNode->isOffline = 1; // STMutex is held here
 
-// If the node is connected the simply close the connection. This will cause
-// the connection handler to re-initiate the node removal. The LockHandler
-// destructor will release the node table and node object locks as needed.
-// This condition exists only if one node is being displaced by another node.
+// If the node is connected we simply close the connection. This will cause
+// the connection handler to re-initiate the node removal. This condition
+// exists only if one node is being displaced by another node. The Disc()
+// may take a long time, but it's done async by default on the WAN and sync
+// on the LAN (local connections are fast enough and error-free for this).
 //
    if (theNode->isConn)
       {theNode->Disc(reason, 0);
-       theNode->isGone = 1;
+       theNode->isGone = 1; // Disc() sets the isOffline flag
        return;
       }
 
 // If we are not the primary node, then get rid of this node post-haste
 //
    if (!(NodeTab[NodeID] == theNode))
-      {Say.Emsg("Remove_Node", theNode->Ident, "dropped as alternate.");
+      {const char *why = (theNode->isMan ? "dropped as alternate."
+                                         : "dropped and redirected.");
+       Say.Emsg("Remove_Node", theNode->Ident, why);
        LockHandler.doDrop = true;
        return;
       }
@@ -1092,15 +1095,15 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 
 // If we are exporting a shared-everything system then the incomming mask
 // may have more than one server indicated. So, we need to do a full select.
-// This is forced when isMulti is true, indicating a choice may exist.
+// This is forced when isMulti is true, indicating a choice may exist. Note
+// that the node, if any, is returned unlocked but we have the global mutex.
 //
    if (isMulti || baseFS.isDFS())
       {STMutex.Lock();
        nP = (Config.sched_RR ? SelbyRef(pmask,selR) : SelbyLoad(pmask,selR));
+       if (nP) hlen = nP->netIF.GetName(hbuff, port, nType) + 1;
+          else hlen = 0;
        STMutex.UnLock();
-       if (!nP) return 0;
-       hlen = nP->netIF.GetName(hbuff, port, nType) + 1;
-       nP->UnLock();
        return hlen != 1;
       }
 
@@ -1121,20 +1124,20 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
        if (nP)
           {if (isrw)
               if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)    nP = 0;
-                 else {SelWcnt++; nP->RefTotW++; nP->RefW++; nP->Lock(true);}
-              else    {SelRcnt++; nP->RefTotR++; nP->RefR++; nP->Lock(true);}
+                 else {SelWcnt++; nP->RefTotW++; nP->RefW++;}
+              else    {SelRcnt++; nP->RefTotR++; nP->RefR++;}
           }
       }
-   STMutex.UnLock();
 
 // At this point either we have a node or we do not
 //
    if (nP)
       {hlen = nP->netIF.GetName(hbuff, port, nType) + 1;
        nP->RefR++;
-       nP->UnLock();
+       STMutex.UnLock();
        return hlen != 1;
       }
+   STMutex.UnLock();
    return 0;
 }
 
@@ -1416,7 +1419,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 // Cleanup status
 //
    NodeTab[sent] = 0;
-   nP->isOffline = 1;
+   nP->isOffline = 1; // STMutex is locked
    nP->DropTime  = 0;
    nP->DropJob   = 0;
    nP->isBound   = 0;
@@ -1561,7 +1564,8 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
                           ?  XrdCmsNode::allowsRW : 0);
 
 // Scan for a primary and alternate node (alternates do staging). At this
-// point we omit all peer nodes as they are our last resort.
+// point we omit all peer nodes as they are our last resort. Note that Selbyxxx
+// returns the node unlocked but we have he global mutex so that is OK.
 //
    STMutex.Lock();
    mask = pmask & peerMask;
@@ -1575,12 +1579,13 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
          mask = amask & peerMask; isalt = XrdCmsNode::allowsSS;
          if (!(Sel.Opts & XrdCmsSelect::isMeta)) selR.needSpace |= isalt;
         }
-   STMutex.UnLock();
 
-// If we found an eligible node then dispatch the client to it.
+// If we found an eligible node then dispatch the client to it. We will
+// swap the global mutex for the node mutex to minimize interefrence.
 //
    if (nP)
-      {Sel.Resp.DLen = nP->netIF.GetName(Sel.Resp.Data, Sel.Resp.Port, nType);
+      {nP->g2nLock(STMutex);
+       Sel.Resp.DLen = nP->netIF.GetName(Sel.Resp.Data, Sel.Resp.Port, nType);
        if (!Sel.Resp.DLen) {nP->UnLock(); return Unreachable(Sel, false);}
        Sel.Resp.DLen++; Sel.smask = nP->NodeMask;
        if (isalt || (Sel.Opts & XrdCmsSelect::Create) || Sel.iovN)
@@ -1602,28 +1607,31 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 // do not forward to a peer unless we have a suffficient number of local nodes.
 //
    if (!selR.delay && NodeCnt < Config.SUPCount)
-      {Record(Sel.Path.Val, "insufficient number of nodes", true);
+      {STMutex.UnLock();
+       Record(Sel.Path.Val, "insufficient number of nodes", true);
        return Config.SUPDelay;
       }
 
 // Return delay if we should avoid selecting a peer manager
 //
    if (selR.delay && selR.delay < Config.PSDelay)
-      {Record(Sel.Path.Val, selR.reason);
+      {STMutex.UnLock();
+       Record(Sel.Path.Val, selR.reason);
        return selR.delay;
       }
 
-// At this point, we attempt a peer node selection (choice of last resort)
+// At this point, we attempt a peer node selection (choice of last resort). Note
+// that we are still holding the global lock! If we find a peer node we will
+// swap it with the node lock.
 //
    if (Sel.Opts & XrdCmsSelect::Peers)
       {const char *reason1 = selR.reason;
        int delay1 = selR.delay;
        bool noNet = selR.xNoNet;
-       STMutex.Lock();
        if ((mask = (pmask | amask) & peerHost)) nP = SelbyCost(mask, selR);
-       STMutex.UnLock();
        if (nP)
-          {Sel.Resp.DLen = nP->netIF.GetName(Sel.Resp.Data,Sel.Resp.Port,nType);
+          {nP->g2nLock(STMutex);
+           Sel.Resp.DLen = nP->netIF.GetName(Sel.Resp.Data,Sel.Resp.Port,nType);
            if (!Sel.Resp.DLen) {nP->UnLock(); return Unreachable(Sel, false);}
            Sel.Resp.DLen++; Sel.smask = nP->NodeMask;
            if (Sel.iovN && Sel.iovP) nP->Send(Sel.iovP, Sel.iovN);
@@ -1634,6 +1642,10 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
        if (!selR.delay)
           {selR.delay = delay1; selR.reason = reason1; selR.xNoNet = noNet;}
       }
+
+// At this point we don't need the global lock so let it go.
+//
+   STMutex.UnLock();
 
 // At this point we either don't have enough nodes or simply can't handle this
 //
@@ -1670,6 +1682,8 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 // Cost selection is used only for peer node selection as peers do not
 // report a load and handle their own scheduling.
 
+// Caller must have the STMutex locked. The returned node. if any, is unlocked.
+
 XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
 {
     XrdCmsNode *np, *sp = 0;
@@ -1703,7 +1717,6 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(selR);
-   sp->Lock(true);
    RefCount(sp, Multi, selR.needSpace);
    return sp;
 }
@@ -1711,6 +1724,8 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
 /******************************************************************************/
 /*                             S e l b y L o a d                              */
 /******************************************************************************/
+
+// Caller must have the STMutex locked. The returned node. if any, is unlocked.
   
 XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 {
@@ -1754,7 +1769,6 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(selR);
-   sp->Lock(true);
    RefCount(sp, Multi, selR.needSpace);
    return sp;
 }
@@ -1762,6 +1776,8 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 /******************************************************************************/
 /*                              S e l b y R e f                               */
 /******************************************************************************/
+
+// Caller must have the STMutex locked. The returned node. if any, is unlocked.
 
 XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, XrdCmsSelector &selR)
 {
@@ -1792,7 +1808,6 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, XrdCmsSelector &selR)
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(selR);
-   sp->Lock(true);
    RefCount(sp, Multi, selR.needSpace);
    return sp;
 }

@@ -31,7 +31,6 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClCopyJob.hh"
-#include "XrdClMetalinkCopyJob.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
@@ -168,7 +167,7 @@ namespace XrdCl
     pJobProperties.push_back( properties );
     PropertyList &p = pJobProperties.back();
 
-    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", 0};
+    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", "zipArchive", 0};
     for( int i = 0; bools[i]; ++i )
       if( !p.HasProperty( bools[i] ) )
         p.Set( bools[i], false );
@@ -257,25 +256,6 @@ namespace XrdCl
       URL source = tmp;
       if( !source.IsValid() )
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid source" );
-
-      bool metalink = false;
-      props.Get( "metalink", metalink );
-
-      if( metalink && !source.IsMetalink())
-      {
-        log->Debug( UtilityMsg, "CopyProcess (job #%d): metalink transfer requested, but no metalink found.",
-                    i );
-        CleanUpJobs();
-        XRootDStatus st = XRootDStatus( stError, errInvalidArgs );
-        res->Set( "status", st );
-        return st;
-      }
-
-      if( metalink && source.IsMetalink() )
-      {
-        pJobs.push_back( new MetalinkCopyJob( i+1, &props, res ) );
-        continue;
-      }
 
       props.Get( "target", tmp );
       URL target = tmp;

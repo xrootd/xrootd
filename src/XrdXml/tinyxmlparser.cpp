@@ -104,25 +104,30 @@ void TiXmlBase::ConvertUTF32ToUTF8( unsigned long input, char* output, int* leng
 
 	output += *length;
 
-	// Scary scary fall throughs.
-	switch (*length) 
-	{
-		case 4:
+	// Scary scary fall throughs. Reworked as if's for C++17
+	 if (*length == 4)
+            { // case 4:
+			--output; 
+			*output = (char)((input | BYTE_MARK) & BYTE_MASK); 
+	 		input >>= 6;
+	    }
+	 if (*length >= 3 && *length <= 4)
+	    { // case 3:
 			--output; 
 			*output = (char)((input | BYTE_MARK) & BYTE_MASK); 
 			input >>= 6;
-		case 3:
+	    }
+	 if (*length >= 2 && *length <= 4)
+	    { // case 2:
 			--output; 
 			*output = (char)((input | BYTE_MARK) & BYTE_MASK); 
 			input >>= 6;
-		case 2:
-			--output; 
-			*output = (char)((input | BYTE_MARK) & BYTE_MASK); 
-			input >>= 6;
-		case 1:
+	    }
+	 if (*length >= 1 && *length <= 4)
+	    { // case 1:
 			--output; 
 			*output = (char)(input | FIRST_BYTE_MARK[*length]);
-	}
+	    }
 }
 
 

@@ -56,7 +56,10 @@ static const char *X509ChainErrStr[] = {
    "extension not found",                // 9
    "signature verification failed",      // 10
    "issuer had no signing rights",       // 11
-   "CA issued by another CA"             // 12
+   "CA issued by another CA",            // 12
+   "invalid or missing EEC",             // 13
+   "too many EEC",                       // 14
+   "invalid proxy"                       // 15
 };
 
 //___________________________________________________________________________
@@ -331,9 +334,16 @@ void XrdCryptoX509Chain::Remove(XrdCryptoX509 *c)
 
    // Now we have all the information to remove
    if (prev) {
-      current  = curr->Next();
-      prev->SetNext(current);
-      previous = curr;
+      if (curr != end) {
+         current  = curr->Next();
+         prev->SetNext(current);
+         previous = prev;
+      } else {
+         end = prev;
+         previous = end;
+         current = 0;
+         prev->SetNext(current);
+      }
    } else if (curr == begin) {
       // First buffer
       current  = curr->Next();

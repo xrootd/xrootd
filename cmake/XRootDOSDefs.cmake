@@ -11,6 +11,11 @@ set( Solaris  FALSE )
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 set( LIBRARY_PATH_PREFIX "lib" )
 
+if( NOT DEFINED USE_LIBC_SEMAPHORE )
+    set(USE_LIBC_SEMAPHORE 0)
+endif()
+add_definitions( -DUSE_LIBC_SEMAPHORE=${USE_LIBC_SEMAPHORE} )
+
 #-------------------------------------------------------------------------------
 # GCC
 #-------------------------------------------------------------------------------
@@ -24,6 +29,13 @@ if( CMAKE_COMPILER_IS_GNUCXX )
       AND GCC_VERSION VERSION_LESS 4.2 )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-strict-aliasing" )
   endif()
+
+  # for 4.9.3 or greater the 'omit-frame-pointer' 
+  # interfears  with custom semaphore implementation
+  if( (GCC_VERSION VERSION_GREATER 4.9.2) AND (USE_LIBC_SEMAPHORE EQUAL 0) )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer" )
+  endif()
+
   # gcc 6.0 is more pedantic
   if( GCC_VERSION VERSION_GREATER 6.0 OR GCC_VERSION VERSION_EQUAL 6.0 )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=misleading-indentation" )

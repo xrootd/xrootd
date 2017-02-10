@@ -81,7 +81,6 @@ bool XrdPosixObject::AssignFD(bool isStream)
    myFiles[fd] = this;
    if (fd > highFD) highFD = fd;
    fdNum  = fd + baseFD;
-   fdMutex.UnLock();
 
 // All done.
 //
@@ -207,16 +206,18 @@ int XrdPosixObject::Init(int fdnum)
 
 // Obtain the file descriptor limit but be careful of infinity
 //
-   if (getrlimit(RLIMIT_NOFILE, &rlim)
-   ||  rlim.rlim_max == RLIM_INFINITY || (int)rlim.rlim_max > maxFD)
-      {rlim.rlim_cur = 0; rlim.rlim_max = maxFD;}
-
-   limfd = static_cast<int>(rlim.rlim_max);
-
-   if (rlim.rlim_cur != rlim.rlim_max)
-      {rlim.rlim_cur  = rlim.rlim_max;
-       setrlimit(RLIMIT_NOFILE, &rlim);
-      }
+   if (getrlimit(RLIMIT_NOFILE, &rlim)) limfd = maxFD;
+      else {if (rlim.rlim_max == RLIM_INFINITY || (int)rlim.rlim_max > maxFD)
+               {rlim.rlim_cur = maxFD;
+                setrlimit(RLIMIT_NOFILE, &rlim);
+               } else {
+                if (rlim.rlim_cur != rlim.rlim_max)
+                   {rlim.rlim_cur  = rlim.rlim_max;
+                    setrlimit(RLIMIT_NOFILE, &rlim);
+                   }
+               }
+            limfd = static_cast<int>(rlim.rlim_cur);
+           }
 
 // Compute size of table. if the passed fdnum is negative then the caller does
 // not want us to shadow fd's (ther caller promises to be honest). Otherwise,
@@ -257,7 +258,7 @@ void XrdPosixObject::Release(XrdPosixObject *oP, bool needlk)
        close(oP->fdNum);
       }
 
-// Zorch the object fd and relese the global lock (object lock still held)
+// Zorch the object fd and release the global lock
 //
    oP->fdNum = -1;
    fdMutex.UnLock();

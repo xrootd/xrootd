@@ -243,7 +243,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
             protType = PF_INET6;
             if (useIPV4 && !Map64()) return badIP64;
            }
-   else if (*hSpec >= '0' && *hSpec <= '9')
+   else if (!isHostName(hSpec))
            {if ((Colon = index(hSpec, ':')))
                {aLen = Colon - hSpec;
                 if (aLen >= INET_ADDRSTRLEN) return badIPv4;

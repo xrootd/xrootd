@@ -57,6 +57,7 @@ class XrdNetAddr;
 class XrdPoll;
 class XrdOucTrace;
 class XrdScheduler;
+class XrdSendQ;
 class XrdSysError;
 
 class XrdLink : XrdJob
@@ -91,6 +92,8 @@ XrdNetAddrInfo *AddrInfo() {return (XrdNetAddrInfo *)&Addr;}
 
 static XrdLink *Alloc(XrdNetAddr &peer, int opts=0);
 
+int           Backlog();
+
 void          Bind() {}                // Obsolete
 void          Bind(pthread_t tid) { (void)tid; }   // Obsolete
 
@@ -102,7 +105,7 @@ void          DoIt();
 
 void          Enable();
 
-int           FDnum() {return FD;}
+int           FDnum() {int fd = FD; return (fd < 0 ? -fd : fd);}
 
 static XrdLink *fd2link(int fd)
                 {if (fd < 0) fd = -fd; 
@@ -223,11 +226,15 @@ static void   setKWT(int wkSec, int kwSec);
 
 void          setLocation(XrdNetAddrInfo::LocInfo &loc) {Addr.SetLocation(loc);}
 
+bool          setNB();
+
 XrdProtocol  *setProtocol(XrdProtocol *pp);
 
 void          setRef(int cnt);                          // ASYNC Mode
 
 static int    Setup(int maxfd, int idlewait);
+
+       void   Shutdown(bool getLock);
 
 static int    Stats(char *buff, int blen, int do_sync=0);
 
@@ -294,14 +301,17 @@ char                Uname[24];       // Uname and Lname must be adjacent!
 char                Lname[232];
 char               *HostName;
 int                 HNlen;
-pthread_t           TID;
-
+#if defined( __linux__ ) || defined( __solaris__ )
+pthread_t           TID;     // Hack to keep abi compatability
+#else
+XrdLink            *Next;    // Only used by PollPoll.icc
+#endif
 XrdSysMutex         opMutex;
 XrdSysMutex         rdMutex;
 XrdSysMutex         wrMutex;
 XrdSysSemaphore     IOSemaphore;
 XrdSysCondVar      *KillcvP;        // Protected by opMutex!
-XrdLink            *Next;
+XrdSendQ           *sendQ;          // Protected by wrMutex && opMutex
 XrdProtocol        *Protocol;
 XrdProtocol        *ProtoAlt;
 XrdPoll            *Poller;
@@ -316,7 +326,7 @@ char                LockReads;
 char                KeepFD;
 char                isEnabled;
 char                isIdle;
-char                inQ;
+char                inQ;    // Only used by PollPoll.icc
 char                isBridged;
 char                KillCnt;        // Protected by opMutex!
 static const char   KillMax =   60;

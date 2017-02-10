@@ -253,8 +253,9 @@ XrdAccPrivs XrdAccAccess::Access(const char *id,
 
 // Perform required access check
 //
-   if (oper) return (XrdAccPrivs)Test(
+   if (oper){return (XrdAccPrivs)Test(
                     (XrdAccPrivs)(caps.pprivs & ~caps.nprivs), oper);
+            }
              return (XrdAccPrivs)(caps.pprivs & ~caps.nprivs);
 }
 

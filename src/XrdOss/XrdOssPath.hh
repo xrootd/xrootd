@@ -61,8 +61,7 @@ static char *genPFN(char *dst, int dln, const char *src);
 
 static int   getCname(const char *path, char *Cache, char *lbuf=0, int lbsz=0);
 
-static
-inline int   isXA(const char *path) {return path[strlen(path)-1] == xChar;}
+static int   isXA(const char *path) {return path[strlen(path)-1] == xChar;}
 
 static int InitPrefix();
 

@@ -85,7 +85,7 @@ char *XrdHttpProtocol::secretkey = 0;
 
 char *XrdHttpProtocol::gridmap = 0;
 XrdOucGMap *XrdHttpProtocol::servGMap = 0;  // Grid mapping service
-   
+
 int XrdHttpProtocol::sslverifydepth = 9;
 SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
@@ -290,55 +290,61 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
 
 int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   TRACEI(DEBUG, " Extracting auth info.");
-  
+
   SecEntity.host = GetClientIPStr();
 
   X509 *peer_cert;
-  
+
   // No external plugin, hence we fill our XrdSec with what we can do here
   peer_cert = SSL_get_peer_certificate(ssl);
   TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
-  if (peer_cert && peer_cert->name) {
-    
+  ERR_print_errors(sslbio_err);
+
+  if (peer_cert) {
+
     // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
-    SecEntity.moninfo = strdup(peer_cert->name);
-    
+    SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
+
     // Here we have the user DN, we try to translate it using the XrdSec functions and the gridmap
     if (SecEntity.name) free(SecEntity.name);
-    if (servGMap) {  
+    if (servGMap) {
       SecEntity.name = (char *)malloc(128);
-      int e = servGMap->dn2user(peer_cert->name, SecEntity.name, 127, 0);
+      int e = servGMap->dn2user(SecEntity.moninfo, SecEntity.name, 127, 0);
       if ( !e ) {
-	TRACEI(DEBUG, " Mapping Username: " << peer_cert->name << " --> " << SecEntity.name);
+        TRACEI(DEBUG, " Mapping Username: " << SecEntity.moninfo << " --> " << SecEntity.name);
       }
       else {
-	TRACEI(ALL, " Mapping Username: " << peer_cert->name << " Failed. err: " << e);
-	strncpy(SecEntity.name, peer_cert->name, 127);
+        TRACEI(ALL, " Mapping Username: " << SecEntity.moninfo << " Failed. err: " << e);
+        strncpy(SecEntity.name, SecEntity.moninfo, 127);
       }
     }
     else {
-      SecEntity.name = strdup(peer_cert->name);
+      SecEntity.name = strdup(SecEntity.moninfo);
     }
-    
+
     TRACEI(DEBUG, " Setting link name: " << SecEntity.name);
     lp->setID(SecEntity.name, 0);
   }
-  else return 1;
-  
+  else return 0; // Don't fail if no cert
+
   if (peer_cert) X509_free(peer_cert);
 
 
-  
+
   // Invoke our instance of the Security exctractor plugin
   // This will fill the XrdSec thing with VOMS info, if VOMS is
   // installed. If we have no sec extractor then do nothing, just plain https
   // will work.
-  if (secxtractor)
-    secxtractor->GetSecData(lp, SecEntity, ssl);
-  
+  if (secxtractor) {
+    int r = secxtractor->GetSecData(lp, SecEntity, ssl);
+    if (r)
+      TRACEI(ALL, " Certificate data extraction failed: " << SecEntity.moninfo << " Failed. err: " << r);
+    return r;
+  }
+
   return 0;
 }
-  
+
 char *XrdHttpProtocol::GetClientIPStr() {
   char buf[256];
   buf[0] = '\0';
@@ -400,12 +406,17 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           return -1;
         }
 
+      // If a secxtractorhas been loaded
+      // maybe it wants to add its own initialization bits
+      if (secxtractor)
+        secxtractor->InitSSL(ssl, sslcadir);
+
       SSL_set_bio(ssl, sbio, sbio);
       //SSL_set_connect_state(ssl);
 
       //SSL_set_fd(ssl, Link->FDnum());
       struct timeval tv;
-      tv.tv_sec = 1;
+      tv.tv_sec = 10;
       tv.tv_usec = 0;
       setsockopt(Link->FDnum(), SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
       setsockopt(Link->FDnum(), SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
@@ -421,11 +432,17 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         }
 
       if (res < 0) {
+          ERR_print_errors(sslbio_err);
           SSL_free(ssl);
           ssl = 0;
           return -1;
         }
       BIO_set_nbio(sbio, 0);
+
+      res = SSL_get_verify_result(ssl);
+      TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
+      ERR_print_errors(sslbio_err);
+
 
       // Get the voms string and auth information
       if (GetVOMSData(Link)) {
@@ -433,11 +450,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           ssl = 0;
           return -1;
       }
-        
-      ERR_print_errors(sslbio_err);
-      res = SSL_get_verify_result(ssl);
-      TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
-      ERR_print_errors(sslbio_err);
+
 
       if (res != X509_V_OK) return -1;
       ssldone = true;
@@ -471,7 +484,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
 
   if (!CurrentReq.headerok) {
-    
+
     // Read as many lines as possible into the buffer. An empty line breaks
     while ((rc = BuffgetLine(tmpline)) > 0) {
       TRACE(DEBUG, " rc:" << rc << " got hdr line: " << tmpline);
@@ -621,7 +634,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
     else
       Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", "XrdHttp");
-    
+
     if (!Bridge) {
       TRACEI(REQ, " Autorization failed.");
       return -1;
@@ -836,7 +849,7 @@ int XrdHttpProtocol::BuffgetLine(XrdOucString &dest) {
         *(p+1) = '\0';
         // Remember the 1st segment
         int l1 = myBuff->buff + myBuff->bsize - myBuffStart;
-        
+
         dest.assign(myBuffStart, 0, l1-1);
         //strncpy(dest, myBuffStart, l1);
         BuffConsume(l1);
@@ -1068,7 +1081,7 @@ int XrdHttpProtocol::SendData(char *body, int bodylen) {
 
 int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen) {
   char outhdr[512];
-  char b[16];
+  char b[32];
   long long l;
   const char *crlf = "\r\n";
   outhdr[0] = '\0';
@@ -1221,12 +1234,6 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 
 
 
-
-
-
-
-
-
   // Schedule protocol object cleanup
   //
   ProtStack.Set(pi->Sched, XrdHttpTrace, TRACE_MEM);
@@ -1268,32 +1275,6 @@ extern "C" int verify_callback(int ok, X509_STORE_CTX * store) {
   return ok;
 }
 
-//
-///* Check that the common name matches the host name*/ 
-//void check_cert_chain(SSL *ssl, char *host) {
-//
-//    X509 *peer; 
-//    char peer_CN[256];
-//    if(SSL_get_verify_result(ssl)!=X509_V_OK) 
-//              berr_exit("Certificate doesn't verify");
-//
-//    /*Check the common name*/ 
-//   peer=SSL_get_peer_certificate(ssl); 
-//   X509_NAME_get_text_by_NID ( 
-//            X509_get_subject_name (peer),  NID_commonName,  peer_CN, 256); 
-//   if(strcasecmp(peer_CN, host)) 
-//            err_exit("Common name doesn't match host name");
-//
-//  } 
-//
-//
-//
-
-
-
-
-
-
 
 
 
@@ -1321,8 +1302,11 @@ int XrdHttpProtocol::InitSecurity() {
   OpenSSL_add_all_digests();
 
   const SSL_METHOD *meth;
-  
-#ifdef HAVE_TLS12
+
+#ifdef HAVE_TLS
+  meth = TLS_method();
+  eDest.Say(" Using TLS");
+#elif defined (HAVE_TLS12)
   meth = TLSv1_2_method();
   eDest.Say(" Using TLS 1.2");
 #elif defined (HAVE_TLS11)
@@ -1335,7 +1319,7 @@ int XrdHttpProtocol::InitSecurity() {
   eDest.Say(" warning: TLS is not available, falling back to SSL23 (deprecated).");
   meth = SSLv23_method();
 #endif
-  
+
   sslctx = SSL_CTX_new((SSL_METHOD *)meth);
   //SSL_CTX_set_min_proto_version(sslctx, TLS1_2_VERSION);
   SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_SERVER);
@@ -1344,28 +1328,6 @@ int XrdHttpProtocol::InitSecurity() {
 
   /* An error write context */
   sslbio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
-
-
-
-
-  // Enable proxy certificates
-  X509_STORE *store;
-  X509_VERIFY_PARAM *param;
-
-  store = SSL_CTX_get_cert_store(sslctx);
-  param = X509_VERIFY_PARAM_new();
-  if (!param) {
-    ERR_print_errors(sslbio_err);
-    exit(1);
-    /* ERROR */
-  }
-  X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_ALLOW_PROXY_CERTS);
-  X509_STORE_set1_param(store, param);
-  X509_VERIFY_PARAM_free(param);
-
-
-
-
 
   /* Load server certificate into the SSL context */
   if (SSL_CTX_use_certificate_file(sslctx, sslcert,
@@ -1394,41 +1356,36 @@ int XrdHttpProtocol::InitSecurity() {
       exit(1);
     }
   }
-  
-  
-  
-  
-  
+
+
+  SSL_CTX_set_cipher_list(sslctx, "ALL:!LOW:!EXP:!MD5:!MD2");
+  //SSL_CTX_set_purpose(sslctx, X509_PURPOSE_ANY);
+  SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
+
   //eDest.Say(" Setting verify depth to ", itoa(sslverifydepth), "'.");
   SSL_CTX_set_verify_depth(sslctx, sslverifydepth);
   ERR_print_errors(sslbio_err);
-  //SSL_CTX_set_verify(sslctx,
-  //        SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
-  SSL_CTX_set_verify(sslctx,
-		     SSL_VERIFY_PEER, verify_callback);
-  
-  
-  
-  
+  SSL_CTX_set_verify(sslctx, SSL_VERIFY_PEER, verify_callback);
+
   //
   // Check existence of GRID map file
   if (gridmap) {
-    
+
     // Initialize the GMap service
     //
     XrdOucString pars;
     if (XrdHttpTrace->What == TRACE_DEBUG) pars += "dbg|";
-    
+
     if (!(servGMap = XrdOucgetGMap(&eDest, gridmap, pars.c_str()))) {
-      	eDest.Say("Error loading grid map file:", gridmap);
-	exit(1);
+      eDest.Say("Error loading grid map file:", gridmap);
+      exit(1);
     } else {
-      TRACE(ALL, "using grid map file: "<< gridmap);        
-    } 
-    
+      TRACE(ALL, "using grid map file: "<< gridmap);
+    }
+
   }
-  
-  if (secxtractor) secxtractor->Init(sslctx, XrdHttpTrace->What);
+
+  if (secxtractor) secxtractor->InitCTX(sslctx, XrdHttpTrace->What);
 
   ERR_print_errors(sslbio_err);
   return 0;
@@ -1445,18 +1402,26 @@ void XrdHttpProtocol::Cleanup() {
   }
 
   if (ssl) {
+
+
     if (SSL_shutdown(ssl) != 1) {
       TRACE(ALL, " SSL_shutdown failed");
       ERR_print_errors(sslbio_err);
     }
-    else
-     SSL_free(ssl);
+
+    if (secxtractor)
+        secxtractor->FreeSSL(ssl);
+
+    SSL_free(ssl);
+
   }
+
 
   ssl = 0;
   sbio = 0;
 
   if (SecEntity.vorg) free(SecEntity.vorg);
+  if (SecEntity.role) free(SecEntity.role);
   if (SecEntity.name) free(SecEntity.name);
   if (SecEntity.host) free(SecEntity.host);
   if (SecEntity.moninfo) free(SecEntity.moninfo);
@@ -1626,9 +1591,9 @@ int XrdHttpProtocol::xsslkey(XrdOucStream & Config) {
    Purpose:  To parse the directive: gridmap <path>
 
              <path>    the path of the gridmap file to be used. Normally
-			it's /etc/grid-security/gridmap
-			No mapfile means no translation required
-			Pointing to a non existing mapfile is an error
+                       it's /etc/grid-security/gridmap
+                       No mapfile means no translation required
+                       Pointing to a non existing mapfile is an error
 
   Output: 0 upon success or !0 upon failure.
  */
@@ -1728,7 +1693,7 @@ int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
     }
 
     FILE *fp = fopen(val,"r");
-    
+
     if( fp == NULL ) {
       eDest.Emsg("Config", "Cannot open shared secret key file '", val, "'");
       eDest.Emsg("Config", "Cannot open shared secret key file. err: ", strerror(errno));

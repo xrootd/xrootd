@@ -476,6 +476,7 @@ namespace XrdCl
 
     req->requestid = kXR_mv;
     req->dlen      = source.length()+dest.length()+1;
+    req->arg1len   = source.length();
     msg->Append( source.c_str(), source.length(), 24 );
     *msg->GetBuffer(24+source.length()) = ' ';
     msg->Append( dest.c_str(), dest.length(), 25+source.length() );

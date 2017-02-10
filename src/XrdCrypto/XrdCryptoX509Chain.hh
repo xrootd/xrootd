@@ -92,7 +92,8 @@ public:
    enum EX509ChainErr { kNone = 0, kInconsistent, kTooMany, kNoCA,
                         kNoCertificate, kInvalidType, kInvalidNames,
                         kRevoked, kExpired, kMissingExtension,
-                        kVerifyFail, kInvalidSign, kCANotAutoSigned };
+                        kVerifyFail, kInvalidSign, kCANotAutoSigned,
+                        kNoEEC, kTooManyEEC, kInvalidProxy };
 
    // In case or error
    const char         *X509ChainError(EX509ChainErr e);

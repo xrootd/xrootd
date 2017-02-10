@@ -237,7 +237,7 @@ int XrdSecProtocolsss::eMsg(const char *epname, int rc,
    if (rc>0)  cerr <<"; " <<strerror(rc);
    if (txt2)  cerr <<txt2;
    if (txt3)  cerr <<txt3;
-   if (txt4)  cerr <<txt4;
+   if (txt4) {cerr <<txt4;}
               cerr <<endl;
 
    return (rc ? (rc < 0 ? rc : -rc) : -1);
@@ -393,6 +393,7 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
    switch(aType)
          {case XrdSecsssID::idDynamic:  isMutual = 1; break;
           case XrdSecsssID::idStaticM:  isMutual = 1;
+                                        idMap    = 0; break;
           case XrdSecsssID::idStatic:
                default:                 idMap    = 0; break;
           }

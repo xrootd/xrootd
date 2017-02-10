@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClChannel.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 
 namespace XrdCl
 {
@@ -187,7 +188,14 @@ namespace XrdCl
     if( !channel )
       return Status( stError, errNotSupported );
 
-    return channel->Send( msg, handler, stateful, expires );
+    VirtualRedirector *redirector = 0;
+    if( dynamic_cast<VirtualMessage*>( msg ) )
+    {
+      RedirectorRegistry &registry   = RedirectorRegistry::Instance();
+      redirector = registry.Get( url );
+    }
+
+    return channel->Send( msg, handler, stateful, expires, redirector );
   }
 
   //----------------------------------------------------------------------------

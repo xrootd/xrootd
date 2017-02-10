@@ -18,25 +18,35 @@
 
 #include <fcntl.h>
 #include <sstream>
+#include <algorithm>
 #include <sys/statvfs.h>
 
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 
 #include "XrdFileCache.hh"
-#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheTrace.hh"
+#include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheIOFileBlock.hh"
-#include "XrdFileCacheFactory.hh"
-#include "XrdFileCachePrefetch.hh"
-
-
-XrdFileCache::Cache::WriteQ XrdFileCache::Cache::s_writeQ;
 
 using namespace XrdFileCache;
+
+Cache * Cache::m_factory = NULL;
+
+
+void *CacheDirCleanupThread(void* cache_void)
+{
+   Cache::GetInstance().CacheDirCleanup();
+   return NULL;
+}
+
 void *ProcessWriteTaskThread(void* c)
 {
    Cache *cache = static_cast<Cache*>(c);
@@ -44,36 +54,108 @@ void *ProcessWriteTaskThread(void* c)
    return NULL;
 }
 
-Cache::Cache(XrdOucCacheStats & stats)
-   : m_attached(0),
-     m_stats(stats)
+void *PrefetchThread(void* ptr)
 {
+   Cache* cache = static_cast<Cache*>(ptr);
+   cache->Prefetch();
+   return NULL;
+}
+
+
+extern "C"
+{
+XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
+                              const char   *config_filename,
+                              const char   *parameters)
+{
+   XrdSysError err(0, "");
+   err.logger(logger);
+   err.Emsg("Retrieve", "Retrieving a caching proxy factory.");
+   Cache &factory = Cache::GetInstance();
+   if (! factory.Config(logger, config_filename, parameters))
+   {
+      err.Emsg("Retrieve", "Error - unable to create a factory.");
+      return NULL;
+   }
+   err.Emsg("Retrieve", "Success - returning a factory.");
+
+   pthread_t tid1;
+   XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)(&factory), 0, "XrdFileCache WriteTasks ");
+
+   pthread_t tid2;
+   XrdSysThread::Run(&tid2, PrefetchThread, (void*)(&factory), 0, "XrdFileCache Prefetch ");
+
+
    pthread_t tid;
-   XrdSysThread::Run(&tid, ProcessWriteTaskThread, (void*)this, 0, "XrdFileCache WriteTasks ");
+   XrdSysThread::Run(&tid, CacheDirCleanupThread, NULL, 0, "XrdFileCache CacheDirCleanup");
+   return &factory;
+}
+}
+
+Cache &Cache::GetInstance()
+{
+   if (m_factory == NULL)
+      m_factory = new Cache();
+   return *m_factory;
+}
+
+//______________________________________________________________________________
+
+bool Cache::Decide(XrdOucCacheIO* io)
+{
+   if (! m_decisionpoints.empty())
+   {
+      std::string filename = io->Path();
+      std::vector<Decision*>::const_iterator it;
+      for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
+      {
+         XrdFileCache::Decision *d = *it;
+         if (! d) continue;
+         if (! d->Decide(filename, *m_output_fs))
+         {
+            return false;
+         }
+      }
+   }
+
+   return true;
 }
 //______________________________________________________________________________
 
-XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
-{
-   if (Factory::GetInstance().Decide(io))
-   {
-      clLog()->Info(XrdCl::AppMsg, "Cache::Attach() %s", io->Path());
-      {
-         XrdSysMutexHelper lock(&m_io_mutex);
-         m_attached++;
-      }
-      IO* cio;
-      if (Factory::GetInstance().RefConfiguration().m_hdfsmode)
-         cio = new IOFileBlock(*io, m_stats, *this);
-      else
-         cio = new IOEntireFile(*io, m_stats, *this);
 
-      cio->StartPrefetch();
+Cache::Cache() : XrdOucCache(),
+   m_log(0, "XrdFileCache_"),
+   m_trace(0),
+   m_traceID("Manager"),
+   m_prefetch_condVar(0),
+   m_RAMblocks_used(0)
+{
+   m_trace = new XrdOucTrace(&m_log);
+   // default log level is Warning
+   m_trace->What = 2;
+}
+
+//______________________________________________________________________________
+
+XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
+{
+   if (Cache::GetInstance().Decide(io))
+   {
+      TRACE(Debug, "Cache::Attach() " << io->Path());
+      IO* cio;
+      if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
+         cio = new IOFileBlock(io, m_stats, *this);
+      else
+         cio = new IOEntireFile(io, m_stats, *this);
+
+      TRACE_PC(Info, const char* loc = io->Location(),
+               "Cache::Attach() " << io->Path() << " location: " <<
+               ((loc && loc[0] != 0) ? loc : "<deferred open>"));
       return cio;
    }
    else
    {
-      clLog()->Info(XrdCl::AppMsg, "Cache::Attach() reject %s", io->Path());
+      TRACE(Info, "Cache::Attach() decision decline " << io->Path());
    }
    return io;
 }
@@ -82,74 +164,56 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 
 int Cache::isAttached()
 {
-   XrdSysMutexHelper lock(&m_io_mutex);
-   return m_attached;
+   // virutal function of XrdOucCache, don't see it used in pfc or posix layer
+   return true;
 }
 
-void Cache::Detach(XrdOucCacheIO* io)
+void Cache::Detach(File* file)
 {
-   clLog()->Info(XrdCl::AppMsg, "Cache::Detach() %s", io->Path());
-   {
-      XrdSysMutexHelper lock(&m_io_mutex);
-      m_attached--;
-   }
+   TRACE(Debug, "Cache::Detach() file = " << file);
 
-   delete io;
+   std::map<std::string, File*>::iterator it = m_active.find(file->GetLocalPath());
+   assert (it != m_active.end());
+   m_active.erase(it);
+   delete file;
 }
-
-//______________________________________________________________________________
-
-
-void Cache::getFilePathFromURL(const char* iUrl, std::string &result) const
-{
-   XrdCl::URL url(iUrl);
-   result = Factory::GetInstance().RefConfiguration().m_cache_dir + url.GetPath();
-}
-
-//______________________________________________________________________________
-bool
-Cache::HaveFreeWritingSlots()
-{
-   const static size_t maxWriteWaits=500;
-   return s_writeQ.size < maxWriteWaits;
-}
-
 
 //______________________________________________________________________________
 void
-Cache::AddWriteTask(Prefetch* p, int ri, size_t s, bool fromRead)
+Cache::AddWriteTask(Block* b, bool fromRead)
 {
-   XrdCl::DefaultEnv::GetLog()->Dump(XrdCl::AppMsg, "Cache::AddWriteTask() wqsize = %d, bi=%d", s_writeQ.size, ri);
-   s_writeQ.condVar.Lock();
+   TRACE(Dump, "Cache::AddWriteTask() bOff=%ld " <<  b->m_offset);
+   m_writeQ.condVar.Lock();
    if (fromRead)
-      s_writeQ.queue.push_back(WriteTask(p, ri, s));
+      m_writeQ.queue.push_back(b);
    else
-      s_writeQ.queue.push_front(WriteTask(p, ri, s));
-   s_writeQ.size++;
-   s_writeQ.condVar.Signal();
-   s_writeQ.condVar.UnLock();
+      m_writeQ.queue.push_front(b);
+   m_writeQ.size++;
+   m_writeQ.condVar.Signal();
+   m_writeQ.condVar.UnLock();
 }
 
 //______________________________________________________________________________
-void Cache::RemoveWriteQEntriesFor(Prefetch *p)
+void Cache::RemoveWriteQEntriesFor(File *iFile)
 {
-   s_writeQ.condVar.Lock();
-   std::list<WriteTask>::iterator i = s_writeQ.queue.begin();
-   while (i != s_writeQ.queue.end())
+   m_writeQ.condVar.Lock();
+   std::list<Block*>::iterator i = m_writeQ.queue.begin();
+   while (i != m_writeQ.queue.end())
    {
-      if (i->prefetch == p)
+      if ((*i)->m_file == iFile)
       {
-         std::list<WriteTask>::iterator j = i++;
-         j->prefetch->DecRamBlockRefCount(j->ramBlockIdx);
-         s_writeQ.queue.erase(j);
-         --s_writeQ.size;
+         TRACE(Dump, "Cache::Remove entries for " <<  (void*)(*i) << " path " <<  iFile->lPath());
+         std::list<Block*>::iterator j = i++;
+         iFile->BlockRemovedFromWriteQ(*j);
+         m_writeQ.queue.erase(j);
+         --m_writeQ.size;
       }
       else
       {
          ++i;
       }
    }
-   s_writeQ.condVar.UnLock();
+   m_writeQ.condVar.UnLock();
 }
 
 //______________________________________________________________________________
@@ -158,17 +222,241 @@ Cache::ProcessWriteTasks()
 {
    while (true)
    {
-      s_writeQ.condVar.Lock();
-      while (s_writeQ.queue.empty())
+      m_writeQ.condVar.Lock();
+      while (m_writeQ.queue.empty())
       {
-         s_writeQ.condVar.Wait();
+         m_writeQ.condVar.Wait();
       }
-      WriteTask t = s_writeQ.queue.front();
-      s_writeQ.queue.pop_front();
-      s_writeQ.size--;
-      s_writeQ.condVar.UnLock();
+      Block* block = m_writeQ.queue.front();
+      m_writeQ.queue.pop_front();
+      m_writeQ.size--;
+      TRACE(Dump, "Cache::ProcessWriteTasks  for %p " <<  (void*)(block) << " path " << block->m_file->lPath());
+      m_writeQ.condVar.UnLock();
 
-      t.prefetch->WriteBlockToDisk(t.ramBlockIdx, t.size);
-      t.prefetch->DecRamBlockRefCount(t.ramBlockIdx);
+      block->m_file->WriteBlockToDisk(block);
    }
 }
+
+//______________________________________________________________________________
+
+bool
+Cache::RequestRAMBlock()
+{
+   XrdSysMutexHelper lock(&m_RAMblock_mutex);
+   if ( m_RAMblocks_used < Cache::GetInstance().RefConfiguration().m_NRamBuffers )
+   {
+      m_RAMblocks_used++;
+      return true;
+   }
+   return false;
+}
+
+void
+Cache::RAMBlockReleased()
+{
+   XrdSysMutexHelper lock(&m_RAMblock_mutex);
+   m_RAMblocks_used--;
+}
+
+void
+Cache::AddActive(File* file)
+{
+   XrdSysMutexHelper lock(&m_active_mutex);
+   m_active[file->GetLocalPath()] = file;
+}
+
+
+File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
+{
+   XrdSysMutexHelper lock(&m_active_mutex);
+
+   std::map<std::string, File*>::iterator it = m_active.find(path);
+   if (it != m_active.end())
+   {
+      it->second->WakeUp(iIo);
+      return it->second;
+   }
+
+
+   return 0;
+}
+
+bool Cache::HaveActiveFileWithLocalPath(std::string path)
+{
+   XrdSysMutexHelper lock(&m_active_mutex);
+
+   std::map<std::string, File*>::iterator it = m_active.find(path);
+
+   return (it != m_active.end());
+}
+
+
+//==============================================================================
+//=======================  PREFETCH ===================================
+//==============================================================================
+/*
+   namespace {
+   struct prefetch_less_than
+   {
+    inline bool operator() (const File* struct1, const File* struct2)
+    {
+        return (struct1->GetPrefetchScore() < struct2->GetPrefetchScore());
+    }
+   }myobject;
+   }*/
+//______________________________________________________________________________
+
+void
+Cache::RegisterPrefetchFile(File* file)
+{
+   //  called from File::Open()
+
+   if (Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+   {
+      m_prefetch_condVar.Lock();
+      m_prefetchList.push_back(file);
+      m_prefetch_condVar.Signal();
+      m_prefetch_condVar.UnLock();
+   }
+}
+
+//______________________________________________________________________________
+
+void
+Cache::DeRegisterPrefetchFile(File* file)
+{
+   //  called from last line File::InitiateClose()
+
+   m_prefetch_condVar.Lock();
+   for (PrefetchList::iterator it = m_prefetchList.begin(); it != m_prefetchList.end(); ++it)
+   {
+      if (*it == file)
+      {
+         m_prefetchList.erase(it);
+         break;
+      }
+   }
+   m_prefetch_condVar.UnLock();
+}
+
+//______________________________________________________________________________
+
+File*
+Cache::GetNextFileToPrefetch()
+{
+   m_prefetch_condVar.Lock();
+   while (m_prefetchList.empty())
+   {
+      m_prefetch_condVar.Wait();
+   }
+
+   //  std::sort(m_prefetchList.begin(), m_prefetchList.end(), myobject);
+
+   size_t l = m_prefetchList.size();
+   int idx = rand() % l;
+   File* f = m_prefetchList[idx];
+
+   m_prefetch_condVar.UnLock();
+   return f;
+}
+
+//______________________________________________________________________________
+//! Preapare the cache for a file open request. This method is called prior to
+//! actually opening a file. This method is meant to allow defering an open
+//! request or implementing the full I/O stack in the cache layer.
+//! @return <0 Error has occurred, return value is -errno; fail open request.
+//!         =0 Continue with open() request.
+//!         >0 Defer open but treat the file as actually being open. Use the
+//!            XrdOucCacheIO2::Open() method to open the file at a later time.
+//------------------------------------------------------------------------------
+
+int
+Cache::Prepare(const char *url, int oflags, mode_t mode)
+{
+   std::string curl(url);
+   XrdCl::URL xx(curl);
+   std::string spath = xx.GetPath();
+   spath += ".cinfo";
+
+   struct stat buf;
+   int res = m_output_fs->Stat(spath.c_str(), &buf);
+   if (res == 0)
+   {
+      TRACE( Dump, "Cache::Prefetch defer open " << spath);
+      return 1;
+   }
+   else
+   {
+      return 0;
+   }
+}
+
+//______________________________________________________________________________
+// virtual method of XrdOucCache2::Stat()
+//!
+//! @return <0 - Stat failed, value is -errno.
+//!         =0 - Stat succeeded, sbuff holds stat information.
+//!         >0 - Stat could not be done, forward operation to next level.
+//------------------------------------------------------------------------------
+
+int Cache::Stat(const char *curl, struct stat &sbuff)
+{
+   XrdCl::URL url(curl);
+   std::string name = url.GetPath();
+   name += ".cinfo";
+
+   if (m_output_fs->Stat(name.c_str(), &sbuff) == XrdOssOK)
+   {
+      if ( S_ISDIR(sbuff.st_mode))
+      {
+         return 0;
+      }
+      else
+      {
+         bool success = false;
+         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str());
+         XrdOucEnv myEnv;
+         int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
+         if (res >= 0)
+         {
+            Info info(m_trace, 0);
+            if (info.Read(infoFile, name))
+            {
+               sbuff.st_size = info.GetFileSize();
+               success = true;
+            }
+         }
+         infoFile->Close();
+         delete infoFile;
+         return success ? 0 : 1;
+      }
+   }
+
+   return 1;
+}
+
+//______________________________________________________________________________
+
+
+void
+Cache::Prefetch()
+{
+   int limitRAM = int( Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7 );
+   while (true)
+   {
+      m_RAMblock_mutex.Lock();
+      bool doPrefetch = (m_RAMblocks_used < limitRAM);
+      m_RAMblock_mutex.UnLock();
+
+      if (doPrefetch)
+      {
+         File* f = GetNextFileToPrefetch();
+         f->Prefetch();
+      }
+      else
+      {
+         XrdSysTimer::Wait(5);
+      }
+   }
+}
+

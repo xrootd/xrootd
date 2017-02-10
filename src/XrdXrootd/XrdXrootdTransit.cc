@@ -65,7 +65,7 @@ extern  XrdOucTrace *XrdXrootdTrace;
 const char *XrdXrootdTransit::reqTab = XrdXrootdTransit::ReqTable();
 
 XrdObjectQ<XrdXrootdTransit>
-           XrdXrootdTransit::ProtStack("ProtStack",
+           XrdXrootdTransit::TranStack("TranStack",
                                        "transit protocol anchor");
 
 /******************************************************************************/
@@ -83,7 +83,7 @@ XrdXrootdTransit *XrdXrootdTransit::Alloc(XrdXrootd::Bridge::Result *rsltP,
 
 // Simply return a new transit object masquerading as a bridge
 //
-   if (!(xp = ProtStack.Pop())) xp = new XrdXrootdTransit();
+   if (!(xp = TranStack.Pop())) xp = new XrdXrootdTransit();
    xp->Init(rsltP, linkP, seceP, nameP, protP);
    return xp;
 }
@@ -182,7 +182,7 @@ bool XrdXrootdTransit::Disc()
 
 // Now just free up our object.
 //
-   ProtStack.Push(&ProtLink);
+   TranStack.Push(&TranLink);
    return true;
 }
   
@@ -210,10 +210,18 @@ int XrdXrootdTransit::Fatal(int rc)
 }
 
 /******************************************************************************/
-/* Private:                         I n i t                                   */
+/*                                  I n i t                                   */
 /******************************************************************************/
 
-void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
+void XrdXrootdTransit::Init(XrdScheduler *schedP, int qMax, int qTTL)
+{
+   TranStack.Set(schedP, XrdXrootdTrace, TRACE_MEM);
+   TranStack.Set(qMax, qTTL);
+}
+
+/******************************************************************************/
+
+void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
                             XrdLink                   *linkP,
                             XrdSecEntity              *seceP,
                             const char                *nameP,
@@ -473,7 +481,7 @@ void XrdXrootdTransit::Recycle(XrdLink *lp, int consec, const char *reason)
 
 // Now just free up our object.
 //
-   ProtStack.Push(&ProtLink);
+   TranStack.Push(&TranLink);
 }
 
 /******************************************************************************/

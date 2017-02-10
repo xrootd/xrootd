@@ -84,7 +84,8 @@ typedef int (*XrdCryptoX509ParseBucket_t)(XrdSutBucket *,
                                           XrdCryptoX509Chain *);
 // Proxies
 // The OID of the extension
-#define gsiProxyCertInfo_OID "1.3.6.1.4.1.3536.1.222"
+#define gsiProxyCertInfo_OLD_OID "1.3.6.1.4.1.3536.1.222"
+#define gsiProxyCertInfo_OID     "1.3.6.1.5.5.7.1.14"
 // check presence of proxyCertInfo extension (RFC 3820)
 typedef bool (*XrdCryptoProxyCertInfo_t)(const void *, int &, bool *);
 // set path length constraint
@@ -105,6 +106,9 @@ typedef int (*XrdCryptoX509CreateProxyReq_t)(XrdCryptoX509 *,
 // sign a proxy certificate request
 typedef int (*XrdCryptoX509SignProxyReq_t)(XrdCryptoX509 *, XrdCryptoRSA *,
                                            XrdCryptoX509Req *, XrdCryptoX509 **);
+// check consistency of a GSI 3 compliant proxy
+typedef int (*XrdCryptoX509CheckProxy3_t)(XrdCryptoX509 *, XrdOucString &);
+
 // get VOMS attributes
 typedef int (*XrdCryptoX509GetVOMSAttr_t)(XrdCryptoX509 *, XrdOucString &);
 
@@ -177,6 +181,7 @@ public:
    virtual XrdCryptoX509CreateProxy_t X509CreateProxy();
    virtual XrdCryptoX509CreateProxyReq_t X509CreateProxyReq();
    virtual XrdCryptoX509SignProxyReq_t X509SignProxyReq();
+   virtual XrdCryptoX509CheckProxy3_t X509CheckProxy3();
    virtual XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr();
 
    // Equality operator

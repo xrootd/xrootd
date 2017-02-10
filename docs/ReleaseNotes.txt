@@ -7,6 +7,125 @@ Release Notes
 
 
 -------------
+Version 4.6.0
+-------------
+
++ **New Features**
+  * **[XrdCms]** Add non-blocking sends to avoid slow links.
+  * **[XrdFileCache]** File caching proxy V2 (and new pss async interface).
+
++ **Major bug fixes**
+  * **[XrdCeph]** Account for return Ceph xattr return codes.
+  * **[XrdCeph]** Fixed initialization of Ceph clusters when stripers are not used.
+  * **[XrdCrypto]** Improved determination of X509 certificate type, 
+                    including proxy version
+  * **[XrdHttp]** Fix memory leak in Bridge protocol (affects HTTP).
+  * **[XrdSecgsi]** Several improvements in the way CRLs are checked and reloaded.
+  * **[XrdCl]** Protect against spurious wakeups in SyncResponseHandler.
+  * **[XrdCl]** On read-timeout, if the stream is broken, make sure the request and 
+                its handler are not double deleted.
+
++ **Minor bug fixes**
+  * **[XrdCl]** Check if the file was correctly closed upon ZipArchiveReader destruction.
+  * **[Server]** Add limits for prepare requests.
+  * **[Server]** Delete buffers when the buffer manager is deleted. Fixes #414
+  * **[Server]** Do not double count overlapping spaces. Fixes #425 
+  * **[XrdHttp]** Allow unauthenticated https clients.
+  * **[XrdHttp]** Make Xrdhttp secure by default (rejecting proxy cert in the absence 
+                  of a proper SecXtractor plugin)
+
++ **Miscellaneous**
+  * **[XrdSecgsi]** Re-activate xrdgsitest
+  * **[RPM]** Include xrdgsitest in xrootd-client-devel package.
+  * **[XrdFileCache]** Add example of filecache configuration.
+
+-------------
+Version 4.5.0
+-------------
+
++ **New Features**
+  * **[XrdCms]** Allow specifying a different timeout for null cached entries; fixes #413
+  * **[XProtocol/XrdSec/Server/XrdCl]** Implement request signing.
+  * **[XrdCl]** Add ZIP extracting capability to xrdcp.
+  * **[XrdCl]** Include the release number in client Login request cgi.
+  * **[XrdCl]** Add support for spaces in file names for mv operation.
+
++ **Major bug fixes**
+  * **[XrdCrypto/Secgsi]** Fix XrdCryptosslMsgDigest::Init ; set 'sha256' as
+                           default algorithm.
+  * **[XrdCl]** Use posix semaphores for fedora >= 22. Disable
+                omit-frame-ponter for gcc >= 4.9.3 if custom semaphores are used.
+
++ **Minor bug fixes**
+  * **[XrdSecsss]** Fix memory leak in sss protocol.
+  * **[XrdNet]** Allow hostnames to begin with a digit.
+  * **[XrdCl]** Fix segfault in case a user cannot be mapped to a home directory.
+  * **[XrdCl]** Make sure a socket is always associated with a proper poller
+                object (not null).
+  * **[XrdCl]** Fix deadlock in XrdCl::PollerBuiltIn during finalize.
+  * **[XrdCrypto]** Do not use md5 checksum on OSX platform.
+
++ **Miscellaneous**
+  * **[RPM]** Include xrdacctest in xrootd-server package.
+  * **[RPM]** Add conditional BuildRequires for ceph >= 11.
+  * **[RPM]** Use compat-openssl10-devel for fedora>=26.
+  * **[XrdCl]** Make sure the Log class can be used by any client plugin implementation.
+
+-------------
+Version 4.4.0
+-------------
+
++ **New Features**
+  * **[Server]** Add new [no]rpipa option to xrd.network directive.
+  * **[Server]** Allow objectid's to be specified in the authorization file.
+  * **[Server]** Add new logging plugin interface.
+  * **[Server]** Fixes #345 - add sid to TOD structure (ABI compliant).
+  * **[Server]** Implement resource selection affinity (primarily for ssi).
+  * **[XrdCl]** Add Metalink support (xrdcp & API).
+  * **[XrdCl]** Enable metalink processing on default.
+  * **[XrdCl]** xrdcp: use cks.type cgi tag to select the checksum type.
+  * **[XrdCl]** Support local metalink files.
+  * **[XrdCl]** Add support for GLFN redirector of last resort.
+  * **[XrdCeph]** Implemented pools of ceph objects.
+
++ **Major bug fixes**
+  * **[Posix]** Remove double unlock of a mutex.
+  * **[Client]** Serialize security protocol manager to allow MT loads.
+  * **[Authentication/sss]** Fix dynamic id incompatability introduced in 4.0.
+  * **[XtdHttp]** Removed the deprecated cipher SSLv3, in favor of TLS1.2
+  * **[XrdCl]** Close file on open timeout.
+  * **[XrdCl]** Differentiate between a handshake and an xrootd request/response 
+                while processing an incoming/outgoing message.
+  * **[XrdCl]** Fix dangling pointer issue that occurs while forking.
+  * **[XrdCl]** Ensure DefaultEnv is finalized after last use of the object.
+
++ **Minor bug fixes**
+  * **[Proxy]**  Avoid SEGV when printing memory cache statistics.
+  * **[Server]** Avoid XrdNetIF static initialization issues.
+  * **[Server]** Honor DFS setting when forwarding operations.
+  * **[Server]** Make sure lockfile time is updated in deprecated runmodeold.
+  * **[Server]** Fixes #344 - squash path before checking for static redirect.
+  * **[Server]** Free Entity before replacing it from the cache (memleak).  
+  * **[XrdCl]** xrdfs ls does not include opaque info in a listing.
+  * **[XrdCl]** Eliminate unnecessary write notifications. 
+  * **[XrdCl]** Forward xrd.* parameters from the original to the redirection URL.
+  * **[XrdCl]** Do not preset CWD in batch mode.
+  * **[XrdCl]** Be complaint with file URI scheme.
+  * **[XrdCl]** Fix wrong query string used for opaquefile code.
+  * **[XrdCl]** Translate XRootD error code to errno before passing to strerror.
+  * **[XrdCeph]** Fixed thread safety of filedescriptors in the ceph plugin.
+  * **[XrdCeph]** Protected initialization of ioCtx object and striper objects
+                  by mutex in the ceph plugin.
+  * **[XrdCeph]** Fixed memory corruption in asynchronous read from ceph.
+  * **[XrdXml]** Make sure c-string buffes are properly terminated.
+  * **[XtdHttp]** Don't trim printable characters.
+
++ **Miscellaneous**
+  * **[XrdCl]** Change the way handlers and messages are matched (use maps).
+  * **[Apps]** Add xrdacctest to the tools set to test access control databases.
+  * **[Packaging/RPM]** Set max open files limit to 65k for systemd services.
+
+-------------
 Version 4.3.0
 -------------
 

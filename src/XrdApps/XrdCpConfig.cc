@@ -81,35 +81,35 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:Z:M";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:z:Z";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
-      {OPT_TYPE "cksum",     1, 0, XrdCpConfig::OpCksum},
-      {OPT_TYPE "debug",     1, 0, XrdCpConfig::OpDebug},
-      {OPT_TYPE "dynamic-src",0,0, XrdCpConfig::OpDynaSrc},
-      {OPT_TYPE "coerce",    0, 0, XrdCpConfig::OpCoerce},
-      {OPT_TYPE "force",     0, 0, XrdCpConfig::OpForce},
-      {OPT_TYPE "help",      0, 0, XrdCpConfig::OpHelp},
-      {OPT_TYPE "infiles",   1, 0, XrdCpConfig::OpIfile},
-      {OPT_TYPE "license",   0, 0, XrdCpConfig::OpLicense},
-      {OPT_TYPE "nopbar",    0, 0, XrdCpConfig::OpNoPbar},
-      {OPT_TYPE "path",      0, 0, XrdCpConfig::OpPath},
-      {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
-      {OPT_TYPE "proxy",     1, 0, XrdCpConfig::OpProxy},
-      {OPT_TYPE "recursive", 0, 0, XrdCpConfig::OpRecurse},
-      {OPT_TYPE "retry",     1, 0, XrdCpConfig::OpRetry},
-      {OPT_TYPE "server",    0, 0, XrdCpConfig::OpServer},
-      {OPT_TYPE "silent",    0, 0, XrdCpConfig::OpSilent},
-      {OPT_TYPE "sources",   1, 0, XrdCpConfig::OpSources},
-      {OPT_TYPE "streams",   1, 0, XrdCpConfig::OpStreams},
-      {OPT_TYPE "tpc",       1, 0, XrdCpConfig::OpTpc},
-      {OPT_TYPE "verbose",   0, 0, XrdCpConfig::OpVerbose},
-      {OPT_TYPE "version",   0, 0, XrdCpConfig::OpVersion},
-      {OPT_TYPE "xrate",     1, 0, XrdCpConfig::OpXrate},
-      {OPT_TYPE "parallel",  1, 0, XrdCpConfig::OpParallel},
-      {OPT_TYPE "metalink",  0, 0, XrdCpConfig::OpMetalink},
-      {0,                    0, 0, 0}
+      {OPT_TYPE "cksum",       1, 0, XrdCpConfig::OpCksum},
+      {OPT_TYPE "debug",       1, 0, XrdCpConfig::OpDebug},
+      {OPT_TYPE "dynamic-src", 0, 0, XrdCpConfig::OpDynaSrc},
+      {OPT_TYPE "coerce",      0, 0, XrdCpConfig::OpCoerce},
+      {OPT_TYPE "force",       0, 0, XrdCpConfig::OpForce},
+      {OPT_TYPE "help",        0, 0, XrdCpConfig::OpHelp},
+      {OPT_TYPE "infiles",     1, 0, XrdCpConfig::OpIfile},
+      {OPT_TYPE "license",     0, 0, XrdCpConfig::OpLicense},
+      {OPT_TYPE "nopbar",      0, 0, XrdCpConfig::OpNoPbar},
+      {OPT_TYPE "path",        0, 0, XrdCpConfig::OpPath},
+      {OPT_TYPE "posc",        0, 0, XrdCpConfig::OpPosc},
+      {OPT_TYPE "proxy",       1, 0, XrdCpConfig::OpProxy},
+      {OPT_TYPE "recursive",   0, 0, XrdCpConfig::OpRecurse},
+      {OPT_TYPE "retry",       1, 0, XrdCpConfig::OpRetry},
+      {OPT_TYPE "server",      0, 0, XrdCpConfig::OpServer},
+      {OPT_TYPE "silent",      0, 0, XrdCpConfig::OpSilent},
+      {OPT_TYPE "sources",     1, 0, XrdCpConfig::OpSources},
+      {OPT_TYPE "streams",     1, 0, XrdCpConfig::OpStreams},
+      {OPT_TYPE "tpc",         1, 0, XrdCpConfig::OpTpc},
+      {OPT_TYPE "verbose",     0, 0, XrdCpConfig::OpVerbose},
+      {OPT_TYPE "version",     0, 0, XrdCpConfig::OpVersion},
+      {OPT_TYPE "xrate",       1, 0, XrdCpConfig::OpXrate},
+      {OPT_TYPE "parallel",    1, 0, XrdCpConfig::OpParallel},
+      {OPT_TYPE "zip",         1, 0, XrdCpConfig::OpZip},
+      {0,                      0, 0, 0}
      };
 
 /******************************************************************************/
@@ -148,6 +148,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    inFile   = 0;
    parmVal  = 0;
    parmCnt  = 0;
+   zipFile  = 0;
 }
 
 /******************************************************************************/
@@ -163,6 +164,7 @@ XrdCpConfig::~XrdCpConfig()
    if (pHost)   free(pHost);
    if (parmVal) free(parmVal);
    if (CksMan)  delete CksMan;
+   if (zipFile) free(zipFile);
    if (dstFile) delete dstFile;
 
    while((pNow = pFile)) {pFile = pFile->Next; delete pNow;}
@@ -222,7 +224,9 @@ do{while(optind < Argc && Legacy(optind)) {}
                            break;
           case OpForce:    OpSpec |= DoForce;
                            break;
-          case OpMetalink: OpSpec |= DoMetalink;
+          case OpZip:      OpSpec |= DoZip;
+                           if (zipFile) free(zipFile);
+                           zipFile = strdup(optarg);
                            break;
           case OpHelp:     Usage(0);
                            break;
@@ -289,15 +293,23 @@ do{while(optind < Argc && Legacy(optind)) {}
 
 // Make sure we have the right number of files
 //
-   if (inFile) {if (!parmCnt     ) UMSG("Destination not specified.");}
-      else {    if (!parmCnt     ) UMSG("No files specified.");
-                if ( parmCnt == 1 && !( OpSpec & DoMetalink ) ) UMSG("Destination not specified.");
+   if (inFile) {if (!parmCnt      ) UMSG("Destination not specified.");}
+      else {    if (!parmCnt      ) UMSG("No files specified.");
+                if ( parmCnt == 1 ) UMSG("Destination not specified.");
            }
 
 // Check for conflicts wit third party copy
 //
    if (OpSpec & DoTpc &&  nSrcs > 1)
       UMSG("Third party copy requires a single source.");
+
+// Check for conflicts with ZIP archive
+//
+   if( OpSpec & DoZip & DoCksrc )
+     UMSG("Cannot calculate source checksum for a file in ZIP archive.");
+
+   if( ( OpSpec & DoZip & DoCksum ) && !CksData.HasValue() )
+     UMSG("Cannot calculate source checksum for a file in ZIP archive.");
 
 // Turn off verbose if we are in server mode
 //
@@ -332,13 +344,6 @@ do{while(optind < Argc && Legacy(optind)) {}
         {if (rc != ENOENT || (Argc - optind - 1) > 1 || OpSpec & DoRecurse)
             FMSG(strerror(rc) <<" processing " <<dstFile->Path, 2);
         }
-   }
-   else
-   {
-// Create an empty destination file
-//
-     dstFile = new XrdCpFile();
-     dstFile->Path = strdup( "" );
    }
 
 // Now pick up all the source files from the command line
@@ -859,7 +864,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--path] [--posc] [--proxy <host>:<port>] [--recursive]\n"
    "         [--retry <n>] [--server] [--silent] [--sources <n>] [--streams <n>]\n"
    "         [--tpc {first|only}] [--verbose] [--version] [--xrate <rate>]\n"
-   "         [--parallel <n>] [--metalink]";
+   "         [--parallel <n>] [--zip <file>]";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
@@ -903,8 +908,8 @@ void XrdCpConfig::Usage(int rc)
    "-V | --version      prints the version number\n"
    "-X | --xrate <rate> limits the transfer to the specified rate. You can\n"
    "                    suffix the value with 'k', 'm', or 'g'\n"
-   "     --parallel <n> number of copy jobs to be run simultaneously\n"
-   "-M | --metalink     treats source as a metalink\n\n"
+   "     --parallel <n> number of copy jobs to be run simultaneously\n\n"
+   "-z | --zip <file>   treat the source as a ZIP archive containing given file\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

@@ -262,7 +262,7 @@ void XrdOfsEvs::Notify(Event eID, XrdOfsEvsInfo &Info)
       {if ((++warnings & 0xff) == 1)
           eDest->Emsg("Notify", "Ran out of message objects;", eName(eNum),
                                 "event notification not sent.");
-          return;
+       return;
       }
 
 // Format the message

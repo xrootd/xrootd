@@ -127,9 +127,19 @@ namespace XrdCl
       XrdSys::IOEvents::Poller* GetNextPoller();
 
       //------------------------------------------------------------------------
-      //! Returns the poller object associated with a socket
+      //! Registers given socket as a poller user and returns the poller object
       //------------------------------------------------------------------------
-      XrdSys::IOEvents::Poller* GetPoller(const Socket * socket);
+      XrdSys::IOEvents::Poller* RegisterAndGetPoller(const Socket *socket);
+
+      //------------------------------------------------------------------------
+      //! Unregisters given socket from poller object
+      //------------------------------------------------------------------------
+      void UnregisterFromPoller( const Socket *socket);
+
+      //------------------------------------------------------------------------
+      //! Returns the poller object associated with the given socket
+      //------------------------------------------------------------------------
+      XrdSys::IOEvents::Poller* GetPoller(const Socket *socket);
 
       //------------------------------------------------------------------------
       //! Gets the initial value for 'pNbPoller'

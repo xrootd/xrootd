@@ -48,7 +48,10 @@ public:
 
 
     // Initializes an ssl ctx
-    virtual int Init(SSL_CTX *, int) = 0;
+    virtual int InitCTX(SSL_CTX *, int) = 0;
+    virtual int InitSSL(SSL *, char *) = 0;
+    virtual int FreeSSL(SSL *) = 0;
+    
 //------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------

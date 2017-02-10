@@ -62,7 +62,7 @@ int XrdCryptosslX509ParseFile(const char *fname, XrdCryptoX509Chain *c);
 int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *c);
 //
 // Function to convert from ASN1 time format into UTC since Epoch (Jan 1, 1970) 
-int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1);
+int XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1);
 
 // Function to convert X509_NAME into a one-line human readable string
 void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s);
@@ -83,6 +83,8 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *,
 // Sign a proxy certificate request
 int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *, XrdCryptoRSA *,
                               XrdCryptoX509Req *, XrdCryptoX509 **);
+// Check a proxy certificate GSI 3
+int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *, XrdOucString &);
 // Get VOMS attributes, if any
 int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *, XrdOucString &);
 

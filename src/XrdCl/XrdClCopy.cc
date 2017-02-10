@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <iostream>
@@ -547,7 +548,6 @@ int main( int argc, char **argv )
   bool         coerce    = false;
   bool         makedir   = false;
   bool         dynSrc    = false;
-  bool         metalink  = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -558,7 +558,6 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoPath    ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc     = true;
-  if( config.Want( XrdCpConfig::DoMetalink ) ) metalink   = true;
 
   //----------------------------------------------------------------------------
   // Checksums
@@ -602,6 +601,16 @@ int main( int argc, char **argv )
     }
   }
 
+  //----------------------------------------------------------------------------
+  // ZIP archive
+  //----------------------------------------------------------------------------
+  std::string zipFile;
+  bool        zip = false;
+  if( config.Want( XrdCpConfig::DoZip ) )
+  {
+    zipFile = config.zipFile;
+    zip = true;
+  }
 
   //----------------------------------------------------------------------------
   // Environment settings
@@ -652,24 +661,17 @@ int main( int argc, char **argv )
   else if( config.dstFile->Protocol == XrdCpFile::isXroot )
   {
     URL target( dest );
-    //----------------------------------------------------------------------------
-    // In case of metalink we accept an empty path, otherwise we do a stat
-    // (the remaining part of the URL might be given in the metalink file)
-    //----------------------------------------------------------------------------
-    if( !( target.GetPath().empty() && config.Want( XrdCpConfig::DoMetalink ) ) )
-    {
-      FileSystem fs( target );
-      StatInfo *statInfo = 0;
-      XRootDStatus st = fs.Stat( target.GetPath(), statInfo );
-      if( st.IsOK() )
-        {if (statInfo->TestFlags( StatInfo::IsDir ) ) targetIsDir = true;}
-        else if (st.errNo == kXR_NotFound && config.Want( XrdCpConfig::DoPath ))
-                {int n = strlen(config.dstFile->Path);
-                 if (config.dstFile->Path[n-1] == '/') targetIsDir = true;
-                }
+    FileSystem fs( target );
+    StatInfo *statInfo = 0;
+    XRootDStatus st = fs.Stat( target.GetPath(), statInfo );
+    if( st.IsOK() )
+      {if (statInfo->TestFlags( StatInfo::IsDir ) ) targetIsDir = true;}
+      else if (st.errNo == kXR_NotFound && config.Want( XrdCpConfig::DoPath ))
+              {int n = strlen(config.dstFile->Path);
+               if (config.dstFile->Path[n-1] == '/') targetIsDir = true;
+              }
 
-      delete statInfo;
-    }
+    delete statInfo;
   }
 
   //----------------------------------------------------------------------------
@@ -739,13 +741,42 @@ int main( int argc, char **argv )
                dest.c_str() );
 
     //--------------------------------------------------------------------------
+    // Create a virtual redirector if it is a metalink file
+    //--------------------------------------------------------------------------
+    URL src( source );
+    if( src.IsMetalink() )
+    {
+      RedirectorRegistry &registry = RedirectorRegistry::Instance();
+      XRootDStatus st = registry.RegisterAndWait( src );
+      if( !st.IsOK() )
+      {
+        std::cerr << "RedirectorRegistry::Register " << source << " -> " << dest << ": ";
+        std::cerr << st.ToStr() << std::endl;
+        resultVect.push_back( results );
+        sourceFile = sourceFile->Next;
+        continue;
+      }
+    }
+
+    //--------------------------------------------------------------------------
     // Set up the job
     //--------------------------------------------------------------------------
     std::string target = dest;
-    if( targetIsDir )
+    if( targetIsDir)
     {
       target = dest + "/";
-      target += (sourceFile->Path+sourceFile->Doff);
+      // if it is a metalink we don't want to use the metalink name
+      if( zip )
+      {
+        target += zipFile;
+      }
+      else if( src.IsMetalink() )
+      {
+        XrdCl::RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
+        VirtualRedirector *redirector = registry.Get( source );
+        target += redirector->GetTargetName();
+      }
+      else target += (sourceFile->Path+sourceFile->Doff);
     }
 
     AppendCGI( target, config.dstOpq );
@@ -763,12 +794,15 @@ int main( int argc, char **argv )
     properties.Set( "checkSumPreset", checkSumPreset );
     properties.Set( "chunkSize",      chunkSize      );
     properties.Set( "parallelChunks", parallelChunks );
-    properties.Set( "metalink",       metalink );
+    properties.Set( "zipArchive",     zip            );
+
+    if( zip )
+      properties.Set( "zipSource",    zipFile        );
+
 
     XRootDStatus st = process.AddJob( properties, results );
     if( !st.IsOK() )
     {
-      delete results;
       std::cerr << "AddJob " << source << " -> " << target << ": ";
       std::cerr << st.ToStr() << std::endl;
     }

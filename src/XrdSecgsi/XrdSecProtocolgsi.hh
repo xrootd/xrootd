@@ -169,7 +169,7 @@ public:
    char  *key;    // [s] server private key [/etc/grid-security/root/rootkey.pem]
                   // [c] user private key [$HOME/.globus/userkey.pem]
    char  *cipher; // [s] list of ciphers [aes-128-cbc:bf-cbc:des-ede3-cbc]
-   char  *md;     // [s] list of MDs [sha1:md5]
+   char  *md;     // [s] list of MDs [sha256:md5]
    int    crl;    // [cs] check level of CRL's [1] 
    int    ca;     // [cs] verification level of CA's [1] 
    int    crlrefresh; // [cs] CRL refresh or expiration period in secs [1 day] 
@@ -238,7 +238,7 @@ public:
    void Add(T *t) {
       char k[40]; snprintf(k, 40, "%p", t); 
       mtx.Lock();
-      if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count);
+      if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count); // We need an additional count
       stack.Add(k, t, 0, Hash_count);
       mtx.UnLock();
    }

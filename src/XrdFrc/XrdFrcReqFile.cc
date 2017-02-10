@@ -362,6 +362,9 @@ void XrdFrcReqFile::ListL(XrdFrcRequest &tmpReq, char *Buff, int bsz,
         switch(ITList[i])
               {case XrdFrcRequest::getOBJ:
                     Lfo = 0;
+                    n = strlen(tmpReq.LFN);
+                    strlcpy(Buff, tmpReq.LFN, bln);
+                    break;
 
                case XrdFrcRequest::getLFN:     
                     n = strlen(tmpReq.LFN+Lfo);
@@ -370,6 +373,12 @@ void XrdFrcReqFile::ListL(XrdFrcRequest &tmpReq, char *Buff, int bsz,
 
                case XrdFrcRequest::getOBJCGI:
                     Lfo = 0;
+                    n = strlen(tmpReq.LFN); tmpReq.LFN[n] = '?';
+                    if (!tmpReq.Opaque) tmpReq.LFN[n+1] = '\0';
+                    strlcpy(Buff, tmpReq.LFN, bln);
+                    k = strlen(tmpReq.LFN);
+                    tmpReq.LFN[n] = '\0'; n = k;
+                    break;
 
                case XrdFrcRequest::getLFNCGI:
                     n = strlen(tmpReq.LFN); tmpReq.LFN[n] = '?';

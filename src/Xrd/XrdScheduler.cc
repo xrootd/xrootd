@@ -28,9 +28,11 @@
 /******************************************************************************/
 
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #ifdef __APPLE__
@@ -119,20 +121,41 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 //
 #if defined(__linux__) && defined(RLIMIT_NPROC)
 
+// First determine the absolute maximum we can have
+//
+   rlim_t theMax = MAX_SCHED_PROCS;
+   int pdFD, rdsz;
+   if ((pdFD = open("/proc/sys/kernel/pid_max", O_RDONLY)) >= 0)
+      {char pmBuff[32];
+       if ((rdsz = read(pdFD, pmBuff, sizeof(pmBuff))) > 0)
+          {rdsz = atoi(pmBuff);
+           if (rdsz < 16384) theMax = 16384; // This is unlikely
+              else if (rdsz < MAX_SCHED_PROCS)
+                      theMax = static_cast<rlim_t>(rdsz-2000);
+          }
+       close(pdFD);
+      }
+
 // Get the resource thread limit and set to maximum. In Linux this may be -1
 // to indicate useless infnity, so we have to come up with a number, sigh.
 //
    if (!getrlimit(RLIMIT_NPROC, &rlim))
-      {     if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_cur = MAX_SCHED_PROCS;
-       else if (rlim.rlim_cur  < rlim.rlim_max) rlim.rlim_cur = rlim.rlim_max;
-       if (rlim.rlim_cur != rlim.rlim_max) setrlimit(RLIMIT_NPROC, &rlim);
+      {if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > theMax)
+          {rlim.rlim_cur = theMax;
+           setrlimit(RLIMIT_NPROC, &rlim);
+          } else {
+           if (rlim.rlim_cur != rlim.rlim_max)
+              {rlim.rlim_cur = rlim.rlim_max;
+               setrlimit(RLIMIT_NPROC, &rlim);
+              }
+          }
       }
 
 // Readjust our internal maximum to be the actual maximum
 //
    if (!getrlimit(RLIMIT_NPROC, &rlim))
-      {if (rlim.rlim_cur == RLIM_INFINITY || rlim.rlim_cur > MAX_SCHED_PROCS)
-          max_Workers = MAX_SCHED_PROCS;
+      {if (rlim.rlim_cur == RLIM_INFINITY || rlim.rlim_cur > theMax)
+               max_Workers = static_cast<int>(theMax);
           else max_Workers = static_cast<int>(rlim.rlim_cur);
       }
 #endif

@@ -12,7 +12,7 @@ xrdcp - copy files
 [\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR]
 [\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
 [\fB--tpc\fR \fIfirst\fR|\fIonly\fR] [\fB--verbose\fR] [\fB--version\fR]
-[\fB--xrate\fR \fIrate\fR] [\fB--metalink\fR]
+[\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -129,14 +129,14 @@ displays summary output.
 displays version information and immediately exits.
 
 .RE
+\fB-z\fR | \fB--zip\fR
+.RS 5
+copy given file from a ZIP archive.
+
+.RE
 \fB-X\fR | \fB--xrate\fR \fIrate\fR
 .RS 5
 [NOT YET IMPLEMENTED]
-
-.RE
-\fB-M\fR | \fB--metalink\fR
-.RS 5
-treats source as a metalink.
 
 limits the copy speed to the specified \fIrate\fB. The rate may be qualified
 with the letter \fBk\fR, \fBm\fR, or \fBg\fR to indicate kilo, mega, or giga
@@ -191,7 +191,7 @@ equivalent to "\fB--sources 12\fR".
 .SH OPERANDS
 \fIsource\fR
 .RS 5
-a local file, a local directory name suffixed by /, or
+a dash (i.e. \fB-\fR) indicating stanard in, a local file, a local directory name suffixed by /, or
 an xrootd URL in the form of
 .ce 1
 \fBxroot://[\fIuser\fB@\fR]\fIhost[\fB:\fIport\fR]\fB/\fIabsolutepath\fR
@@ -429,6 +429,21 @@ XRD_TCPKEEPALIVEPROBES (-DITCPKeepProbes)
 .RS 5
 Number of unacknowledged probes before considering the connection dead
 (Linux only)
+.RE
+
+XRD_METALINKPROCESSING
+.RS 5
+Enable/Disable Metalink processing (enabled by default)
+.RE
+
+XRD_LOCALMETALINKFILE
+.RS 5
+Enable/Disable local Metalink file processing (by convention the following URL schema has to be used: root://localfile//path/filename.meta4) 
+.RE
+
+XRD_GLFNREDIRECTOR
+.RS 5
+The redirector will be used as a last resort if the GLFN tag is specified in a Metalink file.
 .RE
 
 .SH NOTES

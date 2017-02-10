@@ -98,8 +98,8 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    Protocol = isFile;
    if (!strncmp(Path, "file://", 7))
       {char *pP = Path + 7;
-               if (!strncmp(pP, "localhost/", 10)) strcpy(Path, pP + 10);
-          else if (*pP == '/') strcpy(Path, pP + 1);
+               if (!strncmp(pP, "localhost", 9)) strcpy(Path, pP + 9);
+          else if (*pP == '/') strcpy(Path, pP);
           else {Protocol = isOther;
                 strcpy(ProtName, "remote");
                 return;

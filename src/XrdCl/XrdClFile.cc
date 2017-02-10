@@ -45,6 +45,16 @@ namespace XrdCl
     pStateHandler = new FileStateHandler();
   }
 
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  File::File( VirtRedirect virtRedirect, bool enablePlugIns ):
+    pPlugIn(0),
+    pEnablePlugIns( enablePlugIns )
+  {
+    pStateHandler = new FileStateHandler( virtRedirect == EnableVirtRedirect );
+  }
+
   //------------------------------------------------------------------------
   // Destructor
   //------------------------------------------------------------------------

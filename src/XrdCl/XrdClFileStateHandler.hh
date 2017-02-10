@@ -63,6 +63,14 @@ namespace XrdCl
       FileStateHandler();
 
       //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param useVirtRedirector if true Metalink files will be treated
+      //!                          as a VirtualRedirectors
+      //------------------------------------------------------------------------
+      FileStateHandler( bool useVirtRedirector );
+
+      //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       ~FileStateHandler();
@@ -422,6 +430,7 @@ namespace XrdCl
       bool                    pDoRecoverWrite;
       bool                    pFollowRedirects;
       bool                    pDoneInitOpen;
+      bool                    pUseVirtRedirector;
 
       //------------------------------------------------------------------------
       // Monitoring variables

@@ -20,59 +20,69 @@
 #include <map>
 #include <string>
 
-#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCache2.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdFileCache.hh"
-#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheIO.hh"
 
 class XrdSysError;
 class XrdOssDF;
 
 namespace XrdFileCache
 {
-   //----------------------------------------------------------------------------
-   //! \brief Downloads original file into multiple files, chunked into
-   //! blocks. Only blocks that are asked for are downloaded.
-   //! Handles read requests as they come along.
-   //----------------------------------------------------------------------------
-   class IOFileBlock : public IO
-   {
-      public:
-         //------------------------------------------------------------------------
-         //! Constructor.
-         //------------------------------------------------------------------------
-         IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+//----------------------------------------------------------------------------
+//! \brief Downloads original file into multiple files, chunked into
+//! blocks. Only blocks that are asked for are downloaded.
+//! Handles read requests as they come along.
+//----------------------------------------------------------------------------
+class IOFileBlock : public IO
+{
+public:
+   //------------------------------------------------------------------------
+   //! Constructor.
+   //------------------------------------------------------------------------
+   IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
 
-         //------------------------------------------------------------------------
-         //! Destructor.
-         //------------------------------------------------------------------------
-         ~IOFileBlock() {}
+   //------------------------------------------------------------------------
+   //! Destructor.
+   //------------------------------------------------------------------------
+   ~IOFileBlock(){}
 
-         //---------------------------------------------------------------------
-         //! Detach from Cache. Note: this will delete the object.
-         //!
-         //! @return original source \ref XrdPosixFile
-         //---------------------------------------------------------------------
-         virtual XrdOucCacheIO *Detach();
+   //---------------------------------------------------------------------
+   //! Detach from Cache. Note: this will delete the object.
+   //!
+   //! @return original source \ref XrdPosixFile
+   //---------------------------------------------------------------------
+   virtual XrdOucCacheIO *Detach();
 
-         //---------------------------------------------------------------------
-         //! Pass Read request to the corresponding Prefetch object.
-         //---------------------------------------------------------------------
-         virtual int Read(char *Buffer, long long Offset, int Length);
+   //---------------------------------------------------------------------
+   //! Pass Read request to the corresponding File object.
+   //---------------------------------------------------------------------
+   virtual int Read(char *Buffer, long long Offset, int Length);
 
-         //! \brief Virtual method of XrdOucCacheIO. 
-         //! Called to check if destruction needs to be done in a separate task.
-         virtual bool ioActive();
+   //! \brief Virtual method of XrdOucCacheIO.
+   //! Called to check if destruction needs to be done in a separate task.
+   virtual bool ioActive();
 
-      private:
-         long long                  m_blocksize; //!< size of file-block
-         std::map<int, Prefetch*>   m_blocks;    //!< map of created blocks
-         XrdSysMutex                m_mutex;     //!< map mutex
+   virtual int  Fstat(struct stat &sbuff);
 
-         void GetBlockSizeFromPath();
-         Prefetch* newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO* io);
-   };
+   virtual long long FSize();
+
+   virtual void RelinquishFile(File*);
+
+private:
+   long long                  m_blocksize;       //!< size of file-block
+   std::map<int, File*>       m_blocks;          //!< map of created blocks
+   XrdSysMutex                m_mutex;           //!< map mutex
+   struct stat               *m_localStat;
+   Info                       m_info;
+   XrdOssDF*                  m_infoFile;
+
+   void GetBlockSizeFromPath();
+   int initLocalStat();
+   File* newBlockFile(long long off, int blocksize);
+   void  CloseInfoFile();
+};
 }
 
 #endif

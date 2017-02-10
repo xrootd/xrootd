@@ -1420,6 +1420,6 @@ const char *XrdOfs::theRole(int opts)
      else if (opts & isManager
           &&  opts & isServer)  return "supervisor";
      else if (opts & isManager) return "manager";
-     else if (opts & isProxy)   return "proxy";
+     else if (opts & isProxy)  {return "proxy";}
                                 return "server";
 }

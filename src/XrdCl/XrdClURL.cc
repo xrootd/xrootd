@@ -368,14 +368,17 @@ namespace XrdCl
 
   bool URL::IsMetalink() const
   {
-    return PathEndsWith(".meta4") || PathEndsWith(".metalink");
+    Env *env = DefaultEnv::GetEnv();
+    int mlProcessing = DefaultMetalinkProcessing;
+    env->GetInt( "MetalinkProcessing", mlProcessing );
+    if( !mlProcessing ) return false;
+    return PathEndsWith( ".meta4" ) || PathEndsWith( ".metalink" );
   }
 
   bool URL::PathEndsWith(const std::string & sufix) const
   {
     if (sufix.size() > pPath.size()) return false;
-    std::string::const_iterator begin = pPath.end() - sufix.size();
-    return std::equal(sufix.begin(), sufix.end(), begin);
+    return std::equal(sufix.rbegin(), sufix.rend(), pPath.rbegin() );
   }
 
   //----------------------------------------------------------------------------

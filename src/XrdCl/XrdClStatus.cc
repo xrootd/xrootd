@@ -17,6 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClStatus.hh"
+#include "XProtocol/XProtocol.hh"
 #include <cstring>
 
 namespace
@@ -118,8 +119,13 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Add errno
     //--------------------------------------------------------------------------
-    if( errNo )
+    if( errNo >= kXR_ArgInvalid ) // kXR_ArgInvalid is the first (lowest) xrootd error code
+      // it is used in an inconsistent way sometimes it is
+      // xrootd error code and sometimes it is a plain errno
+      o << ": " << strerror( XProtocol::toErrno( errNo ) );
+    else if ( errNo )
       o << ": " << strerror( errNo );
+
     return o.str();
   }
 }

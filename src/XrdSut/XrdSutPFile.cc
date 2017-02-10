@@ -375,8 +375,11 @@ kXR_int32 XrdSutPFile::Open(kXR_int32 opt, bool *wasopen,
       switch (opt) {
          case 2:
             //
-            // Forcing truncation 
-            mode |= O_TRUNC ;
+            // Forcing truncation in Read / Write mode
+            mode |= (O_TRUNC | O_RDWR) ;
+            if (newfile)
+               mode |= O_CREAT ;
+            break;
          case 1:
             //
             // Read / Write

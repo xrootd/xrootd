@@ -45,6 +45,13 @@
 #include <openssl/bn.h>
 #include <openssl/pem.h>
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#define X509_REVOKED_get0_revocationDate(x) (x)->revocationDate
+#define X509_REVOKED_get0_serialNumber(x) (x)->serialNumber
+#define X509_CRL_get0_lastUpdate X509_CRL_get_lastUpdate
+#define X509_CRL_get0_nextUpdate X509_CRL_get_nextUpdate
+#endif
+
 //_____________________________________________________________________________
 XrdCryptosslX509Crl::XrdCryptosslX509Crl(const char *cf, int opt)
                  : XrdCryptoX509Crl()
@@ -185,12 +192,15 @@ int XrdCryptosslX509Crl::Init(const char *cf)
    if (!PEM_read_X509_CRL(fc, &crl, 0, 0)) {
       DEBUG("Unable to load CRL from file");
       return -1;
-   } else {
-      DEBUG("CRL successfully loaded");
    }
    //
    // Close the file
    fclose(fc);
+
+   //
+   // Notify
+   DEBUG("CRL successfully loaded from "<< cf);
+
    //
    // Save source file name
    srcfile = cf;
@@ -388,7 +398,7 @@ int XrdCryptosslX509Crl::LoadCache()
 #endif /* OPENSSL */
       if (rev) {
          BIGNUM *bn = BN_new();
-         ASN1_INTEGER_to_BN(rev->serialNumber, bn);
+         ASN1_INTEGER_to_BN(X509_REVOKED_get0_serialNumber(rev), bn);
          tagser = BN_bn2hex(bn);
          BN_free(bn);
          TRACE(Dump, "certificate with serial number: "<<tagser<<
@@ -400,7 +410,7 @@ int XrdCryptosslX509Crl::LoadCache()
             return -1;
          }
          // Add revocation date
-         cent->mtime = XrdCryptosslASN1toUTC(rev->revocationDate);
+         cent->mtime = XrdCryptosslASN1toUTC(X509_REVOKED_get0_revocationDate(rev));
          // Release the string for the serial number
          OPENSSL_free(tagser);
       }
@@ -423,7 +433,7 @@ int XrdCryptosslX509Crl::LastUpdate()
       // Make sure we have a CRL
       if (crl)
          // Extract UTC time in secs from Epoch
-         lastupdate = XrdCryptosslASN1toUTC(X509_CRL_get_lastUpdate(crl));
+         lastupdate = XrdCryptosslASN1toUTC(X509_CRL_get0_lastUpdate(crl));
    }
    // return what we have
    return lastupdate;
@@ -439,7 +449,7 @@ int XrdCryptosslX509Crl::NextUpdate()
       // Make sure we have a CRL
       if (crl)
          // Extract UTC time in secs from Epoch
-         nextupdate = XrdCryptosslASN1toUTC(X509_CRL_get_nextUpdate(crl));
+         nextupdate = XrdCryptosslASN1toUTC(X509_CRL_get0_nextUpdate(crl));
    }
    // return what we have
    return nextupdate;
@@ -476,14 +486,15 @@ const char *XrdCryptosslX509Crl::IssuerHash(int alg)
    // (for v>=1.0.0) when alg = 1
    EPNAME("X509::IssuerHash");
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(__APPLE__))
    if (alg == 1) {
       // md5 based
       if (issueroldhash.length() <= 0) {
          // Make sure we have a certificate
          if (crl) {
-            char chash[15] = {0};
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(crl->crl->issuer));
+            char chash[30] = {0};
+            snprintf(chash, sizeof(chash),
+                     "%08lx.0",X509_NAME_hash_old(X509_CRL_get_issuer(crl)));
             issueroldhash = chash;
          } else {
             DEBUG("WARNING: no certificate available - cannot extract issuer hash (md5)");
@@ -501,9 +512,9 @@ const char *XrdCryptosslX509Crl::IssuerHash(int alg)
 
       // Make sure we have a certificate
       if (crl) {
-         char chash[15] = {0};
-         if (chash[0] == 0)
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash(crl->crl->issuer));
+         char chash[30] = {0};
+         snprintf(chash, sizeof(chash),
+                  "%08lx.0",X509_NAME_hash(X509_CRL_get_issuer(crl)));
          issuerhash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract issuer hash (default)");

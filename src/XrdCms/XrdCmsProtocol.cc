@@ -46,6 +46,7 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 
+#include "XrdCms/XrdCmsBaseFS.hh"
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
@@ -728,6 +729,11 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    if (Config.asManager()) {Manager->Reset(); myNode->SyncSpace();}
    myNode->isBad &= ~XrdCmsNode::isDisabled;
 
+// At this point we can switch to nonblocking sendq for this node
+//
+   if (Config.nbSQ && (Config.nbSQ > 1 || !myNode->inDomain()))
+      isNBSQ = Link->setNB();
+
 // Document the login
 //
    XrdOucEnv cgiEnv((const char *)Data.envCGI);
@@ -763,7 +769,10 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 //
    myNode = new XrdCmsNode(Link); myNode->Lock(false);
    if (!(RSlot = RTable.Add(myNode)))
-      {Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
+      {myNode->UnLock();
+       delete myNode;
+       myNode = 0;
+       Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
        return 0;
       } else myNode->setSlot(RSlot);
 
@@ -874,7 +883,6 @@ const char *XrdCmsProtocol::Dispatch(Bearing cDir, int maxWait, int maxTries)
 {
    EPNAME("Dispatch");
    static const int ReqSize = sizeof(CmsRRHdr);
-   static CmsPingRequest Ping = {{0, kYR_ping,  0, 0}};
    XrdCmsRRData *Data = XrdCmsRRData::Objectify();
    XrdCmsJob  *jp;
    const char *toRC = (cDir == isUp ? "manager not active"
@@ -896,8 +904,7 @@ do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
        if (cDir == isDown)
           {if (myNode->isBad & XrdCmsNode::isDoomed)
               return "server blacklisted w/ redirect";
-           if (Link->Send((char *)&Ping, sizeof(Ping)) < 0)
-              return "server unreachable";
+           if (!SendPing()) return "server unreachable";
            lastPing = Config.PingTick;
           }
        continue;
@@ -908,8 +915,7 @@ do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
    if (cDir == isDown && lastPing != Config.PingTick)
       {if (myNode->isBad & XrdCmsNode::isDoomed)
           return "server blacklisted w/ redirect";
-       if (Link->Send((char *)&Ping, sizeof(Ping)) < 0)
-          return "server unreachable";
+       if (!SendPing()) return "server unreachable";
        lastPing = Config.PingTick;
       }
 
@@ -1009,6 +1015,7 @@ void XrdCmsProtocol::Init(const char *iRole, XrdCmsManager *uMan,
    ProtLink  = 0;
    refCount  = 0;
    refWait   = 0;
+   isNBSQ    = false;
 }
   
 /******************************************************************************/
@@ -1070,18 +1077,33 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
 //
    if (!Cache.Paths.Find(Data.Path, pinfo)
    || (amask = pinfo.rwvec | pinfo.rovec) == 0)
-      {Say.Emsg("Job", Router.getName(Data.Request.rrCode),
+      {Say.Emsg(epname, Router.getName(Data.Request.rrCode),
                        "aborted; no servers handling", Data.Path);
        return;
+      }
+
+// While destructive operations should only go to r/w servers
+//
+   if (Data.Request.rrCode != kYR_prepdel)
+      {if (!(amask = pinfo.rwvec))
+          {Say.Emsg(epname, Router.getName(Data.Request.rrCode),
+                    "aborted; no r/w servers handling", Data.Path);
+           return;
+          }
       }
 
 // Do some debugging
 //
    DEBUG("FWD " <<Router.getName(Data.Request.rrCode) <<' ' <<Data.Path);
 
-// Now send off the message to all the nodes
+// Check for selective sending since DFS setups need only one notification.
+// Otherwise, send this message to all nodes.
 //
-   Cluster.Broadcast(amask, ioB, 2, sizeof(Data.Request)+Data.Dlen);
+   if (baseFS.isDFS() && Data.Request.rrCode != kYR_prepdel)
+      {Cluster.Broadsend(amask, Data.Request, Data.Buff, Data.Dlen);
+      } else {
+       Cluster.Broadcast(amask, ioB, 2, sizeof(Data.Request)+Data.Dlen);
+      }
 }
   
 /******************************************************************************/
@@ -1126,6 +1148,26 @@ void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etex
      DEBUG(myNode->Ident <<act <<" err " <<ecode  <<' ' <<etext);
 }
 
+/******************************************************************************/
+/* Private:                     S e n d P i n g                               */
+/******************************************************************************/
+  
+bool XrdCmsProtocol::SendPing()
+{
+   static CmsPingRequest Ping = {{0, kYR_ping,  0, 0}};
+
+// We would like not send ping requests to servers that are backlogged but if
+// we don't (currently) it will look to one of the parties that the other party
+// if not functional. We should try to fix this, sigh.
+//
+// if (isNBSQ && Link->Backlog()) return true;
+
+// Send the ping
+//
+   if (Link->Send((char *)&Ping, sizeof(Ping)) < 0) return false;
+   return true;
+}
+  
 /******************************************************************************/
 /* Private:                         S y n c                                   */
 /******************************************************************************/

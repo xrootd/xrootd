@@ -503,7 +503,7 @@ void XrdFrmTransfer::Start()
          xfrP->PFN[xfrP->pfnEnd] = 0;
 
          if (xfrP->RetCode || Config.Verbose)
-            {char buff1[80], buff2[80];
+            {char buff1[280], buff2[80];
              sprintf(buff1, "%s for %s", xfrP->RetCode ? "failed" : "complete",
                                           xfrP->reqData.User);
              if (xfrP->RetCode == 0) *buff2 = 0;
@@ -767,7 +767,7 @@ void XrdFrmTransfer::ThrowDone(XrdFrmTranChk *cP, time_t endTime)
       } else {
        struct stat Stat;
        strcpy(&xfrP->PFN[xfrP->pfnEnd], ".lock");
-       if (stat(xfrP->PFN, &Stat))
+       if (!stat(xfrP->PFN, &Stat))
           {struct utimbuf tbuff;
            tbuff.actime = tbuff.modtime = endTime;
            if (utime(xfrP->PFN, &tbuff))

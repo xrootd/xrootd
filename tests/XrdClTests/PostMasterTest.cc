@@ -82,7 +82,7 @@ namespace
 class XrdFilter: public XrdCl::MessageFilter
 {
   public:
-    XrdFilter( char id0 = 0, char id1 = 0 )
+    XrdFilter( unsigned char id0 = 0, unsigned char id1 = 0 )
     {
       streamId[0] = id0;
       streamId[1] = id1;
@@ -97,7 +97,12 @@ class XrdFilter: public XrdCl::MessageFilter
       return false;
     }
 
-    char streamId[2];
+    virtual uint16_t GetSid() const
+    {
+      return (((uint16_t)streamId[1] << 8) | (uint16_t)streamId[0]);
+    }
+
+    unsigned char streamId[2];
 };
 
 //------------------------------------------------------------------------------

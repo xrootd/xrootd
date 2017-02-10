@@ -88,11 +88,11 @@
 void trim(std::string &str)
 {
   // Trim leading non-letters
-  while(str.size() && !isalnum(str[0])) str.erase(str.begin());
+  while( str.size() && !isgraph(str[0]) ) str.erase(str.begin());
 
   // Trim trailing non-letters
   
-  while(str.size() && !isalnum(str[str.size()-1]))
+  while( str.size() && !isgraph(str[str.size()-1]) )
     str.resize (str.size () - 1);
 
 }
@@ -160,7 +160,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
     char *val = line + pos + 1;
 
     // Trim left
-    while (!isalnum(*val) || (!*val)) val++;
+    while ( (!isgraph(*val) || (!*val)) && (val < line+len)) val++;
 
     // Here we are supposed to initialize whatever flag or variable that is needed
     // by looking at the first token of the line
@@ -638,10 +638,19 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
 void XrdHttpReq::parseResource(char *res) {
   // Look for the first '?'
   char *p = strchr(res, '?');
-
+  
   // Not found, then it's just a filename
   if (!p) {
     resource.assign(res, 0);
+    
+    // Sanitize the resource string, removing double slashes
+    int pos = 0;
+    do { 
+      pos = resource.find("//", pos);
+      if (pos != STR_NPOS)
+        resource.erase(pos, 1);
+    } while (pos != STR_NPOS);
+    
     return;
   }
 
@@ -653,7 +662,15 @@ void XrdHttpReq::parseResource(char *res) {
   // Whatever comes after is opaque data to be parsed
   if (strlen(p) > 1)
     opaque = new XrdOucEnv(p + 1);
-
+    
+  // Sanitize the resource string, removing double slashes
+  int pos = 0;
+  do { 
+    pos = resource.find("//", pos);
+    if (pos != STR_NPOS)
+      resource.erase(pos, 1);
+  } while (pos != STR_NPOS);
+  
 }
 
 int XrdHttpReq::ProcessHTTPReq() {
@@ -1566,6 +1583,10 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Error man!", 0);
               return -1;
             }
+            
+            prot->SendSimpleResp(500, NULL, NULL, (char *) "This line should never be reached, you have been able to.", 0);
+            return -1;
+            
           }
           default: //read or readv
           {
