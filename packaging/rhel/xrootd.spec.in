@@ -698,6 +698,7 @@ fi
 %{_libdir}/libXrdClient.so
 %{_libdir}/libXrdFfs.so
 %{_libdir}/libXrdPosix.so
+%{_mandir}/man1/xrdgsitest.1*
 
 %files server-libs
 %defattr(-,root,root,-)
@@ -744,7 +745,6 @@ fi
 %{_mandir}/man1/xrdcp-old.1*
 %{_mandir}/man1/xrdfs.1*
 %{_mandir}/man1/xrdgsiproxy.1*
-%{_mandir}/man1/xrdgsitest.1*
 %{_mandir}/man1/xrdstagetool.1*
 
 %files fuse
