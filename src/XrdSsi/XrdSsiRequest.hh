@@ -226,6 +226,17 @@ enum PRD_Xeq {PRD_Normal = 0, PRD_Hold = 1, PRD_HoldLcl = 2};
 virtual PRD_Xeq ProcessResponseData(const XrdSsiErrInfo  &eInfo, char *buff,
                                     int blen, bool last) {return PRD_Normal;}
 
+
+//-----------------------------------------------------------------------------
+//! Release the request buffer of the request bound to this object. This method
+//! duplicates the protected method of the same name in XrdSsiRequest and exists
+//! here for calling safety and consistency relative to the responder.
+//-----------------------------------------------------------------------------
+
+inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
+                                       RelRequestBuffer();
+                                      }
+
 //-----------------------------------------------------------------------------
 //! Restart a ProcessResponseData() call for a request that was previosly held
 //! (see return enums on ProcessResponseData method). This is a client-side
@@ -272,33 +283,6 @@ struct RDR_Info{int rCount; //!< Number restarted
 static RDR_Info RestartDataResponse(RDR_How rhow, const char *reqid=0);
 
 //-----------------------------------------------------------------------------
-//! @brief Set the detached request time to live value.
-//!
-//! By deafult, rqeuests are executed in the foreground (i.e. during its
-//! execution, if the TCP connection drops, the request is automatically
-//! cancelled. When a non-zero time to live is set, the request is executed in
-//! the background (i.e. detached) and no persistent TCP connection is required.
-//! You must use the XrdSsiService::Attach() method to foreground such a
-//! request within the number of seconds specified for dttl or the request is
-//! automatically cancelled. The value must be set before passing the request
-//! to XrdSsiService::ProcessRequest(). Once the request is started, a request
-//! handle is returned which can be passed to XrdSsiService::Attach().
-//!
-//! @param  detttl The detach time to live value.
-//-----------------------------------------------------------------------------
-
-inline void     SetDetachTTL(uint32_t dttl) {detTTL = dttl;}
-
-//-----------------------------------------------------------------------------
-//! Set timeout for initiating the request. If a non-default value is desired,
-//! it must be set prior to calling XrdSsiService::ProcessRequest().
-//!
-//! @param tmo     The timeout value.
-//-----------------------------------------------------------------------------
-
-       void     SetTimeOut(uint16_t tmo) {tOut = tmo;}
-
-//-----------------------------------------------------------------------------
 //! Constructor
 //!
 //! @param reqid   Pointer to a request ID that can be used to group requests.
@@ -340,6 +324,33 @@ virtual void    BindDone() {}
 //-----------------------------------------------------------------------------
 
 virtual void    RelRequestBuffer() {}
+
+//-----------------------------------------------------------------------------
+//! @brief Set the detached request time to live value.
+//!
+//! By deafult, rqeuests are executed in the foreground (i.e. during its
+//! execution, if the TCP connection drops, the request is automatically
+//! cancelled. When a non-zero time to live is set, the request is executed in
+//! the background (i.e. detached) and no persistent TCP connection is required.
+//! You must use the XrdSsiService::Attach() method to foreground such a
+//! request within the number of seconds specified for dttl or the request is
+//! automatically cancelled. The value must be set before passing the request
+//! to XrdSsiService::ProcessRequest(). Once the request is started, a request
+//! handle is returned which can be passed to XrdSsiService::Attach().
+//!
+//! @param  detttl The detach time to live value.
+//-----------------------------------------------------------------------------
+
+inline void     SetDetachTTL(uint32_t dttl) {detTTL = dttl;}
+
+//-----------------------------------------------------------------------------
+//! Set timeout for initiating the request. If a non-default value is desired,
+//! it must be set prior to calling XrdSsiService::ProcessRequest().
+//!
+//! @param tmo     The timeout value.
+//-----------------------------------------------------------------------------
+
+       void     SetTimeOut(uint16_t tmo) {tOut = tmo;}
 
 //-----------------------------------------------------------------------------
 //! Destructor. This object can only be deleted by the object creator. Once the

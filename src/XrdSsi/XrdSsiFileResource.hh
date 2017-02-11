@@ -42,7 +42,7 @@ class XrdSsiFileResource : public XrdSsiResource
 {
 public:
 
-void        Init(const char *path, XrdOucEnv &envP, int atype);
+void        Init(const char *path, XrdOucEnv &envP, bool aDNS);
 
             XrdSsiFileResource() : XrdSsiResource(std::string(""))
                                    {memset(&mySec, 0, sizeof(mySec));}

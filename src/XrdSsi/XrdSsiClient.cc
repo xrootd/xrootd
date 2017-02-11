@@ -174,9 +174,10 @@ void XrdSsiClientProvider::SetCBThreads(int cbNum, int ntNum)
 // Validate thread number
 //
    if (cbNum > 1)
-      {if (cbNum < 32767) cbNum = 32767; // Max short value
+      {if (cbNum > 32767) cbNum = 32767; // Max short value
        if (ntNum < 1) ntNum = cbNum*10/100;
        if (ntNum < 3) ntNum = 0;
+          else if (ntNum > 100) ntNum = 100;
        clMutex.Lock();
        maxTCB = static_cast<short>(cbNum);
        maxCLW = static_cast<short>(ntNum);

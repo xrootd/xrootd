@@ -102,6 +102,8 @@ namespace XrdSsi
 
        bool                    fsChk    = false;
 
+       bool                    detReqOK = false;
+
 extern XrdSfsFileSystem       *theFS;
 
 extern XrdSysError             Log;
@@ -515,9 +517,10 @@ int XrdSsiSfsConfig::Xfsp()
 /* Function: Xopts
 
    Purpose:  To parse directive: opts  [files <n>] [requests <n>] [respwt <t>]
-                                       [maxrsz <sz>] [auth {0 | 1 | 2}]
+                                       [maxrsz <sz>] [authdns] [detreqok]
 
-             auth     0 -> don't supply auth, 1 -> do, 2 -> do w/ real hostname
+             authdns  always supply client's resolved host name.
+             detreqok allow detached requests.
              files    the maximum number of file objects to hold in reserve.
              maxrsz   the maximum size of a request.
              requests the maximum number of requests objects to hold in reserve.
@@ -528,17 +531,22 @@ int XrdSsiSfsConfig::Xfsp()
 
 int XrdSsiSfsConfig::Xopts()
 {
-   char *val;
-   long long ppp, rMax = -1, rObj = -1, fAut = -1, fRwt = -1;
+   static const int noArg = 1;
+   static const int isNum = 2;
+   static const int isSz  = 3;
+   static const int isTM  = 4;
+   char *val, oBuff[256];
+   long long ppp, rMax = -1, rObj = -1, fAut = -1, fDet = -1, fRwt = -1;
    int  i, xtm;
 
-   struct optsopts {const char *opname; long long *oploc; int maxv; int isSz;}
+   struct optsopts {const char *opname; long long *oploc; int maxv; int aOpt;}
           opopts[] =
       {
-       {"authinfo", &fAut,            2, 0},
-       {"maxrsz",   &rMax, 16*1024*1024, 1},
-       {"requests", &rObj,      64*1024, 0},
-       {"respwt",   &fRwt, 0x7fffffffLL,-1}
+       {"authinfo", &fAut,            2, noArg},
+       {"detreqok", &fDet,            2, noArg},
+       {"maxrsz",   &rMax, 16*1024*1024, isSz},
+       {"requests", &rObj,      64*1024, isNum},
+       {"respwt",   &fRwt, 0x7fffffffLL, isTM}
       };
    int numopts = sizeof(opopts)/sizeof(struct optsopts);
 
@@ -548,21 +556,26 @@ int XrdSsiSfsConfig::Xopts()
    while (val)
          {for (i = 0; i < numopts; i++)
               if (!strcmp(val, opopts[i].opname))
-                 {if (!(val = cFile->GetWord()))
+                 {if (opopts[i].aOpt == noArg)
+                     {*opopts[i].oploc = 1;
+                      break;
+                     }
+                  if (!(val = cFile->GetWord()))
                      {Log.Emsg("Config", "opts ", opopts[i].opname,
                                "argument not specified.");
                       return 1;
                      }
-                       if (opopts[i].isSz > 0)
-                          {if (XrdOuca2x::a2sz(Log,"opts value", val, &ppp,
+                  snprintf(oBuff,sizeof(oBuff),"%s opts value",opopts[i].opname);
+                       if (opopts[i].aOpt == isSz)
+                          {if (XrdOuca2x::a2sz(Log, oBuff, val, &ppp,
                                                0, opopts[i].maxv)) return 1;
                           }
-                  else if (opopts[i].isSz < 0)
-                          {if (XrdOuca2x::a2tm(Log,"opts value", val, &xtm,
+                  else if (opopts[i].aOpt == isTM)
+                          {if (XrdOuca2x::a2tm(Log, oBuff, val, &xtm,
                                                0, opopts[i].maxv)) return 1;
                            ppp = xtm;
                           }
-                  else if (XrdOuca2x::a2ll(Log,"opts value", val, &ppp,
+                  else if (XrdOuca2x::a2ll(Log, oBuff, val, &ppp,
                                            0, opopts[i].maxv)) return 1;
                   *opopts[i].oploc = ppp;
                   break;
@@ -574,7 +587,8 @@ int XrdSsiSfsConfig::Xopts()
 
 // Set the values that were specified
 //
-    if (fAut >= 0) XrdSsiFileSess::SetAuth(static_cast<int>(fAut));
+    if (fAut >= 0) XrdSsiFileSess::SetAuthDNS();
+    if (fAut >= 0) detReqOK = true;
     if (rMax >= 0) maxRSZ = static_cast<int>(rMax);
     if (rObj >= 0) XrdSsiFileReq::SetMax(static_cast<int>(rObj));
     if (fRwt >= 0) respWT = fRwt;

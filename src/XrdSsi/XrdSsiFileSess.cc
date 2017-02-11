@@ -107,7 +107,7 @@ int             XrdSsiFileSess::freeNew  = 0;
 int             XrdSsiFileSess::freeMax  = 100;
 int             XrdSsiFileSess::freeAbs  = 200;
 
-int             XrdSsiFileSess::authXQ   = 0;
+bool            XrdSsiFileSess::authDNS  = false;
 
 int             XrdSsiFileSess::maxRSZ   = 0;
 
@@ -391,7 +391,7 @@ int XrdSsiFileSess::open(const char         *path,      // In
 
 // Setup the file resource object
 //
-   fileResource.Init(path, theEnv, authXQ);
+   fileResource.Init(path, theEnv, authDNS);
 
 // Notify the provider that we will be executing a request
 //

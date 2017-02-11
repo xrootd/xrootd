@@ -43,7 +43,7 @@
 class  XrdSsiEntity
 {
 public:
-         char   prot[XrdSsiPROTOIDSIZE];  //!< Protocol used
+         char    prot[XrdSsiPROTOIDSIZE]; //!< Protocol used
 const    char   *name;                    //!< Entity's name
 const    char   *host;                    //!< Entity's host name or address
 const    char   *vorg;                    //!< Entity's virtual organization

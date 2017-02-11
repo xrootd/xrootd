@@ -41,25 +41,28 @@
 class XrdSsiStream;
 
 struct  XrdSsiRespInfo
-       {union {const char   *buff;    //!< ->buffer     when rType == isData;
-               const char   *eMsg;    //!< ->msg text   when rType == isError;
-               long long     fsize;   //!< ->file size  when rType == isFile;
-               XrdSsiStream *strmP;   //!< ->SsiStream  when rType == isStream;
+       {union {const char   *buff;    //!< ->buffer     when rType == isData
+                                      //!< ->buffer     when rType == isHandle
+               const char   *eMsg;    //!< ->msg text   when rType == isError
+               long long     fsize;   //!< ->file size  when rType == isFile
+               XrdSsiStream *strmP;   //!< ->SsiStream  when rType == isStream
               };
-        union {      int     blen;    //!<   buffer len When rType == isData;
-                     int     eNum;    //!<   errno      When rType == isError;
-                     int     fdnum;   //!<   filedesc   When rType == isFile;
+        union {      int     blen;    //!<   buffer len When rType == isData
+                                      //!<   buffer len When rType == isHandle
+                     int     eNum;    //!<   errno      When rType == isError
+                     int     fdnum;   //!<   filedesc   When rType == isFile
               };
                      int     mdlen;   //!<    Metadata length
                const char   *mdata;   //!< -> Metadata about response.
 
-        enum   Resp_t {isNone = 0, isData, isError, isFile, isStream};
+        enum   Resp_t {isNone = 0, isData, isError, isFile, isStream, isHandle};
         Resp_t rType;
 
         inline void  Init() {fsize=0; blen=0; mdlen=0; mdata=0; rType=isNone;}
 
         const  char *State() const {if (rType == isData  ) return "isData";
                                     if (rType == isError ) return "isError";
+                                    if (rType == isHandle) return "isHandle";
                                     if (rType == isFile  ) return "isFile";
                                     if (rType == isStream) return "isStream";
                                     if (rType == isNone  ) return "isNone";

@@ -189,8 +189,11 @@ virtual rStat  QueryResource(const char *rName,
 //!
 //! @param  cbNum    The maximum number of threads to be used for callbacks and
 //!                  sets the maximum number of active callbacks (default 300).
+//!                  The maximum value is 32767. Note that the nproc ulimit is
+//!                  final arbiter of the actual number of threads to use.
 //! @param  ntNum    The maximum number of threads to be used to handle network
-//!                  traffic. The minimum is 3, the default is 10% of cbNum.
+//!                  traffic. The minimum is 3, the default is 10% of cbNum but
+//!                  no more than 100.
 //-----------------------------------------------------------------------------
 
 virtual void   SetCBThreads(int cbNum, int ntNum=0) {(void)cbNum; (void)ntNum;}

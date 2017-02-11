@@ -74,18 +74,29 @@ static const int SsiVersion = 0x00020000;
 //! provided. Server-side Attach() calls are always passed the original request
 //! object reference so that it can pair up the request with the attach.
 //!
+//! @param  handle   The handle provided to the XrdSsiRequest::ProcessResponse()
+//!                  callback method via isHandle response type. This is always
+//!                  an empty string on server-side calls.
+//!
 //! @param  reqRef   Reference to the request object that is to attach to the
 //!                  backgrounded request. It need not be the original request
 //!                  object (client-side) but it always is the original request
 //!                  object server-side.
 //!
-//! @param  handle   The handle provided to the XrdSsiRequest::ProcessResponse()
-//!                  callback method via isHandle message type.
+//! @param  resP     A pointer to the resource object describing the request
+//!                  resources. This is meaningless for client calls and should
+//!                  not be specified. For server-side calls, it can be used to
+//!                  reauthorize the request since the client performing the
+//!                  attach may be different fom the client that actually
+//!                  started the request.
 //!
 //! @return All results are returned via the request object callback methods.
 //-----------------------------------------------------------------------------
 
-virtual void   Attach(XrdSsiRequest &reqRef, std::string handle) {}
+virtual void   Attach(std::string     handle,
+                      XrdSsiRequest  &reqRef,
+                      XrdSsiResource *resP=0
+                     ) {}
 
 //-----------------------------------------------------------------------------
 //! @brief Prepare for processing subsequent resource request.

@@ -79,7 +79,7 @@ XrdSsiFileResource      &Resource() {return fileResource;}
                                   XrdSfsFileOffset   offset,
                                   XrdSfsXferSize     size);
 
-static  void             SetAuth(int axq) {authXQ = axq;}
+static  void             SetAuthDNS() {authDNS = true;}
 
 static  void             SetMaxSz(int mSz) {maxRSZ = mSz;}
                         
@@ -113,7 +113,7 @@ static int               freeMax;
 static int               freeAbs;
 
 static int               maxRSZ;
-static int               authXQ;
+static bool              authDNS;
 
 XrdSsiFileResource       fileResource;
 char                    *tident;

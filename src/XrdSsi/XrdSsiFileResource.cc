@@ -39,31 +39,26 @@
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-void XrdSsiFileResource::Init(const char *path, XrdOucEnv &envX, int atype)
+void XrdSsiFileResource::Init(const char *path, XrdOucEnv &envX, bool aDNS)
 {
    const XrdSecEntity *entP = envX.secEnv();
    const char *rVal;
    int n;
 
-// Always supply the trace identity
-//
-   mySec.tident = (entP ? entP->tident : "ssi");
-
 // Construct the security information
 //
-   if (atype && entP)
+   if (entP)
       {strncpy(mySec.prot, entP->prot, XrdSsiPROTOIDSIZE);
        mySec.name = entP->name;
-       mySec.host = (atype <= 1 ? entP->host
-                                : entP->addrInfo->Name(entP->host));
+       mySec.host = (!aDNS ? entP->host : entP->addrInfo->Name(entP->host));
        mySec.role = entP->vorg;
        mySec.role = entP->role;
        mySec.grps = entP->grps;
        mySec.endorsements = entP->endorsements;
        mySec.creds = entP->creds;
        mySec.credslen = entP->credslen;
-       client = &mySec;
-      }
+      } else mySec.tident = "ssi";
+   client = &mySec;
 
 // Fill out the resource name and user
 //

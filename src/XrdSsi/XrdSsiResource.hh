@@ -57,11 +57,11 @@ enum Affinity {Default, //!< Use configured affinity
               };
 Affinity       affinity;//!< Resource affinity
 
-static const
-uint16_t       reusable= 0x0001; //!< Make this resource is reusable
-
-uint16_t       rOpts;   //!< Resource options (see above)
-uint16_t       reUse;   //!< Number of minutes resource may be reused
+uint32_t       rOpts;   //!< Resource options. One or more of he following:
+static
+const uint32_t Reusable;//!> Resource context may be cached and reused
+static
+const uint32_t Discard; //!> Discard cached resource if it exists
 
 //-----------------------------------------------------------------------------
 //! Constructor
@@ -86,20 +86,18 @@ uint16_t       reUse;   //!< Number of minutes resource may be reused
 //!
 //! @param  raff     resource affinity (see Affinity enum).
 //!
-//! @param  ropts    resource handling options (see  enum).
-//!
-//! @param  reUse    number of times the resource may be reused.
+//! @param  ropts    resource handling options (see individual options)
 //-----------------------------------------------------------------------------
 
                XrdSsiResource(std::string rname,
                               std::string havoid="",
                               std::string ruser="",
                               std::string rinfo="",
-                              uint16_t    ropts=0,
+                              uint32_t    ropts=0,
                               Affinity    raff=Default
                              ) : rName(rname), rUser(ruser), rInfo(rinfo),
                                  hAvoid(havoid), client(0), affinity(raff),
-                                 rOpts(ropts), reUse(0) {}
+                                 rOpts(ropts) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor
