@@ -92,7 +92,7 @@ namespace XrdSsi
 
        XrdNetIF               *myIF     = 0;
 
-       XrdSsiProvider         *Provider = 0;
+extern XrdSsiProvider         *Provider;
 
        XrdSsiService          *Service  = 0;
 

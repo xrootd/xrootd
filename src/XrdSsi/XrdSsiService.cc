@@ -36,7 +36,7 @@
 
 namespace XrdSsi
 {
-extern XrdSsiProvider *Provider;
+XrdSsiProvider *Provider = 0;
 }
   
 /******************************************************************************/

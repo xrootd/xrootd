@@ -58,11 +58,10 @@
 
 #define SSI_VAL_RESPONSE(rX) rrMutex->Lock();\
                              XrdSsiRequest *rX = reqP;\
-                             if (!rX)\
+                             if (!rX || rX->theRespond != this)\
                                 {rrMutex->UnLock(); return notActive;}\
-                             reqP = 0;\
-                             if (rX->theRespond != this)\
-                                {rrMutex->UnLock(); return notActive;}
+                             if (rX->Resp.rType)\
+                                {rrMutex->UnLock(); return notPosted;}
 
 #define SSI_XEQ_RESPONSE(rX) rrMutex->UnLock();\
                              return (rX->ProcessResponse(rX->errInfo,rX->Resp)\
@@ -102,6 +101,25 @@ inline  void    BindRequest(XrdSsiRequest   &rqstR)
                             rqstR.BindDone();
                            }
 
+//-----------------------------------------------------------------------------
+//! Unbind this responder from the request object it is bound to.
+//!
+//! @return true  Request successfully unbound.
+//!         false UnBindRequest already called or called prior to Finish().
+//-----------------------------------------------------------------------------
+
+inline  bool    UnBindRequest() {rrMutex->Lock();
+                                 XrdSsiRequest *rP = reqP;
+                                 if (reqP && reqP->theRespond == 0)
+                                    {reqP = 0;
+                                     rrMutex->UnLock();
+                                     rP->Unbind(this);
+                                     return true;
+                                    }
+                                 rrMutex->UnLock();
+                                 return false;
+                                }
+
 protected:
 
 //-----------------------------------------------------------------------------
@@ -124,7 +142,7 @@ inline  void   Alert(XrdSsiRespInfoMsg &aMsg)
 //! allows the responder to release any resources given to the request object
 //! (e.g. data response buffer or a stream). Upon return the object is owned by
 //! the request object's creator who is responsible for releaasing or recycling
-//! the object. This method is automatically invoked by XrdSsiRequest::Finish().
+//! the object. This method is invoked by XrdSsiRequest::Finished().
 //!
 //! @param  rqstP  reference to the object describing the request.
 //! @param  rInfo  reference to the object describing the response.
@@ -141,7 +159,7 @@ virtual void   Finished(      XrdSsiRequest  &rqstR,
 //-----------------------------------------------------------------------------
 //! Obtain the request data sent by a client.
 //!
-//! Note: This method may be called with the object's recursive mutex unlocked!
+//! Note: This method is called with the object's recursive mutex unlocked!
 //!
 //! @param  dlen  holds the length of the request after the call.
 //!
@@ -274,7 +292,6 @@ inline Status  SetResponse(XrdSsiStream *strmP)
                            SSI_XEQ_RESPONSE(rP);
                           }
 
-
 //-----------------------------------------------------------------------------
 //! This class is meant to be inherited by an object that will actually posts
 //! responses.
@@ -290,9 +307,6 @@ inline Status  SetResponse(XrdSsiStream *strmP)
 protected:
 
 virtual       ~XrdSsiResponder() {}
-
-private:
-inline void    Unbind() {rrMutex->Lock(); reqP = 0; rrMutex->UnLock();}
 
 XrdSsiMutex   *rrMutex;
 XrdSsiRequest *reqP;

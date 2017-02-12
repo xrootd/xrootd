@@ -41,6 +41,7 @@
 #include "XrdSsi/XrdSsiFileReq.hh"
 #include "XrdSsi/XrdSsiFileResource.hh"
 #include "XrdSsi/XrdSsiFileSess.hh"
+#include "XrdSsi/XrdSsiReqAgent.hh"
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
@@ -122,7 +123,7 @@ void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
 void XrdSsiFileReq::Alert(XrdSsiRespInfoMsg &aMsg)
 {
    EPNAME("Alert");
-   const XrdSsiRespInfo *rP = RespP();
+   const XrdSsiRespInfo *rP = XrdSsiReqAgent::RespP(this);
    XrdSsiAlert *aP;
    int msgLen;
 
@@ -204,7 +205,7 @@ XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo      *eiP,
 }
 
 /******************************************************************************/
-/*                              B i n d D o n e                               */
+/* Private:                     B i n d D o n e                               */
 /******************************************************************************/
 
 // This is called with frqMutex locked!
@@ -247,22 +248,22 @@ void XrdSsiFileReq::BindDone()
 void XrdSsiFileReq::DoIt()
 {
    EPNAME("DoIt");
-   XrdSsiMutexMon mHelper(frqMutex);
    bool cancel;
 
 // Processing is determined by the responder's state. Only listed states are
 // valid. Others should never occur in this context.
 //
+   frqMutex.Lock();
    switch(urState)
          {case isNew:    myState = xqReq; urState = isBegun;
                          DEBUGXQ("Calling service processor");
-                         mHelper.UnLock();
+                         frqMutex.UnLock();
                          Service->ProcessRequest((XrdSsiRequest      &)*this,
                                                  (XrdSsiFileResource &)*fileR);
                          return;
                          break;
           case isAbort:  DEBUGXQ("Skipped calling service processor");
-                         mHelper.UnLock();
+                         frqMutex.UnLock();
                          Recycle();
                          return;
                          break;
@@ -271,9 +272,7 @@ void XrdSsiFileReq::DoIt()
                          Finished(cancel);
                          if (respWait) WakeUp();
                          if (finWait)  finWait->Post();
-                         if (cancel && !(RespP()->rType)) isPerm = true;
-                         mHelper.UnLock();
-                         Recycle();
+                         frqMutex.UnLock();
                          return;
                          break;
           default:       break;
@@ -282,6 +281,7 @@ void XrdSsiFileReq::DoIt()
 // If we get here then we have an invalid state. Report it but otherwise we
 // can't really do anything else. This means some memory may be lost.
 //
+   frqMutex.UnLock();
    Log.Emsg(epname, tident, "Invalid req/rsp state; giving up on object!");
 }
 
@@ -312,14 +312,16 @@ void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 
 // Do some debugging
 //
-   DEBUGXQ("wtrsp sent; resp "<<(RespP()->rType ? "here" : "pend"));
+   DEBUGXQ("wtrsp sent; resp "
+           <<(XrdSsiReqAgent::RespP(this)->rType ? "here" : "pend"));
 
 // We are invoked when sync() waitresp has been sent, check if a response was
 // posted while this was going on. If so, make sure to send a wakeup. Note
 // that the respWait flag is at this moment false as this is called in the
 // sync response path for fctl() and the response may have been posted.
 //
-   if (RespP()->rType == XrdSsiRespInfo::isNone) respWait = true;
+   if (XrdSsiReqAgent::RespP(this)->rType == XrdSsiRespInfo::isNone)
+      respWait = true;
       else WakeUp();
 }
 
@@ -432,9 +434,7 @@ void XrdSsiFileReq::Finalize()
                          DEBUGXQ("Calling Finished(" <<cancel <<')');
                          Finished(cancel);
                          if (respWait) WakeUp();
-                         if (cancel && !(RespP()->rType)) isPerm = true;
                          mHelper.UnLock();
-                         Recycle();
                          return;
                          break;
 
@@ -500,9 +500,8 @@ void XrdSsiFileReq::Init(const char *cID)
    schedDone  = false;
    respWait   = false;
    strmEOF    = false;
-   isPerm     = false;
    isEnding   = false;
-   SetMutex(&frqMutex);
+   XrdSsiReqAgent::SetMutex(this, &frqMutex);
 }
 
 /******************************************************************************/
@@ -577,7 +576,7 @@ XrdSfsXferSize XrdSsiFileReq::Read(bool           &done,      // Out
 {
    static const char *epname = "read";
    XrdSfsXferSize nbytes;
-   XrdSsiRespInfo const *Resp = RespP();
+   XrdSsiRespInfo const *Resp = XrdSsiReqAgent::RespP(this);
 
 // A read should never be issued unless a response has been set
 //
@@ -726,7 +725,7 @@ void XrdSsiFileReq::Recycle()
 //
    aqMutex.Lock();
    if (tident) {free(tident); tident = 0;}
-   if (freeCnt >= freeMax && !isPerm) {aqMutex.UnLock(); delete this;}
+   if (freeCnt >= freeMax) {aqMutex.UnLock(); delete this;}
       else {nextReq = freeReq;
             freeReq = this;
             freeCnt++;
@@ -761,7 +760,7 @@ void XrdSsiFileReq::RelRequestBuffer()
 int XrdSsiFileReq::Send(XrdSfsDio *sfDio, XrdSfsXferSize blen)
 {
    static const char *epname = "send";
-   XrdSsiRespInfo const *Resp = RespP();
+   XrdSsiRespInfo const *Resp = XrdSsiReqAgent::RespP(this);
    XrdOucSFVec sfVec[2];
    int rc;
 
@@ -877,6 +876,23 @@ int XrdSsiFileReq::sendStrmA(XrdSsiStream *strmP,
 }
 
 /******************************************************************************/
+/*                                U n b i n d                                 */
+/******************************************************************************/
+
+void XrdSsiFileReq::Unbind(XrdSsiResponder *respP) // Caled with frqMutex unlocked!
+{
+   EPNAME("Unbind");
+
+// Do some debugging
+//
+   DEBUGXQ("Recycling request...");
+
+// Simply recycle the object
+//
+   Recycle();
+}
+  
+/******************************************************************************/
 /*                          W a n t R e s p o n s e                           */
 /******************************************************************************/
   
@@ -894,7 +910,7 @@ bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
 // Serialize the remainder of this code
 //
    frqMon.Lock(frqMutex);
-   rspP = RespP();
+   rspP = XrdSsiReqAgent::RespP(this);
 
 // If we have a pending alert then we need to send it now. Suppress the callback
 // as we will recycle the alert on the next call (there should be one).
@@ -939,7 +955,7 @@ void XrdSsiFileReq::WakeUp(XrdSsiAlert *aP) // Called with frqMutex locked!
    EPNAME("WakeUp");
    XrdOucErrInfo *wuInfo = 
                   new XrdOucErrInfo(tident,(XrdOucEICB *)0,respCBarg);
-   const XrdSsiRespInfo *rspP = RespP();
+   const XrdSsiRespInfo *rspP = XrdSsiReqAgent::RespP(this);
    int respCode = SFS_DATAVEC;
 
 // Do some debugging

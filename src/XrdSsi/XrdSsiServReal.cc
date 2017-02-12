@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <string.h>
   
+#include "XrdSsi/XrdSsiReqAgent.hh"
 #include "XrdSsi/XrdSsiResource.hh"
 #include "XrdSsi/XrdSsiScale.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
@@ -197,7 +198,7 @@ void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
       {XrdSsiUtils::RetErr(reqRef, "Insufficient memory.", ENOMEM);
        sidScale.retEnt(uEnt);
        return;
-      } else reqRef.SetMutex(sObj->MutexP());
+      } else XrdSsiReqAgent::SetMutex(&reqRef, sObj->MutexP());
 
 // Now just provision this resource which will execute the request should it
 // be successful.

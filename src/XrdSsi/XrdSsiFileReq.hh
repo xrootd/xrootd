@@ -66,8 +66,6 @@ static  XrdSsiFileReq *Alloc(XrdOucErrInfo  *eP, XrdSsiFileResource *rP,
                              XrdSsiFileSess *fP, const char         *sn,
                              const char     *id, int                 rnum);
 
-        void           BindDone();
-
         void           Finalize();
 
         using          XrdSsiRequest::Finished;
@@ -117,6 +115,7 @@ enum rspState {isNew=0, isBegun, isBound, isAbort, isDone, isMax};
 
 private:
 
+void                   BindDone(); // Override
 int                    Emsg(const char *pfx, int ecode, const char *op);
 int                    Emsg(const char *pfx, XrdSsiErrInfo &eObj,
                             const char *op);
@@ -128,6 +127,7 @@ XrdSfsXferSize         readStrmP(XrdSsiStream *strmP, char *buff,
 int                    sendStrmA(XrdSsiStream *strmP, XrdSfsDio *sfDio,
                                  XrdSfsXferSize blen);
 void                   Recycle();
+void                   Unbind(XrdSsiResponder *respP); // Override
 void                   WakeUp(XrdSsiAlert *aP=0);
 
 static XrdSysMutex     aqMutex;
@@ -165,7 +165,6 @@ int                    reqID;
 bool                   respWait;
 bool                   strmEOF;
 bool                   schedDone;
-bool                   isPerm;
 bool                   isEnding;
 char                   rID[8];
 };

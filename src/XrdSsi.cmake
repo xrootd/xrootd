@@ -29,6 +29,7 @@ XrdSsi/XrdSsiPacer.cc                  XrdSsi/XrdSsiPacer.hh
                                        XrdSsi/XrdSsiProvider.hh
                                        XrdSsi/XrdSsiRRInfo.hh
                                        XrdSsi/XrdSsiRRTable.hh
+                                       XrdSsi/XrdSsiReqAgent.hh
 XrdSsi/XrdSsiRequest.cc                XrdSsi/XrdSsiRequest.hh
                                        XrdSsi/XrdSsiResponder.hh
                                        XrdSsi/XrdSsiResource.hh

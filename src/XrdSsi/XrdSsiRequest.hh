@@ -69,8 +69,8 @@ class XrdSsiResponder;
 class XrdSsiRequest
 {
 public:
+friend class XrdSsiReqAgent;
 friend class XrdSsiResponder;
-friend class XrdSsiTaskReal;
 
 //-----------------------------------------------------------------------------
 //! @brief Send or receive a server generated alert.
@@ -82,8 +82,8 @@ friend class XrdSsiTaskReal;
 //!
 //! @param  aMsg   Reference to the message object containing the alert message.
 //!                Non-positive alert lengths cause the alert call to be
-//!                ignored. You should call the message Recycle() method once
-//!                you have consumed the message to release its resources.
+//!                ignored. You should call the message RecycleMsg() method
+//!                once you have consumed the message to release its resources.
 //-----------------------------------------------------------------------------
 
 virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.RecycleMsg(false);}
@@ -294,22 +294,11 @@ static RDR_Info RestartDataResponse(RDR_How rhow, const char *reqid=0);
 //-----------------------------------------------------------------------------
 
                 XrdSsiRequest(const char *reqid=0, uint16_t tmo=0)
-                             : rrMutex(0), reqID(reqid),
+                             : reqID(reqid), rrMutex(0),
                                nextRequest(0), theRespond(0), thePacer(0),
                                detTTL(0), tOut(0) {}
 
-// The following are for internal use only!
-//
-void            SetMutex(XrdSsiMutex *mP) {rrMutex = mP;}
-
 protected:
-
-//-----------------------------------------------------------------------------
-//! Notify the underlying object that the request was bound to a responder.
-//! This method is meant for server-side internal use only.
-//-----------------------------------------------------------------------------
-
-virtual void    BindDone() {}
 
 //-----------------------------------------------------------------------------
 //! Release the request buffer. Use this method to optimize storage use; this
@@ -319,8 +308,8 @@ virtual void    BindDone() {}
 //!
 //!
 //! Note: This method is called with the object's recursive mutex locked when
-//!       it is invoked via XrdSsiResponder's ReleaseRequestBuffer() which is
-//!       the only proper way of invoking this method.
+//!       it is invoked via XrdSsiResponder's ReleaseRequestBuffer() or the
+//!       one defined in this class.
 //-----------------------------------------------------------------------------
 
 virtual void    RelRequestBuffer() {}
@@ -362,25 +351,18 @@ inline void     SetDetachTTL(uint32_t dttl) {detTTL = dttl;}
 virtual        ~XrdSsiRequest() {}
 
 //-----------------------------------------------------------------------------
-//! Get a pointer to the RespInfo structure. This is meant to be used by
-//! classes that inherit this class to simplify response handling.
-//!
-//! @return Pointer to the RespInfo structure.
-//-----------------------------------------------------------------------------
-inline
-const XrdSsiRespInfo *RespP() {return &Resp;}
-
-//-----------------------------------------------------------------------------
 //! The following mutex is used to serialize acccess to the request object.
 //! It can also be used to serialize access to the underlying object.
 //-----------------------------------------------------------------------------
 
-XrdSsiMutex     *rrMutex;
-const char      *reqID;
 
 private:
+virtual void     BindDone() {}
         bool     CopyData(char *buff, int blen);
+virtual void     Unbind(XrdSsiResponder *respP) {}
 
+const char      *reqID;
+XrdSsiMutex     *rrMutex;
 XrdSsiRequest   *nextRequest;
 XrdSsiResponder *theRespond; // Set via XrdSsiResponder::BindRequest()
 XrdSsiRespInfo   Resp;       // Set via XrdSsiResponder::SetResponse()

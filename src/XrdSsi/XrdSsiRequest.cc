@@ -80,7 +80,7 @@ bool XrdSsiRequest::Finished(bool cancel)
 // Obtain the responder
 //
    rrMutex->Lock();
-   if ((respP = theRespond)) theRespond->reqP = 0;
+   respP = theRespond;
    theRespond = 0;
    rrMutex->UnLock();
 

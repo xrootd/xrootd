@@ -31,6 +31,7 @@
 
 #include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiRRInfo.hh"
+#include "XrdSsi/XrdSsiReqAgent.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiScale.hh"
 #include "XrdSsi/XrdSsiSessReal.hh"
@@ -298,7 +299,8 @@ void XrdSsiTaskReal::Redrive()
 //
    sessP->UnLock();
    DEBUG("Redriving ProcessResponseData; len="<<dataRlen<<" last="<<last);
-   prdVal = rqstP->ProcessResponseData(rqstP->errInfo,dataBuff,dataRlen,last);
+   prdVal = rqstP->ProcessResponseData(XrdSsiReqAgent::ErrInfoRef(rqstP),
+                                       dataBuff, dataRlen, last);
    switch(prdVal)
          {case XrdSsiRequest::PRD_Normal:                               break;
           case XrdSsiRequest::PRD_Hold:    Hold(0);                     break;
@@ -547,8 +549,8 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
 //
    if (!aOK || !response)
       {ibRead = -1;
-       if (!aOK) XrdSsiUtils::SetErr(*status, rqstP->errInfo);
-          else   rqstP->errInfo.Set("Missing response", EFAULT);
+       if (!aOK) XrdSsiUtils::SetErr(*status, XrdSsiReqAgent::ErrInfoRef(rqstP));
+          else   XrdSsiReqAgent::ErrInfoRef(rqstP).Set("Missing response", EFAULT);
       } else {
        XrdCl::ChunkInfo *cInfo = 0;
        response->Get(cInfo);
@@ -563,7 +565,8 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
    last = tStat == isDone;
    sessP->UnLock();
    DEBUG("Calling ProcessResponseData; len="<<ibRead<<" last="<<last);
-   prdVal = rqstP->ProcessResponseData(rqstP->errInfo, dBuff, ibRead, last);
+   prdVal = rqstP->ProcessResponseData(XrdSsiReqAgent::ErrInfoRef(rqstP),
+                                       dBuff, ibRead, last);
 
 // If finished was called then we need stop any further action
 //

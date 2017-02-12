@@ -74,9 +74,12 @@ static const int SsiVersion = 0x00020000;
 //! provided. Server-side Attach() calls are always passed the original request
 //! object reference so that it can pair up the request with the attach.
 //!
-//! @param  handle   The handle provided to the XrdSsiRequest::ProcessResponse()
-//!                  callback method via isHandle response type. This is always
-//!                  an empty string on server-side calls.
+//! @param  eInfo    Reference to an error info object which will contain the
+//!                  error describing why the attach failed (i.e. return false).
+//!
+//! @param  handle   Reference to the handle provided to the callback method
+//!                  XrdSsiRequest::ProcessResponse() via isHandle response type.
+//!                  This is always an empty string on server-side calls.
 //!
 //! @param  reqRef   Reference to the request object that is to attach to the
 //!                  backgrounded request. It need not be the original request
@@ -90,13 +93,17 @@ static const int SsiVersion = 0x00020000;
 //!                  attach may be different fom the client that actually
 //!                  started the request.
 //!
-//! @return All results are returned via the request object callback methods.
+//! @return true     Continue normally, no issues detected.
+//!         false    An exception occurred, the eInfo object has the reason. For
+//!                  server side calls this provides the service the ability to
+//!                  reject request reattachment.
 //-----------------------------------------------------------------------------
 
-virtual void   Attach(std::string     handle,
-                      XrdSsiRequest  &reqRef,
-                      XrdSsiResource *resP=0
-                     ) {}
+virtual bool   Attach(      XrdSsiErrInfo  &eInfo,
+                      const std::string    &handle,
+                            XrdSsiRequest  &reqRef,
+                            XrdSsiResource *resP=0
+                     ) {return true;}
 
 //-----------------------------------------------------------------------------
 //! @brief Prepare for processing subsequent resource request.
