@@ -3951,10 +3951,9 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
      caroot.erase(caroot.length() - 2, 2);
 
    // Get the CA hash
-   int hashalg = 0;
-   if (strcmp(caroot.c_str(), xca->SubjectHash())) hashalg = 1;
-
    String cahash = caroot + ".0";
+   int hashalg = 0;
+   if (strcmp(cahash.c_str(), xca->SubjectHash())) hashalg = 1;
 
    // The dir
    String crlext = XrdSecProtocolgsi::DefCRLext;
