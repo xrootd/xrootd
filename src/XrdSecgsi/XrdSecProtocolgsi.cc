@@ -4406,8 +4406,12 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
                   // Good CA
                   DEBUG("CRL successfully loaded");
                } else {
-                  ok = 0;
-                  NOTIFY("CRL is missing or expired (CRLCheck: "<<CRLCheck<<")");
+                  String em = "ignoring";
+                  if (CRLCheck >= 2) {
+                     ok = 0;
+                     em = "failing";
+                  }
+                  NOTIFY("CRL is missing or expired: "<<em<<" (CRLCheck: "<<CRLCheck<<")");
                }
             }
          }
