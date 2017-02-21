@@ -5,3 +5,5 @@ XRootD
 Prerelease Notes
 ================
 
++ **Minor bug fixes**
+  * **[XrdSecgsi]** Absent CRLs not an error (#465)
