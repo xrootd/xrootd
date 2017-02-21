@@ -1374,7 +1374,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
    }
    if (!ext) {
       emsg = "proxyCertInfo extension not found";
-      return -1;
+      return -2;
    }
    if (!pci) {
       emsg = "proxyCertInfo extension could not be deserialized";
