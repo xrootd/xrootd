@@ -56,6 +56,7 @@ typedef struct {
 } x509ChainVerifyOpt_t;
 
 const int kOptsCheckSelfSigned = 0x2;    // CA ckecking option
+const int kOptsCheckSubCA      = 0x4;    // CA-SubCA case (no EEC)
 
 //
 // Node definition

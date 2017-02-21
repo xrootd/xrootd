@@ -4249,7 +4249,8 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
          if (!notdone) {
             // Verify the chain
             X509Chain::EX509ChainErr e;
-            if (!(verified = cca->Verify(e)))
+            x509ChainVerifyOpt_t vopt = {kOptsCheckSubCA, 0, -1, 0};
+            if (!(verified = cca->Verify(e, &vopt)))
                PRINT("CA certificate not self-signed: verification failed ("<<xc->SubjectHash()<<")");
          } else {
             PRINT("CA certificate not self-signed: cannot verify integrity ("<<xc->SubjectHash()<<")");
