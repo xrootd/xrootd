@@ -117,7 +117,8 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
    }
    //
    // Check the end-point entity certificate
-   if (node->Next() && node->Next()->Cert()->type != XrdCryptoX509::kEEC) {
+   if (!node->Next() ||
+       (node->Next() && node->Next()->Cert()->type != XrdCryptoX509::kEEC)) {
       errcode = kNoEEC;
       lastError = X509ChainError(errcode);
       return 0;
