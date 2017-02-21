@@ -3946,15 +3946,12 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
       return crl;
    }
 
-   String caroot(subjhash);
-   if (caroot.endswith(".0"))
-     caroot.erase(caroot.length() - 2, 2);
-
    // Get the CA hash
+   String cahash(subjhash);
    int hashalg = 0;
-   if (strcmp(caroot.c_str(), xca->SubjectHash())) hashalg = 1;
-
-   String cahash = caroot + ".0";
+   if (strcmp(subjhash, xca->SubjectHash())) hashalg = 1;
+   // Drop the extension (".0")
+   String caroot(cahash, 0, cahash.find(".0")-1);
 
    // The dir
    String crlext = XrdSecProtocolgsi::DefCRLext;
