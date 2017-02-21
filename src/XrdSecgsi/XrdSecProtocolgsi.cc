@@ -4590,6 +4590,9 @@ int XrdSecProtocolgsi::ParseCAlist(String calist)
       while ((from = calist.tokenize(cahash, from, '|')) != -1) {
          // Check this hash
          if (cahash.length()) {
+            // Make sure the extension ".0" if there, as external implementations may not
+            // include it
+            if (!cahash.endswith(".0")) cahash += ".0";
             // Get the CA chain
             if (GetCA(cahash.c_str(), sessionCF, hs) == 0)
                return 0;
