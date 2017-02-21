@@ -357,12 +357,13 @@ void XrdCryptosslX509::CertType()
    if (pxyname) {
       type = kUnknown;
       if ((idx = X509_get_ext_by_NID(cert, NID_proxyCertInfo,-1)) == -1) {
+         int xcp = -1;
          XrdOucString emsg;
-         if (XrdCryptosslX509CheckProxy3(this, emsg) == 0) {
+         if ((xcp = XrdCryptosslX509CheckProxy3(this, emsg)) == 0) {
             type = kProxy;
             pxytype = 3;
             DEBUG("Found GSI 3 proxyCertInfo extension");
-         } else {
+         } else if (xcp == -1) {
             PRINT("ERROR: "<<emsg);
          }
       } else {
