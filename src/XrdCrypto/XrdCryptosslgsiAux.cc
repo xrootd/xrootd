@@ -1328,6 +1328,10 @@ end:
 int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
    //
    // Check GSI 3 proxy info extension
+   // Returns:  0 if found
+   //          -1 if found by invalid/not usable,
+   //          -2 if not found (likely a v2 legacy proxy)
+
    EPNAME("X509CheckProxy3");
 
    // Point to the cerificate
@@ -1360,8 +1364,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          } else {
             PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
          }
-      }
-      else if (!strncmp(s, gsiProxyCertInfo_OLD_OID, sizeof(gsiProxyCertInfo_OLD_OID))) {
+      } else if (!strncmp(s, gsiProxyCertInfo_OLD_OID, sizeof(gsiProxyCertInfo_OLD_OID))) {
          if (ext == 0) {
             ext = xext;
             // Now get the extension
@@ -1372,9 +1375,11 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          }
       }
    }
+   //
+   // If the extension was not found it is probably a legacy (v2) proxy: signal it
    if (!ext) {
       emsg = "proxyCertInfo extension not found";
-      return -1;
+      return -2;
    }
    if (!pci) {
       emsg = "proxyCertInfo extension could not be deserialized";
