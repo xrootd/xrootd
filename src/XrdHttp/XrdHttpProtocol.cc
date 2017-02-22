@@ -1385,7 +1385,7 @@ int XrdHttpProtocol::InitSecurity() {
 
   }
 
-  if (secxtractor) secxtractor->InitCTX(sslctx, XrdHttpTrace->What);
+  if (secxtractor) secxtractor->Init(sslctx, XrdHttpTrace->What);
 
   ERR_print_errors(sslbio_err);
   return 0;
