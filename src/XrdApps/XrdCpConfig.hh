@@ -32,6 +32,8 @@
 
 #include "XrdCks/XrdCksData.hh"
 
+#include <ctype.h>
+
 struct option;
 class  XrdCks;
 class  XrdCksCalc;
@@ -198,6 +200,13 @@ private:
        const char  *OpName();
              void   ProcFile(const char *fname);
              void   Usage(int rc=0);
+
+      static void   toLower( char cstr[] )
+      {
+        for( int i = 0; cstr[i]; ++i )
+          cstr[i] = tolower( cstr[i] );
+      }
+
 
        const char  *PName;
              int    Opts;

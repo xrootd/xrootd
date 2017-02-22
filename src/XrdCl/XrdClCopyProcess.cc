@@ -185,6 +185,17 @@ namespace XrdCl
         return XRootDStatus( stError, errInvalidArgs, 0,
                              "checkSumType not specified" );
       }
+      else
+      {
+        //----------------------------------------------------------------------
+        // Checksum type has to be case insensitive
+        //----------------------------------------------------------------------
+        std::string checkSumType;
+        p.Get( "checkSumType", checkSumType );
+        std::transform(checkSumType.begin(), checkSumType.end(),
+                                                checkSumType.begin(), ::tolower);
+        p.Set( "checkSumType", checkSumType );
+      }
     }
 
     if( !p.HasProperty( "parallelChunks" ) )
