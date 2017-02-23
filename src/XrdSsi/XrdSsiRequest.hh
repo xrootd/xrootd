@@ -61,6 +61,8 @@
 //! ProcessResponse()     Initial response: Mandatary
 //! ProcessResponseData() Data    response: Mandatory only if response data is
 //!                                         asynchronously received.
+//!
+//! All callbacks are invoked with no locks outstanding unless otherwise noted.
 //-----------------------------------------------------------------------------
 
 class XrdSsiPacer;
@@ -116,6 +118,19 @@ virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.RecycleMsg(false);}
 inline uint32_t GetDetachTTL() {return detTTL;}
 
 //-----------------------------------------------------------------------------
+//! Obtain the enpoint host name.
+//!
+//! @return =0    Host name not available. Typically, the host name will be
+//!               available on the first callback to this object.
+//! @return !0    Pointer to the host name. The name is valid until Finished().
+//-----------------------------------------------------------------------------
+
+inline
+const char     *GetEndPoint() {XrdSsiMutexMon(rrMutex);
+                               return epNode;
+                              }
+
+//-----------------------------------------------------------------------------
 //! Obtain the metadata associated with a response.
 //!
 //!
@@ -138,7 +153,6 @@ const char     *GetMetadata(int &dlen)
 //! Obtain the request data sent by a client.
 //!
 //! This method is duplicated in XrdSsiResponder to allow calling consistency.
-//! This method may be called with the object's recursive mutex unlocked!
 //!
 //! @param  dlen  holds the length of the request after the call.
 //!
@@ -200,8 +214,6 @@ virtual bool    ProcessResponse(const XrdSsiErrInfo  &eInfo,
 //! Handle incomming async stream data or error. This method is called by a
 //! stream object after a successful GetResponseData() or an asynchronous
 //! stream SetBuff() call.
-//!
-//! Note: This method is called with the object's recursive mutex locked.
 //!
 //! @param  eInfo Error information. You can check if an error occured using
 //!               eInfo.hasError() or eInfo.isOK().
@@ -295,7 +307,7 @@ static RDR_Info RestartDataResponse(RDR_How rhow, const char *reqid=0);
 
                 XrdSsiRequest(const char *reqid=0, uint16_t tmo=0)
                              : reqID(reqid), rrMutex(0),
-                               nextRequest(0), theRespond(0), thePacer(0),
+                               theRespond(0), thePacer(0), epNode(0),
                                detTTL(0), tOut(0) {}
 
 protected:
@@ -368,6 +380,7 @@ XrdSsiResponder *theRespond; // Set via XrdSsiResponder::BindRequest()
 XrdSsiRespInfo   Resp;       // Set via XrdSsiResponder::SetResponse()
 XrdSsiErrInfo    errInfo;
 XrdSsiPacer     *thePacer;
+const char      *epNode;
 uint32_t         detTTL;
 uint16_t         tOut;
 };

@@ -37,9 +37,9 @@
 #include <netinet/in.h>
   
 #include "XrdSsi/XrdSsiAtomics.hh"
+#include "XrdSsi/XrdSsiReqAgent.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiRRInfo.hh"
-#include "XrdSsi/XrdSsiUtils.hh"
 #include "XrdSsi/XrdSsiScale.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
 #include "XrdSsi/XrdSsiSessReal.hh"
@@ -47,7 +47,9 @@
 #include "XrdSsi/XrdSsiTrace.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
 
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+#include "Xrd/XrdScheduler.hh"
 
 using namespace XrdSsi;
 
@@ -88,9 +90,35 @@ namespace
   
 namespace XrdSsi
 {
-extern XrdSsiScale sidScale;
+extern XrdScheduler *schedP;
+
+extern XrdSysError   Log;
+extern XrdSsiScale   sidScale;
 }
 
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+
+namespace
+{
+class CleanUp : public XrdJob
+{
+public:
+
+void  DoIt() {sessP->Lock();
+              sessP->Unprovision();
+              delete this;
+             }
+
+      CleanUp(XrdSsiSessReal *sP) : sessP(sP) {}
+     ~CleanUp() {}
+
+private:
+XrdSsiSessReal *sessP;
+};
+}
+  
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
@@ -103,98 +131,6 @@ XrdSsiSessReal::~XrdSsiSessReal()
    if (sessNode) free(sessNode);
 
    while((tP = freeTask)) {freeTask = tP->attList.next; delete tP;}
-}
-
-/******************************************************************************/
-/* Private:                      E x e c u t e                                */
-/******************************************************************************/
-  
-// Called with sessMutex locked!
-
-bool XrdSsiSessReal::Execute(XrdSsiRequest *reqP)
-{
-   XrdCl::XRootDStatus Status;
-   XrdSsiRRInfo        rrInfo;
-   XrdSsiTaskReal     *tP, *ptP;
-   char               *reqBuff;
-   int                 reqBlen;
-
-// Get the request information
-//
-   reqBuff = reqP->GetRequest(reqBlen);
-
-// Allocate a task object for this request
-//
-   if (!(tP = NewTask(reqP))) return false;
-
-// Construct the info for this request
-//
-   rrInfo.Id(tP->ID());
-   rrInfo.Size(reqBlen);
-
-// Issue the write
-//
-   Status = epFile.Write(rrInfo.Info(), (uint32_t)reqBlen, reqBuff,
-                         (XrdCl::ResponseHandler *)tP, reqP->GetTimeOut());
-
-// Determine ending status. If it's bad, return an error.
-//
-   if (!Status.IsOK())
-      {std::string eText;
-       int eNum = XrdSsiUtils::GetErr(Status, eText);
-       RelTask(tP);
-       SetErrResponse(eText.c_str(), eNum);
-       return false;
-      }
-
-// Insert the task into our list of tasks
-//
-   if ((ptP = attBase)) {INSERT(attList, ptP, tP);}
-      else attBase = tP;
-
-// We now need to change the binding to the task.
-//
-   tP->BindRequest(*reqP);
-   numAT++;
-   return true;
-}
-  
-/******************************************************************************/
-/*                              F i n i s h e d                               */
-/******************************************************************************/
-
-// Note that if we are called then Finished() must have been called while we
-// were still in the open phase or in the task dispatch phase.
-  
-void XrdSsiSessReal::Finished(XrdSsiRequest        &rqstR,
-                              const XrdSsiRespInfo &rInfo, bool cancel)
-{
-   EPNAME("SessReqFin");
-
-// Document this call as it rarely happens at this point
-//
-   DEBUG("Request="<<&rqstR<<" cancel="<<cancel);
-
-// Get the session lock
-//
-   sessMutex.Lock();
-
-// If a task is already attached then we need to forward this finish to it.
-// Otherwise, clear the pending request pointer to scuttle this.
-//
-   if (numAT) attBase->Finished(rqstR, rInfo, cancel);
-      else {if (requestP) XrdSsi::sidScale.retEnt(uEnt);
-            requestP = 0;
-            if (doStop)
-               {XrdCl::XRootDStatus zStat;
-                epFile.IsOpen() ? Unprovision() : Shutdown(zStat);
-                return;
-               }
-           }
-
-// Unlock our mutex as we are done here
-//
-   sessMutex.UnLock();
 }
 
 /******************************************************************************/
@@ -212,8 +148,8 @@ void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName,
    nextTID   = 0;
    alocLeft  = XrdSsiRRInfo::maxID;
    isHeld    = hold;
-   doStop    = false;
    inOpen    = false;
+   noReuse   = false;
    if (sessName) free(sessName);
    sessName  = (sName ? strdup(sName) : 0);
    if (sessNode) free(sessNode);
@@ -229,13 +165,13 @@ void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName,
 XrdSsiTaskReal *XrdSsiSessReal::NewTask(XrdSsiRequest *reqP)
 {
    EPNAME("NewTask");
-   XrdSsiTaskReal *tP;
+   XrdSsiTaskReal *ptP, *tP;
 
 // Allocate a task object for this request
 //
    if ((tP = freeTask)) freeTask = tP->attList.next;
       else {if (!alocLeft || !(tP = new XrdSsiTaskReal(this, nextTID)))
-               {SetErrResponse("Too many active requests.", EMLINK);
+               {XrdSsiUtils::RetErr(*reqP, "Too many active requests.", EMLINK);
                 return 0;
                }
             alocLeft--; nextTID++;
@@ -245,6 +181,17 @@ XrdSsiTaskReal *XrdSsiSessReal::NewTask(XrdSsiRequest *reqP)
 //
    tP->Init(reqP, reqP->GetTimeOut());
    DEBUG("Task=" <<tP <<" processing id=" <<nextTID-1);
+
+// Insert the task into our list of tasks
+//
+   if ((ptP = attBase)) {INSERT(attList, ptP, tP);}
+      else attBase = tP;
+
+// We will be using the session mutex for serialization. Afterwards, bind the
+// task to the request and return the task pointer.
+//
+   XrdSsiReqAgent::SetMutex(reqP, &sessMutex);
+   tP->BindRequest(*reqP);
    return tP;
 }
 
@@ -266,21 +213,21 @@ bool XrdSsiSessReal::Provision(XrdSsiRequest *reqP, const char *epURL)
                           (XrdCl::ResponseHandler *)this,
                           reqP->GetTimeOut());
 
-// If there was an error, scuttle the request
+// If there was an error, scuttle the request. Note that errors will be returned
+// on a separate thread to avoid hangs here.
 //
    if (!epStatus.IsOK())
       {std::string eTxt;
        int         eNum = XrdSsiUtils::GetErr(epStatus, eTxt);
-       XrdSsiUtils::RetErr(*requestP, eTxt.c_str(), eNum);
+       XrdSsiUtils::RetErr(*reqP, eTxt.c_str(), eNum);
        XrdSsi::sidScale.retEnt(uEnt);
        return false;
       }
 
-// We succeeded. So, bind to this request so we can respond with any errors
+// Queue a new task and indicate our state
 //
-   inOpen   = true;
-   requestP = reqP;
-   BindRequest(*reqP);
+   NewTask(reqP);
+   inOpen = true;
    return true;
 }
 
@@ -300,29 +247,62 @@ void XrdSsiSessReal::RelTask(XrdSsiTaskReal *tP) // sessMutex locked!
 }
 
 /******************************************************************************/
+/*                                   R u n                                    */
+/******************************************************************************/
+
+bool XrdSsiSessReal::Run(XrdSsiRequest *reqP)
+{
+   XrdSsiMutexMon sessMon(sessMutex);
+   XrdSsiTaskReal *tP;
+
+// If we are not allowed to be reused, return to indicated try someone else
+//
+   if (noReuse) return false;
+
+// Reserve a stream ID. If we cannot then indicate we cannot be reused
+//
+   if (!XrdSsi::sidScale.rsvEnt(uEnt)) return false;
+
+// Queue a new task
+//
+   tP = NewTask(reqP);
+
+// If we are already open and we have a task, send off the request
+//
+   if (!inOpen && tP && !tP->SendRequest(sessNode)) noReuse = true;
+   return true;
+}
+  
+/******************************************************************************/
 /* Private:                     S h u t d o w n                               */
 /******************************************************************************/
 
 // Called with sessMutex locked and return with it unlocked
   
-void XrdSsiSessReal::Shutdown(XrdCl::XRootDStatus &epStatus)
+void XrdSsiSessReal::Shutdown(XrdCl::XRootDStatus &epStatus, bool onClose)
 {
+   XrdSsiTaskReal *tP, *ntP = freeTask;
+
+// Delete all acccumulated tasks
+//
+   while((tP = ntP)) {ntP = tP->attList.next; delete tP;}
+   freeTask = 0;
 
 // If the close failed then we cannot recycle this object as it is not reusable
-//?? Future: notify service of this if we are being held.
 //
-   if (!epStatus.IsOK() && !inOpen)
+   if (onClose && !epStatus.IsOK())
       {std::string  eText;
        int          eNum = XrdSsiUtils::GetErr(epStatus, eText);
-
-       cerr <<"Unprovision "<<sessName<<'@'<<sessNode<<" error; "<<eNum
-            <<' ' <<eText<<"\n"<<flush;
+       char         mBuff[1024];
+       snprintf(mBuff, sizeof(mBuff), "Unprovision: %s@%s error; %d",
+                       sessName, sessNode, eNum);
+       Log.Emsg("Shutdown", mBuff, eText.c_str());
        sessMutex.UnLock();
       } else {
        if (sessName) {free(sessName); sessName = 0;}
        if (sessNode) {free(sessNode); sessNode = 0;}
        sessMutex.UnLock();
-       myService->Recycle(this);
+       myService->Recycle(this, !noReuse);
       }
 }
   
@@ -341,10 +321,9 @@ void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
    if (tP == attBase || tP->attList.next != tP)
       {REMOVE(attBase, attList, tP);}
 
-// Clear asny pending task events and decrease active count
+// Clear any pending task events and decrease active count
 //
    tP->ClrEvent();
-   numAT--;
 
 // Return the request entry number
 //
@@ -355,8 +334,22 @@ void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
 // unlock it before we return.
 //
    RelTask(tP);
-   if (!isHeld && numAT < 1) Unprovision();
+   if (!isHeld && !attBase) Unprovision();
       else sessMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                                U n H o l d                                 */
+/******************************************************************************/
+  
+void XrdSsiSessReal::UnHold()
+{
+   XrdSsiMutexMon sessMon(sessMutex);
+
+// Turn off the hold flag and if we have no attached tasks, schedule shutdown
+//
+   isHeld = false;
+   if (!attBase) XrdSsi::schedP->Schedule(new CleanUp(this));
 }
 
 /******************************************************************************/
@@ -367,18 +360,23 @@ void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
   
 void XrdSsiSessReal::Unprovision() // Called with sessMutex locked!
 {
+   EPNAME("Unprovision");
    XrdCl::XRootDStatus uStat;
 
-// Close the file this will schedule a shutdown if successful
+// Clear any pending events
 //
+   DEBUG("Closing " <<sessName);
    ClrEvent();
-   uStat = epFile.Close((XrdCl::ResponseHandler *)this);
 
-// If this was not successful then we can do the shutdown right now. Note that
-// Shutdown() unlocks the sessMutex.
+// If the file is not open (it might be due to an open error) then do a
+// shutdown right away. Otherwise, try to close if successful the event
+// handler will do the shutdown, Otherwise, we do a Futterwacken dance.
 //
-   if (!uStat.IsOK()) Shutdown(uStat);
-      else sessMutex.UnLock();
+   if (!epFile.IsOpen()) Shutdown(uStat, false);
+      else {uStat = epFile.Close((XrdCl::ResponseHandler *)this);
+            if (!uStat.IsOK()) Shutdown(uStat, true);
+               else sessMutex.UnLock();
+           }
 }
 
 /******************************************************************************/
@@ -388,39 +386,50 @@ void XrdSsiSessReal::Unprovision() // Called with sessMutex locked!
 bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
                               XrdCl::AnyObject   **respP)
 {
-
-// Lock the session. We keep the lock if there is going to any continuation
-// via the event handler. Otherwise, drop the lock.
+// Lock out mutex. Note that events like shutdown unlock the mutex
 //
    sessMutex.Lock();
+   XrdSsiTaskReal *tP = attBase;
 
 // If we are not in the open phase then this is due to a close event. Simply
 // do a shutdown and return to stop event processing.
 //
    if (!inOpen)
-      {Shutdown(*status);
+      {Shutdown(*status, true); // sessMutex gets unlocked!
        return false;
       }
-   inOpen = false;
 
-// Check if the request that triggered the open was cancelled. If so, bail.
+// We are no longer in open. However, if open encounetered an error then this
+// session cannot be reused because the file object is in a bad state.
+//
+   inOpen  = false;
+   noReuse = !status->IsOK();
+
+// If we have no requests then we may want to simply shoutdown.
 // Note that shutdown and unprovision unlock the sessMutex.
 //
-   if (!requestP)
-      {if (!status->IsOK()) Shutdown(*status);
-          else {if (!isHeld) Unprovision();}
+   if (!tP)
+      {if (isHeld)
+          {sessMutex.UnLock();
+           return false;
+          }
+       if (!status->IsOK()) Shutdown(*status, false);
+          else {if (!isHeld) Unprovision();
+                   else sessMutex.UnLock();
+               }
        return false;
       }
 
 // We are here because the open finally completed. If the open failed, then
-// tell Finish() to do a shutdown and post an error response.
+// schedule an error for all pending tasks. The Finish() call on each will
+// drive the cleanup of this session.
 //
    if (!status->IsOK())
-      {std::string eTxt;
-       int         eNum = XrdSsiUtils::GetErr(*status, eTxt);
-       doStop = true;
+      {XrdSsiErrInfo eInfo;
+       XrdSsiUtils::SetErr(*status, eInfo);
+       do {tP->SchedError(&eInfo); tP = tP->attList.next;}
+          while(tP != attBase);
        sessMutex.UnLock();
-       SetErrResponse(eTxt.c_str(), eNum);
        return false;
       }
 
@@ -432,14 +441,14 @@ bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
        sessNode = strdup(currNode.c_str());
       } else sessNode = strdup("Unknown!");
 
-// Execute the request. If we failed and this is a single request session then
-// we need to disband he session. We delay this until Finish() is called.
+// Execute each pending request.
 //
-   if (!Execute(requestP) && !isHeld)
-      {if (!requestP) Unprovision();
-          else {doStop = true;
-                sessMutex.UnLock();
-               }
-      } else sessMutex.UnLock();
-   return false;
+   do {if (!tP->SendRequest(sessNode)) noReuse = true;
+       tP = tP->attList.next;
+      } while(tP != attBase);
+
+// We are done, field the next event
+//
+   sessMutex.UnLock();
+   return true;
 }

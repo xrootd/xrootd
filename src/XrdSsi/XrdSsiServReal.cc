@@ -166,8 +166,13 @@ bool XrdSsiServReal::GenURL(XrdSsiResource *rP, char *buff, int blen, int uEnt)
 void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
                                     XrdSsiResource &resRef)
 {
-   XrdSsiSessReal *sObj;
+   static const uint32_t useCache = XrdSsiResource::Reusable
+                                  | XrdSsiResource::Discard;
+   XrdSysMutexHelper mHelp;
+   XrdSsiSessReal   *sObj;
+   std::string       resKey;
    int  uEnt;
+   bool hold = (resRef.rOpts & XrdSsiResource::Reusable) != 0;
    char epURL[4096];
 
 // Validate the resource name
@@ -175,6 +180,14 @@ void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
    if (resRef.rName.length() == 0)
       {XrdSsiUtils::RetErr(reqRef, "Resource name missing.", EINVAL);
        return;
+      }
+
+// Check if this is a reusable resource. Reusable resources are a bit more
+// complicated to pull off. In any case, we need to hold the cache lock.
+//
+   if (resRef.rOpts & useCache)
+      {mHelp.Lock(&rcMutex);
+       if (ResReuse(reqRef, resRef, resKey)) return;
       }
 
 // Get a sid entry number
@@ -192,43 +205,92 @@ void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
        return;
       }
 
-// Obtain a new session object (note the first request uses the session mutex)
+// Obtain a new session object
 //
-   if (!(sObj = Alloc(resRef.rName.c_str(), uEnt)))
+   if (!(sObj = Alloc(resRef.rName.c_str(), uEnt, hold)))
       {XrdSsiUtils::RetErr(reqRef, "Insufficient memory.", ENOMEM);
        sidScale.retEnt(uEnt);
        return;
-      } else XrdSsiReqAgent::SetMutex(&reqRef, sObj->MutexP());
+      }
 
 // Now just provision this resource which will execute the request should it
-// be successful.
+// be successful. If Provision() fails, we need to delete the session object
+// because its file object now is in an usable state (funky client interface).
 //
-   if (!(sObj->Provision(&reqRef, epURL))) Recycle(sObj);
+   if (!(sObj->Provision(&reqRef, epURL))) Recycle(sObj, false);
+
+// If this was started with a reusable resource, put the session in the cache.
+// The resource key was constructed by the call to ResReuse() and teh cache
+// mutex is still held at this point (will be released upon return).
+//
+   if (hold) resCache[resKey] = sObj;
 }
 
 /******************************************************************************/
 /*                               R e c y c l e                                */
 /******************************************************************************/
   
-void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj)
+void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj, bool reuse)
 {
    EPNAME("Recycle");
    static const char *tident = "ServReal";
+
+// Clear all pending events (likely not needed)
+//
+   sObj->ClrEvent();
 
 // Add to queue unless we have too many of these
 //
    myMutex.Lock();
    actvSes--;
-   DEBUG("Sessions: free=" <<freeCnt <<" active=" <<actvSes);
-   if (freeCnt >= freeMax) {myMutex.UnLock(); delete sObj;}
-      else {sObj->ClrEvent();
-            sObj->nextSess = freeSes;
+   DEBUG("reuse=" <<reuse <<"; sessions: free=" <<freeCnt <<" active=" <<actvSes);
+   if (!reuse || freeCnt >= freeMax) {myMutex.UnLock(); delete sObj;}
+      else {sObj->nextSess = freeSes;
             freeSes = sObj;
             freeCnt++;
             myMutex.UnLock();
            }
 }
 
+/******************************************************************************/
+/* Private:                     R e s R e u s e                               */
+/******************************************************************************/
+
+// Called with rcMutex held!
+
+bool XrdSsiServReal::ResReuse(XrdSsiRequest  &reqRef,
+                              XrdSsiResource &resRef,
+                              std::string    &resKey)
+{
+   std::map<std::string, XrdSsiSessReal *>::iterator it;
+   XrdSsiSessReal *sesP;
+
+// Construct lookup key
+//
+   resKey.reserve(resRef.rUser.size() + resRef.rName.size() + 2);
+   resKey  = resRef.rUser;
+   resKey += "@";
+   resKey += resRef.rName;
+
+// Find the cache entry
+//
+   it = resCache.find(resKey);
+   if (it == resCache.end()) return false;
+
+// Entry found, check if this session can actually be reused
+//
+   sesP = it->second;
+   if (resRef.rOpts & XrdSsiResource::Discard || !sesP->Run(&reqRef))
+      {resCache.erase(it);
+       sesP->UnHold();
+       return false;
+      }
+
+// All done, the request should have been sent off via Reusable() call.
+//
+   return true;
+}
+  
 /******************************************************************************/
 /*                                  S t o p                                   */
 /******************************************************************************/

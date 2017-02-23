@@ -29,6 +29,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <map>
+#include <string>
+
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -41,7 +44,7 @@ public:
 
 void           ProcessRequest(XrdSsiRequest &reqRef, XrdSsiResource &resRef);
 
-void           Recycle(XrdSsiSessReal *sObj);
+void           Recycle(XrdSsiSessReal *sObj, bool reuse);
 
 bool           Stop();
 
@@ -52,8 +55,13 @@ bool           Stop();
               ~XrdSsiServReal();
 private:
 
-XrdSsiSessReal *Alloc(const char *sName, int uent, bool hold=false);
+XrdSsiSessReal *Alloc(const char *sName, int uent, bool hold);
 bool            GenURL(XrdSsiResource *rP, char *buff, int blen, int uEnt);
+bool            ResReuse(XrdSsiRequest  &reqRef, XrdSsiResource &resRef,
+                         std::string    &resKey);
+
+std::map<std::string, XrdSsiSessReal *> resCache;
+XrdSysMutex     rcMutex;
 
 char           *manNode;
 XrdSysMutex     myMutex;

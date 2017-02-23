@@ -59,9 +59,9 @@ Affinity       affinity;//!< Resource affinity
 
 uint32_t       rOpts;   //!< Resource options. One or more of he following:
 static
-const uint32_t Reusable;//!> Resource context may be cached and reused
+const uint32_t Reusable= 1;//!> Resource context may be cached and reused
 static
-const uint32_t Discard; //!> Discard cached resource if it exists
+const uint32_t Discard = 2;//!> Discard cached resource if it exists
 
 //-----------------------------------------------------------------------------
 //! Constructor

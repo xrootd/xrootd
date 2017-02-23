@@ -29,6 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdSsi/XrdSsiErrInfo.hh"
 #include "XrdSsi/XrdSsiEvent.hh"
 #include "XrdSsi/XrdSsiPacer.hh"
 #include "XrdSsi/XrdSsiStream.hh"
@@ -36,13 +37,14 @@
 
 class XrdSsiRequest;
 class XrdSsiSessReal;
+class XrdSysSemaphore;
 
 class XrdSsiTaskReal : public XrdSsiEvent,     public XrdSsiPacer,
                        public XrdSsiResponder, public XrdSsiStream
 {
 public:
 
-enum TaskStat {isWrite=0, isSync, isReady, isDone, isDead};
+enum TaskStat {isPend=0, isWrite, isSync, isReady, isDone, isDead};
 
 void   Detach(bool force=false);
 
@@ -59,15 +61,23 @@ int    ID() {return tskID;}
 
 inline
 void   Init(XrdSsiRequest *rP, unsigned short tmo=0)
-           {rqstP = rP, tStat = isWrite; tmOut = tmo;
-            mhPend = true; defer = false;
+           {rqstP = rP, tStat = isPend; tmOut = tmo; wPost = 0;
+            mhPend = false; defer = false;
             attList.next = attList.prev = this;
             if (mdResp) {delete mdResp; mdResp = 0;}
            }
 
+void   PostError();
+
 void   Redrive();
 const 
 char  *RequestID() {return rqstP->GetRequestID();}
+
+void   SchedError(XrdSsiErrInfo *eInfo=0);
+
+void   SendError();
+
+bool   SendRequest(const char *node);
 
 int    SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen, bool &last);
 
@@ -80,7 +90,7 @@ bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
        XrdSsiTaskReal(XrdSsiSessReal *sP, short tid)
                      : XrdSsiEvent("TaskReal"),
                        XrdSsiStream(XrdSsiStream::isPassive),
-                       sessP(sP), mdResp(0), tskID(tid),
+                       sessP(sP), mdResp(0), wPost(0), tskID(tid),
                        mhPend(false), defer(false)
                     {}
 
@@ -98,11 +108,11 @@ respType          GetResp(XrdCl::AnyObject **respP, char *&dbuf, int &dlen);
 bool              RespErr(XrdCl::XRootDStatus *status);
 bool              XeqEnd(bool getLock);
 
-XrdSysRecMutex    rrMutex;
-XrdSysMutex       taskMutex;
+XrdSsiErrInfo     errInfo;
 XrdSsiSessReal   *sessP;
 XrdSsiRequest    *rqstP;
 XrdCl::AnyObject *mdResp;
+XrdSysSemaphore  *wPost;
 char             *dataBuff;
 int               dataRlen;
 TaskStat          tStat;

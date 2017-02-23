@@ -27,6 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdio.h>
 #include <string>
 
 #include "XrdSsi/XrdSsiAtomics.hh"
@@ -38,7 +39,10 @@
 #include "XrdSsi/XrdSsiTaskReal.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
+
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+#include "Xrd/XrdScheduler.hh"
 
 using namespace XrdSsi;
 
@@ -48,8 +52,8 @@ using namespace XrdSsi;
   
 namespace
 {
-const char *statName[] = {"isWrite", "isSync", "isReady",
-                          "isDone",  "isDead"};
+const char *statName[] = {"isPend",  "isWrite", "isSync",
+                          "isReady", "isDone",  "isDead"};
 
 XrdSsiSessReal voidSession(0, "voidSession", 0);
 
@@ -66,7 +70,9 @@ char        zedData = 0;
   
 namespace XrdSsi
 {
-extern XrdSsiScale sidScale;
+extern XrdSysError   Log;
+extern XrdScheduler *schedP;
+extern XrdSsiScale   sidScale;
 }
   
 /******************************************************************************/
@@ -88,6 +94,23 @@ void RecycleMsg(bool sent=true) {delete respObj; delete this;}
 
 private:
 XrdCl::AnyObject *respObj;
+};
+
+/******************************************************************************/
+
+class SchedEmsg : public XrdJob
+{
+public:
+
+void  DoIt() {taskP->SendError();
+              delete this;
+             }
+
+      SchedEmsg(XrdSsiTaskReal *tP) : taskP(tP) {}
+     ~SchedEmsg() {}
+
+private:
+XrdSsiTaskReal *taskP;
 };
 }
 
@@ -265,11 +288,29 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
                         break;
           case isDead:  return !(mhPend || defer);
                         break;
-          default: cerr <<"XrdSsiTaskReal: Invalid state " <<tStat <<endl;
-               tStat = isDead;
-               return false;
-               break;
+          case isPend:  tStat = isDead;
+                        return !(mhPend || defer);
+                        break;
+          default: char mBuff[32];
+                   snprintf(mBuff, sizeof(mBuff), "%d", tStat);
+                   Log.Emsg("TaskKill", "Invalid state", mBuff);
+                   tStat = isDead;
+                   return false;
+                   break;
          }
+
+// The tricky thing here is that a kill came when we are actully in the process
+// of writing the request. If so, we need to hold until that finished to keep
+// valgring happy (i.e. nt writing from unallocated memory). So, we will have to
+// wait until he write catually occurs before continuing (yech -- thread hung).
+//
+   if (tStat == isWrite && mhPend)
+      {XrdSysSemaphore wSem(0);
+       wPost = &wSem;
+       sessP->UnLock();
+       wSem.Wait();
+       sessP->Lock();
+      }
 
 // If we are here then the request is potentially still active at the server.
 // We will send a synchronous cancel request. It shouldn't take long.
@@ -277,6 +318,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
    rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Can);
    DEBUG("Sending cancel request id=" <<tskID);
    sessP->epFile.Truncate(rInfo.Info(), tmOut);
+
 
 // If we are in the message handler or if we have a message pending, then
 // the message handler will dispose of the task.
@@ -305,8 +347,10 @@ void XrdSsiTaskReal::Redrive()
          {case XrdSsiRequest::PRD_Normal:                               break;
           case XrdSsiRequest::PRD_Hold:    Hold(0);                     break;
           case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->GetRequestID()); break;
-          default: cerr <<"Redrive: ProcessResponseData() return invalid enum "
-                          " - " <<prdVal <<endl;
+          default: char mBuff[32];
+                   snprintf(mBuff, sizeof(mBuff), "%d", prdVal);
+                   Log.Emsg("TaskRedrive", "ProcessResponseData() returned "
+                                           " invalid enum - ", mBuff);
          }
 }
 
@@ -321,7 +365,7 @@ bool XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status) // Session is locked!
 
 // Indicate we are done and unlock the session. We also indicate we are no
 // longer in the message handler, even though we might be in ProcessResponse()
-// when Complete() is called. That's OK since we will not be referencing this
+// when Finish() is called. That's OK since we will not be referencing this
 // object no matter what so all is well
 //
    tStat  = isDone;
@@ -333,6 +377,113 @@ bool XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status) // Session is locked!
 //
    SetErrResponse(eTxt.c_str(), eNum);
    return false;
+}
+
+/******************************************************************************/
+/*                            S c h e d E r r o r                             */
+/******************************************************************************/
+  
+// Called with sessMutex locked!
+  
+void XrdSsiTaskReal::SchedError(XrdSsiErrInfo *eInfo)
+{
+// Copy the error information if so supplied.s
+//
+   if (eInfo) errInfo = *eInfo;
+
+// Schedule the error to avoid lock clashes (make sure Finished calls defered)
+//
+   XrdSsi::schedP->Schedule((XrdJob *)(new SchedEmsg(this)));
+   defer = true;
+}
+
+/******************************************************************************/
+/*                             S e n d E r r o r                              */
+/******************************************************************************/
+  
+void XrdSsiTaskReal::SendError()
+{
+// Lock the associated session
+//
+   sessP->Lock();
+
+// If there was no call to finished then we need to call to send an error
+// response which will precipitate a finished call (or should).
+//
+   if (tStat != isDead)
+      {int eNum;
+       const char *eTxt = errInfo.Get(eNum).c_str();
+       sessP->UnLock();
+       SetErrResponse(eTxt, eNum);
+       sessP->Lock();
+       defer = false;
+       if (tStat != isDead)
+          {sessP->UnLock();
+           return;
+          }
+      }
+
+// It is now safe to finish this up
+//
+   sessP->UnLock();
+   sessP->TaskFinished(this);
+}
+  
+/******************************************************************************/
+/*                           S e n d R e q u e s t                            */
+/******************************************************************************/
+  
+// Called with sessMutex locked!
+  
+bool XrdSsiTaskReal::SendRequest(const char *node)
+{
+   XrdCl::XRootDStatus Status;
+   XrdSsiRRInfo        rrInfo;
+   char               *reqBuff;
+   int                 reqBlen;
+
+// We must be in pend state to send a request. If we are not then the request
+// must have been cancelled. It also means we have a logic error since this
+// should never have happened. Issue a message and ignore this request.
+//
+   if (tStat != isPend)
+      {Log.Emsg("SendRequest", "Invalid state", statName[tStat],
+                               "; should be isPend!");
+       return false;
+      }
+
+// Establish the endpoint
+//
+   XrdSsiReqAgent::SetNode(reqP, node);
+
+// Get the request information
+//
+   reqBuff = reqP->GetRequest(reqBlen);
+
+// Construct the info for this request
+//
+   rrInfo.Id(tskID);
+   rrInfo.Size(reqBlen);
+   tStat = isWrite;
+
+// Issue the write
+//
+   Status = sessP->epFile.Write(rrInfo.Info(), (uint32_t)reqBlen, reqBuff,
+                                (XrdCl::ResponseHandler *)this, tmOut);
+
+// Determine ending status. If it's bad, schedule an error. Note that calls to
+// Finished() will be defered until the error thread gets control.
+//
+   if (!Status.IsOK())
+      {XrdSsiUtils::SetErr(Status, errInfo);
+       SchedError();
+       return false;
+      }
+
+// Indicate a message handler call outstanding
+//
+   mhPend = true;
+   return true;
 }
 
 /******************************************************************************/
@@ -495,9 +646,12 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
    switch(tStat)
          {case isWrite:
                if (!aOK) return RespErr(status); // Unlocks the mutex!
-               DEBUG("Calling RelBuff id=" <<tskID);
-               ReleaseRequestBuffer();
-               if (tStat == isWrite) return Ask4Resp();
+               DEBUG("Write complete id=" <<tskID);
+               if (wPost) {wPost->Post(); wPost = 0;}
+                  else {DEBUG("Calling RelBuff id=" <<tskID);
+                        ReleaseRequestBuffer();
+                        if (tStat == isWrite) return Ask4Resp();
+                       }
                return XeqEnd(false);
 
           case isSync:
@@ -541,7 +695,9 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
                   }
                return false;
 
-          default: cerr <<"XrdSsiTaskReal: Invalid state " <<tStat <<endl;
+          default: char mBuff[32];
+                   snprintf(mBuff, sizeof(mBuff), "%d", tStat);
+                   Log.Emsg("TaskXeqEvent", "Invalid state", mBuff);
                return false;
          }
 
@@ -578,8 +734,10 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
          {case XrdSsiRequest::PRD_Normal:                               break;
           case XrdSsiRequest::PRD_Hold:    Hold(0);                     break;
           case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->GetRequestID()); break;
-          default: cerr <<"XeqEvent: ProcessResponseData() return invalid enum "
-                          " - " <<prdVal <<endl;
+          default: char mBuff[32];
+                   snprintf(mBuff, sizeof(mBuff), "%d", prdVal);
+                   Log.Emsg("TaskXeqEvent", "ProcessResponseData() returned "
+                                           " invalid enum - ", mBuff);
          }
    return true;
 }

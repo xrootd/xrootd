@@ -30,27 +30,22 @@
 /******************************************************************************/
 
 #include <string.h>
-  
+
 #include "XrdCl/XrdClFile.hh"
+
 #include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiEvent.hh"
-#include "XrdSsi/XrdSsiResponder.hh"
+
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdSsiServReal;
 class XrdSsiTaskReal;
 
-class XrdSsiSessReal : public XrdSsiEvent, public XrdSsiResponder
+class XrdSsiSessReal : public XrdSsiEvent
 {
 public:
 
 XrdSsiSessReal  *nextSess;
-
-        bool     Execute(XrdSsiRequest *reqP);
-
-        void     Finished(      XrdSsiRequest  &rqstR,
-                          const XrdSsiRespInfo &rInfo,
-                                bool            cancel=false);
 
         void     InitSession(XrdSsiServReal *servP,
                              const char     *sName,
@@ -63,9 +58,15 @@ XrdSsiMutex     *MutexP() {return &sessMutex;}
 
         bool     Provision(XrdSsiRequest *reqP, const char *epURL);
 
+        bool     Run(XrdSsiRequest *reqP);
+
         void     TaskFinished(XrdSsiTaskReal *tP);
 
+        void     UnHold();
+
         void     UnLock() {sessMutex.UnLock();}
+
+        void     Unprovision();
 
         bool     XeqEvent(XrdCl::XRootDStatus *status,
                           XrdCl::AnyObject   **respP);
@@ -86,23 +87,20 @@ XrdCl::File         epFile;
 private:
 XrdSsiTaskReal  *NewTask(XrdSsiRequest *reqP);
 void             RelTask(XrdSsiTaskReal *tP);
-void             Shutdown(XrdCl::XRootDStatus &epStatus);
-void             Unprovision();
+void             Shutdown(XrdCl::XRootDStatus &epStatus, bool onClose);
 
 XrdSsiMutex      sessMutex;
 XrdSsiServReal  *myService;
 XrdSsiTaskReal  *attBase;
 XrdSsiTaskReal  *freeTask;
-XrdSsiTaskReal  *pendTask;
 XrdSsiRequest   *requestP;
 char            *sessName;
 char            *sessNode;
 int16_t          nextTID;
 int16_t          alocLeft;
-int16_t          numAT;    // Number of active tasks
 int16_t          uEnt;     // User index for scaling
 bool             isHeld;
 bool             inOpen;
-bool             doStop;
+bool             noReuse;
 };
 #endif

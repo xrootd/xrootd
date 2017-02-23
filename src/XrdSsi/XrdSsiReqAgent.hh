@@ -41,6 +41,9 @@ static XrdSsiErrInfo  &ErrInfoRef(XrdSsiRequest *rP) {return rP->errInfo;}
 
 static XrdSsiRespInfo *RespP(XrdSsiRequest *rP) {return &(rP->Resp);}
 
+static void            SetNode(XrdSsiRequest *rP, const char *name)
+                              {rP->epNode = name;}
+
 static void            SetMutex(XrdSsiRequest *rP, XrdSsiMutex *mP)
                                {rP->rrMutex = mP;}
 };

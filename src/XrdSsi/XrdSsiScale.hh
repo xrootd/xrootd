@@ -63,7 +63,23 @@ int   getEnt() {entMutex.Lock();
                  return -1;
                 }
 
-void  retEnt(int xEnt) {entMutex.Lock(); pendCnt[xEnt]--; entMutex.UnLock();}
+void  retEnt(int xEnt) {if (xEnt >= 0 && xEnt < maxEnt)
+                           {entMutex.Lock();
+                            if (pendCnt[xEnt]) pendCnt[xEnt]--;
+                            entMutex.UnLock();
+                           }
+                       }
+
+bool  rsvEnt(int xEnt) {if (xEnt < 0 && xEnt >= maxEnt) return false;
+                        entMutex.Lock();
+                        if (pendCnt[nowEnt] < maxPend)
+                           {pendCnt[nowEnt]++;
+                            entMutex.UnLock();
+                            return true;
+                           }
+                        entMutex.UnLock();
+                        return false;
+                       }
 
       XrdSsiScale() : nowEnt(0) {memset(pendCnt, 0, sizeof(uint16_t)*maxEnt);}
      ~XrdSsiScale() {}
