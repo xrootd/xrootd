@@ -80,6 +80,8 @@ static int   ReLink(const char *path, const char *target, mode_t mode=0);
  
 static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 
+static void  toLower(char *str);
+
 static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
 
 static int   UserName(uid_t uID, char *uName, int uNsz);
