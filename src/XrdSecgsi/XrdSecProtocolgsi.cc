@@ -4005,7 +4005,7 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // If not required, we are done
    if (CRLCheck < 2 || (dwld == 0)) {
       // Done
-      return crl;
+      return crl ? crl : (XrdCryptoX509Crl*)(-1);
    }
 
    // If in 'required' mode, we will also try to load the CRL from the
@@ -4356,7 +4356,9 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             pfeRef.UnLock();
             return 0;
          } else {
-            PRINT("CRL entry for '"<<tag<<"' needs refreshing: clean the related entry cache first ("<<cent<<")");
+            if (CRLCheck >= 2) {
+               PRINT("CRL entry for '"<<tag<<"' needs refreshing: clean the related entry cache first ("<<cent<<")");
+            }
             // Entry needs refreshing: we remove it from the stack, so it gets deleted when
             // the last handshake using it is over 
             stackCRL.Del(crl);
@@ -4404,6 +4406,9 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             ok = 1;
             if (CRLCheck > 0) {
                if ((crl = LoadCRL(chain->Begin(), cahash, cf, CRLDownload))) {
+                  if (crl == (XrdCryptoX509Crl*)(-1)) {
+                     crl = 0;
+                  }
                   // Good CA
                   DEBUG("CRL successfully loaded");
                } else {
