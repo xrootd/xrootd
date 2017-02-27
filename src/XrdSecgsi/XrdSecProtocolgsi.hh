@@ -419,6 +419,8 @@ private:
                         XrdCryptoFactory *cryptof, gsiHSVars *hs = 0);
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
+   static int     VerifyCRL(XrdCryptoX509Crl *crl, XrdCryptoX509 *xca, XrdOucString crldir,
+                           XrdCryptoFactory *CF, int hashalg);
    bool           ServerCertNameOK(const char *subject, String &e);
    static XrdSutPFEntry *GetSrvCertEnt(XrdSutCacheRef   &pfeRef,
                                        XrdCryptoFactory *cf,
@@ -426,7 +428,7 @@ private:
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca, const char *sjhash,
-                                    XrdCryptoFactory *CF, int dwld);
+                                    XrdCryptoFactory *CF, int dwld, int &err);
 
    // Updating proxies
    static int     QueryProxy(bool checkcache, XrdSutCache *cache, const char *tag,
