@@ -4403,7 +4403,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             // Get CRL, if required
             ok = 1;
             if (CRLCheck > 0) {
-               if ((crl = LoadCRL(chain->Begin(), cahash, cf, CRLDownload))) {
+               if ((crl = LoadCRL(chain->EffCA(), cahash, cf, CRLDownload))) {
                   // Good CA
                   DEBUG("CRL successfully loaded");
                } else {
