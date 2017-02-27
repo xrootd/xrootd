@@ -3929,7 +3929,7 @@ bool XrdSecProtocolgsi::CheckRtag(XrdSutBuffer *bm, String &emsg)
 
 //______________________________________________________________________________
 XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *subjhash,
-                                             XrdCryptoFactory *CF, int dwld)
+                                             XrdCryptoFactory *CF, int dwld, int &errcrl)
 {
    // Scan crldir for a valid CRL certificate associated to CA whose
    // certificate is xca. If 'dwld' is true try to download the CRL from
@@ -3939,10 +3939,12 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // Return 0 in any other case
    EPNAME("LoadCRL");
    XrdCryptoX509Crl *crl = 0;
+   errcrl = 0;
 
    // make sure we got what we need
    if (!xca || !CF) {
       PRINT("Invalid inputs");
+      errcrl = -1;
       return crl;
    }
 
@@ -3956,7 +3958,6 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // The dir
    String crlext = XrdSecProtocolgsi::DefCRLext;
 
-   XrdCryptoX509 *xcasig = 0;
    String crldir;
    int from = 0;
    while ((from = CRLdir.tokenize(crldir, from, ',')) != -1) {
@@ -3967,39 +3968,9 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
       DEBUG("target file: "<<crlfile);
       // Try to init a crl
       if ((crl = CF->X509Crl(crlfile.c_str()))) {
-         // Signing certificate file
-         String casigfile = crldir + crl->IssuerHash(hashalg);
-         DEBUG("CA signing certificate file = "<<casigfile);
-         // Try to get signing certificate
-         if (!(xcasig = CF->X509(casigfile.c_str()))) {
-            if (CRLCheck >= 2) {
-               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
-                     ") could not be loaded - exit");
-               SafeDelete(crl);
-            } else {
-               DEBUG("CA certificate to verify the signature could not be loaded - verification skipped");
-            }
-            // We are done anyhow
-            return crl;
-         } else {
-            // Verify signature
-            if (crl->Verify(xcasig)) {
-               // Ok, we are done
-               SafeDelete(xcasig);
-               if (CRLCheck < 3 ||
-                  (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
-                  // Good CRL
-                  return crl;
-               } else {
-                  NOTIFY("CRL is expired (CRLCheck: "<<CRLCheck<<")");
-               }
-            } else {
-               PRINT("CA signature verification failed!");
-            }
-         }
+        if ((errcrl = VerifyCRL(crl, xca, crldir, CF, hashalg)) == 0) return crl;
       }
       SafeDelete(crl);
-      SafeDelete(xcasig);
    }
 
    // If not required, we are done
@@ -4013,33 +3984,11 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // To avoid this overload, the CRL information should be installed offline, e.g. with
    // utils/getCRLcert
 
+   errcrl = 0;
    // Try to retrieve it from the URI in the CA certificate, if any
    if ((crl = CF->X509Crl(xca))) {
-      // Signing certificate file
-      String casigfile = crldir + crl->IssuerHash(hashalg);
-      DEBUG("CA signing certificate file = "<<casigfile);
-      // Try to get signing certificate
-      if (!(xcasig = CF->X509(casigfile.c_str()))) {
-         PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
-               ") could not be loaded - exit");
-      } else {
-         // Verify signature
-         if (crl->Verify(xcasig)) {
-            // Ok, we are done
-            SafeDelete(xcasig);
-            if (CRLCheck < 3 ||
-               (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
-               // Good CRL
-               return crl;
-            } else {
-               NOTIFY("Downloaded CRL (CA) is expired (CRLCheck: "<<CRLCheck<<")");
-            }
-         } else {
-            PRINT("CA signature verification failed!");
-         }
-      }
+      if ((errcrl = VerifyCRL(crl, xca, crldir, CF, hashalg)) == 0) return crl;
       SafeDelete(crl);
-      SafeDelete(xcasig);
    }
 
    // Finally try the ".crl_url" file
@@ -4059,31 +4008,8 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
       while ((fgets(line, sizeof(line), furl))) {
          if (line[strlen(line) - 1] == '\n') line[strlen(line) - 1] = 0;
          if ((crl = CF->X509Crl(line, 1))) {
-            // Signing certificate file
-            String casigfile = crldir + crl->IssuerHash(hashalg);
-            DEBUG("CA signing certificate file = "<<casigfile);
-            // Try to get signing certificate
-            if (!(xcasig = CF->X509(casigfile.c_str()))) {
-               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
-                     ") could not be loaded - exit");
-            } else {
-               // Verify signature
-               if (crl->Verify(xcasig)) {
-                  // Ok, we are done
-                  SafeDelete(xcasig);
-                  if (CRLCheck < 3 ||
-                     (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
-                     // Good CRL
-                     return crl;
-                  } else {
-                     NOTIFY("Downloaded CRL (.crl_url file) is expired (CRLCheck: "<<CRLCheck<<")");
-                  }
-               } else {
-                  PRINT("CA signature verification failed!");
-               }
-            }
+            if ((errcrl = VerifyCRL(crl, xca, crldir, CF, hashalg)) == 0) return crl;
             SafeDelete(crl);
-            SafeDelete(xcasig);
          }
       }
    }
@@ -4110,34 +4036,10 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
          String crlfile = crldir + dent->d_name;
          DEBUG("analysing entry "<<crlfile);
          // Try to init a crl
-         crl = CF->X509Crl(crlfile.c_str());
-         if (!crl) continue;
-
-         // Signing certificate file
-         String casigfile = crldir + crl->IssuerHash(hashalg);
-         DEBUG("CA signing certificate file = "<<casigfile);
-         // Try to get signing certificate
-         if (!(xcasig = CF->X509(casigfile.c_str()))) {
-            PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
-                  ") could not be loaded - exit");
-         } else {
-            // Verify signature
-            if (crl->Verify(xcasig)) {
-               // Ok, we are done
-               SafeDelete(xcasig);
-               if (CRLCheck < 3 ||
-                  (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
-                  // Good CRL
-                  break;
-               } else {
-                  NOTIFY("Candidate CRL from file "<< crlfile <<" is expired (CRLCheck: "<<CRLCheck<<")");
-               }
-            } else {
-               PRINT("CA signature verification failed!");
-            }
+         if ((crl = CF->X509Crl(crlfile.c_str()))) {
+            if ((errcrl = VerifyCRL(crl, xca, crldir, CF, hashalg)) == 0) break;
+            SafeDelete(crl);
          }
-         SafeDelete(xcasig);
-         SafeDelete(crl);
       }
       // Close dir
       closedir(dd);
@@ -4148,6 +4050,50 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // We are done
    return crl;
 }
+
+//______________________________________________________________________________
+int XrdSecProtocolgsi::VerifyCRL(XrdCryptoX509Crl *crl, XrdCryptoX509 *xca, String crldir, 
+                                 XrdCryptoFactory *CF, int hashalg)
+{
+   EPNAME("VerifyCRL");
+   int rc = 0;
+   // Make sure they have the same issuer
+   if (!strcmp(xca->SubjectHash(hashalg), crl->IssuerHash(hashalg))) {
+      // Signing certificate file
+      String casigfile = crldir + crl->IssuerHash(hashalg);
+      DEBUG("CA signing certificate file = "<<casigfile);
+      // Try to get signing certificate
+      XrdCryptoX509 *xcasig = 0;
+      if (!(xcasig = CF->X509(casigfile.c_str()))) {
+         if (CRLCheck >= 2) {
+            PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
+                  ") could not be loaded - exit");
+         } else {
+            DEBUG("CA certificate to verify the signature could not be loaded - verification skipped");
+         }
+         rc = -3;
+      } else {
+         // Verify signature
+         if (crl->Verify(xcasig)) {
+            // Ok, we are done
+            if (CRLCheck >= 3 && crl && crl->IsExpired()) {
+               rc = -5;
+               NOTIFY("CRL is expired (CRLCheck: "<<CRLCheck<<")");
+            }
+         } else {
+            rc = -4;
+            PRINT("CA signature or CRL verification failed!");
+         }
+         SafeDelete(xcasig);
+      }
+   } else {
+      rc = -2;
+      PRINT("Loaded CRL does not match CA (subject CA "<<xca->SubjectHash(hashalg)<<
+            " does not match CRL issuer "<<crl->IssuerHash(hashalg)<<"! ");
+   } 
+   return rc;
+}
+
 //______________________________________________________________________________
 String XrdSecProtocolgsi::GetCApath(const char *cahash)
 {
@@ -4403,16 +4349,20 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             // Get CRL, if required
             ok = 1;
             if (CRLCheck > 0) {
-               if ((crl = LoadCRL(chain->EffCA(), cahash, cf, CRLDownload))) {
+               int errcrl = 0;
+               if ((crl = LoadCRL(chain->EffCA(), cahash, cf, CRLDownload, errcrl))) {
                   // Good CA
                   DEBUG("CRL successfully loaded");
                } else {
-                  String em = "ignoring";
-                  if (CRLCheck >= 2) {
+                  String em = "missing or expired: ignoring";
+                  if ((CRLCheck == 1 && errcrl != -5) || (CRLCheck >= 2 && errcrl != 0)) {
                      ok = 0;
-                     em = "failing";
+                     em = "invalid: failing";
+                  } else if (CRLCheck >= 2) {
+                     ok = 0;
+                     em = "missing or expired: failing";
                   }
-                  NOTIFY("CRL is missing or expired: "<<em<<" (CRLCheck: "<<CRLCheck<<")");
+                  NOTIFY("CRL is "<<em<<" (CRLCheck: "<<CRLCheck<<")");
                }
             }
          }
