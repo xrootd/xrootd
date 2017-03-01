@@ -118,16 +118,17 @@ virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.RecycleMsg(false);}
 inline uint32_t GetDetachTTL() {return detTTL;}
 
 //-----------------------------------------------------------------------------
-//! Obtain the enpoint host name.
+//! Obtain the endpoint host name.
 //!
-//! @return =0    Host name not available. Typically, the host name will be
-//!               available on the first callback to this object.
-//! @return !0    Pointer to the host name. The name is valid until Finished().
+//! @return A string containing the endpoint host name. If a null string is
+//!         returned, the endpoint has not yet been determined. Generially, the
+//!         endpoint is available on the first callback to this object.
 //-----------------------------------------------------------------------------
 
 inline
-const char     *GetEndPoint() {XrdSsiMutexMon(rrMutex);
-                               return epNode;
+std::string     GetEndPoint() {XrdSsiMutexMon(rrMutex);
+                               std::string epName(epNode ? epNode : "");
+                               return epName;
                               }
 
 //-----------------------------------------------------------------------------
