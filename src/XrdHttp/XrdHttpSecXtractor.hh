@@ -42,15 +42,15 @@ class XrdHttpSecXtractor
 {
 public:
 
-    // Extract security info from the link instaaance, and use it to populate
+    // Extract security info from the link instance, and use it to populate
     // the given XrdSec instance
     virtual int GetSecData(XrdLink *, XrdSecEntity &, SSL *) = 0;
 
 
     // Initializes an ssl ctx
-    virtual int InitCTX(SSL_CTX *, int) = 0;
-    virtual int InitSSL(SSL *, char *) = 0;
-    virtual int FreeSSL(SSL *) = 0;
+    virtual int Init(SSL_CTX *, int) = 0;
+    virtual int InitSSL(SSL *, char *) { return -1; };
+    virtual int FreeSSL(SSL *) { return -1; };
     
 //------------------------------------------------------------------------------
 //! Constructor
