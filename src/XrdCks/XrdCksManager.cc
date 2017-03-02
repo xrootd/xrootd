@@ -47,6 +47,7 @@
 #include "XrdCks/XrdCksXAttr.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFAttr.hh"
@@ -213,7 +214,7 @@ int XrdCksManager::Config(const char *Token, char *Line)
       {eDest->Emsg("Config", "checksum name not specified"); return 1;}
    if (int(strlen(val)) >= XrdCksData::NameSize)
       {eDest->Emsg("Config", "checksum name too long"); return 1;}
-   strcpy(name, val);
+   strcpy(name, val); XrdOucUtils::toLower(name);
 
 // Get the path and optional parameters
 //

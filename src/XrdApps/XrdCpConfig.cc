@@ -577,6 +577,7 @@ int XrdCpConfig::defCks(const char *opval)
    if (n >= XrdCksData::NameSize)
       UMSG("Invalid checksum type, '" <<opval <<"'.");
    strncpy(csName, opval, n); csName[n] = 0;
+   toLower( csName );
 
 // Get a checksum object for this checksum
 //

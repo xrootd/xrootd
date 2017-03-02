@@ -1887,8 +1887,44 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RetryAtServer( const URL &url )
   {
+    Log *log = DefaultEnv::GetLog();
+
     if( pUrl.GetHostId() != url.GetHostId() )
+    {
       pHosts->push_back( url );
+
+      //------------------------------------------------------------------------
+      // Assign a new stream id to the message
+      //------------------------------------------------------------------------
+
+      // first release the old stream id
+      ClientRequestHdr *req = (ClientRequestHdr*)pRequest->GetBuffer();
+      pSidMgr->ReleaseSID( req->streamid );
+      pSidMgr = 0;
+
+      // then get the new SIDManager
+      AnyObject sidMgrObj;
+      Status st = pPostMaster->QueryTransport( url, XRootDQuery::SIDManager,
+                                              sidMgrObj );
+      if( !st.IsOK() )
+      {
+        log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
+        pUrl.GetHostId().c_str(),
+        pRequest->GetDescription().c_str() );
+        return st;
+      }
+      sidMgrObj.Get( pSidMgr );
+
+      // and finally allocate new stream id
+      st = pSidMgr->AllocateSID( req->streamid );
+      if( !st.IsOK() )
+      {
+        log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
+        pUrl.GetHostId().c_str(),
+        pRequest->GetDescription().c_str() );
+        return st;
+      }
+    }
     pUrl = url;
     return pPostMaster->Send( pUrl, pRequest, this, true, pExpiration );
   }

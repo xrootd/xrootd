@@ -35,7 +35,12 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 
+#ifdef __APPLE__
+#define COMMON_DIGEST_FOR_OPENSSL
+#include "CommonCrypto/CommonDigest.h"
+#else
 #include "openssl/sha.h"
+#endif
 
 #include "XrdVersion.hh"
 
