@@ -353,6 +353,11 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    else if ( part == "nramread" )
    {
       m_log.Emsg("Config", "pfc.nramread is deprecated, please use pfc.ram instead. Ignoring this directive.");
+      const char* params =  config.GetWord();
+      if (params == 0)
+      {
+         m_log.Emsg("Config", "Besdies, pfc.nramread used to require a parameter and there isn't one in the config.");
+      }
    }
    else if ( part == "ram" )
    {
