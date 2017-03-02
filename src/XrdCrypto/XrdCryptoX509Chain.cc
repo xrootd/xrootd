@@ -259,6 +259,9 @@ void XrdCryptoX509Chain::PutInFront(XrdCryptoX509 *c)
          end = nc;
       size++;
    }
+
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
 }
 
 //___________________________________________________________________________
@@ -286,6 +289,9 @@ void XrdCryptoX509Chain::InsertAfter(XrdCryptoX509 *c, XrdCryptoX509 *cp)
       if (!nc)
          PushBack(c);
    }
+
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
 }
 
 //___________________________________________________________________________
@@ -303,6 +309,9 @@ void XrdCryptoX509Chain::PushBack(XrdCryptoX509 *c)
       end = nc;
       size++;
    }
+
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
 }
 
 //___________________________________________________________________________
@@ -360,6 +369,9 @@ void XrdCryptoX509Chain::Remove(XrdCryptoX509 *c)
    // Cleanup and update size
    delete curr;
    size--;
+
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
 }
 
 //___________________________________________________________________________
@@ -639,14 +651,15 @@ int XrdCryptoX509Chain::Reorder()
 void XrdCryptoX509Chain::SetEffectiveCA()
 {
    // Search for the effective CA (the last one, in case of subCAs)
-   effca = 0;
+   effca = 0; caname = ""; cahash = "";
+
    XrdCryptoX509ChainNode *np = begin;
    while (np) {
       if (np->Cert()) {
          if (np->Cert()->type == XrdCryptoX509::kCA) {
-            effca = np;
-         } else {
-            break;
+            if (!effca || (effca &&
+                          !(strcmp(effca->Cert()->SubjectHash(),
+                                   np->Cert()->IssuerHash())))) effca = np;
          }
       }
       np = np->Next();
