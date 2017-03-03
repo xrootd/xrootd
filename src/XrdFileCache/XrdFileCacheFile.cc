@@ -163,7 +163,7 @@ bool File::ioActive()
          {
             BlockMap_i toErase = itr;
             ++itr;
-            TRACEF(Debug, "Remove failed block " <<  itr->second->m_offset/m_cfi.GetBufferSize());
+            TRACEF(Debug, "Remove failed block " <<  toErase->second->m_offset/m_cfi.GetBufferSize());
             free_block(toErase->second);
          }
          else
