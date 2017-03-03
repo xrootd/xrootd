@@ -8,6 +8,5 @@ Prerelease Notes
 + **Major bug fixes**
   * **[XrdCrypto]** Support for OpenSSL 1.1
   * **[XrdSecgsi]** Fix for valid legacy proxy detection (PR #469)
-  * **[XrdSecgsi]** Absent CRLs not an error (#465)
-  * **[XrdSecgsi]** Fix for CA chain verification segfault (issue #463)
+  * **[XrdSecgsi]** Several fixes/ehhancements for CRL handling (including #463 and #465)
 
