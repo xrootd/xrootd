@@ -204,6 +204,8 @@ void XrdSecProtocolkrb5::Delete()
      if (Ticket)      krb5_free_ticket(krb_context, Ticket);
      if (AuthContext) krb5_auth_con_free(krb_context, AuthContext);
      if (AuthClientContext) krb5_auth_con_free(krb_client_context, AuthClientContext);
+     krb5_cc_close(krb_client_context, krb_client_ccache);
+     krb5_free_context(krb_client_context);
      if (Entity.host) free(Entity.host);
      if (Service)     free(Service);
      delete this;
@@ -674,7 +676,7 @@ int XrdSecProtocolkrb5::get_krbCreds(char *KP, krb5_creds **krb_creds)
 
 // Clear my credentials
 //
-   memset((char *)&mycreds, 0, sizeof(mycreds));
+    memset((char *)&mycreds, 0, sizeof(mycreds));
 
 // Setup the "principal/instance@realm"
 //
@@ -687,14 +689,16 @@ int XrdSecProtocolkrb5::get_krbCreds(char *KP, krb5_creds **krb_creds)
 //
    if ((rc = krb5_copy_principal(krb_client_context, the_principal, &mycreds.server)))
       {CLDBG("get_krbCreds: err copying principal to creds; " <<krb_etxt(rc));
+       krb5_free_principal(krb_client_context, the_principal);
        return rc;
       }
+   krb5_free_principal(krb_client_context, the_principal);
 
 // Get our principal name
 //
    if ((rc = krb5_cc_get_principal(krb_client_context, krb_client_ccache, &mycreds.client)))
-      {krb5_free_cred_contents(krb_client_context, &mycreds);
-       CLDBG("get_krbCreds: err copying client name to creds; " <<krb_etxt(rc));
+      {CLDBG("get_krbCreds: err copying client name to creds; " <<krb_etxt(rc));
+       krb5_free_cred_contents(krb_client_context, &mycreds);
        return rc;
       }
 
