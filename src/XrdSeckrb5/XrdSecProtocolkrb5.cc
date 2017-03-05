@@ -692,13 +692,13 @@ int XrdSecProtocolkrb5::get_krbCreds(char *KP, krb5_creds **krb_creds)
        krb5_free_principal(krb_client_context, the_principal);
        return rc;
       }
-   krb5_free_principal(krb_client_context, the_principal);
 
 // Get our principal name
 //
    if ((rc = krb5_cc_get_principal(krb_client_context, krb_client_ccache, &mycreds.client)))
       {CLDBG("get_krbCreds: err copying client name to creds; " <<krb_etxt(rc));
        krb5_free_cred_contents(krb_client_context, &mycreds);
+       krb5_free_principal(krb_client_context, the_principal);
        return rc;
       }
 
@@ -706,6 +706,7 @@ int XrdSecProtocolkrb5::get_krbCreds(char *KP, krb5_creds **krb_creds)
 //
    rc = krb5_get_credentials(krb_client_context, 0, krb_client_ccache, &mycreds,  krb_creds);
    krb5_free_cred_contents(krb_client_context, &mycreds);
+   krb5_free_principal(krb_client_context, the_principal);
 
 // Check if all went well
 //
