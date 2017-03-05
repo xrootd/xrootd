@@ -4355,7 +4355,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
                   DEBUG("CRL successfully loaded");
                } else {
                   String em = "missing or expired: ignoring";
-                  if ((CRLCheck == 1 && errcrl != -5) || (CRLCheck >= 2 && errcrl != 0)) {
+                  if ((CRLCheck == 1 && errcrl != 0 && errcrl != -5) || (CRLCheck >= 2 && errcrl != 0)) {
                      ok = 0;
                      em = "invalid: failing";
                   } else if (CRLCheck >= 2) {
