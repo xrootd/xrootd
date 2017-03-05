@@ -65,7 +65,6 @@
 //! All callbacks are invoked with no locks outstanding unless otherwise noted.
 //-----------------------------------------------------------------------------
 
-class XrdSsiPacer;
 class XrdSsiResponder;
 
 class XrdSsiRequest
@@ -308,7 +307,7 @@ static RDR_Info RestartDataResponse(RDR_How rhow, const char *reqid=0);
 
                 XrdSsiRequest(const char *reqid=0, uint16_t tmo=0)
                              : reqID(reqid), rrMutex(0),
-                               theRespond(0), thePacer(0), epNode(0),
+                               theRespond(0), epNode(0),
                                detTTL(0), tOut(0) {}
 
 protected:
@@ -380,7 +379,6 @@ XrdSsiRequest   *nextRequest;
 XrdSsiResponder *theRespond; // Set via XrdSsiResponder::BindRequest()
 XrdSsiRespInfo   Resp;       // Set via XrdSsiResponder::SetResponse()
 XrdSsiErrInfo    errInfo;
-XrdSsiPacer     *thePacer;
 const char      *epNode;
 uint32_t         detTTL;
 uint16_t         tOut;
