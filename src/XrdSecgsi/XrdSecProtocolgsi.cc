@@ -1831,6 +1831,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                // PEM base64
                bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
+               delete bpxy;
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
             } else {
