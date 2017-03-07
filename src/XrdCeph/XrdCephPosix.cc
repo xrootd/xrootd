@@ -44,6 +44,8 @@
 #include <pthread.h>
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 #include "XrdCeph/XrdCephPosix.hh"
 
@@ -95,6 +97,9 @@ unsigned int g_cephPoolIdx = 0;
 /// may be overwritten in the configuration file
 /// (See XrdCephOss::configure)
 unsigned int g_maxCephPoolIdx = 1;
+/// pointer to library providing Name2Name interface. 0 be default
+/// populated in case of ceph.namelib entry in the config file in XrdCephOss
+XrdOucName2Name *g_namelib = 0;
 
 /// global variable holding a list of files currently opened for write
 std::multiset<std::string> g_filesOpenForWrite;
@@ -371,6 +376,22 @@ void ceph_posix_set_defaults(const char* value) {
   }
 }
 
+/// converts a logical filename to physical one if needed
+void translateFileName(std::string &physName, std::string logName){
+  if (0 != g_namelib) {
+    char physCName[MAXPATHLEN+1];
+    int retc = g_namelib->lfn2pfn(logName.c_str(), physCName, sizeof(physCName));
+    if (retc) {
+      logwrapper((char*)"ceph_namelib : failed to translate %s using namelib plugin, using it as is", logName.c_str());
+      physName = logName;
+    } else {
+      physName = physCName;
+    }
+  } else {
+    physName = logName;
+  }
+}
+
 /// fill a ceph file struct from a path and an environment
 void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file) {
   // Syntax of the given path is :
@@ -384,10 +405,11 @@ void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file) {
   std::string spath = path;
   size_t colonPos = spath.find(':');
   if (std::string::npos == colonPos) {
-    file.name = spath;
+    // deal with name translation
+    translateFileName(file.name, spath);
     fillCephFileParams("", env, file);
   } else {
-    file.name = spath.substr(colonPos+1);
+    translateFileName(file.name, spath.substr(colonPos+1));
     fillCephFileParams(spath.substr(0, colonPos), env, file);
   }
 }

@@ -31,11 +31,14 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucN2NLoader.hh"
 #include "XrdVersion.hh"
 #include "XrdCeph/XrdCephOss.hh"
 #include "XrdCeph/XrdCephOssDir.hh"
 #include "XrdCeph/XrdCephOssFile.hh"
 
+XrdVERSIONINFO(XrdOssGetStorageSystem, XrdCephOss);
 
 XrdSysError XrdCephEroute(0);
 XrdOucTrace XrdCephTrace(&XrdCephEroute);
@@ -46,6 +49,11 @@ static void logwrapper(char *format, va_list argp) {
   vsnprintf(g_logstring, 1024, format, argp);
   XrdCephEroute.Say(g_logstring);
 }
+
+/// pointer to library providing Name2Name interface. 0 be default
+/// populated in case of ceph.namelib entry in the config file
+/// used in XrdCephPosix
+extern XrdOucName2Name *g_namelib;
 
 extern "C"
 {
@@ -102,13 +110,31 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute, XrdOucEnv *
            unsigned long value = strtoul(var, 0, 10);
            if (value > 0 and value <= 100) {
              g_maxCephPoolIdx = value;
-             break;
            } else {
              Eroute.Emsg("Config", "Invalid value for ceph.nbconnections in config file (must be between 1 and 100)", configfn, var);
              return 1;
            }
          } else {
            Eroute.Emsg("Config", "Missing value for ceph.nbconnections in config file", configfn);
+           return 1;
+         }
+       }
+       if (!strncmp(var, "ceph.namelib", 12)) {
+         var = Config.GetWord();
+         if (var) {
+           // Warn in case parameters were givne
+           char parms[1040];
+           if (!Config.GetRest(parms, sizeof(parms)) || parms[0]) {
+             Eroute.Emsg("Config", "namelib parameters will be ignored");
+           }
+           // Load name lib
+           XrdOucN2NLoader n2nLoader(&Eroute,configfn,NULL,NULL,NULL);
+           g_namelib = n2nLoader.Load(var, XrdVERSIONINFOVAR(XrdOssGetStorageSystem), envP);
+           if (!g_namelib) {
+             Eroute.Emsg("Config", "Unable to load library given in ceph.namelib : %s", var);
+           }
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.namelib in config file", configfn);
            return 1;
          }
        }
@@ -223,4 +249,3 @@ XrdOssDF* XrdCephOss::newFile(const char *tident) {
   return new XrdCephOssFile(this);
 }
 
-XrdVERSIONINFO(XrdOssGetStorageSystem, XrdCephOss);
