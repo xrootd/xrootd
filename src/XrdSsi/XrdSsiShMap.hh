@@ -153,13 +153,13 @@ bool         Attach(const char *path, ShMap_Access access, int tmo=-1);
 //! export. New maps must be exported to become visible (see Export()).
 //!
 //! This method first creates a temporary map visible only to the creator. This
-//! allows you to fill the map as needed with minimal verhead. Once this is
+//! allows you to fill the map as needed with minimal overhead. Once this is
 //! done, call Export() to make the new map visible, possibly replacing an
 //! any existing version of a map with the same name.
 //!
 //! @param  parms   Reference to the parameters. See the ShMap_Parms struct for
 //!                 for details and constructor defaults. Below is a detailed
-//!                 explanation of the availabe options:
+//!                 explanation of the available options:
 //!
 //!                 MultW     - The map has multiple processes writing to it.
 //!                             All writers must obtain an exclusive file lock
@@ -199,8 +199,8 @@ bool         Export();
 //! @param  val     The associated data to be added to the map.
 //!
 //! @return true  - The key and data added to the map.
-//! @return false - The key and data not added, the errno value decribes why.
-//!                 Typical reaason: the key already exists (errno == EEXIST).
+//! @return false - The key and data not added, the errno value describes why.
+//!                 Typical reason: the key already exists (errno == EEXIST).
 //-----------------------------------------------------------------------------
 
 bool         Add(const char *key, T &val);
@@ -215,14 +215,14 @@ bool         Add(const char *key, T &val);
 //! @return true  - The key and data have been deleted. This is always returned
 //!                 when valP is nil.
 //! @return false - The key and data either not deleted or the key does not
-//!                 exist and valP was not nil. The errno value decribes why.
+//!                 exist and valP was not nil. The errno value describes why.
 //!                 Typical reason: the key was not found (errno == ENOENT).
 //-----------------------------------------------------------------------------
 
 bool         Del(const char *key, T *valP=0);
 
 //-----------------------------------------------------------------------------
-//! Enumerate the keys and assocaited values.
+//! Enumerate the keys and associated values.
 //!
 //! @param  jar     An opaque cookie that tracks progress. It should be
 //!                 initialized to zero and otherwise not touched. The same jar
@@ -240,7 +240,7 @@ bool         Del(const char *key, T *valP=0);
 //!                 be returned if the map is being actively updated.
 //! @return false   Key not returned; errno holds the reason. Typically,
 //!                 ENOENT       there ae no more keys.
-//!                 Other errors may also be reflected. Whne false is returned
+//!                 Other errors may also be reflected. Whene false is returned
 //!                 the jar is deleted and the pointer to it set to zero.
 //-----------------------------------------------------------------------------
 
@@ -252,7 +252,7 @@ bool         Enumerate(void *&jar, char *&key, T *&val);
 //! an active enumeration releases all of the enumeration resources allocated.
 //!
 //! @param  jar     The opaque cookie initialized by a previous call to
-//!                 Enumerate() whos enumeration is to be terminated.
+//!                 Enumerate() whose enumeration is to be terminated.
 //!
 //! @return true    The enumeration has been terminated and the jar was
 //!                 deleted and the jar pointer is set to zero.
@@ -264,7 +264,7 @@ bool         Enumerate(void *&jar, char *&key, T *&val);
 bool         Enumerate(void *&jar);
 
 //-----------------------------------------------------------------------------
-//! Determine wheter or not a key exists in the map.
+//! Determine whether or not a key exists in the map.
 //!
 //! @param  key     Pointer to the key of length <= MaxKeySize.
 //!
@@ -281,7 +281,7 @@ bool         Exists(const char *key);
 //! @param  val     Reference to the area to receive the value of the found key.
 //!
 //! @return true  - The key found and its value has been returned.
-//! @return false - The key not found, the errno value decribes why.
+//! @return false - The key not found, the errno value describes why.
 //!                 Typical reason: the key was not found (errno == ENOENT).
 //-----------------------------------------------------------------------------
 
@@ -333,7 +333,7 @@ int          Info(const char *vname, char *buff=0, int blen=0);
 //!
 //! @return true  - The key and data added to or replaced in the map. If the
 //!                 key was replaced errno is set to EEXIST else it is set to 0.
-//! @return false - The key and data not added, the errno value decribes why.
+//! @return false - The key and data not added, the errno value describes why.
 //!                 Typical reason: the key was too long (errno == ENAMETOOLONG).
 //-----------------------------------------------------------------------------
 
@@ -345,7 +345,7 @@ bool         Rep(const char *key, T &val, T *valP=0);
 //!
 //! @param  parms   Pointer to the parameters. See the ShMap_Parms struct for
 //!                 for details and constructor defaults. A zero value in the
-//!                 parameter list usess the existing map value allowing you to
+//!                 parameter list uses the existing map value allowing you to
 //!                 selectively change the map sizing and options. If a nil
 //!                 pointer is passed, the map is simply compressed.
 //!
@@ -365,18 +365,18 @@ bool         Resize(ShMap_Parms *parms=0);
 //!                 SyncOn  - Turn synchronization on; pages are written in the
 //!                           background (i.e. asynchronously).
 //!                 SyncAll - Turn synchronization on; pages are written in the
-//!                           forground(i.e. synchornously).
+//!                           foreground(i.e. synchronously).
 //!                 SyncNow - Write back any queued pages but otherwise keep
 //!                           all other settings the same.
 //!                 SyncQSz - Set the queue size specified in the second
 //!                           argument. This number of modified pages are
 //!                           queued before being written back to disk. No
-//!                           other settting in effect are altered.
+//!                           other setting in effect are altered.
 //! @param  syncqsz Specifies the defer-writeback queue size. This argument
 //!                 is ignored unless SyncQSz has been specified (see above).
 //!
 //! @return true  - Call ended successfully.
-//! @return false - Call failed; the errno value decribes why.
+//! @return false - Call failed; the errno value describes why.
 //-----------------------------------------------------------------------------
 
 bool         Sync(SyncOpt dosync, int syncqsz=256);
@@ -393,7 +393,7 @@ bool         Sync(SyncOpt dosync, int syncqsz=256);
 //! @param hFunc    - An optional pointer to to the hash computation function
 //!                   to be used. If not specified, a crc32 hash is used.
 //!
-//! @param implName - A text name of the map implemenation desired. Zero uses
+//! @param implName - A text name of the map implementation desired. Zero uses
 //!                   the default implementation. Currently only the default
 //!                   implementation is available.
 //-----------------------------------------------------------------------------

@@ -93,7 +93,6 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSsi/XrdSsiResponder.hh
   XrdSsi/XrdSsiResource.hh
   XrdSsi/XrdSsiService.hh
-  XrdSsi/XrdSsiSession.hh
   XrdSsi/XrdSsiStream.hh
   XrdSys/XrdSysAtomics.hh
   XrdSys/XrdSysDNS.hh

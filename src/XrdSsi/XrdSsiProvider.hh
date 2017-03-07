@@ -36,7 +36,7 @@
 //!    cluster.
 //! 2) To obtain a service object that can process one or more requests.
 //!
-//! Client-side: A providor object is predefined in libXrdSsi.so and must be
+//! Client-side: A provider object is predefined in libXrdSsi.so and must be
 //!              used by the client code to get service objects, as follows:
 //!
 //!              extern XrdSsiProvider *XrdSsiProviderClient;
@@ -44,7 +44,7 @@
 //!                                             GetService("hostname:port");
 //!
 //!
-//! Server-side: the providor object is obtained from the plugin library which
+//! Server-side: the provider object is obtained from the plugin library which
 //!              should have the XrdSsiProviderLookup and XrdSsiProviderServer
 //!              pointer symbols defined at file level (i.e. static global).
 //!
@@ -67,7 +67,7 @@
 //!              inherit class XrdSsiProvider.
 //!
 //!              You use the following directives to configure the
-//!              service providor for only the process that runs the cmsd:
+//!              service provider for only the process that runs the cmsd:
 //!
 //!              all.role server
 //!              all.manager <redirector-cmsd>:<port>

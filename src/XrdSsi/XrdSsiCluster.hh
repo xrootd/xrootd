@@ -63,7 +63,7 @@ virtual bool          DataContext() = 0;
 //------------------------------------------------------------------------------
 //! Obtain the list of nodes that are managing this cluster.
 //!
-//! @param  mNum Palce to put the number of managers in the returned array.
+//! @param  mNum Place to put the number of managers in the returned array.
 //!
 //! @return The vector of nodes being used with mNum set to the number of
 //!         elements. The list is considered permanent and is not deleted.

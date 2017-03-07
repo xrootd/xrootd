@@ -42,8 +42,8 @@
 //! Any class that needs to post a response, release a request buffer or post
 //! stream data to the request object should inherit this class and use its
 //! methods to get access to the request object. Typically, a task class that
-//! is created by XrdSsiService::Execute() to handle te request would inherit
-//! this class so it can respond. The object that wantsto post a response must
+//! is created by XrdSsiService::Execute() to handle the request would inherit
+//! this class so it can respond. The object that wants to post a response must
 //! first call BindRequest() to establish the request-responder association.
 //!
 //! When the XrdSsiResponder::SetResponse() method is called to post a response
@@ -75,7 +75,7 @@ public:
 friend class XrdSsiRequest;
 
 //-----------------------------------------------------------------------------
-//! The maximum amount of metedata+data (i.e. the sum of two blen arguments in
+//! The maximum amount of metadata+data (i.e. the sum of two blen arguments in
 //! SetMetadata() and and SetResponse(const char *buff, int blen), respectively)
 //! that may be directly sent to the client without the SSI framework converting
 //! the data buffer response into a stream response.
@@ -124,7 +124,7 @@ protected:
 
 //-----------------------------------------------------------------------------
 //! Send an alert message to the request. This is a convenience method that
-//! avoids race condistions with Finished() so it is safe to use in all cases.
+//! avoids race conditions with Finished() so it is safe to use in all cases.
 //! This is a server-side call. The service is responsible for creating a
 //! RespInfoMsg object containing the message and supplying a RecycleMsg() method.
 //!

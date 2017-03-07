@@ -68,7 +68,7 @@ const uint32_t Discard = 2;//!> Discard cached resource if it exists
 //!
 //! @param  rname    the name of the resource. If using directory
 //!                  notation (i.e. slash separated names); duplicate slashes
-//!                  and dot-shashes are compressed out.
+//!                  and dot-slashes are compressed out.
 //!
 //! @param  havoid   if not null then points to a comma separated list of
 //!                  hostnames to avoid when finding the resource. This

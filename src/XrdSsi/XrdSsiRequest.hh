@@ -55,10 +55,10 @@
 //! This is an abstract class and several methods need to be implemented:
 //!
 //! Alert()               Optional, allows receiving of server alerts.
-//! GetRequest()          Manndatory to supply the buffer holding the request
+//! GetRequest()          Mandatory to supply the buffer holding the request
 //!                       along with its length.
 //! RelRequestBuffer()    Optional, allows memory optimization.
-//! ProcessResponse()     Initial response: Mandatary
+//! ProcessResponse()     Initial response: Mandatory
 //! ProcessResponseData() Data    response: Mandatory only if response data is
 //!                                         asynchronously received.
 //!
@@ -120,7 +120,7 @@ inline uint32_t GetDetachTTL() {return detTTL;}
 //! Obtain the endpoint host name.
 //!
 //! @return A string containing the endpoint host name. If a null string is
-//!         returned, the endpoint has not yet been determined. Generially, the
+//!         returned, the endpoint has not yet been determined. Generally, the
 //!         endpoint is available on the first callback to this object.
 //-----------------------------------------------------------------------------
 
@@ -174,7 +174,7 @@ const   char   *GetRequestID() {return reqID;}
 //-----------------------------------------------------------------------------
 //! Asynchronously obtain response data. This is a helper method that allows a
 //! client to deal with a passive stream response. This method also handles
-//! data response, albeit ineffeciently by copying the data response. However,
+//! data response, albeit inefficiently by copying the data response. However,
 //! this allows for uniform response processing regardless of response type.
 //!
 //! @param  buff  pointer to the buffer to receive the data. The buffer must
@@ -199,7 +199,7 @@ const   char   *GetRequestID() {return reqID;}
 //! Notify request that a response is ready to be processed. This method must
 //! be supplied by the request object's implementation.
 //!
-//! @param  eInfo Error information. You can check if an error occured using
+//! @param  eInfo Error information. You can check if an error occurred using
 //!               eInfo.hasError() or eInfo.isOK().
 //! @param  rInfo Raw response information.
 //!
@@ -211,18 +211,18 @@ virtual bool    ProcessResponse(const XrdSsiErrInfo  &eInfo,
                                 const XrdSsiRespInfo &rInfo)=0;
 
 //-----------------------------------------------------------------------------
-//! Handle incomming async stream data or error. This method is called by a
+//! Handle incoming async stream data or error. This method is called by a
 //! stream object after a successful GetResponseData() or an asynchronous
 //! stream SetBuff() call.
 //!
-//! @param  eInfo Error information. You can check if an error occured using
+//! @param  eInfo Error information. You can check if an error occurred using
 //!               eInfo.hasError() or eInfo.isOK().
 //! @param  buff  Pointer to the buffer given to XrdSsiStream::SetBuff().
 //! @param  blen  The number of bytes in buff or an error indication if blen < 0.
 //! @param  last  true  This is the last stream segment, no more data remains.
 //! @param        false More data may remain in the stream.
 //! @return       One of the enum PRD_Xeq:
-//!               PRD_Normal  - Processing completeted normally, continue.
+//!               PRD_Normal  - Processing completed normally, continue.
 //!               PRD_Hold    - Processing could not be done now, place request
 //!                             in the global FIFO hold queue and resume when
 //!                             RestartDataResponse() is called.
@@ -250,13 +250,13 @@ inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
                                       }
 
 //-----------------------------------------------------------------------------
-//! Restart a ProcessResponseData() call for a request that was previosly held
+//! Restart a ProcessResponseData() call for a request that was previously held
 //! (see return enums on ProcessResponseData method). This is a client-side
 //! only call and is ignored server-side. When a data response is restarted,
 //! ProcessResponseData() is called again when the same parameters as existed
 //! when the call resulted in a hold action.
 //!
-//! @param rhow  An enum (see below) that specfies the action to be taken.
+//! @param rhow  An enum (see below) that specifies the action to be taken.
 //!              RDR_All   - runs all queued responses and then deletes the
 //!                          queue identified by reqid, unless it is nil.
 //!              RDR_Hold  - sets the allowed restart count to zero and does
@@ -270,7 +270,7 @@ inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
 //!                          is set to zero.
 //!              RDR_Post  - Adds one to the allowed restart count. If a
 //!                          response is queued, it is restarted and one is
-//!                          substracted from the allowed restart count.
+//!                          subtracted from the allowed restart count.
 //!
 //! @param reqid Points to the requestID associated with a hold queue. When not
 //!              specified, then the global queue is used to restart responses.
@@ -279,7 +279,7 @@ inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
 //!              this issue the call with RDR_All to clean it up when it is no
 //!              longer needed (this will avoid having hung responses).
 //!
-//! @return      Information about the the queue (see struct RDR_Info).
+//! @return      Information about the queue (see struct RDR_Info).
 //-----------------------------------------------------------------------------
 
 enum   RDR_How {RDR_All=0, RDR_Hold, RDR_Immed, RDR_Query, RDR_One, RDR_Post};
@@ -329,7 +329,7 @@ virtual void    RelRequestBuffer() {}
 //-----------------------------------------------------------------------------
 //! @brief Set the detached request time to live value.
 //!
-//! By deafult, rqeuests are executed in the foreground (i.e. during its
+//! By default, requests are executed in the foreground (i.e. during its
 //! execution, if the TCP connection drops, the request is automatically
 //! cancelled. When a non-zero time to live is set, the request is executed in
 //! the background (i.e. detached) and no persistent TCP connection is required.
@@ -363,7 +363,7 @@ inline void     SetDetachTTL(uint32_t dttl) {detTTL = dttl;}
 virtual        ~XrdSsiRequest() {}
 
 //-----------------------------------------------------------------------------
-//! The following mutex is used to serialize acccess to the request object.
+//! The following mutex is used to serialize access to the request object.
 //! It can also be used to serialize access to the underlying object.
 //-----------------------------------------------------------------------------
 

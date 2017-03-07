@@ -31,10 +31,10 @@
 
 //-----------------------------------------------------------------------------
 //! The RespInfo structure describes the response to be posted to a request.
-//! It is used mainly server-side via the inherieted XrdSsiResponder class (see
+//! It is used mainly server-side via the inherited XrdSsiResponder class (see
 //! XrdSsiResponder::SetResponse). It generally hidden on the client-side since
 //! many of the response types valid server-side are converted to simpler
-//! responses client-side and requiring a client to fully deal withthis struct
+//! responses client-side and requiring a client to fully deal with this struct
 //! is largely over-kill and unnecessary.
 //-----------------------------------------------------------------------------
 

@@ -32,7 +32,7 @@
 #include <stdarg.h>
  
 //-----------------------------------------------------------------------------
-//! The XrdSsiLogger object is used to route messages to the default logfile.
+//! The XrdSsiLogger object is used to route messages to the default log file.
 //-----------------------------------------------------------------------------
 
 struct iovec;
@@ -42,11 +42,11 @@ class XrdSsiLogger
 public:
 
 //-----------------------------------------------------------------------------
-//! Insert a space delimited error message into the logfile.
+//! Insert a space delimited error message into the log file.
 //!
 //! @param  pfx  !0 -> the text to prefix the message; the message is formed as
 //!                    <timestamp> pfx: txt1 [txt2] [txt3]\n
-//!         pfx  =0 -> add message to the log without a timestamp or prefix.
+//!         pfx  =0 -> add message to the log without a time stamp or prefix.
 //! @param  msg  the message to added to the log.
 //-----------------------------------------------------------------------------
 
@@ -58,7 +58,7 @@ static void Msg(const char *pfx,    const char *txt1,
 //!
 //! @param  pfx  !0 -> the text to prefix the message; the message is formed as
 //!                    <timestamp> <pfx>: <formated_text>\n
-//!         pfx  =0 -> add message to the log without a timestamp or prefix.
+//!         pfx  =0 -> add message to the log without a time stamp or prefix.
 //! @param  fmt  the message formatting template (i.e. sprintf format). Note
 //!              that a newline character is always appended to the message.
 //! @param  ...  the arguments that should be used with the template. The
@@ -72,7 +72,7 @@ static void Msgf(const char *pfx, const char *fmt, ...);
 //!
 //! @param  pfx  !0 -> the text to prefix the message; the message is formed as
 //!                    <timestamp> <pfx>: <formated_text>\n
-//!         pfx  =0 -> add message to the log without a timestamp or prefix.
+//!         pfx  =0 -> add message to the log without a time stamp or prefix.
 //! @param  fmt  the message formatting template (i.e. sprintf format). Note
 //!              that a newline character is always appended to the message.
 //! @param  aP   the arguments that should be used with the template. The
@@ -120,7 +120,7 @@ static bool SetMCB(MCB_t &mcbP, mcbType mcbt=mcbAll);
 //-----------------------------------------------------------------------------
 //! Define helper functions to allow ostream cerr output to appear in the log.
 //! The following two functions are used with the macros below.
-//! The SSI_LOG macro preceeds the message with a timestamp; SSI_SAY does not.
+//! The SSI_LOG macro preceedes the message with a time stamp; SSI_SAY does not.
 //! The endl ostream output item is automatically added to all output!
 //-----------------------------------------------------------------------------
 

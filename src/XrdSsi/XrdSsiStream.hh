@@ -125,7 +125,7 @@ virtual bool    SetBuff(XrdSsiErrInfo &eRef, char *buff, int  blen)
 //!
 //! @return >0    The number of bytes placed in buff.
 //! @return =0    No more data remains and the stream becomes invalid.
-//! @return <0    Fatal error occured; eRef holds the reason.
+//! @return <0    Fatal error occurred; eRef holds the reason.
 //-----------------------------------------------------------------------------
 
 virtual int     SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen, bool &last)

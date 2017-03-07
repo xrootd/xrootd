@@ -70,7 +70,7 @@ static const int SsiVersion = 0x00020000;
 //!
 //! When a client calls Attach() the server-side Attach() is invoked to
 //! indicate that the backgrounded request is now a foreground request. Many
-//! times such notfication is not needed so a default nil implementation is
+//! times such notification is not needed so a default nil implementation is
 //! provided. Server-side Attach() calls are always passed the original request
 //! object reference so that it can pair up the request with the attach.
 //!
@@ -90,7 +90,7 @@ static const int SsiVersion = 0x00020000;
 //!                  resources. This is meaningless for client calls and should
 //!                  not be specified. For server-side calls, it can be used to
 //!                  reauthorize the request since the client performing the
-//!                  attach may be different fom the client that actually
+//!                  attach may be different from the client that actually
 //!                  started the request.
 //!
 //! @return true     Continue normally, no issues detected.
@@ -177,7 +177,7 @@ virtual bool   Stop() {return false;}
 protected:
 
 //-----------------------------------------------------------------------------
-//! Destructor. The service object canot be explicitly deleted. Use Stop().
+//! Destructor. The service object cannot be explicitly deleted. Use Stop().
 //-----------------------------------------------------------------------------
 
 virtual       ~XrdSsiService() {}
