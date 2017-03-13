@@ -4301,7 +4301,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             stackCRL.Add(crl);
             pfeRef.UnLock();
             return 0;
-         } else {
+         } else if (crl) {
             PRINT("CRL entry for '"<<tag<<"' needs refreshing: clean the related entry cache first ("<<cent<<")");
             // Entry needs refreshing: we remove it from the stack, so it gets deleted when
             // the last handshake using it is over 
