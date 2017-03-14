@@ -163,6 +163,7 @@ static
 XrdSysSemaphore      ddSem;
 static XrdSysMutex   ddMutex;
 static XrdPosixFile *ddList;
+static XrdPosixFile *ddLost;
 static char         *sfSFX;
 static int           sfSLN;
 static bool          ddPosted;

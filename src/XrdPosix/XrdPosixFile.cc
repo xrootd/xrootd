@@ -67,6 +67,7 @@ std::string dsProperty("DataServer");
 XrdSysSemaphore XrdPosixFile::ddSem(0);
 XrdSysMutex     XrdPosixFile::ddMutex;
 XrdPosixFile   *XrdPosixFile::ddList = InitDDL();
+XrdPosixFile   *XrdPosixFile::ddLost = 0;
 
 char          *XrdPosixFile::sfSFX    =  0;
 int            XrdPosixFile::sfSLN    =  0;
@@ -134,13 +135,14 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
 //
    static const int ddInterval =  30;
    static const int maxTries   =  (3*60)/ddInterval;
+   static       int numLost    =  0;
 
    char eBuff[2048];
    XrdCl::XRootDStatus Status;
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
    time_t tNow, wakeTime = 0;
-   bool doWait = false;
+   bool ioActive, doWait = false;
 
 // Wait for active I/O to complete
 //
@@ -163,16 +165,19 @@ do{if (doWait)
 //
    while((fCurr = fNext))
         {fNext = fCurr->nextFile;
-         if (!(fCurr->XCio->ioActive()) && !fCurr->Refs())
+         if (!((ioActive = fCurr->XCio->ioActive())) && !fCurr->Refs())
             {if (fCurr->Close(Status)) {delete fCurr; continue;}
                 else eTxt = Status.ToString().c_str();
-            } else   eTxt = "active I/O";
+            } else   eTxt = (ioActive ? "active I/O" : "callback");
 
          if (fCurr->numTries > maxTries)
-            {snprintf(eBuff, sizeof(eBuff),
-                      "PosixFile: %s timeout closing %s; object lost!\n",
-                      eTxt, fCurr->Path());
+            {numLost++;
+             snprintf(eBuff, sizeof(eBuff),
+                      "PosixFile: %s timeout closing %s; %d objects lost!\n",
+                      eTxt, fCurr->Path(), numLost);
              std::cerr <<eBuff <<std::flush;
+             fCurr->nextFile = ddLost;
+             ddLost = fCurr;
              fCurr->Close(Status);
             } else {
              fCurr->numTries++;
