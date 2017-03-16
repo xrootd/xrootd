@@ -604,12 +604,17 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
     insertOpenForWrite(fr.name);
   }
   // in case of O_CREAT and O_EXCL, we should complain if the file exists
-  if ((flags & O_CREAT) && (flags & O_EXCL)) {
+  // in case of O_READ, the file has to exist
+  if (((flags & O_CREAT) && (flags & O_EXCL)) || ((flags&O_ACCMODE) == O_RDONLY)) {
     libradosstriper::RadosStriper *striper = getRadosStriper(fr);
     if (0 == striper) return -EINVAL;
     struct stat buf;
     int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime));
-    if (rc != -ENOENT) {
+    if ((flags&O_ACCMODE) == O_RDONLY) {
+      if (rc) {
+        return rc;
+      }
+    } else if (rc != -ENOENT) {
       if (0 == rc) return -EEXIST;
       return rc;
     }
