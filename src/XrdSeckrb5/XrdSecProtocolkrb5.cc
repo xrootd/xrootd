@@ -204,8 +204,6 @@ void XrdSecProtocolkrb5::Delete()
      if (Ticket)      krb5_free_ticket(krb_context, Ticket);
      if (AuthContext) krb5_auth_con_free(krb_context, AuthContext);
      if (AuthClientContext) krb5_auth_con_free(krb_client_context, AuthClientContext);
-     krb5_cc_close(krb_client_context, krb_client_ccache);
-     krb5_free_context(krb_client_context);
      if (Entity.host) free(Entity.host);
      if (Service)     free(Service);
      delete this;
@@ -230,19 +228,10 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
        return new XrdSecCredentials(0,0);
       }
 
-#if 0
-// Set KRB5CCNAME to its default value, if not done
-//
-   if (!getenv("KRB5CCNAME")) {
-      char ccname[128];
-      sprintf(ccname, "/tmp/krb5cc_%d", geteuid());
-      if (access(ccname, R_OK) == 0) {
-         sprintf(ccname, "KRB5CCNAME=FILE:/tmp/krb5cc_%d", geteuid());
-         putenv(strdup(ccname));
-      }
-   }
-   CLDBG((getenv("KRB5CCNAME") ? getenv("KRB5CCNAME") : "KRB5CCNAME unset"));
-#else	
+   CLDBG("context lock");
+   krbClientContext.Lock();
+   CLDBG("context locked");
+
 // We support passing the credential cache path via Url parameter
 //
    char *ccn = (error && error->getEnv()) ? error->getEnv()->Get("xrd.k5ccname") : 0;
@@ -254,8 +243,6 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
           {kccn = ccname;}
       }
    CLDBG((kccn ? kccn : "credentials cache unset"));
-
-#endif
 
 // Initialize the context and get the cache default.
 //
@@ -295,10 +282,6 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
 // Clear outgoing ticket and lock the kerberos context
 //
    outbuf.length = 0; outbuf.data = 0;
-
-   CLDBG("context lock");
-   krbClientContext.Lock();
-   CLDBG("context locked");
 
 // If this is not the first call, we are asked to send over a delegated ticket:
 // we must create it first
@@ -563,19 +546,10 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
 // Create a kerberos context. There is one such context per protocol object.
 //
 
-// If we have no principal then this is a client-side call
+// If we have no principal then this is a client-side call: initializations are done
+// in getCredentials to allow for multiple client principals
 //
-   if (!KP) {
-     if ((rc = krb5_init_context(&krb_client_context)))
-       return Fatal(erp, ENOPROTOOPT, "Kerberos initialization failed", KP, rc);
-
-     // Obtain the default cache location
-     //
-     if ((rc = krb5_cc_default(krb_client_context, &krb_client_ccache)))
-       return Fatal(erp, ENOPROTOOPT, "Unable to locate cred cache", KP, rc);
-     
-     return 0;
-   }
+   if (!KP) return 0;
 
    if ((rc = krb5_init_context(&krb_context)))
       return Fatal(erp, ENOPROTOOPT, "Kerberos initialization failed", KP, rc);
