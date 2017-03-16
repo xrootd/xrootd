@@ -860,7 +860,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
     logwrapper((char*)"ceph_stat: fd %d", fd);
     // minimal stat : only size and times are filled
     // atime, mtime and ctime are set all to the same value
-    // mode is set arbitrarily to 0666
+    // mode is set arbitrarily to 0666 | S_IFREG
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
     if (0 == striper) {
       return -EINVAL;
@@ -872,7 +872,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
     }
     buf->st_mtime = buf->st_atime;
     buf->st_ctime = buf->st_atime;
-    buf->st_mode = 0666;
+    buf->st_mode = 0666 | S_IFREG;
     return 0;
   } else {
     return -EBADF;
@@ -883,7 +883,7 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
   logwrapper((char*)"ceph_stat : %s", pathname);
   // minimal stat : only size and times are filled
   // atime, mtime and ctime are set all to the same value
-  // mode is set arbitrarily to 0666
+  // mode is set arbitrarily to 0666 | S_IFREG
   CephFile file = getCephFile(pathname, env);
   libradosstriper::RadosStriper *striper = getRadosStriper(file);
   if (0 == striper) {
@@ -903,7 +903,7 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
   }
   buf->st_mtime = buf->st_atime;
   buf->st_ctime = buf->st_atime;
-  buf->st_mode = 0666;
+  buf->st_mode = 0666 | S_IFREG;
   return 0;
 }
 
