@@ -76,11 +76,13 @@ extern "C"
     }
     // deal with logging
     ceph_posix_set_logfunc(logwrapper);
-    return new XrdCephOss();
+    return new XrdCephOss(config_fn, XrdCephEroute);
   }
 }
 
-XrdCephOss::XrdCephOss() {}
+XrdCephOss::XrdCephOss(const char *configfn, XrdSysError &Eroute) {
+  Configure(configfn, Eroute);
+}
 
 XrdCephOss::~XrdCephOss() {
   ceph_posix_disconnect_all();
@@ -88,7 +90,7 @@ XrdCephOss::~XrdCephOss() {
 
 // declared and used in XrdCephPosix.cc
 extern unsigned int g_maxCephPoolIdx;
-int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute, XrdOucEnv *envP) {
+int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
    int NoGo = 0;
    XrdOucEnv myEnv;
    XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
@@ -129,7 +131,7 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute, XrdOucEnv *
            }
            // Load name lib
            XrdOucN2NLoader n2nLoader(&Eroute,configfn,NULL,NULL,NULL);
-           g_namelib = n2nLoader.Load(var, XrdVERSIONINFOVAR(XrdOssGetStorageSystem), envP);
+           g_namelib = n2nLoader.Load(var, XrdVERSIONINFOVAR(XrdOssGetStorageSystem), NULL);
            if (!g_namelib) {
              Eroute.Emsg("Config", "Unable to load library given in ceph.namelib : %s", var);
            }
