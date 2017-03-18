@@ -70,7 +70,7 @@ XrdOucCacheReal::XrdOucCacheReal(int &rc, XrdOucCache::Parms      &ParmV,
    Options = ParmV.Options;
    if (Options & Debug)    Lgs = Dbg = (Options & Debug);
    if (Options & logStats) Lgs = 1;
-   minPag = (ParmV.minPages <= 0 ? 256 : Parmv.minPages);)
+   minPag = (ParmV.minPages <= 0 ? 256 : ParmV.minPages);
 
 // Establish maximum number of attached files
 //

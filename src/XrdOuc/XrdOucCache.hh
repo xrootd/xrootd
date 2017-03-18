@@ -387,7 +387,7 @@ struct Parms
 
                  Parms() : CacheSize(104857600), PageSize(32768),
                            Max2Cache(0), MaxFiles(0), Options(0),
-                           MinPages(0), Reserve1(0),  Reserve2(0) {}
+                           minPages(0), Reserve1(0),  Reserve2(0) {}
       };
 
 // Valid option values in Parms::Options
