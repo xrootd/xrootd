@@ -21,3 +21,6 @@ Prerelease Notes
   * **[XrdFileCache]** Make caching proxy configuration backwards 
                        compatible.
   * **[XrdSec]** Use CommonCrypto header instead of openssl for SHA on OSX. 
+
++ **Miscellaneous**
+  * **[XrdPosix]** Add new minpages option to pss.cache to support large pages.
