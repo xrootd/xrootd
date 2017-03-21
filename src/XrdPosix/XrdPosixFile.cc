@@ -50,6 +50,7 @@
 namespace XrdPosixGlobals
 {
 extern XrdOucCache2 *theCache;
+extern bool          psxDBG;
 };
 
 namespace
@@ -70,8 +71,9 @@ XrdPosixFile   *XrdPosixFile::ddList = InitDDL();
 XrdPosixFile   *XrdPosixFile::ddLost = 0;
 
 char          *XrdPosixFile::sfSFX    =  0;
-int            XrdPosixFile::sfSLN    =  0;
+short          XrdPosixFile::sfSLN    =  0;
 bool           XrdPosixFile::ddPosted = false;
+int            XrdPosixFile::ddNum    =  0;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -142,6 +144,7 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
    time_t tNow, wakeTime = 0;
+   int ddCount;
    bool ioActive, doWait = false;
 
 // Wait for active I/O to complete
@@ -152,13 +155,24 @@ do{if (doWait)
       } else {
        ddSem.Wait();
        tNow = time(0);
-       if (tNow < wakeTime) continue;
+       if (tNow < wakeTime) {doWait = true; continue;}
        wakeTime = tNow + ddInterval;
       }
 
 // Grab the delayed delete list
 //
-   ddMutex.Lock(); fNext=ddList; ddList=0; ddPosted=false; ddMutex.UnLock();
+   ddMutex.Lock();
+   fNext=ddList; ddList=0; ddPosted=false; ddCount = ddNum; ddNum = 0;
+   ddMutex.UnLock();
+
+// Do some debugging
+//
+   if (XrdPosixGlobals::psxDBG)
+      {snprintf(eBuff, sizeof(eBuff),
+                "PosixFile: delayed destory of %d objects; %d already lost.\n",
+                 ddCount, numLost);
+       std::cerr <<eBuff <<std::flush;
+      }
 
 // Try to delete all the files on the list. If we exceeded the try limit,
 // remove the file from the list and let it sit forever.
@@ -166,12 +180,12 @@ do{if (doWait)
    while((fCurr = fNext))
         {fNext = fCurr->nextFile;
          if (!((ioActive = fCurr->XCio->ioActive())) && !fCurr->Refs())
-            {if (fCurr->Close(Status)) {delete fCurr; continue;}
+            {if (fCurr->Close(Status)) {delete fCurr; ddCount--; continue;}
                 else eTxt = Status.ToString().c_str();
             } else   eTxt = (ioActive ? "active I/O" : "callback");
 
          if (fCurr->numTries > maxTries)
-            {numLost++;
+            {numLost++; ddCount--;
              snprintf(eBuff, sizeof(eBuff),
                       "PosixFile: %s timeout closing %s; %d objects lost!\n",
                       eTxt, fCurr->Path(), numLost);
@@ -186,7 +200,13 @@ do{if (doWait)
              fCurr->nextFile = ddList; ddList = fCurr; ddPosted = true;
              ddMutex.UnLock();
             }
-        };
+        }
+        if (XrdPosixGlobals::psxDBG)
+           {snprintf(eBuff, sizeof(eBuff),
+                     "PosixFile: delayed destory end; %d objects deferred.\n",
+                     ddCount);
+            std::cerr <<eBuff <<std::flush;
+           }
    } while(true);
 
    return 0;
@@ -203,6 +223,7 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
    ddMutex.Lock();
    fp->nextFile = ddList;
    ddList       = fp;
+   ddNum++;
    if (ddPosted) doPost = false;
       else {doPost   = true;
             ddPosted = true;

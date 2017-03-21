@@ -165,8 +165,9 @@ static XrdSysMutex   ddMutex;
 static XrdPosixFile *ddList;
 static XrdPosixFile *ddLost;
 static char         *sfSFX;
-static int           sfSLN;
+static short         sfSLN;
 static bool          ddPosted;
+static int           ddNum;
 
 static const int realFD = 1;
 static const int isStrm = 2;
