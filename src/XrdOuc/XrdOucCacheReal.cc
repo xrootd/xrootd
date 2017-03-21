@@ -82,9 +82,9 @@ XrdOucCacheReal::XrdOucCacheReal(int &rc, XrdOucCache::Parms      &ParmV,
 
 // Adjust segment size to be a power of two and atleast 4k.
 //
-        if (ParmV.PageSize <= 0) SegSize = 16384;
+        if (ParmV.PageSize <= 0) SegSize = 32768;
    else if (!(SegSize = ParmV.PageSize & ~0xfff)) SegSize = 4096;
-   else if (SegSize > 16*1024*1024) SegSize = 16*1024*1024;
+// else if (SegSize > 16*1024*1024) SegSize = 16*1024*1024;
    SegShft = 0; n = SegSize-1;
    while(n) {SegShft++; n = n >> 1;}
    SegSize = 1<<SegShft;
