@@ -70,6 +70,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucEnum.hh
   XrdOuc/XrdOucCompiler.hh
+  XrdPosix/XrdPosix.hh
   XrdPosix/XrdPosixCallBack.hh
   XrdPosix/XrdPosixExtern.hh
   XrdPosix/XrdPosixOsDep.hh
