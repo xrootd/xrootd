@@ -43,6 +43,8 @@
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
 
+#include "XrdSys/XrdSysTimer.hh"
+
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -150,7 +152,7 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
 // Wait for active I/O to complete
 //
 do{if (doWait)
-      {sleep(ddInterval);
+      {XrdSysTimer::Snooze(ddInterval);
        doWait = false;
       } else {
        ddSem.Wait();
@@ -169,7 +171,7 @@ do{if (doWait)
 //
    if (XrdPosixGlobals::psxDBG)
       {snprintf(eBuff, sizeof(eBuff),
-                "PosixFile: delayed destory of %d objects; %d already lost.\n",
+                "PosixFile: DLY destory of %d objects; %d already lost.\n",
                  ddCount, numLost);
        std::cerr <<eBuff <<std::flush;
       }
@@ -197,13 +199,14 @@ do{if (doWait)
              fCurr->numTries++;
              doWait = true;
              ddMutex.Lock();
-             fCurr->nextFile = ddList; ddList = fCurr; ddPosted = true;
+             fCurr->nextFile = ddList; ddList = fCurr;
+             ddNum++; ddPosted = true;
              ddMutex.UnLock();
             }
         }
         if (XrdPosixGlobals::psxDBG)
            {snprintf(eBuff, sizeof(eBuff),
-                     "PosixFile: delayed destory end; %d objects deferred.\n",
+                     "PosixFile: DLY destory end; %d objects deferred.\n",
                      ddCount);
             std::cerr <<eBuff <<std::flush;
            }
@@ -216,6 +219,7 @@ do{if (doWait)
 
 void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
 {
+   int  ddCount;
    bool doPost;
 
 // Place this file on the delayed delete list
@@ -223,13 +227,21 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
    ddMutex.Lock();
    fp->nextFile = ddList;
    ddList       = fp;
-   ddNum++;
+   ddNum++; ddCount = ddNum;
    if (ddPosted) doPost = false;
       else {doPost   = true;
             ddPosted = true;
            }
    ddMutex.UnLock();
    fp->numTries = 0;
+
+   if (XrdPosixGlobals::psxDBG)
+      {char eBuff[2048];
+       snprintf(eBuff, sizeof(eBuff),
+                "PosixFile: DLY destory %s %d objects; added %s.\n",
+                 (doPost ? "post" : "has "), ddCount, fp->Path());
+       std::cerr <<eBuff <<std::flush;
+      }
 
    if (doPost) ddSem.Post();
 }
