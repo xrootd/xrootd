@@ -821,7 +821,19 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::OnReadTimeout()
   {
-    pStream->OnReadTimeout( pSubStreamNum );
+    bool isBroken = false;
+    pStream->OnReadTimeout( pSubStreamNum, isBroken );
+
+    if( isBroken )
+    {
+      // if we are here it means Stream::OnError has been
+      // called from inside of Stream::OnReadTimeout, this
+      // in turn means that the ownership of following
+      // pointers, has been transfered to the inQueue
+      pIncoming   = 0;
+      pOutgoing   = 0;
+      pOutHandler = 0;
+    }
   }
 
   //----------------------------------------------------------------------------

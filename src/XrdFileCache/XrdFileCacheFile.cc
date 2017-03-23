@@ -135,47 +135,46 @@ bool File::ioActive()
    // Retruns true if delay is needed
 
    TRACEF(Debug, "File::ioActive start");
-
-   if (! m_is_open) return false;
-
-
-   // remove failed blocks and check if map is empty
-   m_downloadCond.Lock();
-
-   if (m_prefetchState != kStopped)
+   bool blockMapEmpty = false;
    {
-      m_prefetchState = kStopped;
-      cache()->DeRegisterPrefetchFile(this);
-   }
+      XrdSysCondVarHelper _lck(m_downloadCond);
+      if (! m_is_open) return false;
 
-
-   // High debug print
-   // for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it)
-   // {
-   //    Block* b = it->second;
-   //    TRACEF(Dump, "File::ioActive block idx = " <<  b->m_offset/m_cfi.GetBufferSize() << " prefetch = " << b->prefetch <<  " refcnt " << b->refcnt);
-   // }
-   TRACEF(Info, "ioActive block_map.size() = " << m_block_map.size());
-
-   BlockMap_i itr = m_block_map.begin();
-   while (itr != m_block_map.end())
-   {
-      if (itr->second->is_failed() && itr->second->m_refcnt == 1)
+      if (m_prefetchState != kStopped)
       {
-         BlockMap_i toErase = itr;
-         ++itr;
-         TRACEF(Debug, "Remove failed block " <<  itr->second->m_offset/m_cfi.GetBufferSize());
-         free_block(toErase->second);
+         m_prefetchState = kStopped;
+         cache()->DeRegisterPrefetchFile(this);
       }
-      else
+
+
+      // High debug print
+      // for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it)
+      // {
+      //    Block* b = it->second;
+      //    TRACEF(Dump, "File::ioActive block idx = " <<  b->m_offset/m_cfi.GetBufferSize() << " prefetch = " << b->prefetch <<  " refcnt " << b->refcnt);
+      // }
+      TRACEF(Info, "ioActive block_map.size() = " << m_block_map.size());
+
+      // remove failed blocks and check if map is empty
+      BlockMap_i itr = m_block_map.begin();
+      while (itr != m_block_map.end())
       {
-         ++itr;
+         if (itr->second->is_failed() && itr->second->m_refcnt == 1)
+         {
+            BlockMap_i toErase = itr;
+            ++itr;
+            TRACEF(Debug, "Remove failed block " <<  toErase->second->m_offset/m_cfi.GetBufferSize());
+            free_block(toErase->second);
+         }
+         else
+         {
+            ++itr;
+         }
       }
+
+      blockMapEmpty =  m_block_map.empty();
    }
-
-   bool blockMapEmpty =  m_block_map.empty();
-   m_downloadCond.UnLock();
-
+   
    if (blockMapEmpty)
    {
       // file is not active when block map is empty and sync is done

@@ -50,11 +50,6 @@
 
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
-#include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdClient/XrdClientConst.hh"
-#include "XrdClient/XrdClient.hh"
-#include "XrdClient/XrdClientEnv.hh"
-#include "XrdClient/XrdClientAdmin.hh"
 #include "XrdOuc/XrdOucString.hh"
 
 #include "XrdCks/XrdCksXAttr.hh"
@@ -139,61 +134,27 @@ int fGetXattrAdler32(const char *path, int fd, const char* attr, char *value)
     return 8;
 }
 
-/* get the actual root url pointing to the data server */
-char get_current_url(const char *oldurl, char *newurl)
-{
-    bool stat;
-    long id, flags, modtime;
-    long long size;
-    XrdOucString url(oldurl);
-
-    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
-    if (adm->Connect())
-    {
-        XrdClientUrlInfo u(url);
-
-        stat = adm->Stat((char *)u.File.c_str(), id, size, flags, modtime);
-        if (stat && adm->GetCurrentUrl().IsValid())
-        {
-            strcpy(newurl, adm->GetCurrentUrl().GetUrl().c_str());
-            delete adm;
-            return 1;
-        }
-    }
-    delete adm;
-    return 0;
-}
-
 /* the rooturl should point to the data server, not redirector */
 char getchksum(const char *rooturl, char *chksum) 
 {
-    XrdOucString url(rooturl);
-    char *sum = 0, *ptb, *pte;
-    long sumlen; 
-    int  pte_ptb;
+    char csBuff[256];
+    int  csLen;
 
-    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
-    if (adm->Connect()) 
-    {
-        XrdClientUrlInfo u(url);
-        sumlen = adm->GetChecksum((kXR_char *)u.File.c_str(), (kXR_char**) &sum);
-        pte = ptb = sum;
-        if (sumlen != 0)
-        {
-            ptb = strchr(sum, ' ');
-            ptb++;
-            pte = strchr(ptb, ' ');
-            if (pte == NULL) pte = &sum[sumlen];
-        }
-        pte_ptb = pte - ptb;
-        strncpy(chksum, ptb, pte_ptb);
-        chksum[pte_ptb] = '\0';
-        free(sum);
-        delete adm;
-        return pte_ptb;  /* 0 means sever doesn't implement a checksum */
-    }
-    else
-        return -1;
+// Obtain the checksum (this is the default checksum)
+//
+   csLen = XrdPosixXrootd::Getxattr(rooturl, "xroot.cksum",
+                                    csBuff,  sizeof(csBuff));
+   if (csLen <  0) return -1;
+   if (csLen == 0) return  0; // Server doesn't have the checksum
+
+// Verify that the checksum returned is "adler32"
+//
+   if (strncmp("adler32 ", csBuff, 8)) return 0;
+
+// Return the checksum value (this is really bad code)
+//
+   strcpy(chksum, csBuff+8);
+   return strlen(csBuff+8);
 }
 
 #define N 1024*1024  /* reading block size */
@@ -261,13 +222,6 @@ int main(int argc, char *argv[])
     }
     else
     {                       /* this is a Xrootd file */
-        EnvPutInt(NAME_DEBUG, -1);
-        if (!get_current_url(path, path))
-        {
-            printf("Error_accessing: %s\n", argv[1]);
-            return 1;
-        }
-
         if (getchksum(path, chksum) > 0) 
         {                   /* server implements checksum */
              printf("%s %s\n", chksum, argv[1]);
@@ -276,8 +230,6 @@ int main(int argc, char *argv[])
         else
         {                   /* need to read the file and calculate */
             XrdPosixXrootd myPFS(-8, 8, 1);
-            EnvPutInt(NAME_READAHEADSIZE, N);
-            EnvPutInt(NAME_READCACHESIZE, 2*N);
             rc = XrdPosixXrootd::Stat(path, &stbuf);
             if (rc != 0 || ! S_ISREG(stbuf.st_mode) ||
                 (fd = XrdPosixXrootd::Open(path, O_RDONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0)

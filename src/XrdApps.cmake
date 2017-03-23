@@ -17,7 +17,6 @@ add_executable(
 target_link_libraries(
   xrdadler32
   XrdPosix
-  XrdClient
   XrdUtils
   pthread
   ${ZLIB_LIBRARY} )

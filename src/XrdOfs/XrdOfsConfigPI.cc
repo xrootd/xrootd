@@ -52,6 +52,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFAttr.hh"
@@ -146,6 +147,7 @@ void   XrdOfsConfigPI::DefaultCS(const char *alg)
 {
    if (CksAlg) free(CksAlg);
    CksAlg = strdup(alg);
+   XrdOucUtils::toLower(CksAlg);
 }
   
 /******************************************************************************/

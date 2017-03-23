@@ -713,7 +713,8 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
    while ((palg = Config.GetWord()) && *palg != '/')
          {if (!strcmp(palg,"chkcgi")) {JobCKCGI = 1; continue;}
           if (strcmp(palg, "max"))
-             {XrdOucTList *xalg = new XrdOucTList(palg, anum); anum[0]++;
+             {XrdOucUtils::toLower(palg);
+              XrdOucTList *xalg = new XrdOucTList(palg, anum); anum[0]++;
               if (algLast) algLast->next = xalg;
                  else      algFirst      = xalg;
               algLast = xalg;

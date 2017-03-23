@@ -361,7 +361,7 @@ int XrdXrootdProtocol::do_CKsum(int canit)
        char *cksT;
        if ((cksT = jobEnv.Get("cks.type")))
           {XrdOucTList *tP = JobCKTLST;
-           while(tP && strcmp(tP->text, cksT)) tP = tP->next;
+           while(tP && strcasecmp(tP->text, cksT)) tP = tP->next;
            if (!tP)
               {char ebuf[1024];
                snprintf(ebuf, sizeof(ebuf), "%s checksum not supported.", cksT);

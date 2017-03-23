@@ -56,6 +56,7 @@ typedef struct {
 } x509ChainVerifyOpt_t;
 
 const int kOptsCheckSelfSigned = 0x2;    // CA ckecking option
+const int kOptsCheckSubCA      = 0x4;    // CA-SubCA case (no EEC)
 
 //
 // Node definition
@@ -110,6 +111,7 @@ public:
    const char         *EECname();
    const char         *CAhash();
    const char         *EEChash();
+   XrdCryptoX509      *EffCA() const { return effca ? effca->Cert() : (XrdCryptoX509 *)0; }
 
    // Modifiers
    void                InsertAfter(XrdCryptoX509 *c, XrdCryptoX509 *cp);
@@ -146,6 +148,7 @@ protected:
    XrdCryptoX509ChainNode *current;
    XrdCryptoX509ChainNode *end;
    XrdCryptoX509ChainNode *previous;
+   XrdCryptoX509ChainNode *effca;
    int                     size;
    XrdOucString            lastError;
    XrdOucString            caname;
@@ -161,6 +164,7 @@ protected:
    XrdCryptoX509ChainNode *FindSubject(const char *subject,
                                        ESearchMode mode = kExact,
                                        XrdCryptoX509ChainNode **p = 0);
+   void SetEffectiveCA();
    bool Verify(EX509ChainErr &e, const char *msg,
                XrdCryptoX509::EX509Type type, int when,
                XrdCryptoX509 *xcer, XrdCryptoX509 *xsig,

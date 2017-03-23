@@ -220,8 +220,10 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    // get number of available RAM blocks after process configuration
    if (m_configuration.m_RamAbsAvailable == 0)
    {
-      TRACE(Error, "RAM usage not specified. Please set pfc.ram value in configuration file.");
-      return false;
+      TRACE(Error, "RAM usage not specified. pfc.ram is a required configuration directive since release 4.6.\n"
+                   "  As a temporary measure default of 8 GB is being used. This will be discontinued in release 5.");
+      m_configuration.m_RamAbsAvailable = 8ll * 1024 * 1024 * 1024;
+      // return false;
    }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
 
@@ -320,8 +322,13 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          return false;
       }
    }
-   else if ( part == "prefetch" )
+   else if ( part == "prefetch" || part == "nramprefetch" )
    {
+      if (part == "nramprefetch")
+      {
+         m_log.Emsg("Config", "pfc.nramprefetch is deprecated, please use pfc.prefetch instead. Replacing the directive internally.");
+      }
+
       const char* params =  config.GetWord();
       if (params)
       {
@@ -342,6 +349,11 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          m_log.Emsg("Config", "Error setting prefetch level.");
          return false;
       }
+   }
+   else if ( part == "nramread" )
+   {
+      m_log.Emsg("Config", "pfc.nramread is deprecated, please use pfc.ram instead. Ignoring this directive.");
+      config.GetWord(); // Ignoring argument.
    }
    else if ( part == "ram" )
    {
@@ -365,8 +377,12 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          return false;
       }
    }
-   else if ( part == "hdfsmode" )
+   else if ( part == "hdfsmode" || part == "filefragmentmode" )
    {
+      if (part == "filefragmentmode")
+      {
+         m_log.Emsg("Config", "pfc.filefragmentmode is deprecated, please use pfc.hdfsmode instead. Replacing the directive internally.");
+      }
       m_configuration.m_hdfsmode = true;
 
       const char* params = config.GetWord();

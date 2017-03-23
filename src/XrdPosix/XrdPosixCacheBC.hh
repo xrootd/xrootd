@@ -100,7 +100,7 @@ public:
 virtual
 XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *ioP, int opts=0)
                       {XrdOucCacheIO *newIOP = v1Cache->Attach(ioP, opts);
-                       if (newIOP == (XrdOucCacheIO *)newIOP) return ioP;
+                       if (newIOP == (XrdOucCacheIO *)ioP) return ioP;
                        return new XrdPosixCacheBCIO(newIOP, ioP);
                       }
 

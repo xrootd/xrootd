@@ -1372,7 +1372,7 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 	Info(XrdClientDebug::kHIDEBUG,
 	     "OpenFileWhenRedirected", "Stripping off the 'delete' option." );
 
-	options &= !kXR_delete;
+	options &= ~kXR_delete;
 	options |= kXR_open_updt;
     }
 
@@ -1380,7 +1380,7 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 	Info(XrdClientDebug::kHIDEBUG,
 	     "OpenFileWhenRedirected", "Stripping off the 'new' option." );
 
-	options &= !kXR_new;
+	options &= ~kXR_new;
 	options |= kXR_open_updt;
     }
 
