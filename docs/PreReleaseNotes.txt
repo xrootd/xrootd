@@ -25,3 +25,4 @@ Prerelease Notes
 + **Miscellaneous**
   * **[XrdPosix]** Add new minpages option to pss.cache to support large pages.
   * **{XrdApps]** Remove XrdClient dependency from xrdadler32.
+  * **[Server]** Add XrdCksAssist functions to help handle XRootD checksums.
