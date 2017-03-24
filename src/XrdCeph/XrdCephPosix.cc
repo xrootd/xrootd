@@ -61,6 +61,8 @@ struct CephFileRef : CephFile {
   int flags;
   mode_t mode;
   unsigned long long offset;
+  unsigned rdcount;
+  unsigned wrcount;
 };
 
 /// small struct for directory listing
@@ -405,6 +407,8 @@ static CephFileRef getCephFileRef(const char *path, XrdOucEnv *env, int flags,
   fr.flags = flags;
   fr.mode = mode;
   fr.offset = 0;
+  fr.rdcount = 0;
+  fr.wrcount = 0;
   return fr;
 }
 
@@ -604,7 +608,8 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 int ceph_posix_close(int fd) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
-    logwrapper((char*)"ceph_close: closed fd %d", fd);
+    logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d",
+               fd, fr->name.c_str(), fr->rdcount, fr->wrcount);
     if (fr->flags & (O_WRONLY|O_RDWR)) {
       deleteOpenForWrite(fr->name);
     }
@@ -665,6 +670,7 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
     int rc = striper->write(fr->name, bl, count, fr->offset);
     if (rc) return rc;
     fr->offset += count;
+    fr->wrcount++;
     return count;
   } else {
     return -EBADF;
@@ -687,6 +693,7 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     bl.append((const char*)buf, count);
     int rc = striper->write(fr->name, bl, count, offset);
     if (rc) return rc;
+    fr->wrcount++;
     return count;
   } else {
     return -EBADF;
@@ -757,6 +764,7 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
     if (rc < 0) return rc;
     bl.copy(0, rc, (char*)buf);
     fr->offset += rc;
+    fr->rdcount++;
     return rc;
   } else {
     return -EBADF;
@@ -779,6 +787,7 @@ ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
     int rc = striper->read(fr->name, &bl, count, offset);
     if (rc < 0) return rc;
     bl.copy(0, rc, (char*)buf);
+    fr->rdcount++;
     return rc;
   } else {
     return -EBADF;
