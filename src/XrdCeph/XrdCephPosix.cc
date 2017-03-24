@@ -742,7 +742,7 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
     logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
-    if ((fr->flags & (O_WRONLY|O_RDWR)) != 0) {
+    if ((fr->flags & O_WRONLY) != 0) {
       return -EBADF;
     }
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
@@ -764,7 +764,7 @@ ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
     logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
-    if ((fr->flags & (O_WRONLY|O_RDWR)) != 0) {
+    if ((fr->flags & O_WRONLY) != 0) {
       return -EBADF;
     }
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
