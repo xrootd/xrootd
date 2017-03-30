@@ -654,6 +654,7 @@ fi
 %files libs
 %defattr(-,root,root,-)
 %{_libdir}/libXrdAppUtils.so.1*
+%{_libdir}/libXrdClProxyPlugin-4.so
 %{_libdir}/libXrdCks*-4.so
 %{_libdir}/libXrdCrypto.so.1*
 %{_libdir}/libXrdCryptoLite.so.1*
