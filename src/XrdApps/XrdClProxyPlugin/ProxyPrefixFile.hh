@@ -208,6 +208,15 @@ private:
   //----------------------------------------------------------------------------
   std::string ConstructFinalUrl(const std::string& orig_url) const;
 
+  //----------------------------------------------------------------------------
+  //! Get FQDN for specified host
+  //!
+  //! @param hostname hostname without domain
+  //!
+  //! @return FQDN
+  //----------------------------------------------------------------------------
+  std::string GetFqdn(const std::string& hostname) const;
+
   bool mIsOpen;
   XrdCl::File* pFile;
 };

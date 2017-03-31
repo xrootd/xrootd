@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <cctype>
 #include "XrdCl/XrdClLog.hh"
+#include <sys/socket.h>
+#include <netdb.h>
 
 namespace xrdcl_proxy
 {
@@ -115,7 +117,6 @@ ProxyPrefixFile::trim(const std::string& in) const
 
   wsback = rwsback.base();
   return (wsback <= wsfront ? std::string() : std::string(wsfront, wsback));
-
   /* TODO: To be used when C++11 is available
      auto wsfront = std::find_if_not(in.begin(), in.end(),
      [](int c) -> bool {return std::isspace(c);});
@@ -173,7 +174,8 @@ ProxyPrefixFile::ConstructFinalUrl(const std::string& orig_surl) const
       orig_host = orig_host.substr(0, pos);
     }
 
-    log->Debug(1, "orig_host=%s", orig_host.c_str());
+    orig_host = GetFqdn(orig_host);
+    log->Debug(1, "FQDN orig_host=%s", orig_host.c_str());
 
     for (std::list<std::string>::iterator it_excl = lst_excl.begin();
          it_excl != lst_excl.end(); ++it_excl) {
@@ -192,8 +194,36 @@ ProxyPrefixFile::ConstructFinalUrl(const std::string& orig_surl) const
     }
   }
 
-  log->Debug(1, "final_host=%s", final_surl.c_str());
+  log->Debug(1, "final_url=%s", final_surl.c_str());
   return final_surl;
+}
+
+//------------------------------------------------------------------------------
+// Get FQDN for specified host
+//------------------------------------------------------------------------------
+std::string
+ProxyPrefixFile::GetFqdn(const std::string& hostname) const
+{
+  XrdCl::Log* log = DefaultEnv::GetLog();
+  std::string fqdn = hostname;
+  struct addrinfo hints, *info;
+  int gai_result;
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC; /*either IPV4 or IPV6*/
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_CANONNAME;
+
+  if ((gai_result = getaddrinfo(hostname.c_str(), NULL, &hints, &info)) != 0) {
+    log->Error(1, "getaddrinfo: %s", gai_strerror(gai_result));
+    return fqdn;
+  }
+
+  if (info) {
+    fqdn = info->ai_canonname;
+  }
+
+  freeaddrinfo(info);
+  return fqdn;
 }
 
 } // namespace xrdcl_proxy
