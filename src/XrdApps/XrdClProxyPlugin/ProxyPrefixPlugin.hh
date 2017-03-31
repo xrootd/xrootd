@@ -35,8 +35,10 @@ class ProxyFactory: public XrdCl::PlugInFactory
 public:
   //----------------------------------------------------------------------------
   //! Construtor
+  //!
+  //! @param config map containing configuration parameters
   //----------------------------------------------------------------------------
-  ProxyFactory();
+  ProxyFactory(const std::map<std::string, std::string>* config);
 
   //----------------------------------------------------------------------------
   //! Destructor

@@ -37,7 +37,9 @@ extern "C"
 {
   void* XrdClGetPlugIn(const void* arg)
   {
-    return static_cast<void*>(new xrdcl_proxy::ProxyFactory());
+    const std::map<std::string, std::string>* config =
+      static_cast< const std::map<std::string, std::string>* >(arg);
+    return static_cast<void*>(new xrdcl_proxy::ProxyFactory(config));
   }
 }
 
@@ -46,10 +48,31 @@ namespace xrdcl_proxy
 //------------------------------------------------------------------------------
 // Construtor
 //------------------------------------------------------------------------------
-ProxyFactory::ProxyFactory()
+ProxyFactory::ProxyFactory(const std::map<std::string, std::string>* config)
 {
-  //XrdCl::Log* log = XrdCl::DefaultEnv::GetLog();
-  //log->Debug(1, "ProxyFactory constructor");
+  XrdCl::Log* log = XrdCl::DefaultEnv::GetLog();
+  // If any of the parameters specific to this plugin are present then export
+  // them as env variables to be used later on if not already set.
+  if (config) {
+    std::list<std::string> lst_envs;
+    lst_envs.push_back("XROOT_PROXY");
+    lst_envs.push_back("xroot_proxy");
+    lst_envs.push_back("XROOT_PROXY_EXCL_DOMAINS");
+    lst_envs.push_back("xroot_proxy_excl_domains");
+
+    for (std::list<std::string>::iterator it_env = lst_envs.begin();
+	 it_env != lst_envs.end(); ++it_env) {
+      std::map<std::string, std::string>::const_iterator it_map =
+	config->find(*it_env);
+
+      if (it_map != config->end() && !it_map->second.empty()) {
+	if (setenv(it_map->first.c_str(), it_map->second.c_str(), 0)) {
+	  log->Error(1, "Failed to set env variable %s from the configuration"
+		     " file", it_map->first.c_str());
+	}
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
