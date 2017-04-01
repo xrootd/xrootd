@@ -160,7 +160,7 @@ ProxyPrefixFile::ConstructFinalUrl(const std::string& orig_surl) const
   std::string final_surl = orig_surl;
   std::string url_prefix = GetPrefixUrl();
   XrdCl::Log* log = DefaultEnv::GetLog();
-  log->Debug(1, "url=%s, url_prefix=%s", orig_surl.c_str(), url_prefix.c_str());
+  log->Debug(1, "url=%s, prefix_url=%s", orig_surl.c_str(), url_prefix.c_str());
 
   if (!url_prefix.empty()) {
     bool exclude = false;
@@ -175,7 +175,6 @@ ProxyPrefixFile::ConstructFinalUrl(const std::string& orig_surl) const
     }
 
     orig_host = GetFqdn(orig_host);
-    log->Debug(1, "FQDN orig_host=%s", orig_host.c_str());
 
     for (std::list<std::string>::iterator it_excl = lst_excl.begin();
          it_excl != lst_excl.end(); ++it_excl) {

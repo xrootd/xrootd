@@ -54,6 +54,10 @@ ProxyFactory::ProxyFactory(const std::map<std::string, std::string>* config)
   // If any of the parameters specific to this plugin are present then export
   // them as env variables to be used later on if not already set.
   if (config) {
+    // When C++11 is here:
+    // std::list<std::string> lst_envs {"XROOT_PROXY", "xroot_proxy",
+    //                                  "XROOT_PROXY_EXCL_DOMAINS",
+    //                                  "xroot_proxy_excl_domains};
     std::list<std::string> lst_envs;
     lst_envs.push_back("XROOT_PROXY");
     lst_envs.push_back("xroot_proxy");

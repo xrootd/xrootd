@@ -112,6 +112,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Register a plug-in factory applying to all URLs
   //------------------------------------------------------------------------
+  /*
   bool PlugInManager::RegisterDefaultFactory( PlugInFactory *factory )
   {
     Log *log = DefaultEnv::GetLog();
@@ -134,6 +135,7 @@ namespace XrdCl
 
     return true;
   }
+  */
 
   //----------------------------------------------------------------------------
   // Retrieve the plug-in factory for the given URL
@@ -203,6 +205,7 @@ namespace XrdCl
       pDefaultFactory = new FactoryHelper();
       pDefaultFactory->factory = pg.second;
       pDefaultFactory->plugin  = pg.first;
+      pDefaultFactory->isEnv = true;
     }
 
     //--------------------------------------------------------------------------
@@ -377,6 +380,26 @@ namespace XrdCl
     std::vector<std::string> urls;
     std::vector<std::string> normalizedURLs;
     std::vector<std::string>::iterator it;
+
+    if (urlString == "*") {
+      if (pDefaultFactory) {
+        if (pDefaultFactory->isEnv) {
+          log->Debug(PlugInMgrMsg, "There is already an env default plugin "
+                     "loaded, skiping %s", lib.c_str());
+          return false;
+        } else {
+          log->Debug(PlugInMgrMsg, "There can be only one default plugin "
+                     "loaded, skipping %s", lib.c_str());
+          return false;
+        }
+      } else {
+        pDefaultFactory = new FactoryHelper();
+        pDefaultFactory->factory = factory;
+        pDefaultFactory->plugin = plugin;
+        pDefaultFactory->isEnv = false;
+        return true;
+      }
+    }
 
     Utils::splitString( urls, urlString, ";" );
 
