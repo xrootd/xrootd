@@ -112,7 +112,6 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Register a plug-in factory applying to all URLs
   //------------------------------------------------------------------------
-  /*
   bool PlugInManager::RegisterDefaultFactory( PlugInFactory *factory )
   {
     Log *log = DefaultEnv::GetLog();
@@ -135,7 +134,6 @@ namespace XrdCl
 
     return true;
   }
-  */
 
   //----------------------------------------------------------------------------
   // Retrieve the plug-in factory for the given URL

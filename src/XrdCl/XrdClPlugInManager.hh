@@ -62,7 +62,7 @@ namespace XrdCl
       //! Register a plug-in factory applying to all URLs, registering
       //! a 0 pointer removes the factory
       //------------------------------------------------------------------------
-      // bool RegisterDefaultFactory( PlugInFactory *factory );
+      bool RegisterDefaultFactory( PlugInFactory *factory );
 
       //------------------------------------------------------------------------
       //! Retrieve the plug-in factory for the given URL
