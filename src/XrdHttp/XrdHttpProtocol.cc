@@ -291,8 +291,6 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
 int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   TRACEI(DEBUG, " Extracting auth info.");
 
-  SecEntity.host = GetClientIPStr();
-
   X509 *peer_cert;
 
   // No external plugin, hence we fill our XrdSec with what we can do here
@@ -1420,6 +1418,8 @@ void XrdHttpProtocol::Cleanup() {
   ssl = 0;
   sbio = 0;
 
+  if (SecEntity.grps) free(SecEntity.grps);
+  if (SecEntity.endorsements) free(SecEntity.endorsements);
   if (SecEntity.vorg) free(SecEntity.vorg);
   if (SecEntity.role) free(SecEntity.role);
   if (SecEntity.name) free(SecEntity.name);
