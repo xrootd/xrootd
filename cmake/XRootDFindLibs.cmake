@@ -22,6 +22,11 @@ if( LIBXML2_FOUND )
   add_definitions( -DHAVE_XML2 )
 endif()
 
+find_package( Systemd )
+if( SYSTEMD_FOUND )
+  add_definitions( -DHAVE_SYSTEMD )
+endif()
+
 if( ENABLE_CRYPTO )
   find_package( OpenSSL )
   if( OPENSSL_FOUND )

@@ -196,6 +196,7 @@ target_link_libraries(
   XrdUtils
   pthread
   dl
+  ${SYSTEMD_LIBRARY}
   ${SOCKET_LIBRARY}
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )
