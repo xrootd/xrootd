@@ -303,27 +303,50 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   if (peer_cert) {
 
     // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
+    if (SecEntity.moninfo) free(SecEntity.moninfo);
     SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
 
-    // Here we have the user DN, we try to translate it using the XrdSec functions and the gridmap
+    // Here we have the user DN, and try to extract an useful user name from it
     if (SecEntity.name) free(SecEntity.name);
+    SecEntity.name = 0;
+    // To set the name we pick the first CN of the certificate subject
+    // and hope that it makes some sense, it usually does
+    char *lnpos = strstr(SecEntity.moninfo, "/CN=");
+    char bufname[64];
+        
+    if (lnpos) {
+      lnpos += 4;
+      char *lnpos2 = index(lnpos, '/');
+      if (lnpos2) {
+        int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
+        strncpy(bufname, lnpos, l);
+        bufname[l] = '\0';
+        SecEntity.name = strdup(bufname);
+        TRACEI(DEBUG, " Setting link name: '" << bufname << "'");
+        lp->setID(bufname, 0);
+      }
+    }
+    
     if (servGMap) {
-      SecEntity.name = (char *)malloc(128);
-      int e = servGMap->dn2user(SecEntity.moninfo, SecEntity.name, 127, 0);
+      int e = servGMap->dn2user(SecEntity.moninfo, bufname, 127, 0);
       if ( !e ) {
-        TRACEI(DEBUG, " Mapping Username: " << SecEntity.moninfo << " --> " << SecEntity.name);
+        TRACEI(DEBUG, " Mapping Username: " << SecEntity.moninfo << " --> " << bufname);
+        if (SecEntity.name) free(SecEntity.name);
+        SecEntity.name = strdup(bufname);
       }
       else {
         TRACEI(ALL, " Mapping Username: " << SecEntity.moninfo << " Failed. err: " << e);
-        strncpy(SecEntity.name, SecEntity.moninfo, 127);
       }
     }
-    else {
-      SecEntity.name = strdup(SecEntity.moninfo);
+    
+    // If we could not find anything good, take the last 8 letters of the main subject
+    if (!SecEntity.name) {
+      int l = strlen(SecEntity.moninfo);
+      SecEntity.name = strdup(SecEntity.moninfo + strlen(SecEntity.moninfo) - min(7, l) );
     }
-
-    TRACEI(DEBUG, " Setting link name: " << SecEntity.name);
-    lp->setID(SecEntity.name, 0);
+   
+    
+    
   }
   else return 0; // Don't fail if no cert
 
@@ -406,7 +429,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           return -1;
         }
 
-      // If a secxtractorhas been loaded
+      // If a secxtractor has been loaded
       // maybe it wants to add its own initialization bits
       if (secxtractor)
         secxtractor->InitSSL(ssl, sslcadir);
@@ -1420,6 +1443,8 @@ void XrdHttpProtocol::Cleanup() {
   ssl = 0;
   sbio = 0;
 
+  if (SecEntity.grps) free(SecEntity.grps);
+  if (SecEntity.endorsements) free(SecEntity.endorsements);
   if (SecEntity.vorg) free(SecEntity.vorg);
   if (SecEntity.role) free(SecEntity.role);
   if (SecEntity.name) free(SecEntity.name);

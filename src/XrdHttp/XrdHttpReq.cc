@@ -1437,49 +1437,62 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         // If this was the last bunch of entries, send the buffer and empty it immediately
         if (final_) {
           stringresp += "</table></div><br><br><hr size=1>"
-                  "<p><span id=\"requestby\">Request by ";
-
+          "<p><span id=\"requestby\">Request by ";
+          
           if (prot->SecEntity.name)
             stringresp += prot->SecEntity.name;
           else
             stringresp += prot->Link->ID;
-         
-	  if (prot->SecEntity.vorg ||
-	      prot->SecEntity.moninfo ||
-	      prot->SecEntity.role)
-		stringresp += " (";
-		
+          
+          if (prot->SecEntity.vorg ||
+            prot->SecEntity.name ||
+            prot->SecEntity.moninfo ||
+            prot->SecEntity.role)
+            stringresp += " (";
+          
           if (prot->SecEntity.vorg) {
             stringresp += " VO: ";
             stringresp += prot->SecEntity.vorg;
           }
           
-	  if (prot->SecEntity.moninfo) {
+          if (prot->SecEntity.name) {
             stringresp += " DN: ";
-            stringresp += prot->SecEntity.moninfo;
+            stringresp += prot->SecEntity.name;
           }
+          else
+            if (prot->SecEntity.moninfo) {
+              stringresp += " DN: ";
+              stringresp += prot->SecEntity.moninfo;
+            }  
           
           if (prot->SecEntity.role) {
             stringresp += " Role: ";
             stringresp += prot->SecEntity.role;
+            if (prot->SecEntity.endorsements) {
+              stringresp += " (";
+              stringresp += prot->SecEntity.endorsements;
+              stringresp += ") ";
+            }
           }
- 
- 	  if (prot->SecEntity.vorg ||
-	      prot->SecEntity.moninfo ||
-	      prot->SecEntity.role)
-		stringresp += " )";
-		
+          
+          
+           
+          if (prot->SecEntity.vorg ||
+            prot->SecEntity.moninfo ||
+            prot->SecEntity.role)
+            stringresp += " )";
+          
           if (prot->SecEntity.host) {
             stringresp += " ( ";
             stringresp += prot->SecEntity.host;
             stringresp += " )";
           }
-
+          
           stringresp += "</span></p>\n";
           stringresp += "<p>Powered by XrdHTTP ";
           stringresp += XrdVSTRING;
           stringresp += " (CERN IT-SDC)</p>\n";
-
+          
           prot->SendSimpleResp(200, NULL, NULL, (char *) stringresp.c_str(), 0);
           stringresp.clear();
           return 1;
