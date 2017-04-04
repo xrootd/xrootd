@@ -49,6 +49,9 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 XrdOucCacheIO* IOFileBlock::Detach()
 {
    // this is called when this IO is no longer active
+
+   TRACEIO(Debug, "IOFileBlock detaching file");
+         
    XrdOucCacheIO * io = GetInput();
 
    while (! m_blocks.empty())
