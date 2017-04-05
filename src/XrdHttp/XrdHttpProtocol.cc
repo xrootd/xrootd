@@ -45,6 +45,7 @@
 #include <openssl/ssl.h>
 #include <vector>
 #include <arpa/inet.h>
+#include <ctype.h>
 
 #define XRHTTP_TK_GRACETIME     600
 
@@ -310,7 +311,7 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     // To set the name we pick the first CN of the certificate subject
     // and hope that it makes some sense, it usually does
     char *lnpos = strstr(SecEntity.moninfo, "/CN=");
-    char bufname[64];
+    char bufname[64], bufname2[9];
         
     if (lnpos) {
       lnpos += 4;
@@ -319,9 +320,22 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
         int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
         strncpy(bufname, lnpos, l);
         bufname[l] = '\0';
+        
+        // Here we have the string in the buffer. Take the last 8 non-space characters
+        size_t j = 8;
+        strcpy(bufname2, "unknown-\0"); // note it's 9 chars
+        for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
+          if (isalnum(bufname[i])) {
+            j--;
+            bufname2[j] = bufname[i];
+            if (j == 0) break;
+          }
+          
+        }
+        
         SecEntity.name = strdup(bufname);
-        TRACEI(DEBUG, " Setting link name: '" << bufname << "'");
-        lp->setID(bufname, 0);
+        TRACEI(DEBUG, " Setting link name: '" << bufname2+j << "'");
+        lp->setID(bufname2+j, 0);
       }
     }
     
@@ -337,10 +351,18 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
       }
     }
     
-    // If we could not find anything good, take the last 8 letters of the main subject
+    // If we could not find anything good, take the last 8 non-space characters of the main subject
     if (!SecEntity.name) {
-      int l = strlen(SecEntity.moninfo);
-      SecEntity.name = strdup(SecEntity.moninfo + strlen(SecEntity.moninfo) - min(7, l) );
+      size_t j = 8;
+      SecEntity.name = strdup("unknown-\0"); // note it's 9 chars
+      for (int i = (int)strlen(SecEntity.moninfo)-1; i >= 0; i--) {
+        if (isalnum(SecEntity.moninfo[i])) {
+          j--;
+          SecEntity.name[j] = SecEntity.moninfo[i];
+          if (j == 0) break;
+         
+        }
+      }
     }
    
     
