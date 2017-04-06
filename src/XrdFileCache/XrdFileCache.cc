@@ -61,6 +61,12 @@ void *PrefetchThread(void* ptr)
    return NULL;
 }
 
+void *DyingFilesNeedSyncThread(void* ptr)
+{
+   Cache* cache = static_cast<Cache*>(ptr);
+   cache->DyingFilesNeedSync();
+   return NULL;
+}
 
 extern "C"
 {
@@ -85,9 +91,12 @@ XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
    pthread_t tid2;
    XrdSysThread::Run(&tid2, PrefetchThread, (void*)(&factory), 0, "XrdFileCache Prefetch ");
 
-
    pthread_t tid;
    XrdSysThread::Run(&tid, CacheDirCleanupThread, NULL, 0, "XrdFileCache CacheDirCleanup");
+   
+   pthread_t tids;
+   XrdSysThread::Run(&tids, DyingFilesNeedSyncThread, (void*)(&factory), 0, "XrdFileCache DyingFilesNeedSyncThread");
+   
    return &factory;
 }
 }
@@ -128,7 +137,8 @@ Cache::Cache() : XrdOucCache(),
    m_trace(0),
    m_traceID("Manager"),
    m_prefetch_condVar(0),
-   m_RAMblocks_used(0)
+   m_RAMblocks_used(0),
+   m_sync_condVar(0)
 {
    m_trace = new XrdOucTrace(&m_log);
    // default log level is Warning
@@ -436,8 +446,6 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
 }
 
 //______________________________________________________________________________
-
-
 void
 Cache::Prefetch()
 {
@@ -460,3 +468,39 @@ Cache::Prefetch()
    }
 }
 
+//______________________________________________________________________________
+void
+Cache::RegisterDyingFilesNeedSync(IO* io)
+{
+   m_sync_condVar.Lock();
+   m_syncIOList.push_back(io);
+   m_sync_condVar.Signal();
+   m_sync_condVar.UnLock();
+}
+
+//______________________________________________________________________________
+void
+Cache::DyingFilesNeedSync()
+{
+   while (true) {
+      m_sync_condVar.Lock();
+      while (m_syncIOList.empty())
+      {
+         m_sync_condVar.Wait();
+      }
+
+      std::vector<IO*>::iterator it = m_syncIOList.begin();
+      while ( it != m_syncIOList.end())
+      {
+         if ((*it)->FinalizeSyncBeforeExit() == false)
+         {
+            IO* bye = *it;
+            delete bye;
+            it = m_syncIOList.erase(it);
+         }
+         else ++it;
+      }
+      m_sync_condVar.UnLock();
+      XrdSysTimer::Snooze(1);
+   }
+}
