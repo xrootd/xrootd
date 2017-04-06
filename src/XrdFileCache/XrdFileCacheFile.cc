@@ -174,47 +174,51 @@ bool File::ioActive()
 
       blockMapEmpty =  m_block_map.empty();
    }
+
+
+   return !blockMapEmpty;
+}
+
+bool File::FinalizeSyncBeforeExit()
+{
+   // returns true if sync is required
+   // this method is called after corresponding IO is detached from PosixCache
    
-   if (blockMapEmpty)
+   bool schedule_sync = false;
    {
-      // file is not active when block map is empty and sync is done
-      bool schedule_sync = false;
+      XrdSysCondVarHelper _lck(m_downloadCond);
 
+      if (m_in_sync) return true;
+
+      if (m_writes_during_sync.empty()  && m_non_flushed_cnt == 0)
       {
-         XrdSysCondVarHelper _lck(m_downloadCond);
-
-         if (m_in_sync) return true;
-
-         if (m_writes_during_sync.empty()  && m_non_flushed_cnt == 0)
+         if (! m_detachTimeIsLogged)
          {
-            if (! m_detachTimeIsLogged)
-            {
-               m_cfi.WriteIOStatDetach(m_stats);
-               m_detachTimeIsLogged = true;
-               schedule_sync = true;
-            }
-         }
-         else
-         {
-            // write leftovers
+            m_cfi.WriteIOStatDetach(m_stats);
+            m_detachTimeIsLogged = true;
             schedule_sync = true;
          }
-
-         if (schedule_sync)
-            m_in_sync = true;
-      }
-
-      if (schedule_sync)
-      {
-         XrdPosixGlobals::schedP->Schedule(m_syncer);
       }
       else
       {
-         return false;
+         // write leftovers
+         schedule_sync = true;
       }
+
+      if (schedule_sync)
+         m_in_sync = true;
    }
 
-   return true;
+   if (schedule_sync)
+   {
+      XrdPosixGlobals::schedP->Schedule(m_syncer);
+      return true;
+   }
+   else
+   {
+      return false;
+   }
+
 }
 
 //------------------------------------------------------------------------------

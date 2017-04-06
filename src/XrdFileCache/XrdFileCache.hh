@@ -202,6 +202,9 @@ public:
 
    XrdOucTrace* GetTrace() { return m_trace; }
 
+   void DyingFilesNeedSync();
+   void RegisterDyingFilesNeedSync(IO*);
+
 private:
    bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
    bool ConfigXeq(char *, XrdOucStream &);
@@ -250,6 +253,9 @@ private:
    // prefetching
    typedef std::vector<File*>  PrefetchList;
    PrefetchList m_prefetchList;
+
+   std::vector<IO*>  m_syncIOList;
+   XrdSysCondVar     m_sync_condVar;
 };
 
 }

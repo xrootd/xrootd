@@ -46,7 +46,7 @@ public:
    //------------------------------------------------------------------------
    //! Destructor.
    //------------------------------------------------------------------------
-   ~IOFileBlock(){}
+   ~IOFileBlock();
 
    //---------------------------------------------------------------------
    //! Detach from Cache. Note: this will delete the object.
@@ -64,6 +64,8 @@ public:
    //! Called to check if destruction needs to be done in a separate task.
    virtual bool ioActive();
 
+   virtual bool FinalizeSyncBeforeExit();
+   
    virtual int  Fstat(struct stat &sbuff);
 
    virtual long long FSize();

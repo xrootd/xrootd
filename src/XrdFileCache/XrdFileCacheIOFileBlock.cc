@@ -46,23 +46,50 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 }
 
 //______________________________________________________________________________
-XrdOucCacheIO* IOFileBlock::Detach()
+IOFileBlock::~IOFileBlock()
 {
-   // this is called when this IO is no longer active
-
-   TRACEIO(Debug, "IOFileBlock detaching file");
-         
-   XrdOucCacheIO * io = GetInput();
-
+   // called from Detach() if no sync is needed or
+   // from Cache's sync thread
    while (! m_blocks.empty())
    {
       std::map<int, File*>::iterator it = m_blocks.begin();
       m_cache.Detach(it->second);
       m_blocks.erase(it);
    }
-   delete this;
+}
 
+//______________________________________________________________________________
+XrdOucCacheIO* IOFileBlock::Detach()
+{
+   // Called from XrdPosixFile destructor
+
+   TRACEIO(Debug, "IOFileBlock detaching file");
+         
+   XrdOucCacheIO * io = GetInput();
+
+   // call need sync on all
+   if ( ! FinalizeSyncBeforeExit() )
+   {
+      delete this;
+   }
+   else
+   {
+      m_cache.RegisterDyingFilesNeedSync(this);
+   }
+   
    return io;
+}
+
+//______________________________________________________________________________
+bool IOFileBlock::FinalizeSyncBeforeExit()
+{
+   bool syncDone = false;
+   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+   {
+     bool s =  it->second->FinalizeSyncBeforeExit();
+     syncDone = syncDone | s;
+   }
+   return syncDone;
 }
 
 //______________________________________________________________________________
@@ -258,7 +285,9 @@ bool IOFileBlock::ioActive()
    bool active = false;
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
-      if (it->second->ioActive()) active = true;
+      if (it->second->ioActive()) {
+         active = true;
+      }
    }
 
    return active;
