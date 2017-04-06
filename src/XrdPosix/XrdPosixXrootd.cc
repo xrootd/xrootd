@@ -1307,6 +1307,7 @@ void XrdPosixXrootd::initEnv()
 // debug=n     - debug level (0 off, 1 low, 2 medium, 3 high).
 // max2cache=n - maximum read to cache          (can be suffized in k, m, g).
 // maxfiles=n  - maximum number of files to support.
+// minp=n      - minimum number of pages needed.
 // mode={c|s}  - running as a client (default) or server.
 // optlg=1     - log statistics
 // optpr=1     - enable pre-reads
@@ -1334,6 +1335,10 @@ void XrdPosixXrootd::initEnv(char *eData)
    initEnv(theEnv, "cachesz",   Val); if (Val >= 0) myParms.CacheSize = Val;
    initEnv(theEnv, "maxfiles",  Val); if (Val >= 0) myParms.MaxFiles  = Val;
    initEnv(theEnv, "max2cache", Val); if (Val >= 0) myParms.Max2Cache = Val;
+   initEnv(theEnv, "minpages",  Val); if (Val >= 0)
+                                         {if (Val > 32767) Val = 32767;
+                                          myParms.minPages = Val;
+                                         }
    initEnv(theEnv, "pagesz",    Val); if (Val >= 0) myParms.PageSize  = Val;
 
 // Get Debug setting

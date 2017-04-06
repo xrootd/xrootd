@@ -30,7 +30,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/types.h>
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <sys/types.h>

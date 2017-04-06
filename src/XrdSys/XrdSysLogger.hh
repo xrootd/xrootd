@@ -66,7 +66,12 @@ public:
 //! Destructor
 //-----------------------------------------------------------------------------
 
-        ~XrdSysLogger() {if (ePath) free(ePath);}
+        ~XrdSysLogger()
+        {
+          RmLogRotateLock();
+          if (ePath)
+            free(ePath);
+        }
 
 //-----------------------------------------------------------------------------
 //! Add a message to be printed at midnight.
@@ -235,6 +240,8 @@ void        FifoWait();
 int         Time(char *tbuff);
 static int  TimeStamp(struct timeval &tVal, unsigned long tID,
                       char *tbuff, int tbsz, bool hires);
+int         HandleLogRotateLock( bool dorotate );
+void        RmLogRotateLock();
 
 struct mmMsg
       {mmMsg *next;

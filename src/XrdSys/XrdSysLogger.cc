@@ -198,6 +198,12 @@ int XrdSysLogger::Bind(const char *path, int lfh)
    doLFR = (lfh > 0);
    if ((rc = ReBind(0))) return rc;
 
+// Lock the logs if XRootD is suppose to handle log rotation itself
+//
+  rc = HandleLogRotateLock( doLFR );
+  if( rc )
+    return -rc;
+
 // Handle specifics of lofile rotation
 //
    if (eInt == onFifo) {if ((rc = FifoMake())) return -rc;}
@@ -439,6 +445,48 @@ int XrdSysLogger::FifoMake()
    fifoFN = strdup(buff);
    eInt = saveInt;
    return 0;
+}
+
+/******************************************************************************/
+/*                  H a n d l e L o g R o t a t e L o c k                     */
+/******************************************************************************/
+int XrdSysLogger::HandleLogRotateLock( bool dorotate )
+{
+  if( !ePath ) return 0;
+
+  char *end = rindex(ePath, '/') + 1;
+  const std::string lckPath = std::string( ePath, end ) + ".lock";
+  int rc = unlink( lckPath.c_str() );
+  if( rc && errno != ENOENT )
+  {
+    BLAB( "The logfile lock (" << lckPath.c_str() << ") exists and cannot be removed: " << strerror( errno ) );
+    return EEXIST;
+  }
+
+  if( dorotate )
+  {
+    rc = open( lckPath.c_str(), O_CREAT, 0644 );
+    if( rc < 0 )
+    {
+      BLAB( "Failed to create the logfile lock (" << lckPath.c_str() << "): " << strerror( errno ) );
+      return errno;
+    }
+    close( rc );
+  }
+
+  return 0;
+}
+
+/******************************************************************************/
+/*                      R m L o g R o t a t e L o c k                         */
+/******************************************************************************/
+void XrdSysLogger::RmLogRotateLock()
+{
+  if( !ePath ) return;
+
+  char *end = rindex(ePath, '/') + 1;
+  const std::string lckPath = std::string( ePath, end ) + ".lock";
+  unlink( lckPath.c_str() );
 }
 
 /******************************************************************************/

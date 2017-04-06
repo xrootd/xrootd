@@ -61,6 +61,8 @@ struct CephFileRef : CephFile {
   int flags;
   mode_t mode;
   unsigned long long offset;
+  unsigned rdcount;
+  unsigned wrcount;
 };
 
 /// small struct for directory listing
@@ -405,6 +407,8 @@ static CephFileRef getCephFileRef(const char *path, XrdOucEnv *env, int flags,
   fr.flags = flags;
   fr.mode = mode;
   fr.offset = 0;
+  fr.rdcount = 0;
+  fr.wrcount = 0;
   return fr;
 }
 
@@ -577,7 +581,7 @@ static int ceph_posix_internal_truncate(const CephFile &file, unsigned long long
 int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode) {
   CephFileRef fr = getCephFileRef(pathname, env, flags, mode, 0);
   int fd = insertFileRef(fr);
-  logwrapper((char*)"ceph_open : fd %d associated to %s", fd, pathname);
+  logwrapper((char*)"ceph_open: fd %d associated to %s", fd, pathname);
   if (flags & (O_WRONLY|O_RDWR)) {
     insertOpenForWrite(fr.name);
   }
@@ -604,7 +608,8 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 int ceph_posix_close(int fd) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
-    logwrapper((char*)"ceph_close: closed fd %d", fd);
+    logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d",
+               fd, fr->name.c_str(), fr->rdcount, fr->wrcount);
     if (fr->flags & (O_WRONLY|O_RDWR)) {
       deleteOpenForWrite(fr->name);
     }
@@ -665,6 +670,7 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
     int rc = striper->write(fr->name, bl, count, fr->offset);
     if (rc) return rc;
     fr->offset += count;
+    fr->wrcount++;
     return count;
   } else {
     return -EBADF;
@@ -674,7 +680,8 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
 ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
-    logwrapper((char*)"ceph_write: for fd %d, count=%d", fd, count);
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_write: for fd %d, count=%d", fd, count);
     if ((fr->flags & (O_WRONLY|O_RDWR)) == 0) {
       return -EBADF;
     }
@@ -686,6 +693,7 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     bl.append((const char*)buf, count);
     int rc = striper->write(fr->name, bl, count, offset);
     if (rc) return rc;
+    fr->wrcount++;
     return count;
   } else {
     return -EBADF;
@@ -706,11 +714,12 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
     size_t count = aiop->sfsAio.aio_nbytes;
     const char *buf = (const char*)aiop->sfsAio.aio_buf;
     size_t offset = aiop->sfsAio.aio_offset;
-    // get the striper object
-    logwrapper((char*)"ceph_aio_write: for fd %d, count=%d", fd, count);
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_aio_write: for fd %d, count=%d", fd, count);
     if ((fr->flags & (O_WRONLY|O_RDWR)) == 0) {
       return -EBADF;
     }
+    // get the striper object
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
     if (0 == striper) {
       return -EINVAL;
@@ -741,8 +750,9 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
 ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
-    logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
-    if ((fr->flags & (O_WRONLY|O_RDWR)) != 0) {
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
+    if ((fr->flags & O_WRONLY) != 0) {
       return -EBADF;
     }
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
@@ -754,6 +764,7 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
     if (rc < 0) return rc;
     bl.copy(0, rc, (char*)buf);
     fr->offset += rc;
+    fr->rdcount++;
     return rc;
   } else {
     return -EBADF;
@@ -763,8 +774,9 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
 ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
-    logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
-    if ((fr->flags & (O_WRONLY|O_RDWR)) != 0) {
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
+    if ((fr->flags & O_WRONLY) != 0) {
       return -EBADF;
     }
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
@@ -775,6 +787,7 @@ ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
     int rc = striper->read(fr->name, &bl, count, offset);
     if (rc < 0) return rc;
     bl.copy(0, rc, (char*)buf);
+    fr->rdcount++;
     return rc;
   } else {
     return -EBADF;
@@ -801,11 +814,12 @@ ssize_t ceph_aio_read(int fd, XrdSfsAio *aiop, AioCB *cb) {
     // get the parameters from the Xroot aio object
     size_t count = aiop->sfsAio.aio_nbytes;
     size_t offset = aiop->sfsAio.aio_offset;
-    // get the striper object
-    logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
-    if ((fr->flags & (O_WRONLY|O_RDWR)) != 0) {
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_aio_read: for fd %d, count=%d", fd, count);
+    if ((fr->flags & O_WRONLY) != 0) {
       return -EBADF;
     }
+    // get the striper object
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
     if (0 == striper) {
       return -EINVAL;
@@ -858,7 +872,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
 }
 
 int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
-  logwrapper((char*)"ceph_stat : %s", pathname);
+  logwrapper((char*)"ceph_stat: %s", pathname);
   // minimal stat : only size and times are filled
   // atime, mtime and ctime are set all to the same value
   // mode is set arbitrarily to 0666

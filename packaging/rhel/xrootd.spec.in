@@ -451,6 +451,10 @@ install -m 644 packaging/common/cmsd@.service $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/frm_xfrd@.service $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/frm_purged@.service $RPM_BUILD_ROOT%{_unitdir}
 
+# tmpfiles.d
+mkdir -p $RPM_BUILD_ROOT%{_tmpfilesdir}
+install -m 0644 packaging/rhel/xrootd.tmpfiles $RPM_BUILD_ROOT%{_tmpfilesdir}/%{name}.conf
+
 %else
 
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
@@ -641,6 +645,7 @@ fi
 
 %if %{use_systemd}
 %{_unitdir}/*
+%{_tmpfilesdir}/%{name}.conf
 %else
 %config(noreplace) %{_sysconfdir}/sysconfig/xrootd
 %{_initrddir}/*
@@ -649,6 +654,7 @@ fi
 %files libs
 %defattr(-,root,root,-)
 %{_libdir}/libXrdAppUtils.so.1*
+%{_libdir}/libXrdClProxyPlugin-4.so
 %{_libdir}/libXrdCks*-4.so
 %{_libdir}/libXrdCrypto.so.1*
 %{_libdir}/libXrdCryptoLite.so.1*

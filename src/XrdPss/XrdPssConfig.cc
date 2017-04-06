@@ -523,6 +523,7 @@ const char *XrdPssSys::getDomain(const char *hName)
              debug     {0 | 1 | 2}
              logstats  enables stats logging
              max2cache largest read to cache   (can be suffixed with k, m, g).
+             minpages  smallest number of pages allowed (default 256)
              mode      {r | w}
              pagesize  size of each cache page (can be suffixed with k, m, g).
              preread   [minpages [minrdsz]] [perf nn [recalc]]
@@ -535,12 +536,13 @@ const char *XrdPssSys::getDomain(const char *hName)
 
 int XrdPssSys::xcach(XrdSysError *Eroute, XrdOucStream &Config)
 {
-   long long llVal, cSize=-1, m2Cache=-1, pSize=-1;
+   long long llVal, cSize=-1, m2Cache=-1, pSize=-1, minPg = -1;
    const char *ivN = 0;
    char  *val, *sfSfx = 0, sfVal = '0', lgVal = '0', dbVal = '0', rwVal = '0';
    char eBuff[2048], pBuff[1024], *eP;
    struct sztab {const char *Key; long long *Val;} szopts[] =
                {{"max2cache", &m2Cache},
+                {"minpages",  &minPg},
                 {"pagesize",  &pSize},
                 {"size",      &cSize}
                };
@@ -595,6 +597,10 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(szopts[i].Key, val)) break;
    if (cSize > 0)    eP += sprintf(eP, "&cachesz=%lld", cSize);
    if (dbVal != '0') eP += sprintf(eP, "&debug=%c", dbVal);
    if (m2Cache > 0)  eP += sprintf(eP, "&max2cache=%lld", m2Cache);
+   if (minPg > 0)
+      {if (minPg > 32767) minPg = 32767;
+       eP += sprintf(eP, "&minpages=%lld", minPg);
+      }
    if (pSize > 0)    eP += sprintf(eP, "&pagesz=%lld", pSize);
    if (lgVal != '0') strcat(eP, "&optlg=1");
    if (sfVal != '0' || sfSfx)
