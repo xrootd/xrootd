@@ -50,6 +50,9 @@ IOFileBlock::~IOFileBlock()
 {
    // called from Detach() if no sync is needed or
    // from Cache's sync thread
+
+   TRACEIO(Debug, "deleting IOFileBlock");
+   
    while (! m_blocks.empty())
    {
       std::map<int, File*>::iterator it = m_blocks.begin();
@@ -63,7 +66,7 @@ XrdOucCacheIO* IOFileBlock::Detach()
 {
    // Called from XrdPosixFile destructor
 
-   TRACEIO(Debug, "IOFileBlock detaching file");
+   TRACEIO(Debug, "detach IOFileBlock");
          
    XrdOucCacheIO * io = GetInput();
 
