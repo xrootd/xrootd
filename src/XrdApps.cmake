@@ -2,11 +2,6 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
-# Modules
-#-------------------------------------------------------------------------------
-set( LIB_XRDCL_PROXY_PLUGIN XrdClProxyPlugin-${PLUGIN_VERSION} )
-
-#-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
 set( XRD_APP_UTILS_VERSION   1.0.0 )
@@ -127,28 +122,10 @@ target_link_libraries(
   ${EXTRA_LIBS} )
 
 #-------------------------------------------------------------------------------
-# XrdClProxyPlugin library
-#-------------------------------------------------------------------------------
-add_library(
-  ${LIB_XRDCL_PROXY_PLUGIN}
-  MODULE
-  XrdApps/XrdClProxyPlugin/ProxyPrefixPlugin.cc
-  XrdApps/XrdClProxyPlugin/ProxyPrefixFile.cc)
-
-target_link_libraries(${LIB_XRDCL_PROXY_PLUGIN} XrdCl)
-
-set_target_properties(
-  ${LIB_XRDCL_PROXY_PLUGIN}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
-
-#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp-old XrdAppUtils xrdmapc
-          xrdacctest ${LIB_XRDCL_PROXY_PLUGIN}
+  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp-old XrdAppUtils xrdmapc xrdacctest
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
