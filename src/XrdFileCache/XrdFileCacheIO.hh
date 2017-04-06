@@ -35,6 +35,8 @@ public:
 
    virtual void RelinquishFile(File*) = 0;
 
+   virtual bool FinalizeSyncBeforeExit() = 0;
+
    XrdOucTrace* GetTrace() {return m_cache.GetTrace(); }
 
    XrdOucCacheIO2* GetInput();
@@ -47,6 +49,7 @@ protected:
    std::string m_path;
    const char* GetPath() { return m_path.c_str(); }
 
+   bool  m_syncDiskAfterDetach;
 private:
    XrdOucCacheIO2   *m_io;                //!< original data source
    XrdSysMutex updMutex;
