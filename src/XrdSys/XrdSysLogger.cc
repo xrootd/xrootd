@@ -454,8 +454,8 @@ int XrdSysLogger::HandleLogRotateLock( bool dorotate )
 {
   if( !ePath ) return 0;
 
-  char *end = rindex(ePath, '/') + 1;
-  const std::string lckPath = std::string( ePath, end ) + ".lock";
+  char *end = rindex(ePath, '/');
+  const std::string lckPath = (end ? std::string(ePath,end+1)+".lock" : ".lock");
   int rc = unlink( lckPath.c_str() );
   if( rc && errno != ENOENT )
   {
