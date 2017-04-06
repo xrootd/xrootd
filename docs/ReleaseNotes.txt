@@ -7,6 +7,49 @@ Release Notes
 
 
 -------------
+Version 4.6.1
+-------------
+
++ **Major bug fixes**
+  * **[XrdCrypto/XrdSecgsi]** Make sure the CRL is loaded for the right CA.
+  * **[XrdCrypto]** Support for OpenSSL 1.1
+  * **[XrdSecgsi]** Improve detection of errors when loading CRL.
+  * **[XrdSecgsi]** Fix for valid legacy proxy detection (PR #469)
+  * **[XrdSecgsi]** Absent CRLs not an error (#465)
+  * **[XrdSecgsi]** Fix for CA chain verification segfault (issue #463)
+  * **[XrdCl]** Make sure there is no request/response mismatch, when
+                the retry logics tries to recover from an error.
+  * **[XrdCl/Server]** Be case insensitive when it comes to checksum names.
+  * **[XrdCeph]** Fix ability to read back a file written with O_RDWR flags.
+  * **[XrdCeph]** Disable logging of every read and write operation. A proper 
+                  debug-level logging would be needed instead.
+  * **[XrdCeph]** Added statistics about read/write operations in the 
+                  close log.
+
++ **Minor bug fixes**
+  * **[XrdHttp]** Make the XrdHttpSecXtractor API backwards compatible.
+  * **[XrdFileCache]** Make caching proxy configuration backwards
+                       compatible.
+  * **[XrdFileCache]** Fix cache v1 to cache v2 bridge after introducing 
+                       cache v2.
+  * **[XrdSec]** Use CommonCrypto header instead of openssl for SHA on OSX.
+  * **[XrdSeckrb5] Fix memory leaks in client context and cache.
+  * **[Server/Logrotate]** Make sure XRootD logrotate does not interfire with 
+                           system logrotate, fixes #490
+  * **[XrdCl]** Make sure ForkHandler doesn't segv if PostMaster is null, 
+                fixes #489
+  * **[Packaging]** Set the working dir to /var/spool/xrootd on CC7, 
+                    fixes #365 
+  * **[Packaging]** On platforms where systemd is available, manage files in 
+                    /var/run with tmpfiles.d, fixes #485
+
++ **Miscellaneous**
+  * **[XrdPosix]** Add new minpages option to pss.cache to support large pages.
+  * **[XrdPosix]** Make XrdPosix.hh a public header; closes #479
+  * **[XrdApps]** Remove XrdClient dependency from xrdadler32.
+  * **[Server]** Add XrdCksAssist functions to help handle XRootD checksums.
+
+-------------
 Version 4.6.0
 -------------
 
