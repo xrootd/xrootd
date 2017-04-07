@@ -91,6 +91,7 @@ int         PingTick;     // Ping clock value
 int         LogPerf;      // AskPerf intervals before logging perf
 
 int         PortTCP;      // TCP Port to  listen on
+int         PortSUP;      // TCP Port to  listen on (supervisor)
 XrdInet    *NetTCP;       // -> Network Object
 
 int         P_cpu;        // % CPU Capacity in load factor
@@ -227,6 +228,7 @@ int  xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile);
 int  xsecl(XrdSysError *edest, XrdOucStream &CFile);
 int  xspace(XrdSysError *edest, XrdOucStream &CFile);
 int  xsubc(XrdSysError *edest, XrdOucStream &CFile);
+int  xsupp(XrdSysError *edest, XrdOucStream &CFile);
 int  xtrace(XrdSysError *edest, XrdOucStream &CFile);
 
 XrdInet          *NetTCPr;     // Network for supervisors

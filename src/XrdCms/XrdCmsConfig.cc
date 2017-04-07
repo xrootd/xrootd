@@ -332,7 +332,8 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
                NoGo = 1;
               }
           }
-          else PortTCP = 0;
+          else if ((isManager && isServer)) PortTCP = PortSUP;
+                  else PortTCP = 0;
       }
 
 // If we are configured in proxy mode then we are running a shared filesystem
@@ -508,6 +509,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("seclib",        xsecl);   // Server,  non-dynamic
    TS_Xeq("subcluster",    xsubc);   // Manager, non-dynamic
+   TS_Xeq("superport",     xsupp);   // Super,   non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
    TS_Xer("whitelist",     xblk,true);//Manager, non-dynamic
@@ -656,6 +658,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    MaxLoad  = 0x7fffffff;
    MsgTTL   = 7;
    PortTCP  = 0;
+   PortSUP  = 0;
    P_cpu    = 0;
    P_fuzz   = 20;
    P_gsdf   = 0;
@@ -2931,6 +2934,50 @@ int XrdCmsConfig::xsubc(XrdSysError *eDest, XrdOucStream &CFile)
 // Parse the specification and return
 //
    return (XrdCmsUtils::ParseMan(eDest, &SanList, hSpec, hPort) ? 0 : 1);
+}
+  
+/******************************************************************************/
+/*                                 x s u p p                                  */
+/******************************************************************************/
+
+/* Function: xsupp
+
+   Purpose:  To parse the directive: superport <tcpnum>
+                                               [if [<hlst>] [named <nlst>]]
+
+             <tcpnum>   number of the tcp port for incomming requests
+             <hlst>     list of applicable host patterns
+             <nlst>     list of applicable instance names.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdCmsConfig::xsupp(XrdSysError *eDest, XrdOucStream &CFile)
+{   const char *invp = "superport port";
+    char *val, cport[32];
+    int rc, pnum;
+
+    if (!(val = CFile.GetWord()))
+       {eDest->Emsg("Config", "tcp port not specified"); return 1;}
+
+    strncpy(cport, val, sizeof(cport)-1); cport[sizeof(cport)-1] = '\0';
+
+    if ((val = CFile.GetWord()) && !strcmp("if", val))
+       if ((rc = XrdOucUtils::doIf(eDest,CFile,"superport directive",
+                                   myName,myInsName,myProg))<=0)
+          {if (!rc) CFile.noEcho(); return rc < 0;}
+
+         if (!strcmp(cport, "any")) pnum = 0;
+    else if (!strcmp(cport, "-p"))  pnum = PortTCP;
+    else if (isdigit(*cport))
+            {if (XrdOuca2x::a2i(*eDest,invp,cport,&pnum,1,65535)) return 0;}
+    else if (!(pnum = XrdNetUtils::ServPort(cport)))
+            {eDest->Emsg("Config", "Unable to find superport", cport);
+             return 1;
+            }
+
+    PortSUP = pnum;
+
+    return 0;
 }
   
 /******************************************************************************/
