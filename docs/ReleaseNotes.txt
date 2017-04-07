@@ -33,9 +33,10 @@ Version 4.6.1
   * **[XrdFileCache]** Fix cache v1 to cache v2 bridge after introducing 
                        cache v2.
   * **[XrdSec]** Use CommonCrypto header instead of openssl for SHA on OSX.
-  * **[XrdSeckrb5] Fix memory leaks in client context and cache.
+  * **[XrdSeckrb5]** Fix memory leaks in client context and cache.
   * **[Server/Logrotate]** Make sure XRootD logrotate does not interfire with 
                            system logrotate, fixes #490
+  * ** [Server]** Avoid std::ABORT should a naked logfile path be specified. 
   * **[XrdCl]** Make sure ForkHandler doesn't segv if PostMaster is null, 
                 fixes #489
   * **[Packaging]** Set the working dir to /var/spool/xrootd on CC7, 
