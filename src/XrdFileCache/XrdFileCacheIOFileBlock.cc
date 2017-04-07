@@ -213,7 +213,7 @@ int IOFileBlock::initLocalStat()
          else
          {
             // file exist but can't read it
-            TRACEIO(Error, "IOFileBlock::initCachedStat failed to read file size from info file");
+            TRACEIO(Debug, "IOFileBlock::initCachedStat info file is not complete");
          }
       }
    }

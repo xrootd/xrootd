@@ -129,7 +129,7 @@ int IOEntireFile::initCachedStat(const char* path)
          else
          {
             // file exist but can't read it
-            TRACEIO(Error, "IOEntireFile::initCachedStat failed to read file size from info file");
+            TRACEIO(Debug, "IOEntireFile::initCachedStat info file is not complete");
          }
       }
       else
