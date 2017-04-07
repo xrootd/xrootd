@@ -5,6 +5,9 @@ XRootD
 Prerelease Notes
 ================
 
++ **New Features**
+  * **[Server]** Allow port to be specified for a supervisor.
+
 + **Major bug fixes**
   * **[XrdCrypto/XrdSecgsi]** Make sure the CRL is loaded for the right CA.
   * **[XrdCrypto]** Support for OpenSSL 1.1
