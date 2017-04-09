@@ -551,6 +551,46 @@ void XrdOucUtils::toLower(char *str)
 }
   
 /******************************************************************************/
+/*                                 T o k e n                                  */
+/******************************************************************************/
+
+int XrdOucUtils::Token(const char **str, char delim, char *buff, int bsz)
+{
+   const char *eP, *bP = *str;
+   int aLen, mLen;
+
+// Trim off the delimeters. Return zero if nothing left.
+//
+   while(*bP && *bP == delim) bP++;
+   if (*bP == 0) {*buff = 0; return 0;}
+
+// Find the next delimiter
+//
+   eP = bP;
+   while(*eP && *eP != delim) eP++;
+
+// If we ended at a null, make sure next call will return zero
+//
+   if (*eP == 0) *str = eP;
+      else       *str = eP+1;
+
+// Calculate length and make sure we don't overrun the buffer
+//
+   aLen = eP-bP;
+   if (aLen >= bsz) mLen = bsz-1;
+      else          mLen = aLen;
+
+// Copy token into buffer and end with null byte
+//
+   strncpy(buff, bP, mLen);
+   buff[mLen] = 0;
+
+// Return actual length
+//
+   return aLen;
+}
+
+/******************************************************************************/
 /*                            U n d e r c o v e r                             */
 /******************************************************************************/
 #ifdef WIN32

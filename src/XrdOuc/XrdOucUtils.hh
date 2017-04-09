@@ -82,6 +82,8 @@ static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 
 static void  toLower(char *str);
 
+static int   Token(const char **str, char delim, char *buff, int bsz);
+
 static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
 
 static int   UserName(uid_t uID, char *uName, int uNsz);
