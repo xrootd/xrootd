@@ -448,7 +448,7 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
 
 mkdir -p $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/xrootd@.service $RPM_BUILD_ROOT%{_unitdir}
-install -m 644 packaging/common/xrootd.socket   $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/xrdhttp.socket   $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/cmsd@.service $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/frm_xfrd@.service $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/frm_purged@.service $RPM_BUILD_ROOT%{_unitdir}
