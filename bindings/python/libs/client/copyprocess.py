@@ -21,6 +21,7 @@
 # granted to it by virtue of its status as an Intergovernmental Organization
 # or submit itself to any jurisdiction.
 #-------------------------------------------------------------------------------
+from __future__ import absolute_import, division, print_function
 
 from pyxrootd import client
 from XRootD.client.url import URL
@@ -37,7 +38,7 @@ class ProgressHandlerWrapper(object):
       self.handler.begin(jobId, total, URL(source), URL(target))
 
   def end(self, jobId, results):
-    if results.has_key('status'):
+    if 'success' in results:
       results['status'] = XRootDStatus(results['status'])
     if self.handler:
       self.handler.end(jobId, results)
@@ -134,6 +135,6 @@ class CopyProcess(object):
     """
     status, results = self.__process.run(ProgressHandlerWrapper(handler))
     for x in results:
-      if x.has_key('status'):
+      if 'status' in x:
         x['status'] = XRootDStatus(x['status'])
     return XRootDStatus(status), results
