@@ -81,7 +81,7 @@ namespace PyXRootD
   static void URL_dealloc( URL *self )
   {
     delete self->url;
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
@@ -134,8 +134,7 @@ namespace PyXRootD
   //! URL binding type object
   //----------------------------------------------------------------------------
   static PyTypeObject URLType = {
-    PyObject_HEAD_INIT(NULL)
-    0,                                          /* ob_size */
+    PyVarObject_HEAD_INIT(NULL, 0)
     "pyxrootd.URL",                             /* tp_name */
     sizeof(URL),                                /* tp_basicsize */
     0,                                          /* tp_itemsize */

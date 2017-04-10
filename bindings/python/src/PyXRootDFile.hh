@@ -91,7 +91,7 @@ namespace PyXRootD
   static void File_dealloc( File *self )
   {
     delete self->file;
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
@@ -121,7 +121,7 @@ namespace PyXRootD
     //--------------------------------------------------------------------------
     // Raise StopIteration if the line we just read is empty
     //--------------------------------------------------------------------------
-    if ( PyString_Size( line ) == 0 ) {
+    if ( PyBytes_Size( line ) == 0 ) {
       PyErr_SetNone( PyExc_StopIteration );
       return NULL;
     }
@@ -207,8 +207,7 @@ namespace PyXRootD
   //! File binding type object
   //----------------------------------------------------------------------------
   static PyTypeObject FileType = {
-    PyObject_HEAD_INIT(NULL)
-    0,                                          /* ob_size */
+    PyVarObject_HEAD_INIT(NULL, 0)
     "pyxrootd.File",                            /* tp_name */
     sizeof(File),                               /* tp_basicsize */
     0,                                          /* tp_itemsize */
