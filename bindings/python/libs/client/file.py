@@ -46,6 +46,9 @@ class File(object):
   def __next__(self):
     return self.__file.next()
 
+  # Python 2 compatibility
+  next = __next__
+
   def open(self, url, flags=0, mode=0, timeout=0, callback=None):
     """Open the file pointed to by the given URL.
 
