@@ -14,7 +14,7 @@ find_path( SYSTEMD_INCLUDE_DIR systemd/sd-daemon.h
   PATH_SUFFIXES include
 )
 
-find_library( SYSTEMD_LIBRARY systemd-daemon
+find_library( SYSTEMD_LIBRARY systemd
   HINTS
   ${SYSTEMD_DIR}
   $ENV{SYSTEMD_DIR}
