@@ -61,6 +61,7 @@ namespace XrdCl
   const uint16_t errNotSupported   = 13;
   const uint16_t errDataError      = 14; //!< data is corrupted
   const uint16_t errNotImplemented = 15; //!< Operation is not implemented
+  const uint16_t errNoMoreReplicas = 16; //!< No more replicas to try
 
   //----------------------------------------------------------------------------
   // Socket related errors

@@ -306,12 +306,6 @@ bool AllOptionsSupported( XrdCpConfig *config )
     return false;
   }
 
-  if( config->nSrcs != 1 )
-  {
-    std::cerr << "Multiple sources are not yet supported" << std::endl;
-    return false;
-  }
-
   return true;
 }
 
@@ -613,6 +607,17 @@ int main( int argc, char **argv )
   }
 
   //----------------------------------------------------------------------------
+  // Extreme Copy
+  //----------------------------------------------------------------------------
+  int nbSources = 0;
+  bool xcp      = false;
+  if( config.Want( XrdCpConfig::DoSources ) )
+  {
+    nbSources = config.nSrcs;
+    xcp       = true;
+  }
+
+  //----------------------------------------------------------------------------
   // Environment settings
   //----------------------------------------------------------------------------
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
@@ -621,6 +626,9 @@ int main( int argc, char **argv )
 
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
+
+  int blockSize = DefaultXCpBlockSize;
+  env->GetInt( "XCpBlockSize", blockSize );
 
   int parallelChunks = DefaultCPParallelChunks;
   env->GetInt( "CPParallelChunks", parallelChunks );
@@ -795,9 +803,14 @@ int main( int argc, char **argv )
     properties.Set( "chunkSize",      chunkSize      );
     properties.Set( "parallelChunks", parallelChunks );
     properties.Set( "zipArchive",     zip            );
+    properties.Set( "xcp",            xcp            );
+    properties.Set( "xcpBlockSize",   blockSize      );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );
+
+    if( xcp )
+      properties.Set( "nbXcpSources", nbSources      );
 
 
     XRootDStatus st = process.AddJob( properties, results );

@@ -78,9 +78,21 @@ class MetalinkRedirector : public VirtualRedirector
       return type + ":" + it->second;
     }
 
+    //----------------------------------------------------------------------------
+    //! Returns the file size if specified in the metalink file,
+    //! otherwise a negative number
+    //----------------------------------------------------------------------------
     long long GetSize() const
     {
       return pFileSize;
+    }
+
+    //----------------------------------------------------------------------------
+    //! Returns a vector with replicas as given in the meatlink file
+    //----------------------------------------------------------------------------
+    const std::vector<std::string>& GetReplicas()
+    {
+      return pReplicas;
     }
 
   private:
@@ -144,7 +156,7 @@ class MetalinkRedirector : public VirtualRedirector
 
     typedef std::list< std::pair<const Message*, Stream*> > RedirectList;
     typedef std::map<std::string, std::string>              CksumMap;
-    typedef std::list<std::string>                          ReplicaList;
+    typedef std::vector<std::string>                        ReplicaList;
 
     RedirectList     pPendingRedirects;
     std::string      pUrl;

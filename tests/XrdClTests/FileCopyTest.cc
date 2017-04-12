@@ -329,14 +329,15 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",     sourceFile ) );
   CPPUNIT_ASSERT( testEnv->GetString( "DataPath",         dataPath ) );
 
-  std::string sourceURL   = manager1 + "/" + sourceFile;
-  std::string targetPath  = dataPath + "/tpcFile";
-  std::string targetURL   = manager2 + "/" + targetPath;
-  std::string metalinkURL = metamanager + "/" + dataPath + "/metalink/mlTpcTest.meta4";
-  std::string zipURL      = metamanager + "/" + dataPath + "/data.zip";
-  std::string fileInZip   = "paper.txt";
+  std::string sourceURL    = manager1 + "/" + sourceFile;
+  std::string targetPath   = dataPath + "/tpcFile";
+  std::string targetURL    = manager2 + "/" + targetPath;
+  std::string metalinkURL  = metamanager + "/" + dataPath + "/metalink/mlTpcTest.meta4";
+  std::string zipURL       = metamanager + "/" + dataPath + "/data.zip";
+  std::string fileInZip    = "paper.txt";
+  std::string xcpSourceURL = metamanager + "/" + dataPath + "/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
 
-  CopyProcess  process1, process2, process3, process4, process5, process6;
+  CopyProcess  process1, process2, process3, process4, process5, process6, process7;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -365,6 +366,20 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process5.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process5.Prepare() );
   CPPUNIT_ASSERT_XRDST( process5.Run(0) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  properties.Clear();
+
+  // XCp test
+  results.Clear();
+  properties.Set( "source",         xcpSourceURL  );
+  properties.Set( "target",         targetURL     );
+  properties.Set( "checkSumMode",   "end2end"     );
+  properties.Set( "checkSumType",   "zcrc32"      );
+  properties.Set( "xcp",            true          );
+  properties.Set( "nbXcpSources",   3             );
+  CPPUNIT_ASSERT_XRDST( process7.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process7.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process7.Run(0) );
   CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
   properties.Clear();
 

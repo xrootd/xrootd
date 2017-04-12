@@ -44,6 +44,7 @@ namespace
     { errNotSupported,       "Operation not supported" },
     { errDataError,          "Received corrupted data" },
     { errNotImplemented,     "Operation is not implemented" },
+    { errNoMoreReplicas,     "No more replicas to try" },
     { errInvalidAddr,        "Invalid address"      },
     { errSocketError,        "Socket error"         },
     { errSocketTimeout,      "Socket timeout"       },
