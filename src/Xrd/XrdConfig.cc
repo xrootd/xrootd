@@ -998,7 +998,7 @@ int XrdConfig::Setup(char *dfltp)
    if (PortWAN &&  (NetWAN = new XrdInet(&Log, &Trace, Police)))
       {if (Wan_Opts || Wan_Blen) NetWAN->setDefaults(Wan_Opts, Wan_Blen);
        if (myDomain) NetWAN->setDomain(myDomain);
-       if (NetWAN->Bind((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
+       if (NetWAN->BindSD((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
        PortWAN  = NetWAN->Port();
        wsz      = NetWAN->WSize();
        Wan_Blen = (wsz < Wan_Blen || !Wan_Blen ? wsz : Wan_Blen);
@@ -1020,7 +1020,7 @@ int XrdConfig::Setup(char *dfltp)
              if (Net_Opts || Net_Blen)
                 NetTCP[NetTCPlep]->setDefaults(Net_Opts, Net_Blen);
              if (myDomain) NetTCP[NetTCPlep]->setDomain(myDomain);
-             if (NetTCP[NetTCPlep]->Bind(cp->port, "tcp")) return 1;
+             if (NetTCP[NetTCPlep]->BindSD(cp->port, "tcp")) return 1;
              ProtInfo.Port   = NetTCP[NetTCPlep]->Port();
              ProtInfo.NetTCP = NetTCP[NetTCPlep];
              wsz             = NetTCP[NetTCPlep]->WSize();

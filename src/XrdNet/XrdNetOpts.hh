@@ -104,4 +104,16 @@
 // The value is in seconds (maximum timeout is 255 seconds).
 //
 #define XRDNET_TOUT      0x000000FF
+
+// The default UDP socket buffer size
+//
+#define XRDNET_UDPBUFFSZ 32768
+
+// Maximum backlog value for listen()
+//
+#define XRDNETSOCKET_MAXBKLG 255
+
+// Desired linger value for close
+//
+#define XRDNETSOCKET_LINGER    3
 #endif
