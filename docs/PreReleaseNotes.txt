@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
   * **[Server]** Allow port to be specified for a supervisor.
   * **{Server]** Add org and role types to AuthDB authorization.
+  * **[Server]** Handle systemd socket inheritance.
 
 + **Major bug fixes**
   * **[XrdCrypto/XrdSecgsi]** Make sure the CRL is loaded for the right CA.
