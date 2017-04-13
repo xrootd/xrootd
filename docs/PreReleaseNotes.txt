@@ -17,6 +17,7 @@ Prerelease Notes
   * **[XrdSecgsi]** Fix for valid legacy proxy detection (PR #469)
   * **[XrdSecgsi]** Absent CRLs not an error (#465)
   * **[XrdSecgsi]** Fix for CA chain verification segfault (issue #463)
+  * **[XrdSecgsi]** Two memory leaks (PR #503)
   * **[XrdCl]** Make sure there is no request/response mismatch, when 
                 the retry logics tries to recover from an error.
   * **[XrdCl/Server]** Be case insensitive when it comes to checksum names.
