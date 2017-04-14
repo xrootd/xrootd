@@ -1288,7 +1288,7 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
 // If we are a manager then check for the file in the local cache. Otherwise,
 // ask the underlying filesystem whether it has the file.
 //
-        if (isMan) Arg.Request.modifier = do_StateFWD(Arg);
+        if (isMan) {if(!(Arg.Request.modifier = do_StateFWD(Arg))) return 0;}
    else if (!Config.DiskOK && !Config.asProxy()) return 0;
    else if (baseFS.Limit() && Arg.Request.modifier&CmsStateRequest::kYR_metaman)
            {XrdCmsPInfo pinfo;
@@ -1300,14 +1300,11 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
                 Arg.Request.modifier = rc;
    else     return 0;
 
-// Trace response
-//
-   TRACER(Files,Arg.Path <<" responding have!");
-
 // Respond appropriately
 //
    if (Arg.Request.modifier && !noResp)
-      {xmsg[0].iov_base      = (char *)&Arg.Request;
+      {TRACER(Files,Arg.Path <<" responding have!");
+       xmsg[0].iov_base      = (char *)&Arg.Request;
        xmsg[0].iov_len       = sizeof(Arg.Request);
        xmsg[1].iov_base      = Arg.Buff;
        xmsg[1].iov_len       = Arg.Dlen;
