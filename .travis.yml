@@ -1,0 +1,15 @@
+sudo: false
+addons:
+  apt:
+    packages:
+      - libcppunit-dev
+language: cpp
+compiler:
+  - clang
+  - gcc
+script:
+  - mkdir build && cd build
+  - cmake -DENABLE_TESTS=1 ..
+  - make
+  - make test
+  - make install
