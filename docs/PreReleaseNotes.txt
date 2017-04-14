@@ -11,6 +11,7 @@ Prerelease Notes
   * **[Server]** Handle systemd socket inheritance.
 
 + **Major bug fixes**
+  * **[cmsd]** Fix feature interaction causing improper file existence to be sent.
   * **[XrdCrypto/XrdSecgsi]** Make sure the CRL is loaded for the right CA.
   * **[XrdCrypto]** Support for OpenSSL 1.1
   * **[XrdSecgsi]** Improve detection of errors when loading CRL.
