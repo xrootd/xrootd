@@ -2,6 +2,7 @@ sudo: false
 addons:
   apt:
     packages:
+      - libxml2-dev
       - libcppunit-dev
 language: cpp
 compiler:
