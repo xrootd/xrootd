@@ -44,6 +44,8 @@
 #include <pthread.h>
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 #include "XrdCeph/XrdCephPosix.hh"
 
@@ -97,6 +99,9 @@ unsigned int g_cephPoolIdx = 0;
 /// may be overwritten in the configuration file
 /// (See XrdCephOss::configure)
 unsigned int g_maxCephPoolIdx = 1;
+/// pointer to library providing Name2Name interface. 0 be default
+/// populated in case of ceph.namelib entry in the config file in XrdCephOss
+XrdOucName2Name *g_namelib = 0;
 
 /// global variable holding a list of files currently opened for write
 std::multiset<std::string> g_filesOpenForWrite;
@@ -373,6 +378,22 @@ void ceph_posix_set_defaults(const char* value) {
   }
 }
 
+/// converts a logical filename to physical one if needed
+void translateFileName(std::string &physName, std::string logName){
+  if (0 != g_namelib) {
+    char physCName[MAXPATHLEN+1];
+    int retc = g_namelib->lfn2pfn(logName.c_str(), physCName, sizeof(physCName));
+    if (retc) {
+      logwrapper((char*)"ceph_namelib : failed to translate %s using namelib plugin, using it as is", logName.c_str());
+      physName = logName;
+    } else {
+      physName = physCName;
+    }
+  } else {
+    physName = logName;
+  }
+}
+
 /// fill a ceph file struct from a path and an environment
 void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file) {
   // Syntax of the given path is :
@@ -386,10 +407,11 @@ void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file) {
   std::string spath = path;
   size_t colonPos = spath.find(':');
   if (std::string::npos == colonPos) {
-    file.name = spath;
+    // deal with name translation
+    translateFileName(file.name, spath);
     fillCephFileParams("", env, file);
   } else {
-    file.name = spath.substr(colonPos+1);
+    translateFileName(file.name, spath.substr(colonPos+1));
     fillCephFileParams(spath.substr(0, colonPos), env, file);
   }
 }
@@ -586,12 +608,17 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
     insertOpenForWrite(fr.name);
   }
   // in case of O_CREAT and O_EXCL, we should complain if the file exists
-  if ((flags & O_CREAT) && (flags & O_EXCL)) {
+  // in case of O_READ, the file has to exist
+  if (((flags & O_CREAT) && (flags & O_EXCL)) || ((flags&O_ACCMODE) == O_RDONLY)) {
     libradosstriper::RadosStriper *striper = getRadosStriper(fr);
     if (0 == striper) return -EINVAL;
     struct stat buf;
     int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime));
-    if (rc != -ENOENT) {
+    if ((flags&O_ACCMODE) == O_RDONLY) {
+      if (rc) {
+        return rc;
+      }
+    } else if (rc != -ENOENT) {
       if (0 == rc) return -EEXIST;
       return rc;
     }
@@ -852,7 +879,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
     logwrapper((char*)"ceph_stat: fd %d", fd);
     // minimal stat : only size and times are filled
     // atime, mtime and ctime are set all to the same value
-    // mode is set arbitrarily to 0666
+    // mode is set arbitrarily to 0666 | S_IFREG
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
     if (0 == striper) {
       return -EINVAL;
@@ -864,7 +891,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
     }
     buf->st_mtime = buf->st_atime;
     buf->st_ctime = buf->st_atime;
-    buf->st_mode = 0666;
+    buf->st_mode = 0666 | S_IFREG;
     return 0;
   } else {
     return -EBADF;
@@ -875,7 +902,7 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
   logwrapper((char*)"ceph_stat: %s", pathname);
   // minimal stat : only size and times are filled
   // atime, mtime and ctime are set all to the same value
-  // mode is set arbitrarily to 0666
+  // mode is set arbitrarily to 0666 | S_IFREG
   CephFile file = getCephFile(pathname, env);
   libradosstriper::RadosStriper *striper = getRadosStriper(file);
   if (0 == striper) {
@@ -895,7 +922,7 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
   }
   buf->st_mtime = buf->st_atime;
   buf->st_ctime = buf->st_atime;
-  buf->st_mode = 0666;
+  buf->st_mode = 0666 | S_IFREG;
   return 0;
 }
 
