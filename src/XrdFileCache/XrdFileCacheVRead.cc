@@ -10,7 +10,6 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
-#include "XrdPosix/XrdPosixFile.hh"
 
 namespace XrdFileCache
 {

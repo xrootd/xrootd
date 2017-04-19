@@ -33,8 +33,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdPosix/XrdPosixFile.hh"
-#include "XrdPosix/XrdPosix.hh"
 #include "XrdFileCache.hh"
 #include "Xrd/XrdScheduler.hh"
 
