@@ -42,8 +42,11 @@ bool Cache::xdlib(XrdOucStream &Config)
       libp = val;
    }
 
-   const char* params;
-   params = (val[0]) ?  Config.GetWord() : 0;
+   char params[4096];
+   if (val[0])
+      Config.GetRest(params, 4096);
+   else
+      params[0] = 0;
 
    XrdOucPinLoader* myLib = new XrdOucPinLoader(&m_log, 0, "decisionlib",
                                                 libp.c_str());
@@ -58,7 +61,7 @@ bool Cache::xdlib(XrdOucStream &Config)
       TRACE(Error, "Cache::Config() decisionlib was not able to create a decision object");
       return false;
    }
-   if (params)
+   if (params[0])
       d->ConfigDecision(params);
 
    m_decisionpoints.push_back(d);
