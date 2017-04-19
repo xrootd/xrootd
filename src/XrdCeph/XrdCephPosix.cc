@@ -146,18 +146,6 @@ bool isOpenForWrite(std::string& name) {
   return g_filesOpenForWrite.find(name) != g_filesOpenForWrite.end();
 }
 
-/// insert a filename in the list of files opened for write
-void insertOpenForWrite(std::string& name) {
-  XrdSysMutexHelper lock(g_fd_mutex);
-  g_filesOpenForWrite.insert(name);
-}
-
-/// delete a filename from the list of files opened for write
-void deleteOpenForWrite(std::string& name) {
-  XrdSysMutexHelper lock(g_fd_mutex);
-  g_filesOpenForWrite.erase(g_filesOpenForWrite.find(name));
-}
-
 /// look for a FileRef from its file descriptor
 CephFileRef* getFileRef(int fd) {
   XrdSysMutexHelper lock(g_fd_mutex);
@@ -170,8 +158,11 @@ CephFileRef* getFileRef(int fd) {
 }
 
 /// deletes a FileRef from the global table of file descriptors
-void deleteFileRef(int fd) {
+void deleteFileRef(int fd, const CephFileRef &fr) {
   XrdSysMutexHelper lock(g_fd_mutex);
+  if (fr.flags & (O_WRONLY|O_RDWR)) {
+    g_filesOpenForWrite.erase(g_filesOpenForWrite.find(fr.name));
+  }
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
     g_fds.erase(it);
@@ -186,6 +177,9 @@ int insertFileRef(CephFileRef &fr) {
   XrdSysMutexHelper lock(g_fd_mutex);
   g_fds[g_nextCephFd] = fr;
   g_nextCephFd++;
+  if (fr.flags & (O_WRONLY|O_RDWR)) {
+    g_filesOpenForWrite.insert(fr.name);
+  }
   return g_nextCephFd-1;
 }
 
@@ -604,21 +598,23 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
   CephFileRef fr = getCephFileRef(pathname, env, flags, mode, 0);
   int fd = insertFileRef(fr);
   logwrapper((char*)"ceph_open: fd %d associated to %s", fd, pathname);
-  if (flags & (O_WRONLY|O_RDWR)) {
-    insertOpenForWrite(fr.name);
-  }
   // in case of O_CREAT and O_EXCL, we should complain if the file exists
   // in case of O_READ, the file has to exist
   if (((flags & O_CREAT) && (flags & O_EXCL)) || ((flags&O_ACCMODE) == O_RDONLY)) {
     libradosstriper::RadosStriper *striper = getRadosStriper(fr);
-    if (0 == striper) return -EINVAL;
+    if (0 == striper) {
+      deleteFileRef(fd, fr);
+      return -EINVAL;
+    }
     struct stat buf;
     int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime));
     if ((flags&O_ACCMODE) == O_RDONLY) {
       if (rc) {
+        deleteFileRef(fd, fr);
         return rc;
       }
     } else if (rc != -ENOENT) {
+      deleteFileRef(fd, fr);
       if (0 == rc) return -EEXIST;
       return rc;
     }
@@ -627,7 +623,10 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
   if (flags & O_TRUNC) {
     int rc = ceph_posix_internal_truncate(fr, 0);
     // fail only if file exists and cannot be truncated
-    if (rc < 0 && rc != -ENOENT) return rc;
+    if (rc < 0 && rc != -ENOENT) {
+      deleteFileRef(fd, fr);
+      return rc;
+    }
   }
   return fd;
 }
@@ -637,10 +636,7 @@ int ceph_posix_close(int fd) {
   if (fr) {
     logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d",
                fd, fr->name.c_str(), fr->rdcount, fr->wrcount);
-    if (fr->flags & (O_WRONLY|O_RDWR)) {
-      deleteOpenForWrite(fr->name);
-    }
-    deleteFileRef(fd);
+    deleteFileRef(fd, *fr);
     return 0;
   } else {
     return -EBADF;
