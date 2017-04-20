@@ -20,6 +20,7 @@
 #include <string>
 #include <list>
 
+#include "Xrd/XrdScheduler.hh"
 #include "XrdVersion.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucCache2.hh"
@@ -187,23 +188,22 @@ public:
 
    void Prefetch();
 
-   //! Decrease attached count. Called from IO::Detach().
-   void Detach(File*);
 
    XrdOss* GetOss() const { return m_output_fs; }
 
    XrdSysError& GetSysError() { return m_log; }
 
-   File* GetFileWithLocalPath(std::string, IO* io);
+   bool HaveActiveFileWithLocalPath(std::string);
+   
+   File* GetFile(std::string, IO*, long long off = 0, long long filesize = 0);
 
-   bool  HaveActiveFileWithLocalPath(std::string);
+   void ReleaseFile(File*);
 
-   void AddActive(File*);
+   void ScheduleFileSync(File*);
 
+   void FileSyncDone(File*);
+   
    XrdOucTrace* GetTrace() { return m_trace; }
-
-   void DyingFilesNeedSync();
-   void RegisterDyingFilesNeedSync(IO*);
 
 private:
    bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
@@ -250,12 +250,12 @@ private:
    std::map<std::string, File*>         m_active;
    XrdSysMutex m_active_mutex;
 
+   void inc_ref_cnt(File*, bool lock);
+   void dec_ref_cnt(File*);
+
    // prefetching
    typedef std::vector<File*>  PrefetchList;
    PrefetchList m_prefetchList;
-
-   std::vector<IO*>  m_syncIOList;
-   XrdSysCondVar     m_sync_condVar;
 };
 
 }

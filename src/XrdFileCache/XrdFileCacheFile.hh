@@ -158,10 +158,10 @@ public:
    
    //----------------------------------------------------------------------
    //! \brief I. Return true if any of blocks need sync.
-   //! Called from IO::DyingFilesNeedSync()
+   //! Called from Cache::dec_ref_cnt on zero ref cnt
    //----------------------------------------------------------------------
    bool FinalizeSyncBeforeExit();
-   
+
    //----------------------------------------------------------------------
    //! Sync file cache inf o and output data with disk
    //----------------------------------------------------------------------
@@ -188,12 +188,18 @@ public:
 
    long long GetFileSize() { return m_fileSize; }
 
-   void WakeUp(IO* io);
+   IO*  SetIO(IO* io);
+   void ReleaseIO();
 
+   // These two methods are called under Cache's m_active lock
+   int inc_ref_cnt() { return ++m_ref_cnt; }
+   int dec_ref_cnt() { return --m_ref_cnt; }
 
 private:
    enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
 
+   int            m_ref_cnt;            //!< number of references from IO or sync
+   
    bool m_is_open;                      //!< open state
 
    IO             *m_io;                //!< original data source
@@ -206,7 +212,6 @@ private:
    long long      m_fileSize;           //!< size of cached disk file for block-based operation
 
    // fsync
-   XrdJob           *m_syncer;
    std::vector<int>  m_writes_during_sync;
    int m_non_flushed_cnt;
    bool m_in_sync;
