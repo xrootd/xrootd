@@ -31,17 +31,12 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "Xrd/XrdScheduler.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosix.hh"
 #include "XrdFileCache.hh"
 #include "Xrd/XrdScheduler.hh"
 
-namespace XrdPosixGlobals
-{
-extern XrdScheduler *schedP;
-}
 
 using namespace XrdFileCache;
 
@@ -49,20 +44,7 @@ namespace
 {
 const int PREFETCH_MAX_ATTEMPTS = 10;
 
-class DiskSyncer : public XrdJob
-{
-private:
-File *m_file;
-public:
-DiskSyncer(File *pref, const char *desc = "") :
-   XrdJob(desc),
-   m_file(pref)
-{}
-void DoIt()
-{
-   m_file->Sync();
-}
-};
+
 
 Cache* cache() { return &Cache::GetInstance(); }
 }
@@ -72,6 +54,7 @@ const char *File::m_traceID = "File";
 //------------------------------------------------------------------------------
 
 File::File(IO *io, std::string& disk_file_path, long long iOffset, long long iFileSize) :
+   m_ref_cnt(0),
    m_is_open(false),
    m_io(io),
    m_output(0),
@@ -80,7 +63,6 @@ File::File(IO *io, std::string& disk_file_path, long long iOffset, long long iFi
    m_temp_filename(disk_file_path),
    m_offset(iOffset),
    m_fileSize(iFileSize),
-   m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
    m_non_flushed_cnt(0),
    m_in_sync(false),
    m_downloadCond(0),
@@ -111,8 +93,6 @@ File::~File()
       m_output = NULL;
    }
 
-   delete m_syncer;
-   m_syncer = NULL;
 
    TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
 }
@@ -175,20 +155,21 @@ bool File::ioActive()
       blockMapEmpty =  m_block_map.empty();
    }
 
-
    return !blockMapEmpty;
 }
 
+//______________________________________________________________________________
 bool File::FinalizeSyncBeforeExit()
 {
+
    // returns true if sync is required
    // this method is called after corresponding IO is detached from PosixCache
    
+   TRACEF(Info, "File::FinalizeSyncBeforeExit" );
    bool schedule_sync = false;
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
 
-      if (m_in_sync) return true;
 
       if (m_writes_during_sync.empty()  && m_non_flushed_cnt == 0)
       {
@@ -201,36 +182,45 @@ bool File::FinalizeSyncBeforeExit()
       }
       else
       {
-         // write leftovers
          schedule_sync = true;
       }
-
-      if (schedule_sync)
-         m_in_sync = true;
    }
 
-   if (schedule_sync)
-   {
-      XrdPosixGlobals::schedP->Schedule(m_syncer);
-      return true;
-   }
-   else
-   {
-      return false;
-   }
+   return schedule_sync;
+}
 
+
+//------------------------------------------------------------------------------
+void File::ReleaseIO()
+{
+   // called from Cache::ReleaseFile
+
+   m_downloadCond.Lock();
+   m_io = 0;
+   m_downloadCond.UnLock();
+   
 }
 
 //------------------------------------------------------------------------------
 
-void File::WakeUp(IO *io)
+IO* File::SetIO(IO *io)
 {
-   // called if this object is recycled by other IO
+   // called if this object is recycled by other IO or detached from cache
+
+   bool cacheActivatePrefetch = false;
+
+   TRACEF(Debug, "File::SetIO()  " <<  (void*)io);
+   IO* oldIO = m_io;
    m_downloadCond.Lock();
-   m_io->RelinquishFile(this);
    m_io = io;
-   if (m_prefetchState != kComplete) m_prefetchState = kOn;
+   if (io && m_prefetchState != kComplete) {
+       cacheActivatePrefetch = true;
+       m_prefetchState = kOn;
+   }
    m_downloadCond.UnLock();
+   
+   if(cacheActivatePrefetch) cache()->RegisterPrefetchFile(this);
+   return oldIO;
 }
 
 //------------------------------------------------------------------------------
@@ -777,7 +767,7 @@ void File::WriteBlockToDisk(Block* b)
 
    if (schedule_sync)
    {
-      XrdPosixGlobals::schedP->Schedule(m_syncer);
+      cache()->ScheduleFileSync(this);
    }
 }
 
