@@ -669,7 +669,6 @@ namespace XrdCl
       "libXrdSecgsi.so",
       "libXrdSecgsiAuthzVO.so",
       "libXrdSecgsiGMAPDN.so",
-      "libXrdSecgsiGMAPLDAP.so",
       "libXrdSecpwd.so",
       "libXrdSecsss.so",
       "libXrdSecunix.so",
