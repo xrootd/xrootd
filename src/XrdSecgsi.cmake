@@ -5,7 +5,6 @@ include( XRootDCommon )
 # Shared library version
 #-------------------------------------------------------------------------------
 set( LIB_XRD_SEC_GSI          XrdSecgsi-${PLUGIN_VERSION} )
-set( LIB_XRD_SEC_GSI_GMAPLDAP XrdSecgsiGMAPLDAP-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_GMAPDN   XrdSecgsiGMAPDN-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_AUTHZVO  XrdSecgsiAUTHZVO-${PLUGIN_VERSION} )
 
@@ -26,20 +25,6 @@ target_link_libraries(
 
 set_target_properties(
   ${LIB_XRD_SEC_GSI}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
-
-#-------------------------------------------------------------------------------
-# The XrdSecgsiGMAPLDAP module
-#-------------------------------------------------------------------------------
-add_library(
-  ${LIB_XRD_SEC_GSI_GMAPLDAP}
-  MODULE
-  XrdSecgsi/XrdSecgsiGMAPFunLDAP.cc )
-
-set_target_properties(
-  ${LIB_XRD_SEC_GSI_GMAPLDAP}
   PROPERTIES
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
@@ -112,7 +97,6 @@ target_link_libraries(
 install(
   TARGETS
   ${LIB_XRD_SEC_GSI}
-  ${LIB_XRD_SEC_GSI_GMAPLDAP}
   ${LIB_XRD_SEC_GSI_AUTHZVO}
   ${LIB_XRD_SEC_GSI_GMAPDN}
   xrdgsiproxy

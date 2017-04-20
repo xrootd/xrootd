@@ -170,7 +170,6 @@
          "libXrdSecgsi.so",          \
          "libXrdSecgsiAUTHZVO.so",   \
          "libXrdSecgsiGMAPDLAP.so",  \
-         "libXrdSecgsiGMAPLDAP.so",  \
          "libXrdSeckrb5.so",         \
          "libXrdSecpwd.so",          \
          "libXrdSecsss.so",          \
