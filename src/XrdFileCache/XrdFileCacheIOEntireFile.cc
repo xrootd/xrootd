@@ -32,30 +32,14 @@
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
-
-
-IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache)
-   : IO(io, stats, cache),
+IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache) :
+   IO(io, stats, cache),
    m_file(0),
    m_localStat(0)
 {
    XrdCl::URL url(GetInput()->Path());
    std::string fname = url.GetPath();
-
-   m_file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
-   if (! m_file)
-   {
-      struct stat st;
-      int res = Fstat(st);
-
-      // This should not happen, but make a printout to see it.
-      if (res)
-         TRACEIO(Error, "IOEntireFile::IOEntireFile, could not get valid stat");
-
-      m_file = new File(this, fname, 0, st.st_size);
-   }
-
-   Cache::GetInstance().AddActive(m_file);
+   m_file = Cache::GetInstance().GetFile(fname, this);
 }
 
 //______________________________________________________________________________
@@ -63,12 +47,8 @@ IOEntireFile::~IOEntireFile()
 {
    // called from Detach() if no sync is needed or
    // from Cache's sync thread
-   TRACEIO(Debug, "IOEntireFile::~IOEntireFile() ");
+   TRACEIO(Debug, "IOEntireFile::~IOEntireFile() " << this);
 
-   if (m_file) {
-      m_cache.Detach(m_file);
-      m_file = 0;
-   }
    delete m_localStat;
 }
 
@@ -97,15 +77,6 @@ long long IOEntireFile::FSize()
 }
 
 //______________________________________________________________________________
-void IOEntireFile::RelinquishFile(File* f)
-{
-   TRACEIO(Info, "IOEntireFile::RelinquishFile");
-   assert(m_file == f);
-   m_file = 0;
-}
-
-//______________________________________________________________________________
-
 int IOEntireFile::initCachedStat(const char* path)
 {
    // Called indirectly from the constructor.
@@ -157,52 +128,45 @@ int IOEntireFile::initCachedStat(const char* path)
 //______________________________________________________________________________
 bool IOEntireFile::ioActive()
 {
-   if ( ! m_file)
-   {
-      return false;
-   }
-   else
-   {
-      return m_file->ioActive();
-   }
+   XrdSysMutexHelper lock(&m_mutex);
+   bool active = m_file && m_file->ioActive();
+   return active;
 }
 
 //______________________________________________________________________________
+void IOEntireFile::RelinquishFile(File*)
+{
+   // Called from Cache::GetFile
 
+   TRACE(Debug, "IOEntireFile::RelinquishFile() " << this);
+
+   XrdSysMutexHelper lock(&m_mutex);
+   m_file = 0;
+}
+
+//______________________________________________________________________________
 XrdOucCacheIO *IOEntireFile::Detach()
 {
    // Called from XrdPosixFile destructor
-   
-   TRACEIO(Debug, "IOEntireFile::Detach() ");
 
-   XrdOucCacheIO * io = GetInput();
+   TRACE(Info, "IOEntireFile::Detach() " << this);
 
-   if ( ! FinalizeSyncBeforeExit() )
    {
-      delete this;
+      XrdSysMutexHelper lock(&m_mutex);
+      if (m_file)
+      {
+         m_file->RequestSyncOfDetachStats();
+         Cache::GetInstance().ReleaseFile(m_file);
+         m_file = 0;
+      }
    }
-   else
-   {
-      m_cache.RegisterDyingFilesNeedSync(this);
-   }
-   
+   XrdOucCacheIO *io = GetInput();
+   delete this;
    return io;
 }
 
-
 //______________________________________________________________________________
-
-bool IOEntireFile::FinalizeSyncBeforeExit()
-{
-   if (m_file)
-      return m_file->FinalizeSyncBeforeExit();
-   else
-      return false;
-}
-
-//______________________________________________________________________________
-
-int IOEntireFile::Read (char *buff, long long off, int size)
+int IOEntireFile::Read(char *buff, long long off, int size)
 {
    TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size );
 

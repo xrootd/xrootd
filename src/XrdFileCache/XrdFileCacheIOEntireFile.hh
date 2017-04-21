@@ -82,8 +82,6 @@ public:
    //! Called to check if destruction needs to be done in a separate task.
    virtual bool ioActive();
    
-   virtual bool FinalizeSyncBeforeExit();
-   
    virtual int  Fstat(struct stat &sbuff);
 
    virtual long long FSize();
@@ -91,9 +89,10 @@ public:
    virtual void RelinquishFile(File*);
 
 private:
-   File* m_file;
-   struct stat      *m_localStat;
-   int     initCachedStat(const char* path);
+   XrdSysMutex  m_mutex;
+   File        *m_file;
+   struct stat *m_localStat;
+   int initCachedStat(const char* path);
 };
 
 }
