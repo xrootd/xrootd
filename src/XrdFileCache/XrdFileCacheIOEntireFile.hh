@@ -89,9 +89,10 @@ public:
    virtual void RelinquishFile(File*);
 
 private:
-   File* m_file;
-   struct stat      *m_localStat;
-   int     initCachedStat(const char* path);
+   XrdSysMutex  m_mutex;
+   File        *m_file;
+   struct stat *m_localStat;
+   int initCachedStat(const char* path);
 };
 
 }

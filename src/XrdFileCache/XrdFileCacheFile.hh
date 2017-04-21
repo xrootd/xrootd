@@ -128,8 +128,7 @@ public:
    //------------------------------------------------------------------------
    //! Constructor.
    //------------------------------------------------------------------------
-   File(IO *io, std::string &path,
-        long long offset, long long fileSize);
+   File(IO *io, const std::string &path, long long offset, long long fileSize);
 
    //------------------------------------------------------------------------
    //! Destructor.
@@ -157,7 +156,13 @@ public:
    bool ioActive();
    
    //----------------------------------------------------------------------
-   //! \brief I. Return true if any of blocks need sync.
+   //! \brief Flags that detach stats should be written out in final sync.
+   //! Called from CacheIO upon Detach.
+   //----------------------------------------------------------------------
+   void RequestSyncOfDetachStats();
+
+   //----------------------------------------------------------------------
+   //! \brief Returns true if any of blocks need sync.
    //! Called from Cache::dec_ref_cnt on zero ref cnt
    //----------------------------------------------------------------------
    bool FinalizeSyncBeforeExit();
@@ -182,7 +187,7 @@ public:
    //! Log path
    const char* lPath() const;
 
-   std::string     GetLocalPath() { return m_temp_filename; }
+   std::string     GetLocalPath() { return m_filename; }
 
    XrdOucTrace*  GetTrace();
 
@@ -191,7 +196,8 @@ public:
    IO*  SetIO(IO* io);
    void ReleaseIO();
 
-   // These two methods are called under Cache's m_active lock
+   // These three methods are called under Cache's m_active lock
+   int get_ref_cnt() { return   m_ref_cnt; }
    int inc_ref_cnt() { return ++m_ref_cnt; }
    int dec_ref_cnt() { return --m_ref_cnt; }
 
@@ -200,30 +206,30 @@ private:
 
    int            m_ref_cnt;            //!< number of references from IO or sync
    
-   bool m_is_open;                      //!< open state
+   bool           m_is_open;            //!< open state
 
-   IO             *m_io;                //!< original data source
-   XrdOssDF       *m_output;            //!< file handle for data file on disk
-   XrdOssDF       *m_infoFile;          //!< file handle for data-info file on disk
-   Info m_cfi;                          //!< download status of file blocks and access statistics
+   IO            *m_io;                 //!< original data source
+   XrdOssDF      *m_output;             //!< file handle for data file on disk
+   XrdOssDF      *m_infoFile;           //!< file handle for data-info file on disk
+   Info           m_cfi;                //!< download status of file blocks and access statistics
 
-   std::string    m_temp_filename;      //!< filename of data file on disk
+   std::string    m_filename;           //!< filename of data file on disk
    long long      m_offset;             //!< offset of cached file for block-based operation
    long long      m_fileSize;           //!< size of cached disk file for block-based operation
 
    // fsync
    std::vector<int>  m_writes_during_sync;
-   int m_non_flushed_cnt;
+   int  m_non_flushed_cnt;
    bool m_in_sync;
 
-   typedef std::list<int>         IntList_t;
-   typedef IntList_t::iterator IntList_i;
+   typedef std::list<int>        IntList_t;
+   typedef IntList_t::iterator   IntList_i;
 
-   typedef std::list<Block*>      BlockList_t;
+   typedef std::list<Block*>     BlockList_t;
    typedef BlockList_t::iterator BlockList_i;
 
-   typedef std::map<int, Block*>  BlockMap_t;
-   typedef BlockMap_t::iterator BlockMap_i;
+   typedef std::map<int, Block*> BlockMap_t;
+   typedef BlockMap_t::iterator  BlockMap_i;
 
 
    BlockMap_t m_block_map;
@@ -281,8 +287,6 @@ private:
 
    int  offsetIdx(int idx);
 };
-
-
 
 }
 
