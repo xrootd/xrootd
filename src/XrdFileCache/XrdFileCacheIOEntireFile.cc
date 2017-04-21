@@ -149,7 +149,7 @@ XrdOucCacheIO *IOEntireFile::Detach()
 {
    // Called from XrdPosixFile destructor
 
-   TRACE(Debug, "IOEntireFile::Detach() " << this);
+   TRACE(Info, "IOEntireFile::Detach() " << this);
 
    {
       XrdSysMutexHelper lock(&m_mutex);

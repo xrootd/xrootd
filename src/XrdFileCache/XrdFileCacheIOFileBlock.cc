@@ -59,7 +59,7 @@ XrdOucCacheIO* IOFileBlock::Detach()
 {
    // Called from XrdPosixFile destructor
 
-   TRACEIO(Debug, "Detach IOFileBlock");
+   TRACEIO(Info, "Detach IOFileBlock");
 
    CloseInfoFile();
    {

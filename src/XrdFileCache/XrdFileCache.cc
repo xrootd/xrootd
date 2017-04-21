@@ -164,7 +164,7 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 {
    if (Cache::GetInstance().Decide(io))
    {
-      TRACE(Debug, "Cache::Attach() " << io->Path());
+      TRACE(Info, "Cache::Attach() " << io->Path());
       IO* cio;
       if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
          cio = new IOFileBlock(io, m_stats, *this);
