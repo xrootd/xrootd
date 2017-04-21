@@ -69,6 +69,7 @@ public:
    virtual long long FSize();
 
    virtual void RelinquishFile(File*);
+
 private:
    long long                  m_blocksize;       //!< size of file-block
    std::map<int, File*>       m_blocks;          //!< map of created blocks
@@ -77,8 +78,8 @@ private:
    Info                       m_info;
    XrdOssDF*                  m_infoFile;
 
-   void GetBlockSizeFromPath();
-   int initLocalStat();
+   void  GetBlockSizeFromPath();
+   int   initLocalStat();
    File* newBlockFile(long long off, int blocksize);
    void  CloseInfoFile();
 };

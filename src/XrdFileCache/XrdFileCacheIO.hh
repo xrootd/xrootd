@@ -35,22 +35,21 @@ public:
 
    virtual void RelinquishFile(File*) = 0;
 
-   XrdOucTrace* GetTrace() {return m_cache.GetTrace(); }
+   XrdOucTrace* GetTrace() { return m_cache.GetTrace(); }
 
    XrdOucCacheIO2* GetInput();
 
 protected:
-   XrdOucCacheStats &m_statsGlobal;       //!< reference to Cache statistics
-   Cache            &m_cache;             //!< reference to Cache needed in detach
+   XrdOucCacheStats &m_statsGlobal;     //!< reference to Cache statistics
+   Cache            &m_cache;           //!< reference to Cache needed in detach
 
-   const char* m_traceID;
-   std::string m_path;
-   const char* GetPath() { return m_path.c_str(); }
+   const char  *m_traceID;
+   std::string  m_path;
+   const char*  GetPath() { return m_path.c_str(); }
 
-   bool  m_syncDiskAfterDetach;
 private:
-   XrdOucCacheIO2   *m_io;                //!< original data source
-   XrdSysMutex updMutex;
+   XrdOucCacheIO2 *m_io;                //!< original data source
+   XrdSysMutex     updMutex;
    void SetInput(XrdOucCacheIO2*);
 };
 }

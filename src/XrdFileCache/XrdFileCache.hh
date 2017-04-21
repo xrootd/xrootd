@@ -195,11 +195,11 @@ public:
 
    bool HaveActiveFileWithLocalPath(std::string);
    
-   File* GetFile(std::string, IO*, long long off = 0, long long filesize = 0);
+   File* GetFile(const std::string&, IO*, long long off = 0, long long filesize = 0);
 
    void ReleaseFile(File*);
 
-   void ScheduleFileSync(File*);
+   void ScheduleFileSync(File* f) { schedule_file_sync(f, false); }
 
    void FileSyncDone(File*);
    
@@ -210,13 +210,14 @@ private:
    bool ConfigXeq(char *, XrdOucStream &);
    bool xdlib(XrdOucStream &);
    bool xtrace(XrdOucStream &);
+
    static Cache     *m_factory;         //!< this object
 
-   XrdSysError m_log;                   //!< XrdFileCache namespace logger
-   XrdOucTrace*      m_trace;
-   const char* m_traceID;
+   XrdSysError       m_log;             //!< XrdFileCache namespace logger
+   XrdOucTrace      *m_trace;
+   const char       *m_traceID;
 
-   XrdOucCacheStats m_stats;            //!<
+   XrdOucCacheStats  m_stats;           //!<
    XrdOss           *m_output_fs;       //!< disk cache file system
 
    std::vector<XrdFileCache::Decision*> m_decisionpoints;       //!< decision plugins
@@ -225,33 +226,32 @@ private:
 
    Configuration m_configuration;           //!< configurable parameters
 
-   XrdSysCondVar m_prefetch_condVar;            //!< central lock for this class
+   XrdSysCondVar m_prefetch_condVar;        //!< central lock for this class
 
-   XrdSysMutex m_RAMblock_mutex;              //!< central lock for this class
-   int m_RAMblocks_used;
+   XrdSysMutex m_RAMblock_mutex;            //!< central lock for this class
+   int         m_RAMblocks_used;
 
    struct WriteQ
    {
       WriteQ() : condVar(0), size(0) {}
-      XrdSysCondVar condVar;                //!< write list condVar
-      size_t size;                          //!< cache size of a container
-      std::list<Block*>     queue;          //!< container
+      XrdSysCondVar     condVar;      //!< write list condVar
+      size_t            size;         //!< cache size of a container
+      std::list<Block*> queue;        //!< container
    };
 
    WriteQ m_writeQ;
 
-   struct DiskNetIO
-   {
-      DiskNetIO(IO* iIO, File* iFile) : io(iIO), file(iFile){}
-      IO* io;
-      File* file;
-   };
+   // active map
+   typedef std::map<std::string, File*> ActiveMap_t;
+   typedef ActiveMap_t::iterator        ActiveMap_i;
 
-   std::map<std::string, File*>         m_active;
-   XrdSysMutex m_active_mutex;
+   ActiveMap_t  m_active;
+   XrdSysMutex  m_active_mutex;
 
    void inc_ref_cnt(File*, bool lock);
    void dec_ref_cnt(File*);
+
+   void schedule_file_sync(File*, bool ref_cnt_already_set);
 
    // prefetching
    typedef std::vector<File*>  PrefetchList;

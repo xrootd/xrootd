@@ -32,10 +32,8 @@
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
-
-
-IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache)
-   : IO(io, stats, cache),
+IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache) :
+   IO(io, stats, cache),
    m_file(0),
    m_localStat(0)
 {
@@ -49,7 +47,7 @@ IOEntireFile::~IOEntireFile()
 {
    // called from Detach() if no sync is needed or
    // from Cache's sync thread
-   TRACEIO(Debug, "IOEntireFile::~IOEntireFile() ");
+   TRACEIO(Debug, "IOEntireFile::~IOEntireFile() " << this);
 
    delete m_localStat;
 }
@@ -78,9 +76,7 @@ long long IOEntireFile::FSize()
    return m_file->GetFileSize();
 }
 
-
 //______________________________________________________________________________
-
 int IOEntireFile::initCachedStat(const char* path)
 {
    // Called indirectly from the constructor.
@@ -132,39 +128,45 @@ int IOEntireFile::initCachedStat(const char* path)
 //______________________________________________________________________________
 bool IOEntireFile::ioActive()
 {
-   bool active =  m_file &&  m_file->ioActive();
+   XrdSysMutexHelper lock(&m_mutex);
+   bool active = m_file && m_file->ioActive();
    return active;
 }
-//______________________________________________________________________________
 
+//______________________________________________________________________________
 void IOEntireFile::RelinquishFile(File*)
 {
    // Called from Cache::GetFile
+
+   TRACE(Debug, "IOEntireFile::RelinquishFile() " << this);
+
+   XrdSysMutexHelper lock(&m_mutex);
    m_file = 0;
 }
-//______________________________________________________________________________
 
+//______________________________________________________________________________
 XrdOucCacheIO *IOEntireFile::Detach()
 {
    // Called from XrdPosixFile destructor
-   
-   TRACE(Debug, "IOEntireFile::Detach() ");
 
-   XrdOucCacheIO * io = GetInput();
+   TRACE(Debug, "IOEntireFile::Detach() " << this);
 
-   if (m_file) {
-      Cache::GetInstance().ReleaseFile( m_file);
-      m_file = 0;
+   {
+      XrdSysMutexHelper lock(&m_mutex);
+      if (m_file)
+      {
+         m_file->RequestSyncOfDetachStats();
+         Cache::GetInstance().ReleaseFile(m_file);
+         m_file = 0;
+      }
    }
-   
+   XrdOucCacheIO *io = GetInput();
    delete this;
-   
    return io;
 }
 
 //______________________________________________________________________________
-
-int IOEntireFile::Read (char *buff, long long off, int size)
+int IOEntireFile::Read(char *buff, long long off, int size)
 {
    TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size );
 

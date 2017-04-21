@@ -36,8 +36,8 @@
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
-IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cache & cache)
-   : IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_infoFile(0)
+IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cache & cache) :
+  IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_infoFile(0)
 {
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
    GetBlockSizeFromPath();
@@ -60,17 +60,20 @@ XrdOucCacheIO* IOFileBlock::Detach()
    // Called from XrdPosixFile destructor
 
    TRACEIO(Debug, "Detach IOFileBlock");
-    
-   CloseInfoFile();     
 
-   while (! m_blocks.empty())
+   CloseInfoFile();
    {
-      std::map<int, File*>::iterator it = m_blocks.begin();
-      if (it->second) m_cache.ReleaseFile(it->second);
-      m_blocks.erase(it);
+     XrdSysMutexHelper lock(&m_mutex);
+     for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+     {
+       if (it->second)
+       {
+         it->second->RequestSyncOfDetachStats();
+         m_cache.ReleaseFile(it->second);
+       }
+     }
    }
-   
-   XrdOucCacheIO * io = GetInput();
+   XrdOucCacheIO *io = GetInput();
    delete this;
    return io;
 }
@@ -138,7 +141,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
 
    TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
 
-   File* file = Cache::GetInstance().GetFile( fname, this, off, blocksize);
+   File* file = Cache::GetInstance().GetFile(fname, this, off, blocksize);
    return file;
 }
 
@@ -240,11 +243,11 @@ int IOFileBlock::initLocalStat()
 //______________________________________________________________________________
 void IOFileBlock::RelinquishFile(File* f)
 {
-   // called from cache::GetFile if File change ownership
+   // called from cache::GetFile if File f changes ownership
    
-   while (! m_blocks.empty())
+   XrdSysMutexHelper lock(&m_mutex);
+   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
-      std::map<int, File*>::iterator it = m_blocks.begin();
       if (it->second == f)
          it->second = 0;
    }
@@ -256,8 +259,9 @@ bool IOFileBlock::ioActive()
    bool active = false;
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
-      // need to initiate stop on all File object
-      if ( it->second  && it->second->ioActive()) {
+      // need to initiate stop on all File / block objects
+      if (it->second && it->second->ioActive())
+      {
          active = true;
       }
    }
