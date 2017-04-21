@@ -608,12 +608,14 @@ int XrdPssDir::Readdir(char *buff, int blen)
 */
 int XrdPssDir::Close(long long *retsz)
 {
+   DIR *theDir;
 
-// Close the directory proper if it exists
+// Close the directory proper if it exists. POSIX specified that directory
+// stream is no longer available after closedir() regardless if return value.
 //
-   if (myDir)
-      {if (XrdPosixXrootd::Closedir(myDir)) return -errno;
-       myDir = 0;
+   if ((theDir = myDir))
+      {myDir = 0;
+       if (XrdPosixXrootd::Closedir(theDir)) return -errno;
        return XrdOssOK;
       }
 
@@ -697,12 +699,13 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
   Output:   Returns XrdOssOK upon success aud -errno upon failure.
 */
 int XrdPssFile::Close(long long *retsz)
-{
-    if (fd < 0) return -XRDOSS_E8004;
+{   int rc;
+
     if (retsz) *retsz = 0;
-    if (XrdPosixXrootd::Close(fd)) return -errno;
+    if (fd < 0) return -XRDOSS_E8004;
+    rc = XrdPosixXrootd::Close(fd);
     fd = -1;
-    return XrdOssOK;
+    return (rc == 0 ? XrdOssOK : -errno);
 }
 
 /******************************************************************************/
