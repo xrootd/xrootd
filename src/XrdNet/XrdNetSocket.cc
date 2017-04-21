@@ -76,9 +76,6 @@ namespace XrdNetSocketCFG
 /******************************************************************************/
 /*                         l o c a l   d e f i n e s                          */
 /******************************************************************************/
-  
-#define XRDNETSOCKET_MAXBKLG 255
-#define XRDNETSOCKET_LINGER    3
 
 #define Err(p,a,b,c) (ErrCode = (eroute ? eroute->Emsg(#p, a, b, c) : ErrCode),-1)
 #define ErrM(p,a,b,c) (ErrCode = (eroute ? eroute->Emsg(#p, a, b, c) : ErrCode),-1)

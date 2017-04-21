@@ -36,8 +36,8 @@
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
-IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cache & cache)
-   : IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_infoFile(0)
+IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cache & cache) :
+  IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_infoFile(0)
 {
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
    GetBlockSizeFromPath();
@@ -46,21 +46,38 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
 }
 
 //______________________________________________________________________________
+IOFileBlock::~IOFileBlock()
+{
+   // called from Detach() if no sync is needed or
+   // from Cache's sync thread
+
+   TRACEIO(Debug, "deleting IOFileBlock");
+}
+
+//______________________________________________________________________________
 XrdOucCacheIO* IOFileBlock::Detach()
 {
-   // this is called when this IO is no longer active
-   XrdOucCacheIO * io = GetInput();
+   // Called from XrdPosixFile destructor
 
-   while (! m_blocks.empty())
+   TRACEIO(Info, "Detach IOFileBlock");
+
+   CloseInfoFile();
    {
-      std::map<int, File*>::iterator it = m_blocks.begin();
-      m_cache.Detach(it->second);
-      m_blocks.erase(it);
+     XrdSysMutexHelper lock(&m_mutex);
+     for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+     {
+       if (it->second)
+       {
+         it->second->RequestSyncOfDetachStats();
+         m_cache.ReleaseFile(it->second);
+       }
+     }
    }
+   XrdOucCacheIO *io = GetInput();
    delete this;
-
    return io;
 }
+
 
 //______________________________________________________________________________
 void IOFileBlock::CloseInfoFile()
@@ -124,13 +141,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
 
    TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
 
-   File* file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
-   if (! file)
-   {
-      file = new File(this, fname, off, blocksize);
-      Cache::GetInstance().AddActive(file);
-   }
-
+   File* file = Cache::GetInstance().GetFile(fname, this, off, blocksize);
    return file;
 }
 
@@ -180,7 +191,7 @@ int IOFileBlock::initLocalStat()
          else
          {
             // file exist but can't read it
-            TRACEIO(Error, "IOFileBlock::initCachedStat failed to read file size from info file");
+            TRACEIO(Debug, "IOFileBlock::initCachedStat info file is not complete");
          }
       }
    }
@@ -232,30 +243,27 @@ int IOFileBlock::initLocalStat()
 //______________________________________________________________________________
 void IOFileBlock::RelinquishFile(File* f)
 {
-   // called from Cache::Detach() or Cache::GetFileWithLocalPath()
-   // the object is in process of dying
-
+   // called from cache::GetFile if File f changes ownership
+   
    XrdSysMutexHelper lock(&m_mutex);
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
       if (it->second == f)
-      {
-         m_blocks.erase(it);
-         break;
-      }
+         it->second = 0;
    }
 }
-
 //______________________________________________________________________________
 bool IOFileBlock::ioActive()
 {
-   CloseInfoFile();
-
    XrdSysMutexHelper lock(&m_mutex);
    bool active = false;
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
-      if (it->second->ioActive()) active = true;
+      // need to initiate stop on all File / block objects
+      if (it->second && it->second->ioActive())
+      {
+         active = true;
+      }
    }
 
    return active;

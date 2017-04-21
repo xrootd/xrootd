@@ -88,7 +88,16 @@ namespace XrdCl
         pSem = new Semaphore(0);
       }
 
-    private:
+      //------------------------------------------------------------------------
+      //! Check if the queue is empty
+      //------------------------------------------------------------------------
+      bool IsEmpty()
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        return pQueue.empty();
+      }
+
+    protected:
       std::queue<Item>  pQueue;
       XrdSysMutex       pMutex;
       Semaphore        *pSem;

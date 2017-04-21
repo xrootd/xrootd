@@ -187,6 +187,8 @@ int XrdAccConfig::ConfigDB(int Warm, XrdSysError &Eroute)
    if (!(tabs.G_Hash = new XrdOucHash<XrdAccCapability>()) ||
        !(tabs.H_Hash = new XrdOucHash<XrdAccCapability>()) ||
        !(tabs.N_Hash = new XrdOucHash<XrdAccCapability>()) ||
+       !(tabs.O_Hash = new XrdOucHash<XrdAccCapability>()) ||
+       !(tabs.R_Hash = new XrdOucHash<XrdAccCapability>()) ||
        !(tabs.T_Hash = new XrdOucHash<XrdAccCapability>()) ||
        !(tabs.U_Hash = new XrdOucHash<XrdAccCapability>()) )
       {Eroute.Emsg("ConfigDB","Insufficient storage for id tables.");
@@ -208,6 +210,8 @@ int XrdAccConfig::ConfigDB(int Warm, XrdSysError &Eroute)
    if (!tabs.G_Hash->Num()) {delete tabs.G_Hash; tabs.G_Hash=0;}
    if (!tabs.H_Hash->Num()) {delete tabs.H_Hash; tabs.H_Hash=0;}
    if (!tabs.N_Hash->Num()) {delete tabs.N_Hash; tabs.N_Hash=0;}
+   if (!tabs.O_Hash->Num()) {delete tabs.O_Hash; tabs.O_Hash=0;}
+   if (!tabs.R_Hash->Num()) {delete tabs.R_Hash; tabs.R_Hash=0;}
    if (!tabs.T_Hash->Num()) {delete tabs.T_Hash; tabs.T_Hash=0;}
    if (!tabs.U_Hash->Num()) {delete tabs.U_Hash; tabs.U_Hash=0;}
    Authorization->SwapTabs(tabs);
@@ -520,6 +524,8 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
     enum DB_RecType {  Group_ID = 'g',
                         Host_ID = 'h',
                       Netgrp_ID = 'n',
+                         Org_ID = 'o',
+                        Role_ID = 'r',
                          Set_ID = 's',
                     Template_ID = 't',
                         User_ID = 'u',
@@ -553,6 +559,10 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
                             break;
           case   Netgrp_ID: hp = tabs.N_Hash;
                             gtype=XrdAccNetGroup;
+                            break;
+          case      Org_ID: hp = tabs.O_Hash;
+                            break;
+          case     Role_ID: hp = tabs.R_Hash;
                             break;
           case Template_ID: hp = tabs.T_Hash;
                             break;

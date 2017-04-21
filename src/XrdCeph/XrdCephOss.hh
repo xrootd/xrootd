@@ -52,10 +52,10 @@
 
 class XrdCephOss : public XrdOss {
 public:
-  XrdCephOss();
+  XrdCephOss(const char *, XrdSysError &);
   virtual ~XrdCephOss();
 
-  int Configure(const char *, XrdSysError &, XrdOucEnv *envP);
+  int Configure(const char *, XrdSysError &);
 
   virtual int     Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
   virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);

@@ -95,6 +95,7 @@ Requires:	%{name}-selinux = %{epoch}:%{version}-%{release}
 
 %if %{use_systemd}
 BuildRequires:    systemd
+BuildRequires:    systemd-devel
 Requires(pre):		systemd
 Requires(post):		systemd
 Requires(preun):	systemd
@@ -447,9 +448,14 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
 
 mkdir -p $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/xrootd@.service $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/xrdhttp.socket   $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/cmsd@.service $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/frm_xfrd@.service $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/frm_purged@.service $RPM_BUILD_ROOT%{_unitdir}
+
+# tmpfiles.d
+mkdir -p $RPM_BUILD_ROOT%{_tmpfilesdir}
+install -m 0644 packaging/rhel/xrootd.tmpfiles $RPM_BUILD_ROOT%{_tmpfilesdir}/%{name}.conf
 
 %else
 
@@ -641,6 +647,7 @@ fi
 
 %if %{use_systemd}
 %{_unitdir}/*
+%{_tmpfilesdir}/%{name}.conf
 %else
 %config(noreplace) %{_sysconfdir}/sysconfig/xrootd
 %{_initrddir}/*
@@ -649,6 +656,7 @@ fi
 %files libs
 %defattr(-,root,root,-)
 %{_libdir}/libXrdAppUtils.so.1*
+%{_libdir}/libXrdClProxyPlugin-4.so
 %{_libdir}/libXrdCks*-4.so
 %{_libdir}/libXrdCrypto.so.1*
 %{_libdir}/libXrdCryptoLite.so.1*
@@ -716,6 +724,7 @@ fi
 %defattr(-,root,root,-)
 %{_includedir}/xrootd/XrdAcc
 %{_includedir}/xrootd/XrdCms
+%{_includedir}/xrootd/XrdFileCache
 %{_includedir}/xrootd/XrdOss
 %{_includedir}/xrootd/XrdSfs
 %{_includedir}/xrootd/XrdXrootd
@@ -800,7 +809,6 @@ fi
 %{_libdir}/libXrdPosix.so.1*
 %{_libdir}/libXrdSecgsiAuthzVO.so*
 %{_libdir}/libXrdSecgsiGMAPDN.so*
-%{_libdir}/libXrdSecgsiGMAPLDAP.so*
 %{_libdir}/libXrdSecgsi.so*
 %{_libdir}/libXrdSeckrb5.so*
 %{_libdir}/libXrdSecpwd.so*

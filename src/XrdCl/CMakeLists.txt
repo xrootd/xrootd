@@ -65,6 +65,8 @@ add_library(
   XrdClMetalinkRedirector.cc  XrdClMetalinkRedirector.hh
   XrdClRedirectorRegistry.cc  XrdClRedirectorRegistry.hh
   XrdClZipArchiveReader.cc    XrdClZipArchiveReader.hh
+  XrdClXCpCtx.cc              XrdClXCpCtx.hh
+  XrdClXCpSrc.cc              XrdClXCpSrc.hh
 )
 
 target_link_libraries(

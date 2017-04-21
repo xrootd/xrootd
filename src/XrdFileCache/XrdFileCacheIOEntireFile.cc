@@ -32,38 +32,27 @@
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
-
-
-IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache)
-   : IO(io, stats, cache),
+IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache) :
+   IO(io, stats, cache),
    m_file(0),
    m_localStat(0)
 {
    XrdCl::URL url(GetInput()->Path());
    std::string fname = url.GetPath();
-
-   m_file = Cache::GetInstance().GetFileWithLocalPath(fname, this);
-   if (! m_file)
-   {
-      struct stat st;
-      int res = Fstat(st);
-
-      // This should not happen, but make a printout to see it.
-      if (res)
-         TRACEIO(Error, "IOEntireFile::IOEntireFile, could not get valid stat");
-
-      m_file = new File(this, fname, 0, st.st_size);
-   }
-
-   Cache::GetInstance().AddActive(m_file);
+   m_file = Cache::GetInstance().GetFile(fname, this);
 }
 
+//______________________________________________________________________________
 IOEntireFile::~IOEntireFile()
 {
-   TRACEIO(Debug, "IOEntireFile::~IOEntireFile() ");
+   // called from Detach() if no sync is needed or
+   // from Cache's sync thread
+   TRACEIO(Debug, "IOEntireFile::~IOEntireFile() " << this);
+
    delete m_localStat;
 }
 
+//______________________________________________________________________________
 int IOEntireFile::Fstat(struct stat &sbuff)
 {
    XrdCl::URL url(GetPath());
@@ -81,18 +70,13 @@ int IOEntireFile::Fstat(struct stat &sbuff)
    return 0;
 }
 
+//______________________________________________________________________________
 long long IOEntireFile::FSize()
 {
    return m_file->GetFileSize();
 }
 
-void IOEntireFile::RelinquishFile(File* f)
-{
-   TRACEIO(Info, "IOEntireFile::RelinquishFile");
-   assert(m_file == f);
-   m_file = 0;
-}
-
+//______________________________________________________________________________
 int IOEntireFile::initCachedStat(const char* path)
 {
    // Called indirectly from the constructor.
@@ -116,7 +100,7 @@ int IOEntireFile::initCachedStat(const char* path)
          else
          {
             // file exist but can't read it
-            TRACEIO(Error, "IOEntireFile::initCachedStat failed to read file size from info file");
+            TRACEIO(Debug, "IOEntireFile::initCachedStat info file is not complete");
          }
       }
       else
@@ -141,36 +125,48 @@ int IOEntireFile::initCachedStat(const char* path)
    return res;
 }
 
+//______________________________________________________________________________
 bool IOEntireFile::ioActive()
 {
-   if ( ! m_file)
-   {
-      return false;
-   }
-   else
-   {
-      bool active = m_file->ioActive();
-      if (! active && m_file)
-      {
-         TRACEIO(Debug, "IOEntireFile::ioActive() detaching file");
-         m_cache.Detach(m_file);
-         m_file = 0;
-      }
-      return active;
-   }
+   XrdSysMutexHelper lock(&m_mutex);
+   bool active = m_file && m_file->ioActive();
+   return active;
 }
 
+//______________________________________________________________________________
+void IOEntireFile::RelinquishFile(File*)
+{
+   // Called from Cache::GetFile
+
+   TRACE(Debug, "IOEntireFile::RelinquishFile() " << this);
+
+   XrdSysMutexHelper lock(&m_mutex);
+   m_file = 0;
+}
+
+//______________________________________________________________________________
 XrdOucCacheIO *IOEntireFile::Detach()
 {
-   TRACEIO(Debug, "IOEntireFile::Detach() ");
+   // Called from XrdPosixFile destructor
 
-   XrdOucCacheIO * io = GetInput();
+   TRACE(Info, "IOEntireFile::Detach() " << this);
 
+   {
+      XrdSysMutexHelper lock(&m_mutex);
+      if (m_file)
+      {
+         m_file->RequestSyncOfDetachStats();
+         Cache::GetInstance().ReleaseFile(m_file);
+         m_file = 0;
+      }
+   }
+   XrdOucCacheIO *io = GetInput();
    delete this;
    return io;
 }
 
-int IOEntireFile::Read (char *buff, long long off, int size)
+//______________________________________________________________________________
+int IOEntireFile::Read(char *buff, long long off, int size)
 {
    TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size );
 

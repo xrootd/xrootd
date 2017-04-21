@@ -200,6 +200,13 @@ target_link_libraries(
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )
 
+if ( SYSTEMD_FOUND )
+   target_link_libraries(
+     XrdUtils
+     ${SYSTEMD_LIBRARIES}
+   )
+endif()
+
 set_target_properties(
   XrdUtils
   PROPERTIES

@@ -47,6 +47,8 @@
 enum Access_ID_Type   {AID_Group,
                        AID_Host,
                        AID_Netgroup,
+                       AID_Org,
+                       AID_Role,
                        AID_Set,
                        AID_Template,
                        AID_User
@@ -60,6 +62,8 @@ struct XrdAccAccess_Tables
        {XrdOucHash<XrdAccCapability> *G_Hash;  // Groups
         XrdOucHash<XrdAccCapability> *H_Hash;  // Hosts
         XrdOucHash<XrdAccCapability> *N_Hash;  // Netgroups
+        XrdOucHash<XrdAccCapability> *O_Hash;  // Organizations
+        XrdOucHash<XrdAccCapability> *R_Hash;  // Roles
         XrdOucHash<XrdAccCapability> *S_Hash;  // Sets
         XrdOucHash<XrdAccCapability> *T_Hash;  // Templates
         XrdOucHash<XrdAccCapability> *U_Hash;  // Users
@@ -69,6 +73,7 @@ struct XrdAccAccess_Tables
                   XrdAccCapability  *Z_List;  // Default  capbailities
 
         XrdAccAccess_Tables() {G_Hash = 0; H_Hash = 0; N_Hash = 0;
+                               O_Hash = 0; R_Hash = 0;
                                S_Hash = 0; T_Hash = 0; U_Hash = 0;
                                D_List = 0; E_List = 0;
                                X_List = 0; Z_List = 0;
@@ -76,6 +81,8 @@ struct XrdAccAccess_Tables
        ~XrdAccAccess_Tables() {if (G_Hash) delete G_Hash;
                                if (H_Hash) delete H_Hash;
                                if (N_Hash) delete N_Hash;
+                               if (O_Hash) delete O_Hash;
+                               if (R_Hash) delete R_Hash;
                                if (S_Hash) delete S_Hash;
                                if (T_Hash) delete T_Hash;
                                if (U_Hash) delete U_Hash;

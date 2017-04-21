@@ -38,6 +38,15 @@ XrdVERSIONINFO(XrdSecgsiGMAPFun,secgsigmap);
 /*                                                                            */
 /* GMAP function implementation querying a LDAP database                      */
 /*                                                                            */
+/* Warning: this plug-in is not build any longer because the external         */
+/* LDAP query via the popen() represents a potential security threat          */
+/* and it is believed that functionality provided is not actually used.       */
+/* If this believe happens to be uncorrect please report at                   */
+/*                                                                            */
+/*                   https://github.com/xrootd                                */
+/*                                                                            */
+/* a sanitized version of the plug-in can be provided using a proper library. */
+/*                                                                            */
 /* ************************************************************************** */
 
 #include <stdio.h>

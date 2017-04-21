@@ -31,6 +31,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdClient/XrdClientUrlSet.hh
   XrdClient/XrdClientVector.hh
   XrdCms/XrdCmsClient.hh
+  XrdFileCache/XrdFileCacheDecision.hh
   XrdNet/XrdNet.hh
   XrdNet/XrdNetAddr.hh
   XrdNet/XrdNetAddrInfo.hh

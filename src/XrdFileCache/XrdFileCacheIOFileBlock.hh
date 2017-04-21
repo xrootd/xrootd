@@ -46,7 +46,7 @@ public:
    //------------------------------------------------------------------------
    //! Destructor.
    //------------------------------------------------------------------------
-   ~IOFileBlock(){}
+   ~IOFileBlock();
 
    //---------------------------------------------------------------------
    //! Detach from Cache. Note: this will delete the object.
@@ -63,7 +63,7 @@ public:
    //! \brief Virtual method of XrdOucCacheIO.
    //! Called to check if destruction needs to be done in a separate task.
    virtual bool ioActive();
-
+   
    virtual int  Fstat(struct stat &sbuff);
 
    virtual long long FSize();
@@ -78,8 +78,8 @@ private:
    Info                       m_info;
    XrdOssDF*                  m_infoFile;
 
-   void GetBlockSizeFromPath();
-   int initLocalStat();
+   void  GetBlockSizeFromPath();
+   int   initLocalStat();
    File* newBlockFile(long long off, int blocksize);
    void  CloseInfoFile();
 };

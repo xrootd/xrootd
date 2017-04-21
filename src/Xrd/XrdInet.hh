@@ -51,6 +51,8 @@ public:
 
 XrdLink    *Accept(int opts=0, int timeout=-1, XrdSysSemaphore *theSem=0);
 
+int         BindSD(int port, const char *contype="tcp");
+
 XrdLink    *Connect(const char *host, int port, int opts=0, int timeout=-1);
 
 void        Secure(XrdNetSecurity *secp);
@@ -67,6 +69,7 @@ static
 XrdNetIF    netIF;
 
 private:
+int Listen();
 
 XrdNetSecurity    *Patrol;
 XrdOucTrace       *XrdTrace;

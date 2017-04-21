@@ -306,7 +306,7 @@ void Info::GetCksum( unsigned char* buff, char* digest)
 //------------------------------------------------------------------------------
 void Info::DisableDownloadStatus()
 {
-   // use version sign to skip downlaod status
+   // use version sign to skip download status
    m_store.m_version = -m_store.m_version;
 }
 //------------------------------------------------------------------------------
@@ -364,7 +364,7 @@ void Info::WriteIOStatDetach(Stats& s)
 void Info::WriteIOStatAttach()
 {
    m_store.m_accessCnt++;
-   if ( m_store.m_astats.size() >= m_maxNumAccess)
+   if (m_store.m_astats.size() >= m_maxNumAccess)
       m_store.m_astats.erase( m_store.m_astats.begin());
 
    AStat as;

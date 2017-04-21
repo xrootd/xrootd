@@ -31,17 +31,10 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "Xrd/XrdScheduler.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdPosix/XrdPosixFile.hh"
-#include "XrdPosix/XrdPosix.hh"
 #include "XrdFileCache.hh"
 #include "Xrd/XrdScheduler.hh"
 
-namespace XrdPosixGlobals
-{
-extern XrdScheduler *schedP;
-}
 
 using namespace XrdFileCache;
 
@@ -49,20 +42,7 @@ namespace
 {
 const int PREFETCH_MAX_ATTEMPTS = 10;
 
-class DiskSyncer : public XrdJob
-{
-private:
-File *m_file;
-public:
-DiskSyncer(File *pref, const char *desc = "") :
-   XrdJob(desc),
-   m_file(pref)
-{}
-void DoIt()
-{
-   m_file->Sync();
-}
-};
+
 
 Cache* cache() { return &Cache::GetInstance(); }
 }
@@ -71,16 +51,16 @@ const char *File::m_traceID = "File";
 
 //------------------------------------------------------------------------------
 
-File::File(IO *io, std::string& disk_file_path, long long iOffset, long long iFileSize) :
+File::File(IO *io, const std::string& path, long long iOffset, long long iFileSize) :
+   m_ref_cnt(0),
    m_is_open(false),
    m_io(io),
    m_output(0),
    m_infoFile(0),
    m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
-   m_temp_filename(disk_file_path),
+   m_filename(path),
    m_offset(iOffset),
    m_fileSize(iFileSize),
-   m_syncer(new DiskSyncer(this, "XrdFileCache::DiskSyncer")),
    m_non_flushed_cnt(0),
    m_in_sync(false),
    m_downloadCond(0),
@@ -110,9 +90,6 @@ File::~File()
       delete m_output;
       m_output = NULL;
    }
-
-   delete m_syncer;
-   m_syncer = NULL;
 
    TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
 }
@@ -146,7 +123,6 @@ bool File::ioActive()
          cache()->DeRegisterPrefetchFile(this);
       }
 
-
       // High debug print
       // for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it)
       // {
@@ -172,61 +148,71 @@ bool File::ioActive()
          }
       }
 
-      blockMapEmpty =  m_block_map.empty();
-   }
-   
-   if (blockMapEmpty)
-   {
-      // file is not active when block map is empty and sync is done
-      bool schedule_sync = false;
-
-      {
-         XrdSysCondVarHelper _lck(m_downloadCond);
-
-         if (m_in_sync) return true;
-
-         if (m_writes_during_sync.empty()  && m_non_flushed_cnt == 0)
-         {
-            if (! m_detachTimeIsLogged)
-            {
-               m_cfi.WriteIOStatDetach(m_stats);
-               m_detachTimeIsLogged = true;
-               schedule_sync = true;
-            }
-         }
-         else
-         {
-            // write leftovers
-            schedule_sync = true;
-         }
-
-         if (schedule_sync)
-            m_in_sync = true;
-      }
-
-      if (schedule_sync)
-      {
-         XrdPosixGlobals::schedP->Schedule(m_syncer);
-      }
-      else
-      {
-         return false;
-      }
+      blockMapEmpty = m_block_map.empty();
    }
 
-   return true;
+   return !blockMapEmpty;
 }
 
 //------------------------------------------------------------------------------
 
-void File::WakeUp(IO *io)
+void File::RequestSyncOfDetachStats()
 {
-   // called if this object is recycled by other IO
+   XrdSysCondVarHelper _lck(m_downloadCond);
+   m_detachTimeIsLogged = false;
+}
+
+bool File::FinalizeSyncBeforeExit()
+{
+   // Returns true if sync is required.
+   // This method is called after corresponding IO is detached from PosixCache.
+
+   XrdSysCondVarHelper _lck(m_downloadCond);
+
+   if ( ! m_writes_during_sync.empty() || m_non_flushed_cnt > 0 || ! m_detachTimeIsLogged)
+   {
+      m_cfi.WriteIOStatDetach(m_stats);
+      m_detachTimeIsLogged = true;
+      TRACEF(Debug, "File::FinalizeSyncBeforeExit scheduling sync to write detach stats");
+      return true;
+   }
+
+   TRACEF(Debug, "File::FinalizeSyncBeforeExit sync not required");
+   return false;
+}
+
+//------------------------------------------------------------------------------
+
+void File::ReleaseIO()
+{
+   // called from Cache::ReleaseFile
+
    m_downloadCond.Lock();
-   m_io->RelinquishFile(this);
-   m_io = io;
-   if (m_prefetchState != kComplete) m_prefetchState = kOn;
+   m_io = 0;
    m_downloadCond.UnLock();
+ }
+
+//------------------------------------------------------------------------------
+
+IO* File::SetIO(IO *io)
+{
+   // called if this object is recycled by other IO or detached from cache
+
+   bool cacheActivatePrefetch = false;
+
+   TRACEF(Debug, "File::SetIO()  " <<  (void*)io);
+   IO* oldIO = m_io;
+   m_downloadCond.Lock();
+   m_io = io;
+   if (io && m_prefetchState != kComplete)
+   {
+      cacheActivatePrefetch = true;
+      m_prefetchState = kOn;
+   }
+   m_downloadCond.UnLock();
+   
+   if (cacheActivatePrefetch) cache()->RegisterPrefetchFile(this);
+   return oldIO;
 }
 
 //------------------------------------------------------------------------------
@@ -243,24 +229,24 @@ bool File::Open()
    char size_str[16]; sprintf(size_str, "%lld", m_fileSize);
    myEnv.Put("oss.asize",  size_str);
    myEnv.Put("oss.cgroup", Cache::GetInstance().RefConfiguration().m_data_space.c_str());
-   if (myOss.Create(myUser, m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
+   if (myOss.Create(myUser, m_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Create failed for data file " << m_temp_filename
+      TRACEF(Error, "File::Open() Create failed for data file " << m_filename
                                                                 << ", err=" << strerror(errno));
       return false;
    }
 
    m_output = myOss.newFile(myUser);
-   if (m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
+   if (m_output->Open(m_filename.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Open failed for data file " << m_temp_filename
+      TRACEF(Error, "File::Open() Open failed for data file " << m_filename
                                                               << ", err=" << strerror(errno));
       delete m_output; m_output = 0;
       return false;
    }
 
    // Create the info file
-   std::string ifn = m_temp_filename + Info::m_infoExtension;
+   std::string ifn = m_filename + Info::m_infoExtension;
 
    struct stat infoStat;
    bool fileExisted = (myOss.Stat(ifn.c_str(), &infoStat) == XrdOssOK);
@@ -278,8 +264,8 @@ bool File::Open()
    m_infoFile = myOss.newFile(myUser);
    if (m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Open failed for info file " << ifn
-                                                              << ", err=" << strerror(errno));
+      TRACEF(Error, "File::Open() Open failed for info file " << ifn << ", err=" << strerror(errno));
+
       delete m_infoFile; m_infoFile = 0;
       delete m_output;   m_output   = 0;
       return false;
@@ -773,7 +759,7 @@ void File::WriteBlockToDisk(Block* b)
 
    if (schedule_sync)
    {
-      XrdPosixGlobals::schedP->Schedule(m_syncer);
+      cache()->ScheduleFileSync(this);
    }
 }
 
@@ -885,7 +871,7 @@ long long File::BufferSize()
 
 const char* File::lPath() const
 {
-   return m_temp_filename.c_str();
+   return m_filename.c_str();
 }
 
 //------------------------------------------------------------------------------

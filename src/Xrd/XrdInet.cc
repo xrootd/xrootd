@@ -34,6 +34,11 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#ifdef HAVE_SYSTEMD
+#include <sys/socket.h>
+#include <systemd/sd-daemon.h>
+#endif
+
 #include "XrdSys/XrdSysError.hh"
 
 #include "Xrd/XrdInet.hh"
@@ -45,10 +50,16 @@
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSecurity.hh"
+
+#ifdef HAVE_SYSTEMD
+#include "XrdNet/XrdNetBuffer.hh"
+#include "XrdNet/XrdNetSocket.hh"
+#endif
   
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
+
        bool        XrdInet::AssumeV4 = false;
 
        const char *XrdInet::TraceID = "Inet";
@@ -114,6 +125,61 @@ XrdLink *XrdInet::Accept(int opts, int timeout, XrdSysSemaphore *theSem)
 }
 
 /******************************************************************************/
+/*                                B i n d S D                                 */
+/******************************************************************************/
+
+int XrdInet::BindSD(int port, const char *contype)
+{
+#ifdef HAVE_SYSTEMD
+   int nSD, opts = XRDNET_SERVER | netOpts;
+
+// If an arbitrary port is wanted, then systemd can't supply such a socket.
+// Of course, do the same in the absencse of systemd sockets.
+//
+   if (port == 0 || (nSD = sd_listen_fds(0)) <= 0) return Bind(port, contype);
+
+// Do some presets here
+//
+   int v4Sock = AF_INET;
+   int v6Sock = (XrdNetAddr::IPV4Set() ? AF_INET : AF_INET6);
+   uint16_t sdPort = static_cast<uint16_t>(port);
+
+// Get correct socket type
+//
+   if (*contype != 'u') PortType = SOCK_STREAM;
+      else {PortType = SOCK_DGRAM;
+            opts |= XRDNET_UDPSOCKET;
+           }
+
+// For each fd, check if it is a socket that we should have bound to. Make
+// allowances for UDP sockets. Otherwise, make sure the socket is listening.
+//
+   for (int i = 0; i < nSD; i++)
+       {int sdFD = SD_LISTEN_FDS_START + i;
+        if (sd_is_socket_inet(sdFD, v4Sock, PortType, -1, sdPort) > 0
+        ||  sd_is_socket_inet(sdFD, v6Sock, PortType, -1, sdPort) > 0)
+           {iofd    = sdFD;
+            Portnum = port;
+            XrdNetSocket::setOpts(sdFD, opts, eDest);
+            if (PortType == SOCK_DGRAM)
+               {BuffSize = (Windowsz ? Windowsz : XRDNET_UDPBUFFSZ);
+                BuffQ = new XrdNetBufferQ(BuffSize);
+               } else {
+                if (sd_is_socket(sdFD,v4Sock,PortType,0) > 0
+                ||  sd_is_socket(sdFD,v6Sock,PortType,0) > 0) return Listen();
+               }
+            return 0;
+           }
+       }
+#endif
+
+// Either we have no systemd process or no acceptable FD available. Do an
+// old-style bind() call to setup the socket.
+//
+   return Bind(port, contype);
+}
+
+/******************************************************************************/
 /*                               C o n n e c t                                */
 /******************************************************************************/
 
@@ -140,6 +206,36 @@ XrdLink *XrdInet::Connect(const char *host, int port, int opts, int tmo)
 // All done, return whatever object we have
 //
    return lp;
+}
+
+/******************************************************************************/
+/* Private:                       L i s t e n                                 */
+/******************************************************************************/
+  
+int XrdInet::Listen()
+{
+   int backlog, erc;
+
+// Determine backlog value
+//
+   if (!(backlog = netOpts & XRDNET_BKLG)) backlog = XRDNET_BKLG;
+
+// Issue a listen
+//
+   if (listen(iofd, backlog) == 0) return 0;
+   erc = errno;
+
+// We were unable to listen on this socket. Diagnose and return error.
+//
+   if (!(netOpts & XRDNET_NOEMSG) && eDest)
+      {char eBuff[64];
+       sprintf(eBuff, "listen on port %d", Portnum);
+       eDest->Emsg("Bind", erc, eBuff);
+      }
+
+// Return an error
+//
+   return -erc;
 }
   
 /******************************************************************************/

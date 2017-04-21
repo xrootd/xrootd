@@ -145,7 +145,6 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
    XrdCl::XRootDStatus Status;
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
-   time_t tNow, wakeTime = 0;
    int ddCount;
    bool ioActive, doWait = false;
 
@@ -156,9 +155,8 @@ do{if (doWait)
        doWait = false;
       } else {
        ddSem.Wait();
-       tNow = time(0);
-       if (tNow < wakeTime) {doWait = true; continue;}
-       wakeTime = tNow + ddInterval;
+       doWait = true;
+       continue;
       }
 
 // Grab the delayed delete list

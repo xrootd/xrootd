@@ -39,7 +39,7 @@
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
 #include "XrdNet/XrdNetAddrInfo.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysPlugin.hh"
   
 /******************************************************************************/
@@ -101,7 +101,8 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
                                        XrdOucEnv       *Env)
 {
    XrdAccPrivs myprivs;
-   char *gname;
+   const char *xP;
+   char *gname, xBuff[64];
    int accok;
    XrdAccGroupList *glp;
    XrdAccPrivCaps caps;
@@ -111,7 +112,7 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
    XrdAccAudit_Options audits = (XrdAccAudit_Options)Auditor->Auditing();
    const char *id   = (Entity->name ? (const char *)Entity->name : "*");
    const char *host;
-   int isuser = (*id && (*id != '*' || id[1]));
+   int n, isuser = (*id && (*id != '*' || id[1]));
 
 // Get a shared context for these potentially long running routines
 //
@@ -152,13 +153,11 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 //
    if (Atab.G_Hash)
       {if (Entity->grps)
-          {char gBuff[1024];
-           XrdOucTokenizer gList(gBuff);
-           strlcpy(gBuff, Entity->grps, sizeof(gBuff));
-           gList.GetLine();
-           while((gname = gList.GetToken()))
-                if ((cp = Atab.G_Hash->Find((const char *)gname)))
-                   cp->Privs(caps, path, plen, phash);
+          {xP = Entity->grps;
+           while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
+                {if (n < (int)sizeof(xBuff) && (cp = Atab.R_Hash->Find(xBuff)))
+                    cp->Privs(caps, path, plen, phash);
+                }
           } else if (isuser && (glp=XrdAccConfiguration.GroupMaster.Groups(id)))
                     {while((gname = (char *)glp->Next()))
                           if ((cp = Atab.G_Hash->Find((const char *)gname)))
@@ -177,10 +176,29 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
        delete glp;
       }
 
+// Next add in the org-specific privileges
+//
+   if (Atab.O_Hash && Entity->vorg)
+      {xP = Entity->vorg;
+       while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
+            {if (n < (int)sizeof(xBuff) && (cp = Atab.O_Hash->Find(xBuff)))
+                cp->Privs(caps, path, plen, phash);
+            }
+      }
+
+// Next add in the role-specific privileges
+//
+   if (Atab.R_Hash && Entity->role)
+      {xP = Entity->role;
+       while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
+            {if (n < (int)sizeof(xBuff) && (cp = Atab.R_Hash->Find(xBuff)))
+                cp->Privs(caps, path, plen, phash);
+            }
+      }
+
 // We are now done with looking at changeable data
 //
    Access_Context.UnLock(xs_Shared);
-
 
 // Compute composite privileges and see if privs need to be returned
 //
@@ -327,6 +345,8 @@ void XrdAccAccess::SwapTabs(struct XrdAccAccess_Tables &newtab)
    XrdAccSWAP(G_Hash);
    XrdAccSWAP(H_Hash);
    XrdAccSWAP(N_Hash);
+   XrdAccSWAP(O_Hash);
+   XrdAccSWAP(R_Hash);
    XrdAccSWAP(S_Hash);
    XrdAccSWAP(T_Hash);
    XrdAccSWAP(U_Hash);

@@ -34,7 +34,6 @@
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClZipArchiveReader.hh"
-
 #include <memory>
 #include <iostream>
 #include <queue>
@@ -45,6 +44,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+#include "XrdClXCpCtx.hh"
 
 namespace
 {
@@ -1079,6 +1079,139 @@ namespace
   };
 
   //----------------------------------------------------------------------------
+  //! XRootDSourceDynamic
+  //----------------------------------------------------------------------------
+  class XRootDSourceXCp: public Source
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      XRootDSourceXCp( const XrdCl::URL* url, uint32_t chunkSize, uint16_t parallelChunks, int32_t nbSrc, uint64_t blockSize ):
+        pXCpCtx( 0 ), pUrl( url ), pChunkSize( chunkSize ), pParallelChunks( parallelChunks ), pNbSrc( nbSrc ), pBlockSize( blockSize )
+      {
+      }
+
+      ~XRootDSourceXCp()
+      {
+        if( pXCpCtx )
+          pXCpCtx->Delete();
+      }
+
+      //------------------------------------------------------------------------
+      //! Initialize the source
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Initialize()
+      {
+        XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+        int64_t fileSize = -1;
+
+        if( pUrl->IsMetalink() )
+        {
+          XrdCl::RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector *redirector = registry.Get( *pUrl );
+          fileSize = redirector->GetSize();
+          pReplicas = redirector->GetReplicas();
+        }
+        else
+        {
+          XrdCl::LocationInfo *li = 0;
+          XrdCl::FileSystem fs( *pUrl );
+          XrdCl::XRootDStatus st = fs.DeepLocate( pUrl->GetPath(), XrdCl::OpenFlags::Compress | XrdCl::OpenFlags::PrefName, li );
+          if( !st.IsOK() ) return st;
+
+          XrdCl::LocationInfo::Iterator itr;
+          for( itr = li->Begin(); itr != li->End(); ++itr)
+          {
+            std::string url = "root://" + itr->GetAddress() + "/" + pUrl->GetPath();
+            pReplicas.push_back( url );
+          }
+
+          delete li;
+        }
+
+        std::stringstream ss;
+        ss << "XCp sources: ";
+
+        std::vector<std::string>::iterator itr;
+        for( itr = pReplicas.begin() ; itr != pReplicas.end() ; ++itr )
+        {
+          ss << *itr << ", ";
+        }
+        log->Debug( XrdCl::UtilityMsg, ss.str().c_str() );
+
+        pXCpCtx = new XrdCl::XCpCtx( pReplicas, pBlockSize, pNbSrc, pChunkSize, pParallelChunks, fileSize );
+
+        return pXCpCtx->Initialize();
+      }
+
+      //------------------------------------------------------------------------
+      //! Get size
+      //------------------------------------------------------------------------
+      virtual int64_t GetSize()
+      {
+        return pXCpCtx->GetSize();
+      }
+
+      //------------------------------------------------------------------------
+      //! Get a data chunk from the source
+      //!
+      //! @param  buffer buffer for the data
+      //! @param  ci     chunk information
+      //! @return        status of the operation
+      //!                suContinue - there are some chunks left
+      //!                suDone     - no chunks left
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
+      {
+        XrdCl::XRootDStatus st;
+        do
+        {
+          st = pXCpCtx->GetChunk( ci );
+        }
+        while( st.IsOK() && st.code == XrdCl::suRetry );
+        return st;
+      }
+
+      //------------------------------------------------------------------------
+      // Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType )
+      {
+        if( pUrl->IsMetalink() )
+        {
+          XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
+          checkSum = redirector->GetCheckSum( checkSumType );
+          if( !checkSum.empty() ) return XrdCl::XRootDStatus();
+        }
+
+        std::vector<std::string>::iterator itr;
+        for( itr = pReplicas.begin() ; itr != pReplicas.end() ; ++itr )
+        {
+          XrdCl::URL url( *itr );
+          XrdCl::XRootDStatus st = XrdCl::Utils::GetRemoteCheckSum( checkSum,
+                              checkSumType, url.GetHostId(), url.GetPath() );
+          if( st.IsOK() ) return st;
+        }
+
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNoMoreReplicas );
+      }
+
+    private:
+
+
+      XrdCl::XCpCtx           *pXCpCtx;
+      const XrdCl::URL         *pUrl;
+      std::vector<std::string>  pReplicas;
+      uint32_t                  pChunkSize;
+      uint16_t                  pParallelChunks;
+      int32_t                   pNbSrc;
+      uint64_t                  pBlockSize;
+  };
+
+  //----------------------------------------------------------------------------
   //! Local destination
   //----------------------------------------------------------------------------
   class LocalDestination: public Destination
@@ -1613,7 +1746,9 @@ namespace XrdCl
     std::string zipSource;
     uint16_t    parallelChunks;
     uint32_t    chunkSize;
-    bool        posc, force, coerce, makeDir, dynamicSource, zip;
+    uint64_t    blockSize;
+    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp;
+    int32_t     nbXcpSources;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
     pProperties->Get( "checkSumType",    checkSumType );
@@ -1626,15 +1761,22 @@ namespace XrdCl
     pProperties->Get( "makeDir",         makeDir );
     pProperties->Get( "dynamicSource",   dynamicSource );
     pProperties->Get( "zipArchive",      zip );
+    pProperties->Get( "xcp",             xcp );
+    pProperties->Get( "xcpBlockSize",    blockSize );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
+
+    if( xcp )
+      pProperties->Get( "nbXcpSources",     nbXcpSources );
 
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
     //--------------------------------------------------------------------------
     XRDCL_SMART_PTR_T<Source> src;
-    if( zip )
+    if( xcp )
+      src.reset( new XRootDSourceXCp( &GetSource(), chunkSize, parallelChunks, nbXcpSources, blockSize ) );
+    else if( zip ) // TODO make zip work for xcp
       src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks ) );
     else if( GetSource().GetProtocol() == "file" )
       src.reset( new LocalSource( &GetSource(), checkSumType, chunkSize ) );

@@ -62,6 +62,11 @@ void *PrefetchThread(void* ptr)
 }
 
 
+namespace XrdPosixGlobals
+{
+extern XrdScheduler *schedP;
+}
+
 extern "C"
 {
 XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
@@ -85,9 +90,10 @@ XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
    pthread_t tid2;
    XrdSysThread::Run(&tid2, PrefetchThread, (void*)(&factory), 0, "XrdFileCache Prefetch ");
 
-
    pthread_t tid;
    XrdSysThread::Run(&tid, CacheDirCleanupThread, NULL, 0, "XrdFileCache CacheDirCleanup");
+   
+   
    return &factory;
 }
 }
@@ -98,6 +104,23 @@ Cache &Cache::GetInstance()
       m_factory = new Cache();
    return *m_factory;
 }
+
+class DiskSyncer : public XrdJob
+{
+private:
+File *m_file;
+public:
+DiskSyncer(File *f, const char *desc = "") :
+   XrdJob(desc),
+   m_file(f)
+{}
+void DoIt()
+{
+   m_file->Sync();
+   Cache::GetInstance().FileSyncDone(m_file);
+   delete this;
+}
+};
 
 //______________________________________________________________________________
 
@@ -141,7 +164,7 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 {
    if (Cache::GetInstance().Decide(io))
    {
-      TRACE(Debug, "Cache::Attach() " << io->Path());
+      TRACE(Info, "Cache::Attach() " << io->Path());
       IO* cio;
       if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
          cio = new IOFileBlock(io, m_stats, *this);
@@ -166,16 +189,6 @@ int Cache::isAttached()
 {
    // virutal function of XrdOucCache, don't see it used in pfc or posix layer
    return true;
-}
-
-void Cache::Detach(File* file)
-{
-   TRACE(Debug, "Cache::Detach() file = " << file);
-
-   std::map<std::string, File*>::iterator it = m_active.find(file->GetLocalPath());
-   assert (it != m_active.end());
-   m_active.erase(it);
-   delete file;
 }
 
 //______________________________________________________________________________
@@ -258,38 +271,132 @@ Cache::RAMBlockReleased()
    m_RAMblocks_used--;
 }
 
-void
-Cache::AddActive(File* file)
+
+//______________________________________________________________________________
+
+File* Cache::GetFile(const std::string& path, IO* iIO, long long off, long long filesize)
 {
-   XrdSysMutexHelper lock(&m_active_mutex);
-   m_active[file->GetLocalPath()] = file;
-}
-
-
-File* Cache::GetFileWithLocalPath(std::string path, IO* iIo)
-{
+   // Called from virtual IO::Attach
+   
+   TRACE(Debug, "Cache::GetFile " << path);
+   
    XrdSysMutexHelper lock(&m_active_mutex);
 
-   std::map<std::string, File*>::iterator it = m_active.find(path);
+   ActiveMap_i it = m_active.find(path);
+
    if (it != m_active.end())
    {
-      it->second->WakeUp(iIo);
+      IO* prevIO = it->second->SetIO(iIO);
+      if (prevIO)
+      {
+         prevIO->RelinquishFile(it->second);
+      }
+      else
+      {
+         inc_ref_cnt(it->second, false);
+      }
       return it->second;
    }
+   else
+   {
+      if (filesize == 0)
+      {
+         struct stat st;
+         int res = iIO->Fstat(st);
+         if (res) {
+            TRACE(Error, "Cache::GetFile, could not get valid stat");
+            return 0;
+         }
 
+         filesize = st.st_size;
+      }
 
-   return 0;
+      File* file = new File(iIO, path, off, filesize);
+      inc_ref_cnt(file, false);
+      m_active[file->GetLocalPath()] = file;
+      return file;
+   }
 }
 
+void Cache::ReleaseFile(File* f)
+{
+   // Called from virtual IO::Detach
+   
+   TRACE(Debug, "Cache::ReleaseFile " << f->GetLocalPath());
+   
+   f->ReleaseIO();
+   dec_ref_cnt(f);
+}
+
+//______________________________________________________________________________
+
+void Cache::schedule_file_sync(File* f, bool ref_cnt_already_set)
+{
+   DiskSyncer* ds = new DiskSyncer(f);
+   if ( ! ref_cnt_already_set) inc_ref_cnt(f, true);
+   XrdPosixGlobals::schedP->Schedule(ds);
+}
+
+//______________________________________________________________________________
+void Cache::FileSyncDone(File* f)
+{
+   dec_ref_cnt(f);
+}
+
+//______________________________________________________________________________
+void Cache::inc_ref_cnt(File* f, bool lock)
+{
+   // called from GetFile() or SheduleFileSync();
+   
+   TRACE(Debug, "Cache::inc_ref_cnt " << f->GetLocalPath());
+   if (lock) m_active_mutex.Lock();
+   f->inc_ref_cnt();
+   if (lock) m_active_mutex.UnLock();
+   
+}
+
+//______________________________________________________________________________
+void Cache::dec_ref_cnt(File* f)
+{
+   // called  from ReleaseFile() or DiskSync callback
+   
+   m_active_mutex.Lock();
+   int cnt = f->get_ref_cnt();
+   m_active_mutex.UnLock();
+
+   TRACE(Debug, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt at entry = " << cnt);
+
+   if (cnt == 1)
+   {
+      if (f->FinalizeSyncBeforeExit())
+      {
+         TRACE(Debug, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", scheduling final sync");
+         schedule_file_sync(f, true);
+         return;
+      }
+   }
+
+   m_active_mutex.Lock();
+   cnt = f->dec_ref_cnt();
+   TRACE(Debug, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt after sync_check and dec_ref_cnt = " << cnt);
+   if (cnt == 0)
+   {
+      ActiveMap_i it = m_active.find(f->GetLocalPath());
+      m_active.erase(it);
+      delete f;
+   }
+   m_active_mutex.UnLock();
+}
+
+//______________________________________________________________________________
 bool Cache::HaveActiveFileWithLocalPath(std::string path)
 {
    XrdSysMutexHelper lock(&m_active_mutex);
 
-   std::map<std::string, File*>::iterator it = m_active.find(path);
+   ActiveMap_i it = m_active.find(path);
 
    return (it != m_active.end());
 }
-
 
 //==============================================================================
 //=======================  PREFETCH ===================================
@@ -436,8 +543,6 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
 }
 
 //______________________________________________________________________________
-
-
 void
 Cache::Prefetch()
 {
@@ -459,4 +564,4 @@ Cache::Prefetch()
       }
    }
 }
-
+//______________________________________________________________________________
