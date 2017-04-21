@@ -11,8 +11,11 @@ Version 4.6.1
 -------------
 
 + **Major bug fixes**
+  
+  * **[cmsd]** Fix feature interaction causing improper file existence to be sent.
   * **[XrdCrypto/XrdSecgsi]** Make sure the CRL is loaded for the right CA.
   * **[XrdCrypto]** Support for OpenSSL 1.1
+  * **[XrdSecgsi]** do not build/package libXrdSecgsiGMAPLDAP-4.so.
   * **[XrdSecgsi]** Improve detection of errors when loading CRL.
   * **[XrdSecgsi]** Fix for valid legacy proxy detection (PR #469)
   * **[XrdSecgsi]** Absent CRLs not an error (#465)
