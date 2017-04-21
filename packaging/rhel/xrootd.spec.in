@@ -809,7 +809,6 @@ fi
 %{_libdir}/libXrdPosix.so.1*
 %{_libdir}/libXrdSecgsiAuthzVO.so*
 %{_libdir}/libXrdSecgsiGMAPDN.so*
-%{_libdir}/libXrdSecgsiGMAPLDAP.so*
 %{_libdir}/libXrdSecgsi.so*
 %{_libdir}/libXrdSeckrb5.so*
 %{_libdir}/libXrdSecpwd.so*
