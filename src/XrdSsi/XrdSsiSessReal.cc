@@ -37,8 +37,8 @@
 #include <netinet/in.h>
   
 #include "XrdSsi/XrdSsiAtomics.hh"
-#include "XrdSsi/XrdSsiReqAgent.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
+#include "XrdSsi/XrdSsiRRAgent.hh"
 #include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiScale.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
@@ -146,7 +146,7 @@ void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName,
    freeTask  = 0;
    myService = servP;
    nextTID   = 0;
-   alocLeft  = XrdSsiRRInfo::maxID;
+   alocLeft  = XrdSsiRRInfo::idMax;
    isHeld    = hold;
    inOpen    = false;
    noReuse   = false;
@@ -190,7 +190,7 @@ XrdSsiTaskReal *XrdSsiSessReal::NewTask(XrdSsiRequest *reqP)
 // We will be using the session mutex for serialization. Afterwards, bind the
 // task to the request and return the task pointer.
 //
-   XrdSsiReqAgent::SetMutex(reqP, &sessMutex);
+   XrdSsiRRAgent::SetMutex(reqP, &sessMutex);
    tP->BindRequest(*reqP);
    return tP;
 }

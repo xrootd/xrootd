@@ -4,7 +4,7 @@
 /*                                                                            */
 /*                      X r d S s i R R T a b l e . h h                       */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,87 +29,66 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
+#include <map>
+#include <stdint.h>
 
 #include "XrdSsi/XrdSsiAtomics.hh"
-#include "XrdSsi/XrdSsiRRInfo.hh"
   
 template<class T>
 class XrdSsiRRTable
 {
 public:
 
-void  Add(T *item, int itemID)
-         {XrdSsiMutexMon(rrtMutex);
-          T **frV;
-          int i = itemID >> sftID, j = itemID & mskID;
-          if (!(frV = tVec[i]))
-             {frV = tVec[i] = new   T * [vecSZ];
-              memset(frV, 0, sizeof(T *)*vecSZ);
-              if (i > tVecLast) tVecLast = i;
-             }
-          frV[j] = item;
-          if (tEnd[i] < i) tEnd[i] = j;
+void  Add(T *item, uint64_t itemID)
+         {rrtMutex.Lock();
+          if (baseItem != 0) theMap[itemID] = item;
+             else {baseKey  = itemID;
+                   baseItem = item;
+                  }
+          rrtMutex.UnLock();
          }
 
-void  Clear() {memset(tEnd,-1, sizeof(tEnd));
-               memset(tPrm, 0, sizeof(tPrm));
-               memset(tVec, 0, sizeof(tVec));
-               tVec[0]    = tPrm;
-               tVecLast   = 0;
-              }
+void  Clear() {rrtMutex.Lock(); theMap.clear(); rrtMutex.UnLock();}
 
-void  Del(int itemID, bool finit=false)
+void  Del(uint64_t itemID, bool finit=false)
          {XrdSsiMutexMon(rrtMutex);
-          T **tP;
-          int i = itemID >> sftID, j = itemID & mskID, k;
-          if ((tP = tVec[i]))
-             {if (finit) tP[j]->Finalize();
-              tP[j] = 0;
-              if (tEnd[i] == j) // Record last entry
-                 {for (k = j-1; k >= 0; k--) if (tP[k]) break;
-                  tEnd[i] = k;
-                 }
+          if (baseItem && baseKey == itemID)
+             {if (finit) baseItem->Finalize();
+              baseItem = 0;
+             } else {
+              if (!finit) theMap.erase(itemID);
+                 else {typename std::map<uint64_t,T*>::iterator it = theMap.find(itemID);
+                       if (it != theMap.end()) it->second->Finalize();
+                       theMap.erase(it);
+                      }
              }
          }
 
-T    *LookUp(int itemID)
+T    *LookUp(uint64_t itemID)
             {XrdSsiMutexMon(rrtMutex);
-             T **tP;
-             if (itemID < vecSZ) return tPrm[itemID]; // Fast lookup
-             if (!(tP = tVec[itemID >> sftID])) return 0;
-             return tP[itemID & mskID];
+             if (baseItem && baseKey == itemID) return baseItem;
+             typename std::map<uint64_t,T*>::iterator it = theMap.find(itemID);
+             return (it == theMap.end() ? 0 : it->second);
             }
 
 void  Reset()
            {XrdSsiMutexMon(rrtMutex);
-            T **frV;
-            int i, j;
-            for (i = 0; i <= tVecLast; i++)
-                {if ((frV = tVec[i]))
-                    {for (j = 0; j <= tEnd[i]; j++)
-                         {if (frV[j]) {frV[j]->Finalize(); frV[j] = 0;}}
-                     tEnd[i] = -1;
-                     if (i) {delete [] frV; tVec[i] = 0;}
-                    }
-                }
-            tVecLast =  0;
+            typename std::map<uint64_t, T*>::iterator it = theMap.begin();
+            while(it != theMap.end())
+                 {it->second->Finalize();
+                  it++;
+                 }
+            theMap.clear();
            }
 
-      XrdSsiRRTable() {Clear();}
+      XrdSsiRRTable() : baseItem(0), baseKey(0) {}
 
      ~XrdSsiRRTable() {Reset();}
 
 private:
 XrdSsiMutex              rrtMutex;
-static const int         sftID = 5;
-static const int         sftSZ = 1<<sftID;
-static const int         vecSZ = (XrdSsiRRInfo::maxID+1)/sftSZ;
-static const int         mskID = vecSZ-1;
-
-char                     tEnd[sftSZ];
-int                      tVecLast;
-T                       *tPrm[vecSZ];
-T                      **tVec[vecSZ];
+T                       *baseItem;
+uint64_t                 baseKey;
+std::map<uint64_t, T*>   theMap;
 };
 #endif

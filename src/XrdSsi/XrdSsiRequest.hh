@@ -70,8 +70,8 @@ class XrdSsiResponder;
 class XrdSsiRequest
 {
 public:
-friend class XrdSsiReqAgent;
 friend class XrdSsiResponder;
+friend class XrdSsiRRAgent;
 
 //-----------------------------------------------------------------------------
 //! @brief Send or receive a server generated alert.
@@ -241,8 +241,8 @@ virtual PRD_Xeq ProcessResponseData(const XrdSsiErrInfo  &eInfo, char *buff,
 
 //-----------------------------------------------------------------------------
 //! Release the request buffer of the request bound to this object. This method
-//! duplicates the protected method of the same name in XrdSsiRequest and exists
-//! here for calling safety and consistency relative to the responder.
+//! duplicates the protected method RelRequestBuffer() and exists here for
+//! calling safety and consistency relative to the responder.
 //-----------------------------------------------------------------------------
 
 inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
@@ -320,8 +320,7 @@ protected:
 //!
 //!
 //! Note: This method is called with the object's recursive mutex locked when
-//!       it is invoked via XrdSsiResponder's ReleaseRequestBuffer() or the
-//!       one defined in this class.
+//!       it is invoked via XrdSsiResponder's ReleaseRequestBuffer().
 //-----------------------------------------------------------------------------
 
 virtual void    RelRequestBuffer() {}

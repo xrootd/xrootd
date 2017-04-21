@@ -41,7 +41,7 @@
 #include "XrdSsi/XrdSsiFileReq.hh"
 #include "XrdSsi/XrdSsiFileResource.hh"
 #include "XrdSsi/XrdSsiFileSess.hh"
-#include "XrdSsi/XrdSsiReqAgent.hh"
+#include "XrdSsi/XrdSsiRRAgent.hh"
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
@@ -123,7 +123,7 @@ void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
 void XrdSsiFileReq::Alert(XrdSsiRespInfoMsg &aMsg)
 {
    EPNAME("Alert");
-   const XrdSsiRespInfo *rP = XrdSsiReqAgent::RespP(this);
+   const XrdSsiRespInfo *rP = XrdSsiRRAgent::RespP(this);
    XrdSsiAlert *aP;
    int msgLen;
 
@@ -171,7 +171,7 @@ XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo      *eiP,
                                     XrdSsiFileSess     *fP,
                                     const char         *sID,
                                     const char         *cID,
-                                    int                 rnum)
+                                    unsigned int        rnum)
 {
    XrdSsiFileReq *nP;
 
@@ -196,7 +196,7 @@ XrdSsiFileReq *XrdSsiFileReq::Alloc(XrdOucErrInfo      *eiP,
        nP->fileP  = fP;
        nP->cbInfo = eiP;
        nP->reqID = rnum;
-       snprintf(nP->rID, sizeof(nP->rID), "%d:", rnum);
+       snprintf(nP->rID, sizeof(nP->rID), "%u:", rnum);
       }
 
 // Return the pointer
@@ -313,14 +313,14 @@ void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 // Do some debugging
 //
    DEBUGXQ("wtrsp sent; resp "
-           <<(XrdSsiReqAgent::RespP(this)->rType ? "here" : "pend"));
+           <<(XrdSsiRRAgent::RespP(this)->rType ? "here" : "pend"));
 
 // We are invoked when sync() waitresp has been sent, check if a response was
 // posted while this was going on. If so, make sure to send a wakeup. Note
 // that the respWait flag is at this moment false as this is called in the
 // sync response path for fctl() and the response may have been posted.
 //
-   if (XrdSsiReqAgent::RespP(this)->rType == XrdSsiRespInfo::isNone)
+   if (XrdSsiRRAgent::RespP(this)->rType == XrdSsiRespInfo::isNone)
       respWait = true;
       else WakeUp();
 }
@@ -501,7 +501,7 @@ void XrdSsiFileReq::Init(const char *cID)
    respWait   = false;
    strmEOF    = false;
    isEnding   = false;
-   XrdSsiReqAgent::SetMutex(this, &frqMutex);
+   XrdSsiRRAgent::SetMutex(this, &frqMutex);
 }
 
 /******************************************************************************/
@@ -576,7 +576,7 @@ XrdSfsXferSize XrdSsiFileReq::Read(bool           &done,      // Out
 {
    static const char *epname = "read";
    XrdSfsXferSize nbytes;
-   XrdSsiRespInfo const *Resp = XrdSsiReqAgent::RespP(this);
+   XrdSsiRespInfo const *Resp = XrdSsiRRAgent::RespP(this);
 
 // A read should never be issued unless a response has been set
 //
@@ -760,7 +760,7 @@ void XrdSsiFileReq::RelRequestBuffer()
 int XrdSsiFileReq::Send(XrdSfsDio *sfDio, XrdSfsXferSize blen)
 {
    static const char *epname = "send";
-   XrdSsiRespInfo const *Resp = XrdSsiReqAgent::RespP(this);
+   XrdSsiRespInfo const *Resp = XrdSsiRRAgent::RespP(this);
    XrdOucSFVec sfVec[2];
    int rc;
 
@@ -910,7 +910,7 @@ bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
 // Serialize the remainder of this code
 //
    frqMon.Lock(frqMutex);
-   rspP = XrdSsiReqAgent::RespP(this);
+   rspP = XrdSsiRRAgent::RespP(this);
 
 // If we have a pending alert then we need to send it now. Suppress the callback
 // as we will recycle the alert on the next call (there should be one).
@@ -955,7 +955,7 @@ void XrdSsiFileReq::WakeUp(XrdSsiAlert *aP) // Called with frqMutex locked!
    EPNAME("WakeUp");
    XrdOucErrInfo *wuInfo = 
                   new XrdOucErrInfo(tident,(XrdOucEICB *)0,respCBarg);
-   const XrdSsiRespInfo *rspP = XrdSsiReqAgent::RespP(this);
+   const XrdSsiRespInfo *rspP = XrdSsiRRAgent::RespP(this);
    int respCode = SFS_DATAVEC;
 
 // Do some debugging

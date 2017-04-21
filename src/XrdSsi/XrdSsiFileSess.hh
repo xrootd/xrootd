@@ -50,7 +50,8 @@ public:
 static  XrdSsiFileSess  *Alloc(XrdOucErrInfo &einfo, const char *user);
 
         bool             AttnInfo(      XrdOucErrInfo  &eInfo,
-                                  const XrdSsiRespInfo *respP, int reqID);
+                                  const XrdSsiRespInfo *respP,
+                                        unsigned int    reqID);
 
         XrdOucErrInfo   *errInfo() {return eInfo;}
                         
@@ -100,10 +101,11 @@ private:
                         ~XrdSsiFileSess() {} // Recycle() calls Reset()
 
 void                     Init(XrdOucErrInfo &einfo, const char *user, bool forReuse);
-bool                     NewRequest(int reqid, XrdOucBuffer *oP,
+bool                     NewRequest(unsigned int reqid, XrdOucBuffer *oP,
                                     XrdSfsXioHandle *bR, int rSz);
 void                     Reset();
-XrdSfsXferSize           writeAdd(const char *buff, XrdSfsXferSize blen, int rid);
+XrdSfsXferSize           writeAdd(const char *buff, XrdSfsXferSize blen,
+                                  unsigned int rid);
 
 static XrdSysMutex       arMutex;  // Alloc and Recycle protector
 static XrdSsiFileSess   *freeList;

@@ -54,6 +54,13 @@
 //! reclaim any response data buffer or stream resource before it gives up
 //! control of the request object. This means you must provide an implementation
 //! To the Finished() method defined here.
+//!
+//! Once Finished() is called you must call UnBindRequest() when you are
+//! actually through referencing the request object. While that is true most
+//! of the time, it may not be so when an async cancellation occurs (i.e.
+//! you may need to defer release of the request object). Note that should
+//! you delete this object before calling UnBindRequest(), the responder
+//! object is forcibly unbound from the request.
 //-----------------------------------------------------------------------------
 
 #define SSI_VAL_RESPONSE(rX) rrMutex->Lock();\
@@ -73,6 +80,7 @@ class XrdSsiResponder
 {
 public:
 friend class XrdSsiRequest;
+friend class XrdSsiRRAgent;
 
 //-----------------------------------------------------------------------------
 //! The maximum amount of metadata+data (i.e. the sum of two blen arguments in
@@ -91,34 +99,19 @@ static const int MaxDirectXfr = 2097152; //< Max (metadata+data) direct xfr
 //! @param  rqstR reference to the request object.
 //-----------------------------------------------------------------------------
 
-inline  void    BindRequest(XrdSsiRequest   &rqstR)
-                           {XrdSsiMutexMon(rqstR.rrMutex);
-                            rqstR.theRespond = this;
-                            reqP    = &rqstR;
-                            rrMutex = rqstR.rrMutex;
-                            rqstR.Resp.Init();
-                            rqstR.errInfo.Clr();
-                            rqstR.BindDone();
-                           }
+        void    BindRequest(XrdSsiRequest   &rqstR);
 
 //-----------------------------------------------------------------------------
-//! Unbind this responder from the request object it is bound to.
+//! Unbind this responder from the request object it is bound to. Upon return
+//! ownership of the associated request object reverts back to the creator of
+//! the object who is responsible for deleting or recycling the request object.
+//! UnBindRequest() is also called when the responder object is deleted.
 //!
 //! @return true  Request successfully unbound.
 //!         false UnBindRequest already called or called prior to Finish().
 //-----------------------------------------------------------------------------
 
-inline  bool    UnBindRequest() {rrMutex->Lock();
-                                 XrdSsiRequest *rP = reqP;
-                                 if (reqP && reqP->theRespond == 0)
-                                    {reqP = 0;
-                                     rrMutex->UnLock();
-                                     rP->Unbind(this);
-                                     return true;
-                                    }
-                                 rrMutex->UnLock();
-                                 return false;
-                                }
+        bool    UnBindRequest();
 
 protected:
 
@@ -140,9 +133,8 @@ inline  void   Alert(XrdSsiRespInfoMsg &aMsg)
 //-----------------------------------------------------------------------------
 //! Notify the responder that a request either completed or was canceled. This
 //! allows the responder to release any resources given to the request object
-//! (e.g. data response buffer or a stream). Upon return the object is owned by
-//! the request object's creator who is responsible for releaasing or recycling
-//! the object. This method is invoked by XrdSsiRequest::Finished().
+//! (e.g. data response buffer or a stream). This method is invoked when
+//! XrdSsiRequest::Finished() is called by the client.
 //!
 //! @param  rqstP  reference to the object describing the request.
 //! @param  rInfo  reference to the object describing the response.
@@ -297,7 +289,7 @@ inline Status  SetResponse(XrdSsiStream *strmP)
 //! responses.
 //-----------------------------------------------------------------------------
 
-               XrdSsiResponder() : reqP(0) {}
+               XrdSsiResponder() : rrMutex(&ubMutex), reqP(0) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor is protected. You cannot use delete on a responder object, as it
@@ -306,8 +298,12 @@ inline Status  SetResponse(XrdSsiStream *strmP)
 
 protected:
 
-virtual       ~XrdSsiResponder() {}
+virtual       ~XrdSsiResponder();
 
+private:
+
+static
+XrdSsiMutex    ubMutex;
 XrdSsiMutex   *rrMutex;
 XrdSsiRequest *reqP;
 };

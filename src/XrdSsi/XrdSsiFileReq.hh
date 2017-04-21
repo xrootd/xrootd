@@ -64,7 +64,7 @@ public:
 
 static  XrdSsiFileReq *Alloc(XrdOucErrInfo  *eP, XrdSsiFileResource *rP,
                              XrdSsiFileSess *fP, const char         *sn,
-                             const char     *id, int                 rnum);
+                             const char     *id, unsigned int        rnum);
 
         void           Finalize();
 
@@ -161,7 +161,7 @@ XrdSsiStream::Buffer  *strBuff;
 reqState               myState;
 rspState               urState;
 int                    reqSize;
-int                    reqID;
+unsigned int           reqID;
 bool                   respWait;
 bool                   strmEOF;
 bool                   schedDone;

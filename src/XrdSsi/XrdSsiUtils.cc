@@ -44,9 +44,9 @@
 
 #include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiErrInfo.hh"
-#include "XrdSsi/XrdSsiReqAgent.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiResponder.hh"
+#include "XrdSsi/XrdSsiRRAgent.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
 
 #include "XrdSys/XrdSysError.hh"
@@ -92,7 +92,7 @@ virtual void   Finished(      XrdSsiRequest  &rqstR,
          PostError(XrdSsiRequest *rP, char *emsg, int ec)
                   : myMutex(XrdSsiMutex::Recursive),
                     reqP(rP), eTxt(emsg), eNum(ec), isActive(true)
-                    {XrdSsiReqAgent::SetMutex(rP, &myMutex);
+                    {XrdSsiRRAgent::SetMutex(rP, &myMutex);
                      BindRequest(*reqP);
                     }
 

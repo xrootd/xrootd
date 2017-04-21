@@ -31,8 +31,8 @@
 #include <stdio.h>
 #include <string.h>
   
-#include "XrdSsi/XrdSsiReqAgent.hh"
 #include "XrdSsi/XrdSsiResource.hh"
+#include "XrdSsi/XrdSsiRRAgent.hh"
 #include "XrdSsi/XrdSsiScale.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
 #include "XrdSsi/XrdSsiSessReal.hh"

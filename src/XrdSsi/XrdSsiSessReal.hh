@@ -96,8 +96,8 @@ XrdSsiTaskReal  *freeTask;
 XrdSsiRequest   *requestP;
 char            *sessName;
 char            *sessNode;
-int16_t          nextTID;
-int16_t          alocLeft;
+uint32_t         nextTID;
+uint32_t         alocLeft;
 int16_t          uEnt;     // User index for scaling
 bool             isHeld;
 bool             inOpen;

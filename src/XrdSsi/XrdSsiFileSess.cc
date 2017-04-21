@@ -52,6 +52,7 @@
 #include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiFileSess.hh"
 #include "XrdSsi/XrdSsiProvider.hh"
+#include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
@@ -150,7 +151,8 @@ XrdSsiFileSess *XrdSsiFileSess::Alloc(XrdOucErrInfo &einfo, const char *user)
 /******************************************************************************/
   
 bool XrdSsiFileSess::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
-                              int reqID) // Called with the request mutex locked!
+                              unsigned int reqID)
+// Called with the request mutex locked!
 {
    struct AttnResp {struct iovec ioV[4]; XrdSsiRRInfoAttn aHdr;};
 
@@ -266,7 +268,7 @@ int XrdSsiFileSess::fctl(const int           cmd,
    static const char *epname = "fctl";
    XrdSsiRRInfo      *rInfo;
    XrdSsiFileReq     *rqstP;
-   int reqID;
+   unsigned int       reqID;
 
 // If this isn't the special query, then return an error
 //
@@ -333,7 +335,7 @@ void XrdSsiFileSess::Init(XrdOucErrInfo &einfo, const char *user, bool forReuse)
 /* Private:                   N e w R e q u e s t                             */
 /******************************************************************************/
   
-bool XrdSsiFileSess::NewRequest(int              reqid,
+bool XrdSsiFileSess::NewRequest(unsigned int     reqid,
                                 XrdOucBuffer    *oP,
                                 XrdSfsXioHandle *bR,
                                 int              rSz)
@@ -342,8 +344,7 @@ bool XrdSsiFileSess::NewRequest(int              reqid,
 
 // Allocate a new request object
 //
-   if ((reqid > XrdSsiRRInfo::maxID)
-   || !(reqP = XrdSsiFileReq::Alloc(eInfo,&fileResource,this,gigID,tident,reqid)))
+   if (!(reqP=XrdSsiFileReq::Alloc(eInfo,&fileResource,this,gigID,tident,reqid)))
       return false;
 
 // Add it to the table
@@ -469,7 +470,7 @@ XrdSfsXferSize XrdSsiFileSess::read(XrdSfsFileOffset  offset,    // In
    XrdSsiRRInfo   rInfo(offset);
    XrdSsiFileReq *rqstP;
    XrdSfsXferSize retval;
-   int            reqID = rInfo.Id();
+   unsigned int   reqID = rInfo.Id();
    bool           noMore = false;
 
 // Find the request object. If not there we may have encountered an eof
@@ -556,7 +557,8 @@ int XrdSsiFileSess::SendData(XrdSfsDio         *sfDio,
    static const char *epname = "SendData";
    XrdSsiRRInfo   rInfo(offset);
    XrdSsiFileReq *rqstP;
-   int rc, reqID = rInfo.Id();
+   unsigned int reqID = rInfo.Id();
+   int rc;
 
 // Find the request object
 //
@@ -593,7 +595,7 @@ int XrdSsiFileSess::truncate(XrdSfsFileOffset  flen)  // In
    XrdSsiFileReq     *rqstP;
    XrdSsiRRInfo       rInfo(flen);
    XrdSsiRRInfo::Opc  reqXQ = rInfo.Cmd();
-   int reqID = rInfo.Id();
+   unsigned int       reqID = rInfo.Id();
 
 // Find the request object. If not there we may have encountered an eof
 //
@@ -642,7 +644,7 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
 {
    static const char *epname = "write";
    XrdSsiRRInfo   rInfo(offset);
-   int reqID = rInfo.Id();
+   unsigned int reqID = rInfo.Id();
 
 // Check if we are reading a request segment and handle that. This assumes that
 // writes to different requests cannot be interleaved (which they can't be).
@@ -711,7 +713,7 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
 
 XrdSfsXferSize XrdSsiFileSess::writeAdd(const char     *buff,      // In
                                         XrdSfsXferSize  blen,      // In
-                                        int             rid)
+                                        unsigned int    rid)
 /*
   Function: Add `blen' bytes from 'buff' to request and return the actual
             number of bytes added.

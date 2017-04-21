@@ -1,10 +1,10 @@
-#ifndef __XRDSSIBVEC_HH__
-#define __XRDSSIBVEC_HH__
+#ifndef __XRDSSIRRAGENT_HH__
+#define __XRDSSIRRAGENT_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                         X r d S s i B V e c . h h                          */
+/*                      X r d S s i R R A g e n t . h h                       */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,37 +29,31 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <set>
-#include <stdint.h>
-  
-class XrdSsiBVec
+#include "XrdSsi/XrdSsiRequest.hh"
+#include "XrdSsi/XrdSsiResponder.hh"
+
+class XrdSsiMuex;
+
+class XrdSsiRRAgent
 {
 public:
 
-inline void  Set(uint32_t bval) 
-                {if (bval < 64) bitVec |= 1LL << bval;
-                    else theSet.insert(bval);
-                }
+static XrdSsiErrInfo  &ErrInfoRef(XrdSsiRequest *rP) {return rP->errInfo;}
 
-inline bool  IsSet(uint32_t bval)
-                  {if (bval < 64) return bitVec & 1LL << bval;
-                   std::set<uint32_t>::iterator it = theSet.find(bval);
-                   return it != theSet.end();
-                  }
+static XrdSsiRequest  *Request(XrdSsiResponder *rP) {return rP->reqP;}
 
-inline void  UnSet(uint32_t bval)
-                  {if (bval < 64) bitVec &= ~(1LL<<bval);
-                      else theSet.erase(bval);
-                  }
+static XrdSsiRespInfo *RespP(XrdSsiRequest *rP) {return &(rP->Resp);}
 
-inline void  Reset() {bitVec = 0; theSet.clear();}
+static void            SetNode(XrdSsiRequest *rP, const char *name)
+                              {rP->epNode = name;}
 
-             XrdSsiBVec() : bitVec(0) {}
-            ~XrdSsiBVec() {}
+static void            ResetResponder(XrdSsiResponder *rP)
+                                     {rP->rrMutex = &(rP->ubMutex);}
 
-private:
+static void            SetMutex(XrdSsiRequest *rP, XrdSsiMutex *mP)
+                               {rP->rrMutex = mP;}
 
-uint64_t           bitVec;
-std::set<uint32_t> theSet;
+static void            Unbind(XrdSsiRequest &reqR, XrdSsiResponder *respP=0)
+                             {reqR.Unbind(respP);}
 };
 #endif

@@ -38,47 +38,48 @@ class XrdSsiRRInfo
 {
 public:
 
-static const int maxID = 1023;  // See RRTable for optimal value (now x*32)
+static const unsigned int idMax = 16777215;
 
 enum   Opc {Rxq = 0, Rwt = 1, Can = 2};
 
-inline void               Cmd(Opc cmd) {reqCmd  = static_cast<char>(cmd);}
+inline void                 Cmd(Opc cmd)
+                               {reqCmd  = static_cast<unsigned char>(cmd);}
 
-inline Opc                Cmd()        {return    static_cast<Opc>(reqCmd);}
+inline Opc                  Cmd() {return    static_cast<Opc>(reqCmd);}
 
-inline const char        *Data()       {return &reqCmd;}
+inline const unsigned char *Data()       {return &reqCmd;}
 
-inline void               Id(int id)   {reqId   = 
-                                        htons(static_cast<short>(id&maxID));
-                                       }
+inline void                 Id(unsigned int id)
+                              {unsigned char tmp = reqCmd;
+                               reqId  = htonl(id & idMask);
+                               reqCmd = tmp;
+                              }
 
-inline int                Id()         {return    
-                                        static_cast<int>(ntohs(reqId)&maxID);
-                                       }
+inline unsigned int         Id() {return ntohl(reqId) & idMask;}
 
-inline void               Size(int sz) {reqSize = htonl(sz);}
+inline void                 Size(unsigned int sz) {reqSize = htonl(sz);}
 
-inline int                Size()       {return    ntohl(reqSize);}
+inline unsigned int         Size()                {return    ntohl(reqSize);}
 
 inline unsigned long long Info()
-       {return (static_cast<unsigned long long>(reqCmd) <<56LL)
-              |(static_cast<unsigned long long>(reqId)  <<32LL)
-              |(static_cast<unsigned long long>(reqSize & 0xffffffffLL));
+       {return (static_cast<unsigned long long>(reqId   & 0xffffffff) <<32LL)
+              |(static_cast<unsigned long long>(reqSize & 0xffffffff));
 
        }
 
        XrdSsiRRInfo(unsigned long long ival=0)
-                   : reqCmd(ival>>56),
-                     reqId(static_cast<short>((ival>>32)&0xffff)),
-                     reqSize(static_cast<int>(ival & 0xffffffff)) {}
+                   : reqId(static_cast<unsigned int>( (ival>>32) & 0xffffffff)),
+                     reqSize(static_cast<unsigned int>(ival & 0xffffffff)) {}
 
       ~XrdSsiRRInfo() {}
 
 private:
-char               reqCmd;
-char               Rsvd;
-short              reqId;
-int                reqSize;
+static const int idMask = 0x00ffffff;
+
+union {unsigned char reqCmd;
+       unsigned int  reqId;
+      };
+       unsigned int  reqSize;
 };
 
 /******************************************************************************/
@@ -94,7 +95,7 @@ static   const int  pendResp = '*';  // In tag: response data is pending
          char  tag;
          char  flags;
 unsigned short pfxLen;   // Length of prefix
-unsigned int   mdLen;    // Length of alert or meta data
+unsigned int   mdLen;    // Length of metadata
          int   rsvd1;
          int   rsvd2;
 };

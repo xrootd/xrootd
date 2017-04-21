@@ -27,11 +27,11 @@ XrdSsi/XrdSsiFileResource.cc           XrdSsi/XrdSsiFileResource.hh
 XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh
 XrdSsi/XrdSsiPacer.cc                  XrdSsi/XrdSsiPacer.hh
                                        XrdSsi/XrdSsiProvider.hh
+                                       XrdSsi/XrdSsiRRAgent.hh
                                        XrdSsi/XrdSsiRRInfo.hh
                                        XrdSsi/XrdSsiRRTable.hh
-                                       XrdSsi/XrdSsiReqAgent.hh
 XrdSsi/XrdSsiRequest.cc                XrdSsi/XrdSsiRequest.hh
-                                       XrdSsi/XrdSsiResponder.hh
+XrdSsi/XrdSsiResponder.cc              XrdSsi/XrdSsiResponder.hh
                                        XrdSsi/XrdSsiResource.hh
                                        XrdSsi/XrdSsiScale.hh
 XrdSsi/XrdSsiServReal.cc               XrdSsi/XrdSsiServReal.hh
