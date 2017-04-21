@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstddef>
 #include <sys/uio.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
