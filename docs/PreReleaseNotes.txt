@@ -31,6 +31,7 @@ Prerelease Notes
   * **[XrdSec]** Use CommonCrypto header instead of openssl for SHA on OSX. 
 
 + **Miscellaneous**
+  * **[Proxy Server]** Simplify delayed destruction on wait vs post.
   * **[XrdPosix]** Add new minpages option to pss.cache to support large pages.
   * **{XrdApps]** Remove XrdClient dependency from xrdadler32.
   * **[Server]** Add XrdCksAssist functions to help handle XRootD checksums.
