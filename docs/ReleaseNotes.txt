@@ -12,6 +12,7 @@ Version 4.6.1
 
 + **Major bug fixes**
   
+  * **[Proxy Server]** Avoid SEGV when close(), closedir() returns an error.
   * **[cmsd]** Fix feature interaction causing improper file existence to be sent.
   * **[XrdCrypto/XrdSecgsi]** Make sure the CRL is loaded for the right CA.
   * **[XrdCrypto]** Support for OpenSSL 1.1
