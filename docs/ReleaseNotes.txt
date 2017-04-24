@@ -12,7 +12,7 @@ Version 4.6.1
 
 + **Major bug fixes**
   
-  * **[Proxy Server]** Avoid SEGV when close(), closedir() returns an error.
+  * **[Server/Proxy]** Avoid SEGV when close(), closedir() returns an error.
   * **[cmsd]** Fix feature interaction causing improper file existence to be sent.
   * **[XrdCrypto/XrdSecgsi]** Make sure the CRL is loaded for the right CA.
   * **[XrdCrypto]** Support for OpenSSL 1.1
@@ -54,6 +54,10 @@ Version 4.6.1
   * **[XrdPosix]** Make XrdPosix.hh a public header; closes #479
   * **[XrdApps]** Remove XrdClient dependency from xrdadler32.
   * **[Server]** Add XrdCksAssist functions to help handle XRootD checksums.
+  * **[Server/Proxy]** Move disk sync operations out of IO::ioActive() call.
+  * **[Server/Proxy]** Change severity IO::initLocalStat() log message.
+  * **[XrdFileCache]** Ease development of decision plugins.
+  * **[XrdFileCache]** Use ref-counts on File objects.
 
 -------------
 Version 4.6.0
