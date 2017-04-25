@@ -852,8 +852,9 @@ namespace XrdCl
       {
           
         Log* log = DefaultEnv::GetLog();
-        log->Debug(0x150, "HandleResponseWithHosts");
+        log->Debug(0x150, "ResponseHandler::HandleResponseWithHosts()");
         delete hostList;
+        log->Debug(0x150, "ResponseHandler::HandleResponseWithHosts()2");
         HandleResponse( status, response );
       }
 
@@ -868,8 +869,6 @@ namespace XrdCl
       virtual void HandleResponse( XRootDStatus *status,
                                    AnyObject    *response )
       {
-        Log* log = DefaultEnv::GetLog();
-        log->Debug(0x150, "HandleResponse");
         (void)status; (void)response;
       }
   };

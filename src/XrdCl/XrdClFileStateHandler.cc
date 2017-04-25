@@ -71,7 +71,7 @@ namespace
       {
         using namespace XrdCl;
         Log* log= DefaultEnv::GetLog();
-        log->Debug(FileMsg, "HandleResponseWithHosts in OpenHandler");
+        log->Debug(0x150, "OpenHandler::HandleResponseWithHosts()");
 
         //----------------------------------------------------------------------
         // Extract the statistics info
@@ -135,6 +135,8 @@ namespace
                                             XrdCl::AnyObject    *response,
                                             XrdCl::HostList     *hostList )
       {
+        XrdCl::Log* log= XrdCl::DefaultEnv::GetLog();
+        log->Debug(0x150, "CloseHandler::HandleResponseWithHosts()");
         pStateHandler->OnClose( status );
         if( pUserHandler )
           pUserHandler->HandleResponseWithHosts( status, response, hostList );
@@ -193,12 +195,13 @@ namespace
         using namespace XrdCl;
         XRDCL_SMART_PTR_T<AnyObject>       responsePtr( response );
         pSendParams.hostList = hostList;
-
+        Log* log= DefaultEnv::GetLog();
         //----------------------------------------------------------------------
         // Houston we have a problem...
         //----------------------------------------------------------------------
         if( !status->IsOK() )
         {
+          log->Debug(0x150, "Status not Ok in HandleResponseWithHosts");
           pStateHandler->OnStateError( status, pMessage, this, pSendParams );
           return;
         }
@@ -207,7 +210,9 @@ namespace
         // We're clear
         //----------------------------------------------------------------------
         responsePtr.release();
+        log->Debug(0x150, "StatefulHandler::HandleResponseWithHosts()");
         pStateHandler->OnStateResponse( status, pMessage, response, hostList );
+        log->Debug(0x150, "StatefulHandler::HandleResponseWithHosts() 2");
         pUserHandler->HandleResponseWithHosts( status, response, hostList );
         delete this;
       }
@@ -488,7 +493,7 @@ namespace XrdCl
 
     if(pFileUrl->GetProtocol()=="file"){
         OpenHandler *openHandler = new OpenHandler( this, handler );
-        Status st = lFileHandler->Open(pFileUrl->GetURL().c_str(),flags,mode, openHandler);
+        XRootDStatus st = lFileHandler->Open(pFileUrl->GetURL().c_str(),flags,mode, openHandler);
         return st;
     }
     pOpenMode  = mode;
@@ -575,7 +580,7 @@ namespace XrdCl
 
     if(pFileUrl->GetProtocol()=="file"){
         CloseHandler *closeHandler = new CloseHandler( this, handler, NULL );
-        Status st = lFileHandler->Close(closeHandler);
+        XRootDStatus st = lFileHandler->Close(closeHandler);
         return st;
     }
     
@@ -669,7 +674,7 @@ namespace XrdCl
     
     if(pFileUrl->GetProtocol()=="file"){
         StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params  );
-        Status st = lFileHandler->Stat(false, stHandler);
+        XRootDStatus st = lFileHandler->Stat(false, stHandler);
         return st;
     }
     
@@ -725,7 +730,8 @@ namespace XrdCl
     
     if(pFileUrl->GetProtocol()=="file"){
         StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params  );
-        Status st = lFileHandler->Read(offset, size, buffer, stHandler, timeout);
+        XRootDStatus st = lFileHandler->Read(offset, size, buffer, stHandler, timeout);
+        log->Debug(0x150, "Read Status is: %s", st.ToString().c_str());
         return st;
     }
     return SendOrQueue( *pDataServer, msg, stHandler, params );
@@ -778,7 +784,7 @@ namespace XrdCl
     
     if(pFileUrl->GetProtocol()=="file"){
         StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params  );
-        Status st = lFileHandler->Write(offset, size, buffer, stHandler, timeout);
+        XRootDStatus st = lFileHandler->Write(offset, size, buffer, stHandler, timeout);
         return st;
     }
     
@@ -1381,6 +1387,7 @@ namespace XrdCl
     // place to do caching in the future.
     //--------------------------------------------------------------------------
     ClientRequest *req = (ClientRequest*)message->GetBuffer();
+    log->Debug( FileMsg, "FileStateHandler::OnStateResponse3");     
     switch( req->header.requestid )
     {
       //------------------------------------------------------------------------
@@ -1388,6 +1395,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_stat:
       {
+        log->Debug( FileMsg, "FileStateHandler::OnStateResponse7");     
         StatInfo *info = 0;
         response->Get( info );
         delete pStatInfo;
@@ -1400,6 +1408,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_read:
       {
+        log->Debug( FileMsg, "FileStateHandler::OnStateResponse4, req->read.rlen: %i", req->read.rlen);     
         ++pRCount;
         pRBytes += req->read.rlen;
         break;
@@ -1410,6 +1419,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_readv:
       {
+        log->Debug( FileMsg, "FileStateHandler::OnStateResponse5");     
         ++pVCount;
         size_t segs = req->header.dlen/sizeof(readahead_list);
         readahead_list *dataChunk = (readahead_list*)message->GetBuffer( 24 );
@@ -1424,6 +1434,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_write:
       {
+        log->Debug( FileMsg, "FileStateHandler::OnStateResponse6");     
         ++pWCount;
         pWBytes += req->write.dlen;
         break;

@@ -377,7 +377,7 @@ namespace
 
         const uint32_t toRead = pChunkSize;
         char *buffer = new char[toRead];
-
+        log->Debug(0x151515, "toRead: %i", toRead);
         int64_t bytesRead = read( pFD, buffer, toRead );
         if( bytesRead == -1 )
         {
@@ -634,19 +634,27 @@ namespace
             chunkSize = pSize - pCurrentOffset;
 
           char *buffer = new char[chunkSize];
-          ChunkHandler *ch = new ChunkHandler;
+          ChunkHandler *ch = new ChunkHandler();
           ch->chunk.offset = pCurrentOffset;
           ch->chunk.length = chunkSize;
           ch->chunk.buffer = buffer;
+          log->Debug(0x150, "GetChunk: Offset: %i, Chunksize: %i, Buffer: %s", pCurrentOffset, chunkSize, buffer);
+          XRootDStatus mystatus= pFile->Read( pCurrentOffset, chunkSize, buffer, ch );
+          log->Debug(0x150, "Read pFile, got MyStatus %s", mystatus.ToString().c_str());
           ch->status = pFile->Read( pCurrentOffset, chunkSize, buffer, ch );
+          log->Debug(0x150, "GetChunk: Offset: %i, Chunksize: %i, Buffer: %s", pCurrentOffset, chunkSize, buffer);
+          
+          log->Debug(0x150, "Read pFile, got Status");
           pChunks.push( ch );
           pCurrentOffset += chunkSize;
           if( !ch->status.IsOK() )
           {
+            log->Debug(0x150, "Chunk Status is not OK %s",ch->status.ToStr().c_str());
             ch->sem->Post();
             break;
           }
         }
+          log->Debug(0x150, "Read finished");
 
         //----------------------------------------------------------------------
         // Pick up a chunk from the front and wait for status
@@ -654,12 +662,17 @@ namespace
         if( pChunks.empty() )
           return XRootDStatus( stOK, suDone );
 
+        log->Debug(0x150, "GetChunk 1");
         XRDCL_SMART_PTR_T<ChunkHandler> ch( pChunks.front() );
         pChunks.pop();
         ch->sem->Wait();
-
+        
+        log->Debug(0x150, "GetChunk 2");
+        XRootDStatus statuz(stOK);
+        ch->status= statuz;
         if( !ch->status.IsOK() )
         {
+          log->Debug(0x150, "GetChunk failed");
           log->Debug( UtilityMsg, "Unable read %d bytes at %ld from %s: %s",
                       ch->chunk.length, ch->chunk.offset,
                       pUrl->GetURL().c_str(), ch->status.ToStr().c_str() );
@@ -668,6 +681,7 @@ namespace
           return ch->status;
         }
 
+        log->Debug(0x150, "GetChunk 3");
         ci = ch->chunk;
         return XRootDStatus( stOK, suContinue );
       }
@@ -722,7 +736,11 @@ namespace
           virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
                                        XrdCl::AnyObject    *response )
           {
+              
+            XrdCl::Log* log= XrdCl::DefaultEnv::GetLog();
+            log->Debug(0x150, "ChunkHandler statusval: %s", statusval->ToString().c_str());
             this->status = *statusval;
+            log->Debug(0x150, "ChunkHandler status: %s", status.ToString().c_str());
             delete statusval;
             if( response )
             {
@@ -1680,7 +1698,6 @@ namespace XrdCl
     dest->SetMakeDir( makeDir );
     st = dest->Initialize();
     if( !st.IsOK() ) return st;
-
     //--------------------------------------------------------------------------
     // Copy the chunks
     //--------------------------------------------------------------------------
@@ -1696,6 +1713,7 @@ namespace XrdCl
       if( st.IsOK() && st.code == suDone )
         break;
 
+        
       st = dest->PutChunk( chunkInfo );
 
       if( !st.IsOK() )
