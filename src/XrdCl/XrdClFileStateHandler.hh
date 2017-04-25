@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClLocalFileHandler.hh"
 #include <list>
 #include <set>
 
@@ -450,6 +451,7 @@ namespace XrdCl
       // (there is only only OpenHandler reopening a file at a time)
       //------------------------------------------------------------------------
       ResponseHandlerHolder *pReOpenHandler;
+      LocalFileHandler      *lFileHandler;
   };
 }
 

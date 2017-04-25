@@ -29,6 +29,8 @@
 #include <list>
 #include <ctime>
 
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClLog.hh"
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -848,6 +850,9 @@ namespace XrdCl
                                             AnyObject    *response,
                                             HostList     *hostList )
       {
+          
+        Log* log = DefaultEnv::GetLog();
+        log->Debug(0x150, "HandleResponseWithHosts");
         delete hostList;
         HandleResponse( status, response );
       }
@@ -863,6 +868,8 @@ namespace XrdCl
       virtual void HandleResponse( XRootDStatus *status,
                                    AnyObject    *response )
       {
+        Log* log = DefaultEnv::GetLog();
+        log->Debug(0x150, "HandleResponse");
         (void)status; (void)response;
       }
   };
