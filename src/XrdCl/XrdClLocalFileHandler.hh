@@ -4,18 +4,17 @@
 #include "XrdCl/XrdClLocalFileTask.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClPostMaster.hh"
 
 namespace XrdCl
-{   
+{
     class LocalFileHandler{
     public:
-        
+
       LocalFileHandler();
-    
+
       ~LocalFileHandler();
-    
-    
+
+
       //------------------------------------------------------------------------
       //! Open the file pointed to by the given URL
       //!
@@ -47,7 +46,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Obtain status information for this file - async
       //!
-      //! @param force   do not use the cached information, force re-stating
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfo object
       //!                if the procedure is successful
@@ -55,10 +53,8 @@ namespace XrdCl
       //!                be used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Stat( bool             force,
-                         ResponseHandler *handler,
+      XRootDStatus Stat( ResponseHandler *handler,
                          uint16_t         timeout = 0 );
-
 
       //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - sync
@@ -99,7 +95,6 @@ namespace XrdCl
                           ResponseHandler *handler,
                           uint16_t         timeout = 0 );
 
-
       //------------------------------------------------------------------------
       //! Commit all pending disk writes - async
       //!
@@ -138,11 +133,11 @@ namespace XrdCl
                                void            *buffer,
                                ResponseHandler *handler,
                                uint16_t         timeout = 0 );
-  
+
         private:
             JobManager *jmngr;
             int fd;
 
-    };  
+    };
 }
 #endif

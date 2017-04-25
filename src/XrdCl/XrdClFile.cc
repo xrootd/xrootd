@@ -190,10 +190,8 @@ namespace XrdCl
   {
     if( pPlugIn )
       return pPlugIn->Read( offset, size, buffer, handler, timeout );
-    Log*log= DefaultEnv::GetLog();
-    XRootDStatus st=pStateHandler->Read( offset, size, buffer, handler, timeout );
-    log->Debug(0x150, "Status in XrdClFile is: %s", st.ToString().c_str() );
-    return st;
+
+    return pStateHandler->Read( offset, size, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------

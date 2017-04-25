@@ -850,11 +850,7 @@ namespace XrdCl
                                             AnyObject    *response,
                                             HostList     *hostList )
       {
-          
-        Log* log = DefaultEnv::GetLog();
-        log->Debug(0x150, "ResponseHandler::HandleResponseWithHosts()");
         delete hostList;
-        log->Debug(0x150, "ResponseHandler::HandleResponseWithHosts()2");
         HandleResponse( status, response );
       }
 

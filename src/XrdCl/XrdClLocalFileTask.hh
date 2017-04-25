@@ -7,18 +7,18 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 namespace XrdCl{
-    class LocalFileTask : public Job{
-        
-        public:
-        LocalFileTask(  XRootDStatus * st, AnyObject* obj, HostList* hosts, ResponseHandler* responsehandler );
-        ~LocalFileTask();
-        virtual void Run( void *arg );
-        
-    private:
-        XRootDStatus* st;
-        AnyObject* obj;
-        HostList* hosts;
-        ResponseHandler* responsehandler;
+   class LocalFileTask : public Job{
+
+      public:
+      LocalFileTask(  XRootDStatus *st, AnyObject *obj, HostList *hosts, ResponseHandler *responsehandler );
+      ~LocalFileTask();
+      virtual void Run( void *arg );
+
+   private:
+      XRootDStatus *st;
+      AnyObject *obj;
+      HostList *hosts;
+      ResponseHandler *responsehandler;
     };
 }
 

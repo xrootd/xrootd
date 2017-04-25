@@ -5,22 +5,21 @@
 
 namespace XrdCl
 {
-    LocalFileTask::LocalFileTask(XRootDStatus * st, AnyObject* obj, HostList* hosts, ResponseHandler* responsehandler)
-    {
-        this->st=st;
-        this->obj=obj;
-        this->hosts=hosts;
-        this->responsehandler=responsehandler;
-    }
+   LocalFileTask::LocalFileTask( XRootDStatus *st, AnyObject *obj, HostList *hosts, ResponseHandler *responsehandler )
+   {
+      this->st = st;
+      this->obj = obj;
+      this->hosts = hosts;
+      this->responsehandler = responsehandler;
+   }
 
-    LocalFileTask::~LocalFileTask()
-    {
-    }
+   LocalFileTask::~LocalFileTask()
+   {
+   }
 
-    void LocalFileTask::Run(void* arg)
-    {
-        if(responsehandler)
-            responsehandler->HandleResponseWithHosts(st,obj,hosts);
-    }
-
+   void LocalFileTask::Run( void *arg )
+   {
+      if( responsehandler )
+         responsehandler->HandleResponseWithHosts( st, obj, hosts );
+   }
 }

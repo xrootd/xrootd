@@ -1,180 +1,313 @@
 #include "XrdCl/XrdClLocalFileHandler.hh"
+#include "XrdCl/XrdClConstants.hh"
+
 #include <string>
 #include <iostream>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
+
 namespace XrdCl{
-    LocalFileHandler::LocalFileHandler()
-    {
-        Log *log = DefaultEnv::GetLog();
-        log->Debug( 0x150, "lFileHandler Constructor");
-        jmngr=new JobManager(3);
-        jmngr->Initialize();
-        jmngr->Start();
-    }
+      //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      LocalFileHandler::LocalFileHandler()
+      {
+         jmngr = new JobManager(3);//TO DO: How many?
+         jmngr->Initialize();
+         jmngr->Start();
+      }
+      //------------------------------------------------------------------------
+      // Destructor
+      //------------------------------------------------------------------------
+      LocalFileHandler::~LocalFileHandler()
+      {
+      }
+      //------------------------------------------------------------------------
+      // Open
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Open( const std::string& url, uint16_t flags,
+                     uint16_t mode, ResponseHandler* handler, uint16_t timeout )
+      {
+         Log *log = DefaultEnv::GetLog();
+         AnyObject *obj = new AnyObject();
+         XRootDStatus *st;
+         LocalFileTask *task;
+         HostList* hosts = new HostList();
+         hosts->push_back( HostInfo( URL( "localhost" ), true ) );
+         StatInfo *statInfo = new StatInfo();
 
-    LocalFileHandler::~LocalFileHandler()
-    {
-    }
+         std::string fileurl = url;
+         if( url.find("file://") == 0 )
+            fileurl.erase( 0, 7 );
+         else{
+            log->Warning( FileMsg,
+               "%s in lFileHandler::Open does not contain file:// at front", url.c_str() );
+         }
 
-    XRootDStatus LocalFileHandler::Open(const std::string& url, uint16_t flags, uint16_t mode, ResponseHandler* handler, uint16_t timeout)
-    {
-        Log *log = DefaultEnv::GetLog();
-        HostList* hosts=new HostList();
-        URL *pUrl=new URL("localhost");
-        HostInfo info( *pUrl, true );
-        hosts->push_back(info);
-        mode_t openmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-        log->Debug(0x150, "URL in Open is: %s",url.c_str());
-        std::string fileurl=url;
-        fileurl.erase(0,7);
-        log->Debug(0x150, "URL in Open is: %s",fileurl.c_str());
-        fd = open( fileurl.c_str(), O_RDWR | O_CREAT, openmode );
-        if( fd == -1 )
-        {
-          log->Debug( 0x150, "Unable to open %s: %s",
-                                  fileurl.c_str(), strerror( errno ) );
-          return XRootDStatus( stError, errOSError, errno );
-        }
-        uint8_t ufd=fd;
-        OpenInfo *openInfo=new OpenInfo(&ufd,1);
-        AnyObject *obj= new AnyObject();
-        obj->Set(openInfo);
-        LocalFileTask *task= new LocalFileTask(new XRootDStatus(stOK), obj, hosts, handler );
-        if(jmngr){
+         mode_t openmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH; //TO DO
+         fd = open( fileurl.c_str(), O_RDWR | O_CREAT, openmode );
+         if( fd == -1 )
+         {
+            log->Error( FileMsg, "Unable to open %s: %s",
+                                    fileurl.c_str(), strerror( errno ) );
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //task = new LocalFileTask( st, 0, hosts, handler );
+            //jmngr->QueueJob(task);//TO DO: In case we return the error from FileStateHandler,
+            //we can't queue the job else there is a segfault, also the OpenHandler can't be
+            //deleted
+            return *st;
+         }
+         else{ st = new XRootDStatus( stOK ); }
+
+         struct stat ssp;
+         if( fstat( fd, &ssp ) == -1 )
+         {
+            log->Error( FileMsg, "Unable to stat in Open" );
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            return *st;
+         }
+
+         std::ostringstream data;
+         data<<ssp.st_dev <<" "<< ssp.st_size <<" "<<ssp.st_mode<<" "<<ssp.st_mtime;
+         log->Debug( FileMsg, data.str().c_str() );
+
+         if( !statInfo->ParseServerResponse( data.str().c_str() ) ){
+            log->Error( FileMsg, "Unable to ParseServerResponse for Local File Stat Open" );
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            return *st;
+         }
+
+         uint8_t ufd = fd;// TO DO
+         OpenInfo *openInfo = new OpenInfo( &ufd, 1, statInfo );
+         obj->Set( openInfo );
+         task = new LocalFileTask( st, obj, hosts, handler );
+         jmngr->QueueJob( task );
+         return *st;
+      }
+      //------------------------------------------------------------------------
+      // Close
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Close( ResponseHandler* handler, 
+                                                   uint16_t timeout )
+      {
+         Log *log = DefaultEnv::GetLog();
+         AnyObject *obj = new AnyObject();
+         XRootDStatus *st;
+         LocalFileTask *task;
+         HostList* hosts = new HostList();
+         hosts->push_back( HostInfo( URL( "localhost" ), true ) );
+
+         if( close( fd ) == -1 )
+         {
+            log->Error( FileMsg, "Unable to close file fd: %i", fd );
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //task = new LocalFileTask( st, NULL, hosts, handler );
+            //jmngr->QueueJob( task );
+            return *st;
+         }
+         else{ 
+            st = new XRootDStatus( stOK ); 
+            task = new LocalFileTask( st, obj, hosts, handler );
+            jmngr->QueueJob( task );
+            return *st;
+         }
+      }
+      //------------------------------------------------------------------------
+      // Stat
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Stat( ResponseHandler* handler,
+                                                               uint16_t timeout )
+      {
+         Log *log = DefaultEnv::GetLog();
+         AnyObject *obj = new AnyObject();
+         XRootDStatus *st;
+         LocalFileTask *task;
+         HostList* hosts = new HostList();
+         hosts->push_back( HostInfo( URL( "localhost" ), true ) );
+         StatInfo *statInfo = new StatInfo();
+         obj->Set(statInfo);
+
+         struct stat ssp;
+         if( fstat( fd, &ssp ) == -1 )
+         {
+            log->Error( FileMsg, "Unable to stat fd: %i in lFileHandler", fd );
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //task = new LocalFileTask( st, NULL, hosts, handler );
+            //jmngr->QueueJob(task);
+            return *st;
+         }
+         std::ostringstream data;
+         data<<ssp.st_dev <<" "<< ssp.st_size <<" "<<ssp.st_mode<<" "<<ssp.st_mtime;
+         log->Debug( FileMsg, data.str().c_str() );
+
+         if( !statInfo->ParseServerResponse(data.str().c_str()) ){
+            log->Error(FileMsg, "Unable to ParseServerResponse for lFileHandler statinfo" );
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //task = new LocalFileTask( st, NULL, hosts, handler );
+            //jmngr->QueueJob(task);
+            return *st;
+         }
+         else{
+            st = new XRootDStatus( stOK );
+            task = new LocalFileTask( st, obj, hosts, handler );
+            jmngr->QueueJob( task );
+            return *st;
+         }
+      }
+      //------------------------------------------------------------------------
+      // Read
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Read( uint64_t offset, uint32_t size,
+               void* buffer, ResponseHandler* handler, uint16_t timeout )
+      {
+         Log *log = DefaultEnv::GetLog();
+         AnyObject *obj = new AnyObject();
+         XRootDStatus *st;
+         LocalFileTask *task;
+         HostList* hosts = new HostList();
+         hosts->push_back( HostInfo( URL( "localhost" ), true ) );
+         ChunkInfo *resp = new ChunkInfo( offset, size, buffer );
+         obj->Set(resp);
+
+         if( pread( fd, buffer, size, offset ) == -1 ){
+            log->Error( FileMsg, "Unable to read LocalFile" );
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //task = new LocalFileTask( st, NULL, hosts, handler );
+            //jmngr->QueueJob(task);
+            return *st;
+         }
+         else{
+            st = new XRootDStatus( stOK );
+            log->Dump( FileMsg, "Chunkinfo: size: %i, offset: %i, Buffer: %s",
+                              resp->length, resp->offset, resp->buffer );
+            task = new LocalFileTask( st, obj, hosts, handler );
+            jmngr->QueueJob( task );
+            return *st;
+         }
+      }
+      //------------------------------------------------------------------------
+      // Write
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Write( uint64_t offset, uint32_t size,
+            const void* buffer, ResponseHandler* handler, uint16_t timeout )
+      {
+         Log *log = DefaultEnv::GetLog();
+         AnyObject *obj = new AnyObject();
+         XRootDStatus *st;
+         LocalFileTask *task;
+         HostList* hosts = new HostList();
+         hosts->push_back( HostInfo( URL( "localhost" ), true ) );
+
+         int written=-1;
+         if(( written = write( fd, buffer, size ) ) <= 0 ){
+            log->Error( FileMsg, "write failed, wrote %i", written );
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //task = new LocalFileTask( st, NULL, hosts, handler );
+            //jmngr->QueueJob( task );
+            return *st;
+         }
+         else{
+            log->Dump(FileMsg, "write succeeded, wrote %i", written );
+            st = new XRootDStatus( stOK );
+            task = new LocalFileTask( st, obj, hosts, handler );
+            jmngr->QueueJob( task );
+            return *st;
+         }
+      }
+      //------------------------------------------------------------------------
+      // Sync
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Sync( ResponseHandler* handler,
+                                                   uint16_t timeout )
+      {
+         Log *log = DefaultEnv::GetLog();
+         AnyObject *obj = new AnyObject();
+         XRootDStatus *st;
+         LocalFileTask *task;
+         HostList* hosts = new HostList();
+         hosts->push_back( HostInfo( URL( "localhost" ), true ) );
+
+         if( syncfs( fd ) == -1 ){
+            log->Error( FileMsg, "Unable to Sync, filedescriptor: %i", fd);
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //task = new LocalFileTask( st, NULL, hosts, handler );
+            //jmngr->QueueJob(task);
+            return *st;
+         }
+         else{
+            st = new XRootDStatus( stOK );
+            task = new LocalFileTask( st, obj, hosts, handler );
             jmngr->QueueJob(task);
-        }
-        return XRootDStatus(stOK);
-    }
+            return *st;
+         }
+      }
+      //------------------------------------------------------------------------
+      // Truncate
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Truncate(uint64_t size,
+               ResponseHandler* handler, uint16_t timeout)
+      {
+         Log *log = DefaultEnv::GetLog();
+         AnyObject *obj = new AnyObject();
+         XRootDStatus *st;
+         LocalFileTask *task;
+         HostList* hosts = new HostList();
+         hosts->push_back( HostInfo( URL( "localhost" ), true ) );
 
-    XRootDStatus LocalFileHandler::Close(ResponseHandler* handler, uint16_t timeout)
-    {
-        Log *log = DefaultEnv::GetLog();
-        log->Debug( 0x150, "In lFileHandler->Close()");
-        AnyObject *obj= new AnyObject();
-        HostList* hosts=new HostList();
-        URL *pUrl=new URL("localhost");
-        HostInfo info( *pUrl, true );
-        hosts->push_back(info);
-        close(fd);
-        LocalFileTask *task= new LocalFileTask(new XRootDStatus(stOK), obj, hosts, handler );
-        if(jmngr){
+         if( ftruncate( fd, size ) == -1){
+            log->Error( FileMsg, "Unable to Truncate, filedescriptor: %i", fd);
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //task = new LocalFileTask( st, NULL, hosts, handler );
+            //jmngr->QueueJob( task );
+            return *st;
+         }
+         else{
+            st = new XRootDStatus( stOK );
+            task = new LocalFileTask( st, obj, hosts, handler );
+            jmngr->QueueJob( task );
+            return *st;
+         }
+      }
+      //------------------------------------------------------------------------
+      // VectorRead
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::VectorRead( const ChunkList& chunks,
+               void* buffer, ResponseHandler* handler, uint16_t timeout )
+      {
+         Log *log = DefaultEnv::GetLog();
+         AnyObject *obj = new AnyObject();
+         XRootDStatus *st;
+         LocalFileTask *task;
+         HostList *hosts = new HostList();
+         hosts->push_back( HostInfo( URL( "localhost" ), true ) );
+         VectorReadInfo* info = new VectorReadInfo();
+
+         int iovcnt;
+         struct iovec iov[chunks.size()];
+         iovcnt = sizeof(iov) / sizeof(struct iovec);
+
+         for( unsigned int i = 0; i < chunks.size(); i++ ){
+            iov[i].iov_base = chunks[i].buffer;
+            iov[i].iov_len = chunks[i].length;
+         }
+
+         if( readv( fd, iov, iovcnt ) == -1 ){
+            log->Error( FileMsg, "Unable to VectorRead, filedescriptor: %i", fd);
+            st = new XRootDStatus( stError, errErrorResponse, errno );
+            //LocalFileTask *task = new LocalFileTask( st, 0, hosts, handler );
+            //jmngr->QueueJob(task);
+            return *st;
+         }
+         else{
+            info->GetChunks() = chunks;
+            obj->Set(info);
+            st = new XRootDStatus( stOK );
+            task = new LocalFileTask( st, obj, hosts, handler );
             jmngr->QueueJob(task);
-        }
-        return XRootDStatus(stOK);
-    }
-
-    XRootDStatus LocalFileHandler::Stat(bool force, ResponseHandler* handler, uint16_t timeout)
-    {
-        Log *log = DefaultEnv::GetLog();
-        log->Debug( 0x150, "In lFileHandler->Stat()");
-        
-        struct ::stat ssp;
-        if( fstat( fd, &ssp ) == -1 )
-        {
-          log->Debug( 0x150, "Unable to stat" );
-          close( fd );
-          return XRootDStatus( stError, errOSError, errno );
-        }
-        StatInfo *statInfo=new StatInfo();
-        std::ostringstream data;
-        data<<ssp.st_dev <<" "<< ssp.st_size <<" "<<ssp.st_mode<<" "<<ssp.st_mtime ;
-        log->Debug(0x150, data.str().c_str());
-        AnyObject *obj= new AnyObject();
-  
-        if(!statInfo->ParseServerResponse(data.str().c_str())){
-            log->Debug(0x150, "ParseServerResponse failed in Stat");
-        }
-        else{
-            log->Debug(0x150, "Set obj->statinfo");
-            obj->Set(statInfo);
-        }
-        HostList* hosts=new HostList();
-        URL *pUrl=new URL("localhost");
-        HostInfo info( *pUrl, true );
-        hosts->push_back(info);
-        LocalFileTask *task= new LocalFileTask(new XRootDStatus(stOK), obj, hosts, handler );
-        if(jmngr){
-            jmngr->QueueJob(task);
-        }
-        return XRootDStatus(stOK);
-    }
-
-    XRootDStatus LocalFileHandler::Read(uint64_t offset, uint32_t size, void* buffer, ResponseHandler* handler, uint16_t timeout)
-    {
-        Log *log = DefaultEnv::GetLog();
-        AnyObject *obj= new AnyObject();
-        HostList* hosts=new HostList();
-        XRootDStatus* st=new XRootDStatus(stOK);
-        URL *pUrl=new URL("localhost");
-        HostInfo info( *pUrl, true );
-        hosts->push_back(info);
-        log->Debug( 0x150, "LocalFileHandler::Read()");
-        
-        if(pread(fd, buffer, size, offset)==-1)
-            log->Debug(0x150, "Read failed in Read()");     
-        ChunkInfo *resp=new ChunkInfo(offset, size, buffer);
-        obj->Set(resp);
-        log->Debug(0x150, "LocalFileHandler::Read(): Chunkinfo: size: %i, offset: %i, Buffer: %s",  
-                            resp->length, resp->offset, resp->buffer);
-
-        log->Debug( 0x150, "LocalFileHandler::Read(): creating task");
-        LocalFileTask *task= new LocalFileTask(st, obj, hosts, handler );
-        if(jmngr){
-            log->Debug( 0x150, "LocalFileHandler::Read(): Queue Job");
-            jmngr->QueueJob(task);
-        }
-        return XRootDStatus(XrdCl::stOK,0,0,"");
-    }
-
-    XRootDStatus LocalFileHandler::Write(uint64_t offset, uint32_t size, const void* buffer, ResponseHandler* handler, uint16_t timeout)
-    {
-        Log *log = DefaultEnv::GetLog();
-        log->Debug( 0x150, "In lFileHandler->Write()");
-        AnyObject *obj= new AnyObject();
-        
-        log->Debug( 0x150, "fd: %i", fd);
-        log->Debug( 0x150, "size: %i", size);
-        int written=-1;
-        if((written = write(fd,buffer,size))<=0){
-            log->Debug(0x150, "write failed, wrote %i", written);
-        }
-        else{
-            log->Debug(0x150, "write succeeded, wrote %i", written);
-        }
-        
-        HostList* hosts=new HostList();
-        URL *pUrl=new URL("localhost");
-        HostInfo info( *pUrl, true );
-        hosts->push_back(info);
-        LocalFileTask *task= new LocalFileTask(new XRootDStatus(stOK), obj, hosts, handler );
-        if(jmngr){
-            jmngr->QueueJob(task);
-        }
-        return XRootDStatus(stOK);
-    }
-
-    XRootDStatus LocalFileHandler::Sync(ResponseHandler* handler, uint16_t timeout)
-    {
-        Log *log = DefaultEnv::GetLog();
-        log->Debug( 0x150, "In lFileHandler->Sync()");
-        return XRootDStatus(stError, errNotImplemented);
-    }
-
-    XRootDStatus LocalFileHandler::Truncate(uint64_t size, ResponseHandler* handler, uint16_t timeout)
-    {
-        Log *log = DefaultEnv::GetLog();
-        log->Debug( 0x150, "In lFileHandler->Truncate()");
-        return XRootDStatus(stError, errNotImplemented);
-    }
-
-    XRootDStatus LocalFileHandler::VectorRead(const ChunkList& chunks, void* buffer, ResponseHandler* handler, uint16_t timeout)
-    {
-        Log *log = DefaultEnv::GetLog();
-        log->Debug( 0x150, "In lFileHandler->VectorRead()");
-        return XRootDStatus(stError, errNotImplemented);
-    }
-
+            return *st;
+         }
+      }
 }
