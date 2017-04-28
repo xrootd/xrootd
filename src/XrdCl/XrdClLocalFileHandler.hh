@@ -1,3 +1,20 @@
+//------------------------------------------------------------------------------
+// Copyright (c) 2017 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH 
+// Author: Paul-Niklas Kramp <p.n.kramp@gsi.de>
+//------------------------------------------------------------------------------
+// XRootD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// XRootD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//------------------------------------------------------------------------------
 #ifndef __XRD_CL_LOCAL_FILE_HANDLER_HH__
 #define __XRD_CL_LOCAL_FILE_HANDLER_HH__
 #include "XrdCl/XrdClJobManager.hh"
@@ -9,11 +26,8 @@ namespace XrdCl
 {
     class LocalFileHandler{
     public:
-
       LocalFileHandler();
-
       ~LocalFileHandler();
-
 
       //------------------------------------------------------------------------
       //! Open the file pointed to by the given URL
@@ -134,9 +148,37 @@ namespace XrdCl
                                ResponseHandler *handler,
                                uint16_t         timeout = 0 );
 
-        private:
-            JobManager *jmngr;
-            int fd;
+      //------------------------------------------------------------------------
+      //! Queues a task to the jobmanager
+      //!
+      //! @param st        the status of the file operation
+      //! @param obj       the object holding data like open-, chunk- or vreadinfo
+      //! @param handler   handler to be notified when the response arrives
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus QueueTask( XRootDStatus *st,
+                              AnyObject *obj,
+                              ResponseHandler *handler );
+
+      //------------------------------------------------------------------------
+      //! creates the directories specified in file_path
+      //!
+      //! @param file_path specifies which directories are to be created
+      //! @param mode      same access modes as for the desired file operation
+      //! @return          status of the mkdir system call
+      //------------------------------------------------------------------------
+      int mkpath( char* file_path, mode_t mode );
+
+      private:
+         //------------------------------------------------------------------------
+         // Receives LocalFileTasks to handle them async
+         //------------------------------------------------------------------------
+         JobManager *jmngr;
+
+         //------------------------------------------------------------------------
+         // Internal filedescriptor, which is used by all operations after open
+         //------------------------------------------------------------------------
+         int fd;
 
     };
 }

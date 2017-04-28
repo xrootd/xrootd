@@ -456,6 +456,10 @@ namespace XrdCl
       // (there is only only OpenHandler reopening a file at a time)
       //------------------------------------------------------------------------
       ResponseHandlerHolder *pReOpenHandler;
+
+      //------------------------------------------------------------------------
+      // Responsible for file:// operations on the local filesystem
+      //------------------------------------------------------------------------
       LocalFileHandler      *lFileHandler;
   };
 }

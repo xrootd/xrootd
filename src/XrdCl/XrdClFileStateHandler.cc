@@ -77,6 +77,7 @@ namespace
         OpenInfo *openInfo = 0;
         if( status->IsOK() )
           response->Get( openInfo );
+
         //----------------------------------------------------------------------
         // Notify the state handler and the client and say bye bye
         //----------------------------------------------------------------------
@@ -505,20 +506,9 @@ namespace XrdCl
     params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
 
-    XRootDStatus st;
     if( IsLocal( pFileUrl ) ){
-      st = lFileHandler->Open(
+      return lFileHandler->Open(
          pFileUrl->GetURL().c_str(), flags, mode, openHandler, timeout );
-      if( !st.IsOK() )
-      {
-        pStatus    = st;
-        pFileState = Error;
-        delete openHandler; //Segfault in Solution 2
-        return st; //Solution 1, no error task queued
-        //return XRootDStatus(stOK);//Solution 2: When stErr is returned, segfault due 
-        //to not calling MessageUtils::WaitForStatus in File::Open
-      }
-      return st;
     }
     //--------------------------------------------------------------------------
     // Register a virtual redirector
@@ -535,7 +525,7 @@ namespace XrdCl
       params.hostList     = list;
     }
 
-    st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
+    Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
 
     if( !st.IsOK() )
     {
@@ -594,28 +584,11 @@ namespace XrdCl
     params.stateful        = true;
     MessageUtils::ProcessSendParams( params );
 
-    Status st;
     if( IsLocal( pFileUrl ) ){
-      st = lFileHandler->Close( closeHandler, timeout );
-      if( !st.IsOK() )
-      {
-         delete closeHandler;//TO DO: This causes segfault if left in
-         if( st.code == errInvalidSession && IsReadOnly() )
-         {
-           pFileState = Closed;
-           return st;
-         }
-
-         pStatus    = st;
-         pFileState = Error;
-         return st;
-         //return XRootDStatus(stOK);//TO DO: When stErr is returned, segfault due 
-         //to not calling MessageUtils::WaitForStatus in File::Close
-      }
-      return st;
+      return lFileHandler->Close( closeHandler, timeout );
     }
 
-    st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler, params );
+    Status st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler, params );
 
     if( !st.IsOK() )
     {
@@ -1061,7 +1034,6 @@ namespace XrdCl
                                       std::string &value ) const
   {
     XrdSysMutexHelper scopedLock( pMutex );
-
     if( name == "ReadRecovery" )
     {
       if( pDoRecoverRead ) value = "true";
@@ -1097,6 +1069,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
+
     //--------------------------------------------------------------------------
     // Assign the data server and the load balancer
     //--------------------------------------------------------------------------
