@@ -1233,7 +1233,7 @@ int main(int argc, char *argv[])
     cmdline_opts = (char **) malloc(sizeof(char*) * (argc -1 + 3));
     cmdline_opts[0] = argv[0];
     cmdline_opts[1] = strdup("-o");
-    cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
+    cmdline_opts[2] = strdup("fsname=xrootdfs,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
 
     for (int i = 1; i < argc; i++)
         cmdline_opts[i+2] = argv[i];
