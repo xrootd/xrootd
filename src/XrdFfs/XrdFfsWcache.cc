@@ -102,7 +102,14 @@ void XrdFfsWcache_init(int basefd, int maxfd)
     }
 }
 
-int XrdFfsWcache_create(int fd) 
+int XrdFfsWcache_create(int fd)
+/* Create a write cache buffer for a given file descriptor
+ *
+ * fd:      file descriptor
+ *
+ * returns: 1 - ok
+ *          0 - error, error code in errno
+ */
 {
     XrdFfsWcache_destroy(fd);
     fd -= XrdFfsPosix_baseFD;
@@ -115,8 +122,9 @@ int XrdFfsWcache_create(int fd)
     XrdFfsWcacheFbufs[fd].mlock = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
     if (XrdFfsWcacheFbufs[fd].mlock == NULL)
         return 0;
-    else
-        pthread_mutex_init(XrdFfsWcacheFbufs[fd].mlock, NULL);
+    errno = pthread_mutex_init(XrdFfsWcacheFbufs[fd].mlock, NULL);
+    if (errno)
+        return 0;
     return 1;
 }
 
