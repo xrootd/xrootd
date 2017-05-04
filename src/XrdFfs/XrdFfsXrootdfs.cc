@@ -425,6 +425,31 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
     return res;
 }
 
+static int xrootdfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+/* Implement CREATE for FUSE, to create and open a normal file.
+ * Create a file and return its fd. Also create cns file.
+ *
+ * path:        file path
+ * mode:        file attribute bitmask
+ * fi:          file info, return file descriptor in here
+ *
+ * returns:     0 on success, -errno on error.
+ */
+{
+    int res, fd;
+    if (!S_ISREG(mode))
+        return -EPERM;
+    res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, true, &fd);
+    fi->fh = fd;
+    XrdFfsWcache_create(fd);    // Unlike mknod and like open, prepare wcache.
+    if (xrootdfs.cns != NULL)
+    {
+        xrootdfs_do_create(path, xrootdfs.cns, O_CREAT | O_EXCL, false, &fd);
+        XrdFfsPosix_close(fd);
+    }
+    return res;
+}
+
 static int xrootdfs_mkdir(const char *path, mode_t mode)
 {
     int res;
@@ -1236,6 +1261,7 @@ int main(int argc, char *argv[])
     xrootdfs_oper.readdir	= xrootdfs_readdir;
     xrootdfs_oper.mknod		= xrootdfs_mknod;
     xrootdfs_oper.mkdir		= xrootdfs_mkdir;
+    xrootdfs_oper.create	= xrootdfs_create;
     xrootdfs_oper.symlink	= xrootdfs_symlink;
     xrootdfs_oper.unlink	= xrootdfs_unlink;
     xrootdfs_oper.rmdir		= xrootdfs_rmdir;
