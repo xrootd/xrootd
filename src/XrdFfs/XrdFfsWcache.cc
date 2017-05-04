@@ -161,6 +161,11 @@ ssize_t XrdFfsWcache_pwrite(int fd, char *buf, size_t len, off_t offset)
     ssize_t rc;
     char *bufptr;
     fd -= XrdFfsPosix_baseFD;
+    if (fd < 0)
+    {
+        errno = EBADF;
+        return -1;
+    }
 
 /* do not use caching under these cases */
     if (len > XrdFfsWcacheBufsize/2 || fd >= XrdFfsWcacheNFILES)
