@@ -354,22 +354,54 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     }
 }
 
-static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
+static int xrootdfs_do_create(const char *path, const char *url, int oflags, bool use_link_id, int *fd)
+/* Actually implement creating a file as generally as possible.
+ *
+ * path:        file path
+ * url:         xrootd root url to use
+ * oflags:      posix oflags
+ * use_link_id: register multiple secsss user numbers for editurl
+ * fd:          return file descriptor here
+ *
+ * returns:     0 on success, -errno on error.
+ */
 {
-    int res;
+    int res, link_id;
+    int *p_link_id = NULL;
+    char rootpath[MAXROOTURLLEN] = "";
 
-    /* On Linux this could just be 'mknod(path, mode, rdev)' but this
-       is more portable */
-    char rootpath[MAXROOTURLLEN];
+    if (use_link_id)
+        p_link_id = &link_id;
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
-    if (S_ISREG(mode))
-    {
-        rootpath[0]='\0';
-        strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
-        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, p_link_id);
+    strncat(rootpath, url, MAXROOTURLLEN - strlen(rootpath) - 1);
+    strncat(rootpath, path, MAXROOTURLLEN - strlen(rootpath) - 1);
 
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
+    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, p_link_id);
+    res = XrdFfsPosix_open(rootpath, oflags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+    if (res == -1)
+        return -errno;
+    if (fd != NULL)
+        *fd = res;
+    return 0;
+}
+
+static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
+/* Implement MKNOD for FUSE, which is supposed to be used for special files.
+ * Can be used when CREATE is not available.
+ * This implementation only supports normal files.
+ * Just create the file, then close it. Also create cns file.
+ *
+ * path:        file path
+ * mode:        file attribute bitmask
+ * rdev:        device number
+ *
+ * returns:     0 on success, -errno on error.
+ */
+{
+    int res, fd;
+    if (!S_ISREG(mode))
+        return -EPERM;
 /* 
    Around May 2008, the O_EXCL was added to the _open(). No reason was given. It is removed again 
    due to the following reason (the situation that redirector thinks a file exist while it doesn't):
@@ -383,25 +415,14 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
 
         res = XrdFfsPosix_open(rootpath, O_CREAT | O_EXCL | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
 */
-        res = XrdFfsPosix_open(rootpath, O_CREAT | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
-        if (res == -1)
-            return -errno;
-        XrdFfsPosix_close(res);
-/* We have to make sure CNS file is created as well, otherwise, xrootdfs_getattr()
-   may or may not find this file (due to multi-threads) */
-        if (xrootdfs.cns == NULL)
-            return 0;
-
-        rootpath[0]='\0';
-        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
-        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
-
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
-        res = XrdFfsPosix_open(rootpath, O_CREAT | O_EXCL, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
-        XrdFfsPosix_close(res);
-/* We actually don't need to care about error by this XrdFfsPosix_open() */
+    res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, false, &fd);
+    XrdFfsPosix_close(fd);
+    if (xrootdfs.cns != NULL)
+    {
+        xrootdfs_do_create(path, xrootdfs.cns, O_CREAT | O_EXCL, false, &fd);
+        XrdFfsPosix_close(fd);
     }
-    return 0;
+    return res;
 }
 
 static int xrootdfs_mkdir(const char *path, mode_t mode)
