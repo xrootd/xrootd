@@ -715,21 +715,30 @@ static int xrootdfs_utimens(const char *path, const struct timespec ts[2])
 }
 
 static int xrootdfs_open(const char *path, struct fuse_file_info *fi)
+/*
+ * path:    path to file
+ * fi:      file info, return file descriptor in fi->fh
+ *
+ * returns 0 on success and -errno on error
+ */
 {
-    int res, lid = 1;
+    int fd, lid = 1;
     char rootpath[MAXROOTURLLEN]="";
     strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
     strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, &lid);
     XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, &lid);
-    res = XrdFfsPosix_open(rootpath, fi->flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-    if (res == -1)
+    fd = XrdFfsPosix_open(rootpath, fi->flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+    if (fd == -1)
         return -errno;
 
-    fi->fh = res;
-    XrdFfsWcache_create(fi->fh);
-    return 0;
+    fi->fh = fd;
+    // be careful, 0 means error for this function
+    if (XrdFfsWcache_create(fi->fh))
+        return 0;
+    else
+        return -errno;
 }
 
 static int xrootdfs_read(const char *path, char *buf, size_t size, off_t offset,
