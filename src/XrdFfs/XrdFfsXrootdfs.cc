@@ -1233,7 +1233,7 @@ int main(int argc, char *argv[])
     cmdline_opts = (char **) malloc(sizeof(char*) * (argc -1 + 3));
     cmdline_opts[0] = argv[0];
     cmdline_opts[1] = strdup("-o");
-    if (getenv("XROOTDFS_NOALLOWOTHER") != NULL && ! strcmp(getenv("XROOTDFS_NOALLOWOTHER"),"1") )
+    if (getenv("XROOTDFS_NO_ALLOW_OTHER") != NULL && ! strcmp(getenv("XROOTDFS_NO_ALLOW_OTHER"),"1") )
         cmdline_opts[2] = strdup("fsname=xrootdfs,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
     else
         cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
