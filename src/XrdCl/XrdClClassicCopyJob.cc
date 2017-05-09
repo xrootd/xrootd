@@ -1792,6 +1792,7 @@ namespace XrdCl
 
     XRootDStatus st = src->Initialize();
     if( !st.IsOK() ) return st;
+    uint64_t size = src->GetSize() >= 0 ? src->GetSize() : 0;
 
     XRDCL_SMART_PTR_T<Destination> dest;
     URL newDestUrl( GetTarget() );
@@ -1827,7 +1828,6 @@ namespace XrdCl
     // Copy the chunks
     //--------------------------------------------------------------------------
     ChunkInfo chunkInfo;
-    uint64_t  size      = src->GetSize() >= 0 ? src->GetSize() : 0;
     uint64_t  processed = 0;
     while( 1 )
     {
