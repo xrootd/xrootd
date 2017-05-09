@@ -126,7 +126,7 @@ class XCpCtx
     int64_t GetSize()
     {
       XrdSysCondVarHelper lck( pFileSizeCV );
-      while( pFileSize < 0 ) pFileSizeCV.Wait();
+      while( pFileSize < 0 && GetRunning() > 0 ) pFileSizeCV.Wait();
       return pFileSize;
     }
 
@@ -186,7 +186,25 @@ class XCpCtx
      */
     bool AllDone();
 
+    /**
+     * Notify those who are waiting for initialization.
+     * In particular the GetSize() caller will be waiting
+     * on the result of initialization.
+     */
+    void NotifyInitExpectant()
+    {
+      pFileSizeCV.Broadcast();
+    }
+
+
   private:
+
+    /**
+     * Returns the number of active sources
+     *
+     * @return : number of active sources
+     */
+    size_t GetRunning();
 
     /**
      * Destructor (private).

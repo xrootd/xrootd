@@ -131,6 +131,14 @@ void XCpSrc::StartDownloading()
   if( !st.IsOK() )
   {
     pRunning = false;
+    // notify those who wait for the file
+    // size, they wont get it from this
+    // source
+    pCtx->NotifyInitExpectant();
+    // put a null chunk so we are sure
+    // the main thread doesn't get stuck
+    // at the sync queue
+    pCtx->PutChunk( 0 );
     return;
   }
 
