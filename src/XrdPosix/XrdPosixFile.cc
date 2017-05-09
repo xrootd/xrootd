@@ -38,10 +38,12 @@
 #include <sys/uio.h>
 #include <sys/stat.h>
 
+#include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixXrootdPath.hh"
 
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -51,8 +53,9 @@
 
 namespace XrdPosixGlobals
 {
-extern XrdOucCache2 *theCache;
-extern bool          psxDBG;
+extern XrdOucCache2    *theCache;
+extern XrdOucName2Name *theN2N;
+extern bool             psxDBG;
 };
 
 namespace
@@ -81,14 +84,20 @@ int            XrdPosixFile::ddNum    =  0;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdPosixFile::XrdPosixFile(const char *path, XrdPosixCallBack *cbP, int Opts)
+XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
+                           int Opts)
              : XCio((XrdOucCacheIO2 *)this), PrepIO(0),
                mySize(0), myMtime(0), myInode(0), myMode(0),
-               theCB(cbP),
-               fPath(strdup(path)), fLoc(0),
-               cOpt(0),
+               theCB(cbP), fLoc(0), cOpt(0),
                isStream(Opts & isStrm ? 1 : 0)
 {
+// Handle path generation. This is trickt as we may have two namespaces. One
+// for the origin and one for the cache.
+//
+   fOpen = strdup(path); aOK = true;
+   if (!XrdPosixGlobals::theN2N || !XrdPosixGlobals::theCache) fPath = fOpen;
+      else if (!XrdPosixXrootPath::P2L("new file",path,fPath)) aOK = false;
+              else if (!fPath) fPath = fOpen;
 
 // Check for structured file check
 //
@@ -124,6 +133,7 @@ XrdPosixFile::~XrdPosixFile()
 // Free the path and location information
 //
    if (fPath) free(fPath);
+   if (fOpen != fPath) free(fOpen);
    if (fLoc)  free(fLoc);
 }
 
@@ -188,7 +198,7 @@ do{if (doWait)
             {numLost++; ddCount--;
              snprintf(eBuff, sizeof(eBuff),
                       "PosixFile: %s timeout closing %s; %d objects lost!\n",
-                      eTxt, fCurr->Path(), numLost);
+                      eTxt, fCurr->Origin(), numLost);
              std::cerr <<eBuff <<std::flush;
              fCurr->nextFile = ddLost;
              ddLost = fCurr;
@@ -237,7 +247,7 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
       {char eBuff[2048];
        snprintf(eBuff, sizeof(eBuff),
                 "PosixFile: DLY destory %s %d objects; added %s.\n",
-                 (doPost ? "post" : "has "), ddCount, fp->Path());
+                 (doPost ? "post" : "has "), ddCount, fp->Origin());
        std::cerr <<eBuff <<std::flush;
       }
 

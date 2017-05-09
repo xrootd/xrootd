@@ -50,6 +50,7 @@
 #include "XrdOuc/XrdOucCache2.hh"
 #include "XrdOuc/XrdOucCacheDram.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
 
 #include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdPosix/XrdPosixCacheBC.hh"
@@ -60,6 +61,7 @@
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdPosix/XrdPosixXrootdPath.hh"
 
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
@@ -69,6 +71,7 @@ namespace XrdPosixGlobals
 {
 XrdScheduler   *schedP = 0;
 XrdOucCache2   *theCache = 0;
+XrdOucName2Name *theN2N = 0;
 XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 bool           psxDBG = (getenv("XRDPOSIX_DEBUG") != 0);
 };
@@ -79,12 +82,37 @@ int            XrdPosixXrootd::baseFD    = 0;
 int            XrdPosixXrootd::initDone  = 0;
   
 /******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+/******************************************************************************/
+/*                               L f n P a t h                                */
+/******************************************************************************/
+  
+
+namespace
+{
+class LfnPath
+{
+public:
+const char *path;
+
+            LfnPath(const char *who, const char *pURL, bool ponly=true)
+                   {path = XrdPosixXrootPath::P2L(who, pURL, relURL, ponly);}
+
+           ~LfnPath() {if (relURL) free(relURL);}
+
+private:
+char *relURL;
+};
+}
+  
+/******************************************************************************/
 /*                       L o c a l   F u n c t i o n s                        */
 /******************************************************************************/
 
 namespace
 {
-
+  
 /******************************************************************************/
 /*                             O p e n D e f e r                              */
 /******************************************************************************/
@@ -214,7 +242,7 @@ int XrdPosixXrootd::Close(int fildes)
           else if (XrdPosixGlobals::psxDBG)
                   {char eBuff[2048];
                    snprintf(eBuff, sizeof(eBuff), "Posix: %s closing %s\n",
-                            Status.ToString().c_str(), fP->Path());
+                            Status.ToString().c_str(), fP->Origin());
                    std::cerr <<eBuff <<std::flush;
                   }
       } else ret = true;
@@ -482,6 +510,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
    XrdCl::Access::Mode     XOmode = XrdCl::Access::None;
    XrdCl::OpenFlags::Flags XOflags;
    int Opts;
+   bool aOK;
 
 // Translate R/W and R/O flags
 //
@@ -513,10 +542,14 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 
 // Allocate the new file object
 //
-   if (!(fp = new XrdPosixFile(path, cbP, Opts)))
+   if (!(fp = new XrdPosixFile(aOK, path, cbP, Opts)))
       {errno = EMFILE;
        return -1;
       }
+
+// Check if all went well during allocation
+//
+   if (!aOK) {delete fp; return -1;}
 
 // If we have a cache, then issue a prepare as the cache may want to defer the
 // open request ans we have a lot more work to do.
@@ -541,7 +574,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
        if (XrdPosixGlobals::psxDBG && rc != ENOENT && rc != ELOOP)
           {char eBuff[2048];
            snprintf(eBuff, sizeof(eBuff), "%s open %s\n",
-                    Status.ToString().c_str(), fp->Path());
+                    Status.ToString().c_str(), fp->Origin());
            std::cerr <<eBuff <<std::flush;
           }
        delete fp;
@@ -931,17 +964,21 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 
 // Make sure the admin is OK and the new url is valid
 //
-  if (!admin.isOK() || !newUrl.IsValid()) {errno = EINVAL; return -1;}
+   if (!admin.isOK() || !newUrl.IsValid()) {errno = EINVAL; return -1;}
+
+// Issue rename to he cache (it really should just deep-six both files)
+//
+   if (XrdPosixGlobals::theCache)
+      {LfnPath oldF("rename", oldpath);
+       LfnPath newF("rename", newpath);
+       if (!oldF.path || !newF.path) return -1;
+       XrdPosixGlobals::theCache->Rename(oldF.path, newF.path);
+      }
 
 // Issue the rename
 //
-  std::string urlp    = admin.Url.GetPathWithParams();
-  std::string nurlp   = newUrl.GetPathWithParams();
-  int res = XrdPosixMap::Result(admin.Xrd.Mv(urlp, nurlp));
-  if (!res && XrdPosixGlobals::theCache)
-     XrdPosixGlobals::theCache->Rename(urlp.c_str(), nurlp.c_str());
-
-  return res;
+  return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
+                             newUrl.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -967,20 +1004,23 @@ void XrdPosixXrootd::Rewinddir(DIR *dirp)
 
 int XrdPosixXrootd::Rmdir(const char *path)
 {
-  XrdPosixAdmin admin(path);
+   XrdPosixAdmin admin(path);
 
 // Make sure the admin is OK
 //
-  if (!admin.isOK()) return -1;
+   if (!admin.isOK()) return -1;
+
+// Remove directory from the cache first
+//
+   if (XrdPosixGlobals::theCache)
+      {LfnPath rmd("rmdir", path);
+       if (!rmd.path) return -1;
+       XrdPosixGlobals::theCache->Rmdir(rmd.path);
+      }
 
 // Issue the rmdir
 //
-   std::string urlp = admin.Url.GetPathWithParams();
-   int res = XrdPosixMap::Result(admin.Xrd.RmDir(urlp));
-   if (!res && XrdPosixGlobals::theCache)
-      XrdPosixGlobals::theCache->Rmdir(urlp.c_str());
-
-   return res;
+   return XrdPosixMap::Result(admin.Xrd.RmDir(admin.Url.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -1030,8 +1070,9 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 // Check if we can get the stat informatation from the cache
 //
   if (myCache2)
-     {std::string urlp = admin.Url.GetPathWithParams();
-      int rc = myCache2->Stat(urlp.c_str(), *buf);
+     {LfnPath statX("stat", path, false);
+      if (!statX.path) return -1;
+      int rc = myCache2->Stat(statX.path, *buf);
       if (!rc) return 0;
       if (rc < 0) {errno = -rc; return -1;}
      }
@@ -1186,18 +1227,20 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 // Make sure the admin is OK
 //
-  if (!admin.isOK()) return -1;
+   if (!admin.isOK()) return -1;
 
-// Issue the truncate
+// Truncate in the cache first
 //
-  std::string urlp = admin.Url.GetPathWithParams();
-  int res = XrdPosixMap::Result(admin.Xrd.Truncate(urlp,tSize));
+   if (XrdPosixGlobals::theCache)
+      {LfnPath trunc("truncate", path);
+       if (!trunc.path) return -1;
+       XrdPosixGlobals::theCache->Truncate(trunc.path, tSize);
+      }
 
-  if (!res && XrdPosixGlobals::theCache) {
-     XrdPosixGlobals::theCache->Truncate(urlp.c_str(), tSize);
-  }
-
-  return res;
+// Issue the truncate to the origin
+//
+   std::string urlp = admin.Url.GetPathWithParams();
+   return XrdPosixMap::Result(admin.Xrd.Truncate(urlp,tSize));
 }
 
 /******************************************************************************/
@@ -1206,20 +1249,23 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 int XrdPosixXrootd::Unlink(const char *path)
 {
-  XrdPosixAdmin admin(path);
+   XrdPosixAdmin admin(path);
 
 // Make sure the admin is OK
 //
-  if (!admin.isOK()) return -1;
+   if (!admin.isOK()) return -1;
+
+// Unlink the cache first
+//
+   if (XrdPosixGlobals::theCache)
+      {LfnPath remf("unlink", path);
+       if (!remf.path) return -1;
+       XrdPosixGlobals::theCache->Unlink(remf.path);
+      }
 
 // Issue the UnLink
 //
-  std::string urlp = admin.Url.GetPathWithParams();
-  int res = XrdPosixMap::Result(admin.Xrd.Rm(urlp));
-  if (!res && XrdPosixGlobals::theCache)
-     XrdPosixGlobals::theCache->Unlink(urlp.c_str());
-
-  return res;
+   return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -1554,6 +1600,15 @@ void XrdPosixXrootd::setIPV4(bool usev4)
 void XrdPosixXrootd::setNumCB(int numcb)
 {
     if (numcb >= 0) XrdPosixFileRH::SetMax(numcb);
+}
+  
+/******************************************************************************/
+/*                                S e t N 2 N                                 */
+/******************************************************************************/
+
+void XrdPosixXrootd::setN2N(XrdOucName2Name *pN2N, int opts)
+{
+    XrdPosixGlobals::theN2N = pN2N;
 }
   
 /******************************************************************************/

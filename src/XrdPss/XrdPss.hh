@@ -151,7 +151,7 @@ static char *P2OUT(int &retc,  char *pbuff, int pblen,
 static char *P2URL(int &retc, char *pbuff, int pblen,
                    const char *path,       int Split=0,
                    const char *Cgi=0,      int CgiLn=0,
-                   const char *tIdent=0,   int doN2N=1);
+                   const char *tIdent=0,  bool doN2N=true);
 static int   T2UID(const char *Ident);
 
 static const char  *ConfigFN;       // -> Pointer to the config file name
@@ -173,6 +173,9 @@ static int          Streams;
 static int          Workers;
 static int          Trace;
 
+static bool         xLfn2Pfn;
+static bool         xPfn2Lfn;
+
 static bool         outProxy; // True means outgoing proxy
 static bool         pfxProxy; // True means outgoing proxy is prefixed
 
@@ -183,6 +186,7 @@ static char         allRmdir;
 static char         allRm;
 static char         allTrunc;
 
+static bool         mCache;
 static char         cfgDone;   // Configuration completed
 
          XrdPssSys();

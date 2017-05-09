@@ -53,6 +53,7 @@ class XrdScheduler;
 class XrdOucCache;
 class XrdOucCache2;
 class XrdOucEnv;
+class XrdOucName2Name;
 class XrdPosixCallBack;
 class XrdPosixCallBackIO;
 class XrdPosixFile;
@@ -366,6 +367,8 @@ static void    setEnv(const char *kword, int kval);
 static void    setIPV4(bool userv4);
 
 static void    setNumCB(int numcb);
+
+static void    setN2N(XrdOucName2Name *pN2N, int opts=0);
 
 static void    setSched(XrdScheduler *sP);
 

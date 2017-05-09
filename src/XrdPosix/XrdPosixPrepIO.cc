@@ -73,7 +73,7 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 // Open the file. It is too difficult to do an async open here as there is a
 // possible pending async request and doing both is not easy at all.
 //
-   Status = fileP->clFile.Open((std::string)fileP->Path(), clFlags, clMode);
+   Status = fileP->clFile.Open((std::string)fileP->Origin(), clFlags, clMode);
 
 // If all went well, then we need to do a Stat() call on the underlying file
 //
@@ -87,7 +87,7 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
        if (XrdPosixGlobals::psxDBG && errno != ENOENT && errno != ELOOP)
           {char eBuff[2048];
            snprintf(eBuff, sizeof(eBuff), "%s deferred open %s\n",
-                    Status.ToString().c_str(), fileP->Path());
+                    Status.ToString().c_str(), fileP->Origin());
            std::cerr <<eBuff <<std::flush;
           }
        return false;

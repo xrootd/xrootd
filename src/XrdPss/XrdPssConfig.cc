@@ -108,10 +108,14 @@ char         XrdPssSys::allRm     =  0;
 char         XrdPssSys::allRmdir  =  0;
 char         XrdPssSys::allTrunc  =  0;
 
-char         XrdPssSys::cfgDone   =  0;
+bool         XrdPssSys::xLfn2Pfn  = true;
+bool         XrdPssSys::xPfn2Lfn  = false;
 
 bool         XrdPssSys::outProxy  = false;
 bool         XrdPssSys::pfxProxy  = false;
+
+bool         XrdPssSys::mCache    = false;
+char         XrdPssSys::cfgDone   =  0;
 
 namespace XrdProxy
 {
@@ -403,13 +407,26 @@ int XrdPssSys::ConfigN2N()
 
 // Skip all of this we are not doing name mapping
 //
-  if (!N2NLib && !LocalRoot) return 0;
+  if (!N2NLib && !LocalRoot)
+     {xLfn2Pfn = xPfn2Lfn = false; return 0;}
+
+// Check if the n2n is applicable
+//
+   if (xPfn2Lfn && !(mCache || cPath))
+      {const char *txt = (xLfn2Pfn ? "-lfncache option" : "directive");
+       eDest.Say("Config warning: ignoring namelib ", txt,
+                 "; caching not in effect!");
+       if (!xLfn2Pfn) return 0;
+      }
 
 // Get the plugin
 //
-   if ((theN2N = n2nLoader.Load(N2NLib, *myVersion)))
-      return 0;
-   return 1;
+   if (!(theN2N = n2nLoader.Load(N2NLib, *myVersion))) return 1;
+
+// Check if this also applies to the posix layer
+//
+   if (xPfn2Lfn) XrdPosixXrootd::setN2N(theN2N);
+   return 0;
 }
 
 /******************************************************************************/
@@ -550,6 +567,7 @@ int XrdPssSys::xcach(XrdSysError *Eroute, XrdOucStream &Config)
 
 // If we have no parameters, then we just use the defaults
 //
+   mCache = true;
    if (!(val = Config.GetWord()))
       {XrdOucEnv::Export("XRDPOSIX_CACHE", "mode=s&optwr=0"); return 0;}
    *pBuff = 0;
@@ -841,8 +859,9 @@ int XrdPssSys::xinet(XrdSysError *Eroute, XrdOucStream &Config)
 
 /* Function: xnml
 
-   Purpose:  To parse the directive: namelib <path> [<parms>]
+   Purpose:  To parse the directive: namelib [<opts>] pfn<path> [<parms>]
 
+             <opts>    one or more: [-lfn2pfn] [-lfncache]
              <path>    the path of the filesystem library to be used.
              <parms>   optional parms to be passed
 
@@ -852,10 +871,22 @@ int XrdPssSys::xinet(XrdSysError *Eroute, XrdOucStream &Config)
 int XrdPssSys::xnml(XrdSysError *Eroute, XrdOucStream &Config)
 {
     char *val, parms[1024];
+    bool l2p = false, p2l = false;
+
+// Parse options, if any
+//
+   while((val = Config.GetWord()) && val[0])
+        {     if (!strcmp(val, "-lfn2pfn"))  l2p = true;
+         else if (!strcmp(val, "-lfncache")) p2l = true;
+         else break;
+        }
+   if (!l2p && !p2l) l2p = true;
+   xLfn2Pfn = l2p;
+   xPfn2Lfn = p2l;
 
 // Get the path
 //
-   if (!(val = Config.GetWord()) || !val[0])
+   if (!val || !val[0])
       {Eroute->Emsg("Config", "namelib not specified"); return 1;}
 
 // Record the path

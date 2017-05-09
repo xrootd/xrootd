@@ -107,6 +107,8 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        long long     Offset() {AtomicRet(updMutex, currOffset);}
 
+       const char   *Origin() {return fOpen;}
+
        const char   *Path() {return fPath;}
 
        int           Read (char *Buff, long long Offs, int Len);
@@ -173,7 +175,8 @@ static const int realFD = 1;
 static const int isStrm = 2;
 static const int isUpdt = 4;
 
-           XrdPosixFile(const char *path, XrdPosixCallBack *cbP=0, int Opts=0);
+           XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP=0,
+                        int   Opts=0);
           ~XrdPosixFile();
 
 private:
@@ -184,6 +187,7 @@ union {long long         currOffset;
       };
 
 char       *fPath;
+char       *fOpen;
 char       *fLoc;
 union {int  cOpt; int numTries;};
 char        isStream;
