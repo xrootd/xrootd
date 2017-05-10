@@ -536,7 +536,8 @@ XRootDStatus XCpSrc::GetWork()
 
 uint64_t XCpSrc::TransferRate()
 {
-  return pDataTransfered / ( pTransferTime + time( 0 ) - pStartTime );
+  time_t duration = pTransferTime + time( 0 ) - pStartTime;
+  return pDataTransfered / ( duration + 1 ); // add one to avoid floating point exception
 }
 
 } /* namespace XrdCl */
