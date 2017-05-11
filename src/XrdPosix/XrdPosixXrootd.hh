@@ -54,6 +54,7 @@ class XrdOucCache;
 class XrdOucCache2;
 class XrdOucEnv;
 class XrdOucName2Name;
+class XrdSysLogger;
 class XrdPosixCallBack;
 class XrdPosixCallBackIO;
 class XrdPosixFile;
@@ -365,6 +366,8 @@ static void    setDebug(int val, bool doDebug=false);
 static void    setEnv(const char *kword, int kval);
 
 static void    setIPV4(bool userv4);
+
+static void    setLogger(XrdSysLogger *logP);
 
 static void    setNumCB(int numcb);
 

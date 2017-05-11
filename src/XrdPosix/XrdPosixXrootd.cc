@@ -60,8 +60,11 @@
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
+
+#include "XrdSys/XrdSysTrace.hh"
 
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
@@ -73,7 +76,8 @@ XrdScheduler   *schedP = 0;
 XrdOucCache2   *theCache = 0;
 XrdOucName2Name *theN2N = 0;
 XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
-bool           psxDBG = (getenv("XRDPOSIX_DEBUG") != 0);
+XrdSysTrace     Trace("Posix", 0,
+                      (getenv("XRDPOSIX_DEBUG") ? TRACE_Debug : 0));
 };
 
 XrdOucCache   *XrdPosixXrootd::myCache  =  0;
@@ -224,6 +228,7 @@ int XrdPosixXrootd::Access(const char *path, int amode)
 
 int XrdPosixXrootd::Close(int fildes)
 {
+   EPNAME("Close");
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fP;
    bool ret;
@@ -239,12 +244,7 @@ int XrdPosixXrootd::Close(int fildes)
 //
    if (!fP->Refs() && !(fP->XCio->ioActive()))
       {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
-          else if (XrdPosixGlobals::psxDBG)
-                  {char eBuff[2048];
-                   snprintf(eBuff, sizeof(eBuff), "Posix: %s closing %s\n",
-                            Status.ToString().c_str(), fP->Origin());
-                   std::cerr <<eBuff <<std::flush;
-                  }
+          else {DEBUG(Status.ToString().c_str() <<" closing " <<fP->Origin());}
       } else ret = true;
 
 // If we still have a handle then we need to do a delayed delete on this
@@ -505,6 +505,7 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
                          XrdPosixCallBack *cbP)
 {
+   EPNAME("Open");
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fp;
    XrdCl::Access::Mode     XOmode = XrdCl::Access::None;
@@ -571,12 +572,8 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
    if (!Status.IsOK())
       {XrdPosixMap::Result(Status);
        int rc = errno;
-       if (XrdPosixGlobals::psxDBG && rc != ENOENT && rc != ELOOP)
-          {char eBuff[2048];
-           snprintf(eBuff, sizeof(eBuff), "%s open %s\n",
-                    Status.ToString().c_str(), fp->Origin());
-           std::cerr <<eBuff <<std::flush;
-          }
+       if (rc != ENOENT && rc != ELOOP)
+          {DEBUG(Status.ToString().c_str() <<" open " <<fp->Origin());}
        delete fp;
        errno = rc;
        return -1;
@@ -1391,15 +1388,15 @@ void XrdPosixXrootd::initEnv(char *eData)
 //
    if ((tP = theEnv.Get("debug")))
       {if (*tP >= '0' && *tP <= '3') myParms.Options |= (*tP - '0');
-          else cerr <<"XrdPosix: 'XRDPOSIX_CACHE=debug=" <<tP <<"' is invalid." <<endl;
+          else DMSG("initEnv", "'XRDPOSIX_CACHE=debug=" <<tP <<"' is invalid.");
       }
 
 // Get Mode
 //
    if ((tP = theEnv.Get("mode")))
       {if (*tP == 's') myParms.Options |= XrdOucCache::isServer;
-          else if (*tP != 'c') cerr <<"XrdPosix: 'XRDPOSIX_CACHE=mode=" <<tP
-                                    <<"' is invalid." <<endl;
+          else if (*tP != 'c') DMSG("initEnv","'XRDPOSIX_CACHE=mode=" <<tP
+                                    <<"' is invalid.");
       }
 
 // Get the structured file option
@@ -1409,8 +1406,8 @@ void XrdPosixXrootd::initEnv(char *eData)
        else if (*tP == '.') {XrdPosixFile::sfSFX = strdup(tP);
                              XrdPosixFile::sfSLN = strlen(tP);
                             }
-       else cerr <<"XrdPosix: 'XRDPOSIX_CACHE=optfs=" <<tP
-                 <<"' is invalid." <<endl;
+       else DMSG("initEnv", "'XRDPOSIX_CACHE=optfs=" <<tP
+                            <<"' is invalid.");
       }
 
 // Get final options, any non-zero value will do here
@@ -1430,7 +1427,7 @@ void XrdPosixXrootd::initEnv(char *eData)
 //
    myParms.Options |= XrdOucCache::Serialized;
    if (!(v1Cache = myCache->Create(myParms, &apParms)))
-      cerr <<"XrdPosix: " <<strerror(errno) <<" creating cache." <<endl;
+      {DMSG("initEnv", strerror(errno) <<" creating cache.");}
       else XrdPosixGlobals::theCache = new XrdPosixCacheBC(v1Cache);
 }
 
@@ -1457,8 +1454,8 @@ void XrdPosixXrootd::initEnv(XrdOucEnv &theEnv, const char *vName, long long &De
        else if (*eP == 't' || *eP == 'T') Dest *= 1024LL*1024LL*1024LL*1024LL;
        else eP--;
        if (*(eP+1))
-          {cerr <<"XrdPosix: 'XRDPOSIX_CACHE=" <<vName <<'=' <<tP
-                             <<"' is invalid." <<endl;
+          {DMSG("initEnv", "'XRDPOSIX_CACHE=" <<vName <<'=' <<tP
+                           <<"' is invalid.");
            Dest = -1;
           }
       }
@@ -1591,6 +1588,15 @@ void XrdPosixXrootd::setIPV4(bool usev4)
 // Set the env value
 //
    env->PutString((std::string)"NetworkStack", (const std::string)ipmode);
+}
+  
+/******************************************************************************/
+/*                             s e t L o g g e r                              */
+/******************************************************************************/
+
+void XrdPosixXrootd::setLogger(XrdSysLogger *logP)
+{
+    XrdPosixGlobals::Trace.SetLogger(logP);
 }
   
 /******************************************************************************/

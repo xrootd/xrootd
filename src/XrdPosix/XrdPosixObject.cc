@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 
 #include "XrdPosix/XrdPosixObject.hh"
+#include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -72,7 +73,7 @@ bool XrdPosixObject::AssignFD(bool isStream)
            if (fd >= lastFD || (isStream && fd > 255))
               {close(fd); return 0;}
            if (!myFiles[fd]) break;
-           cerr <<"XrdPosix: FD " <<fd <<" closed outside of XrdPosix!" <<endl;
+           DMSG("AssignFD", "FD " <<fd <<" closed outside of XrdPosix!");
           } while(1);
       }
 

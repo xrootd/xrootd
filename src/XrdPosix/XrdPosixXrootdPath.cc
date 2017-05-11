@@ -29,7 +29,6 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <iostream>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -37,6 +36,7 @@
 
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
@@ -55,7 +55,6 @@ const int     xprlen = strlen(xproto);
 namespace XrdPosixGlobals
 {
 extern XrdOucName2Name *theN2N;
-extern bool             psxDBG;
 }
   
 /******************************************************************************/
@@ -90,7 +89,7 @@ XrdPosixXrootPath::XrdPosixXrootPath()
           {*colon++ = '\0';
            while(*(colon+1) == '/') colon++;
            xplist = new xpath(xplist, tp, colon, subs);
-          } else cerr <<"XrdPosix: Invalid XROOTD_VMP token '" <<tp <<'"' <<endl;
+          } else DMSG("Path", "Invalid XROOTD_VMP token '" <<tp <<'"');
       }
 }
 
@@ -133,6 +132,7 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
                                          char *&relP,
                                          bool   ponly)
 {
+   EPNAME("P2L");
    const char *urlP, *slash, *quest;
    char *outP, pfnBuff[1032], lfnBuff[1032];
    int cgiLen, lfnLen, pfnLen, pfxLen, n;
@@ -203,8 +203,7 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
 
 // Do some debugging
 //
-   if (XrdPosixGlobals::psxDBG)
-      std::cerr<<"Posix: "<<who<<' '<<pfnBuff<<" pfn2lfn "<<lfnBuff<<'\n'<<std::flush;
+   DEBUG(who <<' ' <<pfnBuff <<" pfn2lfn " <<lfnBuff);
 
 // All done, return result
 //

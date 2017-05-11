@@ -190,6 +190,7 @@ int XrdPssSys::Configure(const char *cfn)
 
 // Set debug level if so wanted and the default number of worker threads
 //
+   XrdPosixXrootd::setLogger(eDest.logger());
    if (getenv("XRDDEBUG")) XrdPosixXrootd::setDebug(1, true);
    XrdPosixXrootd::setEnv("WorkerThreads", 64);
 

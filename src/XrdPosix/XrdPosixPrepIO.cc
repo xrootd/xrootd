@@ -28,20 +28,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <iostream>
-#include <stdio.h>
-
 #include "XrdPosix/XrdPosixObjGuard.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
-
-/******************************************************************************/
-/*                               G l o b a l s                                */
-/******************************************************************************/
-
-namespace XrdPosixGlobals
-{
-extern bool psxDBG;
-};
+#include "XrdPosix/XrdPosixTrace.hh"
 
 /******************************************************************************/
 /*                                  I n i t                                   */
@@ -49,6 +38,7 @@ extern bool psxDBG;
   
 bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 {
+   EPNAME("PrepIOInit");
    XrdPosixObjGuard objGuard(fileP);
    XrdCl::XRootDStatus Status;
    static int maxCalls = 64;
@@ -58,8 +48,7 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 //
    if (iCalls++ >= maxCalls)
       {maxCalls = maxCalls*2;
-       std::cerr <<"XrdPosix: Unexpected PrepIO calls (" <<iCalls <<")\n"
-                 <<std::flush;
+       DMSG("Init", iCalls <<" unexpected PrepIO calls!");
       }
 
 // Check if the file is already opened. This caller may be vestigial
@@ -84,12 +73,8 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
    if (!Status.IsOK())
       {XrdPosixMap::Result(Status);
        openRC = -errno;
-       if (XrdPosixGlobals::psxDBG && errno != ENOENT && errno != ELOOP)
-          {char eBuff[2048];
-           snprintf(eBuff, sizeof(eBuff), "%s deferred open %s\n",
-                    Status.ToString().c_str(), fileP->Origin());
-           std::cerr <<eBuff <<std::flush;
-          }
+       if (errno != ENOENT && errno != ELOOP)
+          {DEBUG(Status.ToString().c_str()<<" deferred open "<<fileP->Origin());}
        return false;
       }
 

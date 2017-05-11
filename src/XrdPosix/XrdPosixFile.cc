@@ -30,8 +30,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <iostream>
-#include <stdio.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
@@ -43,6 +41,7 @@
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
 
 #include "XrdSys/XrdSysTimer.hh"
@@ -55,7 +54,6 @@ namespace XrdPosixGlobals
 {
 extern XrdOucCache2    *theCache;
 extern XrdOucName2Name *theN2N;
-extern bool             psxDBG;
 };
 
 namespace
@@ -96,7 +94,7 @@ XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
 //
    fOpen = strdup(path); aOK = true;
    if (!XrdPosixGlobals::theN2N || !XrdPosixGlobals::theCache) fPath = fOpen;
-      else if (!XrdPosixXrootPath::P2L("new file",path,fPath)) aOK = false;
+      else if (!XrdPosixXrootPath::P2L("file",path,fPath)) aOK = false;
               else if (!fPath) fPath = fOpen;
 
 // Check for structured file check
@@ -147,11 +145,11 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
 // Called within a dedicated thread if XrdOucCacheIO is io-active or the
 // file cannot be closed in a clean fashion for some reason.
 //
+   EPNAME("DDestroy");
    static const int ddInterval =  30;
    static const int maxTries   =  (3*60)/ddInterval;
    static       int numLost    =  0;
 
-   char eBuff[2048];
    XrdCl::XRootDStatus Status;
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
@@ -177,12 +175,7 @@ do{if (doWait)
 
 // Do some debugging
 //
-   if (XrdPosixGlobals::psxDBG)
-      {snprintf(eBuff, sizeof(eBuff),
-                "PosixFile: DLY destory of %d objects; %d already lost.\n",
-                 ddCount, numLost);
-       std::cerr <<eBuff <<std::flush;
-      }
+   DEBUG("DLY destory of "<<ddCount<<" objects; "<<numLost<<" already lost.");
 
 // Try to delete all the files on the list. If we exceeded the try limit,
 // remove the file from the list and let it sit forever.
@@ -196,10 +189,8 @@ do{if (doWait)
 
          if (fCurr->numTries > maxTries)
             {numLost++; ddCount--;
-             snprintf(eBuff, sizeof(eBuff),
-                      "PosixFile: %s timeout closing %s; %d objects lost!\n",
-                      eTxt, fCurr->Origin(), numLost);
-             std::cerr <<eBuff <<std::flush;
+             DMSG("DDestroy", eTxt <<" timeout closing " <<fCurr->Origin()
+                                   <<numLost <<" objects lost");
              fCurr->nextFile = ddLost;
              ddLost = fCurr;
              fCurr->Close(Status);
@@ -212,12 +203,7 @@ do{if (doWait)
              ddMutex.UnLock();
             }
         }
-        if (XrdPosixGlobals::psxDBG)
-           {snprintf(eBuff, sizeof(eBuff),
-                     "PosixFile: DLY destory end; %d objects deferred.\n",
-                     ddCount);
-            std::cerr <<eBuff <<std::flush;
-           }
+        DEBUG("DLY destory end; "<<ddCount<<" objects deferred.");
    } while(true);
 
    return 0;
@@ -227,6 +213,7 @@ do{if (doWait)
 
 void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
 {
+   EPNAME("DDestroyFP");
    int  ddCount;
    bool doPost;
 
@@ -243,13 +230,8 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
    ddMutex.UnLock();
    fp->numTries = 0;
 
-   if (XrdPosixGlobals::psxDBG)
-      {char eBuff[2048];
-       snprintf(eBuff, sizeof(eBuff),
-                "PosixFile: DLY destory %s %d objects; added %s.\n",
-                 (doPost ? "post" : "has "), ddCount, fp->Origin());
-       std::cerr <<eBuff <<std::flush;
-      }
+   DEBUG("DLY destory "<<(doPost ? "post " : "has ")<<ddCount
+                       <<" objects; added "<<fp->Origin());
 
    if (doPost) ddSem.Post();
 }
