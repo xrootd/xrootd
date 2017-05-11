@@ -10,6 +10,7 @@ Prerelease Notes
   * **{Server]** Add org and role types to AuthDB authorization.
   * **[Server]** Handle systemd socket inheritance.
   * **[Proxy/Posix]** Allow Name2Name to populate cache using the LFN.
+  * **[Posix]** enable LITE feature in Posix preload library.
 
 + **Major bug fixes**
 
