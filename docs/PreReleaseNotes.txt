@@ -9,6 +9,7 @@ Prerelease Notes
   * **[Server]** Allow port to be specified for a supervisor.
   * **{Server]** Add org and role types to AuthDB authorization.
   * **[Server]** Handle systemd socket inheritance.
+  * **[Proxy/Posix]** Allow Name2Name to populate cache using the LFN.
 
 + **Major bug fixes**
 
@@ -16,3 +17,4 @@ Prerelease Notes
 
 + **Miscellaneous**
   * **[Proxy Server]** Simplify delayed destruction on wait vs post.
+  * **[Posix]** Convert to using universal tracing facility.
