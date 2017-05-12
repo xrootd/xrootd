@@ -220,6 +220,23 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       }
    }
 
+   // sets flush frequency
+   {
+      if (::isalpha(*(tmpc.m_flushRaw.rbegin())))
+      {
+         if (XrdOuca2x::a2sz(m_log, "Error getting number of blocks to flush",  tmpc.m_flushRaw.c_str(), &m_configuration.m_flushCnt, 100*m_configuration.m_bufferSize , 5000*m_configuration.m_bufferSize))
+         {
+            return false;
+         }
+         m_configuration.m_flushCnt /= m_configuration.m_bufferSize;
+      }
+      else
+      {
+         m_configuration.m_flushCnt = ::atol(tmpc.m_flushRaw.c_str());
+      }
+   }
+
+   
    // get number of available RAM blocks after process configuration
    if (m_configuration.m_RamAbsAvailable == 0)
    {
@@ -245,7 +262,8 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                       "       pfc.ram %.fg\n"
                       "       pfc.diskusage %lld %lld sleep %d\n"
                       "       pfc.spaces %s %s\n"
-                      "       pfc.trace %d",
+                      "       pfc.trace %d\n"
+                      "       pfc.flush %lld",
                       config_filename,
                       m_configuration.m_bufferSize,
                       m_configuration.m_prefetch_max_blocks,
@@ -255,7 +273,10 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                       m_configuration.m_purgeInterval,
                       m_configuration.m_data_space.c_str(),
                       m_configuration.m_meta_space.c_str(),
-                      m_trace->What);
+                      m_trace->What,
+                       m_configuration.m_flushCnt);
+
+
 
       if (m_configuration.m_hdfsmode)
       {
@@ -407,6 +428,10 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
             return false;
          }
       }
+   }
+   else if ( part == "flush" )
+   {
+      tmpc.m_flushRaw = config.GetWord();
    }
    else
    {

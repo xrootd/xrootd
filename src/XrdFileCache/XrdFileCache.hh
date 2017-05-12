@@ -60,7 +60,8 @@ struct Configuration
       m_RamAbsAvailable(0),
       m_NRamBuffers(-1),
       m_prefetch_max_blocks(10),
-      m_hdfsbsize(128*1024*1024)
+      m_hdfsbsize(128*1024*1024),
+      m_flushCnt(100)
    {}
 
    bool m_hdfsmode;                     //!< flag for enabling block-level operation
@@ -79,15 +80,17 @@ struct Configuration
    size_t    m_prefetch_max_blocks;     //!< maximum number of blocks to prefetch per file
 
    long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
+   long long m_flushCnt;                //!< nuber of unsynced blcoks on disk before flush is called
 };
 
 struct TmpConfiguration
 {
    std::string m_diskUsageLWM;
    std::string m_diskUsageHWM;
+   std::string m_flushRaw;
 
    TmpConfiguration() :
-      m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95")
+      m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95"), m_flushRaw("100")
    {}
 };
 

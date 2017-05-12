@@ -748,7 +748,7 @@ void File::WriteBlockToDisk(Block* b)
       {
          m_cfi.SetBitSynced(pfIdx);
          ++m_non_flushed_cnt;
-         if (m_non_flushed_cnt >= 100)
+         if (m_non_flushed_cnt >= Cache::GetInstance().RefConfiguration().m_flushCnt)
          {
             schedule_sync     = true;
             m_in_sync         = true;
