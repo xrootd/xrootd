@@ -887,7 +887,7 @@ static int toErrno( int xerr )
         case kXR_NotAuthorized: return EACCES;
         case kXR_NotFound:      return ENOENT;
         case kXR_ServerError:   return ENOMSG;
-        case kXR_Unsupported:   return ENOSYS;
+        case kXR_Unsupported:   return ENOTSUP;
         case kXR_noserver:      return EHOSTUNREACH;
         case kXR_NotFile:       return ENOTBLK;
         case kXR_isDirectory:   return EISDIR;
