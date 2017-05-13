@@ -420,6 +420,13 @@ int XrdPssSys::ConfigN2N()
        if (!xLfn2Pfn) return 0;
       }
 
+   if (outProxy && xLfn2Pfn)
+      {const char *txt = (xPfn2Lfn ? "-lfn2pfn option" : "directive");
+       eDest.Say("Config warning: ignoring namelib ", txt,
+                 "; this is forwarding proxy!");
+       if (!xPfn2Lfn) return 0;
+      }
+
 // Get the plugin
 //
    if (!(theN2N = n2nLoader.Load(N2NLib, *myVersion))) return 1;
