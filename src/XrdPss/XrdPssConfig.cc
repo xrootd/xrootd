@@ -225,6 +225,10 @@ int XrdPssSys::Configure(const char *cfn)
 //
    if (cPath && !getCache()) return 1;
 
+// Configure the N2N library:
+//
+   if ((NoGo = ConfigN2N())) return NoGo;
+
 // Allocate an Xroot proxy object (only one needed here). Tell it to not
 // shadow open files with real file descriptors (we will be honest). This can
 // be done before we initialize the ffs.
@@ -272,10 +276,6 @@ int XrdPssSys::Configure(const char *cfn)
            {if (!strstr(eP, Fwd[i].Typ)) {*(Fwd[i].Loc) = 1; haveFwd = true;}
             i++;
            }
-
-// Configure the N2N library:
-//
-   if ((NoGo = ConfigN2N())) return NoGo;
 
 // We would really like that the Ffs interface use the generic method of
 // keeping track of data servers. It does not and it even can't handle more
