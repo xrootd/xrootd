@@ -58,6 +58,8 @@ public:
    //---------------------------------------------------------------------
    //! Pass Read request to the corresponding File object.
    //---------------------------------------------------------------------
+   using XrdOucCacheIO2::Read;
+
    virtual int Read(char *Buffer, long long Offset, int Length);
 
    //! \brief Virtual method of XrdOucCacheIO.

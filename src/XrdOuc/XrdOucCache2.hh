@@ -209,6 +209,9 @@ public:
 //! @return Pointer to a new XrdOucCacheIO2 object (success) or the original
 //!         XrdOucCacheIO2 object (failure) with errno set.
 //------------------------------------------------------------------------------
+
+using XrdOucCache::Attach;
+
 virtual
 XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *ioP, int opts=0) = 0;
 

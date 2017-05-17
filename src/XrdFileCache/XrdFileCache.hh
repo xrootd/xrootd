@@ -105,6 +105,8 @@ public:
    //---------------------------------------------------------------------
    //! Obtain a new IO object that fronts existing XrdOucCacheIO.
    //---------------------------------------------------------------------
+   using XrdOucCache2::Attach;
+
    virtual XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *, int Options = 0);
 
    //---------------------------------------------------------------------

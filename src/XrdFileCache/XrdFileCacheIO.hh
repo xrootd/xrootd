@@ -24,9 +24,15 @@ public:
    //! Original data source URL.
    virtual const char *Path() { return m_io->Path(); }
 
+   using XrdOucCacheIO2::Sync;
+
    virtual int Sync() { return 0; }
 
+   using XrdOucCacheIO2::Trunc;
+
    virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
+
+   using XrdOucCacheIO2::Write;
 
    virtual int Write(char *Buffer, long long Offset, int Length)
    { errno = ENOTSUP; return -1; }
