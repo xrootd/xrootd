@@ -10,8 +10,13 @@ compiler:
   - clang
   - gcc
 script:
-  - mkdir build && cd build
-  - cmake -DENABLE_TESTS=1 ..
+  - mkdir build
+  - pushd build
+  - cmake -DCMAKE_INSTALL_PREFIX=$HOME/xrootd -DENABLE_TESTS=1 ..
   - make
-  - make test
   - make install
+  - popd
+after_script:
+  - pushd build
+  - ./tests/common/text-runner ./tests/XrdClTests/libXrdClTests.so 'All Tests'
+  - popd
