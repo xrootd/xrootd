@@ -120,7 +120,7 @@ public:
 
 class XrdSutPFile {
 
-   friend class XrdSutCache;          // for open/close operation;
+   friend class XrdSutPFCache;          // for open/close operation;
 
 private:
    char                  *name;

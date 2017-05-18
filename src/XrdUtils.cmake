@@ -111,11 +111,12 @@ add_library(
   # XrdSut
   #-----------------------------------------------------------------------------
   XrdSut/XrdSutAux.cc           XrdSut/XrdSutAux.hh
-  XrdSut/XrdSutCache.cc         XrdSut/XrdSutCache.hh
+  XrdSut/XrdSutPFCache.cc       XrdSut/XrdSutPFCache.hh
   XrdSut/XrdSutBucket.cc        XrdSut/XrdSutBucket.hh
   XrdSut/XrdSutBuckList.cc      XrdSut/XrdSutBuckList.hh
   XrdSut/XrdSutBuffer.cc        XrdSut/XrdSutBuffer.hh
   XrdSut/XrdSutPFile.cc         XrdSut/XrdSutPFile.hh
+  XrdSut/XrdSutCacheEntry.cc    XrdSut/XrdSutCacheEntry.hh
   XrdSut/XrdSutPFEntry.cc       XrdSut/XrdSutPFEntry.hh
   XrdSut/XrdSutRndm.cc          XrdSut/XrdSutRndm.hh
   XrdSut/XrdSutTrace.hh
