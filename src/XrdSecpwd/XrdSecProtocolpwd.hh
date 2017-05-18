@@ -330,10 +330,10 @@ private:
    static XrdCryptoCipher *refcip[XrdCryptoMax];    // ref for session ciphers 
    //
    // Caches for info files
-   static XrdSutCache      cacheAdmin;  // Admin file
-   static XrdSutCache      cacheSrvPuk; // SrvPuk file
-   static XrdSutCache      cacheUser;   // User files
-   static XrdSutCache      cacheAlog;   // Autologin file
+   static XrdSutPFCache      cacheAdmin;  // Admin file
+   static XrdSutPFCache      cacheSrvPuk; // SrvPuk file
+   static XrdSutPFCache      cacheUser;   // User files
+   static XrdSutPFCache      cacheAlog;   // Autologin file
    //
    // Running options / settings
    static int              Debug;          // [CS] Debug level
