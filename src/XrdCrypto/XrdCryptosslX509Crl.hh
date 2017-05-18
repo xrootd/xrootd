@@ -45,7 +45,6 @@
 //
 // ---------------------------------------------------------------------------//
 
-class XrdSutCache;
 class XrdCryptoX509;
 
 class XrdCryptosslX509Crl : public XrdCryptoX509Crl {
