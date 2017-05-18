@@ -83,8 +83,9 @@ public:
       // We found an existing entry:
       // lock until we get the ability to read (another thread may be valudating it)
       if (cent->rwmtx.ReadLock()) {
-         // A problem occured: fail (do not touch the entry)
-         return (XrdSutCacheEntry *)0;
+         // A problem occured: fail (set the entry invalid)
+         cent->status = kCE_inactive;
+         return cent;
       }
 
       // Check-it by apply the condition, if required
@@ -96,8 +97,9 @@ public:
             // Invalid entry: unlock and write-lock to be able to validate it
             cent->rwmtx.UnLock();
             if (cent->rwmtx.WriteLock()) {
-               // A problem occured: fail (do not touch the entry)
-               return (XrdSutCacheEntry *)0;
+               // A problem occured: fail (set the entry invalid)
+               cent->status = kCE_inactive;
+               return cent;
             }
           }
       } else {

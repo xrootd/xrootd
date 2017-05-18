@@ -40,6 +40,8 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 
+#include "XrdSut/XrdSutCache.hh"
+
 #include "XrdSut/XrdSutPFEntry.hh"
 #include "XrdSut/XrdSutPFile.hh"
 #include "XrdSut/XrdSutBuffer.hh"
@@ -348,12 +350,11 @@ private:
    static XrdCryptoCipher *refcip[XrdCryptoMax];    // ref for session ciphers 
    //
    // Caches 
-   static XrdSutCache      cacheCA;   // Info about trusted CA's
-   static XrdSutCache      cacheCert; // Cache for available server certs
-   static XrdSutCache      cachePxy;  // Cache for client proxies
-   static XrdSutCache      cacheGMAP; // Cache for gridmap entries
-   static XrdSutCache      cacheGMAPFun; // Cache for entries mapped by GMAPFun
-   static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
+   static XrdSutCache   cacheCA;   // Info about trusted CA's
+   static XrdSutCache   cacheCert; // Server certificates info cache
+   static XrdSutCache   cachePxy;  // Client proxies cache; 
+   static XrdSutCache   cacheGMAPFun; // Cache for entries mapped by GMAPFun
+   static XrdSutCache   cacheAuthzFun; // Cache for entities filled by AuthzFun
    //
    // Services
    static XrdOucGMap      *servGMap;  // Grid mapping service 
@@ -422,7 +423,7 @@ private:
    static int     VerifyCRL(XrdCryptoX509Crl *crl, XrdCryptoX509 *xca, XrdOucString crldir,
                            XrdCryptoFactory *CF, int hashalg);
    bool           ServerCertNameOK(const char *subject, String &e);
-   static XrdSutPFEntry *GetSrvCertEnt(XrdSutCacheRef   &pfeRef,
+   static XrdSutCacheEntry *GetSrvCertEnt(XrdSutCERef   &gcref,
                                        XrdCryptoFactory *cf,
                                        time_t timestamp, String &cal);
 
