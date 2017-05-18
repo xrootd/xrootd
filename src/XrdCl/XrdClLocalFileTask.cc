@@ -29,13 +29,17 @@ namespace XrdCl
       this->responsehandler = responsehandler;
    }
 
-   LocalFileTask::~LocalFileTask()
-   {
-   }
+   LocalFileTask::~LocalFileTask(){}
 
    void LocalFileTask::Run( void *arg )
    {
       if( responsehandler )
          responsehandler->HandleResponseWithHosts( st, obj, hosts );
+      else{
+         delete st;
+         delete obj;
+         delete hosts;
+      }
+      delete this;
    }
 }

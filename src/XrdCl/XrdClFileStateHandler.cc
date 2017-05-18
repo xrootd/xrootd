@@ -405,6 +405,7 @@ namespace XrdCl
     delete pDataServer;
     delete pLoadBalancer;
     delete [] pFileHandle;
+    delete lFileHandler;
   }
 
   //----------------------------------------------------------------------------
@@ -507,6 +508,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     if( IsLocal( pFileUrl ) ){
+      delete msg;
       return lFileHandler->Open(
          pFileUrl->GetURL().c_str(), flags, mode, openHandler, timeout );
     }

@@ -17,7 +17,7 @@
 //------------------------------------------------------------------------------
 #include "XrdCl/XrdClLocalFileHandler.hh"
 #include "XrdCl/XrdClConstants.hh"
-
+#include "XrdCl/XrdClPostMaster.hh"
 #include <string>
 #include <fcntl.h>
 #include <stdio.h>
@@ -31,9 +31,7 @@ namespace XrdCl{
       //------------------------------------------------------------------------
       LocalFileHandler::LocalFileHandler()
       {
-         jmngr = new JobManager(3);//TO DO: How many?
-         jmngr->Initialize();
-         jmngr->Start();
+         jmngr = DefaultEnv::GetPostMaster()->GetJobManager();
       }
       //------------------------------------------------------------------------
       // Destructor
@@ -48,9 +46,6 @@ namespace XrdCl{
                      uint16_t mode, ResponseHandler* handler, uint16_t timeout )
       {
          Log *log = DefaultEnv::GetLog();
-         AnyObject *obj = new AnyObject();
-         XRootDStatus *st;
-         StatInfo *statInfo = new StatInfo();
 
          std::string fileurl = url;
          if( url.find("file://") == 0 )
@@ -88,10 +83,10 @@ namespace XrdCl{
          {
             log->Error( FileMsg, "Unable to open %s: %s",
                                     fileurl.c_str(), strerror( errno ) );
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ),
+                                                0, handler );
          }
-         else{ st = new XRootDStatus( stOK ); }
          //---------------------------------------------------------------------
          // Stat File and cache statInfo in openInfo
          //---------------------------------------------------------------------
@@ -99,21 +94,24 @@ namespace XrdCl{
          if( fstat( fd, &ssp ) == -1 )
          {
             log->Error( FileMsg, "Unable to stat in Open" );
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
 
          std::ostringstream data;
          data<<ssp.st_dev <<" "<< ssp.st_size <<" "<<ssp.st_mode<<" "<<ssp.st_mtime;
 
+         StatInfo *statInfo = new StatInfo();
          if( !statInfo->ParseServerResponse( data.str().c_str() ) ){
             log->Error( FileMsg, "Unable to ParseServerResponse for Local File Stat Open" );
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            delete statInfo;
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
-
+         //All went well
          uint8_t ufd = fd;
          OpenInfo *openInfo = new OpenInfo( &ufd, 1, statInfo );
+         AnyObject *obj = new AnyObject();
          obj->Set( openInfo );
          return QueueTask( new XRootDStatus(), obj, handler );
       }
@@ -124,18 +122,14 @@ namespace XrdCl{
                                                     uint16_t timeout )
       {
          Log *log = DefaultEnv::GetLog();
-         AnyObject *obj = new AnyObject();
-         XRootDStatus *st;
-
          if( close( fd ) == -1 )
          {
             log->Error( FileMsg, "Unable to close file fd: %i", fd );
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
          else{
-            st = new XRootDStatus( stOK );
-            return QueueTask( st, obj, handler );
+            return QueueTask( new XRootDStatus( stOK ), 0, handler );
          }
       }
       //------------------------------------------------------------------------
@@ -145,30 +139,29 @@ namespace XrdCl{
                                                    uint16_t timeout )
       {
          Log *log = DefaultEnv::GetLog();
-         AnyObject *obj = new AnyObject();
-         XRootDStatus *st;
-         StatInfo *statInfo = new StatInfo();
-         obj->Set(statInfo);
 
          struct stat ssp;
-         if( fstat( fd, &ssp ) == -1 || true )
+         if( fstat( fd, &ssp ) == -1 )
          {
             log->Error( FileMsg, "Unable to stat fd: %i in lFileHandler", fd );
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
          std::ostringstream data;
          data<< ssp.st_dev << " " << ssp.st_size << " " << ssp.st_mode << " " << ssp.st_mtime;
          log->Debug( FileMsg, data.str().c_str() );
 
+         StatInfo *statInfo = new StatInfo();
          if( !statInfo->ParseServerResponse(data.str().c_str()) ){
             log->Error(FileMsg, "Unable to ParseServerResponse for lFileHandler statinfo" );
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            delete statInfo;
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
          else{
-            st = new XRootDStatus( stOK );
-            return QueueTask( st, obj, handler );
+            AnyObject *obj = new AnyObject();
+            obj->Set(statInfo);
+            return QueueTask( new XRootDStatus( stOK ), obj, handler );
          }
       }
       //------------------------------------------------------------------------
@@ -178,25 +171,20 @@ namespace XrdCl{
                void* buffer, ResponseHandler* handler, uint16_t timeout )
       {
          Log *log = DefaultEnv::GetLog();
-         AnyObject *obj = new AnyObject();
-         XRootDStatus *st;
-         ChunkInfo *resp;
-
          int read = 0;
          if( ( read = pread( fd, buffer, size, offset ) ) == -1 ){
             log->Error( FileMsg, "Unable to read local file" );
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
          else{
-            resp = new ChunkInfo( offset, read,/*size,*/ buffer );
-            //TO DO: What is supposed to happen in case readBytes<size? Is the 
-            //chunkinfo supposed to have size or read as chunkinfo size?
+            ChunkInfo *resp;
+            resp = new ChunkInfo( offset, read, buffer );
+            AnyObject *obj = new AnyObject();
             obj->Set(resp);
-            st = new XRootDStatus( stOK );
             log->Dump( FileMsg, "Chunkinfo: size: %i, offset: %i, Buffer: %s",
                               resp->length, resp->offset, resp->buffer );
-            return QueueTask( st, obj, handler );
+            return QueueTask( new XRootDStatus( stOK ), obj, handler );
          }
       }
       //------------------------------------------------------------------------
@@ -206,18 +194,28 @@ namespace XrdCl{
             const void* buffer, ResponseHandler* handler, uint16_t timeout )
       {
          Log *log = DefaultEnv::GetLog();
-         AnyObject *obj = new AnyObject();
-         XRootDStatus *st;
+         std::string toBeWritten( (char*) buffer, '\0' );
          int written = -1;
-         if(( written = pwrite( fd, buffer, size, offset ) ) <= 0 ){
-            log->Error( FileMsg, "Unable to write to localfile, wrote %i bytes", written );
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+         if(( written = pwrite( fd, buffer, size, offset ) ) < (int)size ){
+            log->Error( FileMsg, "Retrying to write to localfile, wrote %i bytes", written );
+
+            while( written != -1 && size != 0 ){
+                std::string partialWrite = toBeWritten.substr( offset += written, size -= written );
+                written = pwrite( fd, partialWrite.c_str(), size, offset );
+            }
+            if( size != 0 ){
+                log->Error( FileMsg, "Retrying to write to localfile, wrote %i bytes", written );
+                return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
+            }
+            else{
+                log->Dump( FileMsg, "Write succeeded, wrote %i bytes", offset );
+                return QueueTask( new XRootDStatus( stOK ), 0, handler );
+            }
          }
          else{
             log->Dump( FileMsg, "Write succeeded, wrote %i bytes", written );
-            st = new XRootDStatus( stOK );
-            return QueueTask( st, obj, handler );
+            return QueueTask( new XRootDStatus( stOK ), 0, handler );
          }
       }
       //------------------------------------------------------------------------
@@ -227,17 +225,14 @@ namespace XrdCl{
                                                    uint16_t timeout )
       {
          Log *log = DefaultEnv::GetLog();
-         AnyObject *obj = new AnyObject();
-         XRootDStatus *st;
 
          if( syncfs( fd ) == -1 ){
             log->Error( FileMsg, "Unable to Sync, filedescriptor: %i", fd);
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
          else{
-            st = new XRootDStatus( stOK );
-            return QueueTask( st, obj, handler );
+            return QueueTask( new XRootDStatus( stOK ), 0, handler );
          }
       }
       //------------------------------------------------------------------------
@@ -247,17 +242,14 @@ namespace XrdCl{
                ResponseHandler* handler, uint16_t timeout)
       {
          Log *log = DefaultEnv::GetLog();
-         AnyObject *obj = new AnyObject();
-         XRootDStatus *st;
 
          if( ftruncate( fd, size ) == -1 ){
             log->Error( FileMsg, "Unable to Truncate, filedescriptor: %i", fd);
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
          else{
-            st = new XRootDStatus( stOK );
-            return QueueTask( st, obj, handler );
+            return QueueTask( new XRootDStatus( stOK ), 0, handler );
          }
       }
       //------------------------------------------------------------------------
@@ -267,9 +259,6 @@ namespace XrdCl{
                void* buffer, ResponseHandler* handler, uint16_t timeout )
       {
          Log *log = DefaultEnv::GetLog();
-         AnyObject *obj = new AnyObject();
-         XRootDStatus *st;
-         VectorReadInfo* info = new VectorReadInfo();
 
          int iovcnt;
          struct iovec iov[chunks.size()];
@@ -281,15 +270,17 @@ namespace XrdCl{
 
          if( readv( fd, iov, iovcnt ) == -1 ){
             log->Error( FileMsg, "Unable to VectorRead, filedescriptor: %i", fd);
-            st = new XRootDStatus( stError, errErrorResponse, errno );
-            return QueueTask( st, 0, handler );
+            return QueueTask( new XRootDStatus( stError, errErrorResponse, errno ), 
+                                                0, handler );
          }
          else{
+            VectorReadInfo *info = new VectorReadInfo();
             info->GetChunks() = chunks;
-            obj->Set(info);
-            for(auto chunk : chunks){
+            AnyObject *obj = new AnyObject();
+            obj->Set( info );
+            for( uint32_t i = 0; i < chunks.size(); i++ ){
             log->Dump( FileMsg, "Chunkinfo: size: %i, offset: %i, Buffer: %s",
-               chunk.length, chunk.offset, chunk.buffer );
+               chunks[i].length, chunks[i].offset, chunks[i].buffer );
             }
             return QueueTask( new XRootDStatus(), obj, handler );
          }
@@ -302,7 +293,7 @@ namespace XrdCl{
       XRootDStatus LocalFileHandler::QueueTask( XRootDStatus *st, AnyObject *obj,
                                     ResponseHandler *handler )
       {
-            HostList* hosts = new HostList();
+            HostList *hosts = new HostList();
             hosts->push_back( HostInfo( URL( "localhost" ), true ) );
             LocalFileTask *task = new LocalFileTask( st, obj, hosts, handler );
             jmngr->QueueJob( task );
@@ -313,13 +304,13 @@ namespace XrdCl{
       // called if kXR_mkdir flag is set
       //------------------------------------------------------------------------
       int LocalFileHandler::mkpath(char* file_path, mode_t mode) {
-        char* p;
-        for (p=strchr(file_path+1, '/'); p; p=strchr(p+1, '/')) {
+        char *p;
+        for ( p = strchr( file_path + 1, '/' ); p; p = strchr( p + 1, '/' ) ) {
           *p='\0';
-          if (mkdir(file_path, mode)==-1) {
-            if (errno!=EEXIST) { *p='/'; return -1; }
+          if ( mkdir( file_path, mode ) == -1 ) {
+            if ( errno != EEXIST ) { *p = '/'; return -1; }
           }
-          *p='/';
+          *p = '/';
         }
         return 0;
       }

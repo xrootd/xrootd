@@ -81,6 +81,7 @@ void LocalFileHandlerTest::SyncTest(){
    CPPUNIT_ASSERT_XRDST( file->Sync() );
    CPPUNIT_ASSERT_XRDST( file->Close() );
    remove(targetURL.c_str());
+   delete file;
 }
 
 void LocalFileHandlerTest::OpenCloseTest(){
@@ -109,16 +110,16 @@ void LocalFileHandlerTest::OpenCloseTest(){
    // Try close non-opened file, return has to be error
    //----------------------------------------------------------------------------
    CPPUNIT_ASSERT( file->Close().status == stError );
+   delete file;
 }
 
 void LocalFileHandlerTest::WriteTest(){
    using namespace XrdCl;
    std::string targetURL = "/tmp/lfilehandlertestfilewrite";
-   std::string toBeWritten = "tenBytes10";
+   std::string toBeWritten = "tenBytes1\0";
    uint32_t writeSize = toBeWritten.size();
-   void *buffer = new Buffer( writeSize );
    CreateTestFileFunc( targetURL, "" );
-
+   char *buffer = new char(writeSize);
    //----------------------------------------------------------------------------
    // Open and Write File
    //----------------------------------------------------------------------------
@@ -138,6 +139,8 @@ void LocalFileHandlerTest::WriteTest(){
    std::string read( (char *)buffer, writeSize );
    CPPUNIT_ASSERT( toBeWritten == read );
    remove(targetURL.c_str());
+   delete buffer;
+   delete file;
 }
 
 void LocalFileHandlerTest::WriteWithOffsetTest(){
@@ -147,7 +150,7 @@ void LocalFileHandlerTest::WriteWithOffsetTest(){
    std::string notToBeOverwritten = "front";
    uint32_t writeSize = toBeWritten.size();
    uint32_t offset = notToBeOverwritten.size();
-   void *buffer = new Buffer( offset );
+   void *buffer = new char( offset );
    CreateTestFileFunc( targetURL, notToBeOverwritten );
 
    //----------------------------------------------------------------------------
@@ -169,6 +172,8 @@ void LocalFileHandlerTest::WriteWithOffsetTest(){
    std::string read( (char *)buffer, offset );
    CPPUNIT_ASSERT( notToBeOverwritten == read );
    remove(targetURL.c_str());
+   delete (char*)buffer;
+   delete file;
 }
 
 void LocalFileHandlerTest::WriteMkdirTest(){
@@ -176,7 +181,7 @@ void LocalFileHandlerTest::WriteMkdirTest(){
    std::string targetURL = "/tmp/testdir/further/muchfurther/evenfurther/lfilehandlertestfilewrite";
    std::string toBeWritten = "tenBytes10";
    uint32_t writeSize = toBeWritten.size();
-   void *buffer = new Buffer( writeSize );
+   char *buffer = new char( writeSize );
 
    //----------------------------------------------------------------------------
    // Open and Write File
@@ -194,17 +199,20 @@ void LocalFileHandlerTest::WriteMkdirTest(){
    //----------------------------------------------------------------------------
    int fd = open( targetURL.c_str(), flags );
    read( fd, buffer, writeSize );
-   std::string read( (char *)buffer, writeSize );
+   std::string read( buffer, writeSize );
    CPPUNIT_ASSERT( toBeWritten == read );
    remove(targetURL.c_str());
+   delete buffer;
+   delete file;
 }
 
 void LocalFileHandlerTest::ReadTest(){
    using namespace XrdCl;
    std::string targetURL = "/tmp/lfilehandlertestfileread";
    std::string toBeWritten = "tenBytes10";
+   uint32_t offset = 0;
    uint32_t writeSize = toBeWritten.size();
-   void *buffer = new Buffer( writeSize );
+   char *buffer = new char(writeSize);
    uint32_t bytesRead = 0;
 
    //----------------------------------------------------------------------------
@@ -220,12 +228,15 @@ void LocalFileHandlerTest::ReadTest(){
    File *file = new File();
    CPPUNIT_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
    CPPUNIT_ASSERT( file->IsOpen() );
-   CPPUNIT_ASSERT_XRDST( file->Read( 0, writeSize, buffer, bytesRead ) );
+   CPPUNIT_ASSERT_XRDST( file->Read( offset, writeSize, buffer, bytesRead ) );
    CPPUNIT_ASSERT_XRDST( file->Close() );
 
-   std::string read( (char *)buffer, writeSize );
+   std::string read( (char*)buffer, writeSize );
    CPPUNIT_ASSERT( toBeWritten == read );
    remove( targetURL.c_str() );
+
+   delete buffer;
+   delete file;
 }
 
 void LocalFileHandlerTest::ReadWithOffsetTest(){
@@ -235,7 +246,7 @@ void LocalFileHandlerTest::ReadWithOffsetTest(){
    uint32_t offset = 3;
    std::string expectedRead = "Byte";
    uint32_t readsize = expectedRead.size();
-   void *buffer = new Buffer( readsize );
+   char *buffer = new char( readsize );
    uint32_t bytesRead = 0;
 
    //----------------------------------------------------------------------------
@@ -254,9 +265,11 @@ void LocalFileHandlerTest::ReadWithOffsetTest(){
    CPPUNIT_ASSERT_XRDST( file->Read( offset, readsize, buffer, bytesRead ) );
    CPPUNIT_ASSERT_XRDST( file->Close() );
 
-   std::string read( (char *)buffer, readsize );
+   std::string read( buffer, readsize );
    CPPUNIT_ASSERT( expectedRead == read );
    remove( targetURL.c_str() );
+   delete buffer;
+   delete file;
 }
 
 void LocalFileHandlerTest::TruncateTest(){
@@ -282,11 +295,13 @@ void LocalFileHandlerTest::TruncateTest(){
    //----------------------------------------------------------------------------
    file->Open( targetURL, flags, mode );
    file->Truncate( truncateSize );
-   Buffer *buffer = new Buffer( truncateSize + 3 );
+   char *buffer = new char( truncateSize + 3 );
    file->Read( 0, truncateSize + 3, buffer, bytesRead );
    CPPUNIT_ASSERT_EQUAL( truncateSize, bytesRead );
    file->Close();
    remove(targetURL.c_str());
+   delete file;
+   delete buffer;
 }
 
 void LocalFileHandlerTest::VectorReadTest(){
@@ -311,11 +326,15 @@ void LocalFileHandlerTest::VectorReadTest(){
    //----------------------------------------------------------------------------
    // VectorRead no cursor
    //----------------------------------------------------------------------------
-   ChunkInfo cinf( 0, 5, new Buffer( 5 ));
+
+   char *buffer1 = new char( 5 );
+   char *buffer2 = new char( 5 );
+   char *buffer3 = new char( 5 );
+   ChunkInfo cinf( 0, 5, buffer1 );
    chunks.push_back( cinf );
-   ChunkInfo cinf2( 5, 5, new Buffer( 5 ));
+   ChunkInfo cinf2( 5, 5, buffer2 );
    chunks.push_back( cinf2 );
-   ChunkInfo cinf3( 10, 5, new Buffer( 5 ));
+   ChunkInfo cinf3( 10, 5, buffer3 );
    chunks.push_back( cinf3 );
 
    CPPUNIT_ASSERT_XRDST( file->VectorRead( chunks, NULL, info ) );
@@ -324,19 +343,32 @@ void LocalFileHandlerTest::VectorReadTest(){
    //----------------------------------------------------------------------------
    // VectorRead cursor
    //----------------------------------------------------------------------------
-   void *buffer = new Buffer( 15 );
+   char *buffer = new char( 15 );
    chunks.clear();
-   ChunkInfo cinf4( 0, 5, new Buffer( 5 ));
+   char *buffer4 = new char( 5 );
+   char *buffer5 = new char( 5 );
+   char *buffer6 = new char( 5 );
+   ChunkInfo cinf4( 0, 5, buffer4 );
    chunks.push_back( cinf4 );
 
-   ChunkInfo cinf5( 5, 5, new Buffer( 5 ));
+   ChunkInfo cinf5( 5, 5, buffer5 );
    chunks.push_back( cinf5 );
 
-   ChunkInfo cinf6( 10, 5, new Buffer( 5 ));
+   ChunkInfo cinf6( 10, 5, buffer6 );
    chunks.push_back( cinf6 );
    CPPUNIT_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
    CPPUNIT_ASSERT_XRDST( file->VectorRead( chunks, buffer, info ) );
    CPPUNIT_ASSERT_XRDST( file->Close() );
 
    remove( targetURL.c_str() );
+   chunks.clear();
+   delete buffer;
+   delete buffer1;
+   delete buffer2;
+   delete buffer3;
+   delete buffer4;
+   delete buffer5;
+   delete buffer6;
+   delete file;
+   delete info;
 }
