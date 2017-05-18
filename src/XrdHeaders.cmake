@@ -132,6 +132,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOss/XrdOssError.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
+  XrdSys/XrdSysFAttr.hh
   
 )
 
