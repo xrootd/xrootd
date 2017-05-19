@@ -234,8 +234,8 @@ inline int CondWriteLock()
         return 1;
        }
 
-inline void  ReadLock() {pthread_rwlock_rdlock(&lock);}
-inline void  WriteLock() {pthread_rwlock_wrlock(&lock);}
+inline int  ReadLock() {return pthread_rwlock_rdlock(&lock);}
+inline int  WriteLock() {return pthread_rwlock_wrlock(&lock);}
 
 inline void UnLock() {pthread_rwlock_unlock(&lock);}
 
