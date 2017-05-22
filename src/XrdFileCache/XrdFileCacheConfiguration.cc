@@ -439,7 +439,5 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       return false;
    }
 
-   assert (config.GetWord() == 0 && "Cache::ConfigParameters() lost argument");
-
    return true;
 }
