@@ -171,7 +171,7 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
       else
          cio = new IOEntireFile(io, m_stats, *this);
 
-      TRACE_PC(Info, const char* loc = io->Location(),
+      TRACE_PC(Debug, const char* loc = io->Location(),
                "Cache::Attach() " << io->Path() << " location: " <<
                ((loc && loc[0] != 0) ? loc : "<deferred open>"));
       return cio;
