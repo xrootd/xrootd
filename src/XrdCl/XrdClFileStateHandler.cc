@@ -76,8 +76,22 @@ namespace
         //----------------------------------------------------------------------
         OpenInfo *openInfo = 0;
         if( status->IsOK() )
-          response->Get( openInfo );
-
+        {
+           if( status->code == suRetryLocally ){
+              delete openInfo;
+              URL *fileurl = 0;
+              pStateHandler->SetFileState( FileStateHandler::FileStatus::Closed );
+              response->Get( fileurl );
+              pStateHandler->Open( fileurl->GetURL(), 0, 0, pUserHandler);
+              delete response;
+              delete status;
+              delete this;
+              return;
+           } 
+           else {
+            response->Get( openInfo );
+           }
+         }
         //----------------------------------------------------------------------
         // Notify the state handler and the client and say bye bye
         //----------------------------------------------------------------------
@@ -486,8 +500,12 @@ namespace XrdCl
 
     pOpenMode  = mode;
     pOpenFlags = flags;
+    //XRDCL_SMART_PTR_T<Message>       msg( new Message() );
+    Message *msg;//TO DO: Fix memory leak for this msg.
+    //Tried Smart pointer, but was not able to do it.
+    //msg.get() was not sufficient, also all the other things
+    //I tried were not sufficient
 
-    Message           *msg;
     ClientOpenRequest *req;
     std::string        path = pFileUrl->GetPathWithParams();
     if( pUseVirtRedirector && pFileUrl->IsMetalink() )

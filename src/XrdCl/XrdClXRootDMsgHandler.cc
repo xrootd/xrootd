@@ -395,6 +395,21 @@ namespace XrdCl
           return;
         }
         --pRedirectCounter;
+        //----------------------------------------------------------------------
+        // Check if the error Message contains the filePath as errInfo.
+        // In this case the redirect needs to be handled locally.
+        //----------------------------------------------------------------------
+        char *errmsg = new char[rsp->hdr.dlen-3]; errmsg[rsp->hdr.dlen-4] = 0;
+        memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
+        if ( strcmp( errmsg, pUrl.GetPath().c_str() ) == 0) {
+            log->Debug( 0x150, errmsg );
+            URL newUrl = URL( pUrl.GetPath() );
+            HandleLocalRedirect( newUrl.GetURL() );
+            delete[] errmsg;
+            return;
+        } else {
+            delete[] errmsg;
+        }
 
         //----------------------------------------------------------------------
         // Keep the info about this server if we still need to find a load
@@ -1995,5 +2010,16 @@ namespace XrdCl
     }
     XRootDTransport::SetDescription( pRequest );
     XRootDTransport::MarshallRequest( pRequest );
+  }
+
+  //------------------------------------------------------------------------
+  //! Notify the filestatehandler to retry Open() with new URL
+  //------------------------------------------------------------------------
+  void XRootDMsgHandler::HandleLocalRedirect( std::string url ){
+     AnyObject *obj = new AnyObject();
+     obj->Set( new URL( url ) );
+     pResponseHandler->HandleResponseWithHosts( 
+                     new XRootDStatus( stOK, suRetryLocally ), obj, NULL );
+     delete this;
   }
 }
