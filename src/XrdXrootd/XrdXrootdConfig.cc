@@ -435,6 +435,17 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    PidFile();
 
+// Finally, check if we really need to be in bypass mode if it is set
+//
+   if (OD_Bypass)
+      {const char *penv = getenv("XRDXROOTD_PROXY");
+       if (!penv || *penv != '=')
+          {OD_Bypass = false;
+           eDest.Say("Config warning: 'fsoverload bypass' ignored; "
+                                     "not a forwarding proxy.");
+          }
+      }
+
 // Return success
 //
    free(adminp);
@@ -474,6 +485,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("diglib",        xdig);
              else if TS_Xeq("export",        xexp);
              else if TS_Xeq("fslib",         xfsl);
+             else if TS_Xeq("fsoverload",    xfso);
              else if TS_Xeq("log",           xlog);
              else if TS_Xeq("monitor",       xmon);
              else if TS_Xeq("pidpath",       xpidf);
@@ -971,6 +983,81 @@ int XrdXrootdProtocol::xfsL(XrdOucStream &Config, char *val, int lix)
 }
 
 /******************************************************************************/
+/*                                  x f s o                                   */
+/******************************************************************************/
+  
+/* Function: xfso
+
+   Purpose:  To parse the directive: fsoverload [options]
+
+   options:  [[no]bypass] [redirect <host>:<port>[%<prvhost>:<port>]]
+             [stall <sec>]
+
+             bypass    If path is a forwarding path, redirect client to the
+                       location specified in the path to bypass this server.
+                       The default is nobypass.
+             redirect  Redirect the request to the specified destination.
+             stall     Stall the client <sec> seconds. The default is 33.
+*/
+
+int XrdXrootdProtocol::xfso(XrdOucStream &Config)
+{
+    static const int rHLen = 264;
+    char rHost[2][rHLen], *hP[2] = {0,0}, *val;
+    int  rPort[2], bypass = -1, stall = -1;
+
+// Process all of the options
+//
+   while((val = Config.GetWord()) && *val)
+        {     if (!strcmp(val, "bypass"))   bypass = 1;
+         else if (!strcmp(val, "nobypass")) bypass = 0;
+         else if (!strcmp(val, "redirect"))
+                 {val = Config.GetWord();
+                  if (!xred_php(val, hP, rPort)) return 1;
+                  for (int i = 0; i < 2; i++)
+                      {if (!hP[i]) rHost[i][0] = 0;
+                          else {strlcpy(rHost[i], hP[i], rHLen);
+                                hP[i] = rHost[i];
+                               }
+                      }
+                 }
+         else if (!strcmp(val, "stall"))
+                 {if (!(val = Config.GetWord()) || !(*val))
+                     {eDest.Emsg("Config", "stall value not specified");
+                      return 1;
+                     }
+                  if (XrdOuca2x::a2tm(eDest,"stall",val,&stall,0,32767))
+                     return 1;
+                 }
+         else {eDest.Emsg("config","invalid fsoverload option",val); return 1;}
+        }
+
+// Set all specified values
+//
+   if (bypass >= 0) OD_Bypass = (bypass ? true : false);
+   if (stall  >= 0) OD_Stall  = stall;
+   if (hP[0])
+      {if (Route[RD_ovld].Host[0]) free(Route[RD_ovld].Host[0]);
+       if (Route[RD_ovld].Host[1]) free(Route[RD_ovld].Host[1]);
+       Route[RD_ovld].Host[0] = strdup(hP[0]);
+       Route[RD_ovld].Port[0] = rPort[0];
+       Route[RD_ovld].RDSz[0] = strlen(hP[0]);
+       if (hP[1])
+          {Route[RD_ovld].Host[1] = strdup(hP[1]);
+           Route[RD_ovld].Port[1] = rPort[1];
+           Route[RD_ovld].RDSz[1] = strlen(hP[1]);
+          } else {
+           Route[RD_ovld].Host[1] = Route[RD_ovld].Host[0];
+           Route[RD_ovld].Port[1] = Route[RD_ovld].Port[0];
+           Route[RD_ovld].RDSz[1] = Route[RD_ovld].RDSz[0];
+          }
+       OD_Redir = true;
+      } else OD_Redir = false;
+
+   return 0;
+}
+
+/******************************************************************************/
 /*                                  x l o g                                   */
 /******************************************************************************/
 
@@ -1337,38 +1424,22 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
         {"trunc",    RD_trunc}
        };
     static const int rHLen = 264;
-    char rHost[2][rHLen], *hP[2], *val, *pp;
+    char rHost[2][rHLen], *hP[2], *val;
     int i, k, neg, numopts = sizeof(rdopts)/sizeof(struct rediropts);
     int rPort[2], isQ = 0;
 
 // Get the host and port
 //
    val = Config.GetWord();
+   if (!xred_php(val, hP, rPort)) return 1;
 
-// Check if we have two hosts here
-//
-   hP[0] = val;
-   if (!(pp = index(val, '%'))) hP[1] = 0;
-      else {hP[1] = pp+1; *pp = 0;}
-
-// Verify corectness here
-//
-   if (!(*val) || (hP[1] && !hP[1]))
-      {eDest.Emsg("Config", "malformed redirect host specification"); return 1;}
-
-// Process the hosts
+// Copy out he values as the target variable will be lost
 //
    for (i = 0; i < 2; i++)
-       {if (!(val = hP[i])) break;
-        if (!val || !val[0] || val[0] == ':')
-           {eDest.Emsg("Config", "redirect host not specified"); return 1;}
-        if (!(pp = rindex(val, ':')))
-           {eDest.Emsg("Config", "redirect port not specified"); return 1;}
-        if (!(rPort[i] = atoi(pp+1)))
-           {eDest.Emsg("Config", "redirect port is invalid");    return 1;}
-        *pp = '\0';
-        strlcpy(rHost[i], val, rHLen);
-        hP[i] = rHost[i];
+       {if (!hP[i]) rHost[i][0] = 0;
+           else {strlcpy(rHost[i], hP[i], rHLen);
+                 hP[i] = rHost[i];
+                }
        }
 
 // Set all redirect target functions
@@ -1424,6 +1495,45 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
    return 0;
 }
 
+bool XrdXrootdProtocol::xred_php(char *val, char *hP[2], int rPort[2])
+{
+   char *pp;
+
+// Make sure we have a value
+//
+   if (!val || !(*val))
+      {eDest.Emsg("config", "redirect option not specified"); return false;}
+
+// Check if we have two hosts here
+//
+   hP[0] = val;
+   if (!(pp = index(val, '%'))) hP[1] = 0;
+      else {hP[1] = pp+1; *pp = 0;}
+
+// Verify corectness here
+//
+   if (!(*val) || (hP[1] && !*hP[1]))
+      {eDest.Emsg("Config", "malformed redirect host specification");
+       return false;
+      }
+
+// Process the hosts
+//
+   for (int i = 0; i < 2; i++)
+       {if (!(val = hP[i])) break;
+        if (!val || !val[0] || val[0] == ':')
+           {eDest.Emsg("Config", "redirect host not specified"); return false;}
+        if (!(pp = rindex(val, ':')))
+           {eDest.Emsg("Config", "redirect port not specified"); return false;}
+        if (!(rPort[i] = atoi(pp+1)))
+           {eDest.Emsg("Config", "redirect port is invalid");    return false;}
+        *pp = '\0';
+       }
+
+// All done
+//
+   return true;
+}
 
 void XrdXrootdProtocol::xred_set(RD_func func, char *rHost[2], int rPort[2])
 {

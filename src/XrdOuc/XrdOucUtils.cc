@@ -399,6 +399,45 @@ int XrdOucUtils::is1of(char *val, const char **clist)
 }
 
 /******************************************************************************/
+/*                                 i s F W D                                  */
+/******************************************************************************/
+  
+int XrdOucUtils::isFWD(const char *path, int *port, char *hBuff, int hBLen,
+                       bool pTrim)
+{
+   const char *hName, *hNend, *hPort, *hPend, *hP = path;
+   char *eP;
+   int n;
+
+   if (*path == '/') hP++;  // Note: It's assumed an objectid if no slash
+   if (*hP   == 'x') hP++;
+   if (strncmp("root:/", hP, 6)) return 0;
+   if (hBuff == 0 || hBLen <= 0) return (hP - path) + 6;
+   hP += 6;
+
+   if (!XrdNetUtils::Parse(hP, &hName, &hNend, &hPort, &hPend)) return 0;
+   if (*hNend == ']') hNend++;
+      else {if (!(*hNend) && !(hNend = index(hName, '/'))) return 0;
+            if (!(*hPend)) hPend = hNend;
+           }
+
+   if (pTrim || !(*hPort)) n = hNend - hP;
+      else n = hPend - hP;
+   if (n >= hBLen) return 0;
+   strncpy(hBuff, hP, n);
+   hBuff[n] = 0;
+
+   if (port)
+      {if (*hNend != ':') *port = 0;
+          else {*port = strtol(hPort, &eP, 10);
+                if (*port < 0 || *port > 65535 || eP != hPend) return 0;
+               }
+      }
+
+   return hPend-path;
+}
+  
+/******************************************************************************/
 /*                                  L o g 2                                   */
 /******************************************************************************/
 

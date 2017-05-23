@@ -240,6 +240,9 @@ XrdOucCache   *Create(Parms &Params, XrdOucCacheIO::aprParms *aprP=0)
 //! @param  mode   - Standard mode flags if file is being created.
 //!
 //! @return <0 Error has occurred, return value is -errno; fail open request.
+//!            The error code -EUSERS may be returned to trigger overload
+//!            recovery as specified by the xrootd.fsoverload directive. No
+//!            other method should return this error code.
 //!         =0 Continue with open() request.
 //!         >0 Defer open but treat the file as actually being open. Use the
 //!            XrdOucCacheIO2::Open() method to open the file at a later time.
