@@ -2954,7 +2954,7 @@ int XrdXrootdProtocol::fsOvrld(char opC, const char *Path, char *Cgi)
 
    struct iovec rdrResp[8];
    char *destP=0, dest[512];
-   int iovNum, pOff, port;
+   int iovNum=0, pOff, port;
 
 // If this is a forwarded path and the client can handle full url's then
 // redirect the client to the destination in the path. Otherwise, if there is
@@ -2990,7 +2990,7 @@ int XrdXrootdProtocol::fsOvrld(char opC, const char *Path, char *Cgi)
        if (XrdXrootdMonitor::Redirect())
            XrdXrootdMonitor::Redirect(Monitor.Did, destP, port,
                                       opC|XROOTD_MON_REDLOCAL, Path);
-       if (destP == dest)
+       if (iovNum)
           {TRACEI(REDIR, Response.ID() <<"redirecting to "<<dest);
            return Response.Send(kXR_redirect, rdrResp, iovNum);
           } else {
