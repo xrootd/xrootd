@@ -284,14 +284,6 @@ namespace XrdCl
       bool GetProperty( const std::string &name, std::string &value ) const;
 
       //------------------------------------------------------------------------
-      //! Set pFileState property
-      //!
-      //! @param a FileStatus
-      //------------------------------------------------------------------------
-      void SetFileState( FileStatus fileStatus ) {
-         pFileState = fileStatus;
-      }
-      //------------------------------------------------------------------------
       //! Lock the internal lock
       //------------------------------------------------------------------------
       void Lock()

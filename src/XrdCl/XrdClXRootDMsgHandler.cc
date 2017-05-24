@@ -347,6 +347,17 @@ namespace XrdCl
                    "[%d] %s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str(), rsp->body.error.errnum,
                    errmsg );
+
+        //----------------------------------------------------------------------
+        // Check if the error Message contains the filePath as errInfo.
+        // In this case the redirect needs to be handled locally.
+        //----------------------------------------------------------------------
+        if ( strcmp( errmsg, pUrl.GetPath().c_str() ) == 0) {
+            URL newUrl = URL( pUrl.GetPath() );
+            HandleLocalRedirect( newUrl.GetURL() );
+            delete[] errmsg;
+            return;
+        }
         delete [] errmsg;
 
         HandleError( Status(stError, errErrorResponse, rsp->body.error.errnum),
@@ -395,21 +406,6 @@ namespace XrdCl
           return;
         }
         --pRedirectCounter;
-        //----------------------------------------------------------------------
-        // Check if the error Message contains the filePath as errInfo.
-        // In this case the redirect needs to be handled locally.
-        //----------------------------------------------------------------------
-        char *errmsg = new char[rsp->hdr.dlen-3]; errmsg[rsp->hdr.dlen-4] = 0;
-        memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
-        if ( strcmp( errmsg, pUrl.GetPath().c_str() ) == 0) {
-            log->Debug( 0x150, errmsg );
-            URL newUrl = URL( pUrl.GetPath() );
-            HandleLocalRedirect( newUrl.GetURL() );
-            delete[] errmsg;
-            return;
-        } else {
-            delete[] errmsg;
-        }
 
         //----------------------------------------------------------------------
         // Keep the info about this server if we still need to find a load
@@ -2018,8 +2014,8 @@ namespace XrdCl
   void XRootDMsgHandler::HandleLocalRedirect( std::string url ){
      AnyObject *obj = new AnyObject();
      obj->Set( new URL( url ) );
-     pResponseHandler->HandleResponseWithHosts( 
-                     new XRootDStatus( stOK, suRetryLocally ), obj, NULL );
+     pResponseHandler->HandleResponseWithHosts(
+                     new XRootDStatus( stOK, suRetryLocally ), obj, pHosts );
      delete this;
   }
 }

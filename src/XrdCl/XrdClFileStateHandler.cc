@@ -80,14 +80,15 @@ namespace
            if( status->code == suRetryLocally ){
               delete openInfo;
               URL *fileurl = 0;
-              pStateHandler->SetFileState( FileStateHandler::FileStatus::Closed );
+              pStateHandler->OnOpen( status, openInfo, hostList );
               response->Get( fileurl );
-              pStateHandler->Open( fileurl->GetURL(), 0, 0, pUserHandler);
+              pStateHandler->Open( fileurl->GetURL(), 0, 0, pUserHandler );
+              delete hostList;
               delete response;
               delete status;
               delete this;
               return;
-           } 
+           }
            else {
             response->Get( openInfo );
            }
@@ -500,12 +501,7 @@ namespace XrdCl
 
     pOpenMode  = mode;
     pOpenFlags = flags;
-    //XRDCL_SMART_PTR_T<Message>       msg( new Message() );
-    Message *msg;//TO DO: Fix memory leak for this msg.
-    //Tried Smart pointer, but was not able to do it.
-    //msg.get() was not sufficient, also all the other things
-    //I tried were not sufficient
-
+    Message           *msg;
     ClientOpenRequest *req;
     std::string        path = pFileUrl->GetPathWithParams();
     if( pUseVirtRedirector && pFileUrl->IsMetalink() )
@@ -1135,6 +1131,10 @@ namespace XrdCl
       log->Debug( FileMsg, "[0x%x@%s] Error while opening at %s: %s",
                   this, pFileUrl->GetURL().c_str(), lastServer.c_str(),
                   pStatus.ToStr().c_str() );
+      if( pStatus.code == suRetryLocally ){
+         pFileState = Closed;
+         return;
+      }
       FailQueuedMessages( pStatus );
       pFileState = Error;
 

@@ -181,7 +181,7 @@ namespace XrdCl{
             ChunkInfo *resp;
             resp = new ChunkInfo( offset, read, buffer );
             AnyObject *obj = new AnyObject();
-            obj->Set(resp);
+            obj->Set( resp );
             log->Dump( FileMsg, "Chunkinfo: size: %i, offset: %i, Buffer: %s",
                               resp->length, resp->offset, resp->buffer );
             return QueueTask( new XRootDStatus( stOK ), obj, handler );
