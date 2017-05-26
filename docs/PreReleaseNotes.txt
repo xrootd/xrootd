@@ -16,6 +16,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  * **[Server]** Correct debug message interval for free space report.
 
 + **Miscellaneous**
   * **[Proxy Server]** Simplify delayed destruction on wait vs post.
