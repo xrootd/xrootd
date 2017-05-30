@@ -61,7 +61,7 @@ struct XrdCnsSsiFRec
 char Info[XrdCnsLogRec::FixDLen];
 
 void Updt(const char *nInfo) {
-  if(nInfo != nullptr) strncpy(Info, nInfo, sizeof(Info));}
+  if(nInfo != 0) strncpy(Info, nInfo, sizeof(Info));}
 
      XrdCnsSsiFRec(const char *Data) {if (!Data) Data = XrdCnsLogRec::iArg;
                                       strncpy(Info, Data, sizeof(Info));
