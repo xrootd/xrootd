@@ -180,10 +180,6 @@ XrdSutCache  XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun (d
 // Services
 XrdOucGMap *XrdSecProtocolgsi::servGMap = 0; // Grid map service
 //
-// CA and CRL stacks
-GSIStack<XrdCryptoX509Chain>  XrdSecProtocolgsi::stackCA; // Stack of CA in use
-GSIStack<XrdCryptoX509Crl>  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
-//
 // GMAP control vars
 time_t XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
 XrdSysMutex XrdSecProtocolgsi::mutexGMAP;  // Mutex to control GMAP reloads
@@ -4275,8 +4271,8 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // If invalid we fail
    if (cent->status == kCE_inactive) {
       // Cleanup and remove existing invalid entries
-      if (chain) stackCA.Del(chain);
-      if (crl) stackCRL.Del(crl);
+      if (chain) delete chain;
+      if (crl) delete crl;
       PRINT("unable to get a valid entry from cache for " << tag);
       return -1;
    }
@@ -4286,25 +4282,18 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
       // Save chain
       chain = (X509Chain *)(cent->buf1.buf);
       if (hs) hs->Chain = chain;
-      stackCA.Add(chain);
       // Save crl
-      bool goodcrl = (crl) ? 1 : 0;
-      if (goodcrl && CRLCheck >= 3 && crl->IsExpired()) goodcrl = 0;
-      if (goodcrl && CRLRefresh > 0 && ((timestamp - cent->mtime) > CRLRefresh)) goodcrl = 0;
-      // If the CA is not good, we reload the CRL in any case
-      if (goodcrl) {
-         if (hs) hs->Crl = crl;
-         // Add to the stack for proper cleaning of invalidated CRLs
-         stackCRL.Add(crl);
-      }
+      if (crl && hs) hs->Crl = crl;
+      // Done
       return 0;
    }
 
    // Cleanup and remove existing invalid entries
-   if (chain) stackCA.Del(chain);
-   if (crl) stackCRL.Del(crl);
+   if (chain) delete chain;
+   if (crl) delete crl;
 
    chain = 0;
+   crl = 0;
    cent->buf1.buf = 0;
    cent->buf2.buf = 0;
 
@@ -4355,11 +4344,9 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             // Add to the cache
             cent->buf1.buf = (char *)(chain);
             cent->buf1.len = 0;      // Just a flag
-            stackCA.Add(chain);
             if (crl) {
                cent->buf2.buf = (char *)(crl);
                cent->buf2.len = 0;      // Just a flag
-               stackCRL.Add(crl);
             }
             cent->mtime = timestamp;
             cent->status = kCE_ok;
