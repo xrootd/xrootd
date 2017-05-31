@@ -51,6 +51,31 @@ public:
    XrdSutCache(int psize = 89, int size = 144, int load = 80) : table(psize, size, load) {}
    virtual ~XrdSutCache() {}
 
+   XrdSutCacheEntry *Get(const char *tag) {
+      // Get the entry with 'tag'.
+      // If found the entry is returned rd-locked.
+      // If rd-locking fails the status is set to kCE_inactive.
+      // Returns null if not found.
+
+      XrdSutCacheEntry *cent = 0;
+
+      // Exclusive access to the table
+      XrdSysMutexHelper raii(mtx);
+
+      // Look for an entry
+      if (!(cent = table.Find(tag))) {
+         // none found
+         return cent;
+      }
+
+      // We found an existing entry:
+      // lock until we get the ability to read (another thread may be valudating it)
+      if (cent->rwmtx.ReadLock()) {
+         // A problem occured: fail (set the entry invalid)
+         cent->status = kCE_inactive;
+      }
+      return cent;
+   }
 
    XrdSutCacheEntry *Get(const char *tag, bool &rdlock, XrdSutCacheGet_t condition = 0, void *arg = 0) {
       // Get or create the entry with 'tag'.
