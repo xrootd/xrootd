@@ -38,7 +38,7 @@ class ProgressHandlerWrapper(object):
       self.handler.begin(jobId, total, URL(source), URL(target))
 
   def end(self, jobId, results):
-    if 'success' in results:
+    if 'status' in results:
       results['status'] = XRootDStatus(results['status'])
     if self.handler:
       self.handler.end(jobId, results)
