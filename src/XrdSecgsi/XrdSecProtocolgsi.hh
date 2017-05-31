@@ -478,9 +478,7 @@ public:
                      if (Chain) Chain->Cleanup(1);
                      SafeDelete(Chain);
                   }
-                  if (Crl) {
-                     SafeDelete(Crl);
-                  }
+                  Crl = 0;
                   // The proxy chain is owned by the proxy cache; invalid proxies are
                   // detected (and eventually removed) by QueryProxy
                   PxyChain = 0;
