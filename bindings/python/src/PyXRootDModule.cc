@@ -43,10 +43,31 @@ namespace PyXRootD
       { NULL } /* Sentinel */
     };
 
+#if PY_MAJOR_VERSION >= 3
+  //----------------------------------------------------------------------------
+  //! Module properties
+  //----------------------------------------------------------------------------
+  static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "client",              /* m_name */
+    client_module_doc,     /* m_doc */
+    -1,                    /* m_size */
+    module_methods,        /* m_methods */
+    NULL,                  /* m_reload */
+    NULL,                  /* m_traverse */
+    NULL,                  /* m_clear */
+    NULL,                  /* m_free */
+  };
+#endif
+
   //----------------------------------------------------------------------------
   //! Module initialization function
   //----------------------------------------------------------------------------
+#ifdef IS_PY3K
+  PyMODINIT_FUNC PyInit_client( void )
+#else
   PyMODINIT_FUNC initclient( void )
+#endif
   {
     // Ensure GIL state is initialized
     Py_Initialize();
@@ -55,30 +76,66 @@ namespace PyXRootD
     }
 
     FileSystemType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &FileSystemType ) < 0 ) return;
+    if ( PyType_Ready( &FileSystemType ) < 0 ) {
+#ifdef IS_PY3K
+      return NULL;
+#else
+      return;
+#endif
+    }
     Py_INCREF( &FileSystemType );
 
     FileType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &FileType ) < 0 ) return;
+    if ( PyType_Ready( &FileType ) < 0 ) {
+#ifdef IS_PY3K
+      return NULL;
+#else
+      return;
+#endif
+    }
     Py_INCREF( &FileType );
 
     URLType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &URLType ) < 0 ) return;
+    if ( PyType_Ready( &URLType ) < 0 ) {
+#ifdef IS_PY3K
+      return NULL;
+#else
+      return;
+#endif
+    }
     Py_INCREF( &URLType );
 
     CopyProcessType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &CopyProcessType ) < 0 ) return;
+    if ( PyType_Ready( &CopyProcessType ) < 0 ) {
+#ifdef IS_PY3K
+      return NULL;
+#else
+      return;
+#endif
+    }
     Py_INCREF( &CopyProcessType );
 
+#ifdef IS_PY3K
+    ClientModule = PyModule_Create(&moduledef);
+#else
     ClientModule = Py_InitModule3("client", module_methods, client_module_doc);
+#endif
 
     if (ClientModule == NULL) {
+#ifdef IS_PY3K
+      return NULL;
+#else
       return;
+#endif
     }
 
     PyModule_AddObject( ClientModule, "FileSystem", (PyObject *) &FileSystemType );
     PyModule_AddObject( ClientModule, "File", (PyObject *) &FileType );
     PyModule_AddObject( ClientModule, "URL", (PyObject *) &URLType );
     PyModule_AddObject( ClientModule, "CopyProcess", (PyObject *) &CopyProcessType );
+
+#ifdef IS_PY3K
+    return ClientModule;
+#endif
   }
 }

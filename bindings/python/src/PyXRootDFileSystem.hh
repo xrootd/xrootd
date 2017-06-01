@@ -134,7 +134,7 @@ namespace PyXRootD
   {
     delete self->filesystem;
     Py_XDECREF( self->url );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
@@ -151,7 +151,7 @@ namespace PyXRootD
   //! FileSystem binding type object
   //----------------------------------------------------------------------------
   static PyTypeObject FileSystemType =
-    { PyObject_HEAD_INIT(NULL) 0,               /* ob_size */
+    { PyVarObject_HEAD_INIT(NULL, 0)
     "pyxrootd.FileSystem",                      /* tp_name */
     sizeof(FileSystem),                         /* tp_basicsize */
     0,                                          /* tp_itemsize */

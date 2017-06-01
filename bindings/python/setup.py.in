@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from distutils.core import setup, Extension
 from distutils import sysconfig
 from os import getenv, walk, path
@@ -25,10 +27,10 @@ xrdsrcincdir = "${XRD_SRCINCDIR}"
 xrdbinincdir = "${XRD_BININCDIR}"
 version      = "${XROOTD_VERSION}"
 
-print 'XRootD library dir:    ', xrdlibdir
-print 'XRootD src include dir:', xrdsrcincdir
-print 'XRootD bin include dir:', xrdbinincdir
-print 'Version:               ', version
+print('XRootD library dir:    ', xrdlibdir)
+print('XRootD src include dir:', xrdsrcincdir)
+print('XRootD bin include dir:', xrdbinincdir)
+print('Version:               ', version)
 
 setup( name             = 'pyxrootd',
        version          = version,

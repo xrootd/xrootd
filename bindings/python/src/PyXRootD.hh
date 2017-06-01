@@ -25,21 +25,31 @@
 #ifndef PYXROOTD_HH_
 #define PYXROOTD_HH_
 
-#if PY_MAJOR_VERSION >= 3
-#define IS_PY3K
-#endif
-
 #include <Python.h>
 #include <string>
 #include "structmember.h"
 
-#if PY_MINOR_VERSION <= 5
-#define PyUnicode_FromString PyString_FromString
+#if PY_MAJOR_VERSION >= 3
+#define IS_PY3K
 #endif
 
 #define async( func )    \
   Py_BEGIN_ALLOW_THREADS \
   func;                  \
   Py_END_ALLOW_THREADS   \
+
+#ifdef IS_PY3K
+#define Py_TPFLAGS_HAVE_ITER 0
+/* TODO don't use this hack */
+#define METH_KEYWORDS 0x0003
+#else
+#if PY_MINOR_VERSION <= 5
+#define PyUnicode_FromString PyString_FromString
+#endif
+#define PyBytes_Size PyString_Size
+#define PyBytes_Check PyString_Check
+#define PyBytes_FromString PyString_FromString
+#define PyBytes_FromStringAndSize PyString_FromStringAndSize
+#endif
 
 #endif /* PYXROOTD_HH_ */
