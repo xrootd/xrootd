@@ -20,8 +20,6 @@ set( XRD_CRYPTO_LITE_SOVERSION 1 )
 add_library(
   XrdCrypto
   SHARED
-  XrdCrypto/PC1.cc                        XrdCrypto/PC1.hh
-  XrdCrypto/PC3.cc                        XrdCrypto/PC3.hh
   XrdCrypto/XrdCryptoAux.cc               XrdCrypto/XrdCryptoAux.hh
   XrdCrypto/XrdCryptoTrace.hh
   XrdCrypto/XrdCryptoBasic.cc             XrdCrypto/XrdCryptoBasic.hh
@@ -33,9 +31,7 @@ add_library(
   XrdCrypto/XrdCryptoX509Chain.cc         XrdCrypto/XrdCryptoX509Chain.hh
   XrdCrypto/XrdCryptoX509Crl.cc           XrdCrypto/XrdCryptoX509Crl.hh
   XrdCrypto/XrdCryptoX509Req.cc           XrdCrypto/XrdCryptoX509Req.hh
-  XrdCrypto/XrdCryptogsiX509Chain.cc      XrdCrypto/XrdCryptogsiX509Chain.hh
-  XrdCrypto/XrdCryptolocalCipher.cc       XrdCrypto/XrdCryptolocalCipher.hh
-  XrdCrypto/XrdCryptolocalFactory.cc      XrdCrypto/XrdCryptolocalFactory.hh )
+  XrdCrypto/XrdCryptogsiX509Chain.cc      XrdCrypto/XrdCryptogsiX509Chain.hh )
 
 target_link_libraries(
   XrdCrypto
