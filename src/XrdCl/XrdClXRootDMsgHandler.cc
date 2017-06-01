@@ -347,17 +347,6 @@ namespace XrdCl
                    "[%d] %s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str(), rsp->body.error.errnum,
                    errmsg );
-
-        //----------------------------------------------------------------------
-        // Check if the error Message contains the filePath as errInfo.
-        // In this case the redirect needs to be handled locally.
-        //----------------------------------------------------------------------
-        if ( strcmp( errmsg, pUrl.GetPath().c_str() ) == 0) {
-            URL newUrl = URL( pUrl.GetPath() );
-            HandleLocalRedirect( newUrl.GetURL() );
-            delete[] errmsg;
-            return;
-        }
         delete [] errmsg;
 
         HandleError( Status(stError, errErrorResponse, rsp->body.error.errnum),
@@ -518,7 +507,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Check if we need to return the URL as a response
         //----------------------------------------------------------------------
-        if( pUrl.GetProtocol() != "root" && pUrl.GetProtocol() != "xroot" )
+        if( pUrl.GetProtocol() != "root" && pUrl.GetProtocol() != "xroot" && 
+            pUrl.GetProtocol() != "file" )
           pRedirectAsAnswer = true;
 
         if( pRedirectAsAnswer )
@@ -528,7 +518,10 @@ namespace XrdCl
           HandleResponse();
           return;
         }
-
+        if( pUrl.GetProtocol() == "file" ){
+           HandleLocalRedirect( &pUrl );
+           return;
+        }
         //----------------------------------------------------------------------
         // Rewrite the message in a way required to send it to another server
         //----------------------------------------------------------------------
@@ -2011,9 +2004,9 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Notify the filestatehandler to retry Open() with new URL
   //------------------------------------------------------------------------
-  void XRootDMsgHandler::HandleLocalRedirect( std::string url ){
+  void XRootDMsgHandler::HandleLocalRedirect( URL *url ){
      AnyObject *obj = new AnyObject();
-     obj->Set( new URL( url ) );
+     obj->Set( url, false );
      pResponseHandler->HandleResponseWithHosts(
                      new XRootDStatus( stOK, suRetryLocally ), obj, pHosts );
      delete this;

@@ -82,9 +82,9 @@ namespace
               URL *fileurl = 0;
               pStateHandler->OnOpen( status, openInfo, hostList );
               response->Get( fileurl );
-              pStateHandler->Open( fileurl->GetURL(), 0, 0, pUserHandler );
-              delete hostList;
+              pStateHandler->LocalRedirect(fileurl, pUserHandler);
               delete response;
+              delete hostList;
               delete status;
               delete this;
               return;
@@ -501,6 +501,7 @@ namespace XrdCl
 
     pOpenMode  = mode;
     pOpenFlags = flags;
+
     Message           *msg;
     ClientOpenRequest *req;
     std::string        path = pFileUrl->GetPathWithParams();
@@ -1131,10 +1132,6 @@ namespace XrdCl
       log->Debug( FileMsg, "[0x%x@%s] Error while opening at %s: %s",
                   this, pFileUrl->GetURL().c_str(), lastServer.c_str(),
                   pStatus.ToStr().c_str() );
-      if( pStatus.code == suRetryLocally ){
-         pFileState = Closed;
-         return;
-      }
       FailQueuedMessages( pStatus );
       pFileState = Error;
 
@@ -1836,5 +1833,19 @@ namespace XrdCl
   //------------------------------------------------------------------------
   bool FileStateHandler::IsLocal( URL *fUrl ){
      return fUrl->GetProtocol() == "file";
+  }
+
+  //------------------------------------------------------------------------
+  //! Prepares for redirect to local file
+  //------------------------------------------------------------------------
+  void FileStateHandler::LocalRedirect( URL *fUrl, ResponseHandler *pUserHandler ) {
+      if( pStatus.code == suRetryLocally ){
+         pFileUrl->SetProtocol( fUrl->GetProtocol() );
+         pFileUrl->SetHostName( fUrl->GetHostName() );
+         OpenHandler *openHandler = new OpenHandler( this, pUserHandler );
+         lFileHandler->Open(
+            fUrl->GetURL().c_str(), pOpenFlags, pOpenMode, openHandler );
+         return;
+      }
   }
 }

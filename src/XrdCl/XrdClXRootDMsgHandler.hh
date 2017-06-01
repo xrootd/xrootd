@@ -341,7 +341,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Notify the filestatehandler to retry Open() with new URL
       //------------------------------------------------------------------------
-      void HandleLocalRedirect( std::string url );
+      void HandleLocalRedirect( URL *url );
 
       //------------------------------------------------------------------------
       // Helper struct for async reading of chunks

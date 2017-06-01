@@ -64,8 +64,10 @@ namespace XrdCl{
          }
          if( flags & kXR_open_wrto ){
             openflags |= O_WRONLY;
+            openflags |= O_CREAT;//TO DO: is that ok?
          } else if ( flags & kXR_open_updt ){
             openflags |= O_RDWR;
+            openflags |= O_CREAT;//TO DO: is that ok?
          } else {
             openflags |= O_RDONLY;
          }
@@ -182,8 +184,6 @@ namespace XrdCl{
             resp = new ChunkInfo( offset, read, buffer );
             AnyObject *obj = new AnyObject();
             obj->Set( resp );
-            log->Dump( FileMsg, "Chunkinfo: size: %i, offset: %i, Buffer: %s",
-                              resp->length, resp->offset, resp->buffer );
             return QueueTask( new XRootDStatus( stOK ), obj, handler );
          }
       }
@@ -278,10 +278,6 @@ namespace XrdCl{
             info->GetChunks() = chunks;
             AnyObject *obj = new AnyObject();
             obj->Set( info );
-            for( uint32_t i = 0; i < chunks.size(); i++ ){
-            log->Dump( FileMsg, "Chunkinfo: size: %i, offset: %i, Buffer: %s",
-               chunks[i].length, chunks[i].offset, chunks[i].buffer );
-            }
             return QueueTask( new XRootDStatus(), obj, handler );
          }
       }

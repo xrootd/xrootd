@@ -319,6 +319,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       bool IsLocal( URL *fUrl );
 
+      //------------------------------------------------------------------------
+      //! Prepares for redirect to local file
+      //------------------------------------------------------------------------
+      void LocalRedirect( URL *fUrl, ResponseHandler *pUserHandler );
+
     private:
       //------------------------------------------------------------------------
       // Helper for queuing messages
