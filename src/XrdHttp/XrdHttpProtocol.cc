@@ -39,7 +39,7 @@
 #include <sys/stat.h>
 #include "XrdHttpUtils.hh"
 #include "XrdHttpSecXtractor.hh"
-
+#include "XrdHttpExtHandler.hh"
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -55,7 +55,8 @@
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-
+// It seems that eos needs this to be present
+const char *XrdHttpSecEntityTident = "http";
 
 //
 // Static stuff
@@ -65,7 +66,6 @@ int XrdHttpProtocol::hailWait = 0;
 int XrdHttpProtocol::readWait = 0;
 int XrdHttpProtocol::Port = 1094;
 char *XrdHttpProtocol::Port_str = 0;
-char *XrdHttpProtocol::Addr_str = 0;
 int XrdHttpProtocol::Window = 0;
 
 //XrdXrootdStats *XrdHttpProtocol::SI = 0;
@@ -92,6 +92,7 @@ SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
+XrdHttpExtHandler *XrdHttpProtocol::exthandler = 0;
 
 static const unsigned char *s_server_session_id_context = (const unsigned char *) "XrdHTTPSessionCtx";
 static int s_server_session_id_context_len = 18;
@@ -179,6 +180,7 @@ XrdHttpProtocol::XrdHttpProtocol(bool imhttps)
 : XrdProtocol("HTTP protocol handler"), ProtLink(this),
 SecEntity(""), CurrentReq(this) {
   myBuff = 0;
+  Addr_str = 0;
   Reset();
   ishttps = imhttps;
 
@@ -304,7 +306,8 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
     if (SecEntity.moninfo) free(SecEntity.moninfo);
     SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
-
+    TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
+    
     // Here we have the user DN, and try to extract an useful user name from it
     if (SecEntity.name) free(SecEntity.name);
     SecEntity.name = 0;
@@ -539,8 +542,10 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       }
 
 
-      if (CurrentReq.request == CurrentReq.rtUnknown)
+      if (CurrentReq.request == CurrentReq.rtUnknown) {
+        TRACE(DEBUG, " Parsing first line: " << tmpline);
         CurrentReq.parseFirstLine((char *)tmpline.c_str(), rc);
+      }
       else
         CurrentReq.parseLine((char *)tmpline.c_str(), rc);
 
@@ -558,7 +563,10 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   }
 
   // If we are in self-redirect mode, then let's do it
-  if (ishttps && ssldone && selfhttps2http) {
+  // Do selfredirect only with 'simple' requests, otherwise poor clients may misbehave
+  if (ishttps && ssldone && selfhttps2http &&
+    ( (CurrentReq.request == XrdHttpReq::rtGET) || (CurrentReq.request == XrdHttpReq::rtPUT) ||
+    (CurrentReq.request == XrdHttpReq::rtPROPFIND)) ) {
     char hash[512];
     time_t timenow = time(0);
 
@@ -582,16 +590,55 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
       XrdOucString dest = "Location: http://";
       // Here I should put the IP addr of the server
-      Link->Host();
+      
+      // We have to recompute it here because we don't know to which
+      // interface the client had connected to
+      struct sockaddr_storage sa;
+      socklen_t sl = sizeof(sa);
+      getsockname(this->Link->AddrInfo()->SockFD(), (struct sockaddr*)&sa, &sl); 
+      
+      // now get it back and print it
+      char buf[256];
+      bool ok = false;
+      
+      switch (sa.ss_family) {
+        case AF_INET:
+          if (inet_ntop(AF_INET, &(((sockaddr_in*)&sa)->sin_addr), buf, INET_ADDRSTRLEN)) {
+            if (Addr_str) free(Addr_str);
+            Addr_str = strdup(buf);
+            ok = true;
+          }
+          break;
+        case AF_INET6:
+          if (inet_ntop(AF_INET6, &(((sockaddr_in6*)&sa)->sin6_addr), buf, INET6_ADDRSTRLEN)) {
+            if (Addr_str) free(Addr_str);
+            Addr_str = (char *)malloc(strlen(buf)+3);
+            strcpy(Addr_str, "[");
+            strcat(Addr_str, buf);
+            strcat(Addr_str, "]");
+            ok = true;
+          }
+          break;
+        default:
+          TRACEI(REQ, " Can't recognize the address family of the local host.");
+      }
+      
+      if (ok) {
+        dest += Addr_str;
+        dest += ":";
+        dest += Port_str;
+        dest += CurrentReq.resource.c_str();
+        TRACEI(REQ, " rc:" << rc << " self-redirecting to http with security token: '" << dest << "'");
 
-      dest += Addr_str;
-      dest += ":";
-      dest += Port_str;
-      dest += CurrentReq.resource.c_str();
-      CurrentReq.appendOpaque(dest, &SecEntity, hash, timenow);
-      SendSimpleResp(302, NULL, (char *) dest.c_str(), 0, 0);
-      CurrentReq.reset();
-      return 1;
+        
+        CurrentReq.appendOpaque(dest, &SecEntity, hash, timenow);
+        SendSimpleResp(302, NULL, (char *) dest.c_str(), 0, 0);
+        CurrentReq.reset();
+        return -1;
+      }
+      
+      TRACEI(REQ, " rc:" << rc << " Can't perform self-redirection.");
+      
     }
   }
 
@@ -622,18 +669,31 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
         nfo = CurrentReq.opaque->Get("xrdhttpvorg");
         if (nfo) {
-          TRACEI(REQ, " Setting vorg: " << nfo);
+          TRACEI(DEBUG, " Setting vorg: " << nfo);
           SecEntity.vorg = strdup(nfo);
+          TRACEI(REQ, " Setting vorg: " << SecEntity.vorg);
         }
 
         nfo = CurrentReq.opaque->Get("xrdhttpname");
         if (nfo) {
-          TRACEI(REQ, " Setting name: " << nfo);
+          TRACEI(DEBUG, " Setting name: " << nfo);
           SecEntity.name = unquote(nfo);
+          TRACEI(REQ, " Setting name: " << SecEntity.name);
         }
-
-        //nfo = CurrentReq.opaque->Get("xrdhttphost");
-
+        
+        nfo = CurrentReq.opaque->Get("xrdhttphost");
+        if (nfo) {
+          TRACEI(DEBUG, " Setting host: " << nfo);
+          SecEntity.host = unquote(nfo);
+          TRACEI(REQ, " Setting host: " << SecEntity.host);
+        }
+        
+        nfo = CurrentReq.opaque->Get("xrdhttpdn");
+        if (nfo) {
+          TRACEI(DEBUG, " Setting dn: " << nfo);
+          SecEntity.moninfo = unquote(nfo);
+          TRACEI(REQ, " Setting dn: " << SecEntity.moninfo);
+        }
 
         // TODO: compare the xrdhttphost with the real client IP
         // If they are different then reject
@@ -646,7 +706,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
                 secretkey);
 
         if (compareHash(hash, tk)) {
-          TRACEI(REQ, " Invalid tk. Authentication failed.");
+          TRACEI(REQ, " Invalid tk '" << tk << "' != '" << hash << "'(calculated). Authentication failed.");
           return -1;
         }
 
@@ -672,26 +732,30 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
 
   // Now we have everything that is needed to try the login
-  if (!Bridge) {
-    if (SecEntity.name)
-      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
-    else
-      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", "XrdHttp");
-
+  // Remember that if there is an exthandler then it has the responsibility
+  // for authorization in the paths that it manages
+  if (!exthandler || !exthandler->MatchesPath(CurrentReq.resource.c_str())) {
     if (!Bridge) {
-      TRACEI(REQ, " Autorization failed.");
-      return -1;
+      if (SecEntity.name)
+        Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
+      else
+        Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", "XrdHttp");
+      
+      if (!Bridge) {
+        TRACEI(REQ, " Autorization failed.");
+        return -1;
+      }
+      
+      // Let the bridge process the login, and then reinvoke us
+      DoingLogin = true;
+      return 0;
     }
-
-    // Let the bridge process the login, and then reinvoke us
-    DoingLogin = true;
-    return 0;
   }
 
   // Compute and send the response. This may involve further reading from the socket
   rc = CurrentReq.ProcessHTTPReq();
   if (rc < 0)
-    CurrentReq.reset();
+     CurrentReq.reset();
 
 
 
@@ -793,6 +857,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN) {
       else if TS_Xeq("secretkey", xsecretkey);
       else if TS_Xeq("desthttps", xdesthttps);
       else if TS_Xeq("secxtractor", xsecxtractor);
+      else if TS_Xeq("exthandler", xexthandler);
       else if TS_Xeq("selfhttps2http", xselfhttps2http);
       else if TS_Xeq("embeddedstatic", xembeddedstatic);
       else if TS_Xeq("listingredir", xlistredir);
@@ -1077,6 +1142,8 @@ void XrdHttpProtocol::BuffConsume(int blen) {
 int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   int rlen;
 
+  TRACE(DEBUG, "BuffgetData: requested " << blen << " bytes");
+  
   if (wait && (blen > BuffUsed())) {
     TRACE(REQ, "BuffgetData: need to read " << blen - BuffUsed() << " bytes");
     if (getDataOneShot(blen - BuffUsed(), true) < 0) return 0;
@@ -1123,7 +1190,7 @@ int XrdHttpProtocol::SendData(char *body, int bodylen) {
 /// Returns 0 if OK
 
 int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen) {
-  char outhdr[512];
+  char outhdr[1024];
   char b[32];
   long long l;
   const char *crlf = "\r\n";
@@ -1167,12 +1234,16 @@ int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, c
   }
   strncat(outhdr, crlf, 2);
 
+  unsigned int hdrlen = strlen(outhdr);
+  if (hdrlen >= sizeof(outhdr))
+    TRACEI(ALL, "WARNING: header size too large!");
+  
   //
   // Send the header
   //
   TRACEI(RSP, "Sending resp: " << code << " len:" << l);
 
-  if (SendData(outhdr, strlen(outhdr)))
+  if (SendData(outhdr, hdrlen))
     return -1;
 
   //
@@ -1214,11 +1285,6 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
     char buf[16];
     sprintf(buf, "%d", Port);
     Port_str = strdup(buf);
-
-
-    // now get it back and print it
-    inet_ntop(AF_INET, &((struct sockaddr_in *) pi->myAddr)->sin_addr, buf, INET_ADDRSTRLEN);
-    Addr_str = strdup(buf);
   }
 
 
@@ -1325,7 +1391,13 @@ extern "C" int verify_callback(int ok, X509_STORE_CTX * store) {
 /// Initialization of the ssl security
 
 int XrdHttpProtocol::InitSecurity() {
-
+  
+  SSL_library_init();
+  SSL_load_error_strings();
+  OpenSSL_add_all_ciphers();
+  OpenSSL_add_all_algorithms();
+  OpenSSL_add_all_digests();
+  
 #ifdef HAVE_XRDCRYPTO
 #ifndef WIN32
   // Borrow the initialization of XrdCryptossl, in order to share the
@@ -1338,11 +1410,6 @@ int XrdHttpProtocol::InitSecurity() {
 #endif
 #endif
 
-  SSL_library_init();
-  SSL_load_error_strings();
-  OpenSSL_add_all_ciphers();
-  OpenSSL_add_all_algorithms();
-  OpenSSL_add_all_digests();
 
   const SSL_METHOD *meth;
 
@@ -1473,7 +1540,8 @@ void XrdHttpProtocol::Cleanup() {
 
   memset(&SecEntity, 0, sizeof (SecEntity));
 
-
+  if (Addr_str) free(Addr_str);
+  Addr_str = 0;
 }
 
 void XrdHttpProtocol::Reset() {
@@ -1507,7 +1575,7 @@ void XrdHttpProtocol::Reset() {
   //  totReadP = 0;
 
   memset(&SecEntity, 0, sizeof (SecEntity));
-
+  SecEntity.tident = XrdHttpSecEntityTident;
   ishttps = false;
   ssldone = false;
 
@@ -2100,6 +2168,62 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
   return 0;
 }
 
+
+
+
+
+
+
+
+
+/******************************************************************************/
+/*                            x e x t h a n d l e r                           */
+/******************************************************************************/
+
+/* Function: xexthandler
+ * 
+ *   Purpose:  To parse the directive: exthandler <path> <initparm>
+ * 
+ *             <path>      the path of the plugin to be loaded
+ *             <initparm>  a string parameter (e.g. a config file) that is
+ *                         passed to the initialization of the plugin
+ * 
+ *  Output: 0 upon success or !0 upon failure.
+ */
+
+int XrdHttpProtocol::xexthandler(XrdOucStream & Config) {
+  char *val, valbuf[1024];
+  char *parm;
+  
+  // Get the path
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "No http external handler plugin specified.");
+    return 1;
+  } else {
+    strcpy(valbuf, val);
+    parm = Config.GetWord();
+    
+    // Try to load the plugin (if available) that extracts info from the user cert/proxy
+    //
+    if (LoadExtHandler(&eDest, valbuf, parm))
+      return 1;
+  }
+  
+  
+  return 0;
+}
+
+
+
+
+
+
+
+
+
+
 /******************************************************************************/
 /*                                 x s s l c a d i r                          */
 /******************************************************************************/
@@ -2220,6 +2344,11 @@ int XrdHttpProtocol::doStat(char *fname) {
 // Loads the SecXtractor plugin, if available
 int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
                                      const char *libParms) {
+  
+  
+  // We don't want to load it more than once
+  if (secxtractor) return 1;
+  
     XrdVersionInfo *myVer = &XrdVERSIONINFOVAR(XrdgetProtocol);
     XrdOucPinLoader myLib(myeDest, myVer, "secxtractorlib", libName);
     XrdHttpSecXtractor *(*ep)(XrdHttpSecXtractorArgs);
@@ -2231,3 +2360,26 @@ int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
     myLib.Unload();
     return 1;
 }
+
+
+// Loads the external handler plugin, if available
+int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
+                                     const char *libParms) {
+  
+  // We don't want to load it more than once
+  if (exthandler) return 1;
+  
+  XrdVersionInfo *myVer = &XrdVERSIONINFOVAR(XrdgetProtocol);
+  XrdOucPinLoader myLib(myeDest, myVer, "exthandlerlib", libName);
+  XrdHttpExtHandler *(*ep)(XrdHttpExtHandlerArgs);
+  
+  // Get the entry point of the object creator
+  //
+  ep = (XrdHttpExtHandler *(*)(XrdHttpExtHandlerArgs))(myLib.Resolve("XrdHttpGetExtHandler"));
+  if (ep && (exthandler = ep(myeDest, NULL, libParms))) return 0;
+  myLib.Unload();
+  return 1;
+}
+
+
+
