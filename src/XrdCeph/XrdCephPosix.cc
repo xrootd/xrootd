@@ -438,11 +438,13 @@ inline librados::Rados* checkAndCreateCluster(unsigned int cephPoolIdx,
     }
     int rc = cluster->init(userId.c_str());
     if (rc) {
+      logwrapper((char*)"checkAndCreateCluster : cluster init failed");
       delete cluster;
       return 0;
     }
     rc = cluster->conf_read_file(NULL);
     if (rc) {
+      logwrapper((char*)"checkAndCreateCluster : cluster read config failed, rc = %d", rc);
       cluster->shutdown();
       delete cluster;
       return 0;
@@ -450,6 +452,7 @@ inline librados::Rados* checkAndCreateCluster(unsigned int cephPoolIdx,
     cluster->conf_parse_env(NULL);
     rc = cluster->connect();
     if (rc) {
+      logwrapper((char*)"checkAndCreateCluster : cluster connect failed, rc = %d", rc);
       cluster->shutdown();
       delete cluster;
       return 0;
@@ -467,11 +470,13 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     // Get a cluster
     librados::Rados* cluster = checkAndCreateCluster(cephPoolIdx, file.userId);
     if (0 == cluster) {
+      logwrapper((char*)"checkAndCreateStriper : checkAndCreateCluster failed");
       return 0;
     }
     // create IoCtx for our pool
     librados::IoCtx *ioctx = new librados::IoCtx;
     if (0 == ioctx) {
+      logwrapper((char*)"checkAndCreateStriper : IoCtx instantiation failed");
       cluster->shutdown();
       delete cluster;
       g_cluster[cephPoolIdx] = 0;
@@ -479,6 +484,7 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     }
     int rc = g_cluster[cephPoolIdx]->ioctx_create(file.pool.c_str(), *ioctx);
     if (rc != 0) {
+      logwrapper((char*)"checkAndCreateStriper : ioctx_create failed, rc = %d", rc);
       cluster->shutdown();
       delete cluster;
       g_cluster[cephPoolIdx] = 0;
@@ -488,6 +494,7 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     // create RadosStriper connection
     libradosstriper::RadosStriper *striper = new libradosstriper::RadosStriper;
     if (0 == striper) {
+      logwrapper((char*)"checkAndCreateStriper : RadosStriper instantiation failed");
       delete ioctx;
       cluster->shutdown();
       delete cluster;
@@ -496,6 +503,7 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     }
     rc = libradosstriper::RadosStriper::striper_create(*ioctx, striper);
     if (rc != 0) {
+      logwrapper((char*)"checkAndCreateStriper : striper_create failed, rc = %d", rc);
       delete striper;
       delete ioctx;
       cluster->shutdown();
@@ -506,7 +514,7 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     // setup layout
     rc = striper->set_object_layout_stripe_count(file.nbStripes);
     if (rc != 0) {
-      logwrapper((char*)"getRadosStriper : invalid nbStripes %d", file.nbStripes);
+      logwrapper((char*)"checkAndCreateStriper : invalid nbStripes %d", file.nbStripes);
       delete striper;
       delete ioctx;
       cluster->shutdown();
@@ -516,7 +524,7 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     }
     rc = striper->set_object_layout_stripe_unit(file.stripeUnit);
     if (rc != 0) {
-      logwrapper((char*)"getRadosStriper : invalid stripeUnit %d (must be non0, multiple of 64K)", file.stripeUnit);
+      logwrapper((char*)"checkAndCreateStriper : invalid stripeUnit %d (must be non 0, multiple of 64K)", file.stripeUnit);
       delete striper;
       delete ioctx;
       cluster->shutdown();
@@ -526,7 +534,7 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     }
     rc = striper->set_object_layout_object_size(file.objectSize);
     if (rc != 0) {
-      logwrapper((char*)"getRadosStriper : invalid objectSize %d (must be non 0, multiple of stripe_unit)", file.objectSize);
+      logwrapper((char*)"checkAndCreateStriper : invalid objectSize %d (must be non 0, multiple of stripe_unit)", file.objectSize);
       delete striper;
       delete ioctx;
       cluster->shutdown();
@@ -550,6 +558,7 @@ static libradosstriper::RadosStriper* getRadosStriper(const CephFile& file) {
   std::string userAtPool = ss.str();
   unsigned int cephPoolIdx = getCephPoolIdxAndIncrease();
   if (checkAndCreateStriper(cephPoolIdx, userAtPool, file) == 0) {
+    logwrapper((char*)"getRadosStriper : checkAndCreateStriper failed");
     return 0;
   }
   return g_radosStripers[cephPoolIdx][userAtPool];
@@ -878,6 +887,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
     // mode is set arbitrarily to 0666 | S_IFREG
     libradosstriper::RadosStriper *striper = getRadosStriper(*fr);
     if (0 == striper) {
+      logwrapper((char*)"ceph_stat: getRadosStriper failed");
       return -EINVAL;
     }
     memset(buf, 0, sizeof(*buf));
