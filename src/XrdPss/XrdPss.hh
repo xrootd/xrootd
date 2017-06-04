@@ -173,9 +173,6 @@ static int          Streams;
 static int          Workers;
 static int          Trace;
 
-static bool         xLfn2Pfn;
-static bool         xPfn2Lfn;
-
 static bool         outProxy; // True means outgoing proxy
 static bool         pfxProxy; // True means outgoing proxy is prefixed
 
@@ -185,8 +182,8 @@ static char         allMv;
 static char         allRmdir;
 static char         allRm;
 static char         allTrunc;
+static bool         xLfn2Pfn;
 
-static bool         mCache;
 static char         cfgDone;   // Configuration completed
 
          XrdPssSys();
@@ -195,26 +192,18 @@ virtual ~XrdPssSys() {}
 private:
 
 char              *LocalRoot;// -> Local n2n root, if any
-char              *N2NLib;   // -> Name2Name Library Path
-char              *N2NParms; // -> Name2Name Object Parameters
 XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
-char              *cPath;    // -> Cache path
-char              *cParm;    // -> Cache parameters
 XrdVersionInfo    *myVersion;// -> Compilation version
-int                TraceLvl; // Tracing options
 
 int    buildHdr();
 int    Configure(const char *);
 int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
-int    ConfigN2N();
-int    getCache();
 const
 char  *getDomain(const char *hName);
 int    xcach(XrdSysError *Eroute, XrdOucStream &Config);
 int    xcacl(XrdSysError *Eroute, XrdOucStream &Config);
-char  *xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
 int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
 int    xexp( XrdSysError *Eroute, XrdOucStream &Config);

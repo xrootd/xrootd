@@ -1,10 +1,10 @@
-#ifndef __POSIX_FILERH_HH__
-#define __POSIX_FILERH_HH__
+#ifndef __XRDPOSIXCONFIG_H__
+#define __XRDPOSIXCONFIG_H__
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d P o s i x F l e R H . h h                       */
+/*                     X r d P o s i x C o n f i g . h h                      */
 /*                                                                            */
-/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -28,55 +28,37 @@
 /* The copyright holder's institutional names and contributor's names may not */
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
+/* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-#include "Xrd/XrdJob.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <unistd.h>
+#include <sys/types.h>
 
-class XrdOucCacheIOCB;
-class XrdPosixFile;
+class XrdScheduler;
+class XrdOucEnv;
+class XrdOucPsx;
+class XrdSysLogger;
 
-/******************************************************************************/
-/*                        X r d P o s i x F i l e R H                         */
-/******************************************************************************/
-  
-class XrdPosixFileRH : public XrdJob,
-                       public XrdCl::ResponseHandler
+class XrdPosixConfig
 {
 public:
 
-enum ioType {nonIO = 0, isRead = 1, isReadV = 2, isWrite = 3};
+static void    EnvInfo(XrdOucEnv &theEnv);
 
-static XrdPosixFileRH  *Alloc(XrdOucCacheIOCB *cbp, XrdPosixFile *fp,
-                              long long offs, int xResult, ioType typeIO);
+static void    SetConfig(XrdOucPsx &parms);
 
-        void            DoIt() {theCB->Done(result); Recycle();}
+static void    SetEnv(const char *kword, int kval);
 
-        void            HandleResponse(XrdCl::XRootDStatus *status,
-                                       XrdCl::AnyObject    *response);
+static void    setLogger(XrdSysLogger *logP);
 
-        void            Recycle();
-
-static  void            SetMax(int mval) {maxFree = mval;}
-
-        void            Sched(int result);
+               XrdPosixConfig() {}
+              ~XrdPosixConfig() {}
 
 private:
-             XrdPosixFileRH() : theCB(0),theFile(0),result(0),typeIO(nonIO) {}
-virtual     ~XrdPosixFileRH() {}
 
-static  XrdSysMutex      myMutex;
-static  XrdPosixFileRH  *freeRH;
-static  int              numFree;
-static  int              maxFree;
-
-union  {XrdOucCacheIOCB *theCB;
-        XrdPosixFileRH  *next;
-       };
-XrdPosixFile            *theFile;
-long long                offset;
-int                      result;
-ioType                   typeIO;
+static void initEnv(char *eData);
+static void initEnv(XrdOucEnv &, const char *, long long &);
+static void SetDebug(int val);
+static void SetIPV4(bool userv4);
 };
 #endif

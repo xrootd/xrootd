@@ -61,11 +61,13 @@
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
+#include "XrdOuc/XrdOucPsx.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucCache2.hh"
 
+#include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
 /******************************************************************************/
@@ -108,13 +110,10 @@ char         XrdPssSys::allRm     =  0;
 char         XrdPssSys::allRmdir  =  0;
 char         XrdPssSys::allTrunc  =  0;
 
-bool         XrdPssSys::xLfn2Pfn  = true;
-bool         XrdPssSys::xPfn2Lfn  = false;
-
 bool         XrdPssSys::outProxy  = false;
 bool         XrdPssSys::pfxProxy  = false;
+bool         XrdPssSys::xLfn2Pfn  = false;
 
-bool         XrdPssSys::mCache    = false;
 char         XrdPssSys::cfgDone   =  0;
 
 namespace XrdProxy
@@ -126,6 +125,11 @@ extern XrdSysError      eDest;
 extern XrdOucSid       *sidP;
 
 static const int maxHLen = 1024;
+}
+
+namespace
+{
+XrdOucPsx *psxConfig;
 }
 
 using namespace XrdProxy;
@@ -188,19 +192,30 @@ int XrdPssSys::Configure(const char *cfn)
    myName = XrdOucUtils::InstName(1);
    ConfigFN = cfn;
 
-// Set debug level if so wanted and the default number of worker threads
+// Thell xrootd to disable POSC mode as this is meaningless here
 //
-   XrdPosixXrootd::setLogger(eDest.logger());
-   if (getenv("XRDDEBUG")) XrdPosixXrootd::setDebug(1, true);
-   XrdPosixXrootd::setEnv("WorkerThreads", 64);
+   XrdOucEnv::Export("XRDXROOTD_NOPOSC", "1");
+
+// Create a configurator
+//
+   psxConfig = new XrdOucPsx(myVersion, cfn); // We be deleted later
+
+// Set debug level if so wanted
+//
+   XrdPosixConfig::setLogger(eDest.logger());
+   if (getenv("XRDDEBUG")) psxConfig->traceLvl = 4;
+
+// Set the defaault number of worker threads for the client
+//
+   XrdPosixConfig::SetEnv("WorkerThreads", 64);
 
 // Set client IP mode based on what the server is set to
 //
-   if (XrdNetAddr::IPV4Set()) XrdPosixXrootd::setIPV4(true);
+   if (XrdNetAddr::IPV4Set()) psxConfig->useV4 = true;
 
 // Set default number of event loops
 //
-   XrdPosixXrootd::setEnv("ParallelEvtLoop", 3);
+   XrdPosixConfig::SetEnv("ParallelEvtLoop", 3);
 
 // Process the configuration file
 //
@@ -213,21 +228,34 @@ int XrdPssSys::Configure(const char *cfn)
        return 1;
       }
 
-// Tell xrootd to disable async I/O as it just will slow everything down.
+// Handle the local root here
 //
-// XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
+   if (LocalRoot) psxConfig->SetLocalRoot(LocalRoot);
 
-// Thell xrootd to disable POSC mode as this is meaningless here
+// Pre-screen any n2n library parameters
 //
-   XrdOucEnv::Export("XRDXROOTD_NOPOSC", "1");
+   if (outProxy && psxConfig->xLfn2Pfn)
+      {const char *txt = (psxConfig->xPfn2Lfn ? "-lfn2pfn option":"directive");
+       eDest.Say("Config warning: ignoring namelib ", txt,
+                 "; this is forwarding proxy!");
+       psxConfig->xLfn2Pfn = false;
+      }
 
-// Initialize an alternate cache if one is present
+// Finalize the configuration
 //
-   if (cPath && !getCache()) return 1;
+   if (!(psxConfig->ConfigSetup(eDest))) return 1;
 
-// Configure the N2N library:
+// Complete initialization (this cannot fail)
 //
-   if ((NoGo = ConfigN2N())) return NoGo;
+   XrdPosixConfig::SetConfig(*psxConfig);
+
+// Save the N2N library pointer if we will be using it
+//
+   if (psxConfig->xLfn2Pfn) xLfn2Pfn = (theN2N = psxConfig->theN2N) != 0;
+
+// All done with the configurator
+//
+   delete psxConfig;
 
 // Allocate an Xroot proxy object (only one needed here). Tell it to not
 // shadow open files with real file descriptors (we will be honest). This can
@@ -399,45 +427,6 @@ int XrdPssSys::ConfigProc(const char *Cfn)
 }
 
 /******************************************************************************/
-/*                             C o n f i g N 2 N                              */
-/******************************************************************************/
-
-int XrdPssSys::ConfigN2N()
-{  
-   XrdOucN2NLoader n2nLoader(&eDest, ConfigFN, N2NParms, LocalRoot, 0);
-
-// Skip all of this we are not doing name mapping
-//
-  if (!N2NLib && !LocalRoot)
-     {xLfn2Pfn = xPfn2Lfn = false; return 0;}
-
-// Check if the n2n is applicable
-//
-   if (xPfn2Lfn && !(mCache || cPath))
-      {const char *txt = (xLfn2Pfn ? "-lfncache option" : "directive");
-       eDest.Say("Config warning: ignoring namelib ", txt,
-                 "; caching not in effect!");
-       if (!xLfn2Pfn) return 0;
-      }
-
-   if (outProxy && xLfn2Pfn)
-      {const char *txt = (xPfn2Lfn ? "-lfn2pfn option" : "directive");
-       eDest.Say("Config warning: ignoring namelib ", txt,
-                 "; this is forwarding proxy!");
-       if (!xPfn2Lfn) return 0;
-      }
-
-// Get the plugin
-//
-   if (!(theN2N = n2nLoader.Load(N2NLib, *myVersion))) return 1;
-
-// Check if this also applies to the posix layer
-//
-   if (xPfn2Lfn) XrdPosixXrootd::setN2N(theN2N);
-   return 0;
-}
-
-/******************************************************************************/
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
 
@@ -481,50 +470,6 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 }
   
 /******************************************************************************/
-/*                              g e t C a c h e                               */
-/******************************************************************************/
-
-int XrdPssSys::getCache()
-{
-   XrdOucPinLoader  myLib(&eDest,myVersion,"cachelib",cPath);
-   const char *cName;
-   bool isCache2;
-
-// First find out if this is a cache2 or old cache library
-//
-   if (myLib.Resolve("?XrdOucGetCache2") == 0)
-      {cName = "XrdOucGetCache";  isCache2 = false;
-      } else {
-       cName = "XrdOucGetCache2"; isCache2 = true;
-      } 
-
-// Get the Object now
-//
-   if (isCache2) {
-      XrdOucCache2     *(*ep)(XrdSysLogger *, const char *, const char *);
-      ep = (XrdOucCache2 *(*)(XrdSysLogger *, const char *, const char *))
-         (myLib.Resolve(cName));
-
-      if (!ep) return 0;
-
-      XrdOucCache2* theCache2 = ep(eDest.logger(), ConfigFN, cParm);
-      if (theCache2) XrdPosixXrootd::setCache(theCache2);
-      return theCache2 != 0;
-   }
-   else {
-      XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
-      ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
-         (myLib.Resolve(cName));
-
-      if (!ep) return 0;
-
-      XrdOucCache* theCache = ep(eDest.logger(), ConfigFN, cParm);
-      if (theCache) XrdPosixXrootd::setCache(theCache);
-      return theCache != 0;
-   }
-}
-  
-/******************************************************************************/
 /*                             g e t D o m a i n                              */
 /******************************************************************************/
 
@@ -561,83 +506,10 @@ const char *XrdPssSys::getDomain(const char *hName)
 
 int XrdPssSys::xcach(XrdSysError *Eroute, XrdOucStream &Config)
 {
-   long long llVal, cSize=-1, m2Cache=-1, pSize=-1, minPg = -1;
-   const char *ivN = 0;
-   char  *val, *sfSfx = 0, sfVal = '0', lgVal = '0', dbVal = '0', rwVal = '0';
-   char eBuff[2048], pBuff[1024], *eP;
-   struct sztab {const char *Key; long long *Val;} szopts[] =
-               {{"max2cache", &m2Cache},
-                {"minpages",  &minPg},
-                {"pagesize",  &pSize},
-                {"size",      &cSize}
-               };
-   int i, numopts = sizeof(szopts)/sizeof(struct sztab);
 
-// If we have no parameters, then we just use the defaults
+// We parse this using the configurator
 //
-   mCache = true;
-   if (!(val = Config.GetWord()))
-      {XrdOucEnv::Export("XRDPOSIX_CACHE", "mode=s&optwr=0"); return 0;}
-   *pBuff = 0;
-
-do{for (i = 0; i < numopts; i++) if (!strcmp(szopts[i].Key, val)) break;
-
-   if (i < numopts)
-      {if (!(val = Config.GetWord())) ivN = szopts[i].Key;
-          else if (XrdOuca2x::a2sz(*Eroute,szopts[i].Key,val,&llVal,0)) return 1;
-                  else *(szopts[i].Val) = llVal;
-      } else {
-            if (!strcmp("debug", val))
-               {if (!(val = Config.GetWord())
-                || ((*val < '0' || *val > '3') && !*(val+1))) ivN = "debug";
-                   else dbVal = *val;
-               }
-       else if (!strcmp("logstats", val)) lgVal = '1';
-       else if (!strcmp("preread", val))
-               {if ((val = xcapr(Eroute, Config, pBuff))) continue;
-                if (*pBuff == '?') return 1;
-                break;
-               }
-       else if (!strcmp("r/w", val)) rwVal = '1';
-       else if (!strcmp("sfiles", val))
-               {if (sfSfx) {free(sfSfx); sfSfx = 0;}
-                     if (!(val = Config.GetWord())) ivN = "sfiles";
-                else if (!strcmp("on",  val)) sfVal = '1';
-                else if (!strcmp("off", val)) sfVal = '0';
-                else if (*val == '.' && strlen(val) < 16) sfSfx = strdup(val);
-                else ivN = "sfiles";
-               }
-       else {Eroute->Emsg("Config","invalid cache keyword -", val); return 1;}
-     }
-
-   if (ivN)
-      {if (!val) Eroute->Emsg("Config","cache", ivN,"value not specified.");
-          else   Eroute->Emsg("Config", val, "is invalid for cache", ivN);
-       return 1;
-      }
-  } while ((val = Config.GetWord()));
-
-// Construct the envar string
-//
-   strcpy(eBuff, "mode=s&maxfiles=16384"); eP = eBuff + strlen(eBuff);
-   if (cSize > 0)    eP += sprintf(eP, "&cachesz=%lld", cSize);
-   if (dbVal != '0') eP += sprintf(eP, "&debug=%c", dbVal);
-   if (m2Cache > 0)  eP += sprintf(eP, "&max2cache=%lld", m2Cache);
-   if (minPg > 0)
-      {if (minPg > 32767) minPg = 32767;
-       eP += sprintf(eP, "&minpages=%lld", minPg);
-      }
-   if (pSize > 0)    eP += sprintf(eP, "&pagesz=%lld", pSize);
-   if (lgVal != '0') strcat(eP, "&optlg=1");
-   if (sfVal != '0' || sfSfx)
-      {if (!sfSfx)   strcat(eP, "&optsf=1");
-          else {strcat(eP, "&optsf="); strcat(eBuff, sfSfx); free(sfSfx);}
-      }
-   if (rwVal != '0') strcat(eP, "&optwr=1");
-   if (*pBuff)       strcat(eP, pBuff);
-
-   XrdOucEnv::Export("XRDPOSIX_CACHE", eBuff);
-   return 0;
+   return (psxConfig->ParseCache(Eroute, Config) ? 0 : 1);
 }
   
 /******************************************************************************/
@@ -656,82 +528,10 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(szopts[i].Key, val)) break;
 
 int XrdPssSys::xcacl(XrdSysError *Eroute, XrdOucStream &Config)
 {
-    char *val, parms[2048];
 
-// Get the path and parms
+// We parse this using the configurator
 //
-   if (!(val = Config.GetWord()) || !val[0])
-      {Eroute->Emsg("Config", "cachelib not specified"); return 1;}
-
-// Save the path
-//
-   if (cPath) free(cPath);
-   cPath = (strcmp(val,"default") ? strdup(val) : strdup("libXrdFileCache.so"));
-
-// Get the parameters
-//
-   if (!Config.GetRest(parms, sizeof(parms)))
-      {Eroute->Emsg("Config", "cachelib parameters too long"); return 1;}
-   if (cParm) free(cParm);
-   cParm = (*parms ? strdup(parms) : 0);
-
-// All done
-//
-   return 0;
-}
-
-/******************************************************************************/
-/*                                 x c a p r                                  */
-/******************************************************************************/
-
-/* Function: xcapr
-
-   Purpose:  To parse the directive: preread [pages [minrd]] [perf pct [calc]]
-
-             pages     minimum number of pages to preread.
-             minrd     minimum size   of read  (can be suffixed with k, m, g).
-             perf      preread performance (0 to 100).
-             calc      calc perf every n bytes (can be suffixed with k, m, g).
-*/
-
-char *XrdPssSys::xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff)
-{
-   long long minr = 0, maxv = 0x7fffffff, recb = 50*1024*1024;
-   int minp = 1, perf = 90, Spec = 0;
-   char *val;
-
-// Check for our options
-//
-   *pBuff = '?';
-   if ((val = Config.GetWord()) && isdigit(*val))
-      {if (XrdOuca2x::a2i(*Eroute,"preread pages",val,&minp,0,32767)) return 0;
-       if ((val = Config.GetWord()) && isdigit(*val))
-          {if (XrdOuca2x::a2sz(*Eroute,"preread rdsz",val,&minr,0,maxv))
-              return 0;
-           val = Config.GetWord();
-          }
-       Spec = 1;
-      }
-   if (val && !strcmp("perf", val))
-      {if (!(val = Config.GetWord()))
-          {Eroute->Emsg("Config","cache", "preread perf value not specified.");
-           return 0;
-          }
-       if (XrdOuca2x::a2i(*Eroute,"perf",val,&perf,0,100)) return 0;
-       if ((val = Config.GetWord()) && isdigit(*val))
-          {if (XrdOuca2x::a2sz(*Eroute,"perf recalc",val,&recb,0,maxv))
-              return 0;
-           val = Config.GetWord();
-          }
-       Spec = 1;
-      }
-
-// Construct new string
-//
-   if (!Spec) strcpy(pBuff,"&optpr=1&aprminp=1");
-      else sprintf(pBuff,  "&optpr=1&aprtrig=%lld&aprminp=%d&aprcalc=%lld"
-                           "&aprperf=%d",minr,minp,recb,perf);
-   return val;
+   return (psxConfig->ParseCLib(Eroute, Config) ? 0 : 1);
 }
   
 /******************************************************************************/
@@ -841,24 +641,10 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 
 int XrdPssSys::xinet(XrdSysError *Eroute, XrdOucStream &Config)
 {
-   char *val;
-   bool  usev4;
 
-// Get the mode
+// We parse this using the configurator
 //
-   if (!(val = Config.GetWord()) || !val[0])
-      {Eroute->Emsg("Config", "inetmode value not specified"); return 1;}
-
-// Validate the value
-//
-        if (!strcmp(val, "v4")) usev4 = true;
-   else if (!strcmp(val, "v6")) usev4 = false;
-   else {Eroute->Emsg("Config", "invalid inetmode value -", val); return 1;}
-
-// Set the mode
-//
-   XrdPosixXrootd::setIPV4(usev4);
-   return 0;
+   return (psxConfig->ParseINet(Eroute, Config) ? 0 : 1);
 }
   
 /******************************************************************************/
@@ -878,37 +664,10 @@ int XrdPssSys::xinet(XrdSysError *Eroute, XrdOucStream &Config)
 
 int XrdPssSys::xnml(XrdSysError *Eroute, XrdOucStream &Config)
 {
-    char *val, parms[1024];
-    bool l2p = false, p2l = false;
 
-// Parse options, if any
+// We parse this using the configurator
 //
-   while((val = Config.GetWord()) && val[0])
-        {     if (!strcmp(val, "-lfn2pfn"))  l2p = true;
-         else if (!strcmp(val, "-lfncache")) p2l = true;
-         else break;
-        }
-   if (!l2p && !p2l) l2p = true;
-   xLfn2Pfn = l2p;
-   xPfn2Lfn = p2l;
-
-// Get the path
-//
-   if (!val || !val[0])
-      {Eroute->Emsg("Config", "namelib not specified"); return 1;}
-
-// Record the path
-//
-   if (N2NLib) free(N2NLib);
-   N2NLib = strdup(val);
-
-// Record any parms
-//
-   if (!Config.GetRest(parms, sizeof(parms)))
-      {Eroute->Emsg("Config", "namelib parameters too long"); return 1;}
-   if (N2NParms) free(N2NParms);
-   N2NParms = (*parms ? strdup(parms) : 0);
-   return 0;
+   return (psxConfig->ParseNLib(Eroute, Config) ? 0 : 1);
 }
 
 /******************************************************************************/
@@ -1049,66 +808,10 @@ do {if (!(val = Config.GetWord()))
 
 int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
 {
-    char  kword[256], *val;
-    int   kval, noGo;
-    static struct {const char *Sopt; const char *Copt; int isT;} Sopts[]  =
-       {
-         {"ConnectTimeout",        "ConnectionWindow",1},    // Default  120
-         {"ConnectionRetry",       "ConnectionRetry",1},     // Default    5
-         {"DataServerTTL",         "DataServerTTL",1},       // Default  300
-         {"DataServerConn_ttl",    "DataServerTTL",1},       // Default  300
-         {"DebugLevel",            "*",0},                   // Default   -1
-         {"DebugMask",             "*",0},                   // Default   -1
-         {"DirlistAll",            "DirlistAll",0},
-         {"DataServerTTL",         "DataServerTTL",1},       // Default  300
-         {"LBServerConn_ttl",      "LoadBalancerTTL",1},     // Default 1200
-         {"LoadBalancerTTL",       "LoadBalancerTTL",1},     // Default 1200
-         {"ParallelEvtLoop",       "ParallelEvtLoop",0},     // Default    3
-         {"ParStreamsPerPhyConn",  "SubStreamsPerChannel",0},// Default    1
-         {"ReadAheadSize",         0,0},
-         {"ReadAheadStrategy",     0,0},
-         {"ReadCacheBlkRemPolicy", 0,0},
-         {"ReadCacheSize",         0,0},
-         {"ReadTrimBlockSize",     0,0},
-         {"ReconnectWait",         "StreamErrorWindow",1},   // Default 1800
-         {"RedirCntTimeout",       "!use RedirectLimit instead.",0},
-         {"RedirectLimit",         "RedirectLimit",0},       // Default   16
-         {"RedirectorConn_ttl",    "LoadBalancerTTL",1},     // Default 1200
-         {"RemoveUsedCacheBlocks", 0,0},
-         {"RequestTimeout",        "RequestTimeout",1},      // Default 1800
-         {"StreamTimeout",         "StreamTimeout",1},
-         {"TransactionTimeout",    "",1},
-         {"WorkerThreads",         "WorkerThreads",0}        // Set To    64
-       };
-    int i, numopts = sizeof(Sopts)/sizeof(const char *);
 
-    if (!(val = Config.GetWord()))
-       {Eroute->Emsg("Config", "setopt keyword not specified"); return 1;}
-    strlcpy(kword, val, sizeof(kword));
-    if (!(val = Config.GetWord()))
-       {Eroute->Emsg("Config", "setopt", kword, "value not specified");
-        return 1;
-       }
-
-    for (i = 0; i < numopts; i++)
-        if (!strcmp(Sopts[i].Sopt, kword))
-           {if (!Sopts[i].Copt || *(Sopts[i].Copt) == '!')
-               {Eroute->Emsg("Config", kword, "no longer supported;",
-                             (Sopts[i].Copt ? Sopts[i].Copt+1 : "ignored"));
-               } else if (*(Sopts[i].Copt))
-                         {noGo = (Sopts[i].isT
-                               ?  XrdOuca2x::a2tm(*Eroute,kword,val,&kval)
-                               :  XrdOuca2x::a2i (*Eroute,kword,val,&kval));
-                          if (noGo) return 1;
-                          if (*(Sopts[i].Copt) == '*')
-                               XrdPosixXrootd::setDebug(kval);
-                          else XrdPosixXrootd::setEnv(Sopts[i].Copt, kval);
-                         }
-            return 0;
-           }
-
-    Eroute->Say("Config warning: ignoring unknown setopt '",kword,"'.");
-    return 0;
+// We parse this using the configurator
+//
+   return (psxConfig->ParseSet(Eroute, Config) ? 0 : 1);
 }
   
 /******************************************************************************/
@@ -1127,30 +830,8 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
 
 int XrdPssSys::xtrac(XrdSysError *Eroute, XrdOucStream &Config)
 {
-    char  *val;
-    static struct traceopts {const char *opname; int opval;} tropts[] =
-       {
-        {"all",      3},
-        {"debug",    2},
-        {"on",       1}
-       };
-    int i, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
-    if (!(val = Config.GetWord()))
-       {Eroute->Emsg("Config", "trace option not specified"); return 1;}
-    while (val)
-         {if (!strcmp(val, "off")) trval = 0;
-             else {for (i = 0; i < numopts; i++)
-                       {if (!strcmp(val, tropts[i].opname))
-                           {trval |=  tropts[i].opval;
-                            break;
-                           }
-                       }
-                   if (i >= numopts)
-                      Eroute->Say("Config warning: ignoring invalid trace option '",val,"'.");
-                  }
-          val = Config.GetWord();
-         }
-    XrdPosixXrootd::setDebug(trval);
-    return 0;
+// We parse this using the configurator
+//
+   return (psxConfig->ParseTrace(Eroute, Config) ? 0 : 1);
 }

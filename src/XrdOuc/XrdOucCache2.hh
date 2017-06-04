@@ -181,6 +181,7 @@ virtual    ~XrdOucCacheIO2() {}  // Always use Detach() instead of direct delete
 /*                    C l a s s   X r d O u c C a c h e 2                     */
 /******************************************************************************/
 
+class  XrdOucEnv;
 struct stat;
   
 //------------------------------------------------------------------------------
@@ -229,6 +230,18 @@ XrdOucCacheIO  *Attach(XrdOucCacheIO  *ioP, int opts=0)
 virtual
 XrdOucCache   *Create(Parms &Params, XrdOucCacheIO::aprParms *aprP=0)
                      {return this;}
+
+//------------------------------------------------------------------------------
+//! Supply environmental information to the cache for optimization. This is
+//! only called server-side but is optional and might not be called. The
+//! environmental information should only be used for optimizations. When
+//! called, it is gauranteed to occur before any active use of the cache and
+//! is essentially serialized (i.e. the main start-up thread is used).
+//!
+//! @param  theEnv - Reference to environmental information.
+//------------------------------------------------------------------------------
+virtual
+void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
 
 //------------------------------------------------------------------------------
 //! Preapare the cache for a file open request. This method is called prior to

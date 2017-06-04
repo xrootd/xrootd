@@ -115,6 +115,10 @@ public:
    virtual int isAttached();
 
    //---------------------------------------------------------------------
+   // Virtual function of XrdOucCache2. Used to pass environmental info.
+   virtual void EnvInfo(XrdOucEnv &theEnv);
+
+   //---------------------------------------------------------------------
    // Virtual function of XrdOucCache2. Used for deferred open.
    virtual int  Prepare(const char *url, int oflags, mode_t mode);
 
@@ -214,6 +218,8 @@ private:
    bool xtrace(XrdOucStream &);
 
    static Cache     *m_factory;         //!< this object
+   static 
+   XrdScheduler     *schedP;
 
    XrdSysError       m_log;             //!< XrdFileCache namespace logger
    XrdOucTrace      *m_trace;
@@ -232,6 +238,7 @@ private:
 
    XrdSysMutex m_RAMblock_mutex;            //!< central lock for this class
    int         m_RAMblocks_used;
+   bool        isClient;                    //!< True if running as client
 
    struct WriteQ
    {
