@@ -70,6 +70,8 @@
 /******************************************************************************/
   
 extern XrdPosixLinkage Xunix;
+
+namespace {bool isLite = (getenv("XRD_POSIX_PRELOAD_LITE") != 0);}
  
 /******************************************************************************/
 /*               6 4 - t o 3 2   B i t   C o n v e r s i o n s                */
@@ -381,7 +383,7 @@ struct dirent* readdir(DIR *dirp)
    static int Init = Xunix.Init(&Init);
    struct dirent64 *dp64;
 
-   if ( getenv("XRD_POSIX_PRELOAD_LITE") ) 
+   if ( isLite )
    {
        if (!(dp64 = Xunix.Readdir64(dirp))) return 0;
    }
@@ -415,7 +417,7 @@ int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
    struct dirent64 *mydirent;
    int rc;
 
-   if ( getenv("XRD_POSIX_PRELOAD_LITE") ) 
+   if ( isLite )
    {
        if ((rc = Xunix.Readdir64_r(dirp, dp64, &mydirent))) return rc;
    }
