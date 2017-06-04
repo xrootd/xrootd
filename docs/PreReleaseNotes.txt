@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[POSIX]** Implement serverless file caching (disk or memory).
   * **[Server]** Add xrootd.fsoverload directive to handle filesystem overloads.
   * **[Server]** Allow port to be specified for a supervisor.
   * **{Server]** Add org and role types to AuthDB authorization.
