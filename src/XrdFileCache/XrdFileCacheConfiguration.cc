@@ -269,7 +269,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                       "       pfc.ram %.fg\n"
                       "       pfc.diskusage %lld %lld sleep %d\n"
                       "       pfc.spaces %s %s\n"
-                      "       pfc.trace ooo %d\n"
+                      "       pfc.trace %d\n"
                       "       pfc.flush %lld",
                       config_filename,
                       m_configuration.m_bufferSize,
@@ -281,7 +281,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                       m_configuration.m_data_space.c_str(),
                       m_configuration.m_meta_space.c_str(),
                       m_trace->What,
-                       m_configuration.m_flushCnt);
+                      m_configuration.m_flushCnt);
 
 
 
