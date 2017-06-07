@@ -1,11 +1,13 @@
-#ifndef __CRYPTO_LOCALFACTORY_H__
-#define __CRYPTO_LOCALFACTORY_H__
+#ifndef __XRDPOSIXCONFIG_H__
+#define __XRDPOSIXCONFIG_H__
 /******************************************************************************/
 /*                                                                            */
-/*             X r d C r y p t o L o c a l F a c t o r y . h h                */
+/*                     X r d P o s i x C o n f i g . h h                      */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*   Produced by Gerri Ganis for CERN                                         */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -26,47 +28,37 @@
 /* The copyright holder's institutional names and contributor's names may not */
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
+/* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-/* ************************************************************************** */
-/*                                                                            */
-/* Implementation of the local crypto factory                                 */
-/*                                                                            */
-/* ************************************************************************** */
+#include <unistd.h>
+#include <sys/types.h>
 
-#include "XrdCrypto/XrdCryptoFactory.hh"
+class XrdScheduler;
+class XrdOucEnv;
+class XrdOucPsx;
+class XrdSysLogger;
 
-// The ID must be a unique number
-#define XrdCryptolocalFactoryID  0
-
-class XrdCryptolocalFactory : public XrdCryptoFactory 
+class XrdPosixConfig
 {
 public:
-   XrdCryptolocalFactory();
-   virtual ~XrdCryptolocalFactory() { }
 
-   // Set trace flags
-   void SetTrace(kXR_int32 trace);
+static void    EnvInfo(XrdOucEnv &theEnv);
 
-   // Hook to local KDFun
-   XrdCryptoKDFunLen_t KDFunLen(); // Length of buffer
-   XrdCryptoKDFun_t KDFun();
+static void    SetConfig(XrdOucPsx &parms);
 
-   // Cipher constructors
-   XrdCryptoCipher *Cipher(const char *t, int l = 0);
-   XrdCryptoCipher *Cipher(const char *t, int l, const char *k,
-                                          int liv, const char *iv);
-   XrdCryptoCipher *Cipher(XrdSutBucket *b);
-   XrdCryptoCipher *Cipher(int bits, char *pub, int lpub, const char *t = 0);
-   XrdCryptoCipher *Cipher(const XrdCryptoCipher &c);
+static void    SetEnv(const char *kword, int kval);
 
-   // MsgDigest constructors
-   XrdCryptoMsgDigest *MsgDigest(const char *dgst);
+static void    setLogger(XrdSysLogger *logP);
 
-   // RSA constructors
-   XrdCryptoRSA *RSA(int bits = XrdCryptoDefRSABits, int exp = XrdCryptoDefRSAExp);
-   XrdCryptoRSA *RSA(const char *pub, int lpub = 0);
-   XrdCryptoRSA *RSA(const XrdCryptoRSA &r);
+               XrdPosixConfig() {}
+              ~XrdPosixConfig() {}
+
+private:
+
+static void initEnv(char *eData);
+static void initEnv(XrdOucEnv &, const char *, long long &);
+static void SetDebug(int val);
+static void SetIPV4(bool userv4);
 };
-
 #endif

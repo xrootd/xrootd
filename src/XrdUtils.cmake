@@ -89,6 +89,7 @@ add_library(
   XrdOuc/XrdOucPinPath.cc       XrdOuc/XrdOucPinPath.hh
   XrdOuc/XrdOucPreload.cc       XrdOuc/XrdOucPreload.hh
   XrdOuc/XrdOucProg.cc          XrdOuc/XrdOucProg.hh
+  XrdOuc/XrdOucPsx.cc           XrdOuc/XrdOucPsx.hh
   XrdOuc/XrdOucPup.cc           XrdOuc/XrdOucPup.hh
   XrdOuc/XrdOucReqID.cc         XrdOuc/XrdOucReqID.hh
   XrdOuc/XrdOucSid.cc           XrdOuc/XrdOucSid.hh

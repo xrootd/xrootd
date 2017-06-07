@@ -106,13 +106,14 @@ bool Cache::xtrace(XrdOucStream &Config)
 bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char *parameters)
 {
    m_log.logger(logger);
+   const char *theINS = getenv("XRDINSTANCE");
 
-   const char * cache_env;
-   if (! (cache_env = getenv("XRDPOSIX_CACHE")) || ! *cache_env)
-      XrdOucEnv::Export("XRDPOSIX_CACHE", "mode=s&optwr=0");
+// Indicate whether or not we are a client instance
+//
+   isClient = (strncmp("*client ", theINS, 8) != 0);
 
    XrdOucEnv myEnv;
-   XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   XrdOucStream Config(&m_log, theINS, &myEnv, "=====> ");
 
    if (! config_filename || ! *config_filename)
    {
@@ -440,4 +441,14 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
 
    return true;
+}
+
+//______________________________________________________________________________
+
+
+void Cache::EnvInfo(XrdOucEnv &theEnv)
+{
+// Extract out the pointer to the scheduler
+//
+   schedP = (XrdScheduler *)theEnv.GetPtr("XrdScheduler*");
 }

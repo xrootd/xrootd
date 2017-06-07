@@ -108,12 +108,18 @@ public:
    //---------------------------------------------------------------------
    //! Obtain a new IO object that fronts existing XrdOucCacheIO.
    //---------------------------------------------------------------------
+   using XrdOucCache2::Attach;
+
    virtual XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *, int Options = 0);
 
    //---------------------------------------------------------------------
    //! Number of cache-io objects atteched through this cache.
    //---------------------------------------------------------------------
    virtual int isAttached();
+
+   //---------------------------------------------------------------------
+   // Virtual function of XrdOucCache2. Used to pass environmental info.
+   virtual void EnvInfo(XrdOucEnv &theEnv);
 
    //---------------------------------------------------------------------
    // Virtual function of XrdOucCache2. Used for deferred open.
@@ -215,6 +221,8 @@ private:
    bool xtrace(XrdOucStream &);
 
    static Cache     *m_factory;         //!< this object
+   static 
+   XrdScheduler     *schedP;
 
    XrdSysError       m_log;             //!< XrdFileCache namespace logger
    XrdOucTrace      *m_trace;
@@ -233,6 +241,7 @@ private:
 
    XrdSysMutex m_RAMblock_mutex;            //!< central lock for this class
    int         m_RAMblocks_used;
+   bool        isClient;                    //!< True if running as client
 
    struct WriteQ
    {

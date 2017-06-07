@@ -181,6 +181,7 @@ virtual    ~XrdOucCacheIO2() {}  // Always use Detach() instead of direct delete
 /*                    C l a s s   X r d O u c C a c h e 2                     */
 /******************************************************************************/
 
+class  XrdOucEnv;
 struct stat;
   
 //------------------------------------------------------------------------------
@@ -209,6 +210,9 @@ public:
 //! @return Pointer to a new XrdOucCacheIO2 object (success) or the original
 //!         XrdOucCacheIO2 object (failure) with errno set.
 //------------------------------------------------------------------------------
+
+using XrdOucCache::Attach;
+
 virtual
 XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *ioP, int opts=0) = 0;
 
@@ -228,6 +232,18 @@ XrdOucCache   *Create(Parms &Params, XrdOucCacheIO::aprParms *aprP=0)
                      {return this;}
 
 //------------------------------------------------------------------------------
+//! Supply environmental information to the cache for optimization. This is
+//! only called server-side but is optional and might not be called. The
+//! environmental information should only be used for optimizations. When
+//! called, it is gauranteed to occur before any active use of the cache and
+//! is essentially serialized (i.e. the main start-up thread is used).
+//!
+//! @param  theEnv - Reference to environmental information.
+//------------------------------------------------------------------------------
+virtual
+void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
+
+//------------------------------------------------------------------------------
 //! Preapare the cache for a file open request. This method is called prior to
 //! actually opening a file. This method is meant to allow defering an open
 //! request or implementing the full I/O stack in the cache layer.
@@ -237,6 +253,9 @@ XrdOucCache   *Create(Parms &Params, XrdOucCacheIO::aprParms *aprP=0)
 //! @param  mode   - Standard mode flags if file is being created.
 //!
 //! @return <0 Error has occurred, return value is -errno; fail open request.
+//!            The error code -EUSERS may be returned to trigger overload
+//!            recovery as specified by the xrootd.fsoverload directive. No
+//!            other method should return this error code.
 //!         =0 Continue with open() request.
 //!         >0 Defer open but treat the file as actually being open. Use the
 //!            XrdOucCacheIO2::Open() method to open the file at a later time.

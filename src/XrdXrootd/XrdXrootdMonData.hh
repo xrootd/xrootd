@@ -132,6 +132,7 @@ const kXR_char XROOTD_MON_TRUNC         = 0x0e;
 const kXR_char XROOTD_MON_FORCED        = 0x01;
 const kXR_char XROOTD_MON_BOUNDP        = 0x02;
 
+const int      XROOTD_MON_REDMASK       = 0x00000ff;
 const int      XROOTD_MON_SRCMASK       = 0x000000f;
 const int      XROOTD_MON_TRGMASK       = 0x7fffff0;
 const int      XROOTD_MON_NEWSTID       = 0x8000000;

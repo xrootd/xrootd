@@ -30,7 +30,7 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_FILECACHE}
-  XrdPosix
+# XrdPosix
   XrdCl
   XrdUtils
   XrdServer

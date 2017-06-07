@@ -47,6 +47,8 @@
 /******************************************************************************/
   
 extern XrdPosixLinkage Xunix;
+
+namespace {bool isLite = (getenv("XRD_POSIX_PRELOAD_LITE") != 0);}
   
 /******************************************************************************/
 /*                                a c c e s s                                 */
@@ -88,7 +90,7 @@ int     chdir(const char *path)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Chdir(path) : XrdPosix_Chdir(path));
+   return (isLite ? Xunix.Chdir(path) : XrdPosix_Chdir(path));
 }
 }
 
@@ -116,7 +118,7 @@ int     closedir(DIR *dirp)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Closedir(dirp) : XrdPosix_Closedir(dirp));
+   return (isLite ? Xunix.Closedir(dirp) : XrdPosix_Closedir(dirp));
 }
 }
 
@@ -453,7 +455,7 @@ int     mkdir(const char *path, mode_t mode)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Mkdir(path, mode) : XrdPosix_Mkdir(path, mode));
+   return (isLite ? Xunix.Mkdir(path, mode) : XrdPosix_Mkdir(path, mode));
 }
 }
 
@@ -486,7 +488,7 @@ DIR*    opendir(const char *path)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Opendir(path) : XrdPosix_Opendir(path));
+   return (isLite ? Xunix.Opendir(path) : XrdPosix_Opendir(path));
 }
 }
   
@@ -572,7 +574,7 @@ struct dirent64* readdir64(DIR *dirp)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Readdir64(dirp) : XrdPosix_Readdir64(dirp));
+   return (isLite ? Xunix.Readdir64(dirp) : XrdPosix_Readdir64(dirp));
 }
 }
 
@@ -586,7 +588,7 @@ int     readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Readdir64_r(dirp, entry, result) :
+   return (isLite ? Xunix.Readdir64_r(dirp, entry, result) :
                                              XrdPosix_Readdir64_r(dirp, entry, result));
 }
 }
@@ -601,7 +603,7 @@ int     rename(const char *oldpath, const char *newpath)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Rename(oldpath, newpath) : XrdPosix_Rename(oldpath, newpath));
+   return (isLite ? Xunix.Rename(oldpath, newpath) : XrdPosix_Rename(oldpath, newpath));
 }
 }
 
@@ -616,7 +618,7 @@ void    rewinddir(DIR *dirp)
 {
    static int Init = Xunix.Init(&Init);
 
-   (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Rewinddir(dirp) : XrdPosix_Rewinddir(dirp));
+   (isLite ? Xunix.Rewinddir(dirp) : XrdPosix_Rewinddir(dirp));
 }
 }
 #endif
@@ -631,7 +633,7 @@ int     rmdir(const char *path)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Rmdir(path) : XrdPosix_Rmdir(path));
+   return (isLite ? Xunix.Rmdir(path) : XrdPosix_Rmdir(path));
 }
 }
 
@@ -645,7 +647,7 @@ void    seekdir(DIR *dirp, long loc)
 {
    static int Init = Xunix.Init(&Init);
 
-   (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Seekdir(dirp, loc) : XrdPosix_Seekdir(dirp, loc));
+   (isLite ? Xunix.Seekdir(dirp, loc) : XrdPosix_Seekdir(dirp, loc));
 }
 }
 
@@ -707,7 +709,7 @@ long    telldir(DIR *dirp)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Telldir(dirp) : XrdPosix_Telldir(dirp));
+   return (isLite ? Xunix.Telldir(dirp) : XrdPosix_Telldir(dirp));
 }
 }
   
@@ -735,7 +737,7 @@ int     unlink(const char *path)
 {
    static int Init = Xunix.Init(&Init);
 
-   return (getenv("XRD_POSIX_PRELOAD_LITE")? Xunix.Unlink(path) : XrdPosix_Unlink(path));
+   return (isLite ? Xunix.Unlink(path) : XrdPosix_Unlink(path));
 }
 }
 

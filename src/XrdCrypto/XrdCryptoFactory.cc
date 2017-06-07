@@ -39,7 +39,6 @@
 #include "XrdCrypto/XrdCryptoAux.hh"
 #include "XrdCrypto/XrdCryptoTrace.hh"
 #include "XrdCrypto/XrdCryptoFactory.hh"
-#include "XrdCrypto/XrdCryptolocalFactory.hh"
 
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
@@ -50,9 +49,6 @@
 //
 // For error logging
 static XrdSysError eDest(0,"cryptofactory_");
-
-// We have always an instance of the simple RSA implementation
-static XrdCryptolocalFactory localCryptoFactory;
 
 //____________________________________________________________________________
 XrdCryptoFactory::XrdCryptoFactory(const char *n, int id)
@@ -407,13 +403,6 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    if (!factoryid || !strlen(factoryid)) {
       PRINT("crypto factory ID ("<<factoryid<<") undefined");
       return 0;
-   }
-
-   //
-   // If the local simple implementation is required return the related pointer
-   if (!strcmp(factoryid,"local")) {
-      PRINT("local crypto factory requested");
-      return &localCryptoFactory;
    }
 
    // 

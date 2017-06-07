@@ -48,8 +48,8 @@ namespace
 {
 const char   *rproto = "root://";
 const char   *xproto = "xroot://";
-const int     rprlen = strlen(rproto);
-const int     xprlen = strlen(xproto);
+const int     rprlen = 7; // Must be a constant initializer to avoid static
+const int     xprlen = 8; // initialization dependencies!
 }
 
 namespace XrdPosixGlobals

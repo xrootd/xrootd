@@ -30,6 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "Xrd/XrdJob.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdSys/XrdSysPthread.hh"
 

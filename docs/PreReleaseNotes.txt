@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[POSIX]** Implement serverless file caching (disk or memory).
+  * **[Server]** Add xrootd.fsoverload directive to handle filesystem overloads.
   * **[Server]** Allow port to be specified for a supervisor.
   * **{Server]** Add org and role types to AuthDB authorization.
   * **[Server]** Handle systemd socket inheritance.
@@ -15,6 +17,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  * **[Server]** Correct debug message interval for free space report.
 
 + **Miscellaneous**
   * **[Proxy Server]** Simplify delayed destruction on wait vs post.

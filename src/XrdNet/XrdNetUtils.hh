@@ -278,7 +278,7 @@ static NetProt      NetConfig(NetType netquery=qryINET, const char **eText=0);
 //!                  point to either ']', ':', or a null byte.
 //! @param  hPort    place where the starting address of the port is placed.
 //!                  If no ":port" was found, this will contain *hNend.
-//! @param  hNend    place where the ending   address+1 is placed. If no port
+//! @param  hPend    place where the ending   address+1 is placed. If no port
 //!                  If no ":port" was found, this will contain *hNend.
 //!
 //! @return Success: True.

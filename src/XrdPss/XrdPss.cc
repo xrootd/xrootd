@@ -50,6 +50,7 @@
 #include "XrdFfs/XrdFfsPosix.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdPss/XrdPss.hh"
+#include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
 #include "XrdOss/XrdOssError.hh"
@@ -127,10 +128,9 @@ XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdPssSys::XrdPssSys() : LocalRoot(0), N2NLib(0), N2NParms(0), theN2N(0),
-                         DirFlags(0), cPath(0), cParm(0),
-                         myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem)),
-                         TraceLvl(0) {}
+XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
+                         myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem))
+                         {}
 
 /******************************************************************************/
 /*                                  i n i t                                   */
@@ -220,11 +220,13 @@ int XrdPssSys::Create(const char *tident, const char *path, mode_t Mode,
   
 void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
 {
-// We only need to extract the scheduler pointer from the environment
+// We only need to extract the scheduler pointer from the environment. Propogate
+// the information to the POSIX layer.
 //
-   if (envP) schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
-
-   XrdPosixXrootd::setSched(schedP);
+   if (envP)
+      {schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
+       XrdPosixConfig::EnvInfo(*envP);
+      }
 }
   
 /******************************************************************************/

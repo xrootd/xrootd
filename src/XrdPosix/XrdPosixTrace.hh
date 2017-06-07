@@ -36,13 +36,12 @@
 
 #include "XrdSys/XrdSysTrace.hh"
 
-#define DMSG(x,y) XrdPosixGlobals::Trace.Beg(0, x) <<y; \
-                  XrdPosixGlobals::Trace.End()
+#define DMSG(x,y) {XrdPosixGlobals::Trace.Beg(0, x) <<y; \
+                   XrdPosixGlobals::Trace.End();}
 
 #define DEBUGON (XrdPosixGlobals::Trace.What & TRACE_Debug)
 
-#define DEBUG(y) if (XrdPosixGlobals::Trace.What & TRACE_Debug) \
-                    {DMSG(epname,y);}
+#define DEBUG(y) if (XrdPosixGlobals::Trace.What & TRACE_Debug) DMSG(epname,y)
 
 #define EPNAME(x) static const char *epname = x
 

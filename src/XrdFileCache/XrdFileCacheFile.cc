@@ -33,7 +33,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdFileCache.hh"
-#include "Xrd/XrdScheduler.hh"
 
 
 using namespace XrdFileCache;

@@ -67,7 +67,7 @@ namespace PyXRootD
   {
     delete self->process;
     delete self->results;
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
@@ -97,8 +97,7 @@ namespace PyXRootD
   //! CopyProcess binding type object
   //----------------------------------------------------------------------------
   static PyTypeObject CopyProcessType = {
-    PyObject_HEAD_INIT(NULL)
-    0,                                          /* ob_size */
+    PyVarObject_HEAD_INIT(NULL, 0)
     "pyxrootd.CopyProcess",                     /* tp_name */
     sizeof(CopyProcess),                        /* tp_basicsize */
     0,                                          /* tp_itemsize */

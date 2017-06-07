@@ -40,6 +40,8 @@ using namespace XrdFileCache;
 
 Cache * Cache::m_factory = NULL;
 
+XrdScheduler *Cache::schedP = NULL;
+
 
 void *CacheDirCleanupThread(void* cache_void)
 {
@@ -59,12 +61,6 @@ void *PrefetchThread(void* ptr)
    Cache* cache = static_cast<Cache*>(ptr);
    cache->Prefetch();
    return NULL;
-}
-
-
-namespace XrdPosixGlobals
-{
-extern XrdScheduler *schedP;
 }
 
 extern "C"
@@ -329,12 +325,26 @@ void Cache::ReleaseFile(File* f)
 }
 
 //______________________________________________________________________________
+  
+namespace
+{
+void *callDoIt(void *pp)
+{
+     XrdJob *jP = (XrdJob *)pp;
+     jP->DoIt();
+     return (void *)0;
+}
+};
 
 void Cache::schedule_file_sync(File* f, bool ref_cnt_already_set)
 {
    DiskSyncer* ds = new DiskSyncer(f);
    if ( ! ref_cnt_already_set) inc_ref_cnt(f, true);
-   XrdPosixGlobals::schedP->Schedule(ds);
+   if (isClient) ds->DoIt();
+      else if (schedP) schedP->Schedule(ds);
+              else {pthread_t tid;
+                    XrdSysThread::Run(&tid, callDoIt, ds, 0, "DiskSyncer");
+                   }
 }
 
 //______________________________________________________________________________
