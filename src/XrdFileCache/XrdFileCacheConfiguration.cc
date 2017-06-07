@@ -110,7 +110,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
 
 // Indicate whether or not we are a client instance
 //
-   isClient = (strncmp("*client ", theINS, 8) != 0);
+   m_isClient = (strncmp("*client ", theINS, 8) != 0);
 
    XrdOucEnv myEnv;
    XrdOucStream Config(&m_log, theINS, &myEnv, "=====> ");
@@ -146,6 +146,11 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       TRACE(Error, "Cache::Config() Unable to create an OSS object");
       m_output_fs = 0;
       return false;
+   }
+
+   // minimize buffersize in case of client caching
+   if ( m_isClient) {
+      m_configuration.m_bufferSize = 256 * 1024 * 124;
    }
 
 
@@ -241,12 +246,13 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    // get number of available RAM blocks after process configuration
    if (m_configuration.m_RamAbsAvailable == 0)
    {
-      TRACE(Error, "RAM usage not specified. pfc.ram is a required configuration directive since release 4.6.\n"
-                   "  As a temporary measure default of 8 GB is being used. This will be discontinued in release 5.");
-      m_configuration.m_RamAbsAvailable = 8ll * 1024 * 1024 * 1024;
-      // return false;
+      m_configuration.m_RamAbsAvailable = m_isClient ? 256ll * 1024 * 1024 : 1024 * 1024 * 1024;
+      char buff2[1024];
+      snprintf(buff2, sizeof(buff2), "RAM usage is not specified. Default value %s is used.", m_isClient ? "256m" : "8g");
+      TRACE(Warning, buff2);
    }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
+   
 
    // Set tracing to debug if this is set in environment
    char* cenv = getenv("XRDDEBUG");
@@ -263,7 +269,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                       "       pfc.ram %.fg\n"
                       "       pfc.diskusage %lld %lld sleep %d\n"
                       "       pfc.spaces %s %s\n"
-                      "       pfc.trace %d\n"
+                      "       pfc.trace ooo %d\n"
                       "       pfc.flush %lld",
                       config_filename,
                       m_configuration.m_bufferSize,
@@ -382,7 +388,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
    else if ( part == "ram" )
    {
-      long long minRAM = 1024 * 1024 * 1024;
+      long long minRAM = m_isClient ? 256 * 1024 * 1024 : 1024 * 1024 * 1024;
       long long maxRAM = 256 * minRAM;
       if ( XrdOuca2x::a2sz(m_log, "get RAM available", config.GetWord(), &m_configuration.m_RamAbsAvailable, minRAM, maxRAM))
       {

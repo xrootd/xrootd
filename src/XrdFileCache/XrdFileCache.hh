@@ -241,7 +241,7 @@ private:
 
    XrdSysMutex m_RAMblock_mutex;            //!< central lock for this class
    int         m_RAMblocks_used;
-   bool        isClient;                    //!< True if running as client
+   bool        m_isClient;                  //!< True if running as client
 
    struct WriteQ
    {
