@@ -147,7 +147,8 @@ Cache::Cache() : XrdOucCache(),
    m_trace(0),
    m_traceID("Manager"),
    m_prefetch_condVar(0),
-   m_RAMblocks_used(0)
+   m_RAMblocks_used(0),
+   m_isClient(false)
 {
    m_trace = new XrdOucTrace(&m_log);
    // default log level is Warning
@@ -167,7 +168,7 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
       else
          cio = new IOEntireFile(io, m_stats, *this);
 
-      TRACE_PC(Info, const char* loc = io->Location(),
+      TRACE_PC(Debug, const char* loc = io->Location(),
                "Cache::Attach() " << io->Path() << " location: " <<
                ((loc && loc[0] != 0) ? loc : "<deferred open>"));
       return cio;
@@ -340,7 +341,7 @@ void Cache::schedule_file_sync(File* f, bool ref_cnt_already_set)
 {
    DiskSyncer* ds = new DiskSyncer(f);
    if ( ! ref_cnt_already_set) inc_ref_cnt(f, true);
-   if (isClient) ds->DoIt();
+   if (m_isClient) ds->DoIt();
       else if (schedP) schedP->Schedule(ds);
               else {pthread_t tid;
                     XrdSysThread::Run(&tid, callDoIt, ds, 0, "DiskSyncer");

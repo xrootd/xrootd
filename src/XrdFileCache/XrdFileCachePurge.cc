@@ -97,7 +97,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                {
                   // cinfo file does not contain any known accesses, use stat.mtime instead.
 
-                  TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np << ", trying stat");
+                  TRACE(Debug, "FillFileMapRecurse() could not get access time for " << np << ", trying stat");
 
                   XrdOss* oss = Cache::GetInstance().GetOss();
                   struct stat fstat;
