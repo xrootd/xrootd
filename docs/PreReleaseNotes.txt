@@ -15,6 +15,7 @@ Prerelease Notes
   * **[Posix]** enable LITE feature in Posix preload library.
 
 + **Major bug fixes**
+  * **[Client]** Avoid deadlock between FSH deletion and Tick() timeout.
 
 + **Minor bug fixes**
   * **[Server]** Correct debug message interval for free space report.
