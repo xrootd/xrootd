@@ -16,6 +16,7 @@ Prerelease Notes
 
 + **Major bug fixes**
   * **[Client]** Avoid deadlock between FSH deletion and Tick() timeout.
+  * **[Client]** [Client] Avoid deadlock in certain error recovery situations.
 
 + **Minor bug fixes**
   * **[Server]** Correct debug message interval for free space report.
