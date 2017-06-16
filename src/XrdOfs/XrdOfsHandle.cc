@@ -391,20 +391,17 @@ int XrdOfsHandle::Retire(int &retc, long long *retsz, char *buff, int blen)
       {if (buff) strlcpy(buff, Path.Val, blen);
        numLeft = 0; OfsStats.Dec(OfsStats.Data.numHandles);
        if ( (isRW ? rwTable.Remove(this) : roTable.Remove(this)) )
-         {Next = Free; Free = this;
-          if (Posc) {Posc->Recycle(); Posc = 0;}
+         {if (Posc) {Posc->Recycle(); Posc = 0;}
           if (Path.Val) {free((void *)Path.Val); Path.Val = (char *)"";}
-          Path.Len = 0;
-          if ((mySSI = ssi) && ssi != ossDF)
-             {ssi = ossDF; myMutex.UnLock();
-              retc = mySSI->Close(retsz); delete mySSI;
-             } else myMutex.UnLock();
+          Path.Len = 0; mySSI = ssi; ssi = ossDF;
+          Next = Free; Free = this; UnLock(); myMutex.UnLock();
+          if (mySSI && mySSI != ossDF)
+             {retc = mySSI->Close(retsz); delete mySSI;}
          } else {
-          myMutex.UnLock();
-          OfsEroute.Emsg("Retire", "Lost handle to", Path.Val);
+          UnLock(); myMutex.UnLock();
+          OfsEroute.Emsg("Retire", "Lost handle to", buff);
         }
-      } else {numLeft = --Path.Links; myMutex.UnLock();}
-   UnLock();
+      } else {numLeft = --Path.Links; UnLock(); myMutex.UnLock();}
    return numLeft;
 }
 
