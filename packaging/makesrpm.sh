@@ -6,6 +6,7 @@
 
 RCEXP='^[0-9]+\.[0-9]+\.[0-9]+\-rc.*$'
 CERNEXP='^[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.CERN.*$'
+PREEXP='^[0-9]+\.[0-9]+\.[0-9]+-pre.*$'
 
 #-------------------------------------------------------------------------------
 # Find a program
@@ -138,6 +139,17 @@ fi
 #-------------------------------------------------------------------------------
 if test x`echo $VERSION | egrep $CERNEXP` != x; then
   RELEASE=`echo $VERSION | sed 's/.*-//'` 
+  VERSION=`echo $VERSION | sed 's/-.*\.CERN//'`
+fi
+
+#-------------------------------------------------------------------------------
+# Deal with pre-releases
+#-------------------------------------------------------------------------------
+if test x`echo $VERSION | egrep $PREEXP` != x; then
+  DESCRIBE=`git describe --tags`
+  DESCRIBE=${DESCRIBE//-/ }
+  DESCRIBE=($DESCRIBE)
+  RELEASE="0.${DESCRIBE[-2]}.git.${DESCRIBE[-1]}"
   VERSION=`echo $VERSION | sed 's/-.*\.CERN//'`
 fi
 

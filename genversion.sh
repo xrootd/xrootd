@@ -4,7 +4,7 @@
 # Process the git decoration expansion and try to derive version number
 #-------------------------------------------------------------------------------
 EXP1='^v[12][0-9][0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9]$'
-EXP2='^v[0-9]+\.[0-9]+\.[0-9]+$'
+EXP2='^v[0-9]+\.[0-9]+\.[0-9]+(-pre)?$'
 EXP3='^v[0-9]+\.[0-9]+\.[0-9]+\-rc.*$'
 
 #-------------------------------------------------------------------------------
@@ -19,8 +19,24 @@ function getNumericVersion()
   fi
   VERSION=${VERSION/v/}
   VERSION=${VERSION//./ }
+  VERSION=${VERSION//-/ }
   VERSION=($VERSION)
   printf "%d%02d%02d\n" ${VERSION[0]} ${VERSION[1]} ${VERSION[2]}
+}
+
+#-------------------------------------------------------------------------------
+# Extract pre-release version number from git references
+#-------------------------------------------------------------------------------
+function getPrereleaseVersion()
+{
+  VERSION=`git describe --abbrev=0`
+  VERSION=${VERSION/v/}
+  VERSION=${VERSION//./ }
+  VERSION=${VERSION//-/ }
+  VERSION=($VERSION)
+
+  echo "v${VERSION[0]}.${VERSION[1]}.$((${VERSION[2]}+1))-pre"
+  return 0
 }
 
 #-------------------------------------------------------------------------------
@@ -171,10 +187,7 @@ else
       if test ${?} -eq 0; then
         VERSION="`git describe --tags --abbrev=0 --exact-match`"
       else
-        LOGINFO="`git log -1 --format='%ai %h'`"
-	if test ${?} -eq 0; then
-          VERSION="`getVersionFromLog $LOGINFO`"
-        fi
+        VERSION="`getPrereleaseVersion`"
       fi
     fi
     cd $CURRENTDIR
