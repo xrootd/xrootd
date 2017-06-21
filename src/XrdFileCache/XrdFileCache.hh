@@ -31,7 +31,7 @@
 
 class XrdOucStream;
 class XrdSysError;
-class XrdOucTrace;
+class XrdSysTrace;
 
 namespace XrdCl {
 class Log;
@@ -197,10 +197,7 @@ public:
 
    void Prefetch();
 
-
    XrdOss* GetOss() const { return m_output_fs; }
-
-   XrdSysError& GetSysError() { return m_log; }
 
    bool HaveActiveFileWithLocalPath(std::string);
    
@@ -212,7 +209,7 @@ public:
 
    void FileSyncDone(File*);
    
-   XrdOucTrace* GetTrace() { return m_trace; }
+   XrdSysTrace* GetTrace() { return m_trace; }
 
 private:
    bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
@@ -225,7 +222,7 @@ private:
    XrdScheduler     *schedP;
 
    XrdSysError       m_log;             //!< XrdFileCache namespace logger
-   XrdOucTrace      *m_trace;
+   XrdSysTrace      *m_trace;
    const char       *m_traceID;
 
    XrdOucCacheStats  m_stats;           //!<

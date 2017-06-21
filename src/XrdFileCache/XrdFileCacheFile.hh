@@ -187,9 +187,9 @@ public:
    //! Log path
    const char* lPath() const;
 
-   std::string     GetLocalPath() { return m_filename; }
+   std::string& GetLocalPath() { return m_filename; }
 
-   XrdOucTrace*  GetTrace();
+   XrdSysTrace*  GetTrace();
 
    long long GetFileSize() { return m_fileSize; }
 

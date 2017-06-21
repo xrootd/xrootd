@@ -23,7 +23,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucArgs.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdFileCacheInfo.hh"
@@ -64,9 +64,7 @@ void Print::printFile(const std::string& path)
    XrdOssDF* fh = m_oss->newFile(m_ossUser);
    fh->Open((path).c_str(),O_RDONLY, 0600, m_env);
 
-   XrdSysLogger log;
-   XrdSysError err(&log);
-   XrdOucTrace tr(&err); tr.What = 2;
+   XrdSysTrace tr(""); tr.What = 2;
    Info cfi(&tr);
 
    if ( ! cfi.Read(fh, path))

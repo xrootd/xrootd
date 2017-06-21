@@ -5,7 +5,7 @@ using namespace XrdFileCache;
 
 #include <fcntl.h>
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 namespace
 {
@@ -49,7 +49,7 @@ private:
    long long nByteAccum;
 };
 
-XrdOucTrace* GetTrace()
+XrdSysTrace* GetTrace()
 {
    // needed for logging macros
    return Cache::GetInstance().GetTrace();

@@ -28,7 +28,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 #include "XrdFileCache.hh"
 #include "XrdFileCacheTrace.hh"
@@ -150,7 +150,7 @@ Cache::Cache() : XrdOucCache(),
    m_RAMblocks_used(0),
    m_isClient(false)
 {
-   m_trace = new XrdOucTrace(&m_log);
+   m_trace = new XrdSysTrace("XrdFileCache");
    // default log level is Warning
    m_trace->What = 2;
 }
