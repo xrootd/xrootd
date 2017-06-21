@@ -60,6 +60,7 @@ XrdSysTrace& operator<<(bool        val);
 
 XrdSysTrace& operator<<(      char  val);
 XrdSysTrace& operator<<(const char *val);
+   XrdSysTrace& operator<<(const std::string& val);
 
 XrdSysTrace& operator<<(short       val);
 XrdSysTrace& operator<<(int         val);
