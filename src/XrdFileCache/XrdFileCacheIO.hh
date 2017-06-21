@@ -1,7 +1,7 @@
 #ifndef __XRDFILECACHE_CACHE_IO_HH__
 #define __XRDFILECACHE_CACHE_IO_HH__
 
-class XrdOucTrace;
+class XrdSysTrace;
 
 #include "XrdFileCache.hh"
 #include "XrdOuc/XrdOucCache2.hh"
@@ -41,7 +41,7 @@ public:
 
    virtual void RelinquishFile(File*) = 0;
 
-   XrdOucTrace* GetTrace() { return m_cache.GetTrace(); }
+   XrdSysTrace* GetTrace() { return m_cache.GetTrace(); }
 
    XrdOucCacheIO2* GetInput();
 

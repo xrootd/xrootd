@@ -26,7 +26,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdOuc/XrdOucSxeq.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdFileCacheInfo.hh"
@@ -40,14 +40,14 @@ struct FpHelper
 {
    XrdOssDF    *f_fp;
    off_t f_off;
-   XrdOucTrace *f_trace;
+   XrdSysTrace *f_trace;
    const char  *m_traceID;
    std::string f_ttext;
 
-   XrdOucTrace* GetTrace() const { return f_trace; }
+   XrdSysTrace* GetTrace() const { return f_trace; }
 
    FpHelper(XrdOssDF* fp, off_t off,
-            XrdOucTrace *trace, const char *tid, const std::string &ttext) :
+            XrdSysTrace *trace, const char *tid, const std::string &ttext) :
       f_fp(fp), f_off(off),
       f_trace(trace), m_traceID(tid), f_ttext(ttext)
    {}
@@ -104,7 +104,7 @@ const size_t Info::m_maxNumAccess   = 20;
 
 //------------------------------------------------------------------------------
 
-Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
+Info::Info(XrdSysTrace* trace, bool prefetchBuffer) :
    m_trace(trace),
    m_hasPrefetchBuffer(prefetchBuffer),
    m_buff_written(0),  m_buff_prefetch(0),

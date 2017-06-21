@@ -939,7 +939,7 @@ float File::GetPrefetchScore() const
    return m_prefetchScore;
 }
 
-XrdOucTrace* File::GetTrace()
+XrdSysTrace* File::GetTrace()
 {
    return Cache::GetInstance().GetTrace();
 }
