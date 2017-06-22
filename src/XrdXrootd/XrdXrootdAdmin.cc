@@ -184,8 +184,8 @@ int XrdXrootdAdmin::do_Abort()
 
 // Send off the unsolicited response
 //
-   if (msg){return sendResp("abort", kXR_asyncab, msg, mlen);}
-            return sendResp("abort", kXR_asyncab);
+   if (msg) return sendResp("abort", kXR_asyncab, msg, mlen);
+      else  return sendResp("abort", kXR_asyncab);
 }
 
 /******************************************************************************/
@@ -512,8 +512,8 @@ int XrdXrootdAdmin::do_Msg()
    msg = getMsg(msg, mlen);
 // Send off the unsolicited response
 //
-   if (msg){return sendResp("msg", kXR_asyncms, msg, mlen);}
-            return sendResp("msg", kXR_asyncms);
+   if (msg) return sendResp("msg", kXR_asyncms, msg, mlen);
+      else  return sendResp("msg", kXR_asyncms);
 }
  
 /******************************************************************************/

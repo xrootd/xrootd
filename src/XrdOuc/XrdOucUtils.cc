@@ -136,7 +136,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
    while(!strcmp(val, "defined"))
       {if (!(val = Config.GetWord()) || *val != '?')
           {if (eDest)
-              eDest->Emsg("Config","'?var' missing after 'defined' in",what);
+             {eDest->Emsg("Config","'?var' missing after 'defined' in",what);}
            return -1;
           }
        // Get environment if we have none
@@ -154,18 +154,18 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
        if (!val || !isDef) return isDef;
        if (strcmp(val, "&&"))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid for defined test in",what);
+             {eDest->Emsg("Config",val,"is invalid for defined test in",what);}
            return -1;
           } else {
            if (!(val = Config.GetWord()))
               {if (eDest)
-                   eDest->Emsg("Config","missing keyword after '&&' in",what);
+                  {eDest->Emsg("Config","missing keyword after '&&' in",what);}
                return -1;
               }
           }
        if (!is1of(val, brk))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
+             {eDest->Emsg("Config",val,"is invalid after '&&' in",what);}
            return -1;
           }
       }
@@ -176,7 +176,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
    if (!strcmp(val, "exec"))
       {if (!(val = Config.GetWord()) || !strcmp(val, "&&"))
           {if (eDest)
-              eDest->Emsg("Config","Program name missing after 'if exec' in",what);
+             {eDest->Emsg("Config","Program name missing after 'if exec' in",what);}
            return -1;
           }
 
@@ -192,12 +192,12 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 
        if (!(val = Config.GetWord()))
           {if (eDest)
-              eDest->Emsg("Config","Keyword missing after '&&' in",what);
+             {eDest->Emsg("Config","Keyword missing after '&&' in",what);}
            return -1;
           }
        if (strcmp(val, "named"))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
+             {eDest->Emsg("Config",val,"is invalid after '&&' in",what);}
            return -1;
           }
       }
@@ -207,7 +207,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 //
    if (!(val = Config.GetWord()))
       {if (eDest)
-          eDest->Emsg("Config","Instance name missing after 'if named' in", what);
+         {eDest->Emsg("Config","Instance name missing after 'if named' in", what);}
        return -1;
       }
 

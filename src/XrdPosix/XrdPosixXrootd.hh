@@ -329,10 +329,10 @@ static int     Unlink(const char *path);
 //!         is returned and errno is appropriately set.
 //-----------------------------------------------------------------------------
 
-static ssize_t VRead(int fildes, const XrdOucIOVec *readV, int n);
-
 static void    VRead(int fildes, const XrdOucIOVec *readV, int n,
                      XrdPosixCallBackIO *cbp); // Async extension!
+
+static ssize_t VRead(int fildes, const XrdOucIOVec *readV, int n);
 
 //-----------------------------------------------------------------------------
 //! Write() conforms to POSIX.1-2001 write()
