@@ -7,9 +7,6 @@ include( XRootDCommon )
 set( XRD_SEC_GSI_VERSION            2.0.0 )
 set( XRD_SEC_GSI_SOVERSION          0 )
 
-set( XRD_SEC_GSI_GMAPLDAP_VERSION   1.0.0 )
-set( XRD_SEC_GSI_GMAPLDAP_SOVERSION 0 )
-
 set( XRD_SEC_GSI_GMAPDN_VERSION     1.0.0 )
 set( XRD_SEC_GSI_GMAPDN_SOVERSION   0 )
 
@@ -37,26 +34,6 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_GSI_VERSION}
   SOVERSION ${XRD_SEC_GSI_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
-
-#-------------------------------------------------------------------------------
-# The XrdSecgsiGMAPLDAP library
-#-------------------------------------------------------------------------------
-add_library(
-  XrdSecgsiGMAPLDAP
-  SHARED
-  XrdSecgsi/XrdSecgsiGMAPFunLDAP.cc )
-
-#target_link_libraries(
-#  XrdSecgsiGMAPLDAP
-#  XrdSecgsi )
-
-set_target_properties(
-  XrdSecgsiGMAPLDAP
-  PROPERTIES
-  VERSION   ${XRD_SEC_GSI_GMAPLDAP_VERSION}
-  SOVERSION ${XRD_SEC_GSI_GMAPLDAP_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
@@ -118,7 +95,7 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdSecgsi XrdSecgsiGMAPDN XrdSecgsiGMAPLDAP xrdgsiproxy
+  TARGETS XrdSecgsi XrdSecgsiGMAPDN xrdgsiproxy
           XrdSecgsiAuthzVO
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
