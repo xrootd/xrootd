@@ -198,7 +198,7 @@ fi
 #-------------------------------------------------------------------------------
 # Make sure the version string is not longer than 25 characters
 #-------------------------------------------------------------------------------
-if test ${#VERSION} -gt 25 and x$USER_VERSION = x; then
+if [ ${#VERSION} -gt 25 ] && [ x$USER_VERSION == x ] ; then
   VERSION="${VERSION:0:19}...${VERSION: -3}"
 fi
 
