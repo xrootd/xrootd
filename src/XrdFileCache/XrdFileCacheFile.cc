@@ -167,15 +167,16 @@ bool File::FinalizeSyncBeforeExit()
    // This method is called after corresponding IO is detached from PosixCache.
 
    XrdSysCondVarHelper _lck(m_downloadCond);
-
-   if ( ! m_writes_during_sync.empty() || m_non_flushed_cnt > 0 || ! m_detachTimeIsLogged)
+   if ( m_is_open )
    {
-      m_cfi.WriteIOStatDetach(m_stats);
-      m_detachTimeIsLogged = true;
-      TRACEF(Debug, "File::FinalizeSyncBeforeExit scheduling sync to write detach stats");
-      return true;
+     if ( ! m_writes_during_sync.empty() || m_non_flushed_cnt > 0 || ! m_detachTimeIsLogged)
+     {
+       m_cfi.WriteIOStatDetach(m_stats);
+       m_detachTimeIsLogged = true;
+       TRACEF(Debug, "File::FinalizeSyncBeforeExit scheduling sync to write detach stats");
+       return true;
+     }
    }
-
    TRACEF(Debug, "File::FinalizeSyncBeforeExit sync not required");
    return false;
 }
@@ -234,7 +235,7 @@ bool File::Open()
                                                                 << ", err=" << strerror(errno));
       return false;
    }
-
+   
    m_output = myOss.newFile(myUser);
    if (m_output->Open(m_filename.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
    {
