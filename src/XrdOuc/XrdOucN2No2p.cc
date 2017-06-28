@@ -153,11 +153,9 @@ int XrdOucN2No2p::pfn2lfn(const char* pfn, char* buff, int blen)
 //
    if (pfnLen <= oidMax)
       {unsigned long hVal = XrdOucHashVal2(pfn, pfnLen);
+       unsigned long sVal = ((int)sizeof(unsigned long) > 4 ? 32 : 16);
        char subP[8];
-       if (pfnLen <= (int)sizeof(unsigned long))
-          {if ((int)sizeof(unsigned long) > 4) hVal = hVal ^ (hVal >> 32UL);
-           hVal = hVal ^ (hVal >> 16UL);
-          }
+       if (pfnLen <= (int)sizeof(unsigned long)) hVal = hVal ^ (hVal >> sVal);
        subP[1] = h2c[(hVal & 0x0f)]; hVal >>= 4; subP[0] = h2c[(hVal & 0x0f)];
        subP[2] = '/';  hVal >>= 4;
        subP[4] = h2c[(hVal & 0x0f)]; hVal >>= 4; subP[3] = h2c[(hVal & 0x0f)];
