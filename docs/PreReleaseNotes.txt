@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Proxy]** Make cache I/O synchronization tunable.
   * **[Proxy]** Allow caching of S3-style objects.
   * **[Server]** Allow storing S3-style objects in a file system.
   * **[POSIX]** Implement serverless file caching (disk or memory).
