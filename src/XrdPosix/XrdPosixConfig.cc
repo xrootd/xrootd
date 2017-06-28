@@ -64,6 +64,7 @@ extern XrdOucName2Name           *theN2N;
 extern XrdCl::DirListFlags::Flags dlFlag;
 extern XrdSysLogger              *theLogger;
 extern XrdSysTrace                Trace;
+extern bool                       oidsOK;
 };
   
 /******************************************************************************/
@@ -322,4 +323,13 @@ void XrdPosixConfig::setLogger(XrdSysLogger *logP)
 {
     XrdPosixGlobals::Trace.SetLogger(logP);
     XrdPosixGlobals::theLogger = logP;
+}
+
+/******************************************************************************/
+/*                               s e t O i d s                                */
+/******************************************************************************/
+
+void XrdPosixConfig::setOids(bool isok)
+{
+    XrdPosixGlobals::oidsOK = isok;
 }

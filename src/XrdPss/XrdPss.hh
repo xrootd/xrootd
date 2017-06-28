@@ -191,7 +191,7 @@ virtual ~XrdPssSys() {}
 
 private:
 
-char              *LocalRoot;// -> Local n2n root, if any
+char              *LocalRoot;// -> pss Local n2n root, if any
 XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
 XrdVersionInfo    *myVersion;// -> Compilation version

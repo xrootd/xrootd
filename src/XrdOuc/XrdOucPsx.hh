@@ -62,10 +62,7 @@ bool      ParseSet(XrdSysError *Eroute, XrdOucStream &Config);
 
 bool      ParseTrace(XrdSysError *Eroute, XrdOucStream &Config);
 
-void      SetLocalRoot(const char *lroot)
-                      {if (LocalRoot) free(LocalRoot);
-                       LocalRoot = strdup(lroot);
-                      }
+void      SetRoot(const char *lroot, const char *oroot=0);
 
 XrdOucName2Name   *theN2N;   // -> File mapper object
 XrdOucCache       *theCache;
@@ -85,14 +82,15 @@ bool               xPfn2Lfn;
                      setFirst(0), setLast(0), maxRHCB(0),
                      traceLvl(0), debugLvl(0),
                      useV4(false), xLfn2Pfn(false), xPfn2Lfn(false),
-                     LocalRoot(0), N2NLib(0), N2NParms(0),
+                     LocalRoot(0), RemotRoot(0), N2NLib(0), N2NParms(0),
                      cPath(0), cParm(0), configFN(strdup(cfn)),
                      myVersion(vInfo) {}
          ~XrdOucPsx();
 
 private:
 
-char              *LocalRoot;// -> Local n2n root, if any
+char              *LocalRoot;// -> Local  n2n root, if any
+char              *RemotRoot;// -> Remote n2n root, if any
 char              *N2NLib;   // -> Name2Name Library Path
 char              *N2NParms; // -> Name2Name Object Parameters
 char              *cPath;    // -> Cache path
@@ -103,8 +101,8 @@ XrdVersionInfo    *myVersion;// -> Compilation version
 bool   ConfigCache(XrdSysError &eDest);
 bool   ConfigN2N(XrdSysError &eDest);
 bool   Parse(char*, XrdOucStream&, XrdSysError&);
+char  *ParseCache(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff);
 void   ParseSet(const char *kword, int kval);
-char  *xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff);
 void   WarnConfig(XrdSysError &eDest, XrdOucTList *tList, bool fatal);
 void   WarnPlugin(XrdSysError &eDest, XrdOucTList *tList,
                   const char  *txt1,   const char  *txt2);

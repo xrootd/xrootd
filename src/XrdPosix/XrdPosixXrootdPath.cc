@@ -55,6 +55,7 @@ const int     xprlen = 8; // initialization dependencies!
 namespace XrdPosixGlobals
 {
 extern XrdOucName2Name *theN2N;
+extern bool             oidsOK;
 }
   
 /******************************************************************************/
@@ -148,9 +149,11 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
    else if (!strncmp(xproto, inP, xprlen)) urlP = inP + xprlen;
    else return inP;
 
-// Search for the next slash which must be followed by another slash
+// Search for the next slash which must be followed by another slash unless we
+// are allowing object ids.
 //
-   if (!(slash = index(urlP, '/')) || *(slash+1) != '/') return inP;
+   if (!(slash = index(urlP, '/'))) return inP;
+   if (*(slash+1) != '/' && !XrdPosixGlobals::oidsOK) return inP;
    slash++;
    pfxLen = slash - inP;
 

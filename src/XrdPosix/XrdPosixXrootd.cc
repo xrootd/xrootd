@@ -86,6 +86,7 @@ XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 XrdSysLogger    *theLogger = 0;
 XrdSysTrace      Trace("Posix", 0,
                       (getenv("XRDPOSIX_DEBUG") ? TRACE_Debug : 0));
+bool             oidsOK    = false;
 };
 
 int            XrdPosixXrootd::baseFD    = 0;

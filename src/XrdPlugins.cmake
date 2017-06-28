@@ -5,6 +5,7 @@ include( XRootDCommon )
 # Modules
 #-------------------------------------------------------------------------------
 set( LIB_XRD_BWM        XrdBwm-${PLUGIN_VERSION} )
+set( LIB_XRD_N2NO2P     XrdN2No2p-${PLUGIN_VERSION} )
 set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
 set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
 set( LIB_XRD_ZCRC32     XrdCksCalczcrc32-${PLUGIN_VERSION} )
@@ -60,6 +61,24 @@ target_link_libraries(
 
 set_target_properties(
   ${LIB_XRD_BWM}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# N2No2p plugin library
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_N2NO2P}
+  MODULE
+  XrdOuc/XrdOucN2No2p.cc )
+
+target_link_libraries(
+  ${LIB_XRD_N2NO2P}
+  XrdUtils )
+
+set_target_properties(
+  ${LIB_XRD_N2NO2P}
   PROPERTIES
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )

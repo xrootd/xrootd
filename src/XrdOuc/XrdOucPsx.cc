@@ -81,6 +81,7 @@ XrdOucPsx::~XrdOucPsx()
 
    if (mCache)    free(mCache);
    if (LocalRoot) free(LocalRoot);
+   if (RemotRoot) free(RemotRoot);
    if (N2NLib)    free(N2NLib);
    if (N2NParms)  free(N2NParms);
    if (cPath)     free(cPath);
@@ -209,16 +210,15 @@ bool XrdOucPsx::ConfigCache(XrdSysError &eDest)
 
 bool XrdOucPsx::ConfigN2N(XrdSysError &eDest)
 {  
-   XrdOucN2NLoader n2nLoader(&eDest, configFN, N2NParms, LocalRoot, 0);
+   XrdOucN2NLoader n2nLoader(&eDest, configFN, N2NParms, LocalRoot, RemotRoot);
 
-// Skip all of this we are not doing name mapping
+// Skip all of this we are not doing name mapping.
 //
-  if (!N2NLib && !LocalRoot)
-     {xLfn2Pfn = xPfn2Lfn = false; return true;}
+  if (!N2NLib && !LocalRoot) {xLfn2Pfn = xPfn2Lfn = false; return true;}
 
 // Check if the n2n is applicable
 //
-   if (xPfn2Lfn && !(mCache || cPath))
+   if (xPfn2Lfn && !(mCache || cPath) && N2NLib)
       {const char *txt = (xLfn2Pfn ? "-lfncache option" : "directive");
        eDest.Say("Config warning: ignoring namelib ", txt,
                  "; caching not in effect!");
@@ -227,8 +227,7 @@ bool XrdOucPsx::ConfigN2N(XrdSysError &eDest)
 
 // Get the plugin
 //
-   if (!(theN2N = n2nLoader.Load(N2NLib, *myVersion))) return false;
-   return true;
+   return (theN2N = n2nLoader.Load(N2NLib, *myVersion)) != 0;
 }
 
 /******************************************************************************/
@@ -361,7 +360,7 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(szopts[i].Key, val)) break;
                }
        else if (!strcmp("logstats", val)) lgVal = '1';
        else if (!strcmp("preread", val))
-               {if ((val = xcapr(Eroute, Config, pBuff))) continue;
+               {if ((val = ParseCache(Eroute, Config, pBuff))) continue;
                 if (*pBuff == '?') return false;
                 break;
                }
@@ -407,6 +406,56 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(szopts[i].Key, val)) break;
 
    mCache = strdup(eBuff);
    return true;
+}
+
+/******************************************************************************/
+
+/* Parse the directive: preread [pages [minrd]] [perf pct [calc]]
+
+             pages     minimum number of pages to preread.
+             minrd     minimum size   of read  (can be suffixed with k, m, g).
+             perf      preread performance (0 to 100).
+             calc      calc perf every n bytes (can be suffixed with k, m, g).
+*/
+
+char *XrdOucPsx::ParseCache(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff)
+{
+   long long minr = 0, maxv = 0x7fffffff, recb = 50*1024*1024;
+   int minp = 1, perf = 90, Spec = 0;
+   char *val;
+
+// Check for our options
+//
+   *pBuff = '?';
+   if ((val = Config.GetWord()) && isdigit(*val))
+      {if (XrdOuca2x::a2i(*Eroute,"preread pages",val,&minp,0,32767)) return 0;
+       if ((val = Config.GetWord()) && isdigit(*val))
+          {if (XrdOuca2x::a2sz(*Eroute,"preread rdsz",val,&minr,0,maxv))
+              return 0;
+           val = Config.GetWord();
+          }
+       Spec = 1;
+      }
+   if (val && !strcmp("perf", val))
+      {if (!(val = Config.GetWord()))
+          {Eroute->Emsg("Config","cache", "preread perf value not specified.");
+           return 0;
+          }
+       if (XrdOuca2x::a2i(*Eroute,"perf",val,&perf,0,100)) return 0;
+       if ((val = Config.GetWord()) && isdigit(*val))
+          {if (XrdOuca2x::a2sz(*Eroute,"perf recalc",val,&recb,0,maxv))
+              return 0;
+           val = Config.GetWord();
+          }
+       Spec = 1;
+      }
+
+// Construct new string
+//
+   if (!Spec) strcpy(pBuff,"&optpr=1&aprminp=1");
+      else sprintf(pBuff,  "&optpr=1&aprtrig=%lld&aprminp=%d&aprcalc=%lld"
+                           "&aprperf=%d",minr,minp,recb,perf);
+   return val;
 }
   
 /******************************************************************************/
@@ -669,59 +718,22 @@ bool XrdOucPsx::ParseTrace(XrdSysError *Eroute, XrdOucStream &Config)
 }
 
 /******************************************************************************/
-/* Private:                        x c a p r                                  */
+/*                               S e t R o o t                                */
 /******************************************************************************/
-
-/* Function: xcapr
-
-   Purpose:  To parse the directive: preread [pages [minrd]] [perf pct [calc]]
-
-             pages     minimum number of pages to preread.
-             minrd     minimum size   of read  (can be suffixed with k, m, g).
-             perf      preread performance (0 to 100).
-             calc      calc perf every n bytes (can be suffixed with k, m, g).
-*/
-
-char *XrdOucPsx::xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff)
+  
+void XrdOucPsx::SetRoot(const char *lroot, const char *rroot)
 {
-   long long minr = 0, maxv = 0x7fffffff, recb = 50*1024*1024;
-   int minp = 1, perf = 90, Spec = 0;
-   char *val;
-
-// Check for our options
+// Handle the local root (posix dependent)
 //
-   *pBuff = '?';
-   if ((val = Config.GetWord()) && isdigit(*val))
-      {if (XrdOuca2x::a2i(*Eroute,"preread pages",val,&minp,0,32767)) return 0;
-       if ((val = Config.GetWord()) && isdigit(*val))
-          {if (XrdOuca2x::a2sz(*Eroute,"preread rdsz",val,&minr,0,maxv))
-              return 0;
-           val = Config.GetWord();
-          }
-       Spec = 1;
-      }
-   if (val && !strcmp("perf", val))
-      {if (!(val = Config.GetWord()))
-          {Eroute->Emsg("Config","cache", "preread perf value not specified.");
-           return 0;
-          }
-       if (XrdOuca2x::a2i(*Eroute,"perf",val,&perf,0,100)) return 0;
-       if ((val = Config.GetWord()) && isdigit(*val))
-          {if (XrdOuca2x::a2sz(*Eroute,"perf recalc",val,&recb,0,maxv))
-              return 0;
-           val = Config.GetWord();
-          }
-       Spec = 1;
-      }
+   if (LocalRoot) free(LocalRoot);
+   LocalRoot = strdup(lroot);
 
-// Construct new string
+// Handle the oss local root
 //
-   if (!Spec) strcpy(pBuff,"&optpr=1&aprminp=1");
-      else sprintf(pBuff,  "&optpr=1&aprtrig=%lld&aprminp=%d&aprcalc=%lld"
-                           "&aprperf=%d",minr,minp,recb,perf);
-   return val;
+   if (RemotRoot) free(RemotRoot);
+   RemotRoot = strdup(rroot);
 }
-
+  
 /******************************************************************************/
 /* Private:                   W a r n C o n f i g                             */
 /******************************************************************************/

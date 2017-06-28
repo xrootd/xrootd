@@ -51,6 +51,8 @@ static void    SetEnv(const char *kword, int kval);
 
 static void    setLogger(XrdSysLogger *logP);
 
+static void    setOids(bool isok);
+
                XrdPosixConfig() {}
               ~XrdPosixConfig() {}
 

@@ -230,7 +230,7 @@ int XrdPssSys::Configure(const char *cfn)
 
 // Handle the local root here
 //
-   if (LocalRoot) psxConfig->SetLocalRoot(LocalRoot);
+   if (LocalRoot) psxConfig->SetRoot(LocalRoot);
 
 // Pre-screen any n2n library parameters
 //
@@ -619,10 +619,17 @@ int XrdPssSys::xdef(XrdSysError *Eroute, XrdOucStream &Config)
 
 int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 {
+   XrdOucPList *pP;
 
 // Parse the arguments
 //
-   return (XrdOucExport::ParsePath(Config, *Eroute, XPList, DirFlags) ? 0 : 1);
+   if (!(pP = XrdOucExport::ParsePath(Config, *Eroute, XPList, DirFlags)))
+      return 1;
+
+// Check if we are allowing object id's
+//
+   if (*(pP->Path()) == '*') XrdPosixConfig::setOids(true);
+   return 0;
 }
   
 /******************************************************************************/
