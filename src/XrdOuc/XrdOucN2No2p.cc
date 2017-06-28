@@ -230,7 +230,7 @@ XrdOucName2Name *XrdOucgetName2Name(XrdOucgetName2NameArgs)
                       return 0;
                      }
                   fnMax = strtol(val, &eP, 16);
-                  if (n <= 0 || *eP)
+                  if (fnMax <= 0 || *eP)
                      {eDest->Emsg("N2No2p", "Invalid -maxfnlen argument -",val);
                       return 0;
                      }
