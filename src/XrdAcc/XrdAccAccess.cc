@@ -155,7 +155,7 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
       {if (Entity->grps)
           {xP = Entity->grps;
            while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
-                {if (n < (int)sizeof(xBuff) && (cp = Atab.R_Hash->Find(xBuff)))
+                {if (n < (int)sizeof(xBuff) && (cp = Atab.G_Hash->Find(xBuff)))
                     cp->Privs(caps, path, plen, phash);
                 }
           } else if (isuser && (glp=XrdAccConfiguration.GroupMaster.Groups(id)))
