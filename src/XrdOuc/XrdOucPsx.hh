@@ -52,6 +52,8 @@ bool      ConfigSetup(XrdSysError &eDest, bool hush=false);
 
 bool      ParseCache(XrdSysError *Eroute, XrdOucStream &Config);
 
+bool      ParseCio(XrdSysError *Eroute, XrdOucStream &Config);
+
 bool      ParseCLib(XrdSysError *Eroute, XrdOucStream &Config);
 
 bool      ParseINet(XrdSysError *Eroute, XrdOucStream &Config);
@@ -73,6 +75,8 @@ XrdOucTList       *setLast;
 int                maxRHCB;
 int                traceLvl;
 int                debugLvl;
+int                cioWait;
+int                cioTries;
 bool               useV4;
 bool               xLfn2Pfn;
 bool               xPfn2Lfn;
@@ -80,7 +84,7 @@ bool               xPfn2Lfn;
           XrdOucPsx(XrdVersionInfo *vInfo, const char *cfn)
                    : theN2N(0), theCache(0), theCache2(0), mCache(0),
                      setFirst(0), setLast(0), maxRHCB(0),
-                     traceLvl(0), debugLvl(0),
+                     traceLvl(0), debugLvl(0), cioWait(0), cioTries(0),
                      useV4(false), xLfn2Pfn(false), xPfn2Lfn(false),
                      LocalRoot(0), RemotRoot(0), N2NLib(0), N2NParms(0),
                      cPath(0), cParm(0), configFN(strdup(cfn)),

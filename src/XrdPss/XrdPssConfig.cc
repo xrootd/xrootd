@@ -80,6 +80,9 @@
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(&eDest, Config);
 
+#define TS_PSX(x,m)    if (!strcmp(x,var)) \
+                          return (psxConfig->m(&eDest, Config) ? 0 : 1);
+
 /*******x**********************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
@@ -436,18 +439,19 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 
    // Process items. for either a local or a remote configuration
    //
-   TS_Xeq("memcache",      xcach);  // Backward compatibility
-   TS_Xeq("cache",         xcach);
-   TS_Xeq("cachelib",      xcacl);
+   TS_PSX("namelib",       ParseNLib);
+   TS_PSX("memcache",      ParseCache);  // Backward compatibility
+   TS_PSX("cache",         ParseCache);
+   TS_PSX("cachelib",      ParseCLib);
+   TS_PSX("ciosync",       ParseCio);
    TS_Xeq("config",        xconf);
-   TS_Xeq("inetmode",      xinet);
-   TS_Xeq("origin",        xorig);
-   TS_Xeq("permit",        xperm);
-   TS_Xeq("setopt",        xsopt);
-   TS_Xeq("trace",         xtrac);
-   TS_Xeq("namelib",       xnml);
    TS_Xeq("defaults",      xdef);
    TS_Xeq("export",        xexp);
+   TS_PSX("inetmode",      ParseINet);
+   TS_Xeq("origin",        xorig);
+   TS_Xeq("permit",        xperm);
+   TS_PSX("setopt",        ParseSet);
+   TS_PSX("trace",         ParseTrace);
 
    // Copy the variable name as this may change because it points to an
    // internal buffer in Config. The vagaries of effeciency. Then get value.
@@ -482,59 +486,6 @@ const char *XrdPssSys::getDomain(const char *hName)
 }
   
 /******************************************************************************/
-/*                                 x c a c h                                  */
-/******************************************************************************/
-
-/* Function: xcach
-
-   Purpose:  To parse the directive: cache <keyword> <value> [...]
-
-             <keyword> is one of the following:
-             debug     {0 | 1 | 2}
-             logstats  enables stats logging
-             max2cache largest read to cache   (can be suffixed with k, m, g).
-             minpages  smallest number of pages allowed (default 256)
-             mode      {r | w}
-             pagesize  size of each cache page (can be suffixed with k, m, g).
-             preread   [minpages [minrdsz]] [perf nn [recalc]]
-             r/w       enables caching for files opened read/write.
-             sfiles    {on | off | .<sfx>}
-             size      size of cache in bytes  (can be suffixed with k, m, g).
-
-   Output: 0 upon success or 1 upon failure.
-*/
-
-int XrdPssSys::xcach(XrdSysError *Eroute, XrdOucStream &Config)
-{
-
-// We parse this using the configurator
-//
-   return (psxConfig->ParseCache(Eroute, Config) ? 0 : 1);
-}
-  
-/******************************************************************************/
-/*                                 x c a c l                                  */
-/******************************************************************************/
-
-/* Function: xcacl
-
-   Purpose:  To parse the directive: cachelib {<path>|default} [<parms>]
-
-             <path>    the path of the cache library to be used.
-             <parms>   optional parms to be passed
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdPssSys::xcacl(XrdSysError *Eroute, XrdOucStream &Config)
-{
-
-// We parse this using the configurator
-//
-   return (psxConfig->ParseCLib(Eroute, Config) ? 0 : 1);
-}
-  
-/******************************************************************************/
 /*                                 x c o n f                                  */
 /******************************************************************************/
 
@@ -543,7 +494,8 @@ int XrdPssSys::xcacl(XrdSysError *Eroute, XrdOucStream &Config)
    Purpose:  To parse the directive: config <keyword> <value>
 
              <keyword> is one of the following:
-             workers   number of queue workers > 0
+             streams   number of i/o   streams
+             workers   number of queue workers
 
    Output: 0 upon success or 1 upon failure.
 */
@@ -630,51 +582,6 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 //
    if (*(pP->Path()) == '*') XrdPosixConfig::setOids(true);
    return 0;
-}
-  
-/******************************************************************************/
-/*                                 x i n e t                                  */
-/******************************************************************************/
-
-/* Function: xinet
-
-   Purpose:  To parse the directive: inetmode v4 | v6
-
-             v4        use only IPV4 addresses to connect to servers.
-             v6        use IPV4 mapped addresses or IPV6 addresses, as needed.
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdPssSys::xinet(XrdSysError *Eroute, XrdOucStream &Config)
-{
-
-// We parse this using the configurator
-//
-   return (psxConfig->ParseINet(Eroute, Config) ? 0 : 1);
-}
-  
-/******************************************************************************/
-/*                                  x n m l                                   */
-/******************************************************************************/
-
-/* Function: xnml
-
-   Purpose:  To parse the directive: namelib [<opts>] pfn<path> [<parms>]
-
-             <opts>    one or more: [-lfn2pfn] [-lfncache]
-             <path>    the path of the filesystem library to be used.
-             <parms>   optional parms to be passed
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdPssSys::xnml(XrdSysError *Eroute, XrdOucStream &Config)
-{
-
-// We parse this using the configurator
-//
-   return (psxConfig->ParseNLib(Eroute, Config) ? 0 : 1);
 }
 
 /******************************************************************************/
@@ -797,48 +704,4 @@ do {if (!(val = Config.GetWord()))
         }
 
     return 0;
-}
-
-/******************************************************************************/
-/*                                 x s o p t                                  */
-/******************************************************************************/
-
-/* Function: xsopt
-
-   Purpose:  To parse the directive: setopt <keyword> <value>
-
-             <keyword> is an XrdClient option keyword.
-             <value>   is the value the option is to have.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
-{
-
-// We parse this using the configurator
-//
-   return (psxConfig->ParseSet(Eroute, Config) ? 0 : 1);
-}
-  
-/******************************************************************************/
-/*                                x t r a c e                                 */
-/******************************************************************************/
-
-/* Function: xtrace
-
-   Purpose:  To parse the directive: trace <events>
-
-             <events> the blank separated list of events to trace. Trace
-                      directives are cummalative.
-
-   Output: retc upon success or -EINVAL upon failure.
-*/
-
-int XrdPssSys::xtrac(XrdSysError *Eroute, XrdOucStream &Config)
-{
-
-// We parse this using the configurator
-//
-   return (psxConfig->ParseTrace(Eroute, Config) ? 0 : 1);
 }

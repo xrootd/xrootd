@@ -202,16 +202,10 @@ int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
 const
 char  *getDomain(const char *hName);
-int    xcach(XrdSysError *Eroute, XrdOucStream &Config);
-int    xcacl(XrdSysError *Eroute, XrdOucStream &Config);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
 int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
 int    xexp( XrdSysError *Eroute, XrdOucStream &Config);
-int    xinet(XrdSysError *errp,   XrdOucStream &Config);
 int    xperm(XrdSysError *errp,   XrdOucStream &Config);
 int    xorig(XrdSysError *errp,   XrdOucStream &Config);
-int    xsopt(XrdSysError *Eroute, XrdOucStream &Config);
-int    xtrac(XrdSysError *Eroute, XrdOucStream &Config);
-int    xnml (XrdSysError *Eroute, XrdOucStream &Config);
 };
 #endif

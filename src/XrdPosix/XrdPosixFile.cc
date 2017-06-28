@@ -54,6 +54,9 @@ namespace XrdPosixGlobals
 {
 extern XrdOucCache2    *theCache;
 extern XrdOucName2Name *theN2N;
+extern int              ddInterval;
+extern int              ddMaxTries;
+       int              ddNumLost = 0;
 };
 
 namespace
@@ -146,9 +149,6 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
 // file cannot be closed in a clean fashion for some reason.
 //
    EPNAME("DDestroy");
-   static const int ddInterval =  30;
-   static const int maxTries   =  (3*60)/ddInterval;
-   static       int numLost    =  0;
 
    XrdCl::XRootDStatus Status;
    const char *eTxt;
@@ -159,7 +159,7 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
 // Wait for active I/O to complete
 //
 do{if (doWait)
-      {XrdSysTimer::Snooze(ddInterval);
+      {XrdSysTimer::Snooze(XrdPosixGlobals::ddInterval);
        doWait = false;
       } else {
        ddSem.Wait();
@@ -175,7 +175,8 @@ do{if (doWait)
 
 // Do some debugging
 //
-   DEBUG("DLY destory of "<<ddCount<<" objects; "<<numLost<<" already lost.");
+   DEBUG("DLY destory of "<<ddCount<<" objects; "<<XrdPosixGlobals::ddNumLost
+         <<" already lost.");
 
 // Try to delete all the files on the list. If we exceeded the try limit,
 // remove the file from the list and let it sit forever.
@@ -187,10 +188,10 @@ do{if (doWait)
                 else eTxt = Status.ToString().c_str();
             } else   eTxt = (ioActive ? "active I/O" : "callback");
 
-         if (fCurr->numTries > maxTries)
-            {numLost++; ddCount--;
+         if (fCurr->numTries > XrdPosixGlobals::ddMaxTries)
+            {XrdPosixGlobals::ddNumLost++; ddCount--;
              DMSG("DDestroy", eTxt <<" timeout closing " <<fCurr->Origin()
-                                   <<numLost <<" objects lost");
+                        <<' ' <<XrdPosixGlobals::ddNumLost <<" objects lost");
              fCurr->nextFile = ddLost;
              ddLost = fCurr;
              fCurr->Close(Status);

@@ -64,6 +64,8 @@ extern XrdOucName2Name           *theN2N;
 extern XrdCl::DirListFlags::Flags dlFlag;
 extern XrdSysLogger              *theLogger;
 extern XrdSysTrace                Trace;
+extern int                        ddInterval;
+extern int                        ddMaxTries;
 extern bool                       oidsOK;
 };
   
@@ -242,6 +244,13 @@ void XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 // Handle number of response handlers we should keep
 //
    if (parms.maxRHCB > 0) XrdPosixFileRH::SetMax(parms.maxRHCB);
+
+// Set delayed destro parameters if present
+//
+   if (parms.cioWait > 0 && parms.cioTries > 0)
+      {XrdPosixGlobals::ddMaxTries = (parms.cioTries <  2 ?  2 : parms.cioTries);
+       XrdPosixGlobals::ddInterval = (parms.cioWait  < 10 ? 10 : parms.cioWait);
+      }
 
 // Handle the caching options
 //

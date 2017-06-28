@@ -285,6 +285,7 @@ bool XrdOucPsx::Parse(char *var, XrdOucStream &Config, XrdSysError &eDest)
    TS_Xeq("memcache",      ParseCache);  // Backward compatibility
    TS_Xeq("cache",         ParseCache);
    TS_Xeq("cachelib",      ParseCLib);
+   TS_Xeq("ciosync",       ParseCio);
    TS_Xeq("inetmode",      ParseINet);
    TS_Xeq("namelib",       ParseNLib);
    TS_Xeq("setopt",        ParseSet);
@@ -456,6 +457,50 @@ char *XrdOucPsx::ParseCache(XrdSysError *Eroute, XrdOucStream &Config, char *pBu
       else sprintf(pBuff,  "&optpr=1&aprtrig=%lld&aprminp=%d&aprcalc=%lld"
                            "&aprperf=%d",minr,minp,recb,perf);
    return val;
+}
+  
+/******************************************************************************/
+/*                              P a r s e C i o                               */
+/******************************************************************************/
+
+/* Function: ParseCio
+
+   Purpose:  To parse the directive: ciosync <tsec> <tries>
+
+             <tsec>    the number of seconds between each sync attempt.
+             <tries>   the maximum number of tries before giving up.
+
+  Output: true upon success or false upon failure.
+*/
+
+bool XrdOucPsx::ParseCio(XrdSysError *Eroute, XrdOucStream &Config)
+{
+   char *val;
+   int tsec, mtry;
+
+// Get the try seconds
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute->Emsg("Config", "ciosync parameter not specified"); return false;}
+
+// Convert to seconds
+//
+   if (XrdOuca2x::a2i(*Eroute,"ciosync interval",val,&tsec,10)) return false;
+
+// Get the max seconds
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute->Emsg("Config", "max time not specified"); return false;}
+
+// Convert to seconds
+//
+   if (XrdOuca2x::a2i(*Eroute,"ciosync max time",val,&mtry,2)) return false;
+
+// Set values and return success
+//
+   cioWait  = tsec;
+   cioTries = mtry;
+   return true;
 }
   
 /******************************************************************************/

@@ -86,6 +86,8 @@ XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 XrdSysLogger    *theLogger = 0;
 XrdSysTrace      Trace("Posix", 0,
                       (getenv("XRDPOSIX_DEBUG") ? TRACE_Debug : 0));
+int              ddInterval= 30;
+int              ddMaxTries= 180/30;
 bool             oidsOK    = false;
 };
 
