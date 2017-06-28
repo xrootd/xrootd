@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Proxy]** Allow caching of S3-style objects.
+  * **[Server]** Allow storing S3-style objects in a file system.
   * **[POSIX]** Implement serverless file caching (disk or memory).
   * **[Server]** Add xrootd.fsoverload directive to handle filesystem overloads.
   * **[Server]** Allow port to be specified for a supervisor.
