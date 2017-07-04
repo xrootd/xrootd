@@ -1553,6 +1553,9 @@ namespace XrdCl
     if( !info->firstLogIn )
       memcpy( info->oldSessionId, info->sessionId, 16 );
 
+    if( rsp->hdr.dlen < 24 )
+      return Status( stError, errDataError );
+
     memcpy( info->sessionId, rsp->body.login.sessid, 16 );
 
     std::string sessId = Utils::Char2Hex( rsp->body.login.sessid, 16 );
