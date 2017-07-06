@@ -43,6 +43,8 @@ namespace XrdCl
   class XRootDMsgHandler: public IncomingMsgHandler,
                           public OutgoingMsgHandler
   {
+      friend class HandleRspJob;
+
     public:
       //------------------------------------------------------------------------
       //! Constructor
@@ -337,6 +339,12 @@ namespace XrdCl
       //! Switch on the refresh flag for some requests
       //------------------------------------------------------------------------
       void SwitchOnRefreshFlag();
+
+      //------------------------------------------------------------------------
+      //! If the current thread is a worker thread from our thread-pool
+      //! handle the response, otherwise submit a new task to the thread-pool
+      //------------------------------------------------------------------------
+      void HandleRspOrQueue();
 
       //------------------------------------------------------------------------
       // Helper struct for async reading of chunks

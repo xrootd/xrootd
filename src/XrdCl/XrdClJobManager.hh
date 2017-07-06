@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <algorithm>
 #include <pthread.h>
 #include "XrdCl/XrdClSyncQueue.hh"
 
@@ -97,6 +98,14 @@ namespace XrdCl
       //! Run the jobs
       //------------------------------------------------------------------------
       void RunJobs();
+
+      bool IsWorker()
+      {
+        pthread_t thread = pthread_self();
+        std::vector<pthread_t>::iterator itr =
+            std::find( pWorkers.begin(), pWorkers.end(), thread );
+        return itr != pWorkers.end();
+      }
 
     private:
       //------------------------------------------------------------------------

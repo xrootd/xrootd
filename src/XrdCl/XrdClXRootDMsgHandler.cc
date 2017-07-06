@@ -32,6 +32,7 @@
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClTaskManager.hh"
+#include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 
@@ -64,10 +65,37 @@ namespace
     private:
       XrdCl::XRootDMsgHandler *pHandler;
   };
+
 };
 
 namespace XrdCl
 {
+
+  //----------------------------------------------------------------------------
+  // Delegate the response handling to the thread-pool
+  //----------------------------------------------------------------------------
+  class HandleRspJob: public XrdCl::Job
+  {
+    public:
+      HandleRspJob( XrdCl::XRootDMsgHandler *handler ): pHandler( handler )
+      {
+
+      }
+
+      virtual ~HandleRspJob()
+      {
+
+      }
+
+      virtual void Run( void *arg )
+      {
+        pHandler->HandleResponse();
+        delete this;
+      }
+    private:
+      XrdCl::XRootDMsgHandler *pHandler;
+  };
+
   //----------------------------------------------------------------------------
   // Examine an incoming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
@@ -1835,7 +1863,7 @@ namespace XrdCl
       else
       {
         pStatus = status;
-        HandleResponse();
+        HandleRspOrQueue();
         return;
       }
     }
@@ -1853,7 +1881,7 @@ namespace XrdCl
                   pUrl.GetHostId().c_str(),
                   pRequest->GetDescription().c_str() );
       pStatus = status;
-      HandleResponse();
+      HandleRspOrQueue();
       return;
     }
 
@@ -1877,7 +1905,7 @@ namespace XrdCl
         return;
       }
       pStatus = status;
-      HandleResponse();
+      HandleRspOrQueue();
       return;
     }
   }
@@ -1995,5 +2023,18 @@ namespace XrdCl
     }
     XRootDTransport::SetDescription( pRequest );
     XRootDTransport::MarshallRequest( pRequest );
+  }
+
+  //------------------------------------------------------------------------
+  // If the current thread is a worker thread from our thread-pool
+  // handle the response, otherwise submit a new task to the thread-pool
+  //------------------------------------------------------------------------
+  void XRootDMsgHandler::HandleRspOrQueue()
+  {
+    JobManager *jobMgr = pPostMaster->GetJobManager();
+    if( jobMgr->IsWorker() )
+      HandleResponse();
+    else
+      jobMgr->QueueJob( new HandleRspJob( this ), 0 );
   }
 }
