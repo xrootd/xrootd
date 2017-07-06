@@ -49,7 +49,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdSut/XrdSutAux.hh"
-#include "XrdSut/XrdSutCache.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
 #include "XrdCrypto/XrdCryptoX509Req.hh"
@@ -172,19 +171,14 @@ String XrdSecProtocolgsi::cryptName[XrdCryptoMax] = {0}; // their names
 XrdCryptoCipher *XrdSecProtocolgsi::refcip[XrdCryptoMax] = {0};    // ref for session ciphers 
 //
 // Caches
-XrdSutCache XrdSecProtocolgsi::cacheCA;   // CA info
-XrdSutCache XrdSecProtocolgsi::cacheCert; // Server certificates info
-XrdSutCache XrdSecProtocolgsi::cachePxy;  // Client proxies
-XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
-XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
-XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
+XrdSutCache  XrdSecProtocolgsi::cacheCA; // Server certificates info cache (default size 144)
+XrdSutCache  XrdSecProtocolgsi::cacheCert(8,13); // Server certificates info cache (Fibonacci-based sizes)
+XrdSutCache  XrdSecProtocolgsi::cachePxy(8,13);  // Client proxies cache (Fibonacci-based sizes)
+XrdSutCache  XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun (default size 144)
+XrdSutCache  XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun (default size 144)
 //
 // Services
 XrdOucGMap *XrdSecProtocolgsi::servGMap = 0; // Grid map service
-//
-// CA and CRL stacks
-GSIStack<XrdCryptoX509Chain>  XrdSecProtocolgsi::stackCA; // Stack of CA in use
-GSIStack<XrdCryptoX509Crl>  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
 //
 // GMAP control vars
 time_t XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
@@ -566,13 +560,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          return Parms;
       }
       //
-      // Init CA info cache
-      if (cacheCA.Init(100) != 0) {
-         ErrF(erp,kGSErrError,"problems initializing CA info cache");
-         PRINT(erp->getErrText());
-         return Parms;
-      }
-      //
       // List of supported / wanted ciphers
       if (opt.cipher)
          DefCipher = opt.cipher;
@@ -637,36 +624,25 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       if (access(SrvKey.c_str(), R_OK)) {
          PRINT("WARNING: process has no permission to read the certificate key file: "<<SrvKey);
       }
-      //
-      // Init cache for certificates (we allow for more instances of
-      // the same certificate, one for each different crypto module
-      // available; this may evetually not be strictly needed.)
-      if (cacheCert.Init(10) != 0) {
-         ErrF(erp,kGSErrError,"problems init cache for certificates");
-         PRINT(erp->getErrText());
-         return Parms;
-      }
       int i = 0;
       String certcalist = "";   // list of CA for server certificates
-      XrdSutCacheRef pfeRef;
+      XrdSutCERef ceref;
       for (; i<ncrypt; i++) {
-         if (!GetSrvCertEnt(pfeRef, cryptF[i], time(0), certcalist)) {
+         if (!GetSrvCertEnt(ceref, cryptF[i], time(0), certcalist)) {
             PRINT("problems loading srv cert");
-            pfeRef.UnLock();
+            ceref.UnLock();
             continue;
          }
       }
       // Rehash cache
-      pfeRef.UnLock();
-      cacheCert.Rehash(1);
+      ceref.UnLock();
       //
       // We must have got at least one valid certificate
-      if (cacheCert.Empty()) {
+      if (cacheCert.Num() <= 0) {
          ErrF(erp,kGSErrError,"no valid server certificate found");
          PRINT(erp->getErrText());
          return Parms;
       }
-      if (QTRACE(Authen)) { cacheCert.Dump(); }
 
       DEBUG("CA list: "<<certcalist);
 
@@ -731,21 +707,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
             return Parms;
          } else {
             hasgmapfun = 1;
-            // Init or reset the cache
-            if (cacheGMAPFun.Empty()) {
-               if (cacheGMAPFun.Init(100) != 0) {
-                  ErrF(erp, kGSErrError, "Internal cache for the GMAP plug-in failed to initialize"); 
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
-            } else {
-               if (cacheGMAPFun.Reset() != 0) {
-                  PRINT("Error resetting GMAPFun cache");
-                  ErrF(erp, kGSErrError, "Internal cache for the GMAP plug-in failed to reset"); 
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
-            }
          }
       }
       //
@@ -776,20 +737,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                DEBUG("authzfun: proxy certificate format: "<<ccfmt[AuthzCertFmt]);
             } else {
                NOTIFY("authzfun: proxy certificate format: unknown (code: "<<AuthzCertFmt<<")");
-            }
-            // Init or reset the cache
-            if (cacheAuthzFun.Empty()) {
-               if (cacheAuthzFun.Init(100) != 0) {
-                  ErrF(erp, kGSErrError, "Internal cache for authz plug-in failed to initialize"); 
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
-            } else {
-               if (cacheAuthzFun.Reset() != 0) {
-                  ErrF(erp, kGSErrError, "Internal cache for authz plug-in failed to reset"); 
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
             }
             // Expiration of Authz related cache entries
             if (opt.authzto > 0) {
@@ -909,22 +856,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    //
    // Client specific options
    if (!Server) {
-      //
-      // Init cache for CA certificate info. Clients will fill it
-      // upon need
-      if (cacheCA.Init(100) != 0) {
-         ErrF(erp,kGSErrError,"problems init cache for CA info");
-         PRINT(erp->getErrText());
-         return Parms;
-      }
-      //
-      // Init cache for proxies (in the future we may allow
-      // users to use more certificates, depending on the context)
-      if (cachePxy.Init(2) != 0) {
-         ErrF(erp,kGSErrError,"problems init cache for proxies");
-         PRINT(erp->getErrText());
-         return Parms;
-      }
       // use default dir $(HOME)/.<prefix>
       struct passwd *pw = getpwuid(getuid());
       if (!pw) {
@@ -1610,6 +1541,32 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
 /******************************************************************************/
 /*               S e r v e r   O r i e n t e d   M e t h o d s                */
 /******************************************************************************/
+
+//_____________________________________________________________________________
+static bool AuthzFunCheck(XrdSutCacheEntry *e, void *a) {
+
+   int st_ref = (*((XrdSutCacheArg_t *)a)).arg1;
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg2;
+   long to_ref = (*((XrdSutCacheArg_t *)a)).arg3;
+   int st_exp = (*((XrdSutCacheArg_t *)a)).arg4;
+
+   if (e) {
+      // Check expiration, if required
+      bool expired = 0;
+      if (to_ref > 0 && (ts_ref - e->mtime) > to_ref) expired = 1;
+      int notafter = *((int *) e->buf2.buf);
+      if (to_ref > notafter) expired = 1;
+
+      if (expired || (e->status != st_ref)) {
+         // Invalidate the entry, if the case
+         e->status = st_exp;
+      } else {
+         return true;
+      }
+   }
+   return false;
+}
+
 /******************************************************************************/
 /*                          A u t h e n t i c a t e                           */
 /******************************************************************************/
@@ -1622,7 +1579,6 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    // Check if we have any credentials or if no credentials really needed.
    // In either case, use host name as client name
    EPNAME("Authenticate");
-   XrdSutCacheRef pfeRef;
 
    //
    // If cred buffer is two small or empty assume host protocol
@@ -1895,56 +1851,51 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          const char *dn = (const char *)key;
          time_t now = hs->TimeStamp;
          // We may have it in the cache
-         XrdSutPFEntry *cent = cacheAuthzFun.Get(pfeRef, dn);
-         // Check expiration, if required
-         if (cent) {
-            bool expired = 0;
-            if (AuthzCacheTimeOut > 0 && (now - cent->mtime) > AuthzCacheTimeOut) expired = 1;
-            int notafter = *((int *) cent->buf2.buf);
-            if (now > notafter) expired = 1;
-            // Invalidate the entry, if the case
-            if (expired) {
-               FreeEntity((XrdSecEntity *) cent->buf1.buf);
-               SafeDelete(cent->buf1.buf);
-               SafeDelete(cent->buf2.buf);
-               cent->status = kPFE_disabled; // Prevent use after unlock!
-               pfeRef.UnLock();              // Discarding cent!
-               cacheAuthzFun.Remove(dn);
-               cent = 0;
-            }
+         XrdSutCERef ceref;
+         bool rdlock = false;
+         XrdSutCacheArg_t arg = {kCE_ok, now, AuthzCacheTimeOut, kCE_disabled};
+         XrdSutCacheEntry *cent = cacheAuthzFun.Get(dn, rdlock, AuthzFunCheck, (void *) &arg);
+         if (!cent) {
+            // Fatal error
+            kS_rc = kgST_error;
+            PRINT("ERROR: unable to get cache entry for dn: "<<dn);
+            break;
          }
-         if (!cent || (cent && (cent->status != kPFE_ok))) {
+         ceref.Set(&(cent->rwmtx));
+         if (!rdlock) {
+            if (cent->buf1.buf)
+               FreeEntity((XrdSecEntity *) cent->buf1.buf);
+            SafeDelete(cent->buf1.buf);
+            SafeDelete(cent->buf2.buf);
+         }
+         if (cent->status != kCE_ok) {
             int authzrc = 0;
             if ((authzrc = (*AuthzFun)(Entity)) != 0) {
                // Error
                kS_rc = kgST_error;
                PRINT("ERROR: the authorization plug-in reported a failure for this handshake");
                SafeDelete(key);
+               ceref.UnLock();
                break;
             } else {
-               if ((cent = cacheAuthzFun.Add(pfeRef, dn))) {
-                  cent->status = kPFE_ok;
-                  // Save a copy of the relevant Entity fields
-                  XrdSecEntity *se = new XrdSecEntity();
-                  int slen = 0;
-                  CopyEntity(&Entity, se, &slen);
-                  FreeEntity((XrdSecEntity *) cent->buf1.buf);
-                  SafeDelete(cent->buf1.buf);
-                  cent->buf1.buf = (char *) se;
-                  cent->buf1.len = slen;
-                  // Proxy expiration time
-                  int notafter = hs->Chain->End() ? hs->Chain->End()->NotAfter() : -1;
-                  cent->buf2.buf = (char *) new int(notafter);
-                  cent->buf2.len = sizeof(int);
-                  // Fill up the rest
-                  cent->cnt = 0;
-                  cent->mtime = now; // creation time
-                  // Rehash cache
-                  pfeRef.UnLock();   // cent can no longer be used
-                  cacheAuthzFun.Rehash(1);
-                  // Notify
-                  DEBUG("Saved Entity to cacheAuthzFun ("<<slen<<" bytes)");
-               }
+               cent->status = kCE_ok;
+               // Save a copy of the relevant Entity fields
+               XrdSecEntity *se = new XrdSecEntity();
+               int slen = 0;
+               CopyEntity(&Entity, se, &slen);
+               FreeEntity((XrdSecEntity *) cent->buf1.buf);
+               SafeDelete(cent->buf1.buf);
+               cent->buf1.buf = (char *) se;
+               cent->buf1.len = slen;
+               // Proxy expiration time
+               int notafter = hs->Chain->End() ? hs->Chain->End()->NotAfter() : -1;
+               cent->buf2.buf = (char *) new int(notafter);
+               cent->buf2.len = sizeof(int);
+               // Fill up the rest
+               cent->cnt = 0;
+               cent->mtime = now; // creation time
+               // Notify
+               DEBUG("Saved Entity to cacheAuthzFun ("<<slen<<" bytes)");
             }
          } else {
             // Fetch a copy of the saved entity
@@ -1954,6 +1905,8 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             // Notify
             DEBUG("Got Entity from cacheAuthzFun ("<<slen<<" bytes)");
          }
+         // Release lock
+         ceref.UnLock();
          // Cleanup
          SafeDelArray(key);
       }
@@ -3316,7 +3269,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Server side: process a kXGC_certreq message.
    // Return 0 on success, -1 on error. If the case, a message is returned
    // in cmsg.
-   XrdSutCacheRef pfeRef;
+   XrdSutCERef ceref;
    XrdSutBucket *bck = 0;
    XrdSutBucket *bckm = 0;
 
@@ -3365,7 +3318,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    // Find our certificate in cache
    String cadum;
-   XrdSutPFEntry *cent = GetSrvCertEnt(pfeRef, sessionCF, hs->TimeStamp, cadum);
+   XrdSutCacheEntry *cent = GetSrvCertEnt(ceref, sessionCF, hs->TimeStamp, cadum);
    if (!cent) {
       cmsg = "cannot find certificate: corruption?";
       return -1;
@@ -3374,6 +3327,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Fill some relevant handshake variables
    sessionKsig = sessionCF->RSA(*((XrdCryptoRSA *)(cent->buf2.buf)));
    hs->Cbck = new XrdSutBucket(*((XrdSutBucket *)(cent->buf3.buf)));
+   ceref.UnLock();
 
    // Create a handshake cache 
    if (!(hs->Cref = new XrdSutPFEntry(hs->ID.c_str()))) {
@@ -4235,6 +4189,44 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
    return verified;
 }
 
+//_____________________________________________________________________________
+static bool GetCACheck(XrdSutCacheEntry *e, void *a) {
+
+   EPNAME("GetCACheck");
+
+   int crl_check = (*((XrdSutCacheArg_t *)a)).arg1;
+   int crl_refresh = (*((XrdSutCacheArg_t *)a)).arg2;
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg3;
+
+   if (!e) return false;
+
+   X509Chain *chain = 0;
+   // If we had already something, check it, as we may be done
+   bool goodca = 0;
+   if ((chain = (X509Chain *)(e->buf1.buf))) {
+      // Check the validity of the certificates in the chain; if a certificate became invalid,
+      // we need to reload a valid one for the same CA.
+      if (chain->CheckValidity() == 0) {
+         goodca = 1;
+      } else {
+         PRINT("CA entry for '"<<e->name<<"' needs refreshing: clean the related entry cache first");
+         return false;
+      }
+   }
+   if (goodca) {
+      XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(e->buf2.buf);
+      bool goodcrl = 1;
+      if ((crl_check == 2 && !crl) || (crl_check == 3 && crl->IsExpired())) goodcrl = 0;
+      if (crl_refresh > 0 && ((ts_ref - e->mtime) > crl_refresh)) goodcrl = 0;
+      if (goodcrl) {
+         return true;
+      } else if (crl) {
+         PRINT("CRL entry for '"<<e->name<<"' needs refreshing: clean the related entry cache first ("<<e<<")");
+      }
+   }
+   return false;
+}
+
 //______________________________________________________________________________
 int XrdSecProtocolgsi::GetCA(const char *cahash,
                              XrdCryptoFactory *cf, gsiHSVars *hs)
@@ -4244,7 +4236,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // If 'hs' is defined, store pointers to chain and crl into 'hs'. 
    // Return 0 if ok, -1 if not available, -2 if CRL not ok
    EPNAME("GetCA");
-   XrdSutCacheRef pfeRef;
+   XrdSutCERef ceref;
    int rc = 0;
 
    // We nust have got a CA hash
@@ -4263,67 +4255,47 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    DEBUG("Querying cache for tag: "<<tag<<" (timestamp:"<<timestamp<<
          ", refresh fq:"<< CRLRefresh <<")");
 
-   // Try first the cache
-   XrdSutPFEntry *cent = cacheCA.Get(pfeRef, tag.c_str());
+   bool rdlock = false;
+   XrdSutCacheArg_t arg = {CRLCheck, CRLRefresh, timestamp, -1};
+   XrdSutCacheEntry *cent = cacheCA.Get(tag.c_str(), rdlock, GetCACheck, (void *) &arg);
+   if (!cent) {
+      PRINT("unable to get a valid entry from cache for " << tag);
+      return -1;
+   }
+   ceref.Set(&(cent->rwmtx));
 
-   X509Chain *chain = 0;
-   // If found, we are done
-   if (cent) {
-      bool goodca = 0;
-      if ((chain = (X509Chain *)(cent->buf1.buf))) {
-         // Check the validity of the certificates in the chain; if a certificate became invalid,
-         // we need to reload a valid one for the same CA.
-         if (chain->CheckValidity() == 0) {
-            goodca = 1;
-            if (hs) hs->Chain = chain;
-            // Add to the stack for proper cleaning of invalidated CAs
-            stackCA.Add(chain);
-         } else {
-            PRINT("CA entry for '"<<tag<<"' needs refreshing: clean the related entry cache first");
-            // Entry needs refreshing: we remove it from the stack, so it gets deleted when
-            // the last handshake using it is over 
-            stackCA.Del(chain);
-            cent->buf1.buf = 0;
-            if (!cacheCA.Remove(tag.c_str())) {
-               PRINT("problems removing entry from CA cache");
-               rc = -1;
-            }
-         }      
-      }
-      if (rc == 0) {
-         XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
-         bool goodcrl = (crl) ? 1 : 0;
-         if (goodcrl && CRLCheck >= 3 && crl->IsExpired()) goodcrl = 0;
-         if (goodcrl && CRLRefresh > 0 && ((timestamp - cent->mtime) > CRLRefresh)) goodcrl = 0;
-         // If the CA is not good, we reload the CRL in any case
-         if (goodca && goodcrl) {
-            if (hs) hs->Crl = crl;
-            // Add to the stack for proper cleaning of invalidated CRLs
-            stackCRL.Add(crl);
-            pfeRef.UnLock();
-            return 0;
-         } else if (crl) {
-            PRINT("CRL entry for '"<<tag<<"' needs refreshing: clean the related entry cache first ("<<cent<<")");
-            // Entry needs refreshing: we remove it from the stack, so it gets deleted when
-            // the last handshake using it is over 
-            stackCRL.Del(crl);
-            cent->buf2.buf = 0;
-         }
-      }
-      chain = 0;
-   } else {
-      if (!(cent = cacheCA.Add(pfeRef, tag.c_str()))) {
-         PRINT("could not create a cache entry for this CA (" << tag <<")");
-         rc = -1;
-      }
+   // Point to the content
+   X509Chain *chain = (X509Chain *)(cent->buf1.buf);
+   XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
+
+   // If invalid we fail
+   if (cent->status == kCE_inactive) {
+      // Cleanup and remove existing invalid entries
+      if (chain) delete chain;
+      if (crl) delete crl;
+      PRINT("unable to get a valid entry from cache for " << tag);
+      return -1;
    }
 
-   //
-   // If any failure, return
-   if (rc != 0) {
-      pfeRef.UnLock();
-      return rc;
+   // Check if we are done
+   if (rdlock) {
+      // Save chain
+      chain = (X509Chain *)(cent->buf1.buf);
+      if (hs) hs->Chain = chain;
+      // Save crl
+      if (crl && hs) hs->Crl = crl;
+      // Done
+      return 0;
    }
+
+   // Cleanup and remove existing invalid entries
+   if (chain) delete chain;
+   if (crl) delete crl;
+
+   chain = 0;
+   crl = 0;
+   cent->buf1.buf = 0;
+   cent->buf2.buf = 0;
 
    // If not, prepare the file name
    String fnam = GetCApath(cahash);
@@ -4375,10 +4347,9 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             if (crl) {
                cent->buf2.buf = (char *)(crl);
                cent->buf2.len = 0;      // Just a flag
-               stackCRL.Add(crl);
             }
             cent->mtime = timestamp;
-            cent->status = kPFE_ok;
+            cent->status = kCE_ok;
             cent->cnt = 0;
             // Fill output, if required
             if (hs) {
@@ -4388,18 +4359,19 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             }
          } else {
             SafeDelete(crl);
+            SafeDelete(chain);
             rc = -2;
          }
       } else {
+         SafeDelete(chain);
          NOTIFY("certificate not found or invalid (nci: "<<nci<<", CA: "<<
                (int)(verified)<<")");
          rc = -1;
       }
    }
 
-   // Rehash cache
-   pfeRef.UnLock();  // Make sure pointer is not locked
-   cacheCA.Rehash(1);
+   // We are done: release the lock
+   ceref.UnLock();
 
    // We are done
    return (rc != 0) ? rc : 0;
@@ -4618,6 +4590,19 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
    return -1;
 }
 
+//_____________________________________________________________________________
+static bool QueryProxyCheck(XrdSutCacheEntry *e, void *a) {
+
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg1;
+
+   if (e) {
+      X509Chain *chain = (X509Chain *)(e->buf1.buf);
+      if (chain->CheckValidity(1, ts_ref) == 0) return true;
+   }
+   return false;
+}
+
+
 //__________________________________________________________________________
 int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
                                   const char *tag, XrdCryptoFactory *cf,
@@ -4625,45 +4610,45 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
 {
    // Query users proxies, initializing if needed
    EPNAME("QueryProxy");
-   XrdSutCacheRef pfeRef;
+   XrdSutCERef ceref;
 
    bool hasproxy = 0;
    // We may already loaded valid proxies
-   XrdSutPFEntry *cent = 0;
-   if (checkcache) {
-      cent = cache->Get(pfeRef, tag);
-      if (cent && cent->buf1.buf) {
-         //
-         po->chain = (X509Chain *)(cent->buf1.buf);
-         // Check validity of the entry found (it may have expired)
-         if (po->chain->CheckValidity(1, timestamp) == 0) {
-            po->ksig = (XrdCryptoRSA *)(cent->buf2.buf);
-            po->cbck = (XrdSutBucket *)(cent->buf3.buf);
-            hasproxy = 1;
-            return 0;
-         } else {
-            // Cleanup the chain
-            po->chain->Cleanup();
-            // Cleanup cache entry
-            cent->buf1.buf = 0;
-            cent->buf1.len = 0;
-            // The key is deleted by the certificate destructor
-            // Just reset the buffer
-            cent->buf2.buf = 0;
-            cent->buf2.len = 0;
-            // and the related bucket
-            if (cent->buf3.buf)
-               delete (XrdSutBucket *)(cent->buf3.buf);
-            cent->buf3.buf = 0;
-            cent->buf3.len = 0;
-         }
-      }
+   bool rdlock = false;
+   XrdSutCacheArg_t arg = {timestamp, -1, -1, -1};
+   XrdSutCacheEntry *cent = cache->Get(tag, rdlock, QueryProxyCheck, (void *) &arg);
+   if (!cent) {
+      PRINT("cannot get cache entry for: "<<tag);
+      return -1;
+   }
+   ceref.Set(&(cent->rwmtx));
+
+   if (checkcache && rdlock) {
+      po->chain = (X509Chain *)(cent->buf1.buf);
+      po->ksig = (XrdCryptoRSA *)(cent->buf2.buf);
+      po->cbck = (XrdSutBucket *)(cent->buf3.buf);
+      // We are done
+      ceref.UnLock();
+      return 0;
    }
 
-   // This is the last use of cent so we should remove the lock prior to
-   // entry the proxy refresh loop if we have a valid pointer.
-   //
-   if (cent) {cent = 0; pfeRef.UnLock();}
+   // Cleanup the chain
+   po->chain = (X509Chain *)(cent->buf1.buf);
+   if (po->chain) po->chain->Cleanup();
+   SafeDelete(po->chain);
+
+   // Cleanup cache entry
+   cent->buf1.buf = 0;
+   cent->buf1.len = 0;
+   // The key is deleted by the certificate destructor
+   // Just reset the buffer
+   cent->buf2.buf = 0;
+   cent->buf2.len = 0;
+   // and the related bucket
+   if (cent->buf3.buf)
+      delete (XrdSutBucket *)(cent->buf3.buf);
+   cent->buf3.buf = 0;
+   cent->buf3.len = 0;
 
    //
    // We do not have good proxies, try load (user may have initialized
@@ -4786,15 +4771,9 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          }
       }
 
-      // Get attach an entry in cache
-      if (!(cent = cache->Add(pfeRef, tag))) {
-         PRINT("could not create entry in cache");
-         continue;
-      }
-
       // Save info in cache
       cent->mtime = po->chain->End()->NotAfter(); // the expiring time
-      cent->status = kPFE_special;  // distinguish from normal certs
+      cent->status = kCE_special;  // distinguish from normal certs
       cent->cnt = 0;
       // The chain
       cent->buf1.buf = (char *)(po->chain);
@@ -4805,15 +4784,12 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       // The export bucket
       cent->buf3.buf = (char *)(po->cbck);
       cent->buf3.len = 0;      // Just a flag
-      pfeRef.UnLock();
-
-      // Rehash cache
-      pfeRef.UnLock();  // cent can no longer be used
-      cache->Rehash(1);
 
       // Set the positive flag
       hasproxy = 1;
    }
+   // Always unlock
+   ceref.UnLock();
 
    // We are done
    if (!hasproxy) {
@@ -4824,6 +4800,26 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       return -1;
    }
    return 0;
+}
+
+
+//_____________________________________________________________________________
+static bool QueryGMAPCheck(XrdSutCacheEntry *e, void *a) {
+   int st_ref = (*((XrdSutCacheArg_t *)a)).arg1;
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg2;
+   long to_ref = (*((XrdSutCacheArg_t *)a)).arg3;
+   if (e) {
+      // Check expiration, if required
+      if ((e->status != st_ref) ||
+          ((e->status == st_ref) &&
+           (to_ref > 0) &&
+           ((ts_ref - e->mtime) > to_ref))) {
+         return false;
+      } else {
+         return true;
+      }
+   }
+   return false;
 }
 
 //__________________________________________________________________________
@@ -4837,7 +4833,6 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
    // On return, an empty string in 'usrs' indicates failure.
    // Note that 'usrs' can be a comma-separated list of usernames. 
    EPNAME("QueryGMAP");
-   XrdSutCacheRef pfeRef;
 
    // List of user names attached to the entity
    usrs = "";
@@ -4850,45 +4845,37 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
 
    // Now we check the DN-mapping function and eventually the gridmap file.
    // The result can be cached for a while. 
-   XrdSutPFEntry *cent = 0;
    const char *dn = chain->EECname();
-   XrdOucString s;
    if (GMAPFun) {
-      // We may have it in the cache
-      cent = cacheGMAPFun.Get(pfeRef, dn);
-      // Check expiration, if required
-      if (GMAPCacheTimeOut > 0 &&
-         (cent && (now - cent->mtime) > GMAPCacheTimeOut)) {
-         // Invalidate the entry
-         pfeRef.UnLock();
-         cacheGMAPFun.Remove(dn);
-         cent = 0;
+      XrdSutCERef ceref;
+      bool rdlock = false;
+      XrdSutCacheArg_t arg = {kCE_ok, now, GMAPCacheTimeOut, -1};
+      XrdSutCacheEntry *cent = cacheGMAPFun.Get(dn, rdlock, QueryGMAPCheck, (void *) &arg);
+      if (!cent) {
+         PRINT("unable to get a valid entry from cache for dn: " << dn);
+         return;
       }
-      // Run the search via the external function
-      if (cent) {usrs=(const char *)(cent->buf1.buf); pfeRef.UnLock(); cent=0;}
-         else {
+      ceref.Set(&(cent->rwmtx));
+
+      // Check if we need to get/update the content
+      if (!rdlock) {
+         // Run the search via the external function
          char *name = (*GMAPFun)(dn, now);
-         if ((cent = cacheGMAPFun.Add(pfeRef, dn))) {
-            if (name) {
-               cent->status = kPFE_ok;
-               // Add username
-               SafeDelArray(cent->buf1.buf);
-               cent->buf1.buf = name;
-               cent->buf1.len = strlen(name);
-               usrs = (const char *)name;
-            } else {
-               // We cache the resul to avoid repeating the search
-               cent->status = kPFE_allowed;
-            }
-            // Fill up the rest
-            cent->cnt = 0;
-            cent->mtime = now; // creation time
-            // Rehash cache
-            pfeRef.UnLock();   // cent can no longer be used
-            cent = 0;
-            cacheGMAPFun.Rehash(1);
+         if (name) {
+            cent->status = kCE_ok;
+            // Add username
+            SafeDelArray(cent->buf1.buf);
+            cent->buf1.buf = name;
+            cent->buf1.len = strlen(name);
          }
+         // Fill up the rest
+         cent->cnt = 0;
+         cent->mtime = now; // creation time
       }
+      // Retrieve result form cache
+      usrs = cent->buf1.buf;
+      // We are done with the cache
+      ceref.UnLock();
    }
 
    // Check the map file, if any
@@ -5240,9 +5227,22 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
 }
 
 //_____________________________________________________________________________
-XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
-                                                XrdCryptoFactory  *cf,
-                                                time_t timestamp, String &certcalist)
+static bool GetSrvCertEntCheck(XrdSutCacheEntry *e, void *a) {
+   int st_ref = (*((XrdSutCacheArg_t *)a)).arg1;
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg2;
+   if (e) {
+      if (e->status > st_ref) {
+         if (e->mtime >= ts_ref)
+            return true;
+      }
+   }
+   return false;
+}
+
+//_____________________________________________________________________________
+XrdSutCacheEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCERef &ceref,
+                                             XrdCryptoFactory  *cf,
+                                             time_t timestamp, String &certcalist)
 {
    // Get cache entry for server certificate. This function checks the cache
    // and loads or re-loads the certificate form the specified files if required.
@@ -5251,20 +5251,24 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
 
    if (!cf) {
       PRINT("Invalid inputs");
-      return (XrdSutPFEntry *)0;
+      return (XrdSutCacheEntry *)0;
    }
 
-   XrdSutPFEntry *cent = cacheCert.Get(pfeRef, cf->Name());
+   bool rdlock = false;
+   XrdSutCacheArg_t arg = {kCE_allowed, timestamp, -1, -1};
+   XrdSutCacheEntry *cent = cacheCert.Get(cf->Name(), rdlock, GetSrvCertEntCheck, (void *) &arg);
+   if (!cent) {
+      PRINT("unable to get a valid entry from cache for " << cf->Name());
+      return (XrdSutCacheEntry *)0;
+   }
+   ceref.Set(&(cent->rwmtx));
 
-   // If there is already one valid, we are done. Note that the caller has
-   // lock ownership of the pointer should it be returned.
-   //
-   if (cent && cent->mtime >= timestamp) return cent;
-
-   if (cent) PRINT("entry has expired: trying to renew ...");
+   // Are we done ?
+   if (rdlock) return cent;
+   if (cent->buf1.buf) PRINT("entry has expired: trying to renew ...");
    
    // Try get one or renew-it
-   if (cent && cent->status == kPFE_special) {
+   if (cent->status == kCE_special) {
       // Try init proxies
       ProxyIn_t pi = {SrvCert.c_str(), SrvKey.c_str(), CAdir.c_str(),
                         UsrProxy.c_str(), PxyValid.c_str(), 0, 512};
@@ -5272,24 +5276,23 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
       XrdCryptoRSA *k = 0;
       XrdSutBucket *b = 0;
       ProxyOut_t po = {ch, k, b };
+      // We lock inside
+      ceref.UnLock(false);
       if (QueryProxy(0, &cacheCert, cf->Name(), cf, timestamp, &pi, &po) != 0) {
          PRINT("proxy expired and cannot be renewed");
-         pfeRef.UnLock();
-         return (XrdSutPFEntry *)0;
+         return (XrdSutCacheEntry *)0;
       }
+      // When successful we return read-locked (this flow needs checking; but it is not mainstream)
+      ceref.ReadLock();
+      return cent;
    }
 
-   if (cent) {
-      // Reset the entry
-      delete (XrdCryptoX509 *) cent->buf1.buf; // Destroys also xsrv->PKI() pointed in cent->buf2.buf
-      delete (XrdSutBucket *) cent->buf3.buf;
-      cent->buf1.buf = 0;
-      cent->buf2.buf = 0;
-      cent->buf3.buf = 0;
-      cent->Reset();
-      pfeRef.UnLock(); // Note we throw away the pointer just below!/
-   }
-   cent = 0;
+   // Reset the entry
+   delete (XrdCryptoX509 *) cent->buf1.buf; // Destroys also xsrv->PKI() pointed in cent->buf2.buf
+   delete (XrdSutBucket *) cent->buf3.buf;
+   cent->buf1.buf = 0;
+   cent->buf2.buf = 0;
+   cent->buf3.buf = 0;
 
    //
    // Get the IDs of the file: we need them to acquire the right privileges when opening
@@ -5311,26 +5314,30 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
       if (xsrv->type != XrdCryptoX509::kEEC) {
          PRINT("problems loading srv cert: not EEC but: "<<xsrv->Type());
          SafeDelete(xsrv);
-         return cent;
+         ceref.UnLock();
+         return (XrdSutCacheEntry *)0;
       }
       // Must be valid
       if (!(xsrv->IsValid())) {
          PRINT("problems loading srv cert: invalid");
          SafeDelete(xsrv);
-         return cent;
+         ceref.UnLock();
+         return (XrdSutCacheEntry *)0;
       }
       // PKI must have been successfully initialized
       if (!xsrv->PKI() || xsrv->PKI()->status != XrdCryptoRSA::kComplete) {
          PRINT("problems loading srv cert: invalid PKI");
          SafeDelete(xsrv);
-         return cent;
+         ceref.UnLock();
+         return (XrdSutCacheEntry *)0;
       }
       // Must be exportable
       XrdSutBucket *xbck = xsrv->Export();
       if (!xbck) {
          PRINT("problems loading srv cert: cannot export into bucket");
          SafeDelete(xsrv);
-         return cent;
+         ceref.UnLock();
+         return (XrdSutCacheEntry *)0;
       }
       // We must have the issuing CA certificate
       int rcgetca = 0;
@@ -5352,47 +5359,48 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
             }
             SafeDelete(xsrv);
             SafeDelete(xbck);
-            return cent;
+            ceref.UnLock();
+            return (XrdSutCacheEntry *)0;
          }
       }
+
       // Ok: save it into the cache
-      String tag = cf->Name();
-      cent = cacheCert.Add(pfeRef, tag.c_str());
-      if (cent) {
-         cent->status = kPFE_ok;
-         cent->cnt = 0;
-         cent->mtime = xsrv->NotAfter(); // expiration time
-         // Save pointer to certificate (destroys also xsrv->PKI())
-         if (cent->buf1.buf) delete (XrdCryptoX509 *) cent->buf1.buf;
-         cent->buf1.buf = (char *)xsrv;
-         cent->buf1.len = 0;  // just a flag
-         // Save pointer to key
-         cent->buf2.buf = 0;
-         cent->buf2.buf = (char *)(xsrv->PKI());
-         cent->buf2.len = 0;  // just a flag
-         // Save pointer to bucket
-         if (cent->buf3.buf) delete (XrdSutBucket *) cent->buf3.buf;
-         cent->buf3.buf = (char *)(xbck);
-         cent->buf3.len = 0;  // just a flag
-         // Save CA hash in list to communicate to clients
-         if (certcalist.find(xsrv->IssuerHash()) == STR_NPOS) {
-            if (certcalist.length() > 0) certcalist += "|";
-            certcalist += xsrv->IssuerHash();
-         }
-         // Save also old CA hash in list to communicate to clients, if relevant
-         if (HashCompatibility && xsrv->IssuerHash(1) &&
-                                  strcmp(xsrv->IssuerHash(1),xsrv->IssuerHash())) {
-            if (certcalist.find(xsrv->IssuerHash(1)) == STR_NPOS) {
-               if (certcalist.length() > 0) certcalist += "|";
-               certcalist += xsrv->IssuerHash(1);
-            }
-         }
-      } else {
-         // Cleanup
-         SafeDelete(xsrv);
-         SafeDelete(xbck);
+      cent->status = kCE_ok;
+      cent->cnt = 0;
+      cent->mtime = xsrv->NotAfter(); // expiration time
+      // Save pointer to certificate (destroys also xsrv->PKI())
+      if (cent->buf1.buf) delete (XrdCryptoX509 *) cent->buf1.buf;
+      cent->buf1.buf = (char *)xsrv;
+      cent->buf1.len = 0;  // just a flag
+      // Save pointer to key
+      cent->buf2.buf = 0;
+      cent->buf2.buf = (char *)(xsrv->PKI());
+      cent->buf2.len = 0;  // just a flag
+      // Save pointer to bucket
+      if (cent->buf3.buf) delete (XrdSutBucket *) cent->buf3.buf;
+      cent->buf3.buf = (char *)(xbck);
+      cent->buf3.len = 0;  // just a flag
+      // Save CA hash in list to communicate to clients
+      if (certcalist.find(xsrv->IssuerHash()) == STR_NPOS) {
+         if (certcalist.length() > 0) certcalist += "|";
+         certcalist += xsrv->IssuerHash();
       }
+      // Save also old CA hash in list to communicate to clients, if relevant
+      if (HashCompatibility && xsrv->IssuerHash(1) &&
+                               strcmp(xsrv->IssuerHash(1),xsrv->IssuerHash())) {
+         if (certcalist.find(xsrv->IssuerHash(1)) == STR_NPOS) {
+            if (certcalist.length() > 0) certcalist += "|";
+            certcalist += xsrv->IssuerHash(1);
+         }
+      }
+   } else {
+      PRINT("failed to load certificate from files ("<< SrvCert <<","<<SrvKey<<")");
    }
+
+   // When successful we return read-locked; need to write-unlock before to avoid dead locking
+   ceref.UnLock(false);
+   ceref.ReadLock();
+
    // Done
    return cent;
 }

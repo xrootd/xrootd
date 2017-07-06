@@ -33,7 +33,7 @@
 #include <unistd.h>
 #include <time.h>
 
-#include "XrdSut/XrdSutCache.hh"
+#include "XrdSut/XrdSutPFCache.hh"
 #include "XrdSut/XrdSutPFile.hh"
 #include "XrdSut/XrdSutTrace.hh"
 #include "XrdSut/XrdSutAux.hh"
@@ -46,7 +46,7 @@
 /******************************************************************************/
 
 //__________________________________________________________________
-XrdSutCache::~XrdSutCache()
+XrdSutPFCache::~XrdSutPFCache()
 {
    // Destructor
 
@@ -70,7 +70,7 @@ XrdSutCache::~XrdSutCache()
 }
 
 //__________________________________________________________________
-int XrdSutCache::Init(int capacity, bool lock)
+int XrdSutPFCache::Init(int capacity, bool lock)
 {
    // Initialize the cache to hold up to capacity entries.
    // Later on, capacity is double each time more space is needed. 
@@ -119,7 +119,7 @@ int XrdSutCache::Init(int capacity, bool lock)
 }
 
 //__________________________________________________________________
-XrdSutPFEntry *XrdSutCache::Get(XrdSutCacheRef &urRef, const char *ID, bool *wild)
+XrdSutPFEntry *XrdSutPFCache::Get(XrdSutPFCacheRef &urRef, const char *ID, bool *wild)
 {
    // Retrieve an entry with ID, if any
    // If wild is defined, search also best matching regular expression
@@ -170,7 +170,7 @@ XrdSutPFEntry *XrdSutCache::Get(XrdSutCacheRef &urRef, const char *ID, bool *wil
 }
 
 //__________________________________________________________________
-XrdSutPFEntry *XrdSutCache::Get(const char *ID, bool *wild)
+XrdSutPFEntry *XrdSutPFCache::Get(const char *ID, bool *wild)
 {
 
    // Look in the hash first
@@ -204,7 +204,7 @@ XrdSutPFEntry *XrdSutCache::Get(const char *ID, bool *wild)
 }
 
 //__________________________________________________________________
-XrdSutPFEntry *XrdSutCache::Add(XrdSutCacheRef &urRef, const char *ID, bool force)
+XrdSutPFEntry *XrdSutPFCache::Add(XrdSutPFCacheRef &urRef, const char *ID, bool force)
 {
    // Add an entry with ID in cache
    // Cache buffer is re-allocated with double size, if needed
@@ -291,7 +291,7 @@ XrdSutPFEntry *XrdSutCache::Add(XrdSutCacheRef &urRef, const char *ID, bool forc
 }
 
 //__________________________________________________________________
-bool XrdSutCache::Remove(const char *ID, int opt)
+bool XrdSutPFCache::Remove(const char *ID, int opt)
 {
    // If opt==1 remove entry with name matching exactly ID from cache
    // If opt==0 all entries with names starting with ID are removed
@@ -364,7 +364,7 @@ bool XrdSutCache::Remove(const char *ID, int opt)
 }
 
 //__________________________________________________________________
-bool XrdSutCache::Delete(XrdSutPFEntry *pfEnt)
+bool XrdSutPFCache::Delete(XrdSutPFEntry *pfEnt)
 {
    struct pfQ {pfQ           *next;
                XrdSutPFEntry *pfEnt;
@@ -407,7 +407,7 @@ bool XrdSutCache::Delete(XrdSutPFEntry *pfEnt)
 }
 
 //__________________________________________________________________
-int XrdSutCache::Trim(int lifet)
+int XrdSutPFCache::Trim(int lifet)
 {
    // Remove entries older then lifet seconds. If lifet <=0, compare
    // to lifetime, which can be set with SetValidity().
@@ -445,7 +445,7 @@ int XrdSutCache::Trim(int lifet)
 }
 
 //__________________________________________________________________
-int XrdSutCache::Reset(int newsz, bool lock)
+int XrdSutPFCache::Reset(int newsz, bool lock)
 {
    // Remove all existing entries.
    // If newsz > -1, set new capacity to newsz, reallocating if needed
@@ -484,7 +484,7 @@ int XrdSutCache::Reset(int newsz, bool lock)
 }
 
 //________________________________________________________________
-void XrdSutCache::Dump(const char *msg)
+void XrdSutPFCache::Dump(const char *msg)
 {
    // Dump content of the cache
    EPNAME("Cache::Dump");
@@ -528,7 +528,7 @@ void XrdSutCache::Dump(const char *msg)
 }
 
 //__________________________________________________________________
-int XrdSutCache::Load(const char *pfn)
+int XrdSutPFCache::Load(const char *pfn)
 {
    // Initialize the cache from the content of a file of PF entries
    // Return 0 if ok, -1 otherwise
@@ -656,7 +656,7 @@ int XrdSutCache::Load(const char *pfn)
 
 
 //__________________________________________________________________
-int XrdSutCache::Rehash(bool force, bool lock)
+int XrdSutPFCache::Rehash(bool force, bool lock)
 {
    // Update or create hahs table corresponding to the present content of the
    // cache
@@ -698,7 +698,7 @@ int XrdSutCache::Rehash(bool force, bool lock)
 }
 
 //__________________________________________________________________
-int XrdSutCache::Flush(const char *pfn)
+int XrdSutPFCache::Flush(const char *pfn)
 {
    // Flush cache content to file pfn.
    // If pfn == 0 and the cache was initialized from a file, flush
@@ -766,7 +766,7 @@ int XrdSutCache::Flush(const char *pfn)
 }
 
 //__________________________________________________________________
-int XrdSutCache::Refresh()
+int XrdSutPFCache::Refresh()
 {
    // Refresh content of a cache created from file.
     // Return 0 if ok, -1 otherwise
