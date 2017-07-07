@@ -1553,7 +1553,7 @@ namespace XrdCl
     if( !info->firstLogIn )
       memcpy( info->oldSessionId, info->sessionId, 16 );
 
-    if( rsp->hdr.dlen < 24 )
+    if( rsp->hdr.dlen < 16 )
       return Status( stError, errDataError );
 
     memcpy( info->sessionId, rsp->body.login.sessid, 16 );
