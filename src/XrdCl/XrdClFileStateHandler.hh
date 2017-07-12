@@ -412,7 +412,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void MonitorClose( const XRootDStatus *status );
 
-      mutable XrdSysRecMutex  pMutex;
+      mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;
       XRootDStatus            pStatus;
       StatInfo               *pStatInfo;
