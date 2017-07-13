@@ -70,7 +70,9 @@ public:
 
       // We found an existing entry:
       // lock until we get the ability to read (another thread may be valudating it)
-      if (cent->rwmtx.ReadLock()) {
+      int status = 0;
+      cent->rwmtx.ReadLock( status );
+      if ( status ) {
          // A problem occured: fail (set the entry invalid)
          cent->status = kCE_inactive;
       }
@@ -95,7 +97,9 @@ public:
       if (!(cent = table.Find(tag))) {
          // If none, create a new one and write-lock for validation
          cent = new XrdSutCacheEntry(tag);
-         if (cent->rwmtx.WriteLock()) {
+         int status = 0;
+         cent->rwmtx.WriteLock( status );
+         if (status) {
             // A problem occured: delete the entry and fail
             delete cent;
             return (XrdSutCacheEntry *)0;
@@ -107,7 +111,9 @@ public:
 
       // We found an existing entry:
       // lock until we get the ability to read (another thread may be valudating it)
-      if (cent->rwmtx.ReadLock()) {
+      int status = 0;
+      cent->rwmtx.ReadLock( status );
+      if (status) {
          // A problem occured: fail (set the entry invalid)
          cent->status = kCE_inactive;
          return cent;
@@ -121,7 +127,9 @@ public:
          } else {
             // Invalid entry: unlock and write-lock to be able to validate it
             cent->rwmtx.UnLock();
-            if (cent->rwmtx.WriteLock()) {
+            int status = 0;
+            cent->rwmtx.WriteLock( status );
+            if (status) {
                // A problem occured: fail (set the entry invalid)
                cent->status = kCE_inactive;
                return cent;
