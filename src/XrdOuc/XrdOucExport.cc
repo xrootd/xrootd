@@ -175,6 +175,10 @@ XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
       {Eroute.Emsg("Export", "path not specified"); return 0;}
    strlcpy(pbuff, path, sizeof(pbuff));
 
+// Handle object ID specification
+//
+   if (*pbuff == '*') pbuff[1] = 0;
+
 // Process path options and apply defaults to any unspecified otions
 //
    rpval = ParseDefs(Config, Eroute, 0);

@@ -1326,9 +1326,19 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdSysError &Eroute)
    pP = XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags);
    if (!pP) return 1;
 
-// This plugin does not support relative paths so check for this
+// If this is an absolute path, we are done
 //
    if (*(pP->Path()) == '/') return 0;
+
+// If this is an objectid path then make sure to set the default for these
+//
+   if (*(pP->Path()) == '*')
+      {RPList.Defstar(pP->Flag());
+       return 0;
+      }
+
+// We do not (yet) support exporting specific object ID's
+//
    Eroute.Emsg("Config", "Unsupported export -", pP->Path());
    return 1;
 }

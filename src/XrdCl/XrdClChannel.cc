@@ -299,10 +299,8 @@ namespace XrdCl
 
     if( redirector )
     {
-      XRootDStatus st = redirector->HandleRequest( msg, pStreams[path.down] );
-      if( st.IsOK() )
-        handler->OnStatusReady( msg, Status() );
-      return st;
+      handler->OnStatusReady( msg, Status() );
+      return redirector->HandleRequest( msg, pStreams[path.down] );
     }
 
     return pStreams[path.up]->Send( msg, handler, stateful, expires );

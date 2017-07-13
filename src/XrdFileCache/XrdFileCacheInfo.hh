@@ -29,7 +29,7 @@
 
 class XrdOssDF;
 class XrdCksCalc;
-class XrdOucTrace;
+class XrdSysTrace;
 
 
 namespace XrdCl
@@ -77,7 +77,7 @@ public:
    //------------------------------------------------------------------------
    //! Constructor.
    //------------------------------------------------------------------------
-   Info(XrdOucTrace* trace, bool prefetchBuffer = false);
+   Info(XrdSysTrace* trace, bool prefetchBuffer = false);
 
    //------------------------------------------------------------------------
    //! Destructor.
@@ -230,12 +230,12 @@ public:
    const static int     m_defaultVersion;
    const static size_t  m_maxNumAccess;
 
-   XrdOucTrace* GetTrace() const {return m_trace; }
+   XrdSysTrace* GetTrace() const {return m_trace; }
 
    static size_t GetMaxNumAccess() { return m_maxNumAccess; }
 
 protected:
-   XrdOucTrace*   m_trace;
+   XrdSysTrace*   m_trace;
 
    Store          m_store;
    bool           m_hasPrefetchBuffer;       //!< constains current prefetch score

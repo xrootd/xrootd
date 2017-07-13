@@ -148,15 +148,8 @@ XRootDStatus XCpCtx::GetChunk( XrdCl::ChunkInfo &ci )
     return XRootDStatus( stOK, suDone );
   }
 
-  // check if there are any active sources
-  size_t nbRunning = 0;
-  std::list<XCpSrc*>::iterator itr;
-  for( itr = pSources.begin() ; itr != pSources.end() ; ++ itr)
-    if( (*itr)->IsRunning() )
-      ++nbRunning;
-
   // if we don't have active sources it means we failed
-  if( nbRunning == 0 )
+  if( GetRunning() == 0 )
   {
     XrdSysCondVarHelper lck( pDoneCV );
     pDone = true;
@@ -189,6 +182,17 @@ bool XCpCtx::AllDone()
     pDoneCV.Wait( 60 );
 
   return pDone;
+}
+
+size_t XCpCtx::GetRunning()
+{
+  // count active sources
+  size_t nbRunning = 0;
+  std::list<XCpSrc*>::iterator itr;
+  for( itr = pSources.begin() ; itr != pSources.end() ; ++ itr)
+    if( (*itr)->IsRunning() )
+      ++nbRunning;
+  return nbRunning;
 }
 
 

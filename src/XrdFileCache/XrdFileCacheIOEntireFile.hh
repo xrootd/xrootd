@@ -59,6 +59,8 @@ public:
    //!
    //! @return number of bytes read
    //---------------------------------------------------------------------
+   using XrdOucCacheIO2::Read;
+
    virtual int Read(char *Buffer, long long Offset, int Length);
 
    //---------------------------------------------------------------------
@@ -69,6 +71,8 @@ public:
    //!
    //! @return total bytes read
    //---------------------------------------------------------------------
+   using XrdOucCacheIO2::ReadV;
+
    virtual int ReadV(const XrdOucIOVec *readV, int n);
 
    //---------------------------------------------------------------------

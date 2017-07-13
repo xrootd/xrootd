@@ -3,7 +3,7 @@ Description=XrdHttp socket
 
 [Socket]
 ListenStream=80
-Service=xrootd@http.service
+Service=xrootd@%i.service
 
 [Install]
 WantedBy=sockets.target

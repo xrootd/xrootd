@@ -50,6 +50,7 @@
 #include "XrdFfs/XrdFfsPosix.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdPss/XrdPss.hh"
+#include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
 #include "XrdOss/XrdOssError.hh"
@@ -127,10 +128,9 @@ XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdPssSys::XrdPssSys() : LocalRoot(0), N2NLib(0), N2NParms(0), theN2N(0),
-                         DirFlags(0), cPath(0), cParm(0),
-                         myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem)),
-                         TraceLvl(0) {}
+XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
+                         myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem))
+                         {}
 
 /******************************************************************************/
 /*                                  i n i t                                   */
@@ -220,11 +220,13 @@ int XrdPssSys::Create(const char *tident, const char *path, mode_t Mode,
   
 void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
 {
-// We only need to extract the scheduler pointer from the environment
+// We only need to extract the scheduler pointer from the environment. Propogate
+// the information to the POSIX layer.
 //
-   if (envP) schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
-
-   XrdPosixXrootd::setSched(schedP);
+   if (envP)
+      {schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
+       XrdPosixConfig::EnvInfo(*envP);
+      }
 }
   
 /******************************************************************************/
@@ -275,7 +277,7 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 
 // Convert path to URL
 //
-   if (!P2URL(retc, pbuff, PBsz, path, 0, Cgi, CgiLen)) return retc;
+   if (!P2URL(retc,pbuff,PBsz,path,0,Cgi,CgiLen,0,xLfn2Pfn)) return retc;
 
 // Simply return the proxied result here
 //
@@ -315,7 +317,7 @@ int XrdPssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
 
 // Convert path to URL
 //
-   if (!(subPath = P2URL(rc, pbuff, PBsz, path, allRmdir, Cgi, CgiLen)))
+   if (!(subPath = P2URL(rc,pbuff,PBsz,path,allRmdir,Cgi,CgiLen,0,xLfn2Pfn)))
       return rc;
 
 // If unlinks are being forwarded, just execute this on a single node.
@@ -374,8 +376,8 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 
 // Convert path to URL
 //
-   if (!(oldSubP = P2URL(retc, oldName, PBsz, oldname, 0, oldCgi, oldCgiLen))
-   ||  !(newSubP = P2URL(retc, newName, PBsz, newname, 0, newCgi, newCgiLen)))
+   if (!(oldSubP = P2URL(retc,oldName,PBsz,oldname,0,oldCgi,oldCgiLen,0,xLfn2Pfn))
+   ||  !(newSubP = P2URL(retc,newName,PBsz,newname,0,newCgi,newCgiLen,0,xLfn2Pfn)))
        return retc;
 
 // Execute the rename and return result
@@ -424,7 +426,7 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 
 // Convert path to URL
 //
-   if (!P2URL(retc, pbuff, PBsz, path, 0, Cgi, CgiLen, theID)) return retc;
+   if (!P2URL(retc,pbuff,PBsz,path,0,Cgi,CgiLen,theID,xLfn2Pfn)) return retc;
 
 // Return proxied stat
 //
@@ -459,7 +461,7 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen,
 
 // Convert path to URL
 //
-   if (!P2URL(retc, pbuff, PBsz, path, 0, Cgi, CgiLen)) return retc;
+   if (!P2URL(retc,pbuff,PBsz,path,0,Cgi,CgiLen,0,xLfn2Pfn)) return retc;
 
 // Return proxied truncate. We only do this on a single machine because the
 // redirector will forbid the trunc() if multiple copies exist.
@@ -500,7 +502,7 @@ int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 
 // Convert path to URL
 //
-   if (!(subPath = P2URL(rc, pbuff, PBsz, path, allRm, Cgi, CgiLen)))
+   if (!(subPath = P2URL(rc,pbuff,PBsz,path,allRm,Cgi,CgiLen,0,xLfn2Pfn)))
       return rc;
 
 // If unlinks are being forwarded, just execute this on a single node.
@@ -548,8 +550,9 @@ int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 
 // Convert path to URL
 //
-   if (!(subPath = XrdPssSys::P2URL(retc,pbuff,PBsz,dir_path,0,Cgi,CgiLen)))
-      return retc;
+   subPath = XrdPssSys::P2URL(retc,pbuff,PBsz,dir_path,0,Cgi,CgiLen,0,
+                              XrdPssSys::xLfn2Pfn);
+   if (!subPath) return retc;
 
 // Open the directory
 //
@@ -675,8 +678,8 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Convert path to URL
 //
-   if (!XrdPssSys::P2URL(retc, pbuff, PBsz, path, 0, Cgi, CgiLen, tident))
-      return retc;
+   if (!XrdPssSys::P2URL(retc,pbuff,PBsz,path,0,Cgi,CgiLen,tident,
+                         XrdPssSys::xLfn2Pfn)) return retc;
 
 // Try to open and if we failed, return an error
 //
@@ -1075,7 +1078,7 @@ char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
   
 char *XrdPssSys::P2URL(int &retc, char *pbuff, int pblen,
                  const char *path,  int Split,
-                 const char *Cgi,   int CgiLn, const char *Ident,int doN2N)
+                 const char *Cgi,   int CgiLn, const char *Ident, bool doN2N)
 {
    int   pfxLen, pathln;
    const char *theID = 0, *subPath;
@@ -1092,7 +1095,7 @@ char *XrdPssSys::P2URL(int &retc, char *pbuff, int pblen,
 //
    if (doN2N && XrdProxySS.theN2N)
       {if ((retc = XrdProxySS.theN2N->lfn2pfn(path, Apath, sizeof(Apath))))
-          return 0;
+          {if (retc > 0) retc = -retc; return 0;}
        fname = Apath;
       }
    pathln = strlen(fname);

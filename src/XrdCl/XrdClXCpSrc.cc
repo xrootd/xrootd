@@ -131,6 +131,14 @@ void XCpSrc::StartDownloading()
   if( !st.IsOK() )
   {
     pRunning = false;
+    // notify those who wait for the file
+    // size, they wont get it from this
+    // source
+    pCtx->NotifyInitExpectant();
+    // put a null chunk so we are sure
+    // the main thread doesn't get stuck
+    // at the sync queue
+    pCtx->PutChunk( 0 );
     return;
   }
 
@@ -528,7 +536,8 @@ XRootDStatus XCpSrc::GetWork()
 
 uint64_t XCpSrc::TransferRate()
 {
-  return pDataTransfered / ( pTransferTime + time( 0 ) - pStartTime );
+  time_t duration = pTransferTime + time( 0 ) - pStartTime;
+  return pDataTransfered / ( duration + 1 ); // add one to avoid floating point exception
 }
 
 } /* namespace XrdCl */

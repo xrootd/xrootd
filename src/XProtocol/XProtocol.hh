@@ -324,6 +324,7 @@ enum XErrorCode {
    kXR_overQuota,
    kXR_SigVerErr,
    kXR_DecryptErr,
+   kXR_Overloaded,
    kXR_ERRFENCE,    // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -867,6 +868,7 @@ static int mapError(int rc)
            case EDQUOT:       return kXR_overQuota;
            case EILSEQ:       return kXR_SigVerErr;
            case ERANGE:       return kXR_DecryptErr;
+           case EUSERS:       return kXR_Overloaded;
            default:           return kXR_FSError;
           }
       }
@@ -898,6 +900,7 @@ static int toErrno( int xerr )
         case kXR_overQuota:     return EDQUOT;
         case kXR_SigVerErr:     return EILSEQ;
         case kXR_DecryptErr:    return ERANGE;
+        case kXR_Overloaded:    return EUSERS;
         default:                return ENOMSG;
        }
 }

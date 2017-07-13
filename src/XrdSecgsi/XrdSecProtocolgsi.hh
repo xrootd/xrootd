@@ -40,6 +40,8 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 
+#include "XrdSut/XrdSutCache.hh"
+
 #include "XrdSut/XrdSutPFEntry.hh"
 #include "XrdSut/XrdSutPFile.hh"
 #include "XrdSut/XrdSutBuffer.hh"
@@ -232,27 +234,6 @@ typedef struct {
    int         bits;
 } ProxyIn_t;
 
-template<class T>
-class GSIStack {
-public:
-   void Add(T *t) {
-      char k[40]; snprintf(k, 40, "%p", t); 
-      mtx.Lock();
-      if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count); // We need an additional count
-      stack.Add(k, t, 0, Hash_count);
-      mtx.UnLock();
-   }
-   void Del(T *t) {
-      char k[40]; snprintf(k, 40, "%p", t); 
-      mtx.Lock();
-      if (stack.Find(k)) stack.Del(k, Hash_count);
-      mtx.UnLock();
-   }
-private:
-   XrdSysMutex                  mtx;
-   XrdOucHash<T> stack;
-};
-
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l g s i   C l a s s                 */
 /******************************************************************************/
@@ -348,19 +329,14 @@ private:
    static XrdCryptoCipher *refcip[XrdCryptoMax];    // ref for session ciphers 
    //
    // Caches 
-   static XrdSutCache      cacheCA;   // Info about trusted CA's
-   static XrdSutCache      cacheCert; // Cache for available server certs
-   static XrdSutCache      cachePxy;  // Cache for client proxies
-   static XrdSutCache      cacheGMAP; // Cache for gridmap entries
-   static XrdSutCache      cacheGMAPFun; // Cache for entries mapped by GMAPFun
-   static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
+   static XrdSutCache   cacheCA;   // Info about trusted CA's
+   static XrdSutCache   cacheCert; // Server certificates info cache
+   static XrdSutCache   cachePxy;  // Client proxies cache; 
+   static XrdSutCache   cacheGMAPFun; // Cache for entries mapped by GMAPFun
+   static XrdSutCache   cacheAuthzFun; // Cache for entities filled by AuthzFun
    //
    // Services
    static XrdOucGMap      *servGMap;  // Grid mapping service 
-   //
-   // CA and CRL stacks
-   static GSIStack<XrdCryptoX509Chain>    stackCA; // Stack of CA in use
-   static GSIStack<XrdCryptoX509Crl>      stackCRL; // Stack of CRL in use
    //
    // GMAP control vars
    static time_t           lastGMAPCheck; // time of last check on GMAP
@@ -422,7 +398,7 @@ private:
    static int     VerifyCRL(XrdCryptoX509Crl *crl, XrdCryptoX509 *xca, XrdOucString crldir,
                            XrdCryptoFactory *CF, int hashalg);
    bool           ServerCertNameOK(const char *subject, String &e);
-   static XrdSutPFEntry *GetSrvCertEnt(XrdSutCacheRef   &pfeRef,
+   static XrdSutCacheEntry *GetSrvCertEnt(XrdSutCERef   &gcref,
                                        XrdCryptoFactory *cf,
                                        time_t timestamp, String &cal);
 
@@ -510,12 +486,7 @@ public:
                      if (Chain) Chain->Cleanup(1);
                      SafeDelete(Chain);
                   }
-                  if (Crl) {
-                     // This decreases the counter and actually deletes the object only
-                     // when no instance is using it
-                     XrdSecProtocolgsi::stackCRL.Del(Crl);
-                     Crl = 0;
-                  }
+                  Crl = 0;
                   // The proxy chain is owned by the proxy cache; invalid proxies are
                   // detected (and eventually removed) by QueryProxy
                   PxyChain = 0;

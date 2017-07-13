@@ -68,6 +68,9 @@ static const char *InstName(const char *name, int Fillit=1);
 
 static int   is1of(char *val, const char **clist);
 
+static int   isFWD(const char *path, int *port=0, char *hBuff=0, int hBLen=0,
+                   bool pTrim=false);
+
 static int   Log2(unsigned long long n);
 
 static int   Log10(unsigned long long n);

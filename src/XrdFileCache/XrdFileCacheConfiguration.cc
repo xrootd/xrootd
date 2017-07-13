@@ -106,13 +106,14 @@ bool Cache::xtrace(XrdOucStream &Config)
 bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char *parameters)
 {
    m_log.logger(logger);
+   const char *theINS = getenv("XRDINSTANCE");
 
-   const char * cache_env;
-   if (! (cache_env = getenv("XRDPOSIX_CACHE")) || ! *cache_env)
-      XrdOucEnv::Export("XRDPOSIX_CACHE", "mode=s&optwr=0");
+// Indicate whether or not we are a client instance
+//
+   m_isClient = (strncmp("*client ", theINS, 8) != 0);
 
    XrdOucEnv myEnv;
-   XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   XrdOucStream Config(&m_log, theINS, &myEnv, "=====> ");
 
    if (! config_filename || ! *config_filename)
    {
@@ -145,6 +146,11 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       TRACE(Error, "Cache::Config() Unable to create an OSS object");
       m_output_fs = 0;
       return false;
+   }
+
+   // minimize buffersize in case of client caching
+   if ( m_isClient) {
+      m_configuration.m_bufferSize = 256 * 1024 * 124;
    }
 
 
@@ -220,15 +226,33 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       }
    }
 
+   // sets flush frequency
+   {
+      if (::isalpha(*(tmpc.m_flushRaw.rbegin())))
+      {
+         if (XrdOuca2x::a2sz(m_log, "Error getting number of blocks to flush",  tmpc.m_flushRaw.c_str(), &m_configuration.m_flushCnt, 100*m_configuration.m_bufferSize , 5000*m_configuration.m_bufferSize))
+         {
+            return false;
+         }
+         m_configuration.m_flushCnt /= m_configuration.m_bufferSize;
+      }
+      else
+      {
+         m_configuration.m_flushCnt = ::atol(tmpc.m_flushRaw.c_str());
+      }
+   }
+
+   
    // get number of available RAM blocks after process configuration
    if (m_configuration.m_RamAbsAvailable == 0)
    {
-      TRACE(Error, "RAM usage not specified. pfc.ram is a required configuration directive since release 4.6.\n"
-                   "  As a temporary measure default of 8 GB is being used. This will be discontinued in release 5.");
-      m_configuration.m_RamAbsAvailable = 8ll * 1024 * 1024 * 1024;
-      // return false;
+      m_configuration.m_RamAbsAvailable = m_isClient ? 256ll * 1024 * 1024 : 1024 * 1024 * 1024;
+      char buff2[1024];
+      snprintf(buff2, sizeof(buff2), "RAM usage is not specified. Default value %s is used.", m_isClient ? "256m" : "8g");
+      TRACE(Warning, buff2);
    }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable/ m_configuration.m_bufferSize);
+   
 
    // Set tracing to debug if this is set in environment
    char* cenv = getenv("XRDDEBUG");
@@ -245,7 +269,8 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                       "       pfc.ram %.fg\n"
                       "       pfc.diskusage %lld %lld sleep %d\n"
                       "       pfc.spaces %s %s\n"
-                      "       pfc.trace %d",
+                      "       pfc.trace %d\n"
+                      "       pfc.flush %lld",
                       config_filename,
                       m_configuration.m_bufferSize,
                       m_configuration.m_prefetch_max_blocks,
@@ -255,7 +280,10 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
                       m_configuration.m_purgeInterval,
                       m_configuration.m_data_space.c_str(),
                       m_configuration.m_meta_space.c_str(),
-                      m_trace->What);
+                      m_trace->What,
+                      m_configuration.m_flushCnt);
+
+
 
       if (m_configuration.m_hdfsmode)
       {
@@ -360,7 +388,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
    else if ( part == "ram" )
    {
-      long long minRAM = 1024 * 1024 * 1024;
+      long long minRAM = m_isClient ? 256 * 1024 * 1024 : 1024 * 1024 * 1024;
       long long maxRAM = 256 * minRAM;
       if ( XrdOuca2x::a2sz(m_log, "get RAM available", config.GetWord(), &m_configuration.m_RamAbsAvailable, minRAM, maxRAM))
       {
@@ -408,13 +436,25 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          }
       }
    }
+   else if ( part == "flush" )
+   {
+      tmpc.m_flushRaw = config.GetWord();
+   }
    else
    {
       m_log.Emsg("Cache::ConfigParameters() unmatched pfc parameter", part.c_str());
       return false;
    }
 
-   assert (config.GetWord() == 0 && "Cache::ConfigParameters() lost argument");
-
    return true;
+}
+
+//______________________________________________________________________________
+
+
+void Cache::EnvInfo(XrdOucEnv &theEnv)
+{
+// Extract out the pointer to the scheduler
+//
+   schedP = (XrdScheduler *)theEnv.GetPtr("XrdScheduler*");
 }

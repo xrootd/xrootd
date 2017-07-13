@@ -1,10 +1,10 @@
-#ifndef __SUT_CACHE_H__
-#define __SUT_CACHE_H__
+#ifndef  __SUT_CACHE_H
+#define  __SUT_CACHE_H
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d S u t C a c h e . h h                           */
+/*                       X r d S u t C a c h e . h h                          */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Gerri Ganis for CERN                                         */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
@@ -28,95 +28,119 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XProtocol/XPtypes.hh"
-#include "XrdSut/XrdSutPFEntry.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include "XrdSut/XrdSutCacheEntry.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                                                                            */
-/*  For caching temporary information during the authentication handshake     */
+/*  Class defining the basic memory cache                                     */
 /*                                                                            */
 /******************************************************************************/
 
-class XrdSutCacheRef
-{
+typedef bool (*XrdSutCacheGet_t)(XrdSutCacheEntry *, void *);
+typedef struct {
+   long arg1;
+   long arg2;
+   long arg3;
+   long arg4;
+} XrdSutCacheArg_t;
+
+class XrdSutCache {
 public:
+   XrdSutCache(int psize = 89, int size = 144, int load = 80) : table(psize, size, load) {}
+   virtual ~XrdSutCache() {}
 
-inline void Lock(XrdSysMutex *Mutex)
-                {if (mtx) {if (mtx != Mutex) mtx->UnLock();
-                              else return;
-                          }
-                 Mutex->Lock();
-                 mtx = Mutex;
-                };
+   XrdSutCacheEntry *Get(const char *tag) {
+      // Get the entry with 'tag'.
+      // If found the entry is returned rd-locked.
+      // If rd-locking fails the status is set to kCE_inactive.
+      // Returns null if not found.
 
-inline void Set(XrdSysMutex *Mutex)
-               {if (mtx) {if (mtx != Mutex) mtx->UnLock();
-                             else return;
-                         }
-                mtx = Mutex;
-               };
+      XrdSutCacheEntry *cent = 0;
 
-inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
+      // Exclusive access to the table
+      XrdSysMutexHelper raii(mtx);
 
-            XrdSutCacheRef() : mtx(0) {}
+      // Look for an entry
+      if (!(cent = table.Find(tag))) {
+         // none found
+         return cent;
+      }
 
-           ~XrdSutCacheRef() {if (mtx) UnLock();}
-protected:
-XrdSysMutex *mtx;
-};
+      // We found an existing entry:
+      // lock until we get the ability to read (another thread may be valudating it)
+      if (cent->rwmtx.ReadLock()) {
+         // A problem occured: fail (set the entry invalid)
+         cent->status = kCE_inactive;
+      }
+      return cent;
+   }
 
-class XrdSutCache
-{
+   XrdSutCacheEntry *Get(const char *tag, bool &rdlock, XrdSutCacheGet_t condition = 0, void *arg = 0) {
+      // Get or create the entry with 'tag'.
+      // New entries are always returned write-locked.
+      // The status of existing ones depends on condition: if condition is undefined or if applied
+      // to the entry with arguments 'arg' returns true, the entry is returned read-locked.
+      // Otherwise a write-lock is attempted on the entry: if unsuccessful (another thread is modifing
+      // the entry) the entry is read-locked.
+      // The status of the lock is returned in rdlock (true if read-locked).
+      rdlock = false;
+      XrdSutCacheEntry *cent = 0;
+
+      // Exclusive access to the table
+      XrdSysMutexHelper raii(mtx);
+
+      // Look for an entry
+      if (!(cent = table.Find(tag))) {
+         // If none, create a new one and write-lock for validation
+         cent = new XrdSutCacheEntry(tag);
+         if (cent->rwmtx.WriteLock()) {
+            // A problem occured: delete the entry and fail
+            delete cent;
+            return (XrdSutCacheEntry *)0;
+         }
+         // Register it in the table
+         table.Add(tag, cent);
+         return cent;
+      }
+
+      // We found an existing entry:
+      // lock until we get the ability to read (another thread may be valudating it)
+      if (cent->rwmtx.ReadLock()) {
+         // A problem occured: fail (set the entry invalid)
+         cent->status = kCE_inactive;
+         return cent;
+      }
+
+      // Check-it by apply the condition, if required
+      if (condition) {
+         if ((*condition)(cent, arg)) {
+            // Good and valid entry
+            rdlock = true;
+         } else {
+            // Invalid entry: unlock and write-lock to be able to validate it
+            cent->rwmtx.UnLock();
+            if (cent->rwmtx.WriteLock()) {
+               // A problem occured: fail (set the entry invalid)
+               cent->status = kCE_inactive;
+               return cent;
+            }
+          }
+      } else {
+          // Good and valid entry
+          rdlock = true;
+      }
+      // We are done: return read-locked so we can use it until we need it
+      return cent;
+   }
+
+   inline int Num() { return table.Num(); }
+   inline void Reset() { return table.Purge(); }
+
 private:
-   XrdSysRWLock    rwlock;  // Access synchronizator
-   int             cachesz; // Number of entries allocated
-   int             cachemx; // Largest Index of allocated entries
-   XrdSutPFEntry **cachent; // Pointers to filled entries
-   kXR_int32       utime;   // time at which was last updated
-   int             lifetime; // lifetime (in secs) of the cache info 
-   XrdOucHash<kXR_int32> hashtable; // Reflects the file index structure
-   kXR_int32       htmtime;   // time at which hash table was last rebuild
-   XrdOucString    pfile;   // file name (if loaded from file)
-   bool            isinit;  // true if already initialized
-
-   XrdSutPFEntry  *Get(const char *ID, bool *wild);
-   bool            Delete(XrdSutPFEntry *pfEnt);
-
-   static const int maxTries = 100; // Max time to try getting a lock
-   static const int retryMSW = 300; // Milliseconds to wait to get lock
-
-public:
-   XrdSutCache() { cachemx = -1; cachesz = 0; cachent = 0; lifetime = 300;
-                   utime = -1; htmtime = -1; pfile = ""; isinit = 0; }
-   virtual ~XrdSutCache();
-
-   // Status
-   int            Entries() const { return (cachemx+1); }
-   bool           Empty() const { return (cachemx == -1); }
-
-   // Initialization methods
-   int            Init(int capacity = 100, bool lock = 1);
-   int            Reset(int newsz = -1, bool lock = 1);
-   int            Load(const char *pfname);  // build cache of a pwd file
-   int            Flush(const char *pfname = 0);   // flush content to pwd file
-   int            Refresh();    // refresh content from source file
-   int            Rehash(bool force = 0, bool lock = 1);  // (re)build hash table
-   void           SetLifetime(int lifet = 300) { lifetime = lifet; }
-
-   // Cache management
-   XrdSutPFEntry *Get(int i) const { return (i<=cachemx) ? cachent[i] :
-                                                          (XrdSutPFEntry *)0; }
-   XrdSutPFEntry *Get(XrdSutCacheRef &urRef, const char *ID, bool *wild = 0);
-   XrdSutPFEntry *Add(XrdSutCacheRef &urRef, const char *ID, bool force = 0);
-   bool           Remove(const char *ID, int opt = 1);
-   int            Trim(int lifet = 0);
-
-   // For debug purposes
-   void           Dump(const char *msg= 0);
+   XrdSysRecMutex         mtx;  // Protect access to table
+   XrdOucHash<XrdSutCacheEntry> table; // table with content
 };
 
 #endif
-

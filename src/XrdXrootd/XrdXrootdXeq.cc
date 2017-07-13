@@ -38,6 +38,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecProtector.hh"
 #include "Xrd/XrdBuffer.hh"
@@ -101,6 +102,11 @@ struct XrdXrootdSessID
         if (Route[xfnc].Port[rdType]) \
            return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],\
                                              Route[xfnc].Host[rdType])
+namespace
+{
+static const int op_isOpen    = 0x00010000;
+static const int op_isRead    = 0x00020000;
+}
  
 /******************************************************************************/
 /*                              d o _ A d m i n                               */
@@ -2844,6 +2850,13 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
+
+       if (Path && (rc == kXR_Overloaded) && (opC == XROOTD_MON_OPENR
+                || opC == XROOTD_MON_OPENW || opC == XROOTD_MON_OPENC))
+          {if (myError.extData()) myError.Reset();
+           return fsOvrld(opC, Path, Cgi);
+          }
+
        if (Path && (rc == kXR_NotFound) && RQLxist && opC
        &&  (popt = RQList.Validate(Path)))
           {if (XrdXrootdMonitor::Redirect())
@@ -2930,25 +2943,73 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 }
 
 /******************************************************************************/
-/*                               f s R e d i r                                */
+/*                               f s O v r l d                                */
 /******************************************************************************/
-
-int XrdXrootdProtocol::fsRedir(XrdXrootdProtocol::RD_func xfnc)
+  
+int XrdXrootdProtocol::fsOvrld(char opC, const char *Path, char *Cgi)
 {
-   char *opaque;
+   static const char *prot = "root://";
+   static int negOne = -1;
+   static char quest = '?', slash = '/';
 
-// Extract out the opaque icgi information
-//
-   rpCheck(argp->buff, &opaque);
+   struct iovec rdrResp[8];
+   char *destP=0, dest[512];
+   int iovNum=0, pOff, port;
 
-// If we have some, then use the long path redirection
+// If this is a forwarded path and the client can handle full url's then
+// redirect the client to the destination in the path. Otherwise, if there is
+// an alternate destination, send client there. Otherwise, stall the client.
 //
-   if (opaque) return fsRedirNoEnt(0, opaque, xfnc);
+   if (OD_Bypass && clientPV & XrdOucEI::uUrlOK
+   &&  (pOff = XrdOucUtils::isFWD(Path, &port, dest, sizeof(dest))))
+      {    rdrResp[1].iov_base = (void *)&negOne;
+           rdrResp[1].iov_len  = sizeof(negOne);
+           rdrResp[2].iov_base = (void *)prot;
+           rdrResp[2].iov_len  = 7;                        // root://
+           rdrResp[3].iov_base = (void *)dest;
+           rdrResp[3].iov_len  = strlen(dest);             // host:port
+           rdrResp[4].iov_base = (void *)&slash;
+           rdrResp[4].iov_len  = (*Path == '/' ? 1 : 0);   // / or nil for objid
+           rdrResp[5].iov_base = (void *)(Path+pOff);
+           rdrResp[5].iov_len  = strlen(Path+pOff);        // path
+       if (Cgi && *Cgi)
+          {rdrResp[6].iov_base = (void *)&quest;
+           rdrResp[6].iov_len  = sizeof(quest);            // ?
+           rdrResp[7].iov_base = (void *)Cgi;
+           rdrResp[7].iov_len  = strlen(Cgi);              // cgi
+           iovNum = 8;
+          } else iovNum = 6;
+       destP = dest;
+      } else if ((destP = Route[RD_ovld].Host[rdType]))
+                 port   = Route[RD_ovld].Port[rdType];
 
-// Otherwise, send the client off right away
+// If a redirect happened, then trace it.
 //
-   return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],
-                                     Route[xfnc].Host[rdType]);
+   if (destP)
+      {SI->redirCnt++;
+       if (XrdXrootdMonitor::Redirect())
+           XrdXrootdMonitor::Redirect(Monitor.Did, destP, port,
+                                      opC|XROOTD_MON_REDLOCAL, Path);
+       if (iovNum)
+          {TRACEI(REDIR, Response.ID() <<"redirecting to "<<dest);
+           return Response.Send(kXR_redirect, rdrResp, iovNum);
+          } else {
+           TRACEI(REDIR, Response.ID() <<"redirecting to "<<destP<<':'<<port);
+           return Response.Send(kXR_redirect, port, destP);
+          }
+      }
+
+// If there is a stall value, then delay the client
+//
+   if (OD_Stall)
+      {TRACEI(STALL, Response.ID()<<"stalling client for "<<OD_Stall<<" sec");
+       SI->stallCnt++;
+       return Response.Send(kXR_wait, OD_Stall, "server is overloaded");
+      }
+
+// We were unsuccessful, return overload as an error
+//
+   return Response.Send(kXR_Overloaded, "server is overloaded");
 }
   
 /******************************************************************************/

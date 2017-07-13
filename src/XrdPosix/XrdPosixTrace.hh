@@ -1,11 +1,13 @@
-#ifndef __CRYPTO_LOCALFACTORY_H__
-#define __CRYPTO_LOCALFACTORY_H__
+#ifndef _XRDPOSIX_TRACE_H
+#define _XRDPOSIX_TRACE_H
 /******************************************************************************/
 /*                                                                            */
-/*             X r d C r y p t o L o c a l F a c t o r y . h h                */
+/*                      X r d P o s i x T r a c e . h h                       */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*   Produced by Gerri Ganis for CERN                                         */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -28,45 +30,31 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-/* ************************************************************************** */
-/*                                                                            */
-/* Implementation of the local crypto factory                                 */
-/*                                                                            */
-/* ************************************************************************** */
+#define TRACE_Debug     0x0001
 
-#include "XrdCrypto/XrdCryptoFactory.hh"
+#ifndef NODEBUG
 
-// The ID must be a unique number
-#define XrdCryptolocalFactoryID  0
+#include "XrdSys/XrdSysTrace.hh"
 
-class XrdCryptolocalFactory : public XrdCryptoFactory 
+#define DMSG(x,y) {XrdPosixGlobals::Trace.Beg(0, x) <<y; \
+                   XrdPosixGlobals::Trace.End();}
+
+#define DEBUGON (XrdPosixGlobals::Trace.What & TRACE_Debug)
+
+#define DEBUG(y) if (XrdPosixGlobals::Trace.What & TRACE_Debug) DMSG(epname,y)
+
+#define EPNAME(x) static const char *epname = x
+
+namespace XrdPosixGlobals
 {
-public:
-   XrdCryptolocalFactory();
-   virtual ~XrdCryptolocalFactory() { }
+extern    XrdSysTrace Trace;
+}
 
-   // Set trace flags
-   void SetTrace(kXR_int32 trace);
+#else
 
-   // Hook to local KDFun
-   XrdCryptoKDFunLen_t KDFunLen(); // Length of buffer
-   XrdCryptoKDFun_t KDFun();
+#define DEBUG(y)
+#define EPNAME(x)
+#define DEBUGON false
 
-   // Cipher constructors
-   XrdCryptoCipher *Cipher(const char *t, int l = 0);
-   XrdCryptoCipher *Cipher(const char *t, int l, const char *k,
-                                          int liv, const char *iv);
-   XrdCryptoCipher *Cipher(XrdSutBucket *b);
-   XrdCryptoCipher *Cipher(int bits, char *pub, int lpub, const char *t = 0);
-   XrdCryptoCipher *Cipher(const XrdCryptoCipher &c);
-
-   // MsgDigest constructors
-   XrdCryptoMsgDigest *MsgDigest(const char *dgst);
-
-   // RSA constructors
-   XrdCryptoRSA *RSA(int bits = XrdCryptoDefRSABits, int exp = XrdCryptoDefRSAExp);
-   XrdCryptoRSA *RSA(const char *pub, int lpub = 0);
-   XrdCryptoRSA *RSA(const XrdCryptoRSA &r);
-};
-
+#endif
 #endif

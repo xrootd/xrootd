@@ -28,7 +28,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 #include "XrdFileCache.hh"
 #include "XrdFileCacheTrace.hh"
@@ -39,6 +39,8 @@
 using namespace XrdFileCache;
 
 Cache * Cache::m_factory = NULL;
+
+XrdScheduler *Cache::schedP = NULL;
 
 
 void *CacheDirCleanupThread(void* cache_void)
@@ -59,12 +61,6 @@ void *PrefetchThread(void* ptr)
    Cache* cache = static_cast<Cache*>(ptr);
    cache->Prefetch();
    return NULL;
-}
-
-
-namespace XrdPosixGlobals
-{
-extern XrdScheduler *schedP;
 }
 
 extern "C"
@@ -151,9 +147,10 @@ Cache::Cache() : XrdOucCache(),
    m_trace(0),
    m_traceID("Manager"),
    m_prefetch_condVar(0),
-   m_RAMblocks_used(0)
+   m_RAMblocks_used(0),
+   m_isClient(false)
 {
-   m_trace = new XrdOucTrace(&m_log);
+   m_trace = new XrdSysTrace("XrdFileCache");
    // default log level is Warning
    m_trace->What = 2;
 }
@@ -171,7 +168,7 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
       else
          cio = new IOEntireFile(io, m_stats, *this);
 
-      TRACE_PC(Info, const char* loc = io->Location(),
+      TRACE_PC(Debug, const char* loc = io->Location(),
                "Cache::Attach() " << io->Path() << " location: " <<
                ((loc && loc[0] != 0) ? loc : "<deferred open>"));
       return cio;
@@ -329,12 +326,26 @@ void Cache::ReleaseFile(File* f)
 }
 
 //______________________________________________________________________________
+  
+namespace
+{
+void *callDoIt(void *pp)
+{
+     XrdJob *jP = (XrdJob *)pp;
+     jP->DoIt();
+     return (void *)0;
+}
+};
 
 void Cache::schedule_file_sync(File* f, bool ref_cnt_already_set)
 {
    DiskSyncer* ds = new DiskSyncer(f);
    if ( ! ref_cnt_already_set) inc_ref_cnt(f, true);
-   XrdPosixGlobals::schedP->Schedule(ds);
+   if (m_isClient) ds->DoIt();
+      else if (schedP) schedP->Schedule(ds);
+              else {pthread_t tid;
+                    XrdSysThread::Run(&tid, callDoIt, ds, 0, "DiskSyncer");
+                   }
 }
 
 //______________________________________________________________________________

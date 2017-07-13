@@ -5,7 +5,7 @@ using namespace XrdFileCache;
 
 #include <fcntl.h>
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 namespace
 {
@@ -49,7 +49,7 @@ private:
    long long nByteAccum;
 };
 
-XrdOucTrace* GetTrace()
+XrdSysTrace* GetTrace()
 {
    // needed for logging macros
    return Cache::GetInstance().GetTrace();
@@ -97,7 +97,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                {
                   // cinfo file does not contain any known accesses, use stat.mtime instead.
 
-                  TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np << ", trying stat");
+                  TRACE(Debug, "FillFileMapRecurse() could not get access time for " << np << ", trying stat");
 
                   XrdOss* oss = Cache::GetInstance().GetOss();
                   struct stat fstat;

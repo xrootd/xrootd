@@ -324,7 +324,7 @@ int XrdXrootdJob2Do::verClient(int dodel)
    for (i = 0; i < numClients; i++)
        if (!Client[i].Link->isInstance(Client[i].Inst))
           {k = i;
-           for (j = i+1; j < numClients; j++,k++) Client[k] = Client[j];
+           for (j = i+1; j < numClients && j < maxClients; j++,k++) Client[k] = Client[j];
            numClients--; i--;
           }
 
@@ -634,8 +634,7 @@ void XrdXrootdJob::CleanUp(XrdXrootdJob2Do *jp)
         if (theStatus == XrdXrootdJob2Do::Job_Waiting
         ||  theStatus == XrdXrootdJob2Do::Job_Done)
            Sched->Schedule((XrdJob *)jp);
-   else if (theStatus == XrdXrootdJob2Do::Job_Active)
-           jp->jobStream.Drain();
+   else{if (theStatus == XrdXrootdJob2Do::Job_Active) jp->jobStream.Drain();}
 
    if (theStatus == XrdXrootdJob2Do::Job_Waiting) numJobs--;
 }

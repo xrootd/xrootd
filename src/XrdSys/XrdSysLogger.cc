@@ -45,6 +45,8 @@
 #include <sys/uio.h>
 #endif // WIN32
 
+#include "XrdOuc/XrdOucTList.hh"
+
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysLogging.hh"
@@ -54,6 +56,49 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysUtils.hh"
   
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
+namespace
+{
+XrdOucTListFIFO *tFifo = 0;
+
+void Snatch(struct iovec *iov, int iovnum) // Called with logger mutex locked!
+{
+   XrdOucTList *tlP;
+   char *tBuff, *tbP;
+   int tLen = 0;
+
+// Do not save the new line character at the end
+//
+   if (iovnum && *((char *)iov[iovnum-1].iov_base) == '\n') iovnum--;
+
+// Calculate full length
+//
+   for (int i = 0; i <iovnum; i++) tLen += iov[i].iov_len;
+
+// Allocate storage
+//
+   if (!(tBuff = (char *)malloc(tLen+1))) return;
+
+// Copy in the segments into the buffer
+//
+   tbP = tBuff;
+   for (int i = 0; i <iovnum; i++)
+       {strncpy(tbP, (char *)iov[i].iov_base, iov[i].iov_len);
+        tbP += iov[i].iov_len;
+       }
+   *tbP = 0;
+
+// Allocate a new tlist object and add it toi the fifo
+//
+   tlP = new XrdOucTList;
+   tlP->text = tBuff;
+   tFifo->Add(tlP);
+}
+}
+
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
@@ -224,6 +269,26 @@ int XrdSysLogger::Bind(const char *path, int lfh)
 }
 
 /******************************************************************************/
+/*                               C a p t u r e                                */
+/******************************************************************************/
+
+void XrdSysLogger::Capture(XrdOucTListFIFO *tFIFO)
+{
+
+// Obtain the serailization mutex
+//
+   Logger_Mutex.Lock();
+
+// Set the base for capturing messages
+//
+   tFifo = tFIFO;
+
+// Release the serailization mutex
+//
+   Logger_Mutex.UnLock();
+}
+  
+/******************************************************************************/
 /*                             P a r s e K e e p                              */
 /******************************************************************************/
 
@@ -292,6 +357,14 @@ void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 // Obtain the serailization mutex if need be
 //
    Logger_Mutex.Lock();
+
+// If we are capturing messages, do so now
+//
+   if (tFifo)
+      {Snatch(iov, iovcnt);
+       Logger_Mutex.UnLock();
+       return;
+      }
 
 // In theory, writev may write out a partial list. This rarely happens in
 // practice and so we ignore that possibility (recovery is pretty tough).

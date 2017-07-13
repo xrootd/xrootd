@@ -136,7 +136,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
    while(!strcmp(val, "defined"))
       {if (!(val = Config.GetWord()) || *val != '?')
           {if (eDest)
-              eDest->Emsg("Config","'?var' missing after 'defined' in",what);
+             {eDest->Emsg("Config","'?var' missing after 'defined' in",what);}
            return -1;
           }
        // Get environment if we have none
@@ -154,18 +154,18 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
        if (!val || !isDef) return isDef;
        if (strcmp(val, "&&"))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid for defined test in",what);
+             {eDest->Emsg("Config",val,"is invalid for defined test in",what);}
            return -1;
           } else {
            if (!(val = Config.GetWord()))
               {if (eDest)
-                   eDest->Emsg("Config","missing keyword after '&&' in",what);
+                  {eDest->Emsg("Config","missing keyword after '&&' in",what);}
                return -1;
               }
           }
        if (!is1of(val, brk))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
+             {eDest->Emsg("Config",val,"is invalid after '&&' in",what);}
            return -1;
           }
       }
@@ -176,7 +176,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
    if (!strcmp(val, "exec"))
       {if (!(val = Config.GetWord()) || !strcmp(val, "&&"))
           {if (eDest)
-              eDest->Emsg("Config","Program name missing after 'if exec' in",what);
+             {eDest->Emsg("Config","Program name missing after 'if exec' in",what);}
            return -1;
           }
 
@@ -192,12 +192,12 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 
        if (!(val = Config.GetWord()))
           {if (eDest)
-              eDest->Emsg("Config","Keyword missing after '&&' in",what);
+             {eDest->Emsg("Config","Keyword missing after '&&' in",what);}
            return -1;
           }
        if (strcmp(val, "named"))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
+             {eDest->Emsg("Config",val,"is invalid after '&&' in",what);}
            return -1;
           }
       }
@@ -207,7 +207,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 //
    if (!(val = Config.GetWord()))
       {if (eDest)
-          eDest->Emsg("Config","Instance name missing after 'if named' in", what);
+         {eDest->Emsg("Config","Instance name missing after 'if named' in", what);}
        return -1;
       }
 
@@ -398,6 +398,45 @@ int XrdOucUtils::is1of(char *val, const char **clist)
    return 0;
 }
 
+/******************************************************************************/
+/*                                 i s F W D                                  */
+/******************************************************************************/
+  
+int XrdOucUtils::isFWD(const char *path, int *port, char *hBuff, int hBLen,
+                       bool pTrim)
+{
+   const char *hName, *hNend, *hPort, *hPend, *hP = path;
+   char *eP;
+   int n;
+
+   if (*path == '/') hP++;  // Note: It's assumed an objectid if no slash
+   if (*hP   == 'x') hP++;
+   if (strncmp("root:/", hP, 6)) return 0;
+   if (hBuff == 0 || hBLen <= 0) return (hP - path) + 6;
+   hP += 6;
+
+   if (!XrdNetUtils::Parse(hP, &hName, &hNend, &hPort, &hPend)) return 0;
+   if (*hNend == ']') hNend++;
+      else {if (!(*hNend) && !(hNend = index(hName, '/'))) return 0;
+            if (!(*hPend)) hPend = hNend;
+           }
+
+   if (pTrim || !(*hPort)) n = hNend - hP;
+      else n = hPend - hP;
+   if (n >= hBLen) return 0;
+   strncpy(hBuff, hP, n);
+   hBuff[n] = 0;
+
+   if (port)
+      {if (*hNend != ':') *port = 0;
+          else {*port = strtol(hPort, &eP, 10);
+                if (*port < 0 || *port > 65535 || eP != hPend) return 0;
+               }
+      }
+
+   return hPend-path;
+}
+  
 /******************************************************************************/
 /*                                  L o g 2                                   */
 /******************************************************************************/

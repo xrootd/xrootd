@@ -18,6 +18,7 @@ add_library(
   XrdPosix/XrdPosixAdmin.cc        XrdPosix/XrdPosixAdmin.hh
                                    XrdPosix/XrdPosixCacheBC.hh
   XrdPosix/XrdPosixCallBack.cc     XrdPosix/XrdPosixCallBack.hh
+  XrdPosix/XrdPosixConfig.cc       XrdPosix/XrdPosixConfig.hh
   XrdPosix/XrdPosixDir.cc          XrdPosix/XrdPosixDir.hh
   XrdPosix/XrdPosixFile.cc         XrdPosix/XrdPosixFile.hh
   XrdPosix/XrdPosixFileRH.cc       XrdPosix/XrdPosixFileRH.hh
@@ -25,6 +26,7 @@ add_library(
   XrdPosix/XrdPosixObject.cc       XrdPosix/XrdPosixObject.hh
                                    XrdPosix/XrdPosixObjGuard.hh
   XrdPosix/XrdPosixPrepIO.cc       XrdPosix/XrdPosixPrepIO.hh
+                                   XrdPosix/XrdPosixTrace.hh
   XrdPosix/XrdPosixXrootd.cc       XrdPosix/XrdPosixXrootd.hh
   XrdPosix/XrdPosixXrootdPath.cc   XrdPosix/XrdPosixXrootdPath.hh
                                    XrdPosix/XrdPosixOsDep.hh    )

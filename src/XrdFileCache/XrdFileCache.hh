@@ -31,7 +31,7 @@
 
 class XrdOucStream;
 class XrdSysError;
-class XrdOucTrace;
+class XrdSysTrace;
 
 namespace XrdCl {
 class Log;
@@ -60,7 +60,8 @@ struct Configuration
       m_RamAbsAvailable(0),
       m_NRamBuffers(-1),
       m_prefetch_max_blocks(10),
-      m_hdfsbsize(128*1024*1024)
+      m_hdfsbsize(128*1024*1024),
+      m_flushCnt(100)
    {}
 
    bool m_hdfsmode;                     //!< flag for enabling block-level operation
@@ -79,15 +80,17 @@ struct Configuration
    size_t    m_prefetch_max_blocks;     //!< maximum number of blocks to prefetch per file
 
    long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
+   long long m_flushCnt;                //!< nuber of unsynced blcoks on disk before flush is called
 };
 
 struct TmpConfiguration
 {
    std::string m_diskUsageLWM;
    std::string m_diskUsageHWM;
+   std::string m_flushRaw;
 
    TmpConfiguration() :
-      m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95")
+      m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95"), m_flushRaw("100")
    {}
 };
 
@@ -105,12 +108,18 @@ public:
    //---------------------------------------------------------------------
    //! Obtain a new IO object that fronts existing XrdOucCacheIO.
    //---------------------------------------------------------------------
+   using XrdOucCache2::Attach;
+
    virtual XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *, int Options = 0);
 
    //---------------------------------------------------------------------
    //! Number of cache-io objects atteched through this cache.
    //---------------------------------------------------------------------
    virtual int isAttached();
+
+   //---------------------------------------------------------------------
+   // Virtual function of XrdOucCache2. Used to pass environmental info.
+   virtual void EnvInfo(XrdOucEnv &theEnv);
 
    //---------------------------------------------------------------------
    // Virtual function of XrdOucCache2. Used for deferred open.
@@ -188,10 +197,7 @@ public:
 
    void Prefetch();
 
-
    XrdOss* GetOss() const { return m_output_fs; }
-
-   XrdSysError& GetSysError() { return m_log; }
 
    bool HaveActiveFileWithLocalPath(std::string);
    
@@ -203,7 +209,7 @@ public:
 
    void FileSyncDone(File*);
    
-   XrdOucTrace* GetTrace() { return m_trace; }
+   XrdSysTrace* GetTrace() { return m_trace; }
 
 private:
    bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
@@ -212,9 +218,11 @@ private:
    bool xtrace(XrdOucStream &);
 
    static Cache     *m_factory;         //!< this object
+   static 
+   XrdScheduler     *schedP;
 
    XrdSysError       m_log;             //!< XrdFileCache namespace logger
-   XrdOucTrace      *m_trace;
+   XrdSysTrace      *m_trace;
    const char       *m_traceID;
 
    XrdOucCacheStats  m_stats;           //!<
@@ -230,6 +238,7 @@ private:
 
    XrdSysMutex m_RAMblock_mutex;            //!< central lock for this class
    int         m_RAMblocks_used;
+   bool        m_isClient;                  //!< True if running as client
 
    struct WriteQ
    {

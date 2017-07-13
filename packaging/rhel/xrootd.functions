@@ -296,7 +296,8 @@ function handleDaemons()
       continue
     fi
     $CMD_HANDLER $DAEMON $EXEC_RUN "$XROOTD_USER" "$XROOTD_GROUP" $INSTANCE "$OPTS"
-    if test $? -ne 0; then
+    STATUS=$?
+    if test $? -ne 0 && "$CMD_HANDLER" != "statusOfTheDaemon"; then
       STATUS=1
     fi
   done

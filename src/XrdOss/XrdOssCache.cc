@@ -636,7 +636,7 @@ void *XrdOssCache::Scan(int cscanint)
 
 // Try to prevent floodingthe log with scan messages
 //
-   if (cscanint > 0 && cscanint < 60) dbgMsg = cscanint/60;
+   if (cscanint > 60) dbgMsg = cscanint/60;
       else dbgMsg = 1;
    dbgNoMsg = dbgMsg;
 

@@ -30,11 +30,14 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <iostream>
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
+
+#include "XrdVersion.hh"
 
 #include "Xrd/XrdScheduler.hh"
 
@@ -50,16 +53,23 @@
 #include "XrdOuc/XrdOucCache2.hh"
 #include "XrdOuc/XrdOucCacheDram.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucPsx.hh"
 
 #include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdPosix/XrdPosixCacheBC.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
+#include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixDir.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdPosix/XrdPosixXrootdPath.hh"
+
+#include "XrdSys/XrdSysTrace.hh"
 
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
@@ -67,16 +77,48 @@
 
 namespace XrdPosixGlobals
 {
-XrdScheduler   *schedP = 0;
-XrdOucCache2   *theCache = 0;
+XrdScheduler    *schedP    = 0;
+XrdOucCache2    *theCache  = 0;
+XrdOucCache     *myCache   = 0;
+XrdOucCache2    *myCache2  = 0;
+XrdOucName2Name *theN2N    = 0;
 XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
-bool           psxDBG = (getenv("XRDPOSIX_DEBUG") != 0);
+XrdSysLogger    *theLogger = 0;
+XrdSysTrace      Trace("Posix", 0,
+                      (getenv("XRDPOSIX_DEBUG") ? TRACE_Debug : 0));
+int              ddInterval= 30;
+int              ddMaxTries= 180/30;
+bool             oidsOK    = false;
 };
 
-XrdOucCache   *XrdPosixXrootd::myCache  =  0;
-XrdOucCache2  *XrdPosixXrootd::myCache2 =  0;
 int            XrdPosixXrootd::baseFD    = 0;
 int            XrdPosixXrootd::initDone  = 0;
+
+XrdVERSIONINFO(XrdPosix,XrdPosix);
+  
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+/******************************************************************************/
+/*                               L f n P a t h                                */
+/******************************************************************************/
+
+namespace
+{
+class LfnPath
+{
+public:
+const char *path;
+
+            LfnPath(const char *who, const char *pURL, bool ponly=true)
+                   {path = XrdPosixXrootPath::P2L(who, pURL, relURL, ponly);}
+
+           ~LfnPath() {if (relURL) free(relURL);}
+
+private:
+char *relURL;
+};
+}
   
 /******************************************************************************/
 /*                       L o c a l   F u n c t i o n s                        */
@@ -84,7 +126,7 @@ int            XrdPosixXrootd::initDone  = 0;
 
 namespace
 {
-
+  
 /******************************************************************************/
 /*                             O p e n D e f e r                              */
 /******************************************************************************/
@@ -131,6 +173,7 @@ int OpenDefer(XrdPosixFile           *fp,
 XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
 {
    static XrdSysMutex myMutex;
+   char *cfn;
 
 // Only static fields are initialized here. We need to do this only once!
 //
@@ -139,11 +182,22 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
    initDone = 1;
    myMutex.UnLock();
 
-// Initialize environment if not done before. To avoid static initialization
-// dependencies, we need to do it once but we must be the last ones to do it
-// before any library routines are called.
+// Initialize environment as a client or a server (it differs somewhat).
 //
-   initEnv();
+   if (!XrdPosixGlobals::theLogger && (cfn=getenv("XRDPOSIX_CONFIG")) && *cfn)
+      {bool hush;
+       if (*cfn == '+') {hush = false; cfn++;}
+          else hush = (getenv("XRDPOSIX_DEBUG") == 0);
+       if (*cfn)
+          {XrdOucPsx psxConfig(&XrdVERSIONINFOVAR(XrdPosix), cfn);
+           if (psxConfig.ClientConfig("posix.", hush))
+              XrdPosixConfig::SetConfig(psxConfig);
+              else {std::cerr <<"Posix: Unable to instantiate specified "
+                           "configuration; program exiting!" <<std::endl;
+                   exit(16);
+                   }
+          }
+      }
 
 // Initialize file tracking
 //
@@ -196,6 +250,7 @@ int XrdPosixXrootd::Access(const char *path, int amode)
 
 int XrdPosixXrootd::Close(int fildes)
 {
+   EPNAME("Close");
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fP;
    bool ret;
@@ -211,12 +266,7 @@ int XrdPosixXrootd::Close(int fildes)
 //
    if (!fP->Refs() && !(fP->XCio->ioActive()))
       {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
-          else if (XrdPosixGlobals::psxDBG)
-                  {char eBuff[2048];
-                   snprintf(eBuff, sizeof(eBuff), "Posix: %s closing %s\n",
-                            Status.ToString().c_str(), fP->Path());
-                   std::cerr <<eBuff <<std::flush;
-                  }
+          else {DEBUG(Status.ToString().c_str() <<" closing " <<fP->Origin());}
       } else ret = true;
 
 // If we still have a handle then we need to do a delayed delete on this
@@ -477,11 +527,13 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
                          XrdPosixCallBack *cbP)
 {
+   EPNAME("Open");
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fp;
    XrdCl::Access::Mode     XOmode = XrdCl::Access::None;
    XrdCl::OpenFlags::Flags XOflags;
    int Opts;
+   bool aOK;
 
 // Translate R/W and R/O flags
 //
@@ -513,16 +565,20 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 
 // Allocate the new file object
 //
-   if (!(fp = new XrdPosixFile(path, cbP, Opts)))
+   if (!(fp = new XrdPosixFile(aOK, path, cbP, Opts)))
       {errno = EMFILE;
        return -1;
       }
 
+// Check if all went well during allocation
+//
+   if (!aOK) {delete fp; return -1;}
+
 // If we have a cache, then issue a prepare as the cache may want to defer the
 // open request ans we have a lot more work to do.
 //
-   if (myCache2)
-      {int rc = myCache2->Prepare(path, oflags, mode);
+   if (XrdPosixGlobals::myCache2)
+      {int rc = XrdPosixGlobals::myCache2->Prepare(path, oflags, mode);
        if (rc > 0) return OpenDefer(fp, cbP, XOflags, XOmode, oflags&isStream);
        if (rc < 0) {errno = -rc; return -1;}
       }
@@ -538,12 +594,8 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
    if (!Status.IsOK())
       {XrdPosixMap::Result(Status);
        int rc = errno;
-       if (XrdPosixGlobals::psxDBG && rc != ENOENT && rc != ELOOP)
-          {char eBuff[2048];
-           snprintf(eBuff, sizeof(eBuff), "%s open %s\n",
-                    Status.ToString().c_str(), fp->Path());
-           std::cerr <<eBuff <<std::flush;
-          }
+       if (rc != ENOENT && rc != ELOOP)
+          {DEBUG(Status.ToString().c_str() <<" open " <<fp->Origin());}
        delete fp;
        errno = rc;
        return -1;
@@ -931,17 +983,21 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 
 // Make sure the admin is OK and the new url is valid
 //
-  if (!admin.isOK() || !newUrl.IsValid()) {errno = EINVAL; return -1;}
+   if (!admin.isOK() || !newUrl.IsValid()) {errno = EINVAL; return -1;}
+
+// Issue rename to he cache (it really should just deep-six both files)
+//
+   if (XrdPosixGlobals::theCache)
+      {LfnPath oldF("rename", oldpath);
+       LfnPath newF("rename", newpath);
+       if (!oldF.path || !newF.path) return -1;
+       XrdPosixGlobals::theCache->Rename(oldF.path, newF.path);
+      }
 
 // Issue the rename
 //
-  std::string urlp    = admin.Url.GetPathWithParams();
-  std::string nurlp   = newUrl.GetPathWithParams();
-  int res = XrdPosixMap::Result(admin.Xrd.Mv(urlp, nurlp));
-  if (!res && XrdPosixGlobals::theCache)
-     XrdPosixGlobals::theCache->Rename(urlp.c_str(), nurlp.c_str());
-
-  return res;
+  return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
+                             newUrl.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -967,20 +1023,23 @@ void XrdPosixXrootd::Rewinddir(DIR *dirp)
 
 int XrdPosixXrootd::Rmdir(const char *path)
 {
-  XrdPosixAdmin admin(path);
+   XrdPosixAdmin admin(path);
 
 // Make sure the admin is OK
 //
-  if (!admin.isOK()) return -1;
+   if (!admin.isOK()) return -1;
+
+// Remove directory from the cache first
+//
+   if (XrdPosixGlobals::theCache)
+      {LfnPath rmd("rmdir", path);
+       if (!rmd.path) return -1;
+       XrdPosixGlobals::theCache->Rmdir(rmd.path);
+      }
 
 // Issue the rmdir
 //
-   std::string urlp = admin.Url.GetPathWithParams();
-   int res = XrdPosixMap::Result(admin.Xrd.RmDir(urlp));
-   if (!res && XrdPosixGlobals::theCache)
-      XrdPosixGlobals::theCache->Rmdir(urlp.c_str());
-
-   return res;
+   return XrdPosixMap::Result(admin.Xrd.RmDir(admin.Url.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -1029,9 +1088,10 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Check if we can get the stat informatation from the cache
 //
-  if (myCache2)
-     {std::string urlp = admin.Url.GetPathWithParams();
-      int rc = myCache2->Stat(urlp.c_str(), *buf);
+  if (XrdPosixGlobals::myCache2)
+     {LfnPath statX("stat", path, false);
+      if (!statX.path) return -1;
+      int rc = XrdPosixGlobals::myCache2->Stat(statX.path, *buf);
       if (!rc) return 0;
       if (rc < 0) {errno = -rc; return -1;}
      }
@@ -1186,18 +1246,20 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 // Make sure the admin is OK
 //
-  if (!admin.isOK()) return -1;
+   if (!admin.isOK()) return -1;
 
-// Issue the truncate
+// Truncate in the cache first
 //
-  std::string urlp = admin.Url.GetPathWithParams();
-  int res = XrdPosixMap::Result(admin.Xrd.Truncate(urlp,tSize));
+   if (XrdPosixGlobals::theCache)
+      {LfnPath trunc("truncate", path);
+       if (!trunc.path) return -1;
+       XrdPosixGlobals::theCache->Truncate(trunc.path, tSize);
+      }
 
-  if (!res && XrdPosixGlobals::theCache) {
-     XrdPosixGlobals::theCache->Truncate(urlp.c_str(), tSize);
-  }
-
-  return res;
+// Issue the truncate to the origin
+//
+   std::string urlp = admin.Url.GetPathWithParams();
+   return XrdPosixMap::Result(admin.Xrd.Truncate(urlp,tSize));
 }
 
 /******************************************************************************/
@@ -1206,20 +1268,23 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 int XrdPosixXrootd::Unlink(const char *path)
 {
-  XrdPosixAdmin admin(path);
+   XrdPosixAdmin admin(path);
 
 // Make sure the admin is OK
 //
-  if (!admin.isOK()) return -1;
+   if (!admin.isOK()) return -1;
+
+// Unlink the cache first
+//
+   if (XrdPosixGlobals::theCache)
+      {LfnPath remf("unlink", path);
+       if (!remf.path) return -1;
+       XrdPosixGlobals::theCache->Unlink(remf.path);
+      }
 
 // Issue the UnLink
 //
-  std::string urlp = admin.Url.GetPathWithParams();
-  int res = XrdPosixMap::Result(admin.Xrd.Rm(urlp));
-  if (!res && XrdPosixGlobals::theCache)
-     XrdPosixGlobals::theCache->Unlink(urlp.c_str());
-
-  return res;
+   return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -1272,150 +1337,6 @@ ssize_t XrdPosixXrootd::Writev(int fildes, const struct iovec *iov, int iovcnt)
 // All done
 //
    return totbytes;
-}
-  
-/******************************************************************************/
-/*                               i n i t E n v                                */
-/******************************************************************************/
-  
-void XrdPosixXrootd::initEnv()
-{
-   char *evar;
-
-// Establish our internal debug value (rather modest)
-//
-   if ((evar = getenv("XRDPOSIX_CACHE")) && *evar > '0')
-      XrdPosixMap::SetDebug(true);
-
-// Now we must check if we have a new cache over-ride
-//
-   if (!myCache2)
-      {if ((evar = getenv("XRDPOSIX_CACHE")) && *evar) initEnv(evar);
-          else if (myCache) {char ebuf[] = {0};        initEnv(ebuf);}
-      } else XrdPosixGlobals::theCache = myCache2;
-}
-
-/******************************************************************************/
-
-// Parse options specified as a cgi string (i.e. var=val&var=val&...). Vars:
-
-// aprcalc=n   - bytes at which to recalculate preread performance
-// aprminp     - auto preread min read pages
-// aprperf     - auto preread performance
-// aprtrig=n   - auto preread min read length   (can be suffized in k, m, g).
-// cachesz=n   - the size of the cache in bytes (can be suffized in k, m, g).
-// debug=n     - debug level (0 off, 1 low, 2 medium, 3 high).
-// max2cache=n - maximum read to cache          (can be suffized in k, m, g).
-// maxfiles=n  - maximum number of files to support.
-// minp=n      - minimum number of pages needed.
-// mode={c|s}  - running as a client (default) or server.
-// optlg=1     - log statistics
-// optpr=1     - enable pre-reads
-// optsf=<val> - optimize structured file: 1 = all, 0 = off, .<sfx> specific
-// optwr=1     - cache can be written to.
-// pagesz=n    - individual byte size of a page (can be suffized in k, m, g).
-//
-
-void XrdPosixXrootd::initEnv(char *eData)
-{
-   static XrdOucCacheDram dramCache;
-   XrdOucEnv theEnv(eData);
-   XrdOucCache::Parms myParms;
-   XrdOucCacheIO::aprParms apParms;
-   XrdOucCache *v1Cache;
-   long long Val;
-   char * tP;
-
-// Get numeric type variable (errors force a default)
-//
-   initEnv(theEnv, "aprcalc",   Val); if (Val >= 0) apParms.prRecalc  = Val;
-   initEnv(theEnv, "aprminp",   Val); if (Val >= 0) apParms.minPages  = Val;
-   initEnv(theEnv, "aprperf",   Val); if (Val >= 0) apParms.minPerf   = Val;
-   initEnv(theEnv, "aprtrig",   Val); if (Val >= 0) apParms.Trigger   = Val;
-   initEnv(theEnv, "cachesz",   Val); if (Val >= 0) myParms.CacheSize = Val;
-   initEnv(theEnv, "maxfiles",  Val); if (Val >= 0) myParms.MaxFiles  = Val;
-   initEnv(theEnv, "max2cache", Val); if (Val >= 0) myParms.Max2Cache = Val;
-   initEnv(theEnv, "minpages",  Val); if (Val >= 0)
-                                         {if (Val > 32767) Val = 32767;
-                                          myParms.minPages = Val;
-                                         }
-   initEnv(theEnv, "pagesz",    Val); if (Val >= 0) myParms.PageSize  = Val;
-
-// Get Debug setting
-//
-   if ((tP = theEnv.Get("debug")))
-      {if (*tP >= '0' && *tP <= '3') myParms.Options |= (*tP - '0');
-          else cerr <<"XrdPosix: 'XRDPOSIX_CACHE=debug=" <<tP <<"' is invalid." <<endl;
-      }
-
-// Get Mode
-//
-   if ((tP = theEnv.Get("mode")))
-      {if (*tP == 's') myParms.Options |= XrdOucCache::isServer;
-          else if (*tP != 'c') cerr <<"XrdPosix: 'XRDPOSIX_CACHE=mode=" <<tP
-                                    <<"' is invalid." <<endl;
-      }
-
-// Get the structured file option
-//
-   if ((tP = theEnv.Get("optsf")) && *tP && *tP != '0')
-      {     if (*tP == '1') myParms.Options |= XrdOucCache::isStructured;
-       else if (*tP == '.') {XrdPosixFile::sfSFX = strdup(tP);
-                             XrdPosixFile::sfSLN = strlen(tP);
-                            }
-       else cerr <<"XrdPosix: 'XRDPOSIX_CACHE=optfs=" <<tP
-                 <<"' is invalid." <<endl;
-      }
-
-// Get final options, any non-zero value will do here
-//
-   if ((tP = theEnv.Get("optlg")) && *tP && *tP != '0')
-      myParms.Options |= XrdOucCache::logStats;
-   if ((tP = theEnv.Get("optpr")) && *tP && *tP != '0')
-      myParms.Options |= XrdOucCache::canPreRead;
-// if ((tP = theEnv.Get("optwr")) && *tP && *tP != '0') isRW = 1;
-
-// Use the default cache if one was not provided
-//
-   if (!myCache) myCache = &dramCache;
-
-// Now allocate a cache. Indicate that we already serialize the I/O to avoid
-// additional but unnecessary locking.
-//
-   myParms.Options |= XrdOucCache::Serialized;
-   if (!(v1Cache = myCache->Create(myParms, &apParms)))
-      cerr <<"XrdPosix: " <<strerror(errno) <<" creating cache." <<endl;
-      else XrdPosixGlobals::theCache = new XrdPosixCacheBC(v1Cache);
-}
-
-/******************************************************************************/
-
-void XrdPosixXrootd::initEnv(XrdOucEnv &theEnv, const char *vName, long long &Dest)
-{
-   char *eP, *tP;
-
-// Extract variable
-//
-   Dest = -1;
-   if (!(tP = theEnv.Get(vName)) || !(*tP)) return;
-
-// Convert the value
-//
-   errno = 0;
-   Dest = strtoll(tP, &eP, 10);
-   if (Dest > 0 || (!errno && tP != eP))
-      {if (!(*eP)) return;
-            if (*eP == 'k' || *eP == 'K') Dest *= 1024LL;
-       else if (*eP == 'm' || *eP == 'M') Dest *= 1024LL*1024LL;
-       else if (*eP == 'g' || *eP == 'G') Dest *= 1024LL*1024LL*1024LL;
-       else if (*eP == 't' || *eP == 'T') Dest *= 1024LL*1024LL*1024LL*1024LL;
-       else eP--;
-       if (*(eP+1))
-          {cerr <<"XrdPosix: 'XRDPOSIX_CACHE=" <<vName <<'=' <<tP
-                             <<"' is invalid." <<endl;
-           Dest = -1;
-          }
-      }
 }
 
 /******************************************************************************/
@@ -1481,15 +1402,15 @@ long long XrdPosixXrootd::QueryOpaque(const char *path, char *value, int size)
 }
 
 /******************************************************************************/
-/*                              s e t C a c h e                               */
+/* Obsolete!                    s e t C a c h e                               */
 /******************************************************************************/
 
-void XrdPosixXrootd::setCache(XrdOucCache  *cP) {myCache  = cP;}
+void XrdPosixXrootd::setCache(XrdOucCache  *cP) {XrdPosixGlobals::myCache =cP;}
 
-void XrdPosixXrootd::setCache(XrdOucCache2 *cP) {myCache2 = cP;}
+void XrdPosixXrootd::setCache(XrdOucCache2 *cP) {XrdPosixGlobals::myCache2=cP;}
   
 /******************************************************************************/
-/*                              s e t D e b u g                               */
+/* Obsolete!                    s e t D e b u g                               */
 /******************************************************************************/
 
 void XrdPosixXrootd::setDebug(int val, bool doDebug)
@@ -1510,7 +1431,7 @@ void XrdPosixXrootd::setDebug(int val, bool doDebug)
 }
   
 /******************************************************************************/
-/*                                s e t E n v                                 */
+/* Obsolete!                      s e t E n v                                 */
 /******************************************************************************/
 
 void XrdPosixXrootd::setEnv(const char *kword, int kval)
@@ -1534,7 +1455,7 @@ void XrdPosixXrootd::setEnv(const char *kword, int kval)
 }
   
 /******************************************************************************/
-/*                               s e t I P V 4                                */
+/* Obsolete!                     s e t I P V 4                                */
 /******************************************************************************/
 
 void XrdPosixXrootd::setIPV4(bool usev4)
@@ -1548,7 +1469,16 @@ void XrdPosixXrootd::setIPV4(bool usev4)
 }
   
 /******************************************************************************/
-/*                              s e t N u m C B                               */
+/* Obsolete!                   s e t L o g g e r                              */
+/******************************************************************************/
+
+void XrdPosixXrootd::setLogger(XrdSysLogger *logP)
+{
+    XrdPosixGlobals::Trace.SetLogger(logP);
+}
+  
+/******************************************************************************/
+/* Obsolete!                    s e t N u m C B                               */
 /******************************************************************************/
 
 void XrdPosixXrootd::setNumCB(int numcb)
@@ -1557,7 +1487,16 @@ void XrdPosixXrootd::setNumCB(int numcb)
 }
   
 /******************************************************************************/
-/*                              s e t S c h e d                               */
+/* Obsolete!                      S e t N 2 N                                 */
+/******************************************************************************/
+
+void XrdPosixXrootd::setN2N(XrdOucName2Name *pN2N, int opts)
+{
+    XrdPosixGlobals::theN2N = pN2N;
+}
+  
+/******************************************************************************/
+/* Obsolete!                    s e t S c h e d                               */
 /******************************************************************************/
 
 void XrdPosixXrootd::setSched(XrdScheduler *sP)

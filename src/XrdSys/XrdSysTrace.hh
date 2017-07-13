@@ -60,6 +60,7 @@ XrdSysTrace& operator<<(bool        val);
 
 XrdSysTrace& operator<<(      char  val);
 XrdSysTrace& operator<<(const char *val);
+   XrdSysTrace& operator<<(const std::string& val);
 
 XrdSysTrace& operator<<(short       val);
 XrdSysTrace& operator<<(int         val);
@@ -86,9 +87,9 @@ XrdSysTrace& operator<<(Xrd::Fmt val)
                         return *this;
                        }
 
-             XrdSysTrace(const char *pfx, XrdSysLogger *logp=0)
-                        : logP(logp), iName(pfx), dPnt(0), dFree(txtMax),
-                          vPnt(1), doHex(false) {}
+             XrdSysTrace(const char *pfx, XrdSysLogger *logp=0, int tf=0)
+                        : What(tf), logP(logp), iName(pfx), dPnt(0),
+                          dFree(txtMax), vPnt(1), doHex(false) {}
             ~XrdSysTrace() {}
 
 private:

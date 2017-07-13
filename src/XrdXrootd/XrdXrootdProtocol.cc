@@ -122,6 +122,9 @@ int                   XrdXrootdProtocol::PrepareLimit = -1;
 bool                  XrdXrootdProtocol::LimitError = true;
 
 struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[RD_Num];
+int                   XrdXrootdProtocol::OD_Stall = 33;
+bool                  XrdXrootdProtocol::OD_Bypass= false;
+bool                  XrdXrootdProtocol::OD_Redir = false;
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
