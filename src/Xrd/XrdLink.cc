@@ -889,7 +889,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
            else {myOffset = sfP->offset; bytesleft = sfP->sendsz;
                  while(bytesleft
                     && (retc=sendfile(FD,sfP->fdnum,&myOffset,bytesleft)) > 0)
-                      {myOffset += retc; bytesleft -= retc; xIntr++;}
+                      {bytesleft -= retc; xIntr++;}
                 }
         if (retc <  0 && errno == EINTR) continue;
         if (retc <= 0) break;
