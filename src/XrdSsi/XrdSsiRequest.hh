@@ -306,7 +306,7 @@ static RDR_Info RestartDataResponse(RDR_How rhow, const char *reqid=0);
 //-----------------------------------------------------------------------------
 
                 XrdSsiRequest(const char *reqid=0, uint16_t tmo=0)
-                             : reqID(reqid), rrMutex(0),
+                             : reqID(reqid), rrMutex(&ubMutex),
                                theRespond(0), epNode(0),
                                detTTL(0), tOut(0) {}
 
@@ -372,6 +372,8 @@ virtual void     BindDone() {}
         bool     CopyData(char *buff, int blen);
 virtual void     Unbind(XrdSsiResponder *respP) {}
 
+static
+XrdSsiMutex      ubMutex;
 const char      *reqID;
 XrdSsiMutex     *rrMutex;
 XrdSsiRequest   *nextRequest;
