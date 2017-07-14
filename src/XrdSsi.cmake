@@ -2,15 +2,21 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
+# Modules
+#-------------------------------------------------------------------------------
+set( LIB_XRD_SSI        XrdSsi-${PLUGIN_VERSION} )
+set( LIB_XRD_SSILOG     XrdSsiLog-${PLUGIN_VERSION} )
+
+#-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_SSI_VERSION   1.0.0 )
-set( XRD_SSI_SOVERSION 1 )
+set( XRD_SSI_LIB_VERSION   1.0.0 )
+set( XRD_SSI_LIB_SOVERSION 1 )
 set( XRD_SSI_SHMAP_VERSION   1.0.0 )
 set( XRD_SSI_SHMAP_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
-# The XrdSsi library
+# The XrdSsiLib library
 #-------------------------------------------------------------------------------
 add_library(
   XrdSsiLib
@@ -52,8 +58,8 @@ target_link_libraries(
 set_target_properties(
   XrdSsiLib
   PROPERTIES
-  VERSION   ${XRD_SSI_VERSION}
-  SOVERSION ${XRD_SSI_SOVERSION}
+  VERSION   ${XRD_SSI_LIB_VERSION}
+  SOVERSION ${XRD_SSI_LIB_SOVERSION}
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -79,8 +85,56 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# The XrdSsi plugin
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_SSI}
+  SHARED
+  XrdSsi/XrdSsiDir.cc                    XrdSsi/XrdSsiDir.hh
+  XrdSsi/XrdSsiFile.cc                   XrdSsi/XrdSsiFile.hh
+  XrdSsi/XrdSsiFileReq.cc                XrdSsi/XrdSsiFileReq.hh
+  XrdSsi/XrdSsiFileSess.cc               XrdSsi/XrdSsiFileSess.hh
+  XrdSsi/XrdSsiSfs.cc                    XrdSsi/XrdSsiSfs.hh
+  XrdSsi/XrdSsiSfsConfig.cc              XrdSsi/XrdSsiSfsConfig.hh
+  XrdSsi/XrdSsiStat.cc
+)
+
+target_link_libraries(
+  ${LIB_XRD_SSI}
+  XrdSsiLib
+  XrdUtils
+  XrdServer )
+
+set_target_properties(
+  ${LIB_XRD_SSI}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# The XrdSsiLog plugin
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_SSILOG}
+  SHARED
+  XrdSsi/XrdSsiLogging.cc
+)
+
+target_link_libraries(
+  ${LIB_XRD_SSILOG}
+  XrdSsiLib
+  XrdUtils
+  XrdServer )
+
+set_target_properties(
+  ${LIB_XRD_SSILOG}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdSsiLib XrdSsiShMap
+  TARGETS XrdSsiLib XrdSsiShMap ${LIB_XRD_SSI} ${LIB_XRD_SSILOG}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

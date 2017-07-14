@@ -9,8 +9,6 @@ set( LIB_XRD_N2NO2P     XrdN2No2p-${PLUGIN_VERSION} )
 set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
 set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
 set( LIB_XRD_ZCRC32     XrdCksCalczcrc32-${PLUGIN_VERSION} )
-set( LIB_XRD_SSI        XrdSsi-${PLUGIN_VERSION} )
-set( LIB_XRD_SSILOG     XrdSsiLog-${PLUGIN_VERSION} )
 set( LIB_XRD_THROTTLE   XrdThrottle-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
@@ -124,54 +122,6 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# The XrdSsi lib
-#-------------------------------------------------------------------------------
-add_library(
-  ${LIB_XRD_SSI}
-  SHARED
-  XrdSsi/XrdSsiDir.cc                    XrdSsi/XrdSsiDir.hh
-  XrdSsi/XrdSsiFile.cc                   XrdSsi/XrdSsiFile.hh
-  XrdSsi/XrdSsiFileReq.cc                XrdSsi/XrdSsiFileReq.hh
-  XrdSsi/XrdSsiFileSess.cc               XrdSsi/XrdSsiFileSess.hh
-  XrdSsi/XrdSsiSfs.cc                    XrdSsi/XrdSsiSfs.hh
-  XrdSsi/XrdSsiSfsConfig.cc              XrdSsi/XrdSsiSfsConfig.hh
-  XrdSsi/XrdSsiStat.cc
-)
-
-target_link_libraries(
-  ${LIB_XRD_SSI}
-  XrdSsiLib
-  XrdUtils
-  XrdServer )
-
-set_target_properties(
-  ${LIB_XRD_SSI}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
-
-#-------------------------------------------------------------------------------
-# The XrdSsiLog lib
-#-------------------------------------------------------------------------------
-add_library(
-  ${LIB_XRD_SSILOG}
-  SHARED
-  XrdSsi/XrdSsiLogging.cc
-)
-
-target_link_libraries(
-  ${LIB_XRD_SSILOG}
-  XrdSsiLib
-  XrdUtils
-  XrdServer )
-
-set_target_properties(
-  ${LIB_XRD_SSILOG}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
-
-#-------------------------------------------------------------------------------
 # The XrdThrottle lib
 #-------------------------------------------------------------------------------
 add_library(
@@ -200,5 +150,5 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_SSI} ${LIB_XRD_SSILOG} ${LIB_XRD_THROTTLE} ${LIB_XRD_N2NO2P}
+  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_THROTTLE} ${LIB_XRD_N2NO2P}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
