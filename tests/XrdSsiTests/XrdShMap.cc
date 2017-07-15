@@ -933,7 +933,7 @@ while(true)
                         {EMSG("invalid queue size - " <<key); continue;}
                       sopt = XrdSsi::SyncQSz;
                     }
-            else {EMSG(sopt <<" is an invalid sync argument."); continue;}
+            else {EMSG(key <<" is an invalid sync argument."); continue;}
             if (theMap->Sync(sopt, kval)) SAY("sync OK");
                else UMSG("sync map");
             continue;
