@@ -153,10 +153,11 @@ namespace XrdCl
   {
     enum Flags
     {
-      None   = 0,  //!< Nothing special
-      Stat   = 1,  //!< Stat each entry
-      Locate = 2  //!< Locate all servers hosting the directory and send
-                   //!< the dirlist request to all of them
+      None      = 0, //!< Nothing special
+      Stat      = 1, //!< Stat each entry
+      Locate    = 2, //!< Locate all servers hosting the directory and send
+                     //!< the dirlist request to all of them
+      Recursive = 4  //!< Do a recursive listing
     };
   };
   XRDOUC_ENUM_OPERATORS( DirListFlags::Flags )

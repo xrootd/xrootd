@@ -68,8 +68,8 @@ namespace
       }
 
     private:
-      XrdCl::FileSystem      *pFS;
-      ResponseHandler *pUserHandler;
+      XrdCl::FileSystem *pFS;
+      ResponseHandler   *pUserHandler;
   };
 
   //----------------------------------------------------------------------------
@@ -290,8 +290,199 @@ namespace
 
     private:
       XrdCl::DirectoryList *pList;
-      uint32_t                  pIndex;
+      uint32_t              pIndex;
       XrdCl::RequestSync   *pSync;
+  };
+
+  //----------------------------------------------------------------------------
+  // Recursive dirlist common context for all handlers
+  //----------------------------------------------------------------------------
+  struct RecursiveDirListCtx
+  {
+      RecursiveDirListCtx( const XrdCl::URL &url, const std::string &path,
+                           XrdCl::DirListFlags::Flags flags,
+                           XrdCl::ResponseHandler *handler, time_t expires ) :
+        pending( 1 ), dirList( new XrdCl::DirectoryList() ),
+        expires( expires ), handler( handler ), flags( flags ),
+        fs( new XrdCl::FileSystem( url ) )
+      {
+        dirList->SetParentName( path );
+      }
+
+      ~RecursiveDirListCtx()
+      {
+        delete dirList;
+        delete fs;
+      }
+
+      XrdCl::XRootDStatus         status;
+      int                         pending;
+      XrdCl::DirectoryList       *dirList;
+      time_t                      expires;
+      XrdCl::ResponseHandler     *handler;
+      XrdCl::DirListFlags::Flags  flags;
+      XrdCl::FileSystem          *fs;
+      XrdSysMutex                 mtx;
+  };
+
+  //----------------------------------------------------------------------------
+  // Exception for a recursive dirlist handler
+  //----------------------------------------------------------------------------
+  struct RecDirLsErr
+  {
+      RecDirLsErr() : status( 0 ) { }
+
+      RecDirLsErr( const XrdCl::XRootDStatus &st ) :
+        status( new XrdCl::XRootDStatus( st ) )
+      {
+
+      }
+
+      XrdCl::XRootDStatus *status;
+  };
+
+  //----------------------------------------------------------------------------
+  // Handle results for a recursive dirlist request
+  //----------------------------------------------------------------------------
+  class RecursiveDirListHandler: public XrdCl::ResponseHandler
+  {
+    public:
+
+      RecursiveDirListHandler( const XrdCl::URL &url,
+                               const std::string &path,
+                               XrdCl::DirListFlags::Flags flags,
+                               XrdCl::ResponseHandler *handler,
+                               time_t timeout )
+      {
+        time_t expires = 0;
+        if( timeout )
+          expires = ::time( 0 ) + timeout;
+        pCtx = new RecursiveDirListCtx( url, path, flags,
+                                        handler, expires );
+      }
+
+      RecursiveDirListHandler( RecursiveDirListCtx *ctx ) : pCtx( ctx )
+      {
+
+      }
+
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response )
+      {
+        using namespace XrdCl;
+
+        XrdSysMutexHelper scoped( pCtx->mtx );
+
+        try
+        {
+          // decrement the number of pending DieLists
+          --pCtx->pending;
+
+          // check if the job hasn't failed somewhere else,
+          // if yes we just give up
+          if( !pCtx->status.IsOK() )
+            throw RecDirLsErr();
+
+          // check if we failed, if yes update the global status
+          // for all call-backs and call the user handler
+          if( !status->IsOK() )
+            throw RecDirLsErr( *status );
+
+          // check if we got a response ...
+          if( !response )
+            throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
+
+          // get the response
+          DirectoryList *dirList = 0;
+          response->Get( dirList );
+
+          // check if the response is not empty ...
+          if( !dirList )
+            throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
+
+          std::string parent = pCtx->dirList->GetParentName();
+
+          DirectoryList::Iterator itr;
+          for( itr = dirList->Begin(); itr != dirList->End(); ++itr )
+          {
+            DirectoryList::ListEntry *entry = *itr;
+            StatInfo *info = entry->GetStatInfo();
+            std::string path = dirList->GetParentName() + entry->GetName();
+
+            if( info->TestFlags( StatInfo::IsDir ) ) // it is a directory
+            {
+              // bump the pending counter
+              ++pCtx->pending;
+              // switch of the recursive flag, we will
+              // provide the respective handler ourself,
+              // make sure that stat is on
+              DirListFlags::Flags flags = ( pCtx->flags & (~DirListFlags::Recursive) )
+                                          | DirListFlags::Stat;
+              // the recursive dir list handler
+              RecursiveDirListHandler *handler = new RecursiveDirListHandler( pCtx );
+              // timeout
+              time_t timeout = 0;
+              if( pCtx->expires )
+              {
+                timeout = pCtx->expires - ::time( 0 );
+                if( timeout <= 0 )
+                  throw RecDirLsErr( XRootDStatus( stError, errOperationExpired ) );
+              }
+              // send the request
+              XRootDStatus st = pCtx->fs->DirList( path, flags, handler, timeout );
+              if( !st.IsOK() )
+                throw RecDirLsErr( st );
+            }
+            else // it's a file
+            {
+              // check the prefix
+              if( path.find( parent ) != 0 )
+                throw RecDirLsErr( XRootDStatus( stError, errDataError ) );
+
+              path = path.substr( parent.size() );
+              entry->SetStatInfo( 0 ); // StatInfo is no longer owned by dirList
+              DirectoryList::ListEntry *e =
+                  new DirectoryList::ListEntry( entry->GetHostAddress(), path, info );
+              pCtx->dirList->Add( e );
+            }
+          }
+
+          if( pCtx->pending == 0 )
+          {
+            AnyObject *resp = new AnyObject();
+            resp->Set( pCtx->dirList );
+            pCtx->dirList = 0; // dirList is no longer owned by pCtx
+            pCtx->handler->HandleResponse( new XRootDStatus(), resp );
+          }
+        }
+        catch( RecDirLsErr &ex )
+        {
+          if( ex.status )
+          {
+            pCtx->status = *ex.status;
+            pCtx->handler->HandleResponse( ex.status, 0 );
+          }
+        }
+
+        // clean up the arguments
+        delete status;
+        delete response;
+        // clean up the context if necessary
+        if( pCtx->pending == 0 )
+        {
+          scoped.UnLock();
+          delete pCtx;
+        }
+        else
+          scoped.UnLock();
+        // and finally commit suicide
+        delete this;
+      }
+
+
+    private:
+
+      RecursiveDirListCtx *pCtx;
   };
 }
 
@@ -915,8 +1106,11 @@ namespace XrdCl
     req->requestid  = kXR_dirlist;
     req->dlen       = path.length();
 
-    if( flags & DirListFlags::Stat )
+    if( ( flags & DirListFlags::Stat ) || ( flags & DirListFlags::Recursive ) )
       req->options[0] = kXR_dstat;
+
+    if( flags & DirListFlags::Recursive )
+      handler = new RecursiveDirListHandler( *pUrl, path, flags, handler, timeout );
 
     msg->Append( path.c_str(), path.length(), 24 );
     MessageSendParams params; params.timeout = timeout;

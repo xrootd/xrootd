@@ -237,6 +237,10 @@ XRootDStatus DoLS( FileSystem                      *fs,
     }
     else if( args[i] == "-u" )
       showUrls = true;
+    else if( args[i] == "-R" )
+    {
+      flags |= DirListFlags::Recursive;
+    }
     else
       path = args[i];
   }
