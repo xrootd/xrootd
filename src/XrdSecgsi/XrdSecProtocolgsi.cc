@@ -4595,7 +4595,7 @@ static bool QueryProxyCheck(XrdSutCacheEntry *e, void *a) {
 
    time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg1;
 
-   if (e) {
+   if (e && e->buf1.buf) {
       X509Chain *chain = (X509Chain *)(e->buf1.buf);
       if (chain->CheckValidity(1, ts_ref) == 0) return true;
    }
