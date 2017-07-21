@@ -71,9 +71,9 @@ XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
     static XrdSysMutex seqMutex;
     struct stat buf;
     off_t mmSize;
-    int i;
 
     XrdSfsp  = fp;
+    FileKey  = strdup(fp->FName());
     mmAddr   = 0;
     FileMode = mode;
     AsyncMode= async;
@@ -96,24 +96,27 @@ XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
 
 // Get file status information (we need it) and optionally return it to caller
 //
-   if (!sP) sP = &buf;
-   fp->stat(sP);
-   if (!isMMapped) Stats.fSize = static_cast<long long>(sP->st_size);
+   if (sP || !isMMapped)
+      {if (!sP) sP = &buf;
+       fp->stat(sP);
+       if (!isMMapped) Stats.fSize = static_cast<long long>(sP->st_size);
+      }
 
 // Develop a unique hash for this file. The key will not be longer than 33 bytes
-// including the null character.
+// including the null character. We now use the filename to avoid plugin
+// vagaries. We will keep the code here commented out for now.
 //
-        if (sP->st_dev != 0 || sP->st_ino != 0)
-           {i = bin2hex( FileKey,   (char *)&sP->st_dev, sizeof(sP->st_dev));
-            i = bin2hex(&FileKey[i],(char *)&sP->st_ino, sizeof(sP->st_ino));
-           }
-   else if (fdNum > 0) 
-           {strcpy(  FileKey, "fdno");
-            bin2hex(&FileKey[4], (char *)&fdNum,   sizeof(fdNum));
-           }
-   else    {strcpy(  FileKey, "sfsp");
-            bin2hex(&FileKey[4], (char *)&XrdSfsp, sizeof(XrdSfsp));
-           }
+//      if (sP->st_dev != 0 || sP->st_ino != 0)
+//         {i = bin2hex( FileKey,   (char *)&sP->st_dev, sizeof(sP->st_dev));
+//          i = bin2hex(&FileKey[i],(char *)&sP->st_ino, sizeof(sP->st_ino));
+//         }
+// else if (fdNum > 0) 
+//         {strcpy(  FileKey, "fdno");
+//          bin2hex(&FileKey[4], (char *)&fdNum,   sizeof(fdNum));
+//         }
+// else    {strcpy(  FileKey, "sfsp");
+//          bin2hex(&FileKey[4], (char *)&XrdSfsp, sizeof(XrdSfsp));
+//         }
 }
   
 /******************************************************************************/
@@ -132,6 +135,7 @@ XrdXrootdFile::~XrdXrootdFile()
                delete XrdSfsp;
                XrdSfsp = 0;
               }
+   if (FileKey) free(FileKey);
 }
 
 /******************************************************************************/

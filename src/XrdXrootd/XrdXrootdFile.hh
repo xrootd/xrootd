@@ -48,8 +48,7 @@ public:
 
 XrdSfsFile  *XrdSfsp;           // -> Actual file object
 char        *mmAddr;            // Memory mapped location, if any
-char         FileKey[34];       // -> Unique hash name for the file
-char         Reserved[2];
+char        *FileKey;           // -> File hash name (actual file name now)
 char         FileMode;          // 'r' or 'w'
 char         AsyncMode;         // 1 -> if file in async r/w mode
 char         isMMapped;         // 1 -> file is memory mapped
