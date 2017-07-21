@@ -1,0 +1,254 @@
+stages:
+  - build:rpm
+  - build:dockerimage
+  - test
+  - publish
+  - clean
+
+xrootd_rpm_cc7:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which
+    - cd packaging/
+    - ./makesrpm.sh
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir cc-7/
+    - cp packaging/*.src.rpm cc-7
+    - cp packaging/RPMS/* cc-7
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - cc-7/
+  tags:
+    - docker-cc7
+  only:
+    - master
+    - /^stable-.*$/
+    - tags
+
+xrootd_rpm_slc6:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
+  script:
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which tar
+    - cd packaging/
+    - ./makesrpm.sh
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir slc-6
+    - cp packaging/*.src.rpm slc-6
+    - cp packaging/RPMS/* slc-6
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - slc-6/
+  tags:
+    - docker-slc6
+  only:
+    - master
+    - /^stable-.*$/
+    - tags
+
+xrootd_rpm_fcrh:
+  stage: build:rpm
+  image: fedora:rawhide
+  script:
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core
+    - cd packaging/
+    - ./makesrpm.sh
+    - dnf builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir fc-rawhide
+    - cp packaging/*.src.rpm fc-rawhide
+    - cp packaging/RPMS/* fc-rawhide
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fc-rawhide/
+  tags:
+    - docker-fc_rawhide
+  only:
+    - branches
+    - tags
+
+xrootd_rpm_fc26:
+  stage: build:rpm
+  image: fedora:26
+  script:
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core
+    - cd packaging/
+    - ./makesrpm.sh
+    - dnf builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir fc-26/
+    - cp packaging/*.src.rpm fc-26
+    - cp packaging/RPMS/* fc-26
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fc-26/
+  tags:
+    - docker-fc_rawhide
+  only:
+    - master
+    - /^stable-.*$/
+    - tags
+
+xrootd_rpm_fc25:
+  stage: build:rpm
+  image: fedora:25
+  script:
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core
+    - cd packaging/
+    - ./makesrpm.sh
+    - dnf builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir fc-25/
+    - cp packaging/*.src.rpm fc-25
+    - cp packaging/RPMS/* fc-25
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fc-25/
+  tags:
+    - docker-fc25
+  only:
+    - master
+    - /^stable-.*$/
+    - tags
+
+xrootd_rpm_fc24:
+  stage: build:rpm
+  image: fedora:24
+  script:
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core
+    - cd packaging/
+    - ./makesrpm.sh
+    - dnf builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir fc-24/
+    - cp packaging/*.src.rpm fc-24
+    - cp packaging/RPMS/* fc-24
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fc-24/
+  tags:
+    - docker-fc25
+  only:
+    - master
+    - /^stable-.*$/
+    - tags
+
+xrootd_tgz_macosx:
+  stage: build:rpm
+  script:
+    - mkdir build
+    - mkdir -p tarball/xrootd
+    - cd build
+    - /usr/local/bin/cmake -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2g/include/ -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
+    - make
+    - make install
+    - cd ../tarball
+    - tar -zcf xrootd.tar.gz xrootd
+    - cd ..
+    - mkdir osx
+    - cp tarball/xrootd.tar.gz osx
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - osx/
+  tags:
+    - macosx-shell
+  only:
+    - master
+    - /^stable-.*$/
+    - tags
+
+xrootd_publish_artifacts_master:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client sudo createrepo
+    - prefix=/eos/project/s/storage-ci/www/xrootd
+    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25; do 
+         path=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64/latest/;
+         sudo -u stci -H rm -f $path/*.rpm;
+         sudo -u stci -H mkdir -p $path;
+         sudo -u stci -H cp $platform/* $path;
+         sudo -u stci -H createrepo --update -q $path;
+      done"
+  tags:
+    - docker-slc6
+  only:
+    - master
+
+xrootd_publish_artifacts_stable:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client sudo createrepo
+    - prefix=/eos/project/s/storage-ci/www/xrootd
+    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25; do 
+         path=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64/;
+         sudo -u stci -H mkdir -p $path;
+         sudo -u stci -H cp $platform/* $path;
+         sudo -u stci -H createrepo --update -q $path;
+      done"
+  tags:
+    - docker-slc6
+  only:
+    - /^stable-.*$/
+
+xrootd_publish_artifacts_release:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client sudo createrepo
+    - prefix=/eos/project/s/storage-ci/www/xrootd
+    - tar -zcf xrootd-${CI_COMMIT_TAG}.tar.gz .
+    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25; do 
+         path=$prefix/release/$platform/x86_64/v$CI_COMMIT_TAG/;
+         sudo -u stci -H mkdir -p $path;
+         sudo -u stci -H cp $platform/*.rpm $path;
+         sudo -u stci -H rm -f $path/*.src.rpm;
+         sudo -u stci -H cp $platform/*.src.rpm $path/source;
+         sudo -u stci -H cp $platform/*.src.rpm $path/tarball;
+         sudo -u stci -H createrepo --update -q $path;
+      done"
+  tags:
+    - docker-slc6
+  only:
+    - tags
+
+xrootd_clean_artifacts:
+  stage: clean
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client sudo createrepo
+    - XROOTD_DIRS=/eos/project/s/storage-ci/www/xrootd/stable-*/*/*/
+    - "for commit_dir in ${XROOTD_DIRS}; do
+         sudo -u stci -H find ${commit_dir} -regex '.*\\(rpm\\)$' -type f -mtime +10 -exec rm {} \\;
+         echo Update YUM repo: ${commit_dir};
+         sudo -u stci -H createrepo --update -q ${commit_dir};
+      done"
+  tags:
+    - docker-slc6
+  allow_failure: true
+  only:
+    - schedules
+
