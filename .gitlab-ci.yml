@@ -9,7 +9,7 @@ xrootd_rpm_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git
     - cd packaging/
     - ./makesrpm.sh
     - yum-builddep --nogpgcheck -y *.src.rpm
@@ -34,7 +34,7 @@ xrootd_rpm_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which tar
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which tar git
     - cd packaging/
     - ./makesrpm.sh
     - yum-builddep --nogpgcheck -y *.src.rpm
@@ -59,7 +59,7 @@ xrootd_rpm_fcrh:
   stage: build:rpm
   image: fedora:rawhide
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core git
     - cd packaging/
     - ./makesrpm.sh
     - dnf builddep --nogpgcheck -y *.src.rpm
@@ -83,7 +83,7 @@ xrootd_rpm_fc26:
   stage: build:rpm
   image: fedora:26
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core git
     - cd packaging/
     - ./makesrpm.sh
     - dnf builddep --nogpgcheck -y *.src.rpm
@@ -108,7 +108,7 @@ xrootd_rpm_fc25:
   stage: build:rpm
   image: fedora:25
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core git
     - cd packaging/
     - ./makesrpm.sh
     - dnf builddep --nogpgcheck -y *.src.rpm
@@ -133,7 +133,7 @@ xrootd_rpm_fc24:
   stage: build:rpm
   image: fedora:24
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which tar dnf-plugins-core git
     - cd packaging/
     - ./makesrpm.sh
     - dnf builddep --nogpgcheck -y *.src.rpm
