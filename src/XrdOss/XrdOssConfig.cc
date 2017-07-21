@@ -1150,10 +1150,20 @@ int XrdOssSys::xdefault(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdSysError &Eroute)
 {
+    char *val;
+    int fence = 0, FDHalf = FDLimit>>1;
+
+    if (!(val = Config.GetWord()))
+       {Eroute.Emsg("Config", "fdlimit fence not specified"); return 1;}
+
+    if (!strcmp(val, "*")) FDFence = FDHalf;
+       else {if (XrdOuca2x::a2i(Eroute,"fdlimit fence",val,&fence,0)) return 1;
+             FDFence = (fence < FDHalf ? fence : FDHalf);
+            }
 
     while(Config.GetWord()) {}
 
-    Eroute.Say("Config warning: ", "fdlimit directive no longer supported.");
+//  Eroute.Say("Config warning: ", "fdlimit directive no longer supported.");
 
     return 0;
 }
