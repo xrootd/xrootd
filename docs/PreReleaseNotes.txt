@@ -22,6 +22,7 @@ Prerelease Notes
   * **[Client]** [Client] Avoid deadlock in certain error recovery situations.
 
 + **Minor bug fixes**
+  * **[Server]** Make file locking independent of FS plugin. Fixes #533
   * **[Server]** Correct debug message interval for free space report.
 
 + **Miscellaneous**
