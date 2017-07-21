@@ -26,6 +26,7 @@ Prerelease Notes
   * **[Server]** Correct debug message interval for free space report.
 
 + **Miscellaneous**
+  * **[Server]** Re-enable the oss.fdlimit directive to allow POSIX preload+xrootd.
   * **[Server]** Avoid thread pile-up durin slow close operations.
   * **[Proxy Server]** Simplify delayed destruction on wait vs post.
   * **[Posix]** Convert to using universal tracing facility.
