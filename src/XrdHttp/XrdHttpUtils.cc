@@ -54,7 +54,6 @@
 #include "XrdSec/XrdSecEntity.hh"
 # include "sys/param.h"
 #include "XrdOuc/XrdOucString.hh"
-static pthread_key_t cm_key;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static HMAC_CTX* HMAC_CTX_new() {
@@ -210,9 +209,6 @@ void calcHashes(
   char buf[64];
   struct tm tms;
 
-  // set so key destructor can trigger removal of
-  // libcrypto error state when the thread finishes
-  pthread_setspecific(cm_key, &cm_key);
 
   if (!hash) {
     return;
@@ -257,6 +253,10 @@ void calcHashes(
   if (secent->host)
     HMAC_Update(ctx, (const unsigned char *) secent->host,
           strlen(secent->host) + 1);
+    
+  if (secent->moninfo)
+    HMAC_Update(ctx, (const unsigned char *) secent->moninfo,
+          strlen(secent->moninfo) + 1);
 
   localtime_r(&tim, &tms);
   strftime(buf, sizeof (buf), "%s", &tms);
@@ -321,7 +321,7 @@ char *unquote(char *str) {
 
 char *quote(char *str) {
   int l = strlen(str);
-  char *r = (char *) malloc(l + 1);
+  char *r = (char *) malloc(l*3 + 1);
   r[0] = '\0';
   int i, j = 0;
 
@@ -331,6 +331,22 @@ char *quote(char *str) {
     switch (c) {
       case ' ':
         strcpy(r + j, "%20");
+        j += 3;
+        break;
+      case '[':
+        strcpy(r + j, "%5B");
+        j += 3;
+        break;
+      case ']':
+        strcpy(r + j, "%5D");
+        j += 3;
+        break;
+      case ':':
+        strcpy(r + j, "%3A");
+        j += 3;
+        break;
+      case '/':
+        strcpy(r + j, "%2F");
         j += 3;
         break;
       default:

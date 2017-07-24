@@ -104,6 +104,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdXrootd/XrdXrootdMonData.hh
   XrdXrootd/XrdXrootdBridge.hh
   XrdHttp/XrdHttpSecXtractor.hh
+
 )
 
 set( XROOTD_PRIVATE_HEADERS
@@ -132,7 +133,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOss/XrdOssError.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
-  
+  XrdHttp/XrdHttpExtHandler.hh
 )
 
 install_headers(

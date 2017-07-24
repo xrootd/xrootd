@@ -46,6 +46,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 //#include <libxml/parser.h>
 //#include <libxml/tree.h>
@@ -152,16 +153,25 @@ public:
     rtDELETE,
     rtPROPFIND,
     rtMKCOL,
-    rtMOVE
+    rtMOVE,
+    rtPOST
   };
 
   /// The request we got
   ReqType request;
-
-  /// The resource specified by the request, complete with all opaque data
+  std::string requestverb;
+  
+  // We have to keep the headers for possible further processing
+  // by external plugins
+  std::map<std::string, std::string> allheaders;
+  
+  /// The resource specified by the request, stripped of opaque data
   XrdOucString resource;
   /// The opaque data, after parsing
   XrdOucEnv *opaque;
+  /// The resource specified by the request, including all the opaque data
+  XrdOucString resourceplusopaque;
+  
   
   /// Tells if we have finished reading the header
   bool headerok;
@@ -341,7 +351,7 @@ public:
 
   virtual int File(XrdXrootd::Bridge::Context &info, //!< the result context
           int dlen //!< byte  count
-          );
+  );
 
   //-----------------------------------------------------------------------------
   //! Redirect the client to another host:port.
@@ -368,6 +378,10 @@ public:
 
 
 };
+
+
+
+void trim(std::string &str);
 
 #endif	/* XRDHTTPREQ_HH */
 

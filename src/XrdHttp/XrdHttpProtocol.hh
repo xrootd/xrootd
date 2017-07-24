@@ -67,6 +67,7 @@ class XrdBuffer;
 class XrdLink;
 class XrdXrootdProtocol;
 class XrdHttpSecXtractor;
+class XrdHttpExtHandler;
 struct XrdVersionInfo;
 class XrdOucGMap;
 
@@ -74,6 +75,7 @@ class XrdOucGMap;
 class XrdHttpProtocol : public XrdProtocol {
   
   friend class XrdHttpReq;
+  friend class XrdHttpExtReq;
   
 public:
 
@@ -116,12 +118,9 @@ public:
   static XrdObjectQ<XrdHttpProtocol> ProtStack;
   XrdObject<XrdHttpProtocol> ProtLink;
 
-
-
-  /// Sends a basic response. If the length is < 0 then it is calculated internally
-  int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
-
-
+  
+  /// Authentication area
+  XrdSecEntity SecEntity;
 private:
 
 
@@ -155,6 +154,7 @@ private:
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);
   static int xsecxtractor(XrdOucStream &Config);
+  static int xexthandler(XrdOucStream & Config);
   static int xsslcadir(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
   static int xlistdeny(XrdOucStream &Config);
@@ -169,9 +169,15 @@ private:
   static int xsecretkey(XrdOucStream &Config);
 
   static XrdHttpSecXtractor *secxtractor;
+  static XrdHttpExtHandler *exthandler;
+  
   // Loads the SecXtractor plugin, if available
   static int LoadSecXtractor(XrdSysError *eDest, const char *libName,
                       const char *libParms);
+  
+  // Loads the ExtHandler plugin, if available
+  static int LoadExtHandler(XrdSysError *eDest, const char *libName,
+                             const char *libParms);
 
   /// Circular Buffer used to read the request
   XrdBuffer *myBuff;
@@ -194,7 +200,12 @@ private:
   int BuffgetData(int blen, char **data, bool wait);
   /// Copy a full line of text from the buffer into dest. Zero if no line can be found in the buffer
   int BuffgetLine(XrdOucString &dest);
-
+  
+  
+  
+  /// Sends a basic response. If the length is < 0 then it is calculated internally
+  int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
+  
   
   /// Gets a string that represents the IP address of the client. Must be freed
   char *GetClientIPStr();
@@ -224,6 +235,8 @@ private:
   /// connection being established
   bool ssldone;
 
+  
+  
   static XrdCryptoFactory *myCryptoFactory;
 protected:
 
@@ -253,10 +266,10 @@ protected:
 
   /// The link we are bound to
   XrdLink *Link;
-
-  /// Authentication area
-  XrdSecEntity SecEntity;
-
+  
+  /// Our IP address, as a string. Please remember that this may not be unique for
+  /// a given machine, hence we need to keep it here and recompute ad every new connection.
+  char *Addr_str;
   
   /// The instance of the DN mapper. Created only when a valid path is given
   static XrdOucGMap      *servGMap;  // Grid mapping service
@@ -285,9 +298,6 @@ protected:
   
   /// Our port, as a string
   static char * Port_str;
-  
-  /// Our IP address, as a string
-  static char * Addr_str;
 
   /// Windowsize
   static int Window;
