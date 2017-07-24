@@ -187,8 +187,8 @@ xrootd_publish_artifacts_master:
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25; do 
          path=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64/latest/;
-         sudo -u stci -H rm -f $path/*.rpm;
          sudo -u stci -H mkdir -p $path;
+         sudo -u stci -H find ${path} -type f -name '*.rpm' -delete;
          sudo -u stci -H cp $platform/* $path;
          sudo -u stci -H createrepo --update -q $path;
       done"
@@ -225,7 +225,7 @@ xrootd_publish_artifacts_release:
          path=$prefix/release/$platform/x86_64/v$CI_COMMIT_TAG/;
          sudo -u stci -H mkdir -p $path;
          sudo -u stci -H cp $platform/*.rpm $path;
-         sudo -u stci -H rm -f $path/*.src.rpm;
+         sudo -u stci -H find ${path} -type f -name '*.src.rpm' -delete;
          sudo -u stci -H cp $platform/*.src.rpm $path/source;
          sudo -u stci -H cp $platform/*.src.rpm $path/tarball;
          sudo -u stci -H createrepo --update -q $path;
@@ -240,12 +240,7 @@ xrootd_clean_artifacts:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
-    - XROOTD_DIRS=/eos/project/s/storage-ci/www/xrootd/stable-*/*/*/
-    - "for commit_dir in ${XROOTD_DIRS}; do
-         sudo -u stci -H find ${commit_dir} -regex '.*\\(rpm\\)$' -type f -mtime +10 -exec rm {} \\;
-         echo Update YUM repo: ${commit_dir};
-         sudo -u stci -H createrepo --update -q ${commit_dir};
-      done"
+    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/stable-*/*/*/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +10 -delete; createrepo --update -q ${commit_dir}; done'
   tags:
     - docker-slc6
   allow_failure: true
