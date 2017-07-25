@@ -26,9 +26,7 @@ xrootd_rpm_cc7:
   tags:
     - docker-cc7
   only:
-    - master
-    - /^stable-.*$/
-    - tags
+    - branches
 
 xrootd_rpm_slc6:
   stage: build:rpm
@@ -51,9 +49,7 @@ xrootd_rpm_slc6:
   tags:
     - docker-slc6
   only:
-    - master
-    - /^stable-.*$/
-    - tags
+    - branches
 
 xrootd_rpm_fcrh:
   stage: build:rpm
@@ -77,7 +73,6 @@ xrootd_rpm_fcrh:
     - docker-fc_rawhide
   only:
     - branches
-    - tags
 
 xrootd_rpm_fc26:
   stage: build:rpm
@@ -100,9 +95,7 @@ xrootd_rpm_fc26:
   tags:
     - docker-fc_rawhide
   only:
-    - master
-    - /^stable-.*$/
-    - tags
+    - branches
 
 xrootd_rpm_fc25:
   stage: build:rpm
@@ -125,9 +118,7 @@ xrootd_rpm_fc25:
   tags:
     - docker-fc25
   only:
-    - master
-    - /^stable-.*$/
-    - tags
+    - branches
 
 xrootd_rpm_fc24:
   stage: build:rpm
@@ -150,9 +141,7 @@ xrootd_rpm_fc24:
   tags:
     - docker-fc25
   only:
-    - master
-    - /^stable-.*$/
-    - tags
+    - branches
 
 xrootd_tgz_macosx:
   stage: build:rpm
@@ -175,9 +164,161 @@ xrootd_tgz_macosx:
   tags:
     - macosx-shell
   only:
-    - master
-    - /^stable-.*$/
+    - branches
     - tags
+
+xrootd_release_cc7:
+  stage: build:rpm
+  script:
+    - cd packaging/
+    - ./makesrpm.sh
+    - mock -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/
+    - cd ..
+    - mkdir cc-7
+    - cp packaging/*.src.rpm cc-7
+    - cp packaging/build/*.rpm cc-7
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - cc-7/
+  tags:
+    - shell-with-docker
+  only:
+    - tags
+
+xrootd_release_slc6:
+  stage: build:rpm
+  script:
+    - cd packaging/
+    - ./makesrpm.sh
+    - mock -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/
+    - cd ..
+    - mkdir slc-6
+    - cp packaging/*.src.rpm slc-6
+    - cp packaging/build/*.rpm slc-6
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - slc-6/
+  tags:
+    - shell-with-docker
+  only:
+    - tags
+
+xrootd_release_fcrh:
+  stage: build:rpm
+  script:
+    - cd packaging/
+    - ./makesrpm.sh
+    - mock -r fedora-rawhide-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/
+    - cd ..
+    - mkdir fc-rawhide
+    - cp packaging/*.src.rpm fc-rawhide
+    - cp packaging/build/*.rpm fc-rawhide
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fc-rawhide/
+  tags:
+    - coverity
+  only:
+    - tags
+
+xrootd_release_fc24:
+  stage: build:rpm
+  script:
+    - cd packaging/
+    - ./makesrpm.sh
+    - mock -r fedora-24-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/
+    - cd ..
+    - mkdir fc-24
+    - cp packaging/*.src.rpm fc-24
+    - cp packaging/build/*.rpm fc-24
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fc-24/
+  tags:
+    - coverity
+  only:
+    - tags
+
+xrootd_release_fc23:
+  stage: build:rpm
+  script:
+    - cd packaging/
+    - ./makesrpm.sh
+    - mock -r fedora-23-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/
+    - cd ..
+    - mkdir fc-23
+    - cp packaging/*.src.rpm fc-23
+    - cp packaging/build/*.rpm fc-23
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fc-23/
+  tags:
+    - coverity
+  only:
+    - tags
+
+xrootd_biweekly_cc7:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git cppunit-devel
+    - xrootd_version=$(git tag | grep '^v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
+    - xrootd_version=${xrootd_version:1}
+    - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
+    - a=( ${xrootd_version//./ } )
+    - ((a[2]++))
+    - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
+    - cd packaging/
+    - ./makesrpm.sh --version $experimental_version
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir epel-7/
+    - cp packaging/*.src.rpm epel-7
+    - cp packaging/RPMS/* epel-7
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - epel-7/
+  tags:
+    - docker-cc7
+  only:
+    - schedules
+
+xrootd_biweekly_slc6:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
+  script:
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which tar git cppunit-devel
+    - xrootd_version=$(git tag | grep '^v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
+    - xrootd_version=${xrootd_version:1}
+    - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
+    - a=( ${xrootd_version//./ } )
+    - ((a[2]++))
+    - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
+    - cd packaging/
+    - ./makesrpm.sh --version $experimental_version
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir epel-6/
+    - cp packaging/*.src.rpm epel-6
+    - cp packaging/RPMS/* epel-6
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - epel-6/
+  tags:
+    - docker-slc6
+  only:
+    - schedules
 
 xrootd_publish_artifacts_master:
   stage: publish
@@ -221,13 +362,13 @@ xrootd_publish_artifacts_release:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - tar -zcf xrootd-${CI_COMMIT_TAG}.tar.gz .
-    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25; do 
+    - "for platform in cc-7 slc-6 fc-rawhide fc-24 fc-23; do 
          path=$prefix/release/$platform/x86_64/v$CI_COMMIT_TAG/;
          sudo -u stci -H mkdir -p $path;
          sudo -u stci -H cp $platform/*.rpm $path;
          sudo -u stci -H find ${path} -type f -name '*.src.rpm' -delete;
          sudo -u stci -H cp $platform/*.src.rpm $path/source;
-         sudo -u stci -H cp $platform/*.src.rpm $path/tarball;
+         sudo -u stci -H cp xrootd-*.tar.gz $path/tarball;
          sudo -u stci -H createrepo --update -q $path;
       done"
   tags:
@@ -235,15 +376,35 @@ xrootd_publish_artifacts_release:
   only:
     - tags
 
+xrootd_publish_artifacts_biweekly:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client sudo createrepo
+    - prefix=/eos/project/s/storage-ci/www/xrootd
+    - "for platform in epel-7 epel-6; do 
+         path=$prefix/experimental/$platform/x86_64/;
+         sudo -u stci -H mkdir -p $path;
+         sudo -u stci -H cp $platform/* $path;
+         sudo -u stci -H createrepo --update -q $path;
+      done"
+  tags:
+    - docker-slc6
+  dependencies:
+    - xrootd_biweekly_cc7
+    - xrootd_biweekly_slc6
+  only:
+    - schedules
+
 xrootd_clean_artifacts:
   stage: clean
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
-    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/stable-*/*/*/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +10 -delete; createrepo --update -q ${commit_dir}; done'
+    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/stable-*/*/*/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +30 -delete; createrepo --update -q ${commit_dir}; done'
+    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/experimental/*/x86_64/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +30 -delete; createrepo --update -q ${commit_dir}; done'
   tags:
     - docker-slc6
   allow_failure: true
   only:
     - schedules
-
