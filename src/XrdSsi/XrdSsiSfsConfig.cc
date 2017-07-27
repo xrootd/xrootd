@@ -503,7 +503,7 @@ int XrdSsiSfsConfig::Xfsp()
 // Add path to configuration
 //
    if (!(plp = FSPath.Match(pbuff)))
-      {plp = new XrdOucPList(pbuff,0);
+      {plp = new XrdOucPList(pbuff,1);
        FSPath.Insert(plp);
       }
    return 0;
