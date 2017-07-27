@@ -26,7 +26,8 @@ xrootd_rpm_cc7:
   tags:
     - docker-cc7
   only:
-    - branches
+    - master
+    - /^stable-.*$/
 
 xrootd_rpm_slc6:
   stage: build:rpm
@@ -49,7 +50,8 @@ xrootd_rpm_slc6:
   tags:
     - docker-slc6
   only:
-    - branches
+    - master
+    - /^stable-.*$/
 
 xrootd_rpm_fcrh:
   stage: build:rpm
@@ -72,7 +74,8 @@ xrootd_rpm_fcrh:
   tags:
     - docker-fc_rawhide
   only:
-    - branches
+    - master
+    - /^stable-.*$/
 
 xrootd_rpm_fc26:
   stage: build:rpm
@@ -95,7 +98,8 @@ xrootd_rpm_fc26:
   tags:
     - docker-fc_rawhide
   only:
-    - branches
+    - master
+    - /^stable-.*$/
 
 xrootd_rpm_fc25:
   stage: build:rpm
@@ -118,7 +122,8 @@ xrootd_rpm_fc25:
   tags:
     - docker-fc25
   only:
-    - branches
+    - master
+    - /^stable-.*$/
 
 xrootd_rpm_fc24:
   stage: build:rpm
@@ -141,7 +146,8 @@ xrootd_rpm_fc24:
   tags:
     - docker-fc25
   only:
-    - branches
+    - master
+    - /^stable-.*$/
 
 xrootd_tgz_macosx:
   stage: build:rpm
@@ -164,8 +170,8 @@ xrootd_tgz_macosx:
   tags:
     - macosx-shell
   only:
-    - branches
-    - tags
+    - master
+    - /^stable-.*$/
 
 xrootd_release_cc7:
   stage: build:rpm
@@ -184,7 +190,9 @@ xrootd_release_cc7:
   tags:
     - shell-with-docker
   only:
-    - tags
+    - web
+  except:
+    - branches
 
 xrootd_release_slc6:
   stage: build:rpm
@@ -203,7 +211,9 @@ xrootd_release_slc6:
   tags:
     - shell-with-docker
   only:
-    - tags
+    - web
+  except:
+    - branches
 
 xrootd_release_fcrh:
   stage: build:rpm
@@ -222,7 +232,9 @@ xrootd_release_fcrh:
   tags:
     - coverity
   only:
-    - tags
+    - web
+  except:
+    - branches
 
 xrootd_release_fc24:
   stage: build:rpm
@@ -241,7 +253,9 @@ xrootd_release_fc24:
   tags:
     - coverity
   only:
-    - tags
+    - web
+  except:
+    - branches
 
 xrootd_release_fc23:
   stage: build:rpm
@@ -260,7 +274,9 @@ xrootd_release_fc23:
   tags:
     - coverity
   only:
-    - tags
+    - web
+  except:
+    - branches
 
 xrootd_biweekly_cc7:
   stage: build:rpm
@@ -374,7 +390,9 @@ xrootd_publish_artifacts_release:
   tags:
     - docker-slc6
   only:
-    - tags
+    - web
+  except:
+    - branches
 
 xrootd_publish_artifacts_biweekly:
   stage: publish
