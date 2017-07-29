@@ -28,6 +28,9 @@ xrootd_rpm_cc7:
   only:
     - master
     - /^stable-.*$/
+  except:
+    - tags
+    - schedules
 
 xrootd_rpm_slc6:
   stage: build:rpm
@@ -52,6 +55,9 @@ xrootd_rpm_slc6:
   only:
     - master
     - /^stable-.*$/
+  except:
+    - tags
+    - schedules
 
 xrootd_rpm_fcrh:
   stage: build:rpm
@@ -76,6 +82,9 @@ xrootd_rpm_fcrh:
   only:
     - master
     - /^stable-.*$/
+  except:
+    - tags
+    - schedules
 
 xrootd_rpm_fc26:
   stage: build:rpm
@@ -100,6 +109,9 @@ xrootd_rpm_fc26:
   only:
     - master
     - /^stable-.*$/
+  except:
+    - tags
+    - schedules
 
 xrootd_rpm_fc25:
   stage: build:rpm
@@ -124,6 +136,9 @@ xrootd_rpm_fc25:
   only:
     - master
     - /^stable-.*$/
+  except:
+    - tags
+    - schedules
 
 xrootd_rpm_fc24:
   stage: build:rpm
@@ -148,6 +163,9 @@ xrootd_rpm_fc24:
   only:
     - master
     - /^stable-.*$/
+  except:
+    - tags
+    - schedules
 
 xrootd_tgz_macosx:
   stage: build:rpm
@@ -172,6 +190,9 @@ xrootd_tgz_macosx:
   only:
     - master
     - /^stable-.*$/
+  except:
+    - tags
+    - schedules
 
 xrootd_release_cc7:
   stage: build:rpm
@@ -209,7 +230,7 @@ xrootd_release_slc6:
     paths:
     - slc-6/
   tags:
-    - shell-with-docker
+    - coverity
   only:
     - web
   except:
@@ -251,7 +272,7 @@ xrootd_release_fc24:
     paths:
     - fc-24/
   tags:
-    - coverity
+    - xrootd-shell
   only:
     - web
   except:
@@ -272,7 +293,7 @@ xrootd_release_fc23:
     paths:
     - fc-23/
   tags:
-    - coverity
+    - xrootd-shell
   only:
     - web
   except:
@@ -353,6 +374,8 @@ xrootd_publish_artifacts_master:
     - docker-slc6
   only:
     - master
+  except:
+    - schedules
 
 xrootd_publish_artifacts_stable:
   stage: publish
@@ -370,6 +393,9 @@ xrootd_publish_artifacts_stable:
     - docker-slc6
   only:
     - /^stable-.*$/
+  except:
+    - tags
+    - schedules
 
 xrootd_publish_artifacts_release:
   stage: publish
