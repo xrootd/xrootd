@@ -126,6 +126,18 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOfs/XrdOfsHandle.hh
   XrdOfs/XrdOfsTrace.hh
   XrdOfs/XrdOfsTPCInfo.hh
+  XrdSsi/XrdSsiAtomics.hh
+  XrdSsi/XrdSsiCluster.hh
+  XrdSsi/XrdSsiEntity.hh
+  XrdSsi/XrdSsiErrInfo.hh
+  XrdSsi/XrdSsiLogger.hh
+  XrdSsi/XrdSsiProvider.hh
+  XrdSsi/XrdSsiRequest.hh
+  XrdSsi/XrdSsiRespInfo.hh
+  XrdSsi/XrdSsiResponder.hh
+  XrdSsi/XrdSsiResource.hh
+  XrdSsi/XrdSsiService.hh
+  XrdSsi/XrdSsiStream.hh
   XrdSys/XrdSysPriv.hh
 
   XrdOss/XrdOssApi.hh

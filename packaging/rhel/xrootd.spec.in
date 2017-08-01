@@ -733,6 +733,10 @@ fi
 %{_libdir}/libXrdN2No2p-4.so
 %{_libdir}/libXrdOssSIgpfsT-4.so
 %{_libdir}/libXrdServer.so.*
+%{_libdir}/libXrdSsi-4.so
+%{_libdir}/libXrdSsiLib.so.*
+%{_libdir}/libXrdSsiLog-4.so
+%{_libdir}/libXrdSsiShMap.so.*
 %{_libdir}/libXrdThrottle-4.so
 
 %files server-devel

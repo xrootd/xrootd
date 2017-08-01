@@ -1,0 +1,368 @@
+/******************************************************************************/
+/*                                                                            */
+/*                       X r d S s i S h M a p . i c c                        */
+/*                                                                            */
+/* (c) 2015 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
+/******************************************************************************/
+
+#include <errno.h>
+
+/******************************************************************************/
+/*                                   A d d                                    */
+/******************************************************************************/
+
+template<class T>
+bool XrdSsi::ShMap<T>::Add(const char *key, T &val)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Compute hash if need be
+//
+   int hash = (hashFunc ?  hashFunc(key) : 0);
+
+// Rteurn the result
+//
+   return shMat->AddItem(&val, 0, key, hash, false);
+}
+  
+/******************************************************************************/
+/*                                A t t a c h                                 */
+/******************************************************************************/
+  
+template<class T>
+bool XrdSsi::ShMap<T>::Attach(const char           *path,
+                              XrdSsi::ShMap_Access  access,
+                              int                   tmo)
+{
+   static const int waitSec = 2;
+   XrdSsiShMat::NewParms newParms;
+   int rc, tries= (tmo < 0 ? 120 : (tmo < 4 ? tmo : tmo/waitSec));
+   bool isRW = (access == XrdSsi::ReadOnly ? false : true);
+
+// First see if this object is already attached.
+//
+   if (shMat) {errno = EISCONN; return false;}
+
+// Set the object attach parameters
+//
+   newParms.impl   = implID;
+   newParms.path   = path;
+   newParms.typeID = typeID;
+   newParms.typeSz = sizeof(T);
+   newParms.hashID = (hashFunc ?  hashFunc(0) : 0);
+
+// Allocate a new shared memory generic object
+//
+   shMat = XrdSsiShMat::New(newParms);
+   if (!shMat) return false;
+
+// Handle the action. There is an edge case where we will need to try to attach
+// the map again. We only do that for a limited number of times as this is a
+// condition that should not occur for any long amount of time.
+//
+   do {if (shMat->Attach(tmo, isRW)) return true;
+       if (errno != EAGAIN) break;
+       if (tries--) sleep(waitSec);
+      } while(tries > 0);
+   if (tries) errno = ECANCELED;
+
+// We failed
+//
+   rc = errno;
+   delete shMat; shMat = 0;
+   errno = rc;
+   return false;
+}
+
+/******************************************************************************/
+/*                                C r e a t e                                 */
+/******************************************************************************/
+  
+template<class T>
+bool XrdSsi::ShMap<T>::Create(const char *path, XrdSsi::ShMap_Parms &parms)
+{
+   XrdSsiShMat::NewParms newParms;
+   XrdSsiShMat::CRZParms crzParms;
+   int rc;
+
+// First see if this object is already attached.
+//
+   if (shMat) {errno = EISCONN; return false;}
+
+// Set the object creation parameters
+//
+   newParms.impl   = implID;
+   newParms.path   = path;
+   newParms.typeID = typeID;
+   newParms.typeSz = sizeof(T);
+   newParms.hashID = (hashFunc ?  hashFunc(0) : 0);
+
+// Allocate a new shared memory generic object
+//
+   shMat = XrdSsiShMat::New(newParms);
+   if (!shMat) return false;
+
+// Copy over the create parameters
+//
+   crzParms.indexSz  = parms.indexSize;
+   crzParms.maxKeys  = parms.maxKeys;
+   crzParms.maxKLen  = parms.maxKeyLen;
+   crzParms.mode     = parms.mode;
+   if (parms.options & XrdSsi::ShMap_Parms::ReUse)
+      crzParms.reUse = (parms.options & ~XrdSsi::ShMap_Parms::noReUse ? 1 : 0);
+   if (parms.options & XrdSsi::ShMap_Parms::MultW)
+      crzParms.multW = (parms.options & ~XrdSsi::ShMap_Parms::noMultW ? 1 : 0);
+
+// Handle the action
+//
+   if (shMat->Create(crzParms)) return true;
+
+// We failed
+//
+   rc = errno;
+   delete shMat; shMat = 0;
+   errno = rc;
+   return false;
+}
+
+/******************************************************************************/
+/*                                   D e l                                    */
+/******************************************************************************/
+  
+template<class T>
+bool XrdSsi::ShMap<T>::Del(const char *key, T *valP)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Compute hash if need be
+//
+   int hash = (hashFunc ?  hashFunc(key) : 0);
+
+// Return the result
+//
+   return shMat->DelItem(valP, key, hash);
+}
+
+/******************************************************************************/
+/*                                D e t a c h                                 */
+/******************************************************************************/
+
+template<class T>
+void XrdSsi::ShMap<T>::Detach()
+{
+// If we have memory, detach it
+//
+   if (shMat) {delete shMat; shMat = 0;}
+}
+  
+/******************************************************************************/
+/*                             E n u m e r a t e                              */
+/******************************************************************************/
+
+template<class T>
+bool XrdSsi::ShMap<T>::Enumerate(void *&jar, char *&key, T *&val)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Return next key and possibly an assocaited value
+//
+   return shMat->Enumerate(jar, key, (void *&)val);
+}
+
+/******************************************************************************/
+
+template<class T>
+bool XrdSsi::ShMap<T>::Enumerate(void *&jar)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Terminate the enumeration
+//
+   return shMat->Enumerate(jar);
+}
+  
+/******************************************************************************/
+/*                                E x i s t s                                 */
+/******************************************************************************/
+
+template<class T>
+bool XrdSsi::ShMap<T>::Exists(const char *key)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Compute hash if need be
+//
+   int hash = (hashFunc ?  hashFunc(key) : 0);
+
+// Return the result
+//
+   return shMat->GetItem(0, key, hash);
+}
+  
+/******************************************************************************/
+/*                                E x p o r t                                 */
+/******************************************************************************/
+
+template<class T>
+bool XrdSsi::ShMap<T>::Export()
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Return result
+//
+   return shMat->Export();
+}
+  
+/******************************************************************************/
+/*                                   G e t                                    */
+/******************************************************************************/
+
+template<class T>
+bool XrdSsi::ShMap<T>::Get(const char *key, T &val)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Compute hash if need be
+//
+   int hash = (hashFunc ?  hashFunc(key) : 0);
+
+// Return the result
+//
+   return shMat->GetItem(&val, key, hash);
+}
+
+/******************************************************************************/
+/*                                  I n f o                                   */
+/******************************************************************************/
+
+template<class T>
+int  XrdSsi::ShMap<T>::Info(const char *vname, char *buff, int blen)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return -1;}
+
+// Return the result
+//
+   return shMat->Info(vname, buff, blen);
+}
+
+/******************************************************************************/
+/*                                   R e p                                    */
+/******************************************************************************/
+  
+template<class T>
+bool XrdSsi::ShMap<T>::Rep(const char *key, T &val, T *valP)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Compute hash if need be
+//
+   int hash = (hashFunc ?  hashFunc(key) : 0);
+
+// Rteurn the result
+//
+   return shMat->AddItem(&val, valP, key, hash, true);
+}
+
+/******************************************************************************/
+/*                                R e s i z e                                 */
+/******************************************************************************/
+  
+template<class T>
+bool XrdSsi::ShMap<T>::Resize(XrdSsi::ShMap_Parms *parms)
+{
+   XrdSsi::ShMap_Parms   rszParms(XrdSsi::ShMap_Parms::ForResize);
+   XrdSsiShMat::CRZParms crzParms;
+
+// First see if this object is already attached.
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Check if we need to supply default parms else copy over the parm list
+//
+   if (parms)
+      {crzParms.indexSz  = parms->indexSize;
+       crzParms.maxKeys  = parms->maxKeys;
+       crzParms.maxKLen  = parms->maxKeyLen;
+       crzParms.mode     = parms->mode;
+       if (parms->options & XrdSsi::ShMap_Parms::ReUse)
+          crzParms.reUse =
+                   (parms->options & ~XrdSsi::ShMap_Parms::noReUse ? 1 : 0);
+       if (parms->options & XrdSsi::ShMap_Parms::MultW)
+          crzParms.multW =
+                   (parms->options & ~XrdSsi::ShMap_Parms::noMultW ? 1 : 0);
+      }
+
+// Do the resize
+//
+   return shMat->Resize(crzParms);
+}
+  
+/******************************************************************************/
+/*                                  S y n c                                   */
+/******************************************************************************/
+  
+template<class T>
+bool XrdSsi::ShMap<T>::Sync(XrdSsi::SyncOpt dosync, int syncqsz)
+{
+// Make sure we have memory
+//
+   if (!shMat) {errno = ENOTCONN; return false;}
+
+// Perform desired action
+//
+   switch(dosync)
+         {case SyncOff:  return shMat->Sync(false, false);
+                         break;
+          case SyncOn:   return shMat->Sync(true,  false);
+                         break;
+          case SyncAll:  return shMat->Sync(true,  true);
+                         break;
+          case SyncNow:  return shMat->Sync();
+                         break;
+          case SyncQSz:  return shMat->Sync(syncqsz);
+                         break;
+          default:       errno = EINVAL; return false;
+                         break;
+         }
+   return false;
+}
