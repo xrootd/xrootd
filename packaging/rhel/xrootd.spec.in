@@ -753,6 +753,8 @@ fi
 %files private-devel
 %defattr(-,root,root,-)
 %{_includedir}/xrootd/private
+%{_libdir}/libXrdSsiLib.so
+%{_libdir}/libXrdSsiShMap.so
 
 %files client
 %defattr(-,root,root,-)
