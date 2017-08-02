@@ -318,11 +318,12 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
       }
 
 // If we are here then the request is potentially still active at the server.
-// We will send a synchronous cancel request. It shouldn't take long.
+// We will send a synchronous cancel request. It shouldn't take long. Note
+// that, for now, we ignore any errors as we don't have a recovery plan.
 //
    rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Can);
    DEBUG("Sending cancel request id=" <<tskID);
-   sessP->epFile.Truncate(rInfo.Info(), tmOut);
+   XrdCl::XRootDStatus Status = sessP->epFile.Truncate(rInfo.Info(), tmOut);
 
 
 // If we are in the message handler or if we have a message pending, then
