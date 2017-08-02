@@ -57,6 +57,44 @@ enum Access_ID_Type   {AID_Group,
 /******************************************************************************/
 /*                     S e t T a b s   P a r a m e t e r                      */
 /******************************************************************************/
+
+struct XrdAccAccess_ID
+       {char             *name;
+        char             *grp;
+        char             *host;
+        char             *org;
+        char             *role;
+        char             *user;
+        XrdAccCapability *caps;
+        XrdAccAccess_ID  *next;
+        int               rule;
+        short             hlen;
+        short             glen;
+
+        bool             Applies(const XrdSecEntity *Entity);
+
+        XrdAccAccess_ID *Export()
+                         {XrdAccAccess_ID *xID;
+                          xID = new XrdAccAccess_ID;
+                          *xID = *this;
+                          name = grp = host = org = role = user = 0;
+                          caps = 0;
+                          return xID;
+                         }
+
+              XrdAccAccess_ID(const char *Name=0)
+                             : name(Name ? strdup(Name) : 0),
+                               grp(0), host(0), org(0), role(0), user(0),
+                               caps(0), next(0), rule(0), hlen(0), glen(0) {}
+             ~XrdAccAccess_ID() {if (name) free(name);
+                                 if (grp)  free(grp);
+                                 if (host) free(host);
+                                 if (org)  free(org);
+                                 if (role) free(role);
+                                 if (user) free(user);
+                                 if (caps) delete caps;
+                                }
+       };
   
 struct XrdAccAccess_Tables
        {XrdOucHash<XrdAccCapability> *G_Hash;  // Groups
@@ -64,26 +102,29 @@ struct XrdAccAccess_Tables
         XrdOucHash<XrdAccCapability> *N_Hash;  // Netgroups
         XrdOucHash<XrdAccCapability> *O_Hash;  // Organizations
         XrdOucHash<XrdAccCapability> *R_Hash;  // Roles
-        XrdOucHash<XrdAccCapability> *S_Hash;  // Sets
+        XrdOucHash<XrdAccAccess_ID>  *S_Hash;  // Sets
         XrdOucHash<XrdAccCapability> *T_Hash;  // Templates
         XrdOucHash<XrdAccCapability> *U_Hash;  // Users
                   XrdAccCapName     *D_List;  // Domains
                   XrdAccCapName     *E_List;  // Domains (end of list)
                   XrdAccCapability  *X_List;  // Fungable capbailities
                   XrdAccCapability  *Z_List;  // Default  capbailities
+                  XrdAccAccess_ID   *SXList;  // 's' exclusive list
+                  XrdAccAccess_ID   *SYList;  // 's' inclusive list
 
         XrdAccAccess_Tables() {G_Hash = 0; H_Hash = 0; N_Hash = 0;
                                O_Hash = 0; R_Hash = 0;
                                S_Hash = 0; T_Hash = 0; U_Hash = 0;
                                D_List = 0; E_List = 0;
                                X_List = 0; Z_List = 0;
+                               SXList = 0; SYList = 0;
                               }
        ~XrdAccAccess_Tables() {if (G_Hash) delete G_Hash;
                                if (H_Hash) delete H_Hash;
                                if (N_Hash) delete N_Hash;
                                if (O_Hash) delete O_Hash;
                                if (R_Hash) delete R_Hash;
-                               if (S_Hash) delete S_Hash;
+                               if (S_Hash) delete S_Hash; //Deletes SX & SYList
                                if (T_Hash) delete T_Hash;
                                if (U_Hash) delete U_Hash;
                                if (X_List) delete X_List;
@@ -114,6 +155,9 @@ friend class XrdAccConfig;
                         const Access_Operation oper,
                                XrdOucEnv      *Env=0);
 
+static
+const char       *Resolve(const XrdSecEntity *Entity);
+
 // SwapTabs() is used by the configuration object to establish new access
 // control tables. It may be called whenever the tables change.
 //
@@ -127,8 +171,10 @@ void              SwapTabs(struct XrdAccAccess_Tables &newtab);
 
 private:
 
-XrdAccPrivs Access(const char *id, const Access_ID_Type idtype,
-                   const char *path, const Access_Operation oper);
+XrdAccPrivs Access(      XrdAccPrivCaps  &caps,
+                   const XrdSecEntity    *Entity,
+                   const char            *path,
+                   const Access_Operation oper);
 
 struct XrdAccAccess_Tables Atab;
 

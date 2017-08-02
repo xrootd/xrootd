@@ -2,7 +2,7 @@
 /*                                                                            */
 /*                         X r d A c c T e s t . c c                          */
 /*                                                                            */
-/* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -27,19 +27,6 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
-
-/* Syntax: testaccess [=c cfn] [d] [-t] [user host op path]
-
-   Where:  -c     sets the config file name (default is ./acc.cf)
-         v -d     turns on debugging.
-           -t     turns on tracing.
-           user   is the requesting username
-           host   is the user's host name
-           op     is the requested operation and is one of:
-                  cr - create    mv - rename    st - status
-                  lk - lock      rd - read      wr - write
-                  ls - readdir   rm - remove    ?  - display privs
-*/
   
 #include <unistd.h>
 #include <ctype.h>
@@ -61,15 +48,13 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdNet/XrdNetAddr.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
-  
-extern int optind;
-
-extern char *optarg;
 
 char *PrivsConvert(XrdAccPrivCaps &ctab, char *buff, int blen);
 
@@ -80,6 +65,15 @@ int  extra;
 XrdSysLogger myLogger;
 
 XrdSysError  eroute(&myLogger, "acc_");
+
+namespace
+{
+XrdSecEntity Entity("host");
+
+XrdNetAddr   netAddr;
+
+bool v2 = false;
+}
 
 /******************************************************************************/
 /*                       O p e r a t i o n   T a b l e                        */
@@ -101,6 +95,38 @@ optab_t optab[] =
              };
 
 int opcnt = sizeof(optab)/sizeof(optab[0]);
+
+/******************************************************************************/
+/*                                 U s a g e                                  */
+/******************************************************************************/
+
+void Usage(const char *msg)
+{
+   if (msg) cerr <<"xrdacctest: " <<msg <<endl;
+   cerr <<"Usage: xrdacctest [-c <cfn>] [<ids> | <user> <host>] <act>\n\n";
+   cerr <<"<ids>: -a <auth> -g <grp> -h <host> -o <org> -r <role> -u <user>\n";
+   cerr <<"<act>: <opc> <path> [<path> [...]]\n";
+   cerr <<"<act>: <opc> <path> [<path> [...]]\n";
+   cerr <<"<opc>: cr - create    mv - rename    st - status    lk - lock\n";
+   cerr <<"       rd - read      wr - write     ls - readdir   rm - remove\n";
+   cerr <<"       *  - zap args  ?  - display privs\n";
+   cerr <<flush;
+   exit(msg ? 1 : 0);
+}
+  
+/******************************************************************************/
+/*                             Z a p E n t i t y                              */
+/******************************************************************************/
+
+void ZapEntity()
+{
+   strncpy(Entity.prot, "host", sizeof(Entity.prot));
+   Entity.grps = 0;
+   Entity.host = 0;
+   Entity.vorg = 0;
+   Entity.role = 0;
+   Entity.name = 0;
+}
   
 /******************************************************************************/
 /*                                  m a i n                                   */
@@ -109,30 +135,55 @@ int opcnt = sizeof(optab)/sizeof(optab[0]);
 int main(int argc, char **argv)
 {
 static XrdVERSIONINFODEF(myVer, XrdAccTest, XrdVNUMBER, XrdVERSION);
+extern int   optind;
+extern char *optarg;
 extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
                                                      const char     *cfn,
                                                      const char     *parm,
                                                      XrdVersionInfo &myVer);
-void Usage(const char *);
+int DoIt(int argpnt, int argc, char **argv, bool singleshot);
+
+const char *cfHost = "localhost", *cfProg = "xrootd";
 char *p2l(XrdAccPrivs priv, char *buff, int blen);
-int rc = 0, argnum;
-char c, *argval[32];
+char *argval[32], buff[255], c;
 int DoIt(int argnum, int argc, char **argv, int singleshot);
 XrdOucStream Command;
 const int maxargs = sizeof(argval)/sizeof(argval[0]);
-char *ConfigFN = (char *)"./acc.cf";
-int singleshot = 0;
+char *at, *ConfigFN = (char *)"./acc.cf";
+int argnum, rc = 0;
+bool singleshot=false;
+
+// Print help if no args
+//
+  if (argc == 1) Usage(0);
+  Entity.addrInfo = &netAddr;
 
 // Get all of the options.
 //
-   while ((c=getopt(argc,argv,"c:ds")) != (char)EOF)
+   while ((c=getopt(argc,argv,"a:c:dg:h:o:r:u:s")) != (char)EOF)
      { switch(c)
        {
+       case 'a': strncpy(Entity.prot, optarg, sizeof(Entity.prot));
+                                       v2 = true;    break;
+       case 'd':                                     break;
+       case 'g': Entity.grps = optarg; v2 = true;    break;
+       case 'h': Entity.host = optarg; v2 = true;    break;
+       case 'o': Entity.vorg = optarg; v2 = true;    break;
+       case 'r': Entity.role = optarg; v2 = true;    break;
+       case 'u': Entity.name = optarg; v2 = true;    break;
        case 'c': ConfigFN = optarg;                  break;
-       case 's': singleshot = 1;                      break;
-       default:  Usage("Invalid option.");
+       case 's': singleshot = true;                  break;
+       default:  sprintf(buff, "-%c option is invalid.", c);
+                 Usage(buff);
        }
      }
+
+// Establish environment
+//
+   if ((at = index(ConfigFN, '@')))
+      {*at++ = 0; if (*at) cfHost = at;}
+   sprintf(buff, "%s anon@%s", cfProg, cfHost);
+   XrdOucEnv::Export("XRDINSTANCE", buff);
 
 // Obtain the authorization object
 //
@@ -148,13 +199,14 @@ if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
 // Start accepting command from standard in until eof
 //
    Command.Attach(0);
-   cout << "Waiting for arguments..." <<endl;
+   cerr << "Enter arguments: ";
    while(Command.GetLine())
        while((argval[1] = Command.GetToken()))
             {for (argnum=2;
                   argnum < maxargs && (argval[argnum]=Command.GetToken());
                   argnum++) {}
              rc |= DoIt(1, argnum, argval, singleshot=0);
+             cerr << "Enter arguments: ";
             }
 
 // All done
@@ -162,40 +214,75 @@ if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
    exit(rc);
 }
 
-int DoIt(int argpnt, int argc, char **argv, int singleshot)
+int DoIt(int argpnt, int argc, char **argv, bool singleshot)
 {
-char *user, *host, *path, *result, buff[16];
+char *opc, *opv, *path, *result, buff[80];
 Access_Operation cmd2op(char *opname);
 void Usage(const char *);
 Access_Operation optype;
 XrdAccPrivCaps pargs;
 XrdAccPrivs auth;
-XrdSecEntity Entity("");
 
-// Make sure user specified
+// Get options (this may be interactive mode)
 //
-   if (argpnt >= argc) Usage("user not specified.");
-   user = argv[argpnt++];
+   while(argpnt < argc && *argv[argpnt] == '-')
+        {opc = argv[argpnt++];
+         if (argpnt >= argc)
+            {sprintf(buff, "%s option value not specified.", opc);
+             Usage(buff);
+            }
+          opv = argv[argpnt++];
+         if (strlen(opc) != 2)
+            {sprintf(buff, "%s option is invalid.", opc);
+             Usage(buff);
+            }
+         switch(*(opc+1))
+               {case 'a': strncpy(Entity.prot, opv, sizeof(Entity.prot));
+                          v2 = true; break;
+                case 'g': Entity.grps = opv; v2 = true; break;
+                case 'h': Entity.host = opv; v2 = true; break;
+                case 'o': Entity.vorg = opv; v2 = true; break;
+                case 'r': Entity.role = opv; v2 = true; break;
+                case 'u': Entity.name = opv; v2 = true; break;
+                default:  sprintf(buff, "%s option is invalid.", opc);
+                          Usage(buff);
+                          break;
+               }
+        }
 
-// Make sure host specified
+// Make sure user and host specified if v1 version being used
 //
-   if (argpnt >= argc) Usage("host not specified.");
-   host = argv[argpnt++];
+   if (!v2)
+      {if (argpnt >= argc) Usage("user not specified.");
+       Entity.name = argv[argpnt++];
+       if (argpnt >= argc) Usage("host not specified.");
+       Entity.host = argv[argpnt++];
+      }
 
 // Make sure op   specified
 //
    if (argpnt >= argc) Usage("operation not specified.");
+   if (!strcmp(argv[argpnt], "*"))
+      {ZapEntity();
+       return 0;
+      }
    optype = cmd2op(argv[argpnt++]);
 
 // Make sure path specified
 //
    if (argpnt >= argc) Usage("path not specified.");
 
-// Fill out entity
+// Remove unwanted items
 //
-   strcpy(Entity.prot, "krb4");
-   Entity.name = user;
-   Entity.host = host;
+  if (Entity.grps && !strcmp(Entity.grps, "none")) Entity.grps = 0;
+  if (Entity.host && !strcmp(Entity.host, "none")) Entity.host = 0;
+  if (Entity.vorg && !strcmp(Entity.vorg, "none")) Entity.vorg = 0;
+  if (Entity.role && !strcmp(Entity.role, "none")) Entity.role = 0;
+  if (Entity.name && !strcmp(Entity.name, "none")) Entity.name = 0;
+
+// Set host, ignore errors
+//
+  if (Entity.host) netAddr.Set(Entity.host, 0);
 
 // Process each path, as needed
 //                                                            x
@@ -225,7 +312,6 @@ Access_Operation cmd2op(char *opname)
    for (i = 0; i < opcnt; i++) 
        if (!strcmp(opname, optab[i].opname)) return optab[i].oper;
    cerr << "testaccess: Invalid operation - " <<opname <<endl;
-   exit(1);
    return AOP_Any;
 }
 
@@ -259,14 +345,3 @@ char *PrivsConvert(XrdAccPrivCaps &ctab, char *buff, int blen)
      buff[i] = '\0';
      return buff;
 }
-
-/******************************************************************************/
-/*                                 U s a g e                                  */
-/******************************************************************************/
-  
-void Usage(const char *msg)
-     {if (msg) cerr <<"xrdacctest: " <<msg <<endl;
-      cerr << "Usage: xrdacctest [-c cfn] [<user> <host> {d|i|k|l|n|r|w} "
-                     "<path> [<path> [...]]]" <<endl;
-      exit(1);
-     }

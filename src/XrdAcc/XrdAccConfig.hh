@@ -92,7 +92,11 @@ int                 ConfigDBrec(XrdSysError &Eroute,
 void                ConfigDefaults(void);
 int                 ConfigFile(XrdSysError &Eroute, const char *cfn);
 int                 ConfigXeq(char *, XrdOucStream &, XrdSysError &);
+XrdAccAccess_ID    *idChk(XrdSysError &Eroute, XrdAccAccess_ID *idList);
+int                 idDef(XrdSysError &Eroute, XrdAccAccess_Tables &tabs,
+                          const char *idName);
 int                 PrivsConvert(char *privs, XrdAccPrivCaps &ctab);
+
 int                 xaud(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xart(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xdbp(XrdOucStream &Config, XrdSysError &Eroute);
@@ -107,5 +111,6 @@ XrdSysMutex          Config_Context;
 XrdSysThread         Config_Refresh;
 
 int                  options;
+int                  rulenum;
 };
 #endif

@@ -139,6 +139,53 @@ int XrdAccAuthFile::Close()
 }
 
 /******************************************************************************/
+/*                                 g e t I D                                  */
+/******************************************************************************/
+  
+char XrdAccAuthFile::getID(char **id)
+{
+   char *pp, idcode[2] = {0,0};
+
+// If a record has not been read, return end of record (i.e., 0)
+//
+   if (!(flags & inRec)) return 0;
+
+// Read the next word from the record (if none, simulate end of record)
+//
+   if (!(pp = DBfile.GetWord()))
+      {flags = (DBflags)(flags & ~inRec);
+       return 0;
+      }
+
+// Id's are of the form 'c:', make sure we have that (don't validate it)
+//
+   if (strlen(pp) != 2 || !index("ghoru", *pp))
+      {Eroute->Emsg("AuthFile", "Invalid ID sprecifier -", pp);
+       flags = (DBflags)(flags | dbError);
+       return 0;
+      }
+   idcode[0] = *pp;
+
+// Now get the actual id associated with it
+//
+   if (!(pp = DBfile.GetWord()))
+      {flags = (DBflags)(flags & ~inRec);
+       Eroute->Emsg("AuthFile", "ID value missing after", idcode);
+       flags = (DBflags)(flags | dbError);
+       return 0;
+      }
+
+// Copy the value since the stream buffer might get overlaid.
+//
+   Copy(path_buff, pp, sizeof(path_buff)-1);
+
+// Return result
+//
+   *id = path_buff;
+   return idcode[0];
+}
+  
+/******************************************************************************/
 /*                                 g e t P P                                  */
 /******************************************************************************/
   
@@ -237,7 +284,8 @@ char XrdAccAuthFile::getRec(char **recname)
                   case 'o':
                   case 'r':
                   case 't':
-                  case 'u': idok = 1;
+                  case 'u':
+                  case '=': idok = 1;
                             break;
                    default: break;
                  }
