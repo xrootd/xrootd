@@ -285,6 +285,7 @@ char XrdAccAuthFile::getRec(char **recname)
                   case 'r':
                   case 't':
                   case 'u':
+                  case 'x':
                   case '=': idok = 1;
                             break;
                    default: break;

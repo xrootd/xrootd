@@ -209,8 +209,7 @@ int XrdAccConfig::ConfigDB(int Warm, XrdSysError &Eroute)
 
 // Do final setup for special identifiers (this will correctly order them)
 //
-   if (tabs.SXList) tabs.SXList = idChk(Eroute, tabs.SXList);
-   if (tabs.SYList) tabs.SYList = idChk(Eroute, tabs.SYList);
+   if (tabs.SYList) idChk(Eroute, tabs.SYList, tabs);
 
 // Set the access control tables
 //
@@ -536,6 +535,7 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
                          Set_ID = 's',
                     Template_ID = 't',
                         User_ID = 'u',
+                         Xxx_ID = 'x',
                          Def_ID = '=',
                           No_ID = 0
                     };
@@ -548,7 +548,7 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
     XrdAccPrivCaps xprivs;
     XrdAccCapability mycap((char *)"", xprivs), *currcap, *lastcap = &mycap;
     XrdAccCapName *ncp;
-    bool istmplt, isDup;
+    bool istmplt, isDup, xclsv = false;
   
    // Prepare the next record in the database
    //
@@ -579,6 +579,8 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
                             alluser = (authid[0] == '*' && !authid[1]);
                             anyuser = (authid[0] == '=' && !authid[1]);
                             break;
+          case      Xxx_ID: hp = 0; xclsv = true;
+                            break;
           case      Def_ID: return idDef(Eroute, tabs, authid);
                             break;
                    default: char badtype[2] = {rtype, '\0'};
@@ -601,7 +603,7 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
                 return -1;
                }
             isDup = sp->caps != 0;
-            sp->rule = rulenum++;
+            sp->rule = (xclsv ? rulenum++ : -1);
            }
 
    if (isDup)
@@ -675,30 +677,39 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
 /* Private:                        i d C h k                                  */
 /******************************************************************************/
 
-XrdAccAccess_ID *XrdAccConfig::idChk(XrdSysError     &Eroute,
-                                     XrdAccAccess_ID *idList)
+void  XrdAccConfig::idChk(XrdSysError        &Eroute,
+                          XrdAccAccess_ID    *idList,
+                          XrdAccAccess_Tables &tabs)
 {
    std::map<int, XrdAccAccess_ID *> idMap;
-   XrdAccAccess_ID *newList = 0;
+   XrdAccAccess_ID *idPN, *xList = 0, *yList = 0;
 
 // Run through the list to make everything was used. We also, sort these items
 // in the order the associated rule appeared.
 //
    while(idList)
-        {if (idList->caps) idMap[idList->rule] = idList;
-            else Eroute.Say("Config ","Warning, unused identifier definition '",
-                                      idList->name, "'.");
-             idList = idList->next;
+        {idPN = idList->next;
+         if (idList->caps == 0)
+            Eroute.Say("Config ","Warning, unused identifier definition '",
+                                 idList->name, "'.");
+            else if (idList->rule >= 0) idMap[idList->rule] = idList;
+                    else {idList->next = yList; yList = idList;}
+         idList = idPN;
         }
 
-// Return the sorted list (may be null)
+// Place 'x' rules in the order they were used. The ;s; rules are in the
+// order the id's were defined which is OK because the are inclusive.
 //
    std::map<int,XrdAccAccess_ID *>::reverse_iterator rit;
    for (rit = idMap.rbegin(); rit != idMap.rend(); ++rit)
-       {rit->second->next = newList;
-        newList = rit->second;
+       {rit->second->next = xList;
+        xList = rit->second;
        }
-   return newList;
+
+// Set the new lists in the supplied tabs structure
+//
+   tabs.SXList = xList;
+   tabs.SYList = yList;
 }
   
 /******************************************************************************/
@@ -711,7 +722,7 @@ int XrdAccConfig::idDef(XrdSysError &Eroute,
 {
    XrdAccAccess_ID *xID, theID(idName);
    char *idname, buff[80], idType;
-   bool haveID = false, idDup = false, xclsv = *idName == '^';
+   bool haveID = false, idDup = false;
 
 // Now start getting <idtype> <idname> pairs until we hit the logical end
 //
@@ -773,10 +784,10 @@ int XrdAccConfig::idDef(XrdSysError &Eroute,
    xID = theID.Export();
    tabs.S_Hash->Add(xID->name, xID);
 
-// Place this FIFO in the SX or SYList (they will be reversed later)
+// Place this FIFO in SYList (they reordered later based on rule usage)
 //
-   if (xclsv) {xID->next = tabs.SXList; tabs.SXList = xID;}
-      else    {xID->next = tabs.SYList; tabs.SYList = xID;}
+   xID->next = tabs.SYList;
+   tabs.SYList = xID;
 
 // All done
 //

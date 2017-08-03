@@ -39,22 +39,6 @@
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
-/*                        A c c e s s _ I D _ T y p e                         */
-/******************************************************************************/
-  
-// The following are supported id types for access() checking
-//
-enum Access_ID_Type   {AID_Group,
-                       AID_Host,
-                       AID_Netgroup,
-                       AID_Org,
-                       AID_Role,
-                       AID_Set,
-                       AID_Template,
-                       AID_User
-                      };
-
-/******************************************************************************/
 /*                     S e t T a b s   P a r a m e t e r                      */
 /******************************************************************************/
 
