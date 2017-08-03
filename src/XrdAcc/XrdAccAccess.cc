@@ -109,7 +109,7 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
    const int plen  = strlen(path);
    const long phash = XrdOucHashVal2(path, plen);
    const char *id   = (Entity->name ? (const char *)Entity->name : "*");
-   const char *host;
+   const char *host = 0;
    int n, isuser = (*id && (*id != '*' || id[1]));
 
 // Get a shared context for these potentially long running routines
