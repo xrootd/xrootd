@@ -106,12 +106,21 @@ void Usage(const char *msg)
    cerr <<"Usage: xrdacctest [-c <cfn>] [<ids> | <user> <host>] <act>\n\n";
    cerr <<"<ids>: -a <auth> -g <grp> -h <host> -o <org> -r <role> -u <user>\n";
    cerr <<"<act>: <opc> <path> [<path> [...]]\n";
-   cerr <<"<act>: <opc> <path> [<path> [...]]\n";
    cerr <<"<opc>: cr - create    mv - rename    st - status    lk - lock\n";
    cerr <<"       rd - read      wr - write     ls - readdir   rm - remove\n";
    cerr <<"       *  - zap args  ?  - display privs\n";
    cerr <<flush;
    exit(msg ? 1 : 0);
+}
+  
+/******************************************************************************/
+/*                                 S e t I D                                  */
+/******************************************************************************/
+
+void SetID(char *&dest, char *val)
+{
+   if (dest) free(dest);
+   dest = (strcmp(val, "none") ? strdup(val) : 0);
 }
   
 /******************************************************************************/
@@ -121,10 +130,15 @@ void Usage(const char *msg)
 void ZapEntity()
 {
    strncpy(Entity.prot, "host", sizeof(Entity.prot));
+   if (Entity.grps) free(Entity.grps);
    Entity.grps = 0;
+   if (Entity.host) free(Entity.host);
    Entity.host = 0;
+   if (Entity.vorg) free(Entity.vorg);
    Entity.vorg = 0;
+   if (Entity.role) free(Entity.role);
    Entity.role = 0;
+   if (Entity.name) free(Entity.name);
    Entity.name = 0;
 }
   
@@ -149,7 +163,7 @@ char *argval[32], buff[255], c;
 int DoIt(int argnum, int argc, char **argv, int singleshot);
 XrdOucStream Command;
 const int maxargs = sizeof(argval)/sizeof(argval[0]);
-char *at, *ConfigFN = (char *)"./acc.cf";
+char *at, *lp, *ConfigFN = (char *)"./acc.cf";
 int argnum, rc = 0;
 bool singleshot=false;
 
@@ -164,15 +178,15 @@ bool singleshot=false;
      { switch(c)
        {
        case 'a': strncpy(Entity.prot, optarg, sizeof(Entity.prot));
-                                       v2 = true;    break;
-       case 'd':                                     break;
-       case 'g': Entity.grps = optarg; v2 = true;    break;
-       case 'h': Entity.host = optarg; v2 = true;    break;
-       case 'o': Entity.vorg = optarg; v2 = true;    break;
-       case 'r': Entity.role = optarg; v2 = true;    break;
-       case 'u': Entity.name = optarg; v2 = true;    break;
-       case 'c': ConfigFN = optarg;                  break;
-       case 's': singleshot = true;                  break;
+                                             v2 = true;    break;
+       case 'd':                                           break;
+       case 'g': SetID(Entity.grps, optarg); v2 = true;    break;
+       case 'h': SetID(Entity.host, optarg); v2 = true;    break;
+       case 'o': SetID(Entity.vorg, optarg); v2 = true;    break;
+       case 'r': SetID(Entity.role, optarg); v2 = true;    break;
+       case 'u': SetID(Entity.name, optarg); v2 = true;    break;
+       case 'c': ConfigFN = optarg;                        break;
+       case 's': singleshot = true;                        break;
        default:  sprintf(buff, "-%c option is invalid.", c);
                  Usage(buff);
        }
@@ -200,7 +214,7 @@ if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
 //
    Command.Attach(0);
    cerr << "Enter arguments: ";
-   while(Command.GetLine())
+   while((lp = Command.GetLine()) && *lp)
        while((argval[1] = Command.GetToken()))
             {for (argnum=2;
                   argnum < maxargs && (argval[argnum]=Command.GetToken());
@@ -239,11 +253,11 @@ XrdAccPrivs auth;
          switch(*(opc+1))
                {case 'a': strncpy(Entity.prot, opv, sizeof(Entity.prot));
                           v2 = true; break;
-                case 'g': Entity.grps = opv; v2 = true; break;
-                case 'h': Entity.host = opv; v2 = true; break;
-                case 'o': Entity.vorg = opv; v2 = true; break;
-                case 'r': Entity.role = opv; v2 = true; break;
-                case 'u': Entity.name = opv; v2 = true; break;
+                case 'g': SetID(Entity.grps, opv); v2 = true; break;
+                case 'h': SetID(Entity.host, opv); v2 = true; break;
+                case 'o': SetID(Entity.vorg, opv); v2 = true; break;
+                case 'r': SetID(Entity.role, opv); v2 = true; break;
+                case 'u': SetID(Entity.name, opv); v2 = true; break;
                 default:  sprintf(buff, "%s option is invalid.", opc);
                           Usage(buff);
                           break;
@@ -259,9 +273,12 @@ XrdAccPrivs auth;
        Entity.host = argv[argpnt++];
       }
 
-// Make sure op   specified
+// Make sure op specified unless we are v2
 //
-   if (argpnt >= argc) Usage("operation not specified.");
+   if (argpnt >= argc)
+      {if (v2) return 0;
+          else Usage("operation not specified.");
+      }
    if (!strcmp(argv[argpnt], "*"))
       {ZapEntity();
        return 0;
@@ -272,20 +289,12 @@ XrdAccPrivs auth;
 //
    if (argpnt >= argc) Usage("path not specified.");
 
-// Remove unwanted items
-//
-  if (Entity.grps && !strcmp(Entity.grps, "none")) Entity.grps = 0;
-  if (Entity.host && !strcmp(Entity.host, "none")) Entity.host = 0;
-  if (Entity.vorg && !strcmp(Entity.vorg, "none")) Entity.vorg = 0;
-  if (Entity.role && !strcmp(Entity.role, "none")) Entity.role = 0;
-  if (Entity.name && !strcmp(Entity.name, "none")) Entity.name = 0;
-
 // Set host, ignore errors
 //
   if (Entity.host) netAddr.Set(Entity.host, 0);
 
 // Process each path, as needed
-//                                                            x
+//
    while(argpnt < argc)
         {path = argv[argpnt++];
          auth = Authorize->Access((const XrdSecEntity *)&Entity,
