@@ -1,0 +1,34 @@
+Source: xrootd
+Maintainer: Jozsef Makai <jozsef.makai@cern.ch>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 10), cmake (>=3.3.0), libfuse-dev, zlib1g-dev, libfuse-dev, python-dev, libssl-dev, libxml2-dev, ncurses-dev, libkrb5-dev, libreadline-dev, libsystemd-dev, selinux-policy-dev, systemd
+Homepage: https://github.com/xrootd/xrootd
+Vcs-Git: https://github.com/xrootd/xrootd.git
+Vcs-Browser: https://github.com/xrootd/xrootd
+
+Package: xrootd-libs
+Architecture: any
+Depends: systemd
+Description: This package contains libraries used by the xrootd servers and clients.
+
+Package: xrootd-devel
+Architecture: any
+Depends: xrootd-libs, systemd
+Description: This package contains header files and development libraries for xrootd development.
+
+Package: xrootd-client-libs
+Architecture: any
+Depends: xrootd-libs, systemd
+Description: This package contains libraries used by xrootd clients.
+
+Package: xrootd-client-devel
+Architecture: any
+Depends: xrootd-devel, xrootd-client-libs, systemd
+Description: This package contains header files and development libraries for xrootd client development.
+
+Package: xrootd-client
+Architecture: any
+Depends: xrootd-libs, xrootd-client-libs, systemd
+Description: This package contains the command line tools used to communicate with xrootd servers.
