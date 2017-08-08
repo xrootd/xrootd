@@ -37,7 +37,7 @@
 Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
-Release:   __RELEASE__%{?dist}%{?_with_cpp11:.cpp11}%{?_with_clang:.clang}
+Release:   __RELEASE__%{?dist}%{?_with_clang:.clang}
 Summary:   Extended ROOT file server
 Group:     System Environment/Daemons
 License:   LGPLv3+
@@ -354,10 +354,6 @@ This package contains compatibility binaries for xrootd 3 servers.
 
 %build
 cd xrootd
-
-%if %{?_with_cpp11:1}%{!?_with_cpp11:0}
-export CXXFLAGS=-std=c++11
-%endif
 
 %if %{?_with_clang:1}%{!?_with_clang:0}
 export CC=clang
