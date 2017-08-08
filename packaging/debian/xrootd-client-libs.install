@@ -4,5 +4,5 @@ usr/lib/libXrdFfs.so.2*
 usr/lib/libXrdPosix.so.2*
 usr/lib/libXrdPosixPreload.so.1*
 usr/lib/libXrdPosixPreload.so
-etc/sysconfig/xrootd/client.plugins.d/client-plugin.conf.example
-etc/sysconfig/xrootd/client.conf
+etc/xrootd/client.plugins.d/client-plugin.conf.example
+etc/xrootd/client.conf

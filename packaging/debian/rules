@@ -1,4 +1,7 @@
 #!/usr/bin/make -f
 
 %:
-	dh $@
+	dh $@ --builddirectory=build --destdir=deb_packages
+
+override_dh_install:
+	dh_install --sourcedir=deb_packages
