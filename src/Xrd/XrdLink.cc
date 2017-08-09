@@ -696,7 +696,7 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
   
 int XrdLink::Send(const char *Buff, int Blen)
 {
-   ssize_t retc = 0, bytesleft = Blen, myBytes = 0;
+   ssize_t retc = 0, bytesleft = Blen;
 
 // Get a lock
 //
@@ -719,7 +719,7 @@ int XrdLink::Send(const char *Buff, int Blen)
             {if (errno == EINTR) continue;
                 else break;
             }
-         myBytes += retc; bytesleft -= retc; Buff += retc;
+         bytesleft -= retc; Buff += retc;
         }
 
 // All done
