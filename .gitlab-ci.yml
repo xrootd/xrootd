@@ -166,6 +166,33 @@ xrootd_rpm_fc24:
   except:
     - tags
     - schedules
+    
+xrootd_deb_ubuntu_artful:
+  stage: build:rpm
+  image: ubuntu:artful
+  script:
+    - apt-get update
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
+    - cp -R packaging/debian/ .
+    - mk-build-deps --build-dep debian/control
+    - gdebi -n xrootd-build-deps-depends*.deb
+    - version=`./genversion.sh --print-only`
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
+    - mkdir ubuntu-artful
+    - cp deb_packages/*.deb ubuntu-artful
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - ubuntu-artful/
+  tags:
+    - docker-ubuntu
+  only:
+    - master
+    - /^stable-.*$/
+    - tags
+  except:
+    - schedules 
 
 xrootd_tgz_macosx:
   stage: build:rpm
