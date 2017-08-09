@@ -16,7 +16,7 @@ script:
   - make
   - make install
   - popd
-after_script:
-  - pushd build
-  - ./tests/common/text-runner ./tests/XrdClTests/libXrdClTests.so 'All Tests'
-  - popd
+#after_script:
+#  - pushd build
+#  - ./tests/common/text-runner ./tests/XrdClTests/libXrdClTests.so 'All Tests'
+#  - popd
