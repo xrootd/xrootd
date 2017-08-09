@@ -10,7 +10,6 @@ Vcs-Browser: https://github.com/xrootd/xrootd
 
 Package: xrootd-libs
 Architecture: any
-Depends: ${shlibs:Depends}
 Description: This package contains libraries used by the xrootd servers and clients.
 
 Package: xrootd-devel
