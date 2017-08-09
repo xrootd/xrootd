@@ -8,6 +8,7 @@ add_executable(
 
 target_link_libraries(
   xrdshmap
+  ${ZLIB_LIBRARIES}
   XrdSsiShMap )
 
 #-------------------------------------------------------------------------------

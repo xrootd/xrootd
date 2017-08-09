@@ -798,6 +798,7 @@ fi
 %files tests
 %defattr(-,root,root,-)
 %{_bindir}/text-runner
+%{_bindir}/xrdshmap
 %{_libdir}/libXrdClTests.so
 %{_libdir}/libXrdClTestsHelper.so
 %{_libdir}/libXrdClTestMonitor*.so
