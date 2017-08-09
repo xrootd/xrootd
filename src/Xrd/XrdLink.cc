@@ -702,7 +702,7 @@ int XrdLink::Send(const char *Buff, int Blen)
 //
    wrMutex.Lock();
    isIdle = 0;
-   AtomicAdd(BytesOut, myBytes);
+   AtomicAdd(BytesOut, Blen);
 
 // Do non-blocking writes if we are setup to do so.
 //
