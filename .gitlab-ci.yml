@@ -390,7 +390,7 @@ xrootd_publish_artifacts_master:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25; do 
+    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25 fc-24; do 
          path=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64/latest/;
          sudo -u stci -H mkdir -p $path;
          sudo -u stci -H find ${path} -type f -name '*.rpm' -delete;
@@ -410,7 +410,7 @@ xrootd_publish_artifacts_stable:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25; do 
+    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25 fc-24; do 
          path=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64/;
          sudo -u stci -H mkdir -p $path;
          sudo -u stci -H cp $platform/* $path;
