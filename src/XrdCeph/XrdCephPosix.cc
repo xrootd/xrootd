@@ -69,7 +69,7 @@ struct CephFileRef : CephFile {
 
 /// small struct for directory listing
 struct DirIterator {
-  librados::ObjectIterator m_iterator;
+  librados::NObjectIterator m_iterator;
   librados::IoCtx *m_ioctx;
 };
 
@@ -1169,24 +1169,24 @@ DIR* ceph_posix_opendir(XrdOucEnv* env, const char *pathname) {
     return 0;
   }
   DirIterator* res = new DirIterator();
-  res->m_iterator = ioctx->objects_begin();
+  res->m_iterator = ioctx->nobjects_begin();
   res->m_ioctx = ioctx;
   return (DIR*)res;
 }
 
 int ceph_posix_readdir(DIR *dirp, char *buff, int blen) {
-  librados::ObjectIterator &iterator = ((DirIterator*)dirp)->m_iterator;
+  librados::NObjectIterator &iterator = ((DirIterator*)dirp)->m_iterator;
   librados::IoCtx *ioctx = ((DirIterator*)dirp)->m_ioctx;
-  while (iterator->first.compare(iterator->first.size()-17, 17, ".0000000000000000") &&
-         iterator != ioctx->objects_end()) {
+  while (iterator->get_oid().compare(iterator->get_oid().size()-17, 17, ".0000000000000000") &&
+         iterator != ioctx->nobjects_end()) {
     iterator++;
   }
-  if (iterator == ioctx->objects_end()) {
+  if (iterator == ioctx->nobjects_end()) {
     buff[0] = 0;
   } else {
-    int l = iterator->first.size()-17;
+    int l = iterator->get_oid().size()-17;
     if (l < blen) blen = l;
-    strncpy(buff, iterator->first.c_str(), blen-1);
+    strncpy(buff, iterator->get_oid().c_str(), blen-1);
     buff[blen-1] = 0;
     iterator++;
   }
