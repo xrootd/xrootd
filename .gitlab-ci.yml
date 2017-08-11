@@ -179,12 +179,12 @@ xrootd_deb_ubuntu_artful:
     - version=`./genversion.sh --print-only`
     - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
-    - mkdir ubuntu-artful
-    - cp deb_packages/*.deb ubuntu-artful
+    - mkdir artful
+    - cp deb_packages/*.deb artful
   artifacts:
     expire_in: 1 day
     paths:
-    - ubuntu-artful/
+    - artful/
   tags:
     - docker-ubuntu
   only:
@@ -399,6 +399,26 @@ xrootd_publish_artifacts_master:
       done"
   tags:
     - docker-slc6
+  only:
+    - master
+  except:
+    - schedules
+    
+xrootd_publish_artifacts_debian_master:
+  stage: publish
+  image: ubuntu:artful
+  script: 
+    - apt-get update
+    - apt-get install -y sudo apt-utils sssd
+    - mkdir /home/stci
+    - chown -R stci:def-cg /home/stci
+    - chmod -R 700 /home/stci
+    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
+    - sudo -u stci -H ./packaging/debian_scripts/publish_debian_cern.sh master
+  tags:
+    - docker-ubuntu
+  dependencies:
+    - xrootd_deb_ubuntu_artful
   only:
     - master
   except:
