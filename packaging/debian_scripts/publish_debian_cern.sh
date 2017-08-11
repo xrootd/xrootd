@@ -5,6 +5,8 @@
 # Author: Jozsef Makai <jmakai@cern.ch> (11.08.2017)
 #-------------------------------------------------------------------------------
 
+set -e
+
 comp=$1
 prefix=/eos/project/s/storage-ci/www/debian/xrootd
 
