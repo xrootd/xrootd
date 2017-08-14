@@ -444,6 +444,27 @@ xrootd_publish_artifacts_stable:
     - tags
     - schedules
 
+xrootd_publish_artifacts_debian_stable:
+  stage: publish
+  image: ubuntu:artful
+  script:
+    - apt-get update
+    - apt-get install -y sudo apt-utils sssd
+    - mkdir /home/stci
+    - chown -R stci:def-cg /home/stci
+    - chmod -R 700 /home/stci
+    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
+    - sudo -u stci -H ./packaging/debian_scripts/publish_debian_cern.sh ${CI_COMMIT_REF_NAME}
+  tags:
+    - docker-ubuntu
+  dependencies:
+    - xrootd_deb_ubuntu_artful
+  only:
+    - /^stable-.*$/
+  except:
+    - tags
+    - schedules
+
 xrootd_publish_artifacts_release:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -462,6 +483,26 @@ xrootd_publish_artifacts_release:
       done"
   tags:
     - docker-slc6
+  only:
+    - web
+  except:
+    - branches
+
+xrootd_publish_artifacts_debian_release:
+  stage: publish
+  image: ubuntu:artful
+  script:
+    - apt-get update
+    - apt-get install -y sudo apt-utils sssd
+    - mkdir /home/stci
+    - chown -R stci:def-cg /home/stci
+    - chmod -R 700 /home/stci
+    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
+    - sudo -u stci -H ./packaging/debian_scripts/publish_debian_cern.sh release
+  tags:
+    - docker-ubuntu
+  dependencies:
+    - xrootd_deb_ubuntu_artful
   only:
     - web
   except:
