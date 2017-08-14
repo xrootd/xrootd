@@ -14,7 +14,7 @@ for dist in artful; do
   echo "Publishing for $dist";
   path=$prefix/pool/$dist/$comp/x/xrootd/;
   mkdir -p $path;
-  if [["$comp" == "master"]]; then find ${path} -type f -name '*.deb' -delete; fi
+  if [[ "$comp" == "master" ]]; then find ${path} -type f -name '*.deb' -delete; fi
   cp $dist/*.deb $path;
   mkdir -p $prefix/dists/$dist/$comp/binary-amd64/;
   (cd $prefix && apt-ftparchive --arch amd64 packages pool/$dist/$comp/ > dists/$dist/$comp/binary-amd64/Packages);
