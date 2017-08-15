@@ -112,8 +112,10 @@ int XrdOssSys::Rename(const char *oldname, const char *newname,
 
 // Make sure that the target file does not exist
 //
+#if 0
    retc2 = lstat(local_path_New, &statbuff);
    if (!retc2) return -EEXIST;
+#endif
 
 // We need to create the directory path if it does not exist.
 //
