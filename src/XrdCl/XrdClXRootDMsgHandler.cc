@@ -2006,7 +2006,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void XRootDMsgHandler::HandleLocalRedirect( URL *url ){
      AnyObject *obj = new AnyObject();
-     obj->Set( url, false );
+     obj->Set( new URL( url->GetURL() ) );
      pResponseHandler->HandleResponseWithHosts(
                      new XRootDStatus( stOK, suRetryLocally ), obj, pHosts );
      delete this;

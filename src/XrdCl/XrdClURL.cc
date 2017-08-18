@@ -76,7 +76,7 @@ namespace XrdCl
     else if( url[0] == '/' )
     {
       pProtocol = "file";
-      current   = url;
+      current   = "/localhost" + url;
     }
     else if( url[0] == '-' )
     {

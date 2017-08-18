@@ -52,8 +52,15 @@ namespace XrdCl{
             fileurl.erase( 0, 7 );
          else{
             log->Warning( FileMsg,
-               "%s in lFileHandler::Open does not contain file:// at front", 
+               "%s in lFileHandler::Open does not contain file:// at front",
                url.c_str() );
+         }
+         if( fileurl.find("/localhost") == 0)
+            fileurl.erase( 1, 9 );
+         else{
+            log->Error( FileMsg,
+               "%s in lFileHandler::Open does not contain /localhost at front",
+               fileurl.c_str() );
          }
          //---------------------------------------------------------------------
          // Prepare Flags
@@ -64,18 +71,16 @@ namespace XrdCl{
          }
          if( flags & kXR_open_wrto ){
             openflags |= O_WRONLY;
-            openflags |= O_CREAT;//TO DO: is that ok?
          } else if ( flags & kXR_open_updt ){
             openflags |= O_RDWR;
-            openflags |= O_CREAT;//TO DO: is that ok?
          } else {
             openflags |= O_RDONLY;
          }
          if( flags & kXR_delete )
             openflags |= O_TRUNC;
          if( flags & kXR_mkdir ){
-            if( mkpath( (char *)fileurl.c_str(), mode ) == -1 )
-               log->Error(FileMsg, "Mkpath failed");
+            if( mkdirpath( (char *)fileurl.c_str(), mode ) == -1 )
+               log->Error(FileMsg, "mkdir failed for %s", fileurl.c_str());
          }
          //---------------------------------------------------------------------
          // Open File
@@ -282,31 +287,54 @@ namespace XrdCl{
          }
       }
       //------------------------------------------------------------------------
+      // Fcntl
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Fcntl( const Buffer    &arg,
+                                            ResponseHandler *handler,
+                                            uint16_t         timeout )
+      {
+          return XRootDStatus( stError, errNotSupported );
+      }
+
+      //------------------------------------------------------------------------
+      // Visa
+      //------------------------------------------------------------------------
+      XRootDStatus LocalFileHandler::Visa( ResponseHandler *handler,
+                                           uint16_t         timeout )
+      {
+          return XRootDStatus( stError, errNotSupported );
+      }
+      //------------------------------------------------------------------------
       // QueueTask - queues error/success tasks for all operations.
       // Must always return stOK.
-      // Is always creating the same hostlist containing only localhost.
+      // Is always creating the same HostList containing only localhost.
       //------------------------------------------------------------------------
       XRootDStatus LocalFileHandler::QueueTask( XRootDStatus *st, AnyObject *obj,
                                     ResponseHandler *handler )
       {
-            HostList *hosts = new HostList();
-            hosts->push_back( HostInfo( URL( "localhost" ), true ) );
-            LocalFileTask *task = new LocalFileTask( st, obj, hosts, handler );
-            jmngr->QueueJob( task );
-            return XRootDStatus( stOK );
+        HostList *hosts = new HostList();
+        hosts->push_back( HostInfo( URL( "localhost" ), true ) );
+        LocalFileTask *task = new LocalFileTask( st, obj, hosts, handler );
+        jmngr->QueueJob( task );
+        return XRootDStatus( stOK );
       }
+
+
       //------------------------------------------------------------------------
-      // mkpath - creates the folders specified in file_path
+      // mkdirpath - creates the folders specified in file_path
       // called if kXR_mkdir flag is set
       //------------------------------------------------------------------------
-      int LocalFileHandler::mkpath(char* file_path, mode_t mode) {
+      int LocalFileHandler::mkdirpath(char* filePath, mode_t mode) {
         char *p;
-        for ( p = strchr( file_path + 1, '/' ); p; p = strchr( p + 1, '/' ) ) {
-          *p='\0';
-          if ( mkdir( file_path, mode ) == -1 ) {
-            if ( errno != EEXIST ) { *p = '/'; return -1; }
-          }
-          *p = '/';
+        for ( p = strchr( filePath + 1, '/' ); p; p = strchr( p + 1, '/' ) )
+        {
+           *p='\0';
+           if ( mkdir( filePath, mode ) == -1 ) {
+              if ( errno != EEXIST ) {
+                  *p = '/'; return -1;
+                  }
+           }
+           *p = '/';
         }
         return 0;
       }

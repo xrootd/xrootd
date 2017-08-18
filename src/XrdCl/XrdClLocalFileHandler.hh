@@ -161,23 +161,50 @@ namespace XrdCl
                               ResponseHandler *handler );
 
       //------------------------------------------------------------------------
+      //! Performs a custom operation on an open file - async
+      //!
+      //! @param arg       query argument
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successful
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Fcntl( const Buffer    &arg,
+                          ResponseHandler *handler,
+                          uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Get access token to a file - async
+      //!
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successful
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Visa( ResponseHandler *handler,
+                         uint16_t         timeout = 0 );
+      //------------------------------------------------------------------------
       //! creates the directories specified in file_path
       //!
       //! @param file_path specifies which directories are to be created
       //! @param mode      same access modes as for the desired file operation
       //! @return          status of the mkdir system call
       //------------------------------------------------------------------------
-      int mkpath( char* file_path, mode_t mode );
+      int mkdirpath( char* filePath, mode_t mode );
 
       private:
-         //------------------------------------------------------------------------
+         //---------------------------------------------------------------------
          // Receives LocalFileTasks to handle them async
-         //------------------------------------------------------------------------
+         //---------------------------------------------------------------------
          JobManager *jmngr;
 
-         //------------------------------------------------------------------------
+         //---------------------------------------------------------------------
          // Internal filedescriptor, which is used by all operations after open
-         //------------------------------------------------------------------------
+         //---------------------------------------------------------------------
          int fd;
 
     };

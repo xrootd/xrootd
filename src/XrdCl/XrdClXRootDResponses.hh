@@ -29,8 +29,6 @@
 #include <list>
 #include <ctime>
 
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClLog.hh"
 namespace XrdCl
 {
   //----------------------------------------------------------------------------

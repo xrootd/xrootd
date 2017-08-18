@@ -16,8 +16,6 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 #include "XrdCl/XrdClLocalFileTask.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClLog.hh"
 
 namespace XrdCl
 {

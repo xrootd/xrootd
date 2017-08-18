@@ -966,6 +966,9 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    if( IsLocal( pFileUrl ) ){
+        return lFileHandler->Fcntl( arg, stHandler, timeout );
+    }
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -1001,6 +1004,9 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    if( IsLocal( pFileUrl ) ){
+        return lFileHandler->Visa( stHandler, timeout );
+    }
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
