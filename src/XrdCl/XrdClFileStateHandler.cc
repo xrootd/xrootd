@@ -1672,9 +1672,14 @@ namespace XrdCl
                   rd.request->GetDescription().c_str() );
       return;
     }
+
+    JobManager *jobMan = DefaultEnv::GetPostMaster()->GetJobManager();
     ResponseHandler *userHandler = sh->GetUserHandler();
-    userHandler->HandleResponseWithHosts( new XRootDStatus( status ), 0,
-                                          rd.params.hostList );
+    jobMan->QueueJob( new ResponseJob(
+                        userHandler,
+                        new XRootDStatus( status ),
+                        0, rd.params.hostList ) );
+
     delete sh;
   }
 
