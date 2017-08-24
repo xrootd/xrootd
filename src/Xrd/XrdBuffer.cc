@@ -290,6 +290,7 @@ while(1)
                     delete bp;
                     bucket[i].numbuf--; numfreed++;
                     memhave -= memslot; totalo  -= memslot;
+                    totbuf--;
                    } else {bucket[i].numbuf = 0; break;}
            Reshaper.UnLock();
            memslot = memslot>>1;
