@@ -188,14 +188,20 @@ namespace XrdCl
     if( !channel )
       return Status( stError, errNotSupported );
 
-    VirtualRedirector *redirector = 0;
-    if( dynamic_cast<VirtualMessage*>( msg ) )
-    {
-      RedirectorRegistry &registry   = RedirectorRegistry::Instance();
-      redirector = registry.Get( url );
-    }
+    return channel->Send( msg, handler, stateful, expires );
+  }
 
-    return channel->Send( msg, handler, stateful, expires, redirector );
+  Status PostMaster::Redirect( const URL          &url,
+                               Message            *msg,
+                               OutgoingMsgHandler *outHandler,
+                               IncomingMsgHandler *inHandler )
+  {
+    RedirectorRegistry &registry  = RedirectorRegistry::Instance();
+    VirtualRedirector *redirector = registry.Get( url );
+    if( !redirector )
+      return Status( stError, errInvalidOp );
+    outHandler->OnStatusReady( msg, Status() );
+    return redirector->HandleRequest( msg, inHandler );
   }
 
   //----------------------------------------------------------------------------

@@ -23,7 +23,6 @@ namespace XrdCl
 
 class File;
 class Message;
-class Stream;
 
 //----------------------------------------------------------------------------
 //! An abstraction representing a virtual
@@ -53,11 +52,11 @@ class MetalinkRedirector : public VirtualRedirector
     XRootDStatus Load( ResponseHandler *userHandler );
 
     //----------------------------------------------------------------------------
-    //! Creates an instant redirect response for the given message
-    //! or an error response if there are no more replicas to try.
-    //! The virtual response is being handled by the given stream.
+    //! If the MetalinkRedirector is initialized creates an instant
+    //! redirect response, otherwise queues the request until initialization
+    //! is done.
     //----------------------------------------------------------------------------
-    XRootDStatus HandleRequest( Message *msg, Stream *stream );
+    XRootDStatus HandleRequest( const Message *msg, IncomingMsgHandler *handler );
 
     //----------------------------------------------------------------------------
     //! Gets the file name as specified in the metalink
@@ -96,6 +95,14 @@ class MetalinkRedirector : public VirtualRedirector
     }
 
   private:
+
+    //----------------------------------------------------------------------------
+    //! Creates an instant redirect response for the given message
+    //! or an error response if there are no more replicas to try.
+    //! The virtual response is being handled by the given handler
+    //! in the thread-pool.
+    //----------------------------------------------------------------------------
+    XRootDStatus HandleRequestImpl( const Message *msg, IncomingMsgHandler *handler );
 
     //----------------------------------------------------------------------------
     //! Parses the metalink file
@@ -141,22 +148,9 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     XRootDStatus GetCgiInfo( const Message *msg, const std::string &key, std::string &out ) const;
 
-    //----------------------------------------------------------------------------
-    //! Loads a local Metalink file
-    //----------------------------------------------------------------------------
-    XRootDStatus LoadLocalFile( ResponseHandler *userHandler );
-
-    //----------------------------------------------------------------------------
-    //! Checks if the given URL points to a local file
-    //! (by convention we assume that a file is local
-    //! if the host name equals to 'localfile')
-    //----------------------------------------------------------------------------
-    static bool IsLocalFile( const std::string &url );
-
-
-    typedef std::list< std::pair<const Message*, Stream*> > RedirectList;
-    typedef std::map<std::string, std::string>              CksumMap;
-    typedef std::vector<std::string>                        ReplicaList;
+    typedef std::list< std::pair<const Message*, IncomingMsgHandler*> > RedirectList;
+    typedef std::map<std::string, std::string>                          CksumMap;
+    typedef std::vector<std::string>                                    ReplicaList;
 
     RedirectList     pPendingRedirects;
     std::string      pUrl;

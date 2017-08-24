@@ -112,7 +112,7 @@ void FileTest::RedirectReturnTest()
   MessageSendParams params; params.followRedirects = false;
   MessageUtils::ProcessSendParams( params );
   OpenInfo *response = 0;
-  CPPUNIT_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params ) );
+  CPPUNIT_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params, 0 ) );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
   delete handler;
   CPPUNIT_ASSERT_XRDST_NOTOK( st1, errRedirect );

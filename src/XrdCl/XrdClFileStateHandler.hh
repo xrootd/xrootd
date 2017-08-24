@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClLocalFileHandler.hh"
 #include <list>
 #include <set>
 
@@ -412,6 +413,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void MonitorClose( const XRootDStatus *status );
 
+      //------------------------------------------------------------------------
+      //!
+      //------------------------------------------------------------------------
+      inline XRootDStatus ExamineLocalResult( XRootDStatus &status, Message *msg,
+                                              ResponseHandler *handler );
+
       mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;
       XRootDStatus            pStatus;
@@ -450,6 +457,11 @@ namespace XrdCl
       // (there is only only OpenHandler reopening a file at a time)
       //------------------------------------------------------------------------
       ResponseHandlerHolder *pReOpenHandler;
+
+      //------------------------------------------------------------------------
+      // Responsible for file:// operations on the local filesystem
+      //------------------------------------------------------------------------
+      LocalFileHandler      *pLFileHandler;
   };
 }
 

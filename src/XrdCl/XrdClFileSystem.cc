@@ -1416,6 +1416,6 @@ namespace XrdCl
 
     params.followRedirects = pFollowRedirects;
 
-    return MessageUtils::SendMessage( *pUrl, msg, handler, params );
+    return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
   }
 }

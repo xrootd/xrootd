@@ -6,13 +6,22 @@
  */
 
 #include "XrdClRedirectorRegistry.hh"
-
 #include "XrdCl/XrdClMetalinkRedirector.hh"
+#include "XrdCl/XrdClPostMasterInterfaces.hh"
 
 #include <arpa/inet.h>
 
 namespace XrdCl
 {
+
+void RedirectJob::Run( void *arg )
+{
+  Message *msg = reinterpret_cast<Message*>( arg );
+  pHandler->Process( msg );
+  delete msg;
+  delete this;
+}
+
 
 RedirectorRegistry& RedirectorRegistry::Instance()
 {
@@ -32,6 +41,11 @@ XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *
   // we can only create a virtual redirector if
   // a path to a metadata file has been provided
   if( url.GetPath().empty() ) return XRootDStatus( stError, errNotSupported );
+
+  // regarding file protocol we only support localhost
+  if( url.GetProtocol() == "file" && url.GetHostName() != "localhost" )
+    return XRootDStatus( stError, errNotSupported );
+
   XrdSysMutexHelper scopedLock( pMutex );
   // get the key and check if it is already in the registry
   const std::string key = url.GetLocation();

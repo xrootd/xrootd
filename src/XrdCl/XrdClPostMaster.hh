@@ -121,6 +121,14 @@ namespace XrdCl
                    time_t                expires );
 
       //------------------------------------------------------------------------
+      //!
+      //------------------------------------------------------------------------
+      Status Redirect( const URL          &url,
+                       Message            *msg,
+                       OutgoingMsgHandler *outHandler,
+                       IncomingMsgHandler *handler);
+
+      //------------------------------------------------------------------------
       //! Synchronously receive a message - blocks until a message matching
       //! a filter is found in the incoming queue or the timeout passes
       //!

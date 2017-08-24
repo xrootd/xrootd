@@ -278,7 +278,8 @@ void XrdXmlMetaLink::DeleteAll(XrdOucFileInfo ** vecp, int vecn)
 {
 // Delete each object in the vector
 //
-   for (int i = 0; i < vecn; i++) delete vecp[i];
+   for (int i = 0; i < vecn; i++)
+     delete vecp[i];
 
 // Now delete the vector
 //
@@ -490,6 +491,7 @@ bool XrdXmlMetaLink::GetUrl()
 // Add the url to the flle
 //
    currFile->AddUrl(value, uAVal[0], prty);
+   free(value);
 
 // All done
 //

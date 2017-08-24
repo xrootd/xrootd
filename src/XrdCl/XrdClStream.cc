@@ -325,27 +325,6 @@ namespace XrdCl
     return st;
   }
 
-
-  //------------------------------------------------------------------------
-  // Queue a virtual response
-  //------------------------------------------------------------------------
-  Status Stream::ReceiveVirtual( Message *msg )
-  {
-    //--------------------------------------------------------------------------
-    // Check the session ID and bounce if needed
-    //--------------------------------------------------------------------------
-    if( msg->GetSessionId() &&
-        (pSubStreams[0]->status != Socket::Connected ||
-        pSessionId != msg->GetSessionId()) )
-      return Status( stError, errInvalidSession );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( PostMasterMsg, "[%s] Queuing virtual response: 0x%x.", pStreamName.c_str(), msg );
-    pJobManager->QueueJob( pQueueIncMsgJob, msg );
-
-    return Status();
-  }
-
   //----------------------------------------------------------------------------
   // Force connection
   //----------------------------------------------------------------------------
@@ -446,7 +425,7 @@ namespace XrdCl
     params.followRedirects = false;
     params.stateful        = true;
     MessageUtils::ProcessSendParams( params );
-    return MessageUtils::SendMessage( *pUrl, msg, handler, params );
+    return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
   }
 
   //----------------------------------------------------------------------------

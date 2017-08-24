@@ -10,6 +10,7 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClJobManager.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <string>
@@ -19,7 +20,37 @@ namespace XrdCl
 {
 
 class Message;
-class Stream;
+class IncomingMsgHandler;
+class OutgoingMsgHandler;
+
+//--------------------------------------------------------------------------------
+//! A job class for redirect handling in the thread-pool
+//--------------------------------------------------------------------------------
+class RedirectJob: public Job
+{
+  public:
+    //------------------------------------------------------------------------
+    //! Constructor
+    //------------------------------------------------------------------------
+    RedirectJob( IncomingMsgHandler *handler ) : pHandler( handler )
+    {
+    }
+
+    //------------------------------------------------------------------------
+    //! Destructor
+    //------------------------------------------------------------------------
+    virtual ~RedirectJob()
+    {
+    }
+
+    //------------------------------------------------------------------------
+    //! Run the user handler
+    //------------------------------------------------------------------------
+    virtual void Run( void *arg );
+
+  private:
+    IncomingMsgHandler *pHandler;
+};
 
 //--------------------------------------------------------------------------------
 //! An interface for metadata redirectors.
@@ -35,9 +66,11 @@ class VirtualRedirector
     //----------------------------------------------------------------------------
     //! Creates an instant redirect response for the given message
     //! or an error response if there are no more replicas to try.
-    //! The virtual response is being handled by the given stream.
+    //! The virtual response is being handled by the given handler
+    //! in the thread-pool.
     //----------------------------------------------------------------------------
-    virtual XRootDStatus HandleRequest( Message *msg, Stream *stream ) = 0;
+    virtual XRootDStatus HandleRequest( const Message *msg,
+                                        IncomingMsgHandler *handler ) = 0;
 
     //----------------------------------------------------------------------------
     //! Initializes the object with the content of the metalink file

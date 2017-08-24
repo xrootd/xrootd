@@ -67,6 +67,8 @@ add_library(
   XrdClZipArchiveReader.cc    XrdClZipArchiveReader.hh
   XrdClXCpCtx.cc              XrdClXCpCtx.hh
   XrdClXCpSrc.cc              XrdClXCpSrc.hh
+  XrdClLocalFileHandler.cc    XrdClLocalFileHandler.hh
+  XrdClLocalFileTask.cc       XrdClLocalFileTask.hh
 )
 
 target_link_libraries(

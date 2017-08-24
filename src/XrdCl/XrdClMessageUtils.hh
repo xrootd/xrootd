@@ -32,6 +32,8 @@
 
 namespace XrdCl
 {
+  class LocalFileHandler;
+
   //----------------------------------------------------------------------------
   //! Synchronize the response
   //----------------------------------------------------------------------------
@@ -186,25 +188,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Create a message
       //------------------------------------------------------------------------
-      template<class MsgType, class Request>
-      static void CreateRequest( Message  *&msg,
-                                 Request     *&req,
-                                 uint32_t  payloadSize = 0 )
-      {
-        msg = new MsgType( sizeof(Request)+payloadSize );
-        req = (Request*)msg->GetBuffer();
-        msg->Zero();
-      }
-
-      //------------------------------------------------------------------------
-      //! Create a message
-      //------------------------------------------------------------------------
       template<class Request>
       static void CreateRequest( Message  *&msg,
                                  Request     *&req,
                                  uint32_t  payloadSize = 0 )
       {
-          CreateRequest<Message>( msg, req, payloadSize );
+          msg = new Message( sizeof(Request) +  payloadSize );
+          req = (Request*)msg->GetBuffer();
+          msg->Zero();
       }
 
       //------------------------------------------------------------------------
@@ -213,7 +204,17 @@ namespace XrdCl
       static Status SendMessage( const URL               &url,
                                  Message                 *msg,
                                  ResponseHandler         *handler,
-                                 const MessageSendParams &sendParams );
+                                 const MessageSendParams &sendParams,
+                                 LocalFileHandler        *lFileHandler );
+
+      //------------------------------------------------------------------------
+      //! Redirect message
+      //------------------------------------------------------------------------
+      static Status RedirectMessage( const URL         &url,
+                                     Message           *msg,
+                                     ResponseHandler   *handler,
+                                     MessageSendParams &sendParams,
+                                     LocalFileHandler  *lFileHandler );
 
       //------------------------------------------------------------------------
       //! Process sending params

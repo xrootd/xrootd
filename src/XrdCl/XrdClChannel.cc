@@ -291,18 +291,10 @@ namespace XrdCl
   Status Channel::Send( Message              *msg,
                         OutgoingMsgHandler   *handler,
                         bool                  stateful,
-                        time_t                expires,
-                        VirtualRedirector    *redirector )
+                        time_t                expires )
 
   {
     PathID path = pTransport->Multiplex( msg, pChannelData );
-
-    if( redirector )
-    {
-      handler->OnStatusReady( msg, Status() );
-      return redirector->HandleRequest( msg, pStreams[path.down] );
-    }
-
     return pStreams[path.up]->Send( msg, handler, stateful, expires );
   }
 

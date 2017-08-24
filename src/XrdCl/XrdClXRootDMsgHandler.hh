@@ -36,6 +36,7 @@ namespace XrdCl
   class PostMaster;
   class SIDManager;
   class URL;
+  class LocalFileHandler;
 
   //----------------------------------------------------------------------------
   //! Handle/Process/Forward XRootD messages
@@ -56,15 +57,17 @@ namespace XrdCl
       //! @param sidMgr      the sid manager used to allocate SID for the initial
       //!                    message
       //------------------------------------------------------------------------
-      XRootDMsgHandler( Message         *msg,
-                        ResponseHandler *respHandler,
-                        const URL       *url,
-                        SIDManager      *sidMgr ):
+      XRootDMsgHandler( Message          *msg,
+                        ResponseHandler  *respHandler,
+                        const URL        *url,
+                        SIDManager       *sidMgr,
+                        LocalFileHandler *lFileHandler ):
         pRequest( msg ),
         pResponse( 0 ),
         pResponseHandler( respHandler ),
         pUrl( *url ),
         pSidMgr( sidMgr ),
+        pLFileHandler( lFileHandler ),
         pExpiration( 0 ),
         pRedirectAsAnswer( false ),
         pHosts( 0 ),
@@ -88,7 +91,9 @@ namespace XrdCl
         pReadVRawChunkIndex( 0 ),
         pReadVRawMsgDiscard( false ),
 
-        pOtherRawStarted( false )
+        pOtherRawStarted( false ),
+
+        pFollowMetalink( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -254,6 +259,11 @@ namespace XrdCl
         pRedirectCounter = redirectCounter;
       }
 
+      void SetFollowMetalink( bool followMetalink )
+      {
+        pFollowMetalink = followMetalink;
+      }
+
     private:
       //------------------------------------------------------------------------
       //! Handle a kXR_read in raw mode
@@ -346,6 +356,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleRspOrQueue();
 
+      //------------------------------------------------------------------------ 
+      //! Handle a redirect to a local file
+      //------------------------------------------------------------------------
+      void HandleLocalRedirect( URL *url );
+
       //------------------------------------------------------------------------
       // Helper struct for async reading of chunks
       //------------------------------------------------------------------------
@@ -363,6 +378,7 @@ namespace XrdCl
       URL                        pUrl;
       PostMaster                *pPostMaster;
       SIDManager                *pSidMgr;
+      LocalFileHandler          *pLFileHandler;
       Status                     pStatus;
       time_t                     pExpiration;
       bool                       pRedirectAsAnswer;
@@ -392,6 +408,8 @@ namespace XrdCl
       bool                       pReadVRawMsgDiscard;
 
       bool                       pOtherRawStarted;
+
+      bool                       pFollowMetalink;
   };
 }
 

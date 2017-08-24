@@ -103,8 +103,7 @@ namespace XrdCl
       Status Send( Message              *msg,
                    OutgoingMsgHandler   *handler,
                    bool                  stateful,
-                   time_t                expires,
-                   VirtualRedirector    *redirector = 0 );
+                   time_t                expires );
 
       //------------------------------------------------------------------------
       //! Synchronously receive a message - blocks until a message matching

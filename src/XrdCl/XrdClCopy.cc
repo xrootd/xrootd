@@ -250,7 +250,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
       std::cerr << checkSum.substr( 0, i+1 ) << " ";
       std::cerr << checkSum.substr( i+1, checkSum.length()-i ) << " ";
 
-      if( url->GetProtocol() == "file" )
+      if( url->IsLocalFile() )
         std::cerr << url->GetPath() << " ";
       else
       {
@@ -653,7 +653,18 @@ int main( int argc, char **argv )
   std::string dest;
   if( config.dstFile->Protocol == XrdCpFile::isDir ||
       config.dstFile->Protocol == XrdCpFile::isFile )
+  {
     dest = "file://";
+
+    // if it is not an absolute path append cwd
+    if( config.dstFile->Path[0] != '/' )
+    {
+      char *cwd = get_current_dir_name();
+      dest += cwd;
+      dest += '/';
+      free( cwd );
+    }
+  }
   dest += config.dstFile->Path;
 
   //----------------------------------------------------------------------------
@@ -740,7 +751,17 @@ int main( int argc, char **argv )
     PropertyList *results = new PropertyList;
     std::string source = sourceFile->Path;
     if( sourceFile->Protocol == XrdCpFile::isFile )
-      source = "file://" + source;
+    {
+      // make sure it is an absolute path
+      if( source[0] == '/' )
+        source = "file://" + source;
+      else
+      {
+        char *cwd = get_current_dir_name();
+        source = "file://" + std::string( cwd ) + '/' + source;
+        free( cwd );
+      }
+    }
 
     AppendCGI( source, config.srcOpq );
 
