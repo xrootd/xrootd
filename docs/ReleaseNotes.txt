@@ -44,8 +44,8 @@ Version 4.7.0
   * **[XrdCeph]** properly return ENOENT when file does not exist in open for read.
   * **[XrdCeph]** Fixed configuration of the XrdCephOss module.
   * **[XrdCeph]** Fixed some resource leak when Posix_Open fails.
-  * **[XrdFfs]**  Remove default fuse argument "allow_other" as it is impossible 
-                  to unset.
+  * **[XrdFfs]** Remove default fuse argument "allow_other" as it is impossible 
+                 to unset.
   * **[XrdFfs]** Check file descriptor before using it in xrootdfs wcache.
   * **[XrdFfs]** Add more error checks when creating write cache.
   * **[XrdFfs]** Avoid using literal 1024, replace with MAXROOTURLLEN.
@@ -73,7 +73,8 @@ Version 4.7.0
                        is on the client side.
   * **[XrdSut]** New XrdSutCache based on XrdOucHash.
   * **[XrdSecgsi]** do not delete explicitely the CRL in Delete. 
-  * **[Crypto]** modified logic for retrieving entries in IsRevoked.
+  * **[XrdSut/Crypto]** Secgsi improvements: new version of XrdSutCache, 
+                        lightweith locking (PR #539).
 
 -------------
 Version 4.6.1
