@@ -29,7 +29,7 @@ Description: This package contains header files and development libraries for xr
 
 Package: xrootd-client
 Architecture: any
-Depends: ${shlibs:Depends}, xrootd-libs (=${binary:Version}), xrootd-client-libs (=${binary:Version})
+Depends: ${shlibs:Depends}, libxml2, xrootd-libs (=${binary:Version}), xrootd-client-libs (=${binary:Version})
 Description: This package contains the command line tools used to communicate with xrootd servers.
 
 Package: xrootd-private-devel
