@@ -53,8 +53,11 @@ Version 4.7.0
   * **[XrdFfs]** Rewrite xrootdfs_mknod, extract low-level function.
   * **[XrdCl]** Check login resp size, fixes #530 
   * **[XrdCl]** Avoid FileStateHandler deadlock while forking.
+  * **[XrdCl]** Handle failed stateful operations without XrdCl::File lock
+                being locked.
   * **[XrdPosix]** Use strncpy when copying checksum.
   * **[RPM]** Fix init script bad exit code, fixes #536 
+  * **[XrdBuffer]** Decrement total buffer count when freeing buffers.
 
 + **Miscellaneous**
   * **[Server]** Re-enable the oss.fdlimit directive to allow POSIX preload+xrootd.
