@@ -5,29 +5,4 @@ XRootD
 Prerelease Notes
 ================
 
-+ **New Features**
-  * **[Proxy]** Make cache I/O synchronization tunable.
-  * **[Proxy]** Allow caching of S3-style objects.
-  * **[Server]** Allow storing S3-style objects in a file system.
-  * **[POSIX]** Implement serverless file caching (disk or memory).
-  * **[Server]** Add xrootd.fsoverload directive to handle filesystem overloads.
-  * **[Server]** Allow port to be specified for a supervisor.
-  * **{Server]** Add org and role types to AuthDB authorization.
-  * **[Server]** Handle systemd socket inheritance.
-  * **[Proxy/Posix]** Allow Name2Name to populate cache using the LFN.
-  * **[Posix]** enable LITE feature in Posix preload library.
-  * **[Server]** Allow definition and test of compound authorization identifiers.
 
-+ **Major bug fixes**
-  * **[Client]** Avoid deadlock between FSH deletion and Tick() timeout.
-  * **[Client]** [Client] Avoid deadlock in certain error recovery situations.
-
-+ **Minor bug fixes**
-  * **[Server]** Make file locking independent of FS plugin. Fixes #533
-  * **[Server]** Correct debug message interval for free space report.
-
-+ **Miscellaneous**
-  * **[Server]** Re-enable the oss.fdlimit directive to allow POSIX preload+xrootd.
-  * **[Server]** Avoid thread pile-up durin slow close operations.
-  * **[Proxy Server]** Simplify delayed destruction on wait vs post.
-  * **[Posix]** Convert to using universal tracing facility.

@@ -5,6 +5,81 @@ XRootD
 Release Notes
 =============
 
+
+-------------
+Version 4.7.0
+-------------
+
++ **New Features**
+  * **[Proxy]** Make cache I/O synchronization tunable.
+  * **[Proxy]** Allow caching of S3-style objects.
+  * **[Proxy/Posix]** Allow Name2Name to populate cache using the LFN.
+  * **[Posix]** Enable LITE feature in Posix preload library.
+  * **[Posix]** Implement serverless file caching (disk or memory).
+  * **[Server]** Allow storing S3-style objects in a file system.
+  * **[Server]** Add xrootd.fsoverload directive to handle filesystem overloads.
+  * **[Server]** Allow port to be specified for a supervisor.
+  * **[Server]** Add org and role types to AuthDB authorization.
+  * **[Server]** Allow definition and test of compound authorization identifiers.
+  * **[Server/Packaging]** Handle systemd socket inheritance.
+  * **[XrdApps]** Add XrdClProxyPlugin implementation.
+  * **[XrdCl]** Extreme copy implementation.
+  * **[XrdCl]** Delegate all callbacks to the thread-pool. 
+  * **[XrdCl]** xrdfs: add recursive list, closes #421. 
+  * **[XrdCeph]** Added support for namelib in ceph plugin .
+  * **[XrdFfs]** Implement xrootdfs_create.
+  * **[Python]** Python 3 support in C / Python interface.
+  * **[XrdHttp]** Make XrdHTTP able to forward HTTP requests to an external, 
+                  optional plugin (conceptually similar to CGI).
+  * **[Server]** XrdSsi V2 (scalable service interface) implementation.
+
++ **Major bug fixes**
+  * **[XrdCl]** Avoid deadlock between FSH deletion and Tick() timeout.
+  * **[XrdCl]** Process virtual redierections in the threadpool.
+  * **[Xrd] Fix handling of sendfile offset argument.
+
++ **Minor bug fixes**
+  * **[Server]** Make file locking independent of FS plugin. Fixes #533
+  * **[Server]** Correct debug message interval for free space report.
+  * **[XrdCeph]** Fixed internal (f)stat so that it sets S_IFREG in returned mode.
+  * **[XrdCeph]** properly return ENOENT when file does not exist in open for read.
+  * **[XrdCeph]** Fixed configuration of the XrdCephOss module.
+  * **[XrdCeph]** Fixed some resource leak when Posix_Open fails.
+  * **[XrdFfs]** Remove default fuse argument "allow_other" as it is impossible 
+                 to unset.
+  * **[XrdFfs]** Check file descriptor before using it in xrootdfs wcache.
+  * **[XrdFfs]** Add more error checks when creating write cache.
+  * **[XrdFfs]** Avoid using literal 1024, replace with MAXROOTURLLEN.
+  * **[XrdFfs]** Control allow_other by env XROOTD_NOALLOWOTHER.
+  * **[XrdFfs]** Rewrite xrootdfs_mknod, extract low-level function.
+  * **[XrdCl]** Check login resp size, fixes #530 
+  * **[XrdCl]** Avoid FileStateHandler deadlock while forking.
+  * **[XrdCl]** Handle failed stateful operations without XrdCl::File lock
+                being locked.
+  * **[XrdPosix]** Use strncpy when copying checksum.
+  * **[RPM]** Fix init script bad exit code, fixes #536 
+  * **[XrdBuffer]** Decrement total buffer count when freeing buffers.
+
++ **Miscellaneous**
+  * **[Server]** Re-enable the oss.fdlimit directive to allow POSIX preload+xrootd.
+  * **[Server]** Avoid thread pile-up durin slow close operations.
+  * **[Proxy]** Simplify delayed destruction on wait vs post.
+  * **[Posix]** Convert to using universal tracing facility.
+  * **[CI]** Add Travis CI configuration.
+  * **[CI]** Add .gitlab-ci.yml for gitlab CI.
+  * **[Packaging]** Add a sample XrdHttp config file.
+  * **[Packaging]** Make RPM version configurable by the user.
+  * **[Packaging]** Debian packaging.
+  * **[RPM/CMake]** Enable c++0x/c++11 by default.
+  * **[Crypto] Remove unused crypto code.
+  * **[XrdFileCache]** Add configuration parameter for flush frequency.
+  * **[XrdFileCache]** Alter ram limits and blocks size parameter if caching 
+                       is on the client side.
+  * **[XrdSut]** New XrdSutCache based on XrdOucHash.
+  * **[XrdSecgsi]** do not delete explicitely the CRL in Delete. 
+  * **[XrdSut/Crypto]** Secgsi improvements: new version of XrdSutCache, 
+                        lightweith locking (PR #539).
+
 -------------
 Version 4.6.1
 -------------
