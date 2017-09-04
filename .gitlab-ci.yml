@@ -335,7 +335,7 @@ xrootd_biweekly_cc7:
     - xrootd_version=${xrootd_version:1}
     - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
     - a=( ${xrootd_version//./ } )
-    - ((a[2]++))
+    - ((a[2]++)) || true
     - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
     - cd packaging/
     - ./makesrpm.sh --version $experimental_version
@@ -364,7 +364,7 @@ xrootd_biweekly_slc6:
     - xrootd_version=${xrootd_version:1}
     - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
     - a=( ${xrootd_version//./ } )
-    - ((a[2]++))
+    - ((a[2]++)) || true
     - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
     - cd packaging/
     - ./makesrpm.sh --version $experimental_version
