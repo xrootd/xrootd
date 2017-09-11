@@ -33,6 +33,8 @@
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <linux/limits.h>
+
 #include <iostream>
 #include <iomanip>
 #include <limits>
@@ -659,7 +661,13 @@ int main( int argc, char **argv )
     // if it is not an absolute path append cwd
     if( config.dstFile->Path[0] != '/' )
     {
-      char *cwd = get_current_dir_name();
+      char buf[PATH_MAX];
+      char *cwd = getcwd( buf, PATH_MAX );
+      if( !cwd )
+      {
+        std::cerr <<  strerror( errno ) << std::endl;
+        return errno;
+      }
       dest += cwd;
       dest += '/';
       free( cwd );
@@ -757,7 +765,13 @@ int main( int argc, char **argv )
         source = "file://" + source;
       else
       {
-        char *cwd = get_current_dir_name();
+        char buf[PATH_MAX];
+        char *cwd = getcwd( buf, PATH_MAX );
+        if( !cwd )
+        {
+          std::cerr <<  strerror( errno ) << std::endl;
+          return errno;
+        }
         source = "file://" + std::string( cwd ) + '/' + source;
         free( cwd );
       }
