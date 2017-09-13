@@ -669,7 +669,6 @@ int main( int argc, char **argv )
       }
       dest += cwd;
       dest += '/';
-      free( cwd );
     }
   }
   dest += config.dstFile->Path;
@@ -772,7 +771,6 @@ int main( int argc, char **argv )
           return errno;
         }
         source = "file://" + std::string( cwd ) + '/' + source;
-        free( cwd );
       }
     }
 
