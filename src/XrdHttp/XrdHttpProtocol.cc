@@ -641,6 +641,9 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       TRACEI(REQ, " rc:" << rc << " Can't perform self-redirection.");
       
     }
+    else {
+      TRACEI(ALL, " Could not calculate self-redirection hash");
+    }
   }
 
   // If this is not https, then extract the signed information from the url
