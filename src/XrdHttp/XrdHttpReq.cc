@@ -633,7 +633,7 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
 
   if ((l < 2) && !hash) return;
 
-  // FIXME: this works in most cases, except if the url already contains the xrdhttp tokens
+  // this works in most cases, except if the url already contains the xrdhttp tokens
   s = s + "?";
   if (p && (l > 1)) {
     char *s1 = quote(p+1);
