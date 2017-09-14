@@ -213,12 +213,11 @@ void calcHashes(
   if (!hash) {
     return;
   }
-
+  hash[0] = '\0';
+  
   if (!key) {
     return;
   }
-
-  hash[0] = '\0';
 
   if (!fn || !secent) {
     return;
