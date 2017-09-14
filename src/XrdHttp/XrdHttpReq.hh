@@ -194,6 +194,8 @@ public:
   /// The destination field specified in the req
   std::string destination;
 
+  /// The authorization specified in the req;
+  std::string authorization;
 
   //
   // Area for coordinating request and responses to/from the bridge
