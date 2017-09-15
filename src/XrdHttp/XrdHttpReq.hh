@@ -132,7 +132,8 @@ public:
   /// Build the closing part for a multipart response
   std::string buildPartialHdrEnd(char *token);
 
-  // Appends to s the opaque info that we have
+  // Appends the opaque info that we have
+  // NOTE: this function assumes that the strings are unquoted, and will quote them
   void appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow);
 
   // ----------------

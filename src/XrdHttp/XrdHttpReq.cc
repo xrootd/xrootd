@@ -624,9 +624,6 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
 };
 
 
-
-// Appends the opaque info that we have
-
 void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow) {
 
   int l = 0;
@@ -636,8 +633,15 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
 
   if ((l < 2) && !hash) return;
 
+  // this works in most cases, except if the url already contains the xrdhttp tokens
   s = s + "?";
-  if (p && (l > 1)) s = s + (p + 1);
+  if (p && (l > 1)) {
+    char *s1 = quote(p+1);
+    if (s1) {
+      s = s + s1;
+      free(s1);
+    }
+  }
 
 
 
