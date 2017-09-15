@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <arpa/inet.h>
 
 namespace XrdCl
 {
@@ -70,8 +71,8 @@ namespace XrdCl
   {
     const ClientOpenRequest* request =
         reinterpret_cast<const ClientOpenRequest*>( req->GetBuffer() );
-    uint16_t flags = request->options;
-    uint16_t mode  = request->mode;
+    uint16_t flags = ntohs( request->options );
+    uint16_t mode  = ntohs( request->mode );
     return OpenImpl( url->GetURL(), flags, mode, resp );
   }
 
@@ -365,7 +366,7 @@ namespace XrdCl
     else
       openflags |= O_RDONLY;
     if( flags & kXR_delete )
-      openflags |= O_TRUNC;
+      openflags |= O_CREAT | O_TRUNC;
 
     if( flags & kXR_mkdir )
     {
