@@ -498,6 +498,7 @@ void XrdSsiFileReq::Init(const char *cID)
    urState    = isNew;
   *rID        = 0;
    schedDone  = false;
+   haveResp   = false;
    respWait   = false;
    strmEOF    = false;
    isEnding   = false;
@@ -552,6 +553,7 @@ bool XrdSsiFileReq::ProcessResponse(const XrdSsiErrInfo  &eInfo,
 
 // If the client is waiting for the response, wake up the client to get it.
 //
+   haveResp = true;
    if (respWait) WakeUp();
    return true;
 }
@@ -926,7 +928,8 @@ bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
 
 // Check if a response is here (well, ProcessResponse was called)
 //
-   if (rspP->rType)
+// if (rspP->rType)
+   if (haveResp)
       {respCBarg   = 0;
        if (fileP->AttnInfo(eInfo, rspP, reqID))
           {    eInfo.setErrCB((XrdOucEICB *)this); myState = odRsp;}
