@@ -162,6 +162,7 @@ reqState               myState;
 rspState               urState;
 int                    reqSize;
 unsigned int           reqID;
+bool                   haveResp;
 bool                   respWait;
 bool                   strmEOF;
 bool                   schedDone;
