@@ -190,8 +190,8 @@ xrootd_deb_ubuntu_artful:
   only:
     - master
     - /^stable-.*$/
-    - tags
   except:
+    - tags
     - schedules 
 
 xrootd_tgz_macosx:
