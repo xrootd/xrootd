@@ -268,7 +268,7 @@ xrootd_release_fcrh:
   script:
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r fedora-rawhide-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
+    - /bin/mock --yum --init -r fedora-rawhide-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
     - cd ..
     - mkdir fc-rawhide
     - cp packaging/*.src.rpm fc-rawhide
@@ -289,7 +289,7 @@ xrootd_release_fc24:
   script:
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r fedora-24-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
+    - /bin/mock --yum --init -r fedora-24-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
     - cd ..
     - mkdir fc-24
     - cp packaging/*.src.rpm fc-24
@@ -310,7 +310,7 @@ xrootd_release_fc23:
   script:
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r fedora-23-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
+    - /bin/mock --yum --init -r fedora-23-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
     - cd ..
     - mkdir fc-23
     - cp packaging/*.src.rpm fc-23
