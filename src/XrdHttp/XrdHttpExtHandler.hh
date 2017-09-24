@@ -71,7 +71,7 @@ public:
   
   /// Tells if the incoming path is recognized as one of the paths that have to be processed
   // e.g. applying a prefix matching scheme or whatever
-  virtual bool MatchesPath(const char *path) = 0;
+  virtual bool MatchesPath(const char *verb, const char *path) = 0;
   
   /// Process an HTTP request and send the response using the calling
   ///  XrdHttpProtocol instance directly

@@ -737,7 +737,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   // Now we have everything that is needed to try the login
   // Remember that if there is an exthandler then it has the responsibility
   // for authorization in the paths that it manages
-  if (!exthandler || !exthandler->MatchesPath(CurrentReq.resource.c_str())) {
+  if (!exthandler || !exthandler->MatchesPath(CurrentReq.requestverb.c_str(), CurrentReq.resource.c_str())) {
     if (!Bridge) {
       if (SecEntity.name)
         Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
