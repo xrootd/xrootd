@@ -221,83 +221,20 @@ xrootd_tgz_macosx:
     - tags
     - schedules
 
-xrootd_release_cc7:
+xrootd_release_cc7_x86_64:
   stage: build:rpm
   script:
     - cd packaging/
     - ./makesrpm.sh
     - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
     - cd ..
-    - mkdir cc-7
-    - cp packaging/*.src.rpm cc-7
-    - cp packaging/build/*.rpm cc-7
+    - mkdir cc-7-86_64
+    - cp packaging/*.src.rpm cc-7-86_64
+    - cp packaging/build/*.rpm cc-7-86_64
   artifacts:
     expire_in: 1 day
     paths:
-    - cc-7/
-  tags:
-    - shell-with-docker
-  only:
-    - web
-  except:
-    - branches
-
-xrootd_release_slc6:
-  stage: build:rpm
-  script:
-    - cd packaging/
-    - ./makesrpm.sh
-    - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
-    - cd ..
-    - mkdir slc-6
-    - cp packaging/*.src.rpm slc-6
-    - cp packaging/build/*.rpm slc-6
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - slc-6/
-  tags:
-    - coverity
-  only:
-    - web
-  except:
-    - branches
-
-xrootd_release_fcrh:
-  stage: build:rpm
-  script:
-    - cd packaging/
-    - ./makesrpm.sh
-    - /bin/mock --yum --init -r fedora-rawhide-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
-    - cd ..
-    - mkdir fc-rawhide
-    - cp packaging/*.src.rpm fc-rawhide
-    - cp packaging/build/*.rpm fc-rawhide
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-rawhide/
-  tags:
-    - coverity
-  only:
-    - web
-  except:
-    - branches
-
-xrootd_release_fc24:
-  stage: build:rpm
-  script:
-    - cd packaging/
-    - ./makesrpm.sh
-    - /bin/mock --yum --init -r fedora-24-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
-    - cd ..
-    - mkdir fc-24
-    - cp packaging/*.src.rpm fc-24
-    - cp packaging/build/*.rpm fc-24
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-24/
+    - cc-7-86_64/
   tags:
     - xrootd-shell
   only:
@@ -305,20 +242,41 @@ xrootd_release_fc24:
   except:
     - branches
 
-xrootd_release_fc23:
+xrootd_release_slc6_x86_64:
   stage: build:rpm
   script:
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --yum --init -r fedora-23-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
+    - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
     - cd ..
-    - mkdir fc-23
-    - cp packaging/*.src.rpm fc-23
-    - cp packaging/build/*.rpm fc-23
+    - mkdir slc-6-x86_64
+    - cp packaging/*.src.rpm slc-6-x86_64
+    - cp packaging/build/*.rpm slc-6-x86_64
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-23/
+    - slc-6-86_64/
+  tags:
+    - xrootd-shell
+  only:
+    - web
+  except:
+    - branches
+
+xrootd_release_slc6_i386:
+  stage: build:rpm
+  script:
+    - cd packaging/
+    - ./makesrpm.sh
+    - /bin/mock --init -r epel-6-i386 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
+    - cd ..
+    - mkdir slc-6-i386
+    - cp packaging/*.src.rpm slc-6-i386
+    - cp packaging/build/*.rpm slc-6-i386
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - slc-6-i386/
   tags:
     - xrootd-shell
   only:
@@ -472,8 +430,8 @@ xrootd_publish_artifacts_release:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - tar -zcf xrootd-${CI_COMMIT_TAG}.tar.gz .
-    - "for platform in cc-7 slc-6 fc-rawhide fc-24 fc-23; do 
-         path=$prefix/release/$platform/x86_64/v$CI_COMMIT_TAG/;
+    - "for platform in cc-7-x86_64 slc-6-x86_64 slc-6-i386; do 
+         path=$prefix/release/$platform/v$CI_COMMIT_TAG/;
          sudo -u stci -H mkdir -p $path;
          sudo -u stci -H cp $platform/*.rpm $path;
          sudo -u stci -H find ${path} -type f -name '*.src.rpm' -delete;
