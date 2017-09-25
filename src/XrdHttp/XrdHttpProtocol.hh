@@ -149,12 +149,12 @@ private:
 
   
   /// Functions related to the configuration
-  static int Config(const char *fn);
+  static int Config(const char *fn, XrdOucEnv *myEnv);
   static int xtrace(XrdOucStream &Config);
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);
   static int xsecxtractor(XrdOucStream &Config);
-  static int xexthandler(XrdOucStream & Config);
+  static int xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv);
   static int xsslcadir(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
   static int xlistdeny(XrdOucStream &Config);
@@ -177,7 +177,8 @@ private:
   
   // Loads the ExtHandler plugin, if available
   static int LoadExtHandler(XrdSysError *eDest, const char *libName,
-                             const char *libParms);
+                            const char *configFN, const char *libParms,
+                            XrdOucEnv *myEnv);
 
   /// Circular Buffer used to read the request
   XrdBuffer *myBuff;
