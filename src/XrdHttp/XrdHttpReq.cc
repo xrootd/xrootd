@@ -776,6 +776,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     } else {
       resourceplusopaque.append("?authz=");
     }
+    TRACEI(DEBUG, "Appended Authorization header to opaque info.");
     resourceplusopaque.append(quote(authorization.c_str()));
     // Once we've appended the authorization to the full resource+opaque string,
     // reset the authz to empty: this way, any operation that triggers repeated ProcessHTTPReq
