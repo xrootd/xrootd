@@ -66,9 +66,15 @@ const char *XrdBuffManager::TraceID = "BuffManager";
 namespace
 {
 static const int minBuffSz = 1 << XRD_BUSHIFT;
-static XrdBuffXL xlBuff;
 }
 
+namespace XrdGlobal
+{
+XrdBuffXL xlBuff;
+}
+
+using namespace XrdGlobal;
+ 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
