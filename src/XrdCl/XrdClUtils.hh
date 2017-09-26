@@ -30,6 +30,10 @@
 
 #include <sys/time.h>
 
+#ifdef __linux__
+#include <sys/fsuid.h>
+#endif
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -228,6 +232,76 @@ namespace XrdCl
     private:
       int pDescriptor;
   };
+
+#ifdef __linux__
+  //----------------------------------------------------------------------------
+  //! Scoped fsuid and fsgid setter, restoring original values on destruction
+  //----------------------------------------------------------------------------
+  class ScopedFsUidSetter
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      ScopedFsUidSetter(uid_t fsuid, gid_t fsgid) : pFsUid(fsuid), pFsGid(fsgid)
+      {
+        pOk = true;
+        pPrevFsUid = -1;
+        pPrevFsGid = -1;
+
+        //----------------------------------------------------------------------
+        //! Set fsuid
+        //----------------------------------------------------------------------
+        if(pFsUid >= 0) {
+          pPrevFsUid = setfsuid(pFsUid);
+
+          if(setfsuid(-1) != pFsUid) {
+            pOk = false;
+            return;
+          }
+        }
+
+        //----------------------------------------------------------------------
+        //! Set fsgid
+        //----------------------------------------------------------------------
+        if(pFsGid >= 0) {
+          pPrevFsGid = setfsgid(pFsGid);
+
+          if(setfsgid(-1) != pFsGid) {
+            pOk = false;
+            return;
+          }
+        }
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      ~ScopedFsUidSetter() {
+        if(pPrevFsUid >= 0) {
+          setfsuid(pPrevFsUid);
+        }
+
+        if(pPrevFsGid >= 0) {
+          setfsgid(pPrevFsGid);
+        }
+      }
+
+      bool IsOk() const {
+        return pOk;
+      }
+
+    private:
+      int pFsUid;
+      int pFsGid;
+
+      int pPrevFsUid;
+      int pPrevFsGid;
+
+      bool pOk;
+  };
+#endif
+
 }
 
 #endif // __XRD_CL_UTILS_HH__
