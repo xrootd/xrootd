@@ -92,7 +92,7 @@ SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
-XrdHttpExtHandler *XrdHttpProtocol::exthandler = 0;
+std::vector<XrdHttpExtHandler *> XrdHttpProtocol::exthandler;
 
 static const unsigned char *s_server_session_id_context = (const unsigned char *) "XrdHTTPSessionCtx";
 static int s_server_session_id_context_len = 18;
@@ -737,7 +737,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   // Now we have everything that is needed to try the login
   // Remember that if there is an exthandler then it has the responsibility
   // for authorization in the paths that it manages
-  if (!exthandler || !exthandler->MatchesPath(CurrentReq.resource.c_str())) {
+  if (FindMatchingExtHandler(CurrentReq)) {
     if (!Bridge) {
       if (SecEntity.name)
         Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
@@ -2369,9 +2369,6 @@ int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
 int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
                                      const char *libParms) {
   
-  // We don't want to load it more than once
-  if (exthandler) return 1;
-  
   XrdVersionInfo *myVer = &XrdVERSIONINFOVAR(XrdgetProtocol);
   XrdOucPinLoader myLib(myeDest, myVer, "exthandlerlib", libName);
   XrdHttpExtHandler *(*ep)(XrdHttpExtHandlerArgs);
@@ -2379,10 +2376,23 @@ int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
   // Get the entry point of the object creator
   //
   ep = (XrdHttpExtHandler *(*)(XrdHttpExtHandlerArgs))(myLib.Resolve("XrdHttpGetExtHandler"));
-  if (ep && (exthandler = ep(myeDest, NULL, libParms))) return 0;
+  XrdHttpExtHandler *newhandler;
+  if (ep && (newhandler = ep(myeDest, NULL, libParms))) {
+    exthandler.push_back(newhandler);
+    return 0;
+  }
   myLib.Unload();
   return 1;
 }
 
 
-
+// Locates a matching external handler for a given request, if available
+XrdHttpExtHandler * XrdHttpProtocol::FindMatchingExtHandler(const XrdHttpReq &req) {
+  std::vector<XrdHttpExtHandler *>::const_iterator it;
+  for (it = exthandler.begin(); it != exthandler.end(); it++) {
+    if ((*it)->MatchesPath(req.resource.c_str())) {
+      return *it;
+    }
+  }
+  return nullptr;
+}

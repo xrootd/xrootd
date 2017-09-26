@@ -756,9 +756,10 @@ int XrdHttpReq::ProcessHTTPReq() {
   
   
   // Verify if we have an external handler for this request
-  if (prot->exthandler && prot->exthandler->MatchesPath(this->resource.c_str())) {
+  XrdHttpExtHandler *exthandler = prot->FindMatchingExtHandler(*this);
+  if (exthandler) {
     XrdHttpExtReq xreq(this, prot);
-    int r = prot->exthandler->ProcessReq(xreq);
+    int r = exthandler->ProcessReq(xreq);
     reset();
     if (!r) return 1; // All went fine, response sent
     if (r < 0) return -1; // There was a hard error... close the connection

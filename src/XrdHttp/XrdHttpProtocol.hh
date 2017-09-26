@@ -50,6 +50,8 @@
 
 #include <openssl/ssl.h>
 
+#include <vector>
+
 #include "XrdHttpReq.hh"
 
 /******************************************************************************/
@@ -169,7 +171,7 @@ private:
   static int xsecretkey(XrdOucStream &Config);
 
   static XrdHttpSecXtractor *secxtractor;
-  static XrdHttpExtHandler *exthandler;
+  static std::vector<XrdHttpExtHandler *> exthandler;
   
   // Loads the SecXtractor plugin, if available
   static int LoadSecXtractor(XrdSysError *eDest, const char *libName,
@@ -178,6 +180,12 @@ private:
   // Loads the ExtHandler plugin, if available
   static int LoadExtHandler(XrdSysError *eDest, const char *libName,
                              const char *libParms);
+
+  // Determines whether one of the loaded ExtHandlers are interested in
+  // handling a given request.
+  //
+  // Returns NULL if there is no matching handler.
+  static XrdHttpExtHandler *FindMatchingExtHandler(const XrdHttpReq &);
 
   /// Circular Buffer used to read the request
   XrdBuffer *myBuff;
