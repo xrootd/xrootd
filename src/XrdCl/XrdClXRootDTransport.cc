@@ -1488,9 +1488,9 @@ namespace XrdCl
     // interfaces was not registered in DNS.
     //
     if( !dualStack && hsData->serverAddr )
-      {if ( (stacks & XrdNetUtils::hasIPv4
+      {if ( ( ( stacks & XrdNetUtils::hasIPv4 )
        &&    hsData->serverAddr->isIPType(XrdNetAddrInfo::IPv6))
-       ||   (stacks & XrdNetUtils::hasIPv6
+       ||   ( ( stacks & XrdNetUtils::hasIPv6 )
        &&    hsData->serverAddr->isIPType(XrdNetAddrInfo::IPv4)))
           {dualStack = true;
            loginReq->ability  |= kXR_hasipv64;
@@ -1552,6 +1552,20 @@ namespace XrdCl
 
     if( !info->firstLogIn )
       memcpy( info->oldSessionId, info->sessionId, 16 );
+
+    if( rsp->hdr.dlen == 0 && info->protocolVersion <= 0x289 )
+    {
+      //--------------------------------------------------------------------------
+      // This if statement is there only to support dCache inaccurate
+      // implementation of XRoot protocol, that in some cases returns
+      // an empty login response for protocol version <= 2.8.9.
+      //--------------------------------------------------------------------------
+      memset( info->sessionId, 0, 16 );
+      log->Warning( XRootDTransportMsg,
+                    "[%s] Logged in, accepting empty login response.",
+                    hsData->streamName.c_str() );
+      return Status();
+    }
 
     if( rsp->hdr.dlen < 16 )
       return Status( stError, errDataError );
