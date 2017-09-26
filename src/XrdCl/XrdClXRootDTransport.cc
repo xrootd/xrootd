@@ -1808,6 +1808,35 @@ namespace XrdCl
       return Status( stFatal, errAuthFailed );
 
     //--------------------------------------------------------------------------
+    // Retrieve secuid and secgid, if available. These will override the fsuid
+    // and fsgid of the current thread reading the credentials to prevent
+    // security holes in case this process is running with elevated permissions.
+    //--------------------------------------------------------------------------
+    char *secuidc = (ei.getEnv()) ? ei.getEnv()->Get("xrd.secuid") : 0;
+    char *secgidc = (ei.getEnv()) ? ei.getEnv()->Get("xrd.secgid") : 0;
+
+    int secuid = -1;
+    int secgid = -1;
+
+    if(secuidc) secuid = atoi(secuidc);
+    if(secgidc) secgid = atoi(secgidc);
+
+#ifdef __linux__
+    ScopedFsUidSetter uidSetter(secuid, secgid);
+    if(!uidSetter.IsOk()) {
+      log->Error( XRootDTransportMsg, "[%s] Error while setting (fsuid, fsgid) to (%d, %d)",
+                  hsData->streamName.c_str(), secuid, secgid );
+      return Status( stFatal, errAuthFailed );
+    }
+#else
+    if(secuid >= 0 || secgid >= 0) {
+      log->Error( XRootDTransportMsg, "[%s] xrd.secuid and xrd.secgid only supported on Linux.",
+                  hsData->streamName.c_str() );
+      return Status( stFatal, errAuthFailed );
+    }
+#endif
+
+    //--------------------------------------------------------------------------
     // Loop over the possible protocols to find one that gives us valid
     // credentials
     //--------------------------------------------------------------------------
