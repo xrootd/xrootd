@@ -162,7 +162,7 @@ namespace XrdCl
       const void* buffer, ResponseHandler* handler, uint16_t timeout )
   {
     const char *buff = reinterpret_cast<const char*>( buffer );
-    ssize_t bytesWritten = 0;
+    size_t bytesWritten = 0;
     while( bytesWritten < size )
     {
       ssize_t ret = pwrite( fd, buff, size, offset );
