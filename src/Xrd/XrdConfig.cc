@@ -91,7 +91,7 @@ extern int ka_Icnt;
 
 namespace XrdGlobal
 {
-XrdBuffXL xlBuff;
+extern XrdBuffXL xlBuff;
 }
 
 namespace

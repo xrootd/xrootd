@@ -180,9 +180,6 @@ const   char   *GetRequestID() {return reqID;}
 //! @param  buff  pointer to the buffer to receive the data. The buffer must
 //!               remain valid until ProcessResponseData() is called.
 //! @param  blen  the length of the buffer (i.e. maximum that can be returned).
-//!
-//! @return true  A data return has been successfully scheduled.
-//! @return false The stream could not be scheduled; eRef holds the reason.
 //-----------------------------------------------------------------------------
 
         void    GetResponseData(char *buff, int  blen);
