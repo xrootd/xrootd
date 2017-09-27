@@ -73,7 +73,7 @@ int compareHash(
 
 
 // Create a new quoted string
-char *quote(char *str);
+char *quote(const char *str);
 
 // unquote a string and return a new one
 char *unquote(char *str);

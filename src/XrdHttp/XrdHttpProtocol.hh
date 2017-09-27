@@ -167,7 +167,8 @@ private:
   static int xsslcafile(XrdOucStream &Config);
   static int xsslverifydepth(XrdOucStream &Config);
   static int xsecretkey(XrdOucStream &Config);
-
+  static int xheader2cgi(XrdOucStream &Config);
+  
   static XrdHttpSecXtractor *secxtractor;
   static XrdHttpExtHandler *exthandler;
   
@@ -341,6 +342,9 @@ protected:
 
   /// Our role
   static kXR_int32 myRole;
+  
+  /// Rules that turn HTTP headers to cgi tokens in the URL, for internal comsumption
+  static std::map< std::string, std::string > hdr2cgimap;
   
 };
 #endif
