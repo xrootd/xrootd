@@ -224,11 +224,13 @@ xrootd_tgz_macosx:
 xrootd_release_cc7_x86_64:
   stage: build:rpm
   script:
+    - mkdir cc-7-86_64
+    - git archive --prefix=xrootd-${CI_COMMIT_TAG#"v"}/ --format=tar tags/$CI_COMMIT_TAG | gzip -9fn > xrootd-${CI_COMMIT_TAG#"v"}.tar.gz
+    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-86_64
     - cd packaging/
     - ./makesrpm.sh
     - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
     - cd ..
-    - mkdir cc-7-86_64
     - cp packaging/*.src.rpm cc-7-86_64
     - cp packaging/build/*.rpm cc-7-86_64
   artifacts:
@@ -429,14 +431,14 @@ xrootd_publish_artifacts_release:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - tar -zcf xrootd-${CI_COMMIT_TAG}.tar.gz .
+    - tarball=cc-7-x86_64/xrootd-*.tar.gz
     - "for platform in cc-7-x86_64 slc-6-x86_64 slc-6-i386; do 
          path=$prefix/release/$platform/v$CI_COMMIT_TAG/;
-         sudo -u stci -H mkdir -p $path;
+         sudo -u stci -H mkdir -p $path/{source,tarball};
          sudo -u stci -H cp $platform/*.rpm $path;
          sudo -u stci -H find ${path} -type f -name '*.src.rpm' -delete;
          sudo -u stci -H cp $platform/*.src.rpm $path/source;
-         sudo -u stci -H cp xrootd-*.tar.gz $path/tarball;
+         sudo -u stci -H cp $tarball $path/tarball;
          sudo -u stci -H createrepo --update -q $path;
       done"
   tags:
