@@ -43,6 +43,12 @@ int XrdHttpExtReq::BuffgetData(int blen, char **data, bool wait) {
 }
 
 
+const XrdSecEntity &XrdHttpExtReq::GetSecEntity() const
+{
+  return prot->SecEntity;
+}
+
+
 XrdHttpExtReq::XrdHttpExtReq(XrdHttpReq *req, XrdHttpProtocol *pr): prot(pr),
 verb(req->requestverb), headers(req->allheaders) {
   // Here we fill the request summary with all the fields we can

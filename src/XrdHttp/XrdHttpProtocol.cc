@@ -25,6 +25,7 @@
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdInet.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -737,7 +738,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   // Now we have everything that is needed to try the login
   // Remember that if there is an exthandler then it has the responsibility
   // for authorization in the paths that it manages
-  if (!exthandler || !exthandler->MatchesPath(CurrentReq.resource.c_str())) {
+  if (!exthandler || !exthandler->MatchesPath(CurrentReq.requestverb.c_str(), CurrentReq.resource.c_str())) {
     if (!Bridge) {
       if (SecEntity.name)
         Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
@@ -830,10 +831,10 @@ int XrdHttpProtocol::Stats(char *buff, int blen, int do_sync) {
 /******************************************************************************/
 
 #define TS_Xeq(x,m) (!strcmp(x,var)) GoNo = m(Config)
+#define TS_Xeq3(x,m) (!strcmp(x,var)) GoNo = m(Config, ConfigFN, myEnv)
 
-int XrdHttpProtocol::Config(const char *ConfigFN) {
-  XrdOucEnv myEnv;
-  XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
+  XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), myEnv, "=====> ");
   char *var;
   int cfgFD, GoNo, NoGo = 0, ismine;
 
@@ -860,7 +861,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN) {
       else if TS_Xeq("secretkey", xsecretkey);
       else if TS_Xeq("desthttps", xdesthttps);
       else if TS_Xeq("secxtractor", xsecxtractor);
-      else if TS_Xeq("exthandler", xexthandler);
+      else if TS_Xeq3("exthandler", xexthandler);
       else if TS_Xeq("selfhttps2http", xselfhttps2http);
       else if TS_Xeq("embeddedstatic", xembeddedstatic);
       else if TS_Xeq("listingredir", xlistredir);
@@ -1294,7 +1295,10 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 
   Window = pi->WSize;
 
-
+  pi->NetTCP->netIF.Port(Port);
+  pi->NetTCP->netIF.Display("Config ");
+  pi->theEnv->PutPtr("XrdInet*", (void *)(pi->NetTCP));
+  pi->theEnv->PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
 
   // Prohibit this program from executing as superuser
   //
@@ -1323,7 +1327,7 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   // Now process and configuration parameters
   //
   rdf = (parms && *parms ? parms : pi->ConfigFN);
-  if (rdf && Config(rdf)) return 0;
+  if (rdf && Config(rdf, pi->theEnv)) return 0;
   if (pi->DebugON) XrdHttpTrace->What = TRACE_ALL;
 
   // Set the redirect flag if we are a pure redirector
@@ -2194,7 +2198,7 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
  *  Output: 0 upon success or !0 upon failure.
  */
 
-int XrdHttpProtocol::xexthandler(XrdOucStream & Config) {
+int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv) {
   char *val, valbuf[1024];
   char *parm;
   
@@ -2210,7 +2214,7 @@ int XrdHttpProtocol::xexthandler(XrdOucStream & Config) {
     
     // Try to load the plugin (if available) that extracts info from the user cert/proxy
     //
-    if (LoadExtHandler(&eDest, valbuf, parm))
+    if (LoadExtHandler(&eDest, valbuf, ConfigFN, parm, myEnv))
       return 1;
   }
   
@@ -2367,7 +2371,8 @@ int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
 
 // Loads the external handler plugin, if available
 int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
-                                     const char *libParms) {
+                                    const char *configFN, const char *libParms,
+                                    XrdOucEnv *myEnv) {
   
   // We don't want to load it more than once
   if (exthandler) return 1;
@@ -2379,7 +2384,7 @@ int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
   // Get the entry point of the object creator
   //
   ep = (XrdHttpExtHandler *(*)(XrdHttpExtHandlerArgs))(myLib.Resolve("XrdHttpGetExtHandler"));
-  if (ep && (exthandler = ep(myeDest, NULL, libParms))) return 0;
+  if (ep && (exthandler = ep(myeDest, configFN, libParms, myEnv))) return 0;
   myLib.Unload();
   return 1;
 }

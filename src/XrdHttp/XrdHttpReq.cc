@@ -756,7 +756,7 @@ int XrdHttpReq::ProcessHTTPReq() {
   
   
   // Verify if we have an external handler for this request
-  if (prot->exthandler && prot->exthandler->MatchesPath(this->resource.c_str())) {
+  if (prot->exthandler && prot->exthandler->MatchesPath(this->requestverb.c_str(), this->resource.c_str())) {
     XrdHttpExtReq xreq(this, prot);
     int r = prot->exthandler->ProcessReq(xreq);
     reset();
