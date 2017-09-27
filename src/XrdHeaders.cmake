@@ -104,7 +104,6 @@ set( XROOTD_PUBLIC_HEADERS
   XrdXrootd/XrdXrootdMonData.hh
   XrdXrootd/XrdXrootdBridge.hh
   XrdHttp/XrdHttpSecXtractor.hh
-  XrdHttp/XrdHttpExtHandler.hh
 )
 
 set( XROOTD_PRIVATE_HEADERS
@@ -118,6 +117,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdClient/XrdClientPhyConnection.hh
   XrdClient/XrdClientReadCache.hh
   XrdClient/XrdClientSock.hh
+  XrdHttp/XrdHttpExtHandler.hh
   XrdNet/XrdNetPeer.hh
   XrdNet/XrdNetBuffer.hh
   XrdNet/XrdNetIF.hh
