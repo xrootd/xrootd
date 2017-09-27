@@ -794,6 +794,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     
     char *q = quote(hdr2cgistr.c_str());
     resourceplusopaque.append(q);
+    TRACEI(DEBUG, "Appended Authorization header to opaque info: '" << hdr2cgistr << "'");
     free(q);
     
     // Once we've appended the authorization to the full resource+opaque string,
