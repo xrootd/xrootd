@@ -192,6 +192,23 @@ int XrdHttpReq::parseLine(char *line, int len) {
 
     } else if (!strcmp(key, "Expect") && strstr(val, "100-continue")) {
       sendcontinue = true;
+    } else {
+      // Some headers need to be translated into "local" cgi info
+      std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
+      if (it != prot->hdr2cgimap.end()) {
+        std:: string s;
+        s.assign(val, line+len-val);
+        trim(s);
+        
+        if (hdr2cgistr.length() > 0) {
+          hdr2cgistr.append("&");
+        }
+        hdr2cgistr.append(key);
+        hdr2cgistr.append("=");
+        hdr2cgistr.append(it->second);
+        
+          
+      }
     }
 
     // We memorize the heaers also as a string
@@ -767,7 +784,24 @@ int XrdHttpReq::ProcessHTTPReq() {
     
   }
   
-  
+  /// If we have to add extra header information, add it here.
+  if (!hdr2cgistr.empty()) {
+    const char *p = strchr(resourceplusopaque.c_str(), '?');
+    if (p) {
+      resourceplusopaque.append("&");
+    } else {
+      resourceplusopaque.append("?");
+    }
+    
+    char *q = quote(hdr2cgistr.c_str());
+    resourceplusopaque.append(q);
+    free(q);
+    
+    // Once we've appended the authorization to the full resource+opaque string,
+    // reset the authz to empty: this way, any operation that triggers repeated ProcessHTTPReq
+    // calls won't also trigger multiple copies of the authz.
+    hdr2cgistr = "";
+    }
   
   //
   // Here we process the request locally
@@ -2232,6 +2266,7 @@ void XrdHttpReq::reset() {
 
   host = "";
   destination = "";
+  hdr2cgistr = "";
 
   iovP = 0;
   iovN = 0;
