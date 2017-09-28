@@ -101,10 +101,12 @@ struct CRZParms
        int  maxKeys; //!< Maximum number of keys-value pairs expected in table.
        int  maxKLen; //!< The maximum acceptable key length.
        int  mode;    //!< Filemode for the newly created file.
-       char multW;   //!<  1: Table can have multiple processes writing.
+       signed char multW;
+                     //!<  1: Table can have multiple processes writing.
                      //!<  0: Table has only one process writing.
                      //!< -1: Use default or, for resize, previous setting.
-       char reUse;   //!<  1: Reuse deleted objects.
+       signed char reUse;
+                     //!<  1: Reuse deleted objects.
                      //!<  0: Never reuse deleted objects.
                      //!< -1: Use default or, for resize, previous setting.
        char rsvd[6]; //!< Reserved for future options
