@@ -134,9 +134,9 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    Eroute.Say("++++++ File system initialization started.");
 
-// Each time XrdSfsGetDefaultFileSystem is invoked, it'll reuse the same XrdOfs
-// object but call the Configure method again.  If poscLog is not reset, then
-// a stale value may be reused.
+// Start off with no POSC log. Note that XrdSfsGetDefaultFileSystem nakes sure
+// that we are configured only once.
+//
    poscLog = NULL;
 
 // Establish the network interface that the caller must provide
@@ -195,8 +195,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Check if redirection wanted
 //
-   const char *redirect_val = getenv("XRDREDIRECT");
-   if (redirect_val && strcmp(redirect_val, "0")) i  = isManager;
+   if (getenv("XRDREDIRECT")) i  = isManager;
       else i = 0;
    if (getenv("XRDRETARGET")) i |= isServer;
    if (getenv("XRDREDPROXY")) i |= isProxy;
