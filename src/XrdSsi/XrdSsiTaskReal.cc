@@ -47,6 +47,12 @@
 using namespace XrdSsi;
 
 /******************************************************************************/
+/*                          L o c a l   M a c r o s                           */
+/******************************************************************************/
+
+#define DUMPIT(x,y) XrdSsiUtils::b2x(x,y,hexBuff,sizeof(hexBuff),dotBuff)<<dotBuff
+
+/******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */
 /******************************************************************************/
   
@@ -229,15 +235,19 @@ XrdSsiTaskReal::respType XrdSsiTaskReal::GetResp(XrdCl::AnyObject **respP,
 // This may be an alert message, check for that now
 //
    if (mdP->tag == XrdSsiRRInfoAttn::alrtResp)
-      {dbuff = cdP+pxL; dbL = mdL;
-       DEBUG("Responding with alert id=" <<tskID);
+      {char hexBuff[16],dotBuff[4];
+       dbuff = cdP+pxL; dbL = mdL;
+       DEBUG("Posting " <<dbL <<" byte alert (0x" <<DUMPIT(dbuff,dbL)
+             <<"); id=" <<tskID);
        return isAlert;
       }
 
 // Extract out the metadata
 //
    if (mdL)
-      {DEBUG("Adding metadata id=" <<tskID);
+      {char hexBuff[16],dotBuff[4];
+       DEBUG(mdL <<" byte metadata (0x" <<DUMPIT(cdP+pxL,mdL)
+                 <<") set; id=" <<tskID);
        SetMetadata(cdP+pxL, mdL);
       }
 

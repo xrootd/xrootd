@@ -46,6 +46,7 @@
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
+#include "XrdSsi/XrdSsiUtils.hh"
 #include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
@@ -53,6 +54,8 @@
 /******************************************************************************/
   
 #define DEBUGXQ(x) DEBUG(rID<<sessN<<rspstID[urState]<<reqstID[myState]<<x)
+
+#define DUMPIT(x,y) XrdSsiUtils::b2x(x,y,hexBuff,sizeof(hexBuff),dotBuff)<<dotBuff
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -148,14 +151,23 @@ void XrdSsiFileReq::Alert(XrdSsiRespInfoMsg &aMsg)
 //
    aP = XrdSsiAlert::Alloc(aMsg);
 
-// If the client is waiting for a response then we can send the alert now.
-// Otherwise, we need to queue it until he client comes back to us.
+// Alerts must be sent in the orer they are presented. So, check if we need
+// to chain this and try to send the first in the chain. This only really
+// matters if we can send the alert now because the client is waiting.
 //
-   if (respWait) WakeUp(aP);
-      else {if (alrtLast) alrtLast->next = aP;
-               else alrtPend = aP;
-            alrtLast = aP;
-           }
+   if (respWait)
+      {if (alrtPend)
+          {alrtLast->next = aP;
+           alrtLast = aP;
+           aP = alrtPend;
+           alrtPend = alrtPend->next;
+          }
+       WakeUp(aP);
+      } else {
+       if (alrtLast) alrtLast->next = aP;
+          else alrtPend = aP;
+       alrtLast = aP;
+      }
 
 // All done
 //
@@ -918,11 +930,13 @@ bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
 // as we will recycle the alert on the next call (there should be one).
 //
    if (alrtPend)
-      {alrtSent = alrtPend;
+      {char hexBuff[16], binBuff[8], dotBuff[4];
+       alrtSent = alrtPend;
        if (!(alrtPend = alrtPend->next)) alrtLast = 0;
-       alrtSent->SetInfo(eInfo);
+       int n = alrtSent->SetInfo(eInfo, binBuff);
        eInfo.setErrCB((XrdOucEICB *)0);
-       DEBUGXQ("alert sent; " <<(alrtPend ? "" : "no ") <<"more pending");
+       DEBUGXQ(n <<" byte alert (0x" <<DUMPIT(binBuff, n) <<") sent; "
+                 <<(alrtPend ? "" : "no ") <<"more pending");
        return true;
       }
 
@@ -971,8 +985,11 @@ void XrdSsiFileReq::WakeUp(XrdSsiAlert *aP) // Called with frqMutex locked!
 // and the callback handler will simply delete the error object for us.
 //
    if (aP)
-      {aP->SetInfo(*wuInfo);
+      {char hexBuff[16], binBuff[8], dotBuff[4];
+       int n = aP->SetInfo(*wuInfo, binBuff);
        wuInfo->setErrCB((XrdOucEICB *)aP, respCBarg);
+       DEBUGXQ(n <<" byte alert (0x" <<DUMPIT(binBuff, n) <<") sent; "
+                 <<(alrtPend ? "" : "no ") <<"more pending");
       } else {
        if (fileP->AttnInfo(*wuInfo, rspP, reqID))
           {wuInfo->setErrCB((XrdOucEICB *)this, respCBarg); myState = odRsp;}

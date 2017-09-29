@@ -109,6 +109,49 @@ bool               isActive;
 };
 
 /******************************************************************************/
+/*                                   b 2 x                                    */
+/******************************************************************************/
+  
+char *XrdSsiUtils::b2x(const char *ibuff, int ilen, char *obuff, int olen,
+                             char xbuff[4])
+{
+    static char hv[] = "0123456789abcdef";
+    char *oP = obuff;
+
+    // Gaurd against too short of an output buffer (minimum if 3 bytes)
+    //
+    if (olen < 3)
+       {*obuff = 0;
+        strcpy(xbuff, "...");
+        return obuff;
+       }
+
+    // Make sure we have something to format
+    //
+    if (ilen < 1)
+       {*obuff = 0;
+        *xbuff = 0;
+        return obuff;
+       }
+
+    // Do length adjustment, as needed
+    //
+    if (ilen*2 < olen) *xbuff = 0;
+       else {ilen = (olen-1)/2;
+             strcpy(xbuff, "...");
+            }
+
+    // Format the data. We know it will fit with a trailing null byte.
+    //
+    for (int i = 0; i < ilen; i++) {
+        *oP++ = hv[(ibuff[i] >> 4) & 0x0f];
+        *oP++ = hv[ ibuff[i]       & 0x0f];
+        }
+     *oP = '\0';
+     return obuff;
+}
+
+/******************************************************************************/
 /*                                  E m s g                                   */
 /******************************************************************************/
 
