@@ -114,7 +114,7 @@ void XrdSsiAlert::Recycle()
 /*                               S e t I n f o                                */
 /******************************************************************************/
   
-int XrdSsiAlert::SetInfo(XrdOucErrInfo &eInfo, char aMsg[8])
+int XrdSsiAlert::SetInfo(XrdOucErrInfo &eInfo, char *aMsg, int aLen)
 {
    static const int aIovSz = 3;
    struct AlrtResp {struct iovec ioV[aIovSz]; XrdSsiRRInfoAttn aHdr;};
@@ -150,7 +150,7 @@ int XrdSsiAlert::SetInfo(XrdOucErrInfo &eInfo, char aMsg[8])
 
 // Return up to 8 bytes of alert data for debugging purposes
 //
-   if (aMsg) memcpy(aMsg, aData, (n < (int)sizeof(aMsg) ? n : sizeof(aMsg)));
+   if (aMsg) memcpy(aMsg, aData, (n < (int)sizeof(aMsg) ? n : 8));
 
 // Setup to have metadata actually sent to the requestor
 //

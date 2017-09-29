@@ -933,7 +933,7 @@ bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
       {char hexBuff[16], binBuff[8], dotBuff[4];
        alrtSent = alrtPend;
        if (!(alrtPend = alrtPend->next)) alrtLast = 0;
-       int n = alrtSent->SetInfo(eInfo, binBuff);
+       int n = alrtSent->SetInfo(eInfo, binBuff, sizeof(binBuff));
        eInfo.setErrCB((XrdOucEICB *)0);
        DEBUGXQ(n <<" byte alert (0x" <<DUMPIT(binBuff, n) <<") sent; "
                  <<(alrtPend ? "" : "no ") <<"more pending");
@@ -986,7 +986,7 @@ void XrdSsiFileReq::WakeUp(XrdSsiAlert *aP) // Called with frqMutex locked!
 //
    if (aP)
       {char hexBuff[16], binBuff[8], dotBuff[4];
-       int n = aP->SetInfo(*wuInfo, binBuff);
+       int n = aP->SetInfo(*wuInfo, binBuff, sizeof(binBuff));
        wuInfo->setErrCB((XrdOucEICB *)aP, respCBarg);
        DEBUGXQ(n <<" byte alert (0x" <<DUMPIT(binBuff, n) <<") sent; "
                  <<(alrtPend ? "" : "no ") <<"more pending");
