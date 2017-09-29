@@ -41,6 +41,9 @@ class XrdSsiUtils
 {
 public:
 
+static char *b2x(const char *ibuff, int ilen, char *obuff, int olen,
+                       char xbuff[4]);
+
 static int  Emsg(const char    *pfx,    // Message prefix value
                  int            ecode,  // The error code
                  const char    *op,     // Operation being performed

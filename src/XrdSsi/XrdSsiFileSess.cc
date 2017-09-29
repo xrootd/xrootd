@@ -77,6 +77,12 @@ extern int               respWT;
 using namespace XrdSsi;
 
 /******************************************************************************/
+/*                          L o c a l   M a c r o s                           */
+/******************************************************************************/
+
+#define DUMPIT(x,y) XrdSsiUtils::b2x(x,y,hexBuff,sizeof(hexBuff),dotBuff)<<dotBuff
+
+/******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
   
@@ -154,6 +160,7 @@ bool XrdSsiFileSess::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
                               unsigned int reqID)
 // Called with the request mutex locked!
 {
+   EPNAME("AttnInfo");
    struct AttnResp {struct iovec ioV[4]; XrdSsiRRInfoAttn aHdr;};
 
    AttnResp *attnResp;
@@ -195,6 +202,11 @@ bool XrdSsiFileSess::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
       {attnResp->ioV[2].iov_base = (void *)respP->mdata;
        attnResp->ioV[2].iov_len  =         respP->mdlen; ioN = 3;
        attnResp->aHdr.mdLen = htonl(respP->mdlen);
+       if (QTRACE(Debug))
+          {char hexBuff[16],dotBuff[4];
+           DEBUG(reqID <<':' <<gigID <<' ' <<respP->mdlen <<" byte metadata (0x"
+                       <<DUMPIT(respP->mdata,respP->mdlen) <<") sent.");
+          }
       }
 
 // Check if we have actual data here as well and can send it along
