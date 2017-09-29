@@ -150,10 +150,7 @@ int XrdSsiAlert::SetInfo(XrdOucErrInfo &eInfo, char aMsg[8])
 
 // Return up to 8 bytes of alert data for debugging purposes
 //
-   if (aMsg)
-      {if (n < (int)sizeof(aMsg)) memcpy(aMsg, aData, n);
-          else memcpy(aMsg, aData, sizeof(aMsg));
-      }
+   if (aMsg) memcpy(aMsg, aData, (n < (int)sizeof(aMsg) ? n : sizeof(aMsg)));
 
 // Setup to have metadata actually sent to the requestor
 //
