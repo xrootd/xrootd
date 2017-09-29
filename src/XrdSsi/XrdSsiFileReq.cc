@@ -126,7 +126,6 @@ void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
 void XrdSsiFileReq::Alert(XrdSsiRespInfoMsg &aMsg)
 {
    EPNAME("Alert");
-   const XrdSsiRespInfo *rP = XrdSsiRRAgent::RespP(this);
    XrdSsiAlert *aP;
    int msgLen;
 
@@ -141,7 +140,7 @@ void XrdSsiFileReq::Alert(XrdSsiRespInfoMsg &aMsg)
 
 // Validate the length and whether this call is allowed
 //
-   if (msgLen <= 0 || rP->rType != XrdSsiRespInfo::isNone || isEnding)
+   if (msgLen <= 0 || haveResp || isEnding)
       {frqMutex.UnLock();
        aMsg.RecycleMsg();
        return;
@@ -324,16 +323,14 @@ void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 
 // Do some debugging
 //
-   DEBUGXQ("wtrsp sent; resp "
-           <<(XrdSsiRRAgent::RespP(this)->rType ? "here" : "pend"));
+   DEBUGXQ("wtrsp sent; resp " <<(haveResp ? "here" : "pend"));
 
 // We are invoked when sync() waitresp has been sent, check if a response was
 // posted while this was going on. If so, make sure to send a wakeup. Note
 // that the respWait flag is at this moment false as this is called in the
 // sync response path for fctl() and the response may have been posted.
 //
-   if (XrdSsiRRAgent::RespP(this)->rType == XrdSsiRespInfo::isNone)
-      respWait = true;
+   if (haveResp) respWait = true;
       else WakeUp();
 }
 
