@@ -94,10 +94,19 @@ bool XrdSsiRequest::Finished(bool cancel)
 //
    if (!respP) return false;
 
-// Tell any responder we are finished
+// Tell any responder we are finished (we might not have one)
 //
    respP->Finished(*this, Resp, cancel);
-   return true;
+
+// Reinitialize the response object in case it is being reused
+//
+   rrMutex->Lock();
+   Resp.Init();
+   rrMutex->UnLock();
+
+// Return false if there was no responder associated with this request
+//
+   return respP != 0;
 }
 
 /******************************************************************************/
