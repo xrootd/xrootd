@@ -5,7 +5,28 @@ stages:
   - publish
   - clean
 
-xrootd_rpm_cc7:
+.template:deb_ubuntu_artful: &deb_ubuntu_artful_def
+  stage: build:rpm
+  image: ubuntu:artful
+  script:
+    - apt-get update
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
+    - cp -R packaging/debian/ .
+    - mk-build-deps --build-dep debian/control
+    - gdebi -n xrootd-build-deps-depends*.deb
+    - version=`./genversion.sh --print-only`
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
+    - mkdir artful
+    - cp deb_packages/*.deb artful
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - artful/
+  tags:
+    - docker-ubuntu
+
+build:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -32,7 +53,7 @@ xrootd_rpm_cc7:
     - tags
     - schedules
 
-xrootd_rpm_slc6:
+build:slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -59,7 +80,7 @@ xrootd_rpm_slc6:
     - tags
     - schedules
 
-xrootd_rpm_fcrh:
+build:fedora-rawhide:
   stage: build:rpm
   image: fedora:rawhide
   script:
@@ -86,7 +107,7 @@ xrootd_rpm_fcrh:
     - tags
     - schedules
 
-xrootd_rpm_fc26:
+build:fedora-26:
   stage: build:rpm
   image: fedora:26
   script:
@@ -113,7 +134,7 @@ xrootd_rpm_fc26:
     - tags
     - schedules
 
-xrootd_rpm_fc25:
+build:fedora-25:
   stage: build:rpm
   image: fedora:25
   script:
@@ -140,7 +161,7 @@ xrootd_rpm_fc25:
     - tags
     - schedules
 
-xrootd_rpm_fc24:
+build:fedora-24:
   stage: build:rpm
   image: fedora:24
   script:
@@ -167,26 +188,8 @@ xrootd_rpm_fc24:
     - tags
     - schedules
     
-xrootd_deb_ubuntu_artful:
-  stage: build:rpm
-  image: ubuntu:artful
-  script:
-    - apt-get update
-    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
-    - cp -R packaging/debian/ .
-    - mk-build-deps --build-dep debian/control
-    - gdebi -n xrootd-build-deps-depends*.deb
-    - version=`./genversion.sh --print-only`
-    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
-    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
-    - mkdir artful
-    - cp deb_packages/*.deb artful
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - artful/
-  tags:
-    - docker-ubuntu
+build:deb_ubuntu_artful:
+  <<: *deb_ubuntu_artful_def
   only:
     - master
     - /^stable-.*$/
@@ -194,7 +197,7 @@ xrootd_deb_ubuntu_artful:
     - tags
     - schedules 
 
-xrootd_tgz_macosx:
+build:macosx:
   stage: build:rpm
   script:
     - mkdir build
@@ -221,35 +224,36 @@ xrootd_tgz_macosx:
     - tags
     - schedules
 
-xrootd_release_cc7_x86_64:
+release:cc7-x86_64:
   stage: build:rpm
   script:
-    - mkdir cc-7-86_64
+    - mkdir cc-7-x86_64
     - git archive --prefix=xrootd-${CI_COMMIT_TAG#"v"}/ --format=tar tags/$CI_COMMIT_TAG | gzip -9fn > xrootd-${CI_COMMIT_TAG#"v"}.tar.gz
-    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-86_64
+    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-x86_64
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
+    - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el7"
     - cd ..
-    - cp packaging/*.src.rpm cc-7-86_64
-    - cp packaging/build/*.rpm cc-7-86_64
+    - cp packaging/*.src.rpm cc-7-x86_64
+    - cp packaging/build/*.rpm cc-7-x86_64
   artifacts:
     expire_in: 1 day
     paths:
-    - cc-7-86_64/
+    - cc-7-x86_64/
   tags:
     - xrootd-shell
   only:
     - web
   except:
     - branches
+    - /^(?!v[0-9]+).*/
 
-xrootd_release_slc6_x86_64:
+release:slc6-x86_64:
   stage: build:rpm
   script:
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
+    - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6"
     - cd ..
     - mkdir slc-6-x86_64
     - cp packaging/*.src.rpm slc-6-x86_64
@@ -257,20 +261,21 @@ xrootd_release_slc6_x86_64:
   artifacts:
     expire_in: 1 day
     paths:
-    - slc-6-86_64/
+    - slc-6-x86_64/
   tags:
     - xrootd-shell
   only:
     - web
   except:
     - branches
+    - /^(?!v[0-9]+).*/
 
-xrootd_release_slc6_i386:
+release:slc6-i386:
   stage: build:rpm
   script:
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r epel-6-i386 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1"
+    - /bin/mock --init -r epel-6-i386 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6"
     - cd ..
     - mkdir slc-6-i386
     - cp packaging/*.src.rpm slc-6-i386
@@ -285,8 +290,18 @@ xrootd_release_slc6_i386:
     - web
   except:
     - branches
+    - /^(?!v[0-9]+).*/
 
-xrootd_biweekly_cc7:
+
+release:deb_ubuntu_artful:
+  <<: *deb_ubuntu_artful_def
+  only:
+    - web
+  except:
+    - branches
+    - /^(?!v[0-9]+).*/
+
+biweekly:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -314,8 +329,10 @@ xrootd_biweekly_cc7:
     - docker-cc7
   only:
     - schedules
+  except:
+    - tags
 
-xrootd_biweekly_slc6:
+biweekly:slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -343,71 +360,37 @@ xrootd_biweekly_slc6:
     - docker-slc6
   only:
     - schedules
+  except:
+    - tags
 
-xrootd_publish_artifacts_master:
+publish:rhel:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25 fc-24; do 
-         path=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64/latest/;
+         repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
+         path=$repo/$(date +'%Y%m%d');
          sudo -u stci -H mkdir -p $path;
          sudo -u stci -H find ${path} -type f -name '*.rpm' -delete;
          sudo -u stci -H cp $platform/* $path;
          sudo -u stci -H createrepo --update -q $path;
+         sudo -u stci -H createrepo --update -q $repo;
       done"
   tags:
     - docker-slc6
   only:
     - master
-  except:
-    - schedules
-    
-xrootd_publish_artifacts_debian_master:
-  stage: publish
-  image: ubuntu:artful
-  script: 
-    - apt-get update
-    - apt-get install -y sudo apt-utils sssd
-    - mkdir /home/stci
-    - chown -R stci:def-cg /home/stci
-    - chmod -R 700 /home/stci
-    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
-    - sudo -u stci -H ./packaging/debian_scripts/publish_debian_cern.sh master
-  tags:
-    - docker-ubuntu
-  dependencies:
-    - xrootd_deb_ubuntu_artful
-  only:
-    - master
-  except:
-    - schedules
-
-xrootd_publish_artifacts_stable:
-  stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install --nogpg -y sssd-client sudo createrepo
-    - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in cc-7 slc-6 fc-rawhide fc-26 fc-25 fc-24; do 
-         path=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64/;
-         sudo -u stci -H mkdir -p $path;
-         sudo -u stci -H cp $platform/* $path;
-         sudo -u stci -H createrepo --update -q $path;
-      done"
-  tags:
-    - docker-slc6
-  only:
     - /^stable-.*$/
   except:
     - tags
     - schedules
-
-xrootd_publish_artifacts_debian_stable:
+    
+publish:debian:
   stage: publish
   image: ubuntu:artful
-  script:
+  script: 
     - apt-get update
     - apt-get install -y sudo apt-utils sssd
     - mkdir /home/stci
@@ -418,14 +401,15 @@ xrootd_publish_artifacts_debian_stable:
   tags:
     - docker-ubuntu
   dependencies:
-    - xrootd_deb_ubuntu_artful
+    - build:deb_ubuntu_artful
   only:
+    - master
     - /^stable-.*$/
   except:
     - tags
     - schedules
 
-xrootd_publish_artifacts_release:
+publish:rhel:release:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -433,22 +417,24 @@ xrootd_publish_artifacts_release:
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - tarball=cc-7-x86_64/xrootd-*.tar.gz
     - "for platform in cc-7-x86_64 slc-6-x86_64 slc-6-i386; do 
-         path=$prefix/release/$platform/v$CI_COMMIT_TAG/;
+         path=$prefix/release/$platform/$CI_COMMIT_TAG/;
          sudo -u stci -H mkdir -p $path/{source,tarball};
          sudo -u stci -H cp $platform/*.rpm $path;
          sudo -u stci -H find ${path} -type f -name '*.src.rpm' -delete;
          sudo -u stci -H cp $platform/*.src.rpm $path/source;
          sudo -u stci -H cp $tarball $path/tarball;
          sudo -u stci -H createrepo --update -q $path;
+         sudo -u stci -H createrepo --update -q $prefix/release/$platform;
       done"
   tags:
     - docker-slc6
   only:
     - web
   except:
-    - branches
+    - branches 
+    - /^(?!v[0-9]+).*/
 
-xrootd_publish_artifacts_debian_release:
+publish:debian:release:
   stage: publish
   image: ubuntu:artful
   script:
@@ -462,13 +448,14 @@ xrootd_publish_artifacts_debian_release:
   tags:
     - docker-ubuntu
   dependencies:
-    - xrootd_deb_ubuntu_artful
+    - release:deb_ubuntu_artful
   only:
     - web
   except:
     - branches
+    - /^(?!v[0-9]+).*/
 
-xrootd_publish_artifacts_biweekly:
+publish:biweekly:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -483,12 +470,14 @@ xrootd_publish_artifacts_biweekly:
   tags:
     - docker-slc6
   dependencies:
-    - xrootd_biweekly_cc7
-    - xrootd_biweekly_slc6
+    - biweekly:cc7
+    - biweekly:slc6
   only:
     - schedules
+  except:
+    - tags
 
-xrootd_clean_artifacts:
+clean:artifacts:
   stage: clean
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
