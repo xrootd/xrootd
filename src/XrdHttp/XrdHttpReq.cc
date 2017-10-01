@@ -185,6 +185,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcmp(key, "Destination")) {
       destination.assign(val, line+len-val);
       trim(destination);
+    } else if (!strcmp(key, "Authorization")) {
+      authorization.assign(val, line+len-val);
+      trim(authorization);
     } else if (!strcmp(key, "Depth")) {
       depth = -1;
       if (strcmp(val, "infinity"))
@@ -766,9 +769,25 @@ int XrdHttpReq::ProcessHTTPReq() {
     return 1; // There was an error and a response was sent
     
   }
-  
-  
-  
+
+  /// If we have received extra authorization information, add it here.
+  //  NOTE: this was already added to the headers given to the XrdHttpExtReq -
+  //  no need to interact with the code above
+  if (!authorization.empty()) {
+    const char *p = strchr(resourceplusopaque.c_str(), '?');
+    if (p) {
+      resourceplusopaque.append("&authz=");
+    } else {
+      resourceplusopaque.append("?authz=");
+    }
+    TRACEI(DEBUG, "Appended Authorization header to opaque info.");
+    resourceplusopaque.append(quote(authorization.c_str()));
+    // Once we've appended the authorization to the full resource+opaque string,
+    // reset the authz to empty: this way, any operation that triggers repeated ProcessHTTPReq
+    // calls won't also trigger multiple copies of the authz.
+    authorization = "";
+  }
+
   //
   // Here we process the request locally
   //

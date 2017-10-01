@@ -318,7 +318,7 @@ char *unquote(char *str) {
 
 // Quote a string and return a new one
 
-char *quote(char *str) {
+char *quote(const char *str) {
   int l = strlen(str);
   char *r = (char *) malloc(l*3 + 1);
   r[0] = '\0';
