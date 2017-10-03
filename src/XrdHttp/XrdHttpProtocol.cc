@@ -94,6 +94,7 @@ BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
 XrdHttpExtHandler *XrdHttpProtocol::exthandler = 0;
+std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
 
 static const unsigned char *s_server_session_id_context = (const unsigned char *) "XrdHTTPSessionCtx";
 static int s_server_session_id_context_len = 18;
@@ -868,6 +869,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("staticredir", xstaticredir);
       else if TS_Xeq("staticpreload", xstaticpreload);
       else if TS_Xeq("listingdeny", xlistdeny);
+      else if TS_Xeq("header2cgi", xheader2cgi);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();

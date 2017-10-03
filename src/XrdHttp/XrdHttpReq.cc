@@ -193,7 +193,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcmp(key, "Expect") && strstr(val, "100-continue")) {
       sendcontinue = true;
     } else {
-      // Some headers need to be translated into "local" cgi info
+      // Some headers need to be translated into "local" cgi info. In theory they should already be quoted
       std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
       if (it != prot->hdr2cgimap.end()) {
         std:: string s;
@@ -203,9 +203,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
         if (hdr2cgistr.length() > 0) {
           hdr2cgistr.append("&");
         }
-        hdr2cgistr.append(key);
-        hdr2cgistr.append("=");
         hdr2cgistr.append(it->second);
+        hdr2cgistr.append("=");
+        hdr2cgistr.append(s);
         
           
       }
