@@ -508,7 +508,6 @@ bool XrdHttpReq::Data(XrdXrootd::Bridge::Context &info, //!< the result context
 
   if (PostProcessHTTPReq(final_)) reset();
 
-
   return true;
 
 };
@@ -1773,9 +1772,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           default: //read or readv
           {
             
-	    // Close() if this was the third state of a readv, otherwise read the next chunk
-	    if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return 1;
-	    
+            // Nothing to do if we are postprocessing a close
+            if (ntohs(xrdreq.header.requestid) == kXR_close) return 1;
+            
+            // Close() if this was the third state of a readv, otherwise read the next chunk
+            if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return 1;
+
             // If we are here it's too late to send a proper error message...
             if (xrdresp == kXR_error) return -1;
 
@@ -1829,21 +1831,25 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
             } else
               for (int i = 0; i < iovN; i++) {
-		if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
-		writtenbytes += iovP[i].iov_len;
+                if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
+                writtenbytes += iovP[i].iov_len;
               }
               
+            // Let's make sure that we avoid sending the same data twice,
+            // in the case where PostProcessHTTPReq is invoked again
+            this->iovN = 0;
+            
             return 0;
           }
 
-        }
+        } // switch reqstate
 
 
       }
 
 
       break;
-    }
+    } // case GET
 
 
     case XrdHttpReq::rtPUT:
