@@ -219,6 +219,7 @@ namespace XrdCl
 
       XrdSysPwd pwdHandler;
       passwd *pwd = pwdHandler.Get( getuid() );
+      if( !pwd ) return;
       std::string userPlugIns = pwd->pw_dir;
       userPlugIns += "/.xrootd/client.plugins.d";
       ProcessConfigDir( userPlugIns );
