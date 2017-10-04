@@ -195,7 +195,9 @@ public:
   /// The destination field specified in the req
   std::string destination;
 
-
+  /// Additional opaque info that may come from the hdr2cgi directive
+  std::string hdr2cgistr;
+  
   //
   // Area for coordinating request and responses to/from the bridge
   //

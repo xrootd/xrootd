@@ -94,6 +94,7 @@ BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
 XrdHttpExtHandler *XrdHttpProtocol::exthandler = 0;
+std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
 
 static const unsigned char *s_server_session_id_context = (const unsigned char *) "XrdHTTPSessionCtx";
 static int s_server_session_id_context_len = 18;
@@ -868,6 +869,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("staticredir", xstaticredir);
       else if TS_Xeq("staticpreload", xstaticpreload);
       else if TS_Xeq("listingdeny", xlistdeny);
+      else if TS_Xeq("header2cgi", xheader2cgi);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -2224,7 +2226,68 @@ int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN, Xr
 
 
 
+/* Function: xheader2cgi
+ * 
+ *   Purpose:  To parse the directive: header2cgi <headerkey> <cgikey>
+ * 
+ *             <headerkey>   the name of an incoming HTTP header
+ *                           to be transformed
+ *             <cgikey>      the name to be given when adding it to the cgi info
+ *                           that is kept only internally
+ * 
+ *  Output: 0 upon success or !0 upon failure.
+ */
 
+int XrdHttpProtocol::xheader2cgi(XrdOucStream & Config) {
+  char *val, keybuf[1024], parmbuf[1024];
+  char *parm;
+  
+  // Get the path
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "No headerkey specified.");
+    return 1;
+  } else {
+    
+    // Trim the beginning, in place
+    while ( *val && !isalnum(*val) ) val++;
+    strcpy(keybuf, val);
+    
+    // Trim the end, in place
+    char *pp;
+    pp = keybuf + strlen(keybuf) - 1;
+    while ( (pp >= keybuf) && (!isalnum(*pp)) ) {
+      *pp = '\0';
+      pp--;
+    }
+    
+    parm = Config.GetWord();
+    
+    // Trim the beginning, in place
+    while ( *parm && !isalnum(*parm) ) parm++;
+    strcpy(parmbuf, parm);
+    
+    // Trim the end, in place
+    pp = parmbuf + strlen(parmbuf) - 1;
+    while ( (pp >= parmbuf) && (!isalnum(*pp)) ) {
+      *pp = '\0';
+      pp--;
+    }
+    
+    // Add this mapping to the map that will be used
+    try {
+      hdr2cgimap[keybuf] = parmbuf;
+    } catch ( ... ) {
+      eDest.Emsg("Config", "Can't insert new header2cgi rule. key: '", keybuf, "'");
+      return 1;
+    }
+    
+  }
+  
+  
+  return 0;
+}
 
 
 
