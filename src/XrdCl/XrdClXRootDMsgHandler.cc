@@ -414,9 +414,12 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( !pRedirectCounter )
         {
-          log->Dump( XRootDMsg, "[%s] Redirect limit has been reached for"
-                     "message %s", pUrl.GetHostId().c_str(),
-                     pRequest->GetDescription().c_str() );
+          log->Warning( XRootDMsg, "[%s] Redirect limit has been reached for "
+                     "message %s, the last known error is: %s",
+                     pUrl.GetHostId().c_str(),
+                     pRequest->GetDescription().c_str(),
+                     pLastError.ToString().c_str() );
+
 
           pStatus = Status( stFatal, errRedirectLimit );
           HandleResponse();
@@ -1831,6 +1834,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( status.IsOK() )
       return;
+
+    pLastError = status;
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( XRootDMsg, "[%s] Handling error while processing %s: %s.",

@@ -364,6 +364,7 @@ namespace XrdCl
       PostMaster                *pPostMaster;
       SIDManager                *pSidMgr;
       Status                     pStatus;
+      Status                     pLastError;
       time_t                     pExpiration;
       bool                       pRedirectAsAnswer;
       HostList                  *pHosts;
