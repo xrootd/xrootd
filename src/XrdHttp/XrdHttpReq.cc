@@ -514,10 +514,14 @@ bool XrdHttpReq::Done(XrdXrootd::Bridge::Context & info) {
   TRACE(REQ, " XrdHttpReq::Done");
 
   xrdresp = kXR_ok;
-  //this->iovN = 0;
-
-  if (PostProcessHTTPReq(true)) reset();
-
+  
+  
+  int r = PostProcessHTTPReq(true);
+  // Beware, we don't have to reset() if the result is 0
+  if (r) reset();
+  if (r < 0) return false; 
+  
+  
   return true;
 };
 
