@@ -2460,7 +2460,7 @@ int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
 XrdHttpExtHandler * XrdHttpProtocol::FindMatchingExtHandler(const XrdHttpReq &req) {
   std::vector<XrdHttpExtHandler *>::const_iterator it;
   for (it = exthandler.begin(); it != exthandler.end(); it++) {
-    if ((*it)->MatchesPath(req.requestverb, req.resource.c_str())) {
+    if ((*it)->MatchesPath(req.requestverb.c_str(), req.resource.c_str())) {
       return *it;
     }
   }
