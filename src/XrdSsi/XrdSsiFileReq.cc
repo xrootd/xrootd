@@ -330,7 +330,7 @@ void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 // that the respWait flag is at this moment false as this is called in the
 // sync response path for fctl() and the response may have been posted.
 //
-   if (haveResp) respWait = true;
+   if (!haveResp) respWait = true;
       else WakeUp();
 }
 
