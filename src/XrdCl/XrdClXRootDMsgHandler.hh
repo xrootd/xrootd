@@ -380,6 +380,7 @@ namespace XrdCl
       SIDManager                *pSidMgr;
       LocalFileHandler          *pLFileHandler;
       Status                     pStatus;
+      Status                     pLastError;
       time_t                     pExpiration;
       bool                       pRedirectAsAnswer;
       HostList                  *pHosts;

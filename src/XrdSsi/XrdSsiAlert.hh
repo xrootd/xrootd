@@ -44,7 +44,7 @@ static XrdSsiAlert     *Alloc(XrdSsiRespInfoMsg &aMsg);
 
        void             Recycle();
 
-       void             SetInfo(XrdOucErrInfo  &eInfo);
+       int              SetInfo(XrdOucErrInfo &eInfo, char* aMsg, int aLen);
 
 static void             SetMax(int maxval) {fMax = maxval;}
 

@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <cstddef>
+#include <string.h>
 #include <sys/uio.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -113,13 +114,13 @@ void XrdSsiAlert::Recycle()
 /*                               S e t I n f o                                */
 /******************************************************************************/
   
-void XrdSsiAlert::SetInfo(XrdOucErrInfo &eInfo)
+int XrdSsiAlert::SetInfo(XrdOucErrInfo &eInfo, char *aMsg, int aLen)
 {
    static const int aIovSz = 3;
    struct AlrtResp {struct iovec ioV[aIovSz]; XrdSsiRRInfoAttn aHdr;};
 
    AlrtResp *alrtResp;
-   char *mBuff;
+   char *mBuff, *aData;
    int n;
 
 // We will be constructing the response in the message buffer. This is
@@ -141,12 +142,18 @@ void XrdSsiAlert::SetInfo(XrdOucErrInfo &eInfo)
 
 // Fill out the iovec for the alert data
 //
-   alrtResp->ioV[2].iov_base = theMsg->GetMsg(n);
+   aData = theMsg->GetMsg(n);
+   alrtResp->ioV[2].iov_base = aData;
    alrtResp->ioV[2].iov_len  = n;
    alrtResp->aHdr.mdLen = htonl(n);
    alrtResp->aHdr.tag = XrdSsiRRInfoAttn::alrtResp;
 
+// Return up to 8 bytes of alert data for debugging purposes
+//
+   if (aMsg) memcpy(aMsg, aData, (n < (int)sizeof(aMsg) ? n : 8));
+
 // Setup to have metadata actually sent to the requestor
 //
    eInfo.setErrCode(aIovSz);
+   return n;
 }

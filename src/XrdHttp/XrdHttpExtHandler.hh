@@ -55,6 +55,9 @@ public:
   std::string clientdn, clienthost, clientgroups;
   long long length;
   
+  // A view of the XrdSecEntity associated with the request.
+  const XrdSecEntity &GetSecEntity() const;
+
   /// Get a pointer to data read from the client, valid for up to blen bytes from the buffer. Returns the validity
   int BuffgetData(int blen, char **data, bool wait);
 
@@ -71,7 +74,7 @@ public:
   
   /// Tells if the incoming path is recognized as one of the paths that have to be processed
   // e.g. applying a prefix matching scheme or whatever
-  virtual bool MatchesPath(const char *path) = 0;
+  virtual bool MatchesPath(const char *verb, const char *path) = 0;
   
   /// Process an HTTP request and send the response using the calling
   ///  XrdHttpProtocol instance directly
@@ -111,6 +114,8 @@ public:
 //!                  may be null though that would be impossible.
 //! @param  parms -> Argument string specified on the namelib directive. It may
 //!                  be null or point to a null string if no parms exist.
+//! @param  myEnv -> Environment variables for configuring the external handler;
+//!                  it my be null.
 //!
 //! @return Success: A pointer to an instance of the XrdHttpSecXtractor object.
 //!         Failure: A null pointer which causes initialization to fail.
@@ -119,10 +124,12 @@ public:
 //------------------------------------------------------------------------------
 
 class XrdSysError;
+class XrdOucEnv;
 
 #define XrdHttpExtHandlerArgs XrdSysError       *eDest, \
                               const char        *confg, \
-                              const char        *parms
+                              const char        *parms, \
+                              XrdOucEnv         *myEnv
 
 extern "C" XrdHttpExtHandler *XrdHttpGetExtHandler(XrdHttpExtHandlerArgs);
 

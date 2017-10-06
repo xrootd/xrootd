@@ -25,6 +25,7 @@
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdInet.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -93,6 +94,7 @@ BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
 std::vector<XrdHttpExtHandler *> XrdHttpProtocol::exthandler;
+std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
 
 static const unsigned char *s_server_session_id_context = (const unsigned char *) "XrdHTTPSessionCtx";
 static int s_server_session_id_context_len = 18;
@@ -830,10 +832,10 @@ int XrdHttpProtocol::Stats(char *buff, int blen, int do_sync) {
 /******************************************************************************/
 
 #define TS_Xeq(x,m) (!strcmp(x,var)) GoNo = m(Config)
+#define TS_Xeq3(x,m) (!strcmp(x,var)) GoNo = m(Config, ConfigFN, myEnv)
 
-int XrdHttpProtocol::Config(const char *ConfigFN) {
-  XrdOucEnv myEnv;
-  XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
+  XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), myEnv, "=====> ");
   char *var;
   int cfgFD, GoNo, NoGo = 0, ismine;
 
@@ -860,13 +862,14 @@ int XrdHttpProtocol::Config(const char *ConfigFN) {
       else if TS_Xeq("secretkey", xsecretkey);
       else if TS_Xeq("desthttps", xdesthttps);
       else if TS_Xeq("secxtractor", xsecxtractor);
-      else if TS_Xeq("exthandler", xexthandler);
+      else if TS_Xeq3("exthandler", xexthandler);
       else if TS_Xeq("selfhttps2http", xselfhttps2http);
       else if TS_Xeq("embeddedstatic", xembeddedstatic);
       else if TS_Xeq("listingredir", xlistredir);
       else if TS_Xeq("staticredir", xstaticredir);
       else if TS_Xeq("staticpreload", xstaticpreload);
       else if TS_Xeq("listingdeny", xlistdeny);
+      else if TS_Xeq("header2cgi", xheader2cgi);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -1294,7 +1297,10 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 
   Window = pi->WSize;
 
-
+  pi->NetTCP->netIF.Port(Port);
+  pi->NetTCP->netIF.Display("Config ");
+  pi->theEnv->PutPtr("XrdInet*", (void *)(pi->NetTCP));
+  pi->theEnv->PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
 
   // Prohibit this program from executing as superuser
   //
@@ -1323,7 +1329,7 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   // Now process and configuration parameters
   //
   rdf = (parms && *parms ? parms : pi->ConfigFN);
-  if (rdf && Config(rdf)) return 0;
+  if (rdf && Config(rdf, pi->theEnv)) return 0;
   if (pi->DebugON) XrdHttpTrace->What = TRACE_ALL;
 
   // Set the redirect flag if we are a pure redirector
@@ -2194,7 +2200,7 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
  *  Output: 0 upon success or !0 upon failure.
  */
 
-int XrdHttpProtocol::xexthandler(XrdOucStream & Config) {
+int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv) {
   char *val, valbuf[1024];
   char *parm;
   
@@ -2210,7 +2216,7 @@ int XrdHttpProtocol::xexthandler(XrdOucStream & Config) {
     
     // Try to load the plugin (if available) that extracts info from the user cert/proxy
     //
-    if (LoadExtHandler(&eDest, valbuf, parm))
+    if (LoadExtHandler(&eDest, valbuf, ConfigFN, parm, myEnv))
       return 1;
   }
   
@@ -2220,7 +2226,68 @@ int XrdHttpProtocol::xexthandler(XrdOucStream & Config) {
 
 
 
+/* Function: xheader2cgi
+ * 
+ *   Purpose:  To parse the directive: header2cgi <headerkey> <cgikey>
+ * 
+ *             <headerkey>   the name of an incoming HTTP header
+ *                           to be transformed
+ *             <cgikey>      the name to be given when adding it to the cgi info
+ *                           that is kept only internally
+ * 
+ *  Output: 0 upon success or !0 upon failure.
+ */
 
+int XrdHttpProtocol::xheader2cgi(XrdOucStream & Config) {
+  char *val, keybuf[1024], parmbuf[1024];
+  char *parm;
+  
+  // Get the path
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "No headerkey specified.");
+    return 1;
+  } else {
+    
+    // Trim the beginning, in place
+    while ( *val && !isalnum(*val) ) val++;
+    strcpy(keybuf, val);
+    
+    // Trim the end, in place
+    char *pp;
+    pp = keybuf + strlen(keybuf) - 1;
+    while ( (pp >= keybuf) && (!isalnum(*pp)) ) {
+      *pp = '\0';
+      pp--;
+    }
+    
+    parm = Config.GetWord();
+    
+    // Trim the beginning, in place
+    while ( *parm && !isalnum(*parm) ) parm++;
+    strcpy(parmbuf, parm);
+    
+    // Trim the end, in place
+    pp = parmbuf + strlen(parmbuf) - 1;
+    while ( (pp >= parmbuf) && (!isalnum(*pp)) ) {
+      *pp = '\0';
+      pp--;
+    }
+    
+    // Add this mapping to the map that will be used
+    try {
+      hdr2cgimap[keybuf] = parmbuf;
+    } catch ( ... ) {
+      eDest.Emsg("Config", "Can't insert new header2cgi rule. key: '", keybuf, "'");
+      return 1;
+    }
+    
+  }
+  
+  
+  return 0;
+}
 
 
 
@@ -2367,7 +2434,8 @@ int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
 
 // Loads the external handler plugin, if available
 int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
-                                     const char *libParms) {
+                                    const char *configFN, const char *libParms,
+                                    XrdOucEnv *myEnv) {
   
   XrdVersionInfo *myVer = &XrdVERSIONINFOVAR(XrdgetProtocol);
   XrdOucPinLoader myLib(myeDest, myVer, "exthandlerlib", libName);
@@ -2376,11 +2444,13 @@ int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
   // Get the entry point of the object creator
   //
   ep = (XrdHttpExtHandler *(*)(XrdHttpExtHandlerArgs))(myLib.Resolve("XrdHttpGetExtHandler"));
+
   XrdHttpExtHandler *newhandler;
-  if (ep && (newhandler = ep(myeDest, NULL, libParms))) {
+  if (ep && (newhandler = ep(myeDest, configFN, libParms, myEnv))) {
     exthandler.push_back(newhandler);
     return 0;
   }
+
   myLib.Unload();
   return 1;
 }

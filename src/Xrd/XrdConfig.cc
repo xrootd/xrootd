@@ -89,9 +89,13 @@ extern int ka_Itvl;
 extern int ka_Icnt;
 };
 
+namespace XrdGlobal
+{
+extern XrdBuffXL xlBuff;
+}
+
 namespace
 {
-XrdBuffXL  xlBuff;
 XrdOucEnv  theEnv;
 };
 
@@ -497,7 +501,7 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Put largest buffer size in the env
 //
-   theEnv.PutInt("MaxBuffSize", xlBuff.MaxSize());
+   theEnv.PutInt("MaxBuffSize", XrdGlobal::xlBuff.MaxSize());
 
 // Export the network interface list at this point
 //
@@ -1192,7 +1196,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
            {eDest->Emsg("Config", "max buffer size not specified"); return 1;}
         if (XrdOuca2x::a2sz(*eDest,"maxbz value",val,&blim,minBSZ,maxBSZ))
            return 1;
-        xlBuff.Init(blim);
+        XrdGlobal::xlBuff.Init(blim);
         if (!(val = Config.GetWord())) return 0;
        }
 

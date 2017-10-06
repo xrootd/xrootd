@@ -151,12 +151,12 @@ private:
 
   
   /// Functions related to the configuration
-  static int Config(const char *fn);
+  static int Config(const char *fn, XrdOucEnv *myEnv);
   static int xtrace(XrdOucStream &Config);
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);
   static int xsecxtractor(XrdOucStream &Config);
-  static int xexthandler(XrdOucStream & Config);
+  static int xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv);
   static int xsslcadir(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
   static int xlistdeny(XrdOucStream &Config);
@@ -169,7 +169,8 @@ private:
   static int xsslcafile(XrdOucStream &Config);
   static int xsslverifydepth(XrdOucStream &Config);
   static int xsecretkey(XrdOucStream &Config);
-
+  static int xheader2cgi(XrdOucStream &Config);
+  
   static XrdHttpSecXtractor *secxtractor;
   static std::vector<XrdHttpExtHandler *> exthandler;
   
@@ -179,7 +180,8 @@ private:
   
   // Loads the ExtHandler plugin, if available
   static int LoadExtHandler(XrdSysError *eDest, const char *libName,
-                             const char *libParms);
+                            const char *configFN, const char *libParms,
+                            XrdOucEnv *myEnv);
 
   // Determines whether one of the loaded ExtHandlers are interested in
   // handling a given request.
@@ -349,6 +351,9 @@ protected:
 
   /// Our role
   static kXR_int32 myRole;
+  
+  /// Rules that turn HTTP headers to cgi tokens in the URL, for internal comsumption
+  static std::map< std::string, std::string > hdr2cgimap;
   
 };
 #endif

@@ -192,6 +192,23 @@ int XrdHttpReq::parseLine(char *line, int len) {
 
     } else if (!strcmp(key, "Expect") && strstr(val, "100-continue")) {
       sendcontinue = true;
+    } else {
+      // Some headers need to be translated into "local" cgi info. In theory they should already be quoted
+      std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
+      if (it != prot->hdr2cgimap.end()) {
+        std:: string s;
+        s.assign(val, line+len-val);
+        trim(s);
+        
+        if (hdr2cgistr.length() > 0) {
+          hdr2cgistr.append("&");
+        }
+        hdr2cgistr.append(it->second);
+        hdr2cgistr.append("=");
+        hdr2cgistr.append(s);
+        
+          
+      }
     }
 
     // We memorize the heaers also as a string
@@ -491,7 +508,6 @@ bool XrdHttpReq::Data(XrdXrootd::Bridge::Context &info, //!< the result context
 
   if (PostProcessHTTPReq(final_)) reset();
 
-
   return true;
 
 };
@@ -756,6 +772,7 @@ int XrdHttpReq::ProcessHTTPReq() {
   
   
   // Verify if we have an external handler for this request
+
   XrdHttpExtHandler *exthandler = prot->FindMatchingExtHandler(*this);
   if (exthandler) {
     XrdHttpExtReq xreq(this, prot);
@@ -768,7 +785,25 @@ int XrdHttpReq::ProcessHTTPReq() {
     
   }
   
-  
+  /// If we have to add extra header information, add it here.
+  if (!hdr2cgistr.empty()) {
+    const char *p = strchr(resourceplusopaque.c_str(), '?');
+    if (p) {
+      resourceplusopaque.append("&");
+    } else {
+      resourceplusopaque.append("?");
+    }
+    
+    char *q = quote(hdr2cgistr.c_str());
+    resourceplusopaque.append(q);
+    TRACEI(DEBUG, "Appended header fields to opaque info: '" << hdr2cgistr << "'");
+    free(q);
+    
+    // Once we've appended the authorization to the full resource+opaque string,
+    // reset the authz to empty: this way, any operation that triggers repeated ProcessHTTPReq
+    // calls won't also trigger multiple copies of the authz.
+    hdr2cgistr = "";
+    }
   
   //
   // Here we process the request locally
@@ -1739,9 +1774,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           default: //read or readv
           {
             
-	    // Close() if this was the third state of a readv, otherwise read the next chunk
-	    if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return 1;
-	    
+            // Nothing to do if we are postprocessing a close
+            if (ntohs(xrdreq.header.requestid) == kXR_close) return 1;
+            
+            // Close() if this was the third state of a readv, otherwise read the next chunk
+            if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return 1;
+
             // If we are here it's too late to send a proper error message...
             if (xrdresp == kXR_error) return -1;
 
@@ -1795,21 +1833,25 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
             } else
               for (int i = 0; i < iovN; i++) {
-		if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
-		writtenbytes += iovP[i].iov_len;
+                if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
+                writtenbytes += iovP[i].iov_len;
               }
               
+            // Let's make sure that we avoid sending the same data twice,
+            // in the case where PostProcessHTTPReq is invoked again
+            this->iovN = 0;
+            
             return 0;
           }
 
-        }
+        } // switch reqstate
 
 
       }
 
 
       break;
-    }
+    } // case GET
 
 
     case XrdHttpReq::rtPUT:
@@ -2233,6 +2275,7 @@ void XrdHttpReq::reset() {
 
   host = "";
   destination = "";
+  hdr2cgistr = "";
 
   iovP = 0;
   iovN = 0;

@@ -134,6 +134,11 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    Eroute.Say("++++++ File system initialization started.");
 
+// Start off with no POSC log. Note that XrdSfsGetDefaultFileSystem nakes sure
+// that we are configured only once.
+//
+   poscLog = NULL;
+
 // Establish the network interface that the caller must provide
 //
    if (!EnvInfo || !(myIF = (XrdNetIF *)EnvInfo->GetPtr("XrdNetIF*")))

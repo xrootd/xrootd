@@ -43,7 +43,7 @@
 // the end of your config, return the result of the XrdOfs::Config().
 
 
-XrdOfs *XrdOfsFS = 0;
+XrdOfs *XrdOfsFS = NULL;
 
 XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
                                              XrdSysLogger     *lp,
@@ -51,6 +51,7 @@ XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
                                              XrdOucEnv        *EnvInfo)
 {
    extern XrdSysError OfsEroute;
+   static XrdSysMutex XrdDefaultOfsMutex;
    static XrdOfs XrdDefaultOfsFS;
 
 // No need to herald this as it's now the default filesystem
@@ -60,9 +61,14 @@ XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
 
 // Initialize the subsystems
 //
-   XrdOfsFS = &XrdDefaultOfsFS;
-   XrdOfsFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
-   if ( XrdOfsFS->Configure(OfsEroute, EnvInfo) ) return 0;
+   {
+      XrdSysMutexHelper sentry(XrdDefaultOfsMutex);
+      if (XrdOfsFS == NULL) {
+         XrdOfsFS = &XrdDefaultOfsFS;
+         XrdOfsFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+         if ( XrdOfsFS->Configure(OfsEroute, EnvInfo) ) return 0;
+      }
+   }
 
 // All done, we can return the callout vector to these routines.
 //

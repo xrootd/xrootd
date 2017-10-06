@@ -90,14 +90,23 @@ bool XrdSsiRequest::Finished(bool cancel)
    theRespond = 0;
    rrMutex->UnLock();
 
-// If there is no responder, return failure
+// Tell any responder we are finished (we might not have one)
 //
-   if (!respP) return false;
+   if (respP) respP->Finished(*this, Resp, cancel);
 
-// Tell any responder we are finished
+// Reinitialize the this object in case it is being reused
 //
-   respP->Finished(*this, Resp, cancel);
-   return true;
+   rrMutex->Lock();
+   Resp.Init();
+   errInfo.Clr();
+   epNode = 0;
+   XrdSsiMutex *mP = rrMutex;
+   rrMutex = &ubMutex;
+   mP->UnLock();
+
+// Return false if there was no responder associated with this request
+//
+   return respP != 0;
 }
 
 /******************************************************************************/
