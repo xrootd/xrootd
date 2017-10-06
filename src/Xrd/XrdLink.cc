@@ -431,7 +431,7 @@ void XrdLink::DoIt()
 // Either re-enable the link and cycle back waiting for a new request, leave
 // disabled, or terminate the connection.
 //
-   if (rc >= 0) {if (Poller) Poller->Enable(this);}
+   if (rc >= 0) {if (Poller && !Poller->Enable(this)) Close();}
       else if (rc != -EINPROGRESS) Close();
 }
   
