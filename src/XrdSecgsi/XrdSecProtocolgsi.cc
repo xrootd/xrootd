@@ -1550,14 +1550,14 @@ static bool AuthzFunCheck(XrdSutCacheEntry *e, void *a) {
    long to_ref = (*((XrdSutCacheArg_t *)a)).arg3;
    int st_exp = (*((XrdSutCacheArg_t *)a)).arg4;
 
-   if (e) {
+   if (e && (e->status == st_ref)) {
       // Check expiration, if required
       bool expired = 0;
       if (to_ref > 0 && (ts_ref - e->mtime) > to_ref) expired = 1;
       int notafter = *((int *) e->buf2.buf);
       if (to_ref > notafter) expired = 1;
 
-      if (expired || (e->status != st_ref)) {
+      if (expired) {
          // Invalidate the entry, if the case
          e->status = st_exp;
       } else {
