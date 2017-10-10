@@ -25,14 +25,15 @@ function findProg()
 #-------------------------------------------------------------------------------
 function printHelp()
 {
-  echo "Usage:"                                              1>&2
-  echo "${0} [--help] [--source PATH] [--output PATH]"       1>&2
-  echo "  --help        prints this message"                 1>&2
-  echo "  --source PATH specify the root of the source tree" 1>&2
-  echo "                defaults to ../"                     1>&2
-  echo "  --output PATH the directory where the source rpm"  1>&2
-  echo "                should be stored, defaulting to ."   1>&2
-  echo "  --version VERSION the version provided by user"    1>&2
+  echo "Usage:"                                               1>&2
+  echo "${0} [--help] [--source PATH] [--output PATH]"        1>&2
+  echo "  --help        prints this message"                  1>&2
+  echo "  --source  PATH specify the root of the source tree" 1>&2
+  echo "                defaults to ../"                      1>&2
+  echo "  --output  PATH the directory where the source rpm"  1>&2
+  echo "                should be stored, defaulting to ."    1>&2
+  echo "  --version VERSION the version provided by user"     1>&2
+  echo "  --define  'MACRO EXPR'"                             1>&2
 }
 
 #-------------------------------------------------------------------------------
@@ -65,6 +66,13 @@ while test ${#} -ne 0; do
       exit 1
     fi
     USER_VERSION="--version ${2}"
+    shift
+  elif test x${1} = x--define; then
+    if test ${#} -lt 2; then
+      echo "--define parameter needs an argument" 1>&2
+      exit 1
+    fi
+    USER_DEFINE="$USER_DEFINE --define \""${2}"\""
     shift
   fi
   shift
@@ -249,12 +257,13 @@ echo "[i] Creating the source RPM..."
 
 # Dirty, dirty hack!
 echo "%_sourcedir $RPMSOURCES" >> $TEMPDIR/rpmmacros
-rpmbuild --define "_topdir $TEMPDIR/rpmbuild"    \
-         --define "%_sourcedir $RPMSOURCES"      \
-         --define "%_srcrpmdir %{_topdir}/SRPMS" \
-         --define "_source_filedigest_algorithm md5" \
-         --define "_binary_filedigest_algorithm md5" \
-  -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log
+eval "rpmbuild --define \"_topdir $TEMPDIR/rpmbuild\"    \
+               --define \"%_sourcedir $RPMSOURCES\"      \
+               --define \"%_srcrpmdir %{_topdir}/SRPMS\" \
+               --define \"_source_filedigest_algorithm md5\" \
+               --define \"_binary_filedigest_algorithm md5\" \
+               ${USER_DEFINE} \
+               -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log"
 if test $? -ne 0; then
   echo "[!] RPM creation failed" 1>&2
   exit 8
