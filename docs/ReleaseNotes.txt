@@ -6,6 +6,32 @@ Release Notes
 =============
 
 -------------
+Version 4.7.1
+-------------
+
++ **Major bug fixes**
+  * **[XrdSecgsi]** Fix segv in cache checking, fixes #595
+  * **[XrdHttp]** Fix for the persistent connection issue.
+  * **[XrdHttp]** Fix FD leak when a socket error is encountered.
+  * **[XrdSsi]** Avoid race condition when response is posted.
+  * **[XrdSsi]** Avoid state conflict when request is being processed and 
+                 client asks for response.
+  * **[XrdCl]** Prevent segv in case user has no name.
+
++ **Minor bug fixes**
+  * **[XrdLink]** Increment the IOSemaphore once for each waiting thread.
+
++ **Miscellaneous**
+  * **[XrdCl]** Log last error in case redirect limit has been reached.
+  * **[XrdCl]** Add option to read credentials under different fsuid/fsgid.
+  * **[XrdCl]** Accept empty login response for protocol <= 2.8.9
+                (This is only to ensure compatibility with dCache, which
+                due to its inaccurate implementation of XRoot protocol in 
+                some cases returns an empty login response for protocol 
+                version <= 2.8.9.)
+  * **[XrdSsi] Reinitializ response object after Finished() so it can reused.
+  
+-------------
 Version 4.7.0
 -------------
 
