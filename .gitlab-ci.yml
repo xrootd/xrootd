@@ -61,8 +61,6 @@ build:cc7:ceph:
     - cd packaging/
     - ./makesrpm.sh --define '_with_ceph11 1'
     - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-luminous/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
-    - yum versionlock librados-devel-12.2.0
-    - yum versionlock libradosstriper-devel-12.2.0
     - yum-builddep --nogpgcheck -y *.src.rpm
     - rpmbuild --rebuild --define="_with_ceph11 1" --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - repo=/eos/project/s/storage-ci/www/xrootd/ceph/cc-7/x86_64/$(date +'%Y%m%d')
@@ -326,8 +324,6 @@ release:cc7:ceph:
     - cd packaging/
     - ./makesrpm.sh --define '_with_ceph11 1'
     - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-luminous/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
-    - yum versionlock librados-devel-12.2.0
-    - yum versionlock libradosstriper-devel-12.2.0
     - yum-builddep --nogpgcheck -y *.src.rpm
     - rpmbuild --rebuild --define="_with_ceph11 1" --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - repo=/eos/project/s/storage-ci/www/xrootd/ceph-release/cc-7/x86_64/
