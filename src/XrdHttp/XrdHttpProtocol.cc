@@ -93,7 +93,8 @@ SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
-XrdHttpExtHandler *XrdHttpProtocol::exthandler = 0;
+struct XrdHttpProtocol::XrdHttpExtHandlerInfo XrdHttpProtocol::exthandler[MAX_XRDHTTPEXTHANDLERS];
+int XrdHttpProtocol::exthandlercnt = 0;
 std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
 
 static const unsigned char *s_server_session_id_context = (const unsigned char *) "XrdHTTPSessionCtx";
@@ -739,7 +740,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   // Now we have everything that is needed to try the login
   // Remember that if there is an exthandler then it has the responsibility
   // for authorization in the paths that it manages
-  if (!exthandler || !exthandler->MatchesPath(CurrentReq.requestverb.c_str(), CurrentReq.resource.c_str())) {
+  if (FindMatchingExtHandler(CurrentReq)) {
     if (!Bridge) {
       if (SecEntity.name)
         Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
@@ -2191,8 +2192,10 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
 
 /* Function: xexthandler
  * 
- *   Purpose:  To parse the directive: exthandler <path> <initparm>
+ *   Purpose:  To parse the directive: exthandler <name> <path> <initparm>
  * 
+ *             <name>      a unique name (max 16chars) to be given to this
+ *                         instance, e.g 'myhandler1'
  *             <path>      the path of the plugin to be loaded
  *             <initparm>  a string parameter (e.g. a config file) that is
  *                         passed to the initialization of the plugin
@@ -2200,9 +2203,24 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
  *  Output: 0 upon success or !0 upon failure.
  */
 
-int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv) {
-  char *val, valbuf[1024];
+int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN,
+                                 XrdOucEnv *myEnv) {
+  char *val, path[1024], namebuf[1024];
   char *parm;
+  
+  // Get the name
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "No instance name specified for an http external handler plugin .");
+    return 1;
+  }
+  if (strlen(val) >= 16) {
+    eDest.Emsg("Config", "Instance name too long for an http external handler plugin .");
+    return 1;
+  }
+  strncpy(namebuf, val, sizeof(namebuf));
+  namebuf[ sizeof(namebuf)-1 ] = '\0';
   
   // Get the path
   //
@@ -2210,16 +2228,19 @@ int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN, Xr
   if (!val || !val[0]) {
     eDest.Emsg("Config", "No http external handler plugin specified.");
     return 1;
-  } else {
-    strcpy(valbuf, val);
-    parm = Config.GetWord();
-    
-    // Try to load the plugin (if available) that extracts info from the user cert/proxy
-    //
-    if (LoadExtHandler(&eDest, valbuf, ConfigFN, parm, myEnv))
-      return 1;
-  }
+  } 
+  strcpy(path, val);
   
+  // Everything else is a free string
+  //
+  parm = Config.GetWord();
+    
+  
+  // Try to load the plugin implementing ext behaviour
+  //
+  if (LoadExtHandler(&eDest, path, ConfigFN, parm, myEnv, namebuf))
+    return 1;
+
   
   return 0;
 }
@@ -2435,10 +2456,18 @@ int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
 // Loads the external handler plugin, if available
 int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
                                     const char *configFN, const char *libParms,
-                                    XrdOucEnv *myEnv) {
+                                    XrdOucEnv *myEnv, const char *instName) {
   
-  // We don't want to load it more than once
-  if (exthandler) return 1;
+  
+  // This function will avoid loading doubles. No idea why this happens
+  if (ExtHandlerLoaded(instName)) {
+    eDest.Emsg("Config", "Instance name already present for an http external handler plugin.");
+    return 1;
+  }
+  if (exthandlercnt >= MAX_XRDHTTPEXTHANDLERS) {
+    eDest.Emsg("Config", "Cannot load one more exthandler. Max is 4");
+    return 1;
+  }
   
   XrdVersionInfo *myVer = &XrdVERSIONINFOVAR(XrdgetProtocol);
   XrdOucPinLoader myLib(myeDest, myVer, "exthandlerlib", libName);
@@ -2447,10 +2476,43 @@ int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
   // Get the entry point of the object creator
   //
   ep = (XrdHttpExtHandler *(*)(XrdHttpExtHandlerArgs))(myLib.Resolve("XrdHttpGetExtHandler"));
-  if (ep && (exthandler = ep(myeDest, configFN, libParms, myEnv))) return 0;
+
+  XrdHttpExtHandler *newhandler;
+  if (ep && (newhandler = ep(myeDest, configFN, libParms, myEnv))) {
+    
+    // Handler has been loaded, it's the last one in the list
+    strncpy( exthandler[exthandlercnt].name,  instName, 16 );
+    exthandler[exthandlercnt].name[15] = '\0';
+    exthandler[exthandlercnt++].ptr = newhandler;
+    
+    return 0;
+  }
+
   myLib.Unload();
   return 1;
 }
 
 
 
+// Tells if we have already loaded a certain exthandler. Try to
+// privilege speed, as this func may be invoked pretty often
+bool XrdHttpProtocol::ExtHandlerLoaded(const char *handlername) {
+  for (int i = 0; i < exthandlercnt; i++) {
+    if ( !strncmp(exthandler[i].name, handlername, 15) ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Locates a matching external handler for a given request, if available. Try to
+// privilege speed, as this func is invoked for every incoming request
+XrdHttpExtHandler * XrdHttpProtocol::FindMatchingExtHandler(const XrdHttpReq &req) {
+  
+  for (int i = 0; i < exthandlercnt; i++) {
+    if (exthandler[i].ptr->MatchesPath(req.requestverb.c_str(), req.resource.c_str())) {
+      return exthandler[i].ptr;
+    }
+  }
+  return NULL;
+}

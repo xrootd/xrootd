@@ -50,6 +50,8 @@
 
 #include <openssl/ssl.h>
 
+#include <vector>
+
 #include "XrdHttpReq.hh"
 
 /******************************************************************************/
@@ -170,17 +172,33 @@ private:
   static int xheader2cgi(XrdOucStream &Config);
   
   static XrdHttpSecXtractor *secxtractor;
-  static XrdHttpExtHandler *exthandler;
   
   // Loads the SecXtractor plugin, if available
   static int LoadSecXtractor(XrdSysError *eDest, const char *libName,
                       const char *libParms);
   
+  // An oldstyle struct array to hold exthandlers
+  #define MAX_XRDHTTPEXTHANDLERS 4
+  static struct XrdHttpExtHandlerInfo {
+    char name[16];
+    XrdHttpExtHandler *ptr;
+  } exthandler[MAX_XRDHTTPEXTHANDLERS];
+  static int exthandlercnt;
+  
   // Loads the ExtHandler plugin, if available
   static int LoadExtHandler(XrdSysError *eDest, const char *libName,
                             const char *configFN, const char *libParms,
-                            XrdOucEnv *myEnv);
+                            XrdOucEnv *myEnv, const char *instName);
 
+  // Determines whether one of the loaded ExtHandlers are interested in
+  // handling a given request.
+  //
+  // Returns NULL if there is no matching handler.
+  static XrdHttpExtHandler *FindMatchingExtHandler(const XrdHttpReq &);
+
+  // Tells if an ext handler with the given name has already been loaded
+  static bool ExtHandlerLoaded(const char *handlername);
+  
   /// Circular Buffer used to read the request
   XrdBuffer *myBuff;
   /// The circular pointers
