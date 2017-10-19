@@ -52,6 +52,30 @@ build:cc7:
   except:
     - tags
     - schedules
+    
+build:cc7:ceph:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
+    - cd packaging/
+    - ./makesrpm.sh --define '_with_ceph11 1'
+    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-luminous/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - rpmbuild --rebuild --define="_with_ceph11 1" --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - repo=/eos/project/s/storage-ci/www/xrootd/ceph/cc-7/x86_64/$(date +'%Y%m%d')
+    - sudo -u stci -H mkdir -p $repo
+    - sudo -u stci -H find $repo -type f -name '*.rpm' -delete
+    - sudo -u stci -H cp *.src.rpm $repo
+    - sudo -u stci -H cp RPMS/* $repo
+    - sudo -u stci -H createrepo --update -q $repo
+  tags:
+    - docker-slc6
+  only:
+    - master
+  except:
+    - tags
+    - schedules
 
 build:slc6:
   stage: build:rpm
@@ -234,7 +258,6 @@ release:cc7-x86_64:
     - ./makesrpm.sh
     - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el7"
     - cd ..
-    - cp packaging/*.src.rpm cc-7-x86_64
     - cp packaging/build/*.rpm cc-7-x86_64
   artifacts:
     expire_in: 1 day
@@ -256,7 +279,6 @@ release:slc6-x86_64:
     - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6"
     - cd ..
     - mkdir slc-6-x86_64
-    - cp packaging/*.src.rpm slc-6-x86_64
     - cp packaging/build/*.rpm slc-6-x86_64
   artifacts:
     expire_in: 1 day
@@ -278,7 +300,6 @@ release:slc6-i386:
     - /bin/mock --init -r epel-6-i386 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6"
     - cd ..
     - mkdir slc-6-i386
-    - cp packaging/*.src.rpm slc-6-i386
     - cp packaging/build/*.rpm slc-6-i386
   artifacts:
     expire_in: 1 day
@@ -292,6 +313,26 @@ release:slc6-i386:
     - branches
     - /^(?!v[0-9]+).*/
 
+release:cc7:ceph:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
+    - cd packaging/
+    - ./makesrpm.sh --define '_with_ceph11 1'
+    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-luminous/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - rpmbuild --rebuild --define="_with_ceph11 1" --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - repo=/eos/project/s/storage-ci/www/xrootd/ceph-release/cc-7/x86_64/
+    - sudo -u stci -H mkdir -p $repo
+    - sudo -u stci -H cp *.src.rpm $repo
+    - sudo -u stci -H cp RPMS/* $repo
+    - sudo -u stci -H createrepo --update -q $repo
+  tags:
+    - docker-cc7
+  only:
+    - tags
+  when: manual
 
 release:deb_ubuntu_artful:
   <<: *deb_ubuntu_artful_def
