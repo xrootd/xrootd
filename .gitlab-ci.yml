@@ -258,7 +258,6 @@ release:cc7-x86_64:
     - ./makesrpm.sh
     - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el7"
     - cd ..
-    - cp packaging/*.src.rpm cc-7-x86_64
     - cp packaging/build/*.rpm cc-7-x86_64
   artifacts:
     expire_in: 1 day
@@ -280,7 +279,6 @@ release:slc6-x86_64:
     - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6"
     - cd ..
     - mkdir slc-6-x86_64
-    - cp packaging/*.src.rpm slc-6-x86_64
     - cp packaging/build/*.rpm slc-6-x86_64
   artifacts:
     expire_in: 1 day
@@ -302,7 +300,6 @@ release:slc6-i386:
     - /bin/mock --init -r epel-6-i386 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6"
     - cd ..
     - mkdir slc-6-i386
-    - cp packaging/*.src.rpm slc-6-i386
     - cp packaging/build/*.rpm slc-6-i386
   artifacts:
     expire_in: 1 day
