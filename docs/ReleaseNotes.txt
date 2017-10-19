@@ -17,6 +17,7 @@ Version 4.7.1
   * **[XrdSsi]** Avoid state conflict when request is being processed and 
                  client asks for response.
   * **[XrdCl]** Prevent segv in case user has no name.
+  * **[Server]** Close link on enable errors to prevent socket leaks.
 
 + **Minor bug fixes**
   * **[XrdLink]** Increment the IOSemaphore once for each waiting thread.
@@ -31,6 +32,7 @@ Version 4.7.1
                 due to its inaccurate implementation of XRoot protocol in 
                 some cases returns an empty login response for protocol 
                 version <= 2.8.9.)
+  * **[XrdCl]** Add envar to config Nagle algorithm.
   * **[XrdSsi]** Reinitializ response object after Finished() so it can
                  reused.
   * **[XrdHttp]** Header2cgi directive.
