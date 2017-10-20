@@ -255,7 +255,7 @@ namespace XrdCl
         if(pFsUid >= 0) {
           pPrevFsUid = setfsuid(pFsUid);
 
-          if(setfsuid(-1) != pFsUid) {
+          if(setfsuid(pFsUid) != pFsUid) {
             pOk = false;
             return;
           }
@@ -267,7 +267,7 @@ namespace XrdCl
         if(pFsGid >= 0) {
           pPrevFsGid = setfsgid(pFsGid);
 
-          if(setfsgid(-1) != pFsGid) {
+          if(setfsgid(pFsGid) != pFsGid) {
             pOk = false;
             return;
           }
