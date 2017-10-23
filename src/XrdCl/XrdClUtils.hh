@@ -26,6 +26,8 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClPropertyList.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClConstants.hh"
 #include "XrdNet/XrdNetUtils.hh"
 
 #include <sys/time.h>
@@ -243,7 +245,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ScopedFsUidSetter(uid_t fsuid, gid_t fsgid) : pFsUid(fsuid), pFsGid(fsgid)
+      ScopedFsUidSetter(uid_t fsuid, gid_t fsgid, const std::string &streamName)
+      : pFsUid(fsuid), pFsGid(fsgid), pStreamName(streamName)
       {
         pOk = true;
         pPrevFsUid = -1;
@@ -278,12 +281,16 @@ namespace XrdCl
       //! Destructor
       //------------------------------------------------------------------------
       ~ScopedFsUidSetter() {
+        Log *log = DefaultEnv::GetLog();
+
         if(pPrevFsUid >= 0) {
-          setfsuid(pPrevFsUid);
+          int retcode = setfsuid(pPrevFsUid);
+          log->Dump(XRootDTransportMsg, "[%s] Restored fsuid from %d to %d", pStreamName.c_str(), retcode, pPrevFsUid);
         }
 
         if(pPrevFsGid >= 0) {
-          setfsgid(pPrevFsGid);
+          int retcode = setfsgid(pPrevFsGid);
+          log->Dump(XRootDTransportMsg, "[%s] Restored fsgid from %d to %d", pStreamName.c_str(), retcode, pPrevFsGid);
         }
       }
 
@@ -294,6 +301,8 @@ namespace XrdCl
     private:
       int pFsUid;
       int pFsGid;
+
+      const std::string &pStreamName;
 
       int pPrevFsUid;
       int pPrevFsGid;
