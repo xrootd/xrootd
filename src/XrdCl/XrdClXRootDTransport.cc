@@ -1836,7 +1836,7 @@ namespace XrdCl
     if(secgidc) secgid = atoi(secgidc);
 
 #ifdef __linux__
-    ScopedFsUidSetter uidSetter(secuid, secgid);
+    ScopedFsUidSetter uidSetter(secuid, secgid, hsData->streamName);
     if(!uidSetter.IsOk()) {
       log->Error( XRootDTransportMsg, "[%s] Error while setting (fsuid, fsgid) to (%d, %d)",
                   hsData->streamName.c_str(), secuid, secgid );
