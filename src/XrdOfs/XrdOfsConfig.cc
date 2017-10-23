@@ -1245,7 +1245,8 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
                 {Eroute.Emsg("Config","scan type not specified"); return 1;}
                   if (strcmp(val, "stderr")) Parms.Grab = -2;
              else if (strcmp(val, "stdout")) Parms.Grab = -1;
-                {Eroute.Emsg("Config","invalid scan type -",val); return 1;}
+             else if (strcmp(val, "all"   )) Parms.Grab =  0;
+             else {Eroute.Emsg("Config","invalid scan type -",val); return 1;}
              continue;
             }
          if (!strcmp(val, "echo"))  {Parms.xEcho = 1; continue;}
