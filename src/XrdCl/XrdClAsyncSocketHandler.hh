@@ -141,15 +141,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void OnWriteWhileHandshaking();
 
+
+      Status WriteMessageAndRaw( Message *toWrite, Message *&sign );
+
+      Status WriteSeparately( Message *toWrite, Message *&sign );
+
       //------------------------------------------------------------------------
       // Write the current message
       //------------------------------------------------------------------------
       Status WriteCurrentMessage( Message *toWrite );
 
       //------------------------------------------------------------------------
-      // Write the message and its signature
+      // Write the message, its signature and its body
       //------------------------------------------------------------------------
-      Status WriteSignedMessage( Message *toWrite, Message *&sign );
+      Status WriteVMessage( Message *toWrite, Message *&sign, ChunkInfo *chunk,
+                            uint32_t &asyncOffset );
 
       //------------------------------------------------------------------------
       // Got a read readiness event

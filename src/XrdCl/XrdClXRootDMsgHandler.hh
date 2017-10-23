@@ -188,6 +188,19 @@ namespace XrdCl
                                        uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
+      //! Get message body - called if IsRaw returns true
+      //!
+      //! @return          list of chunks (message body)
+      //------------------------------------------------------------------------
+      virtual ChunkInfo* GetMessageBody( uint32_t *&asyncOffset )
+      {
+        if( !pChunkList )
+          return 0;
+        asyncOffset = &pAsyncOffset;
+        return &pChunkList->front();
+      }
+
+      //------------------------------------------------------------------------
       //! Called after the wait time for kXR_wait has elapsed
       //!
       //! @param  now current timestamp
