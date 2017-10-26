@@ -942,6 +942,66 @@ namespace XrdCl
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
+  //------------------------------------------------------------------------
+  // Write scattered buffers in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::WriteV( uint64_t            offset,
+                                              const struct iovec *iov,
+                                              int                 iovcnt,
+                                              ResponseHandler    *handler,
+                                              uint16_t            timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a write command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientWriteRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    ChunkList *list   = new ChunkList();
+
+    uint32_t size = 0;
+    for( int i = 0; i < iovcnt; ++i )
+    {
+      size += iov[i].iov_len;
+      list->push_back( ChunkInfo( 0, iov[i].iov_len,
+                       (char*)iov[i].iov_base ) );
+    }
+
+    req->requestid  = kXR_write;
+    req->offset     = offset;
+    req->dlen       = size;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    if( pDataServer->IsLocalFile() )
+    {
+      XRootDStatus st = pLFileHandler->WriteV( offset, iov, iovcnt, stHandler, timeout );
+      return ExamineLocalResult( st, msg, stHandler );
+    }
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
   //----------------------------------------------------------------------------
   // Performs a custom operation on an open file, server implementation
   // dependent - async

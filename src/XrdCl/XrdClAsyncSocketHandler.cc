@@ -496,18 +496,18 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Write the message and its signature
   //----------------------------------------------------------------------------
-  Status AsyncSocketHandler::WriteVMessage( Message *toWrite, Message *&sign,
-                                            ChunkInfo *chunk,
-                                            uint32_t &asyncOffset  )
+  Status AsyncSocketHandler::WriteVMessage( Message   *toWrite,
+                                            Message   *&sign,
+                                            ChunkList *chunks,
+                                            uint32_t  *asyncOffset )
   {
-    if( !sign && !chunk) return WriteCurrentMessage( toWrite );
+    if( !sign && !chunks ) return WriteCurrentMessage( toWrite );
 
     Log *log = DefaultEnv::GetLog();
 
-    const size_t iovcnt = 1 + ( sign ? 1 : 0 ) + ( chunk ? 1 : 0 );
+    const size_t iovcnt = 1 + ( sign ? 1 : 0 ) + ( chunks ? chunks->size() : 0 );
     iovec iov[iovcnt];
     uint32_t leftToBeWritten = 0;
-    uint32_t rawSize = chunk ? chunk->length : 0;
     size_t i = 0;
 
     if( sign )
@@ -521,11 +521,11 @@ namespace XrdCl
     leftToBeWritten += iov[i].iov_len;
     ++i;
 
-    if( chunk )
+    uint32_t rawSize = 0;
+    if( chunks )
     {
-      iov[i].iov_base  = (char*)chunk->buffer + asyncOffset;
-      iov[i].iov_len   = rawSize - asyncOffset;
-      leftToBeWritten += iov[i].iov_len;
+      rawSize = ToIov( chunks, asyncOffset, iov + i );
+      leftToBeWritten += rawSize;
     }
 
     while( leftToBeWritten )
@@ -551,15 +551,12 @@ namespace XrdCl
       leftToBeWritten -= bytesWritten;
       if( sign )
         UpdateAfterWrite( *sign, iov[0], bytesWritten );
+
       i = sign ? 1 : 0;
       UpdateAfterWrite( *toWrite, iov[i], bytesWritten );
-      if( chunk )
-      {
-        asyncOffset += bytesWritten;
-        iov[i + 1].iov_base = reinterpret_cast<char*>( chunk->buffer )
-                            + asyncOffset;
-        iov[i + 1].iov_len  = rawSize - asyncOffset;
-      }
+
+      if( chunks && asyncOffset )
+        UpdateAfterWrite( chunks, asyncOffset, iov + i + 1, bytesWritten );
     }
 
     //--------------------------------------------------------------------------
@@ -575,7 +572,7 @@ namespace XrdCl
                pStreamName.c_str(), toWrite->GetDescription().c_str(),
                toWrite, toWrite->GetSize() );
 
-    if( chunk )
+    if( chunks )
       log->Dump( AsyncSockMsg, "[%s] WroteV raw data:  %d bytes",
                  pStreamName.c_str(), rawSize );
 
@@ -587,24 +584,25 @@ namespace XrdCl
     // once we can add 'GetMessageBody' to OutgoingMsghandler
     // interface we can get rid of the ugly dynamic_cast
     static XRootDMsgHandler *xrdHandler = 0;
-    if( xrdHandler != pOutHandler )
-      xrdHandler = dynamic_cast<XRootDMsgHandler*>( pOutHandler );
-
-    if( !xrdHandler )
-      return Status( stError, errNotSupported );
-
-    ChunkInfo *chunk = 0;
+    ChunkList *chunks = 0;
     uint32_t  *asyncOffset = 0;
-    if( xrdHandler->XRootDMsgHandler::IsRaw() )
+
+    if( pOutHandler->IsRaw() )
     {
-      chunk = xrdHandler->GetMessageBody( asyncOffset );
+      if( xrdHandler != pOutHandler )
+        xrdHandler = dynamic_cast<XRootDMsgHandler*>( pOutHandler );
+
+      if( !xrdHandler )
+        return Status( stError, errNotSupported );
+
+      chunks = xrdHandler->GetMessageBody( asyncOffset );
       Log    *log = DefaultEnv::GetLog();
       log->Dump( AsyncSockMsg, "[%s] Will write the payload in one go with "
                  "the header for message: %s (0x%x).", pStreamName.c_str(),
                  pOutgoing->GetDescription().c_str(), pOutgoing );
     }
 
-    Status st = WriteVMessage( toWrite, sign, chunk, *asyncOffset );
+    Status st = WriteVMessage( toWrite, sign, chunks, asyncOffset );
     if( st.IsOK() && st.code == suDone )
     {
       if( asyncOffset )
@@ -623,8 +621,7 @@ namespace XrdCl
     Status st;
     if( !pOutMsgDone )
     {
-      uint32_t tmp = 0;
-      if( !(st = WriteVMessage( toWrite, sign, 0, tmp )).IsOK() )
+      if( !(st = WriteVMessage( toWrite, sign, 0, 0 )).IsOK() )
         return st;
 
       if( st.code == suRetry )
@@ -961,11 +958,62 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Update iovec after write
   //------------------------------------------------------------------------
-  void AsyncSocketHandler::UpdateAfterWrite( Message &msg, iovec &iov, int &bytesRead )
+  void AsyncSocketHandler::UpdateAfterWrite( Message  &msg,
+                                             iovec    &iov,
+                                             int      &bytesWritten )
   {
-    size_t advance = ( bytesRead < (int)iov.iov_len ) ? bytesRead : iov.iov_len;
-    bytesRead -= advance;
+    size_t advance = ( bytesWritten < (int)iov.iov_len ) ? bytesWritten : iov.iov_len;
+    bytesWritten -= advance;
     msg.AdvanceCursor( advance );
     ToIov( msg, iov );
+  }
+
+  //------------------------------------------------------------------------
+  // Add chunks to the given iovec
+  //------------------------------------------------------------------------
+  uint32_t AsyncSocketHandler::ToIov( ChunkList       *chunks,
+                                      const uint32_t  *offset,
+                                      iovec           *iov )
+  {
+    if( !chunks || !offset ) return 0;
+
+    uint32_t off  = *offset;
+    uint32_t size = 0;
+
+    for( auto &chunk : *chunks )
+    {
+      if( off > chunk.length )
+      {
+        iov->iov_len = 0;
+        iov->iov_base = 0;
+        off -= chunk.length;
+      }
+      else if( off > 0 )
+      {
+        iov->iov_len  = chunk.length - off;
+        iov->iov_base = reinterpret_cast<char*>( chunk.buffer ) + off;
+        size += iov->iov_len;
+        off = 0;
+      }
+      else
+      {
+        iov->iov_len  = chunk.length;
+        iov->iov_base = chunk.buffer;
+        size += iov->iov_len;
+      }
+      ++iov;
+    }
+
+    return size;
+  }
+
+  void AsyncSocketHandler::UpdateAfterWrite( ChunkList  *chunks,
+                                             uint32_t   *offset,
+                                             iovec      *iov,
+                                             int        &bytesWritten )
+  {
+    *offset += bytesWritten;
+    bytesWritten = 0;
+    ToIov( chunks, offset, iov );
   }
 }

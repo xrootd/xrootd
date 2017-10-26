@@ -25,12 +25,12 @@
 #include "XProtocol/XProtocol.hh"
 
 #include <string>
+#include <memory>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/uio.h>
 #include <arpa/inet.h>
 
 namespace XrdCl
@@ -229,31 +229,88 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::VectorRead( const ChunkList& chunks,
       void* buffer, ResponseHandler* handler, uint16_t timeout )
   {
-    const size_t iovcnt = chunks.size();
-    struct iovec iov[iovcnt];
-    for( size_t i = 0; i < chunks.size(); i++ )
+    std::unique_ptr<VectorReadInfo> info( new VectorReadInfo() );
+    size_t totalSize = 0;
+    bool useBuffer( buffer );
+
+    for( auto &chunk : chunks )
     {
-      iov[i].iov_base = chunks[i].buffer;
-      iov[i].iov_len = chunks[i].length;
+      if( !useBuffer )
+        buffer = chunk.buffer;
+      ssize_t bytesRead = pread( fd, buffer, chunk.length,
+                                 chunk.offset );
+      if( bytesRead < 0 )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( FileMsg, "VectorRead: failed, file descriptor: %i, %s", fd,
+                    strerror( errno ) );
+        XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                                XProtocol::mapError( errno ),
+                                                strerror( errno ) );
+        return QueueTask( error, 0, handler );
+      }
+      totalSize += bytesRead;
+      info->GetChunks().push_back( ChunkInfo( chunk.offset, bytesRead, buffer ) );
+      if( useBuffer )
+        buffer = reinterpret_cast<char*>( buffer ) + bytesRead;
     }
 
-    if( readv( fd, iov, iovcnt ) < 0 )
-    {
-      Log *log = DefaultEnv::GetLog();
-      log->Error( FileMsg, "VectorRead: failed, file descriptor: %i, %s", fd,
-                  strerror( errno ) );
-      XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
-                                              XProtocol::mapError( errno ),
-                                              strerror( errno ) );
-      return QueueTask( error, 0, handler );
-    }
-
-    VectorReadInfo *info = new VectorReadInfo();
-    info->GetChunks() = chunks;
-    info->SetSize( chunks.size() );
+    info->SetSize( totalSize );
     AnyObject *resp = new AnyObject();
-    resp->Set( info );
+    resp->Set( info.release() );
     return QueueTask( new XRootDStatus(), resp, handler );
+  }
+
+  //------------------------------------------------------------------------
+  // WriteV
+  //------------------------------------------------------------------------
+  XRootDStatus LocalFileHandler::WriteV( uint64_t            offset,
+                                              const struct iovec *iov,
+                                              int                 iovcnt,
+                                              ResponseHandler    *handler,
+                                              uint16_t            timeout )
+  {
+    iovec iovcp[iovcnt];
+    memcpy( iovcp, iov, sizeof( iovcp ) );
+    iovec *iovptr = iovcp;
+
+    ssize_t size = 0;
+    for( int i = 0; i < iovcnt; ++i )
+      size += iovptr[i].iov_len;
+
+    ssize_t bytesWritten = 0;
+    while( bytesWritten < size )
+    {
+      ssize_t ret = pwritev( fd, iovptr, iovcnt, offset );
+      if( ret < 0 )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( FileMsg, "WriteV: failed %s", strerror( errno ) );
+        XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                                XProtocol::mapError( errno ),
+                                                strerror( errno ) );
+        return QueueTask( error, 0, handler );
+      }
+
+      bytesWritten += ret;
+      while( ret )
+      {
+        if( size_t( ret ) > iovptr[0].iov_len )
+        {
+          ret -= iovptr[0].iov_len;
+          --iovcnt;
+          ++iovptr;
+        }
+        else
+        {
+          iovptr[0].iov_len -= ret;
+          iovptr[0].iov_base = reinterpret_cast<char*>( iovptr[0].iov_base ) + ret;
+          ret = 0;
+        }
+      }
+    }
+
+    return QueueTask( new XRootDStatus(), 0, handler );
   }
 
   //------------------------------------------------------------------------

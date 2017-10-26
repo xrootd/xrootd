@@ -344,16 +344,19 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   // Copy from a ZIP archive
   //----------------------------------------------------------------------------
-  results.Clear();
-  properties.Set( "source",       zipURL    );
-  properties.Set( "target",       targetURL );
-  properties.Set( "zipArchive",   true      );
-  properties.Set( "zipSource",    fileInZip );
-  CPPUNIT_ASSERT_XRDST( process6.AddJob( properties, &results ) );
-  CPPUNIT_ASSERT_XRDST( process6.Prepare() );
-  CPPUNIT_ASSERT_XRDST( process6.Run(0) );
-  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
-  properties.Clear();
+  if( !thirdParty )
+  {
+    results.Clear();
+    properties.Set( "source",       zipURL    );
+    properties.Set( "target",       targetURL );
+    properties.Set( "zipArchive",   true      );
+    properties.Set( "zipSource",    fileInZip );
+    CPPUNIT_ASSERT_XRDST( process6.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process6.Prepare() );
+    CPPUNIT_ASSERT_XRDST( process6.Run(0) );
+    CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+    properties.Clear();
+  }
 
   //----------------------------------------------------------------------------
   // Copy from a Metalink

@@ -34,6 +34,8 @@
 #include <list>
 #include <set>
 
+#include <sys/uio.h>
+
 namespace XrdCl
 {
   class ResponseHandlerHolder;
@@ -198,6 +200,23 @@ namespace XrdCl
                                void            *buffer,
                                ResponseHandler *handler,
                                uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write scattered buffers in one operation - async
+      //!
+      //! @param offset    offset from the beginning of the file
+      //! @param iov       list of the buffers to be written
+      //! @param iovcnt    number of buffers
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus WriteV( uint64_t            offset,
+                                const struct iovec *iov,
+                                int                 iovcnt,
+                                ResponseHandler    *handler,
+                                uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Performs a custom operation on an open file, server implementation

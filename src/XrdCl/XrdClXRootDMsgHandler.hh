@@ -31,6 +31,8 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XProtocol/XProtocol.hh"
 
+#include <sys/uio.h>
+
 namespace XrdCl
 {
   class PostMaster;
@@ -184,20 +186,19 @@ namespace XrdCl
       //!                  stOK & suRetry if more data needs to be written
       //!                  stError on failure
       //------------------------------------------------------------------------
-      virtual Status WriteMessageBody( int       socket,
-                                       uint32_t &bytesRead );
+      Status WriteMessageBody( int       socket,
+                               uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Get message body - called if IsRaw returns true
       //!
-      //! @return          list of chunks (message body)
+      //! @param asyncOffset  :  the current async offset
+      //! @return             :  the list of chunks
       //------------------------------------------------------------------------
-      virtual ChunkInfo* GetMessageBody( uint32_t *&asyncOffset )
+      ChunkList* GetMessageBody( uint32_t *&asyncOffset )
       {
-        if( !pChunkList )
-          return 0;
         asyncOffset = &pAsyncOffset;
-        return &pChunkList->front();
+        return pChunkList;
       }
 
       //------------------------------------------------------------------------

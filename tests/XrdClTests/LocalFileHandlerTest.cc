@@ -42,6 +42,7 @@ class LocalFileHandlerTest: public CppUnit::TestCase
       CPPUNIT_TEST( TruncateTest );
       CPPUNIT_TEST( VectorReadTest );
       CPPUNIT_TEST( SyncTest );
+      CPPUNIT_TEST( WriteVTest );
     CPPUNIT_TEST_SUITE_END();
     void CreateTestFileFunc( std::string url, std::string content = "GenericTestFile" );
     void OpenCloseTest();
@@ -53,6 +54,7 @@ class LocalFileHandlerTest: public CppUnit::TestCase
     void TruncateTest();
     void VectorReadTest();
     void SyncTest();
+    void WriteVTest();
 };
 CPPUNIT_TEST_SUITE_REGISTRATION( LocalFileHandlerTest );
 
@@ -309,7 +311,8 @@ void LocalFileHandlerTest::TruncateTest(){
    delete buffer;
 }
 
-void LocalFileHandlerTest::VectorReadTest(){
+void LocalFileHandlerTest::VectorReadTest()
+{
    using namespace XrdCl;
 
    //----------------------------------------------------------------------------
@@ -317,7 +320,7 @@ void LocalFileHandlerTest::VectorReadTest(){
    //----------------------------------------------------------------------------
    std::string targetURL = "/tmp/lfilehandlertestfilevectorread";
    CreateTestFileFunc( targetURL );
-   VectorReadInfo *info = new VectorReadInfo();
+   VectorReadInfo *info = 0;
    ChunkList chunks;
 
    //----------------------------------------------------------------------------
@@ -325,55 +328,85 @@ void LocalFileHandlerTest::VectorReadTest(){
    //----------------------------------------------------------------------------
    OpenFlags::Flags flags = OpenFlags::Update;
    Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
-   File *file = new File();
-   CPPUNIT_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
+   File file;
+   CPPUNIT_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
 
    //----------------------------------------------------------------------------
    // VectorRead no cursor
    //----------------------------------------------------------------------------
 
-   char *buffer1 = new char( 5 );
-   char *buffer2 = new char( 5 );
-   char *buffer3 = new char( 5 );
-   ChunkInfo cinf( 0, 5, buffer1 );
-   chunks.push_back( cinf );
-   ChunkInfo cinf2( 5, 5, buffer2 );
-   chunks.push_back( cinf2 );
-   ChunkInfo cinf3( 10, 5, buffer3 );
-   chunks.push_back( cinf3 );
-
-   CPPUNIT_ASSERT_XRDST( file->VectorRead( chunks, NULL, info ) );
-   CPPUNIT_ASSERT_XRDST( file->Close() );
+   chunks.push_back( ChunkInfo( 0, 5, new char[5] ) );
+   chunks.push_back( ChunkInfo( 10, 5, new char[5] ) );
+   CPPUNIT_ASSERT_XRDST( file.VectorRead( chunks, NULL, info ) );
+   CPPUNIT_ASSERT_XRDST( file.Close() );
+   CPPUNIT_ASSERT( info->GetSize() == 10 );
+   CPPUNIT_ASSERT_EQUAL( 0, memcmp( "Gener",
+                                    info->GetChunks()[0].buffer,
+                                    info->GetChunks()[0].length ) );
+   CPPUNIT_ASSERT_EQUAL( 0, memcmp( "tFile",
+                                    info->GetChunks()[1].buffer,
+                                    info->GetChunks()[1].length ) );
+   delete[] (char*)chunks[0].buffer;
+   delete[] (char*)chunks[1].buffer;
+   delete info;
 
    //----------------------------------------------------------------------------
    // VectorRead cursor
    //----------------------------------------------------------------------------
-   char *buffer = new char( 15 );
+   char *buffer = new char[10];
    chunks.clear();
-   char *buffer4 = new char( 5 );
-   char *buffer5 = new char( 5 );
-   char *buffer6 = new char( 5 );
-   ChunkInfo cinf4( 0, 5, buffer4 );
-   chunks.push_back( cinf4 );
+   chunks.push_back( ChunkInfo( 0, 5, 0 ) );
+   chunks.push_back( ChunkInfo( 10, 5, 0 ) );
+   info = 0;
 
-   ChunkInfo cinf5( 5, 5, buffer5 );
-   chunks.push_back( cinf5 );
-
-   ChunkInfo cinf6( 10, 5, buffer6 );
-   chunks.push_back( cinf6 );
-   CPPUNIT_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
-   CPPUNIT_ASSERT_XRDST( file->VectorRead( chunks, buffer, info ) );
-   CPPUNIT_ASSERT_XRDST( file->Close() );
-
+   CPPUNIT_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
+   CPPUNIT_ASSERT_XRDST( file.VectorRead( chunks, buffer, info ) );
+   CPPUNIT_ASSERT_XRDST( file.Close() );
+   CPPUNIT_ASSERT( info->GetSize() == 10 );
+   CPPUNIT_ASSERT_EQUAL( 0, memcmp( "GenertFile",
+                                    info->GetChunks()[0].buffer,
+                                    info->GetChunks()[0].length ) );
    CPPUNIT_ASSERT( remove( targetURL.c_str() ) == 0 );
-   chunks.clear();
+
    delete buffer;
-   delete buffer1;
-   delete buffer2;
-   delete buffer3;
-   delete buffer4;
-   delete buffer5;
-   delete buffer6;
-   delete file;
    delete info;
+}
+
+void LocalFileHandlerTest::WriteVTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  std::string targetURL = "/tmp/lfilehandlertestfilewritev";
+  CreateTestFileFunc( targetURL );
+
+  //----------------------------------------------------------------------------
+  // Prepare WriteV
+  //----------------------------------------------------------------------------
+  OpenFlags::Flags flags = OpenFlags::Update;
+  Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
+  File file;
+  CPPUNIT_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
+
+  char str[] = "WriteVTest";
+  std::vector<char> buffer( 10 );
+  std::copy( str, str + sizeof( str ), buffer.begin() );
+  int iovcnt = 2;
+  iovec iov[iovcnt];
+  iov[0].iov_base = buffer.data();
+  iov[0].iov_len  = 6;
+  iov[1].iov_base = buffer.data() + 6;
+  iov[1].iov_len  = 4;
+  CPPUNIT_ASSERT_XRDST( file.WriteV( 7, iov, iovcnt ) );
+
+  uint32_t bytesRead = 0;
+  buffer.resize( 17 );
+  CPPUNIT_ASSERT_XRDST( file.Read( 0, 17, buffer.data(), bytesRead ) );
+  CPPUNIT_ASSERT( buffer.size() == 17 );
+  std::string expected = "GenericWriteVTest";
+  CPPUNIT_ASSERT( std::string( buffer.data(), buffer.size() ) == expected );
+  CPPUNIT_ASSERT_XRDST( file.Close() );
+  CPPUNIT_ASSERT( remove( targetURL.c_str() ) == 0 );
 }

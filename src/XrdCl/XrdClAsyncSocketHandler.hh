@@ -154,8 +154,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Write the message, its signature and its body
       //------------------------------------------------------------------------
-      Status WriteVMessage( Message *toWrite, Message *&sign, ChunkInfo *chunk,
-                            uint32_t &asyncOffset );
+      Status WriteVMessage( Message   *toWrite,
+                            Message   *&sign,
+                            ChunkList *chunks,
+                            uint32_t  *asyncOffset );
 
       //------------------------------------------------------------------------
       // Got a read readiness event
@@ -211,6 +213,21 @@ namespace XrdCl
       // Update iovec after write
       //------------------------------------------------------------------------
       inline void UpdateAfterWrite( Message &msg, iovec &iov, int &bytesRead );
+
+      //------------------------------------------------------------------------
+      // Add chunks to the given iovec
+      //------------------------------------------------------------------------
+      inline uint32_t ToIov( ChunkList       *chunks,
+                             const uint32_t  *offset,
+                             iovec           *iov );
+
+      //------------------------------------------------------------------------
+      // Update raw data after write
+      //------------------------------------------------------------------------
+      inline void UpdateAfterWrite( ChunkList  *chunks,
+                                    uint32_t   *offset,
+                                    iovec      *iov,
+                                    int        &bytesWritten );
 
       //------------------------------------------------------------------------
       // Data members

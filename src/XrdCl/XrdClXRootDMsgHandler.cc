@@ -1072,44 +1072,12 @@ namespace XrdCl
   Status XRootDMsgHandler::WriteMessageBody( int       socket,
                                              uint32_t &bytesRead )
   {
-    char     *buffer          = (char*)(*pChunkList)[0].buffer;
-    uint32_t  size            = (*pChunkList)[0].length;
-    uint32_t  leftToBeWritten = size-pAsyncOffset;
-
-    while( leftToBeWritten )
-    {
-      //------------------------------------------------------------------------
-      // We use send with MSG_NOSIGNAL to avoid SIGPIPEs on Linux
-      //------------------------------------------------------------------------
-#ifdef __linux__
-      int status = ::send( socket, buffer+pAsyncOffset, leftToBeWritten,
-                           MSG_NOSIGNAL );
-#else
-      int status = ::write( socket, buffer+pAsyncOffset, leftToBeWritten );
-#endif
-      if( status <= 0 )
-      {
-        //----------------------------------------------------------------------
-        // Writing operation would block! So we are done for now, but we will
-        // return here
-        //----------------------------------------------------------------------
-        if( errno == EAGAIN || errno == EWOULDBLOCK )
-          return Status( stOK, suRetry );
-
-        //----------------------------------------------------------------------
-        // Actual socket error error!
-        //----------------------------------------------------------------------
-        return Status( stError, errSocketError, errno );
-      }
-      pAsyncOffset    += status;
-      bytesRead       += status;
-      leftToBeWritten -= status;
-    }
-
+    (void)socket;
+    (void)bytesRead;
     //--------------------------------------------------------------------------
-    // We're done have written the message successfully
+    // We no longer support this type of body writing in XRootDMsgHandler
     //--------------------------------------------------------------------------
-    return Status();
+    return Status( stError, errNotSupported );
   }
 
   //----------------------------------------------------------------------------
