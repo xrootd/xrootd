@@ -138,6 +138,10 @@ void FileCopyTest::DownloadTestFunc()
                                                   dataServer,
                                                   remoteFile ) );
   CPPUNIT_ASSERT( remoteSum == transferSum );
+
+  delete stat;
+  delete crc32Sum;
+  delete[] buffer;
 }
 
 //------------------------------------------------------------------------------
@@ -218,7 +222,6 @@ void FileCopyTest::UploadTestFunc()
   CPPUNIT_ASSERT_XRDST( fs1.Stat( remoteFile, stat ) );
   CPPUNIT_ASSERT( stat );
   CPPUNIT_ASSERT( stat->GetSize() == offset );
-  delete stat;
 
   //----------------------------------------------------------------------------
   // Compare the checksums
@@ -237,6 +240,9 @@ void FileCopyTest::UploadTestFunc()
   // Delete the file
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( fs.Rm( dataPath + "/testUpload.dat" ) );
+
+  delete stat;
+  delete crc32Sum;
 }
 
 //------------------------------------------------------------------------------
