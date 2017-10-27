@@ -233,8 +233,9 @@ namespace XrdCl
     size_t totalSize = 0;
     bool useBuffer( buffer );
 
-    for( auto &chunk : chunks )
+    for( auto itr = chunks.begin(); itr != chunks.end(); ++itr )
     {
+      auto &chunk = *itr;
       if( !useBuffer )
         buffer = chunk.buffer;
       ssize_t bytesRead = pread( fd, buffer, chunk.length,
@@ -281,7 +282,13 @@ namespace XrdCl
     ssize_t bytesWritten = 0;
     while( bytesWritten < size )
     {
+#ifdef __APPLE__
+      ssize_t ret = lseek( fd, offset, SEEK_SET );
+      if( ret >= 0 )
+        ret = writev( fd, iovptr, iovcnt );
+#else
       ssize_t ret = pwritev( fd, iovptr, iovcnt, offset );
+#endif
       if( ret < 0 )
       {
         Log *log = DefaultEnv::GetLog();

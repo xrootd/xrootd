@@ -980,8 +980,9 @@ namespace XrdCl
     uint32_t off  = *offset;
     uint32_t size = 0;
 
-    for( auto &chunk : *chunks )
+    for( auto itr = chunks->begin(); itr != chunks->end(); ++itr )
     {
+      auto &chunk = *itr;
       if( off > chunk.length )
       {
         iov->iov_len = 0;
