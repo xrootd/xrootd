@@ -121,7 +121,11 @@ class ZipArchiveReaderImpl
     {
       XrdSysMutexHelper scopedLock( pMutex );
       --pRefCount;
-      if( !pRefCount ) delete this;
+      if( !pRefCount )
+      {
+        scopedLock.UnLock();
+        delete this;
+      }
     }
 
     XRootDStatus Open( const std::string &url, ResponseHandler *userHandler, uint16_t timeout  = 0 );
@@ -141,7 +145,7 @@ class ZipArchiveReaderImpl
       XRootDStatus st = pArchive.Close( handler, timeout );
       if( st.IsOK() )
       {
-        delete pBuffer;
+        delete[] pBuffer;
         pBuffer = 0;
         ClearRecords();
       }
@@ -223,7 +227,7 @@ class ZipArchiveReaderImpl
       // parse Central-Directory-File-Header records
       XRootDStatus st = ParseCdRecords( pBuffer, nbCdRecords, bufferSize );
       // successful or not we don't need it anymore
-      delete pBuffer;
+      delete[] pBuffer;
       pBuffer = 0;
       return st;
     }
@@ -243,7 +247,7 @@ class ZipArchiveReaderImpl
 
     ~ZipArchiveReaderImpl()
     {
-      delete pBuffer;
+      delete[] pBuffer;
       ClearRecords();
       if( pArchive.IsOpen() )
       {
@@ -599,7 +603,7 @@ XRootDStatus ZipArchiveReaderImpl::ReadCdfh( uint64_t bytesRead, ResponseHandler
   pEocd = new EOCD( eocdBlock );
   uint64_t offset = pEocd->pCdOffset;
   uint32_t size   = pEocd->pCdSize;
-  delete pBuffer;
+  delete[] pBuffer;
   pBuffer = new char[size];
   ReadCdfhHandler *handler = new ReadCdfhHandler( this, userHandler, pEocd->pNbCdRec );
   XRootDStatus st = pArchive.Read( offset, size, pBuffer, handler );

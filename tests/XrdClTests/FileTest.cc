@@ -326,6 +326,7 @@ void FileTest::WriteTest()
   delete [] buffer2;
   delete [] buffer3;
   delete [] buffer4;
+  delete stat;
 }
 
 //------------------------------------------------------------------------------

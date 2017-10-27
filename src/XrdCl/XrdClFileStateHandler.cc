@@ -253,7 +253,7 @@ namespace XrdCl
           pHandler = 0;
         }
         // and than destroy myself if this is the last reference
-        DestroyMyself();
+        DestroyMyself( scopedLock );
       }
       //------------------------------------------------------------------------
       //! Increment reference counter
@@ -281,20 +281,23 @@ namespace XrdCl
           pHandler = 0;
         }
         // destroy the object if it is
-        DestroyMyself();
+        DestroyMyself( scopedLock );
       }
 
     private:
       //------------------------------------------------------------------------
       //! Deletes itself only if this is the last reference
       //------------------------------------------------------------------------
-      void DestroyMyself()
+      void DestroyMyself( XrdSysMutexHelper &lck )
       {
         // decrement the reference counter
         --pReferenceCounter;
         // if the object is not used anymore delete it
         if( pReferenceCounter == 0)
+        {
+          lck.UnLock();
           delete this;
+        }
       }
       //------------------------------------------------------------------------
       //! Private Destructor (use 'Destroy' method)

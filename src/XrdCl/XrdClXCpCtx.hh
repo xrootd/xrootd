@@ -63,7 +63,10 @@ class XCpCtx
       XrdSysMutexHelper lck( pMtx );
       --pRefCount;
       if( !pRefCount )
+      {
+        lck.UnLock();
         delete this;
+      }
     }
 
     /**
