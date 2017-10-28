@@ -1112,9 +1112,10 @@ void XrdLink::setRef(int use)
              XrdLog->Emsg("Link", "Zero use count for", ID);
             }
     else if (InUse == 1 && doPost)
-            {while(doPost--)
+            {while(doPost)
                 {IOSemaphore.Post();
                  TRACEI(CONN, "setRef posted link");
+                 doPost--;
                 }
              opMutex.UnLock();
             }
