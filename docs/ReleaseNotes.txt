@@ -23,6 +23,8 @@ Version 4.7.1
   * **[XrdLink]** Increment the IOSemaphore once for each waiting thread.
   * **[XrdHttp]** Make sure that the preexisting url tokens are properly 
                   quoted when generating a redirection.
+  * **[XrdCl]** Fix invalid memory reads/writes when RAII finalizes mutex
+                after the object has been deleted.
 
 + **Miscellaneous**
   * **[XrdCl]** Log last error in case redirect limit has been reached.
