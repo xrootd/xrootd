@@ -378,6 +378,7 @@ bool Info::GetLatestDetachTime(time_t& t) const
 {
    if (! m_store.m_accessCnt) return false;
 
-   t =  m_store.m_astats[m_store.m_accessCnt-1].DetachTime;
+   size_t entry = std::min(m_store.m_accessCnt, m_maxNumAccess) - 1;
+   t =  m_store.m_astats[entry].DetachTime;
    return true;
 }
