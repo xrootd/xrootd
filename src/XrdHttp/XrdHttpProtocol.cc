@@ -740,22 +740,20 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   // Now we have everything that is needed to try the login
   // Remember that if there is an exthandler then it has the responsibility
   // for authorization in the paths that it manages
-  if (FindMatchingExtHandler(CurrentReq)) {
+  if (!Bridge && !FindMatchingExtHandler(CurrentReq)) {
+    if (SecEntity.name)
+      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
+    else
+      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", "XrdHttp");
+      
     if (!Bridge) {
-      if (SecEntity.name)
-        Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
-      else
-        Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", "XrdHttp");
-      
-      if (!Bridge) {
-        TRACEI(REQ, " Autorization failed.");
-        return -1;
-      }
-      
-      // Let the bridge process the login, and then reinvoke us
-      DoingLogin = true;
-      return 0;
+      TRACEI(REQ, " Authorization failed.");
+      return -1;
     }
+
+    // Let the bridge process the login, and then reinvoke us
+    DoingLogin = true;
+    return 0;
   }
 
   // Compute and send the response. This may involve further reading from the socket
