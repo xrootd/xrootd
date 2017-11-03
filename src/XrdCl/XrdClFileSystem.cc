@@ -484,6 +484,127 @@ namespace
 
       RecursiveDirListCtx *pCtx;
   };
+
+  //----------------------------------------------------------------------------
+  // Exception for a merge dirlist handler
+  //----------------------------------------------------------------------------
+  struct MergeDirLsErr
+  {
+      MergeDirLsErr( XrdCl::XRootDStatus *&status, XrdCl::AnyObject *&response ) :
+        status( status ), response( response )
+      {
+        status = 0; response = 0;
+      }
+
+      MergeDirLsErr() :
+        status( new XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal ) ),
+        response( 0 )
+      {
+
+      }
+
+      XrdCl::XRootDStatus *status;
+      XrdCl::AnyObject    *response;
+  };
+
+
+
+  //----------------------------------------------------------------------------
+  // Handle results for a merge dirlist request
+  //----------------------------------------------------------------------------
+  class MergeDirListHandler: public XrdCl::ResponseHandler
+  {
+    public:
+
+      MergeDirListHandler( XrdCl::ResponseHandler *handler ) : pHandler( handler )
+      {
+
+      }
+
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response )
+      {
+        try
+        {
+          if( status->IsOK() )
+            throw MergeDirLsErr( status, response );
+
+          if( !response )
+            throw MergeDirLsErr();
+
+          XrdCl::DirectoryList *dirlist = 0;
+          response->Get( dirlist );
+
+          if( !dirlist )
+            throw MergeDirLsErr();
+
+          Merge( dirlist );
+          response->Set( dirlist );
+          pHandler->HandleResponse( status, response );
+        }
+        catch( const MergeDirLsErr &err )
+        {
+          delete status; delete response;
+          pHandler->HandleResponse( err.status, err.response );
+        }
+
+        delete this;
+      }
+
+      static void Merge( XrdCl::DirectoryList *&response )
+      {
+        std::set<ListEntry*, less> unique( response->Begin(), response->End() );
+
+        XrdCl::DirectoryList *dirlist = new XrdCl::DirectoryList();
+        dirlist->SetParentName( response->GetParentName() );
+        for( auto itr = unique.begin(); itr != unique.end(); ++itr )
+        {
+          ListEntry *entry = *itr;
+          dirlist->Add( new ListEntry( entry->GetHostAddress(),
+                                       entry->GetName(),
+                                       entry->GetStatInfo() ) );
+          entry->SetStatInfo( 0 );
+        }
+
+        delete response;
+        response = dirlist;
+      }
+
+    private:
+
+      typedef XrdCl::DirectoryList::ListEntry ListEntry;
+
+      struct less
+      {
+        bool operator() (const ListEntry *x, const ListEntry *y) const
+        {
+          if( x->GetName() != y->GetName() )
+            return x->GetName() < y->GetName();
+
+          const XrdCl::StatInfo *xStatInfo = x->GetStatInfo();
+          const XrdCl::StatInfo *yStatInfo = y->GetStatInfo();
+
+          if( xStatInfo == yStatInfo )
+            return false;
+
+          if( xStatInfo == 0 )
+            return true;
+
+          if( yStatInfo == 0 )
+            return false;
+
+          if( xStatInfo->GetSize() != yStatInfo->GetSize() )
+            return xStatInfo->GetSize() < yStatInfo->GetSize();
+
+          if( xStatInfo->GetFlags() != yStatInfo->GetFlags() )
+            return xStatInfo->GetFlags() < yStatInfo->GetFlags();
+
+          return false;
+        }
+      };
+
+      XrdCl::ResponseHandler *pHandler;
+  };
 }
 
 namespace XrdCl
@@ -1112,6 +1233,9 @@ namespace XrdCl
     if( flags & DirListFlags::Recursive )
       handler = new RecursiveDirListHandler( *pUrl, path, flags, handler, timeout );
 
+    if( flags & DirListFlags::Merge )
+      handler = new MergeDirListHandler( handler );
+
     msg->Append( path.c_str(), path.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1190,6 +1314,9 @@ namespace XrdCl
         currentResp = 0;
       }
       delete locations;
+
+      if( flags & DirListFlags::Merge )
+        MergeDirListHandler::Merge( response );
 
       if( errors || partial )
       {

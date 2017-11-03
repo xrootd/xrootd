@@ -220,9 +220,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
   bool        stats    = false;
   bool        showUrls = false;
   std::string path;
-  DirListFlags::Flags flags = DirListFlags::Locate;
+  DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
-  if( argc > 5 )
+  if( argc > 6 )
   {
     log->Error( AppMsg, "Too many arguments." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -241,9 +241,19 @@ XRootDStatus DoLS( FileSystem                      *fs,
     {
       flags |= DirListFlags::Recursive;
     }
+    else if( args[i] == "-D" )
+    {
+      // show duplicates
+      flags &= ~DirListFlags::Merge;
+    }
     else
       path = args[i];
   }
+
+  if( showUrls )
+    // we don't merge the duplicate entries
+    // in case we print the full URL
+    flags &= ~DirListFlags::Merge;
 
   std::string newPath = "/";
   if( path.empty() )

@@ -157,7 +157,8 @@ namespace XrdCl
       Stat      = 1, //!< Stat each entry
       Locate    = 2, //!< Locate all servers hosting the directory and send
                      //!< the dirlist request to all of them
-      Recursive = 4  //!< Do a recursive listing
+      Recursive = 4,  //!< Do a recursive listing
+      Merge     = 8
     };
   };
   XRDOUC_ENUM_OPERATORS( DirListFlags::Flags )
