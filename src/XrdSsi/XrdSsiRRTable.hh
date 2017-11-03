@@ -79,6 +79,10 @@ void  Reset()
                   it++;
                  }
             theMap.clear();
+            if (baseItem)
+               {baseItem->Finalize();
+                baseItem = 0;
+               }
            }
 
       XrdSsiRRTable() : baseItem(0), baseKey(0) {}
