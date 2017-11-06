@@ -42,6 +42,8 @@ class XrdOfsTPCInfo
 {
 public:
 
+void        Engage() {inWtR = true;} // Must be called w/ a serialization lock!
+
 int         Fail(XrdOucErrInfo *eRR, const char *eMsg, int eCode);
 
 int         Match(const char *cKey, const char *cOrg,
@@ -62,7 +64,7 @@ int         SetCB(XrdOucErrInfo *eRR);
                       Key(vKey ? strdup(vKey) :0),
                       Org(vOrg ? strdup(vOrg) :0),
                       Lfn(vLfn ? strdup(vLfn) :0),
-                      Dst(vDst ? strdup(vDst) :0) {}
+                      Dst(vDst ? strdup(vDst) :0), inWtR(false) {}
 
            ~XrdOfsTPCInfo() {if (Key) {free(Key); Key = 0;}
                              if (Org) {free(Org); Org = 0;}
@@ -78,5 +80,6 @@ char           *Key;   // Rendezvous key    or src  URL
 char           *Org;   // Rendezvous origin
 char           *Lfn;   // Rendezvous path   or dest LFN
 char           *Dst;   // Rendezvous dest   or dest PFN
+bool           inWtR;  // Traget in waitresp status, async reply is valid.
 };
 #endif

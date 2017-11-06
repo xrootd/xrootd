@@ -84,7 +84,12 @@ void XrdOfsTPCJob::Del()
                 {myProg->Cancel(); tpcCan = true;}
 
    if (tpcCan && Info.cbP)
-      Info.Reply(SFS_ERROR, ECANCELED, "destination file prematurely closed");
+      {Refs++; // Make sure this object cannot get deleted
+       Info.Reply(SFS_ERROR, ECANCELED, "destination file prematurely closed",
+                  &jobMutex); // Mutex is unlocked upon return!
+       jobMutex.Lock();
+       Refs--; // Undo the extra ref increase
+      }
 
 // Delete the element if possible
 //
@@ -147,6 +152,7 @@ int XrdOfsTPCJob::Sync(XrdOucErrInfo *eRR)
    if (Status == isRunning)
       {if (Info.SetCB(eRR)) return SFS_ERROR;
        eRR->setErrCode(cbWaitTime);
+       Info.Engage();
        return SFS_STARTED;
       }
 
@@ -179,6 +185,8 @@ int XrdOfsTPCJob::Sync(XrdOucErrInfo *eRR)
    if (Info.SetCB(eRR)) return SFS_ERROR;
    if (jobLast) {jobLast->Next = this; jobLast = this;}
       else jobQ = jobLast = this;
-   inQ = 1; eRR->setErrCode(cbWaitTime);
+   inQ = 1;
+   eRR->setErrCode(cbWaitTime);
+   Info.Engage();
    return SFS_STARTED;
 }
