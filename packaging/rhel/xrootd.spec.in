@@ -254,13 +254,16 @@ tool.
 #-------------------------------------------------------------------------------
 # python
 #-------------------------------------------------------------------------------
-%package python
-Summary:	Python bindings for XRootD
-Group:		Development/Libraries
-Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+%package -n python2-%{name}
+Summary:       Python 2 bindings for XRootD
+Group:         Development/Libraries
+%{?python_provide:%python_provide python2-%{name}}
+Provides:      %{name}-python = %{epoch}:%{version}-%{release}
+Obsoletes:     %{name}-python < 1:4.7.1-1
+Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
-%description python
-Python bindings for XRootD
+%description -n python2-xrootd
+Python 2 bindings for XRootD
 
 #-------------------------------------------------------------------------------
 # doc
@@ -776,7 +779,7 @@ fi
 %{_mandir}/man1/xrootdfs.1*
 %dir %{_sysconfdir}/xrootd
 
-%files python -f xrootd/build/PYTHON_INSTALLED_FILES
+%files -n python2-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
 %defattr(-,root,root,-)
 
 %files doc
@@ -850,6 +853,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Fri Nov 10 2017 Michal Simon <michal.simon@cern.ch> - 1:4.8.0-1
+- Rename python sub-package
+
 * Tue Dec 13 2016 Gerardo Ganis <gerardo.ganis@cern.ch>
 - Add xrdgsitest to xrootd-client-devel
 
