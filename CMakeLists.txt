@@ -26,7 +26,7 @@ SET( CMAKE_MODULE_LINKER_FLAGS "-Wl,--no-undefined")
 include (FindPkgConfig)
 pkg_check_modules(CURL REQUIRED libcurl)
 
-include_directories(${XROOTD_INCLUDES} ${CURL_INCLUDE_DIRS})
+include_directories(${XROOTD_INCLUDES} ${XROOTD_PRIVATE_INCLUDES} ${CURL_INCLUDE_DIRS})
 
 add_library(XrdHttpTPC SHARED src/tpc.cpp)
 target_link_libraries(XrdHttpTPC -ldl ${XROOTD_UTILS_LIB} ${XROOTD_SERVER_LIB} ${XROOTD_HTTP_LIB} ${CURL_LIBRARIES})

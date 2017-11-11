@@ -16,6 +16,8 @@
 #include <memory>
 #include <sstream>
 
+#include "XrdTpcVersion.hh"
+
 XrdVERSIONINFO(XrdHttpGetExtHandler, HttpTPC);
 extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
                                                     XrdSysLogger     *lp,
@@ -92,19 +94,56 @@ static XrdSfsFileSystem *load_sfs(void *handle, bool alt, XrdSysError &log, cons
 
 class XrdHttpTPCState {
 public:
-    XrdHttpTPCState (XrdSfsFile &fh, CURL *curl) :
-        m_fh(fh)
+    XrdHttpTPCState (XrdSfsFile &fh, CURL *curl, bool push) :
+        m_push(push),
+        m_fh(fh),
+        m_curl(curl)
     {
         InstallHandlers(curl);
     }
 
+    ~XrdHttpTPCState() {
+        if (m_headers) {
+            curl_slist_free_all(m_headers);
+            m_headers = nullptr;
+            curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, m_headers);
+        }
+    }
+
     bool InstallHandlers(CURL *curl) {
-        curl_easy_setopt(curl, CURLOPT_USERAGENT, "xrootd-tpc/0.1");
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "xrootd-tpc/" XRDTPC_VERSION);
         curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &XrdHttpTPCState::HeaderCB);
         curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &XrdHttpTPCState::WriteCB);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
+        if (m_push) {
+            curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+            curl_easy_setopt(curl, CURLOPT_READFUNCTION, &XrdHttpTPCState::ReadCB);
+            curl_easy_setopt(curl, CURLOPT_READDATA, this);
+            struct stat buf;
+            if (SFS_OK == m_fh.stat(&buf)) {
+                curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, buf.st_size);
+            }
+        } else {
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &XrdHttpTPCState::WriteCB);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
+        }
+        curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
         return true;
+    }
+
+    /**
+     * Handle the 'Copy-Headers' feature
+     */
+    void CopyHeaders(XrdHttpExtReq &req) {
+        struct curl_slist *list = NULL;
+        for (auto &hdr : req.headers) {
+            if (hdr.first == "Copy-Header") {
+                list = curl_slist_append(list, hdr.second.c_str());
+            }
+        }
+        if (list != nullptr) {
+            curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
+            m_headers = list;
+        }
     }
 
     int GetStatus() const {return m_status_code;}
@@ -118,7 +157,7 @@ private:
 
     int Header(const std::string &header) {
         // TODO: Handle status codes appropriately.
-        //printf("Recieved remote header: %s\n", header.c_str());
+        printf("Recieved remote header: %s\n", header.c_str());
         return header.size();
     }
 
@@ -136,19 +175,39 @@ private:
         return retval;
     }
 
+    static size_t ReadCB(void *buffer, size_t size, size_t nitems, void *userdata) {
+        XrdHttpTPCState *obj = static_cast<XrdHttpTPCState*>(userdata);
+        return obj->Read(static_cast<char*>(buffer), size*nitems);
+    }
+
+    int Read(char *buffer, size_t size) {
+        int retval = m_fh.read(m_offset, buffer, size);
+        if (retval == SFS_ERROR) {
+            return -1;
+        }
+        m_offset += retval;
+        return retval;
+    }
+
+    bool m_push{true};
     XrdSfsXferSize m_offset{0};
     int m_status_code{-1};
     XrdSfsFile &m_fh;
+    CURL *m_curl{nullptr};
+    struct curl_slist *m_headers{nullptr};
 };
 
 
 class XrdHttpTPC : public XrdHttpExtHandler {
 public:
     virtual bool MatchesPath(const char *verb, const char *path) {
-        return !strcmp(verb, "COPY");
+        return !strcmp(verb, "COPY") || !strcmp(verb, "OPTIONS");
     }
 
     virtual int ProcessReq(XrdHttpExtReq &req) {
+        if (req.verb == "OPTIONS") {
+            return ProcessOptionsReq(req);
+        }
         auto header = req.headers.find("Source");
         if (header != req.headers.end()) {
             return ProcessPullReq(header->second, req);
@@ -188,22 +247,15 @@ public:
     }
 
 private:
-    int ProcessPushReq(const std::string & /* Resource */, XrdHttpExtReq &req) {
-        char msg[] = "Push mode for COPY not implemented";
-        return req.SendSimpleResp(501, nullptr, nullptr, msg, 0);
+
+    /**
+     * Handle the OPTIONS verb as we have added a new one...
+     */
+    int ProcessOptionsReq(XrdHttpExtReq &req) {
+      return req.SendSimpleResp(200, NULL, (char *) "DAV: 1\r\nDAV: <http://apache.org/dav/propset/fs/1>\r\nAllow: HEAD,GET,PUT,PROPFIND,DELETE,OPTIONS,COPY", NULL, 0);
     }
 
-    int ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
-        CURL *curl = curl_easy_init();
-        if (!curl) {
-            char msg[] = "Failed to initialize internal transfer resources";
-            return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
-        }
-        XrdSfsFile *fh = m_sfs->newFile(req.GetSecEntity().name, m_monid++);
-        if (!fh) {
-            char msg[] = "Failed to initialize internal transfer file handle";
-            return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
-        }
+    static std::string GetAuthz(XrdHttpExtReq &req) {
         std::string authz;
         auto authz_header = req.headers.find("Authorization");
         if (authz_header != req.headers.end()) {
@@ -213,17 +265,100 @@ private:
             free(quoted_url);
             authz = ss.str();
         }
-        if (SFS_OK != fh->open(req.resource.c_str(), SFS_O_CREAT, 0600, &(req.GetSecEntity()), authz.empty() ? nullptr : authz.c_str())) {
-            char msg[] = "Failed to open local resource";
-            return req.SendSimpleResp(400, nullptr, nullptr, msg, 0);
+        return authz;
+    }
+
+    int ProcessPushReq(const std::string & resource, XrdHttpExtReq &req) {
+        CURL *curl = curl_easy_init();
+        if (!curl) {
+            char msg[] = "Failed to initialize internal transfer resources";
+            return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
+        }
+        char *name = req.GetSecEntity().name;
+        XrdSfsFile *fh = m_sfs->newFile(name, m_monid++);
+        if (!fh) {
+            char msg[] = "Failed to initialize internal transfer file handle";
+            return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
+        }
+        std::string authz = GetAuthz(req);
+
+        if (SFS_OK != fh->open(req.resource.c_str(), SFS_O_RDONLY, 0600, &(req.GetSecEntity()), authz.empty() ? nullptr : authz.c_str())) {
+            int code;
+            char msg_generic[] = "Failed to open local resource";
+            const char *msg = fh->error.getErrText(code);
+            if (msg == nullptr) msg = msg_generic;
+            int status_code = 400;
+            if (code == EACCES) status_code = 401;
+            fh->close();
+            delete fh;
+            return req.SendSimpleResp(status_code, nullptr, nullptr, const_cast<char *>(msg), 0);
         }
 
         CURLcode res;
         curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
-        XrdHttpTPCState(*fh, curl);
+        XrdHttpTPCState state(*fh, curl, true);
+        state.CopyHeaders(req);
         res = curl_easy_perform(curl);
-        if (res) {
+        fh->close();
+        delete fh;
+        if (res == CURLE_HTTP_RETURNED_ERROR) {
+            m_log.Emsg("ProcessPushReq", "Remote server failed request", curl_easy_strerror(res));
+            return req.SendSimpleResp(500, nullptr, nullptr, const_cast<char *>(curl_easy_strerror(res)), 0);
+        } else if (res) {
+            m_log.Emsg("ProcessPushReq", "Curl failed", curl_easy_strerror(res));
+            char msg[] = "Unknown internal transfer failure";
+            return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
+        } else {
+            char msg[] = "Created";
+            return req.SendSimpleResp(201, nullptr, nullptr, msg, 0);
+        }
+    }
+
+    int ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
+        CURL *curl = curl_easy_init();
+        if (!curl) {
+            char msg[] = "Failed to initialize internal transfer resources";
+            return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
+        }
+        char *name = req.GetSecEntity().name;
+        XrdSfsFile *fh = m_sfs->newFile(name, m_monid++);
+        if (!fh) {
+            char msg[] = "Failed to initialize internal transfer file handle";
+            return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
+        }
+        std::string authz = GetAuthz(req);
+        XrdSfsFileOpenMode mode = SFS_O_CREAT;
+        auto overwrite_header = req.headers.find("Overwrite");
+        if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
+            mode = SFS_O_TRUNC|SFS_O_POSC;
+        }
+
+        if (SFS_OK != fh->open(req.resource.c_str(), mode, 0600, &(req.GetSecEntity()), authz.empty() ? nullptr : authz.c_str())) {
+            int code;
+            char msg_generic[] = "Failed to open local resource";
+            const char *msg = fh->error.getErrText(code);
+            if (msg == nullptr) msg = msg_generic;
+            int status_code = 400;
+            if (code == EACCES) status_code = 401;
+            if (code == EEXIST) status_code = 412;
+            fh->close();
+            delete fh;
+            return req.SendSimpleResp(status_code, nullptr, nullptr, const_cast<char *>(msg), 0);
+        }
+
+        CURLcode res;
+        curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
+
+        XrdHttpTPCState state(*fh, curl, false);
+        state.CopyHeaders(req);
+        res = curl_easy_perform(curl);
+        fh->close();
+        delete fh;
+        if (res == CURLE_HTTP_RETURNED_ERROR) {
+            m_log.Emsg("ProcessPullReq", "Remote server failed request", curl_easy_strerror(res));
+            return req.SendSimpleResp(500, nullptr, nullptr, const_cast<char *>(curl_easy_strerror(res)), 0);
+        } else if (res) {
             m_log.Emsg("ProcessPullReq", "Curl failed", curl_easy_strerror(res));
             char msg[] = "Unknown internal transfer failure";
             return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
