@@ -103,7 +103,7 @@ inline XrdXrootdFile *Get(int fnum)
                           return (XrdXrootdFile *)0;
                          }
 
-       void           Recycle(XrdXrootdMonitor *monP=0, bool monF=false);
+       void           Recycle(XrdXrootdMonitor *monP, bool monF);
 
        XrdXrootdFileTable(unsigned int mid=0) : FTfree(0), monID(mid),
                                                 XTab(0), XTnum(0), XTfree(0)

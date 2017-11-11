@@ -213,7 +213,10 @@ void XrdXrootdFileTable::Del(int fnum)
            else fp = 0;
       }
 
-   if (fp) delete fp;  // Will do the close
+   if (fp)
+      {if (fp->Stats.MonEnt != -1) XrdXrootdMonFile::Close(&(fp->Stats), true);
+       delete fp;  // Will do the close
+      }
 }
 
 /******************************************************************************/
