@@ -97,6 +97,7 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
       {iEnt = fsP->MonEnt & 0xffff;
        iMap  = iEnt >> XrdXrootdMonFMap::fmShft;
        iSlot = iEnt &  XrdXrootdMonFMap::fmMask;
+       fsP->MonEnt = -1;
        fmMutex.Lock();
        if (fmMap[iMap].Free(iSlot)) fmUse[iMap]--;
        if (iMap == fmHWM) while(fmHWM >= 0 && !fmUse[fmHWM]) fmHWM--;

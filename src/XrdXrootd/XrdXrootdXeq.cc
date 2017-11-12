@@ -467,17 +467,6 @@ int XrdXrootdProtocol::do_Close()
 //
    Link->Serialize();
 
-// If we are monitoring, insert a close entry
-//
-   if (Monitor.Files())
-      Monitor.Agent->Close(fp->Stats.FileID,
-                           fp->Stats.xfr.read + fp->Stats.xfr.readv,
-                           fp->Stats.xfr.write);
-
-// If fstream monitoring enabled, log it out there
-//
-   if (Monitor.Fstat()) XrdXrootdMonFile::Close(&(fp->Stats));
-
 // Do an explicit close of the file here; reflecting any errors
 //
    rc = fp->XrdSfsp->close();
@@ -488,9 +477,10 @@ int XrdXrootdProtocol::do_Close()
        return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
       }
 
-// Delete the file from the file table; this will unlock/close the file
+// Delete the file from the file table; this will unlock/close the file and
+// produce any required final monitoring records.
 //
-   FTab->Del(fh.handle);
+   FTab->Del((Monitor.Files() ? Monitor.Agent : 0), fh.handle);
    numFiles--;
    return Response.Send();
 }

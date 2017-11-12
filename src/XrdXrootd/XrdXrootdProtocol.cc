@@ -742,7 +742,7 @@ void XrdXrootdProtocol::Cleanup()
 // Delete the FTab if we have it
 //
    if (FTab)
-      {FTab->Recycle(Monitor.Files() ? Monitor.Agent : 0, Monitor.Fstat());
+      {FTab->Recycle(Monitor.Files() ? Monitor.Agent : 0);
        FTab = 0;
       }
 

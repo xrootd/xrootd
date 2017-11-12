@@ -92,7 +92,7 @@ public:
 
        int            Add(XrdXrootdFile *fp);
 
-       void           Del(int fnum);
+       void           Del(XrdXrootdMonitor *monP, int fnum);
 
 inline XrdXrootdFile *Get(int fnum)
                          {if (fnum >= 0)
@@ -103,7 +103,7 @@ inline XrdXrootdFile *Get(int fnum)
                           return (XrdXrootdFile *)0;
                          }
 
-       void           Recycle(XrdXrootdMonitor *monP, bool monF);
+       void           Recycle(XrdXrootdMonitor *monP);
 
        XrdXrootdFileTable(unsigned int mid=0) : FTfree(0), monID(mid),
                                                 XTab(0), XTnum(0), XTfree(0)

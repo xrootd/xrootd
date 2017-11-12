@@ -195,7 +195,7 @@ int XrdXrootdFileTable::Add(XrdXrootdFile *fp)
 /*                                   D e l                                    */
 /******************************************************************************/
   
-void XrdXrootdFileTable::Del(int fnum)
+void XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum)
 {
    XrdXrootdFile *fp;
 
@@ -214,7 +214,12 @@ void XrdXrootdFileTable::Del(int fnum)
       }
 
    if (fp)
-      {if (fp->Stats.MonEnt != -1) XrdXrootdMonFile::Close(&(fp->Stats), true);
+      {XrdXrootdFileStats &Stats = fp->Stats;
+
+       if (monP) monP->Close(Stats.FileID,
+                             Stats.xfr.read + Stats.xfr.readv,
+                             Stats.xfr.write);
+       if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, false);
        delete fp;  // Will do the close
       }
 }
@@ -227,7 +232,7 @@ void XrdXrootdFileTable::Del(int fnum)
 // be no active requests on link associated with this object at the time the
 // destructor is called. The same restrictions apply to Add() and Del().
 //
-void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, bool monF)
+void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP)
 {
    int i;
 
@@ -236,10 +241,11 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, bool monF)
    FTfree = 0;
    for (i = 0; i < XRD_FTABSIZE; i++)
        if (FTab[i])
-          {if (monP) monP->Close(FTab[i]->Stats.FileID,
-                                 FTab[i]->Stats.xfr.read+FTab[i]->Stats.xfr.readv,
-                                 FTab[i]->Stats.xfr.write);
-           if (monF) XrdXrootdMonFile::Close(&(FTab[i]->Stats), true);
+          {XrdXrootdFileStats &Stats = FTab[i]->Stats;
+           if (monP) monP->Close(Stats.FileID,
+                                 Stats.xfr.read+Stats.xfr.readv,
+                                 Stats.xfr.write);
+           if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, true);
            delete FTab[i]; FTab[i] = 0;
           }
 
@@ -248,10 +254,11 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, bool monF)
 if (XTab)
   {for (i = 0; i < XTnum; i++)
       {if (XTab[i])
-          {if (monP) monP->Close(XTab[i]->Stats.FileID,
-                                 XTab[i]->Stats.xfr.read+XTab[i]->Stats.xfr.readv,
-                                 XTab[i]->Stats.xfr.write);
-           if (monF) XrdXrootdMonFile::Close(&(XTab[i]->Stats), true);
+          {XrdXrootdFileStats &Stats = XTab[i]->Stats;
+           if (monP) monP->Close(Stats.FileID,
+                                 Stats.xfr.read+Stats.xfr.readv,
+                                 Stats.xfr.write);
+           if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, true);
            delete XTab[i];
           }
        }
