@@ -404,7 +404,14 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
 
 // Initialize the address of the new connection
 //
-   hAddr.Set(&IP.Addr, newfd);
+   const char *eMsg = hAddr.Set(&IP.Addr, newfd);
+   if (eMsg)
+      {char buff[256];
+       snprintf(buff, sizeof(buff), "%d;", newfd);
+       eDest->Emsg("Accept", "Failed to identify FD", buff, eMsg);
+       close(newfd);
+       return 0;
+      }
 
 // Remove TCP_NODELAY option for unix domain sockets to avoid error message
 //
