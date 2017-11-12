@@ -129,6 +129,7 @@ static const char *TraceID;
        int             XrdLink::LinkTimeOuts  = 0;
        int             XrdLink::LinkStalls    = 0;
        int             XrdLink::LinkSfIntr    = 0;
+       int             XrdLink::maxFD         = 0;
        XrdSysMutex     XrdLink::statsMutex;
 
        const char     *XrdLinkScan::TraceID = "LinkScan";
@@ -201,6 +202,14 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
    XrdLink *lp;
    char hName[1024], *unp, buff[16];
    int bl, peerFD = peer.SockFD();
+
+// Make sure that the incomming file descriptor can be handled
+//
+   if (peerFD < 0 || peerFD >= maxFD)
+      {snprintf(hName, sizeof(hName), "%d", peerFD);
+       XrdLog->Emsg("Link", "attempt to alloc out of range FD -",hName);
+       return (XrdLink *)0;
+      }
 
 // Make sure that the link slot is available
 //
@@ -1016,6 +1025,7 @@ int XrdLink::Setup(int maxfds, int idlewait)
 // Compute the number of link objects we should allocate at a time. Generally,
 // we like to allocate 8k of them at a time but always as a power of two.
 //
+   maxFD = maxfds;
    numalloc = 8192 / sizeof(XrdLink);
    LinkAlloc = 1;
    while((numalloc = numalloc/2)) LinkAlloc = LinkAlloc*2;

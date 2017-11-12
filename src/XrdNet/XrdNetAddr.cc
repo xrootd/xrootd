@@ -357,11 +357,15 @@ const char *XrdNetAddr::Set(const char *hSpec, int &numIP, int maxIP,
 
 const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
 {
+// Make sure we won't loose any bits of sockFD (we should use an int)
+//
+   if ((sockFD & 0xffff0000) != 0) return "FD is out of range";
+
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
-   sockNum = sockFD;
+   sockNum = static_cast<unsigned short>(sockFD);
 
 // Copy the address based on address family
 //
@@ -395,12 +399,16 @@ const char *XrdNetAddr::Set(int sockFD, bool peer)
 {
    int rc;
 
+// Make sure we won't loose any bits of sockFD (we should use an int)
+//
+   if ((sockFD & 0xffff0000) != 0) return "FD is out of range";
+
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    addrSize = sizeof(sockaddr_in6);
-   sockNum = sockFD;
+   sockNum = static_cast<unsigned short>(sockFD);
 
 // Get the address on the appropriate side of this socket
 //
@@ -451,7 +459,7 @@ const char *XrdNetAddr::Set(struct addrinfo *rP, int Port, bool mapit)
    hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    IP.v6.sin6_port = htons(static_cast<short>(Port));
-   sockNum = -1;
+   sockNum = 0;
    return 0;
 }
 

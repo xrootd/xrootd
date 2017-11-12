@@ -844,7 +844,7 @@ void XrdConfig::setCFG()
   
 int XrdConfig::setFDL()
 {
-   static const int maxFD = 1048576;
+   static const int maxFD = 65535; // was 1048576 see XrdNetAddrInfo::sockNum
    struct rlimit rlim;
    char buff[100];
 

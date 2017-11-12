@@ -273,7 +273,7 @@ SOCKLEN_t   SockSize() {return addrSize;}
 //! @return The associated file descriptor. If negative, no association exists.
 //------------------------------------------------------------------------------
 
-inline int  SockFD() {return sockNum;}
+inline int  SockFD() {return (sockNum ? static_cast<int>(sockNum) : -1);}
 
 //------------------------------------------------------------------------------
 //! Assignment operator
@@ -310,7 +310,7 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
 //! Constructor
 //------------------------------------------------------------------------------
 
-            XrdNetAddrInfo() : hostName(0), addrSize(0), protType(0), sockNum(-1)
+            XrdNetAddrInfo() : hostName(0), addrSize(0), protType(0), sockNum(0)
                            {IP.Addr.sa_family = 0;
                             sockAddr = &IP.Addr;
                            }
@@ -343,6 +343,6 @@ char                      *hostName;
 LocInfo                    addrLoc;
 SOCKLEN_t                  addrSize;
 short                      protType;
-short                      sockNum;
+unsigned short             sockNum;
 };
 #endif

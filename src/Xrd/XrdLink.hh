@@ -283,6 +283,7 @@ static int          LinkCountMax;
 static int          LinkTimeOuts;
 static int          LinkStalls;
 static int          LinkSfIntr;
+static int          maxFD;
        long long        BytesIn;
        long long        BytesInTot;
        long long        BytesOut;
