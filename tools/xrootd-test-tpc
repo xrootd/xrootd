@@ -67,19 +67,26 @@ def main():
     if mode == "auto":
         mode = determine_mode(args)
         print "Auto detect determined %s mode" % mode
-    if mode == 'pull':
-        headers['Authorization'] = 'Bearer %s' % dest_token
-        headers['Source'] = args.src
-        headers['Copy-Header'] = 'Authorization: Bearer %s' % src_token
-        resp = requests.request('COPY', args.dest, headers=headers)
-    else:  # Push
-        headers['Authorization'] = 'Bearer %s' % src_token
-        headers['Destination'] = args.dest
-        headers['Copy-Header'] = 'Authorization: Bearer %s' % dest_token
-        resp = requests.request('COPY', args.src, headers=headers)
 
-    print resp.status_code
-    print resp.text
+    with requests.Session() as session:
+        session.verify = '/etc/grid-security/certificates'
+        if mode == 'pull':
+            headers['Authorization'] = 'Bearer %s' % dest_token
+            headers['Source'] = args.src
+            headers['Copy-Header'] = 'Authorization: Bearer %s' % src_token
+            url = args.dest
+        else:  # Push
+            headers['Authorization'] = 'Bearer %s' % src_token
+            headers['Destination'] = args.dest
+            headers['Copy-Header'] = 'Authorization: Bearer %s' % dest_token
+            url = args.src
+        try_again = True
+        while try_again:
+            resp = session.request('COPY', url, headers=headers, allow_redirects = True)
+            print resp.status_code
+            print resp.headers
+            print resp.text
+            break
 
 if __name__ == '__main__':
     main()
