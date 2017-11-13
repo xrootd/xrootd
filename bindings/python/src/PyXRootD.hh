@@ -40,8 +40,6 @@
 
 #ifdef IS_PY3K
 #define Py_TPFLAGS_HAVE_ITER 0
-/* TODO don't use this hack */
-#define METH_KEYWORDS 0x0003
 #else
 #if PY_MINOR_VERSION <= 5
 #define PyUnicode_FromString PyString_FromString
