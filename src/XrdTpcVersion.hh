@@ -1,3 +1,3 @@
 
-#define XRDTPC_VERSION "0.2"
+#define XRDTPC_VERSION "devel"
 
