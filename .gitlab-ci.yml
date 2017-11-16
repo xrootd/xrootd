@@ -18,7 +18,8 @@ stages:
     - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
     - mkdir artful
-    - cp deb_packages/*.deb artful
+    - cp deb_packages/*.deb  artful
+    - cp deb_packages/*.ddeb artful
   artifacts:
     expire_in: 1 day
     paths:
