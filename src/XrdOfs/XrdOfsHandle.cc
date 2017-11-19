@@ -196,7 +196,7 @@ int XrdOfsHandle::Alloc(const char *thePath, int Opts, XrdOfsHandle **Handle)
 // state and return a delay. Otherwise, return the handle.
 //
    myMutex.Lock();
-   if ((hP = theTable->Find(theKey)) && hP->Path.Links != 0xffff)
+   if ((hP = theTable->Find(theKey)))
       {hP->Path.Links++; myMutex.UnLock();
        if (hP->WaitLock()) {*Handle = hP; return 0;}
        myMutex.Lock(); hP->Path.Links--; myMutex.UnLock();
