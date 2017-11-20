@@ -668,48 +668,41 @@ namespace XrdCl
     // Check if we still have time to try and do something in the current window
     //--------------------------------------------------------------------------
     time_t elapsed = now-pConnectionInitTime;
-    if( elapsed < pConnectionWindow )
+    log->Error( PostMasterMsg, "[%s] elapsed = %d, pConnectionWindow = %d "
+               "seconds.", pStreamName.c_str(), elapsed, pConnectionWindow );
+
+    //------------------------------------------------------------------------
+    // If we have some IP addresses left we try them
+    //------------------------------------------------------------------------
+    if( !pAddresses.empty() )
     {
-      //------------------------------------------------------------------------
-      // If we have some IP addresses left we try them
-      //------------------------------------------------------------------------
-      if( !pAddresses.empty() )
-      {
-        pSubStreams[0]->socket->SetAddress( pAddresses.back() );
-        pAddresses.pop_back();
+      pSubStreams[0]->socket->SetAddress( pAddresses.back() );
+      pAddresses.pop_back();
 
-        Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
-        if( !st.IsOK() )
-          OnFatalError( subStream, st, scopedLock );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // If we still can retry with the same host name, we sleep until the end
-      // of the connection window and try
-      //------------------------------------------------------------------------
-      else if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
-      {
-        log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
-                   "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
-
-        Task *task = new ::StreamConnectorTask( this );
-        pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // Nothing can be done, we declare a failure
-      //------------------------------------------------------------------------
-      OnFatalError( subStream, status, scopedLock );
+      Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
+      if( !st.IsOK() )
+        OnFatalError( subStream, st, scopedLock );
       return;
     }
+    //------------------------------------------------------------------------
+    // If we still can retry with the same host name, we sleep until the end
+    // of the connection window and try
+    //------------------------------------------------------------------------
+    else if( elapsed < pConnectionWindow && pConnectionCount < pConnectionRetry
+             && !status.IsFatal() )
+    {
+      log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
+                 "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
 
+      Task *task = new ::StreamConnectorTask( this );
+      pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
+      return;
+    }
     //--------------------------------------------------------------------------
     // We are out of the connection window, the only thing we can do here
     // is re-resolving the host name and retrying if we still can
     //--------------------------------------------------------------------------
-    if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
+    else if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
     {
       pAddresses.clear();
       pSubStreams[0]->status = Socket::Disconnected;
