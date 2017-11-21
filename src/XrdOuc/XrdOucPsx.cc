@@ -771,12 +771,12 @@ void XrdOucPsx::SetRoot(const char *lroot, const char *rroot)
 // Handle the local root (posix dependent)
 //
    if (LocalRoot) free(LocalRoot);
-   LocalRoot = strdup(lroot);
+   LocalRoot = (lroot ? strdup(lroot) : 0);
 
 // Handle the oss local root
 //
    if (RemotRoot) free(RemotRoot);
-   RemotRoot = strdup(rroot);
+   RemotRoot = (rroot ? strdup(rroot) : 0);
 }
   
 /******************************************************************************/
