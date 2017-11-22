@@ -8,8 +8,8 @@ usr/include/xrootd/XrdSec
 usr/include/xrootd/XrdSys
 usr/include/xrootd/XrdVersion.hh
 usr/include/xrootd/XrdXml/XrdXmlReader.hh
-usr/lib/libXrdAppUtils.so
-usr/lib/libXrdCrypto.so
-usr/lib/libXrdCryptoLite.so
-usr/lib/libXrdUtils.so
-usr/lib/libXrdXml.so
+usr/lib/*/libXrdAppUtils.so
+usr/lib/*/libXrdCrypto.so
+usr/lib/*/libXrdCryptoLite.so
+usr/lib/*/libXrdUtils.so
+usr/lib/*/libXrdXml.so

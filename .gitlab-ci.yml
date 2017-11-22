@@ -27,6 +27,28 @@ stages:
   tags:
     - docker-ubuntu
 
+.template:deb_ubuntu_xenial: &deb_ubuntu_xenial_def
+  stage: build:rpm
+  image: ubuntu:xenial
+  script:
+    - apt-get update
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
+    - cp -R packaging/debian/ .
+    - mk-build-deps --build-dep debian/control
+    - gdebi -n xrootd-build-deps-depends*.deb
+    - version=`./genversion.sh --print-only`
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages"
+    - mkdir xenial
+    - cp deb_packages/*.deb  xenial
+    - cp deb_packages/*.ddeb xenial
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - xenial/
+  tags:
+- docker-ubuntu
+
 build:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -222,6 +244,15 @@ build:deb_ubuntu_artful:
     - tags
     - schedules 
 
+build:deb_ubuntu_xenial:
+  <<: *deb_ubuntu_xenial_def
+  only:
+    - master
+    - /^stable-.*$/
+  except:
+    - tags
+    - schedules
+
 build:macosx:
   stage: build:rpm
   script:
@@ -343,6 +374,14 @@ release:deb_ubuntu_artful:
     - branches
     - /^(?!v[0-9]+).*/
 
+release:deb_ubuntu_xenial:
+  <<: *deb_ubuntu_xenial_def
+  only:
+    - web
+  except:
+    - branches
+    - /^(?!v[0-9]+).*/
+
 biweekly:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -444,6 +483,7 @@ publish:debian:
     - docker-ubuntu
   dependencies:
     - build:deb_ubuntu_artful
+    - build:deb_ubuntu_xenial
   only:
     - master
     - /^stable-.*$/
@@ -491,6 +531,7 @@ publish:debian:release:
     - docker-ubuntu
   dependencies:
     - release:deb_ubuntu_artful
+    - release:deb_ubuntu_xenial
   only:
     - web
   except:
