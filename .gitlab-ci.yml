@@ -41,7 +41,6 @@ stages:
     - dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages"
     - mkdir xenial
     - cp deb_packages/*.deb  xenial
-    - cp deb_packages/*.ddeb xenial
   artifacts:
     expire_in: 1 day
     paths:
