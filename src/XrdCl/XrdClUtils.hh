@@ -253,6 +253,13 @@ namespace XrdCl
         pPrevFsGid = -1;
 
         //----------------------------------------------------------------------
+        //! Do nothing if we aren't root
+        //----------------------------------------------------------------------
+        if(!isRoot()) {
+          return;
+        }
+
+        //----------------------------------------------------------------------
         //! Set fsuid
         //----------------------------------------------------------------------
         if(pFsUid >= 0) {
@@ -299,6 +306,17 @@ namespace XrdCl
       }
 
     private:
+      bool isRoot() const {
+          uid_t ruid, euid, suid;
+          if(getresuid(&ruid, &euid, &suid) != 0) {
+            Log *log = DefaultEnv::GetLog();
+            log->Error(XRootDTransportMsg, "[%s] Could not determine effective uid", pStreamName.c_str());
+            return true;
+          }
+
+          return (euid == 0);
+      }
+
       int pFsUid;
       int pFsGid;
 
