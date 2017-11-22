@@ -47,7 +47,7 @@ stages:
     paths:
     - xenial/
   tags:
-- docker-ubuntu
+    - docker-ubuntu
 
 build:cc7:
   stage: build:rpm
