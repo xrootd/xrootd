@@ -294,6 +294,19 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  //! Get the path with params, filteres out 'xrdcl.'
+  //------------------------------------------------------------------------
+  std::string URL::GetPathWithFilteredParams() const
+  {
+    std::ostringstream o;
+    if( !pPath.empty() )
+      o << pPath;
+
+    o << GetParamsAsString( true );
+    return o.str();
+  }
+
+  //------------------------------------------------------------------------
   //! Get protocol://host:port/path
   //------------------------------------------------------------------------
   std::string URL::GetLocation() const
@@ -313,6 +326,14 @@ namespace XrdCl
   //------------------------------------------------------------------------
   std::string URL::GetParamsAsString() const
   {
+    return GetParamsAsString( false );
+  }
+
+  //------------------------------------------------------------------------
+  //! Get the URL params as string
+  //------------------------------------------------------------------------
+  std::string URL::GetParamsAsString( bool filter ) const
+  {
     if( pParams.empty() )
       return "";
 
@@ -321,6 +342,9 @@ namespace XrdCl
     ParamsMap::const_iterator it;
     for( it = pParams.begin(); it != pParams.end(); ++it )
     {
+      // we filter out client specific parameters
+      if( filter && it->first.compare( 0, 6, "xrdcl." ) == 0 )
+        continue;
       if( it != pParams.begin() ) o << "&";
       o << it->first << "=" << it->second;
     }

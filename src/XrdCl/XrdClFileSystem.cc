@@ -709,14 +709,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Locate( path, flags, handler, timeout );
 
+    std::string urlPath = URL( path ).GetPathWithFilteredParams();
+
     Message             *msg;
     ClientLocateRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid = kXR_locate;
     req->options   = flags;
-    req->dlen      = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen      = urlPath.length();
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
 
@@ -782,16 +784,19 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Mv( source, dest, handler, timeout );
 
+    std::string urlSource = URL( source ).GetPathWithFilteredParams();
+    std::string urlDest   = URL( dest ).GetPathWithFilteredParams();
+
     Message         *msg;
     ClientMvRequest *req;
-    MessageUtils::CreateRequest( msg, req, source.length()+dest.length()+1 );
+    MessageUtils::CreateRequest( msg, req, urlSource.length()+urlDest.length()+1 );
 
     req->requestid = kXR_mv;
-    req->dlen      = source.length()+dest.length()+1;
-    req->arg1len   = source.length();
-    msg->Append( source.c_str(), source.length(), 24 );
-    *msg->GetBuffer(24+source.length()) = ' ';
-    msg->Append( dest.c_str(), dest.length(), 25+source.length() );
+    req->dlen      = urlSource.length()+urlDest.length()+1;
+    req->arg1len   = urlSource.length();
+    msg->Append( urlSource.c_str(), urlSource.length(), 24 );
+    *msg->GetBuffer(24+urlSource.length()) = ' ';
+    msg->Append( urlDest.c_str(), urlDest.length(), 25+urlSource.length() );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
 
@@ -868,14 +873,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Truncate( path, size, handler, timeout );
 
+    std::string urlPath = URL( path ).GetPathWithFilteredParams();
+
     Message               *msg;
     ClientTruncateRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid = kXR_truncate;
     req->offset    = size;
-    req->dlen      = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen      = urlPath.length();
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -908,13 +915,15 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Rm( path, handler, timeout );
 
+    std::string urlPath = URL( path ).GetPathWithFilteredParams();
+
     Message         *msg;
     ClientRmRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid = kXR_rm;
-    req->dlen      = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen      = urlPath.length();
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -948,15 +957,17 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->MkDir( path, flags, mode, handler, timeout );
 
+    std::string urlPath = URL( path ).GetPathWithFilteredParams();
+
     Message            *msg;
     ClientMkdirRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid  = kXR_mkdir;
     req->options[0] = flags;
     req->mode       = mode;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = urlPath.length();
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -990,13 +1001,15 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->RmDir( path, handler, timeout );
 
+    std::string urlPath = URL( path ).GetPathWithFilteredParams();
+
     Message            *msg;
     ClientRmdirRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid  = kXR_rmdir;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = urlPath.length();
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -1029,14 +1042,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->ChMod( path, mode, handler, timeout );
 
+    std::string urlPath = URL( path ).GetPathWithFilteredParams();
+
     Message            *msg;
     ClientChmodRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid  = kXR_chmod;
     req->mode       = mode;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = urlPath.length();
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -1103,14 +1118,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Stat( path, handler, timeout );
 
+    std::string urlPath = URL( path ).GetPathWithFilteredParams();
+
     Message           *msg;
     ClientStatRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid  = kXR_stat;
     req->options    = 0;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = urlPath.length();
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -1143,14 +1160,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->StatVFS( path, handler, timeout );
 
+    std::string urlPath = URL( path ).GetPathWithFilteredParams();
+
     Message           *msg;
     ClientStatRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid  = kXR_stat;
     req->options    = kXR_vfs;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = urlPath.length();
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -1220,23 +1239,26 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->DirList( path, flags, handler, timeout );
 
+    URL url = URL( path );
+    std::string urlPath = url.GetPathWithFilteredParams();
+
     Message           *msg;
     ClientDirlistRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, urlPath.length() );
 
     req->requestid  = kXR_dirlist;
-    req->dlen       = path.length();
+    req->dlen       = urlPath.length();
 
     if( ( flags & DirListFlags::Stat ) || ( flags & DirListFlags::Recursive ) )
       req->options[0] = kXR_dstat;
 
     if( flags & DirListFlags::Recursive )
-      handler = new RecursiveDirListHandler( *pUrl, path, flags, handler, timeout );
+      handler = new RecursiveDirListHandler( *pUrl, url.GetPath(), flags, handler, timeout );
 
     if( flags & DirListFlags::Merge )
       handler = new MergeDirListHandler( handler );
 
-    msg->Append( path.c_str(), path.length(), 24 );
+    msg->Append( urlPath.c_str(), urlPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );

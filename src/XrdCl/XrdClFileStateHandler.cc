@@ -518,7 +518,7 @@ namespace XrdCl
 
     Message           *msg;
     ClientOpenRequest *req;
-    std::string        path = pFileUrl->GetPathWithParams();
+    std::string        path = pFileUrl->GetPathWithFilteredParams();
     MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;
@@ -1737,7 +1737,7 @@ namespace XrdCl
     if( !url.GetPath().empty() )
       u.SetPath( pFileUrl->GetPath() );
 
-    std::string path = u.GetPathWithParams();
+    std::string path = u.GetPathWithFilteredParams();
     MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;

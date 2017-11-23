@@ -205,6 +205,11 @@ namespace XrdCl
       std::string GetPathWithParams() const;
 
       //------------------------------------------------------------------------
+      //! Get the path with params, filteres out 'xrdcl.'
+      //------------------------------------------------------------------------
+      std::string GetPathWithFilteredParams() const;
+
+      //------------------------------------------------------------------------
       //! Get the URL params
       //------------------------------------------------------------------------
       const ParamsMap &GetParams() const
@@ -216,6 +221,13 @@ namespace XrdCl
       //! Get the URL params as string
       //------------------------------------------------------------------------
       std::string GetParamsAsString() const;
+
+      //------------------------------------------------------------------------
+      //! Get the URL params as string
+      //!
+      //! @param filter : if set to true filters out 'xrdcl.'
+      //------------------------------------------------------------------------
+      std::string GetParamsAsString( bool filter ) const;
 
       //------------------------------------------------------------------------
       //! Set params

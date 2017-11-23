@@ -1629,10 +1629,9 @@ namespace XrdCl
       URL::ParamsMap::const_iterator it;
       for( it = urlParams.begin(); it != urlParams.end(); ++it )
       {
-        if( it->first.compare( 0, 4, "xrd." ) )
-          continue;
-
-        info->authEnv->Put( it->first.c_str(), it->second.c_str() );
+        if( it->first.compare( 0, 4, "xrd." ) == 0 ||
+            it->first.compare( 0, 6, "xrdcl." ) == 0 )
+          info->authEnv->Put( it->first.c_str(), it->second.c_str() );
       }
 
       //------------------------------------------------------------------------
@@ -1826,8 +1825,8 @@ namespace XrdCl
     // and fsgid of the current thread reading the credentials to prevent
     // security holes in case this process is running with elevated permissions.
     //--------------------------------------------------------------------------
-    char *secuidc = (ei.getEnv()) ? ei.getEnv()->Get("xrd.secuid") : 0;
-    char *secgidc = (ei.getEnv()) ? ei.getEnv()->Get("xrd.secgid") : 0;
+    char *secuidc = (ei.getEnv()) ? ei.getEnv()->Get("xrdcl.secuid") : 0;
+    char *secgidc = (ei.getEnv()) ? ei.getEnv()->Get("xrdcl.secgid") : 0;
 
     int secuid = -1;
     int secgid = -1;
@@ -1844,7 +1843,7 @@ namespace XrdCl
     }
 #else
     if(secuid >= 0 || secgid >= 0) {
-      log->Error( XRootDTransportMsg, "[%s] xrd.secuid and xrd.secgid only supported on Linux.",
+      log->Error( XRootDTransportMsg, "[%s] xrdcl.secuid and xrdcl.secgid only supported on Linux.",
                   hsData->streamName.c_str() );
       return Status( stFatal, errAuthFailed );
     }
