@@ -359,7 +359,7 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
 {
 // Make sure we won't loose any bits of sockFD (we should use an int)
 //
-   if ((sockFD & 0xffff0000) != 0) return "FD is out of range";
+   if (sockFD >=0 && (sockFD & 0xffff0000) != 0) return "FD is out of range";
 
 // Clear translation if set
 //
