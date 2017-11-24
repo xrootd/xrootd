@@ -710,6 +710,8 @@ namespace XrdCl
       return pPlugIn->Locate( path, flags, handler, timeout );
 
     std::string urlPath = URL( path ).GetPathWithFilteredParams();
+    if( path.compare( 0, 2, "*/" ) == 0 )
+      urlPath = "*/" + urlPath;
 
     Message             *msg;
     ClientLocateRequest *req;
