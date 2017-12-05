@@ -270,7 +270,7 @@ Group:         Development/Libraries
 Provides:      python-%{name}
 %endif
 Provides:      %{name}-python = %{epoch}:%{version}-%{release}
-Obsoletes:     %{name}-python < 1:4.7.1-1
+Obsoletes:     %{name}-python < 1:4.8.0-1
 Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description -n python2-xrootd
