@@ -444,35 +444,30 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
 {
   using namespace XrdCl;
 
-  XrdCpFile   start;
-  XrdCpFile  *end   = &start;
-  XrdCpFile  *current;
-  URL         source( basePath );
-  int         badUrl;
-
-  std::vector<std::string> *files       = new std::vector<std::string>();
-  std::vector<std::string> *directories = new std::vector<std::string>();
-
   Log *log = DefaultEnv::GetLog();
   log->Debug( AppMsg, "Indexing %s", basePath.c_str() );
 
-  XRootDStatus status = GetDirList( fs, source, files, directories );
-  if( !status.IsOK() )
+  DirectoryList *dirList = 0;
+  XRootDStatus st = fs->DirList( basePath, DirListFlags::Recursive, dirList );
+  if( !st.IsOK() )
   {
     log->Info( AppMsg, "Failed to get directory listing for %s: %s",
-                       source.GetURL().c_str(),
-                       status.GetErrorMessage().c_str() );
+                       basePath.c_str(),
+                       st.GetErrorMessage().c_str() );
+    return 0;
   }
 
-  std::vector<std::string>::iterator it;
-  for( it = files->begin(); it != files->end(); ++it )
+  XrdCpFile start, *current = 0;
+  XrdCpFile *end   = &start;
+  int       badUrl = 0;
+  for( auto itr = dirList->Begin(); itr != dirList->End(); ++itr )
   {
-    std::string file = basePath + "/" + (*it);
-    log->Dump( AppMsg, "Found file %s", file.c_str() );
-
-    current = new XrdCpFile( file.c_str(), badUrl );
+    DirectoryList::ListEntry *e = *itr;
+    std::string path = basePath + '/' + e->GetName();
+    current = new XrdCpFile( path.c_str(), badUrl );
     if( badUrl )
     {
+      // TODO release the memory !!!
       log->Error( AppMsg, "Bad URL: %s", current->Path );
       return 0;
     }
@@ -482,17 +477,6 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
     end           = current;
   }
 
-  for( it = directories->begin(); it != directories->end(); ++it )
-  {
-    std::string directory = basePath + "/" + (*it);
-    log->Dump( AppMsg, "Found directory %s", directory.c_str() );
-
-    end->Next = IndexRemote( fs, directory, dirOffset );
-    while( end->Next ) end = end->Next;
-  }
-
-  delete files;
-  delete directories;
   return start.Next;
 }
 
