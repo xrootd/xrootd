@@ -407,9 +407,23 @@ namespace
           {
             DirectoryList::ListEntry *entry = *itr;
             StatInfo *info = entry->GetStatInfo();
+            if( !info )
+              throw RecDirLsErr( XRootDStatus( stError, errNotSupported ) );
             std::string path = dirList->GetParentName() + entry->GetName();
 
-            if( info->TestFlags( StatInfo::IsDir ) ) // it is a directory
+            // check the prefix
+            if( path.find( parent ) != 0 )
+              throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
+
+            // add new entry to the result
+            path = path.substr( parent.size() );
+            entry->SetStatInfo( 0 ); // StatInfo is no longer owned by dirList
+            DirectoryList::ListEntry *e =
+                new DirectoryList::ListEntry( entry->GetHostAddress(), path, info );
+            pCtx->dirList->Add( e );
+
+            // if it's a directory do a recursive call
+            if( info->TestFlags( StatInfo::IsDir ) )
             {
               // bump the pending counter
               ++pCtx->pending;
@@ -429,21 +443,9 @@ namespace
                   throw RecDirLsErr( XRootDStatus( stError, errOperationExpired ) );
               }
               // send the request
-              XRootDStatus st = pCtx->fs->DirList( path, flags, handler, timeout );
+              XRootDStatus st = pCtx->fs->DirList( parent + path, flags, handler, timeout );
               if( !st.IsOK() )
                 throw RecDirLsErr( st );
-            }
-            else // it's a file
-            {
-              // check the prefix
-              if( path.find( parent ) != 0 )
-                throw RecDirLsErr( XRootDStatus( stError, errDataError ) );
-
-              path = path.substr( parent.size() );
-              entry->SetStatInfo( 0 ); // StatInfo is no longer owned by dirList
-              DirectoryList::ListEntry *e =
-                  new DirectoryList::ListEntry( entry->GetHostAddress(), path, info );
-              pCtx->dirList->Add( e );
             }
           }
 
@@ -464,17 +466,14 @@ namespace
           }
         }
 
+        // clean up the context if necessary
+        bool delctx = ( pCtx->pending == 0 );
+        scoped.UnLock();
+        if( delctx )
+          delete pCtx;
         // clean up the arguments
         delete status;
         delete response;
-        // clean up the context if necessary
-        if( pCtx->pending == 0 )
-        {
-          scoped.UnLock();
-          delete pCtx;
-        }
-        else
-          scoped.UnLock();
         // and finally commit suicide
         delete this;
       }
