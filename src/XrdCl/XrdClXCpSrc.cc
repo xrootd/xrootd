@@ -64,7 +64,7 @@ class ChunkHandler: public ResponseHandler
         *status = XRootDStatus( stError, errInternal );
       }
 
-      if( chunk->length != pSize && status->IsOK() ) // the file size on the server is different
+      if( status->IsOK() && chunk->length != pSize ) // the file size on the server is different
       {                                              // than the one specified in metalink file
         *status = XRootDStatus( stError, errDataError );
       }

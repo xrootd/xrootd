@@ -455,7 +455,6 @@ namespace XrdCl
       bool                    pDoRecoverRead;
       bool                    pDoRecoverWrite;
       bool                    pFollowRedirects;
-      bool                    pDoneInitOpen;
       bool                    pUseVirtRedirector;
 
       //------------------------------------------------------------------------

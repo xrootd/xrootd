@@ -432,6 +432,8 @@ XrdCl::XRootDStatus GetDirList( XrdCl::FileSystem        *fs,
     }
   }
 
+  delete list;
+
   return XRootDStatus();
 }
 
@@ -467,7 +469,7 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
     current = new XrdCpFile( path.c_str(), badUrl );
     if( badUrl )
     {
-      // TODO release the memory !!!
+      // TODO release memory
       log->Error( AppMsg, "Bad URL: %s", current->Path );
       return 0;
     }
@@ -476,6 +478,8 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
     end->Next     = current;
     end           = current;
   }
+
+  delete dirList;
 
   return start.Next;
 }

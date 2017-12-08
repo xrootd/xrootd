@@ -664,11 +664,15 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
     }
 
     memcpy( buffer, pBuffer + offset, size );
-    XRootDStatus *st   = new XRootDStatus();
-    AnyObject    *resp = new AnyObject();
-    ChunkInfo    *info = new ChunkInfo( relativeOffset, size, buffer );
-    resp->Set( info );
-    if( userHandler ) userHandler->HandleResponse( st, resp );
+
+    if( userHandler )
+    {
+      XRootDStatus *st   = new XRootDStatus();
+      AnyObject    *resp = new AnyObject();
+      ChunkInfo    *info = new ChunkInfo( relativeOffset, size, buffer );
+      resp->Set( info );
+      userHandler->HandleResponse( st, resp );
+    }
     return XRootDStatus();
   }
 
