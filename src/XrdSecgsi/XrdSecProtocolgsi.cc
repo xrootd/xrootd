@@ -180,6 +180,10 @@ XrdSutCache  XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun (d
 // Services
 XrdOucGMap *XrdSecProtocolgsi::servGMap = 0; // Grid map service
 //
+// CA and CRL stacks
+GSIStack<XrdCryptoX509Chain>  XrdSecProtocolgsi::stackCA; // Stack of CA in use
+GSIStack<XrdCryptoX509Crl>  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
+//
 // GMAP control vars
 time_t XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
 XrdSysMutex XrdSecProtocolgsi::mutexGMAP;  // Mutex to control GMAP reloads
@@ -4271,8 +4275,8 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // If invalid we fail
    if (cent->status == kCE_inactive) {
       // Cleanup and remove existing invalid entries
-      if (chain) delete chain;
-      if (crl) delete crl;
+      if (chain) stackCA.Del(chain);
+      if (crl) stackCRL.Del(crl);
       PRINT("unable to get a valid entry from cache for " << tag);
       return -1;
    }
@@ -4280,17 +4284,20 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // Check if we are done
    if (rdlock) {
       // Save chain
-      chain = (X509Chain *)(cent->buf1.buf);
       if (hs) hs->Chain = chain;
+      stackCA.Add(chain);
       // Save crl
-      if (crl && hs) hs->Crl = crl;
-      // Done
+      if (crl) {
+         if (hs) hs->Crl = crl;
+         // Add to the stack for proper cleaning of invalidated CRLs
+         stackCRL.Add(crl);
+      }
       return 0;
    }
 
    // Cleanup and remove existing invalid entries
-   if (chain) delete chain;
-   if (crl) delete crl;
+   if (chain) stackCA.Del(chain);
+   if (crl) stackCRL.Del(crl);
 
    chain = 0;
    crl = 0;
@@ -4344,9 +4351,11 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             // Add to the cache
             cent->buf1.buf = (char *)(chain);
             cent->buf1.len = 0;      // Just a flag
+            stackCA.Add(chain);
             if (crl) {
                cent->buf2.buf = (char *)(crl);
                cent->buf2.len = 0;      // Just a flag
+               stackCRL.Add(crl);
             }
             cent->mtime = timestamp;
             cent->status = kCE_ok;
