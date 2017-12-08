@@ -543,7 +543,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Actual socket error error!
         //----------------------------------------------------------------------
-        sign->SetCursor( 0 );
+        if( sign ) sign->SetCursor( 0 );
         toWrite->SetCursor( 0 );
         return Status( stError, errSocketError, errno );
       }
