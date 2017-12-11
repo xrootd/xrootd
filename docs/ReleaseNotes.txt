@@ -40,6 +40,7 @@ Version 4.8.0
   * **[XrdHttp]** Allow XrdSfsGetDefaultFileSystem to be called multiple 
                   times.
   * **[XrdHttp]** Correct external handling logic.
+  * **[XrdSecgsi]** Use stack for proper cleaning of invalidated CRLs and CAs.
    
 + **Minor bug fixes**
   * **[Server]** Print error msg and close socket when a FD cannot. 
@@ -51,8 +52,11 @@ Version 4.8.0
   * **[Server]** Correct tpc directive scanning and make it more obvious. 
                  Fixes #604.
   * **[Server]** Enable url rewrites. Eliminates GSI roadblock.
+  * **[Server]** Do not reference a deleted object.
   * **[XrdSsi]** Make sure to finalyze all requests upon disc, fixes #616.
-  * **[XrdHttp]** Handle properly http.secretkey
+  * **[XrdHttp]** Handle properly http.secretkey.
+  * **[XrdCl]** various memory releated fixes.
+  * **[XrdPy]** Translate binary buffers into bytes objects, closes #632
 
 + **Miscellaneous**
   * **[RPM]** Add python3 sub package.
