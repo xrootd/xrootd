@@ -283,7 +283,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    int Lvl=0, Netopts=0, waits=6, tries=6, fails=0, xport=mport;
    int rc, fsUtil, KickedOut, blRedir, myNID = Manager->ManTree->Register();
    int chk4Suspend = XrdCmsState::All_Suspend, TimeOut = Config.AskPing*1000;
-   char envBuff[128], manbuff[264];
+   char manbuff[264];
    const char *Reason = 0, *manp = manager;
    const int manblen = sizeof(manbuff);
    bool terminate;
@@ -306,13 +306,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    loginData.Mode    = 0;
    loginData.Size    = 0;
    loginData.ifList  = (kXR_char *)Config.ifList;
-
-// Fill our the environment
-//
-   if (!Config.mySite) loginData.envCGI  = 0;
-      else {snprintf(envBuff, sizeof(envBuff), "site=%s", Config.mySite);
-            loginData.envCGI = (kXR_char *)envBuff;
-           }
+   loginData.envCGI  = (kXR_char *)Config.envCGI;
 
 // Establish request routing based on who we are
 //
@@ -743,6 +737,8 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    Say.Emsg("Protocol", envBuff, myNode->Ident,
             (myNode->isBad & XrdCmsNode::isSuspend ? "logged in suspended."
                                                    : "logged in."));
+   if (Data.SID)
+      Say.Emsg("Protocol", myNode->Ident, "system ID:", (const char *)Data.SID);
    myNode->ShowIF();
 
 // All done

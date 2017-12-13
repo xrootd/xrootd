@@ -1642,6 +1642,14 @@ int XrdXrootdProtocol::do_Qconf()
             n = snprintf(bp, bleft, "%s\n", (siteName ? siteName : "sitename"));
             bp += n; bleft -= n;
            }
+   else if (!strcmp("sysid", val))
+           {const char *cidval = getenv("XRDCMSCLUSTERID");
+            const char *nidval = getenv("XRDCMSVNID");
+            if (!cidval || !(*cidval) || !nidval || !(*nidval))
+               {cidval = "sysid"; nidval = "";}
+            n = snprintf(bp, bleft, "%s %s\n", nidval, cidval);
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("tpc", val))
            {char *tpcval = getenv("XRDTPC");
             n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpc"));
@@ -1661,6 +1669,12 @@ int XrdXrootdProtocol::do_Qconf()
            }
    else if (!strcmp("version", val))
            {n = snprintf(bp, bleft, "%s\n", XrdVSTRING);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("vnid", val))
+           {const char *nidval = getenv("XRDCMSVNID");
+            if (!nidval || !(*nidval)) nidval = "vnid";
+            n = snprintf(bp, bleft, "%s\n", nidval);
             bp += n; bleft -= n;
            }
    else {n = strlen(val);

@@ -133,14 +133,18 @@ inline int    Inst() {return Instance;}
        bool   inDomain() {return netIF.InDomain(&netID);}
 
 inline int    isNode(SMask_t smask) {return (smask & NodeMask) != 0;}
-inline int    isNode(const char *hn)
-                    {return Link && !strcmp(Link->Host(), hn);}
-inline int    isNode(const XrdNetAddr *addr)
+
+inline int    isNode(const XrdNetAddr *addr) // Only for avoid processing!
                     {return netID.Same(addr);}
+
 inline int    isNode(XrdLink *lp, const char *nid, int port)
-                    {return netID.Same(lp->NetAddr()) && port == netIF.Port()
-                         && (nid ? !strcmp(myNID, nid) : 1);
+                    {if (nid)
+                        {if (strcmp(myNID, nid)) return 0;
+                         if (*nid == '*') return 1;
+                        }
+                     return netID.Same(lp->NetAddr()) && port == netIF.Port();
                     }
+
 inline char  *Name()   {return (myName ? myName : (char *)"?");}
 
 inline SMask_t Mask() {return NodeMask;}

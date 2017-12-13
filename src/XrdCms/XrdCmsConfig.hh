@@ -136,6 +136,8 @@ XrdOucName2Name *lcl_N2N; // Server Only
 
 char        *ossLib;      // -> oss library
 char        *ossParms;    // -> oss library parameters
+char        *VNID_Lib;    // Server Only
+char        *VNID_Parms;  // Server Only
 char        *N2N_Lib;     // Server Only
 char        *N2N_Parms;   // Server Only
 char        *LocalRoot;   // Server Only
@@ -152,7 +154,9 @@ const char  *myDomain;
 const char  *myInsName;
 const char  *myInstance;
 const char  *mySID;
+const char  *myVNID;
 const char  *mySite;
+      char  *envCGI;
       char  *cidTag;
 const char  *ifList;
 XrdOucTList *ManList;     // From manager directive
@@ -230,6 +234,7 @@ int  xspace(XrdSysError *edest, XrdOucStream &CFile);
 int  xsubc(XrdSysError *edest, XrdOucStream &CFile);
 int  xsupp(XrdSysError *edest, XrdOucStream &CFile);
 int  xtrace(XrdSysError *edest, XrdOucStream &CFile);
+int  xvnid(XrdSysError *edest, XrdOucStream &CFile);
 
 XrdInet          *NetTCPr;     // Network for supervisors
 char             *AdminPath;

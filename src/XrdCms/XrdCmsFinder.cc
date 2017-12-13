@@ -887,20 +887,17 @@ XrdCmsFinderTRG::XrdCmsFinderTRG(XrdSysLogger *lp, int whoami, int port,
                                  XrdOss *theSS)
                : XrdCmsClient(XrdCmsClient::amTarget)
 {
-   char buff [256];
    isRedir = whoami & IsRedir;
    isProxy = whoami & IsProxy;
    SS      = theSS;
    CMSPath = 0;
+   Login   = 0;
    myManList = 0;
    CMSp    = new XrdOucStream(&Say);
    Active  = 0;
    myPort  = port;
    resMax  = -1;
    resCur  = 0;
-   sprintf(buff, "login %c %d port %d\n",(isProxy ? 'P' : 'p'),
-                 static_cast<int>(getpid()), port);
-   Login = strdup(buff);
    Say.logger(lp);
 }
  
@@ -958,6 +955,8 @@ int XrdCmsFinderTRG::Configure(const char *cfn, char *Ags, XrdOucEnv *envP)
 {
    XrdCmsClientConfig             config;
    XrdCmsClientConfig::configWhat What;
+   const char *lFmt;
+   char buff [512];
 
 // Establish what we will be configuring
 //
@@ -970,11 +969,21 @@ int XrdCmsFinderTRG::Configure(const char *cfn, char *Ags, XrdOucEnv *envP)
       else      {myManList = config.ManList; config.ManList = 0;}
 
 // Set the error dest and simply call the configration object and if
-// successful, run the Admin thread. Note that unlike FinderRMT, we do not
-// extract the security function pointer or the network object pointer from
-// the environment as we don't need these at all.
 //
    if (config.Configure(cfn, What, XrdCmsClientConfig::configNorm)) return 0;
+
+// Construct the login line
+//
+   lFmt = ((What == XrdCmsClientConfig::configServer && config.myVNID)
+        ?  "login %c %d port %d vnid %s\n" : "login %c %d port %d\n");
+   snprintf(buff, sizeof(buff), lFmt, (isProxy ? 'P' : 'p'),
+                  static_cast<int>(getpid()), myPort, config.myVNID);
+   Login = strdup(buff);
+
+// Run the Admin thread. Note that unlike FinderRMT, we do not extract the
+// security function pointer or the network object pointer from the
+// environment as we don't need these at all.
+//
    return RunAdmin(config.CMSPath);
 }
   
