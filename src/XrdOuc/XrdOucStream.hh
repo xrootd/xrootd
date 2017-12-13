@@ -207,6 +207,7 @@ int          Wait4Data(int msMax=-1);
   
 private:
         char *add2llB(char *tok, int reset=0);
+        bool  docont(char *path);
         char *doelse();
         char *doif();
         int   isSet(char *var);
