@@ -7,6 +7,97 @@ Release Notes
 
 
 -------------
+Version 4.8.0
+-------------
+
++ **New Features**
+  * **[XrdCl]** Local redirection and local file support.
+  * **[XrdCl]** merge xrdfs ls results if not unique, closes #541.
+  * **[XrdCl]** Provide client specific CGI info.
+  * **[XrdCl]** File::WriteV implementation, closes #388.
+  * **[XrdHttp]** Pass the HTTP verb to the external handler for path 
+                  matching.
+  * **[XrdHttp]** Allow one to access the XrdSecEntity object associated 
+                  with a request.
+  * **[XrdHttp]** Allow filtering based on HTTP verb in MatchesPath.
+  * **[XrdHttp]** Allow overwrites to be done on PUT.
+  * **[XrdHttp]** Allow multiple external handlers to be loaded by XrdHttp.
+
++ **Major bug fixes**
+  * **[Server]** Correctly handle monEnt on file close to avoid SEGV.
+                 Fixes #618.
+  * **[Server]** Poperly handle file descriptors up to 65535.
+                 Fixes #607.
+  * **[Server]** Fix handling of >65K attached files (active links).
+                 Fixes #623.
+  * **[Server]** Make sure doPost does not become <0 (regression introduced
+                 in 4.7.1). 
+  * **[Proxy]** Avoid SEGV when localroot specified w/o remote root.
+                Fixes #627.
+  * **[XrdCl]** Connection Window should be applied per IP address.
+                Fixes #625.
+  * **[XrdCl]** Write request and raw data with single writev, fixes #609.
+  * **[XrdHttp]** Allow XrdSfsGetDefaultFileSystem to be called multiple 
+                  times.
+  * **[XrdHttp]** Correct external handling logic.
+  * **[XrdSecgsi]** Use stack for proper cleaning of invalidated CRLs and CAs.
+   
++ **Minor bug fixes**
+  * **[Server]** Print error msg and close socket when a FD cannot. 
+                 be handled.
+  * **[Server]** Close additional loophole for fstream disconnect.
+  * **[Server]** Always unhook the statistcs object from xfr monitoring 
+                 if hooked.
+  * **[Server]** Ruggedize TPC to be less sensitive to protocol violations.
+  * **[Server]** Correct tpc directive scanning and make it more obvious. 
+                 Fixes #604.
+  * **[Server]** Enable url rewrites. Eliminates GSI roadblock.
+  * **[Server]** Do not reference a deleted object.
+  * **[XrdSsi]** Make sure to finalyze all requests upon disc, fixes #616.
+  * **[XrdHttp]** Handle properly http.secretkey.
+  * **[XrdCl]** various memory releated fixes.
+  * **[XrdPy]** Translate binary buffers into bytes objects, closes #632
+
++ **Miscellaneous**
+  * **[RPM]** Add python3 sub package.
+  * **[RPM]** Rename python sub-package, closes #614.
+  * **[Py]** Facilitate building python bindings with wheel.
+
+-------------
+Version 4.7.1
+-------------
+
++ **Major bug fixes**
+  * **[XrdSecgsi]** Fix segv in cache checking, fixes #595
+  * **[XrdHttp]** Fix for the persistent connection issue.
+  * **[XrdHttp]** Fix FD leak when a socket error is encountered.
+  * **[XrdSsi]** Avoid race condition when response is posted.
+  * **[XrdSsi]** Avoid state conflict when request is being processed and 
+                 client asks for response.
+  * **[XrdCl]** Prevent segv in case user has no name.
+  * **[Server]** Close link on enable errors to prevent socket leaks.
+
++ **Minor bug fixes**
+  * **[XrdLink]** Increment the IOSemaphore once for each waiting thread.
+  * **[XrdHttp]** Make sure that the preexisting url tokens are properly 
+                  quoted when generating a redirection.
+  * **[XrdCl]** Fix invalid memory reads/writes when RAII finalizes mutex
+                after the object has been deleted.
+
++ **Miscellaneous**
+  * **[XrdCl]** Log last error in case redirect limit has been reached.
+  * **[XrdCl]** Add option to read credentials under different fsuid/fsgid.
+  * **[XrdCl]** Accept empty login response for protocol <= 2.8.9
+                (This is only to ensure compatibility with dCache, which
+                due to its inaccurate implementation of XRoot protocol in 
+                some cases returns an empty login response for protocol 
+                version <= 2.8.9.)
+  * **[XrdCl]** Add envar to config Nagle algorithm.
+  * **[XrdSsi]** Reinitializ response object after Finished() so it can
+                 reused.
+* **[XrdHttp]** Header2cgi directive.
+
+-------------
 Version 4.7.0
 -------------
 
