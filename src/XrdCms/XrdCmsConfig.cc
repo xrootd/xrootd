@@ -1170,7 +1170,6 @@ int XrdCmsConfig::setupServer()
 char *XrdCmsConfig::setupSid()
 {
    XrdOucTList *tp = (NanList ? NanList : ManList);
-   const char *nidVal = myInsName;
    char *sidVal, sfx;
 
 // Grab the interfaces. This is normally set as an envar. If present then
@@ -1194,7 +1193,6 @@ char *XrdCmsConfig::setupSid()
    if (VNID_Lib)
       {myVNID = XrdCmsSecurity::getVnId(Say,ConfigFN,VNID_Lib,VNID_Parms,sfx);
        if (!myVNID) return 0;
-       nidVal = myVNID;
       }
 
 // Generate the system ID and set the cluster ID
