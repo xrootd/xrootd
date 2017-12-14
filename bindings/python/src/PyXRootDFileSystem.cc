@@ -56,7 +56,14 @@ namespace PyXRootD
     copyprocess->AddJob( copyprocess, args, kwds );
     pystatus = copyprocess->Prepare( copyprocess, NULL, NULL );
     if ( !pystatus ) return NULL;
-    if ( PyDict_GetItemString( pystatus, "ok" ) == Py_False ) return pystatus;
+    if ( PyDict_GetItemString( pystatus, "ok" ) == Py_False )
+    {
+      PyObject *tuple = PyTuple_New(2);
+      PyTuple_SetItem(tuple, 0, pystatus);
+      Py_INCREF(Py_None);
+      PyTuple_SetItem(tuple, 1, Py_None);
+      return tuple;
+    }
 
     pystatus = copyprocess->Run( copyprocess, PyTuple_New(0), PyDict_New() );
     if ( !pystatus ) return NULL;
