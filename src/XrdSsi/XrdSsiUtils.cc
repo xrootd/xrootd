@@ -82,7 +82,8 @@ void     DoIt() {myMutex.Lock();
 virtual void   Finished(      XrdSsiRequest  &rqstR,
                         const XrdSsiRespInfo &rInfo,
                               bool            cancel=false)
-                       {myMutex.Lock();
+                       {UnBindRequest();
+                        myMutex.Lock();
                         if (!isActive) delete this;
                            else {isActive = false;
                                  myMutex.UnLock();
