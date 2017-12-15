@@ -580,7 +580,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
    if (XrdPosixGlobals::myCache2)
       {int rc = XrdPosixGlobals::myCache2->Prepare(path, oflags, mode);
        if (rc > 0) return OpenDefer(fp, cbP, XOflags, XOmode, oflags&isStream);
-       if (rc < 0) {errno = -rc; return -1;}
+       if (rc < 0) {delete fp; errno = -rc; return -1;}
       }
 
 // Open the file (sync or async)
@@ -1200,7 +1200,7 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 
 // Return what little we can
 //
-   memset(buf, 0, sizeof(struct statfs));
+   memset(buf, 0, sizeof(struct statvfs));
    buf->f_bsize   = 1024*1024;
    buf->f_frsize  = 1024*1024;
    buf->f_blocks  = static_cast<fsblkcnt_t>(rwBlks);
