@@ -400,8 +400,12 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
 
    //
    // The id must be defined
-   if (!factoryid || !strlen(factoryid)) {
-      PRINT("crypto factory ID ("<<factoryid<<") undefined");
+   if (!factoryid) {
+      PRINT("crypto factory ID (NULL) undefined");
+      return 0;
+   }
+   if (!strlen(factoryid)) {
+      PRINT("crypto factory ID (\"\") undefined");
       return 0;
    }
 
