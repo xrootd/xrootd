@@ -1018,9 +1018,9 @@ int XrdCryptosslCipher::EncDec(int enc, const char *in, int lin, char *out)
    // Check inputs
    if (!in || lin <= 0 || !out) {
       DEBUG("wrong inputs arguments");
-      if (!in) DEBUG("in: "<<in);
+      if (!in) DEBUG("in: NULL");
       if (lin <= 0) DEBUG("lin: "<<lin);
-      if (!out) DEBUG("out: "<<out);
+      if (!out) DEBUG("out: NULL");
       return 0;
    }
 

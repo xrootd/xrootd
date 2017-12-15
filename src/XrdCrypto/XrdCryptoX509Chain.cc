@@ -445,19 +445,21 @@ XrdCryptoX509ChainNode *XrdCryptoX509Chain::FindIssuer(const char *issuer,
    while (cn) {
       n = cn->Next();
       c = cn->Cert();
-      const char *pi = c->Issuer();
-      if (c && pi) {
-         if (mode == kExact) {
-            if (!strcmp(pi, issuer))
-               break;
-         } else if (mode == kBegin) {
-            if (strstr(pi, issuer) == c->Issuer())
-               break;
-         } else if (mode == kEnd) {
-            int ibeg = strlen(pi) - strlen(issuer);
-            if (!strcmp(pi + ibeg, issuer))
-               break;
-         }
+      if(c) {
+        const char *pi = c->Issuer();
+        if (pi) {
+           if (mode == kExact) {
+              if (!strcmp(pi, issuer))
+                 break;
+           } else if (mode == kBegin) {
+              if (strstr(pi, issuer) == c->Issuer())
+                 break;
+           } else if (mode == kEnd) {
+              int ibeg = strlen(pi) - strlen(issuer);
+              if (!strcmp(pi + ibeg, issuer))
+                 break;
+           }
+        }
       }
       c = 0;
       cp = cn;  // previous

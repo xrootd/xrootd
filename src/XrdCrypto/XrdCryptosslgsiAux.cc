@@ -573,41 +573,40 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    if (fnp) {
       // Open the file in write mode
       FILE *fp = fopen(fnp,"w");
+      int ifp = -1;
       if (!fp) {
          PRINT("cannot open file to save the proxy certificate (file: "<<fnp<<")");
-         fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      int ifp = fileno(fp);
-      if (ifp == -1) {
+      else if ( (ifp = fileno(fp)) == -1) {
          PRINT("got invalid file descriptor for the proxy certificate (file: "<<
                 fnp<<")");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
       // Set permissions to 0600
-      if (fchmod(ifp, 0600) == -1) {
+      else if (fchmod(ifp, 0600) == -1) {
          PRINT("cannot set permissions on file: "<<fnp<<" (errno: "<<errno<<")");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-
-      if (!rc && PEM_write_X509(fp, xPX) != 1) {
+      else if (!rc && PEM_write_X509(fp, xPX) != 1) {
          PRINT("error while writing proxy certificate");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      if (!rc && PEM_write_RSAPrivateKey(fp, kPX, 0, 0, 0, 0, 0) != 1) {
+      else if (!rc && PEM_write_RSAPrivateKey(fp, kPX, 0, 0, 0, 0, 0) != 1) {
          PRINT("error while writing proxy private key");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      if (!rc && PEM_write_X509(fp, xEEC) != 1) {
+      else if (!rc && PEM_write_X509(fp, xEEC) != 1) {
          PRINT("error while writing EEC certificate");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      fclose(fp);
+      else
+        fclose(fp);
       // Change
    }
 
