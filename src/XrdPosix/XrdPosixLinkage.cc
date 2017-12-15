@@ -301,7 +301,7 @@ void XrdPosixLinkage::Missing(const char *epname)
    if (epname) epList = new Missing(epList, epname);
       else {Missing *np = epList;
             while(np) cerr << "PosixPreload: Unable to resolve Unix '" 
-                           <<epname <<"()'" <<endl;
+                           <<np->What <<"()'" <<endl;
             np = np->Next;
            }
 }
