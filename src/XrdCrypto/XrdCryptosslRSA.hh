@@ -70,9 +70,9 @@ public:
 
    // Import / Export methods
    int ImportPublic(const char *in, int lin);
-   int ExportPublic(char *out, int lout);
+   int ExportPublic(char *&out, int lout);
    int ImportPrivate(const char *in, int lin);
-   int ExportPrivate(char *out, int lout);
+   int ExportPrivate(char *&out, int lout);
 
    // Encryption / Decryption methods
    int EncryptPrivate(const char *in, int lin, char *out, int lout);
