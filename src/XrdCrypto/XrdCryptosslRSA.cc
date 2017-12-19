@@ -361,7 +361,7 @@ int XrdCryptosslRSA::GetPublen()
    return publen;
 }
 //_____________________________________________________________________________
-int XrdCryptosslRSA::ExportPublic(char *out, int)
+int XrdCryptosslRSA::ExportPublic(char *&out, int)
 {
    // Export the public key into buffer out. The length of the buffer should be
    // at least GetPublen()+1 bytes. If out=0 the buffer is m-allocated internally
@@ -426,7 +426,7 @@ int XrdCryptosslRSA::GetPrilen()
 }
 
 //_____________________________________________________________________________
-int XrdCryptosslRSA::ExportPrivate(char *out, int)
+int XrdCryptosslRSA::ExportPrivate(char *&out, int)
 {
    // Export the private key into buffer out. The length of the buffer should be
    // at least GetPrilen()+1 bytes. If out=0 the buffer is m-allocated internally

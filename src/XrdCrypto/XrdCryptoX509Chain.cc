@@ -586,7 +586,7 @@ int XrdCryptoX509Chain::Reorder()
    }
 
    // Move it in first position if not yet there
-   if (nr != begin) { 
+   if (nr && nr != begin) {
       np->SetNext(nr->Next()); // short cut old position
       nr->SetNext(begin);      // set our next to present begin
       if (end == nr)           // Update end
