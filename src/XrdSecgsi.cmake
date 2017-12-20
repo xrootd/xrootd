@@ -5,7 +5,6 @@ include( XRootDCommon )
 # Shared library version
 #-------------------------------------------------------------------------------
 set( LIB_XRD_SEC_GSI          XrdSecgsi-${PLUGIN_VERSION} )
-set( LIB_XRD_SEC_GSI_GMAPLDAP XrdSecgsiGMAPLDAP-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_GMAPDN   XrdSecgsiGMAPDN-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_AUTHZVO  XrdSecgsiAUTHZVO-${PLUGIN_VERSION} )
 
@@ -26,20 +25,6 @@ target_link_libraries(
 
 set_target_properties(
   ${LIB_XRD_SEC_GSI}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
-
-#-------------------------------------------------------------------------------
-# The XrdSecgsiGMAPLDAP module
-#-------------------------------------------------------------------------------
-add_library(
-  ${LIB_XRD_SEC_GSI_GMAPLDAP}
-  MODULE
-  XrdSecgsi/XrdSecgsiGMAPFunLDAP.cc )
-
-set_target_properties(
-  ${LIB_XRD_SEC_GSI_GMAPLDAP}
   PROPERTIES
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
@@ -94,19 +79,33 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY} )
 
 #-------------------------------------------------------------------------------
+# xrdgsitest
+#-------------------------------------------------------------------------------
+add_executable(
+  xrdgsitest
+  XrdSecgsi/XrdSecgsitest.cc )
+
+target_link_libraries(
+  xrdgsitest
+  XrdCrypto
+  XrdUtils
+  ${OPENSSL_CRYPTO_LIBRARY} )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
   TARGETS
   ${LIB_XRD_SEC_GSI}
-  ${LIB_XRD_SEC_GSI_GMAPLDAP}
   ${LIB_XRD_SEC_GSI_AUTHZVO}
   ${LIB_XRD_SEC_GSI_GMAPDN}
   xrdgsiproxy
+  xrdgsitest
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdgsiproxy.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdgsitest.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )

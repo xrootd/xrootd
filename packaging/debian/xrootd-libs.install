@@ -1,0 +1,9 @@
+usr/lib/*/libXrdAppUtils.so.1*
+usr/lib/*/libXrdClProxyPlugin-4.so
+usr/lib/*/libXrdCks*-4.so
+usr/lib/*/libXrdCrypto.so.1*
+usr/lib/*/libXrdCryptoLite.so.1*
+usr/lib/*/libXrdCryptossl-4.so
+usr/lib/*/libXrdSec*-4.so
+usr/lib/*/libXrdUtils.so.*
+usr/lib/*/libXrdXml.so.*

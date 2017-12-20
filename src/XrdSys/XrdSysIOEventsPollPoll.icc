@@ -222,6 +222,7 @@ void XrdSys::IOEvents::PollPoll::Begin(XrdSysSemaphore *syncsem,
   
 void XrdSys::IOEvents::PollPoll::Dispatch(int ptent, int pollEv)
 {
+   static const short pollER = POLLERR| POLLHUP    | POLLNVAL;
    static const short pollOK = POLLIN | POLLRDNORM | POLLPRI | POLLOUT;
    static const short pollRD = POLLIN | POLLRDNORM | POLLPRI;
    static const short pollWR = POLLOUT;
@@ -235,17 +236,19 @@ void XrdSys::IOEvents::PollPoll::Dispatch(int ptent, int pollEv)
 
 // Translate the event to something reasonable
 //
-   if (pollEv & pollOK)
-      {if (pollEv & pollRD) events |= CallBack::ReadyToRead;
-       if (pollEv & pollWR) events |= CallBack::ReadyToWrite;
-       eNum = 0; eTxt = 0;
-      } else {
-            if (pollEv & POLLHUP) eNum = ECONNRESET;
-       else if (pollEv & POLLERR) eNum = EPIPE;
-       else if (pollEv & POLLNVAL)eNum = EBADF;
-       else                       eNum = EIO;
-       eTxt = "polling";
-      }
+        if (pollEv & pollER)
+           {eTxt = "polling";
+                 if (pollEv & POLLHUP) eNum = ECONNRESET;
+            else if (pollEv & POLLERR) eNum = EPIPE;
+            else if (pollEv & POLLNVAL)eNum = EBADF;
+            else                       eNum = EIO;
+           }
+   else if (pollEv & pollOK)
+           {if (pollEv & pollRD) events |= CallBack::ReadyToRead;
+            if (pollEv & pollWR) events |= CallBack::ReadyToWrite;
+            eNum = 0; eTxt = 0;
+           }
+   else {eTxt = "polling"; eNum = EIO;}
 
 // Execute the callback
 //

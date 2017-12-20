@@ -51,6 +51,8 @@ public:
 
 XrdLink    *Accept(int opts=0, int timeout=-1, XrdSysSemaphore *theSem=0);
 
+int         BindSD(int port, const char *contype="tcp");
+
 XrdLink    *Connect(const char *host, int port, int opts=0, int timeout=-1);
 
 void        Secure(XrdNetSecurity *secp);
@@ -58,13 +60,20 @@ void        Secure(XrdNetSecurity *secp);
             XrdInet(XrdSysError *erp, XrdOucTrace *tP, XrdNetSecurity *secp=0)
                       : XrdNet(erp,0), Patrol(secp), XrdTrace(tP) {}
            ~XrdInet() {}
+
+static void SetAssumeV4(bool newVal) {AssumeV4 = newVal;}
+
+static bool GetAssumeV4() {return AssumeV4;}
+
 static
 XrdNetIF    netIF;
 
 private:
+int Listen();
 
 XrdNetSecurity    *Patrol;
 XrdOucTrace       *XrdTrace;
 static const char *TraceID;
+static  bool       AssumeV4;
 };
 #endif

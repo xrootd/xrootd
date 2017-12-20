@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with XRootD.  If not, see <http:#www.gnu.org/licenses/>.
 #-------------------------------------------------------------------------------
+from __future__ import absolute_import, division, print_function
+
 from XRootD.client.url import URL
 
 class Struct(object):
@@ -23,7 +25,7 @@ class Struct(object):
       self.__dict__.update(**entries)
   def __repr__(self):
     return '<%s>' % str(', '.join('%s: %s' % (k, repr(v))
-                                  for (k, v) in self.__dict__.iteritems()))
+                                  for (k, v) in self.__dict__.items()))
 
 class LocationInfo(Struct):
   """Path location information (a list of discovered file locations).

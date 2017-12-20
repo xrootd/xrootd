@@ -216,6 +216,7 @@ XrdOssSys::XrdOssSys()
    STT_Parms     = 0;
    STT_Func      = 0;
    STT_PreOp     = 0;
+   STT_DoN2N     = 1;
    STT_V2        = 0;
 }
   
@@ -240,6 +241,7 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
    char *val;
    int  retc, NoGo = XrdOssOK;
    pthread_t tid;
+   bool setfd = false;
 
 // Do the herald thing
 //
@@ -254,16 +256,27 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 // Establish the FD limit and the fence (half way)
 //
   if (getrlimit(RLIMIT_NOFILE, &rlim))
-     Eroute.Emsg("Config", errno, "get fd limit");
-     else {if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_max = maxFD;
-           if (rlim.rlim_cur != rlim.rlim_max)
-              {rlim.rlim_cur  = rlim.rlim_max;
-               if (setrlimit(RLIMIT_NOFILE, &rlim))
+     {Eroute.Emsg("Config", errno, "get fd limit");
+      rlim.rlim_cur = maxFD;
+     }
+     else {if (rlim.rlim_max == RLIM_INFINITY)
+              {rlim.rlim_cur = maxFD;
+               setfd = true;
+              } else {
+               if (rlim.rlim_cur != rlim.rlim_max)
+                  {rlim.rlim_cur  = rlim.rlim_max;
+                   setfd = true;
+                  }
+              }
+           if (setfd)
+              {if (setrlimit(RLIMIT_NOFILE, &rlim))
                   Eroute.Emsg("Config", errno, "set fd limit");
                   else FDLimit = rlim.rlim_cur;
               } else {FDFence = static_cast<int>(rlim.rlim_cur)>>1;
                       FDLimit = rlim.rlim_cur;
                      }
+          }
+   if (FDFence < 0 || FDFence >= FDLimit) FDFence = FDLimit >> 1;
 
 // Process the configuration file
 //
@@ -275,16 +288,6 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
       {if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute, envP);
        if (STT_Lib && !NoGo) NoGo |= ConfigStatLib(Eroute, envP);
       }
-
-// Establish the FD limit
-//
-    if (FDLimit <= 0) FDLimit = rlim.rlim_cur;
-       else {rlim.rlim_cur = FDLimit;
-            if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
-               NoGo = Eroute.Emsg("Config", errno,"set FD limit");
-            }
-    if (FDFence < 0 || FDFence >= FDLimit) FDFence = FDLimit >> 1;
-   }
 
 // Establish usage tracking and quotas, if need be. Note that if we are not
 // a true data server, those services will be initialized but then disabled.
@@ -502,7 +505,7 @@ int XrdOssSys::ConfigN2N(XrdSysError &Eroute, XrdOucEnv *envP)
 
 // Get the plugin
 //
-   if (!(the_N2N = n2nLoader.Load(N2N_Lib, *myVersion))) return 1;
+   if (!(the_N2N = n2nLoader.Load(N2N_Lib, *myVersion, envP))) return 1;
 
 // Optimize the local case
 //
@@ -1147,10 +1150,20 @@ int XrdOssSys::xdefault(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdSysError &Eroute)
 {
+    char *val;
+    int fence = 0, FDHalf = FDLimit>>1;
+
+    if (!(val = Config.GetWord()))
+       {Eroute.Emsg("Config", "fdlimit fence not specified"); return 1;}
+
+    if (!strcmp(val, "*")) FDFence = FDHalf;
+       else {if (XrdOuca2x::a2i(Eroute,"fdlimit fence",val,&fence,0)) return 1;
+             FDFence = (fence < FDHalf ? fence : FDHalf);
+            }
 
     while(Config.GetWord()) {}
 
-    Eroute.Say("Config warning: ", "fdlimit directive no longer supported.");
+//  Eroute.Say("Config warning: ", "fdlimit directive no longer supported.");
 
     return 0;
 }
@@ -1323,9 +1336,19 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdSysError &Eroute)
    pP = XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags);
    if (!pP) return 1;
 
-// This plugin does not support relative paths so check for this
+// If this is an absolute path, we are done
 //
    if (*(pP->Path()) == '/') return 0;
+
+// If this is an objectid path then make sure to set the default for these
+//
+   if (*(pP->Path()) == '*')
+      {RPList.Defstar(pP->Flag());
+       return 0;
+      }
+
+// We do not (yet) support exporting specific object ID's
+//
    Eroute.Emsg("Config", "Unsupported export -", pP->Path());
    return 1;
 }
@@ -1580,8 +1603,10 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xstl
 
-   Purpose:  To parse the directive: statlib [-2] [preopen] <path> [<parms>]
+   Purpose:  To parse the directive: statlib [-2] [non2n] [preopen] <path> [<parms>]
 
+             -2        use version 2 initialization interface.
+             non2n     do not apply name2name prior to calling plug-in.
              preopen   issue the stat() prior to opening the file.
              <path>    the path of the stat library to be used.
              <parms>   optional parms to be passed
@@ -1600,8 +1625,9 @@ int XrdOssSys::xstl(XrdOucStream &Config, XrdSysError &Eroute)
 
 // Check for options
 //
-   STT_V2 = 0; STT_PreOp = 0;
+   STT_V2 = 0; STT_PreOp = 0; STT_DoN2N = 1;
 do{     if (!strcmp(val, "-2"))      STT_V2    = 1;
+   else if (!strcmp(val, "non2n"))   STT_DoN2N = 0;
    else if (!strcmp(val, "preopen")) STT_PreOp = 1;
    else break;
   } while((val = Config.GetWord()) && val[0]);

@@ -31,6 +31,8 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClZipArchiveReader.hh"
 
 using namespace XrdClTests;
 
@@ -44,13 +46,17 @@ class FileTest: public CppUnit::TestCase
       CPPUNIT_TEST( RedirectReturnTest );
       CPPUNIT_TEST( ReadTest );
       CPPUNIT_TEST( WriteTest );
+      CPPUNIT_TEST( WriteVTest );
       CPPUNIT_TEST( VectorReadTest );
+      CPPUNIT_TEST( VirtualRedirectorTest );
       CPPUNIT_TEST( PlugInTest );
     CPPUNIT_TEST_SUITE_END();
     void RedirectReturnTest();
     void ReadTest();
     void WriteTest();
+    void WriteVTest();
     void VectorReadTest();
+    void VirtualRedirectorTest();
     void PlugInTest();
 };
 
@@ -108,7 +114,7 @@ void FileTest::RedirectReturnTest()
   MessageSendParams params; params.followRedirects = false;
   MessageUtils::ProcessSendParams( params );
   OpenInfo *response = 0;
-  CPPUNIT_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params ) );
+  CPPUNIT_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params, 0 ) );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
   delete handler;
   CPPUNIT_ASSERT_XRDST_NOTOK( st1, errRedirect );
@@ -194,6 +200,45 @@ void FileTest::ReadTest()
   delete [] buffer2;
 
   CPPUNIT_ASSERT_XRDST( f.Close() );
+
+  //----------------------------------------------------------------------------
+  // Read ZIP archive test
+  //----------------------------------------------------------------------------
+  std::string archiveUrl = address + "/" + dataPath + "/data.zip";
+
+  ZipArchiveReader zip;
+  CPPUNIT_ASSERT_XRDST( zip.Open( archiveUrl ) );
+
+  //----------------------------------------------------------------------------
+  // There are 3 files in the data.zip archive:
+  //  - athena.log
+  //  - paper.txt
+  //  - EastAsianWidth.txt
+  //----------------------------------------------------------------------------
+
+  struct
+  {
+      std::string file;        // file name
+      uint64_t    offset;      // offset in the file
+      uint32_t    size;        // number of characters to be read
+      char        buffer[100]; // the buffer
+      std::string expected;    // expected result
+  } testset[] =
+  {
+      { "athena.log",         65530, 99, {0}, "D__Jet" }, // reads past the end of the file (there are just 6 characters to read not 99)
+      { "paper.txt",          1024,  65, {0}, "igh rate (the order of 100 kHz), the data are usually distributed" },
+      { "EastAsianWidth.txt", 2048,  18, {0}, "8;Na # DIGIT EIGHT" }
+  };
+
+  for( int i = 0; i < 3; ++i )
+  {
+    uint32_t bytesRead;
+    CPPUNIT_ASSERT_XRDST( zip.Read( testset[i].file, testset[i].offset, testset[i].size, testset[i].buffer, bytesRead ) );
+    std::string result( testset[i].buffer, bytesRead );
+    CPPUNIT_ASSERT( testset[i].expected == result );
+  }
+
+  CPPUNIT_ASSERT_XRDST( zip.Close() );
 }
 
 
@@ -283,6 +328,89 @@ void FileTest::WriteTest()
   delete [] buffer2;
   delete [] buffer3;
   delete [] buffer4;
+  delete stat;
+}
+
+//------------------------------------------------------------------------------
+// WriteV test
+//------------------------------------------------------------------------------
+void FileTest::WriteVTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/testFile.dat";
+  std::string fileUrl = address + "/";
+  fileUrl += filePath;
+
+  //----------------------------------------------------------------------------
+  // Fetch some data and checksum
+  //----------------------------------------------------------------------------
+  const uint32_t MB = 1024*1024;
+  char *buffer1 = new char[4*MB];
+  char *buffer2 = new char[4*MB];
+  char *buffer3 = new char[8*MB];
+  uint32_t bytesRead1 = 0;
+  File f1, f2;
+
+  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
+  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
+  uint32_t crc1 = Utils::ComputeCRC32( buffer1, 4*MB );
+  crc1 = Utils::UpdateCRC32( crc1, buffer2, 4*MB );
+
+  //----------------------------------------------------------------------------
+  // Prepare IO vector
+  //----------------------------------------------------------------------------
+  int iovcnt = 2;
+  iovec iov[iovcnt];
+  iov[0].iov_base = buffer1;
+  iov[0].iov_len  = 4*MB;
+  iov[1].iov_base = buffer2;
+  iov[1].iov_len  = 4*MB;
+
+  //----------------------------------------------------------------------------
+  // Write the data
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
+                           Access::UR | Access::UW ).IsOK() );
+  CPPUNIT_ASSERT( f1.WriteV( 0, iov, iovcnt ).IsOK() );
+  CPPUNIT_ASSERT( f1.Sync().IsOK() );
+  CPPUNIT_ASSERT( f1.Close().IsOK() );
+
+  //----------------------------------------------------------------------------
+  // Read the data and verify the checksums
+  //----------------------------------------------------------------------------
+  StatInfo *stat = 0;
+  CPPUNIT_ASSERT( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
+  CPPUNIT_ASSERT( f2.Stat( false, stat ).IsOK() );
+  CPPUNIT_ASSERT( stat );
+  CPPUNIT_ASSERT( stat->GetSize() == 8*MB );
+  CPPUNIT_ASSERT( f2.Read( 0, 8*MB, buffer3, bytesRead1 ).IsOK() );
+  CPPUNIT_ASSERT( bytesRead1 == 8*MB );
+
+  uint32_t crc2 = Utils::ComputeCRC32( buffer3, 8*MB );
+  CPPUNIT_ASSERT( f2.Close().IsOK() );
+  CPPUNIT_ASSERT( crc1 == crc2 );
+
+  FileSystem fs( url );
+  CPPUNIT_ASSERT( fs.Rm( filePath ).IsOK() );
+  delete [] buffer1;
+  delete [] buffer2;
+  delete [] buffer3;
+  delete stat;
 }
 
 //------------------------------------------------------------------------------
@@ -352,6 +480,94 @@ void FileTest::VectorReadTest()
 
   delete [] buffer1;
   delete [] buffer2;
+}
+
+void FileTest::VirtualRedirectorTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string mlUrl1 = address + "/" + dataPath + "/metalink/mlFileTest1.meta4";
+  std::string mlUrl2 = address + "/" + dataPath + "/metalink/mlFileTest2.meta4";
+  std::string mlUrl3 = address + "/" + dataPath + "/metalink/mlFileTest3.meta4";
+  std::string mlUrl4 = address + "/" + dataPath + "/metalink/mlFileTest4.meta4";
+
+  File f1, f2, f3, f4;
+
+  const std::string fileUrl = "root://srv1:1094//data/a048e67f-4397-4bb8-85eb-8d7e40d90763.dat";
+  const std::string key = "LastURL";
+  std::string value;
+
+  //----------------------------------------------------------------------------
+  // Open the 1st metalink file
+  // (the metalink contains just one file with a correct location)
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f1.Open( mlUrl1, OpenFlags::Read ) );
+  CPPUNIT_ASSERT( f1.GetProperty( key, value ) );
+  CPPUNIT_ASSERT( value == fileUrl );
+  CPPUNIT_ASSERT_XRDST( f1.Close() );
+
+  //----------------------------------------------------------------------------
+  // Open the 2nd metalink file
+  // (the metalink contains 2 files, the one with higher priority does not exist)
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f2.Open( mlUrl2, OpenFlags::Read ) );
+  CPPUNIT_ASSERT( f2.GetProperty( key, value ) );
+  CPPUNIT_ASSERT( value == fileUrl );
+  CPPUNIT_ASSERT_XRDST( f2.Close() );
+
+  //----------------------------------------------------------------------------
+  // Open the 3rd metalink file
+  // (the metalink contains 2 files, both don't exist)
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST_NOTOK( f3.Open( mlUrl3, OpenFlags::Read ), errErrorResponse );
+
+  //----------------------------------------------------------------------------
+  // Open the 4th metalink file
+  // (the metalink contains 2 files, both exist)
+  //----------------------------------------------------------------------------
+  const std::string replica1 = "root://srv3:1094//data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
+  const std::string replica2 = "root://srv2:1094//data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
+
+  CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
+  CPPUNIT_ASSERT( f4.GetProperty( key, value ) );
+  CPPUNIT_ASSERT( value == replica1 );
+  CPPUNIT_ASSERT_XRDST( f4.Close() );
+  //----------------------------------------------------------------------------
+  // Delete the replica that has been selected by the virtual redirector
+  //----------------------------------------------------------------------------
+  FileSystem fs( replica1 );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( "/data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat" ) );
+  //----------------------------------------------------------------------------
+  // Now reopen the file
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
+  CPPUNIT_ASSERT( f4.GetProperty( key, value ) );
+  CPPUNIT_ASSERT( value == replica2 );
+  CPPUNIT_ASSERT_XRDST( f4.Close() );
+  //----------------------------------------------------------------------------
+  // Recreate the deleted file
+  //----------------------------------------------------------------------------
+  CopyProcess  process;
+  PropertyList properties, results;
+  properties.Set( "source",       replica2 );
+  properties.Set( "target",       replica1 );
+  CPPUNIT_ASSERT_XRDST( process.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process.Run(0) );
 }
 
 //------------------------------------------------------------------------------

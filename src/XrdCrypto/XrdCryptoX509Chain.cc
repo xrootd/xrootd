@@ -56,7 +56,10 @@ static const char *X509ChainErrStr[] = {
    "extension not found",                // 9
    "signature verification failed",      // 10
    "issuer had no signing rights",       // 11
-   "CA issued by another CA"             // 12
+   "CA issued by another CA",            // 12
+   "invalid or missing EEC",             // 13
+   "too many EEC",                       // 14
+   "invalid proxy"                       // 15
 };
 
 //___________________________________________________________________________
@@ -68,6 +71,7 @@ XrdCryptoX509Chain::XrdCryptoX509Chain(XrdCryptoX509 *c)
    current = 0;
    begin = 0;
    end = 0;
+   effca = 0;
    size = 0; 
    lastError = "";
    caname = "";
@@ -91,6 +95,8 @@ XrdCryptoX509Chain::XrdCryptoX509Chain(XrdCryptoX509 *c)
          else
             statusCA = kValid;
       }
+      // Search for the effective CA 
+      SetEffectiveCA();
    }
 } 
 
@@ -103,6 +109,7 @@ XrdCryptoX509Chain::XrdCryptoX509Chain(XrdCryptoX509Chain *ch)
    current = 0;
    begin = 0;
    end = 0;
+   effca = 0;
    size = 0; 
    lastError = ch->LastError();
    caname = ch->CAname();
@@ -119,6 +126,7 @@ XrdCryptoX509Chain::XrdCryptoX509Chain(XrdCryptoX509Chain *ch)
       if (end)
          end->SetNext(nc);
       end = nc;
+      if (c == ch->EffCA()) effca = nc;
       size++;
       // Go to Next
       c = ch->Next();
@@ -161,6 +169,7 @@ void XrdCryptoX509Chain::Cleanup(bool keepCA)
    current = 0;
    begin = 0;
    end = 0;
+   effca = 0;
    size = 0; 
    lastError = "";
    caname = "";
@@ -250,6 +259,9 @@ void XrdCryptoX509Chain::PutInFront(XrdCryptoX509 *c)
          end = nc;
       size++;
    }
+
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
 }
 
 //___________________________________________________________________________
@@ -272,11 +284,14 @@ void XrdCryptoX509Chain::InsertAfter(XrdCryptoX509 *c, XrdCryptoX509 *cp)
          end = nc;
 
    } else {
-      // Referebce certificate not in the list
+      // Reference certificate not in the list
       // If new, add in last position; otherwise leave it where it is
       if (!nc)
          PushBack(c);
    }
+
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
 }
 
 //___________________________________________________________________________
@@ -294,6 +309,9 @@ void XrdCryptoX509Chain::PushBack(XrdCryptoX509 *c)
       end = nc;
       size++;
    }
+
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
 }
 
 //___________________________________________________________________________
@@ -331,9 +349,16 @@ void XrdCryptoX509Chain::Remove(XrdCryptoX509 *c)
 
    // Now we have all the information to remove
    if (prev) {
-      current  = curr->Next();
-      prev->SetNext(current);
-      previous = curr;
+      if (curr != end) {
+         current  = curr->Next();
+         prev->SetNext(current);
+         previous = prev;
+      } else {
+         end = prev;
+         previous = end;
+         current = 0;
+         prev->SetNext(current);
+      }
    } else if (curr == begin) {
       // First buffer
       current  = curr->Next();
@@ -344,6 +369,9 @@ void XrdCryptoX509Chain::Remove(XrdCryptoX509 *c)
    // Cleanup and update size
    delete curr;
    size--;
+
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
 }
 
 //___________________________________________________________________________
@@ -417,19 +445,21 @@ XrdCryptoX509ChainNode *XrdCryptoX509Chain::FindIssuer(const char *issuer,
    while (cn) {
       n = cn->Next();
       c = cn->Cert();
-      const char *pi = c->Issuer();
-      if (c && pi) {
-         if (mode == kExact) {
-            if (!strcmp(pi, issuer))
-               break;
-         } else if (mode == kBegin) {
-            if (strstr(pi, issuer) == c->Issuer())
-               break;
-         } else if (mode == kEnd) {
-            int ibeg = strlen(pi) - strlen(issuer);
-            if (!strcmp(pi + ibeg, issuer))
-               break;
-         }
+      if(c) {
+        const char *pi = c->Issuer();
+        if (pi) {
+           if (mode == kExact) {
+              if (!strcmp(pi, issuer))
+                 break;
+           } else if (mode == kBegin) {
+              if (strstr(pi, issuer) == c->Issuer())
+                 break;
+           } else if (mode == kEnd) {
+              int ibeg = strlen(pi) - strlen(issuer);
+              if (!strcmp(pi + ibeg, issuer))
+                 break;
+           }
+        }
       }
       c = 0;
       cp = cn;  // previous
@@ -535,6 +565,8 @@ int XrdCryptoX509Chain::Reorder()
 
    if (size < 2) {
       DEBUG("Nothing to reorder (size: "<<size<<")");
+      // Search for the effective CA (the last one, in case of subCAs)
+      SetEffectiveCA();
       return 0;
    }
 
@@ -554,7 +586,7 @@ int XrdCryptoX509Chain::Reorder()
    }
 
    // Move it in first position if not yet there
-   if (nr != begin) { 
+   if (nr && nr != begin) {
       np->SetNext(nr->Next()); // short cut old position
       nr->SetNext(begin);      // set our next to present begin
       if (end == nr)           // Update end
@@ -603,6 +635,9 @@ int XrdCryptoX509Chain::Reorder()
       np = np->Next();
    }
 
+   // Search for the effective CA (the last one, in case of subCAs)
+   SetEffectiveCA();
+
    // Check consistency
    if (left > 0) {
       DEBUG("Inconsistency found: "<<left<<
@@ -613,6 +648,29 @@ int XrdCryptoX509Chain::Reorder()
    // We are done
    return 0;
 } 
+
+//___________________________________________________________________________
+void XrdCryptoX509Chain::SetEffectiveCA()
+{
+   // Search for the effective CA (the last one, in case of subCAs)
+   effca = 0; caname = ""; cahash = "";
+
+   XrdCryptoX509ChainNode *np = begin;
+   while (np) {
+      if (np->Cert()) {
+         if (np->Cert()->type == XrdCryptoX509::kCA) {
+            if (!effca || (effca &&
+                          !(strcmp(effca->Cert()->SubjectHash(),
+                                   np->Cert()->IssuerHash())))) effca = np;
+         }
+      }
+      np = np->Next();
+   }
+   if (effca && effca->Cert()) {
+      caname = effca->Cert()->Subject();
+      cahash = effca->Cert()->SubjectHash();
+   }
+}
 
 //___________________________________________________________________________
 bool XrdCryptoX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t *vopt)

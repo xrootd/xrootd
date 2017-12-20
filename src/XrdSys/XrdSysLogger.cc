@@ -45,8 +45,11 @@
 #include <sys/uio.h>
 #endif // WIN32
 
+#include "XrdOuc/XrdOucTList.hh"
+
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysLogging.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -54,10 +57,55 @@
 #include "XrdSys/XrdSysUtils.hh"
   
 /******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
+namespace
+{
+XrdOucTListFIFO *tFifo = 0;
+
+void Snatch(struct iovec *iov, int iovnum) // Called with logger mutex locked!
+{
+   XrdOucTList *tlP;
+   char *tBuff, *tbP;
+   int tLen = 0;
+
+// Do not save the new line character at the end
+//
+   if (iovnum && *((char *)iov[iovnum-1].iov_base) == '\n') iovnum--;
+
+// Calculate full length
+//
+   for (int i = 0; i <iovnum; i++) tLen += iov[i].iov_len;
+
+// Allocate storage
+//
+   if (!(tBuff = (char *)malloc(tLen+1))) return;
+
+// Copy in the segments into the buffer
+//
+   tbP = tBuff;
+   for (int i = 0; i <iovnum; i++)
+       {strncpy(tbP, (char *)iov[i].iov_base, iov[i].iov_len);
+        tbP += iov[i].iov_len;
+       }
+   *tbP = 0;
+
+// Allocate a new tlist object and add it toi the fifo
+//
+   tlP = new XrdOucTList;
+   tlP->text = tBuff;
+   tFifo->Add(tlP);
+}
+}
+
+/******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
 
 #define BLAB(x) cerr <<"Logger " <<x <<"!!!" <<endl
+
+bool XrdSysLogger::doForward = false;
 
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -195,6 +243,12 @@ int XrdSysLogger::Bind(const char *path, int lfh)
    doLFR = (lfh > 0);
    if ((rc = ReBind(0))) return rc;
 
+// Lock the logs if XRootD is suppose to handle log rotation itself
+//
+  rc = HandleLogRotateLock( doLFR );
+  if( rc )
+    return -rc;
+
 // Handle specifics of lofile rotation
 //
    if (eInt == onFifo) {if ((rc = FifoMake())) return -rc;}
@@ -214,6 +268,26 @@ int XrdSysLogger::Bind(const char *path, int lfh)
    return (rc > 0 ? -rc : rc);
 }
 
+/******************************************************************************/
+/*                               C a p t u r e                                */
+/******************************************************************************/
+
+void XrdSysLogger::Capture(XrdOucTListFIFO *tFIFO)
+{
+
+// Obtain the serailization mutex
+//
+   Logger_Mutex.Lock();
+
+// Set the base for capturing messages
+//
+   tFifo = tFIFO;
+
+// Release the serailization mutex
+//
+   Logger_Mutex.UnLock();
+}
+  
 /******************************************************************************/
 /*                             P a r s e K e e p                              */
 /******************************************************************************/
@@ -255,19 +329,42 @@ int XrdSysLogger::ParseKeep(const char *arg)
   
 void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 {
+    struct timeval tVal;
+    unsigned long  tID = XrdSysThread::Num();
     int retc;
     char tbuff[32];
+
+// Get current time
+//
+   gettimeofday(&tVal, 0);
+
+// Forward the message if there is a plugin involved here
+//
+   if (doForward)
+      {bool xEnd;
+       if (iov[0].iov_base) xEnd = XrdSysLogging::Forward(tVal,tID,iov,iovcnt);
+          else xEnd = XrdSysLogging::Forward(tVal, tID, &iov[1], iovcnt-1);
+       if (xEnd) return;
+      }
 
 // Prefix message with time if calle wants it so
 //
    if (!iov[0].iov_base)
       {iov[0].iov_base = tbuff;
-       iov[0].iov_len  = (int)Time(tbuff);
+       iov[0].iov_len  = TimeStamp(tVal, tID, tbuff, sizeof(tbuff), hiRes);
       }
 
 // Obtain the serailization mutex if need be
 //
    Logger_Mutex.Lock();
+
+// If we are capturing messages, do so now
+//
+   if (tFifo)
+      {Snatch(iov, iovcnt);
+       Logger_Mutex.UnLock();
+       return;
+      }
 
 // In theory, writev may write out a partial list. This rarely happens in
 // practice and so we ignore that possibility (recovery is pretty tough).
@@ -281,7 +378,7 @@ void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 }
   
 /******************************************************************************/
-/*                                  T i m e                                   */
+/* Private:                         T i m e                                   */
 /******************************************************************************/
   
 int XrdSysLogger::Time(char *tbuff)
@@ -297,7 +394,6 @@ int XrdSysLogger::Time(char *tbuff)
 
 // Format the time in human terms
 //
-   tbuff[minblen-1] = '\0'; // tbuff must be at least 32 bytes long
    localtime_r((const time_t *) &tVal.tv_sec, &tNow);
 
 // Choose appropriate output
@@ -314,6 +410,39 @@ int XrdSysLogger::Time(char *tbuff)
                     XrdSysThread::Num());
       }
    return (i >= minblen ? minblen-1 : i);
+}
+  
+/******************************************************************************/
+/* Private:                    T i m e S t a m p                              */
+/******************************************************************************/
+  
+int XrdSysLogger::TimeStamp(struct timeval &tVal, unsigned long tID,
+                            char *tbuff, int tbsz, bool hires)
+{
+    struct tm tNow;
+    int i;
+
+// Validate tbuff size
+//
+   if (tbsz <= 0) return 0;
+
+// Format the time in human terms
+//
+   localtime_r((const time_t *) &tVal.tv_sec, &tNow);
+
+// Choose appropriate output
+//
+   if (hires)
+      {i = snprintf(tbuff, tbsz,    "%02d%02d%02d %02d:%02d:%02d.%06d %03ld ",
+                    tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
+                    tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
+                    static_cast<int>(tVal.tv_usec), tID);
+      } else {
+       i = snprintf(tbuff, tbsz,    "%02d%02d%02d %02d:%02d:%02d %03ld ",
+                    tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
+                    tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec, tID);
+      }
+   return (i >= tbsz ? tbsz-1 : i);
 }
 
 /******************************************************************************/
@@ -392,6 +521,48 @@ int XrdSysLogger::FifoMake()
 }
 
 /******************************************************************************/
+/*                  H a n d l e L o g R o t a t e L o c k                     */
+/******************************************************************************/
+int XrdSysLogger::HandleLogRotateLock( bool dorotate )
+{
+  if( !ePath ) return 0;
+
+  char *end = rindex(ePath, '/');
+  const std::string lckPath = (end ? std::string(ePath,end+1)+".lock" : ".lock");
+  int rc = unlink( lckPath.c_str() );
+  if( rc && errno != ENOENT )
+  {
+    BLAB( "The logfile lock (" << lckPath.c_str() << ") exists and cannot be removed: " << strerror( errno ) );
+    return EEXIST;
+  }
+
+  if( dorotate )
+  {
+    rc = open( lckPath.c_str(), O_CREAT, 0644 );
+    if( rc < 0 )
+    {
+      BLAB( "Failed to create the logfile lock (" << lckPath.c_str() << "): " << strerror( errno ) );
+      return errno;
+    }
+    close( rc );
+  }
+
+  return 0;
+}
+
+/******************************************************************************/
+/*                      R m L o g R o t a t e L o c k                         */
+/******************************************************************************/
+void XrdSysLogger::RmLogRotateLock()
+{
+  if( !ePath ) return;
+
+  char *end = rindex(ePath, '/') + 1;
+  const std::string lckPath = std::string( ePath, end ) + ".lock";
+  unlink( lckPath.c_str() );
+}
+
+/******************************************************************************/
 /*                              F i f o W a i t                               */
 /******************************************************************************/
   
@@ -428,16 +599,23 @@ void XrdSysLogger::FifoWait()
 
 void XrdSysLogger::putEmsg(char *msg, int msz)
 {
-    struct iovec eVec[2];
-    int retc;
+    unsigned long tID = XrdSysThread::Num();
     char tbuff[32];
+    struct timeval tVal;
+    struct iovec eVec[2] = {{tbuff, 0}, {msg, (size_t)msz}};
+    int retc;
+
+// Get current time
+//
+   gettimeofday(&tVal, 0);
+
+// Forward the message if there is a plugin involved here
+//
+   if (doForward && XrdSysLogging::Forward(tVal, tID, &eVec[1], 1)) return;
 
 // Prefix message with time
 //
-   eVec[0].iov_base = tbuff;
-   eVec[0].iov_len  = (int)Time(tbuff);
-   eVec[1].iov_base = msg;
-   eVec[1].iov_len  = msz;
+   eVec[0].iov_len = TimeStamp(tVal, tID, tbuff, sizeof(tbuff), hiRes);
 
 // In theory, writev may write out a partial list. This rarely happens in
 // practice and so we ignore that possibility (recovery is pretty tough).

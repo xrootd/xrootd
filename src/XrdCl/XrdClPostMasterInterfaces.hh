@@ -32,6 +32,8 @@
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClURL.hh"
 
+class XrdNetAddr;
+
 namespace XrdCl
 {
   class Channel;
@@ -51,6 +53,13 @@ namespace XrdCl
       //! up (usually removed from the queue and to the caller)
       //------------------------------------------------------------------------
       virtual bool Filter( const Message *msg ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get sid of the filter
+      //!
+      //! @return filter sid if exists, otherwise 0
+      //------------------------------------------------------------------------
+      virtual uint16_t GetSid() const = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -101,6 +110,13 @@ namespace XrdCl
       //!               the handler
       //------------------------------------------------------------------------
       virtual uint16_t Examine( Message *msg ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get handler sid
+      //!
+      //! return sid of the corresponding request, otherwise 0
+      //------------------------------------------------------------------------
+      virtual uint16_t GetSid() const = 0;
 
       //------------------------------------------------------------------------
       //! Process the message if it was "taken" by the examine action
@@ -236,6 +252,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Data structure that carries the handshake information
   //----------------------------------------------------------------------------
+
   struct HandShakeData
   {
     //--------------------------------------------------------------------------
@@ -252,7 +269,8 @@ namespace XrdCl
     uint16_t     streamId;       //!< Stream number
     uint16_t     subStreamId;    //!< Sub-stream id
     time_t       startTime;      //!< Timestamp of when the handshake started
-    const void  *serverAddr;     //!< Server address in the form of sockaddr
+    const
+    XrdNetAddr  *serverAddr;     //!< Server address
     std::string  clientName;     //!< Client name (an IPv6 representation)
     std::string  streamName;     //!< Name of the stream
   };
@@ -300,7 +318,8 @@ namespace XrdCl
                                //!< [not yet implemented]
         ResumeStream = 0x0008, //!< Resume sending requests
                                //!< [not yet implemented]
-        HoldStream   = 0x0010  //!< Stop sending requests [not yet implemented]
+        HoldStream   = 0x0010, //!< Stop sending requests [not yet implemented]
+        RequestClose = 0x0020  //!< Send a close request
       };
 
 

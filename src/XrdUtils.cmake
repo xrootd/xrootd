@@ -10,11 +10,16 @@ set( XRD_ZCRC32_VERSION   2.0.0 )
 set( XRD_ZCRC32_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
-# The XrdSys library
+# The XrdUtils library
 #-------------------------------------------------------------------------------
 add_library(
   XrdUtils
   SHARED
+
+  #-----------------------------------------------------------------------------
+  # XProtocol
+  #-----------------------------------------------------------------------------
+  XProtocol/XProtocol.cc        XProtocol/XProtocol.hh
 
   #-----------------------------------------------------------------------------
   # XrdSys
@@ -28,6 +33,7 @@ add_library(
   XrdSys/XrdSysPthread.cc       XrdSys/XrdSysPthread.hh
                                 XrdSys/XrdSysSemWait.hh
   XrdSys/XrdSysTimer.cc         XrdSys/XrdSysTimer.hh
+  XrdSys/XrdSysTrace.cc         XrdSys/XrdSysTrace.hh
   XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
   XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
   XrdSys/XrdSysFAttr.cc         XrdSys/XrdSysFAttr.hh
@@ -44,6 +50,8 @@ add_library(
                                 XrdSys/XrdSysHeaders.hh
   XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
   XrdSys/XrdSysLogger.cc        XrdSys/XrdSysLogger.hh
+  XrdSys/XrdSysLogging.cc       XrdSys/XrdSysLogging.hh
+                                XrdSys/XrdSysLogPI.hh
                                 XrdSys/XrdSysLinuxSemaphore.hh
   XrdSys/XrdSysXAttr.cc         XrdSys/XrdSysXAttr.hh
 
@@ -52,8 +60,10 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdOuc/XrdOuca2x.cc           XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucArgs.cc          XrdOuc/XrdOucArgs.hh
+  XrdOuc/XrdOucBackTrace.cc     XrdOuc/XrdOucBackTrace.hh
   XrdOuc/XrdOucBuffer.cc        XrdOuc/XrdOucBuffer.hh
                                 XrdOuc/XrdOucCache.hh
+                                XrdOuc/XrdOucCache2.hh
   XrdOuc/XrdOucCacheData.cc     XrdOuc/XrdOucCacheData.hh
   XrdOuc/XrdOucCacheDram.cc     XrdOuc/XrdOucCacheDram.hh
   XrdOuc/XrdOucCacheReal.cc     XrdOuc/XrdOucCacheReal.hh
@@ -66,8 +76,10 @@ add_library(
   XrdOuc/XrdOucERoute.cc        XrdOuc/XrdOucERoute.hh
                                 XrdOuc/XrdOucErrInfo.hh
   XrdOuc/XrdOucExport.cc        XrdOuc/XrdOucExport.hh
+  XrdOuc/XrdOucFileInfo.cc      XrdOuc/XrdOucFileInfo.hh
   XrdOuc/XrdOucGMap.cc          XrdOuc/XrdOucGMap.hh
   XrdOuc/XrdOucHashVal.cc
+  XrdOuc/XrdOucLogging.cc       XrdOuc/XrdOucLogging.hh
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
   XrdOuc/XrdOucName2Name.cc     XrdOuc/XrdOucName2Name.hh
   XrdOuc/XrdOucN2NLoader.cc     XrdOuc/XrdOucN2NLoader.hh
@@ -77,6 +89,7 @@ add_library(
   XrdOuc/XrdOucPinPath.cc       XrdOuc/XrdOucPinPath.hh
   XrdOuc/XrdOucPreload.cc       XrdOuc/XrdOucPreload.hh
   XrdOuc/XrdOucProg.cc          XrdOuc/XrdOucProg.hh
+  XrdOuc/XrdOucPsx.cc           XrdOuc/XrdOucPsx.hh
   XrdOuc/XrdOucPup.cc           XrdOuc/XrdOucPup.hh
   XrdOuc/XrdOucReqID.cc         XrdOuc/XrdOucReqID.hh
   XrdOuc/XrdOucSid.cc           XrdOuc/XrdOucSid.hh
@@ -124,11 +137,12 @@ add_library(
   # XrdSut
   #-----------------------------------------------------------------------------
   XrdSut/XrdSutAux.cc           XrdSut/XrdSutAux.hh
-  XrdSut/XrdSutCache.cc         XrdSut/XrdSutCache.hh
+  XrdSut/XrdSutPFCache.cc       XrdSut/XrdSutPFCache.hh
   XrdSut/XrdSutBucket.cc        XrdSut/XrdSutBucket.hh
   XrdSut/XrdSutBuckList.cc      XrdSut/XrdSutBuckList.hh
   XrdSut/XrdSutBuffer.cc        XrdSut/XrdSutBuffer.hh
   XrdSut/XrdSutPFile.cc         XrdSut/XrdSutPFile.hh
+  XrdSut/XrdSutCacheEntry.cc    XrdSut/XrdSutCacheEntry.hh
   XrdSut/XrdSutPFEntry.cc       XrdSut/XrdSutPFEntry.hh
   XrdSut/XrdSutRndm.cc          XrdSut/XrdSutRndm.hh
   XrdSut/XrdSutTrace.hh
@@ -137,6 +151,7 @@ add_library(
   # Xrd
   #-----------------------------------------------------------------------------
   Xrd/XrdBuffer.cc              Xrd/XrdBuffer.hh
+  Xrd/XrdBuffXL.cc              Xrd/XrdBuffXL.hh
   Xrd/XrdInet.cc                Xrd/XrdInet.hh
   Xrd/XrdInfo.cc                Xrd/XrdInfo.hh
   Xrd/XrdJob.hh
@@ -151,11 +166,13 @@ add_library(
                                 Xrd/XrdPollPoll.icc
   Xrd/XrdProtocol.cc            Xrd/XrdProtocol.hh
   Xrd/XrdScheduler.cc           Xrd/XrdScheduler.hh
+  Xrd/XrdSendQ.cc               Xrd/XrdSendQ.hh
                                 Xrd/XrdTrace.hh
 
   #-----------------------------------------------------------------------------
   # XrdCks
   #-----------------------------------------------------------------------------
+  XrdCks/XrdCksAssist.cc           XrdCks/XrdCksAssist.hh
   XrdCks/XrdCksCalccrc32.cc        XrdCks/XrdCksCalccrc32.hh
   XrdCks/XrdCksCalcmd5.cc          XrdCks/XrdCksCalcmd5.hh
   XrdCks/XrdCksConfig.cc           XrdCks/XrdCksConfig.hh
@@ -184,6 +201,13 @@ target_link_libraries(
   ${SOCKET_LIBRARY}
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )
+
+if ( SYSTEMD_FOUND )
+   target_link_libraries(
+     XrdUtils
+     ${SYSTEMD_LIBRARIES}
+   )
+endif()
 
 set_target_properties(
   XrdUtils

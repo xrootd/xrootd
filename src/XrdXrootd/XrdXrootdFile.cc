@@ -71,9 +71,9 @@ XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
     static XrdSysMutex seqMutex;
     struct stat buf;
     off_t mmSize;
-    int i;
 
     XrdSfsp  = fp;
+    FileKey  = strdup(fp->FName());
     mmAddr   = 0;
     FileMode = mode;
     AsyncMode= async;
@@ -96,24 +96,27 @@ XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
 
 // Get file status information (we need it) and optionally return it to caller
 //
-   if (!sP) sP = &buf;
-   fp->stat(sP);
-   if (!isMMapped) Stats.fSize = static_cast<long long>(sP->st_size);
+   if (sP || !isMMapped)
+      {if (!sP) sP = &buf;
+       fp->stat(sP);
+       if (!isMMapped) Stats.fSize = static_cast<long long>(sP->st_size);
+      }
 
 // Develop a unique hash for this file. The key will not be longer than 33 bytes
-// including the null character.
+// including the null character. We now use the filename to avoid plugin
+// vagaries. We will keep the code here commented out for now.
 //
-        if (sP->st_dev != 0 || sP->st_ino != 0)
-           {i = bin2hex( FileKey,   (char *)&sP->st_dev, sizeof(sP->st_dev));
-            i = bin2hex(&FileKey[i],(char *)&sP->st_ino, sizeof(sP->st_ino));
-           }
-   else if (fdNum > 0) 
-           {strcpy(  FileKey, "fdno");
-            bin2hex(&FileKey[4], (char *)&fdNum,   sizeof(fdNum));
-           }
-   else    {strcpy(  FileKey, "sfsp");
-            bin2hex(&FileKey[4], (char *)&XrdSfsp, sizeof(XrdSfsp));
-           }
+//      if (sP->st_dev != 0 || sP->st_ino != 0)
+//         {i = bin2hex( FileKey,   (char *)&sP->st_dev, sizeof(sP->st_dev));
+//          i = bin2hex(&FileKey[i],(char *)&sP->st_ino, sizeof(sP->st_ino));
+//         }
+// else if (fdNum > 0) 
+//         {strcpy(  FileKey, "fdno");
+//          bin2hex(&FileKey[4], (char *)&fdNum,   sizeof(fdNum));
+//         }
+// else    {strcpy(  FileKey, "sfsp");
+//          bin2hex(&FileKey[4], (char *)&XrdSfsp, sizeof(XrdSfsp));
+//         }
 }
   
 /******************************************************************************/
@@ -132,6 +135,7 @@ XrdXrootdFile::~XrdXrootdFile()
                delete XrdSfsp;
                XrdSfsp = 0;
               }
+   if (FileKey) free(FileKey);
 }
 
 /******************************************************************************/
@@ -191,7 +195,7 @@ int XrdXrootdFileTable::Add(XrdXrootdFile *fp)
 /*                                   D e l                                    */
 /******************************************************************************/
   
-void XrdXrootdFileTable::Del(int fnum)
+void XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum)
 {
    XrdXrootdFile *fp;
 
@@ -209,7 +213,15 @@ void XrdXrootdFileTable::Del(int fnum)
            else fp = 0;
       }
 
-   if (fp) delete fp;  // Will do the close
+   if (fp)
+      {XrdXrootdFileStats &Stats = fp->Stats;
+
+       if (monP) monP->Close(Stats.FileID,
+                             Stats.xfr.read + Stats.xfr.readv,
+                             Stats.xfr.write);
+       if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, false);
+       delete fp;  // Will do the close
+      }
 }
 
 /******************************************************************************/
@@ -220,7 +232,7 @@ void XrdXrootdFileTable::Del(int fnum)
 // be no active requests on link associated with this object at the time the
 // destructor is called. The same restrictions apply to Add() and Del().
 //
-void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, bool monF)
+void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP)
 {
    int i;
 
@@ -229,10 +241,11 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, bool monF)
    FTfree = 0;
    for (i = 0; i < XRD_FTABSIZE; i++)
        if (FTab[i])
-          {if (monP) monP->Close(FTab[i]->Stats.FileID,
-                                 FTab[i]->Stats.xfr.read+FTab[i]->Stats.xfr.readv,
-                                 FTab[i]->Stats.xfr.write);
-           if (monF) XrdXrootdMonFile::Close(&(FTab[i]->Stats), true);
+          {XrdXrootdFileStats &Stats = FTab[i]->Stats;
+           if (monP) monP->Close(Stats.FileID,
+                                 Stats.xfr.read+Stats.xfr.readv,
+                                 Stats.xfr.write);
+           if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, true);
            delete FTab[i]; FTab[i] = 0;
           }
 
@@ -240,14 +253,16 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, bool monF)
 //
 if (XTab)
   {for (i = 0; i < XTnum; i++)
-       if (XTab[i])
-          {if (monP) monP->Close(XTab[i]->Stats.FileID,
-                                 XTab[i]->Stats.xfr.read+XTab[i]->Stats.xfr.readv,
-                                 XTab[i]->Stats.xfr.write);
-           if (monF) XrdXrootdMonFile::Close(&(XTab[i]->Stats), true);
+      {if (XTab[i])
+          {XrdXrootdFileStats &Stats = XTab[i]->Stats;
+           if (monP) monP->Close(Stats.FileID,
+                                 Stats.xfr.read+Stats.xfr.readv,
+                                 Stats.xfr.write);
+           if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, true);
            delete XTab[i];
           }
-       free(XTab); XTab = 0; XTnum = 0; XTfree = 0;
+       }
+   free(XTab); XTab = 0; XTnum = 0; XTfree = 0;
   }
 
 // Delete this object

@@ -30,17 +30,13 @@
 
 namespace XrdCl
 {
-#if defined(__linux__) && defined(HAVE_ATOMICS)
+#if defined(__linux__) && defined(HAVE_ATOMICS) && !USE_LIBC_SEMAPHORE
   typedef XrdSys::LinuxSemaphore Semaphore;
 #else
   typedef XrdSysSemaphore Semaphore;
 #endif
 
-#if __cplusplus >= 201103L
 #define XRDCL_SMART_PTR_T std::unique_ptr
-#else
-#define XRDCL_SMART_PTR_T std::auto_ptr
-#endif
 
 }
 

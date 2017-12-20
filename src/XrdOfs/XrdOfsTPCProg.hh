@@ -64,7 +64,7 @@ static XrdOfsTPCProg *pgmIdle;
        XrdOucStream   JobStream;
        XrdOfsTPCProg *Next;
        XrdOfsTPCJob  *Job;
-       char           Pname[16];
+       char           Pname[32];
        char           eRec[1024];
 };
 #endif

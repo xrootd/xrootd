@@ -38,8 +38,11 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecProtector.hh"
 #include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
@@ -99,6 +102,11 @@ struct XrdXrootdSessID
         if (Route[xfnc].Port[rdType]) \
            return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],\
                                              Route[xfnc].Host[rdType])
+namespace
+{
+static const int op_isOpen    = 0x00010000;
+static const int op_isRead    = 0x00020000;
+}
  
 /******************************************************************************/
 /*                              d o _ A d m i n                               */
@@ -155,6 +163,7 @@ int XrdXrootdProtocol::do_Auth()
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
       {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
+       if (DHS) Protect = DHS->New4Server(*AuthProt,clientPV&XrdOucEI::uVMask);
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
        logLogin(true);
        return rc;
@@ -358,7 +367,7 @@ int XrdXrootdProtocol::do_CKsum(int canit)
        char *cksT;
        if ((cksT = jobEnv.Get("cks.type")))
           {XrdOucTList *tP = JobCKTLST;
-           while(tP && strcmp(tP->text, cksT)) tP = tP->next;
+           while(tP && strcasecmp(tP->text, cksT)) tP = tP->next;
            if (!tP)
               {char ebuf[1024];
                snprintf(ebuf, sizeof(ebuf), "%s checksum not supported.", cksT);
@@ -458,17 +467,6 @@ int XrdXrootdProtocol::do_Close()
 //
    Link->Serialize();
 
-// If we are monitoring, insert a close entry
-//
-   if (Monitor.Files())
-      Monitor.Agent->Close(fp->Stats.FileID,
-                           fp->Stats.xfr.read + fp->Stats.xfr.readv,
-                           fp->Stats.xfr.write);
-
-// If fstream monitoring enabled, log it out there
-//
-   if (Monitor.Fstat()) XrdXrootdMonFile::Close(&(fp->Stats));
-
 // Do an explicit close of the file here; reflecting any errors
 //
    rc = fp->XrdSfsp->close();
@@ -479,9 +477,10 @@ int XrdXrootdProtocol::do_Close()
        return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
       }
 
-// Delete the file from the file table; this will unlock/close the file
+// Delete the file from the file table; this will unlock/close the file and
+// produce any required final monitoring records.
 //
-   FTab->Del(fh.handle);
+   FTab->Del((Monitor.Files() ? Monitor.Agent : 0), fh.handle);
    numFiles--;
    return Response.Send();
 }
@@ -733,7 +732,7 @@ int XrdXrootdProtocol::do_Locate()
 {
    static XrdXrootdCallBack locCB("locate", XROOTD_MON_LOCATE);
    int rc, opts, fsctl_cmd = SFS_FSCTL_LOCATE;
-   char *opaque, *Path, *fn = argp->buff, opt[8], *op=opt;
+   char *opaque = 0, *Path, *fn = argp->buff, opt[8], *op=opt;
    XrdOucErrInfo myError(Link->ID,&locCB,ReqID.getID(),Monitor.Did,clientPV);
    bool doDig = false;
 
@@ -747,6 +746,7 @@ int XrdXrootdProtocol::do_Locate()
    if (opts & kXR_refresh) {fsctl_cmd |= SFS_O_RESET;  *op++ = 's';}
    if (opts & kXR_force  ) {fsctl_cmd |= SFS_O_FORCE;  *op++ = 'f';}
    if (opts & kXR_prefname){fsctl_cmd |= SFS_O_HNAME;  *op++ = 'n';}
+   if (opts & kXR_compress){fsctl_cmd |= SFS_O_RAWIO;  *op++ = 'u';}
    *op = '\0';
    TRACEP(FS, "locate " <<opt <<' ' <<fn);
 
@@ -829,8 +829,8 @@ int XrdXrootdProtocol::do_Login()
        sessID.Sid  = mySID;
        sendSID = 1;
        if (!clientPV)
-          {        if (i >  kXR_ver003) clientPV = (int)0x0300;
-              else if (i == kXR_ver003) clientPV = (int)0x0299;
+          {        if (i >= kXR_ver004) clientPV = (int)0x0310;
+              else if (i == kXR_ver003) clientPV = (int)0x0300;
               else if (i == kXR_ver002) clientPV = (int)0x0290;
               else if (i == kXR_ver001) clientPV = (int)0x0200;
               else                      clientPV = (int)0x0100;
@@ -853,6 +853,14 @@ int XrdXrootdProtocol::do_Login()
    addrP = Link->AddrInfo();
    if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
       clientPV |= XrdOucEI::uIPv4;
+// WORKAROUND: XrdCl 4.0.x often identifies worker nodes as being IPv6-only.
+// Rather than breaking a significant number of our dual-stack workers, we
+// automatically denote IPv6 connections as also supporting IPv4 - regardless
+// of what the remote client claims. This was fixed in 4.3.x but we can't
+// tell release differences until 4.5 when we can safely ignore this as we
+// also don't want to misidentify IPv6-only clients either.
+   else if (i < kXR_ver004 && XrdInet::GetAssumeV4())
+           clientPV |= XrdOucEI::uIPv64;
 
 // Mark the client as being on a private net if the address is private
 //
@@ -992,10 +1000,18 @@ int XrdXrootdProtocol::do_Mv()
 // Find the space separator between the old and new paths
 //
    oldp = newp = argp->buff;
-   while(*newp && *newp != ' ') newp++;
-   if (*newp) {*newp = '\0'; newp++;
-               while(*newp && *newp == ' ') newp++;
-              }
+   if (Request.mv.arg1len)
+      {int n = ntohs(Request.mv.arg1len);
+       if (n < 0 || n >= Request.mv.dlen || *(argp->buff+n) != ' ')
+          return Response.Send(kXR_ArgInvalid, "invalid path specification");
+       *(oldp+n) = 0;
+       newp += n+1;
+      } else {
+       while(*newp && *newp != ' ') newp++;
+       if (*newp) {*newp = '\0'; newp++;
+                   while(*newp && *newp == ' ') newp++;
+                  }
+      }
 
 // Get rid of relative paths and multiple slashes
 //
@@ -1223,16 +1239,19 @@ int XrdXrootdProtocol::do_Open()
 //
    doDig = (digFS && SFS_LCLPATH(fn));
 
-// Check if static redirection applies
-//
-   if (!doDig && Route[RD_open1].Host[rdType] && (popt = RPList.Validate(fn)))
-      return Response.Send(kXR_redirect, Route[popt].Port[rdType],
-                                         Route[popt].Host[rdType]);
-
-// Validate the path
+// Validate the path and then check if static redirection applies
 //
    if (doDig) {popt = XROOTDXP_NOLK; opC = 0;}
-      else if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
+      else {int ropt;
+            if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
+            if (Route[RD_open1].Host[rdType] && (ropt = RPList.Validate(fn)))
+               return Response.Send(kXR_redirect, Route[ropt].Port[rdType],
+                                                  Route[ropt].Host[rdType]);
+           }
+
+// Add the multi-write option if this path supports it
+//
+   if (popt & XROOTDXP_NOMWCHK) openopts |= SFS_O_MULTIW;
 
 // Get a file object
 //
@@ -1393,6 +1412,16 @@ int XrdXrootdProtocol::do_Prepare()
    XrdXrootdPrepArgs pargs(0, 0);
    XrdSfsPrep fsprep;
 
+// Apply prepare limits, as necessary.
+   if ((PrepareLimit >= 0) && (++PrepareCount > PrepareLimit)) {
+      if (LimitError) {
+         return Response.Send(kXR_noserver,
+                              "Surpassed this connection's prepare limit.");
+      } else {
+         return Response.Send();
+      }
+   }
+
 // Grab the options
 //
    opts = Request.prepare.options;
@@ -1483,19 +1512,15 @@ int XrdXrootdProtocol::do_Prepare()
 /*                           d o _ P r o t o c o l                            */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_Protocol(int retRole)
+int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
 {
-   static ServerResponseBody_Protocol RespNew
-                = {static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION)), myRole};
+   static kXR_int32 verNum = static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION));
+   static kXR_int32 theRle = static_cast<kXR_int32>(htonl(myRole));
+   static kXR_int32 theRlf = static_cast<kXR_int32>(htonl(myRolf));
 
-   static ServerResponseBody_Protocol RespOld
-                = {static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION)),
-                   static_cast<kXR_int32>(isRedir ? htonl(kXR_LBalServer)
-                                                  : htonl(kXR_DataServer))
-                  };
-
-          ServerResponseBody_Protocol *Resp = &RespOld;
-          int RespLen = sizeof(RespOld);
+   ServerResponseBody_Protocol theResp;
+   ServerResponseBody_Protocol *respP = (rsp ? rsp : &theResp);
+   int RespLen = kXR_ShortProtRespLen;
 
 // Keep Statistics
 //
@@ -1504,15 +1529,22 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
 // Determine which response to provide
 //
    if (Request.protocol.clientpv)
-      {Resp = &RespNew; RespLen = sizeof(RespNew);
+      {int cvn = XrdOucEI::uVMask & ntohl(Request.protocol.clientpv);
        if (!Status || !(clientPV & XrdOucEI::uVMask))
-          clientPV = (clientPV & ~XrdOucEI::uVMask)
-                   | (XrdOucEI::uVMask & ntohl(Request.protocol.clientpv));
+          clientPV = (clientPV & ~XrdOucEI::uVMask) | cvn;
+          else cvn = (clientPV &  XrdOucEI::uVMask);
+       if (DHS && cvn >= kXR_PROTSIGNVERSION
+       &&  Request.protocol.flags & kXR_secreqs)
+          RespLen += DHS->ProtResp(respP->secreq, *(Link->AddrInfo()), cvn);
+       respP->flags = theRle;
+      } else {
+       respP->flags = theRlf;
       }
 
 // Return info
 //
-    return (retRole ? Resp->flags : Response.Send((void *)Resp, RespLen));
+    respP->pval = verNum;
+    return (rsp ? RespLen : Response.Send((void *)&theResp,RespLen));
 }
 
 /******************************************************************************/
@@ -1610,6 +1642,14 @@ int XrdXrootdProtocol::do_Qconf()
             n = snprintf(bp, bleft, "%s\n", (siteName ? siteName : "sitename"));
             bp += n; bleft -= n;
            }
+   else if (!strcmp("sysid", val))
+           {const char *cidval = getenv("XRDCMSCLUSTERID");
+            const char *nidval = getenv("XRDCMSVNID");
+            if (!cidval || !(*cidval) || !nidval || !(*nidval))
+               {cidval = "sysid"; nidval = "";}
+            n = snprintf(bp, bleft, "%s %s\n", nidval, cidval);
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("tpc", val))
            {char *tpcval = getenv("XRDTPC");
             n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpc"));
@@ -1629,6 +1669,12 @@ int XrdXrootdProtocol::do_Qconf()
            }
    else if (!strcmp("version", val))
            {n = snprintf(bp, bleft, "%s\n", XrdVSTRING);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("vnid", val))
+           {const char *nidval = getenv("XRDCMSVNID");
+            if (!nidval || !(*nidval)) nidval = "vnid";
+            n = snprintf(bp, bleft, "%s\n", nidval);
             bp += n; bleft -= n;
            }
    else {n = strlen(val);
@@ -1871,16 +1917,21 @@ int XrdXrootdProtocol::do_Read()
       return Response.Send(kXR_FileNotOpen,
                            "read does not refer to an open file");
 
-// Short circuit processing is read length is zero
+// Trace and verify read length is not negative
 //
    TRACEP(FS, pathID <<" fh=" <<fh.handle <<" read " <<myIOLen <<'@' <<myOffset);
-   if (!myIOLen) return Response.Send();
+   if ( myIOLen < 0) return Response.Send(kXR_ArgInvalid,
+                                          "Read length is negative");
 
 // If we are monitoring, insert a read entry
 //
    if (Monitor.InOut())
       Monitor.Agent->Add_rd(myFile->Stats.FileID, Request.read.rlen,
                                                   Request.read.offset);
+
+// Short circuit processing if read length is zero
+//
+   if (!myIOLen) return Response.Send();
 
 // See if an alternate path is required, offload the read
 //
@@ -2028,7 +2079,7 @@ int XrdXrootdProtocol::do_ReadV()
    struct XrdOucIOVec     rdVec[maxRvecsz+1];
    struct readahead_list *raVec, respHdr;
    long long totSZ;
-   XrdSfsXferSize rdVAmt, rdVXfr, xfrSZ;
+   XrdSfsXferSize rdVAmt, rdVXfr, xfrSZ = 0;
    int rdVBeg, rdVBreak, rdVNow, rdVNum, rdVecNum;
    int currFH, i, k, Quantum, Qleft, rdVecLen = Request.header.dlen;
    int rvMon = Monitor.InOut();
@@ -2046,7 +2097,7 @@ int XrdXrootdProtocol::do_ReadV()
 // a limit on it's size. We do this to be able to reuse the data buffer to 
 // prevent cross-cpu memory cache synchronization.
 //
-   if (rdVecLen > static_cast<int>(sizeof(rdVec)))
+   if (rdVecNum > maxRvecsz)
       return Response.Send(kXR_ArgTooLong, "Read vector is too long");
 
 // So, now we account for the number of readv requests and total segments
@@ -2061,6 +2112,8 @@ int XrdXrootdProtocol::do_ReadV()
    totSZ = rdVecLen; Quantum = maxTransz - hdrSZ;
    for (i = 0; i < rdVecNum; i++) 
        {totSZ += (rdVec[i].size = ntohl(raVec[i].rlen));
+        if (rdVec[i].size < 0)       return Response.Send(kXR_ArgInvalid,
+                                           "Readv length is negative");
         if (rdVec[i].size > Quantum) return Response.Send(kXR_NoMemory,
                                            "Single readv transfer is too large");
         rdVec[i].offset = ntohll(raVec[i].offset);
@@ -2545,6 +2598,12 @@ int XrdXrootdProtocol::do_Write()
        return Link->setEtext("write protcol violation");
       }
 
+// Trace and verify that length is not negative
+//
+   TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
+   if ( myIOLen < 0) return Response.Send(kXR_ArgInvalid,
+                                          "Write length is negative");
+
 // If we are monitoring, insert a write entry
 //
    if (Monitor.InOut())
@@ -2553,8 +2612,7 @@ int XrdXrootdProtocol::do_Write()
 
 // If zero length write, simply return
 //
-   TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
-   if (myIOLen <= 0) return Response.Send();
+   if (!myIOLen) return Response.Send();
 
 // See if an alternate path is required
 //
@@ -2796,6 +2854,13 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
+
+       if (Path && (rc == kXR_Overloaded) && (opC == XROOTD_MON_OPENR
+                || opC == XROOTD_MON_OPENW || opC == XROOTD_MON_OPENC))
+          {if (myError.extData()) myError.Reset();
+           return fsOvrld(opC, Path, Cgi);
+          }
+
        if (Path && (rc == kXR_NotFound) && RQLxist && opC
        &&  (popt = RQList.Validate(Path)))
           {if (XrdXrootdMonitor::Redirect())
@@ -2816,7 +2881,7 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 //
    if (rc == SFS_REDIRECT)
       {SI->redirCnt++;
-       if (ecode <= 0) ecode = (ecode ? -ecode : Port);
+       if (ecode < 0 && ecode != -1) ecode = (ecode ? -ecode : Port);
        if (XrdXrootdMonitor::Redirect() && Path && opC)
            XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
        TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg <<':' <<ecode);
@@ -2849,6 +2914,16 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        return rs;
       }
 
+// Process the data response via an iovec
+//
+   if (rc == SFS_DATAVEC)
+      {if (ecode < 2) rs = Response.Send();
+          else        rs = Response.Send((struct iovec *)eMsg, ecode);
+       if (myError.getErrCB()) myError.getErrCB()->Done(ecode, &myError);
+       if (myError.extData())  myError.Reset();
+       return rs;
+      }
+
 // Process the deferal
 //
    if (rc >= SFS_STALL)
@@ -2872,25 +2947,73 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 }
 
 /******************************************************************************/
-/*                               f s R e d i r                                */
+/*                               f s O v r l d                                */
 /******************************************************************************/
-
-int XrdXrootdProtocol::fsRedir(XrdXrootdProtocol::RD_func xfnc)
+  
+int XrdXrootdProtocol::fsOvrld(char opC, const char *Path, char *Cgi)
 {
-   char *opaque;
+   static const char *prot = "root://";
+   static int negOne = -1;
+   static char quest = '?', slash = '/';
 
-// Extract out the opaque icgi information
-//
-   rpCheck(argp->buff, &opaque);
+   struct iovec rdrResp[8];
+   char *destP=0, dest[512];
+   int iovNum=0, pOff, port;
 
-// If we have some, then use the long path redirection
+// If this is a forwarded path and the client can handle full url's then
+// redirect the client to the destination in the path. Otherwise, if there is
+// an alternate destination, send client there. Otherwise, stall the client.
 //
-   if (opaque) return fsRedirNoEnt(0, opaque, xfnc);
+   if (OD_Bypass && clientPV & XrdOucEI::uUrlOK
+   &&  (pOff = XrdOucUtils::isFWD(Path, &port, dest, sizeof(dest))))
+      {    rdrResp[1].iov_base = (void *)&negOne;
+           rdrResp[1].iov_len  = sizeof(negOne);
+           rdrResp[2].iov_base = (void *)prot;
+           rdrResp[2].iov_len  = 7;                        // root://
+           rdrResp[3].iov_base = (void *)dest;
+           rdrResp[3].iov_len  = strlen(dest);             // host:port
+           rdrResp[4].iov_base = (void *)&slash;
+           rdrResp[4].iov_len  = (*Path == '/' ? 1 : 0);   // / or nil for objid
+           rdrResp[5].iov_base = (void *)(Path+pOff);
+           rdrResp[5].iov_len  = strlen(Path+pOff);        // path
+       if (Cgi && *Cgi)
+          {rdrResp[6].iov_base = (void *)&quest;
+           rdrResp[6].iov_len  = sizeof(quest);            // ?
+           rdrResp[7].iov_base = (void *)Cgi;
+           rdrResp[7].iov_len  = strlen(Cgi);              // cgi
+           iovNum = 8;
+          } else iovNum = 6;
+       destP = dest;
+      } else if ((destP = Route[RD_ovld].Host[rdType]))
+                 port   = Route[RD_ovld].Port[rdType];
 
-// Otherwise, send the client off right away
+// If a redirect happened, then trace it.
 //
-   return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],
-                                     Route[xfnc].Host[rdType]);
+   if (destP)
+      {SI->redirCnt++;
+       if (XrdXrootdMonitor::Redirect())
+           XrdXrootdMonitor::Redirect(Monitor.Did, destP, port,
+                                      opC|XROOTD_MON_REDLOCAL, Path);
+       if (iovNum)
+          {TRACEI(REDIR, Response.ID() <<"redirecting to "<<dest);
+           return Response.Send(kXR_redirect, rdrResp, iovNum);
+          } else {
+           TRACEI(REDIR, Response.ID() <<"redirecting to "<<destP<<':'<<port);
+           return Response.Send(kXR_redirect, port, destP);
+          }
+      }
+
+// If there is a stall value, then delay the client
+//
+   if (OD_Stall)
+      {TRACEI(STALL, Response.ID()<<"stalling client for "<<OD_Stall<<" sec");
+       SI->stallCnt++;
+       return Response.Send(kXR_wait, OD_Stall, "server is overloaded");
+      }
+
+// We were unsuccessful, return overload as an error
+//
+   return Response.Send(kXR_Overloaded, "server is overloaded");
 }
   
 /******************************************************************************/

@@ -140,6 +140,33 @@ XrdSysMutex sMutex;
 };
 
 /******************************************************************************/
+/*                       X r d O u c C a c h e I O C B                        */
+/******************************************************************************/
+
+//-----------------------------------------------------------------------------
+//! The XrdOucCacheIOCB defines a callback object that must be used to handle
+//! asynchronous I/O operations.
+//-----------------------------------------------------------------------------
+
+class XrdOucCacheIOCB
+{
+public:
+
+//------------------------------------------------------------------------------
+//! Handle result from a previous async operation.
+//!
+//! @param result is result from a previous operation. Successful results are
+//!               always values >= 0 while errors are negative values and are
+//!               always '-errno' indicate the reason for the error.
+//------------------------------------------------------------------------------
+virtual
+void     Done(int result) = 0;
+
+         XrdOucCacheIOCB() {}
+virtual ~XrdOucCacheIOCB() {}
+};
+
+/******************************************************************************/
 /*                   C l a s s   X r d O u c C a c h e I O                    */
 /******************************************************************************/
 
@@ -354,12 +381,13 @@ struct Parms
        int       Max2Cache; // Largest read to cache      (default PageSize)
        int       MaxFiles;  // Maximum number of files    (default 256 or 8K)
        int       Options;   // Options as defined below   (default r/o cache)
-       int       Reserve1;  // Reserved for future use
+       short     minPages;  // Minum number of pages      (default 256)
+       short     Reserve1;  // Reserved for future use
        int       Reserve2;  // Reserved for future use
 
                  Parms() : CacheSize(104857600), PageSize(32768),
                            Max2Cache(0), MaxFiles(0), Options(0),
-                           Reserve1(0),  Reserve2(0) {}
+                           minPages(0), Reserve1(0),  Reserve2(0) {}
       };
 
 // Valid option values in Parms::Options

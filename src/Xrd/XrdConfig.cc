@@ -46,6 +46,7 @@
 
 #include "XrdVersion.hh"
 
+#include "Xrd/XrdBuffXL.hh"
 #include "Xrd/XrdConfig.hh"
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
@@ -59,6 +60,7 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucLogging.hh"
 #include "XrdOuc/XrdOucSiteName.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -86,6 +88,11 @@ extern int ka_Idle;
 extern int ka_Itvl;
 extern int ka_Icnt;
 };
+
+namespace XrdGlobal
+{
+extern XrdBuffXL xlBuff;
+}
 
 namespace
 {
@@ -209,19 +216,20 @@ int XrdConfig::Configure(int argc, char **argv)
 
    int retc, NoGo = 0, clPort = -1, optbg = 0;
    const char *temp;
-   char c, buff[512], *dfltProt, *libProt = 0, *logfn = 0;
+   char c, buff[512], *dfltProt, *libProt = 0;
    uid_t myUid = 0;
    gid_t myGid = 0;
    extern char *optarg;
    extern int optind, opterr;
+   struct XrdOucLogging::configLogInfo LogInfo;
    int pipeFD[2] = {-1, -1};
    const char *pidFN = 0;
    static const int myMaxc = 80;
    char **urArgv, *myArgv[myMaxc], argBuff[myMaxc*3+8];
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
    char *ifList = 0;
-   int   myArgc = 1, bindArg = 1, urArgc = argc, i;
-   bool noV6, ipV4 = false, ipV6 = false, pureLFN = false;
+   int   myArgc = 1, urArgc = argc, i;
+   bool noV6, ipV4 = false, ipV6 = false;
 
 // Obtain the protocol name we will be using
 //
@@ -297,18 +305,12 @@ int XrdConfig::Configure(int argc, char **argv)
                        Usage(1);
                       }
                  break;
-       case 'k': if (!(bindArg = Log.logger()->ParseKeep(optarg)))
+       case 'k': if (!(LogInfo.keepV = Log.logger()->ParseKeep(optarg)))
                     {Log.Emsg("Config","Invalid -k argument -",optarg);
                      Usage(1);
                     }
                  break;
-       case 'l': if ((pureLFN = *optarg == '=')) optarg++;
-                 if (!*optarg)
-                    {Log.Emsg("Config", "Logfile name not specified.");
-                     Usage(1);
-                    }
-                 if (logfn) free(logfn);
-                 logfn = strdup(optarg);
+       case 'l': LogInfo.logArg = optarg;
                  break;
        case 'L': if (!*optarg)
                     {Log.Emsg("Config", "Protocol library path not specified.");
@@ -337,7 +339,7 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'v': cerr <<XrdVSTRING <<endl;
                  _exit(0);
                  break;
-       case 'z': Log.logger()->setHiRes();
+       case 'z': LogInfo.hiRes = true;
                  break;
 
        default: if (optopt == '-' && *(argv[optind]+1) == '-')
@@ -395,52 +397,19 @@ int XrdConfig::Configure(int argc, char **argv)
    if (optbg)
    {
 #ifdef WIN32
-      XrdOucUtils::Undercover(&Log, !logfn);
+      XrdOucUtils::Undercover(&Log, !LogInfo.logArg);
 #else
       if (pipe( pipeFD ) == -1)
          {Log.Emsg("Config", errno, "create a pipe"); exit(17);}
-      XrdOucUtils::Undercover(Log, !logfn, pipeFD);
+      XrdOucUtils::Undercover(Log, !LogInfo.logArg, pipeFD);
 #endif
    }
 
-// Bind the log file if we have one
-//
-   if (logfn)
-      {char *lP;
-       if (!pureLFN && !(logfn = XrdOucUtils::subLogfn(Log,myInsName,logfn)))
-          _exit(16);
-       Log.logger()->AddMsg(XrdBANNER);
-       if (Log.logger()->Bind(logfn, bindArg)) exit(19);
-       if ((lP = rindex(logfn,'/'))) {*(lP+1) = '\0'; lP = logfn;}
-          else lP = (char *)"./";
-       XrdOucEnv::Export("XRDLOGDIR", lP);
-      }
-
-// Get the full host name. In theory, we should always get some kind of name.
-// We must define myIPAddr here because we may need to run in v4 mode and
-// that doesn't get set until after the options are scanned.
+// Get the full host name. We must define myIPAddr here because we may need to
+// run in v4 mode and that doesn't get set until after the options are scanned.
 //
    static XrdNetAddr *myIPAddr = new XrdNetAddr((int)0);
-   if (!(myName = myIPAddr->Name(0, &temp)))
-      {Log.Emsg("Config", "Unable to determine host name; ",
-                           (temp ? temp : "reason unknown"),
-                           "; execution terminated.");
-       _exit(16);
-      }
-
-// Verify that we have a real name. We've had problems with people setting up
-// bad /etc/hosts files that can cause connection failures if "allow" is used.
-// Otherwise, determine our domain name.
-//
-   if (!myIPAddr->isRegistered())
-      {Log.Emsg("Config",myName,"does not appear to be registered in the DNS.");
-       Log.Emsg("Config","Verify that the '/etc/hosts' file is correct and "
-                         "this machine is registered in DNS.");
-       Log.Emsg("Config", "Execution continues but connection failures may occur.");
-       myDomain = 0;
-      } else if (!(myDomain = index(myName, '.')))
-                Log.Say("Config warning: this hostname, ", myName,
-                            ", is registered without a domain qualification.");
+   if (!(myName = myIPAddr->Name(0, &temp))) myName = "";
 
 // Get our IP address and FQN
 //
@@ -460,6 +429,30 @@ int XrdConfig::Configure(int argc, char **argv)
    XrdOucEnv::Export("XRDHOST", myName);
    XrdOucEnv::Export("XRDNAME", ProtInfo.myInst);
    XrdOucEnv::Export("XRDPROG", myProg);
+
+// Bind the log file if we have one
+//
+   if (LogInfo.logArg)
+      {LogInfo.xrdEnv = &theEnv;
+       LogInfo.iName  = myInsName;
+       LogInfo.cfgFn  = ConfigFN;
+       if (!XrdOucLogging::configLog(Log, LogInfo)) _exit(16);
+       Log.logger()->AddMsg(XrdBANNER);
+      }
+
+// We now test for host name. In theory, we should always get some kind of name.
+// We can't really continue without some kind of name at this point. Note that
+// vriable temp should still be valid from the previous NetAddr call.
+//
+   if (!(*myName))
+      {Log.Emsg("Config", "Unable to determine host name; ",
+                           (temp ? temp : "reason unknown"),
+                           "; execution terminated.");
+       _exit(16);
+      }
+
+// Tell NetIF what logger to use as it's been properly setup by now.
+//
    XrdNetIF::SetMsgs(&Log);
 
 // Put out the herald
@@ -469,6 +462,20 @@ int XrdConfig::Configure(int argc, char **argv)
    XrdSysUtils::FmtUname(buff+retc, sizeof(buff)-retc);
    Log.Say(0, buff);
    Log.Say(XrdBANNER);
+
+// Verify that we have a real name. We've had problems with people setting up
+// bad /etc/hosts files that can cause connection failures if "allow" is used.
+// Otherwise, determine our domain name.
+//
+   if (!myIPAddr->isRegistered())
+      {Log.Emsg("Config",myName,"does not appear to be registered in the DNS.");
+       Log.Emsg("Config","Verify that the '/etc/hosts' file is correct and "
+                         "this machine is registered in DNS.");
+       Log.Emsg("Config", "Execution continues but connection failures may occur.");
+       myDomain = 0;
+      } else if (!(myDomain = index(myName, '.')))
+                Log.Say("Config warning: this hostname, ", myName,
+                            ", is registered without a domain qualification.");
 
 // Setup the initial required protocol.
 //
@@ -491,6 +498,10 @@ int XrdConfig::Configure(int argc, char **argv)
       {Trace.What = TRACE_ALL;
        XrdSysThread::setDebug(&Log);
       }
+
+// Put largest buffer size in the env
+//
+   theEnv.PutInt("MaxBuffSize", XrdGlobal::xlBuff.MaxSize());
 
 // Export the network interface list at this point
 //
@@ -535,12 +546,11 @@ int XrdConfig::Configure(int argc, char **argv)
    temp = (NoGo ? " initialization failed." : " initialization completed.");
    sprintf(buff, "%s:%d", myInstance, PortTCP);
    Log.Say("------ ", buff, temp);
-   if (logfn)
+   if (LogInfo.logArg)
       {strcat(buff, " running ");
        retc = strlen(buff);
        XrdSysUtils::FmtUname(buff+retc, sizeof(buff)-retc);
        Log.logger()->AddMsg(buff);
-       free(logfn);
       }
    return NoGo;
 }
@@ -834,7 +844,7 @@ void XrdConfig::setCFG()
   
 int XrdConfig::setFDL()
 {
-   static const int maxFD = 1048576;
+   static const int maxFD = 65535; // was 1048576 see XrdNetAddrInfo::sockNum
    struct rlimit rlim;
    char buff[100];
 
@@ -845,8 +855,8 @@ int XrdConfig::setFDL()
 
 // Set the limit to the maximum allowed
 //
-   if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_max = maxFD;
-   rlim.rlim_cur = rlim.rlim_max;
+   if (rlim.rlim_max == RLIM_INFINITY) rlim.rlim_cur = maxFD;
+      else rlim.rlim_cur = rlim.rlim_max;
 #if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_5))
    if (rlim.rlim_cur > OPEN_MAX) rlim.rlim_max = rlim.rlim_cur = OPEN_MAX;
 #endif
@@ -877,7 +887,7 @@ int XrdConfig::setFDL()
       }
 #endif
 
-// We try to set the thread limit here but only if we can
+// The scheduler will have already set the thread limit. We just report it
 //
 #if defined(__linux__) && defined(RLIMIT_NPROC)
 
@@ -988,7 +998,7 @@ int XrdConfig::Setup(char *dfltp)
    if (PortWAN &&  (NetWAN = new XrdInet(&Log, &Trace, Police)))
       {if (Wan_Opts || Wan_Blen) NetWAN->setDefaults(Wan_Opts, Wan_Blen);
        if (myDomain) NetWAN->setDomain(myDomain);
-       if (NetWAN->Bind((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
+       if (NetWAN->BindSD((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
        PortWAN  = NetWAN->Port();
        wsz      = NetWAN->WSize();
        Wan_Blen = (wsz < Wan_Blen || !Wan_Blen ? wsz : Wan_Blen);
@@ -1010,7 +1020,7 @@ int XrdConfig::Setup(char *dfltp)
              if (Net_Opts || Net_Blen)
                 NetTCP[NetTCPlep]->setDefaults(Net_Opts, Net_Blen);
              if (myDomain) NetTCP[NetTCPlep]->setDomain(myDomain);
-             if (NetTCP[NetTCPlep]->Bind(cp->port, "tcp")) return 1;
+             if (NetTCP[NetTCPlep]->BindSD(cp->port, "tcp")) return 1;
              ProtInfo.Port   = NetTCP[NetTCPlep]->Port();
              ProtInfo.NetTCP = NetTCP[NetTCPlep];
              wsz             = NetTCP[NetTCPlep]->WSize();
@@ -1160,8 +1170,11 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
 
 /* Function: xbuf
 
-   Purpose:  To parse the directive: buffers <memsz> [<rint>]
+   Purpose:  To parse the directive: buffers [maxbsz <bsz>] <memsz> [<rint>]
 
+             <bsz>      maximum size of an individualbuffer. The default is 2m.
+                        Specify any value 2m < bsz <= 1g; if specified, it must
+                        appear before the <memsz> and <memsz> becomes optional.
              <memsz>    maximum amount of memory devoted to buffers
              <rint>     minimum buffer reshape interval in seconds
 
@@ -1169,12 +1182,24 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
 */
 int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 {
+    static const long long minBSZ = 1024*1024*2+1;  // 2mb
+    static const long long maxBSZ = 1024*1024*1024; // 1gb
     int bint = -1;
     long long blim;
     char *val;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "buffer memory limit not specified"); return 1;}
+
+    if (!strcmp("maxbsz", val))
+       {if (!(val = Config.GetWord()))
+           {eDest->Emsg("Config", "max buffer size not specified"); return 1;}
+        if (XrdOuca2x::a2sz(*eDest,"maxbz value",val,&blim,minBSZ,maxBSZ))
+           return 1;
+        XrdGlobal::xlBuff.Init(blim);
+        if (!(val = Config.GetWord())) return 0;
+       }
+
     if (XrdOuca2x::a2sz(*eDest,"buffer limit value",val,&blim,
                        (long long)1024*1024)) return 1;
 
@@ -1195,6 +1220,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
    Purpose:  To parse directive: network [wan] [[no]keepalive] [buffsz <blen>]
                                          [kaparms parms] [cache <ct>] [[no]dnr]
                                          [routes <rtype> [use <ifn1>,<ifn2>]]
+                                         [[no]rpipa]
 
              <rtype>: split | common | local
 
@@ -1205,6 +1231,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
              <ct>      Seconds to cache address to name resolutions.
              [no]dnr   do [not] perform a reverse DNS lookup if not needed.
              routes    specifies the network configuration (see reference)
+             [no]rpipa do [not] resolve private IP addresses.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1212,12 +1239,14 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int  i, n, V_keep = -1, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1;
+    int  i, n, V_keep = -1, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1, V_assumev4;
+    int  v_rpip = -1;
     long long llp;
     struct netopts {const char *opname; int hasarg; int opval;
                            int *oploc;  const char *etxt;}
            ntopts[] =
        {
+        {"assumev4",   0, 1, &V_assumev4, "option"},
         {"keepalive",  0, 1, &V_keep,   "option"},
         {"nokeepalive",0, 0, &V_keep,   "option"},
         {"kaparms",    4, 0, &V_keep,   "option"},
@@ -1226,6 +1255,8 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         {"dnr",        0, 0, &V_nodnr,  "option"},
         {"nodnr",      0, 1, &V_nodnr,  "option"},
         {"routes",     3, 1, 0,         "routes"},
+        {"rpipa",      0, 1, &v_rpip,   "rpipa"},
+        {"norpipa",    0, 0, &v_rpip,   "norpipa"},
         {"wan",        0, 1, &V_iswan,  "option"}
        };
     int numopts = sizeof(ntopts)/sizeof(struct netopts);
@@ -1297,6 +1328,8 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         }
 
      if (V_ct >= 0) XrdNetAddr::SetCache(V_ct);
+     if (v_rpip >= 0) XrdInet::netIF.SetRPIPA(v_rpip != 0);
+     if (V_assumev4 >= 0) XrdInet::SetAssumeV4(true);
      return 0;
 }
 
@@ -1626,7 +1659,7 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     long long lpp;
-    int  i, ppp;
+    int  i, ppp = 0;
     int  V_mint = -1, V_maxt = -1, V_idle = -1, V_avlt = -1;
     struct schedopts {const char *opname; int minv; int *oploc;
                       const char *opmsg;} scopts[] =

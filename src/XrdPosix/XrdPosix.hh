@@ -86,6 +86,7 @@
 
 #define rename(a,b)      XrdPosix_Rename(a,b)
 
+#undef rewinddir
 #define rewinddir(a)     XrdPosix_Rewinddir(a)
 
 #define rmdir(a)         XrdPosix_Rmdir(a)

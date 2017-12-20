@@ -182,14 +182,15 @@ const char *XrdCryptosslX509Req::SubjectHash(int alg)
    // (for v>=1.0.0) when alg = 1
    EPNAME("X509::SubjectHash");
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(__APPLE__))
    if (alg == 1) {
       // md5 based
       if (subjectoldhash.length() <= 0) {
          // Make sure we have a certificate
          if (creq) {
-            char chash[15] = {0};
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(creq->req_info->subject));
+            char chash[30] = {0};
+            snprintf(chash, sizeof(chash),
+                     "%08lx.0",X509_NAME_hash_old(X509_REQ_get_subject_name(creq)));
             subjectoldhash = chash;
          } else {
             DEBUG("WARNING: no certificate available - cannot extract subject hash (md5)");
@@ -207,9 +208,9 @@ const char *XrdCryptosslX509Req::SubjectHash(int alg)
 
       // Make sure we have a certificate
       if (creq) {
-         char chash[15] = {0};
-         if (chash[0] == 0)
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash(creq->req_info->subject));
+         char chash[30] = {0};
+         snprintf(chash, sizeof(chash),
+                  "%08lx.0",X509_NAME_hash(X509_REQ_get_subject_name(creq)));
          subjecthash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract subject hash (default)");

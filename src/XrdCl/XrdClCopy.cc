@@ -30,8 +30,10 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <stdio.h>
 #include <iostream>
 #include <iomanip>
 #include <limits>
@@ -249,7 +251,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
       std::cerr << checkSum.substr( 0, i+1 ) << " ";
       std::cerr << checkSum.substr( i+1, checkSum.length()-i ) << " ";
 
-      if( url->GetProtocol() == "file" )
+      if( url->IsLocalFile() )
         std::cerr << url->GetPath() << " ";
       else
       {
@@ -302,12 +304,6 @@ bool AllOptionsSupported( XrdCpConfig *config )
   if( config->xRate )
   {
     std::cerr << "Limiting transfer rate is not yet supported" << std::endl;
-    return false;
-  }
-
-  if( config->nSrcs != 1 )
-  {
-    std::cerr << "Multiple sources are not yet supported" << std::endl;
     return false;
   }
 
@@ -436,6 +432,8 @@ XrdCl::XRootDStatus GetDirList( XrdCl::FileSystem        *fs,
     }
   }
 
+  delete list;
+
   return XRootDStatus();
 }
 
@@ -448,35 +446,30 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
 {
   using namespace XrdCl;
 
-  XrdCpFile   start;
-  XrdCpFile  *end   = &start;
-  XrdCpFile  *current;
-  URL         source( basePath );
-  int         badUrl;
-
-  std::vector<std::string> *files       = new std::vector<std::string>();
-  std::vector<std::string> *directories = new std::vector<std::string>();
-
   Log *log = DefaultEnv::GetLog();
   log->Debug( AppMsg, "Indexing %s", basePath.c_str() );
 
-  XRootDStatus status = GetDirList( fs, source, files, directories );
-  if( !status.IsOK() )
+  DirectoryList *dirList = 0;
+  XRootDStatus st = fs->DirList( basePath, DirListFlags::Recursive, dirList );
+  if( !st.IsOK() )
   {
     log->Info( AppMsg, "Failed to get directory listing for %s: %s",
-                       source.GetURL().c_str(),
-                       status.GetErrorMessage().c_str() );
+                       basePath.c_str(),
+                       st.GetErrorMessage().c_str() );
+    return 0;
   }
 
-  std::vector<std::string>::iterator it;
-  for( it = files->begin(); it != files->end(); ++it )
+  XrdCpFile start, *current = 0;
+  XrdCpFile *end   = &start;
+  int       badUrl = 0;
+  for( auto itr = dirList->Begin(); itr != dirList->End(); ++itr )
   {
-    std::string file = basePath + "/" + (*it);
-    log->Dump( AppMsg, "Found file %s", file.c_str() );
-
-    current = new XrdCpFile( file.c_str(), badUrl );
+    DirectoryList::ListEntry *e = *itr;
+    std::string path = basePath + '/' + e->GetName();
+    current = new XrdCpFile( path.c_str(), badUrl );
     if( badUrl )
     {
+      // TODO release memory
       log->Error( AppMsg, "Bad URL: %s", current->Path );
       return 0;
     }
@@ -486,17 +479,8 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
     end           = current;
   }
 
-  for( it = directories->begin(); it != directories->end(); ++it )
-  {
-    std::string directory = basePath + "/" + (*it);
-    log->Dump( AppMsg, "Found directory %s", directory.c_str() );
+  delete dirList;
 
-    end->Next = IndexRemote( fs, directory, dirOffset );
-    while( end->Next ) end = end->Next;
-  }
-
-  delete files;
-  delete directories;
   return start.Next;
 }
 
@@ -600,6 +584,27 @@ int main( int argc, char **argv )
     }
   }
 
+  //----------------------------------------------------------------------------
+  // ZIP archive
+  //----------------------------------------------------------------------------
+  std::string zipFile;
+  bool        zip = false;
+  if( config.Want( XrdCpConfig::DoZip ) )
+  {
+    zipFile = config.zipFile;
+    zip = true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Extreme Copy
+  //----------------------------------------------------------------------------
+  int nbSources = 0;
+  bool xcp      = false;
+  if( config.Want( XrdCpConfig::DoSources ) )
+  {
+    nbSources = config.nSrcs;
+    xcp       = true;
+  }
 
   //----------------------------------------------------------------------------
   // Environment settings
@@ -610,6 +615,9 @@ int main( int argc, char **argv )
 
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
+
+  int blockSize = DefaultXCpBlockSize;
+  env->GetInt( "XCpBlockSize", blockSize );
 
   int parallelChunks = DefaultCPParallelChunks;
   env->GetInt( "CPParallelChunks", parallelChunks );
@@ -634,7 +642,23 @@ int main( int argc, char **argv )
   std::string dest;
   if( config.dstFile->Protocol == XrdCpFile::isDir ||
       config.dstFile->Protocol == XrdCpFile::isFile )
+  {
     dest = "file://";
+
+    // if it is not an absolute path append cwd
+    if( config.dstFile->Path[0] != '/' )
+    {
+      char buf[FILENAME_MAX];
+      char *cwd = getcwd( buf, FILENAME_MAX );
+      if( !cwd )
+      {
+        std::cerr <<  strerror( errno ) << std::endl;
+        return errno;
+      }
+      dest += cwd;
+      dest += '/';
+    }
+  }
   dest += config.dstFile->Path;
 
   //----------------------------------------------------------------------------
@@ -721,7 +745,22 @@ int main( int argc, char **argv )
     PropertyList *results = new PropertyList;
     std::string source = sourceFile->Path;
     if( sourceFile->Protocol == XrdCpFile::isFile )
-      source = "file://" + source;
+    {
+      // make sure it is an absolute path
+      if( source[0] == '/' )
+        source = "file://" + source;
+      else
+      {
+        char buf[FILENAME_MAX];
+        char *cwd = getcwd( buf, FILENAME_MAX );
+        if( !cwd )
+        {
+          std::cerr <<  strerror( errno ) << std::endl;
+          return errno;
+        }
+        source = "file://" + std::string( cwd ) + '/' + source;
+      }
+    }
 
     AppendCGI( source, config.srcOpq );
 
@@ -730,13 +769,42 @@ int main( int argc, char **argv )
                dest.c_str() );
 
     //--------------------------------------------------------------------------
+    // Create a virtual redirector if it is a metalink file
+    //--------------------------------------------------------------------------
+    URL src( source );
+    if( src.IsMetalink() )
+    {
+      RedirectorRegistry &registry = RedirectorRegistry::Instance();
+      XRootDStatus st = registry.RegisterAndWait( src );
+      if( !st.IsOK() )
+      {
+        std::cerr << "RedirectorRegistry::Register " << source << " -> " << dest << ": ";
+        std::cerr << st.ToStr() << std::endl;
+        resultVect.push_back( results );
+        sourceFile = sourceFile->Next;
+        continue;
+      }
+    }
+
+    //--------------------------------------------------------------------------
     // Set up the job
     //--------------------------------------------------------------------------
     std::string target = dest;
-    if( targetIsDir )
+    if( targetIsDir)
     {
       target = dest + "/";
-      target += (sourceFile->Path+sourceFile->Doff);
+      // if it is a metalink we don't want to use the metalink name
+      if( zip )
+      {
+        target += zipFile;
+      }
+      else if( src.IsMetalink() )
+      {
+        XrdCl::RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
+        VirtualRedirector *redirector = registry.Get( source );
+        target += redirector->GetTargetName();
+      }
+      else target += (sourceFile->Path+sourceFile->Doff);
     }
 
     AppendCGI( target, config.dstOpq );
@@ -754,11 +822,20 @@ int main( int argc, char **argv )
     properties.Set( "checkSumPreset", checkSumPreset );
     properties.Set( "chunkSize",      chunkSize      );
     properties.Set( "parallelChunks", parallelChunks );
+    properties.Set( "zipArchive",     zip            );
+    properties.Set( "xcp",            xcp            );
+    properties.Set( "xcpBlockSize",   blockSize      );
+
+    if( zip )
+      properties.Set( "zipSource",    zipFile        );
+
+    if( xcp )
+      properties.Set( "nbXcpSources", nbSources      );
+
 
     XRootDStatus st = process.AddJob( properties, results );
     if( !st.IsOK() )
     {
-      delete results;
       std::cerr << "AddJob " << source << " -> " << target << ": ";
       std::cerr << st.ToStr() << std::endl;
     }

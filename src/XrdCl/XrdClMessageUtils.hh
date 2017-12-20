@@ -32,6 +32,8 @@
 
 namespace XrdCl
 {
+  class LocalFileHandler;
+
   //----------------------------------------------------------------------------
   //! Synchronize the response
   //----------------------------------------------------------------------------
@@ -44,14 +46,13 @@ namespace XrdCl
       SyncResponseHandler():
         pStatus(0),
         pResponse(0),
-        pSem( new Semaphore(0) ) {}
+        pCondVar(0) {}
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       virtual ~SyncResponseHandler()
       {
-        delete pSem;
       }
 
 
@@ -61,9 +62,10 @@ namespace XrdCl
       virtual void HandleResponse( XRootDStatus *status,
                                    AnyObject    *response )
       {
+        XrdSysCondVarHelper scopedLock(pCondVar);
         pStatus = status;
         pResponse = response;
-        pSem->Post();
+        pCondVar.Broadcast();
       }
 
       //------------------------------------------------------------------------
@@ -87,7 +89,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void WaitForResponse()
       {
-        pSem->Wait();
+        XrdSysCondVarHelper scopedLock(pCondVar);
+        while (pStatus == 0) {
+          pCondVar.Wait();
+        }
       }
 
     private:
@@ -96,8 +101,9 @@ namespace XrdCl
 
       XRootDStatus    *pStatus;
       AnyObject       *pResponse;
-      Semaphore       *pSem;
+      XrdSysCondVar    pCondVar;
   };
+
 
   //----------------------------------------------------------------------------
   // We're not interested in the response just commit suicide
@@ -126,7 +132,7 @@ namespace XrdCl
       hostList(0), chunkList(0), redirectLimit(0) {}
     uint16_t         timeout;
     time_t           expires;
-    const HostInfo   loadBalancer;
+    HostInfo         loadBalancer;
     bool             followRedirects;
     bool             stateful;
     HostList        *hostList;
@@ -182,14 +188,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Create a message
       //------------------------------------------------------------------------
-      template<class Type>
+      template<class Request>
       static void CreateRequest( Message  *&msg,
-                                 Type     *&req,
+                                 Request     *&req,
                                  uint32_t  payloadSize = 0 )
       {
-        msg = new Message( sizeof(Type)+payloadSize );
-        req = (Type*)msg->GetBuffer();
-        msg->Zero();
+          msg = new Message( sizeof(Request) +  payloadSize );
+          req = (Request*)msg->GetBuffer();
+          msg->Zero();
       }
 
       //------------------------------------------------------------------------
@@ -198,7 +204,17 @@ namespace XrdCl
       static Status SendMessage( const URL               &url,
                                  Message                 *msg,
                                  ResponseHandler         *handler,
-                                 const MessageSendParams &sendParams );
+                                 const MessageSendParams &sendParams,
+                                 LocalFileHandler        *lFileHandler );
+
+      //------------------------------------------------------------------------
+      //! Redirect message
+      //------------------------------------------------------------------------
+      static Status RedirectMessage( const URL         &url,
+                                     Message           *msg,
+                                     ResponseHandler   *handler,
+                                     MessageSendParams &sendParams,
+                                     LocalFileHandler  *lFileHandler );
 
       //------------------------------------------------------------------------
       //! Process sending params

@@ -230,7 +230,12 @@ namespace XrdCl
                                          const std::string &path )
   {
     FileSystem   *fs = new FileSystem( URL( server ) );
-    Buffer        arg; arg.FromString( path );
+    // add the 'cks.type' cgi tag in order to
+    // select the proper checksum type in case
+    // the server supports more than one checksum
+    size_t pos = path.find( '?' );
+    std::string cksPath = path + ( pos == std::string::npos ? '?' : '&' ) + "cks.type=" + checkSumType;
+    Buffer        arg; arg.FromString( cksPath );
     Buffer       *cksResponse = 0;
     XRootDStatus  st;
     Log          *log    = DefaultEnv::GetLog();

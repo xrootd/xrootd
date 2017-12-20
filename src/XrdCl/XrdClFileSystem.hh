@@ -76,6 +76,8 @@ namespace XrdCl
     enum Flags
     {
       None     = 0,              //!< Nothing
+      Compress = kXR_compress,   //!< Read compressed data for open (ignored),
+                                 //!< for kXR_locate return unique hosts
       Delete   = kXR_delete,     //!< Open a new file, deleting any existing
                                  //!< file
       Force    = kXR_force,      //!< Ignore file usage rules, for kXR_locate
@@ -151,10 +153,12 @@ namespace XrdCl
   {
     enum Flags
     {
-      None   = 0,  //!< Nothing special
-      Stat   = 1,  //!< Stat each entry
-      Locate = 2  //!< Locate all servers hosting the directory and send
-                   //!< the dirlist request to all of them
+      None      = 0, //!< Nothing special
+      Stat      = 1, //!< Stat each entry
+      Locate    = 2, //!< Locate all servers hosting the directory and send
+                     //!< the dirlist request to all of them
+      Recursive = 4,  //!< Do a recursive listing
+      Merge     = 8
     };
   };
   XRDOUC_ENUM_OPERATORS( DirListFlags::Flags )
@@ -521,7 +525,8 @@ namespace XrdCl
       //! Obtain status information for a path - sync
       //!
       //! @param path     file/directory path
-      //! @param response the response (to be deleted by the user)
+      //! @param response the response (to be deleted by the user only if the
+      //!                 procedure is successful)
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation

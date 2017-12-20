@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <ctype.h>
 #include <stdio.h>
 #include <time.h>
 #include <sys/param.h>
@@ -39,7 +40,7 @@
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
 #include "XrdNet/XrdNetAddrInfo.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysPlugin.hh"
   
 /******************************************************************************/
@@ -100,28 +101,36 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
                                  const Access_Operation oper,
                                        XrdOucEnv       *Env)
 {
-   XrdAccPrivs myprivs;
-   char *gname;
-   int accok;
+   const char *xP;
+   char *gname, xBuff[64];
    XrdAccGroupList *glp;
    XrdAccPrivCaps caps;
    XrdAccCapability *cp;
    const int plen  = strlen(path);
    const long phash = XrdOucHashVal2(path, plen);
-   XrdAccAudit_Options audits = (XrdAccAudit_Options)Auditor->Auditing();
    const char *id   = (Entity->name ? (const char *)Entity->name : "*");
-   const char *host;
-   int isuser = (*id && (*id != '*' || id[1]));
+   const char *host = 0;
+   int n, isuser = (*id && (*id != '*' || id[1]));
 
 // Get a shared context for these potentially long running routines
 //
    Access_Context.Lock(xs_Shared);
 
+// Run through the exclusive list first as only one rule will apply
+//
+   XrdAccAccess_ID *xlP = Atab.SXList;
+   while (xlP)
+         {if (xlP->Applies(Entity))
+             {xlP->caps->Privs(caps, path, plen, phash);
+              Access_Context.UnLock(xs_Shared);
+              return Access(caps, Entity, path, oper);
+             }
+          xlP = xlP->next;
+         }
+
 // Check if we really need to resolve the host name
 //
-   if (Atab.D_List || Atab.H_Hash || Atab.N_Hash)
-      host = Entity->addrInfo->Name("?");
-      else host = (Entity->host ? (const char *)Entity->host : "?");
+   if (Atab.D_List || Atab.H_Hash || Atab.N_Hash) host = Resolve(Entity);
 
 // Establish default privileges
 //
@@ -152,13 +161,11 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 //
    if (Atab.G_Hash)
       {if (Entity->grps)
-          {char gBuff[1024];
-           XrdOucTokenizer gList(gBuff);
-           strlcpy(gBuff, Entity->grps, sizeof(gBuff));
-           gList.GetLine();
-           while((gname = gList.GetToken()))
-                if ((cp = Atab.G_Hash->Find((const char *)gname)))
-                   cp->Privs(caps, path, plen, phash);
+          {xP = Entity->grps;
+           while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
+                {if (n < (int)sizeof(xBuff) && (cp = Atab.G_Hash->Find(xBuff)))
+                    cp->Privs(caps, path, plen, phash);
+                }
           } else if (isuser && (glp=XrdAccConfiguration.GroupMaster.Groups(id)))
                     {while((gname = (char *)glp->Next()))
                           if ((cp = Atab.G_Hash->Find((const char *)gname)))
@@ -177,10 +184,54 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
        delete glp;
       }
 
+// Next add in the org-specific privileges
+//
+   if (Atab.O_Hash && Entity->vorg)
+      {xP = Entity->vorg;
+       while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
+            {if (n < (int)sizeof(xBuff) && (cp = Atab.O_Hash->Find(xBuff)))
+                cp->Privs(caps, path, plen, phash);
+            }
+      }
+
+// Next add in the role-specific privileges
+//
+   if (Atab.R_Hash && Entity->role)
+      {xP = Entity->role;
+       while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
+            {if (n < (int)sizeof(xBuff) && (cp = Atab.R_Hash->Find(xBuff)))
+                cp->Privs(caps, path, plen, phash);
+            }
+      }
+
+// Finally run through the inclusive list and apply arr relevant rules
+//
+   XrdAccAccess_ID *ylP = Atab.SYList;
+   while (ylP)
+         {if (ylP->Applies(Entity)) ylP->caps->Privs(caps, path, plen, phash);
+          ylP = ylP->next;
+         }
+
 // We are now done with looking at changeable data
 //
    Access_Context.UnLock(xs_Shared);
 
+// Return the privileges as needed
+//
+   return Access(caps, Entity, path, oper);
+}
+
+/******************************************************************************/
+
+XrdAccPrivs XrdAccAccess::Access(      XrdAccPrivCaps  &caps,
+                                 const XrdSecEntity    *Entity,
+                                 const char            *path,
+                                 const Access_Operation oper
+                                )
+{
+   XrdAccPrivs myprivs;
+   XrdAccAudit_Options audits = (XrdAccAudit_Options)Auditor->Auditing();
+   int accok;
 
 // Compute composite privileges and see if privs need to be returned
 //
@@ -198,66 +249,6 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
    return (XrdAccPrivs)Audit(accok, Entity, path, oper);
 }
   
-/******************************************************************************/
-/*                                A c c e s s                                 */
-/******************************************************************************/
-  
-XrdAccPrivs XrdAccAccess::Access(const char *id,
-                                 const Access_ID_Type idtype,
-                                 const char *path,
-                                 const Access_Operation oper)
-{
-   XrdAccPrivCaps caps;
-   XrdAccCapability *cp;
-   XrdOucHash<XrdAccCapability> *hp;
-   const int plen  = strlen(path);
-   const long phash = XrdOucHashVal2(path, plen);
-
-// Select appropriate hash table for the id type
-//
-   switch(idtype)
-        {case AID_Group:      hp = Atab.G_Hash; break;
-         case AID_Host:       hp = Atab.H_Hash; break;
-         case AID_Netgroup:   hp = Atab.N_Hash; break;
-         case AID_Set:        hp = Atab.S_Hash; break;
-         case AID_Template:   hp = Atab.T_Hash; break;
-         case AID_User:       hp = Atab.U_Hash; break;
-         default:             hp = 0;           break;
-        }
-
-// Get a shared context while we look up the privileges
-//
-   Access_Context.Lock(xs_Shared);
-
-// Establish default privileges
-//
-   if (Atab.Z_List) Atab.Z_List->Privs(caps, path, plen, phash);
-
-// Check for self-describing user template privileges if this is a user
-//
-   if (idtype == AID_User && Atab.X_List)
-      Atab.X_List->Privs(caps, path, plen, phash, id);
-
-// Check for domain privileges if this is a host
-//
-   if (idtype == AID_Host && Atab.D_List && (cp = Atab.D_List->Find(id)))
-      cp->Privs(caps, path, plen, phash, id);
-
-// Look up the specific privileges
-//
-   if (hp && (cp = hp->Find(id))) cp->Privs(caps, path, plen, phash);
-
-// We are now done with looking at changeable data
-//
-   Access_Context.UnLock(xs_Shared);
-
-// Perform required access check
-//
-   if (oper) return (XrdAccPrivs)Test(
-                    (XrdAccPrivs)(caps.pprivs & ~caps.nprivs), oper);
-             return (XrdAccPrivs)(caps.pprivs & ~caps.nprivs);
-}
-
 /******************************************************************************/
 /*                                 A u d i t                                  */
 /******************************************************************************/
@@ -305,6 +296,20 @@ int XrdAccAccess::Audit(const int              accok,
 }
 
 /******************************************************************************/
+/*                               R e s o l v e                                */
+/******************************************************************************/
+
+const char *XrdAccAccess::Resolve(const XrdSecEntity *Entity)
+{
+// Make a quick test for IPv6 (as that's the future) and a minimal one for ipV4
+// to see if we have to do a DNS lookup.
+//
+   if (Entity->host == 0 || *(Entity->host) == '[' || isdigit(*(Entity->host)))
+      return  Entity->addrInfo->Name("?");
+   return Entity->host;
+}
+  
+/******************************************************************************/
 /*                              S w a p T a b s                               */
 /******************************************************************************/
 
@@ -326,11 +331,15 @@ void XrdAccAccess::SwapTabs(struct XrdAccAccess_Tables &newtab)
    XrdAccSWAP(G_Hash);
    XrdAccSWAP(H_Hash);
    XrdAccSWAP(N_Hash);
+   XrdAccSWAP(O_Hash);
+   XrdAccSWAP(R_Hash);
    XrdAccSWAP(S_Hash);
    XrdAccSWAP(T_Hash);
    XrdAccSWAP(U_Hash);
    XrdAccSWAP(X_List);
    XrdAccSWAP(Z_List);
+   XrdAccSWAP(SXList);
+   XrdAccSWAP(SYList);
 
 // When we set new access tables, we should purge the group cache
 //
@@ -366,4 +375,56 @@ int XrdAccAccess::Test(const XrdAccPrivs priv,const Access_Operation oper)
                                };
    if (oper < 0 || oper > AOP_LastOp) return 0;
    return (int)(need[oper] & priv) == need[oper];
+}
+
+/******************************************************************************/
+/*              X r d A c c A c c e s s _ I D : : A p p l i e s               */
+/******************************************************************************/
+  
+bool XrdAccAccess_ID::Applies(const XrdSecEntity *Entity)
+{
+   const char *hName, *gList, *gEnd;
+   int eLen;
+
+// Check single value items in the most probable use order
+//
+   if (org  && (!Entity->vorg || strcmp(org,  Entity->vorg))) return false;
+   if (role && (!Entity->role || strcmp(role, Entity->role))) return false;
+   if (user && (!Entity->name || strcmp(user, Entity->name))) return false;
+
+// The check is more complicated as the host field may be an address. We make
+// a quick test for IPv6 (as that's the future) and take the long road for ipV4.
+//
+   if (host)
+      {hName = XrdAccAccess::Resolve(Entity);
+       if (*host == '.')
+          {eLen = strlen(hName);
+           if (eLen <= hlen) return false;
+           hName = hName + eLen - hlen;
+          }
+       if (strcmp(host, hName)) return false;
+      }
+
+// Groups are most problematic as there may be many of them. So it's last.
+//
+   if (!grp) return true;
+   if (!Entity->grps) return false;
+   eLen = strlen(Entity->grps);
+   if (eLen < glen) return false;
+
+// Search through the group list
+//
+   gList = Entity->grps;
+   while(true)
+        {if (!strncmp(grp, Entity->grps, glen))
+            {gEnd = Entity->grps + glen;
+             if (*gEnd == ' ' || *gEnd == 0) return true;
+            }
+         if(!(gList = index(gList, ' '))) break;
+         do {gList++;} while(*gList == ' ');
+        }
+
+// This entry is not applicable
+//
+   return false;
 }

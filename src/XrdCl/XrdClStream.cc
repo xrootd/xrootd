@@ -33,6 +33,8 @@
 #include "XrdCl/XrdClOutQueue.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 
 #include <sys/types.h>
 #include <algorithm>
@@ -406,6 +408,26 @@ namespace
 
 namespace XrdCl
 {
+  Status Stream::RequestClose( Message *response )
+  {
+    ServerResponse *rsp = reinterpret_cast<ServerResponse*>( response->GetBuffer() );
+    if( rsp->hdr.dlen < 4 ) return Status( stError );
+    Message            *msg;
+    ClientCloseRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+    req->requestid = kXR_close;
+    memcpy( req->fhandle, reinterpret_cast<uint8_t*>( rsp->body.buffer.data ), 4 );
+    XRootDTransport::SetDescription( msg );
+    msg->SetSessionId( pSessionId );
+    NullResponseHandler *handler = new NullResponseHandler();
+    MessageSendParams params;
+    params.timeout         = 0;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+    return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
+  }
+
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
@@ -421,6 +443,13 @@ namespace XrdCl
                                                          *pChannelData );
     if( streamAction & TransportHandler::DigestMsg )
       return;
+
+    if( streamAction & TransportHandler::RequestClose )
+    {
+      RequestClose( msg );
+      delete msg;
+      return;
+    }
 
     //--------------------------------------------------------------------------
     // No handler, we cache and see what comes later
@@ -446,11 +475,13 @@ namespace XrdCl
     if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
       pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
 
-    if( mh.action & IncomingMsgHandler::NoProcess )
+    if( mh.action & (IncomingMsgHandler::NoProcess|IncomingMsgHandler::Ignore) )
     {
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
+      bool delit = ( mh.action & IncomingMsgHandler::Ignore );
       mh.Reset();
+      if (delit) delete msg;
       return;
     }
 
@@ -484,6 +515,19 @@ namespace XrdCl
     if( h.handler )
       h.handler->OnReadyToSend( h.msg, pStreamNum );
     return std::make_pair( h.msg, h.handler );
+  }
+
+  void Stream::DisableIfEmpty( uint16_t subStream )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log *log = DefaultEnv::GetLog();
+
+    if( pSubStreams[subStream]->outQueue->IsEmpty() )
+    {
+      log->Dump( PostMasterMsg, "[%s] All messages consumed, disable uplink",
+                 pSubStreams[subStream]->socket->GetStreamName().c_str() );
+      pSubStreams[subStream]->socket->DisableUplink();
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -624,48 +668,41 @@ namespace XrdCl
     // Check if we still have time to try and do something in the current window
     //--------------------------------------------------------------------------
     time_t elapsed = now-pConnectionInitTime;
-    if( elapsed < pConnectionWindow )
+    log->Error( PostMasterMsg, "[%s] elapsed = %d, pConnectionWindow = %d "
+               "seconds.", pStreamName.c_str(), elapsed, pConnectionWindow );
+
+    //------------------------------------------------------------------------
+    // If we have some IP addresses left we try them
+    //------------------------------------------------------------------------
+    if( !pAddresses.empty() )
     {
-      //------------------------------------------------------------------------
-      // If we have some IP addresses left we try them
-      //------------------------------------------------------------------------
-      if( !pAddresses.empty() )
-      {
-        pSubStreams[0]->socket->SetAddress( pAddresses.back() );
-        pAddresses.pop_back();
+      pSubStreams[0]->socket->SetAddress( pAddresses.back() );
+      pAddresses.pop_back();
 
-        Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
-        if( !st.IsOK() )
-          OnFatalError( subStream, st, scopedLock );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // If we still can retry with the same host name, we sleep until the end
-      // of the connection window and try
-      //------------------------------------------------------------------------
-      else if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
-      {
-        log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
-                   "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
-
-        Task *task = new ::StreamConnectorTask( this );
-        pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // Nothing can be done, we declare a failure
-      //------------------------------------------------------------------------
-      OnFatalError( subStream, status, scopedLock );
+      Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
+      if( !st.IsOK() )
+        OnFatalError( subStream, st, scopedLock );
       return;
     }
+    //------------------------------------------------------------------------
+    // If we still can retry with the same host name, we sleep until the end
+    // of the connection window and try
+    //------------------------------------------------------------------------
+    else if( elapsed < pConnectionWindow && pConnectionCount < pConnectionRetry
+             && !status.IsFatal() )
+    {
+      log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
+                 "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
 
+      Task *task = new ::StreamConnectorTask( this );
+      pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
+      return;
+    }
     //--------------------------------------------------------------------------
     // We are out of the connection window, the only thing we can do here
     // is re-resolving the host name and retrying if we still can
     //--------------------------------------------------------------------------
-    if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
+    else if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
     {
       pAddresses.clear();
       pSubStreams[0]->status = Socket::Disconnected;
@@ -838,8 +875,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnReadTimeout( uint16_t substream )
+  void Stream::OnReadTimeout( uint16_t substream, bool &isBroken )
   {
+    isBroken = false;
+
     //--------------------------------------------------------------------------
     // We only take the main stream into account
     //--------------------------------------------------------------------------
@@ -887,7 +926,11 @@ namespace XrdCl
                                             pStreamNum,
                                             *pChannelData );
     if( !st.IsOK() )
+    {
+      isBroken =  true;
+      scopedLock.UnLock();
       OnError( substream, st );
+    }
   }
 
   //----------------------------------------------------------------------------

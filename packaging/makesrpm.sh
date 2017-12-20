@@ -5,6 +5,7 @@
 #-------------------------------------------------------------------------------
 
 RCEXP='^[0-9]+\.[0-9]+\.[0-9]+\-rc.*$'
+CERNEXP='^[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.CERN.*$'
 
 #-------------------------------------------------------------------------------
 # Find a program
@@ -24,13 +25,15 @@ function findProg()
 #-------------------------------------------------------------------------------
 function printHelp()
 {
-  echo "Usage:"                                              1>&2
-  echo "${0} [--help] [--source PATH] [--output PATH]"       1>&2
-  echo "  --help        prints this message"                 1>&2
-  echo "  --source PATH specify the root of the source tree" 1>&2
-  echo "                defaults to ../"                     1>&2
-  echo "  --output PATH the directory where the source rpm"  1>&2
-  echo "                should be stored, defaulting to ."   1>&2
+  echo "Usage:"                                               1>&2
+  echo "${0} [--help] [--source PATH] [--output PATH]"        1>&2
+  echo "  --help        prints this message"                  1>&2
+  echo "  --source  PATH specify the root of the source tree" 1>&2
+  echo "                defaults to ../"                      1>&2
+  echo "  --output  PATH the directory where the source rpm"  1>&2
+  echo "                should be stored, defaulting to ."    1>&2
+  echo "  --version VERSION the version provided by user"     1>&2
+  echo "  --define  'MACRO EXPR'"                             1>&2
 }
 
 #-------------------------------------------------------------------------------
@@ -56,6 +59,20 @@ while test ${#} -ne 0; do
       exit 1
     fi
     OUTPUTPATH=${2}
+    shift
+  elif test x${1} = x--version; then
+    if test ${#} -lt 2; then
+      echo "--version parameter needs an argument" 1>&2
+      exit 1
+    fi
+    USER_VERSION="--version ${2}"
+    shift
+  elif test x${1} = x--define; then
+    if test ${#} -lt 2; then
+      echo "--define parameter needs an argument" 1>&2
+      exit 1
+    fi
+    USER_DEFINE="$USER_DEFINE --define \""${2}"\""
     shift
   fi
   shift
@@ -111,7 +128,7 @@ if test ! -x $SOURCEPATH/genversion.sh; then
   exit 3
 fi
 
-VERSION=`$SOURCEPATH/genversion.sh --print-only $SOURCEPATH 2>/dev/null`
+VERSION=`$SOURCEPATH/genversion.sh --print-only $USER_VERSION $SOURCEPATH 2>/dev/null`
 if test $? -ne 0; then
   echo "[!] Unable to figure out the version number" 1>&2
   exit 4
@@ -130,6 +147,25 @@ RELEASE=1
 if test x`echo $VERSION | egrep $RCEXP` != x; then
   RELEASE=0.`echo $VERSION | sed 's/.*-rc/rc/'`
   VERSION=`echo $VERSION | sed 's/-rc.*//'`
+fi
+
+#-------------------------------------------------------------------------------
+# Deal with CERN releases
+#-------------------------------------------------------------------------------
+if test x`echo $VERSION | egrep $CERNEXP` != x; then
+  RELEASE=`echo $VERSION | sed 's/.*-//'` 
+  VERSION=`echo $VERSION | sed 's/-.*\.CERN//'`
+fi
+
+#-------------------------------------------------------------------------------
+# In case of user version check if the release number has been provided
+#-------------------------------------------------------------------------------
+if test x"$USER_VERSION" != x; then
+  TMP=`echo $VERSION | sed 's#.*-##g'`
+  if test $TMP != $VERSION; then
+    RELEASE=$TMP
+    VERSION=`echo $VERSION | sed 's#-[^-]*$##'`
+  fi
 fi
 
 VERSION=`echo $VERSION | sed 's/-/./g'`
@@ -221,12 +257,13 @@ echo "[i] Creating the source RPM..."
 
 # Dirty, dirty hack!
 echo "%_sourcedir $RPMSOURCES" >> $TEMPDIR/rpmmacros
-rpmbuild --define "_topdir $TEMPDIR/rpmbuild"    \
-         --define "%_sourcedir $RPMSOURCES"      \
-         --define "%_srcrpmdir %{_topdir}/SRPMS" \
-         --define "_source_filedigest_algorithm md5" \
-         --define "_binary_filedigest_algorithm md5" \
-  -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log
+eval "rpmbuild --define \"_topdir $TEMPDIR/rpmbuild\"    \
+               --define \"%_sourcedir $RPMSOURCES\"      \
+               --define \"%_srcrpmdir %{_topdir}/SRPMS\" \
+               --define \"_source_filedigest_algorithm md5\" \
+               --define \"_binary_filedigest_algorithm md5\" \
+               ${USER_DEFINE} \
+               -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log"
 if test $? -ne 0; then
   echo "[!] RPM creation failed" 1>&2
   exit 8

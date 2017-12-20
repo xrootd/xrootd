@@ -197,17 +197,26 @@ const char *XrdSfsNativeDirectory::nextEntry()
 
 // Read the next directory entry
 //
+#ifdef __linux__
    errno = 0;
+   rp = readdir(dh);
+   if (!rp)
+      {if (!(retc = errno)) {ateof = 1; error.clear();}
+          else XrdSfsNative::Emsg(epname,error,retc,"read directory",fname);
+       d_pnt->d_name[0] = '\0';
+       return (const char *)0;
+      }
+    return (const char *)(rp->d_name);
+#else
    if ((retc = readdir_r(dh, d_pnt, &rp)))
-      {if (retc && errno != 0)
-          XrdSfsNative::Emsg(epname,error,retc,"read directory",fname);
+      {XrdSfsNative::Emsg(epname,error,retc,"read directory",fname);
        d_pnt->d_name[0] = '\0';
        return (const char *)0;
       }
 
 // Check if we have reached end of file
 //
-   if (retc || !rp || !d_pnt->d_name[0])
+   if (!rp || !d_pnt->d_name[0])
       {ateof = 1;
        error.clear();
        return (const char *)0;
@@ -216,6 +225,7 @@ const char *XrdSfsNativeDirectory::nextEntry()
 // Return the actual entry
 //
    return (const char *)(d_pnt->d_name);
+#endif
 }
 
 /******************************************************************************/

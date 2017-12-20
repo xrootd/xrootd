@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <limits.h>
+#include <string>
 #include <unistd.h>
 #include <inttypes.h>
 #include <netinet/in.h>
@@ -416,6 +417,36 @@ void XrdCmsAdmin::BegAds()
 }
   
 /******************************************************************************/
+/*                             C h e c k V N i d                              */
+/******************************************************************************/
+
+bool XrdCmsAdmin::CheckVNid(const char *xNid)
+{
+
+// Check if we have a vnid but the server is supplying one or is not the same
+//
+   if (Config.myVNID)
+      {if (!xNid)
+          {Say.Emsg("do_Login", "Warning! No xrootd vnid specified; "
+                                "proceeding only with cmsd vnid.");
+           return true;
+          }
+       if (!strcmp(xNid, Config.myVNID)) return true;
+       std::string msg("xrootd vnid '");
+       msg += xNid; msg += "' does not match cmsd vnid '";
+       msg += Config.myVNID; msg += "'.";
+       Say.Emsg("do_Login", msg.c_str());
+       return false;
+      }
+
+// We don't have a vnid, check if one is present
+//
+   if (xNid) Say.Emsg("do_Login", "Warning! xrootd has a vnid but cmsd does "
+                                  "not; proceeding without a vnid!");
+   return true;
+}
+  
+/******************************************************************************/
 /*                               C o n 2 A d s                                */
 /******************************************************************************/
   
@@ -489,11 +520,12 @@ do{while((snum = adsSocket.Open("localhost", Config.adsPort)) < 0)
   
 int XrdCmsAdmin::do_Login()
 {
+   std::string vnidVal;
    const char *emsg;
    char buff[64], *tp, Ltype = 0;
    int Port = 0;
 
-// Process: login {p | P | s | u} <name> [port <port>]
+// Process: login {p | P | s | u} <name> [port <port>] [nid <nid>]
 //
    if (!(tp = Stream.GetToken()))
       {Say.Emsg("do_Login", "login type not specified");
@@ -537,6 +569,13 @@ int XrdCmsAdmin::do_Login()
                   if (XrdOuca2x::a2i(Say,"login port",tp,&Port,0))
                      return 0;
                  }
+         else if (!strcmp(tp, "vnid"))
+                 {if (!(tp = Stream.GetToken()))
+                     {Say.Emsg("do_Login", "vnid value not specified");
+                      return 0;
+                     }
+                  vnidVal = tp;
+                 }
          else    {Say.Emsg("do_Login", "invalid login option -", tp);
                   return 0;
                  }
@@ -552,6 +591,14 @@ int XrdCmsAdmin::do_Login()
    else                                        emsg = 0;
    if (emsg) 
       {Say.Emsg("do_login", "Server login rejected; configured role", emsg);
+       return 0;
+      }
+
+// Verify virtual networking
+//
+   if ((vnidVal.length() || Config.myVNID)
+   && !CheckVNid(vnidVal.length() ? vnidVal.c_str() : 0))
+      {Say.Emsg("do_login", "Server login rejected; virtual networking error.");
        return 0;
       }
 

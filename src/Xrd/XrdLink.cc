@@ -59,6 +59,7 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "Xrd/XrdSendQ.hh"
 
 #define  TRACELINK this
 #define  XRD_TRACE XrdTrace->
@@ -128,6 +129,7 @@ static const char *TraceID;
        int             XrdLink::LinkTimeOuts  = 0;
        int             XrdLink::LinkStalls    = 0;
        int             XrdLink::LinkSfIntr    = 0;
+       int             XrdLink::maxFD         = 0;
        XrdSysMutex     XrdLink::statsMutex;
 
        const char     *XrdLinkScan::TraceID = "LinkScan";
@@ -163,7 +165,10 @@ void XrdLink::Reset()
   Lname[1] = '\0';
   ID       = &Uname[sizeof(Uname)-2];
   Comment  = ID;
+#if !defined( __linux__ ) && !defined( __solaris__ )
   Next     = 0;
+#endif
+  sendQ    = 0;
   Protocol = 0; 
   ProtoAlt = 0;
   conTime  = time(0);
@@ -197,6 +202,14 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
    XrdLink *lp;
    char hName[1024], *unp, buff[16];
    int bl, peerFD = peer.SockFD();
+
+// Make sure that the incomming file descriptor can be handled
+//
+   if (peerFD < 0 || peerFD >= maxFD)
+      {snprintf(hName, sizeof(hName), "%d", peerFD);
+       XrdLog->Emsg("Link", "attempt to alloc out of range FD -",hName);
+       return (XrdLink *)0;
+      }
 
 // Make sure that the link slot is available
 //
@@ -268,6 +281,19 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
 }
 
 /******************************************************************************/
+/*                               B a c k l o g                                */
+/******************************************************************************/
+  
+int XrdLink::Backlog()
+{
+   XrdSysMutexHelper(wrMutex);
+
+// Return backlog information
+//
+   return (sendQ ? sendQ->Backlog() : 0);
+}
+
+/******************************************************************************/
 /*                                C l i e n t                                 */
 /******************************************************************************/
   
@@ -292,7 +318,8 @@ int XrdLink::Client(char *nbuf, int nbsz)
 /******************************************************************************/
   
 int XrdLink::Close(int defer)
-{   int csec, fd, rc = 0;
+{  XrdSysMutexHelper opHelper(opMutex);
+   int csec, fd, rc = 0;
 
 // If a defer close is requested, we can close the descriptor but we must
 // keep the slot number to prevent a new client getting the same fd number.
@@ -301,33 +328,44 @@ int XrdLink::Close(int defer)
 // the connection or an event occurs that causes an operation restart. We
 // portably solve this problem by issuing a shutdown() on the socket prior
 // closing it. On most platforms, this informs readers that the connection is
-// gone (though not on old (i.e. <= 2.3) versions of Linux, sigh).
+// gone (though not on old (i.e. <= 2.3) versions of Linux, sigh). Also, if
+// nonblocking mode is enabled, we need to do this in a separate thread as
+// a shutdown may block for a pretty long time is lot of messages are queued.
+// We will ask the SendQ object to schedule the shutdown for us before it
+// commits suicide.
+// Note that we can hold the opMutex while we also get the wrMutex.
 //
-   opMutex.Lock();
    if (defer)
-      {TRACEI(DEBUG, "Closing FD only");
-       if (FD > 1)
-          {fd = FD; FD = -FD; csec = Instance; Instance = 0;
-           if (!KeepFD)
-              {shutdown(fd, SHUT_RDWR);
-               if (dup2(devNull, fd) < 0)
-                  {FD = fd; Instance = csec;
-                   XrdLog->Emsg("Link",errno,"close FD for",ID);
-                  }
-              }
-          }
-       opMutex.UnLock();
+      {if (!sendQ) Shutdown(false);
+          else {TRACEI(DEBUG, "Shutdown FD only via SendQ");
+                InUse++;
+                FD = -FD;
+                wrMutex.Lock();
+                sendQ->Terminate(this);
+                sendQ = 0;
+                wrMutex.UnLock();
+               }
        return 0;
+      }
+
+// If we got here then this is not a defered close so we just need to check
+// if there is a sendq appendage we need to get rid of.
+//
+   if (sendQ)
+      {wrMutex.Lock();
+       sendQ->Terminate();
+       sendQ = 0;
+       wrMutex.UnLock();
       }
 
 // Multiple protocols may be bound to this link. If it is in use, defer the
 // actual close until the use count drops to one.
 //
    while(InUse > 1)
-      {opMutex.UnLock();
+      {opHelper.UnLock();
        TRACEI(DEBUG, "Close defered, use count=" <<InUse);
        Serialize();
-       opMutex.Lock();
+       opHelper.Lock(&opMutex);
       }
    InUse--;
    Instance = 0;
@@ -361,12 +399,12 @@ int XrdLink::Close(int defer)
    if (FD != -1)
       {if (Poller) {XrdPoll::Detach(this); Poller = 0;}
        FD = -1;
-       opMutex.UnLock();
+       opHelper.UnLock();
        LTMutex.Lock();
        LinkBat[fd] = XRDLINK_FREE;
        if (fd == LTLast) while(LTLast && !(LinkBat[LTLast])) LTLast--;
        LTMutex.UnLock();
-      } else opMutex.UnLock();
+      } else opHelper.UnLock();
 
 // Close the file descriptor if it isn't being shared. Do it as the last
 // thing because closes and accepts and not interlocked.
@@ -402,7 +440,7 @@ void XrdLink::DoIt()
 // Either re-enable the link and cycle back waiting for a new request, leave
 // disabled, or terminate the connection.
 //
-   if (rc >= 0) {if (Poller) Poller->Enable(this);}
+   if (rc >= 0) {if (Poller && !Poller->Enable(this)) Close();}
       else if (rc != -EINPROGRESS) Close();
 }
   
@@ -667,12 +705,21 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
   
 int XrdLink::Send(const char *Buff, int Blen)
 {
-   ssize_t retc = 0, bytesleft = Blen, myBytes = 0;
+   ssize_t retc = 0, bytesleft = Blen;
 
 // Get a lock
 //
    wrMutex.Lock();
    isIdle = 0;
+   AtomicAdd(BytesOut, Blen);
+
+// Do non-blocking writes if we are setup to do so.
+//
+   if (sendQ)
+      {retc = sendQ->Send(Buff, Blen);
+       wrMutex.UnLock();
+       return retc;
+      }
 
 // Write the data out
 //
@@ -681,12 +728,11 @@ int XrdLink::Send(const char *Buff, int Blen)
             {if (errno == EINTR) continue;
                 else break;
             }
-         myBytes += retc; bytesleft -= retc; Buff += retc;
+         bytesleft -= retc; Buff += retc;
         }
 
 // All done
 //
-   AtomicAdd(BytesOut, myBytes);
    wrMutex.UnLock();
    if (retc >= 0) return Blen;
    XrdLog->Emsg("Link", errno, "send to", ID);
@@ -704,13 +750,20 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 // Add up bytes if they were not given to us
 //
    if (!bytes) for (i = 0; i < iocnt; i++) bytes += iov[i].iov_len;
-   bytesleft = static_cast<ssize_t>(bytes);
 
 // Get a lock and assume we will be successful (statistically we are)
 //
    wrMutex.Lock();
    isIdle = 0;
    AtomicAdd(BytesOut, bytes);
+
+// Do non-blocking writes if we are setup to do so.
+//
+   if (sendQ)
+      {retc = sendQ->Send(iov, iocnt, bytes);
+       wrMutex.UnLock();
+       return retc;
+      }
 
 // Write the data out. On some version of Unix (e.g., Linux) a writev() may
 // end at any time without writing all the bytes when directed to a socket.
@@ -719,6 +772,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 // series of writes if need be. We must do this inline because we must hold
 // the lock until all the bytes are written or an error occurs.
 //
+   bytesleft = static_cast<ssize_t>(bytes);
    while(bytesleft)
         {do {retc = writev(FD, iov, iocnt);} while(retc < 0 && errno == EINTR);
          if (retc >= bytesleft || retc < 0) break;
@@ -844,7 +898,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
            else {myOffset = sfP->offset; bytesleft = sfP->sendsz;
                  while(bytesleft
                     && (retc=sendfile(FD,sfP->fdnum,&myOffset,bytesleft)) > 0)
-                      {myOffset += retc; bytesleft -= retc; xIntr++;}
+                      {bytesleft -= retc; xIntr++;}
                 }
         if (retc <  0 && errno == EINTR) continue;
         if (retc <= 0) break;
@@ -932,6 +986,35 @@ void XrdLink::setID(const char *userid, int procid)
 }
  
 /******************************************************************************/
+/*                                 s e t N B                                  */
+/******************************************************************************/
+  
+bool XrdLink::setNB()
+{
+// We don't support non-blocking output except for Linux at the moment
+//
+#if !defined(__linux__)
+   return false;
+#else
+// Trace this request
+//
+   TRACEI(DEBUG,"enabling non-blocking output");
+
+// If we don't already have a sendQ object get one. This is a one-time call
+// so to optimize checking if this object exists we also get the opMutex.'
+//
+   opMutex.Lock();
+   if (!sendQ)
+      {wrMutex.Lock();
+       sendQ = new XrdSendQ(*this, wrMutex);
+       wrMutex.UnLock();
+      }
+   opMutex.UnLock();
+   return true;
+#endif
+}
+
+/******************************************************************************/
 /*                                 S e t u p                                  */
 /******************************************************************************/
 
@@ -942,6 +1025,7 @@ int XrdLink::Setup(int maxfds, int idlewait)
 // Compute the number of link objects we should allocate at a time. Generally,
 // we like to allocate 8k of them at a time but always as a power of two.
 //
+   maxFD = maxfds;
    numalloc = 8192 / sizeof(XrdLink);
    LinkAlloc = 1;
    while((numalloc = numalloc/2)) LinkAlloc = LinkAlloc*2;
@@ -968,6 +1052,12 @@ int XrdLink::Setup(int maxfds, int idlewait)
        XrdSched->Schedule((XrdJob *)ls, ichk+time(0));
       }
 
+// Initialize the send queue
+//
+   XrdSendQ::Init(XrdLog, XrdSched);
+
+// All done
+//
    return 1;
 }
   
@@ -1032,9 +1122,11 @@ void XrdLink::setRef(int use)
              XrdLog->Emsg("Link", "Zero use count for", ID);
             }
     else if (InUse == 1 && doPost)
-            {doPost--;
-             IOSemaphore.Post();
-             TRACEI(CONN, "setRef posted link");
+            {while(doPost)
+                {IOSemaphore.Post();
+                 TRACEI(CONN, "setRef posted link");
+                 doPost--;
+                }
              opMutex.UnLock();
             }
     else if (InUse < 0)
@@ -1045,6 +1137,39 @@ void XrdLink::setRef(int use)
     else opMutex.UnLock();
 }
  
+/******************************************************************************/
+/*                              S h u t d o w n                               */
+/******************************************************************************/
+
+void XrdLink::Shutdown(bool getLock)
+{
+   int temp, theFD;
+
+// Trace the entry
+//
+   TRACEI(DEBUG, (getLock ? "Async" : "Sync") <<" link shutdown in progress");
+
+// Get the lock if we need too (external entry via another thread)
+//
+   if (getLock) opMutex.Lock();
+
+// If there is something to do, do it now
+//
+   temp = Instance; Instance = 0;
+   if (!KeepFD)
+      {theFD = (FD < 0 ? -FD : FD);
+       shutdown(theFD, SHUT_RDWR);
+       if (dup2(devNull, theFD) < 0)
+          {Instance = temp;
+           XrdLog->Emsg("Link", errno, "shutdown FD for", ID);
+          }
+      }
+
+// All done
+//
+   if (getLock) opMutex.UnLock();
+}
+
 /******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/

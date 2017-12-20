@@ -104,8 +104,15 @@ void XrdOfsTPCInfo:: Reply(int rC, int eC, const char *eMsg, XrdSysMutex *mP)
 // Clear pointer to call back prior to unlocking any locks
 //
    cbP = 0;
-   if (mP) mP->UnLock();
-   myCB->Reply(rC, eC, eMsg, Lfn);
+
+// Make sure a reply is valid here (i.e. client is in waitresop). If not,
+// then we need to scuttle the whole shebang (must be done with a lock).
+//
+   if (inWtR)
+      {inWtR = false;
+       if (mP) mP->UnLock();
+       if (myCB) myCB->Reply(rC, eC, eMsg, Lfn);
+      } else if (mP) mP->UnLock();
    delete myCB;
 }
 

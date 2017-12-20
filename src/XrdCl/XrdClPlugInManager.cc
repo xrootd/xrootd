@@ -203,6 +203,7 @@ namespace XrdCl
       pDefaultFactory = new FactoryHelper();
       pDefaultFactory->factory = pg.second;
       pDefaultFactory->plugin  = pg.first;
+      pDefaultFactory->isEnv = true;
     }
 
     //--------------------------------------------------------------------------
@@ -218,6 +219,7 @@ namespace XrdCl
 
       XrdSysPwd pwdHandler;
       passwd *pwd = pwdHandler.Get( getuid() );
+      if( !pwd ) return;
       std::string userPlugIns = pwd->pw_dir;
       userPlugIns += "/.xrootd/client.plugins.d";
       ProcessConfigDir( userPlugIns );
@@ -377,6 +379,26 @@ namespace XrdCl
     std::vector<std::string> urls;
     std::vector<std::string> normalizedURLs;
     std::vector<std::string>::iterator it;
+
+    if (urlString == "*") {
+      if (pDefaultFactory) {
+        if (pDefaultFactory->isEnv) {
+          log->Debug(PlugInMgrMsg, "There is already an env default plugin "
+                     "loaded, skiping %s", lib.c_str());
+          return false;
+        } else {
+          log->Debug(PlugInMgrMsg, "There can be only one default plugin "
+                     "loaded, skipping %s", lib.c_str());
+          return false;
+        }
+      } else {
+        pDefaultFactory = new FactoryHelper();
+        pDefaultFactory->factory = factory;
+        pDefaultFactory->plugin = plugin;
+        pDefaultFactory->isEnv = false;
+        return true;
+      }
+    }
 
     Utils::splitString( urls, urlString, ";" );
 

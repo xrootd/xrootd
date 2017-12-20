@@ -32,6 +32,8 @@
 
 #include "XrdCks/XrdCksData.hh"
 
+#include <ctype.h>
+
 struct option;
 class  XrdCks;
 class  XrdCksCalc;
@@ -81,6 +83,8 @@ const char         *CksVal;        // -> Cks argument (0 if none)
 
 XrdCpFile          *srcFile;       // List of source files
 XrdCpFile          *dstFile;       // The destination for the copy
+
+char               *zipFile;       // The file name if the URL points to a ZIP archive
 
 static XrdSysError *Log;           // -> Error message object
 
@@ -155,6 +159,9 @@ static const int    DoParallel =  0x00200000; //      --parallel
 static const int    OpDynaSrc  =  'Z';
 static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
 
+static const int    OpZip      =  'z';
+static const int    DoZip      =  0x01000000;//       --zip
+
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.
 // The following options may be passed (largely to support legacy stuff):
@@ -193,6 +200,13 @@ private:
        const char  *OpName();
              void   ProcFile(const char *fname);
              void   Usage(int rc=0);
+
+      static void   toLower( char cstr[] )
+      {
+        for( int i = 0; cstr[i]; ++i )
+          cstr[i] = tolower( cstr[i] );
+      }
+
 
        const char  *PName;
              int    Opts;

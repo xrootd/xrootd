@@ -40,6 +40,8 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 
+#include "XrdSut/XrdSutCache.hh"
+
 #include "XrdSut/XrdSutPFEntry.hh"
 #include "XrdSut/XrdSutPFile.hh"
 #include "XrdSut/XrdSutBuffer.hh"
@@ -169,7 +171,7 @@ public:
    char  *key;    // [s] server private key [/etc/grid-security/root/rootkey.pem]
                   // [c] user private key [$HOME/.globus/userkey.pem]
    char  *cipher; // [s] list of ciphers [aes-128-cbc:bf-cbc:des-ede3-cbc]
-   char  *md;     // [s] list of MDs [sha1:md5]
+   char  *md;     // [s] list of MDs [sha256:md5]
    int    crl;    // [cs] check level of CRL's [1] 
    int    ca;     // [cs] verification level of CA's [1] 
    int    crlrefresh; // [cs] CRL refresh or expiration period in secs [1 day] 
@@ -236,14 +238,14 @@ template<class T>
 class GSIStack {
 public:
    void Add(T *t) {
-      char k[40]; snprintf(k, 40, "%p", t); 
+      char k[40]; snprintf(k, 40, "%p", t);
       mtx.Lock();
-      if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count);
+      if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count); // We need an additional count
       stack.Add(k, t, 0, Hash_count);
       mtx.UnLock();
    }
    void Del(T *t) {
-      char k[40]; snprintf(k, 40, "%p", t); 
+      char k[40]; snprintf(k, 40, "%p", t);
       mtx.Lock();
       if (stack.Find(k)) stack.Del(k, Hash_count);
       mtx.UnLock();
@@ -348,12 +350,11 @@ private:
    static XrdCryptoCipher *refcip[XrdCryptoMax];    // ref for session ciphers 
    //
    // Caches 
-   static XrdSutCache      cacheCA;   // Info about trusted CA's
-   static XrdSutCache      cacheCert; // Cache for available server certs
-   static XrdSutCache      cachePxy;  // Cache for client proxies
-   static XrdSutCache      cacheGMAP; // Cache for gridmap entries
-   static XrdSutCache      cacheGMAPFun; // Cache for entries mapped by GMAPFun
-   static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
+   static XrdSutCache   cacheCA;   // Info about trusted CA's
+   static XrdSutCache   cacheCert; // Server certificates info cache
+   static XrdSutCache   cachePxy;  // Client proxies cache; 
+   static XrdSutCache   cacheGMAPFun; // Cache for entries mapped by GMAPFun
+   static XrdSutCache   cacheAuthzFun; // Cache for entities filled by AuthzFun
    //
    // Services
    static XrdOucGMap      *servGMap;  // Grid mapping service 
@@ -419,14 +420,16 @@ private:
                         XrdCryptoFactory *cryptof, gsiHSVars *hs = 0);
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
+   static int     VerifyCRL(XrdCryptoX509Crl *crl, XrdCryptoX509 *xca, XrdOucString crldir,
+                           XrdCryptoFactory *CF, int hashalg);
    bool           ServerCertNameOK(const char *subject, String &e);
-   static XrdSutPFEntry *GetSrvCertEnt(XrdSutCacheRef   &pfeRef,
+   static XrdSutCacheEntry *GetSrvCertEnt(XrdSutCERef   &gcref,
                                        XrdCryptoFactory *cf,
                                        time_t timestamp, String &cal);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca, const char *sjhash,
-                                    XrdCryptoFactory *CF, int dwld);
+                                    XrdCryptoFactory *CF, int dwld, int &err);
 
    // Updating proxies
    static int     QueryProxy(bool checkcache, XrdSutCache *cache, const char *tag,

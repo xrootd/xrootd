@@ -18,10 +18,19 @@ add_library(
 # needed during the transition between ceph giant and ceph hammer
 # for object listing API
 set_property(SOURCE XrdCeph/XrdCephPosix.cc
-             PROPERTY COMPILE_FLAGS " -Wno-deprecated-declarations")
+  PROPERTY COMPILE_FLAGS " -Wno-deprecated-declarations")
+
+# needed for librados when as C++11 is enabled
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+IF (COMPILER_SUPPORTS_CXX11)
+  set_property(SOURCE XrdCeph/XrdCephPosix.cc APPEND_STRING
+    PROPERTY COMPILE_FLAGS " -std=c++11")
+ENDIF()
 
 target_link_libraries(
   XrdCephPosix
+  XrdUtils
   ${RADOS_LIBS} )
 
 set_target_properties(

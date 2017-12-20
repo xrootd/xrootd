@@ -149,6 +149,7 @@ add_library(
   XrdCms/XrdCmsRTable.cc          XrdCms/XrdCmsRTable.hh
                                   XrdCms/XrdCmsTypes.hh
   XrdCms/XrdCmsUtils.cc           XrdCms/XrdCmsUtils.hh
+                                  XrdCms/XrdCmsVnId.hh
 
   #-----------------------------------------------------------------------------
   # XrdDig

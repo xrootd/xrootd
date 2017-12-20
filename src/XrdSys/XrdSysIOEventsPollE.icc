@@ -239,6 +239,7 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
 void XrdSys::IOEvents::PollE::Dispatch(XrdSys::IOEvents::Channel *cP,
                                        uint32_t                   pollEv)
 {
+   static const uint32_t pollER = EPOLLERR| EPOLLHUP;
    static const uint32_t pollOK = EPOLLIN | EPOLLPRI | EPOLLOUT;
    static const uint32_t pollRD = EPOLLIN | EPOLLPRI;
    static const uint32_t pollWR = EPOLLOUT;
@@ -252,16 +253,16 @@ void XrdSys::IOEvents::PollE::Dispatch(XrdSys::IOEvents::Channel *cP,
 
 // Translate the event to something reasonable
 //
-   if (pollEv & pollOK)
-      {if (pollEv & pollRD) events |= CallBack::ReadyToRead;
-       if (pollEv & pollWR) events |= CallBack::ReadyToWrite;
-       eNum = 0; eTxt = 0;
-      } else {
-            if (pollEv & EPOLLHUP) eNum = ECONNRESET;
-       else if (pollEv & EPOLLERR) eNum = EPIPE;
-       else                        eNum = EIO;
-       eTxt = "polling";
-      }
+        if (pollEv & pollER)
+           {eTxt = "polling";
+            eNum = (pollEv & EPOLLERR ? EPIPE : ECONNRESET); // Error or HUP
+           }
+   else if (pollEv & pollOK)
+           {if (pollEv & pollRD) events |= CallBack::ReadyToRead;
+            if (pollEv & pollWR) events |= CallBack::ReadyToWrite;
+            eNum = 0; eTxt = 0;
+           }
+   else {eTxt = "polling"; eNum = EIO;}
 
 // Execute the callback
 //

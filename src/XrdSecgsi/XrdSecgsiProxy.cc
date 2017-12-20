@@ -89,10 +89,11 @@ bool CheckOption(XrdOucString opt, const char *ref, int &ival);
 void Display(XrdCryptoX509 *xp);
 
 //
-// Globals 
+// Globals
 //
 int          Mode     = kM_undef;
 bool         Debug = 0;
+bool         DumpExtensions = 0;
 bool         Exists = 0;
 XrdCryptoFactory *gCryptoFactory = 0;
 XrdOucString CryptoMod = "ssl";
@@ -306,7 +307,7 @@ int ParseArguments(int argc, char **argv)
       if(*(argv)[0] == '-') {
 
          opt = *argv;
-         opt.erase(0,1); 
+         opt.erase(0,1);
          if (CheckOption(opt,"h",ival) || CheckOption(opt,"help",ival) ||
              CheckOption(opt,"menu",ival)) {
             Mode = kM_help;
@@ -458,6 +459,8 @@ int ParseArguments(int argc, char **argv)
                argc++;
                argv--;
             }
+         } else if (CheckOption(opt,"extensions",ival)) {
+            DumpExtensions = 1;
          } else {
             PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             PRT("+ Ignoring unrecognized option: "<<*argv);
@@ -667,6 +670,7 @@ void Menu()
    PRT("    -e,-exists [options]   returns 0 if valid proxy exists, 1 otherwise;");
    PRT("                           valid options: '-valid <hh:mm>', -bits <bits>");
    PRT("    -clockskew <secs>      max clock-skewness allowed when checking time validity [30 secs]");
+   PRT("    -extensions            low-level dump of certificate extensions");
    PRT(" ");
 }
 
@@ -675,12 +679,12 @@ bool CheckOption(XrdOucString opt, const char *ref, int &ival)
    // Check opt against ref
    // Return 1 if ok, 0 if not
    // Fills ival = 1 if match is exact
-   //       ival = 0 if match is exact with no<ref> 
+   //       ival = 0 if match is exact with no<ref>
    //       ival = -1 in the other cases
    bool rc = 0;
 
    int lref = (ref) ? strlen(ref) : 0;
-   if (!lref) 
+   if (!lref)
       return rc;
    XrdOucString noref = ref;
    noref.insert("no",0);
@@ -709,22 +713,32 @@ void Display(XrdCryptoX509 *xp)
 
    // File
    PRT("file        : "<<PXcert);
+   // Type
+   if (xp->type != XrdCryptoX509::kProxy) {
+      PRT("type        : "<<xp->Type());
+   } else {
+      PRT("type        : "<<xp->Type()<<" ("<<xp->ProxyType()<<")");
+   }
+
    // Issuer
    PRT("issuer      : "<<xp->Issuer());
    // Subject
    PRT("subject     : "<<xp->Subject());
    // Path length field
    int pathlen = 0; bool b;
-   (*ProxyCertInfo)(xp->GetExtension(gsiProxyCertInfo_OID), pathlen, &b);
+   if(xp->GetExtension(gsiProxyCertInfo_OID))
+      (*ProxyCertInfo)(xp->GetExtension(gsiProxyCertInfo_OID), pathlen, &b);
+   else
+      (*ProxyCertInfo)(xp->GetExtension(gsiProxyCertInfo_OLD_OID), pathlen, &b);
    PRT("path length : "<<pathlen);
    // Key strength
    PRT("bits        : "<<xp->BitStrength());
    // Time left
    int now = int(time(0)) - XrdCryptoTZCorr();
    int tl = xp->NotAfter() - now;
-   int hh = (tl >= 3600) ? (tl/3600) : 0; tl -= (hh*3600); 
-   int mm = (tl >= 60)   ? (tl/60)   : 0; tl -= (mm*60); 
-   int ss = (tl >= 0)    ?  tl       : 0; 
+   int hh = (tl >= 3600) ? (tl/3600) : 0; tl -= (hh*3600);
+   int mm = (tl >= 60)   ? (tl/60)   : 0; tl -= (mm*60);
+   int ss = (tl >= 0)    ?  tl       : 0;
    PRT("time left   : "<<hh<<"h:"<<mm<<"m:"<<ss<<"s");
    PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
    // Show VOMS attributes, if any
@@ -734,6 +748,12 @@ void Display(XrdCryptoX509 *xp)
       while ((from = vatts.tokenize(vat, from, ',')) != -1) {
          if (vat.length() > 0) PRT("VOMS attributes: "<<vat);
       }
+      PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+   }
+   // Dump extensions if requested
+   if (DumpExtensions) {
+      gCryptoFactory->SetTrace(cryptoTRACE_Debug);
+      xp->DumpExtensions(0);
       PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
    }
 }

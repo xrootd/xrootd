@@ -48,7 +48,9 @@ int      Open(XrdSysError &eroute, const char *path=0);
 
 char     getRec(char **recname);
 
-int      getPP(char **path, char **priv);
+char     getID(char **id);
+
+int      getPP(char **path, char **priv, bool &istmplt);
 
 int      Close();
 

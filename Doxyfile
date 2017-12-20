@@ -161,14 +161,16 @@ src/XrdCl/XrdClURL.hh \
 src/XrdCl/XrdClAnyObject.hh \
 src/XrdCl/XrdClXRootDResponses.hh \
 src/XrdCl/XrdClFile.hh \
-src/XrdFileCache/XrdFileCache.hh \
-src/XrdFileCache/XrdFileCacheFactory.hh \
-src/XrdFileCache/XrdFileCachePrefetch.hh \
-src/XrdFileCache/XrdFileCacheInfo.hh \
-src/XrdFileCache/XrdFileCacheIOFileBlock.hh \
-src/XrdFileCache/XrdFileCacheIOEntireFile.hh \
-src/XrdFileCache/XrdFileCacheStats.hh \
 src/XrdFileCache/XrdFileCacheDecision.hh
+src/XrdFileCache/XrdFileCacheFile.hh
+src/XrdFileCache/XrdFileCache.hh
+src/XrdFileCache/XrdFileCacheInfo.hh
+src/XrdFileCache/XrdFileCacheIOEntireFile.hh
+src/XrdFileCache/XrdFileCacheIOFileBlock.hh
+src/XrdFileCache/XrdFileCacheIO.hh
+src/XrdFileCache/XrdFileCachePrint.hh
+src/XrdFileCache/XrdFileCacheStats.hh
+src/XrdFileCache/XrdFileCacheTrace.hh
 
 FILE_PATTERNS          = *.hh
 RECURSIVE              = YES

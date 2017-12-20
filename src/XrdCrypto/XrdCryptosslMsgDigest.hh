@@ -47,7 +47,7 @@ class XrdCryptosslMsgDigest : public XrdCryptoMsgDigest
 {
 private:
    bool valid;
-   EVP_MD_CTX mdctx;
+   EVP_MD_CTX *mdctx;
 
    int Init(const char *dgst);
 

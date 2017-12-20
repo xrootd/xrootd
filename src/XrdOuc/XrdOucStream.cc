@@ -55,6 +55,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -68,6 +69,10 @@
 #define XrdOucStream_EOM  0x01
 #define XrdOucStream_BUSY 0x02
 #define XrdOucStream_ELIF 0x80
+
+#define XrdOucStream_CADD 0x010000
+#define XrdOucStream_CONT 0xff0000
+#define XrdOucStream_CMAX 0x0f0000
 
 #define Erq(p, a, b) Err(p, a, b, (char *)0)
 #define Err(p, a, b, c) (ecode=(Eroute ? Eroute->Emsg(#p, a, b, c) : a), -1)
@@ -504,15 +509,35 @@ char *XrdOucStream::GetToken(char **rest, int lowcase)
 
 char *XrdOucStream::GetFirstWord(int lowcase)
 {
+   char *theWord;
+
       // If in the middle of a line, flush to the end of the line. Suppress
       // variable substitution when doing this to avoid errors.
       //
-      if (xline) 
+  do {if (xline)
          {XrdOucEnv *oldEnv = SetEnv(0);
           while(GetWord(lowcase)) {}
           SetEnv(oldEnv);
          }
-      return GetWord(lowcase);
+
+      // Check if this a "continue" statement and is valid in this context
+      //
+      theWord = GetWord(lowcase);
+      if (!myInst || !theWord || strcmp(theWord, "continue")) return theWord;
+      if (sawif)
+         {ecode = EINVAL;
+          if (Eroute)
+              Eroute->Emsg("Stream", "'continue' invalid within 'if-fi'.");
+          return 0;
+         }
+
+      // Get the path, if none then ignore this continue
+      //
+      theWord = GetWord(lowcase);
+      if (Eroute) Eroute->Say(llPrefix, "continue ", theWord);
+      if (!theWord) continue;
+      if (!docont(theWord)) return 0;
+     } while(true);
 }
 
 /******************************************************************************/
@@ -536,7 +561,7 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
       }
 
    do {if (!(var = GetFirstWord(lowcase)))
-          {if (sawif)
+          {if (sawif && !ecode)
               {ecode = EINVAL;
                if (Eroute) Eroute->Emsg("Stream", "Missing 'fi' for last 'if'.");
               }
@@ -793,6 +818,64 @@ char *XrdOucStream::add2llB(char *tok, int reset)
       }
    return tok;
 }
+
+/******************************************************************************/
+/*                                d o c o n t                                 */
+/******************************************************************************/
+  
+bool XrdOucStream::docont(char *path)
+{
+   int cFD;
+   bool noentok;
+
+// Check if this file must exist (we also take care of empty paths)
+//
+   if ((noentok = (*path == '?')))
+      {path++;
+       if (!(*path)) return true;
+      }
+
+// Open the file and handle any errots
+//
+   if ((cFD = XrdSysFD_Open(path, O_RDONLY)) < 0)
+      {if (errno == ENOENT && noentok) return true;
+       if (Eroute)
+          {Eroute->Emsg("Stream", errno, "open", path);
+           ecode = ECANCELED;
+          } else ecode = errno;
+       return false;
+      }
+
+// Check if we are continuing too often (possible loop)
+//
+   flags += XrdOucStream_CADD;
+   if ((flags & XrdOucStream_CONT) > XrdOucStream_CMAX)
+      {close(cFD);
+       if (Eroute)
+          {Eroute->Emsg("Stream", EMLINK, "continue to", path);
+           ecode = ECANCELED;
+          } else ecode = EMLINK;
+       return false;
+      }
+
+// Continue to the next file
+//
+   if (XrdSysFD_Dup2(cFD, FD) < 0)
+      {if (Eroute)
+          {Eroute->Emsg("Stream", ecode, "switch to", path);
+           close(cFD);
+           ecode = ECANCELED;
+          } else ecode = errno;
+       return false;
+      }
+
+// Indicate we are switching to anther file
+//
+   if (Eroute) Eroute->Say(llPrefix, "Continuing with file ", path, " ...");
+   bleft = 0;
+   return true;
+}
+
 /******************************************************************************/
 /*                                d o e l s e                                 */
 /******************************************************************************/

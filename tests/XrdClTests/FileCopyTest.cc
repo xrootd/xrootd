@@ -138,6 +138,10 @@ void FileCopyTest::DownloadTestFunc()
                                                   dataServer,
                                                   remoteFile ) );
   CPPUNIT_ASSERT( remoteSum == transferSum );
+
+  delete stat;
+  delete crc32Sum;
+  delete[] buffer;
 }
 
 //------------------------------------------------------------------------------
@@ -218,7 +222,6 @@ void FileCopyTest::UploadTestFunc()
   CPPUNIT_ASSERT_XRDST( fs1.Stat( remoteFile, stat ) );
   CPPUNIT_ASSERT( stat );
   CPPUNIT_ASSERT( stat->GetSize() == offset );
-  delete stat;
 
   //----------------------------------------------------------------------------
   // Compare the checksums
@@ -237,6 +240,9 @@ void FileCopyTest::UploadTestFunc()
   // Delete the file
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( fs.Rm( dataPath + "/testUpload.dat" ) );
+
+  delete stat;
+  delete crc32Sum;
 }
 
 //------------------------------------------------------------------------------
@@ -317,25 +323,78 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   Env *testEnv = TestEnv::GetEnv();
 
+  std::string metamanager;
   std::string manager1;
   std::string manager2;
   std::string sourceFile;
   std::string dataPath;
 
-  CPPUNIT_ASSERT( testEnv->GetString( "Manager1URL", manager1 ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "Manager2URL", manager2 ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",  sourceFile ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "DataPath",    dataPath ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", metamanager ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "Manager1URL",      manager1 ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "Manager2URL",      manager2 ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",     sourceFile ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath",         dataPath ) );
 
-  std::string sourceURL  = manager1 + "/" + sourceFile;
-  std::string targetPath = dataPath + "/tpcFile";
-  std::string targetURL  = manager2 + "/" + targetPath;
+  std::string sourceURL    = manager1 + "/" + sourceFile;
+  std::string targetPath   = dataPath + "/tpcFile";
+  std::string targetURL    = manager2 + "/" + targetPath;
+  std::string metalinkURL  = metamanager + "/" + dataPath + "/metalink/mlTpcTest.meta4";
+  std::string zipURL       = metamanager + "/" + dataPath + "/data.zip";
+  std::string fileInZip    = "paper.txt";
+  std::string xcpSourceURL = metamanager + "/" + dataPath + "/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
+
+  CopyProcess  process1, process2, process3, process4, process5, process6, process7;
+  PropertyList properties, results;
+  FileSystem fs( manager2 );
+
+  //----------------------------------------------------------------------------
+  // Copy from a ZIP archive
+  //----------------------------------------------------------------------------
+  if( !thirdParty )
+  {
+    results.Clear();
+    properties.Set( "source",       zipURL    );
+    properties.Set( "target",       targetURL );
+    properties.Set( "zipArchive",   true      );
+    properties.Set( "zipSource",    fileInZip );
+    CPPUNIT_ASSERT_XRDST( process6.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process6.Prepare() );
+    CPPUNIT_ASSERT_XRDST( process6.Run(0) );
+    CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+    properties.Clear();
+  }
+
+  //----------------------------------------------------------------------------
+  // Copy from a Metalink
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source",       metalinkURL );
+  properties.Set( "target",       targetURL   );
+  properties.Set( "checkSumMode", "end2end"   );
+  properties.Set( "checkSumType", "zcrc32"    );
+  CPPUNIT_ASSERT_XRDST( process5.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process5.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process5.Run(0) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  properties.Clear();
+
+  // XCp test
+  results.Clear();
+  properties.Set( "source",         xcpSourceURL  );
+  properties.Set( "target",         targetURL     );
+  properties.Set( "checkSumMode",   "end2end"     );
+  properties.Set( "checkSumType",   "zcrc32"      );
+  properties.Set( "xcp",            true          );
+  properties.Set( "nbXcpSources",   3             );
+  CPPUNIT_ASSERT_XRDST( process7.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process7.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process7.Run(0) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  properties.Clear();
 
   //----------------------------------------------------------------------------
   // Initialize and run the copy
   //----------------------------------------------------------------------------
-  CopyProcess  process1, process2, process3, process4;
-  PropertyList properties, results;
   properties.Set( "source",       sourceURL );
   properties.Set( "target",       targetURL );
   properties.Set( "checkSumMode", "end2end" );
@@ -351,7 +410,6 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   // Cleanup
   //----------------------------------------------------------------------------
-  FileSystem fs( manager2 );
   CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
 
   // the further tests are only valid for third party copy for now
@@ -374,8 +432,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "source", "root://localhost:9999//test" );
   properties.Set( "initTimeout", 10 );
   CPPUNIT_ASSERT_XRDST( process3.AddJob( properties, &results ) );
-  CPPUNIT_ASSERT_XRDST_NOTOK( process3.Prepare(), errOperationExpired );
-  CPPUNIT_ASSERT_XRDST( process3.Run(0) );
+  CPPUNIT_ASSERT_XRDST( process3.Prepare() );
+  CPPUNIT_ASSERT_XRDST_NOTOK( process3.Run(&progress), errOperationExpired );
 
   //----------------------------------------------------------------------------
   // Copy to a non-existent target
@@ -387,6 +445,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process4.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process4.Prepare() );
   CPPUNIT_ASSERT_XRDST_NOTOK( process4.Run(0), errOperationExpired );
+
+
 }
 
 //------------------------------------------------------------------------------

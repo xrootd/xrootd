@@ -180,6 +180,7 @@ void XrdOucPinLoader::Init(const char *drctv, const char *plib)
 void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
 {
    void *symAddr;
+   int   isOptional = 0;
 
 // Check if we couldn't create the path
 //
@@ -188,9 +189,16 @@ void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
        return 0;
       }
 
+// Handle optional resolution
+//
+   if (*symP == '?' || *symP == '!')
+      {symP++;
+       isOptional = (*symP == '!' ? 1 : 2);
+      }
+
 // If we already have a plugin object, then use it
 //
-   if (piP) return piP->getPlugin(symP);
+   if (piP) return piP->getPlugin(symP, isOptional);
 
 // Now that we have the name of the library we can declare the plugin object
 // inline so that it gets deleted when we return (icky but simple)
@@ -200,7 +208,7 @@ void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
 
 // Resolve the plugin symbol. This may fail for a number of reasons.
 //
-   if ((symAddr = piP->getPlugin(symP, 0, global))) return symAddr;
+   if ((symAddr = piP->getPlugin(symP, isOptional, global))) return symAddr;
 
 // We failed, so delete this plugin and see if we can revert to the unversioned
 // name or declare a failure.
@@ -211,12 +219,12 @@ void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
    if (eDest) eDest->Say("Config ", "Falling back to using ", altLib);
    if (eDest) piP = new XrdSysPlugin(eDest,        altLib, dName, viP, mcnt);
       else    piP = new XrdSysPlugin(errBP, errBL, altLib, dName, viP, mcnt);
-   if ((symAddr = piP->getPlugin(symP, 0, global))) return symAddr;
+   if ((symAddr = piP->getPlugin(symP, isOptional, global))) return symAddr;
 
 // We failed
 //
    delete piP; piP = 0;
-   Inform("Unable to load ", dName, " plugin ", altLib);
+   if (isOptional < 2) Inform("Unable to load ", dName, " plugin ", altLib);
    return 0;
 }
 

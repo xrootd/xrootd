@@ -184,7 +184,8 @@ int XrdSysDNS::getAddrName(const char *InetName,
 
       // The name
       char *names[1] = {0};
-      int hn = getHostName((struct sockaddr &)ip[i], names, 1, errtxt);
+      struct sockaddr *ipaddr = (struct sockaddr *)&ip[i];
+      int hn = getHostName(*ipaddr, names, 1, errtxt);
       if (hn)
          Name[i] = strdup(names[0]);
       else
@@ -519,7 +520,8 @@ int XrdSysDNS::Host2Dest(const char      *hostname,
 
 // Convert hostname to an ip address
 //
-   if (!getHostAddr(hbuff, (struct sockaddr &)InetAddr, errtxt)) return 0;
+   struct sockaddr *ip = (struct sockaddr *)&InetAddr;
+   if (!getHostAddr(hbuff, *ip, errtxt)) return 0;
 
 // Insert port number in address
 //
@@ -547,7 +549,8 @@ int XrdSysDNS::Host2IP(const char *hname, unsigned int *ipaddr)
 
 // Convert hostname to an ascii ip address
 //
-   if (!getHostAddr(hname, (struct sockaddr &)InetAddr)) return 0;
+   struct sockaddr *ip = (struct sockaddr *)&InetAddr;
+   if (!getHostAddr(hname, *ip)) return 0;
    if (ipaddr) memcpy(ipaddr, &InetAddr.sin_addr, sizeof(unsigned int));
    return 1;
 }

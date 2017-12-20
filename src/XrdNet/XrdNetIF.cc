@@ -133,6 +133,8 @@ int               XrdNetIF::dfPort    = 1094;
 
 XrdNetIF::ifData  XrdNetIF::ifNull;
 
+bool              XrdNetIF::rPIPA = false;
+
 /******************************************************************************/
 /*                               D i s p l a y                                */
 /******************************************************************************/
@@ -316,9 +318,9 @@ for (i = 0; i < srcnum; i++)
 // If this is a private interface, then set private pointers to actual addresses
 // since, technically, private addresses should not be registered. Otherwise,
 // fill in the public interface information. We also set unregistered public
-// addresses (what a pain).
+// addresses (what a pain). Of course, that is a configurable detail.
 //
-   if (isPrivate)
+   if (!rPIPA && isPrivate)
       {ADDSLOT(ifName[ifT], ifTab.hAddr, ifTab.hALen);
       } else {
        if ((hName = src[i]->Name()) && src[i]->isRegistered())
@@ -339,9 +341,11 @@ for (i = 0; i < srcnum; i++)
       {if (!ifTab.prvt)
           {ADDSLOT(ifDest[PublicV4], ifTab.hDest, ifTab.hDLen);
            ifName[PublicV4]  = ifName[PublicV6];
+           ifxDNS[PublicV4]  = ifxDNS[PublicV6];
           } else if (ifDest[PrivateV4] == &ifNull)
           {ADDSLOT(ifDest[PrivateV4], ifTab.hDest, ifTab.hDLen);
            ifName[PrivateV4] = ifName[PublicV6];
+           ifxDNS[PrivateV4] = ifxDNS[PublicV6];
           }
       }
 
@@ -350,9 +354,11 @@ for (i = 0; i < srcnum; i++)
       {if (!ifTab.prvt)
           {ADDSLOT(ifDest[PublicV6], ifTab.hDest, ifTab.hDLen);
            ifName[PublicV6]  = ifName[PublicV4];
+           ifxDNS[PublicV6]  = ifxDNS[PublicV4];
           } else if (ifDest[PrivateV6] == &ifNull)
           {ADDSLOT(ifDest[PrivateV6], ifTab.hDest, ifTab.hDLen);
            ifName[PrivateV6] = ifName[PublicV4];
+           ifxDNS[PrivateV6] = ifxDNS[PublicV4];
           }
       }
 
@@ -404,10 +410,13 @@ int XrdNetIF::GetDest(char *dest, int dlen, ifType ifT, bool prefn)
 
 int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
 {
+   static const int prvIF[] = {havePrv4, havePrv6};
+   static const int pubIF[] = {havePub4, havePub6};
+
    char ipBuff[256];
-   short ifIdx, sval[4] = {0, 0, 0, 0};
+   short ifIdx = 0, sval[4] = {0, 0, 0, 0};
    short iLen;
-   int   haveIF = 0;
+   int   ifT, haveIF = 0;
 
 #ifdef HAVE_GETIFADDRS
 
@@ -442,8 +451,8 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
               !(IN6_IS_ADDR_LINKLOCAL(&((sockaddr_in6 *)(ifP->ifa_addr))->sin6_addr)))
              )
             )
-            {if (ifP->ifa_addr->sa_family == AF_INET) haveIF |= haveIPv4;
-                else haveIF |= haveIPv6;
+            {if (ifP->ifa_addr->sa_family == AF_INET){haveIF |= haveIPv4;ifT=0;}
+                else {haveIF |= haveIPv6; ifT = 1;}
              if (ifList)
                 {netAddr.Set(ifP->ifa_addr);
                  if ((iLen = netAddr.Format(ipBuff, sizeof(ipBuff),
@@ -451,12 +460,16 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
                     {sval[2] = ifIdx;
                      sval[1] = (netAddr.isPrivate() ? 1 : 0);
                      sval[0] = iLen;
+                     haveIF |= (sval[1] ? prvIF[ifT] : pubIF[ifT]);
                      tLP = new XrdOucTList(ipBuff, sval);
                      if (tList) tLast->next = tLP;
                         else    tList       = tLP;
                      tLast = tLP;
                      n++;
                     }
+                } else {
+                 netAddr.Set(ifP->ifa_addr);
+                 haveIF |= (netAddr.isPrivate() ? prvIF[ifT] : pubIF[ifT]);
                 }
             }
           ifP = ifP->ifa_next;
@@ -628,6 +641,12 @@ int XrdNetIF::Port(int pnum)
 }
   
 /******************************************************************************/
+/*                           P o r t D e f a u l t                            */
+/******************************************************************************/
+
+void XrdNetIF::PortDefault(int pnum) {dfPort = pnum;}
+  
+/******************************************************************************/
 /*                               R o u t i n g                                */
 /******************************************************************************/
   
@@ -787,8 +806,8 @@ void XrdNetIF::SetIFPP()
 // Now set all undefined private interfaces for common and local network routing
 //
    i = (int)PrivateV4; j = PublicV4;
-   do {if (ifName[i] == &ifNull) ifName[i]=ifName[j];
-       if (ifDest[i] == &ifNull) ifDest[i]=ifDest[j];
+   do {if (ifName[i] == &ifNull) {ifName[i]=ifName[j]; ifxDNS[i]=ifxDNS[j];}
+       if (ifDest[i] == &ifNull)  ifDest[i]=ifDest[j];
        if (i == (int)PrivateV6) break;
        i = (int)PrivateV6; j = (int)PublicV6;
       } while(true);
@@ -800,8 +819,8 @@ void XrdNetIF::SetIFPP()
 // Now set all undefined public  interfaces for local network routing
 //
    i = (int)PublicV4; j = PrivateV4;
-   do {if (ifName[i] == &ifNull) ifName[i]=ifName[j];
-       if (ifDest[i] == &ifNull) ifDest[i]=ifDest[j];
+   do {if (ifName[i] == &ifNull) {ifName[i]=ifName[j]; ifxDNS[i]=ifxDNS[j];}
+       if (ifDest[i] == &ifNull)  ifDest[i]=ifDest[j];
        if (i == (int)PublicV6) break;
        i = (int)PublicV6; j = (int)PrivateV6;
       } while(true);
@@ -846,6 +865,18 @@ bool XrdNetIF::SetIF64(bool retVal)
    return retVal;
 }
 
+/******************************************************************************/
+/*                               S e t M s g s                                */
+/******************************************************************************/
+
+void XrdNetIF::SetMsgs(XrdSysError *erp) {eDest = erp;}
+  
+/******************************************************************************/
+/*                              S e t R P I P A                               */
+/******************************************************************************/
+
+void XrdNetIF::SetRPIPA(bool rval) {rPIPA = rval;}
+  
 /******************************************************************************/
 /* Private:                  V 4 L i n k L o c a l                            */
 /******************************************************************************/

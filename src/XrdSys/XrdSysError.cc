@@ -97,7 +97,7 @@ int XrdSysError::Emsg(const char *esfx, int ecode, const char *txt1,
 {
     struct iovec iov[16];
     int iovpnt = 0;
-    char ebuff[16], etbuff[80], *etxt = 0;
+    char ebuff[32], etbuff[80], *etxt = 0;
 
     if (!(etxt = ec2text(ecode)))
        {snprintf(ebuff, sizeof(ebuff), "reason unknown (%d)", ecode); 

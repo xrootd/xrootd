@@ -38,6 +38,8 @@
 #include <stdio.h>
 #include <sys/param.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -46,8 +48,19 @@
 #include "XrdNet/XrdNetAddr.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecProtector.hh"
 #include "XrdSec/XrdSecServer.hh"
 #include "XrdSec/XrdSecTrace.hh"
+
+/******************************************************************************/
+/*                       S e c u r i t y   L e v e l s                        */
+/******************************************************************************/
+
+namespace
+{
+XrdSecProtectParms lclParms;
+XrdSecProtectParms rmtParms;
+}
 
 /******************************************************************************/
 /*                        X r d S e c P r o t B i n d                         */
@@ -385,8 +398,13 @@ int XrdSecServer::Configure(const char *cfn)
   Output:   0 upon success or !0 otherwise.
 */
 {
-   int  NoGo;
+   extern XrdSecProtector *XrdSecLoadProtection(XrdSysError &erP);
+   static const int isRlx = XrdSecProtectParms::relax;
+   static const int isFrc = XrdSecProtectParms::force;
+   XrdSecProtector *protObj;
+   const char *lName = "none", *rName = "none";
    char *var;
+   int  NoGo;
 
 // Print warm-up message
 //
@@ -396,10 +414,54 @@ int XrdSecServer::Configure(const char *cfn)
 //
    NoGo = ConfigFile(cfn);
 
-// All done
+// Almost done
 //
    var = (NoGo > 0 ? (char *)"failed." : (char *)"completed.");
    eDest.Say("------ Authentication system initialization ", var);
+
+// No need to configure protect system if authentication failed
+//
+   if (NoGo) return 1;
+
+// Put out another banner
+//
+   eDest.Say("++++++ Protection system initialization started.");
+
+// If local level if greater than remote level, issue a warning
+//
+   if (lclParms.level > rmtParms.level)
+      eDest.Say("Config warning: local protection level greater than "
+                "remote level; are you sure?");
+
+// Check if we need to initialize protection services
+//
+   if (lclParms.level == XrdSecProtectParms::secNone
+   &&  rmtParms.level == XrdSecProtectParms::secNone)
+      {eDest.Say("Config warning: Security level is set to none; "
+                 "request protection disabled!");
+      } else {
+       if (!(protObj = XrdSecLoadProtection(eDest))
+       ||  !(protObj->Config(lclParms, rmtParms, *eDest.logger()))) NoGo = 1;
+          else {lName = protObj->LName(lclParms.level);
+                rName = protObj->LName(rmtParms.level);
+               }
+      }
+
+// Blurt out what we have
+//
+   if (!NoGo)
+      {eDest.Say("Config ","Local  protection level: ",
+                 (lclParms.opts & isRlx ? "relaxed " : 0), lName,
+                 (lclParms.opts & isFrc ? " force"   : 0));
+       eDest.Say("Config ","Remote protection level: ",
+                 (rmtParms.opts & isRlx ? "relaxed " : 0), rName,
+                 (rmtParms.opts & isFrc ? " force"   : 0));
+      }
+
+// Now we are done
+//
+   var = (NoGo > 0 ? (char *)"failed." : (char *)"completed.");
+   eDest.Say("------ Protection system initialization ", var);
    return (NoGo > 0);
 }
 
@@ -486,6 +548,7 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute
 
     // Fan out based on the variable
     //
+    TS_Xeq("level",         xlevel);
     TS_Xeq("protbind",      xpbind);
     TS_Xeq("protocol",      xprot);
     TS_Xeq("protparm",      xpparm);
@@ -496,6 +559,96 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute
     Eroute.Say("Config warning: ignoring unknown directive '",var,"'.");
     Config.Echo();
     return 0;
+}
+  
+/******************************************************************************/
+/*                                x l e v e l                                 */
+/******************************************************************************/
+
+/* Function: xlevel
+
+   Purpose:  To parse the directive: level [<type>] [relaxed] <level> [force]
+
+             <type>  all | local | remote
+             <level> none | compatible | standard | intense | pedantic
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdSecServer::xlevel(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   struct lvltab {const char *lname; XrdSecProtectParms::secLevel lvl;} ltab[] =
+                 {{"none",       XrdSecProtectParms::secNone},
+                  {"compatible", XrdSecProtectParms::secCompatible},
+                  {"standard",   XrdSecProtectParms::secStandard},
+                  {"intense",    XrdSecProtectParms::secIntense},
+                  {"pedantic",   XrdSecProtectParms::secPedantic}
+                 };
+   int i, numopts = sizeof(ltab)/sizeof(struct lvltab);
+   bool isLcl = true, isRmt = true, isSpec = false, isRlx = false, isFRC=false;
+   char *val;
+
+// Get the template host
+//
+   val = Config.GetWord();
+   if (!val || !val[0])
+      {Eroute.Emsg("Config","level not specified"); return 1;}
+
+// Check for optional keyword
+//
+        if (!strcmp(val, "all"))    isSpec = true;
+   else if (!strcmp(val, "local")) {isSpec = true; isRmt = false;}
+   else if (!strcmp(val, "remote")){isSpec = true; isLcl = false;}
+
+// Check if we need another token
+//
+   if (isSpec)
+      {val = Config.GetWord();
+       if (!val || !val[0])
+          {Eroute.Emsg("Config","level not specified"); return 1;}
+      }
+
+// Check for optional relaxed keyword
+//
+   if (!strcmp(val, "relaxed"))
+      {isRlx = true;
+       val = Config.GetWord();
+       if (!val || !val[0])
+          {Eroute.Emsg("Config","level not specified"); return 1;}
+      }
+
+// Get the level
+//
+   for (i = 0; i < numopts; i++) if (!strcmp(ltab[i].lname, val)) break;
+   if (i >= numopts)
+      {Eroute.Emsg("Config", "invalid level option -", val); return 1;}
+
+// Check for final keyword
+//
+   val = Config.GetWord();
+   if (val && val[0])
+      {if (strcmp(val, "force"))
+          {Eroute.Emsg("Config","invalid level modifier - ", val); return 1;}
+       isFRC = true;
+      }
+
+// Set appropriate levels
+//
+   if (isLcl)
+      {lclParms.level = ltab[i].lvl;
+       if (isRlx) lclParms.opts  |=  XrdSecProtectParms::relax;
+          else    lclParms.opts  &= ~XrdSecProtectParms::relax;
+       if (isFRC) lclParms.opts  |=  XrdSecProtectParms::force;
+          else    lclParms.opts  &= ~XrdSecProtectParms::force;
+      }
+   if (isRmt)
+      {rmtParms.level = ltab[i].lvl;
+       if (isRlx) rmtParms.opts  |=  XrdSecProtectParms::relax;
+          else    rmtParms.opts  &= ~XrdSecProtectParms::relax;
+       if (isFRC) rmtParms.opts  |=  XrdSecProtectParms::force;
+          else    rmtParms.opts  &= ~XrdSecProtectParms::force;
+      }
+   return 0;
 }
   
 /******************************************************************************/

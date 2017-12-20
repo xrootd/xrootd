@@ -49,6 +49,7 @@ XROOTDFS_OFSFWD: if the xrootd cluster uses ofs.forward (or ofs.forward 3way)
     and expect the operations to be forwarded to the data nodes by the 
     redirector. Otherwise one can define XROOTDFS_OFSFWD to '0'. XrootdFS will 
     then go to individual data node for mv/rm/rmdir/trunc.
+XROOTDFS_NO_ALLOW_OTHER: do not pass option allow_other to fuse.
 
 Please refer to the "Introduction to the XrootdFS" document in the above web
 page for more general idea of XrootdFS.
@@ -104,6 +105,9 @@ max_write=131072
 attr_timeout=10
 entry_timeout=10
 negative_timeout=5
+
+Note that allow_other cannot be unset by command line. To disable it set the
+environment variable XROOTDFS_NO_ALLOW_OTHER=1.
 
 Extended file system attributes:
 ===============================

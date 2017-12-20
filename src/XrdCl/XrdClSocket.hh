@@ -28,6 +28,8 @@
 
 namespace XrdCl
 {
+  class AnyObject;
+
   //----------------------------------------------------------------------------
   //! A network socket
   //----------------------------------------------------------------------------
@@ -52,7 +54,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Socket( int socket = -1, SocketStatus status = Disconnected ):
         pSocket(socket), pStatus( status ), pServerAddr( 0 ),
-        pProtocolFamily( AF_INET )
+        pProtocolFamily( AF_INET ),
+        pChannelID( 0 )
       {
       };
 
@@ -159,11 +162,20 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Portable wrapper around SIGPIPE free send
       //!
-      //! @param buffer       data to be written
-      //! @param size         size of the data buffer
-      //! @param bytesWritten the amount of data actually written
+      //! @param buffer : data to be written
+      //! @param size   : size of the data buffer
+      //! @return       : the amount of data actually written
       //------------------------------------------------------------------------
       ssize_t Send( void *buffer, uint32_t size );
+
+      //------------------------------------------------------------------------
+      //! Wrapper around writev
+      //!
+      //! @param iov    : buffers to be written
+      //! @param iovcnt : number of buffers
+      //! @return       : the amount of data actually written
+      //------------------------------------------------------------------------
+      ssize_t WriteV( iovec *iov, int iovcnt );
 
       //------------------------------------------------------------------------
       //! Get the file descriptor
@@ -196,6 +208,24 @@ namespace XrdCl
         return pServerAddr;
       }
 
+      //------------------------------------------------------------------------
+      //! Set Channel ID
+      //! (an object that allows to identify all sockets corresponding to the same channel)
+      //------------------------------------------------------------------------
+      void SetChannelID( AnyObject *channelID )
+      {
+        pChannelID = channelID;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get Channel ID
+      //! (an object that allows to identify all sockets corresponding to the same channel)
+      //------------------------------------------------------------------------
+      const AnyObject* GetChannelID() const
+      {
+        return pChannelID;
+      }
+
     private:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO
@@ -219,6 +249,7 @@ namespace XrdCl
       mutable std::string  pPeerName;
       mutable std::string  pName;
       int                  pProtocolFamily;
+      AnyObject           *pChannelID;
   };
 }
 

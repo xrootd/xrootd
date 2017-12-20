@@ -74,7 +74,7 @@ bool XrdSutRndm::Init(bool force)
       return 1;
 
    int fd;
-   unsigned int seed;
+   unsigned int seed = 0;
    if ((fd = open(randdev, O_RDONLY)) != -1) {
       DEBUG("taking seed from " <<randdev);
       if (read(fd, &seed, sizeof(seed)) == sizeof(seed)) rc = 1;

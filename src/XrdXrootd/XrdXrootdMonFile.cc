@@ -39,6 +39,15 @@
 #include "XrdXrootd/XrdXrootdFileStats.hh"
 
 /******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+
+namespace XrdXrootdMonInfo
+{
+extern long long mySID;
+}
+
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
                           
@@ -71,7 +80,7 @@ char                 XrdXrootdMonFile::fsOPS    = 0;
 char                 XrdXrootdMonFile::fsSSQ    = 0;
 char                 XrdXrootdMonFile::fsXFR    = 0;
 char                 XrdXrootdMonFile::crecFlag = 0;
-
+  
 /******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/
@@ -80,13 +89,15 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
 {
    XrdXrootdMonFileCLS cRec;
    char *cP;
-   int iMap, iSlot;
+   int iEnt, iMap, iSlot;
 
 // If this object was registered for I/O reporting, deregister it.
 //
-   if (fsP->MonEnt >= 0)
-      {iMap  = fsP->MonEnt >> XrdXrootdMonFMap::fmShft;
-       iSlot = fsP->MonEnt &  XrdXrootdMonFMap::fmMask;
+   if (fsP->MonEnt != -1)
+      {iEnt = fsP->MonEnt & 0xffff;
+       iMap  = iEnt >> XrdXrootdMonFMap::fmShft;
+       iSlot = iEnt &  XrdXrootdMonFMap::fmMask;
+       fsP->MonEnt = -1;
        fmMutex.Lock();
        if (fmMap[iMap].Free(iSlot)) fmUse[iMap]--;
        if (iMap == fmHWM) while(fmHWM >= 0 && !fmUse[fmHWM]) fmHWM--;
@@ -336,8 +347,9 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
 //
    repTOD   = (XrdXrootdMonFileTOD *)(repBuff + sizeof(XrdXrootdMonHeader));
    repTOD->Hdr.recType = XrdXrootdMonFileHdr::isTime;
-   repTOD->Hdr.recFlag = 0;
+   repTOD->Hdr.recFlag = XrdXrootdMonFileHdr::hasSID;
    repTOD->Hdr.recSize = htons(sizeof(XrdXrootdMonFileTOD));
+   repTOD->sID = static_cast<kXR_int64>(XrdXrootdMonInfo::mySID);
 
 // Establish first real record in the buffer (always fixed)
 //

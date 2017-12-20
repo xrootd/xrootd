@@ -89,6 +89,15 @@ XrdVERSIONINFO(XrdSecGetProtocol,secprot);
 XrdVERSIONINFO(XrdSecgetService,secserv);
 
 /******************************************************************************/
+/*                          S t a t i c   I t e m s                           */
+/******************************************************************************/
+  
+namespace
+{
+XrdSysMutex pmMutex;
+}
+
+/******************************************************************************/
 /*                X r d S e c P M a n a g e r   M e t h o d s                 */
 /******************************************************************************/
 /******************************************************************************/
@@ -195,7 +204,8 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
              strcat(pcomp, ",");
             }
          if (!wantProt || strstr(compProt, pcomp))
-            {if ((pl = Lookup(pname)) || (pl = ldPO(erp, 'c', pname)))
+            {XrdSysMutexHelper pmHelper(pmMutex);
+             if ((pl = Lookup(pname)) || (pl = ldPO(erp, 'c', pname)))
                 {DEBUG("Using " <<pname <<" protocol, args='"
                        <<(pargs ? pargs : "") <<"'");
                  if ((pp = pl->ep('c', hname, endPoint, pargs, erp)))

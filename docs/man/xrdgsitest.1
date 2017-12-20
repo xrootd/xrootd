@@ -1,0 +1,173 @@
+.TH xrdgsitest 1 "__VERSION__"
+.SH NAME
+xrdgsitest - test crypto functionality relevant for the GSI implementation
+.SH SYNOPSIS
+.nf
+
+\fBxrdgsitest\fR [\fB-h\fR, \fB--help\fR] [\fB-v\fR, \fB--verbose\fR]
+.fi
+.br
+.ad l
+.SH DESCRIPTION
+The \fBxrdgsitest\fR utility runs a few tests of the crypto functionality implemented in XrdCrypto relevant
+for the XrdSecgsi module, i.e. handling of certificates, proxies, chains, verification and similar actions.
+.br
+.SH OPTIONS
+.B -h, --help
+display help
+.TP
+.B -v, --verbose
+Print very detailed information about the tests.
+
+.SH FILES
+The program needs access to a user certificate file and its private key, and the related CA file(s); the CRL
+is downloaded using the information found in the CA certificate. 
+The location of the files are the standard ones and they can modified by the standard environment variables:
+.TP 3
+X509_USER_CERT  [$HOME/.globus/usercert.pem]       user certificate
+.TP 3
+X509_USER_KEY   [$HOME/.globus/userkey.pem]        user private key
+.TP 3
+X509_USER_PROXY [/tmp/x509up_u<uid>]               user proxy
+.TP 3
+X509_CERT_DIR   [/etc/grid-security/certificates/] CA certificates and CRL directories
+.SH OUTPUT
+The output is a list of PASSED/FAILED test similar to
+.TP
+$ xrdgsitest
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Crypto functionality tests for GSI ----------------------------------------------
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Loading EEC .............................................................  PASSED
+.br
+|| Loading User Proxy ......................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Recreate the proxy certificate --------------------------------------------------
+.br
+Enter PEM pass phrase:
+.br
+|| Recreating User Proxy ...................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Load CA certificates ------------------------------------------------------------
+.br
+|| Loading CA certificate ..................................................  PASSED
+.br
+|| Loading CA certificate ..................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing ParseFile ---------------------------------------------------------------
+.br
+|| Chain reorder:  .........................................................  PASSED
+.br
+|| Chain verify:  ..........................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing ExportChain -------------------------------------------------------------
+.br
+|| Attach to X509ExportChain ...............................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing Chain Import ------------------------------------------------------------
+.br
+|| Chain reorder:  .........................................................  PASSED
+.br
+|| Chain verify:  ..........................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing GSI chain import and verification ---------------------------------------
+.br
+|| GSI chain verify:  ......................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing GSI chain copy ----------------------------------------------------------
+.br
+|| GSI chain verify:  ......................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing Cert verification -------------------------------------------------------
+.br
+|| verify cert: EE signed by CA ............................................  PASSED
+.br
+|| verify cert: PX signed by EE ............................................  PASSED
+.br
+|| verify cert: PX not signed by CA ........................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing request creation --------------------------------------------------------
+.br
+|| Creating request ........................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing request signature -------------------------------------------------------
+.br
+|| Check proxyCertInfo extension ...........................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing export of signed proxy --------------------------------------------------
+.br
+|| Saving signed proxy chain to file .......................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing CRL identification ------------------------------------------------------
+.br
+|| Check CRL distribution points extension OK ..............................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+.br
+|| Testing CRL loading -------------------------------------------------------------
+.br
+--2016-12-12 19:31:36--  http://cafiles.cern.ch/cafiles/crl/CERN%20Root%20Certification%20Authority%202.crl
+.br
+Resolving cafiles.cern.ch (cafiles.cern.ch)... 137.138.4.52, 2001:1458:201:96::100:26
+.br
+Connecting to cafiles.cern.ch (cafiles.cern.ch)|137.138.4.52|:80... connected.
+.br
+HTTP request sent, awaiting response... 200 OK
+.br
+Length: 1097 (1.1K) [application/pkix-crl]
+.br
+Saving to: ‘/tmp/5168735f.0.crltmp’
+.br
+
+.br
+/tmp/5168735f.0.crltmp                100%[========================================================================>]   1.07K  --.-KB/s    in 0s      
+.br
+
+.br
+2016-12-12 19:31:36 (383 MB/s) - ‘/tmp/5168735f.0.crltmp’ saved [1097/1097]
+.br
+
+.br
+|| Loading CA1 crl .........................................................  PASSED
+.br
+|| CRL signature OK ........................................................  PASSED
+.br
+|| ---------------------------------------------------------------------------------
+
+.TP
+The result of each test can be interleaved with details when the verbose option is chosen.
+.SH LICENSE
+License terms can be displayed by typing "\fBxrootd -H\fR".
+.SH SUPPORT LEVEL
+The \fBxrdgsitest\fR command is supported by the xrootd collaboration.
+Contact information can be found at
+.ce
+http://xrootd.org/contact.html

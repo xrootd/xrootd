@@ -33,6 +33,7 @@
 #include <unistd.h>
 
 #include "XrdCms/XrdCmsUtils.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -56,6 +57,50 @@ int          siteIndex = 0;
 }
 
 /******************************************************************************/
+/* Private:                      D i s p l a y                                */
+/******************************************************************************/
+  
+void XrdCmsUtils::Display(XrdSysError *eDest, const char *hSpec,
+                                              const char *hName, bool isBad)
+{
+   XrdNetAddr *nP;
+   const char *eTxt, *eSfx = (isBad ? " *** Invalid ***" : 0);
+   int i, n, abLen, numIP = 0;
+   char *abP, aBuff[1024];
+
+// Get all of the addresses
+//
+   eTxt = XrdNetUtils::GetAddrs(hName, &nP, numIP, XrdNetUtils::prefAuto, 0);
+
+// Check for errors
+//
+   if (eTxt)
+      {eDest->Say("Config Manager ", hSpec, " -> ", hName, " ", eTxt);
+       return;
+      }
+   eDest->Say("Config Manager ", hSpec, " -> ", hName, eSfx);
+
+// Prepare the buffer
+//
+   n = strlen(hSpec)+4;
+   if (n+64 > (int)sizeof(aBuff)) return;
+   memset(aBuff, int(' '), n);
+   abP = aBuff+n; abLen = sizeof(aBuff) - n;
+
+// Format the addresses
+//
+   for (i = 0; i < numIP; i++)
+       {if (!nP[i].Format(abP, abLen, XrdNetAddrInfo::fmtAddr,
+                                      XrdNetAddrInfo::noPort)) break;
+        eDest->Say("Config Manager ", aBuff);
+       }
+
+// All done
+//
+   delete [] nP;
+}
+
+/******************************************************************************/
 /*                              P a r s e M a n                               */
 /******************************************************************************/
   
@@ -68,6 +113,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
    const char *eText;
    char *plus, *atsn;
    int nPort, maxIP = 1, snum = 0;
+   bool isBad;
 
 // Generate local site name if we haven't done so yet
 //
@@ -136,10 +182,16 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
                   }
                oldP = oldP->next;
               }
+         if (!plus || strcmp(hSpec, newP->text)) isBad = false;
+            else {eDest->Say("Config warning: "
+                             "Cyclic DNS registration for ",newP->text,"\n"
+                             "Config warning: This cluster will exhibit "
+                             "undefined behaviour!!!");
+             isBad = true;
+            }
          if (!oldP) 
-            {newP->next = appList; appList = newP;
-             if (plus && !hush)
-                eDest->Say("Config ",hSpec," -> all.manager ",newP->text);
+            {appList = SInsert(appList, newP);
+             if (plus && !hush) Display(eDest, hSpec, newP->text, isBad);
             }
         }
 
@@ -186,6 +238,30 @@ char *XrdCmsUtils::ParseManPort(XrdSysError *eDest, XrdOucStream &CFile,
    return strdup(pSpec);
 }
 
+/******************************************************************************/
+/* Private:                      S I n s e r t                                */
+/******************************************************************************/
+
+XrdOucTList *XrdCmsUtils::SInsert(XrdOucTList *oldP, XrdOucTList *newP)
+{
+   XrdOucTList *fstP = oldP, *preP = 0;
+
+// We insert in logically increasing order
+//
+   while(oldP && (newP->val < oldP->val || strcmp(newP->text, oldP->text) < 0))
+        {preP = oldP; oldP = oldP->next;}
+
+// Insert the new element
+//
+   if (preP) preP->next = newP;
+      else   fstP       = newP;
+   newP->next = oldP;
+
+// Return the first element in the list (may have changed)
+//
+   return fstP;
+}
+  
 /******************************************************************************/
 /*                              S i t e N a m e                               */
 /******************************************************************************/

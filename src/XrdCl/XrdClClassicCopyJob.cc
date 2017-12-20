@@ -32,7 +32,8 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
-
+#include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClZipArchiveReader.hh"
 #include <memory>
 #include <iostream>
 #include <queue>
@@ -43,6 +44,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+#include "XrdClXCpCtx.hh"
 
 namespace
 {
@@ -285,148 +287,6 @@ namespace
   };
 
   //----------------------------------------------------------------------------
-  //! Local source
-  //----------------------------------------------------------------------------
-  class LocalSource: public Source
-  {
-    public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      LocalSource( const XrdCl::URL *url, const std::string &ckSumType,
-                   uint32_t chunkSize ):
-        pPath( url->GetPath() ), pFD( -1 ), pSize( -1 ), pCurrentOffset( 0 ),
-        pCkSumHelper(0), pChunkSize( chunkSize )
-      {
-        if( !ckSumType.empty() )
-          pCkSumHelper = new CheckSumHelper( url->GetPath(), ckSumType );
-      }
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~LocalSource()
-      {
-        if( pFD != -1 )
-          close( pFD );
-        delete pCkSumHelper;
-      }
-
-      //------------------------------------------------------------------------
-      //! Initialize the source
-      //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus Initialize()
-      {
-        using namespace XrdCl;
-        Log *log = DefaultEnv::GetLog();
-
-        if( pCkSumHelper )
-        {
-          XRootDStatus st = pCkSumHelper->Initialize();
-          if( !st.IsOK() )
-            return st;
-        }
-
-        //----------------------------------------------------------------------
-        // Open the file for reading and get it's size
-        //----------------------------------------------------------------------
-        log->Debug( UtilityMsg, "Opening %s for reading", pPath.c_str() );
-
-        int fd = open( pPath.c_str(), O_RDONLY );
-        if( fd == -1 )
-        {
-          log->Debug( UtilityMsg, "Unable to open %s: %s",
-                                  pPath.c_str(), strerror( errno ) );
-          return XRootDStatus( stError, errOSError, errno );
-        }
-
-        struct stat st;
-        if( fstat( fd, &st ) == -1 )
-        {
-          log->Debug( UtilityMsg, "Unable to stat %s: %s",
-                                  pPath.c_str(), strerror( errno ) );
-          close( fd );
-          return XRootDStatus( stError, errOSError, errno );
-        }
-        pFD   = fd;
-        pSize = st.st_size;
-
-        return XRootDStatus();
-      }
-
-      //------------------------------------------------------------------------
-      //! Get size
-      //------------------------------------------------------------------------
-      virtual int64_t GetSize()
-      {
-        return pSize;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get a data chunk from the source
-      //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
-      {
-        using namespace XrdCl;
-        Log *log = DefaultEnv::GetLog();
-
-        if( pFD == -1 )
-          return XRootDStatus( stError, errUninitialized );
-
-        const uint32_t toRead = pChunkSize;
-        char *buffer = new char[toRead];
-
-        int64_t bytesRead = read( pFD, buffer, toRead );
-        if( bytesRead == -1 )
-        {
-          log->Debug( UtilityMsg, "Unable to read from %s: %s",
-                                  pPath.c_str(), strerror( errno ) );
-          close( pFD );
-          pFD = -1;
-          delete [] buffer;
-          return XRootDStatus( stError, errOSError, errno );
-        }
-
-        if( bytesRead == 0 )
-        {
-          delete [] buffer;
-          return XRootDStatus( stOK, suDone );
-        }
-
-        if( pCkSumHelper )
-          pCkSumHelper->Update( buffer, bytesRead );
-
-        ci.offset = pCurrentOffset;
-        ci.length = bytesRead;
-        ci.buffer = buffer;
-        pCurrentOffset += bytesRead;
-        return XRootDStatus( stOK, suContinue );
-      }
-
-      //------------------------------------------------------------------------
-      //! Get check sum
-      //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
-                                               std::string &checkSumType )
-      {
-        using namespace XrdCl;
-        if( pCkSumHelper )
-          return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
-        return XRootDStatus( stError, errCheckSumError );
-      }
-
-    private:
-      LocalSource(const LocalSource &other);
-      LocalSource &operator = (const LocalSource &other);
-      std::string     pPath;
-      int             pFD;
-      int64_t         pSize;
-      uint64_t        pCurrentOffset;
-      CheckSumHelper *pCkSumHelper;
-      uint32_t        pChunkSize;
-  };
-
-  //----------------------------------------------------------------------------
   //! StdIn source
   //----------------------------------------------------------------------------
   class StdInSource: public Source
@@ -575,6 +435,10 @@ namespace
         log->Debug( UtilityMsg, "Opening %s for reading",
                                 pUrl->GetURL().c_str() );
 
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+        pFile->SetProperty( "ReadRecovery", value );
+
         XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
         if( !st.IsOK() )
           return st;
@@ -687,9 +551,18 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        if( pUrl->IsMetalink() )
+        {
+          XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
+          checkSum = redirector->GetCheckSum( checkSumType );
+          if( !checkSum.empty() ) return XrdCl::XRootDStatus();
+        }
+
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
+        std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                dataServer, pUrl->GetPath() );
+                                                dataServer, XrdCl::URL( lastUrl ).GetPath() );
       }
 
     private:
@@ -734,6 +607,197 @@ namespace
   };
 
   //----------------------------------------------------------------------------
+  //! XRootDSource
+  //----------------------------------------------------------------------------
+  class XRootDSourceZip: public Source
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      XRootDSourceZip( const std::string &filename, const XrdCl::URL *archive,
+                    uint32_t          chunkSize,
+                    uint8_t           parallelChunks ):
+        pArchiveUrl( archive ), pFilename( filename ), pZipArchive( new XrdCl::ZipArchiveReader() ), pSize( 0 ),
+        pCurrentOffset( 0 ), pChunkSize( chunkSize ),
+        pParallel( parallelChunks )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~XRootDSourceZip()
+      {
+        CleanUpChunks();
+        XrdCl::XRootDStatus status = pZipArchive->Close();
+        delete pZipArchive;
+      }
+
+      //------------------------------------------------------------------------
+      //! Initialize the source
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Initialize()
+      {
+        using namespace XrdCl;
+        Log *log = DefaultEnv::GetLog();
+        log->Debug( UtilityMsg, "Opening %s for reading",
+                                pArchiveUrl->GetURL().c_str() );
+
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+        pZipArchive->SetProperty( "ReadRecovery", value );
+
+        XRootDStatus st = pZipArchive->Open( pArchiveUrl->GetURL() );
+        if( !st.IsOK() )
+          return st;
+
+        return pZipArchive->GetSize( pFilename, pSize );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get size
+      //------------------------------------------------------------------------
+      virtual int64_t GetSize()
+      {
+        return pSize;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get a data chunk from the source
+      //!
+      //! @param  buffer buffer for the data
+      //! @param  ci     chunk information
+      //! @return        status of the operation
+      //!                suContinue - there are some chunks left
+      //!                suDone     - no chunks left
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
+      {
+        //----------------------------------------------------------------------
+        // Sanity check
+        //----------------------------------------------------------------------
+        using namespace XrdCl;
+        Log *log = DefaultEnv::GetLog();
+
+        if( !pZipArchive->IsOpen() )
+          return XRootDStatus( stError, errUninitialized );
+
+        //----------------------------------------------------------------------
+        // Fill the queue
+        //----------------------------------------------------------------------
+        while( pChunks.size() < pParallel && pCurrentOffset < pSize )
+        {
+          uint64_t chunkSize = pChunkSize;
+          if( pCurrentOffset + chunkSize > (uint64_t)pSize )
+            chunkSize = pSize - pCurrentOffset;
+
+          char *buffer = new char[chunkSize];
+          ChunkHandler *ch = new ChunkHandler;
+          ch->chunk.offset = pCurrentOffset;
+          ch->chunk.length = chunkSize;
+          ch->chunk.buffer = buffer;
+          ch->status = pZipArchive->Read( pFilename, pCurrentOffset, chunkSize, buffer, ch );
+          pChunks.push( ch );
+          pCurrentOffset += chunkSize;
+          if( !ch->status.IsOK() )
+          {
+            ch->sem->Post();
+            break;
+          }
+        }
+
+        //----------------------------------------------------------------------
+        // Pick up a chunk from the front and wait for status
+        //----------------------------------------------------------------------
+        if( pChunks.empty() )
+          return XRootDStatus( stOK, suDone );
+
+        XRDCL_SMART_PTR_T<ChunkHandler> ch( pChunks.front() );
+        pChunks.pop();
+        ch->sem->Wait();
+
+        if( !ch->status.IsOK() )
+        {
+          log->Debug( UtilityMsg, "Unable read %d bytes at %ld from %s: %s",
+                      ch->chunk.length, ch->chunk.offset,
+                      pArchiveUrl->GetURL().c_str(), ch->status.ToStr().c_str() );
+          delete [] (char *)ch->chunk.buffer;
+          CleanUpChunks();
+          return ch->status;
+        }
+
+        ci = ch->chunk;
+        return XRootDStatus( stOK, suContinue );
+      }
+
+      //------------------------------------------------------------------------
+      // Clean up the chunks that are flying
+      //------------------------------------------------------------------------
+      void CleanUpChunks()
+      {
+        while( !pChunks.empty() )
+        {
+          ChunkHandler *ch = pChunks.front();
+          pChunks.pop();
+          ch->sem->Wait();
+          delete [] (char *)ch->chunk.buffer;
+          delete ch;
+        }
+      }
+
+      //------------------------------------------------------------------------
+      // Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType )
+      {
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+      }
+
+    private:
+      XRootDSourceZip(const XRootDSource &other);
+      XRootDSourceZip &operator = (const XRootDSource &other);
+
+      //------------------------------------------------------------------------
+      // Asynchronous chunk handler
+      //------------------------------------------------------------------------
+      class ChunkHandler: public XrdCl::ResponseHandler
+      {
+        public:
+          ChunkHandler(): sem( new XrdCl::Semaphore(0) ) {}
+          virtual ~ChunkHandler() { delete sem; }
+          virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
+                                       XrdCl::AnyObject    *response )
+          {
+            this->status = *statusval;
+            delete statusval;
+            if( response )
+            {
+              XrdCl::ChunkInfo *resp = 0;
+              response->Get( resp );
+              if( resp )
+                chunk = *resp;
+              delete response;
+            }
+            sem->Post();
+          }
+
+        XrdCl::Semaphore    *sem;
+        XrdCl::ChunkInfo     chunk;
+        XrdCl::XRootDStatus  status;
+      };
+      const XrdCl::URL           *pArchiveUrl;
+      const std::string           pFilename;
+      XrdCl::ZipArchiveReader    *pZipArchive;
+      uint32_t                    pSize;
+      int64_t                     pCurrentOffset;
+      uint32_t                    pChunkSize;
+      uint8_t                     pParallel;
+      std::queue<ChunkHandler *>  pChunks;
+  };
+
+  //----------------------------------------------------------------------------
   //! XRootDSourceDynamic
   //----------------------------------------------------------------------------
   class XRootDSourceDynamic: public Source
@@ -767,6 +831,10 @@ namespace
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for reading",
                                 pUrl->GetURL().c_str() );
+
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+        pFile->SetProperty( "ReadRecovery", value );
 
         XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
         if( !st.IsOK() )
@@ -844,9 +912,18 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        if( pUrl->IsMetalink() )
+        {
+          XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
+          checkSum = redirector->GetCheckSum( checkSumType );
+          if( !checkSum.empty() ) return XrdCl::XRootDStatus();
+        }
+
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
-        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                dataServer, pUrl->GetPath() );
+        std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
+        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType, dataServer,
+                                                XrdCl::URL( lastUrl ).GetPath() );
       }
 
     private:
@@ -860,209 +937,140 @@ namespace
   };
 
   //----------------------------------------------------------------------------
-  //! Local destination
+  //! XRootDSourceDynamic
   //----------------------------------------------------------------------------
-  class LocalDestination: public Destination
+  class XRootDSourceXCp: public Source
   {
     public:
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      LocalDestination( const XrdCl::URL *url ):
-        pPath( url->GetPath() ), pFD( -1 )
+      XRootDSourceXCp( const XrdCl::URL* url, uint32_t chunkSize, uint16_t parallelChunks, int32_t nbSrc, uint64_t blockSize ):
+        pXCpCtx( 0 ), pUrl( url ), pChunkSize( chunkSize ), pParallelChunks( parallelChunks ), pNbSrc( nbSrc ), pBlockSize( blockSize )
       {
       }
 
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~LocalDestination()
+      ~XRootDSourceXCp()
       {
-        if( pFD != -1 )
-          Finalize();
+        if( pXCpCtx )
+          pXCpCtx->Delete();
       }
 
       //------------------------------------------------------------------------
-      //! Initialize the destination
+      //! Initialize the source
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize()
       {
-        using namespace XrdCl;
-        Log *log = DefaultEnv::GetLog();
+        XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+        int64_t fileSize = -1;
 
-        //----------------------------------------------------------------------
-        // Make the directory path if necessary
-        //----------------------------------------------------------------------
-        if( pMakeDir )
+        if( pUrl->IsMetalink() )
         {
-          std::string dirpath = pPath.substr(0, pPath.find_last_of("/"));
-          XRootDStatus st = MkPath( dirpath );
-          if( !st.IsOK() )
-            return st;
+          XrdCl::RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector *redirector = registry.Get( *pUrl );
+          fileSize = redirector->GetSize();
+          pReplicas = redirector->GetReplicas();
+        }
+        else
+        {
+          XrdCl::LocationInfo *li = 0;
+          XrdCl::FileSystem fs( *pUrl );
+          XrdCl::XRootDStatus st = fs.DeepLocate( pUrl->GetPath(), XrdCl::OpenFlags::Compress | XrdCl::OpenFlags::PrefName, li );
+          if( !st.IsOK() ) return st;
+
+          XrdCl::LocationInfo::Iterator itr;
+          for( itr = li->Begin(); itr != li->End(); ++itr)
+          {
+            std::string url = "root://" + itr->GetAddress() + "/" + pUrl->GetPath();
+            pReplicas.push_back( url );
+          }
+
+          delete li;
         }
 
-        //----------------------------------------------------------------------
-        // Open the file for reading and get it's size
-        //----------------------------------------------------------------------
-        log->Debug( UtilityMsg, "Opening %s for writing", pPath.c_str() );
+        std::stringstream ss;
+        ss << "XCp sources: ";
 
-        int flags = O_WRONLY|O_CREAT|O_TRUNC;
-        if( !pForce )
-          flags |= O_EXCL;
-
-        int fd = open( pPath.c_str(), flags, 0644 );
-        if( fd == -1 )
+        std::vector<std::string>::iterator itr;
+        for( itr = pReplicas.begin() ; itr != pReplicas.end() ; ++itr )
         {
-          log->Debug( UtilityMsg, "Unable to open %s: %s",
-                                  pPath.c_str(), strerror( errno ) );
-          return XRootDStatus( stError, errOSError, errno );
+          ss << *itr << ", ";
         }
+        log->Debug( XrdCl::UtilityMsg, ss.str().c_str() );
 
-        pFD   = fd;
-        return XRootDStatus();
+        pXCpCtx = new XrdCl::XCpCtx( pReplicas, pBlockSize, pNbSrc, pChunkSize, pParallelChunks, fileSize );
+
+        return pXCpCtx->Initialize();
       }
 
       //------------------------------------------------------------------------
-      //! Finalize the destination
+      //! Get size
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus Finalize()
+      virtual int64_t GetSize()
       {
-        using namespace XrdCl;
-        if( pFD != -1 )
-        {
-          int fd = pFD; pFD = -1;
-          if( close( fd ) != 0 )
-            return XRootDStatus( stError, errOSError, errno );
-        }
-        return XRootDStatus();
+        return pXCpCtx->GetSize();
       }
 
       //------------------------------------------------------------------------
-      //! Put a data chunk at a destination
+      //! Get a data chunk from the source
       //!
-      //! @param  buffer buffer containing the chunk data
+      //! @param  buffer buffer for the data
       //! @param  ci     chunk information
-      //! @return status of the operation
+      //! @return        status of the operation
+      //!                suContinue - there are some chunks left
+      //!                suDone     - no chunks left
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
       {
-        using namespace XrdCl;
-        Log *log = DefaultEnv::GetLog();
-
-        if( pFD == -1 )
-          return XRootDStatus( stError, errUninitialized );
-
-        int64_t   wr     = 0;
-        uint64_t  offset = ci.offset;
-        uint32_t  length = ci.length;
-        char     *cursor = (char*)ci.buffer;
+        XrdCl::XRootDStatus st;
         do
         {
-          wr = pwrite( pFD, cursor, length, offset );
-          if( wr == -1 )
-          {
-            log->Debug( UtilityMsg, "Unable to write to %s: %s", pPath.c_str(),
-                        strerror( errno ) );
-            close( pFD );
-            pFD = -1;
-            if( pPosc )
-              unlink( pPath.c_str() );
-            delete [] (char*)ci.buffer; ci.buffer = 0;
-            return XRootDStatus( stError, errOSError, errno );
-          }
-          offset += wr;
-          cursor += wr;
-          length -= wr;
+          st = pXCpCtx->GetChunk( ci );
         }
-        while( length );
-
-        delete [] (char*)ci.buffer; ci.buffer = 0;
-        return XRootDStatus();
+        while( st.IsOK() && st.code == XrdCl::suRetry );
+        return st;
       }
 
       //------------------------------------------------------------------------
-      //! Flush chunks that might have been queues
-      //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus Flush()
-      {
-        return XrdCl::XRootDStatus();
-      }
-
-      //------------------------------------------------------------------------
-      //! Get check sum
+      // Get check sum
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
-        return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pPath );
-      }
-
-      //------------------------------------------------------------------------
-      //! Create a directory path
-      //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus MkPath( std::string &path )
-      {
-        using namespace XrdCl;
-        Log   *log = DefaultEnv::GetLog();
-        struct stat st;
-        std::vector<std::string> pathElements;
-        std::vector<std::string>::iterator it;
-        std::string fullPath;
-
-        if( path.empty() )
-          return XRootDStatus();
-
-        log->Dump( UtilityMsg, "Attempting to create %s", path.c_str() );
-
-        if( path[0] == '/' )
-          fullPath = "/";
-
-        XrdCl::Utils::splitString( pathElements, path, "/" );
-
-        for( it = pathElements.begin(); it != pathElements.end(); ++it )
+        if( pUrl->IsMetalink() )
         {
-          fullPath += *it;
-          fullPath += "/";
-          if( stat( fullPath.c_str(), &st ) != 0 )
-          {
-            if( errno == ENOENT )
-            {
-              if( mkdir( fullPath.c_str(), 0755 ) != 0 )
-              {
-                log->Error( UtilityMsg, "Cannot create directory %s: %s",
-                            fullPath.c_str(), strerror( errno ) );
-                return XRootDStatus( stError, errOSError, errno );
-              }
-            }
-            else
-            {
-              log->Error( UtilityMsg, "Unable to stat %s: %s",
-                          fullPath.c_str(), strerror( errno ) );
-              return XRootDStatus( stError, errOSError, errno );
-            }
-          }
-          else if( !S_ISDIR( st.st_mode ) )
-          {
-            log->Error( UtilityMsg, "Path %s not a directory: %s",
-                        fullPath.c_str(), strerror( ENOTDIR ) );
-            return XRootDStatus( stError, errOSError, ENOTDIR );
-          }
-          else
-            log->Dump( UtilityMsg, "Path %s already exists", fullPath.c_str() );
+          XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
+          XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
+          checkSum = redirector->GetCheckSum( checkSumType );
+          if( !checkSum.empty() ) return XrdCl::XRootDStatus();
         }
-        return XRootDStatus();
+
+        std::vector<std::string>::iterator itr;
+        for( itr = pReplicas.begin() ; itr != pReplicas.end() ; ++itr )
+        {
+          XrdCl::URL url( *itr );
+          XrdCl::XRootDStatus st = XrdCl::Utils::GetRemoteCheckSum( checkSum,
+                              checkSumType, url.GetHostId(), url.GetPath() );
+          if( st.IsOK() ) return st;
+        }
+
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNoMoreReplicas );
       }
 
     private:
-      LocalDestination(const LocalDestination &other);
-      LocalDestination &operator = (const LocalDestination &other);
 
-      std::string pPath;
-      int         pFD;
+
+      XrdCl::XCpCtx           *pXCpCtx;
+      const XrdCl::URL         *pUrl;
+      std::vector<std::string>  pReplicas;
+      uint32_t                  pChunkSize;
+      uint16_t                  pParallelChunks;
+      int32_t                   pNbSrc;
+      uint64_t                  pBlockSize;
   };
 
   //----------------------------------------------------------------------------
-  //! Local destination
+  //! SrdOut destination
   //----------------------------------------------------------------------------
   class StdOutDestination: public Destination
   {
@@ -1174,7 +1182,7 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       XRootDDestination( const XrdCl::URL *url, uint8_t parallelChunks ):
-        pUrl( url ), pFile( new XrdCl::File() ), pParallel( parallelChunks )
+        pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ), pParallel( parallelChunks )
       {
       }
 
@@ -1196,6 +1204,10 @@ namespace
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for writing",
                                 pUrl->GetURL().c_str() );
+
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
+        pFile->SetProperty( "WriteRecovery", value );
 
         OpenFlags::Flags flags = OpenFlags::Update;
         if( pForce )
@@ -1387,9 +1399,12 @@ namespace XrdCl
     std::string checkSumMode;
     std::string checkSumType;
     std::string checkSumPreset;
+    std::string zipSource;
     uint16_t    parallelChunks;
     uint32_t    chunkSize;
-    bool        posc, force, coerce, makeDir, dynamicSource;
+    uint64_t    blockSize;
+    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp;
+    int32_t     nbXcpSources;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
     pProperties->Get( "checkSumType",    checkSumType );
@@ -1401,13 +1416,24 @@ namespace XrdCl
     pProperties->Get( "coerce",          coerce );
     pProperties->Get( "makeDir",         makeDir );
     pProperties->Get( "dynamicSource",   dynamicSource );
+    pProperties->Get( "zipArchive",      zip );
+    pProperties->Get( "xcp",             xcp );
+    pProperties->Get( "xcpBlockSize",    blockSize );
+
+    if( zip )
+      pProperties->Get( "zipSource",     zipSource );
+
+    if( xcp )
+      pProperties->Get( "nbXcpSources",     nbXcpSources );
 
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
     //--------------------------------------------------------------------------
     XRDCL_SMART_PTR_T<Source> src;
-    if( GetSource().GetProtocol() == "file" )
-      src.reset( new LocalSource( &GetSource(), checkSumType, chunkSize ) );
+    if( xcp )
+      src.reset( new XRootDSourceXCp( &GetSource(), chunkSize, parallelChunks, nbXcpSources, blockSize ) );
+    else if( zip ) // TODO make zip work for xcp
+      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks ) );
     else if( GetSource().GetProtocol() == "stdio" )
       src.reset( new StdInSource( checkSumType, chunkSize ) );
     else
@@ -1420,13 +1446,12 @@ namespace XrdCl
 
     XRootDStatus st = src->Initialize();
     if( !st.IsOK() ) return st;
+    uint64_t size = src->GetSize() >= 0 ? src->GetSize() : 0;
 
     XRDCL_SMART_PTR_T<Destination> dest;
     URL newDestUrl( GetTarget() );
 
-    if( GetTarget().GetProtocol() == "file" )
-      dest.reset( new LocalDestination( &GetTarget() ) );
-    else if( GetTarget().GetProtocol() == "stdio" )
+    if( GetTarget().GetProtocol() == "stdio" )
       dest.reset( new StdOutDestination( checkSumType ) );
     //--------------------------------------------------------------------------
     // For xrootd destination build the oss.asize hint
@@ -1455,7 +1480,6 @@ namespace XrdCl
     // Copy the chunks
     //--------------------------------------------------------------------------
     ChunkInfo chunkInfo;
-    uint64_t  size      = src->GetSize() >= 0 ? src->GetSize() : 0;
     uint64_t  processed = 0;
     while( 1 )
     {

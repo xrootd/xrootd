@@ -52,14 +52,11 @@ int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 
         // Constructor and destructor
-        XrdPssDir(const char *tid) : tident(tid), myDir(0), dirVec(0) {}
-       ~XrdPssDir() {if (dirVec) Close();}
+        XrdPssDir(const char *tid) : tident(tid), myDir(0) {}
+       ~XrdPssDir() {if (myDir) Close();}
 private:
 const    char      *tident;
          DIR       *myDir;
-         char     **dirVec;
-         int        curEnt;
-         int        numEnt;
 };
   
 /******************************************************************************/
@@ -154,7 +151,7 @@ static char *P2OUT(int &retc,  char *pbuff, int pblen,
 static char *P2URL(int &retc, char *pbuff, int pblen,
                    const char *path,       int Split=0,
                    const char *Cgi=0,      int CgiLn=0,
-                   const char *tIdent=0,   int doN2N=1);
+                   const char *tIdent=0,  bool doN2N=true);
 static int   T2UID(const char *Ident);
 
 static const char  *ConfigFN;       // -> Pointer to the config file name
@@ -185,6 +182,7 @@ static char         allMv;
 static char         allRmdir;
 static char         allRm;
 static char         allTrunc;
+static bool         xLfn2Pfn;
 
 static char         cfgDone;   // Configuration completed
 
@@ -193,33 +191,21 @@ virtual ~XrdPssSys() {}
 
 private:
 
-char              *LocalRoot;// -> Local n2n root, if any
-char              *N2NLib;   // -> Name2Name Library Path
-char              *N2NParms; // -> Name2Name Object Parameters
+char              *LocalRoot;// -> pss Local n2n root, if any
 XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
-char              *cPath;    // -> Cache path
-char              *cParm;    // -> Cache parameters
 XrdVersionInfo    *myVersion;// -> Compilation version
-int                TraceLvl; // Tracing options
 
 int    buildHdr();
 int    Configure(const char *);
 int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
-int    ConfigN2N();
-int    getCache();
-int    xcach(XrdSysError *Eroute, XrdOucStream &Config);
-int    xcacl(XrdSysError *Eroute, XrdOucStream &Config);
-char  *xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff);
+const
+char  *getDomain(const char *hName);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
 int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
 int    xexp( XrdSysError *Eroute, XrdOucStream &Config);
-int    xinet(XrdSysError *errp,   XrdOucStream &Config);
 int    xperm(XrdSysError *errp,   XrdOucStream &Config);
 int    xorig(XrdSysError *errp,   XrdOucStream &Config);
-int    xsopt(XrdSysError *Eroute, XrdOucStream &Config);
-int    xtrac(XrdSysError *Eroute, XrdOucStream &Config);
-int    xnml (XrdSysError *Eroute, XrdOucStream &Config);
 };
 #endif

@@ -138,7 +138,7 @@ void XrdBwmLogger::Event(Info &eInfo)
       {if ((++warnings & 0xff) == 1)
           eDest->Emsg("Notify", "Ran out of logger message objects;",
                                 eInfo.Tident, "event not logged.");
-          return;
+       return;
       }
 
 // Format the message

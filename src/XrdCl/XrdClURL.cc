@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <vector>
 #include <sstream>
+#include <algorithm>
 
 namespace XrdCl
 {
@@ -64,7 +65,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Extract the protocol, assume file:// if none found
     //--------------------------------------------------------------------------
-    size_t pos          = url.find( "://" );
+    size_t pos = url.find( "://" );
 
     std::string current;
     if( pos != std::string::npos )
@@ -95,11 +96,24 @@ namespace XrdCl
     std::string path;
     std::string hostInfo;
 
-    if( pProtocol == "file"  || pProtocol == "stdio" )
+    if( pProtocol == "stdio" )
       path = current;
+    else if( pProtocol == "file")
+    {
+      if( current[0] == '/' )
+        current = "localhost" + current;
+      pos = current.find( '/' );
+      if( pos == std::string::npos )
+        hostInfo = current;
+      else
+      {
+        hostInfo = current.substr( 0, pos );
+        path     = current.substr( pos );
+      }
+    }
     else
     {
-      pos = current.find( "/" );
+      pos = current.find( '/' );
       if( pos == std::string::npos )
         hostInfo = current;
       else
@@ -144,7 +158,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool URL::ParseHostInfo( const std::string hostInfo )
   {
-    if( pProtocol == "file" || pProtocol == "stdio" )
+    if( pProtocol == "stdio" )
       return true;
 
     if( pProtocol.empty() || hostInfo.empty() )
@@ -257,6 +271,11 @@ namespace XrdCl
     }
     else
       pPath = path;
+
+    std::string::iterator back = pPath.end() - 1;
+    if( pProtocol == "file" && *back == '/' )
+      pPath.erase( back );
+
     ComputeURL();
     return true;
   }
@@ -275,13 +294,28 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  //! Get the path with params, filteres out 'xrdcl.'
+  //------------------------------------------------------------------------
+  std::string URL::GetPathWithFilteredParams() const
+  {
+    std::ostringstream o;
+    if( !pPath.empty() )
+      o << pPath;
+
+    o << GetParamsAsString( true );
+    return o.str();
+  }
+
+  //------------------------------------------------------------------------
   //! Get protocol://host:port/path
   //------------------------------------------------------------------------
   std::string URL::GetLocation() const
   {
     std::ostringstream o;
     o << pProtocol << "://";
-    if( pProtocol != "file" )
+    if( pProtocol == "file" )
+      o << pHostName;
+    else
       o << pHostName << ":" << pPort << "/";
     o << pPath;
     return o.str();
@@ -292,6 +326,14 @@ namespace XrdCl
   //------------------------------------------------------------------------
   std::string URL::GetParamsAsString() const
   {
+    return GetParamsAsString( false );
+  }
+
+  //------------------------------------------------------------------------
+  //! Get the URL params as string
+  //------------------------------------------------------------------------
+  std::string URL::GetParamsAsString( bool filter ) const
+  {
     if( pParams.empty() )
       return "";
 
@@ -300,6 +342,9 @@ namespace XrdCl
     ParamsMap::const_iterator it;
     for( it = pParams.begin(); it != pParams.end(); ++it )
     {
+      // we filter out client specific parameters
+      if( filter && it->first.compare( 0, 6, "xrdcl." ) == 0 )
+        continue;
       if( it != pParams.begin() ) o << "&";
       o << it->first << "=" << it->second;
     }
@@ -365,6 +410,26 @@ namespace XrdCl
     return true;
   }
 
+  bool URL::IsMetalink() const
+  {
+    Env *env = DefaultEnv::GetEnv();
+    int mlProcessing = DefaultMetalinkProcessing;
+    env->GetInt( "MetalinkProcessing", mlProcessing );
+    if( !mlProcessing ) return false;
+    return PathEndsWith( ".meta4" ) || PathEndsWith( ".metalink" );
+  }
+
+  bool URL::IsLocalFile() const
+  {
+    return pProtocol == "file" && pHostName == "localhost";
+  }
+
+  bool URL::PathEndsWith(const std::string & sufix) const
+  {
+    if (sufix.size() > pPath.size()) return false;
+    return std::equal(sufix.rbegin(), sufix.rend(), pPath.rbegin() );
+  }
+
   //----------------------------------------------------------------------------
   // Recompute the host id
   //----------------------------------------------------------------------------
@@ -378,7 +443,10 @@ namespace XrdCl
         o << ":" << pPassword;
       o << "@";
     }
-    o << pHostName << ":" << pPort;
+    if( pProtocol == "file" )
+      o << pHostName;
+    else
+      o << pHostName << ":" << pPort;
     pHostId = o.str();
   }
 
@@ -403,7 +471,12 @@ namespace XrdCl
     }
 
     if( !pHostName.empty() )
-      o << pHostName << ":" << pPort << "/";
+    {
+      if( pProtocol == "file" )
+        o << pHostName;
+      else
+        o << pHostName << ":" << pPort << "/";
+    }
 
     o << GetPathWithParams();
 

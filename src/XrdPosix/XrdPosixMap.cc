@@ -103,38 +103,6 @@ int XrdPosixMap::mapCode(int rc)
 }
 
 /******************************************************************************/
-/* Private:                     m a p E r r o r                               */
-/******************************************************************************/
-  
-int XrdPosixMap::mapError(int rc)
-{
-    switch(rc)
-       {case kXR_ArgInvalid:    return EINVAL;
-        case kXR_ArgMissing:    return EINVAL;
-        case kXR_ArgTooLong:    return ENAMETOOLONG;
-        case kXR_FileLocked:    return EDEADLK;
-        case kXR_FileNotOpen:   return EBADF;
-        case kXR_FSError:       return EIO;
-        case kXR_InvalidRequest:return EEXIST;
-        case kXR_IOError:       return EIO;
-        case kXR_NoMemory:      return ENOMEM;
-        case kXR_NoSpace:       return ENOSPC;
-        case kXR_NotAuthorized: return EACCES;
-        case kXR_NotFound:      return ENOENT;
-        case kXR_ServerError:   return ENOMSG;
-        case kXR_Unsupported:   return ENOSYS;
-        case kXR_noserver:      return EHOSTUNREACH;
-        case kXR_NotFile:       return ENOTBLK;
-        case kXR_isDirectory:   return EISDIR;
-        case kXR_Cancelled:     return ECANCELED;
-        case kXR_ChkLenErr:     return EDOM;
-        case kXR_ChkSumErr:     return EDOM;
-        case kXR_inProgress:    return EINPROGRESS;
-        default:                return ENOMSG;
-       }
-}
-
-/******************************************************************************/
 /*                           M o d e 2 A c c e s s                            */
 /******************************************************************************/
   
@@ -160,7 +128,7 @@ XrdCl::Access::Mode XrdPosixMap::Mode2Access(mode_t mode)
   
 int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status)
 {
-   const char *eText;
+   std::string eText;
    int eNum;
 
 // If all went well, return success
@@ -170,17 +138,18 @@ int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status)
 // If this is an xrootd error then get the xrootd generated error
 //
    if (Status.code == XrdCl::errErrorResponse)
-      {eText = Status.GetErrorMessage().c_str();
-       eNum  = mapError(Status.errNo);
+      {eText = Status.GetErrorMessage();
+       eNum  = XProtocol::toErrno(Status.errNo);
       } else {
-       eText = Status.ToStr().c_str();
+       eText = Status.ToStr();
        eNum  = (Status.errNo ? Status.errNo : mapCode(Status.code));
       }
 
-// Trace this if need be
+// Trace this if need be (we supress this for as we really need more info to
+// make this messae useful like the opteration and path).
 //
-   if (eNum != ENOENT && eText && *eText && Debug)
-      cerr <<"XrdPosix: " <<eText <<endl;
+// if (eNum != ENOENT && !eText.empty() && Debug)
+//    cerr <<"XrdPosix: " <<eText <<endl;
 
 // Return
 //

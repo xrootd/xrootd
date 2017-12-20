@@ -246,7 +246,7 @@ bool XrdCryptoX509::Verify(XrdCryptoX509 *)
 }
 
 //_____________________________________________________________________________
-int XrdCryptoX509::DumpExtensions()
+int XrdCryptoX509::DumpExtensions(bool)
 {
    // Dump extensions, if any
    ABSTRACTMETHOD("XrdCryptoX509::DumpExtensions");

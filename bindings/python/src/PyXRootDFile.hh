@@ -91,7 +91,7 @@ namespace PyXRootD
   static void File_dealloc( File *self )
   {
     delete self->file;
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
@@ -121,7 +121,7 @@ namespace PyXRootD
     //--------------------------------------------------------------------------
     // Raise StopIteration if the line we just read is empty
     //--------------------------------------------------------------------------
-    if ( PyString_Size( line ) == 0 ) {
+    if ( PyBytes_Size( line ) == 0 ) {
       PyErr_SetNone( PyExc_StopIteration );
       return NULL;
     }
@@ -156,37 +156,37 @@ namespace PyXRootD
   static PyMethodDef FileMethods[] =
   {
     { "open",
-       (PyCFunction) PyXRootD::File::Open,                METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Open,                METH_VARARGS | METH_KEYWORDS, NULL },
     { "close",
-       (PyCFunction) PyXRootD::File::Close,               METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Close,               METH_VARARGS | METH_KEYWORDS, NULL },
     { "stat",
-       (PyCFunction) PyXRootD::File::Stat,                METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Stat,                METH_VARARGS | METH_KEYWORDS, NULL },
     { "read",
-       (PyCFunction) PyXRootD::File::Read,                METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Read,                METH_VARARGS | METH_KEYWORDS, NULL },
     { "readline",
-       (PyCFunction) PyXRootD::File::ReadLine,            METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::ReadLine,            METH_VARARGS | METH_KEYWORDS, NULL },
     { "readlines",
-       (PyCFunction) PyXRootD::File::ReadLines,           METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::ReadLines,           METH_VARARGS | METH_KEYWORDS, NULL },
     { "readchunks",
-       (PyCFunction) PyXRootD::File::ReadChunks,          METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::ReadChunks,          METH_VARARGS | METH_KEYWORDS, NULL },
     { "write",
-       (PyCFunction) PyXRootD::File::Write,               METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Write,               METH_VARARGS | METH_KEYWORDS, NULL },
     { "sync",
-       (PyCFunction) PyXRootD::File::Sync,                METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Sync,                METH_VARARGS | METH_KEYWORDS, NULL },
     { "truncate",
-       (PyCFunction) PyXRootD::File::Truncate,            METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Truncate,            METH_VARARGS | METH_KEYWORDS, NULL },
     { "vector_read",
-       (PyCFunction) PyXRootD::File::VectorRead,          METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::VectorRead,          METH_VARARGS | METH_KEYWORDS, NULL },
     { "fcntl",
-       (PyCFunction) PyXRootD::File::Fcntl,               METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Fcntl,               METH_VARARGS | METH_KEYWORDS, NULL },
     { "visa",
-       (PyCFunction) PyXRootD::File::Visa,                METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::Visa,                METH_VARARGS | METH_KEYWORDS, NULL },
     { "is_open",
-       (PyCFunction) PyXRootD::File::IsOpen,              METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::IsOpen,              METH_VARARGS | METH_KEYWORDS, NULL },
     { "get_property",
-       (PyCFunction) PyXRootD::File::GetProperty,         METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::GetProperty,         METH_VARARGS | METH_KEYWORDS, NULL },
     { "set_property",
-       (PyCFunction) PyXRootD::File::SetProperty,         METH_KEYWORDS, NULL },
+       (PyCFunction) PyXRootD::File::SetProperty,         METH_VARARGS | METH_KEYWORDS, NULL },
     {"__enter__",
        (PyCFunction) File_enter,                          METH_NOARGS,   NULL},
     {"__exit__",
@@ -207,8 +207,7 @@ namespace PyXRootD
   //! File binding type object
   //----------------------------------------------------------------------------
   static PyTypeObject FileType = {
-    PyObject_HEAD_INIT(NULL)
-    0,                                          /* ob_size */
+    PyVarObject_HEAD_INIT(NULL, 0)
     "pyxrootd.File",                            /* tp_name */
     sizeof(File),                               /* tp_basicsize */
     0,                                          /* tp_itemsize */

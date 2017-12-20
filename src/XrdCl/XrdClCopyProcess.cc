@@ -167,7 +167,7 @@ namespace XrdCl
     pJobProperties.push_back( properties );
     PropertyList &p = pJobProperties.back();
 
-    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", 0};
+    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", "zipArchive", "xcp", 0};
     for( int i = 0; bools[i]; ++i )
       if( !p.HasProperty( bools[i] ) )
         p.Set( bools[i], false );
@@ -185,6 +185,17 @@ namespace XrdCl
         return XRootDStatus( stError, errInvalidArgs, 0,
                              "checkSumType not specified" );
       }
+      else
+      {
+        //----------------------------------------------------------------------
+        // Checksum type has to be case insensitive
+        //----------------------------------------------------------------------
+        std::string checkSumType;
+        p.Get( "checkSumType", checkSumType );
+        std::transform(checkSumType.begin(), checkSumType.end(),
+                                                checkSumType.begin(), ::tolower);
+        p.Set( "checkSumType", checkSumType );
+      }
     }
 
     if( !p.HasProperty( "parallelChunks" ) )
@@ -199,6 +210,13 @@ namespace XrdCl
       int val = DefaultCPChunkSize;
       env->GetInt( "CPChunkSize", val );
       p.Set( "chunkSize", val );
+    }
+
+    if( !p.HasProperty( "xcpBlockSize" ) )
+    {
+      int val = DefaultXCpBlockSize;
+      env->GetInt( "XCpBlockSize", val );
+      p.Set( "xcpBlockSize", val );
     }
 
     if( !p.HasProperty( "initTimeout" ) )
@@ -335,17 +353,23 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( parallelThreads == 1 )
     {
+      XRootDStatus err;
+
       for( it = pJobs.begin(); it != pJobs.end(); ++it )
       {
         QueuedCopyJob j( *it, progress, currentJob, totalJobs );
         j.Run(0);
 
         XRootDStatus st = (*it)->GetResults()->Get<XRootDStatus>( "status" );
-        if( !st.IsOK() ) return st;
+        if( err.IsOK() && !st.IsOK() )
+        {
+          err = st;
+        }
         ++currentJob;
       }
-    }
 
+      if( !err.IsOK() ) return err;
+    }
     //--------------------------------------------------------------------------
     // Multiple threads
     //--------------------------------------------------------------------------

@@ -228,8 +228,8 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
 
 // Check if we need to convert an ipv4 address to an ipv6 one
 //
-   if (hints.ai_family == AF_INET6
-   &&  isdigit(aBuff.ipAdr[0]) && index(aBuff.ipAdr, '.'))
+   if (hints.ai_family == AF_INET6 && aBuff.ipAdr[0] != '['
+   && !XrdNetAddrInfo::isHostName(aBuff.ipAdr))
       {strncpy(aBuff.ipMap, "::ffff:", 7);
        ipAddr = aBuff.ipMap;
       } else ipAddr = hnBeg;
@@ -425,13 +425,23 @@ XrdNetUtils::NetProt XrdNetUtils::NetConfig(XrdNetUtils::NetType netquery,
   const char *eMsg;
   char buff[1024];
   NetProt hasProt = hasNone;
-  int aCnt;
+  int aCnt, ifType;
 
 // Make sure we support this query
 //
-   if (netquery != qryINET)
+   if (netquery != qryINET && netquery != qryINIF)
       {if (eText) *eText = "unsupported NetType query";
        return hasNone;
+      }
+
+// We base the nonfig of the interface addresses unless we can't query the if's
+//
+   if (netquery == qryINIF && (ifType = XrdNetIF::GetIF((XrdOucTList **)0,0)))
+      {if (ifType & XrdNetIF::haveIPv4) hasProt = NetProt(hasProt | hasIPv4);
+       if (ifType & XrdNetIF::haveIPv6) hasProt = NetProt(hasProt | hasIPv6);
+       if (ifType & XrdNetIF::havePub4) hasProt = NetProt(hasProt | hasPub4);
+       if (ifType & XrdNetIF::havePub6) hasProt = NetProt(hasProt | hasPub6);
+       return hasProt;
       }
 
 // Get our host name and initialize this object with it

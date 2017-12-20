@@ -1,0 +1,158 @@
+/******************************************************************************/
+/*                                                                            */
+/*                        X r d S s i E v e n t . c c                         */
+/*                                                                            */
+/* (c) 2015 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
+/******************************************************************************/
+
+#include "XrdSsi/XrdSsiEvent.hh"
+#include "Xrd/XrdScheduler.hh"
+
+/******************************************************************************/
+/*                     S t a t i c s   &   G l o b a l s                      */
+/******************************************************************************/
+  
+namespace
+{
+XrdSsiMutex             frMutex;
+}
+
+XrdSsiEvent::EventData *XrdSsiEvent::freeEvent = 0;
+
+namespace XrdSsi
+{
+extern XrdScheduler *schedP;
+}
+
+/******************************************************************************/
+/*                              A d d E v e n t                               */
+/******************************************************************************/
+  
+void XrdSsiEvent::AddEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp)
+{
+   XrdSsiMutexMon monMutex(evMutex);
+
+// If the base object has no status then we need to set it and schedule
+// ourselves for processing if not already running.
+//
+   if (!thisEvent.status)
+      {thisEvent.status   = st;
+       thisEvent.response = resp;
+       if (!running)
+          {running = true;
+           XrdSsi::schedP->Schedule(this);
+          }
+       return;
+      }
+
+// Allocate a new event object and chain it from the base event. This also
+// implies that we doesn't need to be scheduled as it already was scheduled.
+//
+   frMutex.Lock();
+   EventData *edP = freeEvent;
+   if (!edP) edP = new EventData(st, resp);
+      else {freeEvent     = edP->next;
+            edP->status   = st;
+            edP->response = resp;
+            edP->next     = 0;
+           }
+   frMutex.UnLock();
+
+// Establish the last event
+//
+   if (lastEvent) lastEvent->next = edP;
+      else        thisEvent .next = edP;
+   lastEvent = edP;
+}
+
+/******************************************************************************/
+/*                              C l r E v e n t                               */
+/******************************************************************************/
+  
+void XrdSsiEvent::ClrEvent(XrdSsiEvent::EventData *fdP)
+{
+   EventData *xdP, *edP = fdP;
+
+// This method may be safely called on a undeleted EventData object even if
+// this event object has been deleted; as can happen in XeqEvent().
+// Clear any chained events. This loop ends with edP pointing to the last event.
+//
+   while(edP->next)
+        {edP = edP->next;
+         delete edP->status;
+         delete edP->response;
+        }
+
+// Place all chained elements, if any, in the free list
+//
+   if (fdP->next)
+      {frMutex.Lock();
+       xdP = fdP->next; edP->next = freeEvent; freeEvent = xdP;
+       frMutex.UnLock();
+       fdP->next = 0;
+      }
+
+// Clear the base event
+//
+   if (fdP->status)   {delete fdP->status;   fdP->status   = 0;}
+   if (fdP->response) {delete fdP->response; fdP->response = 0;}
+
+// If we are clearing our events then indicate we are not running. Note that
+// this method is only called when cleaning up so we can't be running
+//
+   if (fdP == &thisEvent)
+      {lastEvent = 0;
+       running   = false;
+      }
+}
+
+/******************************************************************************/
+/*                                  D o I t                                   */
+/******************************************************************************/
+  
+void XrdSsiEvent::DoIt()
+{
+   EventData myEvent, *edP = &myEvent;
+
+// Process all of the events in our list. This is a tricky proposition because
+// the event executor may delete us when false is returned. To prevent double
+// frees and the like, we move out the event and work off a local copy.
+//
+   evMutex.Lock();
+do{thisEvent.Move2(myEvent);
+   lastEvent = 0;
+   evMutex.UnLock();
+   edP = &myEvent;
+   while(edP && XeqEvent(edP->status, &edP->response)) {edP = edP->next;}
+   ClrEvent(&myEvent);
+   if (edP) return;
+   evMutex.Lock();
+  } while(thisEvent.status);
+
+// We are done, indicate we are no longer running
+//
+   running = false;
+   evMutex.UnLock();
+}

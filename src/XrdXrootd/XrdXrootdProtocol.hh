@@ -65,12 +65,15 @@
 /******************************************************************************/
 
 class XrdNetSocket;
+class XrdOucEnv;
 class XrdOucErrInfo;
 class XrdOucReqID;
 class XrdOucStream;
 class XrdOucTList;
 class XrdOucTokenizer;
 class XrdOucTrace;
+class XrdSecProtect;
+class XrdSecProtector;
 class XrdSfsDirectory;
 class XrdSfsFileSystem;
 class XrdSecProtocol;
@@ -104,6 +107,8 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Process2();
 
+       int           ProcSig();
+
        void          Recycle(XrdLink *lp, int consec, const char *reason);
 
        int           SendFile(int fildes);
@@ -116,6 +121,7 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
 static int           StatGen(struct stat &buf, char *xxBuff);
 
+//            XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
               XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs);
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
@@ -126,7 +132,7 @@ private:
 //
 enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
               RD_mv,        RD_prepare, RD_prepstg, RD_rm,     RD_rmdir,
-              RD_stat,      RD_trunc,
+              RD_stat,      RD_trunc,   RD_ovld,
               RD_open1,     RD_open2,   RD_open3,   RD_open4,  RD_Num};
 
        int   do_Admin();
@@ -149,7 +155,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Open();
        int   do_Ping();
        int   do_Prepare();
-       int   do_Protocol(int retRole=0);
+       int   do_Protocol(ServerResponseBody_Protocol *rsp=0);
        int   do_Putfile();
        int   do_Qconf();
        int   do_Qfh();
@@ -184,9 +190,10 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
 static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
+static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError,
                      const char *Path, char *Cgi);
-       int   fsRedir(RD_func xfnc);
+       int   fsOvrld(char opc, const char *Path, char *Cgi);
        int   fsRedirNoEnt(const char *eMsg, char *Cgi, int popt);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
@@ -206,15 +213,18 @@ static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
 static int   xfsL(XrdOucStream &Config, char *val, int lix);
+static int   xfso(XrdOucStream &Config);
 static int   xpidf(XrdOucStream &Config);
 static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
 static int   xmon(XrdOucStream &Config);
 static int   xred(XrdOucStream &Config);
+static bool  xred_php(char *val, char *hP[2], int rPort[2]);
 static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
 static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
 static int   xsecl(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
+static int   xlimit(XrdOucStream &Config);
 
 static XrdObjectQ<XrdXrootdProtocol> ProtStack;
 XrdObject<XrdXrootdProtocol>         ProtLink;
@@ -230,6 +240,7 @@ static XrdXrootdXPath        XPList;    // Exported   paths
 static XrdSfsFileSystem     *osFS;      // The filesystem
 static XrdSfsFileSystem     *digFS;     // The filesystem (digFS)
 static XrdSecService        *CIA;       // Authentication Server
+static XrdSecProtector      *DHS;       // Protection     Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager
@@ -275,6 +286,9 @@ static XrdOucReqID        *PrepID;
 static struct RD_Table {char          *Host[2];
                         unsigned short Port[2];
                                  short RDSz[2];} Route[RD_Num];
+static int    OD_Stall;
+static bool   OD_Bypass;
+static bool   OD_Redir;
 
 // async configuration values
 //
@@ -326,6 +340,15 @@ unsigned char              CapVer;
 XrdSecEntity              *Client;
 XrdSecProtocol            *AuthProt;
 XrdSecEntity               Entity;
+XrdSecProtect             *Protect;
+
+ClientRequest              sigReq2Ver;   // Request to verify
+SecurityRequest            sigReq;       // Signature request
+char                       sigBuff[64];  // Signature payload SHA256 + blowfish
+bool                       sigNeed;      // Signature target  present
+bool                       sigHere;      // Signature request present
+bool                       sigRead;      // Signature being read
+bool                       sigWarn;      // Once for unneeded signature
 
 // Buffer information, used to drive DoIt(), getData(), and (*Resume)()
 //
@@ -371,6 +394,13 @@ short                      PathID;
 char                       doWrite;
 char                       doWriteC;
 char                       rvSeq;
+
+// Track usage limts.
+//
+static bool                LimitError;  // Indicates that hitting a limit should result in an error response.
+                                        // If false, when possible, silently ignore errors.
+int                        PrepareCount;
+static int                 PrepareLimit;
 
 // Buffers to handle client requests
 //

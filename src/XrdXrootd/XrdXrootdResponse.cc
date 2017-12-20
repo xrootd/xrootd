@@ -170,7 +170,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info,
     Resp.status        = static_cast<kXR_unt16>(htons(rcode));
     Resp.dlen          = static_cast<kXR_int32>(htonl((dlen+sizeof(xbuf))));
 
-    if (Link->Send(RespIO, 3, sizeof(Resp) + dlen) < 0)
+    if (Link->Send(RespIO, 3, sizeof(Resp) + dlen + sizeof(xbuf)) < 0)
        return Link->setEtext("send failure");
     return 0;
 }

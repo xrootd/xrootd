@@ -97,5 +97,10 @@ const char *SiteName(int snum);
         ~XrdCmsUtils();
 
 private:
+static
+void         Display(XrdSysError *eDest, const char *hSpec,
+                                         const char *hName, bool isBad);
+static
+XrdOucTList *SInsert(XrdOucTList *oldP, XrdOucTList *newP);
 };
 #endif

@@ -56,7 +56,14 @@ namespace PyXRootD
     copyprocess->AddJob( copyprocess, args, kwds );
     pystatus = copyprocess->Prepare( copyprocess, NULL, NULL );
     if ( !pystatus ) return NULL;
-    if ( PyDict_GetItemString( pystatus, "ok" ) == Py_False ) return pystatus;
+    if ( PyDict_GetItemString( pystatus, "ok" ) == Py_False )
+    {
+      PyObject *tuple = PyTuple_New(2);
+      PyTuple_SetItem(tuple, 0, pystatus);
+      Py_INCREF(Py_None);
+      PyTuple_SetItem(tuple, 1, Py_None);
+      return tuple;
+    }
 
     pystatus = copyprocess->Run( copyprocess, PyTuple_New(0), PyDict_New() );
     if ( !pystatus ) return NULL;
@@ -89,7 +96,7 @@ namespace PyXRootD
 
     else {
       XrdCl::LocationInfo *response = 0;
-      status = self->filesystem->Locate( path, flags, response, timeout );
+      async( status = self->filesystem->Locate( path, flags, response, timeout ) );
       pyresponse = ConvertType<XrdCl::LocationInfo>( response );
       delete response;
     }
@@ -127,7 +134,7 @@ namespace PyXRootD
 
     else {
       XrdCl::LocationInfo *response = 0;
-      status = self->filesystem->DeepLocate( path, flags, response, timeout );
+      async( status = self->filesystem->DeepLocate( path, flags, response, timeout ) );
       pyresponse = ConvertType<XrdCl::LocationInfo>( response );
       delete response;
     }
@@ -164,7 +171,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->filesystem->Mv( source, dest, timeout );
+      async( status = self->filesystem->Mv( source, dest, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -202,7 +209,7 @@ namespace PyXRootD
 
     else {
       XrdCl::Buffer *response = 0;
-      status = self->filesystem->Query( queryCode, argbuffer, response, timeout );
+      async( status = self->filesystem->Query( queryCode, argbuffer, response, timeout ) );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
       delete response;
     }
@@ -238,7 +245,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->filesystem->Truncate( path, size, timeout );
+      async( status = self->filesystem->Truncate( path, size, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -270,7 +277,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->filesystem->Rm( path, timeout );
+      async( status = self->filesystem->Rm( path, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -305,7 +312,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->filesystem->MkDir( path, flags, mode, timeout );
+      async( status = self->filesystem->MkDir( path, flags, mode, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -337,7 +344,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->filesystem->RmDir( path, timeout );
+      async( status = self->filesystem->RmDir( path, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -370,7 +377,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->filesystem->ChMod( path, mode, timeout );
+      async( status = self->filesystem->ChMod( path, mode, timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -401,7 +408,7 @@ namespace PyXRootD
     }
 
     else {
-      status = self->filesystem->Ping( timeout );
+      async( status = self->filesystem->Ping( timeout ) );
     }
 
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -434,7 +441,7 @@ namespace PyXRootD
 
     else {
       XrdCl::StatInfo *response = 0;
-      status = self->filesystem->Stat( path, response, timeout );
+      async( status = self->filesystem->Stat( path, response, timeout ) );
       pyresponse = ConvertType<XrdCl::StatInfo>( response );
       delete response;
     }
@@ -470,7 +477,7 @@ namespace PyXRootD
 
     else {
       XrdCl::StatInfoVFS *response = 0;
-      status = self->filesystem->StatVFS( path, response, timeout );
+      async( status = self->filesystem->StatVFS( path, response, timeout ) );
       pyresponse = ConvertType<XrdCl::StatInfoVFS>( response );
       delete response;
     }
@@ -505,7 +512,7 @@ namespace PyXRootD
 
     else {
       XrdCl::ProtocolInfo *response = 0;
-      status = self->filesystem->Protocol( response, timeout );
+      async( status = self->filesystem->Protocol( response, timeout ) );
       pyresponse = ConvertType<XrdCl::ProtocolInfo>( response );
       delete response;
     }
@@ -543,7 +550,7 @@ namespace PyXRootD
 
     else {
       XrdCl::DirectoryList *list = 0;
-      status = self->filesystem->DirList( path, flags, list, timeout );
+      async( status = self->filesystem->DirList( path, flags, list, timeout ) );
       pyresponse = ConvertType<XrdCl::DirectoryList>( list );
       delete list;
     }
@@ -579,7 +586,7 @@ namespace PyXRootD
 
     else {
       XrdCl::Buffer *response = 0;
-      status = self->filesystem->SendInfo( info, response, timeout );
+      async( status = self->filesystem->SendInfo( info, response, timeout ) );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
       delete response;
     }
@@ -624,7 +631,7 @@ namespace PyXRootD
     for ( int i = 0; i < PyList_Size( pyfiles ); ++i ) {
       pyfile = PyList_GetItem( pyfiles, i );
       if ( !pyfile ) return NULL;
-      file = PyString_AsString( pyfile );
+      file = PyBytes_AsString( pyfile );
       files.push_back( std::string( file ) );
     }
 
@@ -637,8 +644,8 @@ namespace PyXRootD
 
     else {
       XrdCl::Buffer *response = 0;
-      status = self->filesystem->Prepare( files, flags, priority, response,
-                                          timeout );
+      async( status = self->filesystem->Prepare( files, flags, priority, response,
+                                          timeout ) );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
       delete response;
     }

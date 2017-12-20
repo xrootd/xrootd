@@ -33,6 +33,8 @@
 #include <signal.h>
 #include <cstdlib>
 #include <cstring>
+#include <sys/uio.h>
+#include <netinet/tcp.h>
 
 namespace XrdCl
 {
@@ -61,6 +63,15 @@ namespace XrdCl
     if( (flags = ::fcntl( pSocket, F_GETFL, 0 )) == -1 )
       flags = 0;
     if( ::fcntl( pSocket, F_SETFL, flags | O_NONBLOCK | O_NDELAY ) == -1 )
+    {
+      Close();
+      return Status( stError, errFcntl, errno );
+    }
+
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    flags = DefaultNoDelay;
+    env->GetInt( "NoDelay", flags );
+    if( setsockopt( pSocket, IPPROTO_TCP, TCP_NODELAY, &flags, sizeof( int ) ) < 0 )
     {
       Close();
       return Status( stError, errFcntl, errno );
@@ -431,6 +442,14 @@ namespace XrdCl
 #else
     return ::write( pSocket, buffer, size );
 #endif
+  }
+
+  //------------------------------------------------------------------------
+  // Wrapper around writev
+  //------------------------------------------------------------------------
+  ssize_t Socket::WriteV( iovec *iov, int iovcnt )
+  {
+    return ::writev( pSocket, iov, iovcnt );
   }
 
   //----------------------------------------------------------------------------

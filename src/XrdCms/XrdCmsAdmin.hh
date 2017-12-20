@@ -64,6 +64,7 @@ static void  Relay(int setSock, int newSock);
 private:
 
 void  BegAds();
+bool  CheckVNid(const char *xNid);
 int   Con2Ads(const char *pname);
 int   do_Login();
 void  do_RmDid(int dotrim=0);

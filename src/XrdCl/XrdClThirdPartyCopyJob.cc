@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include <iostream>
@@ -197,7 +198,16 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Open the target file
     //--------------------------------------------------------------------------
-    File targetFile;
+    File targetFile( File::DisableVirtRedirect );
+    // set WriteRecovery property
+    std::string value;
+    DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
+    targetFile.SetProperty( "WriteRecovery", value );
+
+    // Set the close timeout to the default value of the stream timeout
+    int closeTimeout = 0;
+    (void) DefaultEnv::GetEnv()->GetInt( "StreamTimeout", closeTimeout);
+
     OpenFlags::Flags targetFlags = OpenFlags::Update;
     if( force )
       targetFlags |= OpenFlags::Delete;
@@ -251,7 +261,7 @@ namespace XrdCl
       time_t now = time(0);
       if( now-start > timeLeft )
       {
-        XRootDStatus status = targetFile.Close(1);
+        XRootDStatus status = targetFile.Close( closeTimeout );
         return XRootDStatus( stError, errOperationExpired );
       }
       else
@@ -266,11 +276,15 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
-      XRootDStatus status = targetFile.Close();
+      XRootDStatus status = targetFile.Close( closeTimeout );
       return st;
     }
 
-    File sourceFile;
+    File sourceFile( File::DisableVirtRedirect );
+    // set ReadRecovery property
+    DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+    sourceFile.SetProperty( "ReadRecovery", value );
+
     st = sourceFile.Open( tpcSource.GetURL(), OpenFlags::Read, Access::None,
                           timeLeft );
 
@@ -278,7 +292,7 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable to open source %s: %s",
                   tpcSource.GetURL().c_str(), st.ToStr().c_str() );
-      XRootDStatus status = targetFile.Close(1);
+      XRootDStatus status = targetFile.Close( closeTimeout );
       return st;
     }
 
@@ -294,8 +308,8 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable start the copy: %s",
                   st.ToStr().c_str() );
-      XRootDStatus statusS = sourceFile.Close();
-      XRootDStatus statusT = targetFile.Close();
+      XRootDStatus statusS = sourceFile.Close( closeTimeout );
+      XRootDStatus statusT = targetFile.Close( closeTimeout );
       return st;
     }
 
@@ -350,16 +364,27 @@ namespace XrdCl
                   GetSource().GetURL().c_str(), GetTarget().GetURL().c_str(),
                   st.ToStr().c_str() );
 
-      XRootDStatus statusS = sourceFile.Close(1);
-      XRootDStatus statusT = targetFile.Close(1);
+      // Ignore close response
+      XRootDStatus statusS = sourceFile.Close( closeTimeout );
+      XRootDStatus statusT = targetFile.Close( closeTimeout );
+      return st;
+    }
+
+    XRootDStatus statusS = sourceFile.Close( closeTimeout );
+    XRootDStatus statusT = targetFile.Close( closeTimeout );
+
+    if ( !statusS.IsOK() || !statusT.IsOK() )
+    {
+      st = (statusS.IsOK() ? statusT : statusS);
+      log->Error( UtilityMsg, "Third party copy from %s to %s failed during "
+                  "close of %s: %s", GetSource().GetURL().c_str(),
+                  GetTarget().GetURL().c_str(),
+                  (statusS.IsOK() ? "destination" : "source"), st.ToStr().c_str() );
       return st;
     }
 
     log->Debug( UtilityMsg, "Third party copy from %s to %s successful",
                 GetSource().GetURL().c_str(), GetTarget().GetURL().c_str() );
-
-    XRootDStatus statusS = sourceFile.Close(1);
-    XRootDStatus statusT = targetFile.Close(1);
 
     pResults->Set( "size", sourceSize );
 
@@ -387,9 +412,16 @@ namespace XrdCl
         }
         else
         {
-          st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
-                                         GetSource().GetHostId(),
-                                         GetSource().GetPath() );
+          VirtualRedirector *redirector = 0;
+          std::string vrCheckSum;
+          if( GetSource().IsMetalink() &&
+              ( redirector = RedirectorRegistry::Instance().Get( GetSource() ) ) &&
+              !( vrCheckSum = redirector->GetCheckSum( checkSumType ) ).empty() )
+            sourceCheckSum = vrCheckSum;
+          else
+            st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
+                                         tpcSource.GetHostId(),
+                                         tpcSource.GetPath() );
         }
         gettimeofday( &oEnd, 0 );
         if( !st.IsOK() )
@@ -487,6 +519,11 @@ namespace XrdCl
     // can support the third party copy
     //--------------------------------------------------------------------------
     File          sourceFile;
+    // set WriteRecovery property
+    std::string value;
+    DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
+    sourceFile.SetProperty( "ReadRecovery", value );
+
     XRootDStatus  st;
     URL           sourceURL = source;
 
@@ -507,10 +544,20 @@ namespace XrdCl
     std::string sourceUrl; sourceFile.GetProperty( "LastURL", sourceUrl );
     URL         sourceUrlU = sourceUrl;
     properties->Set( "tpcSource", sourceUrl );
-    StatInfo *statInfo;
-    st = sourceFile.Stat( false, statInfo );
-    if (st.IsOK()) properties->Set( "sourceSize", statInfo->GetSize() );
-    delete statInfo;
+
+    VirtualRedirector *redirector = 0;
+    long long size = -1;
+    if( source.IsMetalink() &&
+        ( redirector = RedirectorRegistry::Instance().Get( sourceURL ) ) &&
+        ( size = redirector->GetSize() ) >= 0 )
+      properties->Set( "sourceSize", size );
+    else
+    {
+      StatInfo *statInfo;
+      st = sourceFile.Stat( false, statInfo );
+      if (st.IsOK()) properties->Set( "sourceSize", statInfo->GetSize() );
+      delete statInfo;
+    }
 
     if( hasInitTimeout )
     {

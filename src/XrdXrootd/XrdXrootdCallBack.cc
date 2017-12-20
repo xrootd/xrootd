@@ -143,7 +143,7 @@ void XrdXrootdCBJob::DoIt()
 // the client to wait zero seconds. Protocol demands a client retry.
 //
    if (SFS_OK == Result)
-      {if (*(cbFunc->Func()) == 'o') cbFunc->sendResp(eInfo, kXR_wait, 0);
+     {if (*(cbFunc->Func()) == 'o'){int rc = 0; cbFunc->sendResp(eInfo, kXR_wait, &rc);}
           else {if (*(cbFunc->Func()) == 'x') DoStatx(eInfo);
                 cbFunc->sendResp(eInfo, kXR_ok, 0, eInfo->getErrText(),
                                                    eInfo->getErrTextLen());
@@ -244,6 +244,14 @@ void XrdXrootdCallBack::sendError(int            rc,
    const char *eMsg = eInfo->getErrText(ecode);
    const char *User = eInfo->getErrUser();
 
+// Process the data response vector (we need to do this here)
+//
+   if (rc == SFS_DATAVEC)
+      {if (ecode > 1) sendVesp(eInfo, kXR_ok, (struct iovec *)eMsg, ecode);
+         else         sendResp(eInfo, kXR_ok, 0);
+       return;
+      }
+
 // Optimize error message handling here
 //
    if (eMsg && !*eMsg) eMsg = 0;
@@ -331,6 +339,44 @@ void XrdXrootdCallBack::sendResp(XrdOucErrInfo  *eInfo,
 // Send the async response
 //
    if (XrdXrootdResponse::Send(ReqID, Status, rspVec, n, dlen) < 0)
+      eDest->Emsg("sendResp", eInfo->getErrUser(), Opname, 
+                  "async resp aborted; user gone.");
+      else if (TRACING(TRACE_RSP))
+              {XrdXrootdResponse theResp;
+               theResp.Set(ReqID.Stream());
+               TRACE(RSP, eInfo->getErrUser() <<" async " <<theResp.ID()
+                          <<' ' <<Opname <<" status " <<Status);
+              }
+
+// Release any external buffer from the errinfo object
+//
+   if (eInfo->extData()) eInfo->Reset();
+}
+
+/******************************************************************************/
+/*                              s e n d V e s p                               */
+/******************************************************************************/
+  
+void XrdXrootdCallBack::sendVesp(XrdOucErrInfo  *eInfo,
+                                 XResponseType   Status,
+                                 struct iovec   *ioV,
+                                 int             ioN)
+{
+   const char *TraceID = "sendVesp";
+   XrdXrootdReqID     ReqID;
+   int                dlen = 0;
+
+// Calculate the amount of data being sent
+//
+   for (int i = 1; i < ioN; i++) dlen += ioV[i].iov_len;
+
+// Set the destination
+//
+   ReqID.setID(eInfo->getErrArg());
+
+// Send the async response
+//
+   if (XrdXrootdResponse::Send(ReqID, Status, ioV, ioN, dlen) < 0)
       eDest->Emsg("sendResp", eInfo->getErrUser(), Opname, 
                   "async resp aborted; user gone.");
       else if (TRACING(TRACE_RSP))

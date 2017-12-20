@@ -15,6 +15,16 @@
     %endif
 %endif
 
+%if %{?fedora}%{!?fedora:0} >= 22
+    %define use_libc_semaphore 1
+%else
+    %define use_libc_semaphore 0
+%endif
+
+%if %{?_with_ceph11:1}%{!?_with_ceph11:0}
+    %define _with_ceph 1
+%endif
+
 # Remove default rpm python bytecompiling scripts
 %global __os_install_post \
     %(echo '%{__os_install_post}' | \
@@ -27,7 +37,7 @@
 Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
-Release:   __RELEASE__%{?dist}%{?_with_cpp11:.cpp11}%{?_with_clang:.clang}
+Release:   __RELEASE__%{?dist}%{?_with_clang:.clang}
 Summary:   Extended ROOT file server
 Group:     System Environment/Daemons
 License:   LGPLv3+
@@ -47,13 +57,20 @@ BuildRoot: %{_tmppath}/%{name}-root
 BuildRequires: cmake
 BuildRequires: krb5-devel
 BuildRequires: readline-devel
-BuildRequires: openssl-devel
 BuildRequires: fuse-devel
 BuildRequires: libxml2-devel
 BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
-BuildRequires: python-devel
+
+BuildRequires: python2-devel
+%if %{?fedora}%{!?fedora:0} >= 13
+BuildRequires: python3-devel
+%else
+BuildRequires: python34-devel
+%endif
+
+BuildRequires: openssl-devel
 
 BuildRequires: selinux-policy-devel
 
@@ -62,7 +79,12 @@ BuildRequires: cppunit-devel
 %endif
 
 %if %{?_with_ceph:1}%{!?_with_ceph:0}
-BuildRequires: ceph-devel
+    %if %{?_with_ceph11:1}%{!?_with_ceph11:0}
+BuildRequires: librados-devel >= 11.0
+BuildRequires: libradosstriper-devel >= 11.0
+    %else
+BuildRequires: ceph-devel >= 0.87
+    %endif
 %endif
 
 BuildRequires:	doxygen
@@ -80,6 +102,7 @@ Requires:	%{name}-selinux = %{epoch}:%{version}-%{release}
 
 %if %{use_systemd}
 BuildRequires:    systemd
+BuildRequires:    systemd-devel
 Requires(pre):		systemd
 Requires(post):		systemd
 Requires(preun):	systemd
@@ -135,6 +158,9 @@ development.
 Summary:	Libraries used by xrootd clients
 Group:		System Environment/Libraries
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
+%if %{use_libc_semaphore}
+Requires:       glibc >= 2.21
+%endif
 
 %description client-libs
 This package contains libraries used by xrootd clients.
@@ -185,9 +211,6 @@ server development.
 Summary:	Legacy xrootd headers
 Group:		Development/Libraries
 Requires:	%{name}-libs = %{epoch}:%{version}-%{release}
-%if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
-BuildArch:	noarch
-%endif
 
 %description private-devel
 This package contains some private xrootd headers. The use of these
@@ -236,15 +259,36 @@ This package contains the FUSE (file system in user space) xrootd mount
 tool.
 
 #-------------------------------------------------------------------------------
-# python
+# python2
 #-------------------------------------------------------------------------------
-%package python
-Summary:	Python bindings for XRootD
-Group:		Development/Libraries
-Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+%package -n python2-%{name}
+Summary:       Python 2 bindings for XRootD
+Group:         Development/Libraries
+%if %{?fedora}%{!?fedora:0} >= 13
+%{?python_provide:%python_provide python2-%{name}}
+%else
+Provides:      python-%{name}
+%endif
+Provides:      %{name}-python = %{epoch}:%{version}-%{release}
+Obsoletes:     %{name}-python < 1:4.8.0-1
+Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
-%description python
-Python bindings for XRootD
+%description -n python2-xrootd
+Python 2 bindings for XRootD
+
+#-------------------------------------------------------------------------------
+# python3
+#-------------------------------------------------------------------------------
+%package -n python3-%{name}
+Summary:       Python 3 bindings for XRootD
+Group:         Development/Libraries
+%if %{?fedora}%{!?fedora:0} >= 13
+%{?python_provide:%python_provide python3-%{name}}
+%endif
+Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+%description -n python3-xrootd
+Python 3 bindings for XRootD
 
 #-------------------------------------------------------------------------------
 # doc
@@ -336,10 +380,6 @@ This package contains compatibility binaries for xrootd 3 servers.
 %build
 cd xrootd
 
-%if %{?_with_cpp11:1}%{!?_with_cpp11:0}
-export CXXFLAGS=-std=c++11
-%endif
-
 %if %{?_with_clang:1}%{!?_with_clang:0}
 export CC=clang
 export CXX=clang++
@@ -347,11 +387,18 @@ export CXX=clang++
 
 mkdir build
 pushd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 %if %{?_with_tests:1}%{!?_with_tests:0}
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=TRUE ../
+      -DENABLE_TESTS=TRUE \
 %else
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
+      -DENABLE_TESTS=FALSE \
 %endif
+%if %{?_with_ceph:1}%{!?_with_ceph:0}
+      -DENABLE_CEPH=TRUE \
+%else
+      -DENABLE_CEPH=FALSE \
+%endif
+      -DUSE_LIBC_SEMAPHORE=%{use_libc_semaphore} ../
 
 make -i VERBOSE=1 %{?_smp_mflags}
 popd
@@ -371,6 +418,11 @@ make VERBOSE=1 %{?_smp_mflags}
 popd
 popd
 %endif
+
+# build python3 bindings
+pushd build/bindings/python
+%py3_build
+popd
 
 #-------------------------------------------------------------------------------
 # Installation
@@ -429,9 +481,15 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
 
 mkdir -p $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/xrootd@.service $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/xrdhttp@.socket   $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/xrootd@.socket    $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/cmsd@.service $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/frm_xfrd@.service $RPM_BUILD_ROOT%{_unitdir}
 install -m 644 packaging/common/frm_purged@.service $RPM_BUILD_ROOT%{_unitdir}
+
+# tmpfiles.d
+mkdir -p $RPM_BUILD_ROOT%{_tmpfilesdir}
+install -m 0644 packaging/rhel/xrootd.tmpfiles $RPM_BUILD_ROOT%{_tmpfilesdir}/%{name}.conf
 
 %else
 
@@ -453,6 +511,11 @@ install -p -m 644 packaging/common/xrootd.logrotate $RPM_BUILD_ROOT%{_sysconfdir
 
 install -m 644 packaging/common/xrootd-clustered.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd-clustered.cfg
 install -m 644 packaging/common/xrootd-standalone.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd-standalone.cfg
+install -m 644 packaging/common/xrootd-filecache-clustered.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd-filecache-clustered.cfg
+install -m 644 packaging/common/xrootd-filecache-standalone.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd-filecache-standalone.cfg
+%if %{use_systemd}
+install -m 644 packaging/common/xrootd-http.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd-http.cfg
+%endif
 
 # client plug-in config
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d
@@ -469,6 +532,11 @@ cp -pr doxydoc/html %{buildroot}%{_docdir}/%{name}-%{version}
 mkdir -p %{buildroot}%{_datadir}/selinux/packages/%{name}
 install -m 644 -p packaging/common/xrootd.pp \
     %{buildroot}%{_datadir}/selinux/packages/%{name}/%{name}.pp
+
+# install python3 bindings
+pushd build/bindings/python
+%py3_install
+popd
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -596,6 +664,7 @@ fi
 %{_bindir}/xrdmapc
 %{_bindir}/xrootd
 %{_bindir}/xrdpfc_print
+%{_bindir}/xrdacctest
 %{_mandir}/man8/cmsd.8*
 %{_mandir}/man8/cns_ssi.8*
 %{_mandir}/man8/frm_admin.8*
@@ -611,6 +680,11 @@ fi
 %{_datadir}/xrootd
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-clustered.cfg
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-standalone.cfg
+%attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-filecache-clustered.cfg
+%attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-filecache-standalone.cfg
+%if %{use_systemd}
+%attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-http.cfg
+%endif
 %attr(-,xrootd,xrootd) %dir %{_var}/log/xrootd
 %attr(-,xrootd,xrootd) %dir %{_var}/run/xrootd
 %attr(-,xrootd,xrootd) %dir %{_var}/spool/xrootd
@@ -618,6 +692,7 @@ fi
 
 %if %{use_systemd}
 %{_unitdir}/*
+%{_tmpfilesdir}/%{name}.conf
 %else
 %config(noreplace) %{_sysconfdir}/sysconfig/xrootd
 %{_initrddir}/*
@@ -626,12 +701,14 @@ fi
 %files libs
 %defattr(-,root,root,-)
 %{_libdir}/libXrdAppUtils.so.1*
+%{_libdir}/libXrdClProxyPlugin-4.so
 %{_libdir}/libXrdCks*-4.so
 %{_libdir}/libXrdCrypto.so.1*
 %{_libdir}/libXrdCryptoLite.so.1*
 %{_libdir}/libXrdCryptossl-4.so
 %{_libdir}/libXrdSec*-4.so
 %{_libdir}/libXrdUtils.so.*
+%{_libdir}/libXrdXml.so.*
 
 %files devel
 %defattr(-,root,root,-)
@@ -649,6 +726,8 @@ fi
 %{_libdir}/libXrdCrypto.so
 %{_libdir}/libXrdCryptoLite.so
 %{_libdir}/libXrdUtils.so
+%{_libdir}/libXrdXml.so
+%{_includedir}/xrootd/XrdXml/XrdXmlReader.hh
 
 %files client-libs
 %defattr(-,root,root,-)
@@ -664,6 +743,7 @@ fi
 
 %files client-devel
 %defattr(-,root,root,-)
+%{_bindir}/xrdgsitest
 %{_includedir}/xrootd/XrdCl
 %{_includedir}/xrootd/XrdClient
 %{_includedir}/xrootd/XrdPosix
@@ -671,6 +751,7 @@ fi
 %{_libdir}/libXrdClient.so
 %{_libdir}/libXrdFfs.so
 %{_libdir}/libXrdPosix.so
+%{_mandir}/man1/xrdgsitest.1*
 
 %files server-libs
 %defattr(-,root,root,-)
@@ -678,15 +759,22 @@ fi
 %{_libdir}/libXrdPss-4.so
 %{_libdir}/libXrdXrootd-4.so
 %{_libdir}/libXrdFileCache-4.so
+%{_libdir}/libXrdBlacklistDecision-4.so
 %{_libdir}/libXrdHttp-4.so
+%{_libdir}/libXrdN2No2p-4.so
 %{_libdir}/libXrdOssSIgpfsT-4.so
 %{_libdir}/libXrdServer.so.*
+%{_libdir}/libXrdSsi-4.so
+%{_libdir}/libXrdSsiLib.so.*
+%{_libdir}/libXrdSsiLog-4.so
+%{_libdir}/libXrdSsiShMap.so.*
 %{_libdir}/libXrdThrottle-4.so
 
 %files server-devel
 %defattr(-,root,root,-)
 %{_includedir}/xrootd/XrdAcc
 %{_includedir}/xrootd/XrdCms
+%{_includedir}/xrootd/XrdFileCache
 %{_includedir}/xrootd/XrdOss
 %{_includedir}/xrootd/XrdSfs
 %{_includedir}/xrootd/XrdXrootd
@@ -696,6 +784,8 @@ fi
 %files private-devel
 %defattr(-,root,root,-)
 %{_includedir}/xrootd/private
+%{_libdir}/libXrdSsiLib.so
+%{_libdir}/libXrdSsiShMap.so
 
 %files client
 %defattr(-,root,root,-)
@@ -724,8 +814,12 @@ fi
 %{_mandir}/man1/xrootdfs.1*
 %dir %{_sysconfdir}/xrootd
 
-%files python -f xrootd/build/PYTHON_INSTALLED_FILES
+%files -n python2-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
 %defattr(-,root,root,-)
+
+%files -n python3-%{name}
+%defattr(-,root,root,-)
+%{python3_sitearch}/*
 
 %files doc
 %defattr(-,root,root,-)
@@ -743,6 +837,7 @@ fi
 %files tests
 %defattr(-,root,root,-)
 %{_bindir}/text-runner
+%{_bindir}/xrdshmap
 %{_libdir}/libXrdClTests.so
 %{_libdir}/libXrdClTestsHelper.so
 %{_libdir}/libXrdClTestMonitor*.so
@@ -771,7 +866,6 @@ fi
 %{_libdir}/libXrdPosix.so.1*
 %{_libdir}/libXrdSecgsiAuthzVO.so*
 %{_libdir}/libXrdSecgsiGMAPDN.so*
-%{_libdir}/libXrdSecgsiGMAPLDAP.so*
 %{_libdir}/libXrdSecgsi.so*
 %{_libdir}/libXrdSeckrb5.so*
 %{_libdir}/libXrdSecpwd.so*
@@ -798,6 +892,13 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Fri Nov 10 2017 Michal Simon <michal.simon@cern.ch> - 1:4.8.0-1
+- Add python3 sub-package
+- Rename python sub-package
+
+* Tue Dec 13 2016 Gerardo Ganis <gerardo.ganis@cern.ch>
+- Add xrdgsitest to xrootd-client-devel
+
 * Mon Mar 16 2015 Lukasz Janyst <ljanyst@cern.ch>
 - create the python package
 

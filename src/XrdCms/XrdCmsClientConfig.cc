@@ -85,8 +85,6 @@ int XrdCmsClientConfig::Configure(const char *cfn, configWhat What,
 
   Output:   0 upon success or !0 otherwise.
 */
-   EPNAME("Configure");
-   static const char *mySid = 0;
    XrdOucTList *tpe, *tpl;
    int i, NoGo = 0;
    const char *eText = 0;
@@ -121,18 +119,22 @@ int XrdCmsClientConfig::Configure(const char *cfn, configWhat What,
    XrdOucEnv::Export("XRDCMSPATH", temp);
    XrdOucEnv::Export("XRDOLBPATH", temp); //Compatability
 
+// Determine what type of role we are playing
+//
+        if (What & configServer) sfx = 's';
+   else if (What & configSuper)  sfx = 'u';
+   else                          sfx = 'm';
+
+// Determine which manager list we will be using
+//
+   if (How & configProxy)
+      {sfx = toupper(sfx);
+       tpl = PanList;
+      } else tpl = ManList;
+
 // Generate the system ID for this configuration.
 //
-   tpl = (How & configProxy ? PanList : ManList);
-   if (!mySid)
-      {     if (What & configServer) sfx = 's';
-       else if (What & configSuper)  sfx = 'u';
-       else                          sfx = 'm';
-       if (!(mySid = XrdCmsSecurity::setSystemID(tpl, myName, myHost, sfx)))
-          {Say.Emsg("xrootd","Unable to generate system ID; too many managers.");
-           NoGo = 1;
-          } else {DEBUG("Global System Identification: " <<mySid);}
-      }
+   if (!ConfigSID(cfn, tpl, sfx)) NoGo = 1;
 
 // Export the manager list
 //
@@ -233,6 +235,36 @@ int XrdCmsClientConfig::ConfigProc(const char *ConfigFN)
 }
 
 /******************************************************************************/
+/*                             C o n f i g S i d                              */
+/******************************************************************************/
+  
+bool XrdCmsClientConfig::ConfigSID(const char *cFN, XrdOucTList *tpl, char sfx)
+{
+   char *sidVal;
+
+// Get the node ID if we need to
+//
+   if (VNID_Lib)
+      {myVNID = XrdCmsSecurity::getVnId(Say, cFN, VNID_Lib, VNID_Parms, sfx);
+       if (!myVNID) return false;
+      }
+
+// Generate the system ID and set the cluster ID
+//
+   sidVal = XrdCmsSecurity::setSystemID(tpl, myVNID, cidTag, sfx);
+   if (!sidVal || *sidVal == '!')
+      {const char *msg;
+       if (!sidVal) msg = "too many managers.";
+          else msg = sidVal+1;
+       Say.Emsg("Config ","Unable to generate system ID; ", msg);
+       return false;
+      }
+      else if (QTRACE(Debug))
+              Say.Say("Config ", "Global System Identification: ", sidVal);
+   return true;
+}
+
+/******************************************************************************/
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
 
@@ -241,11 +273,13 @@ int XrdCmsClientConfig::ConfigXeq(char *var, XrdOucStream &Config)
 
    // Process items. for either a local or a remote configuration
    //
+   TS_Xeq("cidtag",        xcidt);
    TS_Xeq("conwait",       xconw);
    TS_Xeq("manager",       xmang);
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("request",       xreqs);
    TS_Xeq("trace",         xtrac);
+   TS_Xeq("vnid",          xvnid);
    return 0;
 }
 
@@ -285,6 +319,40 @@ int XrdCmsClientConfig::xapath(XrdOucStream &Config)
 //
    if (CMSPath) free(CMSPath);
    CMSPath = strdup(pval);
+   return 0;
+}
+
+/******************************************************************************/
+/*                                 x c i d t                                  */
+/******************************************************************************/
+
+/* Function: xcidt
+
+   Purpose:  To parse the directive: cidtag <tag>
+
+             <tag>     a 1- to 16-character cluster ID tag.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsClientConfig::xcidt(XrdOucStream &Config)
+{
+    char *val;
+
+// Get the path
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Say.Emsg("Config", "tag not specified"); return 1;}
+
+// Make sure it is not too long
+//
+   if ((int)strlen(val) > 16)
+      {Say.Emsg("Config", "tag is > 16 characters"); return 1;}
+
+// Record the tag
+//
+   if (cidTag) free(cidTag);
+   cidTag = strdup(val);
    return 0;
 }
 
@@ -495,6 +563,7 @@ int XrdCmsClientConfig::xtrac(XrdOucStream &Config)
        {
         {"all",      TRACE_ALL},
         {"debug",    TRACE_Debug},
+        {"files",    TRACE_Files},
         {"forward",  TRACE_Forward},
         {"redirect", TRACE_Redirect},
         {"defer",    TRACE_Defer},
@@ -521,4 +590,45 @@ int XrdCmsClientConfig::xtrac(XrdOucStream &Config)
          }
     Trace.What = trval;
     return 0;
+}
+  
+/******************************************************************************/
+/*                                 x v n i d                                  */
+/******************************************************************************/
+
+/* Function: xvnid
+
+   Purpose:  To parse the directive: vnid {=|<|@}<vnarg> [<parms>]
+
+             <vnarg>   = - the actual vnid value
+                       < - the path of the file to be read for the vnid.
+                       @ - the path of the plugin library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsClientConfig::xvnid(XrdOucStream &Config)
+{
+    char *val, parms[1024];
+
+// Get the argument
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Say.Emsg("Config", "vnid not specified"); return 1;}
+
+// Record the path
+//
+   if (VNID_Lib) free(VNID_Lib);
+   VNID_Lib = strdup(val);
+
+// Record any parms (only if it starts with an @)
+//
+   if (VNID_Parms) {free(VNID_Parms); VNID_Parms = 0;}
+   if (*VNID_Lib == '@')
+      {if (!Config.GetRest(parms, sizeof(parms)))
+          {Say.Emsg("Config", "vnid plug-in parameters too long"); return 1;}
+       if (*parms) VNID_Parms = strdup(parms);
+      }
+   return 0;
 }

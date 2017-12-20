@@ -46,6 +46,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 //#include <libxml/parser.h>
 //#include <libxml/tree.h>
@@ -131,7 +132,8 @@ public:
   /// Build the closing part for a multipart response
   std::string buildPartialHdrEnd(char *token);
 
-  // Appends to s the opaque info that we have
+  // Appends the opaque info that we have
+  // NOTE: this function assumes that the strings are unquoted, and will quote them
   void appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow);
 
   // ----------------
@@ -152,16 +154,25 @@ public:
     rtDELETE,
     rtPROPFIND,
     rtMKCOL,
-    rtMOVE
+    rtMOVE,
+    rtPOST
   };
 
   /// The request we got
   ReqType request;
-
-  /// The resource specified by the request, complete with all opaque data
+  std::string requestverb;
+  
+  // We have to keep the headers for possible further processing
+  // by external plugins
+  std::map<std::string, std::string> allheaders;
+  
+  /// The resource specified by the request, stripped of opaque data
   XrdOucString resource;
   /// The opaque data, after parsing
   XrdOucEnv *opaque;
+  /// The resource specified by the request, including all the opaque data
+  XrdOucString resourceplusopaque;
+  
   
   /// Tells if we have finished reading the header
   bool headerok;
@@ -184,7 +195,9 @@ public:
   /// The destination field specified in the req
   std::string destination;
 
-
+  /// Additional opaque info that may come from the hdr2cgi directive
+  std::string hdr2cgistr;
+  
   //
   // Area for coordinating request and responses to/from the bridge
   //
@@ -341,7 +354,7 @@ public:
 
   virtual int File(XrdXrootd::Bridge::Context &info, //!< the result context
           int dlen //!< byte  count
-          );
+  );
 
   //-----------------------------------------------------------------------------
   //! Redirect the client to another host:port.
@@ -368,6 +381,10 @@ public:
 
 
 };
+
+
+
+void trim(std::string &str);
 
 #endif	/* XRDHTTPREQ_HH */
 

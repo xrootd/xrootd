@@ -48,7 +48,7 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
    EPNAME("X509Chain::Verify");
    errcode = kNone; 
 
-   // There must be at least a CA and a EEC. 
+   // There must be at least a CA and a { EEC or subCA }. 
    if (size < 2) {
       DEBUG("Nothing to verify (size: "<<size<<")");
       return 0;
@@ -101,19 +101,54 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
    if (plen > -1)
       plen -= 1;
    //
-   // Check the end-point entity (or sub-CA) certificate
-   while (node->Next() && strcmp(node->Next()->Cert()->Type(), "Proxy")) {
+   // Check sub-CA's certificate, if any
+   while (node->Next() && node->Next()->Cert()->type == XrdCryptoX509::kCA) {
       xsig = xcer;
       node = node->Next();
       xcer = node->Cert();
-      if (!XrdCryptoX509Chain::Verify(errcode, "EEC or sub-CA: ",
-                                      XrdCryptoX509::kUnknown,
+      if (!XrdCryptoX509Chain::Verify(errcode, "Sub-CA: ",
+                                      XrdCryptoX509::kCA,
                                       when, xcer, xsig, crl))
          return 0;
       //
       // Update the max path depth len
       if (plen > -1)
          plen -= 1;
+   }
+
+   //
+   // If subCA verification case we are done
+   if (opt & kOptsCheckSubCA) return 1;
+
+   //
+   // Check the end-point entity certificate
+   if (!node->Next() ||  // We expect somethign else if not in subCA checking mode
+       (node->Next() && node->Next()->Cert()->type != XrdCryptoX509::kEEC)) {
+      errcode = kNoEEC;
+      lastError = X509ChainError(errcode);
+      return 0;
+   }
+
+   //
+   // Check the end-point entity certificate
+   xsig = xcer;
+   node = node->Next();
+   xcer = node->Cert();
+   if (!XrdCryptoX509Chain::Verify(errcode, "EEC: ",
+                                   XrdCryptoX509::kUnknown,
+                                   when, xcer, xsig, crl))
+      return 0;
+   //
+   // Update the max path depth len
+   if (plen > -1)
+      plen -= 1;
+
+   //
+   // Only one end-point entity certificate
+   if (node->Next() && node->Next()->Cert()->type == XrdCryptoX509::kEEC) {
+      errcode = kTooManyEEC;
+      lastError = X509ChainError(errcode);
+      return 0;
    }
 
    //
@@ -125,6 +160,14 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
       // Attache to certificate
       xcer = node->Cert();
 
+      //
+      // Must be a recognized proxy certificate
+      if (xcer && xcer->type != XrdCryptoX509::kProxy) {
+         errcode = kInvalidProxy;
+         lastError = X509ChainError(errcode);
+         return 0;
+      }
+
       // Proxy subject name must follow some rules
       if (!SubjectOK(errcode, xcer))
          return 0;
@@ -133,6 +176,7 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
       int pxplen = -1; bool b;
       if (opt & kOptsRfc3820) {
          const void *extdata = xcer->GetExtension(gsiProxyCertInfo_OID);
+         if (!extdata) extdata = xcer->GetExtension(gsiProxyCertInfo_OLD_OID);
          if (!extdata || !cfact || !(cfact && (*(cfact->ProxyCertInfo()))(extdata, pxplen, &b))) {
             errcode = kMissingExtension;
             lastError = "rfc3820: ";
@@ -162,7 +206,6 @@ bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t 
    // We are done (successfully!)
    return 1;
 }
-
 
 //___________________________________________________________________________
 bool XrdCryptogsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *xcer)
@@ -202,7 +245,7 @@ bool XrdCryptogsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *xce
       if (pcn) {
          char *pcnn = 0;
          while ((pcnn = (char *) strstr(pcn+1,"/CN=")))
-	    pcn = pcnn;
+            pcn = pcnn;
          ilen = (int)(pcn - xcer->Issuer());
       }
       if (strncmp(xcer->Subject() + ilen,"/CN=",4)) {

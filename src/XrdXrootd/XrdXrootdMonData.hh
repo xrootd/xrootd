@@ -132,6 +132,7 @@ const kXR_char XROOTD_MON_TRUNC         = 0x0e;
 const kXR_char XROOTD_MON_FORCED        = 0x01;
 const kXR_char XROOTD_MON_BOUNDP        = 0x02;
 
+const int      XROOTD_MON_REDMASK       = 0x00000ff;
 const int      XROOTD_MON_SRCMASK       = 0x000000f;
 const int      XROOTD_MON_TRGMASK       = 0x7fffff0;
 const int      XROOTD_MON_NEWSTID       = 0x8000000;
@@ -161,7 +162,8 @@ enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
                hasOPS  =0x02, // If recFlag == isClose MonStatXFR + MonStatOPS
                hasSSQ  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
                hasLFN  =0x01, // If recFlag == isOpen  the lfn is present
-               hasRW   =0x02  // If recFlag == isOpen  file opened r/w
+               hasRW   =0x02, // If recFlag == isOpen  file opened r/w
+               hasSID  =0x01  // if recFlag == isTime sID is present (new rec)
               };
 
 char      recType;  // RecTval: isClose | isOpen | isTime | isXfr
@@ -183,7 +185,9 @@ struct XrdXrootdMonFileTOD
 XrdXrootdMonFileHdr Hdr;      //  8
 int                 tBeg;     // time(0) of following record
 int                 tEnd;     // time(0) when packet was sent
+kXR_int64           sID;      // Server id in lower 48 bits
 };
+
 
 // The following variable length structure exists in XrdXrootdMonFileOPN if
 // "lfn" has been specified. It exists only when recFlag & hasLFN is TRUE.

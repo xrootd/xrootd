@@ -386,6 +386,8 @@ int XrdCmsParser::mapError(int ecode)
           case kYR_ENETUNREACH:        return ENETUNREACH;
           case kYR_ENOTBLK:            return ENOTBLK;
           case kYR_EISDIR:             return EISDIR;
+          case kYR_FSError:            return ENODEV;
+          case kYR_SrvError:           return EFAULT;
           default:                     return EINVAL;
          }
 }

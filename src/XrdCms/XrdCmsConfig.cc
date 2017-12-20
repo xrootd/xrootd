@@ -45,6 +45,7 @@
 
 #include "XrdVersion.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "Xrd/XrdSendQ.hh"
 
 #include "XrdCms/XrdCmsAdmin.hh"
 #include "XrdCms/XrdCmsBaseFS.hh"
@@ -84,7 +85,6 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -172,7 +172,7 @@ public:
 
 static void Start() {static PingClock selfie;}
 
-          PingClock() : XrdJob("ping clock") {DoIt();}
+          PingClock() : XrdJob(".ping clock") {DoIt();}
          ~PingClock() {}
 private:
 };
@@ -258,6 +258,11 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
    sprintf(buff, "%s@%s", XrdOucUtils::InstName(myInsName), myName);
    myInstance = strdup(buff);
 
+// This is somewhat poor but we need to establish the default non-blocking
+// message queue limit for the cms (this being 30) which can be overriden.
+//
+   XrdSendQ::SetQM(30);
+
 // Print herald
 //
    Say.Say("++++++ ", myInstance, " phase 1 initialization started.");
@@ -293,7 +298,7 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 // Create a text description of our role for use in messages
 //
    if (!myRole)
-      {XrdCmsRole::RoleID rid;
+      {XrdCmsRole::RoleID rid = XrdCmsRole::noRole;
              if (isMeta)        rid = XrdCmsRole::MetaManager;
         else if (isPeer)        rid = XrdCmsRole::Peer;
         else if (isProxy)
@@ -326,7 +331,8 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
                NoGo = 1;
               }
           }
-          else PortTCP = 0;
+          else if ((isManager && isServer)) PortTCP = PortSUP;
+                  else PortTCP = 0;
       }
 
 // If we are configured in proxy mode then we are running a shared filesystem
@@ -355,9 +361,9 @@ int XrdCmsConfig::Configure2()
 
   Output:   0 upon success or !0 otherwise.
 */
-   EPNAME("Configure2");
    int Who, NoGo = 0;
    char *p, buff[512];
+   std::string envData;
 
 // Print herald
 //
@@ -378,7 +384,7 @@ int XrdCmsConfig::Configure2()
 //
    if (QryDelay < 0) QryDelay = LUPDelay;
    if (isManager) 
-      NoGo = !Cache.Init(cachelife, LUPDelay, QryDelay, baseFS.isDFS());
+      NoGo = !Cache.Init(cachelife,LUPDelay,QryDelay,baseFS.isDFS(),emptylife);
 
 // Issue warning if the adminpath resides in /tmp
 //
@@ -399,14 +405,24 @@ int XrdCmsConfig::Configure2()
 
 // Develop a stable unique identifier for this cmsd independent of the port
 //
-   if (!NoGo && !(mySID = setupSid()))
-      {Say.Emsg("cmsd", "Unable to generate system ID; too many managers.");
-       NoGo = 1;
-      } else {DEBUG("Global System Identification: " <<mySID);}
+   if (!NoGo)
+      {if (!(mySID = setupSid())) NoGo = 1;
+          else {if (QTRACE(Debug))
+                   Say.Say("Config ", "Global System Identification: ", mySID);
+                if (Config.mySite)
+                   {envData += "site=";
+                    envData += mySite;
+                   }
+               }
+      }
+
+// Create envCGI string for logins
+//
+   envCGI = (envData.length() > 0 ? strdup(envData.c_str()) : 0);
 
 // If we need a name library, load it now
 //
-   if ((LocalRoot || RemotRoot) && ConfigN2N()) NoGo = 1;
+   if ((LocalRoot || RemotRoot || N2N_Lib) && ConfigN2N()) NoGo = 1;
 
 // Configure the OSS, the base filesystem, and initialize the prep queue
 //
@@ -483,6 +499,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
    TS_Xeq("altds",         xaltds);  // Server,  non-dynamic
    TS_Xeq("blacklist",     xblk);    // Manager, non-dynamic
+   TS_Xeq("cidtag",        xcid);    // Any,     non-dynamic
    TS_Xeq("defaults",      xdefs);   // Server,  non-dynamic
    TS_Xeq("dfs",           xdfs);    // Any,     non-dynamic
    TS_Xeq("export",        xexpo);   // Any,     non-dynamic
@@ -490,6 +507,8 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("localroot",     xlclrt);  // Any,     non-dynamic
    TS_Xeq("manager",       xmang);   // Server,  non-dynamic
    TS_Xeq("namelib",       xnml);    // Server,  non-dynamic
+   TS_Xeq("vnid",          xvnid);   // Server,  non-dynamic
+   TS_Xeq("nbsendq",       xnbsq);   // Any      non-dynamic
    TS_Xeq("osslib",        xolib);   // Any,     non-dynamic
    TS_Xeq("perf",          xperf);   // Server,  non-dynamic
    TS_Xeq("pidpath",       xpidf);   // Any,     non-dynamic
@@ -500,6 +519,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("seclib",        xsecl);   // Server,  non-dynamic
    TS_Xeq("subcluster",    xsubc);   // Manager, non-dynamic
+   TS_Xeq("superport",     xsupp);   // Super,   non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
    TS_Xer("whitelist",     xblk,true);//Manager, non-dynamic
@@ -636,6 +656,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    QryDelay =-1;
    QryMinum = 0;
    LUPHold  = 178;
+   DELDelay = 960;  // 15 minutes
    DRPDelay = 10*60;
    PSDelay  = 0;
    RWDelay  = 2;
@@ -647,6 +668,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    MaxLoad  = 0x7fffffff;
    MsgTTL   = 7;
    PortTCP  = 0;
+   PortSUP  = 0;
    P_cpu    = 0;
    P_fuzz   = 20;
    P_gsdf   = 0;
@@ -672,13 +694,15 @@ void XrdCmsConfig::ConfigDefaults(void)
    DiskOK   = 0;          // Does not have any disk
    myPaths  = (char *)""; // Default is 'r /'
    ConfigFN = 0;
-   sched_RR = 0;
+   sched_RR = sched_Pack = sched_Level = 0; sched_Force = 1;
    isManager= 0;
    isMeta   = 0;
    isPeer   = 0;
    isSolo   = 0;
    isProxy  = 0;
    isServer = 0;
+   VNID_Lib = 0;
+   VNID_Parms=0;
    N2N_Lib  = 0;
    N2N_Parms= 0;
    lcl_N2N  = 0;
@@ -693,8 +717,11 @@ void XrdCmsConfig::ConfigDefaults(void)
    ManList   =0;
    NanList   =0;
    SanList   =0;
+   myVNID   = 0;
    mySID    = 0;
    mySite   = 0;
+   envCGI   = 0;
+   cidTag   = 0;
    ifList    =0;
    perfint  = 3*60;
    perfpgm  = 0;
@@ -706,6 +733,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    pidPath  = strdup("/tmp");
    Police   = 0;
    cachelife= 8*60*60;
+   emptylife= 0;
    pendplife=   60*60*24*7;
    DiskLinger=0;
    ProgCH   = 0;
@@ -727,6 +755,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    adsPort     = 0;
    adsMon      = 0;
    adsProt     = 0;
+   nbSQ        = 1;
 
 // Compute the time zone we are in
 //
@@ -746,7 +775,7 @@ int XrdCmsConfig::ConfigN2N()
 
 // Get the plugin
 //
-   if (!(xeq_N2N = n2nLoader.Load(N2N_Lib, *myVInfo))) return 1;
+   if (!(xeq_N2N = n2nLoader.Load(N2N_Lib, *myVInfo, &theEnv))) return 1;
 
 // Optimize the local case
 //
@@ -1036,7 +1065,9 @@ int XrdCmsConfig::setupManager()
    sched_RR = (100 == P_fuzz) || !AskPerf
               || !(P_cpu || P_io || P_load || P_mem || P_pag);
    if (sched_RR)
-      Say.Say("Config round robin scheduling in effect.");
+      {Say.Say("Config round robin scheduling in effect.");
+       sched_Level = 0;
+      }
 
 // Create statistical monitoring thread
 //
@@ -1131,7 +1162,7 @@ int XrdCmsConfig::setupServer()
 //
    return 0;
 }
-
+  
 /******************************************************************************/
 /*                              s e t u p S i d                               */
 /******************************************************************************/
@@ -1139,7 +1170,7 @@ int XrdCmsConfig::setupServer()
 char *XrdCmsConfig::setupSid()
 {
    XrdOucTList *tp = (NanList ? NanList : ManList);
-   char sfx;
+   char *sidVal, sfx;
 
 // Grab the interfaces. This is normally set as an envar. If present then
 // we will copy it because we must use it permanently.
@@ -1155,10 +1186,26 @@ char *XrdCmsConfig::setupSid()
 //
    if (isManager && isServer) sfx = 'u';
       else sfx = (isManager ? 'm' : 's');
+   if (isProxy) sfx = toupper(sfx);
+
+// Get the node ID if we need to
+//
+   if (VNID_Lib)
+      {myVNID = XrdCmsSecurity::getVnId(Say,ConfigFN,VNID_Lib,VNID_Parms,sfx);
+       if (!myVNID) return 0;
+      }
 
 // Generate the system ID and set the cluster ID
 //
-   return XrdCmsSecurity::setSystemID(tp, myInsName, myName, sfx);
+   sidVal = XrdCmsSecurity::setSystemID(tp, myVNID, cidTag, sfx);
+   if (!sidVal || *sidVal == '!')
+      {const char *msg;
+       if (!sidVal) msg = "too many managers.";
+          else msg = sidVal+1;
+       Say.Emsg("cmsd","Unable to generate system ID; ", msg);
+       return 0;
+      }
+   return sidVal;
 }
 
 /******************************************************************************/
@@ -1383,6 +1430,40 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile, bool iswl)
 }
   
 /******************************************************************************/
+/*                                  x c i d                                   */
+/******************************************************************************/
+
+/* Function: xcid
+
+   Purpose:  To parse the directive: cidtag <tag>
+
+             <tag>     a 1- to 16-character cluster ID tag.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xcid(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val;
+
+// Get the path
+//
+   if (!(val = CFile.GetWord()) || !val[0])
+      {eDest->Emsg("Config", "tag not specified"); return 1;}
+
+// Make sure it is not too long
+//
+   if ((int)strlen(val) > 16)
+      {eDest->Emsg("Config", "tag is > 16 characters"); return 1;}
+
+// Record the tag
+//
+   if (cidTag) free(cidTag);
+   cidTag = strdup(val);
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                x d e l a y                                 */
 /******************************************************************************/
 
@@ -1394,13 +1475,16 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile, bool iswl)
                                            [suspend <sec>] [drop <sec>]
                                            [service <sec>] [hold <msec>]
                                            [peer <sec>] [rw <lvl>] [qdl <sec>]
-                                           [qdn <cnt>]
+                                           [qdn <cnt>] [delnode <sec>]
+                                           [nostage <cnt>]
 
+   delnode   <sec>     maximum seconds to wait to be able to delete a node.
    discard   <cnt>     maximum number a message may be forwarded.
    drop      <sec>     seconds to delay a drop of an offline server.
    full      <sec>     seconds to delay client when no servers have space.
    hold      <msec>    millseconds to optimistically hold requests.
    lookup    <sec>     seconds to delay client when finding a file.
+   nostage   <cnt>     Maximum number of staging reselections allowed.
    overload  <sec>     seconds to delay client when all servers overloaded.
    peer      <sec>     maximum seconds client may be delayed before peer
                        selection is triggered.
@@ -1422,15 +1506,17 @@ int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile, bool iswl)
 int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
 {   char *val;
     const char *etxt = "invalid delay option";
-    int  i, ppp, minV = 1, ispercent = 0;
+    int  i, ppp, minV = 1, ispercent = 0, noStage = 0;
     static struct delayopts {const char *opname; int *oploc; int istime;}
            dyopts[] =
        {
+        {"delnode",  &DELDelay, 1},
         {"discard",  &MsgTTL,   0},
         {"drop",     &DRPDelay, 1},
         {"full",     &DiskWT,  -1},
         {"hold",     &LUPHold,  0},
         {"lookup",   &LUPDelay, 1},
+        {"nostage",  &noStage,  01},
         {"overload", &MaxDelay,-1},
         {"peer",     &PSDelay,  1},
         {"qdl",      &QryDelay, 1},
@@ -1481,7 +1567,11 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
               eDest->Say("Config warning: ignoring invalid delay option '",val,"'.");
            val = CFile.GetWord();
           }
-     return 0;
+
+// Set the nostage option here
+//
+   if (noStage) baseFS.SetTries(false, noStage);
+   return 0;
 }
 
 /******************************************************************************/
@@ -1540,6 +1630,8 @@ int XrdCmsConfig::xdefs(XrdSysError *eDest, XrdOucStream &CFile)
                                  redirecting a client. This is the
                                  default for non-proxy configurations.    top
 
+             retries <n>         Maximum number of select retries.
+
    Type: Any, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
@@ -1549,7 +1641,7 @@ int XrdCmsConfig::xdfs(XrdSysError *eDest, XrdOucStream &CFile)
 {
     int Opts = XrdCmsBaseFS::DFSys | (isProxy ? XrdCmsBaseFS::Immed : 0)
              | (!isManager && isServer ? XrdCmsBaseFS::Servr: 0);
-    int Hold = 0, limCent = 0, limFix = 0, limV = 0, qMax = 0;
+    int Hold = 0, limCent = 0, limFix = 0, limV = 0, qMax = 0, rTry = 0;
     char *val;
 
 // If we are a meta-manager or a peer, ignore this option
@@ -1599,6 +1691,11 @@ do{     if (!strcmp("mdhold",  val))
                   return 1;
                  }
            }
+   else if (!strcmp("retries", val))
+           {if (!(val = CFile.GetWord()))
+               {eDest->Emsg("Config","retries value not specified.");    return 1;}
+            if (XrdOuca2x::a2i(*eDest, "retries value", val, &rTry, 1))  return 1;
+           }
    else {eDest->Emsg("Config", "invalid dfs option '",val,"'."); return 1;}
   } while((val = CFile.GetWord()));
 
@@ -1624,6 +1721,7 @@ do{     if (!strcmp("mdhold",  val))
 
 // All done, simply set the values
 //
+   baseFS.SetTries(true, rTry);
    baseFS.Limit(limV, qMax);
    baseFS.Init(Opts, Hold, Hold*10);
    return 0;
@@ -1735,9 +1833,10 @@ int XrdCmsConfig::xfsxq(XrdSysError *eDest, XrdOucStream &CFile)
 
 /* Function: xfxhld
 
-   Purpose:  To parse the directive: fxhold <sec>
+   Purpose:  To parse the directive: fxhold [noloc <nls>] <sec>
 
-             <sec>  number of seconds (or M, H, etc) to cache file existence
+             <nls>  number of seconds (or M, H, etc) to cache file non-existence
+             <sec>  number of seconds (or M, H, etc) to cache file     existence
 
    Type: Manager only, dynamic.
 
@@ -1753,6 +1852,15 @@ int XrdCmsConfig::xfxhld(XrdSysError *eDest, XrdOucStream &CFile)
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "fxhold value not specified."); return 1;}
+
+    if (!strcmp(val, "noloc"))
+       {if (!(val = CFile.GetWord()))
+           {eDest->Emsg("Config","fxhold noloc value not specified."); return 1;}
+        if (XrdOuca2x::a2tm(*eDest, "fxhold noloc value", val, &ct,
+                                    XrdCmsCache:: min_nxTime)) return 1;
+        emptylife = ct;
+        if (!(val = CFile.GetWord())) return 0;
+       }
 
     if (XrdOuca2x::a2tm(*eDest, "fxhold value", val, &ct, 60)) return 1;
 
@@ -1906,6 +2014,67 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
 // Parse the specification and return
 //
    return (XrdCmsUtils::ParseMan(eDest, theList, hSpec, hPort, myPort) ? 0 : 1);
+}
+  
+/******************************************************************************/
+/*                                 x n b s q                                  */
+/******************************************************************************/
+
+/* Function: xnbsq
+
+   Purpose:  To parse the directive: nbsendq [<opt>] [warn <nw>] [maxq <mq>]
+
+             <opt>     One of: all | off | remote
+             <nw>      Warning will be issued    at a <nw> backlog.
+             <mq>      Message will be discarded at a <mq> backlog (<mq> may
+                       also be the word "none").
+
+   Defaults: remote warn 3 maxq 30
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xnbsq(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val, xopt[16];
+    int  ival;
+    bool xAll = false, xOff = false, xRmt = false;
+
+//  Process the optional "all", "off" or "remote"
+//
+    if ((val = CFile.GetWord()))
+       {if ((xAll = !strcmp("all",    val))
+        ||  (xOff = !strcmp("off",    val))
+        ||  (xRmt = !strcmp("remote", val)))
+            {     if (xAll) nbSQ = 2;
+             else if (xRmt) nbSQ = 1;
+             else           nbSQ = 0;
+             val = CFile.GetWord();
+           }
+       } else {eDest->Emsg("Config","nbsendq option not specified"); return 1;}
+
+// Now scan for the other options
+//
+   while(val && *val)
+        {strncpy(xopt, val, sizeof(xopt));
+         if (!(val= CFile.GetWord()) || *val == 0)
+            {eDest->Emsg("Config","nbsendq ", xopt, " argument not specified");
+             return 1;
+            }
+              if (!strcmp(xopt, "maxq"))
+                 {if (!strcmp("val", "none")) ival = -1;
+                     else if (XrdOuca2x::a2i(*eDest,"nbsendq maxq",val,&ival,0))
+                             return 1;
+                  XrdSendQ::SetQM(ival);
+                 }
+         else if (!strcmp(xopt, "warn"))
+                 {if (XrdOuca2x::a2i(*eDest,"nbsendq warn",val,&ival,0)) return 1;
+                  XrdSendQ::SetQW(ival);
+                 }
+         else eDest->Say("Config warning: ignoring invalid nbsendq option '",xopt,"'.");
+         val = CFile.GetWord();
+        }
+   return 0;
 }
   
 /******************************************************************************/
@@ -2467,6 +2636,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
                                        [io <p>] [runq <p>]
                                        [mem <p>] [pag <p>] [space <p>]
                                        [fuzz <p>] [maxload <p>] [refreset <sec>]
+                [affinity [default] {none | weak | strong | strict}]
 
              <p>      is the percentage to include in the load as a value
                       between 0 and 100. For fuzz this is the largest
@@ -2501,6 +2671,7 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
         {"space",    100, &P_dsk},
         {"maxload",  100, &MaxLoad},
         {"refreset", -1,  &RefReset},
+        {"affinity", -2,  0},
         {"tryhname",   1, &V_hntry}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
@@ -2515,6 +2686,10 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
                       {eDest->Emsg("Config", "sched ", scopts[i].opname,
                                    "argument not specified.");
                        return 1;
+                      }
+                   if (scopts[i].maxv == -2)
+                      {if (!xschedm(val, eDest, CFile)) return 1;
+                       break;
                       }
                    if (scopts[i].maxv < 0)
                       {if (XrdOuca2x::a2tm(*eDest,"sched value", val, &ppp, 0)) 
@@ -2535,6 +2710,39 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
    if (V_hntry >= 0) DoHnTry = static_cast<char>(V_hntry);
 
     return 0;
+}
+
+/******************************************************************************/
+
+int XrdCmsConfig::xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile)
+{
+
+   if (!strcmp(val, "default"))
+      {sched_Force = 0;
+       if (!(val = CFile.GetWord()))
+          {eDest->Emsg("Config", "sched affinity not specified"); return 0;}
+      } else sched_Force = 1;
+
+   if (!strcmp(val, "none"))
+      {sched_Pack = sched_Level = 0;
+       return 1;
+      }
+
+   sched_Pack = sched_Level = 1;
+
+   if (!strcmp(val, "weak")) return 1;
+
+   sched_Pack = 2;
+
+   if (!strcmp(val, "strong")) return 1;
+
+   if (!strcmp(val, "strict"))
+      {sched_Level = 0;
+       return 1;
+      }
+
+   eDest->Emsg("Config", "Invalid sched affinity -", val);
+   return 0;
 }
 
 /******************************************************************************/
@@ -2618,6 +2826,7 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
     char *val;
     int i, alinger = -1, arecalc = -1, minfP = -1, hwmP = -1;
     long long minf = -1, hwm = -1;
+    bool haveopt = false;
 
     while((val = CFile.GetWord()))
       {    if (!strcmp("linger", val))
@@ -2635,7 +2844,7 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
                   {eDest->Emsg("Config", "space min value not specified"); return 1;}
                break;
               }
-      else if (!strcmp("mwfiles", val)) DoMWChk = 0;
+      else if (!strcmp("mwfiles", val)) {DoMWChk = 0; haveopt = true;}
       else if (isdigit(*val)) break;
       else {eDest->Emsg("Config", "invalid space parameters"); return 1;}
       }
@@ -2682,7 +2891,7 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
 
     if (val) {eDest->Emsg("Config", "invalid space parameter -", val); return 1;}
     
-    if (alinger < 0 && arecalc < 0 && minf < 0)
+    if (!haveopt && alinger < 0 && arecalc < 0 && minf < 0)
        {eDest->Emsg("Config", "no space values specified"); return 1;}
 
     if (alinger >= 0) DiskLinger = alinger;
@@ -2758,6 +2967,50 @@ int XrdCmsConfig::xsubc(XrdSysError *eDest, XrdOucStream &CFile)
 }
   
 /******************************************************************************/
+/*                                 x s u p p                                  */
+/******************************************************************************/
+
+/* Function: xsupp
+
+   Purpose:  To parse the directive: superport <tcpnum>
+                                               [if [<hlst>] [named <nlst>]]
+
+             <tcpnum>   number of the tcp port for incomming requests
+             <hlst>     list of applicable host patterns
+             <nlst>     list of applicable instance names.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdCmsConfig::xsupp(XrdSysError *eDest, XrdOucStream &CFile)
+{   const char *invp = "superport port";
+    char *val, cport[32];
+    int rc, pnum;
+
+    if (!(val = CFile.GetWord()))
+       {eDest->Emsg("Config", "tcp port not specified"); return 1;}
+
+    strncpy(cport, val, sizeof(cport)-1); cport[sizeof(cport)-1] = '\0';
+
+    if ((val = CFile.GetWord()) && !strcmp("if", val))
+       if ((rc = XrdOucUtils::doIf(eDest,CFile,"superport directive",
+                                   myName,myInsName,myProg))<=0)
+          {if (!rc) CFile.noEcho(); return rc < 0;}
+
+         if (!strcmp(cport, "any")) pnum = 0;
+    else if (!strcmp(cport, "-p"))  pnum = PortTCP;
+    else if (isdigit(*cport))
+            {if (XrdOuca2x::a2i(*eDest,invp,cport,&pnum,1,65535)) return 0;}
+    else if (!(pnum = XrdNetUtils::ServPort(cport)))
+            {eDest->Emsg("Config", "Unable to find superport", cport);
+             return 1;
+            }
+
+    PortSUP = pnum;
+
+    return 0;
+}
+  
+/******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
 
@@ -2805,4 +3058,45 @@ int XrdCmsConfig::xtrace(XrdSysError *eDest, XrdOucStream &CFile)
 
     Trace.What = trval;
     return 0;
+}
+  
+/******************************************************************************/
+/*                                 x v n i d                                  */
+/******************************************************************************/
+
+/* Function: xvnid
+
+   Purpose:  To parse the directive: vnid {=|<|@}<vnarg> [<parms>]
+
+             <vnarg>   = - the actual vnid value
+                       < - the path of the file to be read for the vnid.
+                       @ - the path of the plugin library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xvnid(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val, parms[1024];
+
+// Get the argument
+//
+   if (!(val = CFile.GetWord()) || !val[0])
+      {eDest->Emsg("Config", "vnid not specified"); return 1;}
+
+// Record the path
+//
+   if (VNID_Lib) free(VNID_Lib);
+   VNID_Lib = strdup(val);
+
+// Record any parms (only if it starts with an @)
+//
+   if (VNID_Parms) {free(VNID_Parms); VNID_Parms = 0;}
+   if (*VNID_Lib == '@')
+      {if (!CFile.GetRest(parms, sizeof(parms)))
+          {eDest->Emsg("Config", "vnid plug-in parameters too long"); return 1;}
+       if (*parms) VNID_Parms = strdup(parms);
+      }
+   return 0;
 }

@@ -267,6 +267,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        case 'f': Fix = 1;
                  break;
        case 'h': Usage(0);
+                 break;
        case 'k': if (!(bindArg = Say.logger()->ParseKeep(optarg)))
                     {Say.Emsg("Config","Invalid -k argument -",optarg);
                      Usage(1);
@@ -906,7 +907,8 @@ int XrdFrmConfig::ConfigPaths()
 // Create the admin directory if it does not exists and set QPath
 //
    if (!(xPath = XrdFrcUtils::makePath(insName, xPath, AdminMode))) return 1;
-   if (AdminPath) free(AdminPath); AdminPath = xPath;
+   if (AdminPath) free(AdminPath);
+   AdminPath = xPath;
    if (!QPath) QPath = AdminPath;
 
 // Create the purge stop file name
@@ -1354,7 +1356,7 @@ int XrdFrmConfig::xcks()
 */
 int XrdFrmConfig::xcnsd()
 {
-   int cnsMode;
+   int cnsMode = 0;
    char *val, *cnsPath = 0;
    struct cnsdopts {const char *opname; int opval;} cnsopt[] =
          {

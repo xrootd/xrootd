@@ -139,10 +139,57 @@ int XrdAccAuthFile::Close()
 }
 
 /******************************************************************************/
+/*                                 g e t I D                                  */
+/******************************************************************************/
+  
+char XrdAccAuthFile::getID(char **id)
+{
+   char *pp, idcode[2] = {0,0};
+
+// If a record has not been read, return end of record (i.e., 0)
+//
+   if (!(flags & inRec)) return 0;
+
+// Read the next word from the record (if none, simulate end of record)
+//
+   if (!(pp = DBfile.GetWord()))
+      {flags = (DBflags)(flags & ~inRec);
+       return 0;
+      }
+
+// Id's are of the form 'c:', make sure we have that (don't validate it)
+//
+   if (strlen(pp) != 2 || !index("ghoru", *pp))
+      {Eroute->Emsg("AuthFile", "Invalid ID sprecifier -", pp);
+       flags = (DBflags)(flags | dbError);
+       return 0;
+      }
+   idcode[0] = *pp;
+
+// Now get the actual id associated with it
+//
+   if (!(pp = DBfile.GetWord()))
+      {flags = (DBflags)(flags & ~inRec);
+       Eroute->Emsg("AuthFile", "ID value missing after", idcode);
+       flags = (DBflags)(flags | dbError);
+       return 0;
+      }
+
+// Copy the value since the stream buffer might get overlaid.
+//
+   Copy(path_buff, pp, sizeof(path_buff)-1);
+
+// Return result
+//
+   *id = path_buff;
+   return idcode[0];
+}
+  
+/******************************************************************************/
 /*                                 g e t P P                                  */
 /******************************************************************************/
   
-int XrdAccAuthFile::getPP(char **path, char **priv)
+int XrdAccAuthFile::getPP(char **path, char **priv, bool &istmplt)
 {
 // char *pp, *bp;
    char *pp;
@@ -158,15 +205,26 @@ int XrdAccAuthFile::getPP(char **path, char **priv)
        return 0;
       }
 
+// Check of objectid specification
+//
+   istmplt = false;
+   *path   = path_buff;
+   if (*pp == '\\')
+      {if (*(pp+1)) pp++;
+          else {Eroute->Emsg("AuthFile", "Object ID missing after '\\'");
+                *path = 0;
+                flags = (DBflags)(flags | dbError);
+               }
+      } else if (*pp != '/') istmplt = true;
+
 // Copy the value since the stream buffer might get overlaid.
 //
 // bp = Copy(path_buff, pp, sizeof(path_buff)-1);
-        Copy(path_buff, pp, sizeof(path_buff)-1);
-   *path = path_buff;
+   if (path) Copy(path_buff, pp, sizeof(path_buff)-1);
 
 // Check if this is really a path or a template
 //
-   if (*path_buff != '/') {*priv = (char *)0; return 1;}
+   if (istmplt) {*priv = (char *)0; return 1;}
 
 // Verify that the path ends correctly (normally we would force a slash to
 // appear at the end but that prevents caps on files. So, we commented the
@@ -223,8 +281,12 @@ char XrdAccAuthFile::getRec(char **recname)
                   case 'h':
                   case 's':
                   case 'n':
+                  case 'o':
+                  case 'r':
                   case 't':
-                  case 'u': idok = 1;
+                  case 'u':
+                  case 'x':
+                  case '=': idok = 1;
                             break;
                    default: break;
                  }

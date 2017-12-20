@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 
 #include <ctime>
 
@@ -101,6 +102,17 @@ namespace
       XrdCl::Message *GetMessage()
       {
         return pMsg;
+      }
+
+      //------------------------------------------------------------------------
+      // Get underlying message filter sid
+      //------------------------------------------------------------------------
+      uint16_t GetSid() const
+      {
+	if (pFilter)
+	  return pFilter->GetSid();
+
+	return 0;
       }
 
     private:

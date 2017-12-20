@@ -13,6 +13,8 @@ Type=simple
 Restart=on-abort
 RestartSec=0
 KillMode=control-group
+LimitNOFILE=65536
+WorkingDirectory=/var/spool/xrootd
 
 [Install]
 RequiredBy=multi-user.target

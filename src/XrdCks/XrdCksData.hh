@@ -106,5 +106,10 @@ int       Set(const char *csVal, int csLen)
                        {memset(Name, 0, sizeof(Name));
                         memset(Value,0, sizeof(Value));
                        }
+
+bool      HasValue()
+                  {
+                   return *Value;
+                  }
 };
 #endif

@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <map>
 #include <strings.h>
 #include <stdio.h>
 #include <time.h>
@@ -187,6 +188,8 @@ int XrdAccConfig::ConfigDB(int Warm, XrdSysError &Eroute)
    if (!(tabs.G_Hash = new XrdOucHash<XrdAccCapability>()) ||
        !(tabs.H_Hash = new XrdOucHash<XrdAccCapability>()) ||
        !(tabs.N_Hash = new XrdOucHash<XrdAccCapability>()) ||
+       !(tabs.O_Hash = new XrdOucHash<XrdAccCapability>()) ||
+       !(tabs.R_Hash = new XrdOucHash<XrdAccCapability>()) ||
        !(tabs.T_Hash = new XrdOucHash<XrdAccCapability>()) ||
        !(tabs.U_Hash = new XrdOucHash<XrdAccCapability>()) )
       {Eroute.Emsg("ConfigDB","Insufficient storage for id tables.");
@@ -195,6 +198,7 @@ int XrdAccConfig::ConfigDB(int Warm, XrdSysError &Eroute)
 
 // Now start processing records until eof.
 //
+   rulenum = 0;
    while((retc = ConfigDBrec(Eroute, tabs))) {NoGo |= retc < 0; anum++;}
    snprintf(buff, sizeof(buff), "%d auth entries processed in ", anum);
    Eroute.Say("Config ", buff, dbpath);
@@ -203,11 +207,17 @@ int XrdAccConfig::ConfigDB(int Warm, XrdSysError &Eroute)
 //
    if (!Database->Close() || NoGo) return 1;
 
+// Do final setup for special identifiers (this will correctly order them)
+//
+   if (tabs.SYList) idChk(Eroute, tabs.SYList, tabs);
+
 // Set the access control tables
 //
    if (!tabs.G_Hash->Num()) {delete tabs.G_Hash; tabs.G_Hash=0;}
    if (!tabs.H_Hash->Num()) {delete tabs.H_Hash; tabs.H_Hash=0;}
    if (!tabs.N_Hash->Num()) {delete tabs.N_Hash; tabs.N_Hash=0;}
+   if (!tabs.O_Hash->Num()) {delete tabs.O_Hash; tabs.O_Hash=0;}
+   if (!tabs.R_Hash->Num()) {delete tabs.R_Hash; tabs.R_Hash=0;}
    if (!tabs.T_Hash->Num()) {delete tabs.T_Hash; tabs.T_Hash=0;}
    if (!tabs.U_Hash->Num()) {delete tabs.U_Hash; tabs.U_Hash=0;}
    Authorization->SwapTabs(tabs);
@@ -520,19 +530,25 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
     enum DB_RecType {  Group_ID = 'g',
                         Host_ID = 'h',
                       Netgrp_ID = 'n',
+                         Org_ID = 'o',
+                        Role_ID = 'r',
                          Set_ID = 's',
                     Template_ID = 't',
                         User_ID = 'u',
+                         Xxx_ID = 'x',
+                         Def_ID = '=',
                           No_ID = 0
                     };
     char *authid, rtype, *path, *privs;
     int alluser = 0, anyuser = 0, domname = 0, NoGo = 0;
     DB_RecType rectype;
+    XrdAccAccess_ID *sp = 0;
     XrdOucHash<XrdAccCapability> *hp;
     XrdAccGroupType gtype = XrdAccNoGroup;
     XrdAccPrivCaps xprivs;
     XrdAccCapability mycap((char *)"", xprivs), *currcap, *lastcap = &mycap;
     XrdAccCapName *ncp;
+    bool istmplt, isDup, xclsv = false;
   
    // Prepare the next record in the database
    //
@@ -553,28 +569,45 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
           case   Netgrp_ID: hp = tabs.N_Hash;
                             gtype=XrdAccNetGroup;
                             break;
+          case      Org_ID: hp = tabs.O_Hash;
+                            break;
+          case     Role_ID: hp = tabs.R_Hash;
+                            break;
           case Template_ID: hp = tabs.T_Hash;
                             break;
           case     User_ID: hp = tabs.U_Hash;
                             alluser = (authid[0] == '*' && !authid[1]);
                             anyuser = (authid[0] == '=' && !authid[1]);
                             break;
-                default:    hp = 0;
+          case      Xxx_ID: hp = 0; xclsv = true;
+                            break;
+          case      Def_ID: return idDef(Eroute, tabs, authid);
+                            break;
+                   default: char badtype[2] = {rtype, '\0'};
+                            Eroute.Emsg("ConfigXeq", "Invalid id type -",
+                                        badtype);
+                            return -1;
                             break;
          }
 
-   // Check if we have an invalid or unsupported id-type
+   // Check if this id is already defined in the table. For 's' rules the id
+   // must have been previously defined.
    //
-   if (!hp) {char badtype[2] = {rtype, '\0'};
-             Eroute.Emsg("ConfigXeq", "Invalid id type -", badtype);
-             return -1;
-            }
+        if (domname)
+           isDup = tabs.D_List && tabs.D_List->Find((const char *)authid);
+   else if (alluser) isDup = tabs.Z_List != 0;
+   else if (anyuser) isDup = tabs.X_List != 0;
+   else if (hp)      isDup = hp->Find(authid) != 0;
+   else    {if (!(sp = tabs.S_Hash->Find(authid)))
+               {Eroute.Emsg("ConfigXeq", "Missing id definition -", authid);
+                return -1;
+               }
+            isDup = sp->caps != 0;
+            sp->rule = (xclsv ? rulenum++ : -1);
+           }
 
-   // Check if this id is already defined in the table
-   //
-   if ((domname && tabs.D_List && tabs.D_List->Find((const char *)authid))
-   ||  (alluser && tabs.Z_List) || (anyuser && tabs.X_List) || hp->Find(authid))
-      {Eroute.Emsg("ConfigXeq", "duplicate id -", authid);
+   if (isDup)
+      {Eroute.Emsg("ConfigXeq", "duplicate rule for id -", authid);
        return -1;
       }
 
@@ -585,10 +618,10 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
    // Now start getting <path> <priv> pairs until we hit the logical end
    //
    while(1) {NoGo = 0;
-             if (!Database->getPP(&path, &privs)) break;
+             if (!Database->getPP(&path, &privs, istmplt)) break;
              if (!path) continue;      // Skip pathless entries
              NoGo = 1;
-             if (*path != '/')
+             if (istmplt)
                 {if ((currcap = tabs.T_Hash->Find(path)))
                     currcap = new XrdAccCapability(currcap);
                     else {Eroute.Emsg("ConfigXeq", "Missing template -", path);
@@ -622,7 +655,8 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
 
    // Insert the capability into the appropriate table/list
    //
-        if (domname)
+        if (sp) sp->caps = mycap.Next();
+   else if (domname)
            {if (!(ncp = new XrdAccCapName(authid, mycap.Next())))
                {Eroute.Emsg("ConfigXeq","unable to add id",authid); return -1;}
             if (tabs.E_List) tabs.E_List->Add(ncp);
@@ -636,6 +670,127 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
    // All done
    //
    mycap.Add((XrdAccCapability *)0);
+   return 1;
+}
+  
+/******************************************************************************/
+/* Private:                        i d C h k                                  */
+/******************************************************************************/
+
+void  XrdAccConfig::idChk(XrdSysError        &Eroute,
+                          XrdAccAccess_ID    *idList,
+                          XrdAccAccess_Tables &tabs)
+{
+   std::map<int, XrdAccAccess_ID *> idMap;
+   XrdAccAccess_ID *idPN, *xList = 0, *yList = 0;
+
+// Run through the list to make everything was used. We also, sort these items
+// in the order the associated rule appeared.
+//
+   while(idList)
+        {idPN = idList->next;
+         if (idList->caps == 0)
+            Eroute.Say("Config ","Warning, unused identifier definition '",
+                                 idList->name, "'.");
+            else if (idList->rule >= 0) idMap[idList->rule] = idList;
+                    else {idList->next = yList; yList = idList;}
+         idList = idPN;
+        }
+
+// Place 'x' rules in the order they were used. The ;s; rules are in the
+// order the id's were defined which is OK because the are inclusive.
+//
+   std::map<int,XrdAccAccess_ID *>::reverse_iterator rit;
+   for (rit = idMap.rbegin(); rit != idMap.rend(); ++rit)
+       {rit->second->next = xList;
+        xList = rit->second;
+       }
+
+// Set the new lists in the supplied tabs structure
+//
+   tabs.SXList = xList;
+   tabs.SYList = yList;
+}
+  
+/******************************************************************************/
+/* Private:                        i d D e f                                  */
+/******************************************************************************/
+
+int XrdAccConfig::idDef(XrdSysError &Eroute,
+                        struct XrdAccAccess_Tables &tabs,
+                        const char *idName)
+{
+   XrdAccAccess_ID *xID, theID(idName);
+   char *idname, buff[80], idType;
+   bool haveID = false, idDup = false;
+
+// Now start getting <idtype> <idname> pairs until we hit the logical end
+//
+   while(!idDup)
+        {if (!(idType = Database->getID(&idname))) break;
+         haveID = true;
+         switch(idType)
+               {case 'g': if (theID.grp)  idDup = true;
+                             else{theID.grp   = strdup(idname);
+                                  theID.glen  = strlen(idname);
+                                 }
+                          break;
+                case 'h': if (theID.host) idDup = true;
+                             else{theID.host = strdup(idname);
+                                  theID.hlen = strlen(idname);
+                                 }
+                          break;
+                case 'o': if (theID.org)  idDup = true;
+                             else theID.org   = strdup(idname);
+                          break;
+                case 'r': if (theID.role) idDup = true;
+                             else theID.role  = strdup(idname);
+                          break;
+                case 'u': if (theID.user) idDup = true;
+                             else theID.user  = strdup(idname);
+                          break;
+                default:  snprintf(buff, sizeof(buff), "'%c: %s' for",
+                                                       idType, idname);
+                          Eroute.Emsg("ConfigXeq", "Invalid id selector -",
+                                                   buff, theID.name);
+                          return -1;
+                          break;
+               }
+         if (idDup)
+            {snprintf(buff, sizeof(buff),
+                      "id selector '%c' specified twice for", idType);
+             Eroute.Emsg("ConfigXeq", buff, theID.name);
+             return -1;
+            }
+        }
+
+// Make sure some kind of id was specified
+//
+   if (!haveID)
+      {Eroute.Emsg("ConfigXeq", "No id selectors specified for", theID.name);
+       return -1;
+      }
+
+// Make sure this name has not been specified before
+//
+   if (!tabs.S_Hash) tabs.S_Hash = new XrdOucHash<XrdAccAccess_ID>;
+      else if (tabs.S_Hash->Find(theID.name))
+              {Eroute.Emsg("ConfigXeq","duplicate id definition -",theID.name);
+               return -1;
+              }
+
+// Export the id definition and add it to the S_Hash
+//
+   xID = theID.Export();
+   tabs.S_Hash->Add(xID->name, xID);
+
+// Place this FIFO in SYList (they reordered later based on rule usage)
+//
+   xID->next = tabs.SYList;
+   tabs.SYList = xID;
+
+// All done
+//
    return 1;
 }
   

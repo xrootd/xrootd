@@ -1,15 +1,6 @@
 
 include( XRootDCommon )
 
-if( BUILD_LIBEVENT )
-  include_directories( ${LIBEVENT_INCLUDE_DIR} )
-  set( LIBEVENT_POLLER_FILES
-       XrdClPollerLibEvent.cc
-       XrdClPollerLibEvent.hh )
-else()
-  set( LIBEVENT_POLLER_FILES "" )
-endif()
-
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
@@ -71,16 +62,21 @@ add_library(
                               XrdClCopyJob.hh
   XrdClFileSystemUtils.cc     XrdClFileSystemUtils.hh
   XrdClTPFallBackCopyJob.cc   XrdClTPFallBackCopyJob.hh
-  ${LIBEVENT_POLLER_FILES}
+  XrdClMetalinkRedirector.cc  XrdClMetalinkRedirector.hh
+  XrdClRedirectorRegistry.cc  XrdClRedirectorRegistry.hh
+  XrdClZipArchiveReader.cc    XrdClZipArchiveReader.hh
+  XrdClXCpCtx.cc              XrdClXCpCtx.hh
+  XrdClXCpSrc.cc              XrdClXCpSrc.hh
+  XrdClLocalFileHandler.cc    XrdClLocalFileHandler.hh
+  XrdClLocalFileTask.cc       XrdClLocalFileTask.hh
 )
 
 target_link_libraries(
   XrdCl
+  XrdXml
   XrdUtils
   pthread
-  dl
-  ${LIBEVENT_LIB}
-  ${LIBEVENTPTHREADS_LIB})
+  dl)
 
 set_target_properties(
   XrdCl

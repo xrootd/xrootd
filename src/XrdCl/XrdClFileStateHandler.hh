@@ -30,11 +30,15 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClLocalFileHandler.hh"
 #include <list>
 #include <set>
 
+#include <sys/uio.h>
+
 namespace XrdCl
 {
+  class ResponseHandlerHolder;
   class Message;
 
   //----------------------------------------------------------------------------
@@ -60,6 +64,14 @@ namespace XrdCl
       //! Constructor
       //------------------------------------------------------------------------
       FileStateHandler();
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param useVirtRedirector if true Metalink files will be treated
+      //!                          as a VirtualRedirectors
+      //------------------------------------------------------------------------
+      FileStateHandler( bool useVirtRedirector );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -188,6 +200,23 @@ namespace XrdCl
                                void            *buffer,
                                ResponseHandler *handler,
                                uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write scattered buffers in one operation - async
+      //!
+      //! @param offset    offset from the beginning of the file
+      //! @param iov       list of the buffers to be written
+      //! @param iovcnt    number of buffers
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus WriteV( uint64_t            offset,
+                                const struct iovec *iov,
+                                int                 iovcnt,
+                                ResponseHandler    *handler,
+                                uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Performs a custom operation on an open file, server implementation
@@ -403,6 +432,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void MonitorClose( const XRootDStatus *status );
 
+      //------------------------------------------------------------------------
+      //!
+      //------------------------------------------------------------------------
+      inline XRootDStatus ExamineLocalResult( XRootDStatus &status, Message *msg,
+                                              ResponseHandler *handler );
+
       mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;
       XRootDStatus            pStatus;
@@ -420,6 +455,7 @@ namespace XrdCl
       bool                    pDoRecoverRead;
       bool                    pDoRecoverWrite;
       bool                    pFollowRedirects;
+      bool                    pUseVirtRedirector;
 
       //------------------------------------------------------------------------
       // Monitoring variables
@@ -433,6 +469,17 @@ namespace XrdCl
       uint64_t                 pVCount;
       uint64_t                 pWCount;
       XRootDStatus             pCloseReason;
+
+      //------------------------------------------------------------------------
+      // Holds the OpenHanlder used to issue reopen
+      // (there is only only OpenHandler reopening a file at a time)
+      //------------------------------------------------------------------------
+      ResponseHandlerHolder *pReOpenHandler;
+
+      //------------------------------------------------------------------------
+      // Responsible for file:// operations on the local filesystem
+      //------------------------------------------------------------------------
+      LocalFileHandler      *pLFileHandler;
   };
 }
 

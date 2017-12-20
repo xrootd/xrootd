@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from distutils.core import setup, Extension
 from distutils import sysconfig
 from os import getenv, walk, path
@@ -6,7 +8,13 @@ import subprocess
 # Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
 cfg_vars = sysconfig.get_config_vars()
 opt = cfg_vars["OPT"]
-cfg_vars["OPT"] = " ".join( flag for flag in opt.split() if flag != '-Wstrict-prototypes' )
+cfg_vars["OPT"] = " ".join( flag for flag in opt.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] )
+
+cflags = cfg_vars["CFLAGS"]
+cfg_vars["CFLAGS"] = " ".join( flag for flag in cflags.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] )
+
+py_cflags = cfg_vars["PY_CFLAGS"]
+cfg_vars["PY_CFLAGS"] = " ".join( flag for flag in py_cflags.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] )
 
 
 sources = list()
@@ -25,10 +33,10 @@ xrdsrcincdir = "${XRD_SRCINCDIR}"
 xrdbinincdir = "${XRD_BININCDIR}"
 version      = "${XROOTD_VERSION}"
 
-print 'XRootD library dir:    ', xrdlibdir
-print 'XRootD src include dir:', xrdsrcincdir
-print 'XRootD bin include dir:', xrdbinincdir
-print 'Version:               ', version
+print('XRootD library dir:    ', xrdlibdir)
+print('XRootD src include dir:', xrdsrcincdir)
+print('XRootD bin include dir:', xrdbinincdir)
+print('Version:               ', version)
 
 setup( name             = 'pyxrootd',
        version          = version,

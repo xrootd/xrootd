@@ -119,9 +119,9 @@ inline void UnLock() {if (cnd) {cnd->UnLock(); cnd = 0;}}
                  {if (CndVar) CndVar->Lock();
                   cnd = CndVar;
                  }
-            XrdSysCondVarHelper(XrdSysCondVar &CndVar) {
-	         CndVar.Lock();
-		 cnd = &CndVar;
+            XrdSysCondVarHelper(XrdSysCondVar &CndVar)
+                 {CndVar.Lock();
+                  cnd = &CndVar;
                  }
 
            ~XrdSysCondVarHelper() {if (cnd) UnLock();}
@@ -204,9 +204,9 @@ inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
                  {if (mutex) mutex->Lock();
                   mtx = mutex;
                  }
-            XrdSysMutexHelper(XrdSysMutex &mutex) {
-	         mutex.Lock();
-		 mtx = &mutex;
+            XrdSysMutexHelper(XrdSysMutex &mutex)
+                 {mutex.Lock();
+                  mtx = &mutex;
                  }
 
            ~XrdSysMutexHelper() {if (mtx) UnLock();}
@@ -236,6 +236,9 @@ inline int CondWriteLock()
 
 inline void  ReadLock() {pthread_rwlock_rdlock(&lock);}
 inline void  WriteLock() {pthread_rwlock_wrlock(&lock);}
+
+inline void ReadLock( int &status ) {status = pthread_rwlock_rdlock(&lock);}
+inline void WriteLock( int &status ) {status = pthread_rwlock_wrlock(&lock);}
 
 inline void UnLock() {pthread_rwlock_unlock(&lock);}
 
@@ -350,11 +353,11 @@ inline void Wait() {while (sem_wait(&h_semaphore))
 
   XrdSysSemaphore(int semval=1, const char * =0)
                                {if (sem_init(&h_semaphore, 0, semval))
-				   {throw "sem_init() failed";}
+                                   {throw "sem_init() failed";}
                                }
  ~XrdSysSemaphore() {if (sem_destroy(&h_semaphore))
-                       {throw "sem_destroy() failed";}
-                   }
+                        {abort();}
+                    }
 
 private:
 

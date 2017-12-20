@@ -85,6 +85,7 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
         {"mlock",         0,              XRDEXP_MLOK,    XRDEXP_MLOK_X},
         {"nommap",        XRDEXP_MMAP,    0,              XRDEXP_MMAP_X},
         {"mmap",          0,              XRDEXP_MMAP,    XRDEXP_MMAP_X},
+        {"mwfiles",       0,              XRDEXP_MWMODE,  XRDEXP_MWMODE_X},
         {"nopurge",       XRDEXP_PURGE,   0,              XRDEXP_PURGE_X},
         {"purge",         0,              XRDEXP_PURGE,   XRDEXP_PURGE_X},
         {"nostage",       XRDEXP_STAGE,   0,              XRDEXP_STAGE_X},
@@ -173,6 +174,10 @@ XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
    if (!path || !path[0])
       {Eroute.Emsg("Export", "path not specified"); return 0;}
    strlcpy(pbuff, path, sizeof(pbuff));
+
+// Handle object ID specification
+//
+   if (*pbuff == '*') pbuff[1] = 0;
 
 // Process path options and apply defaults to any unspecified otions
 //

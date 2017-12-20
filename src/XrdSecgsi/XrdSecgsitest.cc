@@ -50,8 +50,9 @@
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptoX509Crl.hh"
 
-#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
-#include "XrdCrypto/XrdCryptosslgsiAux.hh"
+#include "XrdCrypto/XrdCryptosslAux.hh"
+
+#include "XrdCrypto/XrdCryptogsiX509Chain.hh"
 
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 
@@ -71,12 +72,63 @@ XrdOucString PPXcert = "";
 XrdOucString CAdir = "/etc/grid-security/certificates/";
 int          CAnum = 0;
 XrdOucString CAcert[5];
+int          Dbg = 0;
+int          Help = 0;
 
 //
 // For error logging and tracing
 static XrdSysLogger Logger;
 static XrdSysError eDest(0,"gsitest_");
 XrdOucTrace *gsiTrace = 0;
+
+#define PRTWIDTH 80
+static void pdots(const char *t, bool ok = 1)
+{
+   unsigned int i = 0;
+   unsigned int l = (t) ? strlen (t) : 0;
+   unsigned int np = PRTWIDTH - l - 8;
+   printf("|| %s ", t);
+   for (; i < np ; i++) { printf("."); }
+   printf("  %s\n", (ok ? "PASSED" : "FAILED"));
+}
+static void pline(const char *t)
+{
+   unsigned int i = 0;
+   unsigned int l = (t) ? strlen (t) : 0;
+   unsigned int np = PRTWIDTH - l - 3;
+   if (l > 0) {
+      printf("|| %s ---", t);
+   } else {
+      printf("|| ----");
+   }
+   for (; i < np ; i++) { printf("-"); }
+   printf("\n");
+}
+
+static void printHelp()
+{
+   printf(" \n");
+   printf(" Basic test program for crypto functionality in relation to GSI.\n");
+   printf(" The program needs access to a user certificate file and its private key, and the related\n");
+   printf(" CA file(s); the CRL is downloaded using the information found in the CA certificate.\n");
+   printf(" The location of the files are the standard ones and they can modified by the standard\n");
+   printf(" environment variables:\n");
+   printf(" \n");
+   printf("      X509_USER_CERT  [$HOME/.globus/usercert.pem]       user certificate\n");
+   printf("      X509_USER_KEY   [$HOME/.globus/userkey.pem]        user private key\n");
+   printf("      X509_USER_PROXY [/tmp/x509up_u<uid>]               user proxy\n");
+   printf("      X509_CERT_DIR   [/etc/grid-security/certificates/] CA certificates and CRL directories\n");
+   printf(" \n");
+   printf(" Usage:\n");
+   printf("      xrdgsitest [-v,--verbose] [-h,--help] \n");
+   printf(" \n");
+   printf("      -h, --help             Print this screen\n");
+   printf("      -v, --verbose          Dump all details\n");
+   printf(" \n");
+   printf(" The output is a list of PASSED/FAILED test, interleaved with details when the verbose option\n");
+   printf(" is chosen.\n");
+   printf(" \n");
+}
 
 int main( int argc, char **argv )
 {
@@ -85,19 +137,37 @@ int main( int argc, char **argv )
    char cryptomod[64] = "ssl";
    char outname[256] = {0};
 
+   // Basic argument parsing
+   int i = 1;
+   for (; i < argc; i++) {
+      // Verbosity level
+      if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) Dbg = 1;
+      if (!strcmp(argv[i], "-vv")) Dbg = 2;
+      // Help
+      if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) Help = 1;
+   }
+
+   // Print help if required
+   if (Help) {
+      printHelp();
+      exit(0);
+   }
+
    //
    // Initiate error logging and tracing
    eDest.logger(&Logger);
    if (!gsiTrace)
       gsiTrace = new XrdOucTrace(&eDest);
-   if (gsiTrace) {
+   if (gsiTrace && Dbg > 0) {
       // Medium level
       gsiTrace->What |= (TRACE_Authen | TRACE_Debug);
    }
    //
    // Set debug flags in other modules
-   XrdSutSetTrace(sutTRACE_Debug);
-   XrdCryptoSetTrace(cryptoTRACE_Debug);
+   kXR_int32 tracesut = (Dbg > 0) ? sutTRACE_Debug : 0;
+   kXR_int32 tracecrypto = (Dbg > 0) ? cryptoTRACE_Debug : 0;
+   XrdSutSetTrace(tracesut);
+   XrdCryptoSetTrace(tracecrypto);
 
    //
    // Determine application name
@@ -110,73 +180,85 @@ int main( int argc, char **argv )
    //
    // Load the crypto factory
    if (!(gCryptoFactory = XrdCryptoFactory::GetCryptoFactory(cryptomod))) {
-      PRINT(": cannot instantiate factory "<<cryptomod);
+      pdots("  Cannot instantiate factory", 0);
       exit(1);
    }
-   gCryptoFactory->SetTrace(cryptoTRACE_Debug);
+   if (Dbg > 0)
+      gCryptoFactory->SetTrace(cryptoTRACE_Debug);
 
-   PRINT(": --------------------------------------------------- ");
+   pline("");
+   pline("Crypto functionality tests for GSI");
+   pline("");
 
    //
    // Find out the username and locate the relevant certificates and directories
    struct passwd *pw = getpwuid(geteuid());
    if (!pw) {
-      PRINT(": could not resolve user info - exit");
+      pdots("  Could not resolve user info - exit", 0);
       exit(1);
    }
-   PRINT(": effective user is : "<<pw->pw_name<<", $HOME : "<<pw->pw_dir);
+   NOTIFY("effective user is : "<<pw->pw_name<<", $HOME : "<<pw->pw_dir);
 
    //
    // User certificate
    EEcert = pw->pw_dir;
    EEcert += "/.globus/usercert.pem";
    if (getenv("X509_USER_CERT")) EEcert = getenv("X509_USER_CERT");
-   PRINT(": user EE certificate: "<<EEcert);
+   NOTIFY("user EE certificate: "<<EEcert);
    XrdCryptoX509 *xEE = gCryptoFactory->X509(EEcert.c_str());
    if (xEE) {
-      xEE->Dump();
+      if (Dbg > 0) xEE->Dump();
    } else {
-      PRINT( ": problems loading user EE cert");
+      pdots("  Problems loading user EE cert", 0);
    }
+   if (xEE) pdots("Loading EEC", 1);
+
    //
    // User key
    EEkey = pw->pw_dir;
    EEkey += "/.globus/userkey.pem";
    if (getenv("X509_USER_KEY")) EEkey = getenv("X509_USER_KEY");
-   PRINT(": user EE key: "<<EEkey);
+   NOTIFY("user EE key: "<<EEkey);
    //
    // User Proxy certificate
    PXcert = "/tmp/x509up_u";
    PXcert += (int) pw->pw_uid;
    if (getenv("X509_USER_PROXY")) PXcert = getenv("X509_USER_PROXY");
-   PRINT(": user proxy certificate: "<<PXcert);
+   NOTIFY("user proxy certificate: "<<PXcert);
    XrdCryptoX509 *xPX = gCryptoFactory->X509(PXcert.c_str());
    if (xPX) {
-      xPX->Dump();
+      if (Dbg > 0) xPX->Dump();
    } else {
-      PRINT( ": problems loading user proxy cert");
+      pdots("  Problems loading user proxy cert", 0);
    }
+   if (xPX) pdots("Loading User Proxy", 1);
 
    //
-   PRINT(": --------------------------------------------------- ");
-   PRINT(": recreate the proxy certificate ");
+   pline("");
+   pline("Recreate the proxy certificate");
    XrdProxyOpt_t *pxopt = 0;   // defaults
-   XrdCryptosslgsiX509Chain *cPXp = new XrdCryptosslgsiX509Chain();
+   XrdCryptogsiX509Chain *cPXp = new XrdCryptogsiX509Chain();
    XrdCryptoRSA *kPXp = 0;
    XrdCryptoX509 *xPXp = 0;
    X509_EXTENSION *ext = 0;
-   int prc = XrdSslgsiX509CreateProxy(EEcert.c_str(), EEkey.c_str(),
-                                      pxopt, cPXp, &kPXp, PXcert.c_str());
+   int prc = gCryptoFactory->X509CreateProxy()(EEcert.c_str(), EEkey.c_str(),
+                                             pxopt, cPXp, &kPXp, PXcert.c_str());
    if (prc == 0) {
-      cPXp->Dump();
-      xPXp = (XrdCryptoX509 *)(cPXp->Begin());
-      ext = (X509_EXTENSION *)(xPXp->GetExtension("1.3.6.1.4.1.3536.1.222"));
+      if (Dbg > 0) cPXp->Dump();
+      if ((xPXp = (XrdCryptoX509 *)(cPXp->Begin()))) {
+         pdots("Recreating User Proxy", 1);
+         if ((ext = (X509_EXTENSION *)(xPXp->GetExtension("1.3.6.1.4.1.3536.1.222")))) {
+            pdots("proxyCertInfo extension OK", 1);
+         }
+      }
    } else {
-      PRINT( ": problems creating proxy");
+      pdots("Recreating User Proxy", 0);
       exit(1);
    }
 
    //
+   pline("");
+   pline("Load CA certificates");
    // Load CA certificates now
    XrdCryptoX509 *xCA[5], *xCAref = 0;
    if (getenv("X509_CERT_DIR")) CAdir = getenv("X509_CERT_DIR");
@@ -187,12 +269,13 @@ int main( int argc, char **argv )
    while (!rCAfound && nCA < 5) {
       CAcert[nCA] = CAdir;
       CAcert[nCA] += xc->IssuerHash();
-      PRINT(": issuer CA certificate path "<<CAcert[nCA]);
+      NOTIFY("issuer CA certificate path "<<CAcert[nCA]);
       xCA[nCA] = gCryptoFactory->X509(CAcert[nCA].c_str());
       if (xCA[nCA]) {
-         xCA[nCA]->Dump();
+         if (Dbg > 0) xCA[nCA]->Dump();
+         pdots("Loading CA certificate", 1);
       } else {
-         PRINT( ": problems loading CA cert from : "<<CAcert[nCA]);
+         pdots("Loading CA certificate", 0);
       }
       // Check if self-signed
       if (!strcmp(xCA[nCA]->IssuerHash(), xCA[nCA]->SubjectHash())) {
@@ -205,160 +288,181 @@ int main( int argc, char **argv )
    }
 
    //
-   PRINT(": --------------------------------------------------- ");
-   PRINT(": Testing ParseFile ... ");
+   pline("");
+   pline("Testing ParseFile");
    XrdCryptoX509ParseFile_t ParseFile = gCryptoFactory->X509ParseFile();
    XrdCryptoRSA *key = 0;
    XrdCryptoX509Chain *chain = new XrdCryptoX509Chain();
    if (ParseFile) {
       int nci = (*ParseFile)(PXcert.c_str(), chain);
-      key = chain->Begin()->PKI();
-      PRINT(nci <<" certificates found parsing file");
-      chain->Dump();
+      if (!(key = chain->Begin()->PKI())) {
+         pdots("getting PKI", 0);
+      }
+      NOTIFY(nci <<" certificates found parsing file");
+      if (Dbg > 0) chain->Dump();
       int jCA = nCA + 1;
       while (jCA--) {
          chain->PushBack(xCA[jCA]);
       }
-      chain->Dump();
+      if (Dbg > 0) chain->Dump();
       int rorc = chain->Reorder();
       if (rCAfound) {
-         chain->Dump();
-         PRINT(": form reorder: "<<rorc);
+         if (Dbg > 0) chain->Dump();
+         pdots("Chain reorder: ", (rorc != -1));
          XrdCryptoX509Chain::EX509ChainErr ecod = XrdCryptoX509Chain::kNone;
          int verc = chain->Verify(ecod);
-         PRINT(": form verify: "<<verc);
+         pdots("Chain verify: ", verc);
       } else {
-         PRINT(": full CA chain not available: verification not done ");
+         pdots("Full CA chain verification", 0);
       }
    } else {
-      PRINT( ": problems attaching to X509ParseFile");
+      pdots("attaching to X509ParseFile", 0);
       exit (1);
    }
 
    //
-   PRINT(": Testing ExportChain ... ");
+   pline("");
+   pline("Testing ExportChain");
    XrdCryptoX509ExportChain_t ExportChain = gCryptoFactory->X509ExportChain();
    XrdSutBucket *chainbck = 0;
    if (ExportChain) {
       chainbck = (*ExportChain)(chain, 0);
+      pdots("Attach to X509ExportChain", 1);
    } else {
-      PRINT( ": problems attaching to X509ExportChain");
+      pdots("Attach to X509ExportChain", 0);
       exit (1);
    }
    //
-   PRINT(": Testing Chain import ... ");
+   pline("");
+   pline("Testing Chain Import");
    XrdCryptoX509ParseBucket_t ParseBucket = gCryptoFactory->X509ParseBucket();
+   if (!ParseBucket) pdots("attaching to X509ParseBucket", 0);
    // Init new chain with CA certificate 
    int jCA = nCA;
    XrdCryptoX509Chain *CAchain = new XrdCryptoX509Chain(xCA[jCA]);
    while (jCA) { CAchain->PushBack(xCA[--jCA]); }
    if (ParseBucket && CAchain) {
       int nci = (*ParseBucket)(chainbck, CAchain);
-      PRINT(nci <<" certificates found parsing bucket");
-      CAchain->Dump();
+      NOTIFY(nci <<" certificates found parsing bucket");
+      if (Dbg > 0) CAchain->Dump();
       int rorc = CAchain->Reorder();
-      PRINT(": form reorder: "<<rorc);
-      CAchain->Dump();
+      pdots("Chain reorder: ", (rorc != -1));
+      if (Dbg > 0) CAchain->Dump();
       XrdCryptoX509Chain::EX509ChainErr ecod = XrdCryptoX509Chain::kNone;
       int verc = CAchain->Verify(ecod);
-      PRINT(": form verify: "<<verc);
+      pdots("Chain verify: ", verc);
    } else {
-      PRINT( ": problems creating new X509Chain" <<
-                       " or attaching to X509ParseBucket");
+      pdots("creating new X509Chain", 0);
       exit (1);
    }
 
    //
-   PRINT(": Testing GSI chain import and verification ... ");
+   pline("");
+   pline("Testing GSI chain import and verification");
    // Init new GSI chain with CA certificate 
    jCA = nCA;
-   XrdCryptosslgsiX509Chain *GSIchain = new XrdCryptosslgsiX509Chain(xCA[jCA]);
+   XrdCryptogsiX509Chain *GSIchain = new XrdCryptogsiX509Chain(xCA[jCA], gCryptoFactory);
    while (jCA) { GSIchain->PushBack(xCA[--jCA]); }
    if (ParseBucket && GSIchain) {
       int nci = (*ParseBucket)(chainbck, GSIchain);
-      PRINT(nci <<" certificates found parsing bucket");
-      GSIchain->Dump();
+      NOTIFY(nci <<" certificates found parsing bucket");
+      if (Dbg > 0) GSIchain->Dump();
       XrdCryptoX509Chain::EX509ChainErr ecod = XrdCryptoX509Chain::kNone;
-      x509ChainVerifyOpt_t vopt = { kOptsRfc3820, 0, -1 };
+      x509ChainVerifyOpt_t vopt = { kOptsRfc3820, 0, -1, 0};
       int verc = GSIchain->Verify(ecod, &vopt);
-      PRINT(": form verify: "<<verc);
-      GSIchain->Dump();
+      pdots("GSI chain verify: ", verc);
+      if (!verc) NOTIFY("GSI chain verify ERROR: "<<GSIchain->LastError());
+      if (Dbg > 0) GSIchain->Dump();
    } else {
-      PRINT( ": problems creating new gsiX509Chain");
+      pdots("Creating new gsiX509Chain", 0);
       exit (1);
    }
 
-
    //
-   PRINT(": Testing GSI chain copy ... ");
+   pline("");
+   pline("Testing GSI chain copy");
    // Init new GSI chain with CA certificate 
-   XrdCryptosslgsiX509Chain *GSInew = new XrdCryptosslgsiX509Chain(GSIchain);
+   XrdCryptogsiX509Chain *GSInew = new XrdCryptogsiX509Chain(GSIchain, gCryptoFactory);
    if (GSInew) {
-      GSInew->Dump();
+      if (Dbg > 0) GSInew->Dump();
+      XrdCryptoX509Chain::EX509ChainErr ecod = XrdCryptoX509Chain::kNone;
+      x509ChainVerifyOpt_t vopt = { kOptsRfc3820, 0, -1, 0};
+      int verc = GSInew->Verify(ecod, &vopt);
+      if (!verc) NOTIFY("GSI chain copy verify ERROR: "<<GSInew->LastError());
+      pdots("GSI chain verify: ", verc);
+      if (Dbg > 0) GSInew->Dump();
    } else {
-      PRINT( ": problems creating new gsiX509Chain with copy");
+      pdots("Creating new gsiX509Chain with copy", 0);
       exit (1);
    }
 
    //
-   PRINT(": Testing Cert verification ... ");
+   pline("");
+   pline("Testing Cert verification");
    XrdCryptoX509VerifyCert_t VerifyCert = gCryptoFactory->X509VerifyCert();
    if (VerifyCert) {
       bool ok;
       jCA = nCA;
       while (jCA >= 0) {
          ok = xEE->Verify(xCA[jCA]);
-         PRINT( ": verify cert: EE signed by CA? " <<ok<<" ("<<xCA[jCA]->Subject()<<")");
+         NOTIFY( ": verify cert: EE signed by CA? " <<ok<<" ("<<xCA[jCA]->Subject()<<")");
          if (ok) xCAref = xCA[jCA];
          jCA--;
       }
+      pdots("verify cert: EE signed by CA", (xCAref ? 1 : 0));
       ok = xPX->Verify(xEE);
-      PRINT( ": verify cert: PX signed by EE? " <<ok);
+      pdots("verify cert: PX signed by EE", ok);
       jCA = nCA;
+      bool refok = 0;
       while (jCA >= 0) {
          ok = xPX->Verify(xCA[jCA]);
-         PRINT( ": verify cert: PX signed by CA? " <<ok<<" ("<<xCA[jCA]->Subject()<<")");
+         NOTIFY( ": verify cert: PX signed by CA? " <<ok<<" ("<<xCA[jCA]->Subject()<<")");
+         if (!refok && ok) refok = 1;
          jCA--;
       }
+      pdots("verify cert: PX not signed by CA", !refok);
    } else {
-      PRINT( ": problems attaching to X509VerifyCert");
+      pdots("Attaching to X509VerifyCert", 0);
       exit (1);
    }
 
 
    //
-   PRINT(": --------------------------------------------------- ");
-   PRINT(": Testing request creation ");
+   pline("");
+   pline("Testing request creation");
    XrdCryptoX509Req *rPXp = 0;
    XrdCryptoRSA *krPXp = 0;
-   prc = XrdSslgsiX509CreateProxyReq(xPX, &rPXp, &krPXp);
+   prc = gCryptoFactory->X509CreateProxyReq()(xPX, &rPXp, &krPXp);
    if (prc == 0) {
-      rPXp->Dump();
+      pdots("Creating request", 1);
+      if (Dbg > 0) rPXp->Dump();
    } else {
-      PRINT( ": problems creating request");
+      pdots("Creating request", 0);
       exit(1);
    }
 
    //
-   PRINT(": --------------------------------------------------- ");
-   PRINT(": Testing request signature ");
+   pline("");
+   pline("Testing request signature");
    XrdCryptoX509 *xPXpp = 0;
-   prc = XrdSslgsiX509SignProxyReq(xPX, kPXp, rPXp, &xPXpp);
+   prc = gCryptoFactory->X509SignProxyReq()(xPX, kPXp, rPXp, &xPXpp);
    if (prc == 0) {
-      xPXpp->Dump();
+      if (Dbg > 0) xPXpp->Dump();
       xPXpp->SetPKI((XrdCryptoX509data) krPXp->Opaque());
-      ext = (X509_EXTENSION *)xPXpp->GetExtension("1.3.6.1.4.1.3536.1.222");
+      bool extok = 0;
+      if ((ext = (X509_EXTENSION *)xPXpp->GetExtension(gsiProxyCertInfo_OID))) extok = 1;
+      pdots("Check proxyCertInfo extension", extok);
    } else {
-      PRINT( ": problems signing request");
+      pdots("Signing request", 0);
       exit(1);
    }
 
    //
-   PRINT(": --------------------------------------------------- ");
-   PRINT(": Testing export of signed proxy ");
+   pline("");
+   pline("Testing export of signed proxy");
    PPXcert = PXcert;
    PPXcert += "p";
-   PRINT(": file for signed proxy chain: "<<PPXcert);
+   NOTIFY(": file for signed proxy chain: "<<PPXcert);
    XrdCryptoX509ChainToFile_t ChainToFile = gCryptoFactory->X509ChainToFile();
    // Init the proxy chain 
    XrdCryptoX509Chain *PXchain = new XrdCryptoX509Chain(xPXpp);
@@ -366,48 +470,53 @@ int main( int argc, char **argv )
    PXchain->PushBack(xEE);
    if (ChainToFile && PXchain) {
       if ((*ChainToFile)(PXchain, PPXcert.c_str()) != 0) {
-         PRINT(": problems saving signed proxy chain to file: "<<PPXcert);
+         NOTIFY(": problems saving signed proxy chain to file: "<<PPXcert);
+         pdots("Saving signed proxy chain to file", 0);
+      } else {
+         pdots("Saving signed proxy chain to file", 1);        
       }
    } else {
-      PRINT( ": problems creating new X509Chain" <<
-                       " or attaching to X509ParseBucket");
+      pdots("Creating new X509Chain", 0);
       exit (1);
    }
 
    //
-   PRINT(": --------------------------------------------------- ");
-   PRINT(": Testing CRL identification ");
+   pline("");
+   pline("Testing CRL identification");
    X509_EXTENSION *crlext = 0;
    if (xCAref) {
       if ((crlext = (X509_EXTENSION *)xCAref->GetExtension("crlDistributionPoints"))) {
-         PRINT( ": CRL distribution points extension OK");
+         pdots("Check CRL distribution points extension OK", 1);
       } else {
-         PRINT( ": problems getting extension");
+         pdots("Getting extension", 0);
       }
    }
 
    //
-   PRINT(": --------------------------------------------------- ");
-   PRINT(": Testing CRL loading ");
+   pline("");
+   pline("Testing CRL loading");
    XrdCryptoX509Crl *xCRL1 = gCryptoFactory->X509Crl(xCAref);
    if (xCRL1) {
-      xCRL1->Dump();
+      if (Dbg > 0) xCRL1->Dump();
+      pdots("Loading CA1 crl", 1);
       // Verify CRL signature
-      bool crlsig = 0;
+      bool crlsig = 0, xsig = 0;
       for (jCA = 0; jCA <= nCA; jCA++) {
-         crlsig = xCRL1->Verify(xCA[jCA]);
-         PRINT( ": CRL signature OK? "<<crlsig<<" ("<<xCA[jCA]->Subject()<<")");
+         xsig = xCRL1->Verify(xCA[jCA]);
+         NOTIFY( ": CRL signature OK? "<<xsig<<" ("<<xCA[jCA]->Subject()<<")");
+         if (!crlsig && xsig) crlsig = 1;
       }
+      pdots("CRL signature OK", crlsig);
       // Verify a serial number
       bool snrev = xCRL1->IsRevoked(25, 0);
-      PRINT( ": SN: 25 revoked? "<<snrev);
+      NOTIFY( ": SN: 25 revoked? "<<snrev);
       // Verify another serial number
       snrev = xCRL1->IsRevoked(0x20, 0);
-      PRINT( ": SN: 32 revoked? "<<snrev);
+      NOTIFY( ": SN: 32 revoked? "<<snrev);
    } else {
-      PRINT( ": problems loading CA1 crl");
+      pdots("Loading CA1 crl", 0);
    }
 
-   PRINT(": --------------------------------------------------- ");
+   pline("");
    exit(0);
 }

@@ -79,7 +79,7 @@ int XrdCmsManTree::Connect(int nID, XrdCmsNode *nP)
 {
    static CmsDiscRequest discRequest = {{0, kYR_disc, 0, 0}};
    XrdSysMutexHelper Monitor(myMutex);
-   char mybuff[8];
+   char mybuff[16];
    int i;
 
 // Rule 0: If we aborted tell the client to just stop doing this
@@ -201,11 +201,12 @@ int XrdCmsManTree::Trying(int nID, int lvl)
 //
    if (!lvl)
       {if (numWaiting)
-          for (i = 0; i < maxTMI; i++)
-              if (i != nID && tmInfo[i].Status == Waiting)
-                 {tmInfo[i].Level = 0; Redrive(i);}
-          myMutex.UnLock();
-          return 1;
+          {for (i = 0; i < maxTMI; i++)
+               if (i != nID && tmInfo[i].Status == Waiting)
+                  {tmInfo[i].Level = 0; Redrive(i);}
+          }
+       myMutex.UnLock();
+       return 1;
       }
 
 // Rule 3: If the caller is trying at a non-zero level (interior node) and

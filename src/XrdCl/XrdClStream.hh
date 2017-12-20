@@ -179,6 +179,11 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Disables respective uplink if empty
+      //------------------------------------------------------------------------
+      void DisableIfEmpty( uint16_t subStream );
+
+      //------------------------------------------------------------------------
       //! Call back when a message has been reconstructed
       //------------------------------------------------------------------------
       void OnIncoming( uint16_t  subStream,
@@ -216,7 +221,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! On read timeout
       //------------------------------------------------------------------------
-      void OnReadTimeout( uint16_t subStream );
+      void OnReadTimeout( uint16_t subStream, bool &isBroken );
 
       //------------------------------------------------------------------------
       //! On write timeout
@@ -294,6 +299,11 @@ namespace XrdCl
       //! Inform the monitoring about disconnection
       //------------------------------------------------------------------------
       void MonitorDisconnection( Status status );
+
+      //------------------------------------------------------------------------
+      //! Send close after an open request timed out
+      //------------------------------------------------------------------------
+      Status RequestClose( Message  *resp );
 
       typedef std::vector<SubStreamData*> SubStreamList;
 

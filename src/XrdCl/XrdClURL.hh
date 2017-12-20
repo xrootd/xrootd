@@ -52,6 +52,17 @@ namespace XrdCl
       bool IsValid() const;
 
       //------------------------------------------------------------------------
+      //! Is it a URL to a metalink
+      //------------------------------------------------------------------------
+      bool IsMetalink() const;
+
+      //------------------------------------------------------------------------
+      //! Is it a URL to a local file
+      //! (file://localhost
+      //------------------------------------------------------------------------
+      bool IsLocalFile() const;
+
+      //------------------------------------------------------------------------
       //! Get the URL
       //------------------------------------------------------------------------
       std::string GetURL() const
@@ -194,6 +205,11 @@ namespace XrdCl
       std::string GetPathWithParams() const;
 
       //------------------------------------------------------------------------
+      //! Get the path with params, filteres out 'xrdcl.'
+      //------------------------------------------------------------------------
+      std::string GetPathWithFilteredParams() const;
+
+      //------------------------------------------------------------------------
       //! Get the URL params
       //------------------------------------------------------------------------
       const ParamsMap &GetParams() const
@@ -205,6 +221,13 @@ namespace XrdCl
       //! Get the URL params as string
       //------------------------------------------------------------------------
       std::string GetParamsAsString() const;
+
+      //------------------------------------------------------------------------
+      //! Get the URL params as string
+      //!
+      //! @param filter : if set to true filters out 'xrdcl.'
+      //------------------------------------------------------------------------
+      std::string GetParamsAsString( bool filter ) const;
 
       //------------------------------------------------------------------------
       //! Set params
@@ -235,6 +258,7 @@ namespace XrdCl
       bool ParsePath( const std::string &path );
       void ComputeHostId();
       void ComputeURL();
+      bool PathEndsWith( const std::string & sufix ) const;
       std::string pHostId;
       std::string pProtocol;
       std::string pUserName;

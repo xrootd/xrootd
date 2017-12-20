@@ -62,7 +62,7 @@ XrdOucCacheReal::XrdOucCacheReal(int &rc, XrdOucCache::Parms      &ParmV,
                   prReady(0), prStop(0), prNum(0)
 {
    size_t Bytes;
-   int n, isServ = ParmV.Options & isServer;
+   int n, minPag, isServ = ParmV.Options & isServer;
 
 // Copy over options
 //
@@ -70,6 +70,7 @@ XrdOucCacheReal::XrdOucCacheReal(int &rc, XrdOucCache::Parms      &ParmV,
    Options = ParmV.Options;
    if (Options & Debug)    Lgs = Dbg = (Options & Debug);
    if (Options & logStats) Lgs = 1;
+   minPag = (ParmV.minPages <= 0 ? 256 : ParmV.minPages);
 
 // Establish maximum number of attached files
 //
@@ -81,9 +82,9 @@ XrdOucCacheReal::XrdOucCacheReal(int &rc, XrdOucCache::Parms      &ParmV,
 
 // Adjust segment size to be a power of two and atleast 4k.
 //
-        if (ParmV.PageSize <= 0) SegSize = 16384;
+        if (ParmV.PageSize <= 0) SegSize = 32768;
    else if (!(SegSize = ParmV.PageSize & ~0xfff)) SegSize = 4096;
-   else if (SegSize > 16*1024*1024) SegSize = 16*1024*1024;
+// else if (SegSize > 16*1024*1024) SegSize = 16*1024*1024;
    SegShft = 0; n = SegSize-1;
    while(n) {SegShft++; n = n >> 1;}
    SegSize = 1<<SegShft;
@@ -92,7 +93,7 @@ XrdOucCacheReal::XrdOucCacheReal(int &rc, XrdOucCache::Parms      &ParmV,
 //
    OffMask = SegSize-1;
    SegCnt = (ParmV.CacheSize > 0 ? ParmV.CacheSize : 104857600)/SegSize;
-   if (SegCnt < 256) SegCnt = 256;
+   if (SegCnt < minPag) SegCnt = minPag;
    if (ParmV.Max2Cache < SegSize) maxCache = SegSize;
       else maxCache = ParmV.Max2Cache/SegSize*SegSize;
    SegFull = (Options & isServer ? XrdOucCacheSlot::lenMask : SegSize);

@@ -21,9 +21,10 @@
 #include <string>
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdFileCacheIO.hh"
 #include "XrdFileCache.hh"
 #include "XrdFileCacheStats.hh"
-#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheFile.hh"
 
 class XrdSysError;
 class XrdOssDF;
@@ -32,62 +33,72 @@ class XrdOucIOVec;
 
 namespace XrdFileCache
 {
-   //----------------------------------------------------------------------------
-   //! \brief Downloads original file into a single file on local disk.
-   //! Handles read requests as they come along.
-   //----------------------------------------------------------------------------
-   class IOEntireFile : public IO
-   {
-      public:
-         //------------------------------------------------------------------------
-         //! Constructor
-         //------------------------------------------------------------------------
-         IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+//----------------------------------------------------------------------------
+//! \brief Downloads original file into a single file on local disk.
+//! Handles read requests as they come along.
+//----------------------------------------------------------------------------
+class IOEntireFile : public IO
+{
+public:
+   //------------------------------------------------------------------------
+   //! Constructor
+   //------------------------------------------------------------------------
+   IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
 
-         //------------------------------------------------------------------------
-         //! Destructor
-         //------------------------------------------------------------------------
-         ~IOEntireFile();
+   //------------------------------------------------------------------------
+   //! Destructor
+   //------------------------------------------------------------------------
+   ~IOEntireFile();
 
-         //---------------------------------------------------------------------
-         //! Pass Read request to the corresponding Prefetch object.
-         //!
-         //! @param Buffer
-         //! @param Offset
-         //! @param Length
-         //!
-         //! @return number of bytes read
-         //---------------------------------------------------------------------
-         virtual int Read(char *Buffer, long long Offset, int Length);
+   //---------------------------------------------------------------------
+   //! Pass Read request to the corresponding File object.
+   //!
+   //! @param Buffer
+   //! @param Offset
+   //! @param Length
+   //!
+   //! @return number of bytes read
+   //---------------------------------------------------------------------
+   using XrdOucCacheIO2::Read;
 
-         //---------------------------------------------------------------------
-         //! Pass ReadV request to the corresponding Prefetch object.
-         //!
-         //! @param readV
-         //! @param n number of XrdOucIOVecs
-         //!
-         //! @return total bytes read
-         //---------------------------------------------------------------------
-         virtual int ReadV(const XrdOucIOVec *readV, int n);
+   virtual int Read(char *Buffer, long long Offset, int Length);
 
-         //---------------------------------------------------------------------
-         //! Detach itself from Cache. Note: this will delete the object.
-         //!
-         //! @return original source \ref XrdPosixFile
-         //---------------------------------------------------------------------
-         virtual XrdOucCacheIO* Detach();
+   //---------------------------------------------------------------------
+   //! Pass ReadV request to the corresponding File object.
+   //!
+   //! @param readV
+   //! @param n number of XrdOucIOVecs
+   //!
+   //! @return total bytes read
+   //---------------------------------------------------------------------
+   using XrdOucCacheIO2::ReadV;
 
-         //! \brief Virtual method of XrdOucCacheIO. 
-         //! Called to check if destruction needs to be done in a separate task.
-         virtual bool ioActive();
+   virtual int ReadV(const XrdOucIOVec *readV, int n);
 
-   protected:
-      //! Run prefetch outside constructor.
-      virtual void StartPrefetch();
+   //---------------------------------------------------------------------
+   //! Detach itself from Cache. Note: this will delete the object.
+   //!
+   //! @return original source \ref XrdPosixFile
+   //---------------------------------------------------------------------
+   virtual XrdOucCacheIO* Detach();
 
-      private:
-         Prefetch* m_prefetch;
-   };
+   //! \brief Virtual method of XrdOucCacheIO.
+   //! Called to check if destruction needs to be done in a separate task.
+   virtual bool ioActive();
+   
+   virtual int  Fstat(struct stat &sbuff);
+
+   virtual long long FSize();
+
+   virtual void RelinquishFile(File*);
+
+private:
+   XrdSysMutex  m_mutex;
+   File        *m_file;
+   struct stat *m_localStat;
+   int initCachedStat(const char* path);
+};
 
 }
 #endif
+

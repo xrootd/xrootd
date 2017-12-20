@@ -33,6 +33,15 @@
 #include "XrdPosix/XrdPosixMap.hh"
 
 /******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+
+namespace XrdPosixGlobals
+{
+extern XrdCl::DirListFlags::Flags dlFlag;
+};
+  
+/******************************************************************************/
 /*                             n e x t E n t r y                              */
 /******************************************************************************/
 
@@ -96,7 +105,7 @@ DIR *XrdPosixDir::Open()
 // Get the directory list
 //
    rc = XrdPosixMap::Result(DAdmin.Xrd.DirList(DAdmin.Url.GetPathWithParams(),
-                                               XrdCl::DirListFlags::None,
+                                               XrdPosixGlobals::dlFlag,
                                                myDirVec, (uint16_t)0));
 
 // If we failed, return a zero pointer

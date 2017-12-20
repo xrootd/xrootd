@@ -45,7 +45,7 @@ namespace XrdCl
     // Locate all the disk servers containing the space
     //--------------------------------------------------------------------------
     LocationInfo *locationInfo = 0;
-    XRootDStatus st = fs->DeepLocate( path, OpenFlags::None, locationInfo );
+    XRootDStatus st = fs->DeepLocate( path, OpenFlags::Compress, locationInfo );
     if( !st.IsOK() )
       return st;
 

@@ -12,7 +12,7 @@ xrdcp - copy files
 [\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR]
 [\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
 [\fB--tpc\fR \fIfirst\fR|\fIonly\fR] [\fB--verbose\fR] [\fB--version\fR]
-[\fB--xrate\fR \fIrate\fR]
+[\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -26,7 +26,7 @@ another. The data source and destination may be a local
 or remote file or directory.  Additionally, the data source may also reside
 on multiple servers.
 .SH OPTIONS
-\fB-C\fR | \fB--cksum\fR \fItype\fR[\fB:\fR\fIvalue\fR|\fIprint\fR]
+\fB-C\fR | \fB--cksum\fR \fItype\fR[\fB:\fR\fIvalue\fR|\fIprint\fR|\fIsource\fR]
 .RS 5
 obtains the checksum of \fItype\fR (i.e. adler32, crc32, or md5) from the source,
 computes the checksum at the destination, and verifies that they are the same. If a \fIvalue\fR
@@ -129,6 +129,11 @@ displays summary output.
 displays version information and immediately exits.
 
 .RE
+\fB-z\fR | \fB--zip\fR
+.RS 5
+copy given file from a ZIP archive.
+
+.RE
 \fB-X\fR | \fB--xrate\fR \fIrate\fR
 .RS 5
 [NOT YET IMPLEMENTED]
@@ -142,9 +147,9 @@ local.
 Legacy options are provided for backward compatability. These are now
 deprecated and should be avoided.
 .RE
-\fB--adler\fR
+\fB-adler\fR
 .RS 5
-equivalent to "\fB--cksum adler32:print\fR".
+equivalent to "\fB--cksum adler32:source\fR".
 
 .RE
 \fB-DI\fR\fIpname numberval\fR
@@ -159,7 +164,7 @@ set the internal parameter \fIpname\fR with the string value \fIstringval\fR.
 .RE
 \fB-md5\fR
 .RS 5
-equivalent to "\fB--cksum md5:print\fR".
+equivalent to "\fB--cksum md5:source\fR".
 
 .RE
 \fB-np\fR
@@ -186,7 +191,7 @@ equivalent to "\fB--sources 12\fR".
 .SH OPERANDS
 \fIsource\fR
 .RS 5
-a local file, a local directory name suffixed by /, or
+a dash (i.e. \fB-\fR) indicating stanard in, a local file, a local directory name suffixed by /, or
 an xrootd URL in the form of
 .ce 1
 \fBxroot://[\fIuser\fB@\fR]\fIhost[\fB:\fIport\fR]\fB/\fIabsolutepath\fR
@@ -243,6 +248,20 @@ Available topics: AppMsg, UtilityMsg, FileMsg, PollerMsg, PostMasterMsg,
 XRootDTransportMsg, TaskMgrMsg, XRootDMsg, FileSystemMsg, AsyncSockMsg
 .RE
 
+XRD_PARALLELEVTLOOP
+.RS 5
+The number of event loops.
+.RE
+
+XRD_READRECOVERY
+.RS 5
+Determines if read recovery should be enabled or disabled (enabled by default).
+.RE
+
+XRD_WRITERECOVERY
+.RS 5
+Determines if write recovery should be enabled or disabled (enabled by default).
+.RE
 
 XRD_CONNECTIONWINDOW (-DIConnectionWindow)
 .RS 5
@@ -301,7 +320,7 @@ Maximum number of allowed redirections.
 XRD_POLLERPREFERENCE (-DSPollerPreference)
 .RS 5
 A comma separated list of poller implementations in order of preference. The
-default is: libevent,built-in.
+default is: built-in.
 .RE
 
 XRD_CLIENTMONITOR (-DSClientMonitor)
@@ -410,6 +429,31 @@ XRD_TCPKEEPALIVEPROBES (-DITCPKeepProbes)
 .RS 5
 Number of unacknowledged probes before considering the connection dead
 (Linux only)
+.RE
+
+XRD_METALINKPROCESSING
+.RS 5
+Enable/Disable Metalink processing (enabled by default)
+.RE
+
+XRD_LOCALMETALINKFILE
+.RS 5
+Enable/Disable local Metalink file processing (by convention the following URL schema has to be used: root://localfile//path/filename.meta4) 
+.RE
+
+XRD_GLFNREDIRECTOR
+.RS 5
+The redirector will be used as a last resort if the GLFN tag is specified in a Metalink file.
+.RE
+
+XRD_XCPBLOCKSIZE
+.RS 5
+Maximu size of a data block assigned to a single source in case of an extreme copy transfer.
+.RE
+
+XRD_NODELAY
+.RS 5
+Disables the Nagle algorithm if set to 1 (default), enables it if set to 0.
 .RE
 
 .SH NOTES

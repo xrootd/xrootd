@@ -40,6 +40,97 @@
 
 namespace
 {
+
+  //----------------------------------------------------------------------------
+  // Get delimiter for the opaque info
+  //----------------------------------------------------------------------------
+   char GetCgiDelimiter( bool &hasCgi )
+   {
+     if( !hasCgi )
+     {
+       hasCgi = true;
+       return '?';
+     }
+
+     return '&';
+   }
+  //----------------------------------------------------------------------------
+  // Filters out client specific CGI
+  //----------------------------------------------------------------------------
+  std::string FilterXrdClCgi( const std::string &path )
+  {
+    // first check if there's an opaque info at all
+    size_t pos = path.find( '?' );
+    if( pos == std::string::npos )
+      return path;
+
+    std::string filteredPath = path.substr( 0 , pos );
+    std::string cgi = path.substr( pos + 1 );
+
+    bool hasCgi = false;
+    pos = 0;
+    size_t xrdcl = std::string::npos;
+    do
+    {
+      xrdcl = cgi.find( "xrdcl.", pos );
+
+      if( xrdcl == std::string:: npos )
+      {
+        filteredPath += GetCgiDelimiter( hasCgi );
+        filteredPath += cgi.substr( pos );
+        pos = cgi.size();
+      }
+      else
+      {
+        if( xrdcl != pos )
+        {
+          filteredPath += GetCgiDelimiter( hasCgi );
+          filteredPath += cgi.substr( pos, xrdcl - 1 - pos );
+        }
+
+        pos = cgi.find( '&', xrdcl );
+        if( pos != std::string::npos )
+          ++pos;
+      }
+
+    }
+    while( pos < cgi.size() && pos != std::string::npos );
+
+    return filteredPath;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Wrapper class used to delete FileSystem object
+  //----------------------------------------------------------------------------
+  class DeallocFSHandler: public XrdCl::ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Constructor and destructor
+      //------------------------------------------------------------------------
+      DeallocFSHandler( XrdCl::FileSystem *fs, ResponseHandler *userHandler ):
+        pFS(fs), pUserHandler(userHandler) {}
+
+      virtual ~DeallocFSHandler()
+      {
+        delete pFS;
+      }
+
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response )
+      {
+        pUserHandler->HandleResponse(status, response);
+        delete this;
+      }
+
+    private:
+      XrdCl::FileSystem *pFS;
+      ResponseHandler   *pUserHandler;
+  };
+
   //----------------------------------------------------------------------------
   // Deep locate handler
   //----------------------------------------------------------------------------
@@ -151,8 +242,8 @@ namespace
           //--------------------------------------------------------------------
           if( it->IsManager() )
           {
-            FileSystem fs( it->GetAddress() );
-            if( fs.Locate( pPath, pFlags, this, pExpires-::time(0)).IsOK() )
+            FileSystem *fs = new FileSystem( it->GetAddress() );
+            if( fs->Locate( pPath, pFlags, new DeallocFSHandler(fs, this), pExpires-::time(0)).IsOK() )
               ++pOutstanding;
           }
         }
@@ -258,8 +349,319 @@ namespace
 
     private:
       XrdCl::DirectoryList *pList;
-      uint32_t                  pIndex;
+      uint32_t              pIndex;
       XrdCl::RequestSync   *pSync;
+  };
+
+  //----------------------------------------------------------------------------
+  // Recursive dirlist common context for all handlers
+  //----------------------------------------------------------------------------
+  struct RecursiveDirListCtx
+  {
+      RecursiveDirListCtx( const XrdCl::URL &url, const std::string &path,
+                           XrdCl::DirListFlags::Flags flags,
+                           XrdCl::ResponseHandler *handler, time_t expires ) :
+        pending( 1 ), dirList( new XrdCl::DirectoryList() ),
+        expires( expires ), handler( handler ), flags( flags ),
+        fs( new XrdCl::FileSystem( url ) )
+      {
+        dirList->SetParentName( path );
+      }
+
+      ~RecursiveDirListCtx()
+      {
+        delete dirList;
+        delete fs;
+      }
+
+      XrdCl::XRootDStatus         status;
+      int                         pending;
+      XrdCl::DirectoryList       *dirList;
+      time_t                      expires;
+      XrdCl::ResponseHandler     *handler;
+      XrdCl::DirListFlags::Flags  flags;
+      XrdCl::FileSystem          *fs;
+      XrdSysMutex                 mtx;
+  };
+
+  //----------------------------------------------------------------------------
+  // Exception for a recursive dirlist handler
+  //----------------------------------------------------------------------------
+  struct RecDirLsErr
+  {
+      RecDirLsErr() : status( 0 ) { }
+
+      RecDirLsErr( const XrdCl::XRootDStatus &st ) :
+        status( new XrdCl::XRootDStatus( st ) )
+      {
+
+      }
+
+      XrdCl::XRootDStatus *status;
+  };
+
+  //----------------------------------------------------------------------------
+  // Handle results for a recursive dirlist request
+  //----------------------------------------------------------------------------
+  class RecursiveDirListHandler: public XrdCl::ResponseHandler
+  {
+    public:
+
+      RecursiveDirListHandler( const XrdCl::URL &url,
+                               const std::string &path,
+                               XrdCl::DirListFlags::Flags flags,
+                               XrdCl::ResponseHandler *handler,
+                               time_t timeout )
+      {
+        time_t expires = 0;
+        if( timeout )
+          expires = ::time( 0 ) + timeout;
+        pCtx = new RecursiveDirListCtx( url, path, flags,
+                                        handler, expires );
+      }
+
+      RecursiveDirListHandler( RecursiveDirListCtx *ctx ) : pCtx( ctx )
+      {
+
+      }
+
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response )
+      {
+        using namespace XrdCl;
+
+        XrdSysMutexHelper scoped( pCtx->mtx );
+
+        try
+        {
+          // decrement the number of pending DieLists
+          --pCtx->pending;
+
+          // check if the job hasn't failed somewhere else,
+          // if yes we just give up
+          if( !pCtx->status.IsOK() )
+            throw RecDirLsErr();
+
+          // check if we failed, if yes update the global status
+          // for all call-backs and call the user handler
+          if( !status->IsOK() )
+            throw RecDirLsErr( *status );
+
+          // check if we got a response ...
+          if( !response )
+            throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
+
+          // get the response
+          DirectoryList *dirList = 0;
+          response->Get( dirList );
+
+          // check if the response is not empty ...
+          if( !dirList )
+            throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
+
+          std::string parent = pCtx->dirList->GetParentName();
+
+          DirectoryList::Iterator itr;
+          for( itr = dirList->Begin(); itr != dirList->End(); ++itr )
+          {
+            DirectoryList::ListEntry *entry = *itr;
+            StatInfo *info = entry->GetStatInfo();
+            if( !info )
+              throw RecDirLsErr( XRootDStatus( stError, errNotSupported ) );
+            std::string path = dirList->GetParentName() + entry->GetName();
+
+            // check the prefix
+            if( path.find( parent ) != 0 )
+              throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
+
+            // add new entry to the result
+            path = path.substr( parent.size() );
+            entry->SetStatInfo( 0 ); // StatInfo is no longer owned by dirList
+            DirectoryList::ListEntry *e =
+                new DirectoryList::ListEntry( entry->GetHostAddress(), path, info );
+            pCtx->dirList->Add( e );
+
+            // if it's a directory do a recursive call
+            if( info->TestFlags( StatInfo::IsDir ) )
+            {
+              // bump the pending counter
+              ++pCtx->pending;
+              // switch of the recursive flag, we will
+              // provide the respective handler ourself,
+              // make sure that stat is on
+              DirListFlags::Flags flags = ( pCtx->flags & (~DirListFlags::Recursive) )
+                                          | DirListFlags::Stat;
+              // the recursive dir list handler
+              RecursiveDirListHandler *handler = new RecursiveDirListHandler( pCtx );
+              // timeout
+              time_t timeout = 0;
+              if( pCtx->expires )
+              {
+                timeout = pCtx->expires - ::time( 0 );
+                if( timeout <= 0 )
+                  throw RecDirLsErr( XRootDStatus( stError, errOperationExpired ) );
+              }
+              // send the request
+              XRootDStatus st = pCtx->fs->DirList( parent + path, flags, handler, timeout );
+              if( !st.IsOK() )
+                throw RecDirLsErr( st );
+            }
+          }
+
+          if( pCtx->pending == 0 )
+          {
+            AnyObject *resp = new AnyObject();
+            resp->Set( pCtx->dirList );
+            pCtx->dirList = 0; // dirList is no longer owned by pCtx
+            pCtx->handler->HandleResponse( new XRootDStatus(), resp );
+          }
+        }
+        catch( RecDirLsErr &ex )
+        {
+          if( ex.status )
+          {
+            pCtx->status = *ex.status;
+            pCtx->handler->HandleResponse( ex.status, 0 );
+          }
+        }
+
+        // clean up the context if necessary
+        bool delctx = ( pCtx->pending == 0 );
+        scoped.UnLock();
+        if( delctx )
+          delete pCtx;
+        // clean up the arguments
+        delete status;
+        delete response;
+        // and finally commit suicide
+        delete this;
+      }
+
+
+    private:
+
+      RecursiveDirListCtx *pCtx;
+  };
+
+  //----------------------------------------------------------------------------
+  // Exception for a merge dirlist handler
+  //----------------------------------------------------------------------------
+  struct MergeDirLsErr
+  {
+      MergeDirLsErr( XrdCl::XRootDStatus *&status, XrdCl::AnyObject *&response ) :
+        status( status ), response( response )
+      {
+        status = 0; response = 0;
+      }
+
+      MergeDirLsErr() :
+        status( new XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal ) ),
+        response( 0 )
+      {
+
+      }
+
+      XrdCl::XRootDStatus *status;
+      XrdCl::AnyObject    *response;
+  };
+
+
+
+  //----------------------------------------------------------------------------
+  // Handle results for a merge dirlist request
+  //----------------------------------------------------------------------------
+  class MergeDirListHandler: public XrdCl::ResponseHandler
+  {
+    public:
+
+      MergeDirListHandler( XrdCl::ResponseHandler *handler ) : pHandler( handler )
+      {
+
+      }
+
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response )
+      {
+        try
+        {
+          if( status->IsOK() )
+            throw MergeDirLsErr( status, response );
+
+          if( !response )
+            throw MergeDirLsErr();
+
+          XrdCl::DirectoryList *dirlist = 0;
+          response->Get( dirlist );
+
+          if( !dirlist )
+            throw MergeDirLsErr();
+
+          Merge( dirlist );
+          response->Set( dirlist );
+          pHandler->HandleResponse( status, response );
+        }
+        catch( const MergeDirLsErr &err )
+        {
+          delete status; delete response;
+          pHandler->HandleResponse( err.status, err.response );
+        }
+
+        delete this;
+      }
+
+      static void Merge( XrdCl::DirectoryList *&response )
+      {
+        std::set<ListEntry*, less> unique( response->Begin(), response->End() );
+
+        XrdCl::DirectoryList *dirlist = new XrdCl::DirectoryList();
+        dirlist->SetParentName( response->GetParentName() );
+        for( auto itr = unique.begin(); itr != unique.end(); ++itr )
+        {
+          ListEntry *entry = *itr;
+          dirlist->Add( new ListEntry( entry->GetHostAddress(),
+                                       entry->GetName(),
+                                       entry->GetStatInfo() ) );
+          entry->SetStatInfo( 0 );
+        }
+
+        delete response;
+        response = dirlist;
+      }
+
+    private:
+
+      typedef XrdCl::DirectoryList::ListEntry ListEntry;
+
+      struct less
+      {
+        bool operator() (const ListEntry *x, const ListEntry *y) const
+        {
+          if( x->GetName() != y->GetName() )
+            return x->GetName() < y->GetName();
+
+          const XrdCl::StatInfo *xStatInfo = x->GetStatInfo();
+          const XrdCl::StatInfo *yStatInfo = y->GetStatInfo();
+
+          if( xStatInfo == yStatInfo )
+            return false;
+
+          if( xStatInfo == 0 )
+            return true;
+
+          if( yStatInfo == 0 )
+            return false;
+
+          if( xStatInfo->GetSize() != yStatInfo->GetSize() )
+            return xStatInfo->GetSize() < yStatInfo->GetSize();
+
+          if( xStatInfo->GetFlags() != yStatInfo->GetFlags() )
+            return xStatInfo->GetFlags() < yStatInfo->GetFlags();
+
+          return false;
+        }
+      };
+
+      XrdCl::ResponseHandler *pHandler;
   };
 }
 
@@ -365,14 +767,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Locate( path, flags, handler, timeout );
 
+    std::string fPath = FilterXrdClCgi( path );
+
     Message             *msg;
     ClientLocateRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid = kXR_locate;
     req->options   = flags;
-    req->dlen      = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen      = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
 
@@ -438,15 +842,19 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Mv( source, dest, handler, timeout );
 
+    std::string fSource = FilterXrdClCgi( source );
+    std::string fDest   = FilterXrdClCgi( dest );
+
     Message         *msg;
     ClientMvRequest *req;
-    MessageUtils::CreateRequest( msg, req, source.length()+dest.length()+1 );
+    MessageUtils::CreateRequest( msg, req, fSource.length() + fDest.length()+1 );
 
     req->requestid = kXR_mv;
-    req->dlen      = source.length()+dest.length()+1;
-    msg->Append( source.c_str(), source.length(), 24 );
-    *msg->GetBuffer(24+source.length()) = ' ';
-    msg->Append( dest.c_str(), dest.length(), 25+source.length() );
+    req->dlen      = fSource.length() + fDest.length()+1;
+    req->arg1len   = fSource.length();
+    msg->Append( fSource.c_str(), fSource.length(), 24 );
+    *msg->GetBuffer(24 + fSource.length()) = ' ';
+    msg->Append( fDest.c_str(), fDest.length(), 25 + fSource.length() );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
 
@@ -523,14 +931,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Truncate( path, size, handler, timeout );
 
+    std::string fPath = FilterXrdClCgi( path );
+
     Message               *msg;
     ClientTruncateRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid = kXR_truncate;
     req->offset    = size;
-    req->dlen      = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen      = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -563,13 +973,15 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Rm( path, handler, timeout );
 
+    std::string fPath = FilterXrdClCgi( path );
+
     Message         *msg;
     ClientRmRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid = kXR_rm;
-    req->dlen      = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen      = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -603,15 +1015,17 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->MkDir( path, flags, mode, handler, timeout );
 
+    std::string fPath = FilterXrdClCgi( path );
+
     Message            *msg;
     ClientMkdirRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid  = kXR_mkdir;
     req->options[0] = flags;
     req->mode       = mode;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -645,13 +1059,15 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->RmDir( path, handler, timeout );
 
+    std::string fPath = FilterXrdClCgi( path );
+
     Message            *msg;
     ClientRmdirRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid  = kXR_rmdir;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -684,14 +1100,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->ChMod( path, mode, handler, timeout );
 
+    std::string fPath = FilterXrdClCgi( path );
+
     Message            *msg;
     ClientChmodRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid  = kXR_chmod;
     req->mode       = mode;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -758,14 +1176,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Stat( path, handler, timeout );
 
+    std::string fPath = FilterXrdClCgi( path );
+
     Message           *msg;
     ClientStatRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid  = kXR_stat;
     req->options    = 0;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -798,14 +1218,16 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->StatVFS( path, handler, timeout );
 
+    std::string fPath = FilterXrdClCgi( path );
+
     Message           *msg;
     ClientStatRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid  = kXR_stat;
     req->options    = kXR_vfs;
-    req->dlen       = path.length();
-    msg->Append( path.c_str(), path.length(), 24 );
+    req->dlen       = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -875,17 +1297,26 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->DirList( path, flags, handler, timeout );
 
+    URL url = URL( path );
+    std::string fPath = FilterXrdClCgi( path );
+
     Message           *msg;
     ClientDirlistRequest *req;
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
 
     req->requestid  = kXR_dirlist;
-    req->dlen       = path.length();
+    req->dlen       = fPath.length();
 
-    if( flags & DirListFlags::Stat )
+    if( ( flags & DirListFlags::Stat ) || ( flags & DirListFlags::Recursive ) )
       req->options[0] = kXR_dstat;
 
-    msg->Append( path.c_str(), path.length(), 24 );
+    if( flags & DirListFlags::Recursive )
+      handler = new RecursiveDirListHandler( *pUrl, url.GetPath(), flags, handler, timeout );
+
+    if( flags & DirListFlags::Merge )
+      handler = new MergeDirListHandler( handler );
+
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
@@ -963,6 +1394,9 @@ namespace XrdCl
         currentResp = 0;
       }
       delete locations;
+
+      if( flags & DirListFlags::Merge )
+        MergeDirListHandler::Merge( response );
 
       if( errors || partial )
       {
@@ -1189,6 +1623,6 @@ namespace XrdCl
 
     params.followRedirects = pFollowRedirects;
 
-    return MessageUtils::SendMessage( *pUrl, msg, handler, params );
+    return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
   }
 }

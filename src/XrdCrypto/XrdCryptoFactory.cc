@@ -39,7 +39,6 @@
 #include "XrdCrypto/XrdCryptoAux.hh"
 #include "XrdCrypto/XrdCryptoTrace.hh"
 #include "XrdCrypto/XrdCryptoFactory.hh"
-#include "XrdCrypto/XrdCryptolocalFactory.hh"
 
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
@@ -50,9 +49,6 @@
 //
 // For error logging
 static XrdSysError eDest(0,"cryptofactory_");
-
-// We have always an instance of the simple RSA implementation
-static XrdCryptolocalFactory localCryptoFactory;
 
 //____________________________________________________________________________
 XrdCryptoFactory::XrdCryptoFactory(const char *n, int id)
@@ -356,6 +352,15 @@ XrdCryptoX509SignProxyReq_t XrdCryptoFactory::X509SignProxyReq()
 }
 
 //______________________________________________________________________________
+XrdCryptoX509CheckProxy3_t XrdCryptoFactory::X509CheckProxy3()
+{
+   // Check consistency of a GSI 3 compliant proxy
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509CheckProxy3");
+   return 0;
+}
+
+//______________________________________________________________________________
 XrdCryptoX509GetVOMSAttr_t XrdCryptoFactory::X509GetVOMSAttr()
 {
    // Get VOMS attributes, if any
@@ -395,16 +400,13 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
 
    //
    // The id must be defined
-   if (!factoryid || !strlen(factoryid)) {
-      PRINT("crypto factory ID ("<<factoryid<<") undefined");
+   if (!factoryid) {
+      PRINT("crypto factory ID (NULL) undefined");
       return 0;
    }
-
-   //
-   // If the local simple implementation is required return the related pointer
-   if (!strcmp(factoryid,"local")) {
-      PRINT("local crypto factory requested");
-      return &localCryptoFactory;
+   if (!strlen(factoryid)) {
+      PRINT("crypto factory ID (\"\") undefined");
+      return 0;
    }
 
    // 

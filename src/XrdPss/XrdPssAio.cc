@@ -31,15 +31,13 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPss/XrdPss.hh"
+#include "XrdPss/XrdPssAioCB.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 
 // All AIO interfaces are defined here.
  
-
-// Currently we disable aio support for proxies because the client does not
-// support async reads and writes. It should to make proxy I/O more scalable.
-
 /******************************************************************************/
 /*                                 F s y n c                                  */
 /******************************************************************************/
@@ -53,13 +51,9 @@
 int XrdPssFile::Fsync(XrdSfsAio *aiop)
 {
 
-// Execute this request in a synchronous fashion
+// Execute this request in an asynchronous fashion
 //
-   if ((aiop->Result = Fsync())) aiop->Result = -errno;
-
-// Simply call the write completion routine and return as if all went well
-//
-   aiop->doneWrite();
+   XrdPosixXrootd::Fsync(fd, XrdPssAioCB::Alloc(aiop, true));
    return 0;
 }
 
@@ -81,15 +75,12 @@ int XrdPssFile::Fsync(XrdSfsAio *aiop)
 int XrdPssFile::Read(XrdSfsAio *aiop)
 {
 
-// Execute this request in a synchronous fashion
+// Execute this request in an asynchronous fashion
 //
-   aiop->Result = this->Read((void *)aiop->sfsAio.aio_buf,
-                              (off_t)aiop->sfsAio.aio_offset,
-                             (size_t)aiop->sfsAio.aio_nbytes);
-
-// Simple call the read completion routine and return as if all went well
-//
-   aiop->doneRead();
+   XrdPosixXrootd::Pread(fd, (void *)aiop->sfsAio.aio_buf,
+                             (size_t)aiop->sfsAio.aio_nbytes,
+                             (off_t)aiop->sfsAio.aio_offset,
+                             XrdPssAioCB::Alloc(aiop, false));
    return 0;
 }
 
@@ -111,14 +102,11 @@ int XrdPssFile::Read(XrdSfsAio *aiop)
 int XrdPssFile::Write(XrdSfsAio *aiop)
 {
 
-// Execute this request in a synchronous fashion
+// Execute this request in an asynchronous fashion
 //
-   aiop->Result = this->Write((const void *)aiop->sfsAio.aio_buf,
-                                     (off_t)aiop->sfsAio.aio_offset,
-                                    (size_t)aiop->sfsAio.aio_nbytes);
-
-// Simply call the write completion routine and return as if all went well
-//
-   aiop->doneWrite();
+   XrdPosixXrootd::Pwrite(fd, (const void *)aiop->sfsAio.aio_buf,
+                              (size_t)aiop->sfsAio.aio_nbytes,
+                              (off_t)aiop->sfsAio.aio_offset,
+                              XrdPssAioCB::Alloc(aiop, true));
    return 0;
 }

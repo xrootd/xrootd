@@ -284,14 +284,14 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 //
    if (!myHandle)
       {if ((myHandle = dlopen(libPath, flags))) libHandle = myHandle;
-          else {libMsg(dlerror(), " loading "); return 0;}
+          else {if (optional < 2) libMsg(dlerror(), " loading "); return 0;}
       }
 
 // Get the symbol. In the environment we have defined, null values are not
 // allowed and we will issue an error.
 //
    if (!(ep = dlsym(myHandle, pname)))
-      {if (!optional) libMsg(dlerror(), " plugin %s in ", pname);
+      {if (optional < 2) libMsg(dlerror(), " plugin %s in ", pname);
        return 0;
       }
 

@@ -141,10 +141,23 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void OnWriteWhileHandshaking();
 
+
+      Status WriteMessageAndRaw( Message *toWrite, Message *&sign );
+
+      Status WriteSeparately( Message *toWrite, Message *&sign );
+
       //------------------------------------------------------------------------
       // Write the current message
       //------------------------------------------------------------------------
-      Status WriteCurrentMessage();
+      Status WriteCurrentMessage( Message *toWrite );
+
+      //------------------------------------------------------------------------
+      // Write the message, its signature and its body
+      //------------------------------------------------------------------------
+      Status WriteVMessage( Message   *toWrite,
+                            Message   *&sign,
+                            ChunkList *chunks,
+                            uint32_t  *asyncOffset );
 
       //------------------------------------------------------------------------
       // Got a read readiness event
@@ -159,7 +172,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Read a message
       //------------------------------------------------------------------------
-      Status ReadMessage();
+      Status ReadMessage( Message *&toRead );
 
       //------------------------------------------------------------------------
       // Handle fault
@@ -187,6 +200,36 @@ namespace XrdCl
       void OnTimeoutWhileHandshaking();
 
       //------------------------------------------------------------------------
+      // Get signature for given message
+      //------------------------------------------------------------------------
+      Status GetSignature( Message *toSign, Message *&sign );
+
+      //------------------------------------------------------------------------
+      // Initialize the iovec with given message
+      //------------------------------------------------------------------------
+      inline void ToIov( Message &msg, iovec &iov );
+
+      //------------------------------------------------------------------------
+      // Update iovec after write
+      //------------------------------------------------------------------------
+      inline void UpdateAfterWrite( Message &msg, iovec &iov, int &bytesRead );
+
+      //------------------------------------------------------------------------
+      // Add chunks to the given iovec
+      //------------------------------------------------------------------------
+      inline uint32_t ToIov( ChunkList       *chunks,
+                             const uint32_t  *offset,
+                             iovec           *iov );
+
+      //------------------------------------------------------------------------
+      // Update raw data after write
+      //------------------------------------------------------------------------
+      inline void UpdateAfterWrite( ChunkList  *chunks,
+                                    uint32_t   *offset,
+                                    iovec      *iov,
+                                    int        &bytesWritten );
+
+      //------------------------------------------------------------------------
       // Data members
       //------------------------------------------------------------------------
       Poller                        *pPoller;
@@ -197,7 +240,10 @@ namespace XrdCl
       std::string                    pStreamName;
       Socket                        *pSocket;
       Message                       *pIncoming;
+      Message                       *pHSIncoming;
       Message                       *pOutgoing;
+      Message                       *pSignature;
+      Message                       *pHSOutgoing;
       XrdNetAddr                     pSockAddr;
       HandShakeData                 *pHandShakeData;
       bool                           pHandShakeDone;

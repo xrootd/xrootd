@@ -238,7 +238,7 @@ FileSystem::xthrottle(XrdOucStream &Config)
 */
 int FileSystem::xloadshed(XrdOucStream &Config)
 {
-    long long port, freq;
+    long long port = 0, freq = 0;
     char *val;
     std::string hostname;
 

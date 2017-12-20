@@ -52,7 +52,7 @@ private:
    char       *fIV;
    int         lIV;
    const EVP_CIPHER *cipher;
-   EVP_CIPHER_CTX ctx;
+   EVP_CIPHER_CTX *ctx;
    DH         *fDH;
    bool        deflength;
    bool        valid;

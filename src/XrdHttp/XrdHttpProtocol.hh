@@ -50,6 +50,8 @@
 
 #include <openssl/ssl.h>
 
+#include <vector>
+
 #include "XrdHttpReq.hh"
 
 /******************************************************************************/
@@ -67,6 +69,7 @@ class XrdBuffer;
 class XrdLink;
 class XrdXrootdProtocol;
 class XrdHttpSecXtractor;
+class XrdHttpExtHandler;
 struct XrdVersionInfo;
 class XrdOucGMap;
 
@@ -74,6 +77,7 @@ class XrdOucGMap;
 class XrdHttpProtocol : public XrdProtocol {
   
   friend class XrdHttpReq;
+  friend class XrdHttpExtReq;
   
 public:
 
@@ -117,7 +121,6 @@ public:
   XrdObject<XrdHttpProtocol> ProtLink;
 
 
-
   /// Sends a basic response. If the length is < 0 then it is calculated internally
   int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
 
@@ -128,6 +131,9 @@ public:
   /// Send a (potentially partial) body in a chunked response; invoking with NULL body
   //  indicates that this is the last chunk in the response.
   int ChunkResp(char *body, long long bodylen);
+
+  /// Authentication area
+  XrdSecEntity SecEntity;
 
 private:
 
@@ -160,11 +166,12 @@ private:
 
   
   /// Functions related to the configuration
-  static int Config(const char *fn);
+  static int Config(const char *fn, XrdOucEnv *myEnv);
   static int xtrace(XrdOucStream &Config);
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);
   static int xsecxtractor(XrdOucStream &Config);
+  static int xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv);
   static int xsslcadir(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
   static int xlistdeny(XrdOucStream &Config);
@@ -177,12 +184,36 @@ private:
   static int xsslcafile(XrdOucStream &Config);
   static int xsslverifydepth(XrdOucStream &Config);
   static int xsecretkey(XrdOucStream &Config);
-
+  static int xheader2cgi(XrdOucStream &Config);
+  
   static XrdHttpSecXtractor *secxtractor;
+  
   // Loads the SecXtractor plugin, if available
   static int LoadSecXtractor(XrdSysError *eDest, const char *libName,
                       const char *libParms);
+  
+  // An oldstyle struct array to hold exthandlers
+  #define MAX_XRDHTTPEXTHANDLERS 4
+  static struct XrdHttpExtHandlerInfo {
+    char name[16];
+    XrdHttpExtHandler *ptr;
+  } exthandler[MAX_XRDHTTPEXTHANDLERS];
+  static int exthandlercnt;
+  
+  // Loads the ExtHandler plugin, if available
+  static int LoadExtHandler(XrdSysError *eDest, const char *libName,
+                            const char *configFN, const char *libParms,
+                            XrdOucEnv *myEnv, const char *instName);
 
+  // Determines whether one of the loaded ExtHandlers are interested in
+  // handling a given request.
+  //
+  // Returns NULL if there is no matching handler.
+  static XrdHttpExtHandler *FindMatchingExtHandler(const XrdHttpReq &);
+
+  // Tells if an ext handler with the given name has already been loaded
+  static bool ExtHandlerLoaded(const char *handlername);
+  
   /// Circular Buffer used to read the request
   XrdBuffer *myBuff;
   /// The circular pointers
@@ -204,7 +235,12 @@ private:
   int BuffgetData(int blen, char **data, bool wait);
   /// Copy a full line of text from the buffer into dest. Zero if no line can be found in the buffer
   int BuffgetLine(XrdOucString &dest);
-
+  
+  
+  
+  /// Sends a basic response. If the length is < 0 then it is calculated internally
+  int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
+  
   
   /// Gets a string that represents the IP address of the client. Must be freed
   char *GetClientIPStr();
@@ -234,6 +270,8 @@ private:
   /// connection being established
   bool ssldone;
 
+  
+  
   static XrdCryptoFactory *myCryptoFactory;
 protected:
 
@@ -263,10 +301,10 @@ protected:
 
   /// The link we are bound to
   XrdLink *Link;
-
-  /// Authentication area
-  XrdSecEntity SecEntity;
-
+  
+  /// Our IP address, as a string. Please remember that this may not be unique for
+  /// a given machine, hence we need to keep it here and recompute ad every new connection.
+  char *Addr_str;
   
   /// The instance of the DN mapper. Created only when a valid path is given
   static XrdOucGMap      *servGMap;  // Grid mapping service
@@ -295,9 +333,6 @@ protected:
   
   /// Our port, as a string
   static char * Port_str;
-  
-  /// Our IP address, as a string
-  static char * Addr_str;
 
   /// Windowsize
   static int Window;
@@ -341,6 +376,9 @@ protected:
 
   /// Our role
   static kXR_int32 myRole;
+  
+  /// Rules that turn HTTP headers to cgi tokens in the URL, for internal comsumption
+  static std::map< std::string, std::string > hdr2cgimap;
   
 };
 #endif

@@ -76,6 +76,26 @@ char          XrdCmsManager::MastSID[MTMax] = {0};
 int           XrdCmsManager::MTHi = -1;
   
 /******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+
+class XrdCmsDelNode : XrdJob
+{
+public:
+
+     void DoIt() {nodeP->Delete(XrdCmsManager::MTMutex);
+                  delete this;
+                 }
+
+          XrdCmsDelNode(XrdCmsNode *nP) : XrdJob("delete node"), nodeP(nP)
+                       {Sched->Schedule((XrdJob *)this);}
+
+         ~XrdCmsDelNode() {}
+
+XrdCmsNode *nodeP;
+};
+  
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
@@ -149,6 +169,15 @@ XrdCmsNode *XrdCmsManager::Add(XrdLink *lp, int Lvl, bool &xit)
 }
 
 /******************************************************************************/
+/*                                D e l e t e                                 */
+/******************************************************************************/
+  
+void XrdCmsManager::Delete(XrdCmsNode *nodeP)
+{
+     new XrdCmsDelNode(nodeP);
+}
+
+/******************************************************************************/
 /*                              F i n i s h e d                               */
 /******************************************************************************/
   
@@ -215,7 +244,7 @@ void XrdCmsManager::Inform(const char *What, const char *Data, int Dlen)
 //
    for (i = 0; i <= MTHi; i++)
        {if ((nP=MastTab[i]) && !nP->isOffline)
-           {nP->Lock();
+           {nP->Lock(true);
             MTMutex.UnLock();
             DEBUG(nP->Name() <<" " <<What);
             nP->Send(Data, Dlen);
@@ -242,7 +271,7 @@ void XrdCmsManager::Inform(const char *What, struct iovec *vP, int vN, int vT)
 //
    for (i = 0; i <= MTHi; i++)
        {if ((nP=MastTab[i]) && !nP->isOffline)
-           {nP->Lock();
+           {nP->Lock(true);
             MTMutex.UnLock();
             DEBUG(nP->Name() <<" " <<What);
             nP->Send(vP, vN, vT);
@@ -312,7 +341,7 @@ void XrdCmsManager::Remove(XrdCmsNode *nP, const char *reason)
    MTMutex.UnLock();
 
 // Document removal
-//
+//                                                                             .
    if (reason) Say.Emsg("Manager", nP->Ident, "removed;", reason);
 }
 
@@ -411,7 +440,7 @@ void XrdCmsManager::Reset()
 //
    for (i = 0; i <= MTHi; i++)
        {if ((nP=MastTab[i]) && !nP->isOffline && nP->isKnown)
-           {nP->Lock();
+           {nP->Lock(true);
             nP->isKnown = 0;
             MTMutex.UnLock();
             DEBUG("sent to " <<nP->Name());

@@ -109,6 +109,20 @@ int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtAuto, int fmtOpts=0)
 bool        isLoopback();
 
 //------------------------------------------------------------------------------
+//! Indicate whether or not a string is a possible hostname and not IP address.
+//! The return value does not aimply any kind of validity. For instance, a
+//! false return indicates this is not a valid hostname does not mean it is
+//! a valid IP address.
+//!
+//! @param name      The string to check.
+//!
+//! @return True:    This is     a possible hostname (i.e. not IP address).
+//! @return False:   This is not a possible hostname.
+//------------------------------------------------------------------------------
+
+static bool isHostName(const char *name);
+
+//------------------------------------------------------------------------------
 //! Indicate whether or not our address is if the desired type.
 //!
 //! @param ipType    The IP address version to test (see enum below).
@@ -259,7 +273,7 @@ SOCKLEN_t   SockSize() {return addrSize;}
 //! @return The associated file descriptor. If negative, no association exists.
 //------------------------------------------------------------------------------
 
-inline int  SockFD() {return sockNum;}
+inline int  SockFD() {return (sockNum ? static_cast<int>(sockNum) : -1);}
 
 //------------------------------------------------------------------------------
 //! Assignment operator
@@ -269,6 +283,7 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                {if (&rhs != this)
                    {memcpy(&IP, &rhs.IP, sizeof(IP));
                     addrSize = rhs.addrSize; sockNum = rhs.sockNum;
+                    protType = rhs.protType;
                     if (hostName) free(hostName);
                     hostName = (rhs.hostName ? strdup(rhs.hostName):0);
                     if (rhs.sockAddr != &rhs.IP.Addr)
@@ -295,7 +310,7 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
 //! Constructor
 //------------------------------------------------------------------------------
 
-            XrdNetAddrInfo() : hostName(0), addrSize(0), protType(0), sockNum(-1)
+            XrdNetAddrInfo() : hostName(0), addrSize(0), protType(0), sockNum(0)
                            {IP.Addr.sa_family = 0;
                             sockAddr = &IP.Addr;
                            }
@@ -328,6 +343,6 @@ char                      *hostName;
 LocInfo                    addrLoc;
 SOCKLEN_t                  addrSize;
 short                      protType;
-short                      sockNum;
+unsigned short             sockNum;
 };
 #endif

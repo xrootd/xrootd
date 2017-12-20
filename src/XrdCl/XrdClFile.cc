@@ -45,6 +45,16 @@ namespace XrdCl
     pStateHandler = new FileStateHandler();
   }
 
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  File::File( VirtRedirect virtRedirect, bool enablePlugIns ):
+    pPlugIn(0),
+    pEnablePlugIns( enablePlugIns )
+  {
+    pStateHandler = new FileStateHandler( virtRedirect == EnableVirtRedirect );
+  }
+
   //------------------------------------------------------------------------
   // Destructor
   //------------------------------------------------------------------------
@@ -323,6 +333,38 @@ namespace XrdCl
 
     return MessageUtils::WaitForResponse( &handler, vReadInfo );
   }
+
+  //------------------------------------------------------------------------
+  // Write scattered buffers in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::WriteV( uint64_t            offset,
+                                  const struct iovec *iov,
+                                  int                 iovcnt,
+                                  ResponseHandler    *handler,
+                                  uint16_t            timeout )
+  {
+    // TODO check pPlugIn
+
+    return pStateHandler->WriteV( offset, iov, iovcnt, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Write scattered buffers in one operation - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::WriteV( uint64_t            offset,
+                                  const struct iovec *iov,
+                                  int                 iovcnt,
+                                  uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = WriteV( offset, iov, iovcnt, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    XRootDStatus status = MessageUtils::WaitForStatus( &handler );
+    return status;
+  }
+
 
   //----------------------------------------------------------------------------
   // Performs a custom operation on an open file, server implementation

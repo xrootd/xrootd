@@ -136,8 +136,8 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
    while(!strcmp(val, "defined"))
       {if (!(val = Config.GetWord()) || *val != '?')
           {if (eDest)
-              eDest->Emsg("Config","'?var' missing after 'defined' in",what);
-              return -1;
+             {eDest->Emsg("Config","'?var' missing after 'defined' in",what);}
+           return -1;
           }
        // Get environment if we have none
        //
@@ -154,19 +154,19 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
        if (!val || !isDef) return isDef;
        if (strcmp(val, "&&"))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid for defined test in",what);
-              return -1;
+             {eDest->Emsg("Config",val,"is invalid for defined test in",what);}
+           return -1;
           } else {
            if (!(val = Config.GetWord()))
               {if (eDest)
-                   eDest->Emsg("Config","missing keyword after '&&' in",what);
-                   return -1;
+                  {eDest->Emsg("Config","missing keyword after '&&' in",what);}
+               return -1;
               }
           }
        if (!is1of(val, brk))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
-              return -1;
+             {eDest->Emsg("Config",val,"is invalid after '&&' in",what);}
+           return -1;
           }
       }
 
@@ -176,8 +176,8 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
    if (!strcmp(val, "exec"))
       {if (!(val = Config.GetWord()) || !strcmp(val, "&&"))
           {if (eDest)
-              eDest->Emsg("Config","Program name missing after 'if exec' in",what);
-              return -1;
+             {eDest->Emsg("Config","Program name missing after 'if exec' in",what);}
+           return -1;
           }
 
        // Check if we are one of the programs.
@@ -192,13 +192,13 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 
        if (!(val = Config.GetWord()))
           {if (eDest)
-              eDest->Emsg("Config","Keyword missing after '&&' in",what);
-              return -1;
+             {eDest->Emsg("Config","Keyword missing after '&&' in",what);}
+           return -1;
           }
        if (strcmp(val, "named"))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
-              return -1;
+             {eDest->Emsg("Config",val,"is invalid after '&&' in",what);}
+           return -1;
           }
       }
 
@@ -207,7 +207,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 //
    if (!(val = Config.GetWord()))
       {if (eDest)
-          eDest->Emsg("Config","Instance name missing after 'if named' in", what);
+         {eDest->Emsg("Config","Instance name missing after 'if named' in", what);}
        return -1;
       }
 
@@ -399,6 +399,86 @@ int XrdOucUtils::is1of(char *val, const char **clist)
 }
 
 /******************************************************************************/
+/*                                 i s F W D                                  */
+/******************************************************************************/
+  
+int XrdOucUtils::isFWD(const char *path, int *port, char *hBuff, int hBLen,
+                       bool pTrim)
+{
+   const char *hName, *hNend, *hPort, *hPend, *hP = path;
+   char *eP;
+   int n;
+
+   if (*path == '/') hP++;  // Note: It's assumed an objectid if no slash
+   if (*hP   == 'x') hP++;
+   if (strncmp("root:/", hP, 6)) return 0;
+   if (hBuff == 0 || hBLen <= 0) return (hP - path) + 6;
+   hP += 6;
+
+   if (!XrdNetUtils::Parse(hP, &hName, &hNend, &hPort, &hPend)) return 0;
+   if (*hNend == ']') hNend++;
+      else {if (!(*hNend) && !(hNend = index(hName, '/'))) return 0;
+            if (!(*hPend)) hPend = hNend;
+           }
+
+   if (pTrim || !(*hPort)) n = hNend - hP;
+      else n = hPend - hP;
+   if (n >= hBLen) return 0;
+   strncpy(hBuff, hP, n);
+   hBuff[n] = 0;
+
+   if (port)
+      {if (*hNend != ':') *port = 0;
+          else {*port = strtol(hPort, &eP, 10);
+                if (*port < 0 || *port > 65535 || eP != hPend) return 0;
+               }
+      }
+
+   return hPend-path;
+}
+  
+/******************************************************************************/
+/*                                  L o g 2                                   */
+/******************************************************************************/
+
+// Based on an algorithm produced by Todd Lehman. However, this one returns 0
+// when passed 0 (which is invalid). The caller must check the validity of
+// the input prior to calling Log2(). Essentially, the algorithm subtracts
+// away progressively smaller squares in the sequence
+// { 0 <= k <= 5: 2^(2^k) } = { 2**32, 2**16, 2**8 2**4 2**2, 2**1 } =
+//                          = { 4294967296, 65536, 256, 16, 4, 2 }
+// and sums the exponents k of the subtracted values. It is generally the
+// fastest way to compute log2 for a wide range of possible input values.
+
+int XrdOucUtils::Log2(unsigned long long n)
+{
+  int i = 0;
+
+  #define SHFT(k) if (n >= (1ULL << k)) { i += k; n >>= k; }
+
+  SHFT(32); SHFT(16); SHFT(8); SHFT(4); SHFT(2); SHFT(1); return i;
+
+  #undef SHFT
+}
+  
+/******************************************************************************/
+/*                                 L o g 1 0                                  */
+/******************************************************************************/
+
+int XrdOucUtils::Log10(unsigned long long n)
+{
+  int i = 0;
+
+  #define SHFT(k, m) if (n >= m) { i += k; n /= m; }
+
+  SHFT(16,10000000000000000ULL); SHFT(8,100000000ULL); 
+  SHFT(4,10000ULL);              SHFT(2,100ULL);       SHFT(1,10ULL);
+  return i;
+
+  #undef SHFT
+}
+  
+/******************************************************************************/
 /*                              m a k e H o m e                               */
 /******************************************************************************/
   
@@ -496,6 +576,57 @@ char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 
    free(logfn);
    return strdup(buff);
+}
+
+/******************************************************************************/
+/*                               t o L o w e r                                */
+/******************************************************************************/
+
+void XrdOucUtils::toLower(char *str)
+{
+// Change each character to lower case
+//
+   while(*str) {*str = tolower(*str); str++;}
+}
+  
+/******************************************************************************/
+/*                                 T o k e n                                  */
+/******************************************************************************/
+
+int XrdOucUtils::Token(const char **str, char delim, char *buff, int bsz)
+{
+   const char *eP, *bP = *str;
+   int aLen, mLen;
+
+// Trim off the delimeters. Return zero if nothing left.
+//
+   while(*bP && *bP == delim) bP++;
+   if (*bP == 0) {*buff = 0; return 0;}
+
+// Find the next delimiter
+//
+   eP = bP;
+   while(*eP && *eP != delim) eP++;
+
+// If we ended at a null, make sure next call will return zero
+//
+   if (*eP == 0) *str = eP;
+      else       *str = eP+1;
+
+// Calculate length and make sure we don't overrun the buffer
+//
+   aLen = eP-bP;
+   if (aLen >= bsz) mLen = bsz-1;
+      else          mLen = aLen;
+
+// Copy token into buffer and end with null byte
+//
+   strncpy(buff, bP, mLen);
+   buff[mLen] = 0;
+
+// Return actual length
+//
+   return aLen;
 }
 
 /******************************************************************************/

@@ -46,6 +46,7 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 
+#include "XrdCms/XrdCmsBaseFS.hh"
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
@@ -282,7 +283,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    int Lvl=0, Netopts=0, waits=6, tries=6, fails=0, xport=mport;
    int rc, fsUtil, KickedOut, blRedir, myNID = Manager->ManTree->Register();
    int chk4Suspend = XrdCmsState::All_Suspend, TimeOut = Config.AskPing*1000;
-   char envBuff[128], manbuff[264];
+   char manbuff[264];
    const char *Reason = 0, *manp = manager;
    const int manblen = sizeof(manbuff);
    bool terminate;
@@ -305,13 +306,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    loginData.Mode    = 0;
    loginData.Size    = 0;
    loginData.ifList  = (kXR_char *)Config.ifList;
-
-// Fill our the environment
-//
-   if (!Config.mySite) loginData.envCGI  = 0;
-      else {snprintf(envBuff, sizeof(envBuff), "site=%s", Config.mySite);
-            loginData.envCGI = (kXR_char *)envBuff;
-           }
+   loginData.envCGI  = (kXR_char *)Config.envCGI;
 
 // Establish request routing based on who we are
 //
@@ -412,7 +407,12 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
                                   : (Reason ? Reason : "lost connection")));
        Manager->ManTree->Disc(myNID);
        Link->Close();
-       Sync(); delete myNode; myNode = 0; Reason = 0;
+
+       // The Sync() will wait until all the threads we started complete. Then
+       // ask the manager to delete the node as it must synchronize with other
+       // threads relative to the manager object before being destroyed.
+       //
+       Sync(); Manager->Delete(myNode); myNode = 0; Reason = 0;
 
        // Check if we should process the redirection
        //
@@ -448,7 +448,9 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 /******************************************************************************/
   
 // Process is called only when we get a new connection. We only return when
-// the connection drops.
+// the connection drops. At that point we immediately mark he node as offline
+// to prohibit its selection in the future (it may have already been selected).
+// Unfortunately, we need the global selection lock to do that.
 //
 int XrdCmsProtocol::Process(XrdLink *lp)
 {
@@ -465,14 +467,23 @@ int XrdCmsProtocol::Process(XrdLink *lp)
           else    {myWay = isDown;    tOut = Config.AskPing*1000;}
        myNode->UnLock();
        if ((Reason = Dispatch(myWay, tOut, 2))) lp->setEtext(Reason);
-       myNode->Lock();
+       Cluster.SLock(true); myNode->isOffline = 1; Cluster.SLock(false);
       }
 
-// Serialize all activity on the link before we proceed
+// Serialize all activity on the link before we proceed. This makes sure that
+// there are no outstanding tasks initiated by this node. We don't need a node
+// lock for this because we are no longer reading requests so no new tasks can
+// be started. Since the node is marked bound, any attempt to reconnect will be
+// rejected until we finish removing this node. We get the node lock afterwards.
 //
    lp->Serialize();
+   if (!myNode) return -1;
+   Sync();
+   myNode->Lock(false);
 
-// Immediately terminate redirectors (they have an Rslot).
+// Immediately terminate redirectors (they have an Rslot). The redirector node
+// can be directly deleted as all references were serialized through the
+// RTable and one we remove our node there can be no references left.
 //
    if (RSlot)
       {RTable.Del(myNode); RSlot  = 0;
@@ -482,12 +493,12 @@ int XrdCmsProtocol::Process(XrdLink *lp)
 
 // We have a node that may or may not be in the cluster at this point, or may
 // need to remain in the cluster as a shadow member. In any case, the node
-// object lock will be released either by Remove() or the destructor.
+// object lock will be released by Remove().
 //
    if (myNode)
       {myNode->isConn = 0;
        if (myNode->isBound) Cluster.Remove(0, myNode, !loggedIn);
-          else if (myNode->isGone) delete myNode;
+          else if (myNode->isGone) Cluster.Remove(myNode);
               else myNode->UnLock();
       }
 
@@ -712,6 +723,11 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    if (Config.asManager()) {Manager->Reset(); myNode->SyncSpace();}
    myNode->isBad &= ~XrdCmsNode::isDisabled;
 
+// At this point we can switch to nonblocking sendq for this node
+//
+   if (Config.nbSQ && (Config.nbSQ > 1 || !myNode->inDomain()))
+      isNBSQ = Link->setNB();
+
 // Document the login
 //
    XrdOucEnv cgiEnv((const char *)Data.envCGI);
@@ -721,6 +737,8 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    Say.Emsg("Protocol", envBuff, myNode->Ident,
             (myNode->isBad & XrdCmsNode::isSuspend ? "logged in suspended."
                                                    : "logged in."));
+   if (Data.SID)
+      Say.Emsg("Protocol", myNode->Ident, "system ID:", (const char *)Data.SID);
    myNode->ShowIF();
 
 // All done
@@ -745,9 +763,12 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 // Director logins have no additional parameters. We return with the node object
 // locked to be consistent with the way server/suprvisors nodes are returned.
 //
-   myNode = new XrdCmsNode(Link); myNode->Lock();
+   myNode = new XrdCmsNode(Link); myNode->Lock(false);
    if (!(RSlot = RTable.Add(myNode)))
-      {Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
+      {myNode->UnLock();
+       delete myNode;
+       myNode = 0;
+       Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
        return 0;
       } else myNode->setSlot(RSlot);
 
@@ -858,7 +879,6 @@ const char *XrdCmsProtocol::Dispatch(Bearing cDir, int maxWait, int maxTries)
 {
    EPNAME("Dispatch");
    static const int ReqSize = sizeof(CmsRRHdr);
-   static CmsPingRequest Ping = {{0, kYR_ping,  0, 0}};
    XrdCmsRRData *Data = XrdCmsRRData::Objectify();
    XrdCmsJob  *jp;
    const char *toRC = (cDir == isUp ? "manager not active"
@@ -880,8 +900,7 @@ do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
        if (cDir == isDown)
           {if (myNode->isBad & XrdCmsNode::isDoomed)
               return "server blacklisted w/ redirect";
-           if (Link->Send((char *)&Ping, sizeof(Ping)) < 0)
-              return "server unreachable";
+           if (!SendPing()) return "server unreachable";
            lastPing = Config.PingTick;
           }
        continue;
@@ -892,8 +911,7 @@ do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
    if (cDir == isDown && lastPing != Config.PingTick)
       {if (myNode->isBad & XrdCmsNode::isDoomed)
           return "server blacklisted w/ redirect";
-       if (Link->Send((char *)&Ping, sizeof(Ping)) < 0)
-          return "server unreachable";
+       if (!SendPing()) return "server unreachable";
        lastPing = Config.PingTick;
       }
 
@@ -993,6 +1011,7 @@ void XrdCmsProtocol::Init(const char *iRole, XrdCmsManager *uMan,
    ProtLink  = 0;
    refCount  = 0;
    refWait   = 0;
+   isNBSQ    = false;
 }
   
 /******************************************************************************/
@@ -1054,18 +1073,33 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
 //
    if (!Cache.Paths.Find(Data.Path, pinfo)
    || (amask = pinfo.rwvec | pinfo.rovec) == 0)
-      {Say.Emsg("Job", Router.getName(Data.Request.rrCode),
+      {Say.Emsg(epname, Router.getName(Data.Request.rrCode),
                        "aborted; no servers handling", Data.Path);
        return;
+      }
+
+// While destructive operations should only go to r/w servers
+//
+   if (Data.Request.rrCode != kYR_prepdel)
+      {if (!(amask = pinfo.rwvec))
+          {Say.Emsg(epname, Router.getName(Data.Request.rrCode),
+                    "aborted; no r/w servers handling", Data.Path);
+           return;
+          }
       }
 
 // Do some debugging
 //
    DEBUG("FWD " <<Router.getName(Data.Request.rrCode) <<' ' <<Data.Path);
 
-// Now send off the message to all the nodes
+// Check for selective sending since DFS setups need only one notification.
+// Otherwise, send this message to all nodes.
 //
-   Cluster.Broadcast(amask, ioB, 2, sizeof(Data.Request)+Data.Dlen);
+   if (baseFS.isDFS() && Data.Request.rrCode != kYR_prepdel)
+      {Cluster.Broadsend(amask, Data.Request, Data.Buff, Data.Dlen);
+      } else {
+       Cluster.Broadcast(amask, ioB, 2, sizeof(Data.Request)+Data.Dlen);
+      }
 }
   
 /******************************************************************************/
@@ -1111,18 +1145,42 @@ void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etex
 }
 
 /******************************************************************************/
+/* Private:                     S e n d P i n g                               */
+/******************************************************************************/
+  
+bool XrdCmsProtocol::SendPing()
+{
+   static CmsPingRequest Ping = {{0, kYR_ping,  0, 0}};
+
+// We would like not send ping requests to servers that are backlogged but if
+// we don't (currently) it will look to one of the parties that the other party
+// if not functional. We should try to fix this, sigh.
+//
+// if (isNBSQ && Link->Backlog()) return true;
+
+// Send the ping
+//
+   if (Link->Send((char *)&Ping, sizeof(Ping)) < 0) return false;
+   return true;
+}
+  
+/******************************************************************************/
 /* Private:                         S y n c                                   */
 /******************************************************************************/
   
 void XrdCmsProtocol::Sync()
 {
+   EPNAME("Sync");
    XrdSysSemaphore mySem(0);
 
-// See if we need to wait or can continue
+// Make sure that all threads that we started have completed
 //
    refMutex.Lock();
-   if (refCount <= 0) {refMutex.UnLock(); return;}
-   refWait = &mySem;
-   refMutex.UnLock();
-   mySem.Wait();
+   if (refCount <= 0) refMutex.UnLock();
+      else {refWait = &mySem;
+            DEBUG("Waiting for " <<refCount <<' ' <<myNode->Ident
+                  <<" thread(s) to end.");
+            refMutex.UnLock();
+            mySem.Wait();
+           }
 }

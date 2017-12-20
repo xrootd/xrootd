@@ -185,7 +185,7 @@ int XrdXrootdAdmin::do_Abort()
 // Send off the unsolicited response
 //
    if (msg) return sendResp("abort", kXR_asyncab, msg, mlen);
-            return sendResp("abort", kXR_asyncab);
+      else  return sendResp("abort", kXR_asyncab);
 }
 
 /******************************************************************************/
@@ -513,7 +513,7 @@ int XrdXrootdAdmin::do_Msg()
 // Send off the unsolicited response
 //
    if (msg) return sendResp("msg", kXR_asyncms, msg, mlen);
-            return sendResp("msg", kXR_asyncms);
+      else  return sendResp("msg", kXR_asyncms);
 }
  
 /******************************************************************************/

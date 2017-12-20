@@ -88,7 +88,6 @@ int                XrdXrootdMonitor::rdrTOD     = 0;
 int                XrdXrootdMonitor::rdrWin     = 0;
 int                XrdXrootdMonitor::rdrNum     = 3;
 kXR_int32          XrdXrootdMonitor::sizeWindow = 60;
-long long          XrdXrootdMonitor::mySID      = 0;
 char               XrdXrootdMonitor::sidName[16]= {0};
 short              XrdXrootdMonitor::sidSize    = 0;
 char               XrdXrootdMonitor::monINFO    = 0;
@@ -106,6 +105,13 @@ char               XrdXrootdMonitor::monCLOCK   = 0;
 /******************************************************************************/
   
 extern          XrdOucTrace       *XrdXrootdTrace;
+
+namespace XrdXrootdMonInfo
+{
+long long mySID = 0;
+}
+
+using namespace XrdXrootdMonInfo;
 
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
@@ -877,8 +883,10 @@ void XrdXrootdMonitor::unAlloc(XrdXrootdMonitor *monp)
 unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
 {
   const long long smask = 0x7fffffff00000000LL;
+  const long long xmask = 0x7fffffffffffffffLL;
   unsigned char xshift = 0;
 
+  xTot &= xmask;
   while(xTot & smask) {xTot = xTot >> 1LL; xshift++;}
   xVal = static_cast<unsigned int>(xTot);
 

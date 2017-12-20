@@ -108,7 +108,7 @@ typedef int (*XrdOssStatInfo2_t)(const char *path, struct stat *buff,
 
     An alternate entry point may be defined in lieu of the previous entry point.
     This normally identified by a version option in the configuration file (e.g.
-    oss.statlib -2 <path>). It differs in that an extra parameter is passed and
+    oss.statlib -2 \<path\>). It differs in that an extra parameter is passed and
     if returns a function that accepts an extra parameter.
 
     @param  envP     - Pointer to the environment containing implementation
@@ -128,10 +128,10 @@ typedef int (*XrdOssStatInfo2_t)(const char *path, struct stat *buff,
 //! your plug-in. Include the code shown below at file level in your source.
 //------------------------------------------------------------------------------
 
-/*! #include "XrdVersion.hh"
-    XrdVERSIONINFO(XrdOssStatInfoInit,<name>);
+/*!     #include "XrdVersion.hh"
+        XrdVERSIONINFO(XrdOssStatInfoInit,<name>);
 
-    where <name> is a 1- to 15-character unquoted name identifying your plugin.
+    where \<name\> is a 1- to 15-character unquoted name identifying your plugin.
 */
 
 //------------------------------------------------------------------------------

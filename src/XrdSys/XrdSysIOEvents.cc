@@ -327,7 +327,7 @@ void XrdSys::IOEvents::Channel::Delete()
   
 bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 {
-   int eNum, newev, curev;
+   int eNum = 0, newev, curev;
    bool retval = true, isLocked = true;
 
 // Lock this channel
@@ -373,7 +373,7 @@ bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
                                        const char **eText)
 {
-   int eNum, newev, curev, tmoSet = 0;
+   int eNum = 0, newev, curev, tmoSet = 0;
    bool retval, setTO, isLocked = true;
 
 // Lock ourselves against any changes (this is a recursive mutex)
@@ -593,8 +593,9 @@ void XrdSys::IOEvents::Poller::CbkTMO()
 //
    toMutex.Lock();
    while((cP = tmoBase) && cP->deadLine <= time(0))
-        {toMutex.UnLock();
-         CbkXeq(cP, cP->dlType, 0, 0);
+        {int dlType = cP->dlType;
+         toMutex.UnLock();
+         CbkXeq(cP, dlType, 0, 0);
          toMutex.Lock();
         }
    toMutex.UnLock();

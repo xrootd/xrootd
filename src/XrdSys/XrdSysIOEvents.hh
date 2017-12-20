@@ -251,7 +251,7 @@ enum EventCode {readEvents  = 0x01, //!< Read  and Read  Timeouts
 //! Get the callback object and argument associated with this channel.
 //!
 //! @param cbP   Place where the pointer is to be returned.
-//! @param caP   Place where the callback argument is to be returned.
+//! @param cbArg Place where the callback argument is to be returned.
 //-----------------------------------------------------------------------------
 
         void GetCallBack(CallBack **cbP, void **cbArg);
@@ -506,7 +506,7 @@ struct          PipeData {char req; char evt; short ent; int fd;
 PipeData        reqBuff;    // Buffer used by poller thread to recv data
 char           *pipeBuff;   // Read resumption point in buffer
 int             pipeBlen;   // Number of outstanding bytes
-char            tmoMask;    // Timeout mask
+unsigned char   tmoMask;    // Timeout mask
 CPP_ATOMIC_TYPE(bool) wakePend;   // Wakeup is effectively pending (don't send)
 bool            chDead;     // True if channel deleted by callback
 

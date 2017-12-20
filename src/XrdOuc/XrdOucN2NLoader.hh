@@ -32,13 +32,15 @@
   
 #include "XrdOuc/XrdOucName2Name.hh"
 
+class  XrdOucEnv;
 struct XrdVersionInfo;
 
 class XrdOucN2NLoader
 {
 public:
 
-XrdOucName2Name *Load(const char *libName, XrdVersionInfo &urVer);
+XrdOucName2Name *Load(const char *libName, XrdVersionInfo &urVer,
+                      XrdOucEnv *envP=0);
 
                  XrdOucN2NLoader(XrdOucgetName2NameArgs)
                                 : eRoute(eDest), cFN(confg),

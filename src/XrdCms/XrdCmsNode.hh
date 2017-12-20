@@ -69,7 +69,7 @@ public:
        char   isConn;       //1 Set when node is network connected
        char   isGone;       //2 Set when node must be deleted
        char   isPerm;       //3 Set when node is permanently bound
-       char   isReserved;   //4
+       char   incUL;        //4 Set when unlock count nedds to be incremented
        char   RoleID;       //5 The converted XrdCmsRole::RoleID
        char   TimeZone;     //6 Time zone in +UTC-
        char   TZValid;      //7 Time zone has been set
@@ -97,7 +97,8 @@ const  char  *do_Have(XrdCmsRRData &Arg);
 const  char  *do_Load(XrdCmsRRData &Arg);
 const  char  *do_Locate(XrdCmsRRData &Arg);
 static int    do_LocFmt(char *buff, XrdCmsSelected *sP,
-                        SMask_t pf, SMask_t wf, bool lsall=false);
+                        SMask_t pf, SMask_t wf,
+                        bool lsall=false, bool lsuniq=false);
 const  char  *do_Mkdir(XrdCmsRRData &Arg);
 const  char  *do_Mkpath(XrdCmsRRData &Arg);
 const  char  *do_Mv(XrdCmsRRData &Arg);
@@ -121,27 +122,70 @@ const  char  *do_Try(XrdCmsRRData &Arg);
 const  char  *do_Update(XrdCmsRRData &Arg);
 const  char  *do_Usage(XrdCmsRRData &Arg);
 
+       void   Delete(XrdSysMutex &gMutex);
+
        void   Disc(const char *reason=0, int needLock=1);
 
 inline int    ID(int &INum) {INum = Instance; return NodeID;}
 
 inline int    Inst() {return Instance;}
 
+       bool   inDomain() {return netIF.InDomain(&netID);}
+
 inline int    isNode(SMask_t smask) {return (smask & NodeMask) != 0;}
-inline int    isNode(const char *hn)
-                    {return Link && !strcmp(Link->Host(), hn);}
-inline int    isNode(const XrdNetAddr *addr)
+
+inline int    isNode(const XrdNetAddr *addr) // Only for avoid processing!
                     {return netID.Same(addr);}
+
 inline int    isNode(XrdLink *lp, const char *nid, int port)
-                    {return netID.Same(lp->NetAddr()) && port == netIF.Port()
-                         && (nid ? !strcmp(myNID, nid) : 1);
+                    {if (nid)
+                        {if (strcmp(myNID, nid)) return 0;
+                         if (*nid == '*') return 1;
+                        }
+                     return netID.Same(lp->NetAddr()) && port == netIF.Port();
                     }
+
 inline char  *Name()   {return (myName ? myName : (char *)"?");}
 
 inline SMask_t Mask() {return NodeMask;}
 
-inline void    Lock() {myMutex.Lock(); isLocked = 1;}
-inline void  UnLock() {isLocked = 0; myMutex.UnLock();}
+inline void    g2Ref(XrdSysMutex &gMutex) {lkCount++; gMutex.UnLock();}
+
+inline void    Ref2g(XrdSysMutex &gMutex) {gMutex.Lock(); lkCount--;}
+
+inline void    g2nLock(XrdSysMutex &gMutex)
+                      {lkCount++;        // gMutex must be held
+                       gMutex.UnLock();  // Safe because lkCount != ulCount
+                       nodeMutex.Lock(); // Downgrade to node lock
+                       incUL = 1;
+                       isLocked = 1;
+                      }
+
+inline void    n2gLock(XrdSysMutex &gMutex)
+                      {isLocked = 0;
+                       if (incUL)
+                          {ulCount++; incUL = 0;
+                           if (isGone) nodeMutex.Signal();
+                          }
+                       nodeMutex.UnLock(); // Release this node
+                       gMutex.Lock();      // Upgade to global mutex
+                      }
+
+inline void    Lock(bool doinc)
+                   {if (!doinc) nodeMutex.Lock();
+                       else    {lkCount++;  // Global lock must be held
+                                nodeMutex.Lock();
+                                incUL = 1;
+                               }
+                    isLocked = 1;
+                   }
+inline void  UnLock() {isLocked = 0;
+                       if (incUL)
+                          {ulCount++; incUL = 0;
+                           if (isGone) nodeMutex.Signal();
+                          }
+                       nodeMutex.UnLock();
+                      }
 
 static void  Report_Usage(XrdLink *lp);
 
@@ -183,12 +227,16 @@ private:
 static const int fsL2PFail1 = 999991;
 static const int fsL2PFail2 = 999992;
 
+       void  DeleteWarn(XrdSysMutex &gMutex, unsigned int &lkVal);
        int   fsExec(XrdOucProg *Prog, char *Arg1, char *Arg2=0);
 const  char *fsFail(const char *Who, const char *What, const char *Path, int rc);
        int   getMode(const char *theMode, mode_t &Mode);
        int   getSize(const char *theSize, long long &Size);
 
-XrdSysMutex        myMutex;
+XrdSysCondVar      nodeMutex;
+unsigned int       lkCount;  // Only Modified with global lock held
+unsigned int       ulCount;  // Only Modified with node   lock held
+
 XrdLink           *Link;
 XrdNetAddr         netID;
 XrdNetIF           netIF;

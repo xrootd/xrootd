@@ -69,6 +69,7 @@ int   asSolo()    {return isSolo;}
 
 int         LUPDelay;     // Maximum delay at look-up
 int         LUPHold;      // Maximum hold  at look-up (in millisconds)
+int         DELDelay;     // Maximum delay for deleting an offline server
 int         DRPDelay;     // Maximum delay for dropping an offline server
 int         PSDelay;      // Maximum delay time before peer is selected
 int         RWDelay;      // R/W lookup delay handling (0 | 1 | 2)
@@ -90,6 +91,7 @@ int         PingTick;     // Ping clock value
 int         LogPerf;      // AskPerf intervals before logging perf
 
 int         PortTCP;      // TCP Port to  listen on
+int         PortSUP;      // TCP Port to  listen on (supervisor)
 XrdInet    *NetTCP;       // -> Network Object
 
 int         P_cpu;        // % CPU Capacity in load factor
@@ -104,7 +106,8 @@ int         P_pag;        // % PAG Capacity in load factor
 
 char        DoMWChk;      // When true (default) perform multiple write check
 char        DoHnTry;      // When true (default) use hostnames for try redirs
-char        Rsvd[2];      // Reserved for alignment
+char        nbSQ;         // Non-blocking send queue handling option
+char        Rsvd;         // Reserved for alignment
 
 int         DiskMin;      // Minimum MB needed of space in a partition
 int         DiskHWM;      // Minimum MB needed of space to requalify
@@ -116,7 +119,10 @@ int         DiskWT;       // Seconds to defer client while waiting for space
 int         DiskSS;       // This is a staging server
 int         DiskOK;       // This configuration has data
 
-int         sched_RR;     // 1 -> Simply do round robin scheduling
+char        sched_RR;     // 1 -> Simply do round robin scheduling
+char        sched_Pack;   // 1 -> Pick oldest node (>1 same but wait for resps)
+char        sched_Level;  // 1 -> Use load-based level for "pack" selection
+char        sched_Force;  // 1 -> Client cannot select mode
 int         doWait;       // 1 -> Wait for a data end-point
 
 int         adsPort;      // Alternate server port
@@ -130,6 +136,8 @@ XrdOucName2Name *lcl_N2N; // Server Only
 
 char        *ossLib;      // -> oss library
 char        *ossParms;    // -> oss library parameters
+char        *VNID_Lib;    // Server Only
+char        *VNID_Parms;  // Server Only
 char        *N2N_Lib;     // Server Only
 char        *N2N_Parms;   // Server Only
 char        *LocalRoot;   // Server Only
@@ -146,7 +154,10 @@ const char  *myDomain;
 const char  *myInsName;
 const char  *myInstance;
 const char  *mySID;
+const char  *myVNID;
 const char  *mySite;
+      char  *envCGI;
+      char  *cidTag;
 const char  *ifList;
 XrdOucTList *ManList;     // From manager directive
 XrdOucTList *NanList;     // From manager directive (managers only)
@@ -196,6 +207,7 @@ int  xallow(XrdSysError *edest, XrdOucStream &CFile);
 int  xaltds(XrdSysError *edest, XrdOucStream &CFile);
 int  Fsysadd(XrdSysError *edest, int chk, char *fn);
 int  xblk(XrdSysError *edest, XrdOucStream &CFile, bool iswl=false);
+int  xcid(XrdSysError *edest, XrdOucStream &CFile);
 int  xdelay(XrdSysError *edest, XrdOucStream &CFile);
 int  xdefs(XrdSysError *edest, XrdOucStream &CFile);
 int  xdfs(XrdSysError *edest, XrdOucStream &CFile);
@@ -204,6 +216,7 @@ int  xfsxq(XrdSysError *edest, XrdOucStream &CFile);
 int  xfxhld(XrdSysError *edest, XrdOucStream &CFile);
 int  xlclrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xmang(XrdSysError *edest, XrdOucStream &CFile);
+int  xnbsq(XrdSysError *edest, XrdOucStream &CFile);
 int  xnml(XrdSysError *edest, XrdOucStream &CFile);
 int  xolib(XrdSysError *edest, XrdOucStream &CFile);
 int  xperf(XrdSysError *edest, XrdOucStream &CFile);
@@ -215,10 +228,13 @@ int  xreps(XrdSysError *edest, XrdOucStream &CFile);
 int  xrmtrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xrole(XrdSysError *edest, XrdOucStream &CFile);
 int  xsched(XrdSysError *edest, XrdOucStream &CFile);
+int  xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile);
 int  xsecl(XrdSysError *edest, XrdOucStream &CFile);
 int  xspace(XrdSysError *edest, XrdOucStream &CFile);
 int  xsubc(XrdSysError *edest, XrdOucStream &CFile);
+int  xsupp(XrdSysError *edest, XrdOucStream &CFile);
 int  xtrace(XrdSysError *edest, XrdOucStream &CFile);
+int  xvnid(XrdSysError *edest, XrdOucStream &CFile);
 
 XrdInet          *NetTCPr;     // Network for supervisors
 char             *AdminPath;
@@ -239,6 +255,7 @@ int               isSolo;
 char             *perfpgm;
 int               perfint;
 int               cachelife;
+int               emptylife;
 int               pendplife;
 int               FSlim;
 };

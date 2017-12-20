@@ -135,13 +135,22 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     int         errNum = 0;
     const char *errMsg = 0;
-    pPoller = IOEvents::Poller::Create( errNum, &errMsg );
-    if( !pPoller )
+
+    for( int i = 0; i < pNbPoller; ++i )
     {
-      log->Error( PollerMsg, "Unable to create the internal poller object: ",
-                             "%s (%s)", strerror( errno ), errMsg );
-      return false;
+      XrdSys::IOEvents::Poller* poller = IOEvents::Poller::Create( errNum, &errMsg );
+      if( !poller )
+      {
+        log->Error( PollerMsg, "Unable to create the internal poller object: ",
+                               "%s (%s)", strerror( errno ), errMsg );
+        return false;
+      }
+      pPollerPool.push_back( poller );
     }
+
+    pNext = pPollerPool.begin();
+
+    log->Debug( PollerMsg, "Using %d poller threads", pNbPoller );
 
     //--------------------------------------------------------------------------
     // Check if we have any descriptors to reinsert from the last time we
@@ -152,7 +161,7 @@ namespace XrdCl
     {
       PollerHelper *helper = (PollerHelper*)it->second;
       Socket       *socket = it->first;
-      helper->channel = new IOEvents::Channel( pPoller, socket->GetFD(),
+      helper->channel = new IOEvents::Channel( RegisterAndGetPoller( socket ), socket->GetFD(),
                                                helper->callBack );
       if( helper->readEnabled )
       {
@@ -194,19 +203,27 @@ namespace XrdCl
     log->Debug( PollerMsg, "Stopping the poller..." );
 
     XrdSysMutexHelper scopedLock( pMutex );
-    if( !pPoller )
+
+    if( pPollerPool.empty() )
     {
       log->Debug( PollerMsg, "Stopping a poller that has not been started" );
       return true;
     }
 
-    XrdSys::IOEvents::Poller *poller = pPoller;
-    pPoller = 0;
+    while( !pPollerPool.empty() )
+    {
+      XrdSys::IOEvents::Poller *poller = pPollerPool.back();
+      pPollerPool.pop_back();
 
-    scopedLock.UnLock();
-    poller->Stop();
-    delete poller;
-    scopedLock.Lock( &pMutex );
+      if( !poller ) continue;
+
+      scopedLock.UnLock();
+      poller->Stop();
+      delete poller;
+      scopedLock.Lock( &pMutex );
+    }
+    pNext = pPollerPool.end();
+    pPollerMap.clear();
 
     SocketMap::iterator  it;
     const char          *errMsg = 0;
@@ -266,12 +283,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Create the socket helper
     //--------------------------------------------------------------------------
+    XrdSys::IOEvents::Poller* poller = RegisterAndGetPoller( socket );
+
     PollerHelper *helper = new PollerHelper();
     helper->callBack = new ::SocketCallBack( socket, handler );
 
-    if( pPoller )
+    if( poller )
     {
-      helper->channel  = new XrdSys::IOEvents::Channel( pPoller,
+      helper->channel  = new XrdSys::IOEvents::Channel( poller,
                                                         socket->GetFD(),
                                                         helper->callBack );
     }
@@ -300,11 +319,15 @@ namespace XrdCl
     log->Debug( PollerMsg, "%s Removing socket from the poller",
                            socket->GetName().c_str() );
 
+    // unregister from the poller it's currently associated with
+    UnregisterFromPoller( socket );
+
     //--------------------------------------------------------------------------
     // Remove the socket
     //--------------------------------------------------------------------------
     PollerHelper *helper = (PollerHelper*)it->second;
-    if( pPoller )
+
+    if( helper->channel )
     {
       const char *errMsg;
       bool status = helper->channel->Disable( Channel::allEvents, &errMsg );
@@ -351,6 +374,7 @@ namespace XrdCl
     }
 
     PollerHelper *helper = (PollerHelper*)it->second;
+    XrdSys::IOEvents::Poller *poller = GetPoller( socket );
 
     //--------------------------------------------------------------------------
     // Enable read notifications
@@ -364,7 +388,7 @@ namespace XrdCl
       log->Dump( PollerMsg, "%s Enable read notifications, timeout: %d",
                             socket->GetName().c_str(), timeout );
 
-      if( pPoller )
+      if( poller )
       {
         const char *errMsg;
         bool status = helper->channel->Enable( Channel::readEvents, timeout,
@@ -390,7 +414,7 @@ namespace XrdCl
       log->Dump( PollerMsg, "%s Disable read notifications",
                             socket->GetName().c_str() );
 
-      if( pPoller )
+      if( poller )
       {
         const char *errMsg;
         bool status = helper->channel->Disable( Channel::readEvents, &errMsg );
@@ -435,6 +459,7 @@ namespace XrdCl
     }
 
     PollerHelper *helper = (PollerHelper*)it->second;
+    XrdSys::IOEvents::Poller *poller = GetPoller( socket );
 
     //--------------------------------------------------------------------------
     // Enable write notifications
@@ -449,7 +474,7 @@ namespace XrdCl
       log->Dump( PollerMsg, "%s Enable write notifications, timeout: %d",
                             socket->GetName().c_str(), timeout );
 
-      if( pPoller )
+      if( poller )
       {
         const char *errMsg;
         bool status = helper->channel->Enable( Channel::writeEvents, timeout,
@@ -474,7 +499,7 @@ namespace XrdCl
 
       log->Dump( PollerMsg, "%s Disable write notifications",
                             socket->GetName().c_str() );
-      if( pPoller )
+      if( poller )
       {
         const char *errMsg;
         bool status = helper->channel->Disable( Channel::writeEvents, &errMsg );
@@ -498,5 +523,65 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     SocketMap::iterator it = pSocketMap.find( socket );
     return it != pSocketMap.end();
+  }
+
+  //----------------------------------------------------------------------------
+  // Return poller threads in round-robin fashion
+  //----------------------------------------------------------------------------
+  XrdSys::IOEvents::Poller* PollerBuiltIn::GetNextPoller()
+  {
+    if( pPollerPool.empty() ) return 0;
+
+    PollerPool::iterator ret = pNext;
+    ++pNext;
+    if( pNext == pPollerPool.end() )
+      pNext = pPollerPool.begin();
+    return *ret;
+  }
+
+  //----------------------------------------------------------------------------
+  // Return the poller associated with the respective channel
+  //----------------------------------------------------------------------------
+  XrdSys::IOEvents::Poller* PollerBuiltIn::RegisterAndGetPoller(const Socket * socket)
+  {
+    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    if( itr == pPollerMap.end() )
+    {
+      XrdSys::IOEvents::Poller* poller = GetNextPoller();
+      if( poller )
+        pPollerMap[socket->GetChannelID()] = std::make_pair( poller, size_t( 1 ) );
+      return poller;
+    }
+
+    ++( itr->second.second );
+    return itr->second.first;
+  }
+
+  void PollerBuiltIn::UnregisterFromPoller( const Socket *socket )
+  {
+    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    if( itr == pPollerMap.end() ) return;
+    --itr->second.second;
+    if( itr->second.second == 0 )
+      pPollerMap.erase( itr );
+
+  }
+
+  XrdSys::IOEvents::Poller* PollerBuiltIn::GetPoller(const Socket * socket)
+  {
+    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    if( itr == pPollerMap.end() ) return 0;
+    return itr->second.first;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the initial value for pNbPoller
+  //----------------------------------------------------------------------------
+  int PollerBuiltIn::GetNbPollerInit()
+  {
+    Env * env = DefaultEnv::GetEnv();
+    int ret = XrdCl::DefaultParallelEvtLoop;
+    env->GetInt("ParallelEvtLoop", ret);
+    return ret;
   }
 }

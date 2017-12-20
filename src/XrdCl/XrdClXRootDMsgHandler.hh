@@ -31,11 +31,14 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XProtocol/XProtocol.hh"
 
+#include <sys/uio.h>
+
 namespace XrdCl
 {
   class PostMaster;
   class SIDManager;
   class URL;
+  class LocalFileHandler;
 
   //----------------------------------------------------------------------------
   //! Handle/Process/Forward XRootD messages
@@ -43,6 +46,8 @@ namespace XrdCl
   class XRootDMsgHandler: public IncomingMsgHandler,
                           public OutgoingMsgHandler
   {
+      friend class HandleRspJob;
+
     public:
       //------------------------------------------------------------------------
       //! Constructor
@@ -54,15 +59,17 @@ namespace XrdCl
       //! @param sidMgr      the sid manager used to allocate SID for the initial
       //!                    message
       //------------------------------------------------------------------------
-      XRootDMsgHandler( Message         *msg,
-                        ResponseHandler *respHandler,
-                        const URL       *url,
-                        SIDManager      *sidMgr ):
+      XRootDMsgHandler( Message          *msg,
+                        ResponseHandler  *respHandler,
+                        const URL        *url,
+                        SIDManager       *sidMgr,
+                        LocalFileHandler *lFileHandler ):
         pRequest( msg ),
         pResponse( 0 ),
         pResponseHandler( respHandler ),
         pUrl( *url ),
         pSidMgr( sidMgr ),
+        pLFileHandler( lFileHandler ),
         pExpiration( 0 ),
         pRedirectAsAnswer( false ),
         pHosts( 0 ),
@@ -86,7 +93,9 @@ namespace XrdCl
         pReadVRawChunkIndex( 0 ),
         pReadVRawMsgDiscard( false ),
 
-        pOtherRawStarted( false )
+        pOtherRawStarted( false ),
+
+        pFollowMetalink( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -115,6 +124,13 @@ namespace XrdCl
       //!               the handler
       //------------------------------------------------------------------------
       virtual uint16_t Examine( Message *msg  );
+
+      //------------------------------------------------------------------------
+      //! Get handler sid
+      //!
+      //! return sid of the corresponding request, otherwise 0
+      //------------------------------------------------------------------------
+      virtual uint16_t GetSid() const;
 
       //------------------------------------------------------------------------
       //! Process the message if it was "taken" by the examine action
@@ -170,8 +186,20 @@ namespace XrdCl
       //!                  stOK & suRetry if more data needs to be written
       //!                  stError on failure
       //------------------------------------------------------------------------
-      virtual Status WriteMessageBody( int       socket,
-                                       uint32_t &bytesRead );
+      Status WriteMessageBody( int       socket,
+                               uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      //! Get message body - called if IsRaw returns true
+      //!
+      //! @param asyncOffset  :  the current async offset
+      //! @return             :  the list of chunks
+      //------------------------------------------------------------------------
+      ChunkList* GetMessageBody( uint32_t *&asyncOffset )
+      {
+        asyncOffset = &pAsyncOffset;
+        return pChunkList;
+      }
 
       //------------------------------------------------------------------------
       //! Called after the wait time for kXR_wait has elapsed
@@ -243,6 +271,11 @@ namespace XrdCl
       void SetRedirectCounter( uint16_t redirectCounter )
       {
         pRedirectCounter = redirectCounter;
+      }
+
+      void SetFollowMetalink( bool followMetalink )
+      {
+        pFollowMetalink = followMetalink;
       }
 
     private:
@@ -324,12 +357,23 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Update the "tried=" part of the CGI of the current message
       //------------------------------------------------------------------------
-      void UpdateTriedCGI();
+      void UpdateTriedCGI(uint32_t errNo=0);
 
       //------------------------------------------------------------------------
       //! Switch on the refresh flag for some requests
       //------------------------------------------------------------------------
       void SwitchOnRefreshFlag();
+
+      //------------------------------------------------------------------------
+      //! If the current thread is a worker thread from our thread-pool
+      //! handle the response, otherwise submit a new task to the thread-pool
+      //------------------------------------------------------------------------
+      void HandleRspOrQueue();
+
+      //------------------------------------------------------------------------ 
+      //! Handle a redirect to a local file
+      //------------------------------------------------------------------------
+      void HandleLocalRedirect( URL *url );
 
       //------------------------------------------------------------------------
       // Helper struct for async reading of chunks
@@ -348,7 +392,9 @@ namespace XrdCl
       URL                        pUrl;
       PostMaster                *pPostMaster;
       SIDManager                *pSidMgr;
+      LocalFileHandler          *pLFileHandler;
       Status                     pStatus;
+      Status                     pLastError;
       time_t                     pExpiration;
       bool                       pRedirectAsAnswer;
       HostList                  *pHosts;
@@ -377,6 +423,8 @@ namespace XrdCl
       bool                       pReadVRawMsgDiscard;
 
       bool                       pOtherRawStarted;
+
+      bool                       pFollowMetalink;
   };
 }
 

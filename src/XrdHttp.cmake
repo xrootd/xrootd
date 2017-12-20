@@ -14,13 +14,14 @@ if( BUILD_HTTP )
   # The XrdHttp library
   #-----------------------------------------------------------------------------
   include_directories( ${OPENSSL_INCLUDE_DIR} )
-
+  
   add_library(
     ${LIB_XRD_HTTP}
     MODULE
     XrdHttp/XrdHttpProtocol.cc    XrdHttp/XrdHttpProtocol.hh
     XrdHttp/XrdHttpReq.cc         XrdHttp/XrdHttpReq.hh
                                   XrdHttp/XrdHttpSecXtractor.hh
+    XrdHttp/XrdHttpExtHandler.cc  XrdHttp/XrdHttpExtHandler.hh
                                   XrdHttp/XrdHttpStatic.hh
     XrdHttp/XrdHttpTrace.cc       XrdHttp/XrdHttpTrace.hh
     XrdHttp/XrdHttpUtils.cc       XrdHttp/XrdHttpUtils.hh )

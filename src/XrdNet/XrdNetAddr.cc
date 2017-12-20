@@ -243,7 +243,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
             protType = PF_INET6;
             if (useIPV4 && !Map64()) return badIP64;
            }
-   else if (*hSpec >= '0' && *hSpec <= '9')
+   else if (!isHostName(hSpec))
            {if ((Colon = index(hSpec, ':')))
                {aLen = Colon - hSpec;
                 if (aLen >= INET_ADDRSTRLEN) return badIPv4;
@@ -271,6 +271,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                }
             memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
             protType = (IP.v6.sin6_family == AF_INET6 ? PF_INET6 : PF_INET);
+            if (rP->ai_canonname) hostName = strdup(rP->ai_canonname);
             freeaddrinfo(rP);
            }
 
@@ -356,16 +357,24 @@ const char *XrdNetAddr::Set(const char *hSpec, int &numIP, int maxIP,
 
 const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
 {
+// Make sure we won't loose any bits of sockFD (we should use an int)
+//
+   if (sockFD >=0 && (sockFD & 0xffff0000) != 0) return "FD is out of range";
+
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
-   sockNum = sockFD;
+   sockNum = static_cast<unsigned short>(sockFD);
 
 // Copy the address based on address family
 //
-        if (sockP->sa_family == AF_INET6) addrSize = sizeof(IP.v6);
-   else if (sockP->sa_family == AF_INET)  addrSize = sizeof(IP.v4);
+        if (sockP->sa_family == AF_INET6) {addrSize = sizeof(IP.v6);
+                                           protType = PF_INET6;
+                                          }
+   else if (sockP->sa_family == AF_INET)  {addrSize = sizeof(IP.v4);
+                                           protType = PF_INET;
+                                          }
    else if (sockP->sa_family == AF_UNIX)
            {unixPipe = new sockaddr_un;
             memcpy(unixPipe, sockP, sizeof(struct sockaddr_un));
@@ -373,6 +382,7 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
             addrSize = sizeof(sockaddr_un);
             memset(&IP, 0, sizeof(IP));
             IP.Addr.sa_family = AF_UNIX;
+            protType = PF_UNIX;
             return 0;
            }
    else return "invalid address family";
@@ -389,12 +399,16 @@ const char *XrdNetAddr::Set(int sockFD, bool peer)
 {
    int rc;
 
+// Make sure we won't loose any bits of sockFD (we should use an int)
+//
+   if ((sockFD & 0xffff0000) != 0) return "FD is out of range";
+
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    addrSize = sizeof(sockaddr_in6);
-   sockNum = sockFD;
+   sockNum = static_cast<unsigned short>(sockFD);
 
 // Get the address on the appropriate side of this socket
 //
@@ -407,8 +421,11 @@ const char *XrdNetAddr::Set(int sockFD, bool peer)
 
 // Set the correct address size
 //
-   addrSize = (IP.Addr.sa_family == AF_INET ? sizeof(sockaddr_in)
-                                            : sizeof(sockaddr_in6));
+   if (IP.Addr.sa_family == AF_INET)
+      {addrSize = sizeof(sockaddr_in);  protType = PF_INET;
+      } else {
+       addrSize = sizeof(sockaddr_in6); protType = PF_INET6;
+      }
 
 // All done
 //
@@ -442,7 +459,7 @@ const char *XrdNetAddr::Set(struct addrinfo *rP, int Port, bool mapit)
    hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    IP.v6.sin6_port = htons(static_cast<short>(Port));
-   sockNum = -1;
+   sockNum = 0;
    return 0;
 }
 
