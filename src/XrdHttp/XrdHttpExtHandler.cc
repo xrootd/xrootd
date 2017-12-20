@@ -34,6 +34,20 @@ int XrdHttpExtReq::SendSimpleResp(int code, char* desc, char* header_to_add, cha
   return prot->SendSimpleResp(code, desc, header_to_add, body, bodylen);
 }
 
+int XrdHttpExtReq::StartChunkedResp(int code, char *desc, char *header_to_add)
+{
+  if (!prot) return -1;
+
+  return prot->StartChunkedResp(code, desc, header_to_add);
+}
+
+int XrdHttpExtReq::ChunkResp(char *body, long long bodylen)
+{
+  if (!prot) return -1;
+
+  return prot->ChunkResp(body, bodylen);
+}
+
 int XrdHttpExtReq::BuffgetData(int blen, char **data, bool wait) {
 
   if (!prot) return -1;

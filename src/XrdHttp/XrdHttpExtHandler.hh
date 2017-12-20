@@ -63,6 +63,14 @@ public:
 
   /// Sends a basic response. If the length is < 0 then it is calculated internally
   int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
+
+  /// Starts a chunked response; body of request is sent over multiple parts using the SendChunkResp
+  //  API.
+  int StartChunkedResp(int code, char *desc, char *header_to_add);
+
+  /// Send a (potentially partial) body in a chunked response; invoking with NULL body
+  //  indicates that this is the last chunk in the response.
+  int ChunkResp(char *body, long long bodylen);
 };
 
 
