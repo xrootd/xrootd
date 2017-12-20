@@ -1225,9 +1225,12 @@ int XrdHttpProtocol::StartChunkedResp(int code, char *desc, char *header_to_add)
   const std::string crlf = "\r\n";
 
   std::stringstream ss;
-  ss << header_to_add << crlf;
-  ss << "Content-Encoding: chunked" << crlf;
+  if (header_to_add) {
+    ss << header_to_add << crlf;
+  }
+  ss << "Transfer-Encoding: chunked";
 
+  TRACEI(RSP, "Starting chunked response");
   return StartSimpleResp(code, desc, ss.str().c_str(), -1);
 }
 
@@ -1242,11 +1245,12 @@ int XrdHttpProtocol::ChunkResp(char *body, long long bodylen) {
   ss << std::hex << chunk_length << std::dec << crlf;
 
   const std::string &chunkhdr = ss.str();
+  TRACEI(RSP, "Sending encoded chunk of size " << chunk_length);
   if (SendData(chunkhdr.c_str(), chunkhdr.size()))
     return -1;
 
-  if (body)
-    return SendData(body, chunk_length);
+  if (body && SendData(body, chunk_length))
+    return -1;
 
   return (SendData(crlf.c_str(), crlf.size())) ? -1 : 0;
 }
