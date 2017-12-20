@@ -1169,9 +1169,8 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
 /// Send some data to the client
 
 int XrdHttpProtocol::SendData(const char *body, int bodylen) {
+
   int r;
-
-
 
   if (body && bodylen) {
     TRACE(REQ, "Sending " << bodylen << " bytes");
@@ -1209,12 +1208,13 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
 
   if (bodylen >= 0) ss << "Content-Length: " << bodylen << crlf;
 
-  ss << header_to_add << crlf;
+  if (header_to_add)
+    ss << header_to_add << crlf;
 
   ss << crlf;
 
   const std::string &outhdr = ss.str();
-  TRACEI(RSP, "Sending resp: " << code << " len:" << outhdr.size());
+  TRACEI(RSP, "Sending resp: " << code << " header len:" << outhdr.size());
   if (SendData(outhdr.c_str(), outhdr.size()))
     return -1;
 
@@ -1255,7 +1255,7 @@ int XrdHttpProtocol::ChunkResp(char *body, long long bodylen) {
 /// Header_to_add is a set of header lines each CRLF terminated to be added to the header
 /// Returns 0 if OK
 
-int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen) {
+int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen) {
 
   long long content_length = bodylen;
   if (bodylen <= 0) {
