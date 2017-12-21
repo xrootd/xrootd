@@ -814,7 +814,13 @@ int XrdHttpReq::ProcessHTTPReq() {
   //
 
   switch (request) {
+    case XrdHttpReq::rtUnset:
     case XrdHttpReq::rtUnknown:
+    {
+      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request unknown", 0);
+      reset();
+      return -1;
+    }
     case XrdHttpReq::rtMalformed:
     {
       prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed", 0);
@@ -2254,7 +2260,7 @@ void XrdHttpReq::reset() {
   if (ralist) free(ralist);
   ralist = 0;
 
-  request = rtUnknown;
+  request = rtUnset;
   resource = "";
   allheaders.clear();
 
