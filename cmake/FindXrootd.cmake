@@ -11,8 +11,8 @@ FIND_PATH(XROOTD_INCLUDES XrdVersion.hh
 
 FIND_PATH(XROOTD_PRIVATE_INCLUDES XrdHttp/XrdHttpExtHandler.hh
   HINTS
-  ${XROOTD_DIR}/private
-  $ENV{XROOTD_DIR}/private
+  ${XROOTD_DIR}
+  $ENV{XROOTD_DIR}
   /usr
   /opt/xrootd/
   PATH_SUFFIXES include/xrootd/private
