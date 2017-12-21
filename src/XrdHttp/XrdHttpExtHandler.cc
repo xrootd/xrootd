@@ -27,21 +27,21 @@
 #include "XrdHttpProtocol.hh"
 
 /// Sends a basic response. If the length is < 0 then it is calculated internally
-int XrdHttpExtReq::SendSimpleResp(int code, char* desc, char* header_to_add, char* body, long long int bodylen)
+int XrdHttpExtReq::SendSimpleResp(int code, const char* desc, const char* header_to_add, const char* body, long long int bodylen)
 {
   if (!prot) return -1;
   
   return prot->SendSimpleResp(code, desc, header_to_add, body, bodylen);
 }
 
-int XrdHttpExtReq::StartChunkedResp(int code, char *desc, char *header_to_add)
+int XrdHttpExtReq::StartChunkedResp(int code, const char *desc, const char *header_to_add)
 {
   if (!prot) return -1;
 
   return prot->StartChunkedResp(code, desc, header_to_add);
 }
 
-int XrdHttpExtReq::ChunkResp(char *body, long long bodylen)
+int XrdHttpExtReq::ChunkResp(const char *body, long long bodylen)
 {
   if (!prot) return -1;
 

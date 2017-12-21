@@ -62,15 +62,15 @@ public:
   int BuffgetData(int blen, char **data, bool wait);
 
   /// Sends a basic response. If the length is < 0 then it is calculated internally
-  int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
+  int SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen);
 
   /// Starts a chunked response; body of request is sent over multiple parts using the SendChunkResp
   //  API.
-  int StartChunkedResp(int code, char *desc, char *header_to_add);
+  int StartChunkedResp(int code, const char *desc, const char *header_to_add);
 
   /// Send a (potentially partial) body in a chunked response; invoking with NULL body
   //  indicates that this is the last chunk in the response.
-  int ChunkResp(char *body, long long bodylen);
+  int ChunkResp(const char *body, long long bodylen);
 };
 
 

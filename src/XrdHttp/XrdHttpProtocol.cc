@@ -1221,7 +1221,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
   return 0;
 }
 
-int XrdHttpProtocol::StartChunkedResp(int code, char *desc, char *header_to_add) {
+int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *header_to_add) {
   const std::string crlf = "\r\n";
 
   std::stringstream ss;
@@ -1234,7 +1234,7 @@ int XrdHttpProtocol::StartChunkedResp(int code, char *desc, char *header_to_add)
   return StartSimpleResp(code, desc, ss.str().c_str(), -1);
 }
 
-int XrdHttpProtocol::ChunkResp(char *body, long long bodylen) {
+int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
   const std::string crlf = "\r\n";
   long long chunk_length = bodylen;
   if (bodylen <= 0) {
