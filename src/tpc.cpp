@@ -143,6 +143,12 @@ public:
             if (hdr.first == "Copy-Header") {
                 list = curl_slist_append(list, hdr.second.c_str());
             }
+            // Note: len("TransferHeader") == 14
+            if (!hdr.first.compare(0, 14, "TransferHeader")) {
+                std::stringstream ss;
+                ss << hdr.first.substr(14) << ": " << hdr.second;
+                list = curl_slist_append(list, ss.str().c_str());
+            }
         }
         if (list != nullptr) {
             curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
