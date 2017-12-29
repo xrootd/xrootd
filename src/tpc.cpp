@@ -543,7 +543,9 @@ private:
             fh->close();
             return resp_result;
         }
-
+        if (!m_cadir.empty()) {
+            curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
+        }
         curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
         XrdHttpTPCState state(std::move(fh), curl, true);
@@ -589,6 +591,9 @@ private:
             int resp_result = req.SendSimpleResp(status_code, nullptr, nullptr, const_cast<char *>(msg), 0);
             fh->close();
             return resp_result;
+        }
+        if (!m_cadir.empty()) {
+            curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
         }
         curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
         XrdHttpTPCState state(std::move(fh), curl, false);
@@ -684,6 +689,13 @@ private:
                     m_log.Emsg("Config", "https.dests value is invalid", val);
                     return false;
                 }
+            } else if (!strcmp("http.cadir", val)) {
+                if (!(val = Config.GetWord())) {
+                    Config.Close();
+                    m_log.Emsg("Config", "http.cadir value not specified");
+                    return false;
+                }
+                m_cadir = val;
             }
         }
         Config.Close();
@@ -733,6 +745,7 @@ private:
 
     static constexpr int m_marker_period = 5;
     bool m_desthttps{false};
+    std::string m_cadir;
     static std::atomic<uint64_t> m_monid;
     XrdSysError &m_log;
     std::unique_ptr<XrdSfsFileSystem> m_sfs;
