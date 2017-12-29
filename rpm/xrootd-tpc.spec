@@ -1,6 +1,6 @@
 
 Name: xrootd-tpc
-Version: 0.3
+Version: 0.3.1
 Release: 1%{?dist}
 Summary: HTTP Third Party Copy plugin for XRootD
 
@@ -43,6 +43,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libXrdHttpTPC-4.so
 
 %changelog
+* Fri Dec 29 2017 Brian Bockelman <bbockelm@cse.unl.edu> - 0.3.1-1
+- Add support for dCache-style TransferHeader.
+
 * Mon Nov 13 2017 Brian Bockelman <bbockelm@cse.unl.edu> - 0.3-1
 - Add support for redirections in COPY requests.
 - Add RPM packaging.
