@@ -1,6 +1,6 @@
 
 Name: xrootd-tpc
-Version: 0.3.2
+Version: 0.3.3
 Release: 1%{?dist}
 Summary: HTTP Third Party Copy plugin for XRootD
 
@@ -43,6 +43,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libXrdHttpTPC-4.so
 
 %changelog
+* Tue Jan 02 2018 Brian Bockelman <bbockelm@cse.unl.edu> - 0.3.3-1
+- Remove workaround from bad version of libdavix.
+
 * Fri Dec 29 2017 Brian Bockelman <bbockelm@cse.unl.edu> - 0.3.2-1
 - Allow CA directory to be overridden in Xrootd.
 

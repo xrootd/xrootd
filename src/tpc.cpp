@@ -345,7 +345,6 @@ private:
         ss << "Perf Marker" << crlf;
         ss << "Timestamp: " << time(NULL) << crlf;
         ss << "Stripe Index: 0" << crlf;
-        for (int i=0; i<30; i++)
         ss << "Stripe Bytes Transferred: " << state.BytesTransferred() << crlf;
         ss << "Stripe Bytes Transferred: " << state.BytesTransferred() << crlf;
         ss << "Total Stripe Count: 1" << crlf;
