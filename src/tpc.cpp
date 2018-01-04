@@ -17,6 +17,7 @@
 
 #include "XrdTpcVersion.hh"
 #include "state.hh"
+#include "stream.hh"
 #include "tpc.hh"
 
 using namespace TPC;
@@ -161,7 +162,7 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
 /**
  * Determine size at remote end.
  */
-int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
+int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
                                   bool &success) {
     success = false;
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
@@ -188,7 +189,7 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &st
     return 0;
 }
 
-int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPC::State &state) {
+int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, State &state) {
     std::stringstream ss;
     const std::string crlf = "\n";
     ss << "Perf Marker" << crlf;
@@ -202,7 +203,7 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPC::State &state) {
     return req.ChunkResp(ss.str().c_str(), 0);
 }
 
-int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
+int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
                                    const char *log_prefix)
 {
     // Create the multi-handle and add in the current transfer to it.
@@ -338,7 +339,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, TPC::State &s
     return req.ChunkResp(nullptr, 0);
 }
 #else
-int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
+int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
                              const char *log_prefix) {
     CURLcode res;
     res = curl_easy_perform(curl);
@@ -400,7 +401,8 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
-    TPC::State state(std::move(fh), curl, true);
+    Stream stream(std::move(fh));
+    State state(0, stream, curl, true);
     state.CopyHeaders(req);
 
 #ifdef XRD_CHUNK_RESP
@@ -450,7 +452,8 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
-    TPC::State state(std::move(fh), curl, false);
+    Stream stream(std::move(fh));
+    State state(0, stream, curl, false);
     state.CopyHeaders(req);
 
 #ifdef XRD_CHUNK_RESP

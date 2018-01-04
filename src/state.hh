@@ -12,12 +12,14 @@ class XrdHttpExtReq;
 typedef void CURL;
 
 namespace TPC {
+class Stream;
 
 class State {
 public:
-    State (std::unique_ptr<XrdSfsFile> fh, CURL *curl, bool push) :
+    State (off_t start_offset, Stream &stream, CURL *curl, bool push) :
         m_push(push),
-        m_fh(std::move(fh)),
+        m_start_offset(start_offset),
+        m_stream(stream),
         m_curl(curl)
     {
         InstallHandlers(curl);
@@ -51,9 +53,10 @@ private:
     bool m_recv_status_line{false};  // whether we have received a status line in the response from the remote host.
     bool m_recv_all_headers{false};  // true if we have seen the end of headers.
     off_t m_offset{0};  // number of bytes we have received.
+    const off_t m_start_offset{0};  // offset where we started in the file.
     int m_status_code{-1};  // status code from HTTP response.
     off_t m_content_length{-1};  // value of Content-Length header, if we received one.
-    std::unique_ptr<XrdSfsFile> m_fh;  // file-handle corresponding to this transfer.
+    Stream &m_stream;  // stream corresponding to this transfer.
     CURL *m_curl{nullptr};  // libcurl handle
     struct curl_slist *m_headers{nullptr}; // any headers we set as part of the libcurl request.
     std::string m_resp_protocol;  // Response protocol in the HTTP status line.

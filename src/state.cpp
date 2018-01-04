@@ -9,6 +9,7 @@
 
 #include "XrdTpcVersion.hh"
 #include "state.hh"
+#include "stream.hh"
 
 using namespace TPC;
 
@@ -18,7 +19,6 @@ State::~State() {
             m_headers = nullptr;
             curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, m_headers);
     }
-    m_fh->close();
 }
 
 bool State::InstallHandlers(CURL *curl) {
@@ -30,7 +30,7 @@ bool State::InstallHandlers(CURL *curl) {
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, &State::ReadCB);
         curl_easy_setopt(curl, CURLOPT_READDATA, this);
         struct stat buf;
-        if (SFS_OK == m_fh->stat(&buf)) {
+        if (SFS_OK == m_stream.Stat(&buf)) {
             curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, buf.st_size);
         }
     } else {
@@ -134,7 +134,7 @@ size_t State::WriteCB(void *buffer, size_t size, size_t nitems, void *userdata) 
 }
 
 int State::Write(char *buffer, size_t size) {
-    int retval = m_fh->write(m_offset, buffer, size);
+    int retval = m_stream.Write(m_start_offset + m_offset, buffer, size);
     if (retval == SFS_ERROR) {
             return -1;
     }
@@ -151,7 +151,7 @@ size_t State::ReadCB(void *buffer, size_t size, size_t nitems, void *userdata) {
 }
 
 int State::Read(char *buffer, size_t size) {
-    int retval = m_fh->read(m_offset, buffer, size);
+    int retval = m_stream.Read(m_start_offset + m_offset, buffer, size);
     if (retval == SFS_ERROR) {
         return -1;
     }
