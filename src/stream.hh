@@ -8,6 +8,9 @@
  */
 
 #include <memory>
+#include <vector>
+
+#include <cstring>
 
 struct stat;
 
@@ -16,9 +19,15 @@ class XrdSfsFile;
 namespace TPC {
 class Stream {
 public:
-    Stream(std::unique_ptr<XrdSfsFile> fh)
-        : m_fh(std::move(fh))
-    {}
+    Stream(std::unique_ptr<XrdSfsFile> fh, size_t max_blocks, size_t buffer_size)
+        : m_avail_count(max_blocks),
+          m_fh(std::move(fh))
+    {
+        m_buffers.reserve(max_blocks);
+        for (size_t idx=0; idx < max_blocks; idx++) {
+            m_buffers.emplace_back(buffer_size);
+        }
+    }
 
     ~Stream();
 
@@ -29,6 +38,68 @@ public:
     int Write(off_t offset, const char *buffer, size_t size);
 
 private:
+
+    class Entry {
+    public:
+        Entry(size_t capacity) :
+            m_capacity(capacity)
+        {}
+
+        bool Available() const {return m_offset == -1;}
+
+        int Write(Stream &stream) {
+            if (Available() || !CanWrite(stream)) {return 0;}
+            // Currently, only full writes are accepted.
+            int size_desired = m_size;
+            int retval = stream.Write(m_offset, &m_buffer[0], size_desired);
+            m_size = 0;
+            m_offset = -1;
+            if (retval != size_desired) {
+                return -1;
+            }
+            return retval;
+        }
+
+        bool Accept(off_t offset, const char *buf, size_t size) {
+            // Validate acceptance criteria.
+            if ((m_offset != -1) && (offset != m_offset + static_cast<ssize_t>(m_size))) {
+                return false;
+            }
+            if (size > m_capacity - m_size) {
+                return false;
+            }
+
+            // Inflate the underlying buffer if needed.
+            ssize_t new_bytes_needed = (m_size + size) - m_buffer.capacity();
+            if (new_bytes_needed > 0) {
+                m_buffer.reserve(m_capacity);
+            }
+
+            // Finally, do the copy.
+            memcpy(&m_buffer[0] + m_size, buf, size);
+            m_size += size;
+            return true;
+        }
+
+        void ShrinkIfUnused() {
+           if (!Available()) {return;}
+           m_buffer.shrink_to_fit();
+        }
+
+    private:
+        bool CanWrite(Stream &stream) const {
+            return (m_size > 0) && (m_offset == stream.m_offset);
+        }
+
+        off_t m_offset{-1};  // Offset within file that m_buffer[0] represents.
+        const size_t m_capacity;
+        size_t m_size{0};  // Number of bytes held in buffer.
+        std::vector<char> m_buffer;
+    };
+
+    size_t m_avail_count;
     std::unique_ptr<XrdSfsFile> m_fh;
+    off_t m_offset{0};
+    std::vector<Entry> m_buffers;
 };
 }

@@ -20,7 +20,62 @@ Stream::Stat(struct stat* buf)
 int
 Stream::Write(off_t offset, const char *buf, size_t size)
 {
-    return m_fh->write(offset, buf, size);
+    bool buffer_accepted = false;
+    int retval = size;
+    if (offset == m_offset) {
+        retval = m_fh->write(offset, buf, size);
+        buffer_accepted = true;
+        if (retval != SFS_ERROR) {
+            m_offset += retval;
+        }
+        // If there are no in-use buffers, then we don't need to
+        // do any accounting.
+        if (m_avail_count == m_buffers.size()) {
+            return retval;
+        }
+    }
+    //printf("Performing stream buffer accounting.  Available buffers: %lu, total buffers %lu.\n", m_avail_count, m_buffers.size());
+    // Even if we already accepted the current data, always
+    // iterate through available buffers and try to write as
+    // much out to disk as possible.
+    Entry *avail_entry = nullptr;
+    bool buffer_was_written;
+    do {
+        m_avail_count = 0;
+        buffer_was_written = false;
+        for (Entry &entry : m_buffers) {
+            // Always try to dump from memory.
+            if (entry.Write(*this) > 0) {
+                buffer_was_written = true;
+            }
+            if (entry.Available()) { // Empty buffer
+                if (!avail_entry) {avail_entry = &entry;}
+                m_avail_count ++;
+            }
+            else if (!buffer_accepted && entry.Accept(offset, buf, size)) {
+                buffer_accepted = true;
+            }
+        }
+    } while ((m_avail_count != m_buffers.size()) && buffer_was_written);
+
+    if (!buffer_accepted) {  // No place for this data in allocated buffers
+        if (!avail_entry) {  // No available buffers to allocate.
+            return SFS_ERROR;
+        }
+        if (!avail_entry->Accept(offset, buf, size)) {  // Empty buffer cannot accept?!?
+            return SFS_ERROR;
+        }
+        m_avail_count --;
+    }
+
+    // If we have low buffer occupancy, then release memory.
+    if ((m_buffers.size() > 2) && (m_avail_count * 2 > m_buffers.size())) {
+        for (Entry &entry : m_buffers) {
+            entry.ShrinkIfUnused();
+        }
+    }
+
+    return retval;
 }
 
 int
