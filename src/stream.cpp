@@ -22,6 +22,9 @@ Stream::Write(off_t offset, const char *buf, size_t size)
 {
     bool buffer_accepted = false;
     int retval = size;
+    if (offset < m_offset) {
+        return SFS_ERROR;
+    }
     if (offset == m_offset) {
         retval = m_fh->write(offset, buf, size);
         buffer_accepted = true;
@@ -34,14 +37,15 @@ Stream::Write(off_t offset, const char *buf, size_t size)
             return retval;
         }
     }
-    //printf("Performing stream buffer accounting.  Available buffers: %lu, total buffers %lu.\n", m_avail_count, m_buffers.size());
     // Even if we already accepted the current data, always
     // iterate through available buffers and try to write as
     // much out to disk as possible.
-    Entry *avail_entry = nullptr;
+    Entry *avail_entry;
     bool buffer_was_written;
+    size_t avail_count = 0;
     do {
-        m_avail_count = 0;
+        avail_count = 0;
+        avail_entry = nullptr;
         buffer_was_written = false;
         for (Entry &entry : m_buffers) {
             // Always try to dump from memory.
@@ -50,13 +54,14 @@ Stream::Write(off_t offset, const char *buf, size_t size)
             }
             if (entry.Available()) { // Empty buffer
                 if (!avail_entry) {avail_entry = &entry;}
-                m_avail_count ++;
+                avail_count ++;
             }
             else if (!buffer_accepted && entry.Accept(offset, buf, size)) {
                 buffer_accepted = true;
             }
         }
-    } while ((m_avail_count != m_buffers.size()) && buffer_was_written);
+    } while ((avail_count != m_buffers.size()) && buffer_was_written);
+    m_avail_count = avail_count;
 
     if (!buffer_accepted) {  // No place for this data in allocated buffers
         if (!avail_entry) {  // No available buffers to allocate.

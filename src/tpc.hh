@@ -39,10 +39,15 @@ private:
     int DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                           bool &success);
 
-    int SendPerfMarker(XrdHttpExtReq &req, TPC::State &state);
+    int SendPerfMarker(XrdHttpExtReq &req, off_t bytes_transferred);
 
+    // Perform the libcurl transfer, periodically sending back chunked updates.
     int RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                            const char *log_prefix);
+
+    // Experimental multi-stream version of RunCurlWithUpdates
+    int RunCurlWithStreams(XrdHttpExtReq &req, TPC::State &state,
+                           const char *log_prefix, size_t streams);
 #else
     int RunCurlBasic(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                      const char *log_prefix);
@@ -56,6 +61,7 @@ private:
     bool Configure(const char *configfn, XrdOucEnv *myEnv);
 
     static constexpr int m_marker_period = 5;
+    static constexpr size_t m_block_size = 16*1024*1024;
     bool m_desthttps{false};
     std::string m_cadir;
     static std::atomic<uint64_t> m_monid;

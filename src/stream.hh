@@ -23,7 +23,7 @@ public:
         : m_avail_count(max_blocks),
           m_fh(std::move(fh))
     {
-        m_buffers.reserve(max_blocks);
+        //m_buffers.reserve(max_blocks);
         for (size_t idx=0; idx < max_blocks; idx++) {
             m_buffers.emplace_back(buffer_size);
         }
@@ -37,6 +37,8 @@ public:
 
     int Write(off_t offset, const char *buffer, size_t size);
 
+    size_t AvailableBuffers() const {return m_avail_count;}
+
 private:
 
     class Entry {
@@ -44,6 +46,9 @@ private:
         Entry(size_t capacity) :
             m_capacity(capacity)
         {}
+
+        Entry(const Entry&) = delete;
+        Entry(Entry&&) = default;
 
         bool Available() const {return m_offset == -1;}
 
@@ -78,6 +83,9 @@ private:
             // Finally, do the copy.
             memcpy(&m_buffer[0] + m_size, buf, size);
             m_size += size;
+            if (m_offset == -1) {
+                m_offset = offset;
+            }
             return true;
         }
 

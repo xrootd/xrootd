@@ -189,14 +189,13 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
     return 0;
 }
 
-int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, State &state) {
+int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, off_t bytes_transferred) {
     std::stringstream ss;
     const std::string crlf = "\n";
     ss << "Perf Marker" << crlf;
     ss << "Timestamp: " << time(NULL) << crlf;
     ss << "Stripe Index: 0" << crlf;
-    ss << "Stripe Bytes Transferred: " << state.BytesTransferred() << crlf;
-    ss << "Stripe Bytes Transferred: " << state.BytesTransferred() << crlf;
+    ss << "Stripe Bytes Transferred: " << bytes_transferred << crlf;
     ss << "Total Stripe Count: 1" << crlf;
     ss << "End" << crlf;
 
@@ -243,7 +242,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
-            if (SendPerfMarker(req, state)) {
+            if (SendPerfMarker(req, state.BytesTransferred())) {
                 curl_multi_remove_handle(multi_handle, curl);
                 curl_easy_cleanup(curl);
                 curl_multi_cleanup(multi_handle);
@@ -426,10 +425,26 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     }
     std::string authz = GetAuthz(req);
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
-    /*auto overwrite_header = req.headers.find("Overwrite");
+    auto overwrite_header = req.headers.find("Overwrite");
     if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
         mode = SFS_O_TRUNC|SFS_O_POSC;
-    }*/
+    }
+    int streams = 1;
+    {
+        auto streams_header = req.headers.find("X-Number-Of-Streams");
+        if (streams_header != req.headers.end()) {
+            int stream_req = -1;
+            try {
+                stream_req = std::stol(streams_header->second);
+            } catch (...) { // Handled below
+            }
+            if (stream_req < 1 || stream_req > 100) {
+                char msg[] = "Invalid request for number of streams";
+                return req.SendSimpleResp(500, nullptr, nullptr, msg, 0);
+            }
+            streams = stream_req;
+        }
+    }
 
     int open_result = OpenWaitStall(*fh, req.resource, mode|SFS_O_WRONLY, 0644,
                                     req.GetSecEntity(), authz);
@@ -452,22 +467,16 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
-    Stream stream(std::move(fh), 0, 0);
+    Stream stream(std::move(fh), streams, m_block_size);
     State state(0, stream, curl, false);
     state.CopyHeaders(req);
 
 #ifdef XRD_CHUNK_RESP
-    int result;
-    bool success;
-    if ((result = DetermineXferSize(curl, req, state, success)) || !success) {
-        return result;
+    if (streams > 1) {
+        return RunCurlWithStreams(req, state, "ProcessPullReq", streams);
+    } else {
+        return RunCurlWithUpdates(curl, req, state, "ProcessPullReq");
     }
-    std::stringstream ss;
-    ss << "Successfully determined remote size for pull request: " << state.GetContentLength();
-    m_log.Emsg("ProcessPullReq", ss.str().c_str());
-    state.ResetAfterSize();
-
-    return RunCurlWithUpdates(curl, req, state, "ProcessPullReq");
 #else
     return RunCurlBasic(curl, req, state, "ProcessPullReq");
 #endif

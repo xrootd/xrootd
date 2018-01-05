@@ -14,10 +14,16 @@ def parse_args():
     parser.add_argument("--push", dest="mode", action="store_const", const="push", help="Use push-mode for transfer (source manages transfer)", default="auto")
     parser.add_argument("--pull", dest="mode", action="store_const", const="pull", help="Use pull-mode for transfer (destination manages transfer)")
     parser.add_argument("--no-overwrite", dest="overwrite", action="store_false", default=True, help="Disable overwrite of existing files.")
+    parser.add_argument("--streams", dest="streams", help="Allow multiple streams", default=1,
+                        type=int)
     parser.add_argument("src")
     parser.add_argument("dest")
 
     args = parser.parse_args()
+
+    if args.streams < 1:
+        print >> sys.stderr, "Invalid number of streams specified: %d" % args.streams
+        sys.exit(1)
 
     if not args.token and (not args.src_token or not args.dest_token):
         if 'SCITOKEN' in os.environ and os.path.exists(os.environ['SCITOKEN']):
@@ -63,6 +69,8 @@ def main():
         headers['Overwrite'] = 'T'
     else:
         headers['Overwrite'] = 'F'
+    if args.streams > 1:
+        headers['X-Number-Of-Streams'] = str(args.streams)
     mode = args.mode
     if mode == "auto":
         mode = determine_mode(args)
