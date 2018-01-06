@@ -72,13 +72,20 @@ bool TPCHandler::MatchesPath(const char *verb, const char *path) {
     return !strcmp(verb, "COPY") || !strcmp(verb, "OPTIONS");
 }
 
+static std::string PrepareURL(const std::string &input) {
+    if (!strncmp(input.c_str(), "davs://", 7)) {
+        return "https://" + input.substr(7);
+    }
+    return input;
+}
+
 int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
     if (req.verb == "OPTIONS") {
         return ProcessOptionsReq(req);
     }
     auto header = req.headers.find("Source");
     if (header != req.headers.end()) {
-        return ProcessPullReq(header->second, req);
+        return ProcessPullReq(PrepareURL(header->second), req);
     }
     header = req.headers.find("Destination");
     if (header != req.headers.end()) {
