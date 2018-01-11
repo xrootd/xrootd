@@ -26,12 +26,196 @@
 
 #include <string>
 #include <memory>
+#include <stdexcept>
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
+#include <aio.h>
+
+namespace
+{
+
+  class AioCtx
+  {
+    public:
+
+      enum Opcode
+      {
+        None,
+        Read,
+        Write,
+        Sync
+      };
+
+      AioCtx( const XrdCl::HostList &hostList, XrdCl::ResponseHandler *handler ) :
+        opcode( None ), hosts( new XrdCl::HostList( hostList ) ), handler( handler )
+      {
+        aiocb *ptr = new aiocb();
+        memset( ptr, 0, sizeof( aiocb ) );
+
+        XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+        int useSignals = XrdCl::DefaultAioSignal;
+        env->GetInt( "AioSignal", useSignals );
+
+        if( useSignals )
+        {
+          static SignalHandlerRegistrator registrator; // registers the signal handler
+
+          ptr->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
+          ptr->aio_sigevent.sigev_signo  = SIGUSR1;
+        }
+        else
+        {
+          ptr->aio_sigevent.sigev_notify = SIGEV_THREAD;
+          ptr->aio_sigevent.sigev_notify_function = ThreadHandler;
+        }
+
+        ptr->aio_sigevent.sigev_value.sival_ptr = this;
+
+        cb.reset( ptr );
+      }
+
+
+      void SetWrite( int fd, size_t offset, size_t size, const void *buffer )
+      {
+        cb->aio_fildes = fd;
+        cb->aio_offset = offset;
+        cb->aio_buf    = const_cast<void*>( buffer );
+        cb->aio_nbytes = size;
+        opcode = Opcode::Write;
+      }
+
+      void SetRead( int fd, size_t offset, size_t size, void *buffer )
+      {
+        cb->aio_fildes = fd;
+        cb->aio_offset = offset;
+        cb->aio_buf    = buffer;
+        cb->aio_nbytes = size;
+        opcode = Opcode::Read;
+      }
+
+      void SetFsync( int fd )
+      {
+        cb->aio_fildes = fd;
+        opcode = Opcode::Sync;
+      }
+
+      static void ThreadHandler( sigval arg )
+      {
+        std::unique_ptr<AioCtx> me( reinterpret_cast<AioCtx*>( arg.sival_ptr ) );
+        Handler( std::move( me ) );
+      }
+
+      static void SignalHandler( int sig, siginfo_t *info, void *ucontext )
+      {
+        std::unique_ptr<AioCtx> me( reinterpret_cast<AioCtx*>( info->si_value.sival_ptr ) );
+        Handler( std::move( me ) );
+      }
+
+      operator aiocb*()
+      {
+        return cb.get();
+      }
+
+    private:
+
+      struct SignalHandlerRegistrator
+      {
+        SignalHandlerRegistrator()
+        {
+          struct sigaction newact, oldact;
+          newact.sa_sigaction = SignalHandler;
+          sigemptyset( &newact.sa_mask );
+          newact.sa_flags = SA_SIGINFO;
+          int rc = sigaction( SIGUSR1, &newact, &oldact );
+          if( rc < 0 )
+            throw std::runtime_error( strerror( errno ) );
+        }
+      };
+
+      static void Handler( std::unique_ptr<AioCtx> me )
+      {
+        if( me->opcode == Opcode::None )
+          return;
+
+        using namespace XrdCl;
+
+        int rc = aio_return( me->cb.get() );
+        if( rc < -1 )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Error( FileMsg, GetErrMsg( me->opcode ), strerror( errno ) );
+          XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                                  XProtocol::mapError( errno ),
+                                                  strerror( errno ) );
+          QueueTask( error, 0, me->hosts, me->handler );
+        }
+        else
+        {
+          AnyObject *resp = 0;
+
+          if( me->opcode == Opcode::Read )
+          {
+            ChunkInfo *chunk = new ChunkInfo( me->cb->aio_offset,
+                                              rc, me->cb->aio_buf );
+            resp = new AnyObject();
+            resp->Set( chunk );
+          }
+
+          QueueTask( new XRootDStatus(), resp, me->hosts, me->handler );
+        }
+      }
+
+      static const char* GetErrMsg( Opcode opcode )
+      {
+        static const char readmsg[]  = "Read:  failed %s";
+        static const char writemsg[] = "Write: failed %s";
+        static const char syncmsg[]  = "Sync:  failed %s";
+
+        switch( opcode )
+        {
+          case Opcode::Read:  return readmsg;
+
+          case Opcode::Write: return writemsg;
+
+          case Opcode::Sync:  return syncmsg;
+
+          default:            return 0;
+        }
+      }
+
+      static void QueueTask( XrdCl::XRootDStatus *status, XrdCl::AnyObject *resp,
+                             XrdCl::HostList *hosts, XrdCl::ResponseHandler *handler )
+      {
+        using namespace XrdCl;
+
+        // if it is simply the sync handler we can release the semaphore
+        // and return there is no need to execute this in the thread-pool
+        SyncResponseHandler *syncHandler =
+            dynamic_cast<SyncResponseHandler*>( handler );
+        if( syncHandler )
+        {
+          syncHandler->HandleResponse( status, resp );
+        }
+        else
+        {
+          JobManager *jmngr = DefaultEnv::GetPostMaster()->GetJobManager();
+          LocalFileTask *task = new LocalFileTask( status, resp, hosts, handler );
+          jmngr->QueueJob( task );
+        }
+      }
+      
+      std::unique_ptr<aiocb>  cb;
+      Opcode                  opcode;
+      XrdCl::HostList        *hosts;
+      XrdCl::ResponseHandler *handler;
+  };
+
+};
 
 namespace XrdCl
 {
@@ -40,7 +224,7 @@ namespace XrdCl
   // Constructor
   //------------------------------------------------------------------------
   LocalFileHandler::LocalFileHandler() :
-      fd( -1 ), pHostList( 0 )
+      fd( -1 )
   {
     jmngr = DefaultEnv::GetPostMaster()->GetJobManager();
   }
@@ -50,7 +234,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   LocalFileHandler::~LocalFileHandler()
   {
-    delete pHostList;
+
   }
 
   //------------------------------------------------------------------------
@@ -137,22 +321,20 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::Read( uint64_t offset, uint32_t size,
       void* buffer, ResponseHandler* handler, uint16_t timeout )
   {
-    Log *log = DefaultEnv::GetLog();
-    int read = 0;
-    if( ( read = pread( fd, buffer, size, offset ) ) == -1 )
+    AioCtx *ctx = new AioCtx( pHostList, handler );
+    ctx->SetRead( fd, offset, size, buffer );
+
+    int rc = aio_read( *ctx );
+
+    if( rc < 0 )
     {
+      Log *log = DefaultEnv::GetLog();
       log->Error( FileMsg, "Read: failed %s", strerror( errno ) );
-      XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
-                                              XProtocol::mapError( errno ),
-                                              strerror( errno ) );
-      return QueueTask( error, 0, handler );
+      return XRootDStatus( stError, errOSError, XProtocol::mapError( rc ),
+                           strerror( errno ) );
     }
 
-    ChunkInfo *chunk;
-    chunk = new ChunkInfo( offset, read, buffer );
-    AnyObject *resp = new AnyObject();
-    resp->Set( chunk );
-    return QueueTask( new XRootDStatus(), resp, handler );
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
@@ -161,26 +343,20 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::Write( uint64_t offset, uint32_t size,
       const void* buffer, ResponseHandler* handler, uint16_t timeout )
   {
-    const char *buff = reinterpret_cast<const char*>( buffer );
-    size_t bytesWritten = 0;
-    while( bytesWritten < size )
+    AioCtx *ctx = new AioCtx( pHostList, handler );
+    ctx->SetWrite( fd, offset, size, buffer );
+
+    int rc = aio_write( *ctx );
+
+    if( rc < 0 )
     {
-      ssize_t ret = pwrite( fd, buff, size, offset );
-      if( ret < 0 )
-      {
-        Log *log = DefaultEnv::GetLog();
-        log->Error( FileMsg, "Write: failed %s", strerror( errno ) );
-        XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
-                                                XProtocol::mapError( errno ),
-                                                strerror( errno ) );
-        return QueueTask( error, 0, handler );
-      }
-      offset += ret;
-      buff += ret;
-      bytesWritten += ret;
+      Log *log = DefaultEnv::GetLog();
+      log->Error( FileMsg, "Write: failed %s", strerror( errno ) );
+      return XRootDStatus( stError, errOSError, XProtocol::mapError( rc ),
+                           strerror( errno ) );
     }
 
-    return QueueTask( new XRootDStatus(), 0, handler );
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
@@ -189,18 +365,20 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::Sync( ResponseHandler* handler,
       uint16_t timeout )
   {
-    if( fsync( fd ) )
+    AioCtx *ctx = new AioCtx( pHostList, handler );
+    ctx->SetFsync( fd );
+
+    int rc = aio_fsync( O_SYNC, *ctx );
+
+    if( rc < 0 )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Error( FileMsg, "Sync: failed, file descriptor: %i, %s", fd,
-                  strerror( errno ) );
-      XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
-                                              XProtocol::mapError( errno ),
-                                              strerror( errno ) );
-      return QueueTask( error, 0, handler );
+      log->Error( FileMsg, "Sync: failed %s", strerror( errno ) );
+      return XRootDStatus( stError, errOSError, XProtocol::mapError( rc ),
+                           strerror( errno ) );
     }
 
-    return QueueTask( new XRootDStatus(), 0, handler );
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
@@ -356,8 +534,7 @@ namespace XrdCl
       return XRootDStatus();
     }
 
-    HostList *hosts = pHostList ? new HostList( *pHostList ) : new HostList();
-    hosts->push_back( HostInfo( pUrl, false ) );
+    HostList *hosts = new HostList( pHostList );
     LocalFileTask *task = new LocalFileTask( st, resp, hosts, handler );
     jmngr->QueueJob( task );
     return XRootDStatus();
@@ -481,6 +658,10 @@ namespace XrdCl
       delete statInfo;
       return XRootDStatus( stError, errErrorResponse, kXR_FSError );
     }
+
+    // add the URL to hosts list
+    pHostList.push_back( HostInfo( pUrl, false ) );
+
     //All went well
     uint8_t ufd = fd;
     OpenInfo *openInfo = new OpenInfo( &ufd, 1, statInfo );

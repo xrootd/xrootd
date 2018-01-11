@@ -2064,6 +2064,7 @@ namespace XrdCl
     }
 
     AnyObject *resp = 0;
+    pLFileHandler->SetHostList( *pHosts );
     XRootDStatus st = pLFileHandler->Open( url, pRequest, resp );
     if( !st.IsOK() )
     {

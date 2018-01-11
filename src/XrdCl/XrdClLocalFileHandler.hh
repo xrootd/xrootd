@@ -30,7 +30,6 @@ namespace XrdCl
 
   class LocalFileHandler
   {
-
     public:
 
       LocalFileHandler();
@@ -210,12 +209,10 @@ namespace XrdCl
 
       void SetHostList( const HostList &hostList )
       {
-        if( pHostList )
-          delete pHostList;
-        pHostList = new HostList( hostList );
+        pHostList = hostList;
       }
 
-      const HostList* GetHostList()
+      const HostList& GetHostList()
       {
         return pHostList;
       }
@@ -243,7 +240,7 @@ namespace XrdCl
       //---------------------------------------------------------------------
       // The host list returned in the user callback
       //---------------------------------------------------------------------
-      HostList *pHostList;
+      HostList pHostList;
 
   };
 }
