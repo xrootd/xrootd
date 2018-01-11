@@ -143,7 +143,7 @@ bool XrdSsiServReal::GenURL(XrdSsiResource *rP, char *buff, int blen, int uEnt)
 //
    if (uEnt == 0) xUsr = xAt = "";
       else {snprintf(uBuff, sizeof(uBuff), "%d", uEnt);
-            uVal = uBuff;
+            xUsr= uBuff;
             xAt = "@";
            }
 
