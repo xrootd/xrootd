@@ -241,7 +241,7 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::Buffer *buffer )
       {
-        return Py_BuildValue( "y#", buffer->GetBuffer(), buffer->GetSize() );
+        return PyBytes_FromStringAndSize( buffer->GetBuffer(), buffer->GetSize() );
       }
   };
 
@@ -249,7 +249,8 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::ChunkInfo *chunk )
       {
-        PyObject *o = Py_BuildValue( "y#", chunk->buffer, chunk->length );
+        PyObject *o = PyBytes_FromStringAndSize( (const char*)chunk->buffer,
+                                                  chunk->length );
         delete[] (char*) chunk->buffer;
         return o;
       }
@@ -267,8 +268,8 @@ namespace PyXRootD
         for ( uint32_t i = 0; i < chunks.size(); ++i ) {
           XrdCl::ChunkInfo chunk = chunks.at( i );
 
-          PyObject *buffer = Py_BuildValue( "y#", (const char *) chunk.buffer,
-                                                  chunk.length );
+          PyObject *buffer = PyBytes_FromStringAndSize( (const char *) chunk.buffer,
+                                                        chunk.length );
           PyList_SET_ITEM( pychunks, i,
               Py_BuildValue( "{sOsOsO}",
                   "offset", Py_BuildValue( "k", chunk.offset ),
