@@ -76,8 +76,7 @@ target_link_libraries(
   XrdXml
   XrdUtils
   pthread
-  dl
-  rt)
+  dl)
 
 set_target_properties(
   XrdCl
