@@ -161,7 +161,8 @@ namespace
           if( me->opcode == Opcode::Read )
           {
             ChunkInfo *chunk = new ChunkInfo( me->cb->aio_offset,
-                                              rc, me->cb->aio_buf );
+                                              rc,
+                                              const_cast<void*>( me->cb->aio_buf ) );
             resp = new AnyObject();
             resp->Set( chunk );
           }
