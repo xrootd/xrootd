@@ -657,6 +657,7 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
    static const char *epname = "write";
    XrdSsiRRInfo   rInfo(offset);
    unsigned int reqID = rInfo.Id();
+   int reqPass;
 
 // Check if we are reading a request segment and handle that. This assumes that
 // writes to different requests cannot be interleaved (which they can't be).
@@ -668,11 +669,16 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
    if (rTab.LookUp(reqID))
       return XrdSsiUtils::Emsg(epname, EADDRINUSE, "write", gigID, *eInfo);
 
-// The offset contains the actual size of the request, make sure it's OK
+// The offset contains the actual size of the request, make sure it's OK. Note 
+// that it can be zero and by convention the blen must be one if so.
 //
-   reqSize = rInfo.Size();
-   if (reqSize <= 0 || reqSize > maxRSZ || reqSize < blen)
-      return XrdSsiUtils::Emsg(epname, EFBIG, "write", gigID, *eInfo);
+   reqPass = reqSize = rInfo.Size();
+   if (reqSize < blen)
+      {if (reqSize || blen != 1)
+          return XrdSsiUtils::Emsg(epname, EPROTO, "write", gigID, *eInfo);
+       reqSize = 1;
+      } else if (reqSize < 0 || reqSize > maxRSZ)
+                return XrdSsiUtils::Emsg(epname, EFBIG, "write", gigID, *eInfo);
 
 // Indicate we are in the progress of collecting the request arguments
 //
@@ -695,7 +701,7 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
            Log.Emsg(epname, "Xio.Swap() return error status of ", etxt);
            return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, *eInfo);
           }
-       if (!NewRequest(reqID, 0, bRef, blen))
+       if (!NewRequest(reqID, 0, bRef, reqPass))
           return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, *eInfo);
        return blen;
       }
@@ -712,7 +718,7 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
    if (!reqLeft)
       {oucBuff->SetLen(reqSize);
 
-       if (!NewRequest(reqID, oucBuff, 0, reqSize))
+       if (!NewRequest(reqID, oucBuff, 0, reqPass))
           return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, *eInfo);
        oucBuff = 0;
       } else oucBuff->SetLen(blen, blen);

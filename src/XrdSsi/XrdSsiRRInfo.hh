@@ -40,7 +40,7 @@ public:
 
 static const unsigned int idMax = 16777215;
 
-enum   Opc {Rxq = 0, Rwt = 1, Can = 2};
+enum   Opc {Rxq = 0, Rwt = 1, Can = 2, Rxz = 3};
 
 inline void                 Cmd(Opc cmd)
                                {reqCmd  = static_cast<unsigned char>(cmd);}
