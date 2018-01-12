@@ -559,6 +559,9 @@ namespace
           if( !checkSum.empty() ) return XrdCl::XRootDStatus();
         }
 
+        if( pUrl->IsLocalFile() )
+          return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
+
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
@@ -1335,6 +1338,9 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        if( pUrl->IsLocalFile() )
+          return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
+
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
                                                 dataServer, pUrl->GetPath() );
