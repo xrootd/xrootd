@@ -732,12 +732,14 @@ void XrdSsiFileReq::Recycle()
    else if (sfsBref) {sfsBref->Recycle(); sfsBref = 0;}
    reqSize = 0;
 
-// Add to queue unless we have too many of these
+// Add to queue unless we have too many of these. If we add it back to the
+// queue; make sure it's a cleaned up object!
 //
    aqMutex.Lock();
    if (tident) {free(tident); tident = 0;}
    if (freeCnt >= freeMax) {aqMutex.UnLock(); delete this;}
-      else {nextReq = freeReq;
+      else {XrdSsiRRAgent::CleanUp(*this);
+            nextReq = freeReq;
             freeReq = this;
             freeCnt++;
             aqMutex.UnLock();

@@ -38,6 +38,8 @@ class XrdSsiRRAgent
 {
 public:
 
+static void            CleanUp(XrdSsiRequest &reqR) {reqR.CleanUp();}
+
 static XrdSsiErrInfo  &ErrInfoRef(XrdSsiRequest *rP) {return rP->errInfo;}
 
 static XrdSsiRequest  *Request(XrdSsiResponder *rP) {return rP->reqP;}
