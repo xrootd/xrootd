@@ -366,6 +366,7 @@ virtual        ~XrdSsiRequest() {}
 
 private:
 virtual void     BindDone() {}
+        void     CleanUp();
         bool     CopyData(char *buff, int blen);
 virtual void     Unbind(XrdSsiResponder *respP) {}
 

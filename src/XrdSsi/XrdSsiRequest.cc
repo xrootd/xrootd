@@ -44,6 +44,24 @@
 XrdSsiMutex XrdSsiRequest::ubMutex;
 
 /******************************************************************************/
+/* Private:                     C l e a n U p                                */
+/******************************************************************************/
+  
+void XrdSsiRequest::CleanUp()
+{
+// Reinitialize the this object in case it is being reused. While we don't
+// really need to get a lock, we do so just in case there is a coding error.
+//
+   rrMutex->Lock();  
+   Resp.Init();
+   errInfo.Clr();
+   epNode = 0;
+   XrdSsiMutex *mP = rrMutex;
+   rrMutex = &ubMutex;
+   mP->UnLock();
+}
+
+/******************************************************************************/
 /* Private:                     C o p y D a t a                               */
 /******************************************************************************/
   
@@ -94,17 +112,10 @@ bool XrdSsiRequest::Finished(bool cancel)
 //
    if (respP) respP->Finished(*this, Resp, cancel);
 
-// Reinitialize the this object in case it is being reused
-//
-   rrMutex->Lock();
-   Resp.Init();
-   errInfo.Clr();
-   epNode = 0;
-   XrdSsiMutex *mP = rrMutex;
-   rrMutex = &ubMutex;
-   mP->UnLock();
-
-// Return false if there was no responder associated with this request
+// We are done. The object will be reiniialized when UnBindRequest() is
+// called which will call UnBind() in this object. Since the timing is not
+// known we can't touch anthing in this object at this point.
+// Return false if there was no responder associated with this request.
 //
    return respP != 0;
 }
