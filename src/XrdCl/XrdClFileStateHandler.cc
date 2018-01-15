@@ -280,6 +280,12 @@ namespace XrdCl
           // so we need to nullify the pointer
           pHandler = 0;
         }
+        else
+        {
+          delete status;
+          delete response;
+          delete hostList;
+        }
         // destroy the object if it is
         DestroyMyself( scopedLock );
       }
