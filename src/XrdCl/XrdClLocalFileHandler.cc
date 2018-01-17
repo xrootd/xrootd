@@ -67,7 +67,7 @@ namespace
           static SignalHandlerRegistrator registrator; // registers the signal handler
 
           ptr->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-          ptr->aio_sigevent.sigev_signo  = SIGRTMIN + 1;
+          ptr->aio_sigevent.sigev_signo  = SIGUSR1;
         }
         else
         {
@@ -132,7 +132,7 @@ namespace
           newact.sa_sigaction = SignalHandler;
           sigemptyset( &newact.sa_mask );
           newact.sa_flags = SA_SIGINFO;
-          int rc = sigaction( SIGRTMIN + 1, &newact, &oldact );
+          int rc = sigaction( SIGUSR1, &newact, &oldact );
           if( rc < 0 )
             throw std::runtime_error( strerror( errno ) );
         }
