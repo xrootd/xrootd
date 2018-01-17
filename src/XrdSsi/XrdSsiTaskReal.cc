@@ -482,13 +482,12 @@ bool XrdSsiTaskReal::SendRequest(const char *node)
    rrInfo.Size(reqBlen);
    tStat = isWrite;
 
-// If we are writing a zero length message, we must handle this as a separate
-// type of operation as zero length messages are normally deep-sixed.
+// If we are writing a zero length message, we must fake a request as zero
+// zero length messages are normally deep-sixed.
 //
    if (!reqBlen)
       {reqBuff = &zedData;
        reqBlen = 1;
-       rrInfo.Cmd(XrdSsiRRInfo::Rxz);
       }
 
 // Issue the write
