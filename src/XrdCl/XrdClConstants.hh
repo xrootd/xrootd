@@ -65,7 +65,7 @@ namespace XrdCl
   const int DefaultMultiProtocol        = 0;
   const int DefaultParallelEvtLoop      = 1;
   const int DefaultMetalinkProcessing   = 1;
-  const int DefaultLocalMetalinkFile    = 1;
+  const int DefaultLocalMetalinkFile    = 0;
   const int DefaultXCpBlockSize         = 134217728; // DefaultCPChunkSize * DefaultCPParallelChunks * 2
   const int DefaultNoDelay              = 1;
   const int DefaultAioSignal            = 1;
