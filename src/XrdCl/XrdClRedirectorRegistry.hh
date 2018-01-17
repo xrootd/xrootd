@@ -148,6 +148,14 @@ class RedirectorRegistry
     XRootDStatus RegisterImpl( const URL &url, ResponseHandler *handler );
 
     //----------------------------------------------------------------------------
+    //! Convert the old convention for accessing local metalink files:
+    //!   root://localfile//path/metalink.meta4
+    //! into:
+    //!   file://localhost/path/metalink.meta4
+    //----------------------------------------------------------------------------
+    static URL ConvertLocalfile( const URL &url );
+
+    //----------------------------------------------------------------------------
     // Constructor (private!).
     //----------------------------------------------------------------------------
     RedirectorRegistry() {}
