@@ -1820,7 +1820,8 @@ int XrdXrootdProtocol::do_Qspace()
 //
    if (opaque)
       {n = strlen(argp->buff); argp->buff[n] = '?';
-       if ((argp->buff)+n != opaque-1) strcpy(&argp->buff[n+1], opaque);
+       if ((argp->buff)+n != opaque-1)
+          memmove(&argp->buff[n+1], opaque, strlen(opaque)+1);
       }
 
 // Preform the actual function using the supplied logical FS name
