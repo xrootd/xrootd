@@ -280,10 +280,10 @@ void XrdSsiFileReq::DoIt()
                          break;
           case isDone:   cancel = (myState != odRsp);
                          DEBUGXQ("Calling Finished(" <<cancel <<')');
-                         Finished(cancel);
                          if (respWait) WakeUp();
                          if (finWait)  finWait->Post();
                          frqMutex.UnLock();
+                         Finished(cancel);  // This object may be deleted!
                          return;
                          break;
           default:       break;
@@ -441,9 +441,9 @@ void XrdSsiFileReq::Finalize()
           //
           case isBound:  if (strBuff) {strBuff->Recycle(); strBuff = 0;}
                          DEBUGXQ("Calling Finished(" <<cancel <<')');
-                         Finished(cancel);
                          if (respWait) WakeUp();
                          mHelper.UnLock();
+                         Finished(cancel); // This object may be deleted!
                          return;
                          break;
 
