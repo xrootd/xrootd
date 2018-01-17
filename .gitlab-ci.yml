@@ -32,7 +32,7 @@ stages:
   image: ubuntu:xenial
   script:
     - apt-get update
-    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core pkg-create-dbgsym
     - cp -R packaging/debian/ .
     - mk-build-deps --build-dep debian/control
     - gdebi -n xrootd-build-deps-depends*.deb
@@ -41,6 +41,7 @@ stages:
     - dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages"
     - mkdir xenial
     - cp deb_packages/*.deb  xenial
+    - cp ../*.ddeb  xenial
   artifacts:
     expire_in: 1 day
     paths:
