@@ -288,6 +288,7 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "LocalMetalinkFile",    DefaultLocalMetalinkFile    );
     REGISTER_VAR_INT( varsInt, "XCpBlockSize",         DefaultXCpBlockSize         );
     REGISTER_VAR_INT( varsInt, "NoDelay",              DefaultNoDelay              );
+    REGISTER_VAR_INT( varsInt, "PreferIPv4",           DefaultPreferIPv4           );
 
     REGISTER_VAR_STR( varsStr, "PollerPreference",     DefaultPollerPreference     );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",        DefaultClientMonitor        );

@@ -240,7 +240,6 @@ namespace XrdCl
       return pLastFatalError;
 
     gettimeofday( &pConnectionStarted, 0 );
-    pConnectionInitTime = now;
     ++pConnectionCount;
 
     //--------------------------------------------------------------------------
@@ -265,12 +264,23 @@ namespace XrdCl
     // It's more efficient to remove addresses from the back of a vector
     // so we reverse the it.
     //--------------------------------------------------------------------------
-    std::reverse( pAddresses.begin(), pAddresses.end() );
-    pSubStreams[0]->socket->SetAddress( pAddresses.back() );
-    pAddresses.pop_back();
-    st = pSubStreams[0]->socket->Connect( pConnectionWindow );
-    if( st.IsOK() )
-      pSubStreams[0]->status = Socket::Connecting;
+    int preferIPv4 = DefaultPreferIPv4;
+    DefaultEnv::GetEnv()->GetInt( "PreferIPv4", preferIPv4 );
+    if( !preferIPv4 )
+      std::reverse( pAddresses.begin(), pAddresses.end() );
+
+    while( !pAddresses.empty() )
+    {
+      pSubStreams[0]->socket->SetAddress( pAddresses.back() );
+      pAddresses.pop_back();
+      pConnectionInitTime = ::time( 0 );
+      st = pSubStreams[0]->socket->Connect( pConnectionWindow );
+      if( st.IsOK() )
+      {
+        pSubStreams[0]->status = Socket::Connecting;
+        break;
+      }
+    }
     return st;
   }
 
@@ -676,12 +686,19 @@ namespace XrdCl
     //------------------------------------------------------------------------
     if( !pAddresses.empty() )
     {
-      pSubStreams[0]->socket->SetAddress( pAddresses.back() );
-      pAddresses.pop_back();
+      Status st;
+      do
+      {
+        pSubStreams[0]->socket->SetAddress( pAddresses.back() );
+        pAddresses.pop_back();
+        pConnectionInitTime = ::time( 0 );
+        st = pSubStreams[0]->socket->Connect( pConnectionWindow );
+      }
+      while( !pAddresses.empty() && !st.IsOK() );
 
-      Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
       if( !st.IsOK() )
         OnFatalError( subStream, st, scopedLock );
+
       return;
     }
     //------------------------------------------------------------------------
