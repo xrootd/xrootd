@@ -11,6 +11,7 @@ Version 4.8.1
 -------------
 
 + **Major bug fixes**
+  * **[XrdCl]** Try all IP addresses in case posix connect fails.
   * **[XrdCl]** Fix checksuming in xrdcp for local files.
   * **[Py]** Make sure FileSystem::Copy returns a tuple, fixes #633.
   * **[Py]** Make sure empty strings are not converted to None.
@@ -28,6 +29,7 @@ Version 4.8.1
   * **[XrdPosix]** Fix various memory related issues.
   * **[XrdCrypto]** Fix various small issues.
   * **[Server]** Fix overlapping string copy. Fixes #643
+  * **[XrdCl]** Provide compatibility between root://localfile and file://. 
 
 -------------
 Version 4.8.0
