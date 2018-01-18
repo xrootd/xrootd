@@ -342,8 +342,9 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string zipURL       = metamanager + "/" + dataPath + "/data.zip";
   std::string fileInZip    = "paper.txt";
   std::string xcpSourceURL = metamanager + "/" + dataPath + "/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
+  std::string localFile    = "/data/localfile.dat";
 
-  CopyProcess  process1, process2, process3, process4, process5, process6, process7;
+  CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -445,8 +446,39 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process4.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process4.Prepare() );
   CPPUNIT_ASSERT_XRDST_NOTOK( process4.Run(0), errOperationExpired );
+  properties.Clear();
 
+  //----------------------------------------------------------------------------
+  // Copy to local fs
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source", sourceURL );
+  properties.Set( "target", "file://localhost" + localFile );
+  properties.Set( "checkSumMode", "end2end" );
+  properties.Set( "checkSumType", "zcrc32"  );
+  CPPUNIT_ASSERT_XRDST( process8.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process8.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process8.Run(0) );
+  properties.Clear();
 
+  //----------------------------------------------------------------------------
+  // Copy from local fs
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source", "file://localhost" + localFile );
+  properties.Set( "target", targetURL );
+  properties.Set( "checkSumMode", "end2end" );
+  properties.Set( "checkSumType", "zcrc32"  );
+  CPPUNIT_ASSERT_XRDST( process9.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process9.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process9.Run(0) );
+  properties.Clear();
+
+  //----------------------------------------------------------------------------
+  // Cleanup
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  CPPUNIT_ASSERT( remove( localFile.c_str() ) == 0 );
 }
 
 //------------------------------------------------------------------------------
