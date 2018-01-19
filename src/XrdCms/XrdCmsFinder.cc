@@ -194,7 +194,7 @@ int XrdCmsFinderRMT::Configure(const char *cfn, char *Args, XrdOucEnv *envP)
 //
    if (!isMeta && !isTarget && config.haveMeta)
       {XrdCmsFinderTRG *Rsp = new XrdCmsFinderTRG(Say.logger(),Topts,myPort);
-       return Rsp->RunAdmin(CMSPath);
+       return Rsp->RunAdmin(CMSPath, config.myVNID);
       }
 
 // All done
@@ -955,8 +955,6 @@ int XrdCmsFinderTRG::Configure(const char *cfn, char *Ags, XrdOucEnv *envP)
 {
    XrdCmsClientConfig             config;
    XrdCmsClientConfig::configWhat What;
-   const char *lFmt;
-   char buff [512];
 
 // Establish what we will be configuring
 //
@@ -972,19 +970,11 @@ int XrdCmsFinderTRG::Configure(const char *cfn, char *Ags, XrdOucEnv *envP)
 //
    if (config.Configure(cfn, What, XrdCmsClientConfig::configNorm)) return 0;
 
-// Construct the login line
-//
-   lFmt = ((What == XrdCmsClientConfig::configServer && config.myVNID)
-        ?  "login %c %d port %d vnid %s\n" : "login %c %d port %d\n");
-   snprintf(buff, sizeof(buff), lFmt, (isProxy ? 'P' : 'p'),
-                  static_cast<int>(getpid()), myPort, config.myVNID);
-   Login = strdup(buff);
-
 // Run the Admin thread. Note that unlike FinderRMT, we do not extract the
 // security function pointer or the network object pointer from the
 // environment as we don't need these at all.
 //
-   return RunAdmin(config.CMSPath);
+   return RunAdmin(config.CMSPath, config.myVNID);
 }
   
 /******************************************************************************/
@@ -1169,14 +1159,23 @@ void XrdCmsFinderTRG::Suspend(int Perm)
 /*                              R u n A d m i n                               */
 /******************************************************************************/
   
-int XrdCmsFinderTRG::RunAdmin(char *Path)
+int XrdCmsFinderTRG::RunAdmin(char *Path, const char *vnid)
 {
+   const char *lFmt;
    pthread_t tid;
+   char buff [512];
 
 // Make sure we have a path to the cmsd
 //
    if (!(CMSPath = Path))
       {Say.Emsg("Config", "Unable to determine cms admin path"); return 0;}
+
+// Construct the login line
+//
+   lFmt = (vnid ? "login %c %d port %d vnid %s\n" : "login %c %d port %d\n");
+   snprintf(buff, sizeof(buff), lFmt, (isProxy ? 'P' : 'p'),
+                  static_cast<int>(getpid()), myPort, vnid);
+   Login = strdup(buff);
 
 // Start a thread to connect with the local cmsd
 //

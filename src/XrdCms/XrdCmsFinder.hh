@@ -142,7 +142,7 @@ XrdOucTList   *Managers() {return myManList;}
         int    Reserve (int n);
         int    Release (int n);
 
-        int    RunAdmin(char *Path);
+        int    RunAdmin(char *Path, const char *vnid);
 
         int    Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *envP=0)
                     {return 0;}
