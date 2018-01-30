@@ -545,9 +545,12 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       }
 
 
-      if (CurrentReq.request == CurrentReq.rtUnknown) {
+      if (CurrentReq.request == CurrentReq.rtUnset) {
         TRACE(DEBUG, " Parsing first line: " << tmpline);
-        CurrentReq.parseFirstLine((char *)tmpline.c_str(), rc);
+        int result = CurrentReq.parseFirstLine((char *)tmpline.c_str(), rc);
+        if (result < 0) {
+          TRACE(DEBUG, " Parsing of first line failed with " << result);
+        }
       }
       else
         CurrentReq.parseLine((char *)tmpline.c_str(), rc);

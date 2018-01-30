@@ -144,6 +144,7 @@ public:
   /// These are the HTTP/DAV requests that we support
 
   enum ReqType {
+    rtUnset = -1,
     rtUnknown = 0,
     rtMalformed,
     rtGET,
