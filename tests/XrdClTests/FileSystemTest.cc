@@ -130,11 +130,26 @@ void FileSystemTest::MvTest()
   std::string filePath1 = remoteFile;
   std::string filePath2 = remoteFile + "2";
 
+
+  LocationInfo *info = 0;
   FileSystem fs( url );
 
+  // move the file
   CPPUNIT_ASSERT_XRDST( fs.Mv( filePath1, filePath2 ) );
+  // make sure it's not there
+  CPPUNIT_ASSERT_XRDST_NOTOK( fs.Locate( filePath1, OpenFlags::Refresh, info ),
+                              errErrorResponse );
+  // make sure the destination is there
+  CPPUNIT_ASSERT_XRDST( fs.Locate( filePath2, OpenFlags::Refresh, info ) );
+  delete info;
+  // move it back
   CPPUNIT_ASSERT_XRDST( fs.Mv( filePath2, filePath1 ) );
-
+  // make sure it's there
+  CPPUNIT_ASSERT_XRDST( fs.Locate( filePath1, OpenFlags::Refresh, info ) );
+  delete info;
+  // make sure the other one is gone
+  CPPUNIT_ASSERT_XRDST_NOTOK( fs.Locate( filePath2, OpenFlags::Refresh, info ),
+                              errErrorResponse );
 }
 
 //------------------------------------------------------------------------------
