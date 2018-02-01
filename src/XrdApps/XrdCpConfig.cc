@@ -217,6 +217,8 @@ do{while(optind < Argc && Legacy(optind)) {}
       switch(opC)
          {case OpCksum:    defCks(optarg);
                            break;
+          case OpCoerce:   OpSpec |= DoCoerce;
+                           break;
           case OpDebug:    OpSpec |= DoDebug;
                            if (!a2i(optarg, &Dlvl, 0, 3)) Usage(22);
                            break;
