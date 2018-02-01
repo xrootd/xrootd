@@ -120,9 +120,10 @@ public:
   static XrdObjectQ<XrdHttpProtocol> ProtStack;
   XrdObject<XrdHttpProtocol> ProtLink;
 
-  
+
   /// Authentication area
   XrdSecEntity SecEntity;
+
 private:
 
 
@@ -132,8 +133,11 @@ private:
   /// Initialization of the ssl security things
   static int InitSecurity();
 
+  /// Start a response back to the client
+  int StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen);
+
   /// Send some generic data to the client
-  int SendData(char *body, int bodylen);
+  int SendData(const char *body, int bodylen);
 
   /// Deallocate resources, in order to reutilize an object of this class
   void Cleanup();
@@ -220,12 +224,17 @@ private:
   int BuffgetData(int blen, char **data, bool wait);
   /// Copy a full line of text from the buffer into dest. Zero if no line can be found in the buffer
   int BuffgetLine(XrdOucString &dest);
-  
-  
-  
+
   /// Sends a basic response. If the length is < 0 then it is calculated internally
-  int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
-  
+  int SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen);
+
+  /// Starts a chunked response; body of request is sent over multiple parts using the SendChunkResp
+  //  API.
+  int StartChunkedResp(int code, const char *desc, const char *header_to_add);
+
+  /// Send a (potentially partial) body in a chunked response; invoking with NULL body
+  //  indicates that this is the last chunk in the response.
+  int ChunkResp(const char *body, long long bodylen);
   
   /// Gets a string that represents the IP address of the client. Must be freed
   char *GetClientIPStr();
