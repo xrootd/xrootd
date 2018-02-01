@@ -612,6 +612,7 @@ bool XrdOucPsx::ParseNLib(XrdSysError *Eroute, XrdOucStream &Config)
 //
    if (!val || !val[0])
       {Eroute->Emsg("Config", "namelib not specified"); return false;}
+   xNameLib = true;
 
 // Record the path
 //
@@ -771,7 +772,10 @@ void XrdOucPsx::SetRoot(const char *lroot, const char *rroot)
 // Handle the local root (posix dependent)
 //
    if (LocalRoot) free(LocalRoot);
-   LocalRoot = (lroot ? strdup(lroot) : 0);
+   if (!lroot) LocalRoot = 0;
+      {LocalRoot = strdup(lroot);
+       xLfn2Pfn = true;
+      }
 
 // Handle the oss local root
 //
