@@ -238,9 +238,11 @@ int XrdPssSys::Configure(const char *cfn)
 // Pre-screen any n2n library parameters
 //
    if (outProxy && psxConfig->xLfn2Pfn)
-      {const char *txt = (psxConfig->xPfn2Lfn ? "-lfn2pfn option":"directive");
-       eDest.Say("Config warning: ignoring namelib ", txt,
-                 "; this is forwarding proxy!");
+      {const char *txt;
+       if (!(psxConfig->xNameLib)) txt = "localroot directive";
+          else if (psxConfig->xPfn2Lfn) txt = "namelib -lfn2pfn option";
+                  else txt = "namelib directive";
+       eDest.Say("Config warning: ignoring ",txt,"; this is forwarding proxy!");
        psxConfig->xLfn2Pfn = false;
       }
 
