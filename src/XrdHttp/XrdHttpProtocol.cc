@@ -46,6 +46,7 @@
 #include <openssl/ssl.h>
 #include <vector>
 #include <arpa/inet.h>
+#include <sstream>
 #include <ctype.h>
 
 #define XRHTTP_TK_GRACETIME     600
@@ -1170,10 +1171,9 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
 
 /// Send some data to the client
 
-int XrdHttpProtocol::SendData(char *body, int bodylen) {
+int XrdHttpProtocol::SendData(const char *body, int bodylen) {
+
   int r;
-
-
 
   if (body && bodylen) {
     TRACE(REQ, "Sending " << bodylen << " bytes");
@@ -1193,75 +1193,92 @@ int XrdHttpProtocol::SendData(char *body, int bodylen) {
   return 0;
 }
 
+int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen) {
+  std::stringstream ss;
+  const std::string crlf = "\r\n";
+
+  ss << "HTTP/1.1 " << code << " ";
+  if (desc) {
+    ss << desc;
+  } else {
+    if (code == 200) ss << "OK";
+    else if (code == 206) ss << "Partial content";
+    else if (code == 302) ss << "Redirect";
+    else if (code == 404) ss << "Not found";
+    else ss << "Unknown";
+  }
+  ss << crlf;
+
+  if (bodylen >= 0) ss << "Content-Length: " << bodylen << crlf;
+
+  if (header_to_add)
+    ss << header_to_add << crlf;
+
+  ss << crlf;
+
+  const std::string &outhdr = ss.str();
+  TRACEI(RSP, "Sending resp: " << code << " header len:" << outhdr.size());
+  if (SendData(outhdr.c_str(), outhdr.size()))
+    return -1;
+
+  return 0;
+}
+
+int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *header_to_add) {
+  const std::string crlf = "\r\n";
+
+  std::stringstream ss;
+  if (header_to_add) {
+    ss << header_to_add << crlf;
+  }
+  ss << "Transfer-Encoding: chunked";
+
+  TRACEI(RSP, "Starting chunked response");
+  return StartSimpleResp(code, desc, ss.str().c_str(), -1);
+}
+
+int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
+  const std::string crlf = "\r\n";
+  long long chunk_length = bodylen;
+  if (bodylen <= 0) {
+    chunk_length = body ? strlen(body) : 0;
+  }
+  std::stringstream ss;
+
+  ss << std::hex << chunk_length << std::dec << crlf;
+
+  const std::string &chunkhdr = ss.str();
+  TRACEI(RSP, "Sending encoded chunk of size " << chunk_length);
+  if (SendData(chunkhdr.c_str(), chunkhdr.size()))
+    return -1;
+
+  if (body && SendData(body, chunk_length))
+    return -1;
+
+  return (SendData(crlf.c_str(), crlf.size())) ? -1 : 0;
+}
+
 /// Sends a basic response. If the length is < 0 then it is calculated internally
 /// Header_to_add is a set of header lines each CRLF terminated to be added to the header
 /// Returns 0 if OK
 
-int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen) {
-  char outhdr[1024];
-  char b[32];
-  long long l;
-  const char *crlf = "\r\n";
-  outhdr[0] = '\0';
+int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen) {
 
-
-  //
-  // Prepare the header
-  //
-  strcat(outhdr, "HTTP/1.1 ");
-  sprintf(b, "%d ", code);
-  strcat(outhdr, b);
-
-  if (desc) strcat(outhdr, desc);
-  else {
-    if (code == 200) strcat(outhdr, "OK");
-    else if (code == 206) strcat(outhdr, "Partial content");
-    else if (code == 302) strcat(outhdr, "Redirect");
-    else if (code == 404) strcat(outhdr, "Not found");
-    else strcat(outhdr, "Unknown");
-  }
-  strncat(outhdr, crlf, 2);
-
-  //strcat(outhdr, "Content-Type: text/html");
-  //strncat(outhdr, crlf, 2);
-
-  l = bodylen;
-  if (l <= 0) {
-    if (body) l = strlen(body);
-    else l = 0;
+  long long content_length = bodylen;
+  if (bodylen <= 0) {
+    content_length = body ? strlen(body) : 0;
   }
 
-  sprintf(b, "%lld", l);
-  strcat(outhdr, "Content-Length: ");
-  strcat(outhdr, b);
-  strncat(outhdr, crlf, 2);
-
-  if (header_to_add) {
-    strcat(outhdr, header_to_add);
-    strncat(outhdr, crlf, 2);
-  }
-  strncat(outhdr, crlf, 2);
-
-  unsigned int hdrlen = strlen(outhdr);
-  if (hdrlen >= sizeof(outhdr))
-    TRACEI(ALL, "WARNING: header size too large!");
-  
-  //
-  // Send the header
-  //
-  TRACEI(RSP, "Sending resp: " << code << " len:" << l);
-
-  if (SendData(outhdr, hdrlen))
+  if (StartSimpleResp(code, desc, header_to_add, content_length) < 0)
     return -1;
 
   //
   // Send the data
   //
   if (body)
-    return SendData(body, l);
+    return SendData(body, content_length);
 
   return 0;
-
 }
 
 int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
