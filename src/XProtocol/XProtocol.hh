@@ -46,9 +46,9 @@
 // upper limit (i.e. n.9.9 + 1 -> n+1.0.0). The kXR_PROTSIGNVERSION defines the
 // protocol version where request signing became available.
 //
-#define kXR_PROTOCOLVERSION  0x00000310
+#define kXR_PROTOCOLVERSION  0x00000400
 #define kXR_PROTSIGNVERSION  0x00000310
-#define kXR_PROTOCOLVSTRING "3.1.0"
+#define kXR_PROTOCOLVSTRING "4.0.0"
 
 #include "XProtocol/XPtypes.hh"
 
@@ -117,6 +117,7 @@ enum XRequestTypes {
    kXR_truncate,// 3028
    kXR_sigver,  // 3029
    kXR_decrypt, // 3030
+   kXR_writev,  // 3031
    kXR_REQFENCE // Always last valid request code +1
 };
 
@@ -235,7 +236,6 @@ enum XLogonType {
    kXR_useradmin = 1
 };
 
-// Andy's request for async/unsolicited
 enum XPrepRequestOption {
    kXR_cancel = 1,
    kXR_notify = 2,
@@ -566,6 +566,15 @@ struct ClientWriteRequest {
    kXR_char reserved[3];
    kXR_int32  dlen;
 };
+struct ClientWriteVRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  options;  // See static const ints below
+   kXR_char  reserved[15];
+   kXR_int32 dlen;
+
+   static const kXR_int32 doSync = 0x01;
+};
 struct ClientVerifywRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
@@ -615,6 +624,7 @@ typedef union {
    struct ClientSyncRequest sync;
    struct ClientTruncateRequest truncate;
    struct ClientWriteRequest write;
+   struct ClientWriteVRequest writev;
 } ClientRequest;
 
 typedef union {
@@ -634,6 +644,23 @@ struct read_args {
    kXR_char       reserved[7];
    // his struct is followed by an array of readahead_list
 };
+
+// New additions are placed in a specia namespace to avoid conflicts
+//
+namespace XrdProto
+{
+struct read_list {
+   kXR_char fhandle[4];
+   kXR_int32 rlen;
+   kXR_int64 offset;
+};
+
+struct write_list {
+   kXR_char fhandle[4];
+   kXR_int32 wlen;
+   kXR_int64 offset;
+};
+}
 
 //_____________________________________________________________________
 //   PROTOCOL DEFINITION: SERVER'S RESPONSE

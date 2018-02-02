@@ -74,7 +74,7 @@ const char *reqNames[kXR_REQFENCE-kXR_auth] =
               "sync",        "stat",        "set",         "write",
               "admin",       "prepare",     "statx",       "endsess",
               "bind",        "readv",       "verifyw",     "locate",
-              "truncate",    "sigver",      "decrypt"
+              "truncate",    "sigver",      "decrypt",     "writev"
              };
 
 // Following value is used to determine if the error or request code is

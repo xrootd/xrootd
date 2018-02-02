@@ -48,8 +48,10 @@ int              putfCnt;      // Stats: Number of putfiles
 int              openCnt;      // Stats: Number of opens
 long long        readCnt;      // Stats: Number of reads
 long long        prerCnt;      // Stats: Number of reads (pre)
-long long        rsegCnt;      // Stats: Number of readv segments
+long long        rsegCnt;      // Stats: Number of readv  segments
 long long        rvecCnt;      // Stats: Number of reads
+long long        wsegCnt;      // Stats: Number of writev segments
+long long        wvecCnt;      // Stats: Number of writev
 long long        writeCnt;     // Stats: Number of writes
 int              syncCnt;      // Stats: Number of sync
 int              miscCnt;      // Stats: Number of miscellaneous

@@ -90,6 +90,20 @@ struct XrdXrootdSessID
        ~XrdXrootdSessID() {}
        };
 
+struct XrdXrootdWVInfo
+       {XrdOucIOVec *wrVec;    // Prevents compiler array bounds complaint
+        int          curFH;
+        short        vBeg;
+        short        vPos;
+        short        vEnd;
+        short        vMon;
+        bool         doSync;
+        char         wvMon;
+        bool         ioMon;
+        char         vType;
+        XrdOucIOVec  ioVec[1]; // Dynamically sized
+       };
+
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
@@ -2786,6 +2800,234 @@ int XrdXrootdProtocol::do_WriteSpan()
 //
    if (myIOLen > 0) return do_WriteAll();
    return Response.Send();
+}
+  
+/******************************************************************************/
+/*                             d o _ W r i t e V                              */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_WriteV()
+{
+// This will write multiple buffers at the same time in an attempt to avoid
+// the disk latency. The information with the offsets and lengths of teh data
+// to write is passed as a data buffer. We attempt to optimize as best as
+// possible, though certain combinations may result in multiple writes. Since
+// socket flushing is nearly impossible when an error occurs, most errors
+// simply terminate the connection.
+//
+   const int wveSZ = sizeof(XrdProto::write_list);
+   struct trackInfo
+         {XrdXrootdWVInfo **wvInfo; bool doit;
+          trackInfo(XrdXrootdWVInfo **wvP) : wvInfo(wvP), doit(true) {}
+         ~trackInfo() {if (doit && *wvInfo) {free(*wvInfo); *wvInfo = 0;}}
+         } freeInfo(&wvInfo);
+
+   struct XrdProto::write_list *wrLst;
+   XrdOucIOVec *wrVec;
+   long long totSZ, maxSZ;
+   int curFH, k, Quantum, wrVecNum, wrVecLen = Request.header.dlen;
+
+// Compute number of elements in the write vector and make sure we have no
+// partial elements.
+//
+   wrVecNum = wrVecLen / wveSZ;
+   if ( (wrVecLen <= 0) || (wrVecNum*wveSZ != wrVecLen) )
+      {Response.Send(kXR_ArgInvalid, "Write vector is invalid");
+       return -1;
+      }
+
+// Make sure that we can make a copy of the read vector. So, we impose a limit
+// on it's size.
+//
+   if (wrVecNum > maxWvecsz)
+      {Response.Send(kXR_ArgTooLong, "Write vector is too long");
+       return -1;
+      }
+
+// Create the verctor write information structure sized as needed.
+//
+   if (wvInfo) free(wvInfo);
+   wvInfo = (XrdXrootdWVInfo *)malloc(sizeof(XrdXrootdWVInfo) +
+                                      sizeof(XrdOucIOVec)*(wrVecNum-1));
+   memset(wvInfo, 0, sizeof(XrdXrootdWVInfo) - sizeof(XrdOucIOVec));
+   wvInfo->wrVec = wrVec = wvInfo->ioVec;
+
+// Run down the list and compute the total size of the write. No individual
+// write may be greater than the maximum transfer size. We also use this loop
+// to copy the write list to our writev vector for later processing.
+//
+   wrLst = (XrdProto::write_list *)argp->buff;
+   totSZ = 0; maxSZ = 0; k = 0; Quantum = maxTransz; curFH = 0;
+   for (int i = 0; i < wrVecNum; i++)
+       {if (wrLst[i].wlen == 0) continue;
+        memcpy(&wrVec[k].info, wrLst[i].fhandle, sizeof(int));
+        wrVec[k].size = ntohl(wrLst[i].wlen);
+        if (wrVec[k].size < 0)
+           {Response.Send(kXR_ArgInvalid, "Writev length is negtive");
+            return -1;
+           }
+        if (wrVec[k].size > Quantum)
+           {Response.Send(kXR_NoMemory,"Single writev transfer is too large");
+            return -1;
+           }
+        wrVec[k].offset = ntohll(wrLst[i].offset);
+        if (wrVec[k].info == curFH) totSZ += wrVec[k].size;
+           else {if (maxSZ < totSZ) maxSZ = totSZ;
+                 totSZ = wrVec[k].size;
+                }
+        k++;
+       }
+
+// Check if we are not actually writing anything, simply return success
+//
+   if (maxSZ < totSZ) maxSZ = totSZ;
+   if (maxSZ == 0) return Response.Send();
+
+// So, now we account for the number of writev requests and total segments
+//
+   numWritV++; numSegsW += k; wrVecNum = k;
+
+// Calculate the transfer unit which will be the smaller of the maximum
+// transfer unit and the actual amount we need to transfer.
+//
+   if (maxSZ > maxTransz) Quantum = maxTransz;
+      else Quantum = static_cast<int>(maxSZ);
+   
+// Now obtain the right size buffer
+//
+   if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize)
+      {if (getBuff(0, Quantum) <= 0) return -1;}
+      else if (hcNow < hcNext) hcNow++;
+
+// Check that we really have at least the first file open (part of setup)
+//
+   if (!FTab || !(myFile = FTab->Get(wrVec[0].info)))
+      {Response.Send(kXR_FileNotOpen, "writev does not refer to an open file");
+       return -1;
+      }
+
+// Setup to do the complete transfer
+//
+   wvInfo->curFH = wrVec[0].info;
+   wvInfo->vBeg  = 0;
+   wvInfo->vPos  = 0;
+   wvInfo->vEnd  = wrVecNum;
+   wvInfo->vMon  = 0;
+   wvInfo->doSync= (Request.writev.options & ClientWriteVRequest::doSync) != 0;
+   wvInfo->wvMon = Monitor.InOut();
+   wvInfo->ioMon = (wvInfo->vMon > 1);
+// wvInfo->vType = (wvInfo->ioMon ? XROOTD_MON_WRITEU : XROOTD_MON_WRITEV);
+   myWVBytes     = 0;
+   myIOLen       = wrVec[0].size;
+   myBuff        = argp->buff;
+   myBlast       = 0;
+
+// Now we simply start the write operations
+//
+   freeInfo.doit = false;
+   return do_WriteVec();
+}
+
+/******************************************************************************/
+/*                           d o _ W r i t e V e c                            */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_WriteVec()
+{
+   XrdSfsXferSize xfrSZ;
+   int rc, wrVNum, vNow = wvInfo->vPos;
+   bool done, newfile;
+
+// Read the complete data from the socket for the current element. Note that
+// should we enter a resume state; upon re-entry all of the data will be read.
+//
+do{if (myIOLen > 0)
+      {wvInfo->wrVec[vNow].data = argp->buff + myBlast;
+       myBlast += myIOLen;
+       if ((rc = getData("data", myBuff, myIOLen)))
+          {if (rc < 0) return rc;
+           myIOLen  = 0;
+           Resume = &XrdXrootdProtocol::do_WriteVec;
+           myStalls++;
+           return rc;
+          }
+      }
+
+// Establish the state at this point as this will tell us what to do next.
+//
+   vNow++;
+   done = newfile = false;
+        if (vNow >= wvInfo->vEnd) done = true;
+   else if (wvInfo->wrVec[vNow].info != wvInfo->curFH) newfile = true;
+   else if (myBlast + wvInfo->wrVec[vNow].size <= argp->bsize)
+           {myIOLen = wvInfo->wrVec[vNow].size;
+            myBuff  = argp->buff + myBlast;
+            wvInfo->vPos = vNow;
+            continue;
+           }
+
+// We need to write out what we have.
+//
+   wrVNum = vNow - wvInfo->vBeg;
+   xfrSZ = myFile->XrdSfsp->writev(&(wvInfo->wrVec[wvInfo->vBeg]), wrVNum);
+   TRACEP(FS,"fh=" <<wvInfo->curFH <<" writeV " << xfrSZ <<':' <<wrVNum);
+   if (xfrSZ != myBlast) break;
+
+// Check if we need to do monitoring or a sync with no deferal. Note that
+// we currently do not support detailed monitoring for vector writes!
+//
+   if (done || newfile)
+      {int monVnum = vNow - wvInfo->vMon;
+       myFile->Stats.wvOps(myWVBytes, monVnum);
+/*!!   if (wvMon)
+          {Monitor.Agent->Add_wv(myFile->Stats.FileID, htonl(myWVBytes),
+                                 htons(monVNum), wvSeq++, wvInfo->vType);
+           if (ioMon) for (int k = wvInfo->vMon; k < vNow; k++)
+              Monitor.Agent->Add_wr(myFile->Stats.FileID,
+                                    htonl(wvInfo->wrVec[k].size),
+                                    htonll(wvInfo->wrVec[k].offset));
+          }
+*/
+       wvInfo->vMon = vNow;
+       myWVBytes = 0;
+       if (wvInfo->doSync)
+          {myFile->XrdSfsp->error.setErrCB(0,0);
+           xfrSZ = myFile->XrdSfsp->sync();
+           if (xfrSZ< 0) break;
+          }
+      }
+
+// If we are done, the finish up
+//
+   if (done)
+      {if (wvInfo) {free(wvInfo); wvInfo = 0;}
+       return Response.Send();
+      }
+
+// Sequence to a new file if we need to do so
+//
+   if (newfile)
+      {if (!FTab || !(myFile = FTab->Get(wvInfo->wrVec[vNow].info)))
+          {Response.Send(kXR_FileNotOpen,"writev does not refer to an open file");
+           return -1;
+          }
+       wvInfo->curFH = wvInfo->wrVec[vNow].info;
+      }
+
+// Setup to resume transfer
+//
+   myBlast = 0;
+   myBuff  = argp->buff;
+   myIOLen = wvInfo->wrVec[vNow].size;
+   wvInfo->vBeg = vNow;
+   wvInfo->vPos = vNow;
+
+} while(true);
+
+// If we got here then there was a write error (file pointer is valid).
+//
+   if (wvInfo) {free(wvInfo); wvInfo = 0;}
+   return fsError((int)xfrSZ, 0, myFile->XrdSfsp->error, 0, 0);
 }
   
 /******************************************************************************/

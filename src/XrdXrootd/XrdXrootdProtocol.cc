@@ -463,6 +463,7 @@ int XrdXrootdProtocol::Process2()
          {case kXR_read:     return do_Read();
           case kXR_readv:    return do_ReadV();
           case kXR_write:    return do_Write();
+          case kXR_writev:   return do_WriteV();
           case kXR_sync:     ReqID.setID(Request.header.streamid);
                              return do_Sync();
           case kXR_close:    return do_Close();
@@ -672,10 +673,17 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
        cumReads += numReads; numReads  = 0;
        SI->prerCnt += numReadP;
        cumReadP += numReadP; numReadP = 0;
+
        SI->rvecCnt += numReadV;
        cumReadV += numReadV; numReadV = 0;
        SI->rsegCnt += numSegsV;
        cumSegsV += numSegsV; numSegsV = 0;
+
+       SI->wvecCnt += numWritV;
+       cumWritV += numWritV; numWritV = 0;
+       SI->wsegCnt += numSegsW;
+       cumSegsW += numSegsW, numSegsW = 0;
+
        SI->writeCnt += numWrites;
        cumWrites+= numWrites;numWrites = 0;
        SI->statsMutex.UnLock();
@@ -778,6 +786,10 @@ void XrdXrootdProtocol::Cleanup()
 //
    while((pioP = pioFirst)) {pioFirst = pioP->Next; pioP->Recycle();}
    while((pioP = pioFree )) {pioFree  = pioP->Next; pioP->Recycle();}
+
+// Handle writev appendage
+//
+   if (wvInfo) {free(wvInfo); wvInfo = 0;}
 }
   
 /******************************************************************************/
@@ -823,15 +835,20 @@ void XrdXrootdProtocol::Reset()
    myStalls           = 0;
    myAioReq           = 0;
    myFile             = 0;
+   wvInfo             = 0;
    numReads           = 0;
    numReadP           = 0;
    numReadV           = 0;
    numSegsV           = 0;
+   numWritV           = 0;
+   numSegsW           = 0;
    numWrites          = 0;
    numFiles           = 0;
    cumReads           = 0;
    cumReadV           = 0;
    cumSegsV           = 0;
+   cumWritV           = 0;
+   cumSegsW           = 0;
    cumWrites          = 0;
    totReadP           = 0;
    hcPrev             =13;
@@ -846,6 +863,7 @@ void XrdXrootdProtocol::Reset()
    reTry              = 0;
    PathID             = 0;
    rvSeq              = 0;
+   wvSeq              = 0;
    pioFree = pioFirst = pioLast = 0;
    isActive = isDead  = isNOP = isBound = 0;
    sigNeed = sigHere = sigRead = false;

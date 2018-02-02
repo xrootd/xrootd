@@ -104,6 +104,25 @@ inline void wrOps(int wsz)
                      }
                  }
 
+inline void wvOps(int wsz, int ssz) {}
+/* When we start reporting detail of writev's we will uncomment this
+                 {if (monLvl)
+                     {xfr.writev += wsz; ops.writev++; ops.wsegs += ssz; xfrXeq=1;
+                      if (monLvl > 1)
+                         {if (wsz < ops.wvMin) ops.wvMin = wsz;
+                          if (wsz > ops.wvMax) ops.wvMax = wsz;
+                          if (ssz < ops.wsMin) ops.wsMin = ssz;
+                          if (ssz > ops.wsMax) ops.wsMax = ssz;
+                          if (monLvl > 2)
+                             {ssq.writev+= static_cast<double>(wsz)
+                                         * static_cast<double>(wsz);
+                              ssq.wsegs += static_cast<double>(ssz)
+                                         * static_cast<double>(ssz);
+                             }
+                         }
+                     }
+                 }
+*/
        XrdXrootdFileStats() {Init();}
       ~XrdXrootdFileStats() {}
 };
