@@ -1694,26 +1694,46 @@ kXR_int32 XrdSutPFile::Browse(void *oout)
                   }
                   char smt[20] = {0};
                   XrdSutTimeString(ent.mtime,smt);
+		  std::string buffer;
                   char buf[2048] = {0};
                   memset(buf,0,2048);
                   sprintf(buf,"// #%d mod:%s",i+1,smt);
-                  sprintf(buf,"%s name:%s",buf,ind.name);
-                  fprintf(out,"%s\n",buf);
+                  buffer = buf;
+                  sprintf(buf," name:%s",ind.name);
+                  buffer += buf;
+                  fprintf(out,"%s\n",buffer.c_str());
+
+		  buffer.clear();
                   sprintf(buf,"//    buf");
+		  buffer = buf;
+
                   if (ent.cnt == 1) {
                      if (ent.buf1.len && ent.buf1.buf)
-                        sprintf(buf,"%s: %.*s",buf,ent.buf1.len,ent.buf1.buf);
+		     {
+                        sprintf(buf,": %.*s",ent.buf1.len,ent.buf1.buf);
+			buffer += buf;
+		     }
                      if (ent.buf2.len && ent.buf2.buf)
-                        sprintf(buf,"%s: %.*s",buf,ent.buf2.len,ent.buf2.buf);
+		     {
+                        sprintf(buf,": %.*s",ent.buf2.len,ent.buf2.buf);
+			buffer += buf;
+		     }
                      if (ent.buf3.len && ent.buf3.buf)
-                        sprintf(buf,"%s: %.*s",buf,ent.buf3.len,ent.buf3.buf);
+		     {
+                        sprintf(buf,": %.*s",ent.buf3.len,ent.buf3.buf);
+			buffer += buf;
+		     }
                      if (ent.buf4.len && ent.buf4.buf)
-                        sprintf(buf,"%s: %.*s",buf,ent.buf4.len,ent.buf4.buf);
+		     {
+                        sprintf(buf,": %.*s",ent.buf4.len,ent.buf4.buf);
+			buffer += buf;
+		     }
                   } else {
-                     sprintf(buf,"%s:%d:%d:%d:%d",buf,
+                     sprintf(buf,":%d:%d:%d:%d",
                                  ent.buf1.len,ent.buf2.len,ent.buf3.len,
                                  ent.buf4.len);
-                     sprintf(buf,"%s (protected)",buf);
+		     buffer += buf;
+		     buffer += " (protected)";
                   }
                   fprintf(out,"%s\n",buf);
                }

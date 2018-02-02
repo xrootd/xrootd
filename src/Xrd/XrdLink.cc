@@ -258,8 +258,8 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
    lp->Addr = peer;
    strlcpy(lp->Lname, hName, sizeof(lp->Lname));
    bl = sprintf(buff, "?:%d", peerFD);
-   unp = lp->Lname - bl - 1;
-   strncpy(unp, buff, bl);
+   unp = lp->Uname + sizeof(Uname) - bl - 1;
+   memcpy(unp, buff, bl);
    lp->ID = unp;
    lp->FD = peerFD;
    lp->Comment = (const char *)unp;
@@ -286,7 +286,7 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
   
 int XrdLink::Backlog()
 {
-   XrdSysMutexHelper(wrMutex);
+   XrdSysMutexHelper lck(wrMutex);
 
 // Return backlog information
 //

@@ -74,8 +74,10 @@ int       Get(char *Buff, int Blen)
              }
 
 int       Set(const char *csName)
-             {if (strlen(csName) >= sizeof(Name)) return 0;
-              strncpy(Name, csName, sizeof(Name));
+             {size_t len = strlen(csName);
+              if (len >= sizeof(Name)) return 0;
+              memcpy(Name, csName, len);
+	      Name[len]=0;
               return 1;
              }
 

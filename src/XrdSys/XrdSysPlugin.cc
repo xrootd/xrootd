@@ -156,7 +156,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 // the version string ends with a null by copying one less byte than need be.
 // The caller provided a struct that is gauranteed to end with nulls.
 //
-   memcpy(&urInfo, vP, sizeof(XrdVersionInfo)-1);
+   memcpy(static_cast<void*>( &urInfo ), vP, sizeof(XrdVersionInfo)-1);
 
 // If version numbers are identical then we are done
 //

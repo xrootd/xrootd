@@ -659,7 +659,7 @@ int XrdSysLogger::ReBind(int dorename)
        localtime_r((const time_t *) &eNow, &nowtime);
        sprintf(buff, "%4d%02d%02d", nowtime.tm_year+1900, nowtime.tm_mon+1,
                                     nowtime.tm_mday);
-       strncpy(Filesfx, buff, 8);
+       memcpy(Filesfx, buff, 8);
       }
 
 // Open the file for output. Note that we can still leak a file descriptor
@@ -729,7 +729,7 @@ void XrdSysLogger::Trim()
 // Open the directory
 //
    if (!(DFD = opendir(logDir)))
-      {int msz = sprintf(eBuff, "Error %d (%s) opening log directory %s\n",
+      {int msz = snprintf(eBuff, 2048, "Error %d (%s) opening log directory %s\n",
                                 errno, strerror(errno), logDir);
        putEmsg(eBuff, msz);
        return;
@@ -758,7 +758,7 @@ void XrdSysLogger::Trim()
 //
    rc = errno; closedir(DFD);
    if (rc)
-      {int msz = sprintf(eBuff, "Error %d (%s) reading log directory %s\n",
+      {int msz = snprintf(eBuff, 2048, "Error %d (%s) reading log directory %s\n",
                                 rc, strerror(rc), logDir);
        putEmsg(eBuff, msz);
        return;
@@ -785,9 +785,9 @@ void XrdSysLogger::Trim()
    while(logNow && totNum--)
         {strcpy(logSfx, logNow->fn);
          if (unlink(logDir))
-            rc = sprintf(eBuff, "Error %d (%s) removing log file %s\n",
+            rc = snprintf(eBuff, 2048, "Error %d (%s) removing log file %s\n",
                                 errno, strerror(errno), logDir);
-            else rc = sprintf(eBuff, "Removed log file %s\n", logDir);
+            else rc = snprintf(eBuff, 2048, "Removed log file %s\n", logDir);
          putEmsg(eBuff, rc);
          logNow = logNow->next;
         }
