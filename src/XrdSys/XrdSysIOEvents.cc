@@ -1005,7 +1005,7 @@ void XrdSys::IOEvents::Poller::Stop()
 
 // Initialize the pipdata structure
 //
-   memset(&cmdbuff, 0, sizeof(cmdbuff));
+   memset(static_cast<void*>( &cmdbuff ), 0, sizeof(cmdbuff));
    cmdbuff.req = PipeData::Stop;
 
 // Lock all of this

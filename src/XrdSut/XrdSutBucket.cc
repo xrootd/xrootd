@@ -187,10 +187,11 @@ void XrdSutBucket::Dump(int opt)
    PRINT("//  type: " <<type<<" ("<<XrdSutBuckStr(type)<<")");
    PRINT("//  size: " <<size <<" bytes");
    PRINT("//  content:");
-   char bhex[XrdSutPRINTLEN] = {0};
+   std::string bhex;
+   bhex.reserve( XrdSutPRINTLEN );
    char bpri[XrdSutPRINTLEN] = {0};
    unsigned int nby = size;
-   unsigned int k = 0, curhex = 0, curpri = 0;
+   unsigned int k = 0, curpri = 0;
    unsigned char i = 0, j = 0, l = 0;
    for (k = 0; k < nby; k++) {
       i = (unsigned char)buffer[k];
@@ -201,8 +202,7 @@ void XrdSutBucket::Dump(int opt)
       }
       char chex[8];
       sprintf(chex," 0x%02x",(int)(i & 0xFF));
-      sprintf(bhex,"%s%s",bhex,chex);
-      curhex += strlen(chex);
+      bhex.append( chex );
       if (isascii && ((XrdSutCharMsk[0][j] & (1 << (31-l+1))) || i == 0x20)) {
          bpri[curpri] = i;
       } else {
@@ -210,23 +210,19 @@ void XrdSutBucket::Dump(int opt)
       }
       curpri++;
       if (curpri > 7) {
-         bhex[curhex] = 0;
          bpri[curpri] = 0;
          PRINT("// " <<bhex<<"    "<<bpri);
-         memset(bhex,0,sizeof(bhex));
+	 bhex.clear();
          memset(bpri,0,sizeof(bpri));
-         curhex = 0;
          curpri = 0;
       }
    }
    bpri[curpri] = 0;
    if (curpri > 0) { 
       while (curpri++ < 8) {
-         sprintf(bhex,"%s     ",bhex);
-         curhex += 5;
+	 bhex.append( "     " );
       }
    }
-   bhex[curhex] = 0;
    PRINT("// " <<bhex<<"    "<<bpri);
 
    if (opt == 1) {

@@ -230,7 +230,7 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
 //
    if (hints.ai_family == AF_INET6 && aBuff.ipAdr[0] != '['
    && !XrdNetAddrInfo::isHostName(aBuff.ipAdr))
-      {strncpy(aBuff.ipMap, "::ffff:", 7);
+      {memcpy(aBuff.ipMap, "::ffff:", 7);
        ipAddr = aBuff.ipMap;
       } else ipAddr = hnBeg;
 
@@ -380,7 +380,7 @@ bool XrdNetUtils::Match(const char *HostName, const char *HostPat)
        {XrdNetAddr InetAddr[maxIP];
         char hBuff[264];
         if (i >= (int)sizeof(hBuff)) return false;
-        strncpy(hBuff, HostPat, i-1);
+        memcpy(hBuff, HostPat, i-1);
         hBuff[i-1] = 0;
         if (InetAddr[0].Set(hBuff, i, maxIP, 0)) return false;
         while(i--) if ((mval = InetAddr[i].Name()) && !strcmp(mval, HostName))
