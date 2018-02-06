@@ -89,7 +89,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 add_library(
   ${LIB_XRD_SSI}
-  SHARED
+  MODULE
   XrdSsi/XrdSsiDir.cc                    XrdSsi/XrdSsiDir.hh
   XrdSsi/XrdSsiFile.cc                   XrdSsi/XrdSsiFile.hh
   XrdSsi/XrdSsiFileReq.cc                XrdSsi/XrdSsiFileReq.hh
@@ -116,7 +116,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 add_library(
   ${LIB_XRD_SSILOG}
-  SHARED
+  MODULE
   XrdSsi/XrdSsiLogging.cc
 )
 
