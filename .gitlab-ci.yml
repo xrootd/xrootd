@@ -1,5 +1,6 @@
 stages:
   - build:rpm
+  - build:dockerimage:prepare
   - build:dockerimage
   - test
   - publish
@@ -443,6 +444,44 @@ biweekly:slc6:
     - schedules
   except:
     - tags
+    
+xrootd_docker_get:
+  stage: build:dockerimage:prepare
+  script:
+    - git clone https://gitlab.cern.ch/eos/xrootd-docker.git
+    - if [ ! -d "epel-7" ]; then mkdir epel-7; cp cc-7-x86_64/* epel-7; fi
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - xrootd-docker/
+    - epel-7/
+  tags:
+    - xrootd-shell
+    
+xrootd_dockerimage:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/xrootd
+    DOCKER_FILE: xrootd-docker/Dockerfile.ci
+  dependencies:
+    - xrootd_docker_get
+    
+xrootd_docker_test:
+  stage: test
+  script:
+    - docker pull gitlab-registry.cern.ch/dss/xrootd
+    - sudo ./xrootd-docker/start.sh -i gitlab-registry.cern.ch/dss/xrootd
+    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests"
+  after_script:
+    - sudo ./xrootd-docker/clean.sh
+  tags:
+    - xrootd-shell
+  dependencies:
+    - xrootd_docker_get
 
 publish:rhel:
   stage: publish
