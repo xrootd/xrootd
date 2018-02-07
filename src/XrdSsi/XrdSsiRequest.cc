@@ -41,8 +41,20 @@
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
   
-XrdSsiMutex XrdSsiRequest::ubMutex;
+namespace XrdSsi
+{
+XrdSsiMutex ubMutex(XrdSsiMutex::Recursive);
+}
 
+/******************************************************************************/
+/*                           C o n s t r u c t o r                            */
+/******************************************************************************/
+
+XrdSsiRequest::XrdSsiRequest(const char *reqid, uint16_t tmo)
+                            : reqID(reqid), rrMutex(&XrdSsi::ubMutex),
+                              theRespond(0), rsvd1(0), epNode(0),
+                              detTTL(0), tOut(0), onClient(true), rsvd2(0) {}
+  
 /******************************************************************************/
 /* Private:                     C l e a n U p                                */
 /******************************************************************************/
@@ -57,7 +69,7 @@ void XrdSsiRequest::CleanUp()
    errInfo.Clr();
    epNode = 0;
    XrdSsiMutex *mP = rrMutex;
-   rrMutex = &ubMutex;
+   rrMutex = &XrdSsi::ubMutex;
    mP->UnLock();
 }
 
@@ -120,6 +132,28 @@ bool XrdSsiRequest::Finished(bool cancel)
    return respP != 0;
 }
 
+/******************************************************************************/
+/*                           G e t E n d P o i n t                            */
+/******************************************************************************/
+  
+std::string XrdSsiRequest::GetEndPoint()
+{
+   XrdSsiMutexMon(rrMutex);
+   std::string epName(epNode ? epNode : "");
+   return epName;
+}
+  
+/******************************************************************************/
+/*                           G e t M e t a d a t a                            */
+/******************************************************************************/
+
+const char *XrdSsiRequest::GetMetadata(int &dlen)
+{
+   XrdSsiMutexMon(rrMutex);
+   if ((dlen = Resp.mdlen)) return Resp.mdata;
+   return 0;
+}
+  
 /******************************************************************************/
 /*                       G e t R e s p o n s e D a t a                        */
 /******************************************************************************/

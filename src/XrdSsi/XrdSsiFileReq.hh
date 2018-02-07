@@ -50,8 +50,7 @@ class  XrdSsiRRInfo;
 class  XrdSsiService;
 class  XrdSsiStream;
 
-class XrdSsiFileReq : public XrdSsiRequest, public XrdSsiResponder,
-                      public XrdOucEICB,    public XrdJob
+class XrdSsiFileReq : public XrdSsiRequest, public XrdOucEICB, public XrdJob
 {
 public:
 
@@ -116,6 +115,7 @@ enum rspState {isNew=0, isBegun, isBound, isAbort, isDone, isMax};
 private:
 
 void                   BindDone(); // Override
+void                   Dispose();  // Override
 int                    Emsg(const char *pfx, int ecode, const char *op);
 int                    Emsg(const char *pfx, XrdSsiErrInfo &eObj,
                             const char *op);
@@ -127,7 +127,6 @@ XrdSfsXferSize         readStrmP(XrdSsiStream *strmP, char *buff,
 int                    sendStrmA(XrdSsiStream *strmP, XrdSfsDio *sfDio,
                                  XrdSfsXferSize blen);
 void                   Recycle();
-void                   Unbind(XrdSsiResponder *respP); // Override
 void                   WakeUp(XrdSsiAlert *aP=0);
 
 static XrdSysMutex     aqMutex;

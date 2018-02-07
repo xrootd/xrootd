@@ -189,7 +189,7 @@ void XrdSsiTaskReal::Finished(XrdSsiRequest        &rqstR,
    DEBUG("Request="<<&rqstR<<" cancel="<<cancel<<" task="<<this);
 
 // We should do an unbind here but that is overkill. All we need to do is
-// reset the mutex to point to the unbound mutex to keep things safe.
+// clear the pointer to the request object.
 //
    XrdSsiRRAgent::ResetResponder(this);
 
@@ -684,7 +684,7 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
                   {case isAlert:  aMsg = new AlertMsg(*respP, dBuff, dLen);
                                   *respP = 0;
                                   sessP->UnLock();
-                                  rqstP->Alert(*aMsg);
+                                  XrdSsiRRAgent::Alert(*rqstP, *aMsg);
                                   sessP->Lock();
                                   if (tStat == isSync) return Ask4Resp();
                                      else return XeqEnd(false);
