@@ -63,17 +63,6 @@
 //! object is forcibly unbound from the request.
 //-----------------------------------------------------------------------------
 
-#define SSI_VAL_RESPONSE(rX) rrMutex->Lock();\
-                             XrdSsiRequest *rX = reqP;\
-                             if (!rX || rX->theRespond != this)\
-                                {rrMutex->UnLock(); return notActive;}\
-                             if (rX->Resp.rType)\
-                                {rrMutex->UnLock(); return notPosted;}
-
-#define SSI_XEQ_RESPONSE(rX) rrMutex->UnLock();\
-                             return (rX->ProcessResponse(rX->errInfo,rX->Resp)\
-                                    ? wasPosted : notActive)
-
 class XrdSsiStream;
 
 class XrdSsiResponder
@@ -124,11 +113,7 @@ protected:
 //! @param  aMsg  reference to the message to be sent.
 //-----------------------------------------------------------------------------
 
-inline  void   Alert(XrdSsiRespInfoMsg &aMsg)
-                    {XrdSsiMutexMon(rrMutex);
-                     if (reqP) reqP->Alert(aMsg);
-                        else aMsg.RecycleMsg(false);
-                    }
+        void   Alert(XrdSsiRespInfoMsg &aMsg);
 
 //-----------------------------------------------------------------------------
 //! Notify the responder that a request either completed or was canceled. This
@@ -159,10 +144,7 @@ virtual void   Finished(      XrdSsiRequest  &rqstR,
 //! @return !0    Pointer to the buffer holding the request, dlen has the length
 //-----------------------------------------------------------------------------
 
-inline  char  *GetRequest(int &dlen) {XrdSsiMutexMon(rrMutex);
-                                      if (reqP) return reqP->GetRequest(dlen);
-                                      dlen = 0; return 0;
-                                     }
+        char  *GetRequest(int &dlen);
 
 //-----------------------------------------------------------------------------
 //! Release the request buffer of the request bound to this object. This method
@@ -170,9 +152,7 @@ inline  char  *GetRequest(int &dlen) {XrdSsiMutexMon(rrMutex);
 //! here for calling safety and consistency relative to the responder.
 //-----------------------------------------------------------------------------
 
-inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
-                                       if (reqP) reqP->RelRequestBuffer();
-                                      }
+        void   ReleaseRequestBuffer();
 
 //-----------------------------------------------------------------------------
 //! The following enums are returned by SetMetadata() and SetResponse() to
@@ -199,13 +179,7 @@ enum Status {wasPosted=0, //!< Success: The response was successfully posted
 
 static const int MaxMetaDataSZ = 2097152; //!< 2MB metadata limit
 
-inline Status  SetMetadata(const char *buff, int blen)
-                          {XrdSsiMutexMon(rrMutex);
-                           if (!reqP || blen < 0 || blen > MaxMetaDataSZ)
-                              return notPosted;
-                           reqP->Resp.mdata = buff; reqP->Resp.mdlen = blen;
-                           return wasPosted;
-                          }
+       Status  SetMetadata(const char *buff, int blen);
 
 //-----------------------------------------------------------------------------
 //! Set an error response for a request.
@@ -217,13 +191,7 @@ inline Status  SetMetadata(const char *buff, int blen)
 //! @return       See Status enum for possible values.
 //-----------------------------------------------------------------------------
 
-inline Status  SetErrResponse(const char *eMsg, int eNum)
-                          {SSI_VAL_RESPONSE(rP);
-                           rP->errInfo.Set(eMsg, eNum);
-                           rP->Resp.eMsg  = rP->errInfo.Get(rP->Resp.eNum).c_str();
-                           rP->Resp.rType = XrdSsiRespInfo::isError;
-                           SSI_XEQ_RESPONSE(rP);
-                          }
+       Status  SetErrResponse(const char *eMsg, int eNum);
 
 //-----------------------------------------------------------------------------
 //! Set a nil response for a request (used for sending only metadata).
@@ -243,12 +211,7 @@ inline Status  SetNilResponse() {return SetResponse((const char *)0,0);}
 //! @return       See Status enum for possible values.
 //-----------------------------------------------------------------------------
 
-inline Status  SetResponse(const char *buff, int blen)
-                          {SSI_VAL_RESPONSE(rP);
-                           rP->Resp.buff  = buff; rP->Resp.blen  = blen;
-                           rP->Resp.rType = XrdSsiRespInfo::isData;
-                           SSI_XEQ_RESPONSE(rP);
-                          }
+       Status  SetResponse(const char *buff, int blen);
 
 //-----------------------------------------------------------------------------
 //! Set a file containing data as the response.
@@ -259,13 +222,7 @@ inline Status  SetResponse(const char *buff, int blen)
 //! @return       See Status enum for possible values.
 //-----------------------------------------------------------------------------
 
-inline Status  SetResponse(long long fsize, int fdnum)
-                          {SSI_VAL_RESPONSE(rP);
-                           rP->Resp.fdnum = fdnum;
-                           rP->Resp.fsize = fsize;
-                           rP->Resp.rType = XrdSsiRespInfo::isFile;
-                           SSI_XEQ_RESPONSE(rP);
-                          }
+       Status  SetResponse(long long fsize, int fdnum);
 
 //-----------------------------------------------------------------------------
 //! Set a stream object that is to provide data as the response.
@@ -276,20 +233,14 @@ inline Status  SetResponse(long long fsize, int fdnum)
 //! @return       See Status enum for possible values.
 //-----------------------------------------------------------------------------
 
-inline Status  SetResponse(XrdSsiStream *strmP)
-                          {SSI_VAL_RESPONSE(rP);
-                           rP->Resp.eNum  = 0;
-                           rP->Resp.strmP = strmP;
-                           rP->Resp.rType = XrdSsiRespInfo::isStream;
-                           SSI_XEQ_RESPONSE(rP);
-                          }
+       Status  SetResponse(XrdSsiStream *strmP);
 
 //-----------------------------------------------------------------------------
 //! This class is meant to be inherited by an object that will actually posts
 //! responses.
 //-----------------------------------------------------------------------------
 
-               XrdSsiResponder() : rrMutex(&ubMutex), reqP(0) {}
+               XrdSsiResponder();
 
 //-----------------------------------------------------------------------------
 //! Destructor is protected. You cannot use delete on a responder object, as it
@@ -302,9 +253,15 @@ virtual       ~XrdSsiResponder();
 
 private:
 
-static
-XrdSsiMutex    ubMutex;
-XrdSsiMutex   *rrMutex;
+// The spMutex protects the reqP pointer. It is a hiearchical mutex in that it
+// may be obtained prior to obtaining the mutex protecting the request without
+// fear of a deadlock (the reverse is not possible). If reqP is zero then
+// this responder is not bound to a request.
+//
+XrdSsiMutex    spMutex;
 XrdSsiRequest *reqP;
+long long      rsvd1; // Reserved fields for extensions with ABI compliance
+long long      rsvd2;
+long long      rsvd3;
 };
 #endif

@@ -74,22 +74,6 @@ friend class XrdSsiResponder;
 friend class XrdSsiRRAgent;
 
 //-----------------------------------------------------------------------------
-//! @brief Send or receive a server generated alert.
-//!
-//! The Alert() method is used server-side to send one or more alerts before a
-//! response is posted (alerts afterwards are ignored). To avoid race conditions,
-//! server-side alerts should be sent via the Responder's Alert() method.
-//! Clients must implement this method in order to receive alerts.
-//!
-//! @param  aMsg   Reference to the message object containing the alert message.
-//!                Non-positive alert lengths cause the alert call to be
-//!                ignored. You should call the message RecycleMsg() method
-//!                once you have consumed the message to release its resources.
-//-----------------------------------------------------------------------------
-
-virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.RecycleMsg(false);}
-
-//-----------------------------------------------------------------------------
 //! Indicate that request processing has been finished. This method calls
 //! XrdSsiResponder::Finished() on the associated responder object.
 //!
@@ -124,11 +108,7 @@ inline uint32_t GetDetachTTL() {return detTTL;}
 //!         endpoint is available on the first callback to this object.
 //-----------------------------------------------------------------------------
 
-inline
-std::string     GetEndPoint() {XrdSsiMutexMon(rrMutex);
-                               std::string epName(epNode ? epNode : "");
-                               return epName;
-                              }
+std::string     GetEndPoint();
 
 //-----------------------------------------------------------------------------
 //! Obtain the metadata associated with a response.
@@ -142,12 +122,7 @@ std::string     GetEndPoint() {XrdSsiMutexMon(rrMutex);
 //! @return !0    Pointer to the buffer holding the metadata, dlen has the length
 //-----------------------------------------------------------------------------
 
-inline
-const char     *GetMetadata(int &dlen)
-                           {XrdSsiMutexMon(rrMutex);
-                            if ((dlen = Resp.mdlen)) return Resp.mdata;
-                            return 0;
-                           }
+const char     *GetMetadata(int &dlen);
 
 //-----------------------------------------------------------------------------
 //! Obtain the request data sent by a client.
@@ -235,17 +210,6 @@ enum PRD_Xeq {PRD_Normal = 0, PRD_Hold = 1, PRD_HoldLcl = 2};
 virtual PRD_Xeq ProcessResponseData(const XrdSsiErrInfo  &eInfo, char *buff,
                                     int blen, bool last) {return PRD_Normal;}
 
-
-//-----------------------------------------------------------------------------
-//! Release the request buffer of the request bound to this object. This method
-//! duplicates the protected method RelRequestBuffer() and exists here for
-//! calling safety and consistency relative to the responder.
-//-----------------------------------------------------------------------------
-
-inline  void   ReleaseRequestBuffer() {XrdSsiMutexMon(rrMutex);
-                                       RelRequestBuffer();
-                                      }
-
 //-----------------------------------------------------------------------------
 //! Restart a ProcessResponseData() call for a request that was previously held
 //! (see return enums on ProcessResponseData method). This is a client-side
@@ -302,12 +266,25 @@ static RDR_Info RestartDataResponse(RDR_How rhow, const char *reqid=0);
 //! @param tmo     The request initiation timeout value 0 equals default).
 //-----------------------------------------------------------------------------
 
-                XrdSsiRequest(const char *reqid=0, uint16_t tmo=0)
-                             : reqID(reqid), rrMutex(&ubMutex),
-                               theRespond(0), epNode(0),
-                               detTTL(0), tOut(0) {}
+                XrdSsiRequest(const char *reqid=0, uint16_t tmo=0);
 
 protected:
+
+//-----------------------------------------------------------------------------
+//! @brief Send or receive a server generated alert.
+//!
+//! The Alert() method is used server-side to send one or more alerts before a
+//! response is posted (alerts afterwards are ignored). To avoid race conditions,
+//! server-side alerts should be sent via the Responder's Alert() method.
+//! Clients must implement this method in order to receive alerts.
+//!
+//! @param  aMsg   Reference to the message object containing the alert message.
+//!                Non-positive alert lengths cause the alert call to be
+//!                ignored. You should call the message RecycleMsg() method
+//!                once you have consumed the message to release its resources.
+//-----------------------------------------------------------------------------
+
+virtual void    Alert(XrdSsiRespInfoMsg &aMsg) {aMsg.RecycleMsg(false);}
 
 //-----------------------------------------------------------------------------
 //! Release the request buffer. Use this method to optimize storage use; this
@@ -358,28 +335,22 @@ inline void     SetDetachTTL(uint32_t dttl) {detTTL = dttl;}
 
 virtual        ~XrdSsiRequest() {}
 
-//-----------------------------------------------------------------------------
-//! The following mutex is used to serialize access to the request object.
-//! It can also be used to serialize access to the underlying object.
-//-----------------------------------------------------------------------------
-
-
 private:
 virtual void     BindDone() {}
         void     CleanUp();
         bool     CopyData(char *buff, int blen);
-virtual void     Unbind(XrdSsiResponder *respP) {}
+virtual void     Dispose() {}
 
-static
-XrdSsiMutex      ubMutex;
 const char      *reqID;
 XrdSsiMutex     *rrMutex;
-XrdSsiRequest   *nextRequest;
 XrdSsiResponder *theRespond; // Set via XrdSsiResponder::BindRequest()
 XrdSsiRespInfo   Resp;       // Set via XrdSsiResponder::SetResponse()
 XrdSsiErrInfo    errInfo;
+long long        rsvd1;
 const char      *epNode;
 uint32_t         detTTL;
 uint16_t         tOut;
+bool             onClient;
+char             rsvd2;
 };
 #endif

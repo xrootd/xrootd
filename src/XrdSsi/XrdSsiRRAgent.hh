@@ -38,9 +38,16 @@ class XrdSsiRRAgent
 {
 public:
 
+static void            Alert(XrdSsiRequest &reqR, XrdSsiRespInfoMsg &aMsg)
+                            {reqR.Alert(aMsg);}
+
 static void            CleanUp(XrdSsiRequest &reqR) {reqR.CleanUp();}
 
+static void            Dispose(XrdSsiRequest &reqR) {reqR.Dispose();}
+
 static XrdSsiErrInfo  &ErrInfoRef(XrdSsiRequest *rP) {return rP->errInfo;}
+
+static void            onServer(XrdSsiRequest *rP) {rP->onClient = false;}
 
 static XrdSsiRequest  *Request(XrdSsiResponder *rP) {return rP->reqP;}
 
@@ -50,12 +57,12 @@ static void            SetNode(XrdSsiRequest *rP, const char *name)
                               {rP->epNode = name;}
 
 static void            ResetResponder(XrdSsiResponder *rP)
-                                     {rP->rrMutex = &(rP->ubMutex);}
+                                     {rP->spMutex.Lock();
+                                      rP->reqP = 0;
+                                      rP->spMutex.UnLock();
+                                     }
 
 static void            SetMutex(XrdSsiRequest *rP, XrdSsiMutex *mP)
                                {rP->rrMutex = mP;}
-
-static void            Unbind(XrdSsiRequest &reqR, XrdSsiResponder *respP=0)
-                             {reqR.Unbind(respP);}
 };
 #endif

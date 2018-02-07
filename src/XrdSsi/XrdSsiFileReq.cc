@@ -251,6 +251,23 @@ void XrdSsiFileReq::BindDone()
 //
    Log.Emsg(epname, tident, "Invalid req/rsp state; giving up on object!");
 }
+
+/******************************************************************************/
+/*                               D i s p o s e                                */
+/******************************************************************************/
+
+void XrdSsiFileReq::Dispose()
+{
+   EPNAME("Dispose");
+
+// Do some debugging
+//
+   DEBUGXQ("Recycling request...");
+
+// Simply recycle the object
+//
+   Recycle();
+}
   
 /******************************************************************************/
 /*                                  D o I t                                   */
@@ -511,6 +528,7 @@ void XrdSsiFileReq::Init(const char *cID)
    respWait   = false;
    strmEOF    = false;
    isEnding   = false;
+   XrdSsiRRAgent::onServer(this);
    XrdSsiRRAgent::SetMutex(this, &frqMutex);
 }
 
@@ -518,11 +536,12 @@ void XrdSsiFileReq::Init(const char *cID)
 /* Protected:            P r o c e s s R e s p o n s e                        */
 /******************************************************************************/
 
+// This is called via the responder with the responder and request locks held.
+
 bool XrdSsiFileReq::ProcessResponse(const XrdSsiErrInfo  &eInfo,
                                     const XrdSsiRespInfo &Resp)
 {
    EPNAME("ProcessResponse");
-   XrdSsiMutexMon mHelper(frqMutex);
 
 // Do some debugging
 //
@@ -886,23 +905,6 @@ int XrdSsiFileReq::sendStrmA(XrdSsiStream *strmP,
    rc = (rc < 0 ? EIO : EFAULT);
    myState = erRsp; strmEOF = true;
    return Emsg(epname, rc, "send");
-}
-
-/******************************************************************************/
-/*                                U n b i n d                                 */
-/******************************************************************************/
-
-void XrdSsiFileReq::Unbind(XrdSsiResponder *respP) // Caled with frqMutex unlocked!
-{
-   EPNAME("Unbind");
-
-// Do some debugging
-//
-   DEBUGXQ("Recycling request...");
-
-// Simply recycle the object
-//
-   Recycle();
 }
   
 /******************************************************************************/
