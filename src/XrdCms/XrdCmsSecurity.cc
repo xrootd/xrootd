@@ -168,7 +168,7 @@ char *XrdCmsSecurity::chkVnId(XrdSysError &eDest, const char *vnid,
 // Make sure the vnid does not contain invalid characters
 //
    const char *cP = vnid;
-   while(*cP && (isalnum(*cP) || ispunct(*cP))) cP++;
+   while(*cP && (isalnum(*cP) || ispunct(*cP)) && *cP != '&' && *cP != ' ') cP++;
    if (*cP)
       {eDest.Emsg("Config", what, "an invalid vnid -", vnid);
        return 0;
