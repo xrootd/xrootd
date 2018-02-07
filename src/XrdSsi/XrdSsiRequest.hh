@@ -211,6 +211,14 @@ virtual PRD_Xeq ProcessResponseData(const XrdSsiErrInfo  &eInfo, char *buff,
                                     int blen, bool last) {return PRD_Normal;}
 
 //-----------------------------------------------------------------------------
+//! Release the request buffer of the request bound to this object. This method
+//! duplicates the protected method RelRequestBuffer() and exists here for
+//! calling safety and consistency relative to the responder.
+//-----------------------------------------------------------------------------
+
+        void   ReleaseRequestBuffer();
+
+//-----------------------------------------------------------------------------
 //! Restart a ProcessResponseData() call for a request that was previously held
 //! (see return enums on ProcessResponseData method). This is a client-side
 //! only call and is ignored server-side. When a data response is restarted,

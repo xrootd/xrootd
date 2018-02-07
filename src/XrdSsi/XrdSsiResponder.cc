@@ -195,9 +195,10 @@ void XrdSsiResponder::ReleaseRequestBuffer()
 {
    XrdSsiMutexMon(spMutex);
 
-// If we have a request, forward the call
+// If we have a request, forward the call (note we need to also get the
+// the request lock to properly serialize this call).
 //
-   if (reqP) reqP->RelRequestBuffer();
+   if (reqP) reqP->ReleaseRequestBuffer();
 }
 
 /******************************************************************************/
