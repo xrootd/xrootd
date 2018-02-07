@@ -166,11 +166,13 @@ bool XrdSendQ::QMsg(XrdSendQ::mBuff *theMsg)
 
 // Check if we should issue a warning.
 //
-   if (inQ >= qWarn)
+   if (inQ >= qWmsg)
       {char qBuff[32];
        qWmsg += qWarn;
        snprintf(qBuff, sizeof(qBuff), "%ud messages queued!", inQ);
        Say->Emsg("SendQ", mLink.Host(), "appears to be slow;", qBuff);
+      } else {
+       if (inQ < qWarn && qWmsg != qWarn) qWmsg = qWarn;
       }
 
 // All done
