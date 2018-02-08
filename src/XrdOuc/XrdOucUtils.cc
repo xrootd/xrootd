@@ -499,6 +499,53 @@ void XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst)
 }
 
 /******************************************************************************/
+  
+bool XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst,
+                                               const char *path, mode_t mode)
+{
+   char cwDir[1024];
+   const char *slash = "", *slash2 = "";
+   int n, rc;
+
+// Provide backward compatability for instance name qualification
+//
+
+   if (!path || !(n = strlen(path)))
+      {if (inst) makeHome(eDest, inst);
+       return true;
+      }
+
+// Augment the path with instance name, if need be
+//
+   if (path[n-1] != '/') slash = "/";
+   if (!inst || !(n = strlen(inst))) inst = "";
+      else slash2 = "/";
+    n = snprintf(cwDir, sizeof(cwDir), "%s%s%s%s", path, slash, inst, slash2);
+    if (n >= (int)sizeof(cwDir))
+       {eDest.Emsg("Config", ENAMETOOLONG, "create home directory", cwDir);
+        return false;
+       }
+
+// Create the path if it doesn't exist
+//
+   if ((rc = makePath(cwDir, mode)))
+      {eDest.Emsg("Config", rc, "create home directory", cwDir);
+       return false;
+      }
+
+// Switch to this directory
+//
+   if (chdir(cwDir) < 0)
+      {eDest.Emsg("Config", errno, "chdir to home directory", cwDir);
+       return false;
+      }
+
+// All done
+//
+   return true;
+}
+
+/******************************************************************************/
 /*                              m a k e P a t h                               */
 /******************************************************************************/
   
@@ -526,6 +573,42 @@ int XrdOucUtils::makePath(char *path, mode_t mode)
    return 0;
 }
  
+/******************************************************************************/
+/*                             p a r s e H o m e                              */
+/******************************************************************************/
+  
+char *XrdOucUtils::parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode)
+{
+   char *pval, *val, *HomePath = 0;
+
+// Get the path
+//
+   pval = Config.GetWord();
+   if (!pval || !pval[0])
+      {eDest.Emsg("Config", "home path not specified"); return 0;}
+
+// Make sure it's an absolute path
+//
+   if (*pval != '/')
+      {eDest.Emsg("Config", "home path not absolute"); return 0;}
+
+// Record the path
+//
+   HomePath = strdup(pval);
+
+// Get the optional access rights
+//
+   mode = S_IRWXU;
+   if ((val = Config.GetWord()) && val[0])
+      {if (!strcmp("group", val)) mode |= (S_IRGRP | S_IXGRP);
+          else {eDest.Emsg("Config", "invalid home path modifier -", val);
+                free(HomePath);
+                return 0;
+               }
+      }
+   return HomePath;
+}
+
 /******************************************************************************/
 /*                                R e L i n k                                 */
 /******************************************************************************/

@@ -155,7 +155,9 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    myInsName= 0;
    mySitName= 0;
    AdminPath= strdup("/tmp");
+   HomePath = 0;
    AdminMode= 0700;
+   HomeMode = 0700;
    Police   = 0;
    Net_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
    Net_Opts = XRDNET_KEEPALIVE;
@@ -521,7 +523,8 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // If we hae a net name change the working directory
 //
-   if (myInsName) XrdOucUtils::makeHome(Log, myInsName);
+   if ((myInsName || HomePath)
+   &&  !XrdOucUtils::makeHome(Log, myInsName, HomePath, HomeMode)) NoGo = 1;
 
    // if we call this it means that the daemon has forked and we are
    // in the child process
@@ -581,6 +584,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    {
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
+   TS_Xeq("homepath",      xhpath);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("report",        xrep);
@@ -1162,6 +1166,34 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
        else      Police->AddNetGroup(val);
 
     return 0;
+}
+
+/******************************************************************************/
+/*                                x h p a t h                                 */
+/******************************************************************************/
+
+/* Function: xhpath
+
+   Purpose:  To parse the directive: homepath <path> [group]
+
+             <path>    the path of the home director to be made as the cwd.
+
+             group     allows group access to the home path
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdConfig::xhpath(XrdSysError *eDest, XrdOucStream &Config)
+{
+
+// Free existing home path, if any
+//
+   if (HomePath) {free(HomePath); HomePath = 0;}
+
+// Parse the home path and return success or failure
+//
+   HomePath = XrdOucUtils::parseHome(*eDest, Config, HomeMode);
+   return (HomePath ? 0 : 1);
 }
 
 /******************************************************************************/

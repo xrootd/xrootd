@@ -72,6 +72,7 @@ int   Setup(char *dfltp);
 void  Usage(int rc);
 int   xallow(XrdSysError *edest, XrdOucStream &Config);
 int   xapath(XrdSysError *edest, XrdOucStream &Config);
+int   xhpath(XrdSysError *edest, XrdOucStream &Config);
 int   xbuf(XrdSysError *edest, XrdOucStream &Config);
 int   xnet(XrdSysError *edest, XrdOucStream &Config);
 int   xnkap(XrdSysError *edest, char *val);
@@ -100,6 +101,7 @@ const char         *mySitName;
 const char         *myInsName;
 char               *myInstance;
 char               *AdminPath;
+char               *HomePath;
 char               *ConfigFN;
 char               *repDest[2];
 XrdConfigProt      *Firstcp;
@@ -114,6 +116,7 @@ int                 PortUDP;      // UDP Port to listen on (currently unsupporte
 int                 PortWAN;      // TCP port to listen on for WAN connections
 int                 NetTCPlep;
 int                 AdminMode;
+int                 HomeMode;
 int                 repInt;
 char                repOpts;
 char                ppNet;

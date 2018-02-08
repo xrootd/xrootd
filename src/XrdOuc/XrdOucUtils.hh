@@ -77,7 +77,12 @@ static int   Log10(unsigned long long n);
 
 static void  makeHome(XrdSysError &eDest, const char *inst);
 
+static bool  makeHome(XrdSysError &eDest, const char *inst,
+                                          const char *path, mode_t mode);
+
 static int   makePath(char *path, mode_t mode);
+
+static char *parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode);
 
 static int   ReLink(const char *path, const char *target, mode_t mode=0);
  
