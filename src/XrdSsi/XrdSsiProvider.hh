@@ -72,6 +72,8 @@
 //!              all.role server
 //!              all.manager <redirector-cmsd>:<port>
 //!              oss.statlib  -2 <path>/libXrdSsi.so
+//!
+//! Warning! All methods (except Init()) in this class must be thread-safe.
 //-----------------------------------------------------------------------------
 
 #include <errno.h>
@@ -180,6 +182,28 @@ enum    rStat  {notPresent = 0, isPresent, isPending};
 virtual rStat  QueryResource(const char *rName,
                              const char *contact=0
                             ) = 0;
+
+//-----------------------------------------------------------------------------
+//! Notify provider that a resource was added to this node. This method is
+//! called by the cmsd process in response to calling XrdSsiCluster::Added()
+//! in the xrootd process. This method only is invoked on resource storage
+//! nodes (i.e. all.role server).
+//!
+//! @param  rName    Pointer to the resource name that was added.
+//-----------------------------------------------------------------------------
+
+virtual void   ResourceAdded(const char *rName) {}
+
+//-----------------------------------------------------------------------------
+//! Notify provider that a resource was removed from this node. This method is
+//! called by the cmsd process in response to calling XrdSsiCluster::Removed()
+//! in the xrootd process. This method only is invoked on resource storage
+//! nodes (i.e. all.role server).
+//!
+//! @param  rName    Pointer to the resource name that was removed.
+//-----------------------------------------------------------------------------
+
+virtual void   ResourceRemoved(const char *rName) {}
 
 //-----------------------------------------------------------------------------
 //! Set the maximum number of threads for handling callbacks (client-side only).
