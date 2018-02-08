@@ -120,11 +120,11 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
             }
             if (!strcmp("1", val) || !strcasecmp("yes", val) || !strcasecmp("true", val)) {
                 m_desthttps = true;
-            } else if (!strcmp("1", val) || !strcasecmp("yes", val) || !strcasecmp("true", val)) {
+            } else if (!strcmp("0", val) || !strcasecmp("no", val) || !strcasecmp("false", val)) {
                 m_desthttps = false;
             } else {
                 Config.Close();
-                m_log.Emsg("Config", "https.dests value is invalid", val);
+                m_log.Emsg("Config", "https.desthttps value is invalid", val);
                 return false;
             }
         } else if (!strcmp("http.cadir", val)) {
