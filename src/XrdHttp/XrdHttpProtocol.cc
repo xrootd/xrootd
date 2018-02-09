@@ -1566,7 +1566,7 @@ void XrdHttpProtocol::Cleanup() {
   if (SecEntity.host) free(SecEntity.host);
   if (SecEntity.moninfo) free(SecEntity.moninfo);
 
-  memset(&SecEntity, 0, sizeof (SecEntity));
+  SecEntity.Reset();
 
   if (Addr_str) free(Addr_str);
   Addr_str = 0;
@@ -1602,7 +1602,7 @@ void XrdHttpProtocol::Reset() {
   //  cumWrites = 0;
   //  totReadP = 0;
 
-  memset(&SecEntity, 0, sizeof (SecEntity));
+  SecEntity.Reset();
   SecEntity.tident = XrdHttpSecEntityTident;
   ishttps = false;
   ssldone = false;

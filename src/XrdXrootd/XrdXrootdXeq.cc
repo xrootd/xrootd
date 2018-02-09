@@ -146,8 +146,8 @@ int XrdXrootdProtocol::do_Auth()
    ||  strncmp(Entity.prot, (const char *)Request.auth.credtype,
                                    sizeof(Request.auth.credtype)))
       {if (AuthProt) AuthProt->Delete();
-       strncpy(Entity.prot, (const char *)Request.auth.credtype,
-                                   sizeof(Request.auth.credtype));
+       size_t size = sizeof(Request.auth.credtype);
+       strncpy(Entity.prot, (const char *)Request.auth.credtype, size);
        if (!(AuthProt = CIA->getProtocol(Link->Host(), *(Link->AddrInfo()),
                                          &cred, &eMsg)))
           {eText = eMsg.getErrText(rc);

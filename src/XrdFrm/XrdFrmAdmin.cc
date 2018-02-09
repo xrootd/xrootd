@@ -122,7 +122,7 @@ int XrdFrmAdmin::Chksum()
 
 // Check if this is even supported
 //
-   memset(&CksData, 0, sizeof(CksData));
+   CksData.Reset();
    if (!Config.CksMan || !(CksData.Length = Config.CksMan->Size()))
       {Emsg("Checksum support has not been configured!"); return 8;}
 

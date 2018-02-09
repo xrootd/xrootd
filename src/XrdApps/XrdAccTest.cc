@@ -177,7 +177,11 @@ bool singleshot=false;
    while ((c=getopt(argc,argv,"a:c:dg:h:o:r:u:s")) != (char)EOF)
      { switch(c)
        {
-       case 'a': strncpy(Entity.prot, optarg, sizeof(Entity.prot));
+       case 'a': 
+	         {size_t size = sizeof(Entity.prot)-1;
+	          strncpy(Entity.prot, optarg, size);
+		  Entity.prot[size] = '\0';
+		 }
                                              v2 = true;    break;
        case 'd':                                           break;
        case 'g': SetID(Entity.grps, optarg); v2 = true;    break;
@@ -251,7 +255,10 @@ XrdAccPrivs auth;
              Usage(buff);
             }
          switch(*(opc+1))
-               {case 'a': strncpy(Entity.prot, opv, sizeof(Entity.prot));
+               {case 'a': {size_t size = sizeof(Entity.prot)-1;
+		           strncpy(Entity.prot, opv, size);
+			   Entity.prot[size] = '\0';
+			  }
                           v2 = true; break;
                 case 'g': SetID(Entity.grps, opv); v2 = true; break;
                 case 'h': SetID(Entity.host, opv); v2 = true; break;

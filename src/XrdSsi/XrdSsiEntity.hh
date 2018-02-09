@@ -59,7 +59,8 @@ const    char   *tident;                  //!< Trace identifier always preset
                      : name(0), host(0), vorg(0), role(0), grps(0),
                        endorsements(0), creds(0), credslen(0),
                        rsvd(0), tident("")
-                     {strncpy(prot, pName, XrdSsiPROTOIDSIZE-1);
+                     {memset(prot, 0, XrdSsiPROTOIDSIZE);
+	              strncpy(prot, pName, XrdSsiPROTOIDSIZE-1);
                       prot[XrdSsiPROTOIDSIZE-1] = '\0';
                      }
         ~XrdSsiEntity() {}

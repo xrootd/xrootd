@@ -301,7 +301,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       else
       {
          snprintf(unameBuff, sizeof(unameBuff), "\tpfc.user %s \n", m_configuration.m_username.c_str());
-         loff += snprintf(&buff[loff], strlen(unameBuff), "%s", unameBuff);
+         loff += snprintf(buff + loff, sizeof(buff) - loff, "%s", unameBuff);
       }
 
       m_log.Say( buff);

@@ -388,7 +388,7 @@ void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid, int *id)
     XrdSecEntity XrdFfsMiscUent("");
 
     tmp = ntoa24((unsigned int)user_uid);
-    strncpy(user_num, tmp, 9);
+    memcpy(user_num, tmp, 9);
     free(tmp);
 
     if (id != NULL) {
@@ -425,15 +425,15 @@ void XrdFfsMisc_xrd_secsss_editurl(char *url, uid_t user_uid, int *id)
     if (id != NULL || XrdFfsMiscSecsss)
     {
         tmp = ntoa24(user_uid);
-        strncpy(user_num, tmp, 9);
+        memcpy(user_num, tmp, 9);
         free(tmp);
         if (id == NULL) user_num[strlen(user_num)] = 48;
         else user_num[strlen(user_num)] = *id + 48;
 
         nurl[0] = '\0';
-        strncat(nurl, "root://", 7);
+        strncat(nurl, "root://", 8);
         strncat(nurl, user_num, 9);
-        strncat(nurl, "@", 1);
+        strncat(nurl, "@", 2);
         strncat(nurl, &(url[7]), MAXROOTURLLEN-17);
         strncpy(url, nurl, MAXROOTURLLEN);
     }

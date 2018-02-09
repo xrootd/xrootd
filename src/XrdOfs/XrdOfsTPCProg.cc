@@ -203,7 +203,9 @@ int XrdOfsTPCProg::Xeq()
    *eRec = 0;
    while((lP = JobStream.GetLine()))
         {if ((Colon = index(lP, ':')) && *(Colon+1) == ' ')
-            {strncpy(eRec, Colon+2, sizeof(eRec)); eRec[sizeof(eRec)-1] = 0;}
+            {strncpy(eRec, Colon+2, sizeof(eRec)-1); 
+	     eRec[sizeof(eRec)-1] = 0;
+	    }
          if (doEcho && *lP) OfsEroute.Say(Pname, lP);
         }
 

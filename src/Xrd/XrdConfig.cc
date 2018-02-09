@@ -262,7 +262,7 @@ int XrdConfig::Configure(int argc, char **argv)
       {if (*(argv[i]) == '-' && *(argv[i]+1) == '+')
           {int n = strlen(argv[i]+2), j = i+1, k = 1;
            if (urArgc == argc) urArgc = i;
-           if (n) strncpy(buff, argv[i]+2, (n > 256 ? 256 : n));
+           if (n) memcpy(buff, argv[i]+2, (n > 256 ? 256 : n));
            strcpy(&(buff[n]), ".argv**");
            while(j < argc && (*(argv[j]) != '-' || *(argv[j]+1) != '+')) j++;
            urArgv = new char*[j-i+1];

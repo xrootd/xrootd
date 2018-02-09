@@ -69,13 +69,29 @@ const    char   *tident;                  // Trace identifier always preset
                                           // it in your XrdSfsFileSystem::Disc()
                                           // implementation, as needed.
          XrdSecEntity(const char *pName = "")
-                     : name(0), host(0), vorg(0), role(0), grps(0),
-                       endorsements(0), moninfo(0), creds(0), credslen(0),
-                       rsvd(0), addrInfo(0), tident(""), sessvar(0)
-                     {strncpy(prot, pName, XrdSecPROTOIDSIZE-1);
+                     {Reset();
+	              strncpy(prot, pName, XrdSecPROTOIDSIZE-1);
                       prot[XrdSecPROTOIDSIZE-1] = '\0';
                      }
         ~XrdSecEntity() {}
+
+	void Reset()
+	{
+          memset( prot, 0, XrdSecPROTOIDSIZE );
+	  name = 0;
+	  host = 0;
+	  vorg = 0;
+	  role = 0;
+	  grps = 0;
+	  endorsements = 0;
+	  moninfo = 0;
+	  creds = 0;
+	  credslen = 0;
+	  rsvd = 0;
+	  addrInfo = 0;
+	  tident = 0;
+	  sessvar = 0;
+	}
 };
 
 #define XrdSecClientName XrdSecEntity

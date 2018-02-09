@@ -117,8 +117,20 @@ void *Respond();
 
 struct Info
       {
-        Info(): Add2Q(0), PBack(0), Resp(0), Multi(0), luFast(0), luSlow(0),
-                rdFast(0), rdSlow(0) {}
+        Info()
+	{Reset();}
+	
+	void Reset()
+	{Add2Q  = 0;
+	 PBack  = 0;
+	 Resp   = 0;
+	 Multi  = 0;
+	 luFast = 0;
+	 luSlow = 0;
+	 rdFast = 0;
+	 rdSlow = 0;
+	}
+
        long long Add2Q;    // Number added to queue
        long long PBack;    // Number that we could piggy-back
        long long Resp;     // Number of reponses for a waiting request

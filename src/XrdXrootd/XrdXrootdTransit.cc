@@ -268,7 +268,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    myMutex.Lock(); pID = ++bID; myMutex.UnLock();
    n = strlen(nameP);
    if (n >= int(sizeof(uname))) n = sizeof(uname)-1;
-   strncpy(uname, nameP, n);
+   strncpy(uname, nameP, sizeof(uname)-1);
    uname[n] = 0;
    linkP->setID(uname, pID);
 

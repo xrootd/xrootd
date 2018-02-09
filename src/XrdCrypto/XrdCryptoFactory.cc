@@ -58,7 +58,7 @@ XrdCryptoFactory::XrdCryptoFactory(const char *n, int id)
    if (n) {
       int l = strlen(n);
       l = (l > (MAXFACTORYNAMELEN - 1)) ? (MAXFACTORYNAMELEN - 1) : l;  
-      strncpy(name,n,l);
+      memcpy(name,n,l);
       name[l] = 0;  // null terminated
    }
    fID = id;
