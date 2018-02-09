@@ -281,7 +281,7 @@ inline int  SockFD() {return (sockNum ? static_cast<int>(sockNum) : -1);}
 
 XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                {if (&rhs != this)
-                   {memcpy(&IP, &rhs.IP, sizeof(IP));
+                   {memmove(&IP, &rhs.IP, sizeof(IP));
                     addrSize = rhs.addrSize; sockNum = rhs.sockNum;
                     protType = rhs.protType;
                     if (hostName) free(hostName);
@@ -332,9 +332,6 @@ protected:
 
 static XrdNetCache        *dnsCache;
 
-// For optimization this union should be the first member of this class as we
-// compare "unixPipe" with "&IP" and want it optimized to "unixPipe == this".
-//
 XrdNetSockAddr             IP;
 union {struct sockaddr    *sockAddr;
        struct sockaddr_un *unixPipe;

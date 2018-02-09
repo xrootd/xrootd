@@ -104,10 +104,18 @@ int       Set(const char *csVal, int csLen)
               return 1;
              }
 
-          XrdCksData() : Rsvd1(0), Rsvd2(0), Length(0)
-                       {memset(Name, 0, sizeof(Name));
-                        memset(Value,0, sizeof(Value));
-                       }
+          void Reset()
+                    {memset(Name, 0, sizeof(Name));
+                     memset(Value,0, sizeof(Value));
+                     fmTime = 0;
+                     csTime = 0;
+                     Rsvd1  = 0;
+                     Rsvd2  = 0;
+                     Length = 0;
+                    }
+
+          XrdCksData()
+                       {Reset();}
 
 bool      HasValue()
                   {

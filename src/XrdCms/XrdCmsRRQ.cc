@@ -131,7 +131,7 @@ int XrdCmsRRQ::Init(int Tint, int Tdly)
 //
    if (Tint) Tslice = Tint;
    if (Tdly) Tdelay = Tdly;
-   memset(&Stats, 0, sizeof(Stats));
+   Stats.Reset();
 
 // Fill out the response structure
 //

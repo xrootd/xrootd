@@ -791,14 +791,14 @@ char *XrdCryptosslCipher::Public(int &lpub)
                // position at the end
                p += (lhend+1);
                // Begin of public key hex
-               strncpy(p,"---BPUB---",10);
+               memcpy(p,"---BPUB---",10);
                p += 10;
                // Calculate and write public key hex
-               strncpy(p,phex,lhex);
+               memcpy(p,phex,lhex);
                OPENSSL_free(phex);
                // End of public key hex
                p += lhex;
-               strncpy(p,"---EPUB---",10);
+               memcpy(p,"---EPUB---",10);
                // Calculate total length
                lpub += (20 + lhex);
             } else {

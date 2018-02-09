@@ -128,7 +128,7 @@ void XrdFrmPurgeDir::isEmpty(struct stat *dStat, const char *dPath,
    if (!rc)
       {numRMD++;
        if (Config.Verbose)
-          {char sbuff[32];
+          {char sbuff[64];
            struct tm tNow;
            localtime_r(&(dStat->st_mtime), &tNow);
            sprintf(sbuff, "%02d%02d%02d %02d:%02d:%02d ",

@@ -369,7 +369,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if ((xp = RPList.Next()))
       {int k;
-       char buff[1024], puff[1024];
+       char buff[2048], puff[1024];
        do {k = xp->Opts();
            if (Route[k].Host[0] == Route[k].Host[1]
            &&  Route[k].Port[0] == Route[k].Port[1]) *puff = 0;
@@ -383,7 +383,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if ((xp = RQList.Next()))
       {int k;
        const char *cgi1, *cgi2;
-       char buff[1024], puff[1024], xCgi[RD_Num] = {0};
+       char buff[2048], puff[1024], xCgi[RD_Num] = {0};
        if (isRedir) {cgi1 = "+"; cgi2 = getenv("XRDCMSCLUSTERID");}
           else      {cgi1 = "";  cgi2 = pi->myName;}
        myCNlen = snprintf(buff, sizeof(buff), "%s%s", cgi1, cgi2);

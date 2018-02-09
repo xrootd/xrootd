@@ -44,8 +44,8 @@ public:
 
 void        Init(const char *path, XrdOucEnv &envP, bool aDNS);
 
-            XrdSsiFileResource() : XrdSsiResource(std::string(""))
-                                   {memset(&mySec, 0, sizeof(mySec));}
+            XrdSsiFileResource() : XrdSsiResource(std::string("")), mySec()
+                                   {}
 
            ~XrdSsiFileResource() {}
 

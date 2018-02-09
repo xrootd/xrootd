@@ -1430,7 +1430,10 @@ if (!XrdOucUtils::UserName(geteuid(), name, sizeof(name))) User = name;
 #endif
     }
     if (User.length() > 0)
-      strncpy( (char *)reqhdr.login.username, User.c_str(), 8 );
+    {
+      strncpy( (char *)reqhdr.login.username, User.c_str(), 7 );
+      reqhdr.login.username[7] = 0;
+    }
     else
 	strcpy( (char *)reqhdr.login.username, "????" );
 

@@ -180,7 +180,7 @@ XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
 
 // Record in the log what stat will stat
 //
-   if (myProg) strncpy(vChk, " for ", 5);
+   if (myProg) strncpy(vChk, " for ", 6);
       else *vChk = 0;
    if (!XrdOssStatInfoResOnly) xWhat = " all ";
    Say.Say("Config", " stat() allows", xWhat, "files", vChk);

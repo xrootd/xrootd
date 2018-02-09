@@ -1180,6 +1180,23 @@ static int xrootdfs_removexattr(const char *path, const char *name)
     return 0;
 }
 
+/*
+ * We need this as casting function pointer to a function pointer
+ * of a diffrent type and then calling it results in undefined
+ * behavior (Annex J.2).
+ *
+ * GCC 8 available on Fedora 28 is very picky about those things.
+ * On the other hand unfortunatelly we cannot use a lambda expression
+ * as it is not supported on GCC 4.4 which is shipped by default on
+ * EPEL 6.
+ *
+ */
+void* XrdFfsMisc_logging_url_cache_pthread_create_cast( void *arg )
+{
+  XrdFfsMisc_logging_url_cache( reinterpret_cast<char*>( arg ) );
+  return 0;
+}
+
 void xrootdfs_sigusr1_handler(int sig) 
 {
 /* Do this in a new thread because XrdFfsMisc_refresh_url_cache() contents mutex. */
@@ -1192,7 +1209,8 @@ void xrootdfs_sigusr1_handler(int sig)
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
     thread = (pthread_t*) malloc(sizeof(pthread_t));
-    pthread_create(thread, &attr, (void* (*)(void*))XrdFfsMisc_logging_url_cache, xrootdfs.rdr);
+    pthread_create(thread, &attr, XrdFfsMisc_logging_url_cache_pthread_create_cast, 
+		   xrootdfs.rdr);
     pthread_detach(*thread);
     free(thread);
 

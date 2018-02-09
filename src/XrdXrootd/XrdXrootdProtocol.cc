@@ -851,7 +851,7 @@ void XrdXrootdProtocol::Reset()
    sigNeed = sigHere = sigRead = false;
    sigWarn = true;
    rdType             = 0;
-   memset(&Entity, 0, sizeof(Entity));
+   Entity.Reset();
    memset(Stream,  0, sizeof(Stream));
    PrepareCount       = 0;
 }

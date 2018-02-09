@@ -740,7 +740,7 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
    Path = src + (*src == 'x' ? 8 : 7);
    if (!(Path = index(Path, '/')))
       {EMSG("Unable to extract lfn from '" <<getFName(src) <<"'."); return 0;}
-   strncpy(lfnBuff, Path+1, sizeof(lfnBuff));
+   strncpy(lfnBuff, Path+1, sizeof(lfnBuff)-1);
    lfnBuff[sizeof(lfnBuff)-1] = 0;
    if ((qP = index(lfnBuff, '?'))) *qP = 0;
 
