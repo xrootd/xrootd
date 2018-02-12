@@ -48,6 +48,7 @@
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -117,11 +118,19 @@ static AdminReq       *Last;
 /*                     G l o b a l s   &   S t a t i c s                      */
 /******************************************************************************/
 
+
        XrdSysSemaphore  AdminReq::QPresent(0);
        XrdSysMutex      AdminReq::QMutex;
        AdminReq        *AdminReq::First = 0;
        AdminReq        *AdminReq::Last  = 0;
        int              AdminReq::numinQ= 0;
+
+       XrdOssStatInfo2_t  XrdCmsAdmin::areFunc  = 0;
+       XrdOucTList       *XrdCmsAdmin::areFirst = 0;
+       XrdOucTList       *XrdCmsAdmin::areLast  = 0;
+       XrdSysMutex        XrdCmsAdmin::areMutex;
+       XrdSysSemaphore    XrdCmsAdmin::areSem(0);
+       bool               XrdCmsAdmin::arePost  = false;
 
        XrdSysMutex      XrdCmsAdmin::myMutex;
        XrdSysSemaphore *XrdCmsAdmin::SyncUp = 0;
@@ -143,12 +152,41 @@ void *XrdCmsAdminMonAds(void *carg)
        Admin->MonAds();
        return (void *)0;
       }
+  
+void *XrdCmsAdminMonARE(void *carg)
+      {XrdCmsAdmin::RelayAREvent();
+       return (void *)0;
+      }
 
 void *XrdCmsAdminSend(void *carg)
       {XrdCmsAdmin::Relay(0,0);
        return (void *)0;
       }
- 
+  
+/******************************************************************************/
+/*                          I n i t A R E v e n t s                           */
+/******************************************************************************/
+  
+bool XrdCmsAdmin::InitAREvents(void *arFunc)
+{
+   pthread_t tid;
+
+// Record the function we will be using
+//
+   areFunc = (XrdOssStatInfo2_t)arFunc;
+
+// Start the event relay
+//
+   if (XrdSysThread::Run(&tid,XrdCmsAdminMonARE,(void *)0))
+      {Say.Emsg("InitAREvents", errno, "start arevent relay");
+       return false;
+      }
+
+// All done
+//
+   return true;
+}
+  
 /******************************************************************************/
 /*                                 L o g i n                                  */
 /******************************************************************************/
@@ -343,6 +381,50 @@ void XrdCmsAdmin::Relay(int setSock, int newSock)
 }
 
 /******************************************************************************/
+/*                          R e l a y A R E v e n t                           */
+/******************************************************************************/
+
+void XrdCmsAdmin::RelayAREvent()
+{
+   EPNAME("RelayAREvent");
+   const char *evWhat;
+   XrdOucTList *evP;
+   int evType, mod;
+
+// Endless loop relaying events
+//
+do{areMutex.Lock();
+   while((evP = areFirst))
+        {if (evP == areLast) areFirst = areLast = 0;
+            else areFirst = evP->next;
+         areMutex.UnLock();
+         XrdCms::CmsReqCode reqCode = static_cast<CmsReqCode>(evP->ival[0]);
+         mod = evP->ival[1];
+         if (reqCode == kYR_have)
+            {if (mod & CmsHaveRequest::Pending)
+                {evType = XrdOssStatEvent::PendAdded;
+                 evWhat = "pend ";
+                } else {
+                 evType = XrdOssStatEvent::FileAdded;
+                 evWhat = "have ";
+                }
+            } else {
+             evType = XrdOssStatEvent::FileRemoved;
+             evWhat = "gone ";
+            }
+         (*areFunc)(evP->text, 0, evType, 0, 0);
+         DEBUG("sending managers " <<evWhat <<evP->text);
+         XrdCmsManager::Inform(reqCode, mod, evP->text, strlen(evP->text)+1);
+         delete evP;
+         areMutex.Lock();
+        }
+   arePost = true;
+   areMutex.UnLock();
+   areSem.Wait();
+  } while(true);
+}
+  
+/******************************************************************************/
 /*                                  S e n d                                   */
 /******************************************************************************/
   
@@ -392,6 +474,25 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                              A d d E v e n t                               */
+/******************************************************************************/
+
+void XrdCmsAdmin::AddEvent(const char *path, XrdCms::CmsReqCode req, int mods)
+{
+   int info[2] = {(int)req, mods};
+   XrdOucTList *evP = new XrdOucTList(path, info);
+
+// Add the event to he queue
+//
+   areMutex.Lock();
+   if (areLast) areLast->next = evP;
+      else      areFirst      = evP;
+   areLast = evP;
+   if (arePost) {areSem.Post(); arePost = false;}
+   areMutex.UnLock();
+}
+
 /******************************************************************************/
 /*                                B e g A d s                                 */
 /******************************************************************************/
@@ -667,8 +768,12 @@ void XrdCmsAdmin::do_RmDid(int isPfn)
           } else tp = apath;
       }
 
-   DEBUG("sending managers gone " <<tp);
-   XrdCmsManager::Inform(kYR_gone, kYR_raw, tp, strlen(tp)+1);
+// Check if we are relaying remove events and, if so, vector through that.
+//
+   if (areFunc) AddEvent(tp, kYR_gone, kYR_raw);
+      else {DEBUG("sending managers gone " <<tp);
+            XrdCmsManager::Inform(kYR_gone, kYR_raw, tp, strlen(tp)+1);
+           }
 }
  
 /******************************************************************************/
@@ -696,6 +801,10 @@ void XrdCmsAdmin::do_RmDud(int isPfn)
           } else tp = apath;
       }
 
-   DEBUG("sending managers have online " <<tp);
-   XrdCmsManager::Inform(kYR_have, Mods, tp, strlen(tp)+1);
+// Check if we are relaying remove events and, if so, vector through that.
+//
+   if (areFunc) AddEvent(tp, kYR_have, Mods);
+      else {DEBUG("sending managers have online " <<tp);
+            XrdCmsManager::Inform(kYR_have, Mods, tp, strlen(tp)+1);
+           }
 }

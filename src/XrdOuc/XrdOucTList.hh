@@ -61,7 +61,7 @@ int          val;
 
              XrdOucTList(const char *tval, int   iv[2], XrdOucTList *np=0)
                         {next=np; text = (tval ? strdup(tval) : 0);
-                         memcpy(sval, iv, sizeof(ival));}
+                         memcpy(ival, iv, sizeof(ival));}
 
              XrdOucTList(const char *tval, short sv[4], XrdOucTList *np=0)
                         {next=np; text = (tval ? strdup(tval) : 0);

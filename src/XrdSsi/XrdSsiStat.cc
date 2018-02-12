@@ -67,16 +67,26 @@ extern XrdSysError       Log;
 using namespace XrdSsi;
   
 /******************************************************************************/
-/*                        X r d O s s S t a t I n f o                         */
+/*                        X r d S s i S t a t I n f o                         */
 /******************************************************************************/
 
 extern "C"
 {
-int XrdOssStatInfo(const char *path, struct stat *buff,
+int XrdSsiStatInfo(const char *path, struct stat *buff,
                    int         opts, XrdOucEnv   *envP, const char *lfn)
 {
    static const int regFile = S_IFREG | S_IRUSR | S_IWUSR;
    XrdSsiProvider::rStat rStat;
+
+// Check for stat changes
+//
+   if (!buff)
+      {if (!Provider || (fsChk && FSPath.Find(lfn))) return 0;
+         if (opts == XrdOssStatEvent::FileRemoved)
+            Provider->ResourceRemoved(lfn);
+       else Provider->ResourceAdded(lfn);
+       return 0;
+      }
 
 // Check if this should be issued to the file system
 //
@@ -125,7 +135,7 @@ XrdOssStatInfo2_t XrdOssStatInfoInit2(XrdOss        *native_oss,
 
 // Return the stat function
 //
-    return (XrdOssStatInfo2_t)XrdOssStatInfo;
+    return (XrdOssStatInfo2_t)XrdSsiStatInfo;
 }
 };
 

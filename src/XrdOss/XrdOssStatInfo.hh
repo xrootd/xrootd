@@ -67,6 +67,29 @@ typedef int (*XrdOssStatInfo2_t)(const char *path, struct stat *buff,
                                  int         opts, XrdOucEnv   *envP,
                                  const char *lfn);
 
+//------------------------------------------------------------------------------
+//! Set file information.
+//!
+//! When the arevents option is specified in the oss.statlib directive and the
+//! executable is the cmsd running in server mode, then the StatInfo function is
+//! also used to relay add/remove file requests send by the companion xrootd to
+//! the cmsd. The parameters then are as follows:
+//!
+//! @param  path       -> the file path whose stat information is wanted.
+//! @param  buff       -> Nil; this indicates that stat information is being set.
+//! @param  opts          One of the following options:
+namespace XrdOssStatEvent
+{
+static const int FileAdded   = 1; //!< Path has been added
+static const int PendAdded   = 2; //!< Path has been added in pending mode
+static const int FileRemoved = 0; //!< Path has been removed
+}
+//! @param  envP       -> Nil
+//! @param  lfn        -> Nil
+//!
+//! @return The return value should be zero but is not currently inspected.
+//------------------------------------------------------------------------------
+
 /******************************************************************************/
 /*           X r d O s s S t a t I n f o   I n s t a n t i a t o r            */
 /******************************************************************************/

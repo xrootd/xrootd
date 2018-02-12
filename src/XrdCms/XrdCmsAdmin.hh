@@ -35,14 +35,18 @@
 
 #include "XrdCms/XrdCmsProtocol.hh"
 #include "XrdCms/XrdCmsRRData.hh"
+#include "XrdOss/XrdOssStatInfo.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdNetSocket;
+class XrdOucTList;
 
 class XrdCmsAdmin
 {
 public:
+
+static bool  InitAREvents(void *arFunc);
 
        void  Login(int socknum);
 
@@ -54,6 +58,8 @@ static void  setSync(XrdSysSemaphore  *sync)  {SyncUp = sync;}
 
 static void  Relay(int setSock, int newSock);
 
+static void  RelayAREvent();
+
        void  Send(const char *Req, XrdCmsRRData &Data);
 
        void *Start(XrdNetSocket *AdminSock);
@@ -63,12 +69,21 @@ static void  Relay(int setSock, int newSock);
 
 private:
 
+static
+void  AddEvent(const char *path, XrdCms::CmsReqCode req, int mods);
 void  BegAds();
 bool  CheckVNid(const char *xNid);
 int   Con2Ads(const char *pname);
 int   do_Login();
 void  do_RmDid(int dotrim=0);
 void  do_RmDud(int dotrim=0);
+
+static XrdOssStatInfo2_t  areFunc;
+static XrdOucTList       *areFirst;
+static XrdOucTList       *areLast;
+static XrdSysMutex        areMutex;
+static XrdSysSemaphore    areSem;
+static bool               arePost;
 
 static XrdSysMutex      myMutex;
 static XrdSysSemaphore *SyncUp;

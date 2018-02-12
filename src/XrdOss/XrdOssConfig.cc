@@ -218,6 +218,7 @@ XrdOssSys::XrdOssSys()
    STT_PreOp     = 0;
    STT_DoN2N     = 1;
    STT_V2        = 0;
+   STT_DoARE     = 0;
 }
   
 /******************************************************************************/
@@ -847,6 +848,7 @@ int XrdOssSys::ConfigStatLib(XrdSysError &Eroute, XrdOucEnv *envP)
        if (!(siGet2=(XrdOssStatInfoInit2_t)myLib.Resolve("XrdOssStatInfoInit2"))
        ||  !(STT_Fund = siGet2(this,Eroute.logger(),ConfigFN,STT_Parms,envP)))
           return 1;
+       if (STT_DoARE) envP->PutPtr("XrdOssStatInfo2*", (void *)STT_Fund);
       } else {
        XrdOssStatInfoInit_t siGet;
        if (!(siGet = (XrdOssStatInfoInit_t)myLib.Resolve("XrdOssStatInfoInit"))
@@ -1603,11 +1605,13 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xstl
 
-   Purpose:  To parse the directive: statlib [-2] [non2n] [preopen] <path> [<parms>]
+   Purpose:  To parse the directive: statlib <Options> <path> [<parms>]
 
-             -2        use version 2 initialization interface.
-             non2n     do not apply name2name prior to calling plug-in.
-             preopen   issue the stat() prior to opening the file.
+   Options:  -2        use version 2 initialization interface.
+             -arevents forward add/remove events (server role cmsd only)
+             -non2n    do not apply name2name prior to calling plug-in.
+             -preopen  issue the stat() prior to opening the file.
+
              <path>    the path of the stat library to be used.
              <parms>   optional parms to be passed
 
@@ -1623,12 +1627,13 @@ int XrdOssSys::xstl(XrdOucStream &Config, XrdSysError &Eroute)
    if (!(val = Config.GetWord()) || !val[0])
       {Eroute.Emsg("Config", "statlib not specified"); return 1;}
 
-// Check for options
+// Check for options we support the old and new versions here
 //
-   STT_V2 = 0; STT_PreOp = 0; STT_DoN2N = 1;
-do{     if (!strcmp(val, "-2"))      STT_V2    = 1;
-   else if (!strcmp(val, "non2n"))   STT_DoN2N = 0;
-   else if (!strcmp(val, "preopen")) STT_PreOp = 1;
+   STT_V2 = 0; STT_PreOp = 0; STT_DoN2N = 1; STT_DoARE = 0;
+do{     if (!strcmp(val, "-2")) STT_V2    = 1;
+   else if (!strcmp(val, "arevents") || !strcmp(val, "-arevents")) STT_DoARE=1;
+   else if (!strcmp(val, "non2n")    || !strcmp(val, "-non2n"))    STT_DoN2N=0;
+   else if (!strcmp(val, "preopen")  || !strcmp(val, "-preopen"))  STT_PreOp=1;
    else break;
   } while((val = Config.GetWord()) && val[0]);
 

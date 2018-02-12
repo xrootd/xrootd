@@ -795,6 +795,7 @@ int XrdCmsConfig::ConfigOSS()
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
                               const char   *, XrdOucEnv  *, XrdVersionInfo &);
+   void *arFunc;
 
 // Set up environment for the OSS to keep it relevant for cmsd
 //
@@ -809,8 +810,14 @@ int XrdCmsConfig::ConfigOSS()
 
 // Load and return result
 //
-   return !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib,ossParms,
-                              &theEnv, *myVInfo));
+   ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib,ossParms,&theEnv,*myVInfo);
+   if (!ossFS) return 1;
+
+// Check if we should elay add/remove events to the statinfo function
+//
+   if (!isManager && isServer && (arFunc = theEnv.GetPtr("XrdOssStatInfo2*")))
+      return (XrdCmsAdmin::InitAREvents(arFunc) ? 0 : 1);
+   return 0;
 }
 
 /******************************************************************************/
