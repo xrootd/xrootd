@@ -412,7 +412,7 @@ do{areMutex.Lock();
              evType = XrdOssStatEvent::FileRemoved;
              evWhat = "gone ";
             }
-         (*areFunc)(evP->text, 0, evType, 0, 0);
+         (*areFunc)(evP->text, 0, evType, 0, evP->text);
          DEBUG("sending managers " <<evWhat <<evP->text);
          XrdCmsManager::Inform(reqCode, mod, evP->text, strlen(evP->text)+1);
          delete evP;
