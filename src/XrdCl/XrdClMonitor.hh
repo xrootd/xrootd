@@ -124,6 +124,7 @@ namespace XrdCl
         uint64_t            rBytes;  //!< Total number of bytes read via read
         uint64_t            vBytes;  //!< Total number of bytes read via readv
         uint64_t            wBytes;  //!< Total number of bytes written
+//      uint64_t            vwBytes;  //!< Total number of bytes written vie writev
         uint64_t            vSegs;   //!< Total count  of readv segments
         uint32_t            rCount;  //!< Total count  of reads
         uint32_t            vCount;  //!< Total count  of readv
@@ -142,6 +143,9 @@ namespace XrdCl
           ErrRead,      //!< Read
           ErrReadV,     //!< Readv
           ErrWrite,     //!< Write
+//        TODO
+//        ErrWriteV,    //!< WriteV (we can uncomment only when we do a major
+//                                   release as this is an ABI change)
           ErrUnc        //!< Unclassified operation
         };
 

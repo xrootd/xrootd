@@ -335,6 +335,33 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Write scattered data chunks in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::VectorWrite( const ChunkList &chunks,
+                            ResponseHandler *handler,
+                            uint16_t         timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->VectorWrite( chunks, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Read scattered data chunks in one operation - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::VectorWrite( const ChunkList  &chunks,
+                           uint16_t          timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = VectorWrite( chunks, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForStatus( &handler );
+  }
+
+  //------------------------------------------------------------------------
   // Write scattered buffers in one operation - async
   //------------------------------------------------------------------------
   XRootDStatus File::WriteV( uint64_t            offset,

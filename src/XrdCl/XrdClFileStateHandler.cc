@@ -952,6 +952,86 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Write scattered data chunks in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::VectorWrite( const ChunkList &chunks,
+                                              ResponseHandler *handler,
+                                              uint16_t         timeout )
+  {
+    //--------------------------------------------------------------------------
+    // Sanity check
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a vector write command for handle "
+                "0x%x to %s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Determine the size of the payload
+    //--------------------------------------------------------------------------
+
+    // the size of write vector
+    uint32_t payloadSize = sizeof(XrdProto::write_list) * chunks.size();
+
+    //--------------------------------------------------------------------------
+    // Build the message
+    //--------------------------------------------------------------------------
+    Message             *msg;
+    ClientWriteVRequest *req;
+    MessageUtils::CreateRequest( msg, req, payloadSize );
+
+    req->requestid = kXR_writev;
+    req->dlen      = sizeof(XrdProto::write_list) * chunks.size();
+
+    ChunkList *list   = new ChunkList();
+
+    //--------------------------------------------------------------------------
+    // Copy the chunk info
+    //--------------------------------------------------------------------------
+    XrdProto::write_list *writeList =
+        reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+
+
+
+    for( size_t i = 0; i < chunks.size(); ++i )
+    {
+      writeList[i].wlen   = chunks[i].length;
+      writeList[i].offset = chunks[i].offset;
+      memcpy( writeList[i].fhandle, pFileHandle, 4 );
+
+      list->push_back( ChunkInfo( chunks[i].offset,
+                                  chunks[i].length,
+                                  chunks[i].buffer ) );
+    }
+
+    //--------------------------------------------------------------------------
+    // Send the message
+    //--------------------------------------------------------------------------
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    if( pDataServer->IsLocalFile() )
+    {
+      XRootDStatus st = pLFileHandler->VectorWrite( *list, stHandler, timeout );
+      return ExamineLocalResult( st, msg, stHandler );
+    }
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //------------------------------------------------------------------------
   // Write scattered buffers in one operation - async
   //------------------------------------------------------------------------
   XRootDStatus FileStateHandler::WriteV( uint64_t            offset,
@@ -1356,9 +1436,12 @@ namespace XrdCl
       ClientRequest *req = (ClientRequest*)message->GetBuffer();
       switch( req->header.requestid )
       {
-        case kXR_read:  i.opCode = Monitor::ErrorInfo::ErrRead;  break;
-        case kXR_readv: i.opCode = Monitor::ErrorInfo::ErrReadV; break;
-        case kXR_write: i.opCode = Monitor::ErrorInfo::ErrWrite; break;
+        case kXR_read:   i.opCode = Monitor::ErrorInfo::ErrRead;  break;
+        case kXR_readv:  i.opCode = Monitor::ErrorInfo::ErrReadV; break;
+        case kXR_write:  i.opCode = Monitor::ErrorInfo::ErrWrite; break;
+        // TODO
+        // once we do major release we can replace this with 'ErrWriteV'
+        case kXR_writev: i.opCode = Monitor::ErrorInfo::ErrWrite; break;
         default: i.opCode = Monitor::ErrorInfo::ErrUnc;
       }
 
@@ -1473,11 +1556,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_readv:
       {
-        ++pVCount;
+        ++pVRCount;
         size_t segs = req->header.dlen/sizeof(readahead_list);
         readahead_list *dataChunk = (readahead_list*)message->GetBuffer( 24 );
         for( size_t i = 0; i < segs; ++i )
-          pVBytes += dataChunk[i].rlen;
+          pVRBytes += dataChunk[i].rlen;
         pVSegs += segs;
         break;
       }
@@ -1489,6 +1572,20 @@ namespace XrdCl
       {
         ++pWCount;
         pWBytes += req->write.dlen;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // Handle writev response
+      //------------------------------------------------------------------------
+      case kXR_writev:
+      {
+        ++pVWCount;
+        size_t size = req->header.dlen/sizeof(readahead_list);
+        XrdProto::write_list *wrtList =
+            reinterpret_cast<XrdProto::write_list*>( message->GetBuffer( 24 ) );
+        for( size_t i = 0; i < size; ++i )
+          pVWBytes += wrtList[i].wlen;
         break;
       }
     };
@@ -1898,6 +1995,17 @@ namespace XrdCl
           memcpy( dataChunk[i].fhandle, pFileHandle, 4 );
         break;
       }
+      case kXR_writev:
+      {
+        ClientWriteVRequest *req =
+            reinterpret_cast<ClientWriteVRequest*>( msg->GetBuffer() );
+        XrdProto::write_list *wrtList =
+            reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+        size_t size = req->dlen / sizeof(XrdProto::write_list);
+        for( size_t i = 0; i < size; ++i )
+          memcpy( wrtList[i].fhandle, pFileHandle, 4 );
+        break;
+      }
     }
 
     Log *log = DefaultEnv::GetLog();
@@ -1920,11 +2028,11 @@ namespace XrdCl
       i.oTOD = pOpenTime;
       gettimeofday( &i.cTOD, 0 );
       i.rBytes = pRBytes;
-      i.vBytes = pVBytes;
-      i.wBytes = pWBytes;
-      i.vSegs  = pVSegs;
+      i.vBytes = pVRBytes;
+      i.wBytes = pWBytes + pVWBytes; //TODO once we can break ABI compatibility
+      i.vSegs  = pVSegs;             // we will add a special field for WriteV
       i.rCount = pRCount;
-      i.vCount = pVCount;
+      i.vCount = pVRCount;
       i.wCount = pWCount;
       i.status = status;
       mon->Event( Monitor::EvClose, &i );

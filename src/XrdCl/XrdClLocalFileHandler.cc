@@ -146,7 +146,7 @@ namespace
         using namespace XrdCl;
 
         int rc = aio_return( me->cb.get() );
-        if( rc < -1 )
+        if( rc < 0 )
         {
           Log *log = DefaultEnv::GetLog();
           log->Error( FileMsg, GetErrMsg( me->opcode ), strerror( errno ) );
@@ -423,8 +423,8 @@ namespace XrdCl
       if( bytesRead < 0 )
       {
         Log *log = DefaultEnv::GetLog();
-        log->Error( FileMsg, "VectorRead: failed, file descriptor: %i, %s", fd,
-                    strerror( errno ) );
+        log->Error( FileMsg, "VectorRead: failed, file descriptor: %i, %s",
+                    fd, strerror( errno ) );
         XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                                 XProtocol::mapError( errno ),
                                                 strerror( errno ) );
@@ -440,6 +440,33 @@ namespace XrdCl
     AnyObject *resp = new AnyObject();
     resp->Set( info.release() );
     return QueueTask( new XRootDStatus(), resp, handler );
+  }
+
+  //------------------------------------------------------------------------
+  // VectorWrite
+  //------------------------------------------------------------------------
+  XRootDStatus LocalFileHandler::VectorWrite( const ChunkList &chunks,
+      ResponseHandler *handler, uint16_t timeout )
+  {
+
+    for( auto itr = chunks.begin(); itr != chunks.end(); ++itr )
+    {
+      auto &chunk = *itr;
+      ssize_t bytesWritten = pwrite( fd, chunk.buffer, chunk.length,
+                                     chunk.offset );
+      if( bytesWritten < 0 )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( FileMsg, "VectorWrite: failed, file descriptor: %i, %s",
+                    fd, strerror( errno ) );
+        XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                                XProtocol::mapError( errno ),
+                                                strerror( errno ) );
+        return QueueTask( error, 0, handler );
+      }
+    }
+
+    return QueueTask( new XRootDStatus(), 0, handler );
   }
 
   //------------------------------------------------------------------------

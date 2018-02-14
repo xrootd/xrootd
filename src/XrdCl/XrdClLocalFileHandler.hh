@@ -146,6 +146,18 @@ namespace XrdCl
           ResponseHandler *handler, uint16_t timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Write scattered data chunks in one operation - async
+      //!
+      //! @param chunks    list of the chunks to be read
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorWrite( const ChunkList &chunks,
+          ResponseHandler *handler, uint16_t timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Write scattered buffers in one operation - async
       //!
       //! @param offset    offset from the beginning of the file

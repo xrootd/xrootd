@@ -202,6 +202,19 @@ namespace XrdCl
                                uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Write scattered data chunks in one operation - async
+      //!
+      //! @param chunks    list of the chunks to be read
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorWrite( const ChunkList &chunks,
+                                ResponseHandler *handler,
+                                uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Write scattered buffers in one operation - async
       //!
       //! @param offset    offset from the beginning of the file
@@ -418,11 +431,11 @@ namespace XrdCl
       {
         pOpenTime.tv_sec = 0; pOpenTime.tv_usec = 0;
         pRBytes      = 0;
-        pVBytes      = 0;
+        pVRBytes     = 0;
         pWBytes      = 0;
         pVSegs       = 0;
         pRCount      = 0;
-        pVCount      = 0;
+        pVRCount     = 0;
         pWCount      = 0;
         pCloseReason = Status();
       }
@@ -462,12 +475,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       timeval                  pOpenTime;
       uint64_t                 pRBytes;
-      uint64_t                 pVBytes;
+      uint64_t                 pVRBytes;
       uint64_t                 pWBytes;
+      uint64_t                 pVWBytes;
       uint64_t                 pVSegs;
       uint64_t                 pRCount;
-      uint64_t                 pVCount;
+      uint64_t                 pVRCount;
       uint64_t                 pWCount;
+      uint64_t                 pVWCount;
       XRootDStatus             pCloseReason;
 
       //------------------------------------------------------------------------

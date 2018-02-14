@@ -736,6 +736,16 @@ namespace XrdCl
         break;
       }
 
+      //------------------------------------------------------------------------
+      // WriteV - multiplexing writes doesn't work properly in the server
+      //------------------------------------------------------------------------
+      case kXR_writev:
+      {
+//        ClientWriteVRequest *req = (ClientWriteVRequest*)msg->GetBuffer();
+//        req->pathid = info->stream[downStream].pathId;
+        break;
+      }
+
     };
     MarshallRequest( msg );
     return PathID( upStream, downStream );
@@ -865,6 +875,22 @@ namespace XrdCl
         {
           dataChunk[i].rlen   = htonl( dataChunk[i].rlen );
           dataChunk[i].offset = htonll( dataChunk[i].offset );
+        }
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_writev
+      //------------------------------------------------------------------------
+      case kXR_writev:
+      {
+        uint16_t numChunks  = (req->writev.dlen)/16;
+        XrdProto::write_list *wrtList =
+            reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+        for( size_t i = 0; i < numChunks; ++i )
+        {
+          wrtList[i].wlen   = htonl( wrtList[i].wlen );
+          wrtList[i].offset = htonll( wrtList[i].offset );
         }
       }
     };
@@ -2243,6 +2269,36 @@ namespace XrdCl
         {
           fhandle = dataChunk[i].fhandle;
           size += dataChunk[i].rlen;
+          ++numChunks;
+        }
+        o << "handle: ";
+        if( fhandle )
+          o << FileHandleToStr( fhandle );
+        else
+          o << "unknown";
+        o << ", ";
+        o << std::setbase(10);
+        o << "chunks: " << numChunks << ", ";
+        o << "total size: " << size << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_writev
+      //------------------------------------------------------------------------
+      case kXR_writev:
+      {
+        unsigned char *fhandle = 0;
+        o << "kXR_writev (";
+
+        XrdProto::write_list *wrtList =
+            reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+        uint64_t size      = 0;
+        uint32_t numChunks = 0;
+        for( size_t i = 0; i < req->dlen/sizeof(XrdProto::write_list); ++i )
+        {
+          fhandle = wrtList[i].fhandle;
+          size   += wrtList[i].wlen;
           ++numChunks;
         }
         o << "handle: ";

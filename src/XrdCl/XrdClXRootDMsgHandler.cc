@@ -1061,7 +1061,7 @@ namespace XrdCl
   {
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
-    if( reqId == kXR_write )
+    if( reqId == kXR_write || reqId == kXR_writev )
       return true;
     return false;
   }
@@ -1246,6 +1246,7 @@ namespace XrdCl
       case kXR_ping:
       case kXR_close:
       case kXR_write:
+      case kXR_writev:
       case kXR_sync:
         return Status();
 

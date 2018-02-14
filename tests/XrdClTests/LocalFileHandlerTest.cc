@@ -41,6 +41,7 @@ class LocalFileHandlerTest: public CppUnit::TestCase
       CPPUNIT_TEST( WriteMkdirTest );
       CPPUNIT_TEST( TruncateTest );
       CPPUNIT_TEST( VectorReadTest );
+      CPPUNIT_TEST( VectorWriteTest );
       CPPUNIT_TEST( SyncTest );
       CPPUNIT_TEST( WriteVTest );
     CPPUNIT_TEST_SUITE_END();
@@ -53,6 +54,7 @@ class LocalFileHandlerTest: public CppUnit::TestCase
     void WriteMkdirTest();
     void TruncateTest();
     void VectorReadTest();
+    void VectorWriteTest();
     void SyncTest();
     void WriteVTest();
 };
@@ -370,6 +372,57 @@ void LocalFileHandlerTest::VectorReadTest()
 
    delete[] buffer;
    delete info;
+}
+
+void LocalFileHandlerTest::VectorWriteTest()
+{
+   using namespace XrdCl;
+
+   //----------------------------------------------------------------------------
+   // Initialize
+   //----------------------------------------------------------------------------
+   std::string targetURL = "/tmp/lfilehandlertestfilevectorwrite";
+   CreateTestFileFunc( targetURL );
+   ChunkList chunks;
+
+   //----------------------------------------------------------------------------
+   // Prepare VectorWrite
+   //----------------------------------------------------------------------------
+   OpenFlags::Flags flags = OpenFlags::Update;
+   Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
+   File file;
+   CPPUNIT_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
+
+   //----------------------------------------------------------------------------
+   // VectorWrite
+   //----------------------------------------------------------------------------
+
+   ChunkInfo chunk( 0, 5, new char[5] );
+   memset( chunk.buffer, 'A', chunk.length );
+   chunks.push_back( chunk );
+   chunk = ChunkInfo( 10, 5, new char[5] );
+   memset( chunk.buffer, 'B', chunk.length );
+   chunks.push_back( chunk );
+
+   CPPUNIT_ASSERT_XRDST( file.VectorWrite( chunks ) );
+
+   //----------------------------------------------------------------------------
+   // Verify with VectorRead
+   //----------------------------------------------------------------------------
+
+   VectorReadInfo *info = 0;
+   char *buffer = new char[10];
+   CPPUNIT_ASSERT_XRDST( file.VectorRead( chunks, buffer, info ) );
+
+   CPPUNIT_ASSERT_EQUAL( 0, memcmp( buffer, "AAAAABBBBB", 10 ) );
+
+   CPPUNIT_ASSERT_XRDST( file.Close() );
+   CPPUNIT_ASSERT( info->GetSize() == 10 );
+
+   delete[] (char*)chunks[0].buffer;
+   delete[] (char*)chunks[1].buffer;
+   delete[] buffer;
+   delete   info;
 }
 
 void LocalFileHandlerTest::WriteVTest()

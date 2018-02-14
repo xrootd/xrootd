@@ -328,6 +328,32 @@ namespace XrdCl
                                XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
+      //! Write scattered data chunks in one operation - async
+      //!
+      //! @param chunks    list of the chunks to be written.
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorWrite( const ChunkList &chunks,
+                                ResponseHandler *handler,
+                                uint16_t         timeout = 0 )
+                                XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Write scattered data chunks in one operation - sync
+      //!
+      //! @param chunks    list of the chunks to be written.
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorWrite( const ChunkList  &chunks,
+                               uint16_t          timeout = 0 )
+                               XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
       //! Write scattered buffers in one operation - async
       //!
       //! @param offset    offset from the beginning of the file
