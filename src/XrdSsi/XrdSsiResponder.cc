@@ -135,7 +135,7 @@ XrdSsiResponder::~XrdSsiResponder()
 
 void XrdSsiResponder::Alert(XrdSsiRespInfoMsg &aMsg)
 {
-   XrdSsiMutexMon(spMutex);
+   XrdSsiMutexMon lck(spMutex);
 
 // If we have a request pointer then forward the alert. Otherwise, deep-six it
 //
@@ -149,7 +149,7 @@ void XrdSsiResponder::Alert(XrdSsiRespInfoMsg &aMsg)
 
 void XrdSsiResponder::BindRequest(XrdSsiRequest   &rqstR)
 {
-   XrdSsiMutexMon(spMutex);
+   XrdSsiMutexMon lck(spMutex);
 
 // Get the request lock and link the request to this object and vice versa
 //
@@ -178,7 +178,7 @@ void XrdSsiResponder::BindRequest(XrdSsiRequest   &rqstR)
 
 char *XrdSsiResponder::GetRequest(int &dlen)
 {
-   XrdSsiMutexMon(spMutex);
+   XrdSsiMutexMon lck(spMutex);
 
 // If we have a request pointer, forward the call. Otherwise return nothing.
 //
@@ -193,7 +193,7 @@ char *XrdSsiResponder::GetRequest(int &dlen)
   
 void XrdSsiResponder::ReleaseRequestBuffer()
 {
-   XrdSsiMutexMon(spMutex);
+   XrdSsiMutexMon lck(spMutex);
 
 // If we have a request, forward the call (note we need to also get the
 // the request lock to properly serialize this call).
@@ -207,7 +207,7 @@ void XrdSsiResponder::ReleaseRequestBuffer()
   
 XrdSsiResponder::Status XrdSsiResponder::SetMetadata(const char *buff, int blen)
 {
-   XrdSsiMutexMon(spMutex);
+   XrdSsiMutexMon lck(spMutex);
 
 // If we don't have a request or the args are invalid, return an error.
 //

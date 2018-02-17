@@ -295,7 +295,7 @@ do{if ((retc = readdir_r(dh, d_pnt, &rp)))
            n = sizeof(dirent_full.nbf) - (n + 8);
            if ((n = readlinkat(dirFD,rp->d_name,dP,n)) < 0) strcpy(dP,"?");
               else *(dP+n) = 0;
-           strncpy(dP-4, " -> ", 4);
+           memcpy(dP-4, " -> ", 4);
           }
       }
 #endif

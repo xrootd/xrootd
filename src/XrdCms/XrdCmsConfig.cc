@@ -2063,7 +2063,9 @@ int XrdCmsConfig::xnbsq(XrdSysError *eDest, XrdOucStream &CFile)
 // Now scan for the other options
 //
    while(val && *val)
-        {strncpy(xopt, val, sizeof(xopt));
+        {size_t size = sizeof(xopt)-1;
+	 strncpy(xopt, val, size);
+	 xopt[size] = '\0';
          if (!(val= CFile.GetWord()) || *val == 0)
             {eDest->Emsg("Config","nbsendq ", xopt, " argument not specified");
              return 1;

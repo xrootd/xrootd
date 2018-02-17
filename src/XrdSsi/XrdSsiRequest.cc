@@ -138,7 +138,7 @@ bool XrdSsiRequest::Finished(bool cancel)
   
 std::string XrdSsiRequest::GetEndPoint()
 {
-   XrdSsiMutexMon(rrMutex);
+   XrdSsiMutexMon lck(rrMutex);
    std::string epName(epNode ? epNode : "");
    return epName;
 }
@@ -149,7 +149,7 @@ std::string XrdSsiRequest::GetEndPoint()
 
 const char *XrdSsiRequest::GetMetadata(int &dlen)
 {
-   XrdSsiMutexMon(rrMutex);
+   XrdSsiMutexMon lck(rrMutex);
    if ((dlen = Resp.mdlen)) return Resp.mdata;
    return 0;
 }
@@ -183,7 +183,7 @@ void XrdSsiRequest::GetResponseData(char *buff, int  blen)
   
 void XrdSsiRequest::ReleaseRequestBuffer()
 {
-   XrdSsiMutexMon(rrMutex);
+   XrdSsiMutexMon lck(rrMutex);
    RelRequestBuffer();
 }
 

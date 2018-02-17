@@ -541,7 +541,7 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
 {
    krb_rc rc;
-   char buff[1024];
+   char buff[2048];
 
 // Create a kerberos context. There is one such context per protocol object.
 //

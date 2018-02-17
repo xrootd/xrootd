@@ -1500,20 +1500,20 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Check the username
     //--------------------------------------------------------------------------
+    std::string buffer( 8, 0 );
     if( hsData->url->GetUserName().length() )
-    {
-      ::strncpy( (char*)loginReq->username,
-                 hsData->url->GetUserName().c_str(), 8 );
-    }
+      buffer = hsData->url->GetUserName();
     else
     {
       char *name = new char[1024];
       if( !XrdOucUtils::UserName( geteuid(), name, 1024 ) )
-        ::strncpy( (char*)loginReq->username, name, 8 );
+	buffer = name;
       else
-        ::strncpy( (char*)loginReq->username, "????", 8 );
+	buffer = "????";
       delete [] name;
     }
+    buffer.resize( 8, 0 );
+    std::copy( buffer.begin(), buffer.end(), (char*)loginReq->username );
 
     msg->Append( cgiBuffer, cgiLen, 24 );
 

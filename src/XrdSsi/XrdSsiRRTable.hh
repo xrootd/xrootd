@@ -51,7 +51,7 @@ void  Add(T *item, uint64_t itemID)
 void  Clear() {rrtMutex.Lock(); theMap.clear(); rrtMutex.UnLock();}
 
 void  Del(uint64_t itemID, bool finit=false)
-         {XrdSsiMutexMon(rrtMutex);
+         {XrdSsiMutexMon lck(rrtMutex);
           if (baseItem && baseKey == itemID)
              {if (finit) baseItem->Finalize();
               baseItem = 0;
@@ -65,14 +65,14 @@ void  Del(uint64_t itemID, bool finit=false)
          }
 
 T    *LookUp(uint64_t itemID)
-            {XrdSsiMutexMon(rrtMutex);
+            {XrdSsiMutexMon lck(rrtMutex);
              if (baseItem && baseKey == itemID) return baseItem;
              typename std::map<uint64_t,T*>::iterator it = theMap.find(itemID);
              return (it == theMap.end() ? 0 : it->second);
             }
 
 void  Reset()
-           {XrdSsiMutexMon(rrtMutex);
+           {XrdSsiMutexMon lck(rrtMutex);
             typename std::map<uint64_t, T*>::iterator it = theMap.begin();
             while(it != theMap.end())
                  {it->second->Finalize();
