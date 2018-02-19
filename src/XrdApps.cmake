@@ -46,6 +46,7 @@ add_executable(
 
 target_link_libraries(
   mpxstats
+  XrdAppUtils
   XrdUtils
   ${EXTRA_LIBS}
   pthread
@@ -89,13 +90,28 @@ target_link_libraries(
   XrdUtils )
 
 #-------------------------------------------------------------------------------
+# xrdqstats
+#-------------------------------------------------------------------------------
+add_executable(
+  xrdqstats
+  XrdApps/XrdQStats.cc )
+
+target_link_libraries(
+  xrdqstats
+  XrdCl
+  XrdAppUtils
+  XrdUtils
+  ${EXTRA_LIBS} )
+
+#-------------------------------------------------------------------------------
 # AppUtils
 #-------------------------------------------------------------------------------
 add_library(
   XrdAppUtils
   SHARED
   XrdApps/XrdCpConfig.cc          XrdApps/XrdCpConfig.hh
-  XrdApps/XrdCpFile.cc            XrdApps/XrdCpFile.hh )
+  XrdApps/XrdCpFile.cc            XrdApps/XrdCpFile.hh
+  XrdApps/XrdMpxXml.cc            XrdApps/XrdMpxXml.hh )
 
 target_link_libraries(
   XrdAppUtils
