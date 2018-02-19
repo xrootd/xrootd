@@ -51,7 +51,7 @@ check_symbol_exists(
         TLS_method
         ${OPENSSL_INCLUDE_DIR}/openssl/ssl.h 
 	HAVE_TLS_SYMB)
-if( DEFINED HAVE_TLS_FUNC AND DEFINED HAVE_TLS_SYMB )
+if( HAVE_TLS_FUNC AND HAVE_TLS_SYMB )
     add_definitions( -DHAVE_TLS )
 endif()
 
@@ -60,7 +60,7 @@ check_symbol_exists(
         TLSv1_2_method
         ${OPENSSL_INCLUDE_DIR}/openssl/ssl.h 
 	HAVE_TLS12_SYMB)
-if( DEFINED HAVE_TLS12_FUNC AND DEFINED HAVE_TLS12_SYMB )
+if( HAVE_TLS12_FUNC AND HAVE_TLS12_SYMB )
     add_definitions( -DHAVE_TLS12 )
 endif()
 
@@ -69,7 +69,7 @@ check_symbol_exists(
         TLSv1_1_method 
 	${OPENSSL_INCLUDE_DIR}/openssl/ssl.h
         HAVE_TLS11_SYMB)
-if( DEFINED HAVE_TLS11_FUNC AND DEFINED HAVE_TLS11_SYMB )
+if( HAVE_TLS11_FUNC AND HAVE_TLS11_SYMB )
     add_definitions( -DHAVE_TLS11 )
 endif()
 
@@ -78,6 +78,6 @@ check_symbol_exists(
         TLSv1_method 
 	${OPENSSL_INCLUDE_DIR}/openssl/ssl.h
         HAVE_TLS1_SYMB)
-if( DEFINED HAVE_TLS1_FUNC AND DEFINED HAVE_TLS1_SYMB )
+if( HAVE_TLS1_FUNC AND HAVE_TLS1_SYMB )
     add_definitions( -DHAVE_TLS1 )
 endif()
