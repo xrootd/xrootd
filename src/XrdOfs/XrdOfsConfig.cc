@@ -232,9 +232,9 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
        ofsConfig->Default(XrdOfsConfigPI::theCksLib, buff, 0);
       }
 
-// Configure third party copy but only if we are not a manager or a proxy
+// Configure third party copy but only if we are not a manager
 //
-   if ((Options & ThirdPC) && !(Options & isProxy) && !(Options & isManager))
+   if ((Options & ThirdPC) && !(Options & isManager))
       if (!XrdOfsTPC::Start()) NoGo = 1;
 
 // We need to do pre-initialization for event recording as the oss needs some
@@ -299,6 +299,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       {if (poscAuto != -1 && !NoGo)
           Eroute.Say("Config POSC has been disabled by the osslib plugin.");
       } else if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
+
+// If the OSS plugin is really a proxy. If it is, it will export its origin.
+//
+   if (getenv("XRDXROOTD_PROXY")) OssIsProxy = 1;
 
 // Setup statistical monitoring
 //

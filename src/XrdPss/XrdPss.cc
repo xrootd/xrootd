@@ -650,6 +650,8 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    const char *Cgi;
    char pbuff[PBsz], cbuff[CBsz];
    int CgiLen, retc;
+   bool tpcMode = (Oflag & O_NOFOLLOW) != 0;
+   bool rwMode  = (Oflag & (O_WRONLY | O_RDWR | O_APPEND)) != 0;
 
 // Return an error if the object is already open
 //
@@ -657,15 +659,33 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // If we are opening this in r/w mode make sure we actually can
 //
-   if ((Oflag & (O_WRONLY | O_RDWR | O_APPEND)) && (popts & XRDEXP_NOTRW))
-      {if (popts & XRDEXP_FORCERO) Oflag = O_RDONLY;
+   if (rwMode && (popts & XRDEXP_NOTRW))
+      {if (popts & XRDEXP_FORCERO && !tpcMode) Oflag = O_RDONLY;
           else return -EROFS;
       }
+
+// If this is a third party copy open, then strange rules apply. If this is an
+// outgoing proxy we let everything pass through as this may be a TPC request
+// elsewhere. We do the same for object ID's as we don't know how to handle it.
+// Otherwise, if it's an open for reading, we open the file but strip off all
+// CGI (technically, we should only remove the "tpc" tokens) because the source
+// might not support direct TPC mode. If we are opening for writing, then we
+// skip the open and mark this as a TPC handle which can only be used for
+// fstat() and close(). Any other actions return an error.
+//
+   if (tpcMode)
+      {Oflag &= ~O_NOFOLLOW;
+       if (!XrdPssSys::outProxy && *path == '/')
+          {if (rwMode) {isTPC = true; return XrdOssOK;}
+           Cgi = ""; CgiLen = 0;
+          } else {
+           Cgi= Env.Env(CgiLen);
+          }
+      } else Cgi= Env.Env(CgiLen);
 
 // Setup any required cgi information. Don't mess with it if it's an objectid
 // or if the we are an outgoing proxy server.
 //
-   Cgi= Env.Env(CgiLen);
    if (!XrdPssSys::outProxy && *path == '/')
       {if (!(XRDEXP_STAGE & popts))
           {if (!CgiLen) {Cgi = osslclCGI; CgiLen = osslclCGL;}
@@ -705,7 +725,7 @@ int XrdPssFile::Close(long long *retsz)
 {   int rc;
 
     if (retsz) *retsz = 0;
-    if (fd < 0) return -XRDOSS_E8004;
+    if (fd < 0) return (isTPC ? XrdOssOK : -XRDOSS_E8004);
     rc = XrdPosixXrootd::Close(fd);
     fd = -1;
     return (rc == 0 ? XrdOssOK : -errno);
@@ -844,7 +864,11 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
 
 int XrdPssFile::Fstat(struct stat *buff)
 {
-    if (fd < 0) return -XRDOSS_E8004;
+    if (fd < 0)
+       {if (!isTPC) return -XRDOSS_E8004;
+        memset(buff, 0, sizeof(struct stat));
+        return XrdOssOK;
+       }
 
     return (XrdPosixXrootd::Fstat(fd, buff) ? -errno : XrdOssOK);
 }

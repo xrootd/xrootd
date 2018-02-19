@@ -137,6 +137,7 @@ XrdOfs::XrdOfs()
    Balancer      = 0;
    evsObject     = 0;
    myRole        = strdup("server");
+   OssIsProxy    = 0;
    ossRW         =' ';
 
 // Obtain port number we will be using. Note that the constructor must occur
@@ -605,6 +606,11 @@ int XrdOfsFile::open(const char          *path,      // In
 //
    if (!(oP.fP = XrdOfsOss->newFile(tident)))
       return XrdOfsFS->Emsg(epname, error, ENOMEM, "open", path);
+
+// We need to make special provisions for proxy servers in the presence of
+// the TPC option as it's handled differently in this case.
+//
+   if (myTPC && XrdOfsFS->OssIsProxy) open_flag |= O_NOFOLLOW;
 
 // Open the file
 //
