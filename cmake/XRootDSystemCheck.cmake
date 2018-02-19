@@ -3,6 +3,7 @@
 #-------------------------------------------------------------------------------
 
 include( CheckFunctionExists )
+include( CheckSymbolExists ) 
 include( CheckLibraryExists )
 include( CheckIncludeFile )
 include( CheckCXXSourceRuns )
