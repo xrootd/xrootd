@@ -76,6 +76,7 @@ public:
 virtual int     Close(long long *retsz=0);
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &);
 
+int     Fchmod(mode_t mode) {return XrdOssOK;}
 int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
@@ -91,14 +92,14 @@ ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
  
          // Constructor and destructor
-         XrdPssFile(const char *tid) : tident(tid) {fd = -1;}
+         XrdPssFile(const char *tid) : tident(tid), isTPC(false) {fd = -1;}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();}
 
 private:
 
 const char *tident;
-      int   crOpts;
+      bool  isTPC;;
 };
 
 /******************************************************************************/

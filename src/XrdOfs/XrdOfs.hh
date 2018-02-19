@@ -378,8 +378,8 @@ char              ossRW;          // The oss r/w capability
 bool              CksPfn;         // Checksum needs a pfn
 XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
 XrdCks           *Cks;            // Checksum manager
-int               Reserved4;      // Reserved for future checksum stuff
-
+char              Reserved[3];    // Reserved for future checksum stuff
+char              OssIsProxy;     // !0 if we detect the oss plugin is a proxy
 char              myRType[4];     // Role type for consistency with the cms
 
 XrdVersionInfo   *myVersion;      // Version number compiled against
