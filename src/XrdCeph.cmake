@@ -1,5 +1,7 @@
-include( XRootDCommon )
+include_directories( ${XROOTD_INCLUDE_DIR} )
 include_directories( ${RADOS_INCLUDE_DIR} )
+include_directories( ${CMAKE_SOURCE_DIR}/src )
+
 
 #-------------------------------------------------------------------------------
 # XrdCephPosix library version
@@ -30,7 +32,7 @@ ENDIF()
 
 target_link_libraries(
   XrdCephPosix
-  XrdUtils
+  ${XROOTD_LIBRARIES}  
   ${RADOS_LIBS} )
 
 set_target_properties(
@@ -55,7 +57,7 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_CEPH}
-  XrdUtils
+  ${XROOTD_LIBRARIES}  
   XrdCephPosix )
 
 set_target_properties(
@@ -76,7 +78,7 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_CEPH_XATTR}
-  XrdUtils
+  ${XROOTD_LIBRARIES}  
   XrdCephPosix )
 
 set_target_properties(

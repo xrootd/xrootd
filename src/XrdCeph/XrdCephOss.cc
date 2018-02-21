@@ -32,7 +32,7 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdOuc/XrdOucN2NLoader.hh"
+#include "private/XrdOuc/XrdOucN2NLoader.hh"
 #include "XrdVersion.hh"
 #include "XrdCeph/XrdCephOss.hh"
 #include "XrdCeph/XrdCephOssDir.hh"

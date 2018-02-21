@@ -7,7 +7,7 @@ IF(CMAKE_VERSION VERSION_GREATER "2.8.12")
    CMAKE_POLICY(SET CMP0022 OLD)
 ENDIF()
 
-project( XRootD )
+project( xrootd-ceph )
 
 set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
@@ -22,7 +22,6 @@ CheckBuildDirectory()
 
 include( XRootDOSDefs )
 include( XRootDDefaults )
-include( XRootDSystemCheck )
 include( XRootDFindLibs )
 
 add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
@@ -54,7 +53,6 @@ endmacro()
 # Build in subdirectories
 #-------------------------------------------------------------------------------
 add_subdirectory( src )
-add_subdirectory( bindings )
 
 if( BUILD_TESTS )
   ENABLE_TESTING()

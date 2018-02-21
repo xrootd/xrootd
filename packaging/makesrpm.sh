@@ -177,7 +177,7 @@ echo "[i] RPM compliant version: $VERSION-$RELEASE"
 # exit on any error
 set -e
 
-TEMPDIR=`mktemp -d /tmp/xrootd.srpm.XXXXXXXXXX`
+TEMPDIR=`mktemp -d /tmp/xrootd-ceph.srpm.XXXXXXXXXX`
 RPMSOURCES=$TEMPDIR/rpmbuild/SOURCES
 mkdir -p $RPMSOURCES
 mkdir -p $TEMPDIR/rpmbuild/SRPMS
@@ -199,12 +199,12 @@ fi
 #-------------------------------------------------------------------------------
 # Generate the spec file
 #-------------------------------------------------------------------------------
-if test ! -r rhel/xrootd.spec.in; then
+if test ! -r rhel/xrootd-ceph.spec.in; then
   echo "[!] The specfile template does not exist!" 1>&2
   exit 7
 fi
-cat rhel/xrootd.spec.in | sed "s/__VERSION__/$VERSION/" | \
-  sed "s/__RELEASE__/$RELEASE/" > $TEMPDIR/xrootd.spec
+cat rhel/xrootd-ceph.spec.in | sed "s/__VERSION__/$VERSION/" | \
+  sed "s/__RELEASE__/$RELEASE/" > $TEMPDIR/xrootd-ceph.spec
 
 #-------------------------------------------------------------------------------
 # Make a tarball of the latest commit on the branch
@@ -221,33 +221,14 @@ if test $? -ne 0; then
   exit 5
 fi
 
-git archive --prefix=xrootd/ --format=tar $COMMIT | gzip -9fn > \
-      $RPMSOURCES/xrootd.tar.gz
+git archive --prefix=xrootd-ceph/ --format=tar $COMMIT | gzip -9fn > \
+      $RPMSOURCES/xrootd-ceph.tar.gz
 
 if test $? -ne 0; then
   echo "[!] Unable to create the source tarball" 1>&2
   exit 6
 fi
 
-#-------------------------------------------------------------------------------
-# Check if we need some other versions
-#-------------------------------------------------------------------------------
-OTHER_VERSIONS=`cat $TEMPDIR/xrootd.spec | \
-    egrep '^Source[0-9]+:[[:space:]]*xrootd-.*.gz$' |\
-    awk  '{ print $2; }'`
-
-for VER in $OTHER_VERSIONS; do
-    VER=${VER/xrootd-/}
-    VER=${VER/.tar.gz/}
-
-    git archive --prefix=xrootd-$VER/ --format=tar v$VER | gzip -9fn > \
-        $RPMSOURCES/xrootd-$VER.tar.gz
-
-    if test $? -ne 0; then
-        echo "[!] Unable to create the source tarball" 1>&2
-        exit 9
-    fi
-done
 cd $CWD
 
 #-------------------------------------------------------------------------------
@@ -263,13 +244,13 @@ eval "rpmbuild --define \"_topdir $TEMPDIR/rpmbuild\"    \
                --define \"_source_filedigest_algorithm md5\" \
                --define \"_binary_filedigest_algorithm md5\" \
                ${USER_DEFINE} \
-               -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log"
+               -bs $TEMPDIR/xrootd-ceph.spec > $TEMPDIR/log"
 if test $? -ne 0; then
   echo "[!] RPM creation failed" 1>&2
   exit 8
 fi
 
-cp $TEMPDIR/rpmbuild/SRPMS/xrootd*.src.rpm $OUTPUTPATH
+cp $TEMPDIR/rpmbuild/SRPMS/xrootd-ceph*.src.rpm $OUTPUTPATH
 rm -rf $TEMPDIR
 
 echo "[i] Done."

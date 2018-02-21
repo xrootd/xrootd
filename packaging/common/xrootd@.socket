@@ -1,9 +1,0 @@
-[Unit]
-Description=XRootD socket
-
-[Socket]
-ListenStream=1094
-Service=xrootd@%i.service
-
-[Install]
-WantedBy=sockets.target
