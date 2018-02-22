@@ -87,14 +87,19 @@ ResRems       = 0; // Stats: Number of resource removals
 int XrdSsiStats::Stats(char *buff, int blen)
 {
    static const char statfmt[] = "<stats id=\"ssi\"><err>%d</err>"
-   "<req><bytes>%lld</bytes><maxsz>%lld</maxsz>"
-   "<ab>%d</ab><al>%d</al><bnd>%d</bnd><can>%d</can><cnt>%d</cnt>"
-   "<fin>%d</fin><finf>%d</finf><gets>%d</gets><perr>%d</perr>"
-   "<proc>%d</proc><rdr>%d</rdr><relb>%d</relb><dly>%d</dly></req>"
-   "<rsp><bad>%d</bad><cbk>%d</cbk><data>%d</data><errs>%d</errs>"
-   "<file>%d</file><rdy>%d</rdy><str>%d</str><unr>%d</unr>"
-   "<mdb>%lld</mdb</rsp>"
-   "<res><add>%d</add><rem>%d</rem></res></stats>";
+   "<req>"
+   "<bytes>%lld</bytes><maxsz>%lld</maxsz><cnt>%d</cnt>"
+   "<bnd>%d</bnd><rdr>%d</rdr><dly>%d</dly>"
+   "<ab>%d</ab><proc>%d</proc><gets>%d</gets>"
+   "<relb>%d</relb><al>%d</al><fin>%d</fin>"
+   "<can>%d</can><finf>%d</finf><perr>%d</perr>"
+   "</req><rsp>"
+   "<bad>%d</bad><cbk>%d</cbk><data>%d</data><errs>%d</errs>"
+   "<file>%d</file><str>%d</str><rdy>%d</rdy><unr>%d</unr>"
+   "<mdb>%lld</mdb"
+   "</rsp><res>"
+   "<add>%d</add><rem>%d</rem>"
+   "</res></stats>";
 //                                   1 2 3 4 5 6 7 8
    static const long long LLMax = 0x7fffffffffffffffLL;
    static const int       INMax = 0x7fffffff;
@@ -104,10 +109,11 @@ int XrdSsiStats::Stats(char *buff, int blen)
 //
    if (!buff)
       {char dummy[4096]; // Almost any size will do
-       len = snprintf(dummy, sizeof(dummy), statfmt, LLMax, LLMax,
-       /*<ab>*/       INMax, INMax, INMax, INMax, INMax,
-       /*<fin>*/      INMax, INMax, INMax, INMax,
-       /*<proc>*/     INMax, INMax, INMax, INMax,
+       len = snprintf(dummy, sizeof(dummy), statfmt, INMax,
+       /*<bytes>*/    LLMax, LLMax, INMax,
+       /*<bnd>*/      INMax, INMax, INMax,
+       /*<relb>*/     INMax, INMax, INMax,
+       /*<can>*/      INMax, INMax, INMax,
        /*<rsp>*/      INMax, INMax, INMax, INMax,
        /*<file>*/     INMax, INMax, INMax, INMax, LLMax,
        /*<res>*/      INMax, INMax);
@@ -118,13 +124,14 @@ int XrdSsiStats::Stats(char *buff, int blen)
 //
    statsMutex.Lock();
    len = snprintf(buff, blen, statfmt, SsiErrs,
-                  ReqBytes, ReqMaxsz,
-                  ReqAborts, ReqAlerts, ReqBound, ReqCancels, ReqCount,
-                  ReqFinished, ReqFinForce, ReqGets, ReqPrepErrs,
-                  ReqProcs, ReqRedir, ReqRelBuf, ReqStalls,
-                  RspBad, RspCallBK, RspData, RspErrs,
-                  RspFile, RspReady, RspStrm, RspUnRdy, RspMDBytes,
-                  ResAdds, ResRems);
+                  ReqBytes,   ReqMaxsz,    ReqCount,
+                  ReqBound,   ReqRedir,    ReqStalls,
+                  ReqAborts,  ReqProcs,    ReqGets,
+                  ReqRelBuf,  ReqAlerts,   ReqFinished,
+                  ReqCancels, ReqFinForce, ReqPrepErrs,
+                  RspBad,     RspCallBK,   RspData,      RspErrs,
+                  RspFile,    RspStrm,     RspReady,     RspUnRdy,
+                  RspMDBytes, ResAdds,     ResRems);
    statsMutex.UnLock();
 
 // Now include filesystem statistics and return
