@@ -55,6 +55,7 @@
 #include "XrdSsi/XrdSsiRRInfo.hh"
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
+#include "XrdSsi/XrdSsiStats.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
@@ -70,6 +71,7 @@ namespace XrdSsi
 extern XrdOucBuffPool   *BuffPool;
 extern XrdSsiProvider   *Provider;
 extern XrdSsiService    *Service;
+extern XrdSsiStats       Stats;
 extern XrdSysError       Log;
 extern int               respWT;
 };
@@ -202,6 +204,7 @@ bool XrdSsiFileSess::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
       {attnResp->ioV[2].iov_base = (void *)respP->mdata;
        attnResp->ioV[2].iov_len  =         respP->mdlen; ioN = 3;
        attnResp->aHdr.mdLen = htonl(respP->mdlen);
+       Stats.Bump(Stats.RspMDBytes, respP->mdlen);
        if (QTRACE(Debug))
           {char hexBuff[16],dotBuff[4];
            DEBUG(reqID <<':' <<gigID <<' ' <<respP->mdlen <<" byte metadata (0x"
@@ -250,6 +253,13 @@ int XrdSsiFileSess::close(bool viaDel)
 // Do some debugging
 //
    DEBUG((gigID ? gigID : "???") <<" del=" <<viaDel);
+
+// Collect statistics if this is a delete which implies a lost connection
+//
+   if (viaDel)
+      {int rCnt = rTab.Num();
+       if (rCnt) Stats.Bump(Stats.ReqFinForce, rCnt);
+      }
 
 // Run through all outstanding requests and comlete them
 //
@@ -310,6 +320,7 @@ int XrdSsiFileSess::fctl(const int           cmd,
 //
    if (rqstP->WantResponse(*eInfo))
       {DEBUG(reqID <<':' <<gigID <<" resp ready");
+       Stats.Bump(Stats.RspReady);
        return SFS_DATAVEC;
       }
 
@@ -318,6 +329,7 @@ int XrdSsiFileSess::fctl(const int           cmd,
    DEBUG(reqID <<':' <<gigID <<" resp not ready");
    eInfo->setErrCB((XrdOucEICB *)rqstP);
    eInfo->setErrInfo(respWT, "");
+   Stats.Bump(Stats.RspUnRdy);
    return SFS_STARTED;
 }
 
@@ -434,6 +446,7 @@ int XrdSsiFileSess::open(const char         *path,      // In
                eNum = errInfo.GetArg();
                DEBUG(path <<" --> " <<eText <<':' <<eNum);
                eInfo->setErrInfo(eNum, eText);
+               Stats.Bump(Stats.ReqRedir);
                return SFS_REDIRECT;
                break;
           case EBUSY:
@@ -442,12 +455,14 @@ int XrdSsiFileSess::open(const char         *path,      // In
                DEBUG(path <<" dly " <<eNum <<' ' <<eText);
                if (eNum <= 0) eNum = 1;
                eInfo->setErrInfo(eNum, eText);
+               Stats.Bump(Stats.ReqStalls);
                return eNum;
                break;
           default:
                if (!eText || !(*eText)) eText = strerror(eNum);
                DEBUG(path <<" err " <<eNum <<' ' <<eText);
                eInfo->setErrInfo(eNum, eText);
+               Stats.Bump(Stats.ReqPrepErrs);
                return SFS_ERROR;
                break;
          };
@@ -456,6 +471,7 @@ int XrdSsiFileSess::open(const char         *path,      // In
 //
    Log.Emsg(epname, "Provider redirect returned no target host name!");
    eInfo->setErrInfo(ENOMSG, "Server logic error");
+   Stats.Bump(Stats.ReqPrepErrs);
    return SFS_ERROR;
 }
   

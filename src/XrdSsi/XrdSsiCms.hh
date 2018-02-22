@@ -38,16 +38,14 @@ class XrdSsiCms : public XrdSsiCluster
 {
 public:
 
-        void   Added(const char *name, bool pend=false)
-                    {if (theCms) theCms->Added(name, pend);}
+        void   Added(const char *name, bool pend=false);
 
         bool   DataContext() {return true;}
 
 const char *
 const      *   Managers(int &mNum) {mNum = manNum; return manList;}
 
-        void   Removed(const char *name)
-                    {if (theCms) theCms->Removed(name);}
+        void   Removed(const char *name);
 
         void   Resume (bool perm=true)
                     {if (theCms) theCms->Resume(perm);}

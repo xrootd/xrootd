@@ -45,6 +45,7 @@
 #include "XrdSsi/XrdSsiService.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiStream.hh"
+#include "XrdSsi/XrdSsiStats.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -66,6 +67,7 @@ namespace XrdSsi
 extern XrdSysError    Log;
 extern XrdScheduler  *Sched;
 extern XrdSsiService *Service;
+extern XrdSsiStats    Stats;
 };
 
 using namespace XrdSsi;
@@ -108,6 +110,14 @@ void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
 //
    DEBUGXQ((oP ? "oucbuff" : "sfsbuff") <<" rqsz=" <<rSz);
 
+// Do statistics
+//
+   Stats.statsMutex.Lock();
+   Stats.ReqCount++;
+   Stats.ReqBytes += rSz;
+   if (rSz > Stats.ReqMaxsz) Stats.ReqMaxsz = rSz;
+   Stats.statsMutex.UnLock();
+
 // Set request buffer pointers
 //
    oucBuff = oP;
@@ -133,6 +143,10 @@ void XrdSsiFileReq::Alert(XrdSsiRespInfoMsg &aMsg)
 //
    aMsg.GetMsg(msgLen);
    DEBUGXQ(msgLen <<" byte alert presented wtr=" <<respWait);
+
+// Add up statistics
+//
+   Stats.Bump(Stats.ReqAlerts);
 
 // Lock this object
 //
@@ -229,6 +243,10 @@ void XrdSsiFileReq::BindDone()
 //
    DEBUGXQ("Bind called; for request " <<reqID);
 
+// Collect statistics
+//
+   Stats.Bump(Stats.ReqBound);
+
 // Processing depends on the current state. Only listed states are valid.
 // When the state is done, a finished event occuured between the time the
 // request was handed off to the service but before the service bound it.
@@ -264,6 +282,10 @@ void XrdSsiFileReq::Dispose()
 //
    DEBUGXQ("Recycling request...");
 
+// Collect statistics
+//
+   Stats.Bump(Stats.ReqBound, -1);
+
 // Simply recycle the object
 //
    Recycle();
@@ -286,12 +308,14 @@ void XrdSsiFileReq::DoIt()
          {case isNew:    myState = xqReq; urState = isBegun;
                          DEBUGXQ("Calling service processor");
                          frqMutex.UnLock();
+                         Stats.Bump(Stats.ReqProcs);
                          Service->ProcessRequest((XrdSsiRequest      &)*this,
                                                  (XrdSsiFileResource &)*fileR);
                          return;
                          break;
           case isAbort:  DEBUGXQ("Skipped calling service processor");
                          frqMutex.UnLock();
+                         Stats.Bump(Stats.ReqAborts);
                          Recycle();
                          return;
                          break;
@@ -300,6 +324,8 @@ void XrdSsiFileReq::DoIt()
                          if (respWait) WakeUp();
                          if (finWait)  finWait->Post();
                          frqMutex.UnLock();
+                         Stats.Bump(Stats.ReqFinished);
+                         if (cancel) Stats.Bump(Stats.ReqCancels);
                          Finished(cancel);  // This object may be deleted!
                          return;
                          break;
@@ -361,6 +387,10 @@ int XrdSsiFileReq::Emsg(const char    *pfx,    // Message prefix value
 {
    char buffer[2048];
 
+// Count errors
+//
+   Stats.Bump(Stats.SsiErrs);
+
 // Get correct error code
 //
    if (ecode < 0) ecode = -ecode;
@@ -388,6 +418,10 @@ int XrdSsiFileReq::Emsg(const char    *pfx,    // Message prefix value
    const char *eMsg;
    char buffer[2048];
    int  eNum;
+
+// Count errors
+//
+   Stats.Bump(Stats.SsiErrs);
 
 // Get correct error code and message
 //
@@ -440,6 +474,7 @@ void XrdSsiFileReq::Finalize()
                          urState = isAbort;
                          cbInfo  = 0;
                          sessN   = "???";
+                         Stats.Bump(Stats.ReqAborts);
                          return;
                          break;
 
@@ -460,6 +495,8 @@ void XrdSsiFileReq::Finalize()
                          DEBUGXQ("Calling Finished(" <<cancel <<')');
                          if (respWait) WakeUp();
                          mHelper.UnLock();
+                         Stats.Bump(Stats.ReqFinished);
+                         if (cancel) Stats.Bump(Stats.ReqCancels);
                          Finished(cancel); // This object may be deleted!
                          return;
                          break;
@@ -489,6 +526,7 @@ char *XrdSsiFileReq::GetRequest(int &rLen)
 // Do some debugging
 //
    DEBUGXQ("sz=" <<reqSize);
+   Stats.Bump(Stats.ReqGets);
 
 // The request may come from a ouc buffer or an sfs buffer
 //
@@ -559,23 +597,28 @@ bool XrdSsiFileReq::ProcessResponse(const XrdSsiErrInfo  &eInfo,
          {case XrdSsiRespInfo::isData:
                DEBUGXQ("Resp data sz="<<Resp.blen);
                respLen = Resp.blen;
+               Stats.Bump(Stats.RspData);
                break;
           case XrdSsiRespInfo::isError:
                DEBUGXQ("Resp err rc="<<Resp.eNum<<" msg="<<Resp.eMsg);
                respLen = 0;
+               Stats.Bump(Stats.RspErrs);
                break;
           case XrdSsiRespInfo::isFile:
                DEBUGXQ("Resp file fd="<<Resp.fdnum<<" sz="<<Resp.fsize);
                fileSz  = Resp.fsize;
                respOff = 0;
+               Stats.Bump(Stats.RspFile);
                break;
           case XrdSsiRespInfo::isStream:
                DEBUGXQ("Resp strm");
                respLen = 0;
+               Stats.Bump(Stats.RspStrm);
                break;
           default:
                DEBUGXQ("Resp invalid!!!!");
                return false;
+               Stats.Bump(Stats.RspBad);
                break;
          }
 
@@ -777,6 +820,7 @@ void XrdSsiFileReq::RelRequestBuffer()
 // Do some debugging
 //
    DEBUGXQ("called");
+   Stats.Bump(Stats.ReqRelBuf);
 
 // Release buffers
 //
@@ -1000,4 +1044,5 @@ void XrdSsiFileReq::WakeUp(XrdSsiAlert *aP) // Called with frqMutex locked!
 //
    respWait = false;
    respCB->Done(respCode, wuInfo, sessN);
+   Stats.Bump(Stats.RspCallBK);
 }

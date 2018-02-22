@@ -33,6 +33,17 @@
 #include "XrdOuc/XrdOucTList.hh"
 
 #include "XrdSsi/XrdSsiCms.hh"
+#include "XrdSsi/XrdSsiStats.hh"
+
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+
+namespace XrdSsi
+{
+extern XrdSsiStats    Stats;
+}
+using namespace XrdSsi;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -63,6 +74,36 @@ XrdSsiCms::XrdSsiCms(XrdCmsClient *cmsP) : theCms(cmsP)
        }
 }
 
+/******************************************************************************/
+/*                                 A d d e d                                  */
+/******************************************************************************/
+
+void XrdSsiCms::Added(const char *name, bool pend)
+{
+// Do statistics
+//
+   Stats.Bump(Stats.ResAdds);
+
+// Perform action
+//
+   if (theCms) theCms->Added(name, pend);
+}
+  
+/******************************************************************************/
+/*                               R e m o v e d                                */
+/******************************************************************************/
+
+void XrdSsiCms::Removed(const char *name)
+{
+// Do statistics
+//
+   Stats.Bump(Stats.ResRems);
+
+// Perform action
+//
+   if (theCms) theCms->Removed(name);
+}
+  
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/

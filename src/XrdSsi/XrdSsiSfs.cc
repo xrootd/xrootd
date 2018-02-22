@@ -50,6 +50,7 @@
 #include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiSfs.hh"
 #include "XrdSsi/XrdSsiSfsConfig.hh"
+#include "XrdSsi/XrdSsiStats.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
 
 #include "XrdCms/XrdCmsClient.hh"
@@ -109,6 +110,8 @@ extern XrdSysError       Log;
 extern XrdSysLogger     *Logger;
 
 extern XrdSysTrace       Trace;
+
+extern XrdSsiStats       Stats;
 };
 
 using namespace XrdSsi;
@@ -136,6 +139,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *nativeFS,
 //
    Config = &myConfig;
    theFS  = nativeFS;
+   Stats.setFS(nativeFS);
 
 // No need to herald this as it's now the default filesystem
 //
@@ -340,10 +344,9 @@ int XrdSsiSfs::fsctl(const int               cmd,
 
 int XrdSsiSfs::getStats(char *buff, int blen)
 {
-// Reroute this if we can
+// Return statustics
 //
-   if (theFS) return theFS->getStats(buff, blen);
-   return 0;
+   return Stats.Stats(buff, blen);
 }
 
 /******************************************************************************/

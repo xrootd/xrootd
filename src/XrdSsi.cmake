@@ -43,6 +43,7 @@ XrdSsi/XrdSsiResponder.cc              XrdSsi/XrdSsiResponder.hh
 XrdSsi/XrdSsiServReal.cc               XrdSsi/XrdSsiServReal.hh
 XrdSsi/XrdSsiService.cc                XrdSsi/XrdSsiService.hh
 XrdSsi/XrdSsiSessReal.cc               XrdSsi/XrdSsiSessReal.hh
+XrdSsi/XrdSsiStats.cc                  XrdSsi/XrdSsiStats.hh
                                        XrdSsi/XrdSsiStream.hh
 XrdSsi/XrdSsiTaskReal.cc               XrdSsi/XrdSsiTaskReal.hh
                                        XrdSsi/XrdSsiTrace.hh

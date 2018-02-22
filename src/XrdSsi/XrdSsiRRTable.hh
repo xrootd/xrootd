@@ -71,6 +71,8 @@ T    *LookUp(uint64_t itemID)
              return (it == theMap.end() ? 0 : it->second);
             }
 
+int   Num() {return theMap.size() + (baseItem ? 1 : 0);}
+
 void  Reset()
            {XrdSsiMutexMon lck(rrtMutex);
             typename std::map<uint64_t, T*>::iterator it = theMap.begin();
