@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d M p x S t a t s . c c                         */
+/*                          X r d Q S t a t s . c c                           */
 /*                                                                            */
-/* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
