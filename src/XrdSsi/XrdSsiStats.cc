@@ -112,9 +112,10 @@ int XrdSsiStats::Stats(char *buff, int blen)
        len = snprintf(dummy, sizeof(dummy), statfmt, INMax,
        /*<bytes>*/    LLMax, LLMax, INMax,
        /*<bnd>*/      INMax, INMax, INMax,
+       /*<ab>*/       INMax, INMax, INMax,
        /*<relb>*/     INMax, INMax, INMax,
        /*<can>*/      INMax, INMax, INMax,
-       /*<rsp>*/      INMax, INMax, INMax, INMax,
+       /*<bad>*/      INMax, INMax, INMax, INMax,
        /*<file>*/     INMax, INMax, INMax, INMax, LLMax,
        /*<res>*/      INMax, INMax);
        return len + (fsP ? fsP->getStats(0,0) : 0);
