@@ -5,15 +5,31 @@ XRootD
 Release Notes
 =============
 
-+ **New Features**
-  * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
-  * **[XrdSsi]** Provide summary monitoring information to report stream.
+
+-------------
+Version 4.8.1
+-------------
 
 + **Major bug fixes**
+  * **[XrdCl]** Try all IP addresses in case posix connect fails.
+  * **[XrdCl]** Fix checksuming in xrdcp for local files.
+  * **[Py]** Make sure FileSystem::Copy returns a tuple, fixes #633.
+  * **[Py]** Make sure empty strings are not converted to None.
+  * **[SSI]** Unbind the request prior to teardown.
+  * **[SSI]** Avoid SEGV when generating a request for a new TCP
+              connection.
+  * **[SSI]** Fix race condition that can cause a SEGV during parallel
+              execution.
+  * **[SSI]** Allow zero length requests to be passed to servers.
+              Fixes #640
+  * **[SSI]** Make sure to avoid object refs after Finished() is called
+              to avoid SEGV.
 
 + **Minor bug fixes**
-
-+ **Miscellaneous**
+  * **[XrdPosix]** Fix various memory related issues.
+  * **[XrdCrypto]** Fix various small issues.
+  * **[Server]** Fix overlapping string copy. Fixes #643
+  * **[XrdCl]** Provide compatibility between root://localfile and file://.
  
 -------------
 Version 4.8.0
