@@ -5,4 +5,16 @@ XRootD
 Prerelease Notes
 ================
 
++ **New Features**
+  * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
+  * **[XrdSsi]** Provide summary monitoring information to report stream.
+
++ **Major bug fixes**
+
+
++ **Minor bug fixes**
+
++ **Miscellaneous**
+ 
+
 
