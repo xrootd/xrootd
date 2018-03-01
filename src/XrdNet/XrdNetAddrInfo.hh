@@ -286,13 +286,13 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                     protType = rhs.protType;
                     if (hostName) free(hostName);
                     hostName = (rhs.hostName ? strdup(rhs.hostName):0);
+                    addrLoc = rhs.addrLoc;
                     if (rhs.sockAddr != &rhs.IP.Addr)
                        {if (!unixPipe || sockAddr == &IP.Addr)
                            unixPipe = new sockaddr_un;
                         memcpy(unixPipe, rhs.unixPipe, sizeof(sockaddr_un));
                        } else sockAddr = &IP.Addr;
                    }
-                addrLoc = rhs.addrLoc;
                 return *this;
                }
 
