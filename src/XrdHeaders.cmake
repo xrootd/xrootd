@@ -146,6 +146,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOss/XrdOssError.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
+  XrdOuc/XrdOucN2NLoader.hh
 )
 
 install_headers(
