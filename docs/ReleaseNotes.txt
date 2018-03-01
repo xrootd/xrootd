@@ -26,6 +26,7 @@ Version 4.8.2
 + **Miscellaneous**
   * **[XrdHttp]** Support HTTP chunked transfer encoding.
   * **[XrdHttp]** Allow parsing of unknown HTTP verbs.
+  * **[XrdOss]** Improve XrdPosix 'rename' POSIX compliancy
 
 -------------
 Version 4.8.1
