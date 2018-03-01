@@ -56,7 +56,7 @@
 extern XrdSysError OssEroute;
 
 extern XrdOucTrace OssTrace;
-  
+
 /******************************************************************************/
 /*                                R e n a m e                                 */
 /******************************************************************************/
@@ -110,12 +110,11 @@ int XrdOssSys::Rename(const char *oldname, const char *newname,
      && (((retc = GenRemotePath(oldname, remote_path_Old))
      ||   (retc = GenRemotePath(newname, remote_path_New)))) ) return retc;
 
-// Make sure that the target file does not exist
+// If on a remote FS or symlink, make sure that the target path does not exist
 //
-#if 0
-   retc2 = lstat(local_path_New, &statbuff);
-   if (!retc2) return -EEXIST;
-#endif
+   if (!(retc2 = lstat(local_path_New, &statbuff)))
+      { if (remotefs || (statbuff.st_mode & S_IFMT) == S_IFLNK) return -EEXIST;
+      }
 
 // We need to create the directory path if it does not exist.
 //
@@ -162,7 +161,7 @@ int XrdOssSys::Rename(const char *oldname, const char *newname,
 //
    return retc;
 }
- 
+
 /******************************************************************************/
 /*                       p r i v a t e   m e t h o d s                        */
 /******************************************************************************/
@@ -242,7 +241,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 /******************************************************************************/
 /*                           R e n a m e L i n k 2                            */
 /******************************************************************************/
-  
+
 int XrdOssSys::RenameLink2(int Llen, char *oLnk, char *old_path,
                                      char *nLnk, char *new_path)
 {
@@ -284,11 +283,11 @@ int XrdOssSys::RenameLink2(int Llen, char *oLnk, char *old_path,
 /******************************************************************************/
 /*                           R e n a m e L i n k 3                            */
 /******************************************************************************/
-  
+
 int XrdOssSys::RenameLink3(char *cPath, char *old_path, char *new_path)
 {
    int rc;
-  
+
 // First set the new extended attribute on this file
 //
    if ((rc = XrdSysFAttr::Xat->Set(XrdFrcXAttrPfn::Name(), new_path,
