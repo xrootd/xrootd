@@ -259,16 +259,6 @@ namespace XrdCl
     Utils::LogHostAddresses( log, PostMasterMsg, pUrl->GetHostId(),
                              pAddresses );
 
-    //--------------------------------------------------------------------------
-    // Initiate the connection process to the first one on the list.
-    // It's more efficient to remove addresses from the back of a vector
-    // so we reverse the it.
-    //--------------------------------------------------------------------------
-    int preferIPv4 = DefaultPreferIPv4;
-    DefaultEnv::GetEnv()->GetInt( "PreferIPv4", preferIPv4 );
-    if( !preferIPv4 )
-      std::reverse( pAddresses.begin(), pAddresses.end() );
-
     while( !pAddresses.empty() )
     {
       pSubStreams[0]->socket->SetAddress( pAddresses.back() );

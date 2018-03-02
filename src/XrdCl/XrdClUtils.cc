@@ -163,16 +163,46 @@ namespace XrdCl
       return Status( stError, errInvalidAddr );
     }
 
-    addresses.clear();
-    for( int i = 0; i < nAddrs; ++i )
-      addresses.push_back( addrs[i] );
-    delete [] addrs;
+    //--------------------------------------------------------------------------
+    // Check what are the preferences IPv6 or IPv4
+    //--------------------------------------------------------------------------
+    int preferIPv4 = DefaultPreferIPv4;
+    DefaultEnv::GetEnv()->GetInt( "PreferIPv4", preferIPv4 );
 
     //--------------------------------------------------------------------------
-    // Sort and shuffle them
+    // Partition the addresses according to the preferences
+    //
+    // The preferred IP family goes to the back as it is easier to remove
+    // items from the back of the vector
     //--------------------------------------------------------------------------
-    std::random_shuffle( addresses.begin(), addresses.end() );
-    std::sort( addresses.begin(), addresses.end(), PreferIPv6() );
+    std::vector<XrdNetAddr> result( nAddrs );
+    auto itr  = result.begin();
+    auto ritr = result.end() - 1;
+
+    for( int i = 0; i < nAddrs; ++i )
+    {
+      bool isIPv4 = addrs[i].isIPType( XrdNetAddrInfo::IPv4 ) ||
+          ( addrs[i].isIPType( XrdNetAddrInfo::IPv6 ) && addrs[i].isMapped() );
+
+      auto store = preferIPv4 ?
+                   ( isIPv4 ? ritr-- : itr++ ) :
+                   ( isIPv4 ? itr++ : ritr-- );
+
+      *store = addrs[i];
+    }
+
+    //--------------------------------------------------------------------------
+    // Shuffle each partition
+    //--------------------------------------------------------------------------
+    std::random_shuffle( result.begin(), itr );
+    std::random_shuffle( itr, result.end() );
+
+    //--------------------------------------------------------------------------
+    // Return result through output parameter
+    //--------------------------------------------------------------------------
+    addresses.swap( result );
+    delete [] addrs;
+
     return Status();
   }
 
