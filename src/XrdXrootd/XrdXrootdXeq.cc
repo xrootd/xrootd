@@ -938,8 +938,9 @@ int XrdXrootdProtocol::do_Login()
           }
        if (Monitor.Ready() && (appXQ || aInfo))
           {char apBuff[1024];
-           snprintf(apBuff, sizeof(apBuff), "&x=%s&y=%s",
-                    (appXQ ? appXQ : ""), (aInfo ? aInfo : ""));
+           snprintf(apBuff, sizeof(apBuff), "&x=%s&y=%s&I=%c",
+                    (appXQ ? appXQ : ""), (aInfo ? aInfo : ""),
+                    (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
            Entity.moninfo = strdup(apBuff);
           }
       }
@@ -3425,7 +3426,8 @@ void XrdXrootdProtocol::MonAuth()
    const char *bP = Buff;
 
    if (Client == &Entity) bP = Entity.moninfo;
-      else snprintf(Buff,sizeof(Buff), "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s",
+      else snprintf(Buff,sizeof(Buff),
+                    "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s&I=%c",
                      Client->prot,
                     (Client->name ? Client->name : ""),
                     (Client->host ? Client->host : ""),
@@ -3433,7 +3435,8 @@ void XrdXrootdProtocol::MonAuth()
                     (Client->role ? Client->role : ""),
                     (Client->grps ? Client->grps : ""),
                     (Client->moninfo ? Client->moninfo : ""),
-                    (Entity.moninfo  ? Entity.moninfo  : "")
+                    (Entity.moninfo  ? Entity.moninfo  : ""),
+                    (clientPV & XrdOucEI::uIPv4 ? '4' : '6')
                    );
 
    Monitor.Report(bP);
