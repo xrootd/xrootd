@@ -77,6 +77,8 @@ const int SYS_LOG_05 =  16;
 const int SYS_LOG_06 =  32;
 const int SYS_LOG_07 =  64;
 const int SYS_LOG_08 = 128;
+//              0x00000100 to 0x0000ffff reseved for     XRootD use
+//              0x00010000 to 0xffff0000 reseved for non-XRootD use
 
 /******************************************************************************/
 /*                            o o u c _ E r r o r                             */
