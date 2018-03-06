@@ -147,9 +147,11 @@ XrdSysLogger *logger(XrdSysLogger *lp=0)
 void Say(const char *text1,   const char *text2=0, const char *txt3=0,
          const char *text4=0, const char *text5=0, const char *txt6=0);
 
-// Set the loging mask (only used by clients of this object)
+// Set/Get the loging mask (only used by clients of this object)
 //
 void setMsgMask(int mask) {msgMask = mask;}
+
+int  getMsgMask()         {return msgMask;}
 
 // SetPrefix() dynamically changes the error prefix
 //
