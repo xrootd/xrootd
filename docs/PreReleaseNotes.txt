@@ -17,6 +17,6 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
- 
+  * **[All]** Place protocol definition under a modified BSD license.
 
 
