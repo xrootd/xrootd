@@ -634,6 +634,8 @@ int XrdPssDir::Close(long long *retsz)
 /*                                  o p e n                                   */
 /******************************************************************************/
 
+#define IS_FWDPATH(x) (!strncmp("/xroot:/",x,8) || !strncmp("/root:/",x,7))
+
 /*
   Function: Open the file `path' in the mode indicated by `Mode'.
 
@@ -655,7 +657,7 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Return an error if the object is already open
 //
-   if (fd >= 0) return -XRDOSS_E8003;
+   if (fd >= 0 || tpcPath) return -XRDOSS_E8003;
 
 // If we are opening this in r/w mode make sure we actually can
 //
@@ -666,17 +668,16 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // If this is a third party copy open, then strange rules apply. If this is an
 // outgoing proxy we let everything pass through as this may be a TPC request
-// elsewhere. We do the same for object ID's as we don't know how to handle it.
-// Otherwise, if it's an open for reading, we open the file but strip off all
-// CGI (technically, we should only remove the "tpc" tokens) because the source
-// might not support direct TPC mode. If we are opening for writing, then we
-// skip the open and mark this as a TPC handle which can only be used for
-// fstat() and close(). Any other actions return an error.
+// elsewhere.  Otherwise, if it's an open for reading, we open the file but
+// strip off all CGI (technically, we should only remove the "tpc" tokens)
+// because the source might not support direct TPC mode. If we are opening for
+// writing, then we skip the open and mark this as a TPC handle which can only
+// be used for fstat() and close(). Any other actions return an error.
 //
    if (tpcMode)
       {Oflag &= ~O_NOFOLLOW;
-       if (!XrdPssSys::outProxy && *path == '/')
-          {if (rwMode) {isTPC = true; return XrdOssOK;}
+       if (!XrdPssSys::outProxy || !IS_FWDPATH(path))
+          {if (rwMode) {tpcPath = strdup(path); return XrdOssOK;}
            Cgi = ""; CgiLen = 0;
           } else {
            Cgi= Env.Env(CgiLen);
@@ -724,8 +725,21 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 int XrdPssFile::Close(long long *retsz)
 {   int rc;
 
+// We don't support returning the size (we really should fix this)
+//
     if (retsz) *retsz = 0;
-    if (fd < 0) return (isTPC ? XrdOssOK : -XRDOSS_E8004);
+
+// If the file is not open, then this may be OK if it is a 3rd party copy
+//
+    if (fd < 0)
+       {if (!tpcPath) return -XRDOSS_E8004;
+        free(tpcPath);
+        tpcPath = 0;
+        return XrdOssOK;
+       }
+
+// Close the file
+//
     rc = XrdPosixXrootd::Close(fd);
     fd = -1;
     return (rc == 0 ? XrdOssOK : -errno);
@@ -865,9 +879,8 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
 int XrdPssFile::Fstat(struct stat *buff)
 {
     if (fd < 0)
-       {if (!isTPC) return -XRDOSS_E8004;
-        memset(buff, 0, sizeof(struct stat));
-        return XrdOssOK;
+       {if (!tpcPath) return -XRDOSS_E8004;
+        return XrdProxySS.Stat(tpcPath, buff);
        }
 
     return (XrdPosixXrootd::Fstat(fd, buff) ? -errno : XrdOssOK);
