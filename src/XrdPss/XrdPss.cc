@@ -880,7 +880,9 @@ int XrdPssFile::Fstat(struct stat *buff)
 {
     if (fd < 0)
        {if (!tpcPath) return -XRDOSS_E8004;
-        return XrdProxySS.Stat(tpcPath, buff);
+        if (!XrdProxySS.Stat(tpcPath, buff))
+           memset(buff, 0, sizeof(struct stat));
+        return XrdOssOK;
        }
 
     return (XrdPosixXrootd::Fstat(fd, buff) ? -errno : XrdOssOK);
