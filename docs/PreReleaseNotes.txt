@@ -20,5 +20,6 @@ Prerelease Notes
   * **[All]** Place protocol definition under a modified BSD license.
   * **[Proxy]** Make sure to pass through TPC requests in otgoing proxies.
   * **[Proxy]** Support progress bar during TPC transfers.
+  * **[Proxy]** Do not fail a TPC fstat() due to bad timing.
 
 
