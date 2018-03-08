@@ -92,14 +92,16 @@ ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
  
          // Constructor and destructor
-         XrdPssFile(const char *tid) : tident(tid), isTPC(false) {fd = -1;}
+         XrdPssFile(const char *tid) : tident(tid), tpcPath(0) {fd = -1;}
 
-virtual ~XrdPssFile() {if (fd >= 0) Close();}
+virtual ~XrdPssFile() {if (fd >= 0) Close();
+                       if (tpcPath) free(tpcPath);
+                      }
 
 private:
 
 const char *tident;
-      bool  isTPC;;
+      char *tpcPath;
 };
 
 /******************************************************************************/
