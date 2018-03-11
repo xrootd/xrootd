@@ -30,7 +30,6 @@
 /******************************************************************************/
 
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 
 // This class implements a single server per host lock manager by simply using
@@ -40,11 +39,11 @@ class XrdXrootdFileLock1 : XrdXrootdFileLock
 {
 public:
 
-        int   Lock(XrdXrootdFile *fp, int force=0);
+        int   Lock(const char *path, char mode, bool force);
 
-        void  numLocks(XrdXrootdFile *fp, int &rcnt, int &wcnt);
+        void  numLocks(const char *path, int &rcnt, int &wcnt);
 
-        int Unlock(XrdXrootdFile *fp);
+        int Unlock(const char *path, char mode);
 
             XrdXrootdFileLock1() {}
            ~XrdXrootdFileLock1() {} // This object is never destroyed!

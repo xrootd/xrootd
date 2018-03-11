@@ -45,8 +45,8 @@ int   numReaders;
 int   numWriters;
 
       XrdXrootdFileLockInfo(char mode)
-                      {if ('r' == mode) {numReaders = 1; numWriters = 0;}
-                           else         {numReaders = 0; numWriters = 1;}
+                      {if (mode == 'r') {numReaders = 1; numWriters = 0;}
+                          else          {numReaders = 0; numWriters = 1;}
                       }
      ~XrdXrootdFileLockInfo() {}
 };
@@ -77,15 +77,15 @@ const char *XrdXrootdFileLock1::TraceID = "FileLock1";
 /*                                  L o c k                                   */
 /******************************************************************************/
   
-int XrdXrootdFileLock1::Lock(XrdXrootdFile *fp, int force)
+int XrdXrootdFileLock1::Lock(const char *path, char mode, bool force)
 {
    XrdXrootdLockFileLock locker(&LTMutex);
    XrdXrootdFileLockInfo *lp;
 
 // See if we already have a lock on this file
 //
-   if ((lp = XrdXrootdLockTable.Find(fp->FileKey)))
-      {if (fp->FileMode == 'r')
+   if ((lp = XrdXrootdLockTable.Find(path)))
+      {if (mode == 'r')
           {if (lp->numWriters && !force)
               return -lp->numWriters;
            lp->numReaders++;
@@ -99,7 +99,7 @@ int XrdXrootdFileLock1::Lock(XrdXrootdFile *fp, int force)
 
 // Item does not exist, add it to the table
 //
-   XrdXrootdLockTable.Add(fp->FileKey, new XrdXrootdFileLockInfo(fp->FileMode));
+   XrdXrootdLockTable.Add(path, new XrdXrootdFileLockInfo(mode));
    return 0;
 }
  
@@ -109,12 +109,12 @@ int XrdXrootdFileLock1::Lock(XrdXrootdFile *fp, int force)
 /*                                                                            */
 /******************************************************************************/
 
-void XrdXrootdFileLock1::numLocks(XrdXrootdFile *fp, int &rcnt, int &wcnt)
+void XrdXrootdFileLock1::numLocks(const char *path, int &rcnt, int &wcnt)
 {
    XrdXrootdLockFileLock locker(&LTMutex);
    XrdXrootdFileLockInfo *lp;
 
-   if (!(lp = XrdXrootdLockTable.Find(fp->FileKey))) rcnt = wcnt = 0;
+   if (!(lp = XrdXrootdLockTable.Find(path))) rcnt = wcnt = 0;
       else {rcnt = lp->numReaders; wcnt = lp->numWriters;}
 }
   
@@ -122,18 +122,18 @@ void XrdXrootdFileLock1::numLocks(XrdXrootdFile *fp, int &rcnt, int &wcnt)
 /*                                U n l o c k                                 */
 /******************************************************************************/
   
-int XrdXrootdFileLock1::Unlock(XrdXrootdFile *fp)
+int XrdXrootdFileLock1::Unlock(const char *path, char mode)
 {
    XrdXrootdLockFileLock locker(&LTMutex);
    XrdXrootdFileLockInfo *lp;
 
 // See if we already have a lock on this file
 //
-   if (!(lp = XrdXrootdLockTable.Find(fp->FileKey))) return 1;
+   if (!(lp = XrdXrootdLockTable.Find(path))) return 1;
 
 // Adjust the lock information
 //
-   if (fp->FileMode == 'r')
+   if (mode == 'r')
       {if (lp->numReaders == 0) return 1;
        lp->numReaders--;
       } else {
@@ -144,6 +144,6 @@ int XrdXrootdFileLock1::Unlock(XrdXrootdFile *fp)
 // Delete the entry if we no longer need it
 //
    if (lp->numReaders == 0 && lp->numWriters == 0)
-      XrdXrootdLockTable.Del(fp->FileKey);
+      XrdXrootdLockTable.Del(path);
    return 0;
 }
