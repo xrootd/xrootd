@@ -60,8 +60,9 @@ XrdXrootdFileStats Stats;       // File access statistics
 
 static void Init(XrdXrootdFileLock *lp, int sfok) {Locker = lp; sfOK = sfok;}
 
-           XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode='r',
-                         char async='\0', int sfOK=0, struct stat *sP=0);
+           XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
+                         char mode='r', bool async=false, int sfOK=0,
+                         struct stat *sP=0);
           ~XrdXrootdFile();
 
 private:

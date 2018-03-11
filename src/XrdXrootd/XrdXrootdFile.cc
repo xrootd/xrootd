@@ -65,18 +65,18 @@ extern XrdOucTrace      *XrdXrootdTrace;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
-                             char async, int sfok, struct stat *sP)
+XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
+                             char mode, bool async, int sfok, struct stat *sP)
 {
     static XrdSysMutex seqMutex;
     struct stat buf;
     off_t mmSize;
 
     XrdSfsp  = fp;
-    FileKey  = strdup(fp->FName());
+    FileKey  = strdup(path);
     mmAddr   = 0;
     FileMode = mode;
-    AsyncMode= async;
+    AsyncMode= (async ? 1 : 0);
     ID       = id;
 
     Stats.Init();
@@ -101,22 +101,6 @@ XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
        fp->stat(sP);
        if (!isMMapped) Stats.fSize = static_cast<long long>(sP->st_size);
       }
-
-// Develop a unique hash for this file. The key will not be longer than 33 bytes
-// including the null character. We now use the filename to avoid plugin
-// vagaries. We will keep the code here commented out for now.
-//
-//      if (sP->st_dev != 0 || sP->st_ino != 0)
-//         {i = bin2hex( FileKey,   (char *)&sP->st_dev, sizeof(sP->st_dev));
-//          i = bin2hex(&FileKey[i],(char *)&sP->st_ino, sizeof(sP->st_ino));
-//         }
-// else if (fdNum > 0) 
-//         {strcpy(  FileKey, "fdno");
-//          bin2hex(&FileKey[4], (char *)&fdNum,   sizeof(fdNum));
-//         }
-// else    {strcpy(  FileKey, "sfsp");
-//          bin2hex(&FileKey[4], (char *)&XrdSfsp, sizeof(XrdSfsp));
-//         }
 }
   
 /******************************************************************************/
@@ -125,16 +109,13 @@ XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
   
 XrdXrootdFile::~XrdXrootdFile()
 {
-   char *fn;
 
-   if (XrdSfsp) {Locker->Unlock(this);
-               if (TRACING(TRACE_FS))
-                  {if (!(fn = (char *)XrdSfsp->FName())) fn = (char *)"?";
-                   TRACEI(FS, "closing " <<FileMode <<' ' <<fn);
-                  }
-               delete XrdSfsp;
-               XrdSfsp = 0;
-              }
+   if (XrdSfsp)
+      {TRACEI(FS, "closing " <<FileMode <<' ' <<FileKey);
+       delete XrdSfsp;
+       XrdSfsp = 0;
+       Locker->Unlock(FileKey, FileMode);
+      }
    if (FileKey) free(FileKey);
 }
 

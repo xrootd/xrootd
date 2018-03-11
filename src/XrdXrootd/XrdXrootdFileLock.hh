@@ -29,17 +29,15 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdXrootd/XrdXrootdFile.hh"
-  
 class XrdXrootdFileLock
 {
 public:
 
-virtual int   Lock(XrdXrootdFile *fp, int force=0) = 0;
+virtual int   Lock(const char *path, char mode, bool force) = 0;
 
-virtual void  numLocks(XrdXrootdFile *fp, int &rcnt, int &wcnt) = 0;
+virtual void  numLocks(const char *path, int &rcnt, int &wcnt) = 0;
 
-virtual int Unlock(XrdXrootdFile *fp) = 0;
+virtual int Unlock(const char *path, char mode) = 0;
 
             XrdXrootdFileLock() {}
 virtual    ~XrdXrootdFileLock() {}

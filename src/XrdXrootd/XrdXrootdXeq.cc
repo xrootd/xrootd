@@ -1179,16 +1179,39 @@ int XrdXrootdProtocol::do_OffloadIO()
 /******************************************************************************/
 /*                               d o _ O p e n                                */
 /******************************************************************************/
+
+namespace
+{
+struct OpenHelper
+      {XrdSfsFile        *fp;
+       XrdXrootdFile     *xp;
+       XrdXrootdFileLock *Locker;
+       const char        *path;
+       char               mode;
+       bool               isOK;
+
+                          OpenHelper(XrdXrootdFileLock *lkP, const char *fn)
+                          : fp(0), xp(0), Locker(lkP), path(fn), mode(0),
+                            isOK(false) {}
+
+                         ~OpenHelper() {if (!isOK)
+                                           {if (xp) delete xp;
+                                               else if (fp) delete fp;
+                                            if (mode) Locker->Unlock(path,mode);
+                                           }
+                                       }
+      };
+}
   
 int XrdXrootdProtocol::do_Open()
 {
    static XrdXrootdCallBack openCB("open file", XROOTD_MON_OPENR);
    int fhandle;
-   int rc, mode, opts, openopts, doforce = 0, compchk = 0;
+   int rc, mode, opts, openopts, compchk = 0;
    int popt, retStat = 0;
    char *opaque, usage, ebuff[2048], opC;
-   bool doDig;
-   char *fn = argp->buff, opt[16], *op=opt, isAsync = '\0';
+   bool doDig, doforce = false, isAsync = false;
+   char *fn = argp->buff, opt[16], *op=opt;
    XrdSfsFile *fp;
    XrdXrootdFile *xp;
    struct stat statbuf;
@@ -1235,9 +1258,9 @@ int XrdXrootdProtocol::do_Open()
            }
    if (opts & kXR_compress)        
            {openopts |= SFS_O_RAWIO;   *op++ = 'c'; compchk = 1;}
-   if (opts & kXR_force)              {*op++ = 'f'; doforce = 1;}
+   if (opts & kXR_force)              {*op++ = 'f'; doforce = true;}
    if ((opts & kXR_async || as_force) && !as_noaio)
-                                      {*op++ = 'a'; isAsync = '1';}
+                                      {*op++ = 'a'; isAsync = true;}
    if (opts & kXR_refresh)            {*op++ = 's'; openopts |= SFS_O_RESET;
                                        SI->Bump(SI->Refresh);
                                       }
@@ -1268,6 +1291,27 @@ int XrdXrootdProtocol::do_Open()
 //
    if (popt & XROOTDXP_NOMWCHK) openopts |= SFS_O_MULTIW;
 
+// Construct an open helper to release resources should we exit due to an error.
+//
+   OpenHelper oHelp(Locker, fn);
+
+// Lock this file
+//
+   if (!(popt & XROOTDXP_NOLK))
+      {if ((rc = Locker->Lock(fn, usage, doforce)))
+          {const char *who;
+           if (rc > 0) who = (rc > 1 ? "readers" : "reader");
+              else {   rc = -rc;
+                       who = (rc > 1 ? "writers" : "writer");
+                   }
+           snprintf(ebuff, sizeof(ebuff)-1,
+                    "%s file %s is already opened by %d %s; open denied.",
+                    ('r' == usage ? "Input" : "Output"), fn, rc, who);
+           eDest.Emsg("Xeq", ebuff);
+           return Response.Send(kXR_FileLocked, ebuff);
+          } else oHelp.mode = usage;
+      }
+
 // Get a file object
 //
    if (doDig) fp = digFS->newFile(Link->ID, Monitor.Did);
@@ -1280,6 +1324,7 @@ int XrdXrootdProtocol::do_Open()
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
+   oHelp.fp = fp;
 
 // The open is elegible for a defered response, indicate we're ok with that
 //
@@ -1290,37 +1335,22 @@ int XrdXrootdProtocol::do_Open()
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
                      (mode_t)mode, CRED, opaque)))
-      {rc = fsError(rc, opC, fp->error, fn, opaque); delete fp; return rc;}
+      {rc = fsError(rc, opC, fp->error, fn, opaque); return rc;}
 
 // Obtain a hyper file object
 //
-   if (!(xp=new XrdXrootdFile(Link->ID,fp,usage,isAsync,Link->sfOK,&statbuf)))
-      {delete fp;
-       snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
+   xp = new XrdXrootdFile(Link->ID,fn,fp,usage,isAsync,Link->sfOK,&statbuf);
+   if (!xp)
+      {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
+   oHelp.xp = xp;
 
 // Serialize the link
 //
    Link->Serialize();
    *ebuff = '\0';
-
-// Lock this file
-//
-   if (!(popt & XROOTDXP_NOLK) && (rc = Locker->Lock(xp, doforce)))
-      {const char *who;
-       if (rc > 0) who = (rc > 1 ? "readers" : "reader");
-          else {   rc = -rc;
-                   who = (rc > 1 ? "writers" : "writer");
-               }
-       snprintf(ebuff, sizeof(ebuff)-1,
-                "%s file %s is already opened by %d %s; open denied.",
-                ('r' == usage ? "Input" : "Output"), fn, rc, who);
-       delete fp; xp->XrdSfsp = 0; delete xp;
-       eDest.Emsg("Xeq", ebuff);
-       return Response.Send(kXR_FileLocked, ebuff);
-      }
 
 // Create a file table for this link if it does not have one
 //
@@ -1329,8 +1359,7 @@ int XrdXrootdProtocol::do_Open()
 // Insert this file into the link's file table
 //
    if (!FTab || (fhandle = FTab->Add(xp)) < 0)
-      {delete xp;
-       snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
+      {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
@@ -1339,7 +1368,7 @@ int XrdXrootdProtocol::do_Open()
 //
    if (doforce)
       {int rdrs, wrtrs;
-       Locker->numLocks(xp, rdrs, wrtrs);
+       Locker->numLocks(fn, rdrs, wrtrs);
        if (('r' == usage && wrtrs) || ('w' == usage && rdrs) || wrtrs > 1)
           {snprintf(ebuff, sizeof(ebuff)-1,
              "%s file %s forced opened with %d reader(s) and %d writer(s).",
@@ -1389,8 +1418,9 @@ int XrdXrootdProtocol::do_Open()
    memcpy((void *)myResp.fhandle,(const void *)&fhandle,sizeof(myResp.fhandle));
    numFiles++;
 
-// Respond
+// Respond (failure is not an option now)
 //
+   oHelp.isOK = true;
    if (retStat)  return Response.Send(IOResp, 3, resplen);
       else       return Response.Send((void *)&myResp, resplen);
 }
