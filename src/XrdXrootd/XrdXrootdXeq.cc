@@ -692,13 +692,12 @@ int XrdXrootdProtocol::do_Endsess()
    TRACEP(LOGIN, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
           <<" rc=" <<rc <<" (" <<strerror(rc < 0 ? -rc : EAGAIN) <<")");
 
-// Return result
+// Return result. We only return obvious problems (exclude ESRCH and EPIPE).
 //
    if (rc >  0)
       return (rc = Response.Send(kXR_wait, rc, "session still active")) ? rc:1;
 
    if (rc == -EACCES)return Response.Send(kXR_NotAuthorized, "not session owner");
-   if (rc == -ESRCH) return Response.Send(kXR_NotFound, "session not found");
    if (rc == -ETIME) return Response.Send(kXR_Cancelled,"session not ended");
 
    return Response.Send();
