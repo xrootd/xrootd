@@ -17,6 +17,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * **[Server]** Make endsess more reliable.
   * **[Server]** Make sure no temporary opens occur during error recovery.
   * **[All]** Place protocol definition under a modified BSD license.
   * **[Proxy]** Make sure to pass through TPC requests in otgoing proxies.
