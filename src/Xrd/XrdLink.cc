@@ -1277,12 +1277,11 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
    XrdSysCondVar killDone(0);
    XrdLink *lp;
    char buff[1024], *cp;
-   int wTime, didKW = KillCnt & KillXwt;
+   int wTime, killTries;
 
 // Find the correspodning link
 //
-   KillCnt = KillCnt & KillMsk;
-   if (!(lp = fd2link(fdnum, inst))) return (didKW ? -EPIPE : -ESRCH);
+   if (!(lp = fd2link(fdnum, inst))) return -ESRCH;
 
 // If this is self termination, then indicate that to the caller
 //
@@ -1314,18 +1313,22 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
 
 // Check if we have too many tries here
 //
-   if (lp->KillCnt > KillMax)
+   killTries = lp->KillCnt & KillMsk;
+   if (killTries > KillMax)
       {lp->opMutex.UnLock();
        return -ETIME;
       }
-   wTime = lp->KillCnt++;
+
+// Wait time increases as we have more unsuccessful kills. Update numbers.
+//
+   wTime = killTries++;
+   lp->KillCnt = killTries | KillXwt;
 
 // Make sure we can disable this link. Of not, then force the caller to wait
 // a tad more than the read timeout interval.
 //
    if (!(lp->isEnabled) || lp->InUse > 1 || lp->KillcvP)
       {wTime = wTime*2+waitKill;
-       KillCnt |= KillXwt;
        lp->opMutex.UnLock();
        return (wTime > 60 ? 60: wTime);
       }
@@ -1344,7 +1347,7 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
 
 // Now wait for the link to shutdown. This avoids lock problems.
 //
-   if (killDone.Wait(int(killWait))) {wTime += killWait; KillCnt |= KillXwt;}
+   if (killDone.Wait(int(killWait))) wTime += killWait;
       else wTime = -EPIPE;
    killDone.UnLock();
 
