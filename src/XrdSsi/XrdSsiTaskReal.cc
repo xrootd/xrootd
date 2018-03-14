@@ -459,12 +459,13 @@ bool XrdSsiTaskReal::SendRequest(const char *node)
    int                 reqBlen;
 
 // We must be in pend state to send a request. If we are not then the request
-// must have been cancelled. It also means we have a logic error since this
-// should never have happened. Issue a message and ignore this request.
+// must have been cancelled. It also means we have a logic error if the
+// state is not isDead as we can't finish off the task and leak memory.
 //
    if (tStat != isPend)
-      {Log.Emsg("SendRequest", "Invalid state", statName[tStat],
-                               "; should be isPend!");
+      {if (tStat == isDead) sessP->TaskFinished(this);
+          else Log.Emsg("SendRequest", "Invalid state", statName[tStat],
+                                       "; should be isPend!");
        return false;
       }
 
@@ -472,9 +473,19 @@ bool XrdSsiTaskReal::SendRequest(const char *node)
 //
    XrdSsiRRAgent::SetNode(XrdSsiRRAgent::Request(this), node);
 
-// Get the request information
+// Get the request information. Make sure to defer Finish() calls.
 //
+   defer = true;
    reqBuff = XrdSsiRRAgent::Request(this)->GetRequest(reqBlen);
+   defer = false;
+
+// It's possible that GetRequest() called finished so process that here.
+//
+   if (tStat == isDead)
+      {sessP->TaskFinished(this);
+       return false;
+      }
+
 
 // Construct the info for this request
 //

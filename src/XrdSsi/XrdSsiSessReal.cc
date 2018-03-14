@@ -237,6 +237,11 @@ bool XrdSsiSessReal::Provision(XrdSsiRequest *reqP, const char *epURL)
   
 void XrdSsiSessReal::RelTask(XrdSsiTaskReal *tP) // sessMutex locked!
 {
+   EPNAME("RelTask");
+
+// Do some debugging here
+//
+   DEBUG((isHeld ? "Recycling" : "Deleting")<<" task="<<tP<<" id=" <<tP->ID());
 
 // Delete this task or place it on the free list
 //
@@ -389,7 +394,7 @@ bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
 // Lock out mutex. Note that events like shutdown unlock the mutex
 //
    sessMutex.Lock();
-   XrdSsiTaskReal *tP = attBase;
+   XrdSsiTaskReal *ztP, *ntP, *tP = attBase;
 
 // If we are not in the open phase then this is due to a close event. Simply
 // do a shutdown and return to stop event processing.
@@ -441,11 +446,14 @@ bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
        sessNode = strdup(currNode.c_str());
       } else sessNode = strdup("Unknown!");
 
-// Execute each pending request.
+// Execute each pending request. Make sure not to reference the task object
+// chain pointer after invoking SendRequest() as it may become invalid.
 //
-   do {if (!tP->SendRequest(sessNode)) noReuse = true;
-       tP = tP->attList.next;
-      } while(tP != attBase);
+   ztP = attBase;
+   do {ntP = tP->attList.next;
+       if (!tP->SendRequest(sessNode)) noReuse = true;
+       tP = ntP;
+      } while(tP != ztP);
 
 // We are done, field the next event
 //
