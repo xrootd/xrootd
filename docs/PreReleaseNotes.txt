@@ -18,6 +18,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * **[Server]** Correct lock handling in commit 2c169141.
   * **[Server]** Make endsess more reliable.
   * **[Server]** Make sure no temporary opens occur during error recovery.
   * **[All]** Place protocol definition under a modified BSD license.
