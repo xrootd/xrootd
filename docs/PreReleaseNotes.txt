@@ -16,6 +16,7 @@ Prerelease Notes
 
 
 + **Minor bug fixes**
+  * **[Net]** Optimize formatting corresponding to RFC 1178 and RFC 3696.
 
 + **Miscellaneous**
   * **[Server]** Correct lock handling in commit 2c169141.
