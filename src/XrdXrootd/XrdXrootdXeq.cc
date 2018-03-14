@@ -1193,12 +1193,14 @@ struct OpenHelper
                           : fp(0), xp(0), Locker(lkP), path(fn), mode(0),
                             isOK(false) {}
 
-                         ~OpenHelper() {if (!isOK)
-                                           {if (xp) delete xp;
-                                               else if (fp) delete fp;
+                         ~OpenHelper()
+                              {if (!isOK)
+                                  {if (xp) delete xp; // Deletes fp & unlocks
+                                      else {if (fp) delete fp;
                                             if (mode) Locker->Unlock(path,mode);
                                            }
-                                       }
+                                  }
+                              }
       };
 }
   
