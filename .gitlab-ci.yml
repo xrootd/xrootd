@@ -345,27 +345,6 @@ release:slc6-i386:
     - branches
     - /^(?!v[0-9]+).*/
 
-release:cc7:ceph:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
-    - cd packaging/
-    - ./makesrpm.sh --define '_with_ceph11 1'
-    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-luminous/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - rpmbuild --rebuild --define="_with_ceph11 1" --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - repo=/eos/project/s/storage-ci/www/xrootd/ceph-release/cc-7/x86_64/
-    - sudo -u stci -H mkdir -p $repo
-    - sudo -u stci -H cp *.src.rpm $repo
-    - sudo -u stci -H cp RPMS/* $repo
-    - sudo -u stci -H createrepo --update -q $repo
-  tags:
-    - docker-cc7
-  only:
-    - tags
-  when: manual
-
 release:deb_ubuntu_artful:
   <<: *deb_ubuntu_artful_def
   only:
