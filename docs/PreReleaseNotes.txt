@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[SSI]** Properly handle Finished() calls prior to response posting.
   * **[Server]** Add method to get logging mask.
   * **[Server]** Add &I=<iptype> to 'u' login monitoring record.
   * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
