@@ -74,6 +74,7 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
    int totLen, n, pNum, addBrak = 0;
    int omitP = (fmtOpts & (noPort|noPortRaw));
    int ipRaw = (fmtOpts & noPortRaw);
+   int ipOld = fmtOpts & (old6Map4 | prefipv4);
 
 // Handle the degenerative case first
 //
@@ -101,9 +102,12 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
        theFmt = fmtAddr;
       }
 
-// Check if we can now produce an address format quickly
+// Check if we can now produce an address format quickly. We used assume that
+// the hostname was an address if it started with a non-alpha. But this does
+// not correspond to RFC 1178 and RFC 3696, among others. We now only use
+// the optimization path if the name is actually an IPV6/mapped4 address.
 //
-   if (hostName && !isalpha(*hostName))
+   if (hostName && *hostName == '[' && !ipOld)
           {n = (omitP ? snprintf(bAddr, bLen, "%s",    hostName)
                       : snprintf(bAddr, bLen, "%s:%d", hostName, pNum));
        return (n < bLen ? n : QFill(bAddr, bLen));
@@ -113,8 +117,7 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 //
         if (IP.Addr.sa_family == AF_INET6)
            {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
-            if (fmtOpts & (old6Map4 | prefipv4)
-            &&  IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
+            if (ipOld && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
                {     if (fmtOpts & prefipv4)  {n = 0; pFmt = ":%d";}
                 else if (ipRaw) {strcpy(bAddr,  "::"); n = 2;}
                 else    {strcpy(bAddr, "[::"); n = 3; addBrak=1;}
