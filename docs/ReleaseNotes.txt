@@ -18,15 +18,23 @@ Version 4.8.2
   
 
 + **Minor bug fixes**
+  * **[Net]** Optimize formatting corresponding to RFC 1178 and RFC 3696.
   * **[XrdHttp]** Fix HTTP PUT flags, fixes #637.
   * **[All]** Fix compilation with gcc 8.
   * **[CMake]** Make sure plugins are declared as MODULEs, fixes #653 
   * **[SSI]** Ruggedize server-side SSI interactions.
 
 + **Miscellaneous**
+  * **[Server]** Correct lock handling in commit 2c169141.
+  * **[Server]** Make endsess more reliable.
+  * **[Server]** Make sure no temporary opens occur during error recovery.
+  * **[Server]** Add method to get logging mask.
   * **[XrdHttp]** Support HTTP chunked transfer encoding.
   * **[XrdHttp]** Allow parsing of unknown HTTP verbs.
   * **[XrdOss]** Improve XrdPosix 'rename' POSIX compliancy
+  * **[Proxy]** Make sure to pass through TPC requests in otgoing proxies.
+  * **[Proxy]** Support progress bar during TPC transfers.
+  * **[Proxy]** Do not fail a TPC fstat() due to bad timing.
 
 -------------
 Version 4.8.1
