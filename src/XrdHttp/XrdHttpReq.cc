@@ -302,6 +302,7 @@ int XrdHttpReq::parseRWOp(char *str) {
       len_ok += len;
       rwOps_split.push_back(nfo);
     }
+    length += len_ok;
 
 
   }
@@ -984,7 +985,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         {
 
           if ( ((reqstate == 3) && (rwOps.size() > 1)) ||
-            (writtenbytes >= filesize) ) {
+            (writtenbytes >= length) ) {
 
             // Close() if this was a readv or we have finished, otherwise read the next chunk
 
@@ -1677,6 +1678,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                        &filesize,
                        &fileflags,
                        &filemodtime);
+
+                // We will default the response size specified by the headers; if that
+                // wasn't given, use the file size.
+                if (!length) {
+                    length = filesize;
+                }
               }
               else
                 TRACEI(REQ, "Can't find the stat information for '" << resource << "' Internal error?");
@@ -1716,6 +1723,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                         &filesize,
                         &fileflags,
                         &filemodtime);
+
+                  // As above: if the client specified a response size, we use that.
+                  // Otherwise, utilize the filesize
+                  if (!length) {
+                    length = filesize;
+                  }
                 }
                 else
                   TRACEI(ALL, "GET returned no STAT information. Internal error?");
