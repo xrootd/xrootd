@@ -187,7 +187,7 @@ public:
   std::vector<ReadWriteOp> rwOps_split;
 
   bool keepalive;
-  long long length;
+  long long length;  // Total size from client for PUT; total length of response TO client for GET.
   int depth;
   bool sendcontinue;
 
