@@ -22,3 +22,21 @@ release:cc7:ceph:
     - docker-cc7
   only:
     - tags
+  except:
+    - schedules
+    
+weekly:cc7:ceph:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y cmake3 make gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
+    - cd packaging/
+    - ./makesrpm.sh
+    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-luminous/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
+    - echo -e '[xrootd-experimental]\nname=XRootD Experimental repository\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/xrootd/experimental/epel-7/$basearch\ngpgcheck=1\nenabled=1\nprotect=0\n' >> /etc/yum.repos.d/xrootd-experimental.repo
+    - yum-builddep --setopt=cern*.exclude=xrootd* --nogpgcheck -y *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+  tags:
+    - docker-cc7
+  only:
+    - schedules
