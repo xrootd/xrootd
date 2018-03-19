@@ -85,7 +85,9 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
     }
     auto header = req.headers.find("Source");
     if (header != req.headers.end()) {
-        return ProcessPullReq(PrepareURL(header->second), req);
+        std::string src = PrepareURL(header->second);
+        m_log.Emsg("ProcessReq", "Pull request from", src.c_str());
+        return ProcessPullReq(src, req);
     }
     header = req.headers.find("Destination");
     if (header != req.headers.end()) {
@@ -434,7 +436,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
     auto overwrite_header = req.headers.find("Overwrite");
     if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
-        mode = SFS_O_TRUNC|SFS_O_POSC;
+        mode = SFS_O_TRUNC;
     }
     int streams = 1;
     {
