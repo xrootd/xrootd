@@ -1,6 +1,6 @@
 
 Name: xrootd-tpc
-Version: 0.3.3
+Version: 0.3.4
 Release: 1%{?dist}
 Summary: HTTP Third Party Copy plugin for XRootD
 
@@ -43,6 +43,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libXrdHttpTPC-4.so
 
 %changelog
+* Mon Mar 19 2018 Brian Bockelman <bbockelm@cse.unl.edu> - 0.3.4-1
+- Fix overwrites.
+
 * Tue Jan 02 2018 Brian Bockelman <bbockelm@cse.unl.edu> - 0.3.3-1
 - Remove workaround from bad version of libdavix.
 
