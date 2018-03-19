@@ -361,7 +361,7 @@ release:deb_ubuntu_xenial:
     - branches
     - /^(?!v[0-9]+).*/
 
-biweekly:cc7:
+weekly:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -392,7 +392,7 @@ biweekly:cc7:
   except:
     - tags
 
-biweekly:slc6:
+weekly:slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -517,7 +517,7 @@ publish:debian:release:
     - branches
     - /^(?!v[0-9]+).*/
 
-publish:biweekly:
+publish:weekly:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -532,8 +532,8 @@ publish:biweekly:
   tags:
     - docker-slc6
   dependencies:
-    - biweekly:cc7
-    - biweekly:slc6
+    - weekly:cc7
+    - weekly:slc6
   only:
     - schedules
   except:
