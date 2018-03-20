@@ -251,6 +251,7 @@ namespace XrdCl
                                 url.GetHostId().c_str(), numStreams );
 
     pUrl.SetParams( url.GetParams() );
+    pUrl.SetProtocol( url.GetProtocol() );
 
     //--------------------------------------------------------------------------
     // Create the streams

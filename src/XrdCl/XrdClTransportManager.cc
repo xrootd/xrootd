@@ -28,6 +28,8 @@ namespace XrdCl
   {
     pHandlers["root"]  = new XRootDTransport();
     pHandlers["xroot"] = new XRootDTransport();
+    pHandlers["roots"] = new XRootDTransport();
+    pHandlers["xroots"] = new XRootDTransport();
   }
 
   //----------------------------------------------------------------------------

@@ -9,6 +9,8 @@ include( XrdSec )
 include( XrdXml )
 include( XrdHeaders )
 
+add_subdirectory( XrdTls )
+
 if( BUILD_CRYPTO )
   include( XrdSecgsi )
 endif()
@@ -19,12 +21,12 @@ endif()
 
 if( ENABLE_XRDCL )
   add_subdirectory( XrdCl )
+  add_subdirectory( api_test )
 endif()
 
 if( XRDCLHTTP_SUBMODULE )
   add_subdirectory( XrdClHttp )
 endif()
-
 
 if( NOT XRDCL_ONLY )
   include( XrdClient )
@@ -49,9 +51,9 @@ if( NOT XRDCL_ONLY )
     include( XrdMacaroons )
   endif()
 
-if( XRDCEPH_SUBMODULE )
-  add_subdirectory( XrdCeph )
-endif()
+  if( XRDCEPH_SUBMODULE )
+    add_subdirectory( XrdCeph )
+  endif()
 endif()
 
 #-------------------------------------------------------------------------------

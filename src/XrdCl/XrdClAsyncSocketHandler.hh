@@ -20,14 +20,11 @@
 #define __XRD_CL_ASYNC_SOCKET_HANDLER_HH__
 
 #include "XrdCl/XrdClSocket.hh"
-#include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPoller.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 #include "XrdCl/XrdClTaskManager.hh"
-
-#include <sys/types.h>
-#include <sys/socket.h>
+#include "XrdCl/XrdClXRootDResponses.hh"
 
 namespace XrdCl
 {
@@ -151,22 +148,22 @@ namespace XrdCl
         return pLastActivity;
       }
 
-    private:
+    protected:
 
       //------------------------------------------------------------------------
       // Connect returned
       //------------------------------------------------------------------------
-      void OnConnectionReturn();
+      virtual void OnConnectionReturn();
 
       //------------------------------------------------------------------------
       // Got a write readiness event
       //------------------------------------------------------------------------
-      void OnWrite();
+      virtual void OnWrite();
 
       //------------------------------------------------------------------------
       // Got a write readiness event while handshaking
       //------------------------------------------------------------------------
-      void OnWriteWhileHandshaking();
+      virtual void OnWriteWhileHandshaking();
 
 
       Status WriteMessageAndRaw( Message *toWrite, Message *&sign );
@@ -189,12 +186,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Got a read readiness event
       //------------------------------------------------------------------------
-      void OnRead();
+      virtual void OnRead();
 
       //------------------------------------------------------------------------
       // Got a read readiness event while handshaking
       //------------------------------------------------------------------------
-      void OnReadWhileHandshaking();
+      virtual void OnReadWhileHandshaking();
+
+      //------------------------------------------------------------------------
+      // Handle the handshake message
+      //------------------------------------------------------------------------
+      void HandleHandShake();
 
       //------------------------------------------------------------------------
       // Read a message
@@ -269,14 +271,6 @@ namespace XrdCl
       //              otherwise -1
       //------------------------------------------------------------------------
       inline kXR_int32 HandleWaitRsp( Message *rsp );
-
-      //------------------------------------------------------------------------
-      //! Classify errno while reading/writing
-      //!
-      //! Once we are at R5, change Transport interface and use:
-      //!   Transport::ClassifyErrno
-      //------------------------------------------------------------------------
-      Status ClassifyErrno( int error );
 
       //------------------------------------------------------------------------
       // Data members

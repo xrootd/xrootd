@@ -29,62 +29,64 @@ endif()
 add_library(
   XrdCl
   SHARED
-  XrdClLog.cc                 XrdClLog.hh
-  XrdClUtils.cc               XrdClUtils.hh
-                              XrdClOptimizers.hh
-                              XrdClConstants.hh
-  XrdClEnv.cc                 XrdClEnv.hh
-  XrdClDefaultEnv.cc          XrdClDefaultEnv.hh
-  XrdClURL.cc                 XrdClURL.hh
-  XrdClStatus.cc              XrdClStatus.hh
-  XrdClSocket.cc              XrdClSocket.hh
-                              XrdClPoller.hh
-  XrdClPollerFactory.cc       XrdClPollerFactory.hh
-  XrdClPollerBuiltIn.cc       XrdClPollerBuiltIn.hh
-  XrdClPostMaster.cc          XrdClPostMaster.hh
-                              XrdClPostMasterInterfaces.hh
-  XrdClChannel.cc             XrdClChannel.hh
-  XrdClStream.cc              XrdClStream.hh
-  XrdClXRootDTransport.cc     XrdClXRootDTransport.hh
-  XrdClInQueue.cc             XrdClInQueue.hh
-  XrdClOutQueue.cc            XrdClOutQueue.hh
-  XrdClTaskManager.cc         XrdClTaskManager.hh
-  XrdClSIDManager.cc          XrdClSIDManager.hh
-  XrdClFileSystem.cc          XrdClFileSystem.hh
-  XrdClXRootDMsgHandler.cc    XrdClXRootDMsgHandler.hh
-                              XrdClBuffer.hh
-                              XrdClMessage.hh
-  XrdClMessageUtils.cc        XrdClMessageUtils.hh
-  XrdClXRootDResponses.cc     XrdClXRootDResponses.hh
-                              XrdClRequestSync.hh
-  XrdClFile.cc                XrdClFile.hh
-  XrdClFileStateHandler.cc    XrdClFileStateHandler.hh
-  XrdClCopyProcess.cc         XrdClCopyProcess.hh
-  XrdClClassicCopyJob.cc      XrdClClassicCopyJob.hh
-  XrdClThirdPartyCopyJob.cc   XrdClThirdPartyCopyJob.hh
-  XrdClAsyncSocketHandler.cc  XrdClAsyncSocketHandler.hh
-  XrdClChannelHandlerList.cc  XrdClChannelHandlerList.hh
-  XrdClForkHandler.cc         XrdClForkHandler.hh
-  XrdClCheckSumManager.cc     XrdClCheckSumManager.hh
-  XrdClTransportManager.cc    XrdClTransportManager.hh
-                              XrdClSyncQueue.hh
-  XrdClJobManager.cc          XrdClJobManager.hh
-                              XrdClResponseJob.hh
-  XrdClFileTimer.cc           XrdClFileTimer.hh
-                              XrdClUglyHacks.hh
-                              XrdClPlugInInterface.hh
-  XrdClPlugInManager.cc       XrdClPlugInManager.hh
-                              XrdClPropertyList.hh
-                              XrdClCopyJob.hh
-  XrdClFileSystemUtils.cc     XrdClFileSystemUtils.hh
-  XrdClTPFallBackCopyJob.cc   XrdClTPFallBackCopyJob.hh
-  XrdClMetalinkRedirector.cc  XrdClMetalinkRedirector.hh
-  XrdClRedirectorRegistry.cc  XrdClRedirectorRegistry.hh
-  XrdClZipArchiveReader.cc    XrdClZipArchiveReader.hh
-  XrdClXCpCtx.cc              XrdClXCpCtx.hh
-  XrdClXCpSrc.cc              XrdClXCpSrc.hh
-  XrdClLocalFileHandler.cc    XrdClLocalFileHandler.hh
-  XrdClLocalFileTask.cc       XrdClLocalFileTask.hh
+  XrdClLog.cc                    XrdClLog.hh
+  XrdClUtils.cc                  XrdClUtils.hh
+                                 XrdClOptimizers.hh
+                                 XrdClConstants.hh
+  XrdClEnv.cc                    XrdClEnv.hh
+  XrdClDefaultEnv.cc             XrdClDefaultEnv.hh
+  XrdClURL.cc                    XrdClURL.hh
+  XrdClStatus.cc                 XrdClStatus.hh
+  XrdClSocket.cc                 XrdClSocket.hh
+  XrdClTls.cc                    XrdClTls.hh
+                                 XrdClPoller.hh
+  XrdClPollerFactory.cc          XrdClPollerFactory.hh
+  XrdClPollerBuiltIn.cc          XrdClPollerBuiltIn.hh
+  XrdClPostMaster.cc             XrdClPostMaster.hh
+                                 XrdClPostMasterInterfaces.hh
+  XrdClChannel.cc                XrdClChannel.hh
+  XrdClStream.cc                 XrdClStream.hh
+  XrdClXRootDTransport.cc        XrdClXRootDTransport.hh
+  XrdClInQueue.cc                XrdClInQueue.hh
+  XrdClOutQueue.cc               XrdClOutQueue.hh
+  XrdClTaskManager.cc            XrdClTaskManager.hh
+  XrdClSIDManager.cc             XrdClSIDManager.hh
+  XrdClFileSystem.cc             XrdClFileSystem.hh
+  XrdClXRootDMsgHandler.cc       XrdClXRootDMsgHandler.hh
+                                 XrdClBuffer.hh
+                                 XrdClMessage.hh
+  XrdClMessageUtils.cc           XrdClMessageUtils.hh
+  XrdClXRootDResponses.cc        XrdClXRootDResponses.hh
+                                 XrdClRequestSync.hh
+  XrdClFile.cc                   XrdClFile.hh
+  XrdClFileStateHandler.cc       XrdClFileStateHandler.hh
+  XrdClCopyProcess.cc            XrdClCopyProcess.hh
+  XrdClClassicCopyJob.cc         XrdClClassicCopyJob.hh
+  XrdClThirdPartyCopyJob.cc      XrdClThirdPartyCopyJob.hh
+  XrdClAsyncSocketHandler.cc     XrdClAsyncSocketHandler.hh
+  XrdClAsyncTlsSocketHandler.cc  XrdClAsyncTlsSocketHandler.hh
+  XrdClChannelHandlerList.cc     XrdClChannelHandlerList.hh
+  XrdClForkHandler.cc            XrdClForkHandler.hh
+  XrdClCheckSumManager.cc        XrdClCheckSumManager.hh
+  XrdClTransportManager.cc       XrdClTransportManager.hh
+                                 XrdClSyncQueue.hh
+  XrdClJobManager.cc             XrdClJobManager.hh
+                                 XrdClResponseJob.hh
+  XrdClFileTimer.cc              XrdClFileTimer.hh
+                                 XrdClUglyHacks.hh
+                                 XrdClPlugInInterface.hh
+  XrdClPlugInManager.cc          XrdClPlugInManager.hh
+                                 XrdClPropertyList.hh
+                                 XrdClCopyJob.hh
+  XrdClFileSystemUtils.cc        XrdClFileSystemUtils.hh
+  XrdClTPFallBackCopyJob.cc      XrdClTPFallBackCopyJob.hh
+  XrdClMetalinkRedirector.cc     XrdClMetalinkRedirector.hh
+  XrdClRedirectorRegistry.cc     XrdClRedirectorRegistry.hh
+  XrdClZipArchiveReader.cc       XrdClZipArchiveReader.hh
+  XrdClXCpCtx.cc                 XrdClXCpCtx.hh
+  XrdClXCpSrc.cc                 XrdClXCpSrc.hh
+  XrdClLocalFileHandler.cc       XrdClLocalFileHandler.hh
+  XrdClLocalFileTask.cc          XrdClLocalFileTask.hh
   XrdClZipListHandler.cc      XrdClZipListHandler.hh
   
   ${XrdClPipelineSources}
@@ -94,11 +96,13 @@ target_link_libraries(
   XrdCl
   XrdXml
   XrdUtils
+  XrdTls
   pthread
   uuid
   z
   ${EXTRA_LIBS}
   ${CMAKE_DL_LIBS})
+  ssl)
 
 set_target_properties(
   XrdCl
