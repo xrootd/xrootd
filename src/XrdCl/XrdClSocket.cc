@@ -601,4 +601,72 @@ namespace XrdCl
     pName += ">";
     return pName;
   }
+
+
+  //------------------------------------------------------------------------
+  // Classify errno while reading/writing
+  //------------------------------------------------------------------------
+  Status Socket::ClassifyErrno( int error )
+  {
+    switch( errno )
+    {
+
+      case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+      case EWOULDBLOCK:
+#endif
+      {
+        //------------------------------------------------------------------
+        // Reading/writing operation would block! So we are done for now,
+        // but we will be back ;-)
+        //------------------------------------------------------------------
+        return Status( stOK, suRetry );
+      }
+      case ECONNRESET:
+      case EDESTADDRREQ:
+      case EMSGSIZE:
+      case ENOTCONN:
+      case ENOTSOCK:
+      {
+        //------------------------------------------------------------------
+        // Actual socket error error!
+        //------------------------------------------------------------------
+        return Status( stError, errSocketError, errno );
+      }
+      case EFAULT:
+      {
+        //------------------------------------------------------------------
+        // The buffer provided by the user for reading/writing is invalid
+        //------------------------------------------------------------------
+        return Status( stError, errInvalidArgs );
+      }
+      default:
+      {
+        //------------------------------------------------------------------
+        // Not a socket error
+        //------------------------------------------------------------------
+        return Status( stError, errInternal, errno );
+      }
+    }
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Read helper from raw socket helper
+  //----------------------------------------------------------------------------
+  Status ReadFrom( int sfd, char *buffer, size_t size, int &bytesRead )
+  {
+    int status = ::read( sfd, buffer, size );
+
+    // if the server shut down the socket declare a socket error (it
+    // will trigger a re-connect)
+    if( status == 0 )
+      return Status( stError, errSocketError, errno );
+
+    if( status < 0 )
+      return Socket::ClassifyErrno( errno );
+
+    bytesRead = status;
+    return Status();
+  }
 }

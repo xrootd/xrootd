@@ -40,6 +40,7 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSec/XrdSecProtect.hh"
+#include "XrdCl/XrdClTls.hh"
 #include "XrdVersion.hh"
 
 #include <arpa/inet.h>
@@ -208,9 +209,10 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Read message header
+  // Read message header (implementation)
   //----------------------------------------------------------------------------
-  Status XRootDTransport::GetHeader( Message *message, int socket )
+  template<typename SRC>
+  Status XRootDTransport::GetHeaderImpl( Message *message, SRC src )
   {
     //--------------------------------------------------------------------------
     // A new message - allocate the space needed for the header
@@ -226,18 +228,14 @@ namespace XrdCl
       uint32_t leftToBeRead = 8-message->GetCursor();
       while( leftToBeRead )
       {
-        int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
+        int bytesRead = 0;
+        Status status = ReadFrom( src, message->GetBufferAtCursor(), leftToBeRead, bytesRead );
 
-        // if the server shut down the socket declare a socket error (it
-        // will trigger a re-connect)
-        if( status == 0 )
-          return Status( stError, errSocketError, errno );
+        if( !status.IsOK() || status.code == suRetry )
+          return status;
 
-        if( status < 0 )
-          return ClassifyErrno( errno );
-
-        leftToBeRead -= status;
-        message->AdvanceCursor( status );
+        leftToBeRead -= bytesRead;
+        message->AdvanceCursor( bytesRead );
       }
       UnMarshallHeader( message );
 
@@ -251,10 +249,35 @@ namespace XrdCl
     return Status( stError, errInternal );
   }
 
+  template
+  Status XRootDTransport::GetHeaderImpl<int>( Message *message,
+                                              int      sfd );
+
+  template
+  Status XRootDTransport::GetHeaderImpl<Tls*>( Message  *message,
+                                               Tls      *tls );
+
   //----------------------------------------------------------------------------
-  // Read message body
+  // Read message header from socket
   //----------------------------------------------------------------------------
-  Status XRootDTransport::GetBody( Message *message, int socket )
+  Status XRootDTransport::GetHeader( Message *message, int socket )
+  {
+    return GetHeaderImpl( message, socket );
+  }
+
+  //----------------------------------------------------------------------------
+  // Read message header from TLS layer
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::GetHeader( Message *message, Tls *tls )
+  {
+    return GetHeaderImpl<Tls*>( message, tls );
+  }
+
+  //----------------------------------------------------------------------------
+  // Read message body (implementation)
+  //----------------------------------------------------------------------------
+  template<typename SRC>
+  Status XRootDTransport::GetBodyImpl( Message *message, SRC src )
   {
     //--------------------------------------------------------------------------
     // Retrieve the body
@@ -268,20 +291,40 @@ namespace XrdCl
     leftToBeRead = bodySize-(message->GetCursor()-8);
     while( leftToBeRead )
     {
-      int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
+      int bytesRead = 0;
+      Status status = ReadFrom( src, message->GetBufferAtCursor(),
+                                leftToBeRead, bytesRead);
 
-      // if the server shut down the socket declare a socket error (it
-      // will trigger a re-connect)
-      if( status == 0 )
-        return Status( stError, errSocketError, errno );
+      if( !status.IsOK() || status.code == suRetry )
+        return status;
 
-      if( status < 0 )
-        return ClassifyErrno( errno );
-
-      leftToBeRead -= status;
-      message->AdvanceCursor( status );
+      leftToBeRead -= bytesRead;
+      message->AdvanceCursor( bytesRead );
     }
     return Status( stOK, suDone );
+  }
+
+  template
+  Status XRootDTransport::GetBodyImpl<int>( Message *message, int sfd );
+
+  template
+  Status XRootDTransport::GetBodyImpl<Tls*>( Message  *message,
+                                             Tls      *tls );
+
+  //----------------------------------------------------------------------------
+  // Read message body from socket
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::GetBody( Message *message, int socket )
+  {
+    return GetBodyImpl( message, socket );
+  }
+
+  //----------------------------------------------------------------------------
+  // Read message body from TLS layer
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::GetBody( Message *message, Tls *tls )
+  {
+    return GetBodyImpl( message, tls );
   }
 
   //----------------------------------------------------------------------------
@@ -1283,46 +1326,6 @@ namespace XrdCl
     }
 
     return Status();
-  }
-
-  //------------------------------------------------------------------------
-  // Classify errno while reading/writing
-  //------------------------------------------------------------------------
-  Status XRootDTransport::ClassifyErrno( int error )
-  {
-    switch( errno )
-    {
-
-      case EAGAIN:
-#if EAGAIN != EWOULDBLOCK
-      case EWOULDBLOCK:
-#endif
-      {
-        //------------------------------------------------------------------
-        // Reading/writing operation would block! So we are done for now,
-        // but we will be back ;-)
-        //------------------------------------------------------------------
-        return Status( stOK, suRetry );
-      }
-      case ECONNRESET:
-      case EDESTADDRREQ:
-      case EMSGSIZE:
-      case ENOTCONN:
-      case ENOTSOCK:
-      {
-        //------------------------------------------------------------------
-        // Actual socket error error!
-        //------------------------------------------------------------------
-        return Status( stError, errSocketError, errno );
-      }
-      default:
-      {
-        //------------------------------------------------------------------
-        // Not a socket error
-        //------------------------------------------------------------------
-        return Status( stError, errInternal, errno );
-      }
-    }
   }
 
   //----------------------------------------------------------------------------

@@ -76,6 +76,7 @@ namespace XrdCl
   const uint16_t errStreamDisconnect   = 107;
   const uint16_t errConnectionError    = 108;
   const uint16_t errInvalidSession     = 109;
+  const uint16_t errTlsError           = 110;
 
   //----------------------------------------------------------------------------
   // Post Master related errors

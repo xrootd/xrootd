@@ -35,6 +35,7 @@ class XrdSecProtect;
 
 namespace XrdCl
 {
+  class Tls;
   struct XRootDChannelInfo;
   struct PluginUnloadHandler;
 
@@ -66,7 +67,7 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Read a message header from the socket, the socket is non-blocking,
-      //! so if there is not enough data the function should return errRetry
+      //! so if there is not enough data the function should return suRetry
       //! in which case it will be called again when more data arrives, with
       //! the data previously read stored in the message buffer
       //!
@@ -79,6 +80,20 @@ namespace XrdCl
       virtual Status GetHeader( Message *message, int socket );
 
       //------------------------------------------------------------------------
+      //! Read a message header from the TLS layer (non-blocking mode),
+      //! so if there is not enough data the function should return suRetry
+      //! in which case it will be called again when more data arrives, with
+      //! the data previously read stored in the message buffer
+      //!
+      //! @param message the message buffer
+      //! @param socket  the socket
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
+      //------------------------------------------------------------------------
+      virtual Status GetHeader( Message *message, Tls *tls );
+
+      //------------------------------------------------------------------------
       //! Read the message body from the socket, the socket is non-blocking,
       //! the method may be called multiple times - see GetHeader for details
       //!
@@ -89,6 +104,18 @@ namespace XrdCl
       //!                stError on failure
       //------------------------------------------------------------------------
       virtual Status GetBody( Message *message, int socket );
+
+      //------------------------------------------------------------------------
+      //! Read the message body from the TLS layer (non-blocking mode),
+      //! the method may be called multiple times - see GetHeader for details
+      //!
+      //! @param message the message buffer containing the header
+      //! @param socket  the socket
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
+      //------------------------------------------------------------------------
+      virtual Status GetBody( Message *message, Tls *tls );
 
       //------------------------------------------------------------------------
       //! Initialize channel
@@ -231,11 +258,6 @@ namespace XrdCl
       virtual Status GetSignature( Message *toSign, Message *&sign,
                                    AnyObject &channelData );
 
-      //------------------------------------------------------------------------
-      //! Classify errno while reading/writing
-      //------------------------------------------------------------------------
-      Status ClassifyErrno( int error );
-
     private:
 
       //------------------------------------------------------------------------
@@ -348,6 +370,18 @@ namespace XrdCl
       // Get a string representation of file handle
       //------------------------------------------------------------------------
       static std::string FileHandleToStr( const unsigned char handle[4] );
+
+      //------------------------------------------------------------------------
+      // Get header implementation
+      //------------------------------------------------------------------------
+      template<typename SRC>
+      Status GetHeaderImpl( Message *message, SRC src );
+
+      //------------------------------------------------------------------------
+      // Get body implementation
+      //------------------------------------------------------------------------
+      template<typename SRC>
+      Status GetBodyImpl( Message *message, SRC src );
 
       XrdSecGetProt_t      pAuthHandler;
 

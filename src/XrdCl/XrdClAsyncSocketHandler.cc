@@ -467,7 +467,7 @@ namespace XrdCl
       int status = pSocket->Send( msg->GetBufferAtCursor(), leftToBeWritten );
       if( status <= 0 )
       {
-        Status ret = ClassifyErrno( errno );
+        Status ret = Socket::ClassifyErrno( errno );
         if( !ret.IsOK() )
           toWrite->SetCursor( 0 );
         return ret;
@@ -525,7 +525,7 @@ namespace XrdCl
       int bytesWritten = pSocket->WriteV( iov, iovcnt );
       if( bytesWritten <= 0 )
       {
-        Status ret = ClassifyErrno( errno );
+        Status ret = Socket::ClassifyErrno( errno );
         if( !ret.IsOK() )
           toWrite->SetCursor( 0 );
         return ret;
@@ -754,12 +754,20 @@ namespace XrdCl
     if( st.code != suDone )
       return;
 
+    HandleHandShake();
+  }
+
+  //------------------------------------------------------------------------
+  // Handle the handshake message
+  //------------------------------------------------------------------------
+  void AsyncSocketHandler::HandleHandShake()
+  {
     //--------------------------------------------------------------------------
     // OK, we have a new message, let's deal with it;
     //--------------------------------------------------------------------------
     pHandShakeData->in = pHSIncoming;
     pHSIncoming = 0;
-    st = pTransport->HandShake( pHandShakeData, *pChannelData );
+    Status st = pTransport->HandShake( pHandShakeData, *pChannelData );
 
     //--------------------------------------------------------------------------
     // Deal with wait responses
@@ -1062,42 +1070,5 @@ namespace XrdCl
     if( rsp->hdr.status == kXR_wait )
       waitSeconds = rsp->body.wait.seconds;
     return waitSeconds;
-  }
-
-  Status AsyncSocketHandler::ClassifyErrno( int error )
-  {
-    switch( errno )
-    {
-
-      case EAGAIN:
-#if EAGAIN != EWOULDBLOCK
-      case EWOULDBLOCK:
-#endif
-      {
-        //------------------------------------------------------------------
-        // Reading/writing operation would block! So we are done for now,
-        // but we will be back ;-)
-        //------------------------------------------------------------------
-        return Status( stOK, suRetry );
-      }
-      case ECONNRESET:
-      case EDESTADDRREQ:
-      case EMSGSIZE:
-      case ENOTCONN:
-      case ENOTSOCK:
-      {
-        //------------------------------------------------------------------
-        // Actual socket error error!
-        //------------------------------------------------------------------
-        return Status( stError, errSocketError, errno );
-      }
-      default:
-      {
-        //------------------------------------------------------------------
-        // Not a socket error
-        //------------------------------------------------------------------
-        return Status( stError, errInternal, errno );
-      }
-    }
   }
 }

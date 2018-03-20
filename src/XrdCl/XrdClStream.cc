@@ -32,9 +32,10 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClOutQueue.hh"
 #include "XrdCl/XrdClMonitor.hh"
-#include "XrdCl/XrdClAsyncSocketHandler.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdClAsyncSocketHandler.hh"
+#include "XrdClAsyncTlsSocketHandler.hh"
 
 #include <sys/types.h>
 #include <algorithm>
@@ -179,10 +180,9 @@ namespace XrdCl
     if( !pTransport || !pPoller || !pChannelData )
       return Status( stError, errUninitialized );
 
-    AsyncSocketHandler *s = new AsyncSocketHandler( pPoller,
-                                                    pTransport,
-                                                    pChannelData,
-                                                    0 );
+    AsyncSocketHandler *s = IsSecure() ?
+        new AsyncTlsSocketHandler( pPoller, pTransport, pChannelData, 0 ) :
+        new AsyncSocketHandler( pPoller, pTransport, pChannelData, 0 );
     s->SetStream( this );
 
     pSubStreams.push_back( new SubStreamData() );
@@ -572,8 +572,10 @@ namespace XrdCl
       {
         for( uint16_t i = 1; i < numSub; ++i )
         {
-          AsyncSocketHandler *s = new AsyncSocketHandler( pPoller, pTransport,
-                                                          pChannelData, i );
+          AsyncSocketHandler *s = IsSecure() ?
+              new AsyncTlsSocketHandler( pPoller, pTransport, pChannelData, i ) :
+              new AsyncSocketHandler( pPoller, pTransport, pChannelData, i );
+
           s->SetStream( this );
           pSubStreams.push_back( new SubStreamData() );
           pSubStreams[i]->socket = s;

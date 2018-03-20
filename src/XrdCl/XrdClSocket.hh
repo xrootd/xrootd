@@ -226,7 +226,12 @@ namespace XrdCl
         return pChannelID;
       }
 
-    private:
+      //------------------------------------------------------------------------
+      // Classify errno while reading/writing
+      //------------------------------------------------------------------------
+      static Status ClassifyErrno( int error );
+
+    protected:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO
       //!
@@ -251,6 +256,20 @@ namespace XrdCl
       int                  pProtocolFamily;
       AnyObject           *pChannelID;
   };
+
+  //----------------------------------------------------------------------------
+  //! Read helper for raw socket
+  //!
+  //! @param sfd       : the socket file descriptor
+  //! @param buffer    : the sink for the data
+  //! @param size      : size of the sink
+  //! @param bytesRead : number of bytes actually written into the sink
+  //! @return          : success     : ( stOK )
+  //!                    EAGAIN      : ( stOK,    suRetry )
+  //!                    EWOULDBLOCK : ( stOK,    suRetry )
+  //!                    other error : ( stError, errSocketError )
+  //----------------------------------------------------------------------------
+  Status ReadFrom( int sfd, char *buffer, size_t size, int &bytesRead );
 }
 
 #endif // __XRD_CL_SOCKET_HH__
