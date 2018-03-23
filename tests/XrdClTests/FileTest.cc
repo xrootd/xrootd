@@ -35,8 +35,6 @@
 #include "XrdCl/XrdClZipArchiveReader.hh"
 #include "XrdCl/XrdClConstants.hh"
 
-#include <random>
-
 using namespace XrdClTests;
 
 //------------------------------------------------------------------------------
@@ -535,14 +533,12 @@ void FileTest::VectorWriteTest()
   const uint32_t GB = 1024*MB;
 
   time_t seed = time( 0 );
-  std::default_random_engine generator( seed );
+  srand( seed );
   DefaultEnv::GetLog()->Info( UtilityMsg,
       "Carrying out the VectorWrite test with seed: %d", seed );
 
   // figure out how many chunks are we going to write/read
-  std::uniform_int_distribution<int> nbChunksDist( 1, 100);
-  std::uniform_int_distribution<int> sizeDist( MB, 2*MB);
-  size_t nbChunks = nbChunksDist( generator );
+  size_t nbChunks = rand() % 100 + 1;
 
   XrdCl::ChunkList chunks;
   size_t   min_offset = 0;
@@ -552,11 +548,10 @@ void FileTest::VectorWriteTest()
   for( size_t i = 0; i < nbChunks; ++i )
   {
     // figure out the offset
-    std::uniform_int_distribution<int> offsetDist( min_offset, GB);
-    size_t offset = offsetDist( generator );
+    size_t offset = min_offset + rand() % ( GB - min_offset + 1 );
 
     // figure out the size
-    size_t size = sizeDist( generator );
+    size_t size = MB + rand() % ( MB + 1 );
     if( offset + size >= GB )
       size = GB - offset;
 
