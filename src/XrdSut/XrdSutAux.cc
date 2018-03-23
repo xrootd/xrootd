@@ -255,7 +255,11 @@ int XrdSutToHex(const char *in, int lin, char *out)
    int i = 0;
    out[0] = 0;
    for ( ; i < lin; i++)
-      sprintf(out,"%s%02x",out,(0xFF & in[i]));
+   {
+      char buff[3];
+      sprintf(buff, "%02x", (0xFF & in[i]));
+      strncat(out, buff, 3);
+   }
    // Null termination
    out[lbuf-1] = 0;
 

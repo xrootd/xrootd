@@ -3400,7 +3400,7 @@ void XrdSecProtocolpwd::ErrF(XrdOucErrInfo *einfo, kXR_int32 ecode,
       if (bout) {
          bout[0] = 0;
          for (k = 0; k < i; k++)
-            sprintf(bout,"%s%s",bout,msgv[k]);
+            strcat(bout, msgv[k]);
          PRINT(bout);
       } else {
          for (k = 0; k < i; k++)
