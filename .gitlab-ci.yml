@@ -544,6 +544,7 @@ clean:artifacts:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
+    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/master/*/*/; do find ${commit_dir} -mindepth 1 -maxdepth 1 -type d -ctime +10 | xargs rm -rf; createrepo --update -q ${commit_dir}; done'
     - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/stable-*/*/*/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +30 -delete; createrepo --update -q ${commit_dir}; done'
     - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/experimental/*/x86_64/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +30 -delete; createrepo --update -q ${commit_dir}; done'
   tags:
