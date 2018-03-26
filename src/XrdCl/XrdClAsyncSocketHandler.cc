@@ -777,7 +777,12 @@ namespace XrdCl
     pHandShakeData->in = pHSIncoming;
     pHSIncoming = 0;
     st = pTransport->HandShake( pHandShakeData, *pChannelData );
-    ++pHandShakeData->step;
+
+    //--------------------------------------------------------------------------
+    // Deal with wait responses
+    //--------------------------------------------------------------------------
+    kXR_int32 waitSeconds = HandleWaitRsp( pHandShakeData->in );
+
     delete pHandShakeData->in;
     pHandShakeData->in = 0;
 
@@ -786,6 +791,38 @@ namespace XrdCl
       OnFaultWhileHandshaking( st );
       return;
     }
+
+    //--------------------------------------------------------------------------
+    // We are handling a wait response and the transport handler told
+    // as to retry the request
+    //--------------------------------------------------------------------------
+    if( st.code == suRetry && waitSeconds >= 0 )
+    {
+      time_t resendTime = ::time( 0 ) + waitSeconds;
+      if( resendTime > pConnectionStarted + pConnectionTimeout )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( AsyncSockMsg,
+                    "[%s] Wont retry kXR_endsess request because would"
+                    "reach connection timeout.",
+                    pStreamName.c_str() );
+
+        OnFaultWhileHandshaking( Status( stError, errSocketTimeout ) );
+      }
+      else
+      {
+        TaskManager *taskMgr = DefaultEnv::GetPostMaster()->GetTaskManager();
+        WaitTask *task = new WaitTask( this, pHandShakeData->out );
+        pHandShakeData->out = 0;
+        taskMgr->RegisterTask( task, resendTime );
+      }
+      return;
+    }
+
+    //--------------------------------------------------------------------------
+    // We successfully proceeded to the next step
+    //--------------------------------------------------------------------------
+    ++pHandShakeData->step;
 
     //--------------------------------------------------------------------------
     // The transport handler gave us something to write
@@ -1016,5 +1053,28 @@ namespace XrdCl
     *offset += bytesWritten;
     bytesWritten = 0;
     ToIov( chunks, offset, iov );
+  }
+
+
+  void AsyncSocketHandler::RetryHSMsg( Message *msg )
+  {
+    pHSOutgoing = msg;
+    Status st;
+    if( !(st = EnableUplink()).IsOK() )
+    {
+      OnFaultWhileHandshaking( st );
+      return;
+    }
+  }
+
+  kXR_int32 AsyncSocketHandler::HandleWaitRsp( Message *msg )
+  {
+    // It would be more coherent if this could be done in the
+    // transport layer, unfortunately the API does not allow it.
+    kXR_int32 waitSeconds = -1;
+    ServerResponse *rsp = (ServerResponse*)msg->GetBuffer();
+    if( rsp->hdr.status == kXR_wait )
+      waitSeconds = rsp->body.wait.seconds;
+    return waitSeconds;
   }
 }
