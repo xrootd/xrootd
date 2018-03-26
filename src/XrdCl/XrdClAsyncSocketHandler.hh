@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPoller.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
+#include "XrdCl/XrdClTaskManager.hh"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -38,6 +39,32 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class AsyncSocketHandler: public SocketHandler
   {
+      //------------------------------------------------------------------------
+      // We need an extra task for rescheduling of HS request that received
+      // a wait response.
+      //------------------------------------------------------------------------
+      class WaitTask: public XrdCl::Task
+      {
+        public:
+          WaitTask( XrdCl::AsyncSocketHandler *handler, XrdCl::Message *msg ):
+            pHandler( handler ), pMsg( msg )
+          {
+            std::ostringstream o;
+            o << "WaitTask for: 0x" << msg;
+            SetName( o.str() );
+          }
+
+          virtual time_t Run( time_t now )
+          {
+            pHandler->RetryHSMsg( pMsg );
+            return 0;
+          }
+
+        private:
+          XrdCl::AsyncSocketHandler *pHandler;
+          XrdCl::Message            *pMsg;
+      };
+
     public:
       //------------------------------------------------------------------------
       //! Constructor
@@ -228,6 +255,20 @@ namespace XrdCl
                                     uint32_t   *offset,
                                     iovec      *iov,
                                     int        &bytesWritten );
+
+      //------------------------------------------------------------------------
+      // Retry hand shake message
+      //------------------------------------------------------------------------
+      void RetryHSMsg( Message *msg );
+
+      //------------------------------------------------------------------------
+      // Extract the value of a wait response
+      //
+      // @param rsp : the server response
+      // @return    : if rsp is a wait response then its value
+      //              otherwise -1
+      //------------------------------------------------------------------------
+      inline kXR_int32 HandleWaitRsp( Message *rsp );
 
       //------------------------------------------------------------------------
       // Data members

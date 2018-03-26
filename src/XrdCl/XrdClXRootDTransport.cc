@@ -462,17 +462,16 @@ namespace XrdCl
     {
       Status st = ProcessEndSessionResp( handShakeData, info );
 
-      if( !st.IsOK() )
-      {
-        sInfo.status = XRootDStreamInfo::Broken;
-        return st;
-      }
-
       if( st.IsOK() && st.code == suDone )
       {
         sInfo.status = XRootDStreamInfo::Connected;
-        return st;
       }
+      else if( !st.IsOK() )
+      {
+        sInfo.status = XRootDStreamInfo::Broken;
+      }
+
+      return st;
     }
 
     return Status( stOK, suDone );
@@ -2020,19 +2019,38 @@ namespace XrdCl
 
     ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
 
+    // If we're good, we're good!
+    if( rsp->hdr.status == kXR_ok )
+      return Status();
+
+    // we ignore not found errors as such an error means the connection
+    // has been already terminated
+    if( rsp->hdr.status == kXR_error && rsp->body.error.errnum == kXR_NotFound )
+      return Status();
+
+    // other errors
     if( rsp->hdr.status == kXR_error )
     {
-      char *errorMsg = new char[rsp->hdr.dlen-3]; errorMsg[rsp->hdr.dlen-4] = 0;
-      memcpy( errorMsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
-      log->Debug( XRootDTransportMsg, "[%s] Got error response to "
+      std::string errorMsg( rsp->body.error.errmsg, rsp->hdr.dlen - 4 );
+      log->Error( XRootDTransportMsg, "[%s] Got error response to "
                   "kXR_endsess: %s", hsData->streamName.c_str(),
-                  errorMsg );
-      delete [] errorMsg;
-      // we don't really care if it failed
-      // return Status( stFatal, errLoginFailed );
+                  errorMsg.c_str() );
+      return Status( stFatal, errHandShakeFailed );
     }
 
-    return Status();
+    // Wait Response.
+    if( rsp->hdr.status == kXR_wait )
+    {
+      std::string msg( rsp->body.wait.infomsg, rsp->hdr.dlen - 4 );
+      log->Info( XRootDTransportMsg, "[%s] Got wait response to "
+                  "kXR_endsess: %s", hsData->streamName.c_str(),
+                  msg.c_str() );
+      hsData->out = GenerateEndSession( hsData, info );
+      return Status( stOK, suRetry );
+    }
+
+    // Any other response is protocol violation
+    return Status( stError, errDataError );
   }
 
   //----------------------------------------------------------------------------
