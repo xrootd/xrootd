@@ -530,7 +530,8 @@ void FileTest::VectorWriteTest()
   //----------------------------------------------------------------------------
 
   const uint32_t MB = 1024*1024;
-  const uint32_t GB = 1024*MB;
+  const uint32_t GB = 1000*MB; // maybe that's not 100% precise but that's
+                               // what we have in our testbed
 
   time_t seed = time( 0 );
   srand( seed );
