@@ -15,8 +15,8 @@ Version 4.8.2
                 fixes #650.
   * **[Proxy]** Fully support third party copy in proxy servers.
   * **[Server]** Correct faulty logic for sendq backlog warning message.
+  * **[XrdCl]** Correctly handler error/wait response to endsess request.
   
-
 + **Minor bug fixes**
   * **[Net]** Optimize formatting corresponding to RFC 1178 and RFC 3696.
   * **[XrdHttp]** Fix HTTP PUT flags, fixes #637.
