@@ -64,6 +64,11 @@ bool State::InstallHandlers(CURL *curl) {
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
     }
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+    // Require a minimum speed from the transfer: must move at least 1MB every 2 minutes
+    // (roughly 8KB/s).
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 2*60);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1024*1024);
     return true;
 }
 
