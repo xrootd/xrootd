@@ -162,6 +162,7 @@ private:
   static int xsecxtractor(XrdOucStream &Config);
   static int xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv);
   static int xsslcadir(XrdOucStream &Config);
+  static int xsslcipherfilter(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
   static int xlistdeny(XrdOucStream &Config);
   static int xlistredir(XrdOucStream &Config);
@@ -332,7 +333,7 @@ protected:
   static int Window;
 
   /// OpenSSL stuff
-  static char *sslcert, *sslkey, *sslcadir, *sslcafile;
+  static char *sslcert, *sslkey, *sslcadir, *sslcafile, *sslcipherfilter;
 
   /// Gridmap file location. The same used by XrdSecGsi
   static char *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]

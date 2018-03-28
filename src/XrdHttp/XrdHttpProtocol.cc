@@ -74,6 +74,7 @@ int XrdHttpProtocol::Window = 0;
 char *XrdHttpProtocol::sslcert = 0;
 char *XrdHttpProtocol::sslkey = 0;
 char *XrdHttpProtocol::sslcadir = 0;
+char *XrdHttpProtocol::sslcipherfilter = 0;
 char *XrdHttpProtocol::listredir = 0;
 bool XrdHttpProtocol::listdeny = false;
 bool XrdHttpProtocol::embeddedstatic = true;
@@ -860,6 +861,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("cert", xsslcert);
       else if TS_Xeq("key", xsslkey);
       else if TS_Xeq("cadir", xsslcadir);
+      else if TS_Xeq("cipherfilter", xsslcipherfilter);
       else if TS_Xeq("gridmap", xgmap);
       else if TS_Xeq("cafile", xsslcafile);
       else if TS_Xeq("secretkey", xsecretkey);
@@ -1495,8 +1497,15 @@ int XrdHttpProtocol::InitSecurity() {
     }
   }
 
+  // Use default cipherlist filter if none is provided
+  if (!sslcipherfilter) sslcipherfilter = (char *) "ALL:!LOW:!EXP:!MD5:!MD2";
+  /* Apply the cipherlist filtering. */
+  if (!SSL_CTX_set_cipher_list(sslctx, sslcipherfilter)) {
+    TRACE(EMSG, " Error setting the cipherlist filter.");
+    ERR_print_errors(sslbio_err);
+    exit(1);
+  }
 
-  SSL_CTX_set_cipher_list(sslctx, "ALL:!LOW:!EXP:!MD5:!MD2");
   //SSL_CTX_set_purpose(sslctx, X509_PURPOSE_ANY);
   SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
 
@@ -2129,7 +2138,7 @@ int XrdHttpProtocol::xstaticpreload(XrdOucStream & Config) {
 
 
 /******************************************************************************/
-/*                          x s e l f h t t p s 2 h t t p                        */
+/*                          x s e l f h t t p s 2 h t t p                     */
 /******************************************************************************/
 
 /* Function: selfhttps2http
@@ -2365,6 +2374,40 @@ int XrdHttpProtocol::xsslcadir(XrdOucStream & Config) {
   return 0;
 }
 
+
+/******************************************************************************/
+/*                      x s s l c i p h e r f i l t e r                       */
+/******************************************************************************/
+
+/* Function: xsslcipherfilter
+
+   Purpose:  To parse the directive: sslcipherfilter <filter>
+
+             <filter>    the filter string to be used when generating
+                         the SSL cipher list
+
+   Output: 0 upon success or !0 upon failure.
+ */
+
+int XrdHttpProtocol::xsslcipherfilter(XrdOucStream & Config) {
+  char *val;
+
+  // Get the filter string
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "SSL cipherlist filter string not specified");
+    return 1;
+  }
+
+  // Record the filter string
+  //
+  if (sslcipherfilter) free(sslcipherfilter);
+  sslcipherfilter = strdup(val);
+
+  return 0;
+}
+
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
@@ -2374,7 +2417,7 @@ int XrdHttpProtocol::xsslcadir(XrdOucStream & Config) {
    Purpose:  To parse the directive: trace <events>
 
              <events> the blank separated list of events to trace. Trace
-                      directives are cummalative.
+                      directives are cumulative.
 
    Output: 0 upon success or 1 upon failure.
  */
