@@ -545,6 +545,7 @@ BIO *XrdHttpProtocol::CreateBIO(XrdLink *lp)
 
   BIO *ret = BIO_new(m_bio_method);
 
+  ret->shutdown = 0;
   ret->ptr = lp;
   ret->init = 1;
   return ret;
