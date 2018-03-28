@@ -73,7 +73,6 @@ class XrdHttpExtHandler;
 struct XrdVersionInfo;
 class XrdOucGMap;
 
-
 class XrdHttpProtocol : public XrdProtocol {
   
   friend class XrdHttpReq;
@@ -153,6 +152,8 @@ private:
   /// This primitive, for the way it is used, is not supposed to block
   int getDataOneShot(int blen, bool wait=false);
 
+  /// Create a new BIO object from an XrdLink.  Returns NULL on failure.
+  static BIO *CreateBIO(XrdLink *lp);
   
   /// Functions related to the configuration
   static int Config(const char *fn, XrdOucEnv *myEnv);
@@ -373,6 +374,11 @@ protected:
   
   /// Rules that turn HTTP headers to cgi tokens in the URL, for internal comsumption
   static std::map< std::string, std::string > hdr2cgimap;
-  
+
+  /// Type identifier for our custom BIO objects.
+  static int m_bio_type;
+
+  /// C-style vptr table for our custom BIO objects.
+  static BIO_METHOD *m_bio_method;
 };
 #endif
