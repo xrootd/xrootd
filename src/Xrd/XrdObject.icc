@@ -1,0 +1,104 @@
+/******************************************************************************/
+/*                                                                            */
+/*                         X r d O b j e c t . i c c                          */
+/*                                                                            */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
+/******************************************************************************/
+
+#include "Xrd/XrdScheduler.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+
+/******************************************************************************/
+/*                                  D o I t                                   */
+/******************************************************************************/
+
+template <class T>
+void XrdObjectQ<T>::DoIt()
+{
+   XrdObject<T> *pp, *p;
+   int oldcnt, agemax;
+
+// Lock the anchor and see if we met the threshold for deletion
+//
+   QMutex.Lock();
+   agemax = Maxage;
+   if ((oldcnt = Count) > MininQ)
+      {
+      // Prepare to scan down the queue.
+      //
+      if ((pp = First)) p = pp->Next;
+         else p = 0;
+
+      // Find the first object that's been idle for too long
+      //
+      while(p && (p->QTime >= Curage)) {pp = p; p = p->Next;}
+
+      // Now delete half of the idle objects. The object queue element must be
+      // part of the actual object being deleted for this to properly work.
+      //
+      if (pp) while(p)
+                   {pp->Next = p->Next; delete p->Item;
+                    Count--;
+                    p = ((pp = pp->Next) ? pp->Next : 0);
+                   }
+      }
+
+// Increase the age and unlock the queue
+//
+   Curage++;
+   QMutex.UnLock();
+
+// Trace as needed
+//
+   if (TraceON && Trace->Tracing(TraceON))
+      {Trace->Beg(TraceID);
+       cerr <<Comment <<" trim done; " <<Count <<" of " <<oldcnt <<" kept";
+       Trace->End();
+      }
+
+// Reschedule ourselves if we must do so
+//
+   if (agemax > 0) Sched->Schedule((XrdJob *)this, agemax+time(0));
+ }
+ 
+/******************************************************************************/
+/*                                   S e t                                    */
+/******************************************************************************/
+
+template <class T>
+void XrdObjectQ<T>::Set(int inQMax, time_t agemax)
+{
+
+// Lock the data area and set the values
+//
+   QMutex.Lock();
+   MaxinQ = inQMax; Maxage = agemax;
+   if (!(MininQ = inQMax/2)) MininQ = 1;
+   QMutex.UnLock();
+
+// Schedule ourselves using the new values
+//
+   if (agemax > 0) Sched->Schedule((XrdJob *)this, agemax+time(0));
+}

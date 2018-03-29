@@ -1,0 +1,28 @@
+/var/log/xrootd/*/*.log /var/log/xrootd/*.log
+{
+  # if the xrootd log rotate is enabled don't do anything
+  # (by convention if xrootd log rotate is enabled the 
+  # .lock file exists)
+  prerotate
+    LOCK=`dirname $1`/.lock
+    if [ -f $LOCK ]; then
+      exit 1
+    else
+      exit 0
+    fi
+  endscript
+  dateext
+  missingok
+  nomail
+  nocreate
+  rotate 100
+  notifempty
+  daily
+  compress
+  postrotate
+    PIPE=`dirname $1`/.`basename $1`
+    if [ -p "$PIPE" ]; then
+      /usr/bin/expect -c "set timeout 2; spawn /bin/sh -c \"echo ping > $PIPE\"; expect timeout { exit 1 } eof { exit 0 }" > /dev/null;
+    fi
+  endscript
+}

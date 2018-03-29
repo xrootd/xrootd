@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+#-------------------------------------------------------------------------------
+# Copyright (c) 2014 by European Organization for Nuclear Research (CERN)
+# Author: Lukasz Janyst <ljanyst@cern.ch>
+#-------------------------------------------------------------------------------
+# This file is part of the XRootD software suite.
+#
+# XRootD is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# XRootD is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+#
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization
+# or submit itself to any jurisdiction.
+#-------------------------------------------------------------------------------
+
+version=__VERSION__
+prefix=__PREFIX__
+includedir=${prefix}/__INCLUDEDIR__/xrootd
+plugin_version=__PLUGIN_VERSION__
+
+usage()
+{
+  cat <<EOF
+Usage: xrootd-config [OPTION] ...
+
+Generic options
+  --version     output XRootD version information.
+  --help        display this help and exit.
+
+Compilation support options
+  --cflags      print pre-processor and compiler flags
+  --plugin-vesion print plug-in version suffix
+
+Install directories XRootD was configured to
+  --prefix
+
+EOF
+  exit $1
+}
+
+if test $# -eq 0; then
+  usage 1 1>&2
+fi
+
+while test $# -gt 0; do
+  case $1 in
+    --prefix)
+      echo $prefix
+      ;;
+    --version)
+      echo $version
+      ;;
+    --cflags)
+      if test "$includedir" != "/usr/include" ; then
+        echo "-I${includedir}"
+      fi
+      ;;
+    --plugin-version)
+      echo ${plugin_version}
+      ;;
+    --help)
+      usage 0
+      ;;
+    *)
+      usage 1 1>&2
+      ;;
+  esac
+  shift
+done

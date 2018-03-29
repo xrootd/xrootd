@@ -1,0 +1,35 @@
+
+#
+# An example config file that loads the HTTP protocol plugin in a data server.
+# For explanations, please have a look
+# at the config file for the redirector
+#
+
+
+if exec xrootd
+   xrd.protocol XrdHttp /usr/local/lib/libXrdHttp-4.so
+fi
+
+http.cert /etc/grid-security/hostcert.pem
+http.key /etc/grid-security/hostkey.pem
+http.cadir /etc/grid-security/certificates
+#http.secretkey CHANGEME
+#http.gridmap /etc/grid-security/mapfile
+#http.secxtractor /usr/lib64/libXrdHttpVOMS-4.so
+#http.selfhttps2http yes
+
+# As an example of preloading files, let's preload in memory
+# the /etc/services and /etc/hosts files
+# and assign them to some urlpaths in /static
+#http.staticpreload /static/services_preload1 /etc/services
+#http.staticpreload /static/services_preload2 /etc/services
+#http.staticpreload /static/hosts_preload /etc/hosts
+
+#
+# Usual basic xrd stuff
+#
+all.role server
+all.manager <your_manager_host>:1213
+all.export /
+oss.localroot /tmp/xrdroot
+

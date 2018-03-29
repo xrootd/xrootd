@@ -1,0 +1,80 @@
+This major release of xrootd/cmsd provides full IPV6 support with IPV4
+compatibility. As such, it is no longer ABI compatible in two major respects:
+1) Classes dealing with sockets and the network interfaces have substantially
+   changed, and
+2) The security interface has changed so as to provide a consistent connection
+   context.
+
+*** Socket and Network Interfaces ***
+
+The XRDSysDNS class is now deprecated and essentially obsolete. It is still
+provided for backward compatibly but is no longer supported. This class works
+only in IPV4 contexts. It has been replaced by four address-format agnostic
+classes: XrdNetAddrInfo, XrdNetAddr, XrdNetSockAddr, and XrdNetUtils. All uses
+of XrdSysDNS should convert to using one or more of the new classes.
+
+The XrdNetLink and XrdNetWork classes have been deleted from the distribution.
+These appeared to be never used and it was easier to remove them than to
+upgrade them.
+
+The XrdNetPeer class is also deprecated but exists for backward compatibility.
+However, this class embedded an IPV4 structure, sockaddr, and was changed to
+use XrdNetSockAddr which defines a larger structure suitable for IPV6. To
+prevent programs from unknowingly using the smaller structure, the variable
+name used for the sockaddr structure was changed to trigger a compilation error.
+You should make sure you are not taking the size of the smaller structure when
+copying network addresses. For instance, the variable InetAddr referred to the
+sockaddr structure. This has change so that now Intet.Addr refers to the same
+structure.
+
+In general, interfaces using the XrdNetPeer classes should switch to using
+equivalent interfaces based on the XrdNetAddr class. The XrdNetAddr class
+provides comprehensive address handling while XrdNetPeer did not.
+
+In a less important area, the class XrdProtocol_Config which also contained
+the socket address describing the server’s IP address using the variable
+myAddr has been sized for IPV6 using a union. While the variable name has not
+changed, programs referring to this variable should use the urAddr variable
+instead. However, it was deemed unlikely that this would cause a problem.
+
+*** Security Interfaces ***
+
+The security interfaces have substantially changed. All interfaces that used
+to accept a sockaddr structure now only accept the XrdNetAddrInfo object. One
+can obtain the hostname using the XrdNetAddrInfo object however, that use is
+discouraged unless absolutely necessary. This is to prevent defeating the
+“nodnr” network directive option. Additional details on how to accomplish this
+follow later.
+
+The XrdSecEntity object has changed, as follows:
+1) It now includes a pointer to the XrdNetAddrInfo object that describes the
+   connection details of the end-point that is associated with the entity
+   description as member addrInfo.
+2) In order to better accommodate this additions, the layout has slightly
+   changed.
+
+In order to assist authorization and other host address sensitive plug-ins,
+each supported security plug-in now sets the XrdNetAddrInfo member addrInfo
+to point to a copy of the XrdNetAddrInfo object passed when requesting a new
+instance of the protocol. The default authorization plug-in has been changed
+to capitalize on this new information. Similar changes should be made to all
+private plug-ins. Failure to set the addrInfo member will likely result in
+a SEGV.
+
+*** Summary Of Required Plug-In Changes ***
+
+The changes that you should make to your plug-ins are:
+1) Substitute XrdNetAddr for any use of sockaddr. If that is not possible, at
+   the very least, use XrdNetSockAddr instead.
+2) After converting remove, if possible, redundant include files “arpa/inet.h”,
+   “netinet/in.h”, “sys/socket.hh” and similar include files.
+3) Convert from using XrdSysDNS to a combination of XrdNetAddr and XrdNetUtils.
+4) Private security plug-ins must set the addrInfo member.
+5) If one of your plug-ins relied on the host member in XrdSecEntity to
+   contain an actual host name, it should be changed to get the actual host
+   using the addrInfo field. Please be aware that the host member never
+   consistently pointed to a real host name as it was sensitive to the presence
+   of the nodnr option on the xrd.network directive.
+6) All plug-ins must now contain version information. This has become mandatory.
+   Use the XrdVERSIONINFO macro defined in XrdVersion.hh to include version
+   information in your plug-in.

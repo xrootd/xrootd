@@ -1,0 +1,164 @@
+//==============================================================================
+
+INTRODUCTION
+
+The XrdFileCache library is a proxy server plugin used for caching of data
+into local files. Two modes of operation are supported.
+
+The first mode simply prefetches complete files and stores them on local
+disk. This implementation is suitable for optimization of access latency,
+especially when reading is not strictly sequential or when it is known in
+advance that a significant fraction of a file will be read, potentially
+several times. Of course, once parts of a file are downloaded, access speed is
+the same as it would be for local XRootd access.
+
+The prefetching is initiated by the file open request, unless the file is
+already available in full. Prefetching proceeds sequentially, using a
+configurable block size (1 MB is the default). Client requests are served as
+soon as the data becomes available. If a client requests data from parts of
+the file that have not been prefetched yet the proxy puts this request to the
+beginning of its download queue so as to serve the client with minimal
+latency. Vector reads are also fully supported. If a file is closed before
+prefetching is complete, further downloading is also stopped. When downloading
+of the file is complete it could in principle be moved to local
+storage. Currently, however, there are no provisions in the proxy itself to
+coordinate this procedure.
+
+A state information file is maintained in parallel with each cached file to
+store the block size used for the file and a bit-field of blocks that have
+been committed to disk; this allows for complete cache recovery in case of a
+forced restart. Information about all file-accesses through the proxy (open &
+close time, # of bytes read and # of requests) is also put into the state file
+to provide cache reclamation algorithms with ample details about file usage.
+
+The second mode supports on-demand downloading of individual blocks of a file
+(block-size can also be passes as opaque information in file-open
+request). The distinguishing feature of the second implementation is that it
+only downloads the requested fixed-size blocks of a file. The main motivation
+was to provide prefetching of HDFS blocks (typical size 64k or 128M) when
+they become unavailable on local site, either permanently or temporarily due
+to server overload or other transient failures. When additional file replicas
+exist in a data-federation, the remote data can be used to supplement local
+storage, to improve its robustness, and to provide a means for healing of
+local files. In particular, our intention is to avoid any local file
+replication of rarely-used, non-custodial data at Tier 2 sites. As HDFS block
+size is a per-file property, it has to be passed to the proxy on per-file
+basis as an opaque URL parameter.
+
+Unlike the full-file prefetching version, the partial-file proxy does not
+begin prefetching any data until a read request is actually received. At that
+point a check is made if the blocks required to fulfill the request exist on
+disk and, if they don't, they get queued for prefetching in whole. The client
+request is served as soon as the data becomes available. Each block is stored
+as a separate file, post-fixed by block size and its offset in the full file;
+this facilitates potential reinjection back into HDFS to heal or increase
+replication of a file-block.
+
+Extensions to the Hadoop file-system have been developed to allow for an
+immediate fallback to XRootd access when local HDFS storage fails to provide
+the requested block.
+
+
+//==============================================================================
+
+IMPLEMENTATION NOTES
+
+1. Whole-file prefetching caching-proxy:
+
+- Prefetches a complete file.
+
+- When XrdPosixFile attaches an XrdOucCacheIO object a new prefetching thread
+  that downloads the file to disk is spawned. The thread runs method
+  Prefetch::Run().
+
+- Prefetcher thread reads data sequentially from the remote server in blocks
+  of fixed size and writes the buffers into a local file.
+
+- Incoming read requests that can not be served from the locally available
+  data are queued for out-of-order processing by the prefetcher thread.
+
+- Information about downloaded fragments of a file is written into a separate
+  info file. The info file has the same path as the data file with additional
+  extension ".cinfo". The info file also contains history of all accesses to
+  this file and cumulative cache statistics.
+
+- If all clients detach from the proxy before the file is fully prefetched,
+  the prefetching thread is terminated, leaving the file partially
+  downloaded. The info file will keep the state for future use.
+
+- Files in the local cache are purged as configured with the
+  low/high-watermark options. When there is not enough available space to
+  store a whole new file the cache IO object does not get created at all --
+  requests are passed through to and from the origin server.
+
+- Currently, the files that have not been accessed for the longest time get
+  removed. In the future we plan to provide a decision plugin that will
+  provide the list of files that are to be purged.
+
+
+2. Partial file prefetching caching-proxy:
+
+Partial file block-based prefetching is enabled with option '-prefetchFileBlock'.
+
+- Each file-block of the original file is written to the disk independently,
+  with its own info file. Block size and offset are postfixed onto the file name, e.g.,
+    /tmp/store/data/test.root___134217728_0
+
+- Default size of file-block is 128M. The size is configurable and saved into
+  corresponding info file.
+
+
+//==============================================================================
+
+CONFIGURATION
+
+pfc.blocksize: prefetch buffer size, default 1M
+
+pfc.ram [bytes[g]]: maximum allowed RAM usage for caching proxy 
+
+pfc.prefetch <n>: prefetch level, default is 10. Value zero disables prefetching.
+
+pfc.diskusage <low> <hig> diskusage boundaries, can be specified relative in percantage or in g or T bytes
+
+pfc.user <username>: username used by XrdOss plugin
+
+pfc.filefragmentmode [fragmentsize <bytes>] -- enable prefetching a unit of a file, 
+with default block size
+
+pfc.osslib <lpath> [<params>] path to alternative plign for output file system 
+
+pfc.decisionlib <lpath> [<prams>] path to decision library and plugin parameters
+
+pfc.trace <none|error|warning|info|debug|dump> default level is warning, xrootd option -d sets debug level
+
+Examples 
+
+a) Enable proxy file prefetching:
+pps.cachelib libXrdFileCache.so
+pfc.localroot  /data/xrd-file-cache
+pfc.ram 5g
+
+
+b) enable file block mode, with block size 64 MB:
+pss.cachelib libXrdFileCache.so
+pfc.hdfsmode hdfsbsize 64m
+
+
+//==============================================================================
+
+PERFORMANCE NOTES -- To be written up in full
+
+Expected read-rates -- depends on application reading the data and the number
+of expected clients.
+
+Write rates from prefetching. Throttling ?!! Slow net-read-ahead to not
+overload disk.
+
+Obviously, network bandwidth.
+
+Memory, usage of memory buffers. This could be optimized for some workloads,
+to prevent disk trashing. Ideally, the proxy shouldn't read a lot from disk for
+files that are being pre-fetched.
+
+
+Disk benchmarking -- use fio.

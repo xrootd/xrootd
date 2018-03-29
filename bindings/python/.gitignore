@@ -1,0 +1,7 @@
+build
+.project
+.pydevproject
+.cproject
+*.py[co]
+MANIFEST
+VERSION_INFO

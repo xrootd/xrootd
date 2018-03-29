@@ -1,0 +1,428 @@
+/******************************************************************************/
+/*                                                                            */
+/*               X r d S y s I O E v e n t s P o l l E . i c c                */
+/*                                                                            */
+/* (c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
+/******************************************************************************/
+
+#ifndef __APPLE__
+#include <malloc.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/epoll.h>
+
+#include "XrdSys/XrdSysAtomics.hh"
+#ifndef Atomic
+#define Atomic(x) x
+#endif
+
+using namespace std;
+  
+/******************************************************************************/
+/*                           C l a s s   P o l l E                            */
+/******************************************************************************/
+
+namespace XrdSys
+{
+namespace IOEvents
+{
+class PollE : public Poller
+{
+public:
+
+static int  AllocMem(void **memP, int slots);
+
+            PollE(struct epoll_event *ptab, int numfd, int pfd, int pFD[2])
+                    : Poller(pFD[0], pFD[1]), pollTab(ptab), cbNow(0),
+                      pollDfd(pfd), pollMax(numfd), pollNum(1), numPoll(0),
+                      cbCurr(0)
+                 {}
+           ~PollE() {Stop();}
+
+protected:
+
+       void Begin(XrdSysSemaphore *syncp, int &rc, const char **eMsg);
+
+       void Exclude(Channel *cP, bool &isLocked, bool dover=1);
+
+       bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked);
+
+       bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked);
+
+       void Shutdown();
+
+private:
+       int   AllocPT(int slots);
+       void  Dispatch(Channel *cP, uint32_t pollEv);
+       bool  Process(int curr);
+
+struct epoll_event *pollTab;
+       Channel     *cbNow;
+       int          pollDfd;
+       int          pollMax;
+       Atomic(int)  pollNum;
+       int          numPoll;
+       int          cbCurr;
+static void        *deadChP;
+};
+       void        *PollE::deadChP = 0;
+};
+};
+  
+/******************************************************************************/
+/*                          C l a s s   P o l l e r                           */
+/******************************************************************************/
+/******************************************************************************/
+/* Static:                     n e w P o l l e r                              */
+/******************************************************************************/
+  
+XrdSys::IOEvents::Poller *
+XrdSys::IOEvents::Poller::newPoller(int          pipeFD[2],
+                                    int         &eNum,
+                                    const char **eTxt)
+
+{
+   static const int allocFD = 1024;
+   struct epoll_event *pp, myEvent = {(EPOLLIN | EPOLLPRI), {0}};
+   int pfd;
+
+// Open the /dev/poll driver
+//
+#ifndef EPOLL_CLOEXEC
+   if ((pfd = epoll_create(allocFD)) >= 0) fcntl(pfd, F_SETFD, FD_CLOEXEC);
+      else
+#else
+   if ((pfd = epoll_create1(EPOLL_CLOEXEC)) < 0)
+#endif
+      {eNum = errno;
+       if (eTxt) *eTxt = "creating epoll device";
+       return 0;
+      }
+
+// Add the request side of the pipe fd to the poll set (always fd[0])
+//
+   if (epoll_ctl(pfd, EPOLL_CTL_ADD, pipeFD[0], &myEvent))
+      { eNum = errno;
+       *eTxt = "adding communication pipe";
+       return 0;
+      }
+
+// Allocate the poll table
+//
+   if ((eNum = XrdSys::IOEvents::PollE::AllocMem((void **)&pp, allocFD)))
+      {eNum = ENOMEM;
+       if (eTxt) *eTxt = "creating epoll table";
+       close(pfd);
+       return 0;
+      }
+
+// Create new poll object
+//
+   return (Poller *)new PollE(pp, allocFD, pfd, pipeFD);
+}
+  
+/******************************************************************************/
+/*                           C l a s s   P o l l E                            */
+/******************************************************************************/
+/******************************************************************************/
+/*                              A l l o c M e m                               */
+/******************************************************************************/
+
+int XrdSys::IOEvents::PollE::AllocMem(void **memP, int slots)
+{
+   int rc, bytes, alignment, pagsz = getpagesize();
+
+// Calculate the size of the poll table and allocate it
+//
+   bytes     = slots * sizeof(struct epoll_event);
+   alignment = (bytes < pagsz ? 1024 : pagsz);
+   if (!(rc = posix_memalign(memP, alignment, bytes))) memset(*memP, 0, bytes);
+   return rc;
+}
+  
+/******************************************************************************/
+/* Private:                      A l l o c P T                                */
+/******************************************************************************/
+
+int XrdSys::IOEvents::PollE::AllocPT(int slots)
+{
+   struct epoll_event *pp;
+
+// Calclulate new slots
+//
+   if (pollMax >= slots) slots = pollMax + 256;
+      else slots = pollMax + (slots/256*256) + (slots%256 ? 256 : 0);
+
+// Allocate a new table and if successful, replace the old one
+//
+   if (!AllocMem((void **)&pp, slots))
+      {free(pollTab);
+       pollTab = pp;
+       pollMax = slots;
+      }
+
+// All done
+//
+   return 0;
+}
+  
+/******************************************************************************/
+/* Protected:                      B e g i n                                  */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
+                                    int             &retcode,
+                                    const char     **eTxt)
+{
+   int numpolled, pollN;
+   Channel *cP;
+
+// Indicate to the starting thread that all went well
+//
+   retcode = 0;
+   *eTxt   = 0;
+   syncsem->Post();
+
+// Now start dispatching channels that are ready. We use the wakePend flag to
+// keep the chatter down when we actually wakeup.
+//
+   do {do {numpolled = epoll_wait(pollDfd, pollTab, pollMax, TmoGet());}
+          while (numpolled < 0 && errno == EINTR);
+       CPP_ATOMIC_STORE(wakePend, true, std::memory_order_release);
+       numPoll = numpolled;
+       if (numpolled == 0) CbkTMO();
+       else if (numpolled <  0)
+               {int rc = errno;
+                cerr <<"EPoll: " <<strerror(rc) <<" polling for events" <<endl;
+                abort();
+               }
+       else for (int i = 0; i < numpolled; i++)
+                {if ((cP = (Channel *)pollTab[i].data.ptr))
+                    {cbCurr = i; Dispatch(cP, pollTab[i].events);}
+                    else if (!Process(i)) return;
+                }
+
+       pollN = AtomicGet(pollNum);
+       if (pollMax < pollN) AllocPT(pollN);
+
+      } while(1);
+}
+
+/******************************************************************************/
+/* Private:                     D i s p a t c h                               */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollE::Dispatch(XrdSys::IOEvents::Channel *cP,
+                                       uint32_t                   pollEv)
+{
+   static const uint32_t pollER = EPOLLERR| EPOLLHUP;
+   static const uint32_t pollOK = EPOLLIN | EPOLLPRI | EPOLLOUT;
+   static const uint32_t pollRD = EPOLLIN | EPOLLPRI;
+   static const uint32_t pollWR = EPOLLOUT;
+   const char *eTxt;
+   int eNum, events = 0;
+   bool isLocked = false;
+
+// Make sure this not a dispatch to a dead channel (rare but true)
+//
+   if (cP == (XrdSys::IOEvents::Channel *)&deadChP) return;
+
+// Translate the event to something reasonable
+//
+        if (pollEv & pollER)
+           {eTxt = "polling";
+            eNum = (pollEv & EPOLLERR ? EPIPE : ECONNRESET); // Error or HUP
+           }
+   else if (pollEv & pollOK)
+           {if (pollEv & pollRD) events |= CallBack::ReadyToRead;
+            if (pollEv & pollWR) events |= CallBack::ReadyToWrite;
+            eNum = 0; eTxt = 0;
+           }
+   else {eTxt = "polling"; eNum = EIO;}
+
+// Execute the callback
+//
+   cbNow = cP;
+   if (!CbkXeq(cP, events, eNum, eTxt)) Exclude(cP, isLocked, 0);
+   cbNow = 0;
+}
+
+/******************************************************************************/
+/* Protected:                    E x c l u d e                                */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollE::Exclude(XrdSys::IOEvents::Channel *cP,
+                                      bool &isLocked,  bool dover)
+{
+
+// Remove this channel from the poll set. We ignore errors as the descriptor
+// may have been closed prior to this call (though this shouldn't happen).
+//
+   epoll_ctl(pollDfd, EPOLL_CTL_DEL, cP->GetFD(), 0);
+   AtomicDec(pollNum);
+
+// If we need to verify this action, sync with the poller thread (note that the
+// poller thread will not ask for this action unless it wants to deadlock). We
+// may actually deadlock anyway if the channel lock is held. We are allowed to
+// release it if the caller locked it. This will prevent a deadlock. Otherwise,
+// if we are in a callback and this channel is not the one that initiated the
+// exclude then we must make sure that we cancel any pending callback to the
+// excluded channel as it may have been deleted and we won't know that here.
+//
+   if (dover)
+      {PipeData cmdbuff;
+       if (isLocked)
+          {isLocked = false;
+           UnLockChannel(cP);
+          }
+       cmdbuff.req = PipeData::RmFD;
+       cmdbuff.fd  = cP->GetFD();
+       SendCmd(cmdbuff);
+      } else {
+       if (cbNow && cbNow != cP)
+          for (int i = cbCurr+1; i < numPoll; i++)
+              {if (cP == (Channel *)pollTab[i].data.ptr)
+                  pollTab[i].data.ptr = &deadChP;
+              }
+      }
+}
+
+/******************************************************************************/
+/* Protected:                    I n c l u d e                                */
+/******************************************************************************/
+  
+bool XrdSys::IOEvents::PollE::Include(XrdSys::IOEvents::Channel *cP,
+                                      int                       &eNum,
+                                      const char               **eTxt,
+                                      bool                      &isLocked)
+{
+   struct epoll_event myEvent = {0, {(void *)cP}};
+   int events = cP->GetEvents();
+
+// Establish new event mask
+//
+   if (events & Channel:: readEvents)  myEvent.events  = EPOLLIN  | EPOLLPRI;
+   if (events & Channel::writeEvents)  myEvent.events |= EPOLLOUT;
+
+// Add this fd to the poll set
+//
+   if (epoll_ctl(pollDfd, EPOLL_CTL_ADD, cP->GetFD(), &myEvent))
+      {eNum = errno;
+       if (eTxt) *eTxt = "adding channel";
+       return false;
+      }
+
+// All went well. Bump the number in the set. The poller thread will
+// reallocate the poll table if need be.
+//
+   AtomicInc(pollNum);
+   return true;
+}
+
+/******************************************************************************/
+/* Protected:                     M o d i f y                                 */
+/******************************************************************************/
+
+bool XrdSys::IOEvents::PollE::Modify(XrdSys::IOEvents::Channel *cP,
+                                     int                       &eNum,
+                                     const char               **eTxt,
+                                     bool                      &isLocked)
+{
+   struct epoll_event myEvents = {0, {(void *)cP}};
+   int events = cP->GetEvents();
+
+// Establish new event mask
+//
+   if (events & Channel:: readEvents)  myEvents.events |= EPOLLIN  | EPOLLPRI;
+   if (events & Channel::writeEvents)  myEvents.events |= EPOLLOUT;
+
+// Modify this fd. Unlike solaris, epoll_ctl() does not block when the pollfd
+// is being waited upon by another thread.
+//
+   if (epoll_ctl(pollDfd, EPOLL_CTL_MOD, cP->GetFD(), &myEvents))
+      {eNum = errno;
+       if (eTxt) *eTxt = "modifying poll events";
+       return false;
+      }
+  
+// All done
+//
+   return true;
+}
+ 
+/******************************************************************************/
+/* Private:                      P r o c e s s                                */
+/******************************************************************************/
+
+bool XrdSys::IOEvents::PollE::Process(int curr)
+{
+// Get the pipe request and check out actions of interest.
+//
+  if (GetRequest())
+     {     if (reqBuff.req == PipeData::RmFD)
+              {Channel *cP;
+               for (int i = curr+1; i < numPoll; i++)
+                   {if ((cP  = (Channel *)pollTab[i].data.ptr)
+                    &&   cP != (XrdSys::IOEvents::Channel *)&deadChP
+                    &&  reqBuff.fd == cP->GetFD()) pollTab[i].data.ptr=&deadChP;
+                   }
+               reqBuff.theSem->Post();
+              }
+      else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
+                                              return false;
+                                             }
+     }
+
+// Return true
+//
+   return true;
+}
+  
+/******************************************************************************/
+/* Protected:                   S h u t d o w n                               */
+/******************************************************************************/
+
+void XrdSys::IOEvents::PollE::Shutdown()
+{
+   static XrdSysMutex shutMutex;
+
+// To avoid race conditions, we serialize this code
+//
+   shutMutex.Lock();
+
+// Release the poll table
+//
+   if (pollTab) {free(pollTab); pollTab = 0;}
+
+// Close the epoll file descriptor
+//
+   if (pollDfd >= 0) {close(pollDfd); pollDfd = -1;}
+
+// All done
+//
+   shutMutex.UnLock();
+}

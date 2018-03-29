@@ -1,0 +1,469 @@
+/******************************************************************************/
+/*                                                                            */
+/*              X r d S y s I O E v e n t s P o l l K Q . i c c               */
+/*                                                                            */
+/* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
+/******************************************************************************/
+
+#ifndef __APPLE__
+#include <malloc.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/event.h>
+#include <sys/time.h>
+
+#include "XrdSys/XrdSysAtomics.hh"
+#ifndef Atomic
+#define Atomic(x) x
+#endif
+
+using namespace std;
+  
+/******************************************************************************/
+/*                           C l a s s   P o l l E                            */
+/******************************************************************************/
+
+namespace XrdSys
+{
+namespace IOEvents
+{
+class PollKQ : public Poller
+{
+public:
+
+static int  AllocMem(void **memP, int slots);
+
+            PollKQ(struct kevent *ptab, int numfd, int pfd, int pFD[2])
+                  : Poller(pFD[0], pFD[1]), pollTab(ptab), cbNext(0),
+                    pollDfd(pfd), pollMax(numfd), pollNum(1), numPoll(0)
+                  {EV_SET(&armPipe, reqFD, EVFILT_READ,
+                          EV_ADD|EV_CLEAR|EV_ENABLE, 0, 0, 0);
+                  }
+           ~PollKQ() {Stop();}
+
+protected:
+
+       void Begin(XrdSysSemaphore *syncp, int &rc, const char **eMsg);
+
+       void Exclude(Channel *cP, bool &isLocked, bool dover=1);
+
+       bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked);
+
+       bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked);
+
+       void Shutdown();
+
+private:
+       int   AllocPT(int slots);
+       void  Dispatch(Channel *cP, int i);
+       bool  Process(int next);
+
+struct kevent      *pollTab;
+struct kevent       armPipe;
+       int          cbNext;
+       int          pollDfd;
+       int          pollMax;
+       Atomic(int)  pollNum;
+       int          numPoll;
+static void        *deadChP;
+
+static const int    rEnabled = 1;
+static const int    rFilterX = 2;
+static const int    wEnabled = 4;
+static const int    wFilterX = 8;
+};
+       void        *PollKQ::deadChP = 0;
+};
+};
+  
+/******************************************************************************/
+/*                          C l a s s   P o l l e r                           */
+/******************************************************************************/
+/******************************************************************************/
+/* Static:                     n e w P o l l e r                              */
+/******************************************************************************/
+  
+XrdSys::IOEvents::Poller *
+XrdSys::IOEvents::Poller::newPoller(int          pipeFD[2],
+                                    int         &eNum,
+                                    const char **eTxt)
+
+{
+   static const int allocFD = 1024;
+   struct kevent *pp, chlist;
+   int pfd;
+
+// Open the kqueue
+//
+   if ((pfd = kqueue()) < 0)
+      {eNum = errno;
+       if (eTxt) *eTxt = "creating kqueue";
+       return 0;
+      }
+
+// Add the request side of the pipe fd to the poll set (always fd[0])
+//
+   EV_SET(&chlist,pipeFD[0],EVFILT_READ,EV_ADD|EV_ONESHOT|EV_ENABLE,0,0,0);
+   if (kevent(pfd, &chlist, 1, 0, 0, 0) < 0)
+      { eNum = errno;
+       *eTxt = "adding communication pipe";
+       return 0;
+      }
+
+// Allocate the event table
+//
+   if ((eNum = XrdSys::IOEvents::PollKQ::AllocMem((void **)&pp, allocFD)))
+      {eNum = ENOMEM;
+       if (eTxt) *eTxt = "creating kqueue table";
+       close(pfd);
+       return 0;
+      }
+
+// Create new poll object
+//
+   return (Poller *)new PollKQ(pp, allocFD, pfd, pipeFD);
+}
+  
+/******************************************************************************/
+/*                           C l a s s   P o l l E                            */
+/******************************************************************************/
+/******************************************************************************/
+/*                              A l l o c M e m                               */
+/******************************************************************************/
+
+int XrdSys::IOEvents::PollKQ::AllocMem(void **memP, int slots)
+{
+   int rc, bytes, alignment, pagsz = getpagesize();
+
+// Calculate the size of the poll table and allocate it
+//
+   bytes     = slots * sizeof(struct kevent);
+   alignment = (bytes < pagsz ? 1024 : pagsz);
+   if (!(rc = posix_memalign(memP, alignment, bytes))) memset(*memP, 0, bytes);
+   return rc;
+}
+  
+/******************************************************************************/
+/* Private:                      A l l o c P T                                */
+/******************************************************************************/
+
+int XrdSys::IOEvents::PollKQ::AllocPT(int slots)
+{
+   struct kevent *pp;
+
+// Calclulate new slots
+//
+   if (pollMax >= slots) slots = pollMax + 256;
+      else slots = pollMax + (slots/256*256) + (slots%256 ? 256 : 0);
+
+// Allocate a new table and if successful, replace the old one
+//
+   if (!AllocMem((void **)&pp, slots))
+      {free(pollTab);
+       pollTab = pp;
+       pollMax = slots;
+      }
+
+// All done
+//
+   return 0;
+}
+  
+/******************************************************************************/
+/* Protected:                      B e g i n                                  */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollKQ::Begin(XrdSysSemaphore *syncsem,
+                                     int             &retcode,
+                                     const char     **eTxt)
+{
+   struct timespec *tmP, tmOut;
+   Channel *cP;
+   long long tmVal;
+   int numpolled, pollN;
+
+// Indicate to the starting thread that all went well
+//
+   retcode = 0;
+   *eTxt   = 0;
+   syncsem->Post();
+   tmOut.tv_nsec = 0;
+
+// Now start dispatching channels that are ready. We use the wakePend flag to
+// keep the chatter down when we actually wakeup.
+//
+   do {if ((tmVal = TmoGet()) < 0) tmP = 0;
+          else {tmOut.tv_sec  = tmVal / 1000; tmP = &tmOut;}
+       do {numpolled = kevent(pollDfd, 0, 0, pollTab, pollMax, tmP);}
+          while (numpolled < 0 && errno == EINTR);
+       wakePend = true; numPoll = numpolled;
+            if (numpolled == 0) CbkTMO();
+       else if (numpolled <  0)
+               {int rc = errno;
+                cerr <<"KQ: " <<strerror(rc) <<" polling for events" <<endl;
+                abort();
+               }
+       else for (int i = 0; i < numpolled; i++)
+                {if ((cP = (Channel *)pollTab[i].udata)) Dispatch(cP, i);
+                    else if (!Process(i+1)) return;
+                }
+
+       pollN = AtomicGet(pollNum);
+       if (pollMax < pollN) AllocPT(pollN);
+
+      } while(1);
+}
+
+/******************************************************************************/
+/* Private:                     D i s p a t c h                               */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollKQ::Dispatch(XrdSys::IOEvents::Channel *cP, int i)
+{
+   static const uint16_t pollER = EV_EOF | EV_ERROR;
+   const char *eTxt;
+   int eNum, events;
+   bool isLocked = false;
+
+// Make sure this not a dispatch to a dead channel (rare but true)
+//
+   if (cP == (XrdSys::IOEvents::Channel *)&deadChP) return;
+
+// Translate the event to something reasonable
+//
+   if (!(pollTab[i].flags & pollER))
+      {if (pollTab[i].filter == EVFILT_READ) events = CallBack::ReadyToRead;
+          else                               events = CallBack::ReadyToWrite;
+       eNum = 0; eTxt = 0;
+      } else {
+       if (pollTab[i].fflags) eNum = pollTab[i].fflags;
+          else                eNum = ECONNRESET;
+       eTxt = "polling"; events = 0;
+      }
+
+// Execute the callback
+//
+   cbNext = i+1;
+   if (!CbkXeq(cP, events, eNum, eTxt)) Exclude(cP, isLocked, 0);
+   cbNext = 0;
+}
+
+/******************************************************************************/
+/* Protected:                    E x c l u d e                                */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollKQ::Exclude(XrdSys::IOEvents::Channel *cP,
+                                      bool &isLocked,  bool dover)
+{
+   struct kevent chlist[2];
+   int i = 0, theFD = cP->GetFD(), kqStatus = GetPollEnt(cP);
+
+// Setup the removal elements.
+// may have been closed prior to this call (though this shouldn't happen).
+//
+   if (kqStatus & rFilterX)
+      {EV_SET(&chlist[i], theFD, EVFILT_READ,  EV_DELETE,  0, 0, cP);}
+   if (kqStatus & wFilterX)
+      {EV_SET(&chlist[i], theFD, EVFILT_WRITE, EV_DELETE,  0, 0, cP);}
+
+// Remove this channel from the poll set. We ignore errors as the descriptor
+// may have been closed prior to this call (though this shouldn't happen).
+//
+   if (i) kevent(pollDfd, chlist, i, 0, 0, 0);
+   SetPollEnt(cP, 0);
+   AtomicDec(pollNum);
+
+// If we need to verify this action, sync with the poller thread (note that the
+// poller thread will not ask for this action unless it wants to deadlock). We
+// may actually deadlock anyway if the channel lock is held. We are allowed to
+// release it if the caller locked it. This will prevent a deadlock. Otherwise,
+// if we are in a callback and this channel is not the one that initiated the
+// exclude then we must make sure that we cancel any pending callback to the
+// excluded channel as it may have been deleted and we won't know that here.
+//
+   if (dover)
+      {PipeData cmdbuff;
+       if (isLocked)
+          {isLocked = false;
+           UnLockChannel(cP);
+          }
+       cmdbuff.req = PipeData::RmFD;
+       cmdbuff.fd  = theFD;
+       SendCmd(cmdbuff);
+      } else {
+       if (cbNext)
+          for (int i = cbNext; i < numPoll; i++)
+              {if (cP == (Channel *)pollTab[i].udata)
+                  pollTab[i].udata = &deadChP;
+              }
+      }
+}
+
+/******************************************************************************/
+/* Protected:                    I n c l u d e                                */
+/******************************************************************************/
+  
+bool XrdSys::IOEvents::PollKQ::Include(XrdSys::IOEvents::Channel *cP,
+                                      int                       &eNum,
+                                      const char               **eTxt,
+                                      bool                      &isLocked)
+{
+
+// We simply call modify as this will add events to the kqueue as needed
+//
+   if (!Modify(cP, eNum, eTxt, isLocked))
+      {if (eTxt) *eTxt = "adding channel";
+       return false;
+      }
+
+// All went well. Bump the number in the set. The poller thread will
+// reallocate the poll table if need be.
+//
+   AtomicInc(pollNum);
+   return true;
+}
+
+/******************************************************************************/
+/* Protected:                     M o d i f y                                 */
+/******************************************************************************/
+
+bool XrdSys::IOEvents::PollKQ::Modify(XrdSys::IOEvents::Channel *cP,
+                                     int                       &eNum,
+                                     const char               **eTxt,
+                                     bool                      &isLocked)
+{
+   struct kevent chlist[2];
+   int i = 0;
+   int events   = cP->GetEvents(), theFD = cP->GetFD();
+   int kqStatus = GetPollEnt(cP);
+
+// Establish new read  event mask
+//
+   if (events & Channel:: readEvents)
+      {if (!(kqStatus & rEnabled))
+          {EV_SET(&chlist[i], theFD, EVFILT_READ,  EV_ADD|EV_ENABLE,  0, 0, cP);
+           kqStatus |=  rEnabled | rFilterX;
+           i++;
+          }
+      } else {
+       if (kqStatus & rEnabled)
+          {EV_SET(&chlist[i], theFD, EVFILT_READ,         EV_DISABLE, 0, 0, cP);
+           kqStatus &= ~rEnabled;
+           i++;
+          }
+      }
+
+// Establish new write event mask
+//
+   if (events & Channel::writeEvents)
+      {if (!(kqStatus & wEnabled))
+          {EV_SET(&chlist[i], theFD, EVFILT_WRITE, EV_ADD|EV_ENABLE,  0, 0, cP);
+           kqStatus |=  wEnabled | wFilterX;
+           i++;
+          }
+      } else {
+       if (kqStatus & wEnabled)
+          {EV_SET(&chlist[i], theFD, EVFILT_WRITE,        EV_DISABLE, 0, 0, cP);
+           kqStatus &= ~wEnabled;
+           i++;
+          }
+      }
+
+// Modify this fd if anything changed
+//
+   if (i)
+      {if (kevent(pollDfd, chlist, i, 0, 0, 0) < 0)
+          {eNum = errno;
+           if (eTxt) *eTxt = "modifying poll events";
+           return false;
+          }
+       SetPollEnt(cP, kqStatus);
+      }
+  
+// All done
+//
+   return true;
+}
+ 
+/******************************************************************************/
+/* Private:                      P r o c e s s                                */
+/******************************************************************************/
+
+bool XrdSys::IOEvents::PollKQ::Process(int next)
+{
+
+// Get the pipe request and check out actions of interest.
+//
+  if (GetRequest())
+     {     if (reqBuff.req == PipeData::RmFD)
+              {Channel *cP;
+               for (int i = next; i < numPoll; i++)
+                   {if ((cP  = (Channel *)pollTab[i].udata)
+                    &&   cP != (XrdSys::IOEvents::Channel *)&deadChP
+                    &&  reqBuff.fd == (int)pollTab[i].ident)
+                        pollTab[i].udata = &deadChP;
+                   }
+               reqBuff.theSem->Post();
+              }
+      else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
+                                              return false;
+                                             }
+     }
+
+// Renable the pipe as kqueue essentially disables it once we do a read-out
+//
+   kevent(pollDfd, &armPipe, 1, 0, 0, 0);
+
+// All done
+//
+   return true;
+}
+  
+/******************************************************************************/
+/* Protected:                   S h u t d o w n                               */
+/******************************************************************************/
+
+void XrdSys::IOEvents::PollKQ::Shutdown()
+{
+   static XrdSysMutex shutMutex;
+
+// To avoid race conditions, we serialize this code
+//
+   shutMutex.Lock();
+
+// Release the poll table
+//
+   if (pollTab) {free(pollTab); pollTab = 0;}
+
+// Close the kqueue file descriptor
+//
+   if (pollDfd >= 0) {close(pollDfd); pollDfd = -1;}
+
+// All done
+//
+   shutMutex.UnLock();
+}

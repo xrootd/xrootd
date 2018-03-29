@@ -1,0 +1,19 @@
+To insure that changes to the protocol are backward-consistent with
+pre-existing servers/clients, the following rules should be followed:
+
+a) Any new status/request codes need to be added to the end of the list of 
+   existing codes.
+
+b) Only reserved fields may contain new information (i.e., we can't change
+   the definition of existing fields except to add new status bits to an
+   existing flag).
+
+c) By extension, structure sizes or layout may not change for any existing
+   structure passed to the server.
+
+Any other addition is fair game since the server doesn't really care.
+However, additions to the protocol defined here may conflict with future
+versions should a future version use an added definition for some other
+purpose. To prevent this from happening, please feedback your changes to
+the XRootD collaboration via https://github.com/xrootd so that your changes,
+upon acceptance, are reflected in the official protocol definition.

@@ -1,0 +1,64 @@
+from __future__ import print_function
+
+from distutils.core import setup, Extension
+from distutils import sysconfig
+from os import getenv, walk, path
+import subprocess
+
+# Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
+cfg_vars = sysconfig.get_config_vars()
+opt = cfg_vars["OPT"]
+cfg_vars["OPT"] = " ".join( flag for flag in opt.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] )
+
+cflags = cfg_vars["CFLAGS"]
+cfg_vars["CFLAGS"] = " ".join( flag for flag in cflags.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] )
+
+py_cflags = cfg_vars["PY_CFLAGS"]
+cfg_vars["PY_CFLAGS"] = " ".join( flag for flag in py_cflags.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] )
+
+
+sources = list()
+depends = list()
+
+for dirname, dirnames, filenames in walk('${CMAKE_CURRENT_SOURCE_DIR}/src'):
+  for filename in filenames:
+    if filename.endswith('.cc'):
+      sources.append(path.join(dirname, filename))
+    elif filename.endswith('.hh'):
+      depends.append(path.join(dirname, filename))
+
+xrdcllibdir  = "${XRDCL_LIBDIR}"
+xrdlibdir    = "${XRD_LIBDIR}"
+xrdsrcincdir = "${XRD_SRCINCDIR}"
+xrdbinincdir = "${XRD_BININCDIR}"
+version      = "${XROOTD_VERSION}"
+
+print('XRootD library dir:    ', xrdlibdir)
+print('XRootD src include dir:', xrdsrcincdir)
+print('XRootD bin include dir:', xrdbinincdir)
+print('Version:               ', version)
+
+setup( name             = 'pyxrootd',
+       version          = version,
+       author           = 'XRootD Developers',
+       author_email     = 'xrootd-dev@slac.stanford.edu',
+       url              = 'http://xrootd.org',
+       license          = 'LGPLv3+',
+       description      = "XRootD Python bindings",
+       long_description = "XRootD Python bindings",
+       packages         = ['pyxrootd', 'XRootD', 'XRootD.client'],
+       package_dir      = {'pyxrootd'     : '${CMAKE_CURRENT_SOURCE_DIR}/src',
+                           'XRootD'       : '${CMAKE_CURRENT_SOURCE_DIR}/libs',
+                           'XRootD.client': '${CMAKE_CURRENT_SOURCE_DIR}/libs/client'},
+       ext_modules      = [
+           Extension(
+               'pyxrootd.client',
+               sources   = sources,
+               depends   = depends,
+               libraries = ['XrdCl', 'XrdUtils', 'dl'],
+               extra_compile_args = ['-g'],
+               include_dirs = [xrdsrcincdir, xrdbinincdir],
+               library_dirs = [xrdlibdir, xrdcllibdir]
+               )
+           ]
+       )

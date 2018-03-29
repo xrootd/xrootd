@@ -1,0 +1,54 @@
+.TH xrdpfc_print 8 "__VERSION__"
+.SH NAME
+xrdpfc_print - print content of ProxyFileCache meta data
+.SH SYNOPSIS
+.nf
+
+\fBxrdpfc_print\fR [\fIoptions\fR] \fRpath ...\fR
+
+\fIoptions\fR: [\fB--config\fR \fIargs\fR] [\fB--verbose\fR] [\fB--help\fR]
+
+.fi
+.br
+.ad l
+.SH DESCRIPTION
+The \fBxrdpfc_print\fR prints status of downloaded file blocks and access statistics of cached files
+.SH OPTIONS
+
+\fB-c\fR | \fB--config\fR
+.RS 5
+xrootd configuration file. Used to load non-default file system (directive ofs.osslib) and prefix for the location of cached files (directive oss.localroot)
+
+.RE
+\fB-v\fR | \fB--verbose\fR
+.RS 5
+prints additional info for each downloaded file block
+
+.RE
+\fB-h\fR | \fB--help\fR
+.RS 5
+displays usage information.
+
+.RE
+
+
+.RE
+.SH OPERANDS
+\fRpath\fR
+.RS 5
+Path to a file or directory for which the information is to be printed. Path can be relative or absoulte. If the path begins with root:/ the path is assumed to be a LFN and gets translated via the standard OSS rules (in the least, it gets prefixed by the oss.localroot). In this case --config option is mandatory.
+
+.RE
+
+.SH NOTES
+Documentation for all components associated with \fBxrdpfc_print\fR can be found at
+http://xrootd.org/docs.html
+.SH DIAGNOSTICS
+Errors yield an error message and a non-zero exit status.
+.SH LICENSE
+License terms can be displayed by typing "\fBxrootd -H\fR".
+.SH SUPPORT LEVEL
+The \fBxrdpfc_print\fR command is supported by the xrootd collaboration.
+Contact information can be found at
+.ce
+http://xrootd.org/contact.html

@@ -1,0 +1,394 @@
+/******************************************************************************/
+/*                                                                            */
+/*               X r d S y s I O E v e n t s P o l l E . i c c                */
+/*                                                                            */
+/* (c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
+/******************************************************************************/
+
+#ifndef __APPLE__
+#include <malloc.h>
+#endif
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <port.h>
+
+using namespace std;
+  
+/******************************************************************************/
+/*                        C l a s s   P o l l P o r t                         */
+/******************************************************************************/
+
+namespace XrdSys
+{
+namespace IOEvents
+{
+class PollPort : public Poller
+{
+public:
+
+static int  AllocMem(void **memP, int slots);
+
+            PollPort(port_event_t *ptab, int numfd, int pfd, int pFD[2])
+                    : Poller(pFD[0], pFD[1]), pollTab(ptab),
+                      pollDfd(pfd), pollMax(numfd)
+                    {}
+           ~PollPort() {Stop();}
+
+static const int pollER = POLLERR| POLLHUP;
+static const int pollOK = POLLIN | POLLRDNORM | POLLPRI | POLLOUT;
+static const int pollRD = POLLIN | POLLRDNORM | POLLPRI;
+static const int pollWR = POLLOUT;
+
+protected:
+
+       void Begin(XrdSysSemaphore *syncp, int &rc, const char **eMsg);
+
+timespec_t *BegTO(timespec_t &theTO)
+                 {int toval = TmoGet();
+                  if (toval < 0) return 0;
+                  theTO.tv_sec = toval/1000;
+                  theTO.tv_nsec= 0;
+                  return &theTO;
+                 }
+
+       void Exclude(Channel *cP, bool &isLocked, bool dover=1);
+
+       bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked);
+
+       bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked);
+
+       void Shutdown();
+
+private:
+
+       void  Dispatch(Channel *cP, int pollEv);
+       bool  Process(int curr);
+
+       port_event_t *pollTab;
+       Channel      *cbNow;
+       int           cbCurr;
+       int           pollDfd;
+       int           pollMax;
+       unsigned int  numPoll;
+static void         *deadChP;
+};
+       void        *PollPort::deadChP = 0;
+};
+};
+  
+/******************************************************************************/
+/*                          C l a s s   P o l l e r                           */
+/******************************************************************************/
+/******************************************************************************/
+/* Static:                     n e w P o l l e r                              */
+/******************************************************************************/
+  
+XrdSys::IOEvents::Poller *
+XrdSys::IOEvents::Poller::newPoller(int          pipeFD[2],
+                                    int         &eNum,
+                                    const char **eTxt)
+
+{
+   static const int allocFD = 170;
+   port_event_t *pp;
+   int pfd;
+
+// reate an event driver
+//
+   if ((pfd = port_create()) < 0)
+      {eNum = errno;
+       if (eTxt) *eTxt = "creating event port";
+       return 0;
+      }
+   fcntl(pfd, F_SETFD, FD_CLOEXEC);
+
+// Add the request side of the pipe fd to the poll set (always fd[0])
+//
+   if (port_associate(pfd, PORT_SOURCE_FD, pipeFD[0], PollPort::pollRD, 0))
+      { eNum = errno;
+       *eTxt = "adding communication pipe";
+       return 0;
+      }
+
+// Allocate the event table
+//
+   if ((eNum = XrdSys::IOEvents::PollPort::AllocMem((void **)&pp, allocFD)))
+      {if (eTxt) *eTxt = "creating port event table";
+       close(pfd);
+       return 0;
+      }
+
+// Create new poll object
+//
+   return (Poller *)new PollPort(pp, allocFD, pfd, pipeFD);
+}
+  
+/******************************************************************************/
+/*                        C l a s s   P o l l P o r t                         */
+/******************************************************************************/
+/******************************************************************************/
+/*                              A l l o c M e m                               */
+/******************************************************************************/
+
+int XrdSys::IOEvents::PollPort::AllocMem(void **memP, int slots)
+{
+   int bytes, alignment, pagsz = getpagesize();
+
+// Calculate the size of the poll table and allocate it
+//
+   bytes     = slots * sizeof(port_event_t);
+   alignment = (bytes < pagsz ? 1024 : pagsz);
+   if (!(*memP = memalign(alignment, bytes))) return ENOMEM;
+   memset(*memP, 0, bytes);
+   return 0;
+}
+  
+/******************************************************************************/
+/* Protected:                      B e g i n                                  */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
+                                    int             &retcode,
+                                    const char     **eTxt)
+{
+   unsigned int numpolled;
+   int rc;
+   timespec_t toVal;
+   Channel *cP;
+
+// Indicate to the starting thread that all went well
+//
+   retcode = 0;
+   *eTxt   = 0;
+   syncsem->Post();
+
+// Now start dispatching channels that are ready. We use the wakePend flag to
+// keep the chatter down when we actually wakeup. There is also a "feature" of
+// poll_getn() that can return an errno of zero upon a timeout, sigh.
+//
+   do {numpolled = 1; errno = 0;
+       do {rc = port_getn(pollDfd, pollTab, pollMax, &numpolled, BegTO(toVal));}
+          while (rc < 0 && errno == EINTR);
+       wakePend = true; numPoll = numpolled;
+            if (rc)
+               {if (errno == ETIME || !errno) CbkTMO();
+                   else {int rc = errno;
+                         cerr <<"PollP: " <<strerror(rc) <<" polling for events" <<endl;
+                         abort();
+                        }
+               }
+       for (int i = 0; i < (int)numpolled; i++)
+           if (pollTab[i].portev_source == PORT_SOURCE_FD)
+              {if ((cP = (Channel *)pollTab[i].portev_user))
+                  {cbCurr = i; Dispatch(cP, pollTab[i].portev_events);}
+                  else if (!Process(i)) return;
+           }
+      } while(1);
+}
+
+/******************************************************************************/
+/* Private:                     D i s p a t c h                               */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollPort::Dispatch(XrdSys::IOEvents::Channel *cP,
+                                          int                        pollEv)
+{
+   const char *eTxt;
+   int eNum, events = 0;
+   bool isLocked = false;
+
+// Make sure this not a dispatch to a dead channel (rare but true)
+//
+   if (cP == (XrdSys::IOEvents::Channel *)&deadChP) return;
+
+// Translate the event to something reasonable
+//
+        if (pollEv & pollER)
+           {eTxt = "polling";
+            eNum = (pollEv & POLLERR ? EPIPE : ECONNRESET); // Error or HUP
+           }
+   else if (pollEv & pollOK)
+           {if (pollEv & pollRD) events |= CallBack::ReadyToRead;
+            if (pollEv & pollWR) events |= CallBack::ReadyToWrite;
+            eNum = 0; eTxt = 0;
+           }
+   else {eTxt = "polling"; eNum = EIO;}
+
+// Execute the callback
+//
+   cbNow = cP;
+   if (!CbkXeq(cP, events, eNum, eTxt)) Exclude(cP, isLocked, 0);
+      else Modify(cP, eNum, &eTxt, isLocked);
+   cbNow = 0;
+}
+
+/******************************************************************************/
+/* Protected:                    E x c l u d e                                */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollPort::Exclude(XrdSys::IOEvents::Channel *cP,
+                                      bool &isLocked,  bool dover)
+{
+
+// Remove this channel from the poll set. We ignore errors as the descriptor
+// may have been closed prior to this call (though this shouldn't happen).
+//
+   port_dissociate(pollDfd, PORT_SOURCE_FD, cP->GetFD());
+
+// If we need to verify this action, sync with the poller thread (note that the
+// poller thread will not ask for this action unless it wants to deadlock). We
+// may actually deadlock anyway if the channel lock is held. We are allowed to
+// release it if the caller locked it. This will prevent a deadlock.
+//
+   if (dover)
+      {PipeData cmdbuff;
+       if (isLocked)
+          {isLocked = false;
+           UnLockChannel(cP);
+          }
+       cmdbuff.req = PipeData::RmFD;
+       cmdbuff.fd  = cP->GetFD();
+       SendCmd(cmdbuff);
+      } else {
+       if (cbNow && cbNow != cP)
+          for (int i = cbCurr+1; i < numPoll; i++)
+              {if (cP == (Channel *)pollTab[i].portev_user)
+                  pollTab[i].portev_user = &deadChP;
+              }
+      }
+}
+
+/******************************************************************************/
+/* Protected:                    I n c l u d e                                */
+/******************************************************************************/
+  
+bool XrdSys::IOEvents::PollPort::Include(XrdSys::IOEvents::Channel *cP,
+                                      int                       &eNum,
+                                      const char               **eTxt,
+                                      bool                      &isLocked)
+{
+   int pEvents = 0, events = cP->GetEvents();
+
+// Establish new event mask
+//
+   if (events & Channel:: readEvents)  pEvents  = pollRD;
+   if (events & Channel::writeEvents)  pEvents |= pollWR;
+
+// Add this fd to the poll set
+//
+   if (port_associate(pollDfd, PORT_SOURCE_FD, cP->GetFD(), pEvents, cP))
+      {eNum = errno;
+       if (eTxt) *eTxt = "adding channel";
+       return false;
+      }
+
+// All went well.
+//
+   return true;
+}
+
+/******************************************************************************/
+/* Protected:                     M o d i f y                                 */
+/******************************************************************************/
+
+bool XrdSys::IOEvents::PollPort::Modify(XrdSys::IOEvents::Channel *cP,
+                                     int                       &eNum,
+                                     const char               **eTxt,
+                                     bool                      &isLocked)
+{
+   int pEvents = 0, events = cP->GetEvents();
+
+// Establish new event mask
+//
+   if (events & Channel:: readEvents)  pEvents  = pollRD;
+   if (events & Channel::writeEvents)  pEvents |= pollWR;
+
+// Associate the fd to the poll set
+//
+   if (port_associate(pollDfd, PORT_SOURCE_FD, cP->GetFD(), pEvents, cP))
+      {eNum = errno;
+       if (eTxt) *eTxt = "modifying poll events";
+       return false;
+      }
+  
+// All done
+//
+   return true;
+}
+ 
+/******************************************************************************/
+/* Private:                      P r o c e s s                                */
+/******************************************************************************/
+
+bool XrdSys::IOEvents::PollPort::Process(int curr)
+{
+// Get the pipe request and check out actions of interest.
+//
+  if (GetRequest())
+     {     if (reqBuff.req == PipeData::RmFD)
+              {Channel *cP;
+               for (int i = curr+1; i < numPoll; i++)
+                   {if (reqBuff.fd == (int)pollTab[i].portev_object)
+                        pollTab[i].portev_user = &deadChP;
+                   }
+               reqBuff.theSem->Post();
+              }
+      else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
+                                              return false;
+                                             }
+     }
+
+// Associate the pipe again and return true
+//
+   port_associate(pollDfd, PORT_SOURCE_FD, reqFD, pollRD, 0);
+   return true;
+}
+  
+/******************************************************************************/
+/* Protected:                   S h u t d o w n                               */
+/******************************************************************************/
+
+void XrdSys::IOEvents::PollPort::Shutdown()
+{
+   static XrdSysMutex shutMutex;
+
+// To avoid race conditions, we serialize this code
+//
+   shutMutex.Lock();
+
+// Release the poll table
+//
+   if (pollTab) {free(pollTab); pollTab = 0;}
+
+// Close the epoll file descriptor
+//
+   if (pollDfd >= 0) {close(pollDfd); pollDfd = -1;}
+
+// All done
+//
+   shutMutex.UnLock();
+}

@@ -1,0 +1,22 @@
+ policy_module(xrootd, 4)
+
+
+#============= logrotate_t ==============
+optional_policy(`
+
+    gen_require(`
+        type logrotate_t;
+        type var_log_t;
+        type ptmx_t;
+        type tmpfs_t;
+        type devpts_t;
+        class fifo_file { write open getattr };
+        class chr_file { open read write ioctl getattr };
+        class filesystem getattr;
+    ')
+    allow logrotate_t var_log_t:fifo_file { write open getattr };
+    allow logrotate_t ptmx_t:chr_file { open read write ioctl };
+    allow logrotate_t tmpfs_t:filesystem getattr;
+    allow logrotate_t devpts_t:filesystem getattr;
+    allow logrotate_t devpts_t:chr_file { getattr open read write ioctl };
+')

@@ -1,0 +1,82 @@
+
+--------------------------------------------------------------------------------
+                    _    _ ______                   _____
+                   \ \  / (_____ \             _   (____ \
+                    \ \/ / _____) ) ___   ___ | |_  _   \ \
+                     )  ( (_____ ( / _ \ / _ \|  _)| |   | |
+                    / /\ \      | | |_| | |_| | |__| |__/ /
+                   /_/  \_\     |_|\___/ \___/ \___)_____/
+
+--------------------------------------------------------------------------------
+
+1. S U P P O R T E D   O P E R A T I N G   S Y S T E M S
+
+   XRootD is supported on the following platforms:
+
+  * RedHat Enterprise Linux 5 and 6 and derivatives (Scientific Linux)
+    compiled with gcc
+  * Solaris 10 compiled with SunCC
+  * MacOSX 10.6 and 10.7 compiled with gcc or clang
+
+2. B U I L D   I N S T R U C T I O N S
+
+2.1 Build system
+
+  XRootD uses CMake to handle the build process. It should build fine with
+cmake 2.6, however, on some platforms, this version of cmake has problems
+handling the perl libraries, therefore version 2.8 or newer is recommended.
+
+2.2 Build parameters
+
+  The build process supports the following parameters:
+
+  * CMAKE_INSTALL_PREFIX - indicates where the XRootD files should be installed,
+                           (default: /usr)
+  * CMAKE_BUILD_TYPE     - type of the build: Release/Debug/RelWithDebInfo
+  * FORCE_32BITS         - Force building 32 bit binaries when on Solaris AMD64
+                           (default: FALSE)
+  * ENABLE_PERL          - enable the perl bindings if possible (default: TRUE)
+  * ENABLE_FUSE          - enable the fuse filesystem driver if possible
+                           (default: TRUE)
+  * ENABLE_CRYPTO        - enable the OpenSSL cryprography support (including
+                           the X509 authentication) if possible (default: TRUE)
+  * ENABLE_KRB5          - enable the Kerberos 5 authentication if possible
+                           (default: TRUE)
+  * ENABLE_READLINE      - enable the lib readline support in the commandline
+                           utilities (default: TRUE)
+  * OPENSSL_ROOT_DIR     - path to the root of the openssl installation if it
+                           cannot be detected in a standard location
+  * KERBEROS5_ROOT_DIR   - path to the root of the kerberos installation if it
+                           cannot be detected in a standard location
+  * READLINE_ROOT_DIR    - path to the root of the readline installation if it
+                           cannot be detected in a standard location
+  * CMAKE_C_COMPILER     - path to the c compiler that should be used
+  * CMAKE_CXX_COMPILER   - path to the c++ compiler that should be used
+
+2.3 Build steps
+
+  * Create an empty build directory:
+
+    mkdir build
+    cd build
+
+  * Generate the build system files using cmake, ie:
+
+    cmake /path/to/the/xrootd/source -DCMAKE_INSTALL_PREFIX=/opt/xrootd \
+                                     -DENABLE_PERL=FALSE
+
+  * Build the source:
+
+    make
+
+  * Install the source:
+
+    make install
+
+3. P L A T F O R M   N O T E S
+
+3.1 Solaris
+
+  * On Solaris x86 the Sun Studio <= 12.1 compiler optimization algorithms
+    are broken, only Debug build is supported. For the optimized mode upgrade
+    the compiler to 12.2 or later.
