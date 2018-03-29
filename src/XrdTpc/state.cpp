@@ -3,12 +3,12 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "XrdVersion.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 #include <curl/curl.h>
 
-#include "XrdTpcVersion.hh"
 #include "state.hh"
 #include "stream.hh"
 
@@ -48,7 +48,7 @@ State::State(State && other) noexcept :
 }
 
 bool State::InstallHandlers(CURL *curl) {
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "xrootd-tpc/" XRDTPC_VERSION);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "xrootd-tpc/" XrdVERSION);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &State::HeaderCB);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
     if (m_push) {

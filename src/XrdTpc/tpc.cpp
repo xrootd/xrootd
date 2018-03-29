@@ -15,7 +15,6 @@
 #include <memory>
 #include <sstream>
 
-#include "XrdTpcVersion.hh"
 #include "state.hh"
 #include "stream.hh"
 #include "tpc.hh"

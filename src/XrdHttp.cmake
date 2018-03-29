@@ -15,9 +15,11 @@ if( BUILD_HTTP )
   #-----------------------------------------------------------------------------
   include_directories( ${OPENSSL_INCLUDE_DIR} )
   
+  # Note this is marked as a shared library as XrdHttp plugins are expected to
+  # link against this for the XrdHttpExt class implementations.
   add_library(
     ${LIB_XRD_HTTP}
-    MODULE
+    SHARED
     XrdHttp/XrdHttpProtocol.cc    XrdHttp/XrdHttpProtocol.hh
     XrdHttp/XrdHttpReq.cc         XrdHttp/XrdHttpReq.hh
                                   XrdHttp/XrdHttpSecXtractor.hh
@@ -40,6 +42,7 @@ if( BUILD_HTTP )
     ${LIB_XRD_HTTP}
     PROPERTIES
     INTERFACE_LINK_LIBRARIES ""
+    SUFFIX ".so"
     LINK_INTERFACE_LIBRARIES "" )
 
   #-----------------------------------------------------------------------------
