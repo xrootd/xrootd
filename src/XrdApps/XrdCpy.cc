@@ -1458,6 +1458,10 @@ int doCp(XrdOucString &src, XrdOucString &dest, XrdClient *xrddest)
   
 int main(int argc, char**argv)
 {
+   std::cerr << "Note: this tool is DEPRECATED, use xrdcp instead." << std::endl;
+   Info(XrdClientDebug::kUSERDEBUG, "Main",
+        "Note: this tool is DEPRECATED, use xrdcp instead.");
+
    const char *Opaque;
    char *hName, *srcpath = 0, *destpath = 0;
 
