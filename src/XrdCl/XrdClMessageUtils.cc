@@ -177,7 +177,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Redirect the message
     //--------------------------------------------------------------------------
-    st = postMaster->Redirect( url, msg, msgHandler, msgHandler );
+    st = postMaster->Redirect( url, msg, msgHandler );
     if( !st.IsOK() )
     {
       XRootDTransport::UnMarshallRequest( msg );
