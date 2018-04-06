@@ -1785,6 +1785,10 @@ int main(int argc, char**argv)
 
     DebugSetLevel(0);
 
+    std::cerr << "Note: this tool is DEPRECATED, use xrdfs instead." << std::endl;
+    Info(XrdClientDebug::kUSERDEBUG, "Main",
+         "Note: this tool is DEPRECATED, use xrdfs instead.");
+
     // We want this tool to be able to connect everywhere
     // Note that the side effect of these calls here is to initialize the
     // XrdClient environment.
