@@ -1962,7 +1962,7 @@ namespace XrdCl
     }
     pUrl = url;
     if( pUrl.IsMetalink() && pFollowMetalink )
-      return pPostMaster->Redirect( pUrl, pRequest, this, this );
+      return pPostMaster->Redirect( pUrl, pRequest, this );
     else if( pUrl.IsLocalFile() )
     {
       HandleLocalRedirect( &pUrl );

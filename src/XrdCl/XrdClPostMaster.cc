@@ -193,14 +193,12 @@ namespace XrdCl
 
   Status PostMaster::Redirect( const URL          &url,
                                Message            *msg,
-                               OutgoingMsgHandler *outHandler,
                                IncomingMsgHandler *inHandler )
   {
     RedirectorRegistry &registry  = RedirectorRegistry::Instance();
     VirtualRedirector *redirector = registry.Get( url );
     if( !redirector )
       return Status( stError, errInvalidOp );
-    outHandler->OnStatusReady( msg, Status() );
     return redirector->HandleRequest( msg, inHandler );
   }
 

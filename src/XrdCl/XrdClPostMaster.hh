@@ -125,7 +125,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Status Redirect( const URL          &url,
                        Message            *msg,
-                       OutgoingMsgHandler *outHandler,
                        IncomingMsgHandler *handler);
 
       //------------------------------------------------------------------------
