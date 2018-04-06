@@ -170,12 +170,19 @@ XrdSsiTaskReal *XrdSsiSessReal::NewTask(XrdSsiRequest *reqP)
 // Allocate a task object for this request
 //
    if ((tP = freeTask)) freeTask = tP->attList.next;
-      else {if (!alocLeft || !(tP = new XrdSsiTaskReal(this, nextTID)))
+      else {if (!alocLeft || !(tP = new XrdSsiTaskReal(this)))
                {XrdSsiUtils::RetErr(*reqP, "Too many active requests.", EMLINK);
                 return 0;
                }
-            alocLeft--; nextTID++;
+            alocLeft--;
            }
+
+// We always set a new task ID to avoid ID collisions. his is good for over
+// 194 days if we have 1 request/second. In practice. this will work for a
+// couple of years before wrapping. By then the ID's should be free.
+//
+   tP->SetTaskID(nextTID++);
+   nextTID &= XrdSsiRRInfo::idMax;
 
 // Initialize the task and return its pointer
 //

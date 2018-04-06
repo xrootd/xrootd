@@ -83,14 +83,14 @@ int    SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen, bool &last);
 
 bool   SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen);
 
-void   SetTaskID(short tid) {tskID = tid;}
+void   SetTaskID(uint32_t tid) {tskID = tid;}
 
 bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
 
-       XrdSsiTaskReal(XrdSsiSessReal *sP, short tid)
+       XrdSsiTaskReal(XrdSsiSessReal *sP)
                      : XrdSsiEvent("TaskReal"),
                        XrdSsiStream(XrdSsiStream::isPassive),
-                       sessP(sP), mdResp(0), wPost(0), tskID(tid),
+                       sessP(sP), mdResp(0), wPost(0), tskID(0),
                        mhPend(false), defer(false)
                     {}
 
@@ -116,8 +116,8 @@ XrdSysSemaphore  *wPost;
 char             *dataBuff;
 int               dataRlen;
 TaskStat          tStat;
+uint32_t          tskID;
 unsigned short    tmOut;
-short             tskID;
 bool              mhPend;
 bool              defer;
 };
