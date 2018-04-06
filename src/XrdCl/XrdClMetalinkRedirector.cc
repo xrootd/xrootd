@@ -417,7 +417,7 @@ namespace XrdCl
     while( ( url = fileInfos[0]->GetUrl() ) )
     {
       replica = URL( url );
-      if( replica.GetURL().size() > 4096 )
+      if( !replica.IsValid() || replica.GetURL().size() > 4096 )
         continue; // this is the internal limit (defined in the protocol)
       pReplicas.push_back( replica.GetURL() );
     }
