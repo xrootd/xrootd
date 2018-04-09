@@ -186,7 +186,7 @@ void *BIO_get_data(BIO *bio) {
 void BIO_set_data(BIO *bio, void *ptr) {
   bio->ptr = ptr;
 }
-#if OPENSSL_VERSION_NUMBER < 0x1000207fL
+#if OPENSSL_VERSION_NUMBER < 0x1000105fL
 int BIO_get_flags(BIO *bio) {
   return bio->flags;
 }
