@@ -26,6 +26,7 @@ Version 4.8.2
   * **[All]** Fix compilation with gcc 8.
   * **[CMake]** Make sure plugins are declared as MODULEs, fixes #653 
   * **[SSI]** Ruggedize server-side SSI interactions.
+  * **[SSI]** Prevent request ID conflicts with reusable resources.
   * **[XrdCl]** Validate URLs comming from metalinks.
 
 + **Miscellaneous**
