@@ -173,6 +173,41 @@ extern "C" {
   }
 }
 
+
+
+
+/******************************************************************************/
+/*               U g l y  O p e n S S L   w o r k a r o u n d s               */
+/******************************************************************************/
+#if OPENSSL_VERSION_NUMBER < 0x1010008fL
+void *BIO_get_data(BIO *bio) {
+  return bio->ptr;
+}
+void BIO_set_data(BIO *bio, void *ptr) {
+  bio->ptr = ptr;
+}
+#if OPENSSL_VERSION_NUMBER < 0x1000207fL
+int BIO_get_flags(BIO *bio) {
+  return bio->flags;
+}
+#endif
+void BIO_set_flags(BIO *bio, int flags) {
+  bio->flags = flags;
+}
+int BIO_get_init(BIO *bio) {
+  return bio->init;
+}
+void BIO_set_init(BIO *bio, int init) {
+  bio->init = init;
+}
+void BIO_set_shutdown(BIO *bio, int shut) {
+  bio->shutdown = shut;
+}
+int BIO_get_shutdown(BIO *bio) {
+  return bio->shutdown;
+}
+    
+#endif
 /******************************************************************************/
 /*               X r d H T T P P r o t o c o l   C l a s s                    */
 /******************************************************************************/
@@ -417,7 +452,9 @@ int BIO_XrdLink_write(BIO *bio, const char *data, size_t datal, size_t *written)
     *written = 0;
     return 0;
   }
-  XrdLink *lp = static_cast<XrdLink *>(bio->ptr);
+  
+  XrdLink *lp=static_cast<XrdLink *>BIO_get_data(bio);
+  
   errno = 0;
   int ret = lp->Send(data, datal);
   BIO_clear_retry_flags(bio);
@@ -460,7 +497,8 @@ static int BIO_XrdLink_read(BIO *bio, char *data, size_t datal, size_t *read)
   }
 
   errno = 0;
-  XrdLink *lp = static_cast<XrdLink *>(bio->ptr);
+  
+  XrdLink *lp = static_cast<XrdLink *>(BIO_get_data(bio));  
   int ret = lp->Recv(data, datal);
   BIO_clear_retry_flags(bio);
   if (ret <= 0) {
@@ -494,10 +532,19 @@ static int BIO_XrdLink_read(BIO *bio, char *data, int datal)
 
 static int BIO_XrdLink_create(BIO *bio)
 {
-  bio->init = 0;
+    
+    
+  BIO_set_init(bio, 0);
+  //BIO_set_next(bio, 0);
+  BIO_set_data(bio, NULL);
+  BIO_set_flags(bio, 0);
+  
+#if OPENSSL_VERSION_NUMBER < 0x1010008fL
+
   bio->num = 0;
-  bio->ptr = NULL;
-  bio->flags = 0;
+
+#endif
+  
   return 1;
 }
 
@@ -509,7 +556,7 @@ static int BIO_XrdLink_destroy(BIO *bio)
     if (bio->ptr) {
       static_cast<XrdLink*>(bio->ptr)->Close();
     }
-    bio->init = 0;
+    BIO_set_init(bio, 0);
     bio->flags = 0;
   }
   return 1;
@@ -521,10 +568,10 @@ static long BIO_XrdLink_ctrl(BIO *bio, int cmd, long num, void * ptr)
   long ret = 1;
   switch (cmd) {
   case BIO_CTRL_GET_CLOSE:
-    ret = bio->shutdown;
+    ret = BIO_get_shutdown(bio);
     break;
   case BIO_CTRL_SET_CLOSE:
-    bio->shutdown = (int)num;
+    BIO_set_shutdown(bio, (int)num);
     break;  
   case BIO_CTRL_DUP:
   case BIO_CTRL_FLUSH:
