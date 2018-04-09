@@ -445,7 +445,7 @@ char *XrdHttpProtocol::GetClientIPStr() {
 
 
 // Various routines for handling XrdLink as BIO objects within OpenSSL.
-#if OPENSSL_VERSION_NUMBER < 0x1000207fL
+#if OPENSSL_VERSION_NUMBER < 0x1000105fL
 int BIO_XrdLink_write(BIO *bio, const char *data, size_t datal, size_t *written)
 {
   if (!data || !bio) {
@@ -488,7 +488,7 @@ int BIO_XrdLink_write(BIO *bio, const char *data, int datal)
 #endif
 
 
-#if OPENSSL_VERSION_NUMBER < 0x1000207fL
+#if OPENSSL_VERSION_NUMBER < 0x1000105fL
 static int BIO_XrdLink_read(BIO *bio, char *data, size_t datal, size_t *read)
 {
   if (!data || !bio) {
