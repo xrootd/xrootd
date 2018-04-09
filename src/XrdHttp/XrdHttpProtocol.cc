@@ -179,7 +179,7 @@ extern "C" {
 /******************************************************************************/
 /*               U g l y  O p e n S S L   w o r k a r o u n d s               */
 /******************************************************************************/
-#if OPENSSL_VERSION_NUMBER < 0x1010008fL
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 void *BIO_get_data(BIO *bio) {
   return bio->ptr;
 }
@@ -445,7 +445,7 @@ char *XrdHttpProtocol::GetClientIPStr() {
 
 
 // Various routines for handling XrdLink as BIO objects within OpenSSL.
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x1000207fL
 int BIO_XrdLink_write(BIO *bio, const char *data, size_t datal, size_t *written)
 {
   if (!data || !bio) {
@@ -453,7 +453,7 @@ int BIO_XrdLink_write(BIO *bio, const char *data, size_t datal, size_t *written)
     return 0;
   }
   
-  XrdLink *lp=static_cast<XrdLink *>BIO_get_data(bio);
+  XrdLink *lp=static_cast<XrdLink *>(BIO_get_data(bio));
   
   errno = 0;
   int ret = lp->Send(data, datal);
@@ -476,7 +476,7 @@ int BIO_XrdLink_write(BIO *bio, const char *data, int datal)
   }
 
   errno = 0;
-  XrdLink *lp = static_cast<XrdLink *>(bio->ptr);
+  XrdLink *lp = static_cast<XrdLink *>(BIO_get_data(bio));
   int ret = lp->Send(data, datal);
   BIO_clear_retry_flags(bio);
   if (ret <= 0) {
@@ -488,7 +488,7 @@ int BIO_XrdLink_write(BIO *bio, const char *data, int datal)
 #endif
 
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x1000207fL
 static int BIO_XrdLink_read(BIO *bio, char *data, size_t datal, size_t *read)
 {
   if (!data || !bio) {
@@ -518,7 +518,7 @@ static int BIO_XrdLink_read(BIO *bio, char *data, int datal)
   }
 
   errno = 0;
-  XrdLink *lp = static_cast<XrdLink *>(bio->ptr);
+  XrdLink *lp = static_cast<XrdLink *>(BIO_get_data(bio));
   int ret = lp->Recv(data, datal);
   BIO_clear_retry_flags(bio);
   if (ret <= 0) {
@@ -539,7 +539,7 @@ static int BIO_XrdLink_create(BIO *bio)
   BIO_set_data(bio, NULL);
   BIO_set_flags(bio, 0);
   
-#if OPENSSL_VERSION_NUMBER < 0x1010008fL
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 
   bio->num = 0;
 
@@ -552,12 +552,12 @@ static int BIO_XrdLink_create(BIO *bio)
 static int BIO_XrdLink_destroy(BIO *bio)
 {
   if (bio == NULL) return 0;
-  if (bio->shutdown) {
-    if (bio->ptr) {
-      static_cast<XrdLink*>(bio->ptr)->Close();
+  if (BIO_get_shutdown(bio)) {
+    if (BIO_get_data(bio)) {
+      static_cast<XrdLink*>(BIO_get_data(bio))->Close();
     }
     BIO_set_init(bio, 0);
-    bio->flags = 0;
+    BIO_set_flags(bio, 0);
   }
   return 1;
 }
@@ -592,9 +592,9 @@ BIO *XrdHttpProtocol::CreateBIO(XrdLink *lp)
 
   BIO *ret = BIO_new(m_bio_method);
 
-  ret->shutdown = 0;
-  ret->ptr = lp;
-  ret->init = 1;
+  BIO_set_shutdown(ret, 0);
+  BIO_set_data(ret, lp);
+  BIO_set_init(ret, 1);
   return ret;
 }
 
@@ -1031,20 +1031,37 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 
   // Initialize our custom BIO type.
   if (!m_bio_type) {
-    // OpenSSL 1.1 has an internal counter for generating unique types.
-    // We'll switch to that when widely available.
-    //m_bio_type = BIO_get_new_index();
-    m_bio_type = (26|0x0400|0x0100);
-    m_bio_method = static_cast<BIO_METHOD*>(OPENSSL_malloc(sizeof(BIO_METHOD)));
-    if (m_bio_method) {
-      memset(m_bio_method, '\0', sizeof(BIO_METHOD));
-      m_bio_method->type = m_bio_type;
-      m_bio_method->bwrite = BIO_XrdLink_write;
-      m_bio_method->bread = BIO_XrdLink_read;
-      m_bio_method->create = BIO_XrdLink_create;
-      m_bio_method->destroy = BIO_XrdLink_destroy;
-      m_bio_method->ctrl = BIO_XrdLink_ctrl;
-    }
+
+    #if OPENSSL_VERSION_NUMBER < 0x10100000L
+      m_bio_type = (26|0x0400|0x0100);
+      m_bio_method = static_cast<BIO_METHOD*>(OPENSSL_malloc(sizeof(BIO_METHOD)));
+ 
+      if (m_bio_method) {
+        memset(m_bio_method, '\0', sizeof(BIO_METHOD));
+        m_bio_method->type = m_bio_type;
+        m_bio_method->bwrite = BIO_XrdLink_write;
+        m_bio_method->bread = BIO_XrdLink_read;
+        m_bio_method->create = BIO_XrdLink_create;
+        m_bio_method->destroy = BIO_XrdLink_destroy;
+        m_bio_method->ctrl = BIO_XrdLink_ctrl;
+      }
+    #else
+      // OpenSSL 1.1 has an internal counter for generating unique types.
+      // We'll switch to that when widely available.
+      m_bio_type = BIO_get_new_index();
+      m_bio_method = BIO_meth_new(m_bio_type, "xrdhttp-bio-method");
+      
+      if (m_bio_method) {
+        BIO_meth_set_write(m_bio_method, BIO_XrdLink_write);
+        BIO_meth_set_read(m_bio_method, BIO_XrdLink_read);
+        BIO_meth_set_create(m_bio_method, BIO_XrdLink_create);
+        BIO_meth_set_destroy(m_bio_method, BIO_XrdLink_destroy);
+        BIO_meth_set_ctrl(m_bio_method, BIO_XrdLink_ctrl);
+      }
+      
+    #endif
+    
+
   }
 
   // Open and attach the config file
