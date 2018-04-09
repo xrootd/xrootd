@@ -16,6 +16,8 @@ Version 4.8.2
   * **[Proxy]** Fully support third party copy in proxy servers.
   * **[Server]** Correct faulty logic for sendq backlog warning message.
   * **[XrdCl]** Correctly handler error/wait response to endsess request.
+  * **[XrdCl]** MsgHandler must not be enqueued in InQueue on virtual 
+                redirect, fixes #682
   
 + **Minor bug fixes**
   * **[Net]** Optimize formatting corresponding to RFC 1178 and RFC 3696.
@@ -24,6 +26,7 @@ Version 4.8.2
   * **[All]** Fix compilation with gcc 8.
   * **[CMake]** Make sure plugins are declared as MODULEs, fixes #653 
   * **[SSI]** Ruggedize server-side SSI interactions.
+  * **[XrdCl]** Validate URLs comming from metalinks.
 
 + **Miscellaneous**
   * **[Server]** Correct lock handling in commit 2c169141.
