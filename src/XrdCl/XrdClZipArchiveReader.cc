@@ -33,21 +33,22 @@
 
 #include <string>
 #include <map>
+#include <memory>
 
 namespace XrdCl
 {
 
 struct EOCD
 {
-    EOCD( char *buffer )
+    EOCD( const char *buffer )
     {
-      pNbDisk   = *reinterpret_cast<uint16_t*>( buffer + 4 );
-      pDisk     = *reinterpret_cast<uint16_t*>( buffer + 6 );
-      pNbCdRecD = *reinterpret_cast<uint16_t*>( buffer + 8 );
-      pNbCdRec  = *reinterpret_cast<uint16_t*>( buffer + 10 );
-      pCdSize   = *reinterpret_cast<uint32_t*>( buffer + 12 );
-      pCdOffset = *reinterpret_cast<uint32_t*>( buffer + 16 );
-      pCommSize = *reinterpret_cast<uint16_t*>( buffer + 20 );
+      pNbDisk   = *reinterpret_cast<const uint16_t*>( buffer + 4 );
+      pDisk     = *reinterpret_cast<const uint16_t*>( buffer + 6 );
+      pNbCdRecD = *reinterpret_cast<const uint16_t*>( buffer + 8 );
+      pNbCdRec  = *reinterpret_cast<const uint16_t*>( buffer + 10 );
+      pCdSize   = *reinterpret_cast<const uint32_t*>( buffer + 12 );
+      pCdOffset = *reinterpret_cast<const uint32_t*>( buffer + 16 );
+      pCommSize = *reinterpret_cast<const uint16_t*>( buffer + 20 );
       pComment  = std::string( buffer + 22, pCommSize );
     }
 
@@ -66,22 +67,55 @@ struct EOCD
 };
 
 
+struct ZIP64_EOCDL
+{
+    ZIP64_EOCDL( const char *buffer )
+    {
+      pZip64EocdOffset = *reinterpret_cast<const uint64_t*>( buffer + 8 );
+    }
+
+    uint64_t pZip64EocdOffset;
+    static const uint16_t kZip64EocdlSize = 20;
+    static const uint32_t kZip64EocdlSign = 0x07064b50;
+};
+
+struct ZIP64_EOCD
+{
+    ZIP64_EOCD( const char* buffer )
+    {
+      pZipVersion    = *reinterpret_cast<const uint16_t*>( buffer + 12 );
+      pMinZipVersion = *reinterpret_cast<const uint16_t*>( buffer + 14 );
+      pNbCdEntries   = *reinterpret_cast<const uint16_t*>( buffer + 32 );
+      pCdSize        = *reinterpret_cast<const uint64_t*>( buffer + 40 );
+      pCdOffset      = *reinterpret_cast<const uint64_t*>( buffer + 48 );
+    }
+
+    uint16_t    pZipVersion;
+    uint16_t    pMinZipVersion;
+    uint64_t    pNbCdEntries;
+    uint64_t    pCdSize;
+    uint64_t    pCdOffset;
+
+    static const uint16_t kZip64EocdBaseSize = 56;
+    static const uint32_t kZip64EocdSign = 0x06064b50;
+};
+
 struct CDFH
 {
-    CDFH( char *buffer )
+    CDFH( const char *buffer )
     {
-      pZipVersion        = *reinterpret_cast<uint16_t*>( buffer + 4 );
-      pMinZipVersion     = *reinterpret_cast<uint16_t*>( buffer + 6 );
-      pCompressionMethod = *reinterpret_cast<uint16_t*>( buffer + 10 );
-      pCrc32             = *reinterpret_cast<uint32_t*>( buffer + 16 );
-      pCompressedSize    = *reinterpret_cast<uint32_t*>( buffer + 20 );
-      pUncompressedSize  = *reinterpret_cast<uint32_t*>( buffer + 24 );
-      pDiskNb            = *reinterpret_cast<uint16_t*>( buffer + 34 );
-      pOffset            = *reinterpret_cast<uint32_t*>( buffer + 42 );
+      pZipVersion        = *reinterpret_cast<const uint16_t*>( buffer + 4 );
+      pMinZipVersion     = *reinterpret_cast<const uint16_t*>( buffer + 6 );
+      pCompressionMethod = *reinterpret_cast<const uint16_t*>( buffer + 10 );
+      pCrc32             = *reinterpret_cast<const uint32_t*>( buffer + 16 );
+      pCompressedSize    = *reinterpret_cast<const uint32_t*>( buffer + 20 );
+      pUncompressedSize  = *reinterpret_cast<const uint32_t*>( buffer + 24 );
+      pDiskNb            = *reinterpret_cast<const uint16_t*>( buffer + 34 );
+      pOffset            = *reinterpret_cast<const uint32_t*>( buffer + 42 );
 
-      uint16_t filenameLength = *reinterpret_cast<uint16_t*>( buffer + 28 );
-      uint16_t extraLength    = *reinterpret_cast<uint16_t*>( buffer + 30 );
-      uint16_t commentLength  = *reinterpret_cast<uint16_t*>( buffer + 32 );
+      uint16_t filenameLength = *reinterpret_cast<const uint16_t*>( buffer + 28 );
+      uint16_t extraLength    = *reinterpret_cast<const uint16_t*>( buffer + 30 );
+      uint16_t commentLength  = *reinterpret_cast<const uint16_t*>( buffer + 32 );
 
       pFilename = std::string( buffer + 46, filenameLength );
 
@@ -108,7 +142,7 @@ class ZipArchiveReaderImpl
 {
   public:
 
-    ZipArchiveReaderImpl() : pArchiveSize( 0 ), pBuffer( 0 ), pEocd( 0 ), pRefCount( 1 ), pOpen( false ) { }
+    ZipArchiveReaderImpl() : pArchiveSize( 0 ), pRefCount( 1 ), pOpen( false ) { }
 
     ZipArchiveReaderImpl* Self()
     {
@@ -145,8 +179,7 @@ class ZipArchiveReaderImpl
       XRootDStatus st = pArchive.Close( handler, timeout );
       if( st.IsOK() )
       {
-        delete[] pBuffer;
-        pBuffer = 0;
+        pBuffer.reset();
         ClearRecords();
       }
       return st;
@@ -180,8 +213,8 @@ class ZipArchiveReaderImpl
     {
       for( ssize_t offset = size - EOCD::kEocdBaseSize; offset >= 0; --offset )
       {
-        uint32_t *signature = reinterpret_cast<uint32_t*>( pBuffer + offset );
-        if( *signature == EOCD::kEocdSign ) return pBuffer + offset;
+        uint32_t *signature = reinterpret_cast<uint32_t*>( pBuffer.get() + offset );
+        if( *signature == EOCD::kEocdSign ) return pBuffer.get() + offset;
       }
       return 0;
     }
@@ -214,10 +247,13 @@ class ZipArchiveReaderImpl
       // create the End-of-Central-Directory record
       char *eocdBlock = LookForEocd( pArchiveSize );
       if( !eocdBlock ) return XRootDStatus( stError, errErrorResponse, errDataError, "End-of-central-directory signature not found." );
-      pEocd = new EOCD( eocdBlock );
+      pEocd.reset( new EOCD( eocdBlock ) );
+
+      // If we managed to download the whole archive we don't need to
+      // worry about zip64, it is so small that standard EOCD will do
 
       // parse Central-Directory-File-Header records
-      XRootDStatus st = ParseCdRecords( pBuffer + pEocd->pCdOffset, pEocd->pNbCdRec, pEocd->pCdSize );
+      XRootDStatus st = ParseCdRecords( pBuffer.get() + pEocd->pCdOffset, pEocd->pNbCdRec, pEocd->pCdSize );
 
       return st;
     }
@@ -225,10 +261,9 @@ class ZipArchiveReaderImpl
     XRootDStatus HandleCdfh( uint16_t nbCdRecords, uint32_t bufferSize )
     {
       // parse Central-Directory-File-Header records
-      XRootDStatus st = ParseCdRecords( pBuffer, nbCdRecords, bufferSize );
+      XRootDStatus st = ParseCdRecords( pBuffer.get(), nbCdRecords, bufferSize );
       // successful or not we don't need it anymore
-      delete[] pBuffer;
-      pBuffer = 0;
+      pBuffer.reset();
       return st;
     }
 
@@ -236,8 +271,8 @@ class ZipArchiveReaderImpl
 
     void ClearRecords()
     {
-      delete pEocd;
-      pEocd = 0;
+      pEocd.reset();
+      pZip64Eocd.reset();
 
       for( std::vector<CDFH*>::iterator it = pCdRecords.begin(); it != pCdRecords.end(); ++it )
         delete *it;
@@ -247,7 +282,6 @@ class ZipArchiveReaderImpl
 
     ~ZipArchiveReaderImpl()
     {
-      delete[] pBuffer;
       ClearRecords();
       if( pArchive.IsOpen() )
       {
@@ -263,8 +297,9 @@ class ZipArchiveReaderImpl
     File                           pArchive;
     std::string                    pFilename;
     uint64_t                       pArchiveSize;
-    char*                          pBuffer;
-    EOCD                          *pEocd;
+    std::unique_ptr<char[]>        pBuffer;
+    std::unique_ptr<EOCD>          pEocd;
+    std::unique_ptr<ZIP64_EOCD>    pZip64Eocd;
     std::vector<CDFH*>             pCdRecords;
     std::map<std::string, size_t>  pFileToCdfh;
     mutable XrdSysMutex            pMutex;
@@ -355,7 +390,7 @@ class ZipHandlerBase : public ZipHandlerCommon
       }
       catch( ZipHandlerException<RESP>& ex )
       {
-        if( pUserHandler ) pUserHandler->HandleResponse( ex.status, PkgResp( ex.response ) );
+        if( pUserHandler ) pUserHandler->HandleResponse( ex.status, ex.response ? PkgResp( ex.response ) : 0 );
         else DeleteArgs( ex.status, ex.response );
       }
 
@@ -424,7 +459,9 @@ class StatArchiveHandler : public ZipHandlerBase<StatInfo>
 
       // if the size of the file is smaller than the maximum comment size +
       // EOCD size simply download the whole file, otherwise download the EOCD
-      XRootDStatus st = ( size <= EOCD::kMaxCommentSize + EOCD::kEocdBaseSize ) ? pImpl->ReadArchive( pUserHandler ) : pImpl->ReadEocd( pUserHandler );
+      XRootDStatus st = ( size <= EOCD::kMaxCommentSize + EOCD::kEocdBaseSize + ZIP64_EOCDL::kZip64EocdlSize ) ?
+                        pImpl->ReadArchive( pUserHandler ) :
+                        pImpl->ReadEocd( pUserHandler );
       if( !st.IsOK() )
       {
         *status = st;
@@ -449,8 +486,11 @@ class ReadArchiveHandler : public ZipHandlerBase<ChunkInfo>
       XRootDStatus st = pImpl->HandleWholeArchive();
       if( pUserHandler )
       {
+        // in fact this is the result of open, so in this case
+        // the user does not care about the ChunkInfo response
+        delete response;
         *status = st;
-        pUserHandler->HandleResponse( status, PkgResp( response ) );
+        pUserHandler->HandleResponse( status, 0 );
       }
       else
         DeleteArgs( status, response );
@@ -470,7 +510,10 @@ class ReadCdfhHandler : public ZipHandlerBase<ChunkInfo>
       if( pUserHandler )
       {
         *status = st;
-        pUserHandler->HandleResponse( status, PkgResp( response ) );
+        // in fact this is the result of open, so in this case
+        // the user does not care about the ChunkInfo response
+        delete response;
+        pUserHandler->HandleResponse( status, 0 );
       }
       else
         DeleteArgs( status, response );
@@ -578,20 +621,20 @@ XRootDStatus ZipArchiveReaderImpl::ReadArchive( ResponseHandler *userHandler )
 {
   uint64_t offset = 0;
   uint32_t size   = pArchiveSize;
-  pBuffer         = new char[size];
+  pBuffer.reset( new char[size] );
   ReadArchiveHandler *handler = new ReadArchiveHandler( this, userHandler );
-  XRootDStatus st = pArchive.Read( offset, size, pBuffer, handler );
+  XRootDStatus st = pArchive.Read( offset, size, pBuffer.get(), handler );
   if( !st.IsOK() ) delete handler;
   return st;
 }
 
 XRootDStatus ZipArchiveReaderImpl::ReadEocd( ResponseHandler *userHandler )
 {
-  uint32_t size   = EOCD::kMaxCommentSize + EOCD::kEocdBaseSize;
+  uint32_t size   = EOCD::kMaxCommentSize + EOCD::kEocdBaseSize + ZIP64_EOCDL::kZip64EocdlSize;
   uint64_t offset = pArchiveSize - size;
-  pBuffer         = new char[size];
+  pBuffer.reset( new char[size] );
   ReadEocdHandler *handler = new ReadEocdHandler( this, userHandler );
-  XRootDStatus st = pArchive.Read( offset, size, pBuffer, handler );
+  XRootDStatus st = pArchive.Read( offset, size, pBuffer.get(), handler );
   if( !st.IsOK() ) delete handler;
   return st;
 }
@@ -599,14 +642,48 @@ XRootDStatus ZipArchiveReaderImpl::ReadEocd( ResponseHandler *userHandler )
 XRootDStatus ZipArchiveReaderImpl::ReadCdfh( uint64_t bytesRead, ResponseHandler *userHandler )
 {
   char *eocdBlock = LookForEocd( bytesRead );
-  if( !eocdBlock ) throw ZipHandlerException<AnyObject>( new XRootDStatus( stError, errErrorResponse, errDataError, "End-of-central-directory signature not found." ), 0 );
-  pEocd = new EOCD( eocdBlock );
-  uint64_t offset = pEocd->pCdOffset;
-  uint32_t size   = pEocd->pCdSize;
-  delete[] pBuffer;
-  pBuffer = new char[size];
+  if( !eocdBlock ) throw ZipHandlerException<AnyObject>( new XRootDStatus( stError, errDataError, errDataError, "End-of-central-directory signature not found." ), 0 );
+  pEocd.reset( new EOCD( eocdBlock ) );
+
+  // Let's see if it is ZIP64 (if yes, the EOCD will be preceded with ZIP64 EOCD locator)
+  char *zip64EocdlBlock = eocdBlock - ZIP64_EOCDL::kZip64EocdlSize;
+  // make sure there is enough data to assume there's a ZIP64 EOCD locator
+  if( zip64EocdlBlock > pBuffer.get() )
+  {
+    uint32_t *signature = reinterpret_cast<uint32_t*>( zip64EocdlBlock );
+    if( *signature == ZIP64_EOCDL::kZip64EocdlSign )
+    {
+      std::unique_ptr<ZIP64_EOCDL> eocdl( new ZIP64_EOCDL( zip64EocdlBlock ) );
+      // the offset at which we did the read
+      uint64_t buffOffset = pArchiveSize - bytesRead;
+      if( buffOffset > eocdl->pZip64EocdOffset )
+      {
+        // we need to read more data
+        uint32_t size = pArchiveSize - eocdl->pZip64EocdOffset;
+        pBuffer.reset( new char[size] );
+        ReadEocdHandler *handler = new ReadEocdHandler( this, userHandler );
+        XRootDStatus st = pArchive.Read( eocdl->pZip64EocdOffset, size, pBuffer.get(), handler );
+        if( !st.IsOK() ) delete handler;
+        return st;
+      }
+
+      char *zip64EocdBlock = pBuffer.get() + ( eocdl->pZip64EocdOffset - buffOffset );
+      signature = reinterpret_cast<uint32_t*>( zip64EocdBlock );
+      if( *signature != ZIP64_EOCD::kZip64EocdSign )
+        throw ZipHandlerException<AnyObject>( new XRootDStatus( stError, errDataError, errDataError, "ZIP64 End-of-central-directory signature not found." ), 0 );
+      pZip64Eocd.reset( new ZIP64_EOCD( zip64EocdBlock ) );
+    }
+    /*
+    else
+      it is not ZIP64 so we have everything in EOCD
+    */
+  }
+
+  uint64_t offset = pZip64Eocd ? pZip64Eocd->pCdOffset : pEocd->pCdOffset;
+  uint32_t size   = pZip64Eocd ? pZip64Eocd->pCdSize   : pEocd->pCdSize;
+  pBuffer.reset( new char[size] );
   ReadCdfhHandler *handler = new ReadCdfhHandler( this, userHandler, pEocd->pNbCdRec );
-  XRootDStatus st = pArchive.Read( offset, size, pBuffer, handler );
+  XRootDStatus st = pArchive.Read( offset, size, pBuffer.get(), handler );
   if( !st.IsOK() ) delete handler;
   return st;
 }
@@ -663,7 +740,7 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
       return XRootDStatus( stError, errDataError );
     }
 
-    memcpy( buffer, pBuffer + offset, size );
+    memcpy( buffer, pBuffer.get() + offset, size );
 
     if( userHandler )
     {
