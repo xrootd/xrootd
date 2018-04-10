@@ -18,6 +18,7 @@ Version 4.8.2
   * **[XrdCl]** Correctly handler error/wait response to endsess request.
   * **[XrdCl]** MsgHandler must not be enqueued in InQueue on virtual 
                 redirect, fixes #682
+  * **[XrdCl]** Add ZIP64 support, fixes #402
   
 + **Minor bug fixes**
   * **[Net]** Optimize formatting corresponding to RFC 1178 and RFC 3696.
