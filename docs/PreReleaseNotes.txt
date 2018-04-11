@@ -7,7 +7,6 @@ Prerelease Notes
 
 + **New Features**
   * **[SSI]** Properly handle Finished() calls prior to response posting.
-  * **[Server]** Add method to get logging mask.
   * **[Server]** Add &I=<iptype> to 'u' login monitoring record.
   * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
   * **[XrdSsi]** Provide summary monitoring information to report stream.
@@ -16,16 +15,8 @@ Prerelease Notes
 
 
 + **Minor bug fixes**
-  * **[Net]** Optimize formatting corresponding to RFC 1178 and RFC 3696.
-  * **[SSI]** Prevent request ID conflicts with reusable resources.
 
 + **Miscellaneous**
-  * **[Server]** Correct lock handling in commit 2c169141.
-  * **[Server]** Make endsess more reliable.
-  * **[Server]** Make sure no temporary opens occur during error recovery.
   * **[All]** Place protocol definition under a modified BSD license.
-  * **[Proxy]** Make sure to pass through TPC requests in otgoing proxies.
-  * **[Proxy]** Support progress bar during TPC transfers.
-  * **[Proxy]** Do not fail a TPC fstat() due to bad timing.
 
 
