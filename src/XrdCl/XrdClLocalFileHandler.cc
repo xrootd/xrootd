@@ -692,8 +692,8 @@ namespace XrdCl
     pHostList.push_back( HostInfo( pUrl, false ) );
 
     //All went well
-    uint8_t ufd = fd;
-    OpenInfo *openInfo = new OpenInfo( &ufd, 1, statInfo );
+    uint32_t ufd = fd;
+    OpenInfo *openInfo = new OpenInfo( (uint8_t*)&ufd, 1, statInfo );
     resp = new AnyObject();
     resp->Set( openInfo );
     return XRootDStatus();
