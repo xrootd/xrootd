@@ -158,11 +158,20 @@ namespace XrdCl
     if( it != pFactoryMap.end() && it->second->isEnv )
       return it->second->factory;
 
+    std::string protocol = URL( url ).GetProtocol();
+    std::map<std::string, FactoryHelper*>::iterator itProt;
+    itProt = pFactoryMap.find( protocol );
+    if( itProt != pFactoryMap.end() && itProt->second->isEnv )
+      return itProt->second->factory;
+
     if( pDefaultFactory )
       return pDefaultFactory->factory;
 
     if( it != pFactoryMap.end() )
       return it->second->factory;
+
+    if( itProt != pFactoryMap.end() )
+      return itProt->second->factory;
 
     return 0;
   }
@@ -473,8 +482,15 @@ namespace XrdCl
     URL urlObj = url;
     if( !urlObj.IsValid() )
       return "";
+
+    std::string protocol = urlObj.GetProtocol();
+    std::string hostname = urlObj.GetHostName();
+
+    if( hostname == "*" )
+      return protocol;
+
     std::ostringstream o;
-    o << urlObj.GetProtocol() << "://" << urlObj.GetHostName() << ":";
+    o << protocol << "://" << hostname << ":";
     o << urlObj.GetPort();
     return o.str();
   }
