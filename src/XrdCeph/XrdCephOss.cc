@@ -70,7 +70,7 @@ extern "C"
     // set parameters
     try {
       ceph_posix_set_defaults(parms);
-    } catch (std::exception e) {
+    } catch (std::exception &e) {
       XrdCephEroute.Say("CephOss loading failed with exception. Check the syntax of parameters : ", parms);
       return 0;
     }
@@ -193,7 +193,7 @@ int XrdCephOss::Stat(const char* path,
     } else {
       return ceph_posix_stat(env, path, buff);
     }
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephEroute.Say("stat : invalid syntax in file parameters");
     return -EINVAL;
   }
@@ -228,7 +228,7 @@ int XrdCephOss::Truncate (const char* path,
                           XrdOucEnv* env) {
   try {
     return ceph_posix_truncate(env, path, size);
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephEroute.Say("truncate : invalid syntax in file parameters");
     return -EINVAL;
   }
@@ -237,7 +237,7 @@ int XrdCephOss::Truncate (const char* path,
 int XrdCephOss::Unlink(const char *path, int Opts, XrdOucEnv *env) {
   try {
     return ceph_posix_unlink(env, path);
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephEroute.Say("unlink : invalid syntax in file parameters");
     return -EINVAL;
   }
