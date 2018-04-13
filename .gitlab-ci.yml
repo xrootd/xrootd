@@ -260,7 +260,7 @@ build:macosx:
     - mkdir -p tarball/xrootd
     - cd build
     - /usr/local/bin/cmake -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2g/include/ -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
-    - make
+    - make -j4
     - make install
     - cd ../tarball
     - tar -zcf xrootd.tar.gz xrootd
@@ -279,6 +279,7 @@ build:macosx:
   except:
     - tags
     - schedules
+  allow_failure: true
 
 release:cc7-x86_64:
   stage: build:rpm
