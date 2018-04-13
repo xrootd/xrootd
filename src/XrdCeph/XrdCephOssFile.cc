@@ -44,7 +44,7 @@ int XrdCephOssFile::Open(const char *path, int flags, mode_t mode, XrdOucEnv &en
     if (rc < 0) return rc;
     m_fd = rc;
     return XrdOssOK;
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephEroute.Say("open : invalid syntax in file parameters");
     return -EINVAL;
   }

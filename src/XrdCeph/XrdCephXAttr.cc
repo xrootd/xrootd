@@ -45,7 +45,7 @@ extern "C"
     // set parameters
     try {
       ceph_posix_set_defaults(parms);
-    } catch (std::exception e) {
+    } catch (std::exception &e) {
       XrdCephXattrEroute.Say("CephXattr loading failed with exception. Check the syntax of parameters : ", parms);
       return 0;
     }
@@ -60,7 +60,7 @@ XrdCephXAttr::~XrdCephXAttr() {}
 int XrdCephXAttr::Del(const char *Aname, const char *Path, int fd) {
   try {
     return ceph_posix_removexattr(0, Path, Aname);
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephXattrEroute.Say("Del : invalid syntax in file parameters", Path);
     return -EINVAL;
   }
@@ -77,7 +77,7 @@ int XrdCephXAttr::Get(const char *Aname, void *Aval, int Avsz,
   } else {
     try {
       return ceph_posix_getxattr(0, Path, Aname, Aval, Avsz);
-    } catch (std::exception e) {
+    } catch (std::exception &e) {
       XrdCephXattrEroute.Say("Get : invalid syntax in file parameters", Path);
       return -EINVAL;
     }
@@ -90,7 +90,7 @@ int XrdCephXAttr::List(AList **aPL, const char *Path, int fd, int getSz) {
   } else {
     try {
       return ceph_posix_listxattrs(0, Path, aPL, getSz);
-    } catch (std::exception e) {
+    } catch (std::exception &e) {
       XrdCephXattrEroute.Say("List : invalid syntax in file parameters", Path);
       return -EINVAL;
     }
@@ -104,7 +104,7 @@ int XrdCephXAttr::Set(const char *Aname, const void *Aval, int Avsz,
   } else {
     try {
       return ceph_posix_setxattr(0, Path, Aname, Aval, Avsz, 0);
-    } catch (std::exception e) {
+    } catch (std::exception &e) {
       XrdCephXattrEroute.Say("Set : invalid syntax in file parameters", Path);
       return -EINVAL;
     }
