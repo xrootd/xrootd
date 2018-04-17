@@ -116,6 +116,9 @@ namespace XrdCl
       log->Error( XRootDMsg, "[%s] Unable to send the message %s: %s",
                   url.GetHostId().c_str(), msg->GetDescription().c_str(),
                   st.ToString().c_str() );
+
+      // Release the SID as the request was never send
+      sidMgr->ReleaseSID( req->streamid );
       delete msgHandler;
       delete list;
       return st;
