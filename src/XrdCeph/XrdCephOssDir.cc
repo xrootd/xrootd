@@ -38,7 +38,7 @@ int XrdCephOssDir::Opendir(const char *path, XrdOucEnv &env) {
       return -errno;
     }
     return XrdOssOK;
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephEroute.Say("opendir : invalid syntax in file parameters");
     return -EINVAL;
   }
