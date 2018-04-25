@@ -83,7 +83,7 @@ namespace XrdCl
       action  = handler->Examine( msg );
 
       if( action & IncomingMsgHandler::RemoveHandler )
-	pHandlers.erase( it );
+        pHandlers.erase( it );
     }
 
     if( !(action & IncomingMsgHandler::Take) )
@@ -113,10 +113,10 @@ namespace XrdCl
 
       if( action & IncomingMsgHandler::Take )
       {
-	if( !(action & IncomingMsgHandler::NoProcess ) )
-	  handler->Process( it->second );
+        if( !(action & IncomingMsgHandler::NoProcess ) )
+          handler->Process( it->second );
 
-	pMessages.erase( it );
+        pMessages.erase( it );
       }
     }
 
@@ -152,7 +152,7 @@ namespace XrdCl
       exp     = it->second.second;
 
       if( act & IncomingMsgHandler::Take )
-	pHandlers.erase( it );
+        pHandlers.erase( it );
     }
 
     if( handler )
@@ -199,9 +199,9 @@ namespace XrdCl
       action = it->second.first->OnStreamEvent( event, streamNum, status );
 
       if( action & IncomingMsgHandler::RemoveHandler )
-	pHandlers.erase( it++ );
+        pHandlers.erase( it++ );
       else
-	++it;
+        ++it;
     }
   }
 
@@ -219,12 +219,12 @@ namespace XrdCl
     {
       if( it->second.second <= now )
       {
-	it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout, 0,
-				  Status( stError, errOperationExpired ) );
-	pHandlers.erase( it++ );
+        it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout, 0,
+                                         Status( stError, errOperationExpired ) );
+        pHandlers.erase( it++ );
       }
       else
-	++it;
+        ++it;
     }
   }
 }

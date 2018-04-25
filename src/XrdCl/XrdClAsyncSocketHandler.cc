@@ -954,6 +954,9 @@ namespace XrdCl
       // called from inside of Stream::OnReadTimeout, this
       // in turn means that the ownership of following
       // pointers, has been transfered to the inQueue
+      if( !pIncHandler.second )
+        delete pIncoming;
+
       pIncoming   = 0;
       pOutgoing   = 0;
       pOutHandler = 0;
