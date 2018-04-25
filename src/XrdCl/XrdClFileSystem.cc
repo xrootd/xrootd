@@ -692,11 +692,11 @@ namespace XrdCl
         {
           HostList::reverse_iterator it;
           for( it = hostList->rbegin(); it != hostList->rend(); ++it )
-          if( it->loadBalancer )
-          {
-            pFS->AssignLoadBalancer( it->url );
-            break;
-          }
+            if( it->loadBalancer )
+            {
+              pFS->AssignLoadBalancer( it->url );
+              break;
+            }
         }
         pUserHandler->HandleResponseWithHosts( status, response, hostList );
         delete this;
