@@ -7,6 +7,13 @@ Release Notes
 
 
 -------------
+Version 4.8.3
+-------------
+
++ **Major bug fixes**
+* **[XrdCl]** Release SIDs on PostMaster::Send() failure.
+
+-------------
 Version 4.8.2
 -------------
 
