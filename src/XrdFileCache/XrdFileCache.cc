@@ -124,7 +124,8 @@ bool Cache::Decide(XrdOucCacheIO* io)
 {
    if (! m_decisionpoints.empty())
    {
-      std::string filename = io->Path();
+      XrdCl::URL url(io->Path());
+      std::string filename = url.GetPath();
       std::vector<Decision*>::const_iterator it;
       for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
       {
