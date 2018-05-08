@@ -67,7 +67,9 @@ BuildRequires: python2-devel
 %if %{?fedora}%{!?fedora:0} >= 13
 BuildRequires: python3-devel
 %else
+  %if %{?_with_python3:1}%{!?_with_python3:0} 
 BuildRequires: python34-devel
+  %endif
 %endif
 
 BuildRequires: openssl-devel
