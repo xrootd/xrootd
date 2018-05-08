@@ -88,6 +88,7 @@ void IOFileBlock::CloseInfoFile()
    {
       if (m_info.GetFileSize() > 0)
       {
+         // We do not maintain access statistics for individual blocks.
          Stats as;
          m_info.WriteIOStatDetach(as);
       }
