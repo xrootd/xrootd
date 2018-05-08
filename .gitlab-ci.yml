@@ -405,7 +405,7 @@ xrootd_docker_get:
   stage: build:dockerimage:prepare
   script:
     - git clone https://gitlab.cern.ch/eos/xrootd-docker.git
-    - if [ ! -d "epel-7" ]; then mkdir epel-7; cp cc-7-x86_64/* epel-7; fi
+    - if [ ! -d "epel-7" ]; then mkdir epel-7; cp cc-7/* epel-7; fi
   artifacts:
     expire_in: 1 day
     paths:
