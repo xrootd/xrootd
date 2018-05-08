@@ -276,6 +276,7 @@ Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 %description -n python2-xrootd
 Python 2 bindings for XRootD
 
+%if %{?_with_python3:1}%{!?_with_python3:0}
 #-------------------------------------------------------------------------------
 # python3
 #-------------------------------------------------------------------------------
@@ -289,6 +290,7 @@ Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description -n python3-xrootd
 Python 3 bindings for XRootD
+%endif
 
 #-------------------------------------------------------------------------------
 # doc
@@ -419,10 +421,12 @@ popd
 popd
 %endif
 
+%if %{?_with_python3:1}%{!?_with_python3:0}
 # build python3 bindings
 pushd build/bindings/python
 %py3_build
 popd
+%endif
 
 #-------------------------------------------------------------------------------
 # Installation
@@ -533,10 +537,12 @@ mkdir -p %{buildroot}%{_datadir}/selinux/packages/%{name}
 install -m 644 -p packaging/common/xrootd.pp \
     %{buildroot}%{_datadir}/selinux/packages/%{name}/%{name}.pp
 
+%if %{?_with_python3:1}%{!?_with_python3:0}
 # install python3 bindings
 pushd build/bindings/python
 %py3_install
 popd
+%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -817,9 +823,11 @@ fi
 %files -n python2-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
 %defattr(-,root,root,-)
 
+%if %{?_with_python3:1}%{!?_with_python3:0}
 %files -n python3-%{name}
 %defattr(-,root,root,-)
 %{python3_sitearch}/*
+%endif
 
 %files doc
 %defattr(-,root,root,-)
@@ -892,6 +900,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Tue May 08 2018 Michal Simon <michal.simon@cern.ch> 
+- Make python3 sub-package optional
+
 * Fri Nov 10 2017 Michal Simon <michal.simon@cern.ch> - 1:4.8.0-1
 - Add python3 sub-package
 - Rename python sub-package
