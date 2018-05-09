@@ -59,7 +59,7 @@ build:cc7:
     - ./makesrpm.sh --define "_with_python3 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir cc-7/
     - cp packaging/*.src.rpm cc-7
