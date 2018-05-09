@@ -413,6 +413,8 @@ xrootd_docker_get:
     - epel-7/
   tags:
     - xrootd-shell
+  only:
+    - schedules
     
 xrootd_dockerimage:
   stage: build:dockerimage
@@ -425,6 +427,8 @@ xrootd_dockerimage:
     DOCKER_FILE: xrootd-docker/Dockerfile.ci
   dependencies:
     - xrootd_docker_get
+  only:
+    - schedules
     
 xrootd_docker_test:
   stage: test
@@ -445,6 +449,8 @@ xrootd_docker_test:
     - xrootd-shell
   dependencies:
     - xrootd_docker_get
+  only:
+    - schedules
 
 publish:rhel:
   stage: publish
