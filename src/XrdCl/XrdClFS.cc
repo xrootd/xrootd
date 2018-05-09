@@ -1115,6 +1115,8 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
       flags |= PrepareFlags::Stage;
     else if( args[i] == "-w" )
       flags |= PrepareFlags::WriteMode;
+    else if( args[i] == "-a" )
+      flags |= PrepareFlags::Cancel;
     else
       files.push_back( args[i] );
   }
@@ -1492,10 +1494,12 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     Modify permissions. Permission string example:\n"             );
   printf( "     rwxr-x--x\n\n"                                                );
 
-  printf( "   ls [-l] [-u] [dirname]\n"                                       );
+  printf( "   ls [-l] [-u] [-R] [-D] [dirname]\n"                             );
   printf( "     Get directory listing.\n"                                     );
   printf( "     -l stat every entry and pring long listing\n"                 );
   printf( "     -u print paths as URLs\n\n"                                   );
+  printf( "     -R list subdirectories recursively"                           );
+  printf( "     -D show duplicate entries"                                    );
 
   printf( "   locate [-n] [-r] [-d] <path>\n"                                 );
   printf( "     Get the locations of the path.\n"                             );
@@ -1571,13 +1575,14 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   truncate <filename> <length>\n"                               );
   printf( "     Truncate a file.\n\n"                                       );
 
-  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] filenames\n"        );
+  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] [-a] filenames\n"   );
   printf( "     Prepare one or more files for access.\n"                    );
   printf( "     -c co-locate staged files if possible\n"                    );
   printf( "     -f refresh file access time even if the location is known\n" );
   printf( "     -s stage the files to disk if they are not online\n"        );
   printf( "     -w the files will be accessed for modification\n"           );
-  printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n\n"   );
+  printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n"     );
+  printf( "     -a abort stage request\n\n"                                 );
 
   printf( "   cat [-o local file] file\n"                                   );
   printf( "     Print contents of a file to stdout.\n"                      );

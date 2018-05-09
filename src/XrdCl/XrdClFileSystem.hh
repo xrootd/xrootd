@@ -176,8 +176,9 @@ namespace XrdCl
                                   //!< the location is known
       Stage       = kXR_stage,    //!< stage the file to disk if it is not
                                   //!< online
-      WriteMode   = kXR_wmode     //!< the file will be accessed for
+      WriteMode   = kXR_wmode,    //!< the file will be accessed for
                                   //!< modification
+      Cancel      = kXR_cancel
     };
   };
   XRDOUC_ENUM_OPERATORS( PrepareFlags::Flags )
