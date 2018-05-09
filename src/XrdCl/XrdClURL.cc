@@ -253,10 +253,6 @@ namespace XrdCl
       if( *result != 0 )
         return false;
     }
-    else if( pProtocol == "roots" || pProtocol == "xroots" )
-    {
-      // TODO set default port for secure connection
-    }
 
     ComputeHostId();
     return true;
