@@ -171,7 +171,8 @@ bool File::FinalizeSyncBeforeExit()
    {
      if ( ! m_writes_during_sync.empty() || m_non_flushed_cnt > 0 || ! m_detachTimeIsLogged)
      {
-       m_cfi.WriteIOStatDetach(m_stats);
+       Stats loc_stats = m_stats.Clone();
+       m_cfi.WriteIOStatDetach(loc_stats);
        m_detachTimeIsLogged = true;
        TRACEF(Debug, "File::FinalizeSyncBeforeExit scheduling sync to write detach stats");
        return true;
@@ -443,7 +444,6 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
       total += rs;
    }
 
-   m_stats.m_BytesDisk += total;
    return total;
 }
 
@@ -457,6 +457,8 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    }
 
    const long long BS = m_cfi.GetBufferSize();
+
+   Stats loc_stats;
 
    // lock
    // loop over reqired blocks:
@@ -564,6 +566,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       if (rc >= 0)
       {
          bytes_read += rc;
+         loc_stats.m_BytesDisk += rc;
       }
       else
       {
@@ -620,7 +623,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             TRACEF(Dump, "File::Read() ub=" << (void*)iUserBuff  << " from finished block " << (*bi)->m_offset/BS << " size " << size_to_copy);
             memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
             bytes_read += size_to_copy;
-            m_stats.m_BytesRam += size_to_copy;
+            loc_stats.m_BytesRam += size_to_copy;
             if ((*bi)->m_prefetch)
                prefetchHitsRam++;
          }
@@ -653,7 +656,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       if (direct_handler->m_errno == 0)
       {
          bytes_read += direct_size;
-         m_stats.m_BytesMissed += direct_size;
+         loc_stats.m_BytesMissed += direct_size;
       }
       else
       {
@@ -687,6 +690,8 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       }
       m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
    }
+
+   m_stats.AddStats(loc_stats);
 
    return bytes_read;
 }

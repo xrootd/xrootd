@@ -92,11 +92,13 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
       return -1;
    }
 
+   Stats loc_stats;
+
    int bytesRead = 0;
 
-   ReadVBlockListRAM blocks_to_process;
+   ReadVBlockListRAM              blocks_to_process;
    std::vector<ReadVChunkListRAM> blks_processed;
-   ReadVBlockListDisk blocks_on_disk;
+   ReadVBlockListDisk             blocks_on_disk;
    std::vector<XrdOucIOVec>       chunkVec;
    DirectResponseHandler         *direct_handler = 0;
 
@@ -124,9 +126,14 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
    {
       int dr = VReadFromDisk(readV, n, blocks_on_disk);
       if (dr < 0)
+      {
          bytesRead = dr;
+      }
       else
+      {
          bytesRead += dr;
+         loc_stats.m_BytesDisk += dr;
+      }
    }
 
    // read from cached blocks
@@ -134,9 +141,14 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
    {
       int br = VReadProcessBlocks(readV, n, blocks_to_process.bv, blks_processed);
       if (br < 0)
+      {
          bytesRead = br;
+      }
       else
+      {
          bytesRead += br;
+         loc_stats.m_BytesRam += br;
+      }
    }
 
    // check direct requests have arrived, get bytes read from read handle
@@ -154,7 +166,7 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
          for (std::vector<XrdOucIOVec>::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
          {
             bytesRead += i->size;
-            m_stats.m_BytesMissed += i->size;
+            loc_stats.m_BytesMissed += i->size;
          }
       }
       else
@@ -182,6 +194,8 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
       delete i->arr;
    for (std::vector<ReadVChunkListRAM>::iterator i = blks_processed.begin(); i != blks_processed.end(); ++i)
       delete i->arr;
+
+   m_stats.AddStats(loc_stats);
 
    TRACEF(Dump, "VRead exit, total = " << bytesRead);
    return bytesRead;
@@ -292,10 +306,9 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
          overlap(blockIdx, m_cfi.GetBufferSize(), readV[chunkIdx].offset, readV[chunkIdx].size, off, blk_off, size);
 
          int rs = m_output->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off - m_offset, size);
-         if (rs >=0)
+         if (rs >= 0)
          {
             bytes_read += rs;
-            m_stats.m_BytesDisk += rs;
          }
          else
          {
@@ -358,8 +371,7 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
                int block_idx = bi->block->m_offset/m_cfi.GetBufferSize();
                overlap(block_idx, m_cfi.GetBufferSize(), readV[*chunkIt].offset, readV[*chunkIt].size, off, blk_off, size);
                memcpy(readV[*chunkIt].data + off,  &(bi->block->m_buff[blk_off]), size);
-               bytes_read         += size;
-               m_stats.m_BytesRam += size;
+               bytes_read += size;
             }
          }
          else

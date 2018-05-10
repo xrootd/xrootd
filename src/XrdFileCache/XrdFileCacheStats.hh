@@ -27,7 +27,7 @@ namespace XrdFileCache
 //----------------------------------------------------------------------------
 //! Statistics of disk cache utilisation.
 //----------------------------------------------------------------------------
-class Stats : public XrdOucCacheStats
+class Stats
 {
 public:
    //----------------------------------------------------------------------
@@ -41,16 +41,24 @@ public:
    long long m_BytesRam;          //!< number of bytes served from RAM cache
    long long m_BytesMissed;       //!< number of bytes served directly from XrdCl
 
-   inline void AddStat(Stats &Src)
+   inline void AddStats(Stats &Src)
    {
-      XrdOucCacheStats::Add(Src);
-
       m_MutexXfc.Lock();
-      m_BytesDisk += Src.m_BytesDisk;
-      m_BytesRam += Src.m_BytesRam;
+
+      m_BytesDisk   += Src.m_BytesDisk;
+      m_BytesRam    += Src.m_BytesRam;
       m_BytesMissed += Src.m_BytesMissed;
 
       m_MutexXfc.UnLock();
+   }
+
+   Stats Clone()
+   {
+      Stats ret;
+      m_MutexXfc.Lock();
+      ret = *this;
+      m_MutexXfc.UnLock();
+      return ret;
    }
 
 private:
