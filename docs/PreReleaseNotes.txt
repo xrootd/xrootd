@@ -18,5 +18,6 @@ Prerelease Notes
 
 + **Miscellaneous**
   * **[All]** Place protocol definition under a modified BSD license.
+  * **[Proxy]** Avoid auth failure due to URL cgi directives.
 
 
