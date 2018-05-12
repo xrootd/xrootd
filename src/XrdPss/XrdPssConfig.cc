@@ -272,6 +272,12 @@ int XrdPssSys::Configure(const char *cfn)
 //
    if (Streams) sidP = new XrdOucSid((Streams > 8192 ? 8192 : Streams));
 
+// Tell any security manager we are a proxy as this will force it to use our
+// credentials. We don't support credential forwarding, yet. If we did we would
+// also set XrdSecPROXYCREDS to accomplish that feat.
+//
+    XrdOucEnv::Export("XrdSecPROXY", "1");
+
 // If this is an outgoing proxy then we are done
 //
    if (outProxy)
