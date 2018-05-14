@@ -88,7 +88,7 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    for (i = 0; i < pTnum; i++)
        {if (!strncmp(FSpec, pTab[i].pHdr, pTab[i].pHsz))
            {Protocol = pTab[i].pVal;
-            strncpy(ProtName, pTab[i].pHdr, pTab[i].pHsz-3);
+            memcpy(ProtName, pTab[i].pHdr, pTab[i].pHsz-3);
             return;
            }
        }
