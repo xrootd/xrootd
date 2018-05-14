@@ -34,6 +34,8 @@ class XrdPosixXrootPath
 {
 public:
 
+static bool AddProto(const char *proto);
+
 void  CWD(const char *path);
 
 static

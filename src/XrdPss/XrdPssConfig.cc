@@ -69,6 +69,7 @@
 
 #include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdPosix/XrdPosixXrootdPath.hh"
 
 /******************************************************************************/
 /*                               d e f i n e s                                */
@@ -98,6 +99,7 @@ XrdOucPListAnchor XrdPssSys::XPList;
 XrdNetSecurity   *XrdPssSys::Police[XrdPssSys::PolNum] = {0, 0};
 
 XrdOucTList *XrdPssSys::ManList   =  0;
+const char  *XrdPssSys::protName  =  "root:";
 const char  *XrdPssSys::urlPlain  =  0;
 int          XrdPssSys::urlPlen   =  0;
 int          XrdPssSys::hdrLen    =  0;
@@ -272,6 +274,13 @@ int XrdPssSys::Configure(const char *cfn)
 //
    if (Streams) sidP = new XrdOucSid((Streams > 8192 ? 8192 : Streams));
 
+// Add the origin protocl to the recognized list of protocol names
+//
+   if (!XrdPosixXrootPath::AddProto(protName))
+      {eDest.Emsg("Config", "Unable to add origin protocol to protocol list.");
+       return 1;
+      }
+
 // If this is an outgoing proxy then we are done
 //
    if (outProxy)
@@ -279,8 +288,8 @@ int XrdPssSys::Configure(const char *cfn)
           else sprintf(theRdr, "= %s:%d", ManList->text, ManList->val);
        XrdOucEnv::Export("XRDXROOTD_PROXY", theRdr);
        if (ManList)
-          {hdrLen = sprintf(theRdr, "root://%%s%s:%d/%%s%%s%%s",
-                            ManList->text, ManList->val);
+          {hdrLen = sprintf(theRdr, "%s%%s%s:%d/%%s%%s%%s",
+                            protName, ManList->text, ManList->val);
            hdrData = strdup(theRdr);
           }
        return 0;
@@ -592,9 +601,10 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 
 /* Function: xorig
 
-   Purpose:  Parse: origin {= [<dest>] | <dest>}
+   Purpose:  Parse: origin [<prot>] {= [<dest>] | <dest>}
 
-   Where:    <dest> <host>[+][:<port>|<port>]
+   Where:    <prot> is one of http, https, root, xroot
+             <dest> <host>[+][:<port>|<port>]
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -609,6 +619,20 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 //
     if (!(val = Config.GetWord()))
        {errp->Emsg("Config","origin host name not specified"); return 1;}
+
+// Check if this is a protocol spec and is the right one
+//
+   if (*val == ':')
+      {     if (!strcmp(val, ":http" )) protName = "http://";
+       else if (!strcmp(val, ":https")) protName = "https://";
+       else if (!strcmp(val, ":root" )
+            ||  !strcmp(val, ":xroot")) protName = "root://";
+       else {errp->Emsg("Config", "Unsupported origin protocol -", val);
+             return 1;
+            }
+       if (!(val = Config.GetWord()))
+          {errp->Emsg("Config","origin host name not specified"); return 1;}
+      }
 
 // Check for outgoing proxy
 //

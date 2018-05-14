@@ -46,16 +46,20 @@
 
 namespace
 {
-const char   *rproto = "root://";
-const char   *xproto = "xroot://";
-const int     rprlen = 7; // Must be a constant initializer to avoid static
-const int     xprlen = 8; // initialization dependencies!
+struct ProtoTable
+      {const char *name;
+       int         nlen;
+      };
+
+static const int ptEnts = 8; // Number of protocol entries we support
 }
 
 namespace XrdPosixGlobals
 {
 extern XrdOucName2Name *theN2N;
 extern bool             oidsOK;
+
+       ProtoTable       protoTab[ptEnts] = {{"root://", 7}, {"xroot://", 8}};
 }
   
 /******************************************************************************/
@@ -107,6 +111,28 @@ XrdPosixXrootPath::~XrdPosixXrootPath()
 }
   
 /******************************************************************************/
+/*                X r d P o s i x P a t h : : A d d P r o t o                 */
+/******************************************************************************/
+
+bool XrdPosixXrootPath::AddProto(const char *proto)
+{
+   int i;
+
+// Check if we already have this protocol entry. The proto argument must be
+// in the form "pname://", where pname is the protocol name.
+//
+   for (i = 0; i < ptEnts && XrdPosixGlobals::protoTab[i].name; i++)
+       if (!strcmp(proto, XrdPosixGlobals::protoTab[i].name)) return true;
+
+// Add the entry if we have room
+//
+   if (i >= ptEnts) return false;
+   XrdPosixGlobals::protoTab[i].name = strdup(proto);
+   XrdPosixGlobals::protoTab[i].nlen = strlen(proto);
+   return true;
+}
+  
+/******************************************************************************/
 /*                     X r d P o s i x P a t h : : C W D                      */
 /******************************************************************************/
   
@@ -137,17 +163,26 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
    const char *urlP, *slash, *quest;
    char *outP, pfnBuff[1032], lfnBuff[1032];
    int cgiLen, lfnLen, pfnLen, pfxLen, n;
+   bool notOurs = true;
+
+// Check if we need to do any translation at all
+//
+   if (!XrdPosixGlobals::theN2N && !ponly) return inP;
 
 // Preset repP to zero to indicate no translation required, nothing to free
 //
    relP = 0;
 
-// If this starts with "root" or "xroot", then we can convert the path
+// If this is a protocol we support, then we can convert the path
 //
-        if (!XrdPosixGlobals::theN2N && !ponly) return inP;
-   else if (!strncmp(rproto, inP, rprlen)) urlP = inP + rprlen;
-   else if (!strncmp(xproto, inP, xprlen)) urlP = inP + xprlen;
-   else return inP;
+   for (int i = 0; i < ptEnts && XrdPosixGlobals::protoTab[i].name; i++)
+       if (!strncmp(inP, XrdPosixGlobals::protoTab[i].name,
+                         XrdPosixGlobals::protoTab[i].nlen))
+          {urlP = inP + XrdPosixGlobals::protoTab[i].nlen;
+           notOurs = false;
+           break;
+          }
+   if (notOurs) return inP;
 
 // Search for the next slash which must be followed by another slash unless we
 // are allowing object ids.
@@ -221,22 +256,26 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 {
    struct xpath *xpnow = xplist;
    char tmpbuff[2048];
-   int plen, pathlen = 0;
+   int i, pfxlen, plen, pathlen = 0;
 
-// If this starts with 'root", then this is our path
+// Check if this is a protocol we support
 //
-   if (!strncmp(rproto, path, rprlen)) return (char *)path;
+   for (i = 0; i < ptEnts && XrdPosixGlobals::protoTab[i].name; i++)
+       if (!strncmp(path, XrdPosixGlobals::protoTab[i].name,
+                          XrdPosixGlobals::protoTab[i].nlen)) break;
+   if (i >= ptEnts) return (char *)path;
+   pfxlen = XrdPosixGlobals::protoTab[i].nlen;
 
 // If it starts with xroot, then convert it to be root
 //
-   if (!strncmp(xproto, path, xprlen))
+   if (!strncmp(path, "xroot://", 8))
       {if (!buff) return (char *)1;
        if ((int(strlen(path))) > blen) return 0;
        strcpy(buff, path+1);
        return buff;
       }
 
-// If a relative path was specified, convert it to an abso9lute path
+// If a relative path was specified, convert it to an absolute path
 //
    if (path[0] == '.' && path[1] == '/' && cwdPath)
       {pathlen = (strlen(path) + cwdPlen - 2);
@@ -262,13 +301,13 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 // Verify that we won't overflow the buffer
 //
    if (!pathlen) pathlen = strlen(path);
-   plen = xprlen + pathlen + xpnow->servln + 2;
+   plen = pfxlen + pathlen + xpnow->servln + 2;
    if (xpnow->nath) plen =  plen - xpnow->plen + xpnow->nlen;
    if (plen >= blen) return 0;
 
 // Build the url
 //
-   strcpy(buff, rproto);
+   strcpy(buff, XrdPosixGlobals::protoTab[i].name);
    strcat(buff, xpnow->server);
    strcat(buff, "/");
    if (xpnow->nath) {strcat(buff, xpnow->nath); path += xpnow->plen;}
