@@ -37,7 +37,7 @@
 Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
-Release:   __RELEASE__%{?dist}%{?_with_clang:.clang}
+Release:   __RELEASE__%{?dist}%{?_with_clang:.clang}%{?_with_asan:.asan}
 Summary:   Extended ROOT file server
 Group:     System Environment/Daemons
 License:   LGPLv3+
@@ -97,6 +97,11 @@ BuildRequires:	graphviz-gd
 
 %if %{?_with_clang:1}%{!?_with_clang:0}
 BuildRequires: clang
+%endif
+
+%if %{?_with_asan:1}%{!?_with_asan:0}
+BuildRequires: libasan
+Requires: libasan
 %endif
 
 Requires:	%{name}-server%{?_isa} = %{epoch}:%{version}-%{release}
@@ -387,6 +392,10 @@ cd xrootd
 %if %{?_with_clang:1}%{!?_with_clang:0}
 export CC=clang
 export CXX=clang++
+%endif
+
+%if %{?_with_asan:1}%{!?_with_asan:0}
+export CXXFLAGS='-fsanitize=address'
 %endif
 
 mkdir build
