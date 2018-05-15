@@ -837,7 +837,9 @@ void XrdCpConfig::ProcFile(const char *fname)
              if (numFiles)
                 FMSG("Multiple sources disallowed with stdin.", 22);
             }
-    else if (pFile->Protocol != XrdCpFile::isXroot)
+    else if (!((pFile->Protocol == XrdCpFile::isXroot) ||
+               (pFile->Protocol == XrdCpFile::isHttp) ||
+               (pFile->Protocol == XrdCpFile::isHttps)))
             {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
     else if (OpSpec & DoRecurse && !(Opts & optRmtRec))
             {FMSG("Recursive copy from a remote host is not supported.",22)}
