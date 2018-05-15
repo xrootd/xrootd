@@ -1067,12 +1067,14 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    //
    // Get the content
    int reqdepthlen = -1;
-   unsigned char *p = X509_EXTENSION_get_data(xriext)->data;
-   PROXY_CERT_INFO_EXTENSION *reqpci =
-      d2i_PROXY_CERT_INFO_EXTENSION(0, (XRDGSI_CONST unsigned char **)(&p), X509_EXTENSION_get_data(xriext)->length);
-   if (reqpci &&
-       reqpci->pcPathLengthConstraint)
-      reqdepthlen = ASN1_INTEGER_get(reqpci->pcPathLengthConstraint);
+   if (xriext) {
+      unsigned char *p = X509_EXTENSION_get_data(xriext)->data;
+      PROXY_CERT_INFO_EXTENSION *reqpci =
+         d2i_PROXY_CERT_INFO_EXTENSION(0, (XRDGSI_CONST unsigned char **)(&p), X509_EXTENSION_get_data(xriext)->length);
+      if (reqpci &&
+          reqpci->pcPathLengthConstraint)
+         reqdepthlen = ASN1_INTEGER_get(reqpci->pcPathLengthConstraint);
+   }
    DEBUG("REQ depth length: "<<reqdepthlen);
 
    // We allow max indepthlen-1
