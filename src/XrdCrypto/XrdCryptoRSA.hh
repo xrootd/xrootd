@@ -75,10 +75,10 @@ public:
 
    // Import / Export methods
    virtual int ImportPublic(const char *in, int lin);
-   virtual int ExportPublic(char *out, int lout);
+   virtual int ExportPublic(char *&out, int lout);
    int ExportPublic(XrdOucString &exp);
    virtual int ImportPrivate(const char *in, int lin);
-   virtual int ExportPrivate(char *out, int lout);
+   virtual int ExportPrivate(char *&out, int lout);
    int ExportPrivate(XrdOucString &exp);
 
    // Encryption / Decryption methods
