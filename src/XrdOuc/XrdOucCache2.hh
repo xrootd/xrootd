@@ -30,6 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <errno.h>
+
 #include "XrdOuc/XrdOucCache.hh"
 
 //-----------------------------------------------------------------------------
@@ -244,7 +246,40 @@ virtual
 void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
 
 //------------------------------------------------------------------------------
-//! Preapare the cache for a file open request. This method is called prior to
+//! Get the path to a file that is complete in the local cache. By default, the
+//! file must be complete in the cache (i.e. no blocks are missing). This can
+//! be overridden. Thes path can be used to access the file on the local node.
+//!
+//! @param  url    - Pointer to the url of interest.
+//! @param  buff   - Pointer to a buffer to receive the local path to the file.
+//!                  If nil, no path is returned.
+//! @param  blen   - Length of the buffer, buff. If zero, no path is returned.
+//! @param  force  - When true, return the path even if the file is incomplete;
+//!                  in practice only a URL to local path conversion is done
+//!                  and the only errors possible are -ENAMETOOLONG and
+//!                  -EINVAL and only if buff and blen are neither zero.
+//!
+//! @return 0      - the is complete (if force is false). The buffer contains
+//!                  the local path to the file.
+//! @return <0     - the request could not be fulfilled. The return value is
+//!                  -errno describing why. Common reasons:
+//!                  -EINVAL       an argument is invalid.
+//!                  -EISDIR       target is a directory not a file.
+//!                  -ENAMETOOLONG buffer not big enough to hold path.
+//!                  -ENOENT       file not in cache and force is false.
+//!                  -ENOTSUP      method not implemented
+//!                  -EREMOTE      file is incomplete and force is false
+//! @return >0     - Reserved for future use.
+//------------------------------------------------------------------------------
+virtual
+int            LocalFilePath(const char *url, char *buff=0, int blen=0,
+                             bool force=false)
+                             {(void)url; (void)buff; (void)blen; (void)force;
+                              return -ENOTSUP;
+                             }
+
+//------------------------------------------------------------------------------
+//! Prepare the cache for a file open request. This method is called prior to
 //! actually opening a file. This method is meant to allow defering an open
 //! request or implementing the full I/O stack in the cache layer.
 //!
@@ -252,7 +287,7 @@ void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
 //! @param  oflags - Standard Unix open flags (see open(2)).
 //! @param  mode   - Standard mode flags if file is being created.
 //!
-//! @return <0 Error has occurred, return value is -errno; fail open request.
+//! @return <0 Error has occurred, return value is -errno; fail open request. 
 //!            The error code -EUSERS may be returned to trigger overload
 //!            recovery as specified by the xrootd.fsoverload directive. No
 //!            other method should return this error code.
