@@ -17,6 +17,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * **[Proxy]** Add method to cache to get local file path of cached file.
   * **[All]** Place protocol definition under a modified BSD license.
   * **[Proxy]** Avoid auth failure due to URL cgi directives.
 
