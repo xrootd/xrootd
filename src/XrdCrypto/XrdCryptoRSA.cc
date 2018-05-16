@@ -88,7 +88,7 @@ int XrdCryptoRSA::ImportPublic(const char *, int)
 }
 
 //_____________________________________________________________________________
-int XrdCryptoRSA::ExportPublic(char *, int)
+int XrdCryptoRSA::ExportPublic(char *&, int)
 {
    // Abstract method to export the public key
    ABSTRACTMETHOD("XrdCryptoRSA::ExportPublic");
@@ -104,7 +104,7 @@ int XrdCryptoRSA::ImportPrivate(const char *, int)
 }
 
 //_____________________________________________________________________________
-int XrdCryptoRSA::ExportPrivate(char *, int)
+int XrdCryptoRSA::ExportPrivate(char *&, int)
 {
    // Abstract method to export the private key
    ABSTRACTMETHOD("XrdCryptoRSA::ExportPrivate");
