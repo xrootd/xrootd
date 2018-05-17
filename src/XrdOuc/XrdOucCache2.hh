@@ -254,27 +254,46 @@ void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
 //! @param  buff   - Pointer to a buffer to receive the local path to the file.
 //!                  If nil, no path is returned.
 //! @param  blen   - Length of the buffer, buff. If zero, no path is returned.
-//! @param  force  - When true, return the path even if the file is incomplete;
-//!                  in practice only a URL to local path conversion is done
-//!                  and the only errors possible are -ENAMETOOLONG and
-//!                  -EINVAL and only if buff and blen are neither zero.
+//! @param  why    - One of the LFP_Reason enums describing the call:
+//!                  ForAccess - the path will be used to access the file. If
+//!                              the file is complete, the system will delay
+//!                              purging the file for a configurable window,
+//!                              should a purge be imminent. A null path is
+//!                              returned for any non-zero return code.
+//!                  ForCheck  - same as ForAccess except that purging will
+//!                              not be delayed if imminent. A path is always
+//!                              returned, if possible. Otherwise the first
+//!                              byte of any supplied buffer is set to 0.
+//!                  ForInfo   - Only the path is wanted and no checks need
+//!                              be performed. The only possible errors are
+//!                              -EINVAL and -ENAMETOOLONG.
 //!
-//! @return 0      - the is complete (if force is false). The buffer contains
-//!                  the local path to the file.
+//! @return 0      - the file is complete and the local path to the file is in
+//!                  the buffer, if it has been supllied.
+//!
 //! @return <0     - the request could not be fulfilled. The return value is
-//!                  -errno describing why. Common reasons:
+//!                  -errno describing why. If a buffer was supplied and a
+//!                  path could be generated it is returned only if "why" is
+//!                  ForCheck or ForInfo. Otherwise, a null path is returned.
+//!                  
+//!                  Common return codes are:
 //!                  -EINVAL       an argument is invalid.
 //!                  -EISDIR       target is a directory not a file.
 //!                  -ENAMETOOLONG buffer not big enough to hold path.
-//!                  -ENOENT       file not in cache and force is false.
+//!                  -ENOENT       file not in cache
 //!                  -ENOTSUP      method not implemented
-//!                  -EREMOTE      file is incomplete and force is false
+//!                  -EREMOTE      file is incomplete
+//!
 //! @return >0     - Reserved for future use.
 //------------------------------------------------------------------------------
+
+enum LFP_Reason {ForAccess=0, ForCheck, ForInfo};
+
 virtual
 int            LocalFilePath(const char *url, char *buff=0, int blen=0,
-                             bool force=false)
-                             {(void)url; (void)buff; (void)blen; (void)force;
+                             LFP_Reason why=ForAccess)
+                             {(void)url; (void)buff; (void)blen; (void)why;
+                             if (buff && blen > 0) *buff = 0;
                               return -ENOTSUP;
                              }
 
