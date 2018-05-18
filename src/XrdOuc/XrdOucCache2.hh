@@ -260,11 +260,11 @@ void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
 //!                              purging the file for a configurable window,
 //!                              should a purge be imminent. A null path is
 //!                              returned for any non-zero return code.
-//!                  ForCheck  - same as ForAccess except that purging will
+//!                  ForInfo   - same as ForAccess except that purging will
 //!                              not be delayed if imminent. A path is always
 //!                              returned, if possible. Otherwise the first
 //!                              byte of any supplied buffer is set to 0.
-//!                  ForInfo   - Only the path is wanted and no checks need
+//!                  ForPath   - Only the path is wanted and no checks need
 //!                              be performed. The only possible errors are
 //!                              -EINVAL and -ENAMETOOLONG.
 //!
@@ -274,7 +274,7 @@ void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
 //! @return <0     - the request could not be fulfilled. The return value is
 //!                  -errno describing why. If a buffer was supplied and a
 //!                  path could be generated it is returned only if "why" is
-//!                  ForCheck or ForInfo. Otherwise, a null path is returned.
+//!                  ForInfo or ForPath. Otherwise, a null path is returned.
 //!                  
 //!                  Common return codes are:
 //!                  -EINVAL       an argument is invalid.
@@ -287,7 +287,7 @@ void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
 //! @return >0     - Reserved for future use.
 //------------------------------------------------------------------------------
 
-enum LFP_Reason {ForAccess=0, ForCheck, ForInfo};
+enum LFP_Reason {ForAccess=0, ForInfo, ForPath};
 
 virtual
 int            LocalFilePath(const char *url, char *buff=0, int blen=0,
