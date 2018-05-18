@@ -423,7 +423,6 @@ void Explain(const char *what)
   
 int DoA32(const char *buff)
 {
-   ZEXTERN uLong ZEXPORT adler32 OF((uLong adler, const Bytef *buf, uInt len));
    uLong adler = adler32(0L, Z_NULL, 0);
 
 // Check for ID request now
@@ -446,8 +445,6 @@ int DoA32(const char *buff)
   
 int DoC32(const char *buff)
 {
-   ZEXTERN uLong ZEXPORT crc32 OF((uLong crc, const Bytef *buf, uInt len));
-
 // Check for ID request now
 //
    if (!buff) {int myID; memcpy(&myID, "c32 ", sizeof(int)); return myID;}
