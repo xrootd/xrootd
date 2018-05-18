@@ -118,8 +118,6 @@ void DoIt()
 }
 };
 
-//______________________________________________________________________________
-
 bool Cache::Decide(XrdOucCacheIO* io)
 {
    if (! m_decisionpoints.empty())
@@ -140,23 +138,23 @@ bool Cache::Decide(XrdOucCacheIO* io)
 
    return true;
 }
-//______________________________________________________________________________
 
-
-Cache::Cache() : XrdOucCache(),
+Cache::Cache() :
+   XrdOucCache(),
    m_log(0, "XrdFileCache_"),
    m_trace(0),
    m_traceID("Manager"),
    m_prefetch_condVar(0),
    m_RAMblocks_used(0),
-   m_isClient(false)
+   m_isClient(false),
+   m_in_purge(false),
+   m_active_cond(0)
 {
    m_trace = new XrdSysTrace("XrdFileCache");
    // default log level is Warning
    m_trace->What = 2;
 }
 
-//______________________________________________________________________________
 
 XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 {
@@ -180,7 +178,6 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
    }
    return io;
 }
-//______________________________________________________________________________
 
 
 int Cache::isAttached()
@@ -189,9 +186,8 @@ int Cache::isAttached()
    return true;
 }
 
-//______________________________________________________________________________
-void
-Cache::AddWriteTask(Block* b, bool fromRead)
+
+void Cache::AddWriteTask(Block* b, bool fromRead)
 {
    TRACE(Dump, "Cache::AddWriteTask() bOff=%ld " <<  b->m_offset);
    m_writeQ.condVar.Lock();
@@ -204,7 +200,7 @@ Cache::AddWriteTask(Block* b, bool fromRead)
    m_writeQ.condVar.UnLock();
 }
 
-//______________________________________________________________________________
+
 void Cache::RemoveWriteQEntriesFor(File *iFile)
 {
    m_writeQ.condVar.Lock();
@@ -227,9 +223,8 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
    m_writeQ.condVar.UnLock();
 }
 
-//______________________________________________________________________________
-void
-Cache::ProcessWriteTasks()
+
+void Cache::ProcessWriteTasks()
 {
    while (true)
    {
@@ -248,10 +243,8 @@ Cache::ProcessWriteTasks()
    }
 }
 
-//______________________________________________________________________________
 
-bool
-Cache::RequestRAMBlock()
+bool Cache::RequestRAMBlock()
 {
    XrdSysMutexHelper lock(&m_RAMblock_mutex);
    if ( m_RAMblocks_used < Cache::GetInstance().RefConfiguration().m_NRamBuffers )
@@ -262,15 +255,13 @@ Cache::RequestRAMBlock()
    return false;
 }
 
-void
-Cache::RAMBlockReleased()
+
+void Cache::RAMBlockReleased()
 {
    XrdSysMutexHelper lock(&m_RAMblock_mutex);
    m_RAMblocks_used--;
 }
 
-
-//______________________________________________________________________________
 
 File* Cache::GetFile(const std::string& path, IO* iIO, long long off, long long filesize)
 {
@@ -278,43 +269,68 @@ File* Cache::GetFile(const std::string& path, IO* iIO, long long off, long long 
    
    TRACE(Debug, "Cache::GetFile " << path);
    
-   XrdSysMutexHelper lock(&m_active_mutex);
-
-   ActiveMap_i it = m_active.find(path);
-
-   if (it != m_active.end())
    {
-      IO* prevIO = it->second->SetIO(iIO);
-      if (prevIO)
+      XrdSysCondVarHelper lock(&m_active_cond);
+
+      while (true)
       {
-         prevIO->RelinquishFile(it->second);
-      }
-      else
-      {
-         inc_ref_cnt(it->second, false);
-      }
-      return it->second;
-   }
-   else
-   {
-      if (filesize == 0)
-      {
-         struct stat st;
-         int res = iIO->Fstat(st);
-         if (res) {
-            TRACE(Error, "Cache::GetFile, could not get valid stat");
-            return 0;
+         ActiveMap_i it = m_active.find(path);
+
+         // File is not open or being opened. Mark it as being opened and
+         // proceed to opening it outside of while loop.
+         if (it == m_active.end())
+         {
+            m_active[path] = 0;
+            break;
          }
 
-         filesize = st.st_size;
+         if (it->second != 0)
+         {
+            IO* prevIO = it->second->SetIO(iIO);
+            if (prevIO)
+            {
+               prevIO->RelinquishFile(it->second);
+            }
+            else
+            {
+               inc_ref_cnt(it->second, false);
+            }
+            return it->second;
+         }
+         else
+         {
+            // Wait for some change in m_active, then recheck.
+            m_active_cond.Wait();
+         }
+      }
+   }
+
+   if (filesize == 0)
+   {
+      struct stat st;
+      int res = iIO->Fstat(st);
+      if (res) {
+         TRACE(Error, "Cache::GetFile, could not get valid stat");
+         return 0;
       }
 
-      File* file = new File(iIO, path, off, filesize);
+      filesize = st.st_size;
+   }
+
+   File* file = new File(iIO, path, off, filesize);
+
+   {
+      XrdSysCondVarHelper lock(&m_active_cond);
+
       inc_ref_cnt(file, false);
       m_active[file->GetLocalPath()] = file;
-      return file;
+
+      m_active_cond.Broadcast();
    }
+
+   return file;
 }
+
 
 void Cache::ReleaseFile(File* f)
 {
@@ -326,7 +342,6 @@ void Cache::ReleaseFile(File* f)
    dec_ref_cnt(f);
 }
 
-//______________________________________________________________________________
   
 namespace
 {
@@ -337,6 +352,7 @@ void *callDoIt(void *pp)
      return (void *)0;
 }
 };
+
 
 void Cache::schedule_file_sync(File* f, bool ref_cnt_already_set)
 {
@@ -349,32 +365,32 @@ void Cache::schedule_file_sync(File* f, bool ref_cnt_already_set)
                    }
 }
 
-//______________________________________________________________________________
+
 void Cache::FileSyncDone(File* f)
 {
    dec_ref_cnt(f);
 }
 
-//______________________________________________________________________________
+
 void Cache::inc_ref_cnt(File* f, bool lock)
 {
    // called from GetFile() or SheduleFileSync();
    
    TRACE(Debug, "Cache::inc_ref_cnt " << f->GetLocalPath());
-   if (lock) m_active_mutex.Lock();
+   if (lock) m_active_cond.Lock();
    f->inc_ref_cnt();
-   if (lock) m_active_mutex.UnLock();
+   if (lock) m_active_cond.UnLock();
    
 }
 
-//______________________________________________________________________________
+
 void Cache::dec_ref_cnt(File* f)
 {
    // called  from ReleaseFile() or DiskSync callback
    
-   m_active_mutex.Lock();
+   m_active_cond.Lock();
    int cnt = f->get_ref_cnt();
-   m_active_mutex.UnLock();
+   m_active_cond.UnLock();
 
    TRACE(Debug, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt at entry = " << cnt);
 
@@ -388,7 +404,7 @@ void Cache::dec_ref_cnt(File* f)
       }
    }
 
-   m_active_mutex.Lock();
+   m_active_cond.Lock();
    cnt = f->dec_ref_cnt();
    TRACE(Debug, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt after sync_check and dec_ref_cnt = " << cnt);
    if (cnt == 0)
@@ -397,36 +413,24 @@ void Cache::dec_ref_cnt(File* f)
       m_active.erase(it);
       delete f;
    }
-   m_active_mutex.UnLock();
+   m_active_cond.UnLock();
 }
 
-//______________________________________________________________________________
-bool Cache::HaveActiveFileWithLocalPath(std::string path)
+
+bool Cache::IsFileActiveOrPurgeProtected(const std::string& path)
 {
-   XrdSysMutexHelper lock(&m_active_mutex);
+   XrdSysCondVarHelper lock(&m_active_cond);
 
-   ActiveMap_i it = m_active.find(path);
-
-   return (it != m_active.end());
+   return m_active.find(path)          != m_active.end() ||
+          m_purge_delay_set.find(path) != m_purge_delay_set.end();
 }
 
-//==============================================================================
-//=======================  PREFETCH ===================================
-//==============================================================================
-/*
-   namespace {
-   struct prefetch_less_than
-   {
-    inline bool operator() (const File* struct1, const File* struct2)
-    {
-        return (struct1->GetPrefetchScore() < struct2->GetPrefetchScore());
-    }
-   }myobject;
-   }*/
-//______________________________________________________________________________
 
-void
-Cache::RegisterPrefetchFile(File* file)
+//==============================================================================
+//=== PREFETCH
+//==============================================================================
+
+void Cache::RegisterPrefetchFile(File* file)
 {
    //  called from File::Open()
 
@@ -439,10 +443,8 @@ Cache::RegisterPrefetchFile(File* file)
    }
 }
 
-//______________________________________________________________________________
 
-void
-Cache::DeRegisterPrefetchFile(File* file)
+void Cache::DeRegisterPrefetchFile(File* file)
 {
    //  called from last line File::InitiateClose()
 
@@ -458,10 +460,8 @@ Cache::DeRegisterPrefetchFile(File* file)
    m_prefetch_condVar.UnLock();
 }
 
-//______________________________________________________________________________
 
-File*
-Cache::GetNextFileToPrefetch()
+File* Cache::GetNextFileToPrefetch()
 {
    m_prefetch_condVar.Lock();
    while (m_prefetchList.empty())
@@ -479,84 +479,8 @@ Cache::GetNextFileToPrefetch()
    return f;
 }
 
-//______________________________________________________________________________
-//! Preapare the cache for a file open request. This method is called prior to
-//! actually opening a file. This method is meant to allow defering an open
-//! request or implementing the full I/O stack in the cache layer.
-//! @return <0 Error has occurred, return value is -errno; fail open request.
-//!         =0 Continue with open() request.
-//!         >0 Defer open but treat the file as actually being open. Use the
-//!            XrdOucCacheIO2::Open() method to open the file at a later time.
-//------------------------------------------------------------------------------
 
-int
-Cache::Prepare(const char *url, int oflags, mode_t mode)
-{
-   std::string curl(url);
-   XrdCl::URL xx(curl);
-   std::string spath = xx.GetPath();
-   spath += ".cinfo";
-
-   struct stat buf;
-   int res = m_output_fs->Stat(spath.c_str(), &buf);
-   if (res == 0)
-   {
-      TRACE( Dump, "Cache::Prefetch defer open " << spath);
-      return 1;
-   }
-   else
-   {
-      return 0;
-   }
-}
-
-//______________________________________________________________________________
-// virtual method of XrdOucCache2::Stat()
-//!
-//! @return <0 - Stat failed, value is -errno.
-//!         =0 - Stat succeeded, sbuff holds stat information.
-//!         >0 - Stat could not be done, forward operation to next level.
-//------------------------------------------------------------------------------
-
-int Cache::Stat(const char *curl, struct stat &sbuff)
-{
-   XrdCl::URL url(curl);
-   std::string name = url.GetPath();
-   name += ".cinfo";
-
-   if (m_output_fs->Stat(name.c_str(), &sbuff) == XrdOssOK)
-   {
-      if ( S_ISDIR(sbuff.st_mode))
-      {
-         return 0;
-      }
-      else
-      {
-         bool success = false;
-         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str());
-         XrdOucEnv myEnv;
-         int res = infoFile->Open(name.c_str(), O_RDONLY, 0600, myEnv);
-         if (res >= 0)
-         {
-            Info info(m_trace, 0);
-            if (info.Read(infoFile, name))
-            {
-               sbuff.st_size = info.GetFileSize();
-               success = true;
-            }
-         }
-         infoFile->Close();
-         delete infoFile;
-         return success ? 0 : 1;
-      }
-   }
-
-   return 1;
-}
-
-//______________________________________________________________________________
-void
-Cache::Prefetch()
+void Cache::Prefetch()
 {
    int limitRAM = int( Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7 );
    while (true)
@@ -576,4 +500,188 @@ Cache::Prefetch()
       }
    }
 }
+
+
+//==============================================================================
+//=== Virtuals from XrdOucCache2
+//==============================================================================
+
+//------------------------------------------------------------------------------
+//! Get the path to a file that is complete in the local cache. By default, the
+//! file must be complete in the cache (i.e. no blocks are missing). This can
+//! be overridden. This path can be used to access the file on the local node.
+//!
+//! @return 0      - the file is complete and the local path to the file is in
+//!                  the buffer, if it has been supllied.
+//!
+//! @return <0     - the request could not be fulfilled. The return value is
+//!                  -errno describing why. If a buffer was supplied and a
+//!                  path could be generated it is returned only if "why" is
+//!                  ForCheck or ForInfo. Otherwise, a null path is returned.
+//!
+//! @return >0     - Reserved for future use.
+
+int Cache::LocalFilePath(const char *curl, char *buff, int blen, LFP_Reason why)
+{
+   XrdCl::URL url(curl);
+   std::string f_name = url.GetPath();
+   std::string i_name = f_name + ".cinfo";
+   {
+      XrdSysCondVarHelper lock(&m_active_cond);
+      m_purge_delay_set.insert(f_name);
+   }
+
+   if (buff && blen > 0) buff[0] = 0;
+
+   struct stat sbuff, sbuff2;
+   if (m_output_fs->Stat(f_name.c_str(), &sbuff)  == XrdOssOK &&
+       m_output_fs->Stat(i_name.c_str(), &sbuff2) == XrdOssOK)
+   {
+      if ( S_ISDIR(sbuff.st_mode))
+      {
+         return -EISDIR; // Andy ... this violates ForInfo docs.
+                         // In fact, ForInfo is actually silly.
+      }
+      else
+      {
+         bool read_ok     = false;
+         bool is_complete = false;
+
+         // Lock and check if file is active. If NOT, keep the lock
+         // and add dummy access after successful reading of info file.
+         // If it IS active, just release the lock, this ongoing access will
+         // assure the file continues to exist.
+
+         m_active_cond.Lock();
+
+         bool is_active = m_active.find(f_name) != m_active.end();
+
+         if (is_active) m_active_cond.UnLock();
+
+         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str());
+         XrdOucEnv myEnv;
+         int res = infoFile->Open(i_name.c_str(), O_RDWR, 0600, myEnv);
+         if (res >= 0)
+         {
+            Info info(m_trace, 0);
+            if (info.Read(infoFile, i_name))
+            {
+               read_ok = true;
+
+               is_complete = info.IsComplete();
+
+               // Add full-size access if reason is for access.
+               if ( ! is_active && is_complete && why == ForAccess)
+               {
+                  info.WriteIOStatSingle(info.GetFileSize());
+                  info.Write(infoFile);
+               }
+            }
+            infoFile->Close();
+         }
+         delete infoFile;
+
+         if ( ! is_active) m_active_cond.UnLock();
+
+         if (read_ok)
+         {
+            if (is_complete || why != ForAccess)
+            {
+               int res2 = m_output_fs->Lfn2Pfn(f_name.c_str(), buff, blen);
+               if (res2 < 0)
+                  return res2;
+            }
+
+            if (is_complete || why == ForInfo) return 0;
+
+            return -EREMOTE;
+         }
+      }
+   }
+
+   return -ENOENT;
+}
+
+
 //______________________________________________________________________________
+//! Preapare the cache for a file open request. This method is called prior to
+//! actually opening a file. This method is meant to allow defering an open
+//! request or implementing the full I/O stack in the cache layer.
+//! @return <0 Error has occurred, return value is -errno; fail open request.
+//!         =0 Continue with open() request.
+//!         >0 Defer open but treat the file as actually being open. Use the
+//!            XrdOucCacheIO2::Open() method to open the file at a later time.
+//------------------------------------------------------------------------------
+
+int Cache::Prepare(const char *curl, int oflags, mode_t mode)
+{
+   XrdCl::URL url(curl);
+   std::string f_name = url.GetPath();
+   std::string i_name = f_name + ".cinfo";
+
+   {
+      XrdSysCondVarHelper lock(&m_active_cond);
+      m_purge_delay_set.insert(f_name);
+   }
+
+   struct stat sbuff;
+   int res = m_output_fs->Stat(i_name.c_str(), &sbuff);
+   if (res == 0)
+   {
+      TRACE( Dump, "Cache::Prefetch defer open " << f_name);
+      return 1;
+   }
+   else
+   {
+      return 0;
+   }
+}
+
+//______________________________________________________________________________
+// virtual method of XrdOucCache2::Stat()
+//!
+//! @return <0 - Stat failed, value is -errno.
+//!         =0 - Stat succeeded, sbuff holds stat information.
+//!         >0 - Stat could not be done, forward operation to next level.
+//------------------------------------------------------------------------------
+
+int Cache::Stat(const char *curl, struct stat &sbuff)
+{
+   XrdCl::URL url(curl);
+   std::string f_name = url.GetPath();
+   std::string i_name = f_name + ".cinfo";
+
+   {
+      XrdSysCondVarHelper lock(&m_active_cond);
+      m_purge_delay_set.insert(f_name);
+   }
+
+   if (m_output_fs->Stat(f_name.c_str(), &sbuff) == XrdOssOK)
+   {
+      if ( S_ISDIR(sbuff.st_mode))
+      {
+         return 0;
+      }
+      else
+      {
+         bool success = false;
+         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str());
+         XrdOucEnv myEnv;
+         int res = infoFile->Open(i_name.c_str(), O_RDONLY, 0600, myEnv);
+         if (res >= 0)
+         {
+            Info info(m_trace, 0);
+            if (info.Read(infoFile, i_name))
+            {
+               sbuff.st_size = info.GetFileSize();
+               success = true;
+            }
+         }
+         infoFile->Close();
+         delete infoFile;
+         return success ? 0 : 1;
+      }
+   }
+
+   return 1;
+}

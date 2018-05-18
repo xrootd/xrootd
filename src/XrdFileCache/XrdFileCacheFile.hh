@@ -279,7 +279,6 @@ private:
                            std::vector<ReadVChunkListRAM>& blks_rocessed);
 
    long long BufferSize();
-   void AppendIOStatToFileInfo();
 
    void inc_ref_count(Block*);
    void dec_ref_count(Block*);

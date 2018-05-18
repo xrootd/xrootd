@@ -19,6 +19,7 @@
 //----------------------------------------------------------------------------------
 #include <string>
 #include <list>
+#include <set>
 
 #include "Xrd/XrdScheduler.hh"
 #include "XrdVersion.hh"
@@ -122,9 +123,14 @@ public:
    virtual void EnvInfo(XrdOucEnv &theEnv);
 
    //---------------------------------------------------------------------
+   // Virtual function of XrdOucCache2. Used for redirection to a local
+   // file on a distributed FS.
+   virtual int LocalFilePath(const char *url, char *buff=0, int blen=0,
+                             LFP_Reason why=ForAccess);
+
+   //---------------------------------------------------------------------
    // Virtual function of XrdOucCache2. Used for deferred open.
    virtual int  Prepare(const char *url, int oflags, mode_t mode);
-
 
    // virtual function of XrdOucCache2::Stat()
    virtual int  Stat(const char *url, struct stat &sbuff);
@@ -142,7 +148,6 @@ public:
    //! Reference XrdFileCache configuration
    //------------------------------------------------------------------------
    const Configuration& RefConfiguration() const { return m_configuration; }
-
 
    //---------------------------------------------------------------------
    //! \brief Parse configuration file
@@ -199,7 +204,7 @@ public:
 
    XrdOss* GetOss() const { return m_output_fs; }
 
-   bool HaveActiveFileWithLocalPath(std::string);
+   bool IsFileActiveOrPurgeProtected(const std::string&);
    
    File* GetFile(const std::string&, IO*, long long off = 0, long long filesize = 0);
 
@@ -250,12 +255,15 @@ private:
 
    WriteQ m_writeQ;
 
-   // active map
+   // active map, purge delay set
    typedef std::map<std::string, File*> ActiveMap_t;
    typedef ActiveMap_t::iterator        ActiveMap_i;
+   typedef std::set<std::string>        FNameSet_t;
 
-   ActiveMap_t  m_active;
-   XrdSysMutex  m_active_mutex;
+   ActiveMap_t   m_active;
+   FNameSet_t    m_purge_delay_set;
+   bool          m_in_purge;
+   XrdSysCondVar m_active_cond;
 
    void inc_ref_cnt(File*, bool lock);
    void dec_ref_cnt(File*);
