@@ -523,15 +523,21 @@ void Cache::Prefetch()
 
 int Cache::LocalFilePath(const char *curl, char *buff, int blen, LFP_Reason why)
 {
+   if (buff && blen > 0) buff[0] = 0;
+
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
    std::string i_name = f_name + ".cinfo";
+
+   if (why == ForPath)
+   {
+     return m_output_fs->Lfn2Pfn(f_name.c_str(), buff, blen);
+   }
+
    {
       XrdSysCondVarHelper lock(&m_active_cond);
       m_purge_delay_set.insert(f_name);
    }
-
-   if (buff && blen > 0) buff[0] = 0;
 
    struct stat sbuff, sbuff2;
    if (m_output_fs->Stat(f_name.c_str(), &sbuff)  == XrdOssOK &&
@@ -585,16 +591,14 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen, LFP_Reason why)
 
          if (read_ok)
          {
-            if (is_complete || why != ForAccess)
+            if (is_complete || why == ForInfo)
             {
                int res2 = m_output_fs->Lfn2Pfn(f_name.c_str(), buff, blen);
                if (res2 < 0)
                   return res2;
             }
 
-            if (is_complete || why == ForInfo) return 0;
-
-            return -EREMOTE;
+            return is_complete ? 0 : -EREMOTE;
          }
       }
    }
