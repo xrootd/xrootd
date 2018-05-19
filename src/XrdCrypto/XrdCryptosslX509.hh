@@ -98,6 +98,9 @@ public:
    const char *SubjectHash(int = 0);  // get hash of subject name
    const char *IssuerHash(int = 0);   // get hash of issuer name 
 
+   // Check SANs
+   virtual bool MatchesSAN(const char *);
+
    // Retrieve a given extension if there (in opaque form)
    XrdCryptoX509data GetExtension(const char *oid);
 
