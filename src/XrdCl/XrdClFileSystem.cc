@@ -34,12 +34,93 @@
 #include "XrdCl/XrdClForkHandler.hh"
 #include "XrdCl/XrdClPlugInInterface.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
+#include "XrdCl/XrdClLocalFileTask.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
+#include <sys/stat.h>
 
 #include <memory>
 
 namespace
 {
+
+  static struct LocalFS_t
+  {
+      LocalFS_t() : jmngr( XrdCl::DefaultEnv::GetPostMaster()->GetJobManager() )
+      {
+
+      }
+
+      XrdCl::XRootDStatus Stat( const std::string       &path,
+                                XrdCl::ResponseHandler  *handler,
+                                uint16_t                 timeout )
+      {
+        using namespace XrdCl;
+
+        Log *log = DefaultEnv::GetLog();
+
+        struct stat ssp;
+        if( stat( path.c_str(), &ssp ) == -1 )
+        {
+          log->Error( FileMsg, "Stat: failed: %s", strerror( errno ) );
+          XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                                  XProtocol::mapError( errno ),
+                                                  strerror( errno ) );
+          return QueueTask( error, 0, handler );
+        }
+
+        // TODO support other mode options
+        uint32_t flags = S_ISDIR( ssp.st_mode ) ? kXR_isDir : 0;
+
+        std::ostringstream data;
+        data << ssp.st_dev << " " << ssp.st_size << " " << flags << " "
+            << ssp.st_mtime;
+        log->Debug( FileMsg, data.str().c_str() );
+
+        StatInfo *statInfo = new StatInfo();
+        if( !statInfo->ParseServerResponse( data.str().c_str() ) )
+        {
+          log->Error( FileMsg, "Stat: ParseServerResponse failed." );
+          delete statInfo;
+          return QueueTask( new XRootDStatus( stError, errErrorResponse, kXR_FSError ),
+                            0, handler );
+        }
+
+        AnyObject *resp = new AnyObject();
+        resp->Set( statInfo );
+        return QueueTask( new XRootDStatus(), resp, handler );
+      }
+
+      //------------------------------------------------------------------------
+      // QueueTask - queues error/success tasks for all operations.
+      // Must always return stOK.
+      // Is always creating the same HostList containing only localhost.
+      //------------------------------------------------------------------------
+      XrdCl::XRootDStatus QueueTask( XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp,
+          XrdCl::ResponseHandler *handler )
+      {
+        using namespace XrdCl;
+
+        // if it is simply the sync handler we can release the semaphore
+        // and return there is no need to execute this in the thread-pool
+        SyncResponseHandler *syncHandler =
+            dynamic_cast<SyncResponseHandler*>( handler );
+        if( syncHandler )
+        {
+          syncHandler->HandleResponse( st, resp );
+          return XRootDStatus();
+        }
+
+        LocalFileTask *task = new LocalFileTask( st, resp, 0, handler );
+        jmngr->QueueJob( task );
+        return XRootDStatus();
+      }
+
+    private:
+
+      XrdCl::JobManager *jmngr;
+
+  } LocalFS;
 
   //----------------------------------------------------------------------------
   // Get delimiter for the opaque info
@@ -1175,6 +1256,9 @@ namespace XrdCl
   {
     if( pPlugIn )
       return pPlugIn->Stat( path, handler, timeout );
+
+    if( pUrl->IsLocalFile() )
+      return LocalFS.Stat( path, handler, timeout );
 
     std::string fPath = FilterXrdClCgi( path );
 
