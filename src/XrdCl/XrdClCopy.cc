@@ -790,23 +790,6 @@ int main( int argc, char **argv )
     // Set up the job
     //--------------------------------------------------------------------------
     std::string target = dest;
-    if( targetIsDir)
-    {
-      target = dest + "/";
-      // if it is a metalink we don't want to use the metalink name
-      if( zip )
-      {
-        target += zipFile;
-      }
-      else if( src.IsMetalink() )
-      {
-        XrdCl::RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
-        VirtualRedirector *redirector = registry.Get( source );
-        target += redirector->GetTargetName();
-      }
-      else target += (sourceFile->Path+sourceFile->Doff);
-    }
-
     AppendCGI( target, config.dstOpq );
 
     properties.Set( "source",         source         );

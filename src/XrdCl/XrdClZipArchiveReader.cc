@@ -142,7 +142,7 @@ class ZipArchiveReaderImpl
 {
   public:
 
-    ZipArchiveReaderImpl() : pArchiveSize( 0 ), pRefCount( 1 ), pOpen( false ) { }
+    ZipArchiveReaderImpl( File &archive ) : pArchive( archive ), pArchiveSize( 0 ), pRefCount( 1 ), pOpen( false ) { }
 
     ZipArchiveReaderImpl* Self()
     {
@@ -174,6 +174,14 @@ class ZipArchiveReaderImpl
 
     XRootDStatus Read( const std::string &filename, uint64_t relativeOffset, uint32_t size, void *buffer, ResponseHandler *userHandler, uint16_t timeout = 0 );
 
+    XRootDStatus Read( uint64_t relativeOffset, uint32_t size, void *buffer, ResponseHandler *userHandler, uint16_t timeout = 0 )
+    {
+      if( pBoundFile.empty() )
+        return XRootDStatus( stError, errInvalidOp );
+
+      return Read( pBoundFile, relativeOffset, size, buffer, userHandler, timeout );
+    }
+
     XRootDStatus Close( ResponseHandler *handler, uint16_t timeout )
     {
       XRootDStatus st = pArchive.Close( handler, timeout );
@@ -185,17 +193,20 @@ class ZipArchiveReaderImpl
       return st;
     }
 
-    bool SetProperty( const std::string &name, const std::string &value )
-    {
-      return pArchive.SetProperty( name, value );
-    }
-
     XRootDStatus GetSize( const std::string & filename, uint32_t &size ) const
     {
       std::map<std::string, size_t>::const_iterator it = pFileToCdfh.find( filename );
       if( it == pFileToCdfh.end() ) return XRootDStatus( stError, errNotFound );
       CDFH *cdfh = pCdRecords[it->second];
       size = cdfh->pCompressionMethod ? cdfh->pCompressedSize : cdfh->pUncompressedSize;
+      return XRootDStatus();
+    }
+
+    XRootDStatus Bind( const std::string &filename )
+    {
+      std::map<std::string, size_t>::const_iterator it = pFileToCdfh.find( filename );
+      if( it == pFileToCdfh.end() ) return XRootDStatus( stError, errNotFound );
+      pBoundFile = filename;
       return XRootDStatus();
     }
 
@@ -278,6 +289,8 @@ class ZipArchiveReaderImpl
         delete *it;
       pCdRecords.clear();
       pFileToCdfh.clear();
+
+      pBoundFile.erase();
     }
 
     ~ZipArchiveReaderImpl()
@@ -294,7 +307,7 @@ class ZipArchiveReaderImpl
       }
     }
 
-    File                           pArchive;
+    File                          &pArchive;
     std::string                    pFilename;
     uint64_t                       pArchiveSize;
     std::unique_ptr<char[]>        pBuffer;
@@ -305,6 +318,7 @@ class ZipArchiveReaderImpl
     mutable XrdSysMutex            pMutex;
     size_t                         pRefCount;
     bool                           pOpen;
+    std::string                    pBoundFile;
 };
 
 template<typename RESP>
@@ -566,7 +580,7 @@ class ZipReadHandler : public ZipHandlerBase<ChunkInfo>
 };
 
 
-ZipArchiveReader::ZipArchiveReader() : pImpl( new ZipArchiveReaderImpl() )
+ZipArchiveReader::ZipArchiveReader( File &archive ) : pImpl( new ZipArchiveReaderImpl( archive ) )
 {
 
 }
@@ -710,6 +724,42 @@ XRootDStatus ZipArchiveReader::Read( const std::string &filename, uint64_t offse
   return status;
 }
 
+//------------------------------------------------------------------------
+// Bounds the reader to a file inside the archive.
+//------------------------------------------------------------------------
+XRootDStatus ZipArchiveReader::Bind( const std::string &filename )
+{
+  return pImpl->Bind( filename );
+}
+
+//------------------------------------------------------------------------
+// Async bound read.
+//------------------------------------------------------------------------
+XRootDStatus ZipArchiveReader::Read( uint64_t offset, uint32_t size, void *buffer, ResponseHandler *handler, uint16_t timeout )
+{
+  return pImpl->Read( offset, size, buffer, handler, timeout );
+}
+
+//------------------------------------------------------------------------
+// Sync bound read.
+//------------------------------------------------------------------------
+XRootDStatus ZipArchiveReader::Read( uint64_t offset, uint32_t size, void *buffer, uint32_t &bytesRead, uint16_t timeout )
+{
+  SyncResponseHandler handler;
+  Status st = Read( offset, size, buffer, &handler, timeout );
+  if( !st.IsOK() )
+    return st;
+
+  ChunkInfo *chunkInfo = 0;
+  XRootDStatus status = MessageUtils::WaitForResponse( &handler, chunkInfo );
+  if( status.IsOK() )
+  {
+    bytesRead = chunkInfo->length;
+    delete chunkInfo;
+  }
+  return status;
+}
+
 XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t relativeOffset, uint32_t size, void *buffer, ResponseHandler *userHandler, uint16_t timeout )
 {
   if( !pArchive.IsOpen() ) return XRootDStatus( stError, errInvalidOp, errInvalidOp, "Archive not opened." );
@@ -773,11 +823,6 @@ XRootDStatus ZipArchiveReader::Close( uint16_t timeout )
     return st;
 
   return MessageUtils::WaitForStatus( &handler );
-}
-
-bool ZipArchiveReader::SetProperty( const std::string &name, const std::string &value )
-{
-  return pImpl->SetProperty( name, value );
 }
 
 XRootDStatus ZipArchiveReader::GetSize( const std::string &filename, uint32_t &size ) const

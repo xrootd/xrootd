@@ -34,9 +34,11 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 
 #include <sys/time.h>
 
+#include <memory>
 #include <iostream>
 
 namespace
@@ -275,10 +277,63 @@ namespace XrdCl
       if( !source.IsValid() )
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid source" );
 
+      // handle UNZIP CGI
+      const URL::ParamsMap &cgi = source.GetParams();
+      URL::ParamsMap::const_iterator itr = cgi.find( "xrdcl.unzip" );
+      if( itr != cgi.end() )
+      {
+        props.Set( "zipArchive", true );
+        props.Set( "zipSource",  itr->second );
+      }
+
       props.Get( "target", tmp );
       URL target = tmp;
       if( !target.IsValid() )
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid target" );
+
+      // handle directories
+      FileSystem fs( target );
+      StatInfo *infoptr = 0;
+      XRootDStatus st = fs.Stat( target.GetPath(), infoptr );
+
+      if( !st.IsOK() )
+      {
+        if( st.code != errNotFound && st.errNo != kXR_NotFound )
+          return st;
+      }
+      else
+      {
+        std::unique_ptr<StatInfo> info( infoptr );
+        if( info->TestFlags( StatInfo::IsDir) )
+        {
+          std::string path = target.GetPath() + '/';
+          std::string fn;
+
+          bool isZip = false;
+          props.Get( "zipArchive", isZip );
+          if( isZip )
+          {
+            props.Get( "zipSource", fn );
+          }
+          else if( source.IsMetalink() )
+          {
+            RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
+            VirtualRedirector *redirector = registry.Get( source );
+            fn = redirector->GetTargetName();
+          }
+          else
+          {
+            fn = source.GetPath();
+          }
+
+          size_t pos = fn.rfind( '/' );
+          if( pos != std::string::npos )
+            fn = fn.substr( pos + 1 );
+          path += fn;
+          target.SetPath( path );
+          props.Set( "target", target.GetURL() );
+        }
+      }
 
       bool tpc = false;
       props.Get( "thirdParty", tmp );
