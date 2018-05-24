@@ -835,13 +835,18 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       //
       // Template for the created proxy files
       if ((PxyReqOpts & kOptsPxFile)) {
-         String TmpProxy = gUsrPxyDef;
-         if (opt.exppxy) TmpProxy = opt.exppxy;
-         if (XrdSutExpand(TmpProxy) == 0) {
-            UsrProxy = TmpProxy;
+         if (opt.exppxy && !strcmp(opt.exppxy, "=creds")) {
+            PxyReqOpts &= ~kOptsPxFile;
+            PxyReqOpts |=  kOptsPxCred;
          } else {
-            UsrProxy = gUsrPxyDef;
-            UsrProxy += "u<uid>";
+            String TmpProxy = gUsrPxyDef;
+            if (opt.exppxy) TmpProxy = opt.exppxy;
+            if (XrdSutExpand(TmpProxy) == 0) {
+               UsrProxy = TmpProxy;
+            } else {
+               UsrProxy = gUsrPxyDef;
+               UsrProxy += "u<uid>";
+            }
          }
          DEBUG("Template for exported proxy files: "<<UsrProxy);
       }
@@ -3741,6 +3746,24 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
    hs->PxyChain = 0;
    // Notify
    if (QTRACE(Authen)) { proxyChain->Dump(); }
+
+   // Check if the proxy chain is to become the actual credentials
+   //
+   if ((PxyReqOpts & kOptsPxCred)) {
+      XrdCryptoX509ExportChain_t c2mem =
+                                 (sessionCF) ? sessionCF->X509ExportChain() : 0;
+      if (!c2mem) {
+         cmsg =  "chain exporter not found; proxy chain not exported";
+         return 0;
+      }
+      XrdOucString spxy;
+      XrdSutBucket *bpxy = (*c2mem)(proxyChain, true);
+      bpxy->ToString(spxy);
+      SafeFree(Entity.creds);
+      Entity.creds = strdup(spxy.c_str());
+      Entity.credslen = spxy.length();
+      return 0;
+   }
 
    //
    // Extract user login name, if any

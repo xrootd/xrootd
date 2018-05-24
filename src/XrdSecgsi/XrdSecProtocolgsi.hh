@@ -103,7 +103,8 @@ enum kgsiHandshakeOpts {
    kOptsSigReq     = 4,      // 0x0004: Accept to sign delegated proxy
    kOptsSrvReq     = 8,      // 0x0008: Server request for delegated proxy
    kOptsPxFile     = 16,     // 0x0010: Save delegated proxies in file
-   kOptsDelChn     = 32      // 0x0020: Delete chain
+   kOptsDelChn     = 32,     // 0x0020: Delete chain
+   kOptsPxCred     = 64      // 0x0040: Save delegated proxies as credentials
 };
 
 // Error codes
