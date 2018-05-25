@@ -652,8 +652,9 @@ int main( int argc, char **argv )
       char *cwd = getcwd( buf, FILENAME_MAX );
       if( !cwd )
       {
-        std::cerr <<  strerror( errno ) << std::endl;
-        return errno;
+        XRootDStatus st( stError, XProtocol::mapError( errno ), errno, strerror( errno ) );
+        std::cerr <<  st.GetErrorMessage() << std::endl;
+        return st.GetShellCode();
       }
       dest += cwd;
       dest += '/';
@@ -755,8 +756,9 @@ int main( int argc, char **argv )
         char *cwd = getcwd( buf, FILENAME_MAX );
         if( !cwd )
         {
-          std::cerr <<  strerror( errno ) << std::endl;
-          return errno;
+          XRootDStatus st( stError, XProtocol::mapError( errno ), errno, strerror( errno ) );
+          std::cerr <<  st.GetErrorMessage() << std::endl;
+          return st.GetShellCode();
         }
         source = "file://" + std::string( cwd ) + '/' + source;
       }

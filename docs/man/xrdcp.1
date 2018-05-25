@@ -462,6 +462,22 @@ XRD_PREFERIPV4
 If set the client tries first IPv4 address (turned off by default).
 .RE
 
+.SH RETURN CODES
+.RE
+\fB50\fR  : generic error (e.g. config, internal, data, OS)
+
+\fB51\fR  : socket related error
+
+\fB52\fR  : pastmaster related error
+
+\fB53\fR  : XRootD related error
+
+\fB54\fR  : redirection error
+
+\fB254\fR : command line option error
+
+\fB255\fR : problem with source / destination (e.g. multiple sources were given, but target is not a directory)
+
 .SH NOTES
 Documentation for all components associated with \fBxrdcp\fR can be found at
 http://xrootd.org/docs.html
