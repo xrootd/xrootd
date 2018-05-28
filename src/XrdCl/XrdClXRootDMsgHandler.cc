@@ -1896,7 +1896,7 @@ namespace XrdCl
     }
     else
     {
-      if( !status.IsFatal() )
+      if( !status.IsFatal() && IsRetryable( pRequest ) )
       {
         HandleError( RetryAtServer( pUrl ) );
         return;
@@ -2080,4 +2080,36 @@ namespace XrdCl
 
     return;
   }
+
+  //------------------------------------------------------------------------
+  //! Check if it is OK to retry this request
+  //------------------------------------------------------------------------
+  bool XRootDMsgHandler::IsRetryable( Message *request )
+  {
+    std::string value;
+    DefaultEnv::GetEnv()->GetString( "OpenRecovery", value );
+    if( value == "true" ) return true;
+
+    // check if it is a mutable open (open + truncate or open + create)
+    ClientRequest *req = reinterpret_cast<ClientRequest*>( pRequest->GetBuffer() );
+    if( req->header.requestid == htons( kXR_open ) )
+    {
+      bool _mutable = ( req->open.options & htons( kXR_delete ) ) ||
+                      ( req->open.options & htons( kXR_new ) );
+
+      if( _mutable )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Debug( XRootDMsg,
+                    "[%s] Not allowed to retry open request (OpenRecovery disabled): %s.",
+                    pUrl.GetHostId().c_str(),
+                    pRequest->GetDescription().c_str() );
+        // disallow retry if it is a mutable open
+        return false;
+      }
+    }
+
+    return true;
+  }
+
 }

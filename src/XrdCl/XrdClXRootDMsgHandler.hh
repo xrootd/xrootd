@@ -376,6 +376,14 @@ namespace XrdCl
       void HandleLocalRedirect( URL *url );
 
       //------------------------------------------------------------------------
+      //! Check if it is OK to retry this request
+      //!
+      //! @param   reuqest : the request in question
+      //! @return          : true if yes, false if no
+      //------------------------------------------------------------------------
+      bool IsRetryable( Message *request );
+
+      //------------------------------------------------------------------------
       // Helper struct for async reading of chunks
       //------------------------------------------------------------------------
       struct ChunkStatus
