@@ -1969,7 +1969,13 @@ namespace XrdCl
       return Status();
     }
     else
+    {
+      log->Info( XRootDMsg, "[%s] Retrying request: %s.",
+                 pUrl.GetHostId().c_str(),
+                 pRequest->GetDescription().c_str() );
+
       return pPostMaster->Send( pUrl, pRequest, this, true, pExpiration );
+    }
   }
 
   //----------------------------------------------------------------------------
