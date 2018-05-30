@@ -16,7 +16,7 @@ stages:
     - mk-build-deps --build-dep debian/control
     - gdebi -n xrootd-build-deps-depends*.deb
     - version=`./genversion.sh --print-only`
-    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution bionic -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
     - mkdir bionic
     - cp deb_packages/*.deb  bionic
@@ -60,7 +60,7 @@ stages:
     - mk-build-deps --build-dep debian/control
     - gdebi -n xrootd-build-deps-depends*.deb
     - version=`./genversion.sh --print-only`
-    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution xenial -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages"
     - mkdir xenial
     - cp deb_packages/*.deb  xenial
