@@ -3762,6 +3762,8 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
       SafeFree(Entity.creds);
       Entity.creds = strdup(spxy.c_str());
       Entity.credslen = spxy.length();
+      PRINT("proxy chain exported in Entity.creds (" << Entity.credslen << " bytes)");
+      PRINT("\n\n" << spxy.c_str() << "\n\n");
       return 0;
    }
 
@@ -3809,6 +3811,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
             cmsg += pxfile;
             return 0;
          }
+         PRINT("proxy chain dumped to "<< pxfile);
       } else {
          cmsg = "proxy chain not dumped to file: entity name undefined";
          return 0;
