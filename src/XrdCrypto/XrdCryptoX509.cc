@@ -253,76 +253,49 @@ int XrdCryptoX509::DumpExtensions(bool)
    return -1;
 }
 
-/**
---_____________________________________________________________________________
- * Compare two hostnames and see if they are the same, including wildcards.
- *
- * For example,
- *
- * - foo.example.com and foo.example.com are considered equal.
- * - bar.example.com and foo.example.com are not equal.
- * - *.example.com and foo.example.com are equal.
- * - FOO.example.com and foo.EXAMPLE.COM are equal (comparison is not case sensitive).
- * - F*.com and foo.com are equal
- *
- * Returns true if the hostnames are considered a match
- */
-bool
-XrdCryptoX509::MatchHostnames(const char * match_pattern, const char * hostname)
+//_____________________________________________________________________________
+bool XrdCryptoX509::MatchHostnames(const char * match_pattern, const char * hostname)
 {
-    char match_copy[256], host_copy[256];
-    char *tok1, *tok2;
-    char *run1, *run2;
-    int idx;
+   // Compare two hostnames and see if they are the same, including wildcards.
+   //
+   // For example,
+   //
+   // - foo.example.com and foo.example.com are considered equal.
+   // - bar.example.com and foo.example.com are not equal.
+   // - *.example.com and foo.example.com are equal.
+   // - *.example.com and foo.bar.example.com are NOT equal (wildcard applies to a single label).
+   // - FOO.example.com and foo.EXAMPLE.COM are equal (comparison is not case sensitive).
+   // - F*.com and foo.com are equal
+   //
+   // Returns true if the hostnames are considered a match
 
-    if ((match_pattern == NULL || hostname == NULL) ||
-       ((strlen(match_pattern) > 255) || strlen(hostname) > 255))
-        return false;
+    XrdOucString mpatt(match_pattern), hname(hostname);
+
+    // Not empty
+    if (!mpatt.length() || !hname.length()) return false;
 
     // Create a lowercase copy of both hostnames
-    for (idx = 0; match_pattern[idx]; idx++) {
-        match_copy[idx] = tolower(match_pattern[idx]);
-    }
-    match_copy[idx] = '\0';
-    for (idx = 0; hostname[idx]; idx++) {
-        host_copy[idx] = tolower(hostname[idx]);
-    }
-    host_copy[idx] = '\0';
+    mpatt.lower(0);
+    hname.lower(0);
 
-    // Split the strings by '.' character, iterate through each sub-component.
-    run1 = match_copy;
-    run2 = host_copy;
-    for (tok1 = strsep(&run1, "."), tok2 = strsep(&run2, ".");
-         tok1 && tok2;
-         tok1 = strsep(&run1, "."), tok2 = strsep(&run2, "."))
-    {
-        // Match non-wildcard bits
-        while (*tok1 && *tok2 && *tok1 == *tok2) {
-            if (*tok2 == '*')
-               return false;
-            if (*tok1 == '*')
-                break;
-            tok1++;
-            tok2++;
-        }
+    // Are they equal?
+    if (mpatt == hname) return true;
 
-        /**
-         * At this point, one of the following must be true:
-         * - We hit a wildcard.  In this case, we accept the match as
-         *   long as there is no non-wildcard after it.
-         * - We hit a character that doesn't match.
-         * - We hit the of at least one string.
-         */
-        if (*tok1 == '*') {
-            tok1++;
-            // Non-wildcard after wildcard -- not acceptable.
-            if (*tok1 != '\0')
-                return false;
-        }
-        // Only accept the match if both components are at their end.
-        else if (*tok1 || *tok2) {
-            return false;
-        }
+    bool theydomatch = false;
+
+    // Get first token of both strings
+    int mfrom = -1, hfrom = -1;
+    XrdOucString mfirst, hfirst;
+    if (((mfrom = mpatt.tokenize(mfirst, mfrom, '.')) != -1) &&
+        ((hfrom = hname.tokenize(hfirst, hfrom, '.')) != -1)) {
+       if (hfirst.matches(mfirst.c_str())) {
+          // First tokens matches, the rest should match without wildcards
+          mpatt.erasefromstart(mfrom);
+          hname.erasefromstart(hfrom);
+          if ((hname == mpatt) ||
+              (!hname.length() && !mpatt.length())) theydomatch = true;
+       }
     }
-    return !tok1 && !tok2;
+
+    return theydomatch;
 }
