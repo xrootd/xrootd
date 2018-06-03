@@ -48,6 +48,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSut/XrdSutAux.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
@@ -293,7 +294,15 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    }
 
    // Set host name and address
-      Entity.host = strdup(endPoint.Name("*unknown*"));
+   // The hostname is critical for the GSI protocol; it must match the potential
+   // names on the remote EEC.  However, as we may have been redirected to an IP
+   // address instead of an actual hostname, we must fallback to a reverse DNS lookup.
+      XrdNetAddr testAddr;
+      if (!hname || testAddr.Set(hname) == NULL) {
+         Entity.host = strdup(endPoint.Name(""));
+      } else {
+         Entity.host = strdup(hname);
+      }
       epAddr = endPoint;
       Entity.addrInfo = &epAddr;
 
