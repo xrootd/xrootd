@@ -48,7 +48,6 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
-#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSut/XrdSutAux.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
@@ -295,10 +294,13 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
 
    // Set host name and address
    // The hostname is critical for the GSI protocol; it must match the potential
-   // names on the remote EEC.  However, as we may have been redirected to an IP
+   // names on the remote EEC.  We default to the hostname requested by the user to
+   // the client (or proxy).  However, as we may have been redirected to an IP
    // address instead of an actual hostname, we must fallback to a reverse DNS lookup.
-      XrdNetAddr testAddr;
-      if (!hname || testAddr.Set(hname) == NULL) {
+   // As of time of testing (June 2018), EOS will redirect to an IP address to handle
+   // metadata commands and rely on the reverse DNS lookup for GSI security to function.
+   // Hence, this fallback likely needs to be kept for some time.
+      if (!hname || !XrdNetAddrInfo::isHostName(hname)) {
          Entity.host = strdup(endPoint.Name(""));
       } else {
          Entity.host = strdup(hname);
@@ -318,7 +320,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
 
    //
    // Notify, if required
-   DEBUG("constructing: host: "<<hname);
+   DEBUG("constructing: host: "<< Entity.host);
    DEBUG("p: "<<XrdSecPROTOIDENT<<", plen: "<<XrdSecPROTOIDLEN);
    //
    // basic settings
