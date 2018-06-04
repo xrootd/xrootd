@@ -831,7 +831,7 @@ DirectoryList* ZipArchiveReaderImpl::List()
   URL url( value );
 
   StatInfo *infoptr = 0;
-  pArchive.Stat( false, infoptr );
+  XRootDStatus st = pArchive.Stat( false, infoptr );
   std::unique_ptr<StatInfo> info( infoptr );
 
   DirectoryList *list = new DirectoryList();

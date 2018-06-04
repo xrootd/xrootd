@@ -1126,7 +1126,11 @@ bool XrdCryptosslX509::MatchesSAN(const char *fqdn)
       int san_fqdn_len = ASN1_STRING_length(cstr);
       if (san_fqdn_len > 255)
          continue;
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+      memcpy(san_fqdn, ASN1_STRING_get0_data(cstr), san_fqdn_len);
+#else
       memcpy(san_fqdn, ASN1_STRING_data(cstr), san_fqdn_len);
+#endif
       san_fqdn[san_fqdn_len] = '\0';
       if (strlen(san_fqdn) != static_cast<size_t>(san_fqdn_len)) // Avoid embedded null's.
          continue;
