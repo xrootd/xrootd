@@ -48,6 +48,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSut/XrdSutAux.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
@@ -293,7 +294,15 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    }
 
    // Set host name and address
-      Entity.host = strdup(endPoint.Name("*unknown*"));
+   // The hostname is critical for the GSI protocol; it must match the potential
+   // names on the remote EEC.  However, as we may have been redirected to an IP
+   // address instead of an actual hostname, we must fallback to a reverse DNS lookup.
+      XrdNetAddr testAddr;
+      if (!hname || testAddr.Set(hname) == NULL) {
+         Entity.host = strdup(endPoint.Name(""));
+      } else {
+         Entity.host = strdup(hname);
+      }
       epAddr = endPoint;
       Entity.addrInfo = &epAddr;
 
@@ -3048,7 +3057,10 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    //
    // Verify server identity
-   if (!ServerCertNameOK(hs->Chain->End()->Subject(), emsg)) {
+   // First, check the DN.  On failure, we will iterate through
+   // the alternate names.
+   if (!ServerCertNameOK(hs->Chain->End()->Subject(), emsg) &&
+       !hs->Chain->End()->MatchesSAN(Entity.host)) {
       return -1;
    }
    //
@@ -5154,6 +5166,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    return ep;
 }
 
+
 //_____________________________________________________________________________
 bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg)
 {
@@ -5174,16 +5187,12 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
 
    // Always check if the server CN is in the standard form "[*/]<target host name>[/*]"
    if (Entity.host) {
-      if (srvcn != (const char *) Entity.host) {
-         int ih = srvcn.find((const char *) Entity.host);
-         if (ih == 0 || (ih > 0 && srvcn[ih-1] == '/')) {
-            ih += strlen(Entity.host);
-            if (ih >= srvcn.length() ||
-                srvcn[ih] == '\0' || srvcn[ih] == '/') allowed = 1;
-         }
-      } else {
-         allowed = 1;
+      size_t ih = srvcn.find("/");
+      if (ih != std::string::npos) {
+         srvcn.erasefromstart(ih + 1);
       }
+      allowed = XrdCryptoX509::MatchHostnames(srvcn.c_str(), Entity.host);
+
       // Update the error msg, if the case
       if (!allowed) {
          if (emsg.length() <= 0) {

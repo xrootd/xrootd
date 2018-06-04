@@ -252,3 +252,50 @@ int XrdCryptoX509::DumpExtensions(bool)
    ABSTRACTMETHOD("XrdCryptoX509::DumpExtensions");
    return -1;
 }
+
+//_____________________________________________________________________________
+bool XrdCryptoX509::MatchHostnames(const char * match_pattern, const char * hostname)
+{
+   // Compare two hostnames and see if they are the same, including wildcards.
+   //
+   // For example,
+   //
+   // - foo.example.com and foo.example.com are considered equal.
+   // - bar.example.com and foo.example.com are not equal.
+   // - *.example.com and foo.example.com are equal.
+   // - *.example.com and foo.bar.example.com are NOT equal (wildcard applies to a single label).
+   // - FOO.example.com and foo.EXAMPLE.COM are equal (comparison is not case sensitive).
+   // - F*.com and foo.com are equal
+   //
+   // Returns true if the hostnames are considered a match
+
+    XrdOucString mpatt(match_pattern), hname(hostname);
+
+    // Not empty
+    if (!mpatt.length() || !hname.length()) return false;
+
+    // Create a lowercase copy of both hostnames
+    mpatt.lower(0);
+    hname.lower(0);
+
+    // Are they equal?
+    if (mpatt == hname) return true;
+
+    bool theydomatch = false;
+
+    // Get first token of both strings
+    int mfrom = -1, hfrom = -1;
+    XrdOucString mfirst, hfirst;
+    if (((mfrom = mpatt.tokenize(mfirst, mfrom, '.')) != -1) &&
+        ((hfrom = hname.tokenize(hfirst, hfrom, '.')) != -1)) {
+       if (hfirst.matches(mfirst.c_str())) {
+          // First tokens matches, the rest should match without wildcards
+          mpatt.erasefromstart(mfrom);
+          hname.erasefromstart(hfrom);
+          if ((hname == mpatt) ||
+              (!hname.length() && !mpatt.length())) theydomatch = true;
+       }
+    }
+
+    return theydomatch;
+}

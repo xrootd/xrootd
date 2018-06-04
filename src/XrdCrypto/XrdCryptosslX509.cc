@@ -1091,3 +1091,52 @@ err:
    BIO_free(bp);
    return(0);
 }
+
+//____________________________________________________________________________
+bool XrdCryptosslX509::MatchesSAN(const char *fqdn)
+{
+   EPNAME("MatchesSAN");
+
+   // Statically allocated array for hostname lengths.  RFC1035 limits
+   // valid lengths to 255 characters.
+   char san_fqdn[256];
+
+   if (!fqdn)
+      return false;
+
+   // Only an EEC is usable as a host certificate.
+   if (type != kEEC)
+      return false;
+
+   GENERAL_NAMES *gens = static_cast<GENERAL_NAMES *>(X509_get_ext_d2i(cert,
+      NID_subject_alt_name, NULL, NULL));
+   if (!gens)
+      return false;
+
+   bool success = false;
+   for (int idx = 0; idx < sk_GENERAL_NAME_num(gens); idx++) {
+      GENERAL_NAME *gen;
+      ASN1_STRING *cstr;
+      gen = sk_GENERAL_NAME_value(gens, idx);
+      if (gen->type != GEN_DNS)
+         continue;
+      cstr = gen->d.dNSName;
+      if (ASN1_STRING_type(cstr) != V_ASN1_IA5STRING)
+         continue;
+      int san_fqdn_len = ASN1_STRING_length(cstr);
+      if (san_fqdn_len > 255)
+         continue;
+      memcpy(san_fqdn, ASN1_STRING_data(cstr), san_fqdn_len);
+      san_fqdn[san_fqdn_len] = '\0';
+      if (strlen(san_fqdn) != static_cast<size_t>(san_fqdn_len)) // Avoid embedded null's.
+         continue;
+      DEBUG("Comparing SAN " << san_fqdn << " with " << fqdn);
+      if (MatchHostnames(san_fqdn, fqdn)) {
+         DEBUG("SAN " << san_fqdn << " matches with " << fqdn);
+         success = true;
+         break;
+      }
+   }
+   sk_GENERAL_NAME_pop_free(gens, GENERAL_NAME_free);
+   return success;
+}
