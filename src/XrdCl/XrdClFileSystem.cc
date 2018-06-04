@@ -665,7 +665,7 @@ namespace
       {
         try
         {
-          if( status->IsOK() )
+          if( !status->IsOK() )
             throw MergeDirLsErr( status, response );
 
           if( !response )
