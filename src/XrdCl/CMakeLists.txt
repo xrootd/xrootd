@@ -69,6 +69,7 @@ add_library(
   XrdClXCpSrc.cc              XrdClXCpSrc.hh
   XrdClLocalFileHandler.cc    XrdClLocalFileHandler.hh
   XrdClLocalFileTask.cc       XrdClLocalFileTask.hh
+  XrdClZipListHandler.cc      XrdClZipListHandler.hh
 )
 
 target_link_libraries(

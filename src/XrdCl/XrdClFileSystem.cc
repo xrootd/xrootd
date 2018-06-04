@@ -35,11 +35,13 @@
 #include "XrdCl/XrdClPlugInInterface.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdCl/XrdClLocalFileTask.hh"
+#include "XrdCl/XrdClZipListHandler.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <sys/stat.h>
 
 #include <memory>
+
 
 namespace
 {
@@ -395,7 +397,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       DirListStatHandler( XrdCl::DirectoryList *list,
-                          uint32_t                  index,
+                          uint32_t              index,
                           XrdCl::RequestSync   *sync ):
         pList( list ),
         pIndex( index ),
@@ -1383,6 +1385,20 @@ namespace XrdCl
 
     URL url = URL( path );
     std::string fPath = FilterXrdClCgi( path );
+
+    // check if it could be a ZIP archive
+    static const std::string zip_sufix = ".zip";
+    if( path.size() >= zip_sufix.size() &&
+        std::equal( zip_sufix.rbegin(), zip_sufix.rend(), path.rbegin() ) )
+    {
+      // stat the file to check if it is a directory or a file
+      // the ZIP handler will take care of the rest
+      ZipListHandler *zipHandler = new ZipListHandler( *pUrl, path, flags, handler, timeout );
+      XRootDStatus st = Stat( path, zipHandler, timeout );
+      if( !st.IsOK() )
+        delete zipHandler;
+      return st;
+    }
 
     Message           *msg;
     ClientDirlistRequest *req;

@@ -98,24 +98,29 @@ class ZipArchiveReader
     XRootDStatus Read( const std::string &filename, uint64_t offset, uint32_t size, void *buffer, ResponseHandler *handler, uint16_t timeout = 0 );
 
     //------------------------------------------------------------------------
-    // Sync read.
+    //! Sync read.
     //------------------------------------------------------------------------
     XRootDStatus Read( const std::string &filename, uint64_t offset, uint32_t size, void *buffer, uint32_t &bytesRead, uint16_t timeout = 0 );
 
     //------------------------------------------------------------------------
-    // Bounds the reader to a file inside the archive.
+    //! Bounds the reader to a file inside the archive.
     //------------------------------------------------------------------------
     XRootDStatus Bind( const std::string &filename );
 
     //------------------------------------------------------------------------
-    // Async bound read.
+    //! Async bound read.
     //------------------------------------------------------------------------
     XRootDStatus Read( uint64_t offset, uint32_t size, void *buffer, ResponseHandler *handler, uint16_t timeout = 0 );
 
     //------------------------------------------------------------------------
-    // Sync bound read.
+    //! Sync bound read.
     //------------------------------------------------------------------------
     XRootDStatus Read( uint64_t offset, uint32_t size, void *buffer, uint32_t &bytesRead, uint16_t timeout = 0 );
+
+    //------------------------------------------------------------------------
+    //! Sync list
+    //------------------------------------------------------------------------
+    XRootDStatus List( DirectoryList *&list );
 
     //------------------------------------------------------------------------
     //! Async close.

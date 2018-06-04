@@ -113,6 +113,17 @@ namespace XrdCl
   {
   }
 
+  //------------------------------------------------------------------------
+  //! Constructor
+  //------------------------------------------------------------------------
+  StatInfo::StatInfo( const std::string &id, uint64_t size, uint32_t flags,
+                      uint64_t modTime) :
+                          pId( id ), pSize( size ), pFlags( flags ),
+                          pModTime( modTime )
+  {
+
+  }
+
   //----------------------------------------------------------------------------
   // Parse the stat info returned by the server
   //----------------------------------------------------------------------------

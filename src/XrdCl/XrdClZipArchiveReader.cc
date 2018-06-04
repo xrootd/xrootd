@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -182,6 +183,8 @@ class ZipArchiveReaderImpl
       return Read( pBoundFile, relativeOffset, size, buffer, userHandler, timeout );
     }
 
+    DirectoryList* List();
+
     XRootDStatus Close( ResponseHandler *handler, uint16_t timeout )
     {
       XRootDStatus st = pArchive.Close( handler, timeout );
@@ -308,7 +311,6 @@ class ZipArchiveReaderImpl
     }
 
     File                          &pArchive;
-    std::string                    pFilename;
     uint64_t                       pArchiveSize;
     std::unique_ptr<char[]>        pBuffer;
     std::unique_ptr<EOCD>          pEocd;
@@ -760,6 +762,18 @@ XRootDStatus ZipArchiveReader::Read( uint64_t offset, uint32_t size, void *buffe
   return status;
 }
 
+//------------------------------------------------------------------------
+// Sync list
+//------------------------------------------------------------------------
+XRootDStatus ZipArchiveReader::List( DirectoryList *&list )
+{
+  if( !pImpl->IsOpen() )
+    return XRootDStatus( stError, errInvalidOp );
+
+  list = pImpl->List();
+  return XRootDStatus();
+}
+
 XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t relativeOffset, uint32_t size, void *buffer, ResponseHandler *userHandler, uint16_t timeout )
 {
   if( !pArchive.IsOpen() ) return XRootDStatus( stError, errInvalidOp, errInvalidOp, "Archive not opened." );
@@ -808,6 +822,35 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   if( !st.IsOK() ) delete handler;
 
   return st;
+}
+
+DirectoryList* ZipArchiveReaderImpl::List()
+{
+  std::string value;
+  pArchive.GetProperty( "LastURL", value );
+  URL url( value );
+
+  StatInfo *infoptr = 0;
+  pArchive.Stat( false, infoptr );
+  std::unique_ptr<StatInfo> info( infoptr );
+
+  DirectoryList *list = new DirectoryList();
+  list->SetParentName( url.GetPath() );
+
+  auto itr = pCdRecords.begin();
+  for( ; itr != pCdRecords.end() ; ++itr )
+  {
+    CDFH *cdfh = *itr;
+    StatInfo *entry_info = new StatInfo( info->GetId(),
+                                         cdfh->pCdfhSize,
+                                         info->GetFlags() & ( ~StatInfo::IsWritable ), // make sure it is not listed as writable
+                                         info->GetModTime() );
+    DirectoryList::ListEntry *entry =
+        new DirectoryList::ListEntry( url.GetHostId(), cdfh->pFilename, entry_info );
+    list->Add( entry );
+  }
+
+  return list;
 }
 
 XRootDStatus ZipArchiveReader::Close( ResponseHandler *handler, uint16_t timeout )
