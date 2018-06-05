@@ -38,6 +38,7 @@ include( XrdFileCache )
 
 if( BUILD_HTTP )
   include( XrdHttp )
+  include( XrdTpc )
 endif()
 
 if( BUILD_CEPH )
