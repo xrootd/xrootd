@@ -15,6 +15,7 @@ Prerelease Notes
 
 
 + **Minor bug fixes**
+  * **[Server]** Follow protocol spec when returning file compression info. Fixes #721
 
 + **Miscellaneous**
   * **[Proxy]** Add method to cache to get local file path of cached file.
