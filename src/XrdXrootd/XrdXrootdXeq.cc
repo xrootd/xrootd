@@ -1386,9 +1386,8 @@ int XrdXrootdProtocol::do_Open()
       }
       else {int cpsize;
             fp->getCXinfo((char *)myResp.cptype, cpsize);
-            if (cpsize) {myResp.cpsize = static_cast<kXR_int32>(htonl(cpsize));
-                         resplen = sizeof(myResp);
-                        } else myResp.cpsize = 0;
+            myResp.cpsize = static_cast<kXR_int32>(htonl(cpsize));
+            resplen = sizeof(myResp);
            }
 
 // If client wants a stat in open, return the stat information
