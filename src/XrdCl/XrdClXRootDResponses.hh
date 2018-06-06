@@ -28,6 +28,7 @@
 #include <vector>
 #include <list>
 #include <ctime>
+#include <tuple>
 
 namespace XrdCl
 {
@@ -266,6 +267,55 @@ namespace XrdCl
 
     private:
       std::string pMessage;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Tuple indexes of name and value fields in xattr_t
+  //----------------------------------------------------------------------------
+  enum
+  {
+    xattr_name  = 0,
+    xattr_value = 1
+  };
+
+  //----------------------------------------------------------------------------
+  //! Extended attribute key - value pair
+  //----------------------------------------------------------------------------
+  typedef std::tuple<std::string, std::string> xattr_t;
+
+  //----------------------------------------------------------------------------
+  //! Extended attribute operation status
+  //----------------------------------------------------------------------------
+  struct XAttrStatus
+  {
+      friend class FileStateHandler;
+      friend class FileSystem;
+
+      XAttrStatus( const std::string &name, const XRootDStatus &status ) :
+        name( name ), status( status )
+      {
+
+      }
+
+      std::string name;
+      XRootDStatus status;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Extended attributes with status
+  //----------------------------------------------------------------------------
+  struct XAttr : public XAttrStatus
+  {
+      friend class FileStateHandler;
+      friend class FileSystem;
+
+      XAttr( const std::string  &name, const XRootDStatus &status ) :
+        XAttrStatus( name, status )
+      {
+
+      }
+
+      std::string value;
   };
 
   //----------------------------------------------------------------------------

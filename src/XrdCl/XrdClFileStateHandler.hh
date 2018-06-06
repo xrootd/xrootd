@@ -33,6 +33,7 @@
 #include "XrdCl/XrdClLocalFileHandler.hh"
 #include <list>
 #include <set>
+#include <vector>
 
 #include <sys/uio.h>
 
@@ -261,6 +262,68 @@ namespace XrdCl
                          uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Set extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to set
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttrStatus objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SetXAttr( const std::vector<xattr_t> &attrs,
+                             ResponseHandler            *handler,
+                             uint16_t                    timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Get extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to get
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttr objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus GetXAttr( const std::vector<std::string> &attrs,
+                             ResponseHandler                *handler,
+                             uint16_t                        timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Delete extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to set
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttrStatus objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus DelXAttr( const std::vector<std::string> &attrs,
+                             ResponseHandler                *handler,
+                             uint16_t                        timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! List extended attributes - async
+      //!
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttr objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ListXAttr( ResponseHandler           *handler,
+                              uint16_t                   timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Process the results of the opening operation
       //------------------------------------------------------------------------
       void OnOpen( const XRootDStatus *status,
@@ -361,6 +424,20 @@ namespace XrdCl
         MessageSendParams  params;
       };
       typedef std::list<RequestData> RequestList;
+
+      //------------------------------------------------------------------------
+      //! Generic implementation of xattr operation
+      //!
+      //! @param subcode : xattr operation code
+      //! @param attrs   : operation argument
+      //! @param handler : operation handler
+      //! @param timeout : operation timeout
+      //------------------------------------------------------------------------
+      template<typename T>
+      Status XAttrOperationImpl( kXR_char              subcode,
+                                 const std::vector<T> &attrs,
+                                 ResponseHandler      *handler,
+                                 uint16_t              timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Send a message to a host or put it in the recovery queue

@@ -449,6 +449,117 @@ namespace XrdCl
     return MessageUtils::WaitForResponse( &handler, visa );
   }
 
+  //------------------------------------------------------------------------
+  // Set extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::SetXAttr( const std::vector<xattr_t>  &attrs,
+                               ResponseHandler             *handler,
+                               uint16_t                     timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->SetXAttr( attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Set extended attributes - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::SetXAttr( const std::vector<xattr_t>  &attrs,
+                               std::vector<XAttrStatus>   *&result,
+                               uint16_t                     timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = SetXAttr( attrs, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, result );
+  }
+
+  //------------------------------------------------------------------------
+  // Get extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::GetXAttr( const std::vector<std::string>  &attrs,
+                               ResponseHandler                 *handler,
+                               uint16_t                         timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->GetXAttr( attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Get extended attributes - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::GetXAttr( const std::vector<std::string>  &attrs,
+                               std::vector<XAttr>             *&result,
+                               uint16_t                         timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = GetXAttr( attrs, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, result );
+  }
+
+  //------------------------------------------------------------------------
+  // Delete extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::DelXAttr( const std::vector<std::string>  &attrs,
+                               ResponseHandler                 *handler,
+                               uint16_t                         timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->DelXAttr( attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Delete extended attributes - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::DelXAttr( const std::vector<std::string>  &attrs,
+                               std::vector<XAttrStatus>       *&result,
+                               uint16_t                         timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = DelXAttr( attrs, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, result );
+  }
+
+  //------------------------------------------------------------------------
+  // List extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::ListXAttr( ResponseHandler  *handler,
+                                uint16_t          timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->ListXAttr( handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // List extended attributes - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::ListXAttr( std::vector<std::string>  *&result,
+                                uint16_t                    timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = ListXAttr( &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, result );
+  }
+
+
   //----------------------------------------------------------------------------
   // Check if the file is open
   //----------------------------------------------------------------------------

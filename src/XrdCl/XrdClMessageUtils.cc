@@ -384,4 +384,137 @@ namespace XrdCl
       }
     }
   }
+
+  //------------------------------------------------------------------------
+  //! Create xattr vector
+  //------------------------------------------------------------------------
+  Status MessageUtils::CreateXAttrVec( const std::vector<xattr_t> &attrs,
+                                             std::vector<char>    &avec )
+  {
+    if( attrs.empty() )
+      return Status();
+
+    if( attrs.size() > xfaLimits::kXR_faMaxVars )
+      return Status( stError, errInvalidArgs );
+
+    //----------------------------------------------------------------------
+    // Calculate the name and value vector lengths
+    //----------------------------------------------------------------------
+
+    // 2 bytes for rc + 1 byte for null character at the end
+    static const int name_overhead  = 3;
+    // 4 bytes for value length
+    static const int value_overhead = 4;
+
+    size_t nlen = 0, vlen = 0;
+    for( auto itr = attrs.begin(); itr != attrs.end(); ++itr )
+    {
+      nlen += std::get<xattr_name>( *itr ).size() + name_overhead;
+      vlen += std::get<xattr_value>( *itr ).size() + value_overhead;
+    }
+
+    if( nlen > xfaLimits::kXR_faMaxNlen )
+      return Status( stError, errInvalidArgs );
+
+    if( vlen > xfaLimits::kXR_faMaxVlen )
+      return Status( stError, errInvalidArgs );
+
+    //----------------------------------------------------------------------
+    // Create name and value vectors
+    //----------------------------------------------------------------------
+    avec.resize( nlen + vlen, 0 );
+    char *nvec = avec.data(), *vvec = avec.data() + nlen;
+
+    for( auto itr = attrs.begin(); itr != attrs.end(); ++itr )
+    {
+      const std::string &name = std::get<xattr_name>( *itr );
+      XRootDTransport::InsertXAttrNVecEntry( name, nvec );
+      const std::string &value = std::get<xattr_value>( *itr );
+      XRootDTransport::InsertXAttrVVecEntry( value, vvec );
+    }
+
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Create xattr name vector vector
+  //------------------------------------------------------------------------
+  Status MessageUtils::CreateXAttrVec( const std::vector<std::string> &attrs,
+                                       std::vector<char>              &nvec )
+  {
+    if( attrs.empty() )
+      return Status();
+
+    if( attrs.size() > xfaLimits::kXR_faMaxVars )
+      return Status( stError, errInvalidArgs );
+
+    //----------------------------------------------------------------------
+    // Calculate the name and value vector lengths
+    //----------------------------------------------------------------------
+
+    // 2 bytes for rc + 1 byte for null character at the end
+    static const int name_overhead  = 3;
+
+    size_t nlen = 0;
+    for( auto itr = attrs.begin(); itr != attrs.end(); ++itr )
+      nlen += itr->size() + name_overhead;
+
+    if( nlen > xfaLimits::kXR_faMaxNlen )
+      return Status( stError, errInvalidArgs );
+
+    //----------------------------------------------------------------------
+    // Create name vector
+    //----------------------------------------------------------------------
+    nvec.resize( nlen, 0 );
+    char *nptr = nvec.data();
+
+    for( auto itr = attrs.begin(); itr != attrs.end(); ++itr )
+      XRootDTransport::InsertXAttrNVecEntry( *itr, nptr );
+
+    return Status();
+  }
+
+//  //------------------------------------------------------------------------
+//  // Create body of xattr request and set the body size
+//  //------------------------------------------------------------------------
+//  template<typename T>
+//  Status MessageUtils::CreateXAttrBody( Message               *msg,
+//                                        const std::vector<T>  &vec,
+//                                        const std::string     &path )
+//  {
+//    ClientRequestHdr *hdr = reinterpret_cast<ClientRequestHdr*>( msg->GetBuffer() );
+//
+//    std::vector<char> xattrvec;
+//    Status st = MessageUtils::CreateXAttrVec( vec, xattrvec );
+//    if( !st.IsOK() )
+//      return st;
+//
+//    // update body size in the header
+//    hdr->dlen  = path.size() + 1;
+//    hdr->dlen += xattrvec.size();
+//
+//    // append the body
+//    size_t offset = sizeof( ClientRequestHdr );
+//    msg->Append( path.c_str(), path.size() + 1, offset );
+//    offset += path.size() + 1;
+//    msg->Append( xattrvec.data(), xattrvec.size(), offset );
+//  }
+//
+//  //------------------------------------------------------------------------
+//  // Manually instantiate the template for std::string
+//  //------------------------------------------------------------------------
+//  template<>
+//  Status MessageUtils::CreateXAttrBody<std::string>(
+//                                    Message                         *msg,
+//                                    const std::vector<std::string>  &vec,
+//                                    const std::string               &path );
+//
+//  //------------------------------------------------------------------------
+//  // Manually instantiate the template for xattr_t
+//  //------------------------------------------------------------------------
+//  template<>
+//  Status MessageUtils::CreateXAttrBody<xattr_t>(
+//                                    Message                         *msg,
+//                                    const std::vector<xattr_t>  &vec,
+//                                    const std::string               &path );
 }

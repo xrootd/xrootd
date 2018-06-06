@@ -452,6 +452,12 @@ namespace XrdCl
       Status ParseResponse( AnyObject *&response );
 
       //------------------------------------------------------------------------
+      //! Parse the response to kXR_fattr request and put it in an object that
+      //! could be passed to the user
+      //------------------------------------------------------------------------
+      Status ParseXAttrResponse( char *data, size_t len, AnyObject *&response );
+
+      //------------------------------------------------------------------------
       //! Perform the changes to the original request needed by the redirect
       //! procedure - allocate new streamid, append redirection data and such
       //------------------------------------------------------------------------
@@ -524,6 +530,38 @@ namespace XrdCl
       //! Dump the redirect-trace-back into the log file
       //------------------------------------------------------------------------
       void DumpRedirectTraceBack();
+      
+      //! Read data from buffer
+      //!
+      //! @param buffer : the buffer with data
+      //! @param size   : the size of the buffer
+      //! @param result : output parameter (data read)
+      //! @return       : status of the operation
+      //------------------------------------------------------------------------
+      template<typename T>
+      Status ReadFromBuffer( char *&buffer, size_t &buflen, T& result );
+
+      //------------------------------------------------------------------------
+      //! Read a string from buffer
+      //!
+      //! @param buffer : the buffer with data
+      //! @param size   : the size of the buffer
+      //! @param result : output parameter (data read)
+      //! @return       : status of the operation
+      //------------------------------------------------------------------------
+      Status ReadFromBuffer( char *&buffer, size_t &buflen, std::string &result );
+
+      //------------------------------------------------------------------------
+      //! Read a string from buffer
+      //!
+      //! @param buffer : the buffer with data
+      //! @param buflen : size of the buffer
+      //! @param size   : size of the data to read
+      //! @param result : output parameter (data read)
+      //! @return       : status of the operation
+      //------------------------------------------------------------------------
+      Status ReadFromBuffer( char *&buffer, size_t &buflen, size_t size,
+                             std::string &result );
 
       //------------------------------------------------------------------------
       // Helper struct for async reading of chunks

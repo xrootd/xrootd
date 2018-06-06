@@ -1538,6 +1538,174 @@ XRootDStatus DoSpaceInfo( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Carry out xattr operation
+//------------------------------------------------------------------------------
+XRootDStatus DoXAttr( FileSystem                      *fs,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc < 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  kXR_char code = 0;
+  if( args[2] == "set")
+    code = kXR_fattrSet;
+  else if( args[2] == "get" )
+    code = kXR_fattrGet;
+  else if( args[2] == "del" )
+    code = kXR_fattrDel;
+  else if( args[2] == "list" )
+    code = kXR_fattrList;
+  else
+  {
+    log->Error( AppMsg, "Invalid xattr code." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string path;
+  if( !BuildPath( path, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Issue the xattr operation
+  //----------------------------------------------------------------------------
+  XRootDStatus status;
+  switch( code )
+  {
+    case kXR_fattrSet:
+    {
+      if( argc != 4 )
+      {
+        log->Error( AppMsg, "Wrong number of arguments." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+
+      std::string key_value = args[3];
+      size_t pos = key_value.find( '=' );
+      std::string key   = key_value.substr( 0, pos );
+      std::string value = key_value.substr( pos + 1 );
+      std::vector<xattr_t> attrs;
+      attrs.push_back( std::make_tuple( key, value ) );
+
+      std::vector<XAttrStatus> *result = 0;
+      XRootDStatus status = fs->SetXAttr( path, attrs, result );
+      XAttrStatus xst = result->front();
+      delete result;
+
+      if( !xst.status.IsOK() )
+        status = xst.status;
+
+      if( !status.IsOK() )
+        log->Error( AppMsg, "Unable to xattr set %s %s: %s",
+                            key.c_str(), value.c_str(),
+                            status.ToStr().c_str() );
+      return status;
+    }
+
+    case kXR_fattrGet:
+    {
+      if( argc != 4 )
+      {
+        log->Error( AppMsg, "Wrong number of arguments." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+
+      std::string key = args[3];
+      std::vector<std::string> attrs;
+      attrs.push_back( key );
+
+      std::vector<XAttr> *result = 0;
+      XRootDStatus status = fs->GetXAttr( path, attrs, result );
+      XAttr xattr = result->front();
+      delete result;
+
+      if( !xattr.status.IsOK() )
+        status = xattr.status;
+
+      if( !status.IsOK() )
+        log->Error( AppMsg, "Unable to xattr get %s : %s",
+                            key.c_str(),
+                            status.ToStr().c_str() );
+      else
+      {
+        std::cout << "# file: " << path << '\n';
+        std::cout << xattr.name << "=\"" << xattr.value << "\"\n";
+      }
+
+      return status;
+    }
+
+    case kXR_fattrDel:
+    {
+      if( argc != 4 )
+      {
+        log->Error( AppMsg, "Wrong number of arguments." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+
+      std::string key = args[3];
+      std::vector<std::string> attrs;
+      attrs.push_back( key );
+
+      std::vector<XAttrStatus> *result = 0;
+      XRootDStatus status = fs->DelXAttr( path, attrs, result );
+      XAttrStatus xst = result->front();
+      delete result;
+
+      if( !xst.status.IsOK() )
+        status = xst.status;
+
+      if( !status.IsOK() )
+        log->Error( AppMsg, "Unable to xattr del %s : %s",
+                            key.c_str(),
+                            status.ToStr().c_str() );
+      return status;
+    }
+
+    case kXR_fattrList:
+    {
+      if( argc != 3 )
+      {
+        log->Error( AppMsg, "Wrong number of arguments." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+
+      std::vector<std::string> *result = 0;
+      XRootDStatus status = fs->ListXAttr( path, result );
+
+      if( !status.IsOK() )
+        log->Error( AppMsg, "Unable to xattr list : %s",
+                            status.ToStr().c_str() );
+      else
+      {
+        std::cout << "# file: " << path << '\n';
+        auto itr = result->begin();
+        for( ; itr != result->end(); ++itr )
+          std::cout << *itr << '\n';
+        delete result;
+      }
+
+      return status;
+    }
+
+    default:
+      return XRootDStatus( stError, errInvalidAddr );
+  }
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( FileSystem *, Env *,
@@ -1672,6 +1840,14 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   spaceinfo path\n"                                             );
   printf( "     Get space statistics for given path.\n\n"                   );
 
+  printf( "   xattr <path> <code> <params> \n"                              );
+  printf( "     Operation on extended attributes. Codes:\n\n"               );
+  printf( "     set   <attr>          Set extended attribute; <attr> is\n"  );
+  printf( "                             string of form name=value\n"        );
+  printf( "     get   <name>          Get extended attribute\n"             );
+  printf( "     del   <name>          Delete extended attribute\n"          );
+  printf( "     list                  List extended attributes\n\n"         );
+
   return XRootDStatus();
 }
 
@@ -1700,6 +1876,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "cat",         DoCat        );
   executor->AddCommand( "tail",        DoTail       );
   executor->AddCommand( "spaceinfo",   DoSpaceInfo  );
+  executor->AddCommand( "xattr",       DoXAttr      );
   return executor;
 }
 

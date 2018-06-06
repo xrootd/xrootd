@@ -1717,6 +1717,17 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // kXR_fattr
+      //------------------------------------------------------------------------
+      case kXR_fattr:
+      {
+        int   len  = rsp->hdr.dlen;
+        char* data = rsp->body.buffer.data;
+
+        return ParseXAttrResponse( data, len, response );
+      }
+
+      //------------------------------------------------------------------------
       // kXR_query
       //------------------------------------------------------------------------
       case kXR_query:
@@ -1738,6 +1749,147 @@ namespace XrdCl
       }
     };
     return Status( stError, errInvalidMessage );
+  }
+
+  //------------------------------------------------------------------------
+  // Parse the response to kXR_fattr request and put it in an object that
+  // could be passed to the user
+  //------------------------------------------------------------------------
+  Status XRootDMsgHandler::ParseXAttrResponse( char *data, size_t len,
+                                               AnyObject *&response )
+  {
+    ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
+//    Log            *log = DefaultEnv::GetLog(); //TODO
+
+    switch( req->fattr.subcode )
+    {
+      case kXR_fattrDel:
+      case kXR_fattrSet:
+      {
+        Status status;
+
+        kXR_char nerrs = 0;
+        if( !( status = ReadFromBuffer( data, len, nerrs ) ).IsOK() )
+          return status;
+
+        kXR_char nattr = 0;
+        if( !( status = ReadFromBuffer( data, len, nattr ) ).IsOK() )
+          return status;
+
+        std::vector<XAttrStatus> resp;
+        // read the namevec
+        for( kXR_char i = 0; i < nattr; ++i )
+        {
+          kXR_unt16 rc = 0;
+          if( !( status = ReadFromBuffer( data, len, rc ) ).IsOK() )
+            return status;
+          rc = ntohs( rc );
+
+          // count errors
+          if( rc ) --nerrs;
+
+          std::string name;
+          if( !( status = ReadFromBuffer( data, len, name ) ).IsOK() )
+            return status;
+
+          XRootDStatus st = rc ? XRootDStatus( stError, errErrorResponse, rc ) :
+                                 XRootDStatus();
+          resp.push_back( XAttrStatus( name, st ) );
+        }
+
+        // check if we read all the data and if the error count is OK
+        if( len != 0 || nerrs != 0 ) return Status( stError, errDataError );
+
+        // set up the response object
+        response = new AnyObject();
+        response->Set( new std::vector<XAttrStatus>( std::move( resp ) ) );
+
+        return Status();
+      }
+
+      case kXR_fattrGet:
+      {
+        Status status;
+
+        kXR_char nerrs = 0;
+        if( !( status = ReadFromBuffer( data, len, nerrs ) ).IsOK() )
+          return status;
+
+        kXR_char nattr = 0;
+        if( !( status = ReadFromBuffer( data, len, nattr ) ).IsOK() )
+          return status;
+
+        std::vector<XAttr> resp;
+
+        // read the name vec
+        for( kXR_char i = 0; i < nattr; ++i )
+        {
+          kXR_unt16 rc = 0;
+          if( !( status = ReadFromBuffer( data, len, rc ) ).IsOK() )
+            return status;
+          rc = ntohs( rc );
+
+          // count errors
+          if( rc ) --nerrs;
+
+          std::string name;
+          if( !( status = ReadFromBuffer( data, len, name ) ).IsOK() )
+            return status;
+
+          XRootDStatus st = rc ? XRootDStatus( stError, errErrorResponse, rc ) :
+                                 XRootDStatus();
+          resp.push_back( XAttr( name, st ) );
+        }
+
+        // read the value vec
+        for( kXR_char i = 0; i < nattr; ++i )
+        {
+          kXR_int32 vlen = 0;
+          if( !( status = ReadFromBuffer( data, len, vlen ) ).IsOK() )
+            return status;
+          vlen = ntohl( vlen );
+
+          std::string value;
+          if( !( status = ReadFromBuffer( data, len, vlen, value ) ).IsOK() )
+            return status;
+
+          resp[i].value.swap( value );
+        }
+
+        // check if we read all the data and if the error count is OK
+        if( len != 0 || nerrs != 0 ) return Status( stError, errDataError );
+
+        // set up the response object
+        response = new AnyObject();
+        response->Set( new std::vector<XAttr>( std::move( resp ) ) );
+
+        return Status();
+      }
+
+      case kXR_fattrList:
+      {
+        Status status;
+        std::vector<std::string> resp;
+
+        while( len > 0 )
+        {
+          std::string name;
+          if( !( status = ReadFromBuffer( data, len, name ) ).IsOK() )
+            return status;
+
+          resp.push_back( name );
+        }
+
+        // set up the response object
+        response = new AnyObject();
+        response->Set( new std::vector<std::string>( std::move( resp ) ) );
+
+        return Status();
+      }
+
+      default:
+        return Status( stError, errDataError );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -2403,6 +2555,58 @@ namespace XrdCl
       log->Warning( XRootDMsg, sstrm.str().c_str() );
     else
       log->Debug( XRootDMsg, sstrm.str().c_str() );
+  }
+  
+  // Read data from buffer
+  //------------------------------------------------------------------------
+  template<typename T>
+  Status XRootDMsgHandler::ReadFromBuffer( char *&buffer, size_t &buflen, T& result )
+  {
+    if( sizeof( T ) > buflen ) return Status( stError, errDataError );
+
+    result = *reinterpret_cast<T*>( buffer );
+
+    buffer += sizeof( T );
+    buflen   -= sizeof( T );
+
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Read a string from buffer
+  //------------------------------------------------------------------------
+  Status XRootDMsgHandler::ReadFromBuffer( char *&buffer, size_t &buflen, std::string &result )
+  {
+    Status status;
+    char c = 0;
+
+    while( true )
+    {
+      if( !( status = ReadFromBuffer( buffer, buflen, c ) ).IsOK() )
+        return status;
+
+      if( c == 0 ) break;
+      result += c;
+    }
+
+    return status;
+  }
+
+  //------------------------------------------------------------------------
+  // Read a string from buffer
+  //------------------------------------------------------------------------
+  Status XRootDMsgHandler::ReadFromBuffer( char *&buffer, size_t &buflen,
+                                           size_t size, std::string &result )
+  {
+    Status status;
+
+    if( size > buflen ) return Status( stError, errDataError );
+
+    result.append( buffer, size );
+    buffer += size;
+    buflen -= size;
+
+    return status;
   }
 
 }
