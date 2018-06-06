@@ -151,6 +151,10 @@ int     fd;      // The associated file descriptor.
 #define XRDOSS_updtatm 0x0002
 #define XRDOSS_preop   0x0004
 
+// Commands that can be passed to FSctl
+//
+#define XRDOSS_FSCTLFA 0x0001
+
 // Class passed to StatVS()
 //
 class XrdOssVSInfo

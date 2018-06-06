@@ -43,8 +43,9 @@ add_library(
   XrdXrootd/XrdXrootdTransit.cc         XrdXrootd/XrdXrootdTransit.hh
   XrdXrootd/XrdXrootdTransPend.cc       XrdXrootd/XrdXrootdTransPend.hh
   XrdXrootd/XrdXrootdTransSend.cc       XrdXrootd/XrdXrootdTransSend.hh
-  XrdXrootd/XrdXrootdXeq.cc
+  XrdXrootd/XrdXrootdXeq.cc             XrdXrootd/XrdXrootdXeq.hh
   XrdXrootd/XrdXrootdXeqAio.cc
+  XrdXrootd/XrdXrootdXeqFAttr.cc
                                         XrdXrootd/XrdXrootdTrace.hh
                                         XrdXrootd/XrdXrootdXPath.hh
                                         XrdXrootd/XrdXrootdReqID.hh
@@ -61,6 +62,7 @@ add_library(
   XrdOfs/XrdOfsConfigPI.cc      XrdOfs/XrdOfsConfigPI.hh
   XrdOfs/XrdOfsEvr.cc           XrdOfs/XrdOfsEvr.hh
   XrdOfs/XrdOfsEvs.cc           XrdOfs/XrdOfsEvs.hh
+  XrdOfs/XrdOfsFSctl.cc
   XrdOfs/XrdOfsHandle.cc        XrdOfs/XrdOfsHandle.hh
   XrdOfs/XrdOfsPoscq.cc         XrdOfs/XrdOfsPoscq.hh
   XrdOfs/XrdOfsStats.cc         XrdOfs/XrdOfsStats.hh
@@ -75,6 +77,7 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdSfs/XrdSfsNative.cc       XrdSfs/XrdSfsNative.hh
                                XrdSfs/XrdSfsAio.hh
+                               XrdSfs/XrdSfsFAttr.hh
                                XrdSfs/XrdSfsFlags.hh
                                XrdSfs/XrdSfsInterface.hh
 

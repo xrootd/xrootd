@@ -92,6 +92,7 @@
 #define SFS_FSCTL_STATCC  5 // Return Cluster Config status
 #define SFS_FSCTL_PLUGIN  8 // Return Implementation Dependent Data
 #define SFS_FSCTL_PLUGIO 16 // Return Implementation Dependent Data
+#define SFS_FSCTL_FATTR  32 // Process extended attributes
 
 // Return values for integer & XrdSfsXferSize returning XrdSfs methods
 //
@@ -149,12 +150,12 @@ enum XrdSfsFileExistence
 
 class XrdOucTList;
 
-struct XrdSfsFSctl //!< SFS_FSCTL_PLUGIN/PLUGIO parameters
+struct XrdSfsFSctl //!< SFS_FSCTL_PLUGIN/PLUGIO parms
 {
- const char            *Arg1;      //!< PLUGIO & PLUGIN
+ const char            *Arg1;      //!< PLUGIO, PLUGIN
        int              Arg1Len;   //!< Length
        int              Arg2Len;   //!< Length
- const char            *Arg2;      //!< PLUGIN opaque string
+ const char            *Arg2;      //!< PLUGIN  opaque string
 };
 
 struct XrdSfsPrep  //!< Prepare parameters
@@ -316,15 +317,45 @@ virtual void           EnvInfo(XrdOucEnv *envP)
 }
 
 //-----------------------------------------------------------------------------
+//! Perform a filesystem control operation (version 2)
+//!
+//! @param  cmd    - The operation to be performed:
+//!                  SFS_FSCTL_PLUGIN  Return Implementation Dependent Data v1
+//!                  SFS_FSCTL_PLUGIO  Return Implementation Dependent Data v2
+//! @param  args   - Arguments specific to cmd.
+//!                  SFS_FSCTL_PLUGIN  path and opaque information.
+//!                  SFS_FSCTL_PLUGIO  Unscreened argument string.
+//! @param  eInfo  - The object where error info or results are to be returned.
+//! @param  client - Client's identify (see common description).
+//!
+//! @return SFS_OK   a null response is sent.
+//!         SFS_DATA error.code    length of the data to be sent.
+//!                  error.message contains the data to be sent.
+//!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
+//-----------------------------------------------------------------------------
+
+virtual int            FSctl(const int               cmd,
+                                   XrdSfsFSctl      &args,
+                                   XrdOucErrInfo    &eInfo,
+                             const XrdSecEntity     *client = 0)
+{
+  (void)cmd; (void)args; (void)eInfo; (void)client;
+  return SFS_OK;
+}
+
+//-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 1)
 //!
 //! @param  cmd    - The operation to be performed:
+//!                  SFS_FSCTL_FATTR   Process extended attributes
 //!                  SFS_FSCTL_LOCATE  Locate a file or file servers
 //!                  SFS_FSCTL_STATCC  Return cluster config status
 //!                  SFS_FSCTL_STATFS  Return physical filesystem information
 //!                  SFS_FSCTL_STATLS  Return logical  filesystem information
 //!                  SFS_FSCTL_STATXA  Return extended attributes
 //! @param  args   - Arguments specific to cmd.
+//!                  SFS+FSCTL_FATTR   args -> XrdSfsFACtl object. When args
+//!                                    is nil then return 0 if fattr supported.
 //!                  SFS_FSCTL_LOCATE  args points to the path to be located
 //!                                    ""   path is the first exported path
 //!                                    "*"  return all current servers
@@ -342,33 +373,6 @@ virtual void           EnvInfo(XrdOucEnv *envP)
 //! @return SFS_STARTED Operation started result will be returned via callback.
 //!                  Valid only for for SFS_FSCTL_LOCATE, SFS_FSCTL_STATFS, and
 //!                  SFS_FSCTL_STATXA
-//!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
-//-----------------------------------------------------------------------------
-
-virtual int            FSctl(const int               cmd,
-                                   XrdSfsFSctl      &args,
-                                   XrdOucErrInfo    &eInfo,
-                             const XrdSecEntity     *client = 0)
-{
-  (void)cmd; (void)args; (void)eInfo; (void)client;
-  return SFS_OK;
-}
-
-//-----------------------------------------------------------------------------
-//! Perform a filesystem control operation (version 2)
-//!
-//! @param  cmd    - The operation to be performed:
-//!                  SFS_FSCTL_PLUGIN  Return Implementation Dependent Data v1
-//!                  SFS_FSCTL_PLUGIO  Return Implementation Dependent Data v2
-//! @param  args   - Arguments specific to cmd.
-//!                  SFS_FSCTL_PLUGIN  path and opaque information.
-//!                  SFS_FSCTL_PLUGIO  Unscreened argument string.
-//! @param  eInfo  - The object where error info or results are to be returned.
-//! @param  client - Client's identify (see common description).
-//!
-//! @return SFS_OK   a null response is sent.
-//!         SFS_DATA error.code    length of the data to be sent.
-//!                  error.message contains the data to be sent.
 //!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
 //-----------------------------------------------------------------------------
 

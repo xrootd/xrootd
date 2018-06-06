@@ -86,7 +86,9 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "Request in progress",        // kXR_inProgress
                     "Quota exceeded",             // kXR_overQuota
                     "Invalid signature",          // kXR_SigVerErr
-                    "Decryption failed"           // kXR_DecryptErr
+                    "Decryption failed",          // kXR_DecryptErr
+                    "Overloaded",                 // kXR_Overloaded
+                    "Invalid payload format"      // kXR_BadPayload
                    };
 
 const char *reqNames[kXR_REQFENCE-kXR_auth] =
@@ -97,7 +99,8 @@ const char *reqNames[kXR_REQFENCE-kXR_auth] =
               "sync",        "stat",        "set",         "write",
               "admin",       "prepare",     "statx",       "endsess",
               "bind",        "readv",       "verifyw",     "locate",
-              "truncate",    "sigver",      "decrypt",     "writev"
+              "truncate",    "sigver",      "decrypt",     "writev",
+              "fattr"
              };
 
 // Following value is used to determine if the error or request code is

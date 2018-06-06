@@ -127,6 +127,10 @@ int                   XrdXrootdProtocol::OD_Stall = 33;
 bool                  XrdXrootdProtocol::OD_Bypass= false;
 bool                  XrdXrootdProtocol::OD_Redir = false;
 
+int                   XrdXrootdProtocol::usxMaxNsz= kXR_faMaxNlen;
+int                   XrdXrootdProtocol::usxMaxVsz= kXR_faMaxVlen;
+char                 *XrdXrootdProtocol::usxParms = 0;
+
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
 /******************************************************************************/
@@ -533,6 +537,7 @@ int XrdXrootdProtocol::Process2()
                                  else break;
           case kXR_chmod:     return do_Chmod();
           case kXR_dirlist:   return do_Dirlist();
+          case kXR_fattr:     return do_FAttr();
           case kXR_locate:    return do_Locate();
           case kXR_mkdir:     return do_Mkdir();
           case kXR_mv:        return do_Mv();
