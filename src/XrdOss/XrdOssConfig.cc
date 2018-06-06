@@ -345,6 +345,7 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 // Export the real path list (for frm et. al.)
 //
    XrdOssRPList = &RPList;
+   if (envP) envP->PutPtr("XrdOssRPList*", &RPList);
 
 // All done, close the stream and return the return code.
 //

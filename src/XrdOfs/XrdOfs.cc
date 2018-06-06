@@ -42,6 +42,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include "XProtocol/XProtocol.hh"
+
 #include "XrdCks/XrdCks.hh"
 #include "XrdCks/XrdCksConfig.hh"
 #include "XrdCks/XrdCksData.hh"
@@ -141,6 +143,7 @@ XrdOfs::XrdOfs()
    Finder        = 0;
    Balancer      = 0;
    evsObject     = 0;
+   ossRPList     = 0;
    myRole        = strdup("server");
    OssIsProxy    = 0;
    ossRW         =' ';
@@ -178,6 +181,11 @@ XrdOfs::XrdOfs()
 //
    tpcRdrHost= 0;
    tpcRdrPort= 0;
+
+// Eextended attribute limits
+//
+   usxMaxNsz = kXR_faMaxNlen;
+   usxMaxVsz = kXR_faMaxVlen;
 }
   
 /******************************************************************************/
@@ -1555,172 +1563,6 @@ int XrdOfs::exists(const char                *path,        // In
 // An error occured, return the error info
 //
    return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path);
-}
-
-/******************************************************************************/
-/*                                 f s c t l                                  */
-/******************************************************************************/
-
-int XrdOfs::fsctl(const int               cmd,
-                  const char             *args,
-                  XrdOucErrInfo          &einfo,
-                  const XrdSecEntity     *client)
-/*
-  Function: Perform filesystem operations:
-
-  Input:    cmd       - Operation command (currently supported):
-                        SFS_FSCTL_LOCATE - locate file
-                        SFS_FSCTL_STATCC - return cluster config status
-                        SFS_FSCTL_STATFS - return file system info (physical)
-                        SFS_FSCTL_STATLS - return file system info (logical)
-                        SFS_FSCTL_STATXA - return file extended attributes
-            arg       - Command dependent argument:
-                      - Locate: The path whose location is wanted
-            buf       - The stat structure to hold the results
-            einfo     - Error/Response information structure.
-            client    - Authentication credentials, if any.
-
-  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
-*/
-{
-   EPNAME("fsctl");
-   static int PrivTab[]     = {XrdAccPriv_Delete, XrdAccPriv_Insert,
-                               XrdAccPriv_Lock,   XrdAccPriv_Lookup,
-                               XrdAccPriv_Rename, XrdAccPriv_Read,
-                               XrdAccPriv_Write};
-   static char PrivLet[]    = {'d',               'i',
-                               'k',               'l',
-                               'n',               'r',
-                               'w'};
-   static const int PrivNum = sizeof(PrivLet);
-
-   int retc, i, blen, privs, opcode = cmd & SFS_FSCTL_CMD;
-   const char *tident = einfo.getErrUser();
-   char *bP, *cP;
-   XTRACE(fsctl, args, "");
-
-// Process the LOCATE request
-//
-   if (opcode == SFS_FSCTL_LOCATE)
-      {static const int locMask = (SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|
-                                   SFS_O_HNAME|SFS_O_RAWIO);
-       struct stat fstat;
-       char pbuff[1024], rType[3];
-       const char *Resp[2] = {rType, pbuff};
-       const char *locArg, *opq, *Path = Split(args,&opq,pbuff,sizeof(pbuff));
-       XrdNetIF::ifType ifType;
-       int Resp1Len;
-       int find_flag = SFS_O_LOCATE | (cmd & locMask);
-       XrdOucEnv loc_Env(opq ? opq+1 : 0,0,client);
-
-       if (cmd & SFS_O_TRUNC)           locArg = (char *)"*";
-          else {     if (*Path == '*') {locArg = Path; Path++;}
-                        else            locArg = Path;
-                AUTHORIZE(client,0,AOP_Stat,"locate",Path,einfo);
-               }
-       if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Locate(einfo, locArg, find_flag, &loc_Env)))
-          return fsError(einfo, retc);
-
-       if (cmd & SFS_O_TRUNC) {rType[0] = 'S'; rType[1] = ossRW;}
-          else {if ((retc = XrdOfsOss->Stat(Path, &fstat, 0, &loc_Env)))
-                   return XrdOfsFS->Emsg(epname, einfo, retc, "locate", Path);
-                rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
-                rType[1] =  (fstat.st_mode & S_IWUSR             ? 'w' : 'r');
-               }
-       rType[2] = '\0';
-
-       ifType = XrdNetIF::GetIFType((einfo.getUCap() & XrdOucEI::uIPv4)  != 0,
-                                    (einfo.getUCap() & XrdOucEI::uIPv64) != 0,
-                                    (einfo.getUCap() & XrdOucEI::uPrip)  != 0);
-       bool retHN = (cmd & SFS_O_HNAME) != 0;
-       if ((Resp1Len = myIF->GetDest(pbuff, sizeof(pbuff), ifType, retHN)))
-           {einfo.setErrInfo(Resp1Len+3, (const char **)Resp, 2);
-            return SFS_DATA;
-           }
-       return Emsg(epname, einfo, ENETUNREACH, "locate", Path);
-      }
-
-// Process the STATFS request
-//
-   if (opcode == SFS_FSCTL_STATFS)
-      {char pbuff[1024];
-       const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
-       XrdOucEnv fs_Env(opq ? opq+1 : 0,0,client);
-       AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
-       if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Space(einfo, Path, &fs_Env)))
-          return fsError(einfo, retc);
-       bP = einfo.getMsgBuff(blen);
-       if ((retc = XrdOfsOss->StatFS(Path, bP, blen, &fs_Env)))
-          return XrdOfsFS->Emsg(epname, einfo, retc, "statfs", args);
-       einfo.setErrCode(blen+1);
-       return SFS_DATA;
-      }
-
-// Process the STATLS request
-//
-   if (opcode == SFS_FSCTL_STATLS)
-      {char pbuff[1024];
-       const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
-       XrdOucEnv statls_Env(opq ? opq+1 : 0,0,client);
-       AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
-       if (Finder && Finder->isRemote())
-          {statls_Env.Put("cms.qvfs", "1");
-           if ((retc = Finder->Space(einfo, Path, &statls_Env)))
-              {if (retc == SFS_DATA) retc = Reformat(einfo);
-               return fsError(einfo, retc);
-              }
-          }
-       bP = einfo.getMsgBuff(blen);
-       if ((retc = XrdOfsOss->StatLS(statls_Env, Path, bP, blen)))
-          return XrdOfsFS->Emsg(epname, einfo, retc, "statls", Path);
-       einfo.setErrCode(blen+1);
-       return SFS_DATA;
-      }
-
-// Process the STATXA request
-//
-   if (opcode == SFS_FSCTL_STATXA)
-      {char pbuff[1024];
-       const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
-       XrdOucEnv xa_Env(opq ? opq+1 : 0,0,client);
-       AUTHORIZE(client,0,AOP_Stat,"statxa",Path,einfo);
-       if (Finder && Finder->isRemote()
-       && (retc = Finder->Locate(einfo,Path,SFS_O_RDONLY|SFS_O_STAT,&xa_Env)))
-          return fsError(einfo, retc);
-       bP = einfo.getMsgBuff(blen);
-       if ((retc = XrdOfsOss->StatXA(Path, bP, blen, &xa_Env)))
-          return XrdOfsFS->Emsg(epname, einfo, retc, "statxa", Path);
-       if (!client || !XrdOfsFS->Authorization) privs = XrdAccPriv_All;
-          else privs = XrdOfsFS->Authorization->Access(client, Path, AOP_Any);
-       cP = bP + blen; strcpy(cP, "&ofs.ap="); cP += 8;
-       if (privs == XrdAccPriv_All) *cP++ = 'a';
-          else {for (i = 0; i < PrivNum; i++)
-                    if (PrivTab[i] & privs) *cP++ = PrivLet[i];
-                if (cP == (bP + blen + 1)) *cP++ = '?';
-               }
-       *cP++ = '\0';
-       einfo.setErrCode(cP-bP+1);
-       return SFS_DATA;
-      }
-
-// Process the STATCC request (this should always succeed)
-//
-   if (opcode == SFS_FSCTL_STATCC)
-      {static const int lcc_flag = SFS_O_LOCATE | SFS_O_LOCAL;
-       XrdOucEnv lcc_Env(0,0,client);
-            if (Finder)   retc = Finder  ->Locate(einfo,".",lcc_flag,&lcc_Env);
-       else if (Balancer) retc = Balancer->Locate(einfo,".",lcc_flag,&lcc_Env);
-       else retc = SFS_ERROR;
-       if (retc != SFS_DATA) einfo.setErrInfo(5, "none|");
-       return fsError(einfo, SFS_DATA);
-      }
-
-// Operation is not supported
-//
-   return XrdOfsFS->Emsg(epname, einfo, ENOTSUP, "fsctl", args);
-
 }
 
 /******************************************************************************/

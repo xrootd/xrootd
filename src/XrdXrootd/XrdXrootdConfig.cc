@@ -440,6 +440,25 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    PidFile();
 
+// Indicate whether or not we support extened attributes
+//
+  {XrdOucEnv     myEnv;
+   XrdOucErrInfo eInfo("", &myEnv);
+   char buff[128];
+   if (osFS->fsctl(SFS_FSCTL_FATTR, (const char *)0, eInfo, 0) == 0)
+      {usxMaxNsz = myEnv.GetInt("usxMaxNsz");
+       if (usxMaxNsz < 0) usxMaxNsz = 0;
+       usxMaxVsz = myEnv.GetInt("usxMaxVsz");
+       if (usxMaxVsz < 0) usxMaxVsz = 0;
+       snprintf(buff, sizeof(buff), "%d %d", usxMaxNsz, usxMaxVsz);
+       usxParms  = strdup(buff);
+      } else {
+       usxMaxNsz = 0;
+       usxMaxVsz = 0;
+       usxParms  = strdup("0 0");
+      }
+  }
+
 // Finally, check if we really need to be in bypass mode if it is set
 //
    if (OD_Bypass)

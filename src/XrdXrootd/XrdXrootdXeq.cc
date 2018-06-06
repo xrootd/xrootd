@@ -59,6 +59,7 @@
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
+#include "XrdXrootd/XrdXrootdXeq.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
 #include "XrdVersion.hh"
@@ -73,16 +74,6 @@ extern XrdOucTrace *XrdXrootdTrace;
 /*                      L o c a l   S t r u c t u r e s                       */
 /******************************************************************************/
   
-struct XrdXrootdFHandle
-       {kXR_int32 handle;
-
-        void Set(kXR_char *ch)
-            {memcpy((void *)&handle, (const void *)ch, sizeof(handle));}
-        XrdXrootdFHandle() {}
-        XrdXrootdFHandle(kXR_char *ch) {Set(ch);}
-       ~XrdXrootdFHandle() {}
-       };
-
 struct XrdXrootdSessID
        {unsigned int       Sid;
                  int       Pid;
@@ -111,14 +102,6 @@ struct XrdXrootdWVInfo
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
 
-#define CRED (const XrdSecEntity *)Client
-
-#define TRACELINK Link
-
-#define STATIC_REDIRECT(xfnc) \
-        if (Route[xfnc].Port[rdType]) \
-           return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],\
-                                             Route[xfnc].Host[rdType])
 namespace
 {
 static const int op_isOpen    = 0x00010000;
@@ -784,6 +767,12 @@ int XrdXrootdProtocol::do_Endsess()
 
    return Response.Send();
 }
+
+/******************************************************************************/
+/*                              d o _ F A t t r                               */
+/*                                                                            */
+/* Resides in XrdXrootdXeqFAttr.cc                                            */
+/******************************************************************************/
 
 /******************************************************************************/
 /*                            d o   G e t f i l e                             */
@@ -1922,6 +1911,9 @@ int XrdXrootdProtocol::do_Qconf()
            {const char *nidval = getenv("XRDCMSVNID");
             if (!nidval || !(*nidval)) nidval = "vnid";
             n = snprintf(bp, bleft, "%s\n", nidval);
+           }
+   else if (!strcmp("xattr", val))
+           {n = snprintf(bp, bleft, "%s\n", usxParms);
             bp += n; bleft -= n;
            }
    else {n = strlen(val);

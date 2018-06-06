@@ -140,6 +140,7 @@ enum XRequestTypes {
    kXR_sigver,  // 3029
    kXR_decrypt, // 3030
    kXR_writev,  // 3031
+   kXR_fattr,   // 3032
    kXR_REQFENCE // Always last valid request code +1
 };
 
@@ -289,6 +290,24 @@ enum XSecCrypto {
    kXR_rsaKey   = 0x80    // The rsa key was used
 };
 
+// kXR_fattr subcodes
+//
+enum xfaSubCode {
+   kXR_fattrDel    = 0,
+   kXR_fattrGet    = 1,
+   kXR_fattrList   = 2,
+   kXR_fattrSet    = 3,
+   kXR_fatrrMaxSC  = 3  // Highest valid subcode
+};
+
+// kXR_fattr limits
+//
+enum xfaLimits {
+   kXR_faMaxVars = 16,
+   kXR_faMaxNlen = 248,
+   kXR_faMaxVlen = 65536
+};
+
 //_______________________________________________
 // PROTOCOL DEFINITION: SERVER'S RESPONSES TYPES
 //_______________________________________________
@@ -310,15 +329,15 @@ enum XResponseType {
 //_______________________________________________
 
 enum XActionCode {
-   kXR_asyncab = 5000,
-   kXR_asyncdi,
-   kXR_asyncms,
-   kXR_asyncrd,
-   kXR_asyncwt,
-   kXR_asyncav,
-   kXR_asynunav,
-   kXR_asyncgo,
-   kXR_asynresp
+   kXR_asyncab =     5000,
+   kXR_asyncdi,   // 5001
+   kXR_asyncms,   // 5002
+   kXR_asyncrd,   // 5003
+   kXR_asyncwt,   // 5004
+   kXR_asyncav,   // 5005
+   kXR_asynunav,  // 5006
+   kXR_asyncgo,   // 5007
+   kXR_asynresp   // 5008
 };
 
 //_______________________________________________
@@ -326,31 +345,33 @@ enum XActionCode {
 //_______________________________________________
 //
 enum XErrorCode {
-   kXR_ArgInvalid = 3000,
-   kXR_ArgMissing,
-   kXR_ArgTooLong,
-   kXR_FileLocked,
-   kXR_FileNotOpen,
-   kXR_FSError,
-   kXR_InvalidRequest,
-   kXR_IOError,
-   kXR_NoMemory,
-   kXR_NoSpace,
-   kXR_NotAuthorized,
-   kXR_NotFound,
-   kXR_ServerError,
-   kXR_Unsupported,
-   kXR_noserver,
-   kXR_NotFile,
-   kXR_isDirectory,
-   kXR_Cancelled,
-   kXR_ChkLenErr,
-   kXR_ChkSumErr,
-   kXR_inProgress,
-   kXR_overQuota,
-   kXR_SigVerErr,
-   kXR_DecryptErr,
-   kXR_Overloaded,
+   kXR_ArgInvalid =        3000,
+   kXR_ArgMissing,      // 3001
+   kXR_ArgTooLong,      // 3002
+   kXR_FileLocked,      // 3003
+   kXR_FileNotOpen,     // 3004
+   kXR_FSError,         // 3005
+   kXR_InvalidRequest,  // 3006
+   kXR_IOError,         // 3007
+   kXR_NoMemory,        // 3008
+   kXR_NoSpace,         // 3009
+   kXR_NotAuthorized,   // 3010
+   kXR_NotFound,        // 3011
+   kXR_ServerError,     // 3012
+   kXR_Unsupported,     // 3013
+   kXR_noserver,        // 3014
+   kXR_NotFile,         // 3015
+   kXR_isDirectory,     // 3016
+   kXR_Cancelled,       // 3017
+   kXR_ChkLenErr,       // 3018
+   kXR_ChkSumErr,       // 3019
+   kXR_inProgress,      // 3020
+   kXR_overQuota,       // 3021
+   kXR_SigVerErr,       // 3022
+   kXR_DecryptErr,      // 3023
+   kXR_Overloaded,      // 3024
+   kXR_fsReadOnly,      // 3025
+   kXR_BadPayload,      // 3026
    kXR_ERRFENCE,    // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -424,6 +445,20 @@ struct ClientEndsessRequest {
    kXR_unt16 requestid;
    kXR_char  sessid[16];
    kXR_int32  dlen;
+};
+struct ClientFattrRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_char  subcode;
+   kXR_char  numattr;
+   kXR_char  options;
+   kXR_char  reserved[9];
+   kXR_int32 dlen;
+
+// Valid options:
+//
+   static const int isNew = 0x01; // For set, the variable must not exist
 };
 struct ClientGetfileRequest {
    kXR_char  streamid[2];
@@ -630,6 +665,7 @@ typedef union {
    struct ClientDecryptRequest decrypt;
    struct ClientDirlistRequest dirlist;
    struct ClientEndsessRequest endsess;
+   struct ClientFattrRequest fattr;
    struct ClientGetfileRequest getfile;
    struct ClientLocateRequest locate;
    struct ClientLoginRequest login;
@@ -923,6 +959,7 @@ static int mapError(int rc)
            case EILSEQ:       return kXR_SigVerErr;
            case ERANGE:       return kXR_DecryptErr;
            case EUSERS:       return kXR_Overloaded;
+           case EROFS:        return kXR_fsReadOnly;
            default:           return kXR_FSError;
           }
       }
@@ -955,6 +992,7 @@ static int toErrno( int xerr )
         case kXR_SigVerErr:     return EILSEQ;
         case kXR_DecryptErr:    return ERANGE;
         case kXR_Overloaded:    return EUSERS;
+        case  kXR_fsReadOnly:   return EROFS;
         default:                return ENOMSG;
        }
 }

@@ -41,6 +41,7 @@
 #include <sys/stat.h>
 
 #include "XrdVersion.hh"
+#include "XProtocol/XProtocol.hh"
 
 #include "XrdCks/XrdCks.hh"
 
@@ -281,6 +282,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                 XrdOfsTPC::Init(Authorization);
                }
            }
+
+// Extract out the export list should it have been supplied by the oss plugin
+//
+   ossRPList = (XrdOucPListAnchor *)EnvInfo->GetPtr("XrdOssRPList*");
 
 // Initialize redirection.  We type te herald here to minimize confusion
 //
@@ -718,6 +723,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("role",          xrole);
     TS_Xeq("tpc",           xtpc);
     TS_Xeq("trace",         xtrace);
+    TS_Xeq("xattr",         xatr);
     TS_XPI("xattrlib",      theAtrLib);
 
     // Screen out the subcluster directive (we need to track that)
@@ -1676,6 +1682,75 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 
 // All done
 //
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                  x a t r                                   */
+/******************************************************************************/
+
+/* Function: xatr
+
+   Purpose:  To parse the directive: xattr [maxnsz <nsz>] [maxvsz <vsz>]
+
+                                           [uset {on|off}]
+
+             on       enables  user settable extended attributes.
+
+             off      disaables user settable extended attributes.
+
+             <nsz>    maximum length of an attribute name. The user
+                      specifiable limit will be 8 less.
+
+             <vsz>    maximum length of an attribute value.
+
+   Notes:    1. This directive is not cummalative.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xatr(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   char *val;
+   static const int xanRsv = 7;
+   int maxN = kXR_faMaxNlen, maxV = kXR_faMaxVlen;
+   bool isOn = true;
+
+   while((val =  Config.GetWord()))
+        {     if (!strcmp("maxnsz", val))
+                 {if (!(val = Config.GetWord()))
+                     {Eroute.Emsg("Config","xattr maxnsz value not specified");
+                      return 1;
+                     }
+                  if (XrdOuca2x::a2i(Eroute,"maxnsz",val,&maxN,
+                                     xanRsv+1,kXR_faMaxNlen+xanRsv)) return 1;
+                 }
+         else if (!strcmp("maxvsz", val))
+                 {if (!(val = Config.GetWord()))
+                     {Eroute.Emsg("Config","xattr maxvsz value not specified");
+                      return 1;
+                     }
+                  if (XrdOuca2x::a2i(Eroute,"maxvsz",val,&maxV,0,kXR_faMaxVlen))
+                     return 1;
+                 }
+         else if (!strcmp("uset",   val))
+                 {if (!(val = Config.GetWord()))
+                     {Eroute.Emsg("Config","xattr uset value not specified");
+                      return 1;
+                     }
+                       if (!strcmp("on",     val)) isOn = true;
+                  else if (!strcmp("off",    val)) isOn = false;
+                  else {Eroute.Emsg("Config", "invalid xattr uset value -", val);
+                        return 1;
+                       }
+                 }
+         else {Eroute.Emsg("Config", "invalid xattr option -", val);
+               return 1;
+              }
+        }
+
+   usxMaxNsz = (isOn ? maxN-xanRsv : 0);
+   usxMaxVsz = maxV;
    return 0;
 }
   

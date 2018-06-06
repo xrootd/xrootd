@@ -75,6 +75,7 @@ class XrdOucTrace;
 class XrdSecProtect;
 class XrdSecProtector;
 class XrdSfsDirectory;
+class XrdSfsFACtl;
 class XrdSfsFileSystem;
 class XrdSecProtocol;
 class XrdBuffer;
@@ -146,6 +147,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Dirlist();
        int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, char *opaque);
        int   do_Endsess();
+       int   do_FAttr();
        int   do_Getfile();
        int   do_Login();
        int   do_Locate();
@@ -229,6 +231,13 @@ static int   xsecl(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
 static int   xlimit(XrdOucStream &Config);
 
+       int   ProcFAttr(char *faPath, char *faCgi,  char *faArgs,
+                       int   faALen, int   faCode, bool  doAChk);
+       int   XeqFADel(XrdSfsFACtl &ctl, char *faVars, int faVLen);
+       int   XeqFAGet(XrdSfsFACtl &ctl, char *faVars, int faVLen);
+       int   XeqFALst(XrdSfsFACtl &ctl);
+       int   XeqFASet(XrdSfsFACtl &ctl, char *faVars, int faVLen);
+
 static XrdObjectQ<XrdXrootdProtocol> ProtStack;
 XrdObject<XrdXrootdProtocol>         ProtLink;
 
@@ -292,6 +301,12 @@ static struct RD_Table {char          *Host[2];
 static int    OD_Stall;
 static bool   OD_Bypass;
 static bool   OD_Redir;
+
+// Extended attributes
+//
+static int    usxMaxNsz;
+static int    usxMaxVsz;
+static char  *usxParms;
 
 // async configuration values
 //
