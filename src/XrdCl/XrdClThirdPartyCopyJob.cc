@@ -34,7 +34,10 @@
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdSys/XrdSysTimer.hh"
+
 #include <iostream>
+#include <chrono>
+
 #include <cctype>
 #include <sstream>
 #include <cstdlib>
@@ -605,13 +608,17 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   std::string ThirdPartyCopyJob::GenerateKey()
   {
+    static const int _10to9 = 1000000000;
+
     char tpcKey[25];
-    struct timeval  currentTime;
-    struct timezone tz;
-    gettimeofday( &currentTime, &tz );
-    int k1 = currentTime.tv_usec;
-    int k2 = getpid() | (getppid() << 16);
-    int k3 = currentTime.tv_sec;
+
+    auto tp = std::chrono::high_resolution_clock::now();
+    auto d  = tp.time_since_epoch();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>( d );
+    auto s  = std::chrono::duration_cast<std::chrono::seconds>( d );
+    uint32_t k1 = ns.count() - s.count() * _10to9;
+    uint32_t k2 = getpid() | (getppid() << 16);
+    uint32_t k3 = s.count();
     snprintf( tpcKey, 25, "%08x%08x%08x", k1, k2, k3 );
     return std::string(tpcKey);
   }
