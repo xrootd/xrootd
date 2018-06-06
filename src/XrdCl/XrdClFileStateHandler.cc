@@ -1087,6 +1087,98 @@ namespace XrdCl
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
+  //------------------------------------------------------------------------
+  // Set extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::SetXAttr( const std::vector<xattr_t> &attrs,
+                                           ResponseHandler            *handler,
+                                           uint16_t                    timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a fattr set command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Issue a new fattr get request
+    //--------------------------------------------------------------------------
+    return XAttrOperationImpl( kXR_fattrSet, attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Get extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::GetXAttr( const std::vector<std::string> &attrs,
+                                           ResponseHandler                *handler,
+                                           uint16_t                        timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a fattr get command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Issue a new fattr get request
+    //--------------------------------------------------------------------------
+    return XAttrOperationImpl( kXR_fattrGet, attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Delete extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::DelXAttr( const std::vector<std::string> &attrs,
+                                           ResponseHandler                *handler,
+                                           uint16_t                        timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a fattr del command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Issue a new fattr del request
+    //--------------------------------------------------------------------------
+    return XAttrOperationImpl( kXR_fattrDel, attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // List extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::ListXAttr( ResponseHandler  *handler,
+                                            uint16_t          timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a fattr list command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Issue a new fattr get request
+    //--------------------------------------------------------------------------
+    static const std::vector<std::string> nothing;
+    return XAttrOperationImpl( kXR_fattrList, nothing, handler, timeout );
+  }
+
   //----------------------------------------------------------------------------
   // Check if the file is open
   //----------------------------------------------------------------------------
@@ -1561,6 +1653,41 @@ namespace XrdCl
     }
     else
       pFileState = Error;
+  }
+
+  //------------------------------------------------------------------------
+  // Generic implementation of xattr operation
+  //------------------------------------------------------------------------
+  template<typename T>
+  Status FileStateHandler::XAttrOperationImpl( kXR_char              subcode,
+                                               const std::vector<T> &attrs,
+                                               ResponseHandler      *handler,
+                                               uint16_t              timeout )
+  {
+    //--------------------------------------------------------------------------
+    // Issue a new fattr request
+    //--------------------------------------------------------------------------
+    Message            *msg;
+    ClientFattrRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_fattr;
+    req->subcode   = subcode;
+    req->numattr   = attrs.size();
+    memcpy( req->fhandle, pFileHandle, 4 );
+    XRootDStatus st = MessageUtils::CreateXAttrBody( msg, attrs );
+    if( !st.IsOK() ) return st;
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //----------------------------------------------------------------------------

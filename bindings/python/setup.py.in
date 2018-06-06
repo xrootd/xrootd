@@ -11,7 +11,7 @@ opt = cfg_vars["OPT"]
 cfg_vars["OPT"] = " ".join( flag for flag in opt.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] ) + " --std=c++0x"
 
 cflags = cfg_vars["CFLAGS"]
-cfg_vars["CFLAGS"] =  " ".join( flag for flag in cflags.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] ) + " --std=c++0x"
+cfg_vars["CFLAGS"] = " ".join( flag for flag in cflags.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] ) + " --std=c++0x"
 
 py_cflags = cfg_vars["PY_CFLAGS"]
 cfg_vars["PY_CFLAGS"] = " ".join( flag for flag in py_cflags.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] ) + " --std=c++0x"

@@ -702,6 +702,130 @@ namespace XrdCl
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
+      //! Set extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to set
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttrStatus objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SetXAttr( const std::string           &path,
+                             const std::vector<xattr_t>  &attrs,
+                             ResponseHandler             *handler,
+                             uint16_t                     timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Set extended attributes - sync
+      //!
+      //! @param attrs   : list of extended attributes to set
+      //! @param result  : result of the operation
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SetXAttr( const std::string           &path,
+                             const std::vector<xattr_t>  &attrs,
+                             std::vector<XAttrStatus>   *&result,
+                             uint16_t                     timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Get extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to get
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttr objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus GetXAttr( const std::string               &path,
+                             const std::vector<std::string>  &attrs,
+                             ResponseHandler                 *handler,
+                             uint16_t                         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Get extended attributes - sync
+      //!
+      //! @param attrs   : list of extended attributes to get
+      //! @param result  : result of the operation
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus GetXAttr( const std::string               &path,
+                             const std::vector<std::string>  &attrs,
+                             std::vector<XAttr>             *&result,
+                             uint16_t                         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Delete extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to set
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttrStatus objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus DelXAttr( const std::string               &path,
+                             const std::vector<std::string>  &attrs,
+                             ResponseHandler                 *handler,
+                             uint16_t                         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Delete extended attributes - sync
+      //!
+      //! @param attrs   : list of extended attributes to set
+      //! @param result  : result of the operation
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus DelXAttr( const std::string               &path,
+                             const std::vector<std::string>  &attrs,
+                             std::vector<XAttrStatus>       *&result,
+                             uint16_t                         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! List extended attributes - async
+      //!
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttr objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ListXAttr( const std::string         &path,
+                              ResponseHandler           *handler,
+                              uint16_t                   timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! List extended attributes - sync
+      //!
+      //! @param result  : result of the operation
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ListXAttr( const std::string          &path,
+                              std::vector<std::string>  *&result,
+                              uint16_t                    timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Set filesystem property
       //!
       //! Filesystem properties:
@@ -747,6 +871,22 @@ namespace XrdCl
       {
         pMutex.UnLock();
       }
+
+      //------------------------------------------------------------------------
+      //! Generic implementation of xattr operation
+      //!
+      //! @param subcode : xattr operation code
+      //! @param path    : path to the file
+      //! @param attrs   : operation argument
+      //! @param handler : operation handler
+      //! @param timeout : operation timeout
+      //------------------------------------------------------------------------
+      template<typename T>
+      Status XAttrOperationImpl( kXR_char              subcode,
+                                 const std::string    &path,
+                                 const std::vector<T> &attrs,
+                                 ResponseHandler      *handler,
+                                 uint16_t              timeout = 0 );
 
       XrdSysMutex       pMutex;
       bool              pLoadBalancerLookupDone;

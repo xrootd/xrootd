@@ -1744,7 +1744,7 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  //! Prepare one or more files for access - sync
+  // Prepare one or more files for access - sync
   //------------------------------------------------------------------------
   XRootDStatus FileSystem::Prepare( const std::vector<std::string>  &fileList,
                                     PrepareFlags::Flags              flags,
@@ -1758,6 +1758,125 @@ namespace XrdCl
       return st;
 
     return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //------------------------------------------------------------------------
+  // Set extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::SetXAttr( const std::string           &path,
+                                     const std::vector<xattr_t>  &attrs,
+                                     ResponseHandler             *handler,
+                                     uint16_t                     timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return XAttrOperationImpl( kXR_fattrSet, path, attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Set extended attributes - sync
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::SetXAttr( const std::string           &path,
+                                     const std::vector<xattr_t>  &attrs,
+                                     std::vector<XAttrStatus>   *&result,
+                                     uint16_t                     timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = SetXAttr( path, attrs, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, result );
+  }
+
+  //------------------------------------------------------------------------
+  // Get extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::GetXAttr( const std::string               &path,
+                                     const std::vector<std::string>  &attrs,
+                                     ResponseHandler                 *handler,
+                                     uint16_t                         timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return XAttrOperationImpl( kXR_fattrGet, path, attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Get extended attributes - sync
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::GetXAttr( const std::string               &path,
+                                     const std::vector<std::string>  &attrs,
+                                     std::vector<XAttr>             *&result,
+                                     uint16_t                         timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = GetXAttr( path, attrs, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, result );
+  }
+
+  //------------------------------------------------------------------------
+  // Delete extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::DelXAttr( const std::string               &path,
+                                     const std::vector<std::string>  &attrs,
+                                     ResponseHandler                *handler,
+                                     uint16_t                        timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return XAttrOperationImpl( kXR_fattrDel, path, attrs, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Delete extended attributes - sync
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::DelXAttr( const std::string               &path,
+                                     const std::vector<std::string>  &attrs,
+                                     std::vector<XAttrStatus>       *&result,
+                                     uint16_t                         timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = DelXAttr( path, attrs, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, result );
+  }
+
+  //------------------------------------------------------------------------
+  // List extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::ListXAttr( const std::string         &path,
+                                      ResponseHandler           *handler,
+                                      uint16_t                   timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    static const std::vector<std::string> nothing;
+    return XAttrOperationImpl( kXR_fattrList, path, nothing, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // List extended attributes - sync
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::ListXAttr( const std::string           &path,
+                                      std::vector<std::string>  *&result,
+                                      uint16_t                    timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = ListXAttr( path, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, result );
   }
 
   //----------------------------------------------------------------------------
@@ -1834,5 +1953,34 @@ namespace XrdCl
     params.followRedirects = pFollowRedirects;
 
     return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
+  }
+
+  //------------------------------------------------------------------------
+  // Generic implementation of xattr operation
+  //------------------------------------------------------------------------
+  template<typename T>
+  Status FileSystem::XAttrOperationImpl( kXR_char               subcode,
+                                         const std::string     &path,
+                                         const std::vector<T>  &attrs,
+                                         ResponseHandler       *handler,
+                                         uint16_t               timeout )
+  {
+    Message            *msg;
+    ClientFattrRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_fattr;
+    req->subcode   = subcode;
+    req->numattr   = attrs.size();
+    memset( req->fhandle, 0, 4 );
+    XRootDStatus st = MessageUtils::CreateXAttrBody( msg, attrs, path );
+    if( !st.IsOK() ) return st;
+
+    MessageSendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+
+    return Send( msg, handler, params );
   }
 }

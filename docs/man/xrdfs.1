@@ -221,6 +221,20 @@ Output last part of files to stdout.
 .RS 3
 Get space statistics for given path.
 
+.RE
+\fBxattr\fR \fI<path> <code> <params>\fR
+.RS 3
+Operation on extended attributes. Codes:
+.br
+\fIset\fR         \fB<attr>\fR   Set extended attribute; 
+                     <attr> is string of form name=value
+.br
+\fIget\fR         \fB<name>\fR   Get extended attribute.
+.br
+\fIdel\fR         \fB<name>\fR   Delete extended attribute.
+.br
+\fIlist\fR                 List extended attributes.
+
 .SH RETURN CODES
 .RE
 \fB50\fR  : generic error (e.g. config, internal, data, OS)

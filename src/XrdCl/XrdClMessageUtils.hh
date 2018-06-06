@@ -34,6 +34,8 @@ namespace XrdCl
 {
   class LocalFileHandler;
 
+  class XAttr;
+
   //----------------------------------------------------------------------------
   //! Synchronize the response
   //----------------------------------------------------------------------------
@@ -249,7 +251,58 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static void MergeCGI( URL::ParamsMap       &cgi1,
                             const URL::ParamsMap &cgi2,
-                            bool                  replace );                             
+                            bool                  replace );
+
+      //------------------------------------------------------------------------
+      //! Create xattr vector
+      //!
+      //! @param attrs  :  extended attribute list
+      //! @param avec   :  vector containing the name vector
+      //!                  and the value vector
+      //------------------------------------------------------------------------
+      static Status CreateXAttrVec( const std::vector<xattr_t> &attrs,
+                                    std::vector<char>          &avec );
+
+      //------------------------------------------------------------------------
+      //! Create xattr name vector vector
+      //!
+      //! @param attrs  :  extended attribute name list
+      //! @param nvec   :  vector containing the name vector
+      //------------------------------------------------------------------------
+      static Status CreateXAttrVec( const std::vector<std::string> &attrs,
+                                    std::vector<char>              &nvec );
+
+      //------------------------------------------------------------------------
+      //! Create body of xattr request and set the body size
+      //!
+      //! @param msg  : the request
+      //! @param vec  : the argument
+      //! @param path : file path
+      //------------------------------------------------------------------------
+      template<typename T>
+      static Status CreateXAttrBody( Message               *msg,
+                                     const std::vector<T>  &vec,
+                                     const std::string     &path = "" )
+      {
+        ClientRequestHdr *hdr = reinterpret_cast<ClientRequestHdr*>( msg->GetBuffer() );
+
+        std::vector<char> xattrvec;
+        Status st = MessageUtils::CreateXAttrVec( vec, xattrvec );
+        if( !st.IsOK() )
+          return st;
+
+        // update body size in the header
+        hdr->dlen  = path.size() + 1;
+        hdr->dlen += xattrvec.size();
+
+        // append the body
+        size_t offset = sizeof( ClientRequestHdr );
+        msg->Append( path.c_str(), path.size() + 1, offset );
+        offset += path.size() + 1;
+        msg->Append( xattrvec.data(), xattrvec.size(), offset );
+
+        return Status();
+      }
   };
 }
 
