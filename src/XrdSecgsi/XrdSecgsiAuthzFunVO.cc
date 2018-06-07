@@ -143,7 +143,7 @@ int XrdSecgsiAuthzFun(XrdSecEntity &entity)
    static XrdSysMutex Mutex;
    const char *vtxt = "", *etxt = 0;
    char vbuff[(g_maxvolen+1)*2];
-   int i, n;
+   int idx = 0, n;
 
 // We must have a vo, it must be shorter than 255 bytes, and it must be in our
 // vo list of we have one
@@ -179,10 +179,17 @@ int XrdSecgsiAuthzFun(XrdSecEntity &entity)
        if (entity.name) free(entity.name);
        entity.name = strdup(vbuff);
       } else if (g_cn2usr && entity.name && (vtxt=strstr(entity.name,"/CN=")))
-                {char *cP = vbuff;
-                 strncpy(vbuff, vtxt+4, g_maxvolen); vbuff[n] = 0;
-                 while(*cP) {if (*cP == ' ') *cP = '_'; cP++;}
-                 for (i = n-1; i >= 0; i--) {if (*cP == '_') *cP = 0;}
+                {if (n > g_maxvolen) n = g_maxvolen;
+                 vtxt += 4;
+
+                 // Copy the first CN name that is encountered
+                 while (*vtxt && *vtxt != '/' && idx < n)
+                    {vbuff[idx] = *vtxt++;
+                     if (vbuff[idx] == ' ') vbuff[idx] = '_';
+                     idx++;
+                    }
+                 vbuff[idx] = 0;
+
                  if (*vbuff)
                     {if (entity.name) free(entity.name);
                      entity.name = strdup(vbuff);
