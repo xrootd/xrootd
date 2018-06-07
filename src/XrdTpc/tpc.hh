@@ -1,7 +1,9 @@
 
-#include <string>
 #include <memory>
-#include <atomic>
+#include <string>
+#include <vector>
+
+#include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdHttp/XrdHttpExtHandler.hh"
 
@@ -19,10 +21,10 @@ public:
     TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv);
     virtual ~TPCHandler();
 
-    virtual bool MatchesPath(const char *verb, const char *path) override;
-    virtual int ProcessReq(XrdHttpExtReq &req) override;
+    virtual bool MatchesPath(const char *verb, const char *path);
+    virtual int ProcessReq(XrdHttpExtReq &req);
     // Abstract method in the base class, but does not seem to be used
-    virtual int Init(const char *cfgfile) override {return 0;}
+    virtual int Init(const char *cfgfile) {return 0;}
 
 private:
     int ProcessOptionsReq(XrdHttpExtReq &req);
@@ -48,6 +50,9 @@ private:
     // Experimental multi-stream version of RunCurlWithUpdates
     int RunCurlWithStreams(XrdHttpExtReq &req, TPC::State &state,
                            const char *log_prefix, size_t streams);
+    int RunCurlWithStreamsImpl(XrdHttpExtReq &req, TPC::State &state,
+                           const char *log_prefix, size_t streams,
+                           std::vector<TPC::State*> streams_handles);
 #else
     int RunCurlBasic(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                      const char *log_prefix);
@@ -60,14 +65,15 @@ private:
                         std::string &path2, bool &path2_alt);
     bool Configure(const char *configfn, XrdOucEnv *myEnv);
 
-    static constexpr int m_marker_period = 5;
-    static constexpr size_t m_block_size = 16*1024*1024;
-    bool m_desthttps{false};
+    static int m_marker_period;
+    static size_t m_block_size;
+    bool m_desthttps;
     std::string m_cadir;
-    static std::atomic<uint64_t> m_monid;
+    static XrdSysMutex m_monid_mutex;
+    static uint64_t m_monid;
     XrdSysError &m_log;
     std::unique_ptr<XrdSfsFileSystem> m_sfs;
-    void *m_handle_base{nullptr};
-    void *m_handle_chained{nullptr};
+    void *m_handle_base;
+    void *m_handle_chained;
 };
 }

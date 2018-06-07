@@ -7,6 +7,12 @@ using namespace TPC;
 
 Stream::~Stream()
 {
+    for (std::vector<Entry*>::iterator buffer_iter = m_buffers.begin();
+        buffer_iter != m_buffers.end();
+        buffer_iter++) {
+        delete *buffer_iter;
+        *buffer_iter = NULL;
+    }
     m_fh->close();
 }
 
@@ -45,18 +51,20 @@ Stream::Write(off_t offset, const char *buf, size_t size)
     size_t avail_count = 0;
     do {
         avail_count = 0;
-        avail_entry = nullptr;
+        avail_entry = NULL;
         buffer_was_written = false;
-        for (Entry &entry : m_buffers) {
+        for (std::vector<Entry*>::iterator entry_iter = m_buffers.begin();
+             entry_iter != m_buffers.end();
+             entry_iter++) {
             // Always try to dump from memory.
-            if (entry.Write(*this) > 0) {
+            if ((*entry_iter)->Write(*this) > 0) {
                 buffer_was_written = true;
             }
-            if (entry.Available()) { // Empty buffer
-                if (!avail_entry) {avail_entry = &entry;}
+            if ((*entry_iter)->Available()) { // Empty buffer
+                if (!avail_entry) {avail_entry = *entry_iter;}
                 avail_count ++;
             }
-            else if (!buffer_accepted && entry.Accept(offset, buf, size)) {
+            else if (!buffer_accepted && (*entry_iter)->Accept(offset, buf, size)) {
                 buffer_accepted = true;
             }
         }
@@ -75,8 +83,10 @@ Stream::Write(off_t offset, const char *buf, size_t size)
 
     // If we have low buffer occupancy, then release memory.
     if ((m_buffers.size() > 2) && (m_avail_count * 2 > m_buffers.size())) {
-        for (Entry &entry : m_buffers) {
-            entry.ShrinkIfUnused();
+        for (std::vector<Entry*>::iterator entry_iter = m_buffers.begin();
+             entry_iter != m_buffers.end();
+             entry_iter++) {
+            (*entry_iter)->ShrinkIfUnused();
         }
     }
 

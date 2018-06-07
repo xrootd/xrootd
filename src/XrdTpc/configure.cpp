@@ -18,27 +18,27 @@ using namespace TPC;
 
 
 static XrdSfsFileSystem *load_sfs(void *handle, bool alt, XrdSysError &log, const std::string &libpath, const char *configfn, XrdOucEnv &myEnv, XrdSfsFileSystem *prior_sfs) {
-    XrdSfsFileSystem *sfs = nullptr;
+    XrdSfsFileSystem *sfs = NULL;
     if (alt) {
-        auto ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *, XrdSysLogger *, const char *, XrdOucEnv *))
+        XrdSfsFileSystem2_t ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *, XrdSysLogger *, const char *, XrdOucEnv *))
                       (dlsym(handle, "XrdSfsGetFileSystem2"));
-        if (ep == nullptr) {
+        if (ep == NULL) {
             log.Emsg("Config", "Failed to load XrdSfsGetFileSystem2 from library ", libpath.c_str(), dlerror());
-            return nullptr;
+            return NULL;
         }
         sfs = ep(prior_sfs, log.logger(), configfn, &myEnv);
     } else {
-        auto ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *, XrdSysLogger *, const char *))
-                              (dlsym(nullptr, "XrdSfsGetFileSystem"));
-        if (ep == nullptr) {
+        XrdSfsFileSystem_t ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *, XrdSysLogger *, const char *))
+                              (dlsym(NULL, "XrdSfsGetFileSystem"));
+        if (ep == NULL) {
             log.Emsg("Config", "Failed to load XrdSfsGetFileSystem from library ", libpath.c_str(), dlerror());
-            return nullptr;
+            return NULL;
         }
         sfs = ep(prior_sfs, log.logger(), configfn);
     }
     if (!sfs) {
         log.Emsg("Config", "Failed to initialize filesystem library for TPC handler from ", libpath.c_str());
-        return nullptr;
+        return NULL;
     }
     return sfs;
 }
@@ -138,10 +138,10 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     }
     Config.Close();
 
-    XrdSfsFileSystem *base_sfs = nullptr;
+    XrdSfsFileSystem *base_sfs = NULL;
     if (path1 == "default") {
         m_log.Emsg("Config", "Loading the default filesystem");
-        base_sfs = XrdSfsGetDefaultFileSystem(nullptr, m_log.logger(), configfn, myEnv);
+        base_sfs = XrdSfsGetDefaultFileSystem(NULL, m_log.logger(), configfn, myEnv);
         m_log.Emsg("Config", "Finished loading the default filesystem");
     } else {
         char resolvePath[2048];
@@ -151,17 +151,17 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
             return false;
         }
         m_handle_base = dlopen(resolvePath, RTLD_LOCAL|RTLD_NOW);
-        if (m_handle_base == nullptr) {
+        if (m_handle_base == NULL) {
             m_log.Emsg("Config", "Failed to base plugin ", resolvePath, dlerror());
             return false;
         }
-        base_sfs = load_sfs(m_handle_base, path1_alt, m_log, path1, configfn, *myEnv, nullptr);
+        base_sfs = load_sfs(m_handle_base, path1_alt, m_log, path1, configfn, *myEnv, NULL);
     }
     if (!base_sfs) {
         m_log.Emsg("Config", "Failed to initialize filesystem library for TPC handler from ", path1.c_str());
         return false;
     }
-    XrdSfsFileSystem *chained_sfs = nullptr;
+    XrdSfsFileSystem *chained_sfs = NULL;
     if (!path2.empty()) {
         char resolvePath[2048];
         bool usedAltPath{true};
@@ -170,7 +170,7 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
             return false;
         }
         m_handle_chained = dlopen(resolvePath, RTLD_LOCAL|RTLD_NOW);
-        if (m_handle_chained == nullptr) {
+        if (m_handle_chained == NULL) {
             m_log.Emsg("Config", "Failed to chained plugin ", resolvePath, dlerror());
             return false;
         }

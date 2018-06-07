@@ -23,9 +23,9 @@ public:
         : m_avail_count(max_blocks),
           m_fh(std::move(fh))
     {
-        //m_buffers.reserve(max_blocks);
+        m_buffers.reserve(max_blocks);
         for (size_t idx=0; idx < max_blocks; idx++) {
-            m_buffers.emplace_back(buffer_size);
+            m_buffers.push_back(new Entry(buffer_size));
         }
     }
 
@@ -44,11 +44,10 @@ private:
     class Entry {
     public:
         Entry(size_t capacity) :
-            m_capacity(capacity)
+            m_offset(-1),
+            m_capacity(capacity),
+            m_size(0)
         {}
-
-        Entry(const Entry&) = delete;
-        Entry(Entry&&) = default;
 
         bool Available() const {return m_offset == -1;}
 
@@ -91,23 +90,34 @@ private:
 
         void ShrinkIfUnused() {
            if (!Available()) {return;}
+#if __cplusplus > 199711L
            m_buffer.shrink_to_fit();
+#endif
+        }
+
+        void Move(Entry &other) {
+            m_buffer.swap(other.m_buffer);
+            m_offset = other.m_offset;
+            m_size = other.m_size;
         }
 
     private:
+
+        Entry(const Entry&) = delete;
+
         bool CanWrite(Stream &stream) const {
             return (m_size > 0) && (m_offset == stream.m_offset);
         }
 
-        off_t m_offset{-1};  // Offset within file that m_buffer[0] represents.
-        const size_t m_capacity;
-        size_t m_size{0};  // Number of bytes held in buffer.
+        off_t m_offset;  // Offset within file that m_buffer[0] represents.
+        size_t m_capacity;
+        size_t m_size;  // Number of bytes held in buffer.
         std::vector<char> m_buffer;
     };
 
     size_t m_avail_count;
     std::unique_ptr<XrdSfsFile> m_fh;
-    off_t m_offset{0};
-    std::vector<Entry> m_buffers;
+    off_t m_offset;
+    std::vector<Entry*> m_buffers;
 };
 }

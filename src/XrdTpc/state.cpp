@@ -14,28 +14,31 @@
 
 using namespace TPC;
 
+
 State::~State() {
     if (m_headers) {
             curl_slist_free_all(m_headers);
-            m_headers = nullptr;
+            m_headers = NULL;
             if (m_curl) {curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, m_headers);}
     }
 }
 
-State::State(State && other) noexcept :
-    m_push(other.m_push),
-    m_recv_status_line(other.m_recv_status_line),
-    m_recv_all_headers(other.m_recv_all_headers),
-    m_offset(other.m_offset),
-    m_start_offset(other.m_start_offset),
-    m_status_code(other.m_status_code),
-    m_content_length(other.m_content_length),
-    m_stream(other.m_stream),
-    m_curl(other.m_curl),
-    m_headers(other.m_headers),
-    m_headers_copy(std::move(other.m_headers_copy)),
-    m_resp_protocol(std::move(m_resp_protocol))
+
+void State::Move(State &other)
 {
+    m_push = other.m_push;
+    m_recv_status_line = other.m_recv_status_line;
+    m_recv_all_headers = other.m_recv_all_headers;
+    m_offset = other.m_offset;
+    m_start_offset = other.m_start_offset;
+    m_status_code = other.m_status_code;
+    m_content_length = other.m_content_length;
+    m_stream = other.m_stream;
+    m_curl = other.m_curl;
+    m_headers = other.m_headers;
+    m_headers_copy = other.m_headers_copy;
+    m_resp_protocol = m_resp_protocol;
+
     curl_easy_setopt(m_curl, CURLOPT_HEADERDATA, this);
     if (m_push) {
         curl_easy_setopt(m_curl, CURLOPT_READDATA, this);
@@ -43,8 +46,9 @@ State::State(State && other) noexcept :
         curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
     }
     other.m_headers_copy.clear();
-    other.m_curl = nullptr;
-    other.m_headers = nullptr;
+    other.m_curl = NULL;
+    other.m_headers = NULL;
+    other.m_stream = NULL;
 }
 
 bool State::InstallHandlers(CURL *curl) {
@@ -56,7 +60,7 @@ bool State::InstallHandlers(CURL *curl) {
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, &State::ReadCB);
         curl_easy_setopt(curl, CURLOPT_READDATA, this);
         struct stat buf;
-        if (SFS_OK == m_stream.Stat(&buf)) {
+        if (SFS_OK == m_stream->Stat(&buf)) {
             curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, buf.st_size);
         }
     } else {
@@ -76,21 +80,23 @@ bool State::InstallHandlers(CURL *curl) {
  * Handle the 'Copy-Headers' feature
  */
 void State::CopyHeaders(XrdHttpExtReq &req) {
-    struct curl_slist *list = nullptr;
-    for (auto &hdr : req.headers) {
-        if (hdr.first == "Copy-Header") {
-            list = curl_slist_append(list, hdr.second.c_str());
-            m_headers_copy.emplace_back(hdr.second);
+    struct curl_slist *list = NULL;
+    for (std::map<std::string, std::string>::const_iterator hdr_iter = req.headers.begin();
+         hdr_iter != req.headers.end();
+         hdr_iter++) {
+        if (hdr_iter->first == "Copy-Header") {
+            list = curl_slist_append(list, hdr_iter->second.c_str());
+            m_headers_copy.emplace_back(hdr_iter->second);
         }
         // Note: len("TransferHeader") == 14
-        if (!hdr.first.compare(0, 14, "TransferHeader")) {
+        if (!hdr_iter->first.compare(0, 14, "TransferHeader")) {
             std::stringstream ss;
-            ss << hdr.first.substr(14) << ": " << hdr.second;
+            ss << hdr_iter->first.substr(14) << ": " << hdr_iter->second;
             list = curl_slist_append(list, ss.str().c_str());
             m_headers_copy.emplace_back(ss.str());
         }
     }
-    if (list != nullptr) {
+    if (list != NULL) {
         curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
         m_headers = list;
     }
@@ -170,7 +176,7 @@ size_t State::WriteCB(void *buffer, size_t size, size_t nitems, void *userdata) 
 }
 
 int State::Write(char *buffer, size_t size) {
-    int retval = m_stream.Write(m_start_offset + m_offset, buffer, size);
+    int retval = m_stream->Write(m_start_offset + m_offset, buffer, size);
     if (retval == SFS_ERROR) {
             return -1;
     }
@@ -186,7 +192,7 @@ size_t State::ReadCB(void *buffer, size_t size, size_t nitems, void *userdata) {
 }
 
 int State::Read(char *buffer, size_t size) {
-    int retval = m_stream.Read(m_start_offset + m_offset, buffer, size);
+    int retval = m_stream->Read(m_start_offset + m_offset, buffer, size);
     if (retval == SFS_ERROR) {
         return -1;
     }
@@ -195,25 +201,27 @@ int State::Read(char *buffer, size_t size) {
     return retval;
 }
 
-State State::Duplicate() {
+State *State::Duplicate() {
     CURL *curl = curl_easy_duphandle(m_curl);
     if (!curl) {
         throw std::runtime_error("Failed to duplicate existing curl handle.");
     }
 
-    State state(0, m_stream, curl, m_push);
+    State *state = new State(0, *m_stream, curl, m_push);
 
     if (m_headers) {
-        state.m_headers_copy.reserve(m_headers_copy.size());
-        for (auto &header : m_headers_copy) {
-            state.m_headers = curl_slist_append(state.m_headers, header.c_str());
-            state.m_headers_copy.push_back(header);
+        state->m_headers_copy.reserve(m_headers_copy.size());
+        for (std::vector<std::string>::const_iterator header_iter = m_headers_copy.begin();
+             header_iter != m_headers_copy.end();
+             header_iter++) {
+            state->m_headers = curl_slist_append(state->m_headers, header_iter->c_str());
+            state->m_headers_copy.push_back(*header_iter);
         }
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, nullptr);
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, state.m_headers);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, state->m_headers);
     }
 
-    return std::move(state);
+    return state;
 }
 
 void State::SetTransferParameters(off_t offset, size_t size) {
@@ -227,5 +235,5 @@ void State::SetTransferParameters(off_t offset, size_t size) {
 
 int State::AvailableBuffers() const
 {
-    return m_stream.AvailableBuffers();
+    return m_stream->AvailableBuffers();
 }

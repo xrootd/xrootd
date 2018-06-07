@@ -6,6 +6,7 @@
 
 #include "tpc.hh"
 #include "state.hh"
+#include "XrdTpcCurlMulti.hh"
 
 #include "XrdSys/XrdSysError.hh"
 
@@ -14,6 +15,7 @@
 #include <sstream>
 #include <stdexcept>
 
+
 using namespace TPC;
 
 class CurlHandlerSetupError : public std::runtime_error {
@@ -21,35 +23,42 @@ public:
     CurlHandlerSetupError(const std::string &msg) :
         std::runtime_error(msg)
     {}
-    virtual ~CurlHandlerSetupError() {}
+
+    virtual ~CurlHandlerSetupError() throw () {}
 };
 
 namespace {
 class MultiCurlHandler {
 public:
-    MultiCurlHandler(std::vector<State> &states) :
+    MultiCurlHandler(std::vector<State*> &states) :
         m_handle(curl_multi_init()),
         m_states(states)
     {
-        if (m_handle == nullptr) {
+        if (m_handle == NULL) {
             throw CurlHandlerSetupError("Failed to initialize a libcurl multi-handle");
         }
         m_avail_handles.reserve(states.size());
         m_active_handles.reserve(states.size());
-        for (State &state : states) {
-            m_avail_handles.push_back(state.GetHandle());
+        for (std::vector<State*>::const_iterator state_iter = states.begin();
+             state_iter != states.end();
+             state_iter++) {
+            m_avail_handles.push_back((*state_iter)->GetHandle());
         }
     }
 
     ~MultiCurlHandler()
     {
         if (!m_handle) {return;}
-        for (CURL * easy_handle : m_active_handles) {
-            curl_multi_remove_handle(m_handle, easy_handle);
-            curl_easy_cleanup(easy_handle);
+        for (std::vector<CURL *>::const_iterator it = m_active_handles.begin();
+             it != m_active_handles.end();
+             it++) {
+            curl_multi_remove_handle(m_handle, *it);
+            curl_easy_cleanup(*it);
         }
-        for (auto & easy_handle : m_avail_handles) {
-            curl_easy_cleanup(easy_handle);
+        for (std::vector<CURL *>::const_iterator it = m_avail_handles.begin();
+             it != m_avail_handles.end();
+             it++) {
+            curl_easy_cleanup(*it);
         }
         curl_multi_cleanup(m_handle);
     }
@@ -66,13 +75,15 @@ public:
                << curl_multi_strerror(mres);
             throw std::runtime_error(ss.str());
         }
-        for (auto &state : m_states) {
-            if (curl == state.GetHandle()) {
-                state.ResetAfterRequest();
+        for (std::vector<State*>::iterator state_iter = m_states.begin();
+             state_iter != m_states.end();
+             state_iter++) {
+            if (curl == (*state_iter)->GetHandle()) {
+                (*state_iter)->ResetAfterRequest();
                 break;
             }
         }
-        for (auto iter = m_active_handles.begin();
+        for (std::vector<CURL *>::iterator iter = m_active_handles.begin();
              iter != m_active_handles.end();
              ++iter)
         {
@@ -104,11 +115,15 @@ private:
 
     bool StartTransfer(off_t offset, size_t size) {
         if (!CanStartTransfer()) {return false;}
-        for (auto &handle : m_avail_handles) {
-            for (auto &state : m_states) {
-                if (state.GetHandle() == handle) {  // This state object represents an idle handle.
-                    state.SetTransferParameters(offset, size);
-                    ActivateHandle(state);
+        for (std::vector<CURL*>::const_iterator handle_it = m_avail_handles.begin();
+             handle_it != m_avail_handles.end();
+             handle_it++) {
+            for (std::vector<State*>::iterator state_it = m_states.begin();
+                 state_it != m_states.end();
+                 state_it++) {
+                if ((*state_it)->GetHandle() == *handle_it) {  // This state object represents an idle handle.
+                    (*state_it)->SetTransferParameters(offset, size);
+                    ActivateHandle(**state_it);
                     return true;
                 }
             }
@@ -141,10 +156,14 @@ private:
     bool CanStartTransfer() const {
         size_t idle_handles = m_avail_handles.size();
         size_t transfer_in_progress = 0;
-        for (auto &state : m_states) {
-            for (const auto &handle : m_active_handles) {
-                if (handle == state.GetHandle()) {
-                    transfer_in_progress += state.BodyTransferInProgress();
+        for (std::vector<State*>::const_iterator state_iter = m_states.begin();
+             state_iter != m_states.end();
+             state_iter++) {
+            for (std::vector<CURL*>::const_iterator handle_iter = m_active_handles.begin();
+                 handle_iter != m_active_handles.end();
+                 handle_iter++) {
+                if (*handle_iter == (*state_iter)->GetHandle()) {
+                    transfer_in_progress += (*state_iter)->BodyTransferInProgress();
                     break;
                 }
             }
@@ -152,7 +171,7 @@ private:
         if (!idle_handles) {
             return false;
         }
-        ssize_t available_buffers = m_states[0].AvailableBuffers();
+        ssize_t available_buffers = m_states[0]->AvailableBuffers();
         // To be conservative, set aside buffers for any transfers that have been activated
         // but don't have their first responses back yet.
         available_buffers -= (m_active_handles.size() - transfer_in_progress);
@@ -162,14 +181,14 @@ private:
     CURLM *m_handle;
     std::vector<CURL *> m_avail_handles;
     std::vector<CURL *> m_active_handles;
-    std::vector<State> &m_states;
+    std::vector<State*> &m_states;
 };
 }
 
 
-int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
-                                   const char *log_prefix, size_t streams)
-try
+int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
+                                       const char *log_prefix, size_t streams,
+                                       std::vector<State*> handles)
 {
     int result;
     bool success;
@@ -187,11 +206,11 @@ try
     }
     state.ResetAfterRequest();    
 
-    std::vector<State> handles;
     handles.reserve(streams);
-    handles.emplace_back(std::move(state));
+    handles.push_back(new State());
+    handles[0]->Move(state);
     for (size_t idx = 1; idx < streams; idx++) {
-        handles.emplace_back(handles[0].Duplicate());  // Makes a duplicate of the original state
+        handles.push_back(handles[0]->Duplicate());
     }
 
     // Create the multi-handle and add in the current transfer to it.
@@ -267,7 +286,13 @@ try
             continue;
         }
         int fd_count;
-        mres = curl_multi_wait(multi_handle, NULL, 0, max_sleep_time*1000, &fd_count);
+#ifdef HAS_CURL_MULTI
+        mres = curl_multi_wait(multi_handle, NULL, 0, max_sleep_time*1000,
+                               &fd_count);
+#else
+        mres = curl_multi_wait_impl(multi_handle, max_sleep_time*1000,
+                                    &fd_count);
+#endif
         if (mres != CURLM_OK) {
             break;
         }
@@ -314,20 +339,45 @@ try
     if ((retval = req.ChunkResp(ss.str().c_str(), 0))) {
         return retval;
     }
-    return req.ChunkResp(nullptr, 0);
+    return req.ChunkResp(NULL, 0);
 }
-catch (CurlHandlerSetupError e) {
-    m_log.Emsg(log_prefix, e.what());
-    return req.SendSimpleResp(500, nullptr, nullptr, e.what(), 0);
-} catch (std::runtime_error e) {
-    m_log.Emsg(log_prefix, e.what());
-    std::stringstream ss;
-    ss << "failure: " << e.what();
-    int retval;
-    if ((retval = req.ChunkResp(ss.str().c_str(), 0))) {
+int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
+                                   const char *log_prefix, size_t streams)
+{
+    std::vector<State*> handles;
+    try {
+        int retval = RunCurlWithStreamsImpl(req, state, log_prefix, streams, handles);
+        for (std::vector<State*>::iterator state_iter = handles.begin();
+             state_iter != handles.end();
+             state_iter++) {
+            delete *state_iter;
+        }
         return retval;
+    } catch (CurlHandlerSetupError e) {
+        for (std::vector<State*>::iterator state_iter = handles.begin();
+             state_iter != handles.end();
+             state_iter++) {
+            delete *state_iter;
+        }
+
+        m_log.Emsg(log_prefix, e.what());
+        return req.SendSimpleResp(500, NULL, NULL, e.what(), 0);
+    } catch (std::runtime_error e) {
+        for (std::vector<State*>::iterator state_iter = handles.begin();
+             state_iter != handles.end();
+             state_iter++) {
+            delete *state_iter;
+        }
+
+        m_log.Emsg(log_prefix, e.what());
+        std::stringstream ss;
+        ss << "failure: " << e.what();
+        int retval;
+        if ((retval = req.ChunkResp(ss.str().c_str(), 0))) {
+            return retval;
+        }
+        return req.ChunkResp(NULL, 0);
     }
-    return req.ChunkResp(nullptr, 0);
 }
 
 #endif // XRD_CHUNK_RESP

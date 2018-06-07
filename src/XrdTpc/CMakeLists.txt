@@ -43,7 +43,7 @@ pkg_check_modules(CURL REQUIRED libcurl)
 
 include_directories(${XROOTD_INCLUDES} ${XROOTD_PRIVATE_INCLUDES} ${CURL_INCLUDE_DIRS})
 
-add_library(XrdHttpTPC SHARED src/tpc.cpp src/state.cpp src/configure.cpp src/stream.cpp src/multistream.cpp)
+add_library(XrdHttpTPC SHARED src/tpc.cpp src/state.cpp src/configure.cpp src/stream.cpp src/multistream.cpp src/XrdTpcCurlMulti.cpp)
 if ( XRD_CHUNK_RESP )
   set_target_properties(XrdHttpTPC PROPERTIES COMPILE_DEFINITIONS "XRD_CHUNK_RESP" )
 endif ()
