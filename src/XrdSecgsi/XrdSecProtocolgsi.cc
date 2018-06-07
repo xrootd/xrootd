@@ -302,8 +302,15 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    // As of time of testing (June 2018), EOS will redirect to an IP address to handle
    // metadata commands and rely on the reverse DNS lookup for GSI security to function.
    // Hence, this fallback likely needs to be kept for some time.
+   //
+   // We allow an environment variable to override all usage of DNS; default is to fallback
+   // to DNS lookups in limited cases for backward compatibility.
+   const char *trust_dns = getenv("XrdSecGSITrustDNS");
+   if (trust_dns == NULL || !strcmp(trust_dns, "1")) {
       if (!hname || !XrdNetAddrInfo::isHostName(hname)) {
          Entity.host = strdup(endPoint.Name(""));
+      } else if (hname && (hname[0] != '\0') && (hname[strlen(hname)-1] == '.')) {
+         Entity.host = strdup(hname);
       } else {
          // At this point, hname still may possibly be a non-qualified domain name.
          // We append a '.' to the name, which prevents getaddrinfo from doing any
@@ -332,8 +339,13 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
              }
          }
       }
-      epAddr = endPoint;
-      Entity.addrInfo = &epAddr;
+   } else {
+      // We have been told via environment variable to not trust DNS; use the exact
+      // hostname provided by the user.
+      Entity.host = strdup(hname);
+   }
+   epAddr = endPoint;
+   Entity.addrInfo = &epAddr;
 
    // Init session variables
    sessionCF = 0;
