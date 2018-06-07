@@ -46,6 +46,7 @@
 /******************************************************************************/
   
 #define XRDSECSSSID "XrdSecsssID"
+#define XRDSECSSSENDO "XrdSecsssENDORSEMENT"
 
 XrdSysMutex         XrdSecsssID::InitMutex;
 
@@ -203,6 +204,9 @@ XrdSecsssID::sssID *XrdSecsssID::genID(int Secure)
              ? (char *)"nobody"  : pBuff;
    myID.grps = (Secure || XrdOucUtils::GroupName(getegid(), gBuff, pgSz) == 0)
              ? (char *)"nogroup" : gBuff;
+
+   if (getenv(XRDSECSSSENDO)) 
+     {myID.endorsements = getenv(XRDSECSSSENDO); }
 
 // Just return the sssID
 //
