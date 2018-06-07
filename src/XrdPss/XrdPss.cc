@@ -704,6 +704,7 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Try to open and if we failed, return an error
 //
+// cerr <<"Open " <<path <<" -> URL '" <<pbuff <<"'" <<endl;
    if ((fd = XrdPosixXrootd::Open(pbuff,Oflag,Mode)) < 0) return -errno;
 
 // All done
@@ -1050,7 +1051,7 @@ char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
                  const char *path, const char *Cgi, const char *Ident)
 {
    char  hBuff[288], idBuff[8], *idP;
-   const char *theID = "", *Quest = "", *thePath = path;
+   const char *pname, *theID = "", *Quest = "", *thePath = path;
    int n;
 
 // If we have an Ident then use the fd number as the userid. This allows us to
@@ -1069,8 +1070,7 @@ char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
 // Make sure the path is valid for an outgoing proxy
 //
    if (*path == '/') path++;
-   if (*path == 'x') path++;
-   if (!strncmp("root:/", path, 6)) path += 6;
+   if ((pname = XrdPssSys::valProt(path, n, 1))) path += n;
       else {if (!hdrLen) {retc = -ENOTSUP; return 0;}
             n = snprintf(pbuff, pblen, hdrData, theID, thePath, Quest, Cgi);
             if (n >= pblen) {retc = -ENAMETOOLONG; return 0;}
@@ -1086,7 +1086,7 @@ char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
           }
        if (Police[PolObj] && !P2DST(retc, hBuff, sizeof(hBuff), PolObj,
                                     path+(*path == '/' ? 1:0))) return 0;
-       n = snprintf(pbuff, pblen, "root://%s%s%s%s", theID, path, Quest, Cgi);
+       n = snprintf(pbuff, pblen, "%s%s%s%s%s", pname, theID, path, Quest, Cgi);
        if (n >= pblen) {retc = -ENAMETOOLONG; return 0;}
        return pbuff;
       }
@@ -1100,7 +1100,7 @@ char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
 
 // Create the new path
 //
-   n = snprintf(pbuff,pblen,"root://%s%s/%s%s%s",theID,hBuff,path,Quest,Cgi);
+   n = snprintf(pbuff,pblen,"%s%s%s/%s%s%s",pname,theID,hBuff,path,Quest,Cgi);
 
 // Make sure the path will fit
 //
