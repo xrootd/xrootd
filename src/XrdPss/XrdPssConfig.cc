@@ -332,7 +332,7 @@ int XrdPssSys::Configure(const char *cfn)
    strcpy(&theRdr[urlPlen], xP); urlRdr = strdup(theRdr);
 
 // Check if we have any r/w exports as this will determine whether or not we
-// need to initialize the ffs (we'd rather ot if at all possible).
+// need to initialize the ffs (we'd rather not if at all possible).
 //
    fP = XPList.First();
    while(fP && !(fP->Flag() & XRDEXP_NOTRW)) fP = fP->Next();
@@ -367,7 +367,7 @@ int XrdPssSys::buildHdr()
 
 // Fill in start of header
 //
-   strcpy(buff, "root://"); hpLen = strlen(buff);
+   strcpy(buff, protName); hpLen = strlen(buff);
    pb = buff+hpLen; bleft -= hpLen;
 
 // The redirector list must fit into 1K bytes (along with header)
@@ -497,6 +497,29 @@ const char *XrdPssSys::getDomain(const char *hName)
 }
   
 /******************************************************************************/
+/*                               v a l P r o t                                */
+/******************************************************************************/
+
+const char *XrdPssSys::valProt(const char *pname, int &plen, int adj)
+{
+   static  struct pEnt {const char *pname; int pnlen;} pTab[] =
+                       {{ "http://", 7},  { "https://", 8},
+                        { "root://", 7},//{ "roots://", 8},
+                        {"xroot://", 8} //{"xroots://", 9},
+                       };
+   static int pTNum = sizeof(pTab)/sizeof(pEnt);
+   int i;
+
+// Find a match
+//
+   for (i = 0; i < pTNum; i++)
+       {if (!strncmp(pname, pTab[i].pname, pTab[i].pnlen-adj)) break;}
+   if (i >= pTNum) return 0;
+   plen = pTab[i].pnlen-adj;
+   return pTab[i].pname;
+}
+  
+/******************************************************************************/
 /*                                 x c o n f                                  */
 /******************************************************************************/
 
@@ -601,10 +624,13 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 
 /* Function: xorig
 
+   Purpose:  Parse: origin {= [<dest>] | <dest>}
    Purpose:  Parse: origin [<prot>] {= [<dest>] | <dest>}
 
-   Where:    <prot> is one of http, https, root, xroot
-             <dest> <host>[+][:<port>|<port>]
+                                                                                 d
+   where:    <dest> <host>[+][:<port>|<port>] or a URL of the form
+                    <prot>://<dest>[:<port>] where <prot> is one
+                    http, https, root, xroot
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -612,27 +638,14 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 {
     XrdOucTList *tp = 0;
-    char *val, *mval = 0;
+    char *val, *colon, *slash, *mval = 0;
     int  i, port = 0;
+    bool isURL;
 
 //  We are looking for regular managers. These are our points of contact
 //
     if (!(val = Config.GetWord()))
        {errp->Emsg("Config","origin host name not specified"); return 1;}
-
-// Check if this is a protocol spec and is the right one
-//
-   if (*val == ':')
-      {     if (!strcmp(val, ":http" )) protName = "http://";
-       else if (!strcmp(val, ":https")) protName = "https://";
-       else if (!strcmp(val, ":root" )
-            ||  !strcmp(val, ":xroot")) protName = "root://";
-       else {errp->Emsg("Config", "Unsupported origin protocol -", val);
-             return 1;
-            }
-       if (!(val = Config.GetWord()))
-          {errp->Emsg("Config","origin host name not specified"); return 1;}
-      }
 
 // Check for outgoing proxy
 //
@@ -641,12 +654,40 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
        if (!(val = Config.GetWord())) return 0;
       }
       else pfxProxy = outProxy = false;
-   mval = strdup(val);
+
+// Check if the <dest> is a url, if so, the protocol, must be supported
+//
+   if ((colon = index(val, ':')) && *(colon+1) == '/' && *(colon+2) == '/')
+      {int pnlen;
+       protName = valProt(val, pnlen);
+       if (!protName)
+          {errp->Emsg("Config", "Unsupported origin protocol -", val);
+           return 1;
+          }
+       if (*val == 'x') protName++;
+       val += pnlen;
+       if ((slash = index(val, '/')))
+          {if (*(slash+1))
+              {errp->Emsg("Config","badly formed origin URL"); return 1;}
+           *slash = 0;
+          }
+       mval = strdup(val);
+       isURL = true;
+      } else {
+       protName = "root://";
+       mval = strdup(val);
+       isURL = false;
+      }
 
 // Check if there is a port number. This could be as ':port' or ' port'.
 //
-    if (!(val = index(mval,':'))) val = Config.GetWord();
+    if (!(val = index(mval,':')) && !isURL) val = Config.GetWord();
        else {*val = '\0'; val++;}
+
+// At this point, make sure we actually have a host name
+//
+   if (!(*mval))
+      {errp->Emsg("Config","origin host name not specified"); return 1;}
 
 // Validate the port number
 //

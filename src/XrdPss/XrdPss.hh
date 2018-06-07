@@ -156,6 +156,8 @@ static char *P2URL(int &retc, char *pbuff, int pblen,
                    const char *Cgi=0,      int CgiLn=0,
                    const char *tIdent=0,  bool doN2N=true);
 static int   T2UID(const char *Ident);
+static
+const  char *valProt(const char *pname, int &plen, int adj=0);
 
 static const char  *ConfigFN;       // -> Pointer to the config file name
 static const char  *myHost;
