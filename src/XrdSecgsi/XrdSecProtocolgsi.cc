@@ -2561,7 +2561,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int ogmap = 1;
       int gmapto = 600;
       int authzto = -1;
-      int dlgpxy = 0;
+      int dlgpxy = -1;
       int authzpxy = 0;
       int vomsat = 1;
       int moninfo = 0;
@@ -2648,7 +2648,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.ogmap = ogmap;
       opts.gmapto = gmapto;
       opts.authzto = authzto;
-      opts.dlgpxy = dlgpxy;
+      opts.dlgpxy = (dlgpxy >= -1 && dlgpxy <= 1) ? dlgpxy : -1;
       opts.authzpxy = authzpxy;
       opts.vomsat = vomsat;
       opts.moninfo = moninfo;
