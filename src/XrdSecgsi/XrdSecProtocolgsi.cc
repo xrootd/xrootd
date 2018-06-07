@@ -35,6 +35,8 @@
 #include <sys/param.h>
 #include <pwd.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -303,7 +305,32 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
       if (!hname || !XrdNetAddrInfo::isHostName(hname)) {
          Entity.host = strdup(endPoint.Name(""));
       } else {
-         Entity.host = strdup(hname);
+         // At this point, hname still may possibly be a non-qualified domain name.
+         // We append a '.' to the name, which prevents getaddrinfo from doing any
+         // appending of search domains (i.e., expanding "www" to "wwww.unl.edu").
+         // If getaddrinfo succeeds, then we know this was a valid FQDN and we use that.
+         // If it doesn't succeed, then we do a full lookup.
+         struct addrinfo hints;
+         struct addrinfo *results;
+         std::string hname_with_dot(hname);
+         hname_with_dot += ".";
+         memset(&hints, '\0', sizeof(struct addrinfo));
+         hints.ai_family = AF_UNSPEC;
+         int retval = getaddrinfo(hname_with_dot.c_str(), NULL, &hints, &results);
+         if (retval == 0) {
+             freeaddrinfo(results);
+             // We have a valid hostname; proceed.
+             Entity.host = strdup(hname);
+         } else {
+             hints.ai_flags = AI_CANONNAME;
+             int retval = getaddrinfo(hname, NULL, &hints, &results);
+             if (retval == 0 && results && results->ai_canonname) {
+                 Entity.host = strdup(results->ai_canonname);
+                 freeaddrinfo(results);
+             } else { // Lookups aren't working; trust user has done something reasonable.
+                 Entity.host = strdup(hname);
+             }
+         }
       }
       epAddr = endPoint;
       Entity.addrInfo = &epAddr;
