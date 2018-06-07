@@ -147,7 +147,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Debug( PostMasterMsg, "[%s] Stream parameters: Network Stack: %s, "
                 "Connection Window: %d, ConnectionRetry: %d, Stream Error "
-                "Widnow: %d", pStreamName.c_str(), netStack.c_str(),
+                "Window: %d", pStreamName.c_str(), netStack.c_str(),
                 pConnectionWindow, pConnectionRetry, pStreamErrorWindow );
   }
 
@@ -301,7 +301,7 @@ namespace XrdCl
     if( pSubStreams.size() <= path.up )
     {
       log->Warning( PostMasterMsg, "[%s] Unable to send message %s through "
-                    "substream %d using 0 instead", pStreamName.c_str(),
+                    "substream %d, using 0 instead", pStreamName.c_str(),
                     msg->GetDescription().c_str(), path.up );
       path.up = 0;
     }
