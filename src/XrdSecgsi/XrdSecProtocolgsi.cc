@@ -35,8 +35,6 @@
 #include <sys/param.h>
 #include <pwd.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
