@@ -797,6 +797,8 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
 
     TRACEI(REQ, "PostProcessHTTPReq mapping Xrd error [" << xrderrcode
                  << "] to status code [" << httpStatusCode << "]");
+
+    httpStatusText += "\n";
   }
 }
 
