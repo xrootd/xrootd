@@ -21,7 +21,8 @@ class Stream {
 public:
     Stream(std::unique_ptr<XrdSfsFile> fh, size_t max_blocks, size_t buffer_size)
         : m_avail_count(max_blocks),
-          m_fh(std::move(fh))
+          m_fh(std::move(fh)),
+          m_offset(0)
     {
         m_buffers.reserve(max_blocks);
         for (size_t idx=0; idx < max_blocks; idx++) {

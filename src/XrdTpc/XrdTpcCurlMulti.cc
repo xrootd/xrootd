@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <sys/select.h>
 
-#ifndef HAS_CURL_MULTI
+#ifndef HAVE_CURL_MULTI_WAIT
 CURLMcode curl_multi_wait_impl(CURLM *multi_handle, int timeout_ms, int *numfds) {
     int max_fds;
     fd_set read_fd_set[FD_SETSIZE];

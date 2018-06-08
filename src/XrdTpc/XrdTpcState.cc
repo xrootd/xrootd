@@ -51,6 +51,7 @@ void State::Move(State &other)
     other.m_stream = NULL;
 }
 
+
 bool State::InstallHandlers(CURL *curl) {
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "xrootd-tpc/" XrdVERSION);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &State::HeaderCB);
@@ -136,7 +137,7 @@ int State::Header(const std::string &header) {
             return 0;
         }
         m_recv_status_line = true;
-    } else if (header.size() == 0 || header == "\n") {
+    } else if (header.size() == 0 || header == "\n" || header == "\r\n") {
         m_recv_all_headers = true;
     }
     else if (header != "\r\n") {
@@ -178,7 +179,7 @@ size_t State::WriteCB(void *buffer, size_t size, size_t nitems, void *userdata) 
 int State::Write(char *buffer, size_t size) {
     int retval = m_stream->Write(m_start_offset + m_offset, buffer, size);
     if (retval == SFS_ERROR) {
-            return -1;
+        return -1;
     }
     m_offset += retval;
     return retval;

@@ -84,6 +84,12 @@ if( ENABLE_HTTP )
   endif()
 endif()
 
+if( BUILD_TPC )
+set ( CMAKE_REQUIRED_LIBRARIES ${CURL_LIBRARIES} )
+check_function_exists( curl_multi_wait HAVE_CURL_MULTI_WAIT )
+compiler_define_if_found( HAVE_CURL_MULTI_WAIT HAVE_CURL_MULTI_WAIT )
+endif()
+
 if( ENABLE_CEPH )
   find_package( ceph )
   if( CEPH_FOUND )
