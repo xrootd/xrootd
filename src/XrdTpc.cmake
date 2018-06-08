@@ -18,11 +18,12 @@ if( BUILD_TPC )
   add_library(
     ${LIB_XRD_TPC}
     MODULE
-    XrdTpc/configure.cpp
-    XrdTpc/multistream.cpp
-    XrdTpc/state.cpp         XrdTpc/state.hh
-    XrdTpc/stream.cpp        XrdTpc/stream.hh
-    XrdTpc/tpc.cpp           XrdTpc/tpc.hh)
+    XrdTpc/XrdTpcConfigure.cc
+    XrdTpc/XrdTpcMultistream.cc
+    XrdTpc/XrdTpcCurlMulti.cc     XrdTpc/XrdTpcCurlMulti.hh
+    XrdTpc/XrdTpcState.cc         XrdTpc/XrdTpcState.hh
+    XrdTpc/XrdTpcStream.cc        XrdTpc/XrdTpcStream.hh
+    XrdTpc/XrdTpcTPC.cc           XrdTpc/XrdTpcTPC.hh)
 
   target_link_libraries(
     ${LIB_XRD_TPC}

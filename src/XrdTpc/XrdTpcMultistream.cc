@@ -4,8 +4,8 @@
 
 #ifdef XRD_CHUNK_RESP
 
-#include "tpc.hh"
-#include "state.hh"
+#include "XrdTpcTPC.hh"
+#include "XrdTpcState.hh"
 #include "XrdTpcCurlMulti.hh"
 
 #include "XrdSys/XrdSysError.hh"

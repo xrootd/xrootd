@@ -1,5 +1,5 @@
 
-#include "tpc.hh"
+#include "XrdTpcTPC.hh"
 
 #include <dlfcn.h>
 #include <fcntl.h>

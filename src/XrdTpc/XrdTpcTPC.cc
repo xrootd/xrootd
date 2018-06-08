@@ -16,9 +16,9 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "state.hh"
-#include "stream.hh"
-#include "tpc.hh"
+#include "XrdTpcState.hh"
+#include "XrdTpcStream.hh"
+#include "XrdTpcTPC.hh"
 #include "XrdTpcCurlMulti.hh"
 
 using namespace TPC;

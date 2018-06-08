@@ -1,5 +1,5 @@
 
-#include "stream.hh"
+#include "XrdTpcStream.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
 
