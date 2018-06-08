@@ -6,7 +6,7 @@
 
 #ifndef HAVE_CURL_MULTI_WAIT
 CURLMcode curl_multi_wait_impl(CURLM *multi_handle, int timeout_ms, int *numfds) {
-    int max_fds;
+    int max_fds = FD_SETSIZE;
     fd_set read_fd_set[FD_SETSIZE];
     fd_set write_fd_set[FD_SETSIZE];
     fd_set exc_fd_set[FD_SETSIZE];
@@ -23,8 +23,21 @@ CURLMcode curl_multi_wait_impl(CURLM *multi_handle, int timeout_ms, int *numfds)
     }
 
     struct timeval timeout;
-    timeout.tv_sec = timeout_ms / 1000;
-    timeout.tv_usec = (timeout_ms % 1000) * 1000;
+    if (max_fds == -1) {
+        // Per the curl documentation, this case "is because libcurl currently
+        // does something that isn't possible for your application to monitor
+        // with a socket and unfortunately you can then not know exactly when
+        // the current action is completed using select()."
+        //
+        // We use their recommendation to sleep for 100ms.
+        max_fds = 0;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 100*1000;
+    } else {
+        max_fds ++;
+        timeout.tv_sec = timeout_ms / 1000;
+        timeout.tv_usec = (timeout_ms % 1000) * 1000;
+    }
     int select_result = select(max_fds, read_fd_set, write_fd_set, exc_fd_set,
         &timeout);
 
