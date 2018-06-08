@@ -801,15 +801,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
 
       //
-      // Request for delegated proxies
-      if (opt.dlgpxy == 1 || opt.dlgpxy == 3)
-         PxyReqOpts |= kOptsSrvReq;
-      if (opt.dlgpxy == 2 || opt.dlgpxy == 3)
-         PxyReqOpts |= kOptsPxFile;
-      // Some notification
-      DEBUG("Delegated proxies options: "<<PxyReqOpts);
-
-      //
       // Request for proxy export for authorization
       // authzpxy = opt_what*10 + opt_where
       //        opt_what   = 0  full chain
@@ -833,24 +824,37 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
 
       //
-      // Template for the created proxy files
-      if ((PxyReqOpts & kOptsPxFile)) {
-         if (opt.exppxy && !strcmp(opt.exppxy, "=creds")) {
-            PxyReqOpts &= ~kOptsPxFile;
-            PxyReqOpts |=  kOptsPxCred;
-         } else {
-            String TmpProxy = gUsrPxyDef;
-            if (opt.exppxy) TmpProxy = opt.exppxy;
-            if (XrdSutExpand(TmpProxy) == 0) {
-               UsrProxy = TmpProxy;
-            } else {
-               UsrProxy = gUsrPxyDef;
-               UsrProxy += "u<uid>";
-            }
+      // Handle delegated proxies options
+      if (opt.dlgpxy == -1) {
+        // Will not accept any delegated proxies
+        DEBUG("Will not accept delegated proxies");
+      } else {
+        // Ask the client to sign a delegated proxy; client may decide to forward its proxy
+        if (opt.dlgpxy == 1)
+           PxyReqOpts |= kOptsSrvReq;
+
+        // Exporting options (default none: delegated proxy kept in memory, in proxyChain) 
+        if (opt.exppxy) {
+           if (!strcmp(opt.exppxy, "=creds")) {
+              // register the delegated proxy in Entity.creds (in HEX format)
+              PxyReqOpts |=  kOptsPxCred;
+              DEBUG("Delegated proxy saved in Entity.creds ");
+           } else {
+              String TmpProxy = gUsrPxyDef;
+              if (strcmp(opt.exppxy, "=default"))
+                 TmpProxy = opt.exppxy;
+              if (XrdSutExpand(TmpProxy) == 0) {
+                 UsrProxy = TmpProxy;
+              } else {
+                 UsrProxy = gUsrPxyDef;
+                 UsrProxy += "u<uid>";
+              }
+              DEBUG("File template for delegated proxy: "<<UsrProxy);
+           }
          }
-         DEBUG("Template for exported proxy files: "<<UsrProxy);
+         DEBUG("Delegated proxies options: "<<PxyReqOpts);
       }
-      
+
       //
       // VOMS attributes switch
       // vomsat = 0  do not look for
