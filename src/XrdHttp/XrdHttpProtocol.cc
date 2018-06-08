@@ -1426,9 +1426,12 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
     ss << desc;
   } else {
     if (code == 200) ss << "OK";
-    else if (code == 206) ss << "Partial content";
+    else if (code == 206) ss << "Partial Content";
     else if (code == 302) ss << "Redirect";
-    else if (code == 404) ss << "Not found";
+    else if (code == 403) ss << "Forbidden";
+    else if (code == 404) ss << "Not Found";
+    else if (code == 405) ss << "Method Not Allowed";
+    else if (code == 500) ss << "Internal Server Error";
     else ss << "Unknown";
   }
   ss << crlf;

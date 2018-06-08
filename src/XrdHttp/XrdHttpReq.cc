@@ -770,6 +770,36 @@ void XrdHttpReq::parseResource(char *res) {
   
 }
 
+// Map an XRootD error code to an appropriate HTTP status code and message
+// The variables httpStatusCode and httpStatusText will be populated
+
+void XrdHttpReq::mapXrdErrorToHttpStatus() {
+  // Set default HTTP status values for an error case
+  httpStatusCode = 500;
+  httpStatusText = "Unrecognized error";
+
+  // Do error mapping
+  if (xrdresp == kXR_error) {
+    switch (xrderrcode) {
+      case kXR_NotAuthorized:
+        httpStatusCode = 403; httpStatusText = "Operation not permitted";
+        break;
+      case kXR_NotFound:
+        httpStatusCode = 404; httpStatusText = "File not found";
+        break;
+      case kXR_Unsupported:
+        httpStatusCode = 405; httpStatusText = "Operation not supported";
+      default:
+        break;
+    }
+
+    if (!etext.empty()) httpStatusText = etext;
+
+    TRACEI(REQ, "PostProcessHTTPReq mapping Xrd error [" << xrderrcode
+                 << "] to status code [" << httpStatusCode << "]");
+  }
+}
+
 int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
@@ -1419,6 +1449,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
   TRACEI(REQ, "PostProcessHTTPReq req: " << request << " reqstate: " << reqstate);
+  mapXrdErrorToHttpStatus();
 
   switch (request) {
     case XrdHttpReq::rtUnknown:
@@ -1452,11 +1483,13 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           return 1;
         }
 
-        prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                             httpStatusText.c_str(), 0);
         reset();
         return 1;
       } else {
-        prot->SendSimpleResp(404, NULL, NULL, (char *) "Error man!", 0);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                             httpStatusText.c_str(), 0);
         return -1;
       }
     }
@@ -1467,7 +1500,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
 
         if (xrdresp == kXR_error) {
-          prot->SendSimpleResp(404, NULL, NULL, (char *) etext.c_str(), 0);
+          prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                               httpStatusText.c_str(), 0);
           return -1;
         }
 
@@ -1695,7 +1729,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             // We are here if the request failed
             
             if (prot->myRole == kXR_isManager) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "File not found.", 0);
+              prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                                   httpStatusText.c_str(), 0);
               return -1;
             }
 
@@ -1785,8 +1820,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               //  reqstate--;
               //  return 0;
               //}
-              
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Error man!", 0);
+              prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                                   httpStatusText.c_str(), 0);
               return -1;
             }
             
@@ -1923,7 +1958,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0);
             return 1;
           } else {
-            prot->SendSimpleResp(500, NULL, NULL, (char *) etext.c_str(), 0);
+            prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                                 httpStatusText.c_str(), 0);
             return -1;
           }
         }
@@ -1944,7 +1980,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
-        prot->SendSimpleResp(404, NULL, NULL, (char *) etext.c_str(), 0);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                             httpStatusText.c_str(), 0);
         return -1;
       }
 
@@ -1976,7 +2013,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0);
             return 1;
           }
-          prot->SendSimpleResp(500, NULL, NULL, (char *) "Internal Error", 0);
+          prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                               httpStatusText.c_str(), 0);
           return -1;
         }
       }
@@ -1988,7 +2026,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp == kXR_error) {
-        prot->SendSimpleResp(404, NULL, NULL, (char *) etext.c_str(), 0);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                             httpStatusText.c_str(), 0);
         return -1;
       }
 
@@ -2226,12 +2265,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
   }
 
 
-
-
-
   switch (xrdresp) {
     case kXR_error:
-      prot->SendSimpleResp(500, NULL, NULL, (char *) etext.c_str(), 0);
+      prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpStatusText.c_str(), 0);
       return -1;
       break;
 
