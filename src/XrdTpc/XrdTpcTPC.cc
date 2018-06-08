@@ -312,9 +312,12 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         char msg[] = "Internal server error due to libcurl";
         curl_multi_remove_handle(multi_handle, curl);
         curl_easy_cleanup(curl);
-
         curl_multi_cleanup(multi_handle);
-        return req.SendSimpleResp(500, NULL, NULL, msg, 0);
+
+        if ((retval = req.ChunkResp(msg, 0))) {
+            return retval;
+        }
+        return req.ChunkResp(NULL, 0);
     }
 
     // Harvest any messages, looking for CURLMSG_DONE.
@@ -336,7 +339,11 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         curl_multi_cleanup(multi_handle);
         char msg[] = "Internal state error in libcurl";
         m_log.Emsg(log_prefix, msg);
-        return req.SendSimpleResp(500, NULL, NULL, msg, 0);
+
+        if ((retval = req.ChunkResp(msg, 0))) {
+            return retval;
+        }
+        return req.ChunkResp(NULL, 0);
     }
     curl_multi_cleanup(multi_handle);
 
