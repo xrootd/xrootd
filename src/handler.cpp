@@ -4,8 +4,14 @@
 #include <string>
 #include <iostream>
 
+#include "uuid.h"
 #include "json.h"
 #include "macaroons.h"
+
+#include "XrdAcc/XrdAccPrivs.hh"
+#include "XrdAcc/XrdAccAuthorize.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSec/XrdSecEntity.hh"
 
 #include "handler.hh"
 
@@ -54,6 +60,47 @@ ssize_t determine_validity(const std::string& input)
         duration += cur_duration;
     } while (1);
     return duration;
+}
+
+
+std::string
+Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
+                    const std::string &before)
+{
+    uuid_t uu;
+    uuid_generate_random(uu);
+    char uuid_buf[37];
+    uuid_unparse(uu, uuid_buf);
+    std::string result(uuid_buf);
+
+    std::stringstream ss;
+    ss << "ID=" << result << ", ";
+    if (entity.prot[0] != '\0') {ss << "protocol=" << entity.prot << ", ";}
+    if (entity.name) {ss << "name=" << entity.name << ", ";}
+    if (entity.host) {ss << "host=" << entity.host << ", ";}
+    if (entity.vorg) {ss << "vorg=" << entity.vorg << ", ";}
+    if (entity.role) {ss << "vorg=" << entity.role << ", ";}
+    if (entity.grps) {ss << "vorg=" << entity.grps << ", ";}
+    if (entity.endorsements) {ss << "vorg=" << entity.endorsements << ", ";}
+    if (activities.size()) {ss << "activities=" << activities << ", ";}
+    ss << "expires=" << before;
+
+    m_log->Emsg("MacaroonGen", ss.str().c_str());
+    return result;
+}
+
+std::string
+Handler::GenerateActivities(const XrdHttpExtReq & req) const
+{
+    std::string result = "activities:READ_METADATA,";
+    // TODO - generate environment object that includes the Authorization header.
+    XrdAccPrivs privs = m_chain ? m_chain->Access(&req.GetSecEntity(), req.resource.c_str(), AOP_Any, NULL) : XrdAccPriv_None;
+    if ((privs & XrdAccPriv_Create) == XrdAccPriv_Create) {result += ",UPLOAD";}
+    if (privs & XrdAccPriv_Read) {result += ",DOWNLOAD";}
+    if (privs & XrdAccPriv_Delete) {result += ",DELETE";}
+    if ((privs & XrdAccPriv_Chown) == XrdAccPriv_Chown) {result += ",MANAGE,UPDATE_METADATA";}
+    if (privs & XrdAccPriv_Readdir) {result += ",LIST";}
+    return result;
 }
 
 // See if the macaroon handler is interested in this request.
@@ -127,12 +174,36 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     time(&now);
     now += validity;
     char utc_time_buf[21];
-    if (!strftime(utc_time_buf, 28, "before:%FT%TZ", gmtime(&now)))
+    if (!strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&now)))
     {
         return req.SendSimpleResp(500, NULL, NULL, "Internal error constructing UTC time", 0);
     }
+    std::string utc_time_str(utc_time_buf);
+    std::string utc_time_caveat = "before:" + std::string(utc_time_buf);
 
-    std::string macaroon_id = "id1";
+    json_object *caveats_obj;
+    std::vector<std::string> other_caveats;
+    if (json_object_object_get_ex(macaroon_req, "caveats", &caveats_obj))
+    {
+        if (json_object_is_type(caveats_obj, json_type_array))
+        { // Caveats were provided.  Let's record them.
+          // TODO - could just add these in-situ.  No need for the other_caveats vector.
+            int array_length = json_object_array_length(caveats_obj);
+            other_caveats.reserve(array_length);
+            for (int idx=0; idx<array_length; idx++)
+            {
+                json_object *caveat_item = json_object_array_get_idx(caveats_obj, idx);
+                if (caveat_item)
+                {
+                    const char *caveat_item_str = json_object_get_string(caveat_item);
+                    other_caveats.emplace_back(caveat_item_str);
+                }
+            }
+        }
+    }
+
+    std::string activities = GenerateActivities(req);
+    std::string macaroon_id = GenerateID(req.GetSecEntity(), activities, utc_time_str);
     enum macaroon_returncode mac_err;
 
     struct macaroon *mac = macaroon_create(reinterpret_cast<const unsigned char*>(m_location.c_str()),
@@ -144,11 +215,48 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     if (!mac) {
         return req.SendSimpleResp(500, NULL, NULL, "Internal error constructing the macaroon", 0);
     }
-    struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac,
-                                                     reinterpret_cast<const unsigned char*>(utc_time_buf),
-                                                     strlen(utc_time_buf),
-                                                     &mac_err);
+    struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac,
+                                             reinterpret_cast<const unsigned char*>(activities.c_str()),
+                                             activities.size(),
+                                             &mac_err);
     macaroon_destroy(mac);
+    if (!mac_with_activities)
+    {
+        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding default activities to macaroon", 0);
+    }
+
+    for (const auto &caveat : other_caveats)
+    {
+        struct macaroon *mac_tmp = mac_with_activities;
+        mac_with_activities = macaroon_add_first_party_caveat(mac_tmp,
+            reinterpret_cast<const unsigned char*>(caveat.c_str()),
+            caveat.size(),
+            &mac_err);
+        macaroon_destroy(mac_tmp);
+        if (!mac_with_activities)
+        {
+            return req.SendSimpleResp(500, NULL, NULL, "Internal error adding user caveat to macaroon", 0);
+        }
+    }
+
+    std::string path_caveat = "path:" + req.resource;
+    struct macaroon *mac_with_path = macaroon_add_first_party_caveat(mac_with_activities,
+                                                 reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
+                                                 path_caveat.size(),
+                                                 &mac_err);
+    macaroon_destroy(mac_with_activities);
+    if (!mac_with_path) {
+        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding path to macaroon", 0);
+    }
+
+    struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac_with_path,
+                                        reinterpret_cast<const unsigned char*>(utc_time_caveat.c_str()),
+                                        strlen(utc_time_buf),
+                                        &mac_err);
+    macaroon_destroy(mac_with_path);
+    if (!mac_with_date) {
+        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding date to macaroon", 0);
+    }
 
     size_t size_hint = macaroon_serialize_size_hint(mac_with_date, MACAROON_V1);
 
@@ -157,7 +265,22 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(500, NULL, NULL, "Internal error serializing macaroon", 0);
     }
-    
-    return req.SendSimpleResp(500, NULL, NULL, &macaroon_resp[0], size_hint);
+
+    json_object *response_obj = json_object_new_object();
+    if (!response_obj)
+    {
+        return req.SendSimpleResp(500, NULL, NULL, "Unable to create new JSON response object.", 0);
+    }
+    json_object *macaroon_obj = json_object_new_string_len(&macaroon_resp[0], size_hint);
+    if (!macaroon_obj)
+    {
+        return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON macaroon string.", 0);
+    }
+    json_object_object_add(response_obj, "macaroon", macaroon_obj);
+
+    const char *macaroon_result = json_object_to_json_string_ext(response_obj, JSON_C_TO_STRING_PRETTY);
+    int retval = req.SendSimpleResp(200, NULL, NULL, macaroon_result, 0);
+    json_object_put(response_obj);
+    return retval;
 }
 

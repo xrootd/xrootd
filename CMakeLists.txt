@@ -9,6 +9,7 @@ find_package( Macaroons REQUIRED )
 
 include (FindPkgConfig)
 pkg_check_modules(JSON REQUIRED json-c)
+pkg_check_modules(UUID REQUIRED uuid)
 
 macro(use_cxx11)
   if (CMAKE_VERSION VERSION_LESS "3.1")
@@ -27,10 +28,10 @@ endif()
 SET( CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-undefined")
 SET( CMAKE_MODULE_LINKER_FLAGS "-Wl,--no-undefined")
 
-include_directories(${MACAROONS_INCLUDES} ${XROOTD_INCLUDES} ${XROOTD_PRIVATE_INCLUDES} ${JSON_INCLUDE_DIRS})
+include_directories(${MACAROONS_INCLUDES} ${XROOTD_INCLUDES} ${XROOTD_PRIVATE_INCLUDES} ${JSON_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})
 
 add_library(XrdMacaroons SHARED src/macaroons.cpp src/handler.cpp)
-target_link_libraries(XrdMacaroons -ldl ${XROOTD_UTILS_LIB} ${XROOTD_SERVER_LIB} ${MACAROONS_LIB} ${JSON_LIBRARIES} ${XROOTD_HTTP_LIB})
+target_link_libraries(XrdMacaroons -ldl ${XROOTD_UTILS_LIB} ${XROOTD_SERVER_LIB} ${MACAROONS_LIB} ${JSON_LIBRARIES} ${XROOTD_HTTP_LIB} ${UUID_LIBRARIES})
 set_target_properties(XrdMacaroons PROPERTIES OUTPUT_NAME XrdMacaroons-4 SUFFIX ".so" LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/configs/export-lib-symbols")
 
 SET(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Install path for libraries")
