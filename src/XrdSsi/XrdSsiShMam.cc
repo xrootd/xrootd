@@ -46,6 +46,14 @@
 
 using namespace std;
 
+/* Gentoo removed OF from their copy of zconf.h but we need it here.
+   See https://bugs.gentoo.org/show_bug.cgi?id=383179 for the sad history.
+   This patch modelled after https://trac.osgeo.org/gdal/changeset/24622
+*/
+#ifndef OF
+#define OF(args) args
+#endif
+
 /******************************************************************************/
 /*   S h a r e d   M e m o r y   I n f o r m a t i o n   S t r u c t u r e    */
 /******************************************************************************/
