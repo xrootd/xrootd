@@ -355,7 +355,7 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     // To set the name we pick the first CN of the certificate subject
     // and hope that it makes some sense, it usually does
     char *lnpos = strstr(SecEntity.moninfo, "/CN=");
-    char bufname[64], bufname2[9];
+    char bufname[256], bufname2[9];
         
     if (lnpos) {
       lnpos += 4;
@@ -384,7 +384,7 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     }
     
     if (servGMap) {
-      int e = servGMap->dn2user(SecEntity.moninfo, bufname, 127, 0);
+      int e = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
       if ( !e ) {
         TRACEI(DEBUG, " Mapping Username: " << SecEntity.moninfo << " --> " << bufname);
         if (SecEntity.name) free(SecEntity.name);
