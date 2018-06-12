@@ -63,6 +63,12 @@ ssize_t determine_validity(const std::string& input)
 }
 
 
+Handler::~Handler()
+{
+    delete m_chain;
+}
+
+
 std::string
 Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
                     const std::string &before)
