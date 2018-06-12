@@ -1486,12 +1486,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         }
 
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), 0);
+                             httpStatusText.c_str(), httpStatusText.length());
         reset();
         return 1;
       } else {
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), 0);
+                             httpStatusText.c_str(), httpStatusText.length());
         return -1;
       }
     }
@@ -1503,7 +1503,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
         if (xrdresp == kXR_error) {
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                               httpStatusText.c_str(), 0);
+                               httpStatusText.c_str(), httpStatusText.length());
           return -1;
         }
 
@@ -1732,7 +1732,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             
             if (prot->myRole == kXR_isManager) {
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                                   httpStatusText.c_str(), 0);
+                                   httpStatusText.c_str(), httpStatusText.length());
               return -1;
             }
 
@@ -1823,7 +1823,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               //  return 0;
               //}
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                                   httpStatusText.c_str(), 0);
+                                   httpStatusText.c_str(), httpStatusText.length());
               return -1;
             }
             
@@ -1833,7 +1833,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           }
           default: //read or readv
           {
-            
+
             // Nothing to do if we are postprocessing a close
             if (ntohs(xrdreq.header.requestid) == kXR_close) return 1;
             
@@ -1961,7 +1961,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             return 1;
           } else {
             prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                                 httpStatusText.c_str(), 0);
+                                 httpStatusText.c_str(), httpStatusText.length());
             return -1;
           }
         }
@@ -1983,7 +1983,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
       if (xrdresp != kXR_ok) {
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), 0);
+                             httpStatusText.c_str(), httpStatusText.length());
         return -1;
       }
 
@@ -2016,7 +2016,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             return 1;
           }
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                               httpStatusText.c_str(), 0);
+                               httpStatusText.c_str(), httpStatusText.length());
           return -1;
         }
       }
@@ -2029,7 +2029,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
       if (xrdresp == kXR_error) {
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), 0);
+                             httpStatusText.c_str(), httpStatusText.length());
         return -1;
       }
 
@@ -2269,7 +2269,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
   switch (xrdresp) {
     case kXR_error:
-      prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpStatusText.c_str(), 0);
+      prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                           httpStatusText.c_str(), httpStatusText.length());
       return -1;
       break;
 
