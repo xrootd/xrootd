@@ -85,10 +85,10 @@ Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
     if (entity.name) {ss << "name=" << entity.name << ", ";}
     if (entity.host) {ss << "host=" << entity.host << ", ";}
     if (entity.vorg) {ss << "vorg=" << entity.vorg << ", ";}
-    if (entity.role) {ss << "vorg=" << entity.role << ", ";}
-    if (entity.grps) {ss << "vorg=" << entity.grps << ", ";}
-    if (entity.endorsements) {ss << "vorg=" << entity.endorsements << ", ";}
-    if (activities.size()) {ss << "activities=" << activities << ", ";}
+    if (entity.role) {ss << "role=" << entity.role << ", ";}
+    if (entity.grps) {ss << "groups=" << entity.grps << ", ";}
+    if (entity.endorsements) {ss << "endorsements=" << entity.endorsements << ", ";}
+    if (activities.size()) {ss << "activity=" << activities << ", ";}
     ss << "expires=" << before;
 
     m_log->Emsg("MacaroonGen", ss.str().c_str());
@@ -98,7 +98,7 @@ Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
 std::string
 Handler::GenerateActivities(const XrdHttpExtReq & req) const
 {
-    std::string result = "activities:READ_METADATA,";
+    std::string result = "activity:READ_METADATA";
     // TODO - generate environment object that includes the Authorization header.
     XrdAccPrivs privs = m_chain ? m_chain->Access(&req.GetSecEntity(), req.resource.c_str(), AOP_Any, NULL) : XrdAccPriv_None;
     if ((privs & XrdAccPriv_Create) == XrdAccPriv_Create) {result += ",UPLOAD";}
@@ -185,7 +185,9 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
         return req.SendSimpleResp(500, NULL, NULL, "Internal error constructing UTC time", 0);
     }
     std::string utc_time_str(utc_time_buf);
-    std::string utc_time_caveat = "before:" + std::string(utc_time_buf);
+    std::stringstream ss;
+    ss << "before:" << utc_time_str;
+    std::string utc_time_caveat = ss.str();
 
     json_object *caveats_obj;
     std::vector<std::string> other_caveats;
@@ -257,7 +259,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
 
     struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac_with_path,
                                         reinterpret_cast<const unsigned char*>(utc_time_caveat.c_str()),
-                                        strlen(utc_time_buf),
+                                        utc_time_caveat.size(),
                                         &mac_err);
     macaroon_destroy(mac_with_path);
     if (!mac_with_date) {

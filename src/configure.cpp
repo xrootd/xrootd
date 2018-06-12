@@ -11,16 +11,16 @@
 
 using namespace Macaroons;
 
-#define TS_Xeq(x, m) (!strcmp(x, var)) success = m(config_obj)
-bool Handler::Config(const char *config, XrdOucEnv *env)
+bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
+    std::string &location, std::string &secret)
 {
-  XrdOucStream config_obj(m_log, getenv("XRDINSTANCE"), env, "=====> ");
+  XrdOucStream config_obj(log, getenv("XRDINSTANCE"), env, "=====> ");
 
   // Open and attach the config file
   //
   int cfg_fd;
   if ((cfg_fd = open(config, O_RDONLY, 0)) < 0) {
-    return m_log->Emsg("Config", errno, "open config file", config);
+    return log->Emsg("Config", errno, "open config file", config);
   }
   config_obj.Attach(cfg_fd);
 
@@ -37,10 +37,10 @@ bool Handler::Config(const char *config, XrdOucEnv *env)
 
     if (!ismine) {continue;}
 
-    if TS_Xeq("secretkey", xsecretkey);
-    else if TS_Xeq("sitename", xsitename);
+    if (!strcmp("secretkey", var)) {success = xsecretkey(config_obj, log, secret);}
+    else if (!strcmp("sitename", var)) {success = xsitename(config_obj, log, location);}
     else {
-        m_log->Say("Config warning: ignoring unknown directive '", orig_var, "'.");
+        log->Say("Config warning: ignoring unknown directive '", orig_var, "'.");
         config_obj.Echo();
         continue;
     }
@@ -50,9 +50,9 @@ bool Handler::Config(const char *config, XrdOucEnv *env)
     }
   }
 
-  if (success && !m_location.size())
+  if (success && !location.size())
   {
-    m_log->Emsg("Config", "all.sitename must be specified to use macaroons.");
+    log->Emsg("Config", "all.sitename must be specified to use macaroons.");
     return false;
   }
 
@@ -60,33 +60,33 @@ bool Handler::Config(const char *config, XrdOucEnv *env)
 }
 
 
-bool Handler::xsitename(XrdOucStream &config_obj)
+bool Handler::xsitename(XrdOucStream &config_obj, XrdSysError *log, std::string &location)
 {
   char *val = config_obj.GetWord();
   if (!val || !val[0])
   {
-    m_log->Emsg("Config", "all.sitename requires a name");
+    log->Emsg("Config", "all.sitename requires a name");
     return false;
   }
 
-  m_location = val;
+  location = val;
   return true;
 }
 
-bool Handler::xsecretkey(XrdOucStream &config_obj)
+bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string &secret)
 {
   char *val = config_obj.GetWord();
   if (!val || !val[0])
   {
-    m_log->Emsg("Config", "Shared secret key not specified");
+    log->Emsg("Config", "Shared secret key not specified");
     return false;
   }
 
   FILE *fp = fopen(val, "r+");
 
   if (fp == NULL) {
-    m_log->Emsg("Config", "Cannot open shared secret key file '", val, "'");
-    m_log->Emsg("Config", "Cannot open shared secret key file. err: ", strerror(errno));
+    log->Emsg("Config", "Cannot open shared secret key file '", val, "'");
+    log->Emsg("Config", "Cannot open shared secret key file. err: ", strerror(errno));
     return false;
   }
 
@@ -97,14 +97,14 @@ bool Handler::xsecretkey(XrdOucStream &config_obj)
   b64 = BIO_new(BIO_f_base64());
   if (!b64)
   {
-    m_log->Emsg("Config", "Failed to allocate base64 filter");
+    log->Emsg("Config", "Failed to allocate base64 filter");
     return false;
   }
   bio = BIO_new_fp(fp, 0); // fp will be closed when BIO is freed.
   if (!bio)
   {
     BIO_free_all(b64);
-    m_log->Emsg("Config", "Failed to allocate BIO filter");
+    log->Emsg("Config", "Failed to allocate BIO filter");
     return false;
   }
   bio_out = BIO_new(BIO_s_mem());
@@ -112,7 +112,7 @@ bool Handler::xsecretkey(XrdOucStream &config_obj)
   {
     BIO_free_all(b64);
     BIO_free_all(bio);
-    m_log->Emsg("Config", "Failed to allocate BIO output");
+    log->Emsg("Config", "Failed to allocate BIO output");
     return false;
   }
 
@@ -129,13 +129,13 @@ bool Handler::xsecretkey(XrdOucStream &config_obj)
   if (inlen < 0) {
     BIO_free_all(b64);
     BIO_free_all(bio_out);
-    m_log->Emsg("Config", "Failure when reading secret key", strerror(errno));
+    log->Emsg("Config", "Failure when reading secret key", strerror(errno));
     return false;
   }
   if (!BIO_flush(bio_out)) {
     BIO_free_all(b64);
     BIO_free_all(bio_out);
-    m_log->Emsg("Config", "Failure when flushing secret key", strerror(errno));
+    log->Emsg("Config", "Failure when flushing secret key", strerror(errno));
     return false;
   }
 
@@ -143,12 +143,12 @@ bool Handler::xsecretkey(XrdOucStream &config_obj)
   long data_len = BIO_get_mem_data(bio_out, &decoded);
   BIO_free_all(b64);
 
-  m_secret = std::string(decoded, data_len);
+  secret = std::string(decoded, data_len);
 
   BIO_free_all(bio_out);
 
-  if (m_secret.size() < 32) {
-    m_log->Emsg("Config", "Secret key is too short; must be 32 bytes long.  Try running 'openssl rand -base64 -out", val, "64' to generate a new key");
+  if (secret.size() < 32) {
+    log->Emsg("Config", "Secret key is too short; must be 32 bytes long.  Try running 'openssl rand -base64 -out", val, "64' to generate a new key");
     return false;
   }
 
