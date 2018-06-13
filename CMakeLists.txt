@@ -31,7 +31,7 @@ SET( CMAKE_MODULE_LINKER_FLAGS "-Wl,--no-undefined")
 
 include_directories(${MACAROONS_INCLUDES} ${XROOTD_INCLUDES} ${XROOTD_PRIVATE_INCLUDES} ${JSON_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS} ${LIBCRYPTO_INCLUDE_DIRS})
 
-add_library(XrdMacaroons SHARED src/macaroons.cpp src/handler.cpp src/configure.cpp)
+add_library(XrdMacaroons SHARED src/macaroons.cpp src/handler.cpp src/authz.cpp src/configure.cpp)
 target_link_libraries(XrdMacaroons -ldl ${XROOTD_UTILS_LIB} ${XROOTD_SERVER_LIB} ${MACAROONS_LIB} ${JSON_LIBRARIES} ${XROOTD_HTTP_LIB} ${UUID_LIBRARIES} ${LIBCRYPTO_LIBRARIES})
 set_target_properties(XrdMacaroons PROPERTIES OUTPUT_NAME XrdMacaroons-4 SUFFIX ".so" LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/configs/export-lib-symbols")
 

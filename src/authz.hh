@@ -1,6 +1,9 @@
 
 #include "XrdAcc/XrdAccAuthorize.hh"
-#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+
+
+class XrdSysError;
 
 namespace Macaroons
 {
@@ -31,7 +34,9 @@ public:
     }
 
 private:
-    std::string m_secretkey;
+    XrdAccAuthorize *m_chain;
+    XrdSysError m_log;
+    std::string m_secret;
     std::string m_location;
 };
 

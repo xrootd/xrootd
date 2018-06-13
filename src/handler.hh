@@ -32,14 +32,15 @@ public:
 
     virtual int Init(const char *cfgfile) override {return 0;}
 
-private:
-    std::string GenerateID(const XrdSecEntity &, const std::string &, const std::string &);
-    std::string GenerateActivities(const XrdHttpExtReq &) const;
-
     // Static configuration method; made static to allow Authz object to reuse
     // this code.
     static bool Config(const char *config, XrdOucEnv *env, XrdSysError *log,
         std::string &location, std::string &secret);
+
+private:
+    std::string GenerateID(const XrdSecEntity &, const std::string &, const std::string &);
+    std::string GenerateActivities(const XrdHttpExtReq &) const;
+
     static bool xsecretkey(XrdOucStream &Config, XrdSysError *log, std::string &secret);
     static bool xsitename(XrdOucStream &Config, XrdSysError *log, std::string &location);
 
