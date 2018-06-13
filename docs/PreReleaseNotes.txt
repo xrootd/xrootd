@@ -20,6 +20,7 @@ Prerelease Notes
   * **[XrdSsi]** Provide summary monitoring information to report stream.
   * **[TPC]** Allow number of streams to use to be passed to the server.
   * **[Proxy]** Implement new options in pfc.diskusage for better control of purging.
+  * **[POSIX]** Implement Cache Context Management plugin.
 
 + **Major bug fixes**
   * **[Server]* ** Fix SEGV when using delegation and VOMSFUN with raw creds.
