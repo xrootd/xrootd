@@ -10,6 +10,7 @@ Prerelease Notes
   * **[Server]** Add &I=<iptype> to 'u' login monitoring record.
   * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
   * **[XrdSsi]** Provide summary monitoring information to report stream.
+  * **[POSIX]** Implement Cache Context Management plugin.
 
 + **Major bug fixes**
 
