@@ -48,6 +48,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucBuffer.hh
   XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCache.hh
+  XrdOuc/XrdOucCacheStats.hh
   XrdOuc/XrdOucCallBack.hh
   XrdOuc/XrdOucChain.hh
   XrdOuc/XrdOucDLlist.hh
@@ -74,6 +75,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucEnum.hh
   XrdOuc/XrdOucCompiler.hh
   XrdPosix/XrdPosix.hh
+  XrdPosix/XrdPosixCache.hh
   XrdPosix/XrdPosixCallBack.hh
   XrdPosix/XrdPosixExtern.hh
   XrdPosix/XrdPosixOsDep.hh

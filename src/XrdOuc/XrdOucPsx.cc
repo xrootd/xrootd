@@ -86,6 +86,8 @@ XrdOucPsx::~XrdOucPsx()
    if (N2NParms)  free(N2NParms);
    if (cPath)     free(cPath);
    if (cParm)     free(cParm);
+   if (mPath)     free(mPath);
+   if (mParm)     free(mParm);
    if (configFN)  free(configFN);
 
    while((tP = setFirst)) {setFirst = tP->next; delete tP;}
@@ -182,8 +184,8 @@ bool XrdOucPsx::ConfigCache(XrdSysError &eDest)
 
 // Get the Object now
 //
-   if (isCache2) {
-      XrdOucCache2     *(*ep)(XrdSysLogger *, const char *, const char *);
+   if (isCache2)
+     {XrdOucCache2     *(*ep)(XrdSysLogger *, const char *, const char *);
       ep = (XrdOucCache2 *(*)(XrdSysLogger *, const char *, const char *))
          (myLib.Resolve(cName));
 
@@ -191,8 +193,7 @@ bool XrdOucPsx::ConfigCache(XrdSysError &eDest)
 
       theCache2 = (XrdOucCache2*)ep(eDest.logger(), configFN, cParm);
       return theCache2 != 0;
-   }
-   else {
+     } else {
       XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
       ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
          (myLib.Resolve(cName));
@@ -201,9 +202,9 @@ bool XrdOucPsx::ConfigCache(XrdSysError &eDest)
 
       theCache = (XrdOucCache*)ep(eDest.logger(), configFN, cParm);
       return theCache != 0;
-   }
+     }
 }
-
+  
 /******************************************************************************/
 /*                             C o n f i g N 2 N                              */
 /******************************************************************************/
@@ -243,7 +244,7 @@ bool XrdOucPsx::ConfigSetup(XrdSysError &eDest, bool hush)
 //
    if (hush) eDest.logger()->Capture(&tFifo);
 
-// Initialize an alternate cache if one is present
+// Initialize an alternate cache if one is present and load a CCM if need be
 //
    if (cPath && !ConfigCache(eDest))
       {aOK = false;
@@ -252,6 +253,16 @@ bool XrdOucPsx::ConfigSetup(XrdSysError &eDest, bool hush)
            WarnPlugin(eDest, tFifo.first, "cachelib", cPath);
            tFifo.Clear();
            eDest.logger()->Capture(&tFifo);
+          }
+      } else {
+       if (mPath && theCache2 && !LoadCCM(eDest))
+          {aOK = false;
+           if (hush)
+              {eDest.logger()->Capture(0);
+               WarnPlugin(eDest, tFifo.first, "ccmlib", mPath);
+               tFifo.Clear();
+               eDest.logger()->Capture(&tFifo);
+              }
           }
       }
 
@@ -272,6 +283,20 @@ bool XrdOucPsx::ConfigSetup(XrdSysError &eDest, bool hush)
    if (hush) eDest.logger()->Capture(0);
    return aOK;
 }
+
+/******************************************************************************/
+/* Private:                      L o a d C C M                                */
+/******************************************************************************/
+
+bool XrdOucPsx::LoadCCM(XrdSysError &eDest)
+{
+   XrdOucPinLoader  myLib(&eDest,myVersion,"ccmlib",mPath);
+
+// Resolve the context manager entry point
+//
+   initCCM = (XrdOucCacheCMInit_t)myLib.Resolve("XrdOucCacheCMInit");
+   return initCCM != 0;
+}
   
 /******************************************************************************/
 /*                                 P a r s e                                  */
@@ -285,6 +310,7 @@ bool XrdOucPsx::Parse(char *var, XrdOucStream &Config, XrdSysError &eDest)
    TS_Xeq("memcache",      ParseCache);  // Backward compatibility
    TS_Xeq("cache",         ParseCache);
    TS_Xeq("cachelib",      ParseCLib);
+   TS_Xeq("ccmlib",        ParseMLib);
    TS_Xeq("ciosync",       ParseCio);
    TS_Xeq("inetmode",      ParseINet);
    TS_Xeq("namelib",       ParseNLib);
@@ -537,6 +563,46 @@ bool XrdOucPsx::ParseCLib(XrdSysError *Eroute, XrdOucStream &Config)
       {Eroute->Emsg("Config", "cachelib parameters too long"); return false;}
    if (cParm) free(cParm);
    cParm = (*parms ? strdup(parms) : 0);
+
+// All done
+//
+   return true;
+}
+  
+/******************************************************************************/
+/*                             P a r s e M L i b                              */
+/******************************************************************************/
+
+/* Function: ParseCLib
+
+   Purpose:  To parse the directive: ccmlib <path> [<parms>]
+
+             <path>    the path of the cache context mgmt library to be used.
+             <parms>   optional parms to be passed
+
+  Output: true upon success or false upon failure.
+*/
+
+bool XrdOucPsx::ParseMLib(XrdSysError *Eroute, XrdOucStream &Config)
+{
+    char *val, parms[2048];
+
+// Get the path and parms
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute->Emsg("Config", "ccmlib not specified"); return false;}
+
+// Save the path
+//
+   if (mPath) free(mPath);
+   mPath = strdup(val);
+
+// Get the parameters
+//
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute->Emsg("Config", "ccmlib parameters too long"); return false;}
+   if (mParm) free(mParm);
+   mParm = (*parms ? strdup(parms) : 0);
 
 // All done
 //
