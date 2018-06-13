@@ -203,11 +203,10 @@ int XrdPssSys::Configure(const char *cfn)
 
 // Create a configurator
 //
-   psxConfig = new XrdOucPsx(myVersion, cfn); // We be deleted later
+   psxConfig = new XrdOucPsx(myVersion, cfn, eDest.logger()); // Deleted later
 
 // Set debug level if so wanted
 //
-   XrdPosixConfig::setLogger(eDest.logger());
    if (getenv("XRDDEBUG")) psxConfig->traceLvl = 4;
 
 // Set the defaault number of worker threads for the client
@@ -252,9 +251,9 @@ int XrdPssSys::Configure(const char *cfn)
 //
    if (!(psxConfig->ConfigSetup(eDest))) return 1;
 
-// Complete initialization (this cannot fail)
+// Complete initialization (we would set the env pointer here)
 //
-   XrdPosixConfig::SetConfig(*psxConfig);
+   if (!XrdPosixConfig::SetConfig(*psxConfig)) return 1;
 
 // Save the N2N library pointer if we will be using it
 //
@@ -307,7 +306,8 @@ int XrdPssSys::Configure(const char *cfn)
 // Export the origin
 //
    theRdr[urlPlen-1] = 0;
-   XrdOucEnv::Export("XRDXROOTD_PROXY", theRdr+hpLen);
+   XrdOucEnv::Export("XRDXROOTD_PROXY",  theRdr+hpLen);
+   XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr+hpLen);
    theRdr[urlPlen-1] = '/';
 
 // Copy out the forwarding that might be happening via the ofs
@@ -454,6 +454,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_PSX("memcache",      ParseCache);  // Backward compatibility
    TS_PSX("cache",         ParseCache);
    TS_PSX("cachelib",      ParseCLib);
+   TS_PSX("ccmlib",        ParseMLib);
    TS_PSX("ciosync",       ParseCio);
    TS_Xeq("config",        xconf);
    TS_Xeq("defaults",      xdef);

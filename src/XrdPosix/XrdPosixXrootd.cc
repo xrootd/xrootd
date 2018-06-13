@@ -190,12 +190,12 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
           else hush = (getenv("XRDPOSIX_DEBUG") == 0);
        if (*cfn)
           {XrdOucPsx psxConfig(&XrdVERSIONINFOVAR(XrdPosix), cfn);
-           if (psxConfig.ClientConfig("posix.", hush))
-              XrdPosixConfig::SetConfig(psxConfig);
-              else {std::cerr <<"Posix: Unable to instantiate specified "
+           if (!psxConfig.ClientConfig("posix.", hush)
+           ||  !XrdPosixConfig::SetConfig(psxConfig))
+              {std::cerr <<"Posix: Unable to instantiate specified "
                            "configuration; program exiting!" <<std::endl;
-                   exit(16);
-                   }
+               exit(16);
+              }
           }
       }
 

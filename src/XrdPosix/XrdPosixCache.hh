@@ -1,10 +1,10 @@
-#ifndef __XRDPOSIXCONFIG_H__
-#define __XRDPOSIXCONFIG_H__
+#ifndef __XRDOUPOSIXCACHE_HH__
+#define __XRDOUPOSIXCACHE_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d P o s i x C o n f i g . h h                      */
+/*                      X r d P o s i x C a c h e . h h                       */
 /*                                                                            */
-/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -28,36 +28,39 @@
 /* The copyright holder's institutional names and contributor's names may not */
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
-/* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-#include <unistd.h>
-#include <sys/types.h>
+class XrdOucCacheStats;
 
-class XrdOucEnv;
-class XrdOucPsx;
-class XrdScheduler;
-
-class XrdPosixConfig
+class XrdPosixCache
 {
 public:
 
-static void    EnvInfo(XrdOucEnv &theEnv);
+// Remove directory from the cache.
+//
+int           Rmdir(const char* path);
 
-static bool    SetConfig(XrdOucPsx &parms);
+// Rename an entry in the cache.
+//
+int           Rename(const char* oldPath, const char* newPath);
 
-static void    SetEnv(const char *kword, int kval);
+// Get item information from the cache.
+//
+int           Stat(const char *path, struct stat &sbuff);
 
-static void    setOids(bool isok);
+// Get cache statistics.
+//
+void          Statistics(XrdOucCacheStats &Stats);
 
-               XrdPosixConfig() {}
-              ~XrdPosixConfig() {}
+// Truncate a file in the cache.
+//
+int           Truncate(const char* path, off_t size);
 
-private:
-static bool initCCM(XrdOucPsx &parms);
-static void initEnv(char *eData);
-static void initEnv(XrdOucEnv &, const char *, long long &);
-static void SetDebug(int val);
-static void SetIPV4(bool userv4);
+// Unlink file in the cache.
+//
+int           Unlink(const char* path);
+
+              XrdPosixCache() {}
+             ~XrdPosixCache() {}
 };
 #endif

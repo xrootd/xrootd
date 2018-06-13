@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <errno.h>
+#include <iostream>
 #include <stdio.h>
 
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -39,6 +40,7 @@
 #include "XrdOuc/XrdOucPsx.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
+#include "XrdPosix/XrdPosixCache.hh"
 #include "XrdPosix/XrdPosixCacheBC.hh"
 #include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
@@ -48,6 +50,7 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
 
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTrace.hh"
 
 /******************************************************************************/
@@ -86,7 +89,33 @@ void XrdPosixConfig::EnvInfo(XrdOucEnv &theEnv)
 }
 
 /******************************************************************************/
-/*                               i n i t E n v                                */
+/* Private:                      i n i t C C M                                */
+/******************************************************************************/
+
+bool XrdPosixConfig::initCCM(XrdOucPsx &parms)
+{
+   static XrdPosixCache pCache;
+   const char *eTxt = "Unable to initialize cache context manager in";
+   const char *mPath;
+
+// Initialize the cache context manager
+//
+   if ((*parms.initCCM)(pCache, parms.theLogger, parms.configFN,
+                        parms.CCMInfo(mPath), parms.theEnv)) return true;
+
+// Issue error message and return failure
+//
+   if (parms.theLogger)
+      {XrdSysError eDest(parms.theLogger, "Posix");
+       eDest.Emsg("InitCCM", eTxt, mPath);
+      } else {
+       std::cerr <<"Posix_InitCCM: " <<eTxt <<' ' <<mPath <<std::endl;
+      }
+    return false;
+}
+
+/******************************************************************************/
+/* Private:                      i n i t E n v                                */
 /******************************************************************************/
 
 // Parse options specified as a cgi string (i.e. var=val&var=val&...). Vars:
@@ -214,9 +243,14 @@ void XrdPosixConfig::initEnv(XrdOucEnv &theEnv, const char *vName, long long &De
 /*                             S e t C o n f i g                              */
 /******************************************************************************/
   
-void XrdPosixConfig::SetConfig(XrdOucPsx &parms)
+bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 {
    XrdOucTList *tP;
+
+// Set log routing
+//
+   XrdPosixGlobals::Trace.SetLogger(parms.theLogger);
+   XrdPosixGlobals::theLogger = parms.theLogger;
 
 // Set networking mode
 //
@@ -257,6 +291,8 @@ void XrdPosixConfig::SetConfig(XrdOucPsx &parms)
         if (parms.theCache2)
            {XrdPosixGlobals::myCache2 = parms.theCache2;
             XrdPosixGlobals::theCache = parms.theCache2;
+            if (parms.initCCM) return initCCM(parms);
+            return true;
            }
    else if (parms.theCache)
            {char ebuf[] = {0};
@@ -264,6 +300,8 @@ void XrdPosixConfig::SetConfig(XrdOucPsx &parms)
             initEnv(ebuf);
            }
    else if (parms.mCache && *parms.mCache) initEnv(parms.mCache);
+
+   return true;
 }
 
 /******************************************************************************/
@@ -322,16 +360,6 @@ void XrdPosixConfig::SetIPV4(bool usev4)
 // Set the env value
 //
    env->PutString((std::string)"NetworkStack", (const std::string)ipmode);
-}
-  
-/******************************************************************************/
-/*                             s e t L o g g e r                              */
-/******************************************************************************/
-
-void XrdPosixConfig::setLogger(XrdSysLogger *logP)
-{
-    XrdPosixGlobals::Trace.SetLogger(logP);
-    XrdPosixGlobals::theLogger = logP;
 }
 
 /******************************************************************************/
