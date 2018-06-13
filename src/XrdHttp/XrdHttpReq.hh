@@ -76,6 +76,10 @@ class XrdOucEnv;
 
 class XrdHttpReq : public XrdXrootd::Bridge::Result {
 private:
+  // HTTP response parameters to be sent back to the user
+  int httpStatusCode;
+  std::string httpStatusText;
+
   int parseContentRange(char *);
   int parseHost(char *);
   int parseRWOp(char *);
@@ -93,6 +97,8 @@ private:
 
   // Parse a resource string, typically a filename, setting the resource field and the opaque data
   void parseResource(char *url);
+  // Map an XRootD error code to an appropriate HTTP status code and message
+  void mapXrdErrorToHttpStatus();
 public:
 
   XrdHttpReq(XrdHttpProtocol *protinstance) {
