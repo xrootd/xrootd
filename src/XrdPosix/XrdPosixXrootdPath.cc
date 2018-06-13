@@ -165,13 +165,13 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
    int cgiLen, lfnLen, pfnLen, pfxLen, n;
    bool notOurs = true;
 
-// Check if we need to do any translation at all
-//
-   if (!XrdPosixGlobals::theN2N && !ponly) return inP;
-
 // Preset repP to zero to indicate no translation required, nothing to free
 //
    relP = 0;
+
+// Check if we need to do any translation at all
+//
+   if (!XrdPosixGlobals::theN2N && !ponly) return inP;
 
 // If this is a protocol we support, then we can convert the path
 //
