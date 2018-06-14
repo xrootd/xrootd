@@ -4,6 +4,7 @@ usr/lib/*/libXrdXrootd-4.so
 usr/lib/*/libXrdFileCache-4.so
 usr/lib/*/libXrdBlacklistDecision-4.so
 usr/lib/*/libXrdHttp-4.so
+usr/lib/*/libXrdHttpTPC-4.so
 usr/lib/*/libXrdHttpUtils.so.*
 usr/lib/*/libXrdN2No2p-4.so
 usr/lib/*/libXrdOssSIgpfsT-4.so
