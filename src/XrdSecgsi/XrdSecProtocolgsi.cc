@@ -41,6 +41,7 @@
 
 #include "XrdVersion.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -163,6 +164,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::VOMSFun = 0;
 int    XrdSecProtocolgsi::VOMSCertFmt = -1;
 int    XrdSecProtocolgsi::MonInfoOpt = 0;
 bool   XrdSecProtocolgsi::HashCompatibility = 1;
+bool   XrdSecProtocolgsi::TrustDNS = true;
 //
 // Crypto related info
 int  XrdSecProtocolgsi::ncrypt    = 0;                 // Number of factories
@@ -301,13 +303,43 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    // As of time of testing (June 2018), EOS will redirect to an IP address to handle
    // metadata commands and rely on the reverse DNS lookup for GSI security to function.
    // Hence, this fallback likely needs to be kept for some time.
+   //
+   // We provide servers a switch and clients an environment variable to override all
+   // usage of DNS (processed on XrdSecProtocolgsiInit).
+   // Default is to fallback to DNS lookups in limited
+   // cases for backward compatibility.
+   if (TrustDNS) {
       if (!hname || !XrdNetAddrInfo::isHostName(hname)) {
          Entity.host = strdup(endPoint.Name(""));
       } else {
-         Entity.host = strdup(hname);
+         // At this point, hname still may possibly be a non-qualified domain name.
+         // If there is a '.' character, then we assume it is a qualified domain name --
+         // otherwise, we use DNS.
+         //
+         // NOTE: We can definitively test whether this is a qualified domain name by
+         // simply appending a '.' to `hname` and performing a lookup.  However, this
+         // causes DNS to be used by every lookup - meaning we rely on the security
+         // of DNS for all cases; we want to avoid this.
+         if (strchr(hname, '.')) {
+             // We have a valid hostname; proceed.
+             Entity.host = strdup(hname);
+         } else {
+             XrdNetAddr xrd_addr;
+             char canonname[256];
+             if (!xrd_addr.Set(hname) || (xrd_addr.Format(canonname, 256, XrdNetAddrInfo::fmtName, XrdNetAddrInfo::noPort) <= 0)) {
+                 Entity.host = strdup(hname);
+             } else {
+                 Entity.host = strdup(canonname);
+             }
+         }
       }
-      epAddr = endPoint;
-      Entity.addrInfo = &epAddr;
+   } else {
+      // We have been told via environment variable to not trust DNS; use the exact
+      // hostname provided by the user.
+      Entity.host = strdup(hname);
+   }
+   epAddr = endPoint;
+   Entity.addrInfo = &epAddr;
 
    // Init session variables
    sessionCF = 0;
@@ -2251,6 +2283,11 @@ void gsiOptions::Print(XrdOucTrace *t)
    POPTS(t, " Crypto modules: "<< (clist ? clist : XrdSecProtocolgsi::DefCrypto));
    POPTS(t, " Ciphers: "<< (cipher ? cipher : XrdSecProtocolgsi::DefCipher));
    POPTS(t, " MDigests: "<< (md ? md : XrdSecProtocolgsi::DefMD));
+   if (trustdns) {
+      POPTS(t, " Trusting DNS for hostname checking");
+   } else {
+      POPTS(t, " Untrusting DNS for hostname checking");
+   }
    POPTS(t, "*** ------------------------------------------------------------ ***");
 }
 
@@ -2424,6 +2461,10 @@ char *XrdSecProtocolgsiInit(const char mode,
       if (cenv)
          opts.hashcomp = 0;
 
+      // DNS trusting control
+      if ((cenv = getenv("XrdSecGSITRUSTDNS")))
+         opts.trustdns = (!strcmp(cenv, "0")) ? false : true;
+
       //
       // Setup the object with the chosen options
       rc = XrdSecProtocolgsi::Init(opts,erp);
@@ -2490,6 +2531,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-vomsfun:<voms_function>]
       //              [-vomsfunparms:<voms_function_init_parameters>]
       //              [-defaulthash]
+      //              [-trustdns:<0|1>]
       //
       int debug = -1;
       String clist = "";
@@ -2519,6 +2561,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int vomsat = 1;
       int moninfo = 0;
       int hashcomp = 1;
+      int trustdns = 1;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -2582,6 +2625,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                moninfo = atoi(op+9);
             } else if (!strcmp(op, "-defaulthash")) {
                hashcomp = 0;
+            } else if (!strncmp(op, "-trustdns:",10)) {
+               trustdns = atoi(op+10);
             } else {
                PRINT("ignoring unknown switch: "<<op);
             }
@@ -2603,6 +2648,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.vomsat = vomsat;
       opts.moninfo = moninfo;
       opts.hashcomp = hashcomp;
+      opts.trustdns = (trustdns <= 0) ? false : true;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)

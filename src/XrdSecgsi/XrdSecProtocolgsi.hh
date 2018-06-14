@@ -200,6 +200,8 @@ public:
    int    moninfo; // [s] 0 do not look for; 1 use DN as default
    int    hashcomp; // [cs] 1 send hash names with both algorithms; 0 send only the default [1]
 
+   bool   trustdns; // [cs] 'true' if DNS is trusted [true]
+
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
                   cipher = 0; md = 0; ca = 1 ; crl = 1; crlrefresh = 86400;
@@ -208,7 +210,7 @@ public:
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
-                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; hashcomp = 1; }
+                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; hashcomp = 1; trustdns = true; }
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
    void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
@@ -341,6 +343,7 @@ private:
    static int              VOMSCertFmt; 
    static int              MonInfoOpt;
    static bool             HashCompatibility;
+   static bool             TrustDNS;
    //
    // Crypto related info
    static int              ncrypt;                  // Number of factories
