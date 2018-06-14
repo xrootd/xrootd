@@ -778,6 +778,7 @@ fi
 %{_libdir}/libXrdFileCache-4.so
 %{_libdir}/libXrdBlacklistDecision-4.so
 %{_libdir}/libXrdHttp-4.so
+%{_libdir}/libXrdHttpUtils.so.*
 %{_libdir}/libXrdN2No2p-4.so
 %{_libdir}/libXrdOssSIgpfsT-4.so
 %{_libdir}/libXrdServer.so.*
@@ -797,6 +798,7 @@ fi
 %{_includedir}/xrootd/XrdXrootd
 %{_includedir}/xrootd/XrdHttp
 %{_libdir}/libXrdServer.so
+%{_libdir}/libXrdHttpUtils.so
 
 %files private-devel
 %defattr(-,root,root,-)

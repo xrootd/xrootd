@@ -29,7 +29,7 @@ if( BUILD_TPC )
     ${LIB_XRD_TPC}
     XrdServer
     XrdUtils
-    XrdHttp-${PLUGIN_VERSION}
+    XrdHttpUtils
     dl
     pthread
     ${CURL_LIBRARIES} )

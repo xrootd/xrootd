@@ -6,3 +6,4 @@ usr/include/xrootd/XrdSfs
 usr/include/xrootd/XrdXrootd
 usr/include/xrootd/XrdHttp
 usr/lib/*/libXrdServer.so
+usr/lib/*/libXrdHttpUtils.so
