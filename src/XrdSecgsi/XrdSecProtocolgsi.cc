@@ -51,6 +51,7 @@
 #include "XrdSut/XrdSutAux.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptoX509Req.hh"
 
 #include "XrdSecgsi/XrdSecProtocolgsi.hh"
@@ -4170,7 +4171,7 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
             X509Chain::EX509ChainErr e;
             x509ChainVerifyOpt_t vopt = {kOptsCheckSubCA, 0, -1, 0};
             if (!(verified = cca->Verify(e, &vopt)))
-               PRINT("CA certificate not self-signed: verification failed ("<<xc->SubjectHash()<<")");
+               PRINT("CA certificate not self-signed: verification failed for '"<<xc->SubjectHash()<<"': error: "<< cca->X509ChainError(e));
          } else {
             PRINT("CA certificate not self-signed: cannot verify integrity ("<<xc->SubjectHash()<<")");
          }
