@@ -19,12 +19,7 @@ namespace {
 class AuthzCheck
 {
 public:
-    AuthzCheck(const char *req_path, const Access_Operation req_oper, XrdSysError &log)
-      : m_log(log),
-        m_path(req_path),
-        m_oper(req_oper),
-        m_now(time(NULL))
-    {}
+    AuthzCheck(const char *req_path, const Access_Operation req_oper, XrdSysError &log);
 
     static int verify_before_s(void *authz_ptr,
                                const unsigned char *pred,
@@ -45,6 +40,7 @@ private:
 
     XrdSysError &m_log;
     const std::string m_path;
+    std::string m_desired_activity;
     Access_Operation m_oper;
     time_t m_now;
 };
@@ -180,6 +176,45 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
 }
 
 
+AuthzCheck::AuthzCheck(const char *req_path, const Access_Operation req_oper, XrdSysError &log)
+      : m_log(log),
+        m_path(req_path),
+        m_oper(req_oper),
+        m_now(time(NULL))
+{
+    switch (m_oper)
+    {
+    case AOP_Any:
+        break;
+    case AOP_Chmod:
+    case AOP_Chown:
+        m_desired_activity = "UPDATE_METADATA";
+        break;
+    case AOP_Insert:
+    case AOP_Lock:
+    case AOP_Mkdir:
+    case AOP_Rename:
+    case AOP_Update:
+        m_desired_activity = "MANAGE";
+        break;
+    case AOP_Create:
+        m_desired_activity = "UPLOAD";
+        break;
+    case AOP_Delete:
+        m_desired_activity = "DELETE";
+        break;
+    case AOP_Read:
+        m_desired_activity = "DOWNLOAD";
+        break;
+    case AOP_Readdir:
+        m_desired_activity = "LIST";
+        break;
+    case AOP_Stat:
+        m_desired_activity = "READ_METADATA";
+    };
+}
+
+
 int
 AuthzCheck::verify_before_s(void *authz_ptr,
                             const unsigned char *pred,
@@ -241,53 +276,23 @@ AuthzCheck::verify_before(const unsigned char * pred, size_t pred_sz)
 int
 AuthzCheck::verify_activity(const unsigned char * pred, size_t pred_sz)
 {
+    if (!m_desired_activity.size()) {return 1;}
     std::string pred_str(reinterpret_cast<const char *>(pred), pred_sz);
     if (strncmp("activity:", pred_str.c_str(), 9)) {return 1;}
     //m_log.Emsg("AuthzCheck", "running verify activity", pred_str.c_str());
 
-    std::string desired_activity;
-    switch (m_oper)
-    {
-    case AOP_Any:
-        break;
-    case AOP_Chmod:
-    case AOP_Chown:
-        desired_activity = "UPDATE_METADATA";
-        break;
-    case AOP_Insert:
-    case AOP_Lock:
-    case AOP_Mkdir:
-    case AOP_Rename:
-    case AOP_Update:
-        desired_activity = "MANAGE";
-        break;
-    case AOP_Create:
-        desired_activity = "UPLOAD";
-        break;
-    case AOP_Delete:
-        desired_activity = "DELETE";
-        break;
-    case AOP_Read:
-        desired_activity = "DOWNLOAD";
-        break;
-    case AOP_Readdir:
-        desired_activity = "LIST";
-        break;
-    case AOP_Stat:
-        desired_activity = "READ_METADATA";
-    };
-    if (!desired_activity.size()) {return 1;}
-
     std::stringstream ss(pred_str.substr(9));
     for (std::string activity; std::getline(ss, activity, ','); )
     {
-        if (activity == desired_activity)
+        // Any allowed activity also implies "READ_METADATA"
+        if (m_desired_activity == "READ_METADATA") {return 0;}
+        if (activity == m_desired_activity)
         {
             //m_log.Emsg("AuthzCheck", "macaroon has desired activity", activity.c_str());
             return 0;
         }
     }
-    //m_log.Emsg("AuthzCheck", "macaroon does NOT have desired activity", desired_activity.c_str());
+    //m_log.Emsg("AuthzCheck", "macaroon does NOT have desired activity", m_desired_activity.c_str());
     return 1;
 }
 
@@ -309,8 +314,22 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
     if (pred_str[compare_chars + 5 - 1] == '/') {compare_chars--;}
 
     int result = strncmp(pred_str.c_str() + 5, m_path.c_str(), compare_chars);
-    //if (!result) {m_log.Emsg("AuthzCheck", "path request verified for", m_path.c_str());}
-    //else {m_log.Emsg("AuthzCheck", "path request NOT allowed", m_path.c_str());}
+    if (!result)
+    {
+        //m_log.Emsg("AuthzCheck", "path request verified for", m_path.c_str());
+    }
+    // READ_METADATA permission for /foo/bar automatically implies permission
+    // to READ_METADATA for /foo.
+    else if (m_oper == AOP_Stat)
+    {
+        result = strncmp(m_path.c_str(), pred_str.c_str() + 5, m_path.size());
+        //if (!result) {m_log.Emsg("AuthzCheck", "READ_METADATA path request verified for", m_path.c_str());}
+        //else {m_log.Emsg("AuthzCheck", "READ_METADATA path request NOT allowed", m_path.c_str());}
+    }
+    else
+    {
+        //m_log.Emsg("AuthzCheck", "path request NOT allowed", m_path.c_str());
+    }
 
     return result;
 }
