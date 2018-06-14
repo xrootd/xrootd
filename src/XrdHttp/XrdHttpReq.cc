@@ -1840,6 +1840,15 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             // Close() if this was the third state of a readv, otherwise read the next chunk
             if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return 1;
 
+            // Prevent scenario where data is expected but none is actually read
+            // E.g. Accessing files which return the results of a script
+            if ((ntohs(xrdreq.header.requestid) == kXR_read) &&
+                (reqstate > 2) && (iovN == 0)) {
+              TRACEI(REQ, "Stopping request because more data is expected "
+                          "but no data has been read.");
+              return -1;
+            }
+
             // If we are here it's too late to send a proper error message...
             if (xrdresp == kXR_error) return -1;
 
