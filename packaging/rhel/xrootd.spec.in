@@ -62,6 +62,7 @@ BuildRequires: libxml2-devel
 BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
+BuildRequires: libcurl-devel
 
 BuildRequires: python2-devel
 %if %{?fedora}%{!?fedora:0} >= 13
