@@ -139,14 +139,13 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
         macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_activity_s, &check_helper, &mac_err) ||
         macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_path_s, &check_helper, &mac_err))
     {
-        m_log.Emsg("Access", "Failed to configure caveat verifier:", macaroon_error(mac_err));
+        m_log.Emsg("Access", "Failed to configure caveat verifier:");
         macaroon_verifier_destroy(verifier);
         return XrdAccPriv_None;
     }
 
     struct macaroon* macaroon = macaroon_deserialize(
-        reinterpret_cast<const unsigned char*>(authz),
-        strlen(authz),
+        authz,
         &mac_err);
     if (!macaroon)
     {

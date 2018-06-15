@@ -266,11 +266,12 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
         return req.SendSimpleResp(500, NULL, NULL, "Internal error adding date to macaroon", 0);
     }
 
-    size_t size_hint = macaroon_serialize_size_hint(mac_with_date, MACAROON_V1);
+    size_t size_hint = macaroon_serialize_size_hint(mac_with_date);
 
     std::vector<char> macaroon_resp; macaroon_resp.reserve(size_hint);
-    if (!(size_hint = macaroon_serialize(mac_with_date, MACAROON_V1, reinterpret_cast<unsigned char*>(&macaroon_resp[0]), size_hint, &mac_err)))
+    if (macaroon_serialize(mac_with_date, &macaroon_resp[0], size_hint, &mac_err))
     {
+        printf("Returned macaroon_serialize code: %lu\n", size_hint);
         return req.SendSimpleResp(500, NULL, NULL, "Internal error serializing macaroon", 0);
     }
 
@@ -279,7 +280,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(500, NULL, NULL, "Unable to create new JSON response object.", 0);
     }
-    json_object *macaroon_obj = json_object_new_string_len(&macaroon_resp[0], size_hint);
+    json_object *macaroon_obj = json_object_new_string_len(&macaroon_resp[0], strlen(&macaroon_resp[0]));
     if (!macaroon_obj)
     {
         return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON macaroon string.", 0);
