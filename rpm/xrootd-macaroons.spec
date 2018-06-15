@@ -19,7 +19,7 @@ BuildRequires: cmake
 BuildRequires: gcc-c++
 BuildRequires: libcurl-devel
 BuildRequires: libuuid-devel
-BuildRequires: libmacaroons
+BuildRequires: libmacaroons-devel
 
 %description
 %{summary}
