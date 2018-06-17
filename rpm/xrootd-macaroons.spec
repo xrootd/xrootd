@@ -20,6 +20,7 @@ BuildRequires: gcc-c++
 BuildRequires: libcurl-devel
 BuildRequires: libuuid-devel
 BuildRequires: libmacaroons-devel
+BuildRequires: openssl-devel
 
 %description
 %{summary}
