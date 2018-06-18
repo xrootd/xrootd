@@ -82,7 +82,7 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
     return false;
   }
 
-  FILE *fp = fopen(val, "r+");
+  FILE *fp = fopen(val, "rb");
 
   if (fp == NULL) {
     log->Emsg("Config", "Cannot open shared secret key file '", val, "'");
