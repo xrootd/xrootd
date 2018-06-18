@@ -4168,6 +4168,15 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
 
    // Point to the certificate
    XrdCryptoX509 *xc = cca->Begin();
+   if (!xc) {
+      PRINT("Cannot attach to first certificate in chain");
+      return 0;
+   }
+   // Make sure it is valid
+   if (!(xc->IsValid())) {
+      PRINT("CA certificate is expired ("<<xc->SubjectHash()<<", not_before: "<<xc->NotBefore()<<" secs UTC )");
+      return 0;
+   }
    // Is it self-signed ?
    bool self = (!strcmp(xc->IssuerHash(), xc->SubjectHash())) ? 1 : 0;
    if (!self) {
