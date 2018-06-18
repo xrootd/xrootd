@@ -90,8 +90,8 @@ public:
    virtual XrdOucString SerialNumberString();
 
    // Validity interval
-   virtual int  NotBefore();  // begin-validity time in secs since Epoch
-   virtual int  NotAfter();   // end-validity time in secs since Epoch
+   virtual time_t  NotBefore();  // begin-validity time in secs since Epoch
+   virtual time_t  NotAfter();   // end-validity time in secs since Epoch
 
    // Issuer of top certificate
    virtual const char *Issuer();

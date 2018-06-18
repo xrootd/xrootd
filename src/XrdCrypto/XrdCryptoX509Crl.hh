@@ -64,8 +64,8 @@ public:
    virtual const char *ParentFile();
 
    // Validity interval
-   virtual int  LastUpdate();  // time when last updated
-   virtual int  NextUpdate();  // time foreseen for next update
+   virtual time_t LastUpdate();  // time when last updated
+   virtual time_t NextUpdate();  // time foreseen for next update
 
    // Issuer of top certificate
    virtual const char *Issuer();

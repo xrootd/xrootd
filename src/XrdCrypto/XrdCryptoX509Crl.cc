@@ -62,7 +62,7 @@ bool XrdCryptoX509Crl::IsExpired(int when)
 }
 
 //_____________________________________________________________________________
-int XrdCryptoX509Crl::LastUpdate()
+time_t XrdCryptoX509Crl::LastUpdate()
 {
    // Time of last update
    ABSTRACTMETHOD("XrdCryptoX509Crl::LastUpdate");
@@ -70,7 +70,7 @@ int XrdCryptoX509Crl::LastUpdate()
 }
 
 //_____________________________________________________________________________
-int XrdCryptoX509Crl::NextUpdate()
+time_t XrdCryptoX509Crl::NextUpdate()
 {
    // Time of next update
    ABSTRACTMETHOD("XrdCryptoX509Crl::NextUpdate");
