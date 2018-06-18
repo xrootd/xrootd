@@ -427,7 +427,7 @@ void XrdCryptosslX509::SetPKI(XrdCryptoX509data newpki)
 }
 
 //_____________________________________________________________________________
-int XrdCryptosslX509::NotBefore()
+time_t XrdCryptosslX509::NotBefore()
 {
    // Begin-validity time in secs since Epoch
 
@@ -443,7 +443,7 @@ int XrdCryptosslX509::NotBefore()
 }
 
 //_____________________________________________________________________________
-int XrdCryptosslX509::NotAfter()
+time_t XrdCryptosslX509::NotAfter()
 {
    // End-validity time in secs since Epoch
 

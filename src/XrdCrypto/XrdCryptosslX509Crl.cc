@@ -418,7 +418,7 @@ int XrdCryptosslX509Crl::LoadCache()
 }
 
 //_____________________________________________________________________________
-int XrdCryptosslX509Crl::LastUpdate()
+time_t XrdCryptosslX509Crl::LastUpdate()
 {
    // Time of last update
 
@@ -434,7 +434,7 @@ int XrdCryptosslX509Crl::LastUpdate()
 }
 
 //_____________________________________________________________________________
-int XrdCryptosslX509Crl::NextUpdate()
+time_t XrdCryptosslX509Crl::NextUpdate()
 {
    // Time of next update
 
