@@ -126,7 +126,7 @@ bool XrdCryptoX509::IsExpired(int when)
 }
 
 //_____________________________________________________________________________
-int XrdCryptoX509::NotBefore()
+time_t XrdCryptoX509::NotBefore()
 {
    // Begin-validity time in secs since Epoch
    ABSTRACTMETHOD("XrdCryptoX509::NotBefore");
@@ -134,7 +134,7 @@ int XrdCryptoX509::NotBefore()
 }
 
 //_____________________________________________________________________________
-int XrdCryptoX509::NotAfter()
+time_t XrdCryptoX509::NotAfter()
 {
    // End-validity time in secs since Epoch
    ABSTRACTMETHOD("XrdCryptoX509::NotAfter");

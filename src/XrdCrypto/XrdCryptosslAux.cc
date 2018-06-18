@@ -612,12 +612,12 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
 }
 
 //____________________________________________________________________________
-int XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
+time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
 {
    // Function to convert from ASN1 time format into UTC
    // since Epoch (Jan 1, 1970) 
    // Return -1 if something went wrong
-   int etime = -1;
+   time_t etime = -1;
    EPNAME("ASN1toUTC");
 
    //

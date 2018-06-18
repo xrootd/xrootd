@@ -87,8 +87,8 @@ public:
    XrdOucString SerialNumberString();
 
    // Validity
-   int NotBefore();  // get begin-validity time in secs since Epoch
-   int NotAfter();   // get end-validity time in secs since Epoch
+   time_t NotBefore();  // get begin-validity time in secs since Epoch
+   time_t NotAfter();   // get end-validity time in secs since Epoch
 
    // Relevant Names
    const char *Subject();  // get subject name
@@ -109,8 +109,8 @@ public:
 
 private:
    X509        *cert;       // The certificate object
-   int          notbefore;  // begin-validity time in secs since Epoch
-   int          notafter;   // end-validity time in secs since Epoch
+   time_t       notbefore;  // begin-validity time in secs since Epoch
+   time_t       notafter;   // end-validity time in secs since Epoch
    XrdOucString subject;    // subject;
    XrdOucString issuer;     // issuer name;
    XrdOucString subjecthash; // Default hash of subject;
