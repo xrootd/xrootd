@@ -188,11 +188,11 @@ public:
    char  *authzfunparms;// [s] parameters for the function to fill entities [0]
    int    authzto; // [s] validity in secs of authz cache entries [-1 => unlimited]
    int    ogmap;  // [s] gridmap file checking option 
-   int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy 
-                  // [s] ask client for proxies
-   int    sigpxy; // [c] accept delegated proxy requests 
+   int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy; default 1
+                  // [s] ask client for proxies;default set internally to 0, do not accept delegated proxies
+   int    sigpxy; // [c] accept delegated proxy requests
    char  *srvnames;// [c] '|' separated list of allowed server names
-   char  *exppxy; // [s] template for the exported file with proxies (dlgpxy == 3)
+   char  *exppxy; // [s] template for the exported file with proxies
    int    authzpxy; // [s] if 1 make proxy available in exported form in the 'endorsement'
                     //     field of the XrdSecEntity object for use in XrdAcc
    int    vomsat; // [s] 0 do not look for; 1 extract if any
@@ -209,7 +209,7 @@ public:
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
                   gridmap = 0; gmapto = 600;
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
-                  ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
+                  ogmap = 1; dlgpxy = 1; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
                   vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; hashcomp = 1; trustdns = true; }
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
