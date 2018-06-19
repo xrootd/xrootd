@@ -103,7 +103,8 @@ enum kgsiHandshakeOpts {
    kOptsSigReq     = 4,      // 0x0004: Accept to sign delegated proxy
    kOptsSrvReq     = 8,      // 0x0008: Server request for delegated proxy
    kOptsPxFile     = 16,     // 0x0010: Save delegated proxies in file
-   kOptsDelChn     = 32      // 0x0020: Delete chain
+   kOptsDelChn     = 32,     // 0x0020: Delete chain
+   kOptsPxCred     = 64      // 0x0040: Save delegated proxies as credentials
 };
 
 // Error codes
@@ -186,12 +187,12 @@ public:
    char  *authzfun;// [s] file with the function to fill entities [0]
    char  *authzfunparms;// [s] parameters for the function to fill entities [0]
    int    authzto; // [s] validity in secs of authz cache entries [-1 => unlimited]
-   int    ogmap;  // [s] gridmap file checking option 
-   int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy 
-                  // [s] ask client for proxies
-   int    sigpxy; // [c] accept delegated proxy requests 
+   int    ogmap;  // [s] gridmap file checking option
+   int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy; default 0
+                  // [s] ask client for proxies; default: do not accept delegated proxies
+   int    sigpxy; // [c] accept delegated proxy requests
    char  *srvnames;// [c] '|' separated list of allowed server names
-   char  *exppxy; // [s] template for the exported file with proxies (dlgpxy == 3)
+   char  *exppxy; // [s] template for the exported file with proxies
    int    authzpxy; // [s] if 1 make proxy available in exported form in the 'endorsement'
                     //     field of the XrdSecEntity object for use in XrdAcc
    int    vomsat; // [s] 0 do not look for; 1 extract if any

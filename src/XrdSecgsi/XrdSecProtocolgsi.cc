@@ -801,15 +801,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
 
       //
-      // Request for delegated proxies
-      if (opt.dlgpxy == 1 || opt.dlgpxy == 3)
-         PxyReqOpts |= kOptsSrvReq;
-      if (opt.dlgpxy == 2 || opt.dlgpxy == 3)
-         PxyReqOpts |= kOptsPxFile;
-      // Some notification
-      DEBUG("Delegated proxies options: "<<PxyReqOpts);
-
-      //
       // Request for proxy export for authorization
       // authzpxy = opt_what*10 + opt_where
       //        opt_what   = 0  full chain
@@ -833,19 +824,37 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
 
       //
-      // Template for the created proxy files
-      if ((PxyReqOpts & kOptsPxFile)) {
-         String TmpProxy = gUsrPxyDef;
-         if (opt.exppxy) TmpProxy = opt.exppxy;
-         if (XrdSutExpand(TmpProxy) == 0) {
-            UsrProxy = TmpProxy;
-         } else {
-            UsrProxy = gUsrPxyDef;
-            UsrProxy += "u<uid>";
+      // Handle delegated proxies options
+      if (opt.dlgpxy == -1) {
+        // Will not accept any delegated proxies
+        DEBUG("Will not accept delegated proxies");
+      } else {
+        // Ask the client to sign a delegated proxy; client may decide to forward its proxy
+        if (opt.dlgpxy == 1)
+           PxyReqOpts |= kOptsSrvReq;
+
+        // Exporting options (default none: delegated proxy kept in memory, in proxyChain) 
+        if (opt.exppxy) {
+           if (!strcmp(opt.exppxy, "=creds")) {
+              // register the delegated proxy in Entity.creds (in HEX format)
+              PxyReqOpts |=  kOptsPxCred;
+              DEBUG("Delegated proxy saved in Entity.creds ");
+           } else {
+              String TmpProxy = gUsrPxyDef;
+              if (strcmp(opt.exppxy, "=default"))
+                 TmpProxy = opt.exppxy;
+              if (XrdSutExpand(TmpProxy) == 0) {
+                 UsrProxy = TmpProxy;
+              } else {
+                 UsrProxy = gUsrPxyDef;
+                 UsrProxy += "u<uid>";
+              }
+              DEBUG("File template for delegated proxy: "<<UsrProxy);
+           }
          }
-         DEBUG("Template for exported proxy files: "<<UsrProxy);
+         DEBUG("Delegated proxies options: "<<PxyReqOpts);
       }
-      
+
       //
       // VOMS attributes switch
       // vomsat = 0  do not look for
@@ -958,12 +967,14 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          DefBits = opt.bits;
       //
       // Delegate proxy options
-      if (opt.dlgpxy == 1)
-         PxyReqOpts |= kOptsDlgPxy;
-      if (opt.dlgpxy == 2)
-         PxyReqOpts |= kOptsFwdPxy;
-      if (opt.sigpxy > 0 || opt.dlgpxy == 1)
+      if (opt.dlgpxy > 0) {
          PxyReqOpts |= kOptsSigReq;
+         if (opt.dlgpxy == 2) {
+            PxyReqOpts |= kOptsFwdPxy;
+         } else {
+            PxyReqOpts |= kOptsDlgPxy;
+         }
+      }
       //
       // Define valid CNs for the server certificates; default is null, which means that
       // the server CN must be in the form "*/<hostname>"
@@ -2352,11 +2363,9 @@ char *XrdSecProtocolgsiInit(const char mode,
       //                                      2 require,
       //                                      3 require non-expired CRL
       //             "XrdSecGSIDELEGPROXY"   Forwarding of credentials option:
-      //                                     0 none; 1 sign request created
+      //                                     0 deny; 1 sign request created
       //                                     by server; 2 forward local proxy
-      //                                     (include private key) [0]
-      //             "XrdSecGSISIGNPROXY"    permission to sign requests
-      //                                     0 no, 1 yes [1]
+      //                                     (include private key) [1]
       //             "XrdSecGSISRVNAMES"     Server names allowed: if the server CN
       //                                     does not match any of these, or it is
       //                                     explicitely denied by these, or it is
@@ -2445,11 +2454,6 @@ char *XrdSecProtocolgsiInit(const char mode,
       cenv = getenv("XrdSecGSIDELEGPROXY");
       if (cenv)
          opts.dlgpxy = atoi(cenv);
-
-      // Sign delegate proxy requests
-      cenv = getenv("XrdSecGSISIGNPROXY");
-      if (cenv)
-         opts.sigpxy = atoi(cenv);
 
       // Allowed server name formats
       cenv = getenv("XrdSecGSISRVNAMES");
@@ -2643,7 +2647,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.ogmap = ogmap;
       opts.gmapto = gmapto;
       opts.authzto = authzto;
-      opts.dlgpxy = dlgpxy;
+      opts.dlgpxy = (dlgpxy >= 0 && dlgpxy <= 1) ? dlgpxy : 0;
       opts.authzpxy = authzpxy;
       opts.vomsat = vomsat;
       opts.moninfo = moninfo;
@@ -3742,6 +3746,26 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
    // Notify
    if (QTRACE(Authen)) { proxyChain->Dump(); }
 
+   // Check if the proxy chain is to become the actual credentials
+   //
+   if ((PxyReqOpts & kOptsPxCred)) {
+      XrdCryptoX509ExportChain_t c2mem =
+                                 (sessionCF) ? sessionCF->X509ExportChain() : 0;
+      if (!c2mem) {
+         cmsg =  "chain exporter not found; proxy chain not exported";
+         return 0;
+      }
+      XrdOucString spxy;
+      XrdSutBucket *bpxy = (*c2mem)(proxyChain, true);
+      bpxy->ToString(spxy);
+      SafeFree(Entity.creds);
+      Entity.creds = strdup(spxy.c_str());
+      Entity.credslen = spxy.length();
+      PRINT("proxy chain exported in Entity.creds (" << Entity.credslen << " bytes)");
+      PRINT("\n\n" << spxy.c_str() << "\n\n");
+      return 0;
+   }
+
    //
    // Extract user login name, if any
    String user;
@@ -3786,6 +3810,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
             cmsg += pxfile;
             return 0;
          }
+         PRINT("proxy chain dumped to "<< pxfile);
       } else {
          cmsg = "proxy chain not dumped to file: entity name undefined";
          return 0;
