@@ -967,12 +967,14 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          DefBits = opt.bits;
       //
       // Delegate proxy options
-      if (opt.dlgpxy == 1)
-         PxyReqOpts |= kOptsDlgPxy;
-      if (opt.dlgpxy == 2)
-         PxyReqOpts |= kOptsFwdPxy;
-      if (opt.sigpxy > 0 || opt.dlgpxy == 1)
+      if (opt.dlgpxy > 0) {
          PxyReqOpts |= kOptsSigReq;
+         if (opt.dlgpxy == 2) {
+            PxyReqOpts |= kOptsFwdPxy;
+         } else {
+            PxyReqOpts |= kOptsDlgPxy;
+         }
+      }
       //
       // Define valid CNs for the server certificates; default is null, which means that
       // the server CN must be in the form "*/<hostname>"
@@ -2361,11 +2363,9 @@ char *XrdSecProtocolgsiInit(const char mode,
       //                                      2 require,
       //                                      3 require non-expired CRL
       //             "XrdSecGSIDELEGPROXY"   Forwarding of credentials option:
-      //                                     0 none; 1 sign request created
+      //                                     0 deny; 1 sign request created
       //                                     by server; 2 forward local proxy
-      //                                     (include private key) [0]
-      //             "XrdSecGSISIGNPROXY"    permission to sign requests
-      //                                     0 no, 1 yes [1]
+      //                                     (include private key) [1]
       //             "XrdSecGSISRVNAMES"     Server names allowed: if the server CN
       //                                     does not match any of these, or it is
       //                                     explicitely denied by these, or it is
@@ -2454,11 +2454,6 @@ char *XrdSecProtocolgsiInit(const char mode,
       cenv = getenv("XrdSecGSIDELEGPROXY");
       if (cenv)
          opts.dlgpxy = atoi(cenv);
-
-      // Sign delegate proxy requests
-      cenv = getenv("XrdSecGSISIGNPROXY");
-      if (cenv)
-         opts.sigpxy = atoi(cenv);
 
       // Allowed server name formats
       cenv = getenv("XrdSecGSISRVNAMES");
@@ -2565,7 +2560,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int ogmap = 1;
       int gmapto = 600;
       int authzto = -1;
-      int dlgpxy = -1;
+      int dlgpxy = 0;
       int authzpxy = 0;
       int vomsat = 1;
       int moninfo = 0;
@@ -2652,7 +2647,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.ogmap = ogmap;
       opts.gmapto = gmapto;
       opts.authzto = authzto;
-      opts.dlgpxy = (dlgpxy >= -1 && dlgpxy <= 1) ? dlgpxy : -1;
+      opts.dlgpxy = (dlgpxy >= 0 && dlgpxy <= 1) ? dlgpxy : 0;
       opts.authzpxy = authzpxy;
       opts.vomsat = vomsat;
       opts.moninfo = moninfo;
