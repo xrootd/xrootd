@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[TPC]** Enable use of delegated credentials for 3rd party copy.
   * **[SSI]** Properly handle Finished() calls prior to response posting.
   * **[Server]** Add &I=<iptype> to 'u' login monitoring record.
   * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
