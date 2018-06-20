@@ -3761,8 +3761,8 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
       SafeFree(Entity.creds);
       Entity.creds = strdup(spxy.c_str());
       Entity.credslen = spxy.length();
-      PRINT("proxy chain exported in Entity.creds (" << Entity.credslen << " bytes)");
-      PRINT("\n\n" << spxy.c_str() << "\n\n");
+      DEBUG("proxy chain exported in Entity.creds (" << Entity.credslen << " bytes)");
+      DEBUG("\n\n" << spxy.c_str() << "\n\n");
       return 0;
    }
 
