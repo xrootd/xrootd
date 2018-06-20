@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <strings.h>
   
 #include "XrdAcc/XrdAccAccess.hh"
@@ -42,6 +43,7 @@
 #include "XrdOfs/XrdOfsTPCJob.hh"
 #include "XrdOfs/XrdOfsTPCProg.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucProg.hh"
@@ -60,20 +62,31 @@
 extern XrdSysError  OfsEroute;
 extern XrdOfsStats  OfsStats;
 extern XrdOucTrace  OfsTrace;
+extern XrdOss      *XrdOfsOss;
 
 namespace XrdOfsTPCParms
 {
+static const int   fcMax = 8;
+
+struct fcTb {char *aVar;
+             char  aProt[XrdSecPROTOIDSIZE];
+             bool  aOpt;
+             bool  aGSI;
+             }     fcAuth[fcMax];
 char              *XfrProg  = 0;
 char              *cksType  = 0;
+const char        *gsiPKH   = "-----BEGIN PRIVATE KEY-----\n";
+int                tcpSTRM  = 0;
+int                tcpSMax  = 15;
 int                LogOK    = 0;
-int                nStrms   = 0;
 int                xfrMax   = 9;
 int                tpcOK    = 0;
 int                encTPC   = 0;
 int                errMon   =-3;
+int                fcNum    = 0;
 bool               doEcho   = false;
 bool               autoRM   = false;
-};
+}
 
 using namespace XrdOfsTPCParms;
 
@@ -137,9 +150,56 @@ XrdOfsTPCAllow    *XrdOfsTPC::ALList   = 0;
 
 XrdAccAuthorize   *XrdOfsTPC::fsAuth   = 0;
 
+char              *XrdOfsTPC::cPath    = 0;
+
 int                XrdOfsTPC::maxTTL   =15;
 int                XrdOfsTPC::dflTTL   = 7;
   
+/******************************************************************************/
+/*                               A d d A u t h                                */
+/******************************************************************************/
+
+const char *XrdOfsTPC::AddAuth(const char *auth, const char *avar)
+{
+   bool aOpt, aGSI;
+
+// Check if credentials are optional
+//
+   if (*auth != '?') aOpt = false;
+      else {aOpt = true;
+            auth++;
+           }
+   aGSI = strcmp("gsi", auth) == 0;
+
+// Verify that the authname is not too long
+//
+   if (strlen(auth) >= XrdSecPROTOIDSIZE) return "Invalid auth";
+
+// Check if auth is already in the table
+//
+   for (int i = 0; i < fcNum; i++)
+       if (!strcmp(auth, fcAuth[i].aProt))
+          {if (fcAuth[i].aVar) free(fcAuth[i].aVar);
+           fcAuth[i].aVar = strdup(avar);
+           fcAuth[i].aOpt = aOpt;
+           fcAuth[i].aGSI = aGSI;
+           return 0;
+          }
+
+// Check if we have room to add an auth
+//
+   if (fcNum >= fcMax) return "Too many fcred auths";
+
+// Add an auth
+//
+   strcpy(fcAuth[fcNum].aProt, auth);
+   fcAuth[fcNum].aVar = strdup(avar);
+   fcAuth[fcNum].aOpt = aOpt;
+   fcAuth[fcNum].aGSI = aGSI;
+   fcNum++;
+   return 0;
+}
+
 /******************************************************************************/
 /*                                 A l l o w                                  */
 /******************************************************************************/
@@ -251,6 +311,21 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
 }
   
 /******************************************************************************/
+/* Private:                        D e a t h                                  */
+/******************************************************************************/
+  
+int XrdOfsTPC::Death(XrdOfsTPC::Facts &Args, const char *eMsg, int eCode, int nomsg)
+{
+// If automatc removal is wanted, remove the file.
+//
+   if (autoRM && Args.Pfn) XrdOfsOss->Unlink(Args.Lfn);
+
+// Return error information
+//
+   return Fatal(Args, eMsg, eCode, nomsg);
+}
+  
+/******************************************************************************/
 /* Private:                        F a t a l                                  */
 /******************************************************************************/
   
@@ -336,6 +411,8 @@ int XrdOfsTPC::getTTL(XrdOucEnv *Env)
   
 void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
 {
+   std::string aStr;
+
 // Set program if specified
 //
    if (Parms.Pgm)
@@ -350,16 +427,37 @@ void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
        cksType = Parms.Ckst;
       }
 
+// Create credential forwarding template, if cred path specified. It is
+// gauranteed to end with a slash (it better be).
+//
+   if (Parms.cpath && Parms.fCreds) cPath = strdup(Parms.cpath);
+      else cPath = 0;
+
+// Check for streams option
+//
+   if (Parms.Strm > 15) Parms.Strm = 15;
+
 // Set all other static values
 //
    if (Parms.Dflttl >  0) dflTTL = Parms.Dflttl;
    if (Parms.Maxttl >  0) maxTTL = Parms.Maxttl;
    if (Parms.Logok  >= 0) LogOK  = Parms.Logok;
-   if (Parms.Strm   >  0) nStrms = Parms.Strm;
+   if (Parms.Strm   >  0) tcpSTRM= Parms.Strm;
+   if (Parms.SMax   >  0) tcpSMax= Parms.SMax;
    if (Parms.Xmax   >  0) xfrMax = Parms.Xmax;
    if (Parms.Grab   <  0) errMon = Parms.Grab;
    if (Parms.xEcho  >= 0) doEcho = Parms.xEcho != 0;
    if (Parms.autoRM >= 0) autoRM = Parms.autoRM != 0;
+
+// Record all delegated auths
+//
+   for (int i = 0; i < fcNum; i++)
+       {aStr += ' '; aStr += fcAuth[i].aProt;}
+
+// Export the delegated auths
+//
+   if (aStr.length())
+      XrdOucEnv::Export("XRDTPCDLG", strdup(aStr.c_str()+1));
 }
 
 /******************************************************************************/
@@ -450,13 +548,7 @@ int XrdOfsTPC::Start()
 
 // If there is no copy program then we use the default one
 //
-   if (!XfrProg)
-      {char pgmBuff[256], sBuff[32];
-       if (nStrms) sprintf(sBuff, " -S %d", nStrms);
-          else *sBuff = 0;
-       snprintf(pgmBuff,sizeof(pgmBuff),"xrdcp --server%s",sBuff);
-       XfrProg = strdup(pgmBuff);
-      }
+   if (!XfrProg) XfrProg = strdup("xrdcp --server");
 
 // Allocate copy program objects
 //
@@ -483,35 +575,60 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
    const char *tpcLfn = Args.Env->Get(XrdOucTPC::tpcLfn);
    const char *tpcSrc = Args.Env->Get(XrdOucTPC::tpcSrc);
    const char *tpcCks = Args.Env->Get(XrdOucTPC::tpcCks);
-   const char *theCGI;
-         char  Buff[512], myURL[4096];
+   const char *tpcStr = Args.Env->Get(XrdOucTPC::tpcStr);
+   const char *theCGI, *enVar = 0;
+         char  Buff[512], myURL[4096], sVal = 0;
          int   n, doRN = 0, myURLen = sizeof(myURL);
          short lfnLoc[2];
 
 // Determine if we can handle any TPC requests
 //
-   if (!tpcOK || !Args.Usr) return Fatal(Args, "tpc not supported", ENOTSUP);
+   if (!tpcOK || !Args.Usr) return Death(Args, "tpc not supported", ENOTSUP);
+
+// If we will be forwarding credentials, then verify that we have some
+//
+   for (int i = 0; i < fcNum; i++)
+       {if (!strcmp(Args.Usr->prot, fcAuth[i].aProt))
+           {if (Args.Usr->creds == 0 || Args.Usr->credslen < 1
+            || (fcAuth[i].aGSI && !strstr(Args.Usr->creds, gsiPKH)))
+               {if (!fcAuth[i].aOpt)
+                   return Death(Args,"no delegated credentials for tpc",EACCES);
+               } else enVar  = fcAuth[i].aVar;
+            break;
+           }
+       }
 
 // This is a request by a writer to get data from another party. Make sure
 // the source has been specified.
 //
-   if (!tpcSrc)   return Fatal(Args, "tpc source not specified", EINVAL);
-   if (!Args.Pfn) return Fatal(Args, "tpc pfn not specified", EINVAL);
+   if (!tpcSrc)   return Death(Args, "tpc source not specified", EINVAL);
+   if (!Args.Pfn) return Death(Args, "tpc pfn not specified", EINVAL);
 
 // If the lfn, if present, it must be absolute.
 //
         if (!tpcLfn) tpcLfn = Args.Lfn;
-   else if (*tpcLfn != '/') return Fatal(Args,"source lfn not absolute",EINVAL);
+   else if (*tpcLfn != '/') return Death(Args,"source lfn not absolute",EINVAL);
    else doRN = (strcmp(Args.Lfn, tpcLfn) != 0);
+
+// Validate number of streams and adjust accordingly
+//
+   if (tpcStr)
+      {char *eP;
+       long nStrm = strtol(tpcStr, &eP, 10);
+       if (nStrm < 0 || !(*eP))
+          return Death(Args, "tpc streams value is invalid", EINVAL);
+       if (nStrm > tcpSMax) nStrm = tcpSMax;
+       sVal = static_cast<char>(nStrm);
+      } else sVal = static_cast<char>(tcpSTRM);
 
 // Generate the origin id
 //
-   if (!genOrg(Args.Usr, Buff, sizeof(Buff))) return Fatal(Args, Buff, EINVAL);
+   if (!genOrg(Args.Usr, Buff, sizeof(Buff))) return Death(Args, Buff, EINVAL);
 
 // Construct the source url (it may be very big)
 //
    n = snprintf(myURL, myURLen, "xroot://%s/%s?", tpcSrc, tpcLfn);
-   if (n >= int(sizeof(myURL))) return Fatal(Args, "url too long", EINVAL);
+   if (n >= int(sizeof(myURL))) return Death(Args, "url too long", EINVAL);
 
 // Set lfn location in the URL but only if we need to do a rename
 //
@@ -519,17 +636,27 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
       else    lfnLoc[1] = lfnLoc[0] = 0;
 
    theCGI = XrdOucTPC::cgiD2Src(Args.Key, Buff, myURL+n, myURLen-n);
-   if (*theCGI == '!') return Fatal(Args, theCGI+1, EINVAL);
+   if (*theCGI == '!') return Death(Args, theCGI+1, EINVAL);
 
 // Create a pseudo tpc object that will contain the information we need to
 // actually peform this copy.
 //
    if (!(myTPC = new XrdOfsTPCJob(myURL, Args.Usr->tident,
                                   Args.Lfn, Args.Pfn, tpcCks, lfnLoc)))
-      return Fatal(Args, "insufficient memory", ENOMEM);
+      return Death(Args, "insufficient memory", ENOMEM);
+
+// Set credentials for the job if we need to
+//
+   if (enVar && Args.Usr->credslen > 0)
+      myTPC->Info.SetCreds(enVar, Args.Usr->creds, Args.Usr->credslen);
+
+// Set number of streams to use
+//
+   if (sVal) myTPC->Info.SetStreams(sVal);
 
 // All done
 //
+   myTPC->Info.isDest();
    *theTPC = (XrdOfsTPC *)myTPC;
    return SFS_OK;
 }

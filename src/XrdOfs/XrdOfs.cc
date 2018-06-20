@@ -562,7 +562,8 @@ int XrdOfsFile::open(const char          *path,      // In
       }
 
 // If this is a third party copy and we are the destination, then validate
-// specification at this point and setup to transfer.
+// specification at this point and setup to transfer. Note that if the
+// call fails and auto removal is enabled, the file we created will be deleted.
 //
    if (tpcKey && isRW)
       {char pfnbuff[MAXPATHLEN+8]; const char *pfnP;

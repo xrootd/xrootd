@@ -368,6 +368,15 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
            } else close(Child_log);
        }
 
+    // Check if we need to set any envornment variables
+    //
+    if (myEnv)
+       {char **envP;
+        int i = 0;
+        if ((envP = (char **)myEnv->GetPtr("XrdEnvars**")))
+           while(envP[i]) {putenv(envP[i]); i++;}
+       }
+
     // Set our process group (the parent should have done this by now) then
     // invoke the command never to return
     //

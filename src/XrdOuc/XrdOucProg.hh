@@ -68,6 +68,14 @@ int Feed(const char *data) {return Feed(data, (int)strlen(data));}
 XrdOucStream *getStream() {return myStream;}
 
 // Run executes the command that was passed via Setup(). You may pass
+// additional arguments to be appended to the existing ones. The
+// method also allows envars to be set in forked process via envV vector
+// which contains strings "var=val" and terminaes with a null pointer.
+//
+int         Run(XrdOucStream *Sp, const char *argV[], int argc=0,
+                                  const char *envV[]=0);
+
+// Run executes the command that was passed via Setup(). You may pass
 // up to four additional arguments that will be added to the end of any
 // existing arguments. The ending status code of the program is returned.
 //

@@ -46,6 +46,8 @@ void        Engage() {inWtR = true;} // Must be called w/ a serialization lock!
 
 int         Fail(XrdOucErrInfo *eRR, const char *eMsg, int eCode);
 
+void        isDest() {isDST = true;}
+
 int         Match(const char *cKey, const char *cOrg,
                   const char *xLfn, const char *xDst);
 
@@ -57,6 +59,17 @@ const char *Set(const char *cKey, const char *cOrg,
 
 int         SetCB(XrdOucErrInfo *eRR);
 
+void        SetCreds(const char *evar, const char *creds, int crdsz)
+                    {Env = evar;
+                     Crd = (char *)malloc(crdsz);
+                     memcpy(Crd, creds, crdsz);
+                     Csz = crdsz;
+                    }
+
+void        SetStreams(char sval) {Str = sval;}
+
+void        Success() {isAOK = true;}
+
             XrdOfsTPCInfo(const char *vKey=0, const char *vOrg=0,
                           const char *vLfn=0, const char *vDst=0,
                           const char *vCks=0) : cbP(0),
@@ -64,15 +77,12 @@ int         SetCB(XrdOucErrInfo *eRR);
                       Key(vKey ? strdup(vKey) :0),
                       Org(vOrg ? strdup(vOrg) :0),
                       Lfn(vLfn ? strdup(vLfn) :0),
-                      Dst(vDst ? strdup(vDst) :0), inWtR(false) {}
+                      Dst(vDst ? strdup(vDst) :0),
+                      Env(0), Crd(0), Csz(0), Str(0),
+                      inWtR(false), isDST(false), isAOK(false)
+                      {}
 
-           ~XrdOfsTPCInfo() {if (Key) {free(Key); Key = 0;}
-                             if (Org) {free(Org); Org = 0;}
-                             if (Lfn) {free(Lfn); Lfn = 0;}
-                             if (Dst) {free(Dst); Dst = 0;}
-                             if (Cks) {free(Cks); Cks = 0;}
-                             if (cbP) delete cbP;
-                        }
+           ~XrdOfsTPCInfo();
 
 XrdOucCallBack *cbP;   // Callback object
 char           *Cks;   // Checksum information (only at dest)
@@ -80,6 +90,12 @@ char           *Key;   // Rendezvous key    or src  URL
 char           *Org;   // Rendezvous origin
 char           *Lfn;   // Rendezvous path   or dest LFN
 char           *Dst;   // Rendezvous dest   or dest PFN
+const char     *Env;   // -> creds envar name
+char           *Crd;   // Credentials to be forwarded dst->src
+int             Csz;   // Size of credentials
+char            Str;   // Number of streams to use
 bool           inWtR;  // Traget in waitresp status, async reply is valid.
+bool           isDST;  // This info is about the destination file (PFN)
+bool           isAOK;  // The copy succeeded
 };
 #endif

@@ -11,8 +11,8 @@ xrdcp - copy files
 [\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
 [\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR]
 [\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
-[\fB--tpc\fR \fIfirst\fR|\fIonly\fR] [\fB--verbose\fR] [\fB--version\fR]
-[\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
+[\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR] [\fB--verbose\fR]
+[\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -109,14 +109,18 @@ uses \fInum\fR additional parallel streams to do the transfer.
 The maximum value is 15. The default is 0 (i.e., use only the main stream).
 
 .RE
-\fB--tpc\fR \fIfirst|only\fR
+\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR
 .RS 5
 copies the file from remote server to remote server using third-party-copy
 protocol (i.e., data flows from server to server). The source and destination
 servers must support third party copies. Additional security restrictions
 may apply and may cause the copy to fail if they cannot be satisfied.
-Argument \fI'first'\fR tries tpc and if it fails, does a normal copy;
-while \fI'only'\fR fails the copy unless tpc succeeds.
+Argument '\fBfirst\fR' tries tpc and if it fails, does a normal copy;
+while '\fBonly\fR' fails the copy unless tpc succeeds. When '\fBdelegate\fR' is
+specified, the copy delegates the command issuer's credentials to the target
+server which uses those credentials to authenticate with the source server.
+Delegation is ignored if the target server is not configured to use delegated
+credentials. Currently, only gsi credentials can be delegated.
 
 .RE
 \fB-v\fR | \fB--verbose\fR

@@ -144,6 +144,7 @@ static const int    DoStreams  =  0x00010000; // -S | --streams
 static const int    OpTpc      =  'T';
 static const int    DoTpc      =  0x00020000; // -T | --tpc {first | only}
 static const int    DoTpcOnly  =  0x00100000; // -T | --tpc          only
+static const int    DoTpcDlgt  =  0x00800000; // -T | --tpc delegate ...
 
 static const int    OpVerbose  =  'v';
 static const int    DoVerbose  =  0x00040000; // -v | --verbose
@@ -158,6 +159,8 @@ static const int    DoParallel =  0x00200000; //      --parallel
 
 static const int    OpDynaSrc  =  'Z';
 static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
+
+//     const int    DoTpcDlgt  =  0x00800000; // Marker to show bit used
 
 static const int    OpZip      =  'z';
 static const int    DoZip      =  0x01000000;//       --zip

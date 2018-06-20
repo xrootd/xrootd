@@ -265,6 +265,14 @@ do{while(optind < Argc && Legacy(optind)) {}
                            if (!a2i(optarg, &nStrm, 1, 15)) Usage(22);
                            break;
           case OpTpc:      OpSpec |= DoTpc;
+                           if (!strcmp("delegate",  optarg))
+                              {OpSpec|= DoTpcDlgt;
+                               if (optind >= Argc)
+                                  {UMSG("Missing tpc qualifier after "
+                                        "'delegate'");
+                                  }
+                               optarg = Argv[optind++];
+                              }
                            if (!strcmp("only",  optarg)) OpSpec|= DoTpcOnly;
                               else if (strcmp("first", optarg))
                                       {optind--;
@@ -864,10 +872,10 @@ void XrdCpConfig::Usage(int rc)
    static const char *Options= "\n"
    "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--dynamic-src]\n"
    "         [--force] [--help] [--infiles <fn>] [--license] [--nopbar]\n"
-   "         [--path] [--posc] [--proxy <host>:<port>] [--recursive]\n"
-   "         [--retry <n>] [--server] [--silent] [--sources <n>] [--streams <n>]\n"
-   "         [--tpc {first|only}] [--verbose] [--version] [--xrate <rate>]\n"
-   "         [--parallel <n>] [--zip <file>]";
+   "         [--path] [--parallel <n>] [--posc] [--proxy <host>:<port>]\n"
+   "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
+   "         [--streams <n>] [--tpc [delegate] {first|only}] [--verbose]\n"
+   "         [--version] [--xrate <rate>] [--zip <file>]";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";

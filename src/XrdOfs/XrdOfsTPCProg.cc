@@ -40,6 +40,7 @@
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
 /******************************************************************************/
@@ -81,6 +82,40 @@ void *XrdOfsTPCProgRun(void *pp)
 }
 
 /******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+
+namespace
+{
+class credFile
+{
+public:
+
+char *Path;
+char  pEnv[MAXPATHLEN+65];
+
+     credFile(XrdOfsTPCJob *jP)
+             {if (jP->Info.Csz > 0 && jP->Info.Crd && jP->Info.Env)
+                 {int n;
+                  csMutex.Lock(); n = cSeq++; csMutex.UnLock();
+                  snprintf(pEnv, sizeof(pEnv), "%s=%s%s#%d.creds",
+                           jP->Info.Env, jP->credPath(), jP->Info.Org, n);
+                  Path = index(pEnv,'=')+1;
+                 } else Path = 0;
+             }
+
+    ~credFile() {if (Path) unlink(Path);}
+
+private:
+static XrdSysMutex csMutex;
+static int         cSeq;
+};
+
+XrdSysMutex credFile::csMutex;
+int         credFile::cSeq = 0;
+}
+  
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
@@ -91,6 +126,39 @@ XrdOfsTPCProg::XrdOfsTPCProg(XrdOfsTPCProg *Prev, int num, int errMon)
              {snprintf(Pname, sizeof(Pname), "TPC job %d: ", num);
               Pname[sizeof(Pname)-1] = 0;
              }
+  
+/******************************************************************************/
+/*                           E x p o r t C r e d s                            */
+/******************************************************************************/
+
+int XrdOfsTPCProg::ExportCreds(const char *path)
+{
+static const int    oOpts = (O_CREAT | O_TRUNC | O_WRONLY);
+static const mode_t oMode = (S_IRUSR | S_IWUSR);
+
+int fd, rc;
+
+// Open the file as if it were new
+//
+   fd = XrdSysFD_Open(path, oOpts, oMode);
+   if (fd < 0)
+      {rc = errno;
+       OfsEroute.Emsg("TPC", rc, "create credentials file", path);
+       return -rc;
+      }
+
+// Write out the credentials
+//
+   if (write(fd, Job->Info.Crd, Job->Info.Csz) < 0)
+      {rc = errno;
+       OfsEroute.Emsg("TPC", rc, "write credentials file", path);
+      } else rc = 0;
+
+// Close the file and return (we ignore close errors)
+//
+   close(fd);
+   return rc;
+}
 
 /******************************************************************************/
 /*                                  I n i t                                   */
@@ -171,9 +239,17 @@ XrdOfsTPCProg *XrdOfsTPCProg::Start(XrdOfsTPCJob *jP, int &rc)
 int XrdOfsTPCProg::Xeq()
 {
    EPNAME("Xeq");
-   const char *cksOpt;
-   char *lP, *Colon, *cksVal, *tident = Job->Info.Org;
-   int rc;
+   credFile cFile(Job);
+   const char *Args[6], *eVec[2], **envArg;
+   char *lP, *Colon, *cksVal, sBuff[8], *tident = Job->Info.Org;
+   int rc, aNum = 0;
+
+// If we have credentials, write them out to a file
+//
+   if (cFile.Path && (rc = ExportCreds(cFile.Path)))
+      {strcpy(eRec, "Copy failed; unable to pass credentials.");
+       return rc;
+      }
 
 // Echo out what we are doing if so desired
 //
@@ -187,11 +263,35 @@ int XrdOfsTPCProg::Xeq()
 // Determine checksum option
 //
    cksVal = (Job->Info.Cks ? Job->Info.Cks : XrdOfsTPCParms::cksType);
-   cksOpt = (cksVal ? "-C" : 0);
+   if (cksVal)
+      {Args[aNum++] = "-C";
+       Args[aNum++] = cksVal;
+      }
+
+// Set streams option if need be
+//
+   if (Job->Info.Str)
+      {sprintf(sBuff, "%d", static_cast<int>(Job->Info.Str));
+       Args[aNum++] = "-S";
+       Args[aNum++] = sBuff;
+      }
+
+// Set remaining arguments
+//
+   Args[aNum++] = Job->Info.Key;
+   Args[aNum++] = Job->Info.Dst;
+
+// Determine if credentials are being passed
+//
+   if (cFile.Path)
+      {eVec[0] = cFile.pEnv;
+       eVec[1] = 0;
+       envArg = eVec;
+      } else envArg = 0;
 
 // Start the job.
 //
-   if ((rc = Prog.Run(&JobStream,cksOpt,cksVal,Job->Info.Key,Job->Info.Dst)))
+   if ((rc = Prog.Run(&JobStream, Args, aNum, envArg)))
       {strcpy(eRec, "Copy failed; unable to start job.");
        OfsEroute.Emsg("TPC", Job->Info.Org, Job->Info.Lfn, eRec);
        return rc;
@@ -218,12 +318,13 @@ int XrdOfsTPCProg::Xeq()
 //
    if (rc && !(*eRec)) sprintf(eRec, "Copy failed with return code %d", rc);
 
-// Log failures and optionally remove the file
+// Log failures and optionally remove the file (Info would do that as well
+// but much later on, so we do it now).
 //
    if (rc)
       {OfsEroute.Emsg("TPC", Job->Info.Org, Job->Info.Lfn, eRec);
-       if (autoRM) XrdOfsOss->Unlink(Job->Info.Dst, XRDOSS_isPFN);
-      }
+       if (autoRM) XrdOfsOss->Unlink(Job->Info.Lfn);
+      } else Job->Info.Success();
 
 // All done
 //

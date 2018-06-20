@@ -1700,6 +1700,11 @@ int XrdXrootdProtocol::do_Qconf()
             n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpc"));
             bp += n; bleft -= n;
            }
+   else if (!strcmp("tpcdlg", val))
+           {char *tpcval = getenv("XRDTPCDLG");
+            n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpcdlg"));
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("wan_port", val) && WANPort)
            {n = snprintf(bp, bleft, "%d\n", WANPort);
             bp += n; bleft -= n;
