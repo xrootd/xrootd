@@ -615,7 +615,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
    if (tpcStr)
       {char *eP;
        long nStrm = strtol(tpcStr, &eP, 10);
-       if (nStrm < 0 || !(*eP))
+       if (nStrm < 0 || *eP)
           return Death(Args, "tpc streams value is invalid", EINVAL);
        if (nStrm > tcpSMax) nStrm = tcpSMax;
        sVal = static_cast<char>(nStrm);
@@ -652,7 +652,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 
 // Set number of streams to use
 //
-   if (sVal) myTPC->Info.SetStreams(sVal);
+   if (sVal > 1) myTPC->Info.SetStreams(sVal);
 
 // All done
 //
