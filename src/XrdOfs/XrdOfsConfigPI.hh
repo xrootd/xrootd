@@ -141,6 +141,14 @@ XrdOfsConfigPI *New(const char *cfn, XrdOucStream *cfgP, XrdSysError *errP,
                     XrdVersionInfo *verP=0);
 
 //-----------------------------------------------------------------------------
+//! Check if the checksum plugin runs on tghe local node irrespective of type.
+//!
+//! @return  True if the plugin runs on the local node, false otherwise.
+//-----------------------------------------------------------------------------
+
+bool   LclCks() {return cksLcl;}
+
+//-----------------------------------------------------------------------------
 //! Check if the checksum plugin uses the oss plugin.
 //!
 //! @return  True if the plugin uses the oss plugin, false otherwise.
@@ -237,5 +245,6 @@ bool          ossXAttr;
 bool          ossCksio;
 bool          Loaded;
 bool          LoadOK;
+bool          cksLcl;
 };
 #endif

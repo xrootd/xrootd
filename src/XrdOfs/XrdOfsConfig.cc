@@ -264,6 +264,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       else {ofsConfig->Plugin(XrdOfsOss);
             ofsConfig->Plugin(Cks);
             CksPfn = !ofsConfig->OssCks();
+            CksRdr = !ofsConfig->LclCks();
             if (Options & Authorize)
                {ofsConfig->Plugin(Authorization);
                 XrdOfsTPC::Init(Authorization);

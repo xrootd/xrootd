@@ -52,7 +52,7 @@ int     Manager(const char *Path, const char *Parms);
 const
 char   *ManLib() {return CksLib;}
 
-int     ParseLib(XrdOucStream &Config);
+int     ParseLib(XrdOucStream &Config, int &libType);
 
         XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
                      XrdVersionInfo &vInfo);

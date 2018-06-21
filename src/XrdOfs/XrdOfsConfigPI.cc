@@ -89,7 +89,7 @@ XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
                  : autPI(0), cksPI(0), cmsPI(0), ossPI(0), urVer(verP),
                    Config(cfgP),  Eroute(errP), CksConfig(0), ConfigFN(cfn),
                    CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(false),
-                   Loaded(false), LoadOK(false)
+                   Loaded(false), LoadOK(false), cksLcl(false)
 {
    int rc;
 
@@ -276,7 +276,10 @@ bool XrdOfsConfigPI::Parse(TheLib what)
                           break;
           case theAutLib: break;
           case theCksLib: if (CksConfig)
-                             {if (CksConfig->ParseLib(*Config)) return false;
+                             {int libType;
+                              if (CksConfig->ParseLib(*Config, libType))
+                                 return false;
+                              if (libType) cksLcl = libType == 1;
                               RepLib(theCksLib, CksConfig->ManLib(), nullParms);
                               return true;
                              }

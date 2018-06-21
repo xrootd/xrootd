@@ -376,6 +376,7 @@ short             poscAuto;       //  1 -> Automatic persist on close
 
 char              ossRW;          // The oss r/w capability
 bool              CksPfn;         // Checksum needs a pfn
+bool              CksRdr;         // Checksum may be redirected (i.e. not local)
 XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
 XrdCks           *Cks;            // Checksum manager
 char              Reserved[3];    // Reserved for future checksum stuff

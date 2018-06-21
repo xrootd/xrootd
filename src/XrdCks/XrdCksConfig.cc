@@ -168,7 +168,7 @@ int XrdCksConfig::Manager(const char *Path, const char *Parms)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdCksConfig::ParseLib(XrdOucStream &Config)
+int XrdCksConfig::ParseLib(XrdOucStream &Config, int &libType)
 {
    static const int nameSize = XrdCksData::NameSize;
    static const int pathSize = MAXPATHLEN;
@@ -203,7 +203,10 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config)
 
 // Check if this is for the manager
 //
-   if (*buff == '*' && *(buff+1) == ' ') return Manager(buff+2, parms);
+   if ((*buff == '*' || *buff == '=') && *(buff+1) == ' ')
+      {libType = (*buff == '*' ? -1 : 1);
+       return Manager(buff+2, parms);
+      } else libType = 0;
 
 // Add this digest to the list of digests
 //
