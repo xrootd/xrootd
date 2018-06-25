@@ -144,6 +144,10 @@ namespace XrdCl
     pProperties->Get( "force",           force );
     pProperties->Get( "coerce",          coerce );
 
+    int nbStrm = 0;
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    env->GetInt( "SubStreamsPerChannel", nbStrm );
+
     //--------------------------------------------------------------------------
     // Generate the destination CGI
     //--------------------------------------------------------------------------
@@ -158,7 +162,7 @@ namespace XrdCl
     const char  *cgiP = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
                                              tpcSource.GetHostId().c_str(),
                                              tpcSource.GetPath().c_str(),
-                                             0, cgiBuff, 2048 );
+                                             0, cgiBuff, 2048, nbStrm );
     if( *cgiP == '!' )
     {
       log->Error( UtilityMsg, "Unable to setup target url: %s", cgiP+1 );
