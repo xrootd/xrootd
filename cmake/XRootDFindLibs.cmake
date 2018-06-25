@@ -27,8 +27,7 @@ if( SYSTEMD_FOUND )
   add_definitions( -DHAVE_SYSTEMD )
 endif()
 
-include (FindPkgConfig)
-pkg_check_modules(CURL libcurl)
+find_package( CURL )
 
 if( ENABLE_CRYPTO )
   find_package( OpenSSL )

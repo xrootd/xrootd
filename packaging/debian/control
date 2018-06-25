@@ -3,7 +3,7 @@ Maintainer: Jozsef Makai <jozsef.makai@cern.ch>
 Section: misc
 Priority: optional
 Standards-Version: 3.9.3
-Build-Depends: debhelper (>= 9), cmake (>=3.3.0), zlib1g-dev, libfuse-dev, python-dev, libssl-dev, libxml2-dev, ncurses-dev, libkrb5-dev, libreadline-dev, libsystemd-dev, selinux-policy-dev, libcurl-dev, systemd
+Build-Depends: debhelper (>= 9), cmake (>=3.3.0), zlib1g-dev, libfuse-dev, python-dev, libssl-dev, libxml2-dev, ncurses-dev, libkrb5-dev, libreadline-dev, libsystemd-dev, selinux-policy-dev, libcurl4-openssl-dev, systemd
 Homepage: https://github.com/xrootd/xrootd
 Vcs-Git: https://github.com/xrootd/xrootd.git
 Vcs-Browser: https://github.com/xrootd/xrootd
