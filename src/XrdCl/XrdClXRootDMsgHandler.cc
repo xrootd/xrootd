@@ -402,7 +402,7 @@ namespace XrdCl
         XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
         pResponse = 0;
 
-        if( rsp->hdr.dlen < 4 )
+        if( rsp->hdr.dlen <= 4 )
         {
           log->Error( XRootDMsg, "[%s] Got invalid redirect response.",
                       pUrl.GetHostId().c_str() );
