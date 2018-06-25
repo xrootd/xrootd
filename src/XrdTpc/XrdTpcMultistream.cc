@@ -353,7 +353,7 @@ int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
             delete *state_iter;
         }
         return retval;
-    } catch (CurlHandlerSetupError e) {
+    } catch (CurlHandlerSetupError &e) {
         for (std::vector<State*>::iterator state_iter = handles.begin();
              state_iter != handles.end();
              state_iter++) {
@@ -362,7 +362,7 @@ int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
 
         m_log.Emsg(log_prefix, e.what());
         return req.SendSimpleResp(500, NULL, NULL, e.what(), 0);
-    } catch (std::runtime_error e) {
+    } catch (std::runtime_error &e) {
         for (std::vector<State*>::iterator state_iter = handles.begin();
              state_iter != handles.end();
              state_iter++) {
