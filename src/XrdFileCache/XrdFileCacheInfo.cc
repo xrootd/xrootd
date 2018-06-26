@@ -215,7 +215,6 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    // cache complete status
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-
    // read creation time
    if (r.Read(m_store.m_creationTime)) return false;
 
@@ -365,10 +364,22 @@ void Info::WriteIOStatAttach()
 {
    m_store.m_accessCnt++;
    if (m_store.m_astats.size() >= m_maxNumAccess)
-      m_store.m_astats.erase( m_store.m_astats.begin());
+      m_store.m_astats.erase(m_store.m_astats.begin());
 
    AStat as;
    as.AttachTime = time(0);
+   m_store.m_astats.push_back(as);
+}
+
+void Info::WriteIOStatSingle(long long bytes_disk)
+{
+   m_store.m_accessCnt++;
+   if (m_store.m_astats.size() >= m_maxNumAccess)
+      m_store.m_astats.erase(m_store.m_astats.begin());
+
+   AStat as;
+   as.AttachTime = as.DetachTime = time(0);
+   as.BytesDisk  = bytes_disk;
    m_store.m_astats.push_back(as);
 }
 

@@ -149,6 +149,13 @@ void Cache::CacheDirCleanup()
 
    while (1)
    {
+
+      {
+         XrdSysCondVarHelper lock(&m_active_cond);
+
+         m_in_purge = true;
+      }
+
       // get amount of space to erase
       long long bytesToRemove = 0;
       if (oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
@@ -185,7 +192,7 @@ void Cache::CacheDirCleanup()
                std::string infoPath = it->second.path;
                std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::m_infoExtension));
 
-               if (HaveActiveFileWithLocalPath(dataPath))
+               if (IsFileActiveOrPurgeProtected(dataPath))
                   continue;
 
                // remove info file
@@ -212,6 +219,13 @@ void Cache::CacheDirCleanup()
          }
          dh->Close();
          delete dh; dh = 0;
+      }
+
+      {
+         XrdSysCondVarHelper lock(&m_active_cond);
+
+         m_purge_delay_set.clear();
+         m_in_purge = false;
       }
 
       sleep(m_configuration.m_purgeInterval);
