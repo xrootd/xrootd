@@ -578,7 +578,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // open request ans we have a lot more work to do.
 //
    if (XrdPosixGlobals::myCache2)
-      {int rc = XrdPosixGlobals::myCache2->Prepare(path, oflags, mode);
+      {int rc = XrdPosixGlobals::myCache2->Prepare(fp->Path(), oflags, mode);
        if (rc > 0) return OpenDefer(fp, cbP, XOflags, XOmode, oflags&isStream);
        if (rc < 0) {delete fp; errno = -rc; return -1;}
       }
