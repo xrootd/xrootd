@@ -921,12 +921,15 @@ int XrdHttpReq::ProcessHTTPReq() {
                 } else {
 
                   // We lookup the requested path in a hash containing the preread files
-                  XrdHttpProtocol::StaticPreloadInfo *mydata = prot->staticpreload->Find(resource.c_str());
-                  if (mydata) {
+                  if (prot->staticpreload) {
+                    XrdHttpProtocol::StaticPreloadInfo *mydata = prot->staticpreload->Find(resource.c_str());
+                    if (mydata) {
                       prot->SendSimpleResp(200, NULL, NULL, (char *) mydata->data, mydata->len);
                       reset();
                       return 1;
                     }
+                  }
+                  
                 }
 
 
