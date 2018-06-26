@@ -18,6 +18,7 @@ Prerelease Notes
 
 
 + **Minor bug fixes**
+  * **[POSIX]** Avoid unnecessary cache open requests.
   * **[Server]** Follow protocol spec when returning file compression info. Fixes #721
 
 + **Miscellaneous**
