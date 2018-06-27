@@ -7,6 +7,16 @@ Release Notes
 
 
 -------------
+Version 4.8.4
+-------------
+
++ **Major bug fixes**
+  * **[XrdCrypto]** Use consistently time_t.
+
++ **Miscellaneous**
+  * **[XrdSecgsi]** Improving checking of CA expiration.
+
+-------------
 Version 4.8.3
 -------------
 
