@@ -1377,7 +1377,7 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
                 {Eroute.Emsg("Config", "tpc command line too long"); return 1;}
              if (!*pgm)
                 {Eroute.Emsg("Config", "tpc program not specified"); return 1;}
-             Parms.Pgm = pgm;
+             Parms.Pgm = strdup( pgm );
              break;
             }
          if (!strcmp(val, "require"))

@@ -417,7 +417,8 @@ void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
 //
    if (Parms.Pgm)
       {if (XfrProg) free(XfrProg);
-       XfrProg = strdup(Parms.Pgm);
+       XfrProg = Parms.Pgm;
+       Parms.Pgm = 0;
       }
 
 // Set checksum type if specified
