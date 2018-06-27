@@ -32,6 +32,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 
 #include <stdio.h>
 #include <iostream>
@@ -531,6 +532,7 @@ int main( int argc, char **argv )
   bool         coerce    = false;
   bool         makedir   = false;
   bool         dynSrc    = false;
+  bool         delegate  = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -538,6 +540,21 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoCoerce ) )   coerce     = true;
   if( config.Want( XrdCpConfig::DoTpc ) )      thirdParty = "first";
   if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdParty = "only";
+  if( config.Want( XrdCpConfig::DoTpcDlgt ) )
+  {
+    // the env var is being set already here (we are issuing a stat
+    // inhere and we need the env var when we are establishing the
+    // connection and authenticating), but we are also setting a delegate
+    // parameter for CopyJob so it can be used on its own.
+    XrdOucEnv env;
+    env.Export( "XrdSecGSIDELEGPROXY", 1 );
+    delegate = true;
+  }
+  else
+  {
+    XrdOucEnv env;
+    env.Export( "XrdSecGSIDELEGPROXY", 0 );
+  }
   if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoPath    ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc     = true;
@@ -810,6 +827,7 @@ int main( int argc, char **argv )
     properties.Set( "zipArchive",     zip            );
     properties.Set( "xcp",            xcp            );
     properties.Set( "xcpBlockSize",   blockSize      );
+    properties.Set( "delegate",       delegate       );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );
