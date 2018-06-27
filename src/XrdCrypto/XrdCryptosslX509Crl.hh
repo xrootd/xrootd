@@ -65,8 +65,8 @@ public:
    const char *ParentFile() { return (const char *)(srcfile.c_str()); }
 
    // Validity interval
-   int  LastUpdate();  // time when last updated
-   int  NextUpdate();  // time foreseen for next update
+   time_t LastUpdate();  // time when last updated
+   time_t NextUpdate();  // time foreseen for next update
 
    // Issuer of top certificate
    const char *Issuer();
@@ -81,8 +81,8 @@ public:
 
 private:
    X509_CRL    *crl;       // The CRL object
-   int          lastupdate; // time of last update
-   int          nextupdate; // time of next update
+   time_t       lastupdate; // time of last update
+   time_t       nextupdate; // time of next update
    XrdOucString issuer;     // issuer name;
    XrdOucString issuerhash; // hash of issuer name (default algorithm);
    XrdOucString issueroldhash; // hash of issuer name (md5 algorithm);
