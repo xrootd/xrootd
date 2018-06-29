@@ -1245,7 +1245,7 @@ namespace XrdCl
     {
       SecurityRequest *newreq  = 0;
       // check if we have to secure the request in the first place
-      if( !NEED2SECURE ( info->protection )( *thereq ) ) return Status();
+      if( !( NEED2SECURE ( info->protection )( *thereq ) ) ) return Status();
       // secure (sign/encrypt) the request
       int rc = info->protection->Secure( newreq, *thereq, 0 );
       // there was an error
