@@ -12,6 +12,10 @@ Version 4.8.4
 
 + **Major bug fixes**
   * **[XrdCrypto]** Use consistently time_t.
+  * **[XrdCl]** Treat empty redirect response as error.
+
++ **Minor bug fixes**
+  * **[XrdCl]** [XrdCl] Use NEED2SECURE macro properly.
 
 + **Miscellaneous**
   * **[XrdSecgsi]** Improving checking of CA expiration.
