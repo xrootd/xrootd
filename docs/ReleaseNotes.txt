@@ -19,6 +19,7 @@ Version 4.8.4
 
 + **Miscellaneous**
   * **[XrdSecgsi]** Improving checking of CA expiration.
+  * **[XrdCl]** Improve TPC key generation, fixes #662
 
 -------------
 Version 4.8.3
