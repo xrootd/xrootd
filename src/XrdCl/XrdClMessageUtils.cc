@@ -96,6 +96,7 @@ namespace XrdCl
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
     msgHandler->SetChunkList( sendParams.chunkList );
     msgHandler->SetRedirectCounter( sendParams.redirectLimit );
+    msgHandler->SetStateful( sendParams.stateful );
 
     if( sendParams.loadBalancer.url.IsValid() )
       msgHandler->SetLoadBalancer( sendParams.loadBalancer );

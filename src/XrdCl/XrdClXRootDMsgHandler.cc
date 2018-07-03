@@ -36,6 +36,7 @@
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClLocalFileHandler.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 
 #include <arpa/inet.h>              // for network unmarshalling stuff
 #include "XrdSys/XrdSysPlatform.hh" // same as above
@@ -361,6 +362,13 @@ namespace XrdCl
       return;
     }
 
+    //--------------------------------------------------------------------------
+    // Reset the aggregated wait (used to omit wait response in case of Metalink
+    // redirector)
+    //--------------------------------------------------------------------------
+    if( rsp->hdr.status != kXR_wait )
+      pAggregatedWaitTime = 0;
+
     switch( rsp->hdr.status )
     {
       //------------------------------------------------------------------------
@@ -609,6 +617,23 @@ namespace XrdCl
           log->Dump( XRootDMsg, "[%s] Got kXR_wait response of 0 seconds to "
                      "message %s", pUrl.GetHostId().c_str(),
                      pRequest->GetDescription().c_str() );
+        }
+
+        pAggregatedWaitTime += waitSeconds;
+
+        // We need a special case if the data node comes from metalink
+        // redirector. In this case it might make more sense to try the
+        // next entry in the Metalink than wait.
+        if( OmitWait( pRequest, pLoadBalancer.url ) )
+        {
+          int maxWait = DefaultMaxMetalinkWait;
+          DefaultEnv::GetEnv()->GetInt( "MaxMetalinkWait", maxWait );
+          if( pAggregatedWaitTime > maxWait )
+          {
+            UpdateTriedCGI();
+            HandleError( RetryAtServer( pLoadBalancer.url ) );
+            return;
+          }
         }
 
         //----------------------------------------------------------------------
@@ -2116,6 +2141,35 @@ namespace XrdCl
     }
 
     return true;
+  }
+
+  //------------------------------------------------------------------------
+  //! Check if for given request and Metalink redirector  it is OK to omit
+  //! the kXR_wait and proceed stright to the next entry in the Metalink file
+  //------------------------------------------------------------------------
+  bool XRootDMsgHandler::OmitWait( Message *request, const URL &url )
+  {
+    // we can omit kXR_wait only if we have a Metalink redirector
+    if( !url.IsMetalink() )
+      return false;
+
+    // we can omit kXR_wait only for requests that can be redirected
+    // (kXR_read is the only stateful request that can be redirected)
+    ClientRequest *req = reinterpret_cast<ClientRequest*>( request->GetBuffer() );
+    if( pStateful && req->header.requestid != kXR_read )
+      return false;
+
+    // we can only omit kXR_wait if the Metalink redirect has more
+    // replicas
+    RedirectorRegistry &registry  = RedirectorRegistry::Instance();
+    VirtualRedirector *redirector = registry.Get( url );
+
+    // we need more than one server as the current one is not reflected
+    // in tried CGI
+    if( redirector->Count( request ) > 1 )
+      return true;
+
+    return false;
   }
 
 }

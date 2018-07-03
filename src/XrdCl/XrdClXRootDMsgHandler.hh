@@ -63,7 +63,7 @@ namespace XrdCl
                         ResponseHandler  *respHandler,
                         const URL        *url,
                         SIDManager       *sidMgr,
-                        LocalFileHandler *lFileHandler ):
+                        LocalFileHandler *lFileHandler):
         pRequest( msg ),
         pResponse( 0 ),
         pResponseHandler( respHandler ),
@@ -95,7 +95,11 @@ namespace XrdCl
 
         pOtherRawStarted( false ),
 
-        pFollowMetalink( false )
+        pFollowMetalink( false ),
+
+        pStateful( false ),
+
+        pAggregatedWaitTime( 0 )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -278,6 +282,11 @@ namespace XrdCl
         pFollowMetalink = followMetalink;
       }
 
+      void SetStateful( bool stateful )
+      {
+        pStateful = stateful;
+      }
+
     private:
       //------------------------------------------------------------------------
       //! Handle a kXR_read in raw mode
@@ -384,6 +393,16 @@ namespace XrdCl
       bool IsRetryable( Message *request );
 
       //------------------------------------------------------------------------
+      //! Check if for given request and Metalink redirector  it is OK to omit
+      //! the kXR_wait and proceed stright to the next entry in the Metalink file
+      //!
+      //! @param   reuqest : the request in question
+      //! @param   url     : metalink URL
+      //! @return          : true if yes, false if no
+      //------------------------------------------------------------------------
+      bool OmitWait( Message *request, const URL &url );
+
+      //------------------------------------------------------------------------
       // Helper struct for async reading of chunks
       //------------------------------------------------------------------------
       struct ChunkStatus
@@ -433,6 +452,9 @@ namespace XrdCl
       bool                       pOtherRawStarted;
 
       bool                       pFollowMetalink;
+
+      bool                       pStateful;
+      int                        pAggregatedWaitTime;
   };
 }
 

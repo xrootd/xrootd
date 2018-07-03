@@ -396,6 +396,15 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  //! Count how many replicas do we have left to try for given request
+  //----------------------------------------------------------------------------
+  int MetalinkRedirector::Count( Message *req ) const
+  {
+    ReplicaList::const_iterator itr = GetReplica( req );
+    return pReplicas.end() - itr;
+  }
+
+  //----------------------------------------------------------------------------
   // Gets the file checksum if specified in the metalink
   //----------------------------------------------------------------------------
   void MetalinkRedirector::InitCksum( XrdOucFileInfo **fileInfos )
@@ -429,30 +438,39 @@ namespace XrdCl
   XRootDStatus MetalinkRedirector::GetReplica( const Message *msg,
       std::string &replica ) const
   {
-    if( pReplicas.empty() )
+    ReplicaList::const_iterator itr = GetReplica( msg );
+    if( itr == pReplicas.end() )
       return XRootDStatus( stError, errNotFound );
+
+    replica = *itr;
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the next replica for the given message
+  //----------------------------------------------------------------------------
+  MetalinkRedirector::ReplicaList::const_iterator
+  MetalinkRedirector::GetReplica( const Message *msg ) const
+  {
+    if( pReplicas.empty() )
+      return pReplicas.cend();
 
     std::string tried;
     if( !GetCgiInfo( msg, "tried", tried ).IsOK() )
-    {
-      replica = pReplicas.front();
-      return XRootDStatus();
-    }
+      return pReplicas.cbegin();
+
     ReplicaList triedList;
     Utils::splitString( triedList, tried, "," );
-    ReplicaList::const_iterator tItr = triedList.begin(), rItr =
-        pReplicas.begin();
-    while( tItr != triedList.end() && rItr != pReplicas.end() )
+    std::set<std::string> triedSet( triedList.begin(), triedList.end() );
+
+    ReplicaList::const_iterator itr = pReplicas.begin();
+    for( ; itr != pReplicas.end(); ++itr )
     {
-      URL rUrl( *rItr );
-      if( rUrl.GetHostName() == *tItr )
-        ++rItr;
-      ++tItr;
+      URL url( *itr );
+      if( !triedSet.count( url.GetHostName() ) ) break;
     }
-    if( rItr == pReplicas.end() )
-      return XRootDStatus( stError, errNotFound ); // there are no more replicas to try
-    replica = *rItr;
-    return XRootDStatus();
+
+    return itr;
   }
 
   //----------------------------------------------------------------------------

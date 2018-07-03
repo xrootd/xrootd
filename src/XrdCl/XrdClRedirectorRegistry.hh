@@ -98,6 +98,11 @@ class VirtualRedirector
     //! Returns a vector with replicas as given in the meatlink file
     //----------------------------------------------------------------------------
     virtual const std::vector<std::string>& GetReplicas() = 0;
+
+    //----------------------------------------------------------------------------
+    //! Count how many replicas do we have left to try for given request
+    //----------------------------------------------------------------------------
+    virtual int Count( Message *req ) const = 0;
 };
 
 //--------------------------------------------------------------------------------

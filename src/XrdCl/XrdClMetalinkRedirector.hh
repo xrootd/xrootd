@@ -94,6 +94,11 @@ class MetalinkRedirector : public VirtualRedirector
       return pReplicas;
     }
 
+    //----------------------------------------------------------------------------
+    //! Count how many replicas do we have left to try for given request
+    //----------------------------------------------------------------------------
+    virtual int Count( Message *req ) const;
+
   private:
 
     //----------------------------------------------------------------------------
@@ -151,6 +156,11 @@ class MetalinkRedirector : public VirtualRedirector
     typedef std::list< std::pair<const Message*, IncomingMsgHandler*> > RedirectList;
     typedef std::map<std::string, std::string>                          CksumMap;
     typedef std::vector<std::string>                                    ReplicaList;
+
+    //----------------------------------------------------------------------------
+    //! Get the next replica for the given message
+    //----------------------------------------------------------------------------
+    ReplicaList::const_iterator GetReplica( const Message *msg ) const;
 
     RedirectList     pPendingRedirects;
     std::string      pUrl;
