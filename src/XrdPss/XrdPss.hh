@@ -92,16 +92,19 @@ ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
  
          // Constructor and destructor
-         XrdPssFile(const char *tid) : tident(tid), tpcPath(0) {fd = -1;}
+         XrdPssFile(const char *tid) : tident(tid), tpcPath(0), cacheURL(0)
+                                       {fd = -1;}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();
                        if (tpcPath) free(tpcPath);
+                       if (cacheURL)free(cacheURL);
                       }
 
 private:
 
 const char *tident;
       char *tpcPath;
+      char *cacheURL;
 };
 
 /******************************************************************************/
@@ -166,10 +169,12 @@ static int          hdrLen;
 static int          Streams;
 static int          Workers;
 static int          Trace;
+static int          dcaCSize;
 
 static bool         outProxy; // True means outgoing proxy
 static bool         pfxProxy; // True means outgoing proxy is prefixed
 static bool         xLfn2Pfn;
+static bool         dcaCheck;
 
          XrdPssSys();
 virtual ~XrdPssSys() {}
@@ -188,6 +193,7 @@ const
 char  *getDomain(const char *hName);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
 int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
+int    xdca( XrdSysError *errp,   XrdOucStream &Config);
 int    xexp( XrdSysError *Eroute, XrdOucStream &Config);
 int    xperm(XrdSysError *errp,   XrdOucStream &Config);
 int    xorig(XrdSysError *errp,   XrdOucStream &Config);

@@ -424,6 +424,7 @@ int XrdOfsFile::open(const char          *path,      // In
    EPNAME("open");
    static const int crMask = (SFS_O_CREAT  | SFS_O_TRUNC);
    static const int opMask = (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR);
+   static const int fRedir = (XrdOucEI::uUrlOK | XrdOucEI::uMProt);
 
    struct OpenHelper
          {const char   *Path;
@@ -621,9 +622,15 @@ int XrdOfsFile::open(const char          *path,      // In
       return XrdOfsFS->Emsg(epname, error, ENOMEM, "open", path);
 
 // We need to make special provisions for proxy servers in the presence of
-// the TPC option as it's handled differently in this case.
+// the TPC option and possibly cache as it's handled differently in this case.
 //
-   if (myTPC && XrdOfsFS->OssIsProxy) open_flag |= O_NOFOLLOW;
+   if (XrdOfsFS->OssIsProxy)
+      {if (myTPC) open_flag |= O_NOFOLLOW;
+       if ((error.getUCap() & fRedir) == fRedir)
+          {open_flag |= O_DIRECT;
+           if ((error.getUCap() & XrdOucEI::uReadR) != 0) open_flag |= O_NOCTTY;
+          }
+      }
 
 // Open the file
 //
@@ -634,6 +641,10 @@ int XrdOfsFile::open(const char          *path,      // In
            return XrdOfsFS->fsError(error, SFS_STARTED);
           }
        if (retc == -ETXTBSY) return XrdOfsFS->Stall(error, -1, path);
+       if (retc == -EDESTADDRREQ)
+          {char *url = Open_Env.Get("FileURL");
+           if (url) {error.setErrInfo(-1, url); return SFS_REDIRECT;}
+          }
        if (XrdOfsFS->Balancer && retc != -ECANCELED)
           XrdOfsFS->Balancer->Removed(path);
        return XrdOfsFS->Emsg(epname, error, retc, "open", path);

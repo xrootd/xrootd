@@ -102,10 +102,12 @@ int          XrdPssSys::hdrLen    =  0;
 int          XrdPssSys::Streams   =512;
 int          XrdPssSys::Workers   = 16;
 int          XrdPssSys::Trace     =  0;
+int          XrdPssSys::dcaCSize  =  0;
 
 bool         XrdPssSys::outProxy  = false;
 bool         XrdPssSys::pfxProxy  = false;
 bool         XrdPssSys::xLfn2Pfn  = false;
+bool         XrdPssSys::dcaCheck  = false;
 
 namespace XrdProxy
 {
@@ -336,6 +338,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_PSX("ccmlib",        ParseMLib);
    TS_PSX("ciosync",       ParseCio);
    TS_Xeq("config",        xconf);
+   TS_Xeq("dca",           xdca);
    TS_Xeq("defaults",      xdef);
    TS_DBG("debug",         TRACEPSS_Debug);
    TS_Xeq("export",        xexp);
@@ -450,6 +453,55 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(Xopts[i].Key, val)) break;
    return 0;
 }
 
+/******************************************************************************/
+/*                                  x d c a                                   */
+/******************************************************************************/
+
+/* Function: xdca
+
+   Purpose:  To parse the directive: dca [recheck {<sz> | off}]
+
+             <sz>      recheck for applicability every <sz> i/o
+
+   Output: 0 upon success or 1 upon failure.
+*/
+
+int XrdPssSys::xdca(XrdSysError *errp, XrdOucStream &Config)
+{
+    static const long long maxsz = 0x7fffffff;
+    char *val;
+    long long csz;
+
+// Preset the defaults
+//
+   dcaCheck = true;
+   dcaCSize = 1024*1024;
+
+// If no options then we are done
+//
+    if (!(val = Config.GetWord())) return 0;
+
+// Only one keyword we support
+//
+   if (strcmp(val, "recheck"))
+       {errp->Emsg("Config","nvalid dca options -", val); return 1;}
+
+//  Get the parameter
+//
+    if (!(val = Config.GetWord()))
+       {errp->Emsg("Config","dca recheck value not specified"); return 1;}
+
+// Check for "off"
+//
+   if (!strcmp(val, "off")) {dcaCSize = 0; return 0;}
+
+// Get the parameter
+//
+   if (XrdOuca2x::a2sz(*errp,"dca recheck",val,&csz,4096,maxsz)) return 1;
+   dcaCSize = static_cast<int>(csz);
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                  x d e f                                   */
 /******************************************************************************/

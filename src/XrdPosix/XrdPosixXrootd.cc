@@ -63,6 +63,7 @@
 #include "XrdPosix/XrdPosixDir.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
+#include "XrdPosix/XrdPosixInfo.hh"
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
 #include "XrdPosix/XrdPosixTrace.hh"
@@ -527,13 +528,19 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
                          XrdPosixCallBack *cbP)
 {
+    return Open(path, oflags, mode, cbP, 0);
+}
+  
+int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
+                         XrdPosixCallBack *cbP, XrdPosixInfo *infoP)
+{
    EPNAME("Open");
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fp;
    XrdCl::Access::Mode     XOmode = XrdCl::Access::None;
    XrdCl::OpenFlags::Flags XOflags;
    int Opts;
-   bool aOK;
+   bool aOK, isRO = false;
 
 // Translate R/W and R/O flags
 //
@@ -543,6 +550,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
       } else {
        Opts    = 0;
        XOflags = XrdCl::OpenFlags::Read;
+       isRO    = true;
       }
 
 // Pass along the stream flag
@@ -578,7 +586,13 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // open request ans we have a lot more work to do.
 //
    if (XrdPosixGlobals::myCache2)
-      {int rc = XrdPosixGlobals::myCache2->Prepare(fp->Path(), oflags, mode);
+      {int rc;
+       if (infoP && isRO && OpenCache(*fp, *infoP))
+          {delete fp;
+           errno = 0;
+           return -3;
+          }
+       rc = XrdPosixGlobals::myCache2->Prepare(fp->Path(), oflags, mode);
        if (rc > 0) return OpenDefer(fp, cbP, XOflags, XOmode, oflags&isStream);
        if (rc < 0) {delete fp; errno = -rc; return -1;}
       }
@@ -615,6 +629,38 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
    if (cbP) {errno = EINPROGRESS; return -1;}
    if (fp->Finalize(&Status)) return fp->FDNum();
    return XrdPosixMap::Result(Status);
+}
+  
+/******************************************************************************/
+/* Private:                    O p e n C a c h e                              */
+/******************************************************************************/
+  
+bool XrdPosixXrootd::OpenCache(XrdPosixFile &file,XrdPosixInfo &Info)
+{                                 //file://
+   EPNAME("OpenCache");
+   int rc;
+
+// Check if the full file is in the cache
+//
+   rc = XrdPosixGlobals::myCache2->LocalFilePath(file.Path(), Info.cachePath,
+                                                 sizeof(Info.cachePath),
+                                                 XrdOucCache2::ForAccess);
+   if (rc == 0)
+      {Info.ffReady  = true;
+       DEBUG("File in cache url=" <<Info.cacheURL);
+       return true;
+      }
+
+// If this can be a dynamic redirect then we need to supply the URL
+//
+   if (Info.ffChk && (rc == -ENOENT || rc == -EREMOTE)
+   &&  XrdPosixGlobals::myCache2->LocalFilePath(file.Path(), Info.cachePath,
+                                                sizeof(Info.cachePath),
+                                                XrdOucCache2::ForPath) == 0)
+      {file.setFFChk(Info.ffChk);
+       Info.ffReady  = false;
+      }
+   return false;
 }
   
 /******************************************************************************/

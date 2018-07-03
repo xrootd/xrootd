@@ -89,7 +89,7 @@ XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
                            int Opts)
              : XCio((XrdOucCacheIO2 *)this), PrepIO(0),
                mySize(0), myMtime(0), myInode(0), myMode(0),
-               theCB(cbP), fLoc(0), cOpt(0),
+               theCB(cbP), fLoc(0), cOpt(0), ffInCache(0),
                isStream(Opts & isStrm ? 1 : 0)
 {
 // Handle path generation. This is trickt as we may have two namespaces. One

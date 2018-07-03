@@ -1558,7 +1558,13 @@ int XrdXrootdProtocol::do_Prepare()
        if (!fsprep.reqid)
           {if (!hport) return Response.Send(kXR_ArgInvalid,
                              "Prepare requestid owned by an unknown server");
-           TRACEI(REDIR, Response.ID() <<"redirecting to " << hname <<':' <<hport);
+           if (TRACING(TRACE_REDIR))
+              {if (hport < 0)
+                  {TRACEI(REDIR, Response.ID() <<"redirecting to " << hname);}
+                  else {TRACEI(REDIR, Response.ID() <<"redirecting to "
+                                      << hname <<':' <<hport);
+                       }
+              }
            return Response.Send(kXR_redirect, hport, hname);
           }
        if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
@@ -3229,7 +3235,13 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        if (ecode < 0 && ecode != -1) ecode = (ecode ? -ecode : Port);
        if (XrdXrootdMonitor::Redirect() && Path && opC)
            XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
-       TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg <<':' <<ecode);
+       if (TRACING(TRACE_REDIR))
+          {if (ecode < 0)
+              {TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg);}
+              else {TRACEI(REDIR, Response.ID() <<"redirecting to "
+                                  << eMsg <<':' <<ecode);
+                   }
+          }
        rs = Response.Send(kXR_redirect, ecode, eMsg, myError.getErrTextLen());
        if (myError.extData()) myError.Reset();
        return rs;

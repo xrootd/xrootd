@@ -58,6 +58,7 @@ class XrdSysLogger;
 class XrdPosixCallBack;
 class XrdPosixCallBackIO;
 class XrdPosixFile;
+class XrdPosixInfo;
 
 //-----------------------------------------------------------------------------
 //! POSIX interface to XRootD with some extensions, as noted.
@@ -66,6 +67,7 @@ class XrdPosixFile;
 class XrdPosixXrootd
 {
 public:
+friend class XrdPosixConfig;
 
 //-----------------------------------------------------------------------------
 //! Access() conforms to POSIX.1-2001 access()
@@ -390,6 +392,10 @@ private:
 static int  Fault(XrdPosixFile *fp, int ecode);
 static void initStat(struct stat *buf);
 static void initXdev(dev_t &st_dev, dev_t &st_rdev);
+
+static int  Open(const char *path, int oflag, mode_t mode,
+                 XrdPosixCallBack *cbP, XrdPosixInfo *infoP);
+static bool OpenCache(XrdPosixFile &file, XrdPosixInfo &Info);
 
 static int  baseFD;
 static int  initDone;
