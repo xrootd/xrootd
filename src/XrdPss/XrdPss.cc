@@ -659,12 +659,10 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    bool rwMode  = (Oflag & (O_WRONLY | O_RDWR | O_APPEND)) != 0;
    bool ucgiOK  = true;
    bool ioCache = (Oflag & O_DIRECT);
-   bool rdRedir = (Oflag & O_NOCTTY);
 
 // Turn off direct flag if set (we record it separately
 //
    if (ioCache) Oflag &= ~O_DIRECT;
-   if (rdRedir) Oflag &= ~O_NOCTTY;
 
 // Return an error if the object is already open
 //
@@ -719,14 +717,12 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
       {if ((fd = XrdPosixXrootd::Open(pbuff,Oflag,Mode)) < 0) return -errno;
       } else {
        XrdPosixInfo Info;
-       if (rdRedir) Info.ffChk = XrdPssSys::dcaCSize;
        if (XrdPosixConfig::OpenFC(pbuff,Oflag,Mode,Info))
           {Env.Put("FileURL", Info.cacheURL);
            return -EDESTADDRREQ;
           }
        fd = Info.fileFD;
        if (fd < 0) return -errno;
-       cacheURL = strdup(Info.cacheURL);
       }
 
 // All done

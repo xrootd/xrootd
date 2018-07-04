@@ -39,14 +39,13 @@ struct XrdPosixInfo
 {
 XrdPosixCallBack *cbP;
 int               fileFD;
-int               ffChk;
 bool              ffReady;
 char              cacheURL[7];
 char              cachePath[MAXPATHLEN];
 
                   XrdPosixInfo(XrdPosixCallBack *cbp=0)
-                              : cbP(cbp), fileFD(-1), ffChk(0), ffReady(false)
-                              {strncpy(cacheURL, "file://", 7);
+                              : cbP(cbp), fileFD(-1), ffReady(false)
+                              {memcpy(cacheURL, "file://", 7);
                                *cachePath = 0;
                               }
                  ~XrdPosixInfo() {}

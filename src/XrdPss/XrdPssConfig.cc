@@ -102,7 +102,7 @@ int          XrdPssSys::hdrLen    =  0;
 int          XrdPssSys::Streams   =512;
 int          XrdPssSys::Workers   = 16;
 int          XrdPssSys::Trace     =  0;
-int          XrdPssSys::dcaCSize  =  0;
+int          XrdPssSys::dcaCTime  =  0;
 
 bool         XrdPssSys::outProxy  = false;
 bool         XrdPssSys::pfxProxy  = false;
@@ -212,6 +212,15 @@ int XrdPssSys::Configure(const char *cfn)
 // Save the N2N library pointer if we will be using it
 //
    if (psxConfig->xLfn2Pfn) xLfn2Pfn = (theN2N = psxConfig->theN2N) != 0;
+
+// If we have a version 2 cache then save it and check if we need to tell
+// xrootd we allow a redirect on a read (this is complicated).
+//
+   if (psxConfig->theCache2 && dcaCTime)
+      {char buff[32];
+       sprintf(buff, "%d", dcaCTime);
+       XrdOucEnv::Export("XRDXROOTD_CACHERDRDR", buff);
+      }
 
 // All done with the configurator
 //
@@ -459,23 +468,22 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(Xopts[i].Key, val)) break;
 
 /* Function: xdca
 
-   Purpose:  To parse the directive: dca [recheck {<sz> | off}]
+   Purpose:  To parse the directive: dca [recheck {<tm> | off}]
 
-             <sz>      recheck for applicability every <sz> i/o
+             <tm>      recheck for applicability every <tm> interval
 
    Output: 0 upon success or 1 upon failure.
 */
 
 int XrdPssSys::xdca(XrdSysError *errp, XrdOucStream &Config)
 {
-    static const long long maxsz = 0x7fffffff;
+    static const int maxsz = 0x7fffffff;
     char *val;
-    long long csz;
 
 // Preset the defaults
 //
    dcaCheck = true;
-   dcaCSize = 1024*1024;
+   dcaCTime = 0;
 
 // If no options then we are done
 //
@@ -484,7 +492,7 @@ int XrdPssSys::xdca(XrdSysError *errp, XrdOucStream &Config)
 // Only one keyword we support
 //
    if (strcmp(val, "recheck"))
-       {errp->Emsg("Config","nvalid dca options -", val); return 1;}
+       {errp->Emsg("Config","invalid dca option -", val); return 1;}
 
 //  Get the parameter
 //
@@ -493,12 +501,11 @@ int XrdPssSys::xdca(XrdSysError *errp, XrdOucStream &Config)
 
 // Check for "off"
 //
-   if (!strcmp(val, "off")) {dcaCSize = 0; return 0;}
+   if (!strcmp(val, "off")) {dcaCTime = 0; return 0;}
 
 // Get the parameter
 //
-   if (XrdOuca2x::a2sz(*errp,"dca recheck",val,&csz,4096,maxsz)) return 1;
-   dcaCSize = static_cast<int>(csz);
+   if (XrdOuca2x::a2tm(*errp,"dca recheck",val,&dcaCTime,10,maxsz)) return 1;
    return 0;
 }
   

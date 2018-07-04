@@ -636,7 +636,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 /******************************************************************************/
   
 bool XrdPosixXrootd::OpenCache(XrdPosixFile &file,XrdPosixInfo &Info)
-{                                 //file://
+{
    EPNAME("OpenCache");
    int rc;
 
@@ -651,15 +651,9 @@ bool XrdPosixXrootd::OpenCache(XrdPosixFile &file,XrdPosixInfo &Info)
        return true;
       }
 
-// If this can be a dynamic redirect then we need to supply the URL
+// File is not fully in the cache
 //
-   if (Info.ffChk && (rc == -ENOENT || rc == -EREMOTE)
-   &&  XrdPosixGlobals::myCache2->LocalFilePath(file.Path(), Info.cachePath,
-                                                sizeof(Info.cachePath),
-                                                XrdOucCache2::ForPath) == 0)
-      {file.setFFChk(Info.ffChk);
-       Info.ffReady  = false;
-      }
+   Info.ffReady = false;
    return false;
 }
   
