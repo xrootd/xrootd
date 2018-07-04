@@ -325,9 +325,17 @@ namespace
           //--------------------------------------------------------------------
           if( it->IsManager() )
           {
+            ++pOutstanding;
             FileSystem *fs = new FileSystem( it->GetAddress() );
-            if( fs->Locate( pPath, pFlags, new DeallocFSHandler(fs, this), pExpires-::time(0)).IsOK() )
-              ++pOutstanding;
+            if( pOutstanding == 0 || // protect against overflow, short circuiting
+                                     // will make sure the other part won't be executed
+                !fs->Locate( pPath, pFlags, new DeallocFSHandler(fs, this),
+                             pExpires-::time(0)).IsOK() )
+            {
+              --pOutstanding;
+              pPartial = true;
+              delete fs;
+            }
           }
         }
 
