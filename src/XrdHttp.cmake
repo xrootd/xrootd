@@ -48,6 +48,7 @@ if( BUILD_HTTP )
 
   target_link_libraries(
     ${MOD_XRD_HTTP}
+    XrdUtils
     ${LIB_XRD_HTTP_UTILS} )
 
   set_target_properties(

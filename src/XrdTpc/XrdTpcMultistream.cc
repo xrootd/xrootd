@@ -266,7 +266,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
                 }
             }
         } while (msg);
-        if (res != -1 && res != CURLE_OK) {
+        if (res != static_cast<CURLcode>(-1) && res != CURLE_OK) {
             break;
         }
 
@@ -317,7 +317,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         }
     } while (msg);
 
-    if (res == -1) { // No transfers returned?!?
+    if (res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
         throw std::runtime_error("Internal state error in libcurl");
     }
 

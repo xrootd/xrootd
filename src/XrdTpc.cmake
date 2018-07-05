@@ -34,12 +34,18 @@ if( BUILD_TPC )
     pthread
     ${CURL_LIBRARIES} )
 
+  if( MacOSX )
+    set( TPC_LINK_FLAGS, "-Wl" )
+  else()
+    set( TPC_LINK_FLAGS, "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdTpc/export-lib-symbols" )
+  endif()
+
   set_target_properties(
     ${LIB_XRD_TPC}
     PROPERTIES
     INTERFACE_LINK_LIBRARIES ""
     LINK_INTERFACE_LIBRARIES ""
-    LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdTpc/export-lib-symbols"
+    LINK_FLAGS "${TPC_LINK_FLAGS}"
     COMPILE_DEFINITIONS "XRD_CHUNK_RESP")
 
   #-----------------------------------------------------------------------------
