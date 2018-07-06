@@ -446,10 +446,16 @@ namespace XrdCl
       void MonitorClose( const XRootDStatus *status );
 
       //------------------------------------------------------------------------
-      //!
+      //! Issues request:
+      //!  - if the request is for a Metalink a redirect is generated
+      //!  - if the request is for a local file, it will be passed to
+      //!    LocalFileHandler
+      //!  - otherwise vanilla XRootD request will be sent
       //------------------------------------------------------------------------
-      inline XRootDStatus ExamineLocalResult( XRootDStatus &status, Message *msg,
-                                              ResponseHandler *handler );
+      XRootDStatus IssueRequest( const URL         &url,
+                                 Message           *msg,
+                                 ResponseHandler   *handler,
+                                 MessageSendParams &sendParams );
 
       mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;

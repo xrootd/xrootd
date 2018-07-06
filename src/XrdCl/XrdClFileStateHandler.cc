@@ -502,26 +502,6 @@ namespace XrdCl
     pOpenFlags = flags;
     OpenHandler *openHandler = new OpenHandler( this, handler );
 
-    bool redirect = pUseVirtRedirector && pFileUrl->IsMetalink();
-
-    //--------------------------------------------------------------------------
-    // If we don't want to redirect and it's a local file simply delgate
-    // to the LocalFileHandler
-    //--------------------------------------------------------------------------
-    if( pFileUrl->IsLocalFile() && !redirect )
-    {
-      Status st = pLFileHandler->Open( pFileUrl->GetURL().c_str(), flags,
-                                             mode, openHandler, timeout );
-      if( !st.IsOK() )
-      {
-        delete openHandler;
-        pStatus    = st;
-        pFileState = Error;
-      }
-
-      return st;
-    }
-
     Message           *msg;
     ClientOpenRequest *req;
     std::string        path = pFileUrl->GetPathWithFilteredParams();
@@ -538,13 +518,7 @@ namespace XrdCl
     params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
 
-    Status st;
-    if( redirect )
-      st = MessageUtils::RedirectMessage( *pFileUrl, msg, openHandler,
-                                          params, pLFileHandler );
-    else
-      st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler,
-                                      params, pLFileHandler );
+    Status st = IssueRequest( *pFileUrl, msg, openHandler, params );
 
     if( !st.IsOK() )
     {
@@ -603,12 +577,7 @@ namespace XrdCl
     params.stateful        = true;
     MessageUtils::ProcessSendParams( params );
 
-    Status st;
-    if( pDataServer->IsLocalFile() )
-      st = pLFileHandler->Close( closeHandler, timeout );
-    else
-      st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler,
-                                      params, pLFileHandler );
+    Status st = IssueRequest( *pDataServer, msg, closeHandler, params );
 
     if( !st.IsOK() )
     {
@@ -677,12 +646,6 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
 
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->Stat( stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
-
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -724,14 +687,7 @@ namespace XrdCl
     params.stateful        = true;
     params.chunkList       = list;
     MessageUtils::ProcessSendParams( params );
-
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
-
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->Read( offset, size, buffer, stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
 
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
@@ -778,12 +734,6 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
 
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->Write( offset, size, buffer, stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
-
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -818,12 +768,6 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
-
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->Sync( stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
 
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
@@ -861,12 +805,6 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
-
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->Truncate( size, stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
 
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
@@ -942,12 +880,6 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
 
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->VectorRead( *list, buffer, stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
-
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -1022,12 +954,6 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
 
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->VectorWrite( *list, stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
-
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -1035,10 +961,10 @@ namespace XrdCl
   // Write scattered buffers in one operation - async
   //------------------------------------------------------------------------
   XRootDStatus FileStateHandler::WriteV( uint64_t            offset,
-                                              const struct iovec *iov,
-                                              int                 iovcnt,
-                                              ResponseHandler    *handler,
-                                              uint16_t            timeout )
+                                         const struct iovec *iov,
+                                         int                 iovcnt,
+                                         ResponseHandler    *handler,
+                                         uint16_t            timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
@@ -1082,12 +1008,6 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
 
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->WriteV( offset, iov, iovcnt, stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
-
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -1128,12 +1048,6 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
 
-    if( pDataServer->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->Fcntl( arg, stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
-
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -1169,11 +1083,6 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
-    if( pFileUrl->IsLocalFile() )
-    {
-      XRootDStatus st = pLFileHandler->Visa( stHandler, timeout );
-      return ExamineLocalResult( st, msg, stHandler );
-    }
 
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
@@ -1402,10 +1311,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !status->IsOK() && status->code == errRedirect && pFollowRedirects )
     {
-      std::string root = "root", xroot = "xroot";
+      static const std::string root = "root", xroot = "xroot", file = "file";
       std::string msg = status->GetErrorMessage();
       if( !msg.compare( 0, root.size(), root ) ||
-          !msg.compare( 0, xroot.size(), xroot ) )
+          !msg.compare( 0, xroot.size(), xroot ) ||
+          !msg.compare( 0, file.size(), file ) )
       {
         OnStateRedirection( msg, message, userHandler, sendParams );
         return;
@@ -1675,8 +1585,7 @@ namespace XrdCl
     if( pFileState == Opened )
     {
       msg->SetSessionId( pSessionId );
-      Status st = MessageUtils::SendMessage( *pDataServer, msg, handler,
-                                             sendParams, pLFileHandler );
+      Status st = IssueRequest( *pDataServer, msg, handler, sendParams );
 
       //------------------------------------------------------------------------
       // Invalid session id means that the connection has been broken while we
@@ -1807,8 +1716,7 @@ namespace XrdCl
 
     MessageUtils::ProcessSendParams( params );
 
-    return MessageUtils::SendMessage( *pDataServer, msg, handler,
-                                      params, pLFileHandler );
+    return IssueRequest( *pDataServer, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1867,20 +1775,11 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    Status st;
     //--------------------------------------------------------------------------
-    // If a virtual redirector is in use, set it up in send parameters
-    // and redirect the message
+    // Issue the open request
     //--------------------------------------------------------------------------
-    if( pUseVirtRedirector && url.IsMetalink() )
-      st = MessageUtils::RedirectMessage( url, msg, openHandler,
-                                          params, pLFileHandler );
-    //--------------------------------------------------------------------------
-    // Otherwise do an ordinary send
-    //--------------------------------------------------------------------------
-    else
-      st = MessageUtils::SendMessage( url, msg, openHandler,
-                                      params, pLFileHandler );
+    Status st = IssueRequest( url, msg, openHandler, params );
+
     // if there was a problem destroy the open handler
     if( !st.IsOK() )
     {
@@ -1946,9 +1845,8 @@ namespace XrdCl
     {
       it->request->SetSessionId( pSessionId );
       ReWriteFileHandle( it->request );
-      Status st = MessageUtils::SendMessage( *pDataServer, it->request,
-                                             it->handler, it->params,
-                                             pLFileHandler );
+      Status st = IssueRequest( *pDataServer, it->request,
+                                 it->handler, it->params );
       if( !st.IsOK() )
         FailMessage( *it, st );
     }
@@ -2039,14 +1937,22 @@ namespace XrdCl
     }
   }
 
-  XRootDStatus FileStateHandler::ExamineLocalResult( XRootDStatus &status,
-                                                     Message *msg,
-                                                     ResponseHandler *handler )
+  XRootDStatus FileStateHandler::IssueRequest( const URL         &url,
+                                               Message           *msg,
+                                               ResponseHandler   *handler,
+                                               MessageSendParams &sendParams )
   {
-    if( status.IsOK() )
-      pInTheFly.insert( msg );
-    else
-      delete handler;
-    return status;
+    // first handle Metalinks
+    if( pUseVirtRedirector && url.IsMetalink() )
+      return MessageUtils::RedirectMessage( url, msg, handler,
+                                            sendParams, pLFileHandler );
+
+    // than local file access
+    if( url.IsLocalFile() )
+      return pLFileHandler->ExecRequest( url, msg, handler, sendParams );
+
+    // and finally ordinary XRootD requests
+    return MessageUtils::SendMessage( url, msg, handler,
+                                      sendParams, pLFileHandler );
   }
 }

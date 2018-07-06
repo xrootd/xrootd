@@ -473,18 +473,20 @@ namespace XrdCl
   // WriteV
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::WriteV( uint64_t            offset,
-                                              const struct iovec *iov,
-                                              int                 iovcnt,
-                                              ResponseHandler    *handler,
-                                              uint16_t            timeout )
+                                         ChunkList          *chunks,
+                                         ResponseHandler    *handler,
+                                         uint16_t            timeout )
   {
+    size_t iovcnt = chunks->size();
     iovec iovcp[iovcnt];
-    memcpy( iovcp, iov, sizeof( iovcp ) );
-    iovec *iovptr = iovcp;
-
     ssize_t size = 0;
-    for( int i = 0; i < iovcnt; ++i )
-      size += iovptr[i].iov_len;
+    for( size_t i = 0; i < iovcnt; ++i )
+    {
+      iovcp[i].iov_base = (*chunks)[i].buffer;
+      iovcp[i].iov_len  = (*chunks)[i].length;
+      size += (*chunks)[i].length;
+    }
+    iovec *iovptr = iovcp;
 
     ssize_t bytesWritten = 0;
     while( bytesWritten < size )
@@ -697,5 +699,83 @@ namespace XrdCl
     resp = new AnyObject();
     resp->Set( openInfo );
     return XRootDStatus();
+  }
+
+  XRootDStatus LocalFileHandler::ExecRequest( const URL         &url,
+                                              Message           *msg,
+                                              ResponseHandler   *handler,
+                                              MessageSendParams &sendParams )
+  {
+    ClientRequest *req = reinterpret_cast<ClientRequest*>( msg->GetBuffer() );
+
+    switch( req->header.requestid )
+    {
+      case kXR_open:
+      {
+        XRootDStatus st = Open( url.GetURL(), req->open.options,
+                                req->open.mode, handler, sendParams.timeout );
+        delete msg; // in case of other operations msg is owned by the handler
+        return st;
+      }
+
+      case kXR_close:
+      {
+        return Close( handler, sendParams.timeout );
+      }
+
+      case kXR_stat:
+      {
+        return Stat( handler, sendParams.timeout );
+      }
+
+      case kXR_read:
+      {
+        return Read( req->read.offset, req->read.rlen,
+                     sendParams.chunkList->front().buffer,
+                     handler, sendParams.timeout );
+      }
+
+      case kXR_write:
+      {
+        ChunkList *chunks = sendParams.chunkList;
+        if( chunks->size() == 1 )
+        {
+          // it's an ordinary write
+          return Write( req->write.offset, req->write.dlen,
+                        chunks->front().buffer, handler,
+                        sendParams.timeout );
+        }
+        // it's WriteV call
+        return WriteV( req->write.offset, sendParams.chunkList,
+                       handler, sendParams.timeout );
+      }
+
+      case kXR_sync:
+      {
+        return Sync( handler, sendParams.timeout );
+      }
+
+      case kXR_truncate:
+      {
+        return Truncate( req->truncate.offset, handler, sendParams.timeout );
+      }
+
+      case kXR_writev:
+      {
+        return VectorWrite( *sendParams.chunkList, handler,
+                            sendParams.timeout );
+      }
+
+      case kXR_readv:
+      {
+        return VectorRead( *sendParams.chunkList, 0,
+                           handler, sendParams.timeout );
+      }
+
+      default:
+      {
+        return XRootDStatus( stError, errNotSupported );
+      }
+    }
   }
 }

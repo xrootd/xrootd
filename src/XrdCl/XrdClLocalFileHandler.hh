@@ -27,6 +27,7 @@
 namespace XrdCl
 {
   class Message;
+  struct MessageSendParams;
 
   class LocalFileHandler
   {
@@ -169,10 +170,9 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus WriteV( uint64_t            offset,
-                                const struct iovec *iov,
-                                int                 iovcnt,
-                                ResponseHandler    *handler,
-                                uint16_t            timeout = 0 );
+                           ChunkList          *chunks,
+                           ResponseHandler    *handler,
+                           uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Queues a task to the jobmanager
@@ -228,6 +228,14 @@ namespace XrdCl
       {
         return pHostList;
       }
+
+      //------------------------------------------------------------------------
+      //! Translate an XRootD request into LocalFileHandler call
+      //------------------------------------------------------------------------
+      XRootDStatus ExecRequest( const URL         &url,
+                                Message           *msg,
+                                ResponseHandler   *handler,
+                                MessageSendParams &sendParams );
 
     private:
 
