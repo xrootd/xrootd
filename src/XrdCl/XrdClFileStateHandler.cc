@@ -1837,7 +1837,7 @@ namespace XrdCl
     ClientOpenRequest *req;
     URL u = url;
 
-    if( !url.GetPath().empty() )
+    if( url.GetPath().empty() )
       u.SetPath( pFileUrl->GetPath() );
 
     std::string path = u.GetPathWithFilteredParams();
