@@ -7,6 +7,7 @@
 #include "macaroons.h"
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSec/XrdSecEntity.hh"
 
 #include "handler.hh"
 #include "authz.hh"
@@ -21,6 +22,8 @@ class AuthzCheck
 public:
     AuthzCheck(const char *req_path, const Access_Operation req_oper, XrdSysError &log);
 
+    const std::string &GetSecName() const {return m_sec_name;}
+
     static int verify_before_s(void *authz_ptr,
                                const unsigned char *pred,
                                size_t pred_sz);
@@ -33,14 +36,20 @@ public:
                              const unsigned char *pred,
                              size_t pred_sz);
 
+    static int verify_name_s(void *authz_ptr,
+                             const unsigned char *pred,
+                             size_t pred_sz);
+
 private:
     int verify_before(const unsigned char *pred, size_t pred_sz);
     int verify_activity(const unsigned char *pred, size_t pred_sz);
     int verify_path(const unsigned char *pred, size_t pred_sz);
+    int verify_name(const unsigned char *pred, size_t pred_sz);
 
     XrdSysError &m_log;
     const std::string m_path;
     std::string m_desired_activity;
+    std::string m_sec_name;
     Access_Operation m_oper;
     time_t m_now;
 };
@@ -137,6 +146,7 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     macaroon_returncode mac_err = MACAROON_SUCCESS;
     if (macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_before_s, &check_helper, &mac_err) ||
         macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_activity_s, &check_helper, &mac_err) ||
+        macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_name_s, &check_helper, &mac_err) ||
         macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_path_s, &check_helper, &mac_err))
     {
         m_log.Emsg("Access", "Failed to configure caveat verifier:");
@@ -169,6 +179,14 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
     }
     //m_log.Emsg("Access", "Macaroon verification successful.");
+
+    // Copy the name, if present into the macaroon, into the credential object.
+    if (Entity && check_helper.GetSecName().size()) {
+        //m_log.Emsg("Access", "Setting the security name to", check_helper.GetSecName().c_str());
+        XrdSecEntity &myEntity = *const_cast<XrdSecEntity *>(Entity);
+        if (myEntity.name) {free(myEntity.name);}
+        myEntity.name = strdup(check_helper.GetSecName().c_str());
+    }
 
     // We passed verification - give the correct privilege.
     return AddPriv(oper, XrdAccPriv_None);
@@ -238,6 +256,15 @@ AuthzCheck::verify_path_s(void *authz_ptr,
                           size_t pred_sz)
 {
     return static_cast<AuthzCheck*>(authz_ptr)->verify_path(pred, pred_sz);
+}
+
+
+int
+AuthzCheck::verify_name_s(void *authz_ptr,
+                          const unsigned char *pred,
+                          size_t pred_sz)
+{
+    return static_cast<AuthzCheck*>(authz_ptr)->verify_name(pred, pred_sz);
 }
 
 
@@ -331,4 +358,19 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
     }
 
     return result;
+}
+
+
+int
+AuthzCheck::verify_name(const unsigned char * pred, size_t pred_sz)
+{
+    std::string pred_str(reinterpret_cast<const char *>(pred), pred_sz);
+    if (strncmp("name:", pred_str.c_str(), 5)) {return 1;}
+    if (pred_str.size() < 6) {return 1;}
+    //m_log.Emsg("AuthzCheck", "Verifying macaroon with", pred_str.c_str());
+
+    // Make a copy of the name for the XrdSecEntity; this will be used later.
+    m_sec_name = pred_str.substr(5);
+
+    return 0;
 }

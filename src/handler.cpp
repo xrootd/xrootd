@@ -223,15 +223,37 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     if (!mac) {
         return req.SendSimpleResp(500, NULL, NULL, "Internal error constructing the macaroon", 0);
     }
-    struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac,
+
+    // Embed the SecEntity name, if present.
+    struct macaroon *mac_with_name;
+    const char * sec_name = req.GetSecEntity().name;
+    if (sec_name) {
+        std::stringstream name_caveat_ss;
+        name_caveat_ss << "name:" << sec_name;
+        std::string name_caveat = name_caveat_ss.str();
+        mac_with_name = macaroon_add_first_party_caveat(mac,
+                                                        reinterpret_cast<const unsigned char*>(name_caveat.c_str()),
+                                                        name_caveat.size(),
+                                                        &mac_err);
+        macaroon_destroy(mac);
+    } else {
+        mac_with_name = mac;
+    }
+    if (!mac_with_name)
+    {
+        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding default activities to macaroon", 0);
+    }
+
+    struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac_with_name,
                                              reinterpret_cast<const unsigned char*>(activities.c_str()),
                                              activities.size(),
                                              &mac_err);
-    macaroon_destroy(mac);
+    macaroon_destroy(mac_with_name);
     if (!mac_with_activities)
     {
         return req.SendSimpleResp(500, NULL, NULL, "Internal error adding default activities to macaroon", 0);
     }
+
 
     for (const auto &caveat : other_caveats)
     {
