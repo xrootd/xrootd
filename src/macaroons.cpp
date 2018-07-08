@@ -4,6 +4,7 @@
 #include "handler.hh"
 #include "authz.hh"
 
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
@@ -35,8 +36,8 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
     }
     catch (std::runtime_error e)
     {
-        // TODO: Upgrade to XrdSysError
-        //log->Emsg("Config", "Configuration of Macaroon authorization handler failed", e.what());
+        XrdSysError err(log, "macaroons");
+        err.Emsg("Config", "Configuration of Macaroon authorization handler failed", e.what());
         return nullptr;
     }
 }
@@ -59,11 +60,6 @@ XrdHttpExtHandler *XrdHttpGetExtHandler(
         log->Emsg("Config", "Generation of Macaroon handler failed", e.what());
         return nullptr;
     }
-/*  TODO: actually implement
-    TPCHandler *retval{nullptr};
-    retval = new TPCHandler(log, config, myEnv);
-    return retval;
-*/
 }
 
 
