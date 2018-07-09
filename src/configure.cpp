@@ -24,6 +24,9 @@ bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
   }
   config_obj.Attach(cfg_fd);
 
+  // Set default mask for logging.
+  log->setMsgMask(LogMask::Error | LogMask::Warning);
+
   // Process items
   //
   char *orig_var, *var;
@@ -39,6 +42,7 @@ bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
 
     if (!strcmp("secretkey", var)) {success = xsecretkey(config_obj, log, secret);}
     else if (!strcmp("sitename", var)) {success = xsitename(config_obj, log, location);}
+    else if (!strcmp("trace", var)) {success = xtrace(config_obj, log);}
     else {
         log->Say("Config warning: ignoring unknown directive '", orig_var, "'.");
         config_obj.Echo();
@@ -57,6 +61,54 @@ bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
   }
 
   return success;
+}
+
+
+bool Handler::xtrace(XrdOucStream &config_obj, XrdSysError *log)
+{
+    char *val = config_obj.GetWord();
+    if (!val || !val[0])
+    {
+        log->Emsg("Config", "macaroons.trace requires at least one directive [all | error | warning | info | debug | none]");
+        return false;
+    }
+    // If the config option is given, reset the log mask.
+    log->setMsgMask(0);
+
+    do {
+        if (!strcmp(val, "all"))
+        {
+            log->setMsgMask(log->getMsgMask() | LogMask::All);
+        }
+        else if (!strcmp(val, "error"))
+        {
+            log->setMsgMask(log->getMsgMask() | LogMask::Error);
+        }
+        else if (!strcmp(val, "warning"))
+        {
+            log->setMsgMask(log->getMsgMask() | LogMask::Warning);
+        }
+        else if (!strcmp(val, "info"))
+        {
+            log->setMsgMask(log->getMsgMask() | LogMask::Info);
+        }
+        else if (!strcmp(val, "debug"))
+        {
+            log->setMsgMask(log->getMsgMask() | LogMask::Debug);
+        }
+        else if (!strcmp(val, "none"))
+        {
+            log->setMsgMask(0);
+        }
+        else
+        {
+            log->Emsg("Config", "macaroons.trace encountered an unknown directive:", val);
+            return false;
+        }
+        val = config_obj.GetWord();
+    } while (val);
+
+    return true;
 }
 
 

@@ -276,12 +276,12 @@ AuthzCheck::verify_before(const unsigned char * pred, size_t pred_sz)
     {
         return 1;
     }
-    //m_log.Emsg("AuthzCheck", "running verify before", pred_str.c_str());
+    m_log.Log(LogMask::Debug, "AuthzCheck", "running verify before", pred_str.c_str());
 
     struct tm caveat_tm;
     if (strptime(&pred_str[7], "%Y-%m-%dT%H:%M:%SZ", &caveat_tm) == nullptr)
     {
-        m_log.Emsg("AuthzCheck", "failed to parse time string", &pred_str[7]);
+        m_log.Log(LogMask::Debug, "AuthzCheck", "failed to parse time string", &pred_str[7]);
         return 1;
     }
     caveat_tm.tm_isdst = -1;
@@ -289,12 +289,12 @@ AuthzCheck::verify_before(const unsigned char * pred, size_t pred_sz)
     time_t caveat_time = timegm(&caveat_tm);
     if (-1 == caveat_time)
     {
-        m_log.Emsg("AuthzCheck", "failed to generate unix time", &pred_str[7]);
+        m_log.Log(LogMask::Debug, "AuthzCheck", "failed to generate unix time", &pred_str[7]);
         return 1;
     }
     int result = (m_now >= caveat_time);
-    //if (!result) m_log.Emsg("AuthzCheck", "verify before successful");
-    //else m_log.Emsg("AuthzCheck", "verify before failed");
+    if (!result) m_log.Log(LogMask::Debug, "AuthzCheck", "verify before successful");
+    else m_log.Log(LogMask::Debug, "AuthzCheck", "verify before failed");
     return result;
 }
 
@@ -305,7 +305,7 @@ AuthzCheck::verify_activity(const unsigned char * pred, size_t pred_sz)
     if (!m_desired_activity.size()) {return 1;}
     std::string pred_str(reinterpret_cast<const char *>(pred), pred_sz);
     if (strncmp("activity:", pred_str.c_str(), 9)) {return 1;}
-    //m_log.Emsg("AuthzCheck", "running verify activity", pred_str.c_str());
+    m_log.Log(LogMask::Debug, "AuthzCheck", "running verify activity", pred_str.c_str());
 
     std::stringstream ss(pred_str.substr(9));
     for (std::string activity; std::getline(ss, activity, ','); )
@@ -314,11 +314,11 @@ AuthzCheck::verify_activity(const unsigned char * pred, size_t pred_sz)
         if (m_desired_activity == "READ_METADATA") {return 0;}
         if (activity == m_desired_activity)
         {
-            //m_log.Emsg("AuthzCheck", "macaroon has desired activity", activity.c_str());
+            m_log.Log(LogMask::Debug, "AuthzCheck", "macaroon has desired activity", activity.c_str());
             return 0;
         }
     }
-    //m_log.Emsg("AuthzCheck", "macaroon does NOT have desired activity", m_desired_activity.c_str());
+    m_log.Log(LogMask::Info, "AuthzCheck", "macaroon does NOT have desired activity", m_desired_activity.c_str());
     return 1;
 }
 
@@ -328,12 +328,12 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
 {
     std::string pred_str(reinterpret_cast<const char *>(pred), pred_sz);
     if (strncmp("path:", pred_str.c_str(), 5)) {return 1;}
-    //m_log.Emsg("AuthzCheck", "running verify path", pred_str.c_str());
+    m_log.Log(LogMask::Debug, "AuthzCheck", "running verify path", pred_str.c_str());
 
     if ((m_path.find("/./") != std::string::npos) ||
         (m_path.find("/../") != std::string::npos))
     {
-        m_log.Emsg("AuthzCheck", "invalid requested path", m_path.c_str());
+        m_log.Log(LogMask::Info, "AuthzCheck", "invalid requested path", m_path.c_str());
         return 1;
     }
     size_t compare_chars = pred_str.size() - 5;
@@ -342,19 +342,19 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
     int result = strncmp(pred_str.c_str() + 5, m_path.c_str(), compare_chars);
     if (!result)
     {
-        //m_log.Emsg("AuthzCheck", "path request verified for", m_path.c_str());
+        m_log.Log(LogMask::Debug, "AuthzCheck", "path request verified for", m_path.c_str());
     }
     // READ_METADATA permission for /foo/bar automatically implies permission
     // to READ_METADATA for /foo.
     else if (m_oper == AOP_Stat)
     {
         result = strncmp(m_path.c_str(), pred_str.c_str() + 5, m_path.size());
-        //if (!result) {m_log.Emsg("AuthzCheck", "READ_METADATA path request verified for", m_path.c_str());}
-        //else {m_log.Emsg("AuthzCheck", "READ_METADATA path request NOT allowed", m_path.c_str());}
+        if (!result) {m_log.Log(LogMask::Debug, "AuthzCheck", "READ_METADATA path request verified for", m_path.c_str());}
+        else {m_log.Log(LogMask::Debug, "AuthzCheck", "READ_METADATA path request NOT allowed", m_path.c_str());}
     }
     else
     {
-        //m_log.Emsg("AuthzCheck", "path request NOT allowed", m_path.c_str());
+        m_log.Log(LogMask::Debug, "AuthzCheck", "path request NOT allowed", m_path.c_str());
     }
 
     return result;
@@ -367,7 +367,7 @@ AuthzCheck::verify_name(const unsigned char * pred, size_t pred_sz)
     std::string pred_str(reinterpret_cast<const char *>(pred), pred_sz);
     if (strncmp("name:", pred_str.c_str(), 5)) {return 1;}
     if (pred_str.size() < 6) {return 1;}
-    //m_log.Emsg("AuthzCheck", "Verifying macaroon with", pred_str.c_str());
+    m_log.Log(LogMask::Debug, "AuthzCheck", "Verifying macaroon with", pred_str.c_str());
 
     // Make a copy of the name for the XrdSecEntity; this will be used later.
     m_sec_name = pred_str.substr(5);

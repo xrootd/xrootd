@@ -12,6 +12,14 @@ class XrdAccAuthorize;
 
 namespace Macaroons {
 
+enum LogMask {
+    Debug = 0x01,
+    Info = 0x02,
+    Warning = 0x04,
+    Error = 0x08,
+    All = 0xff
+};
+
 class Handler : public XrdHttpExtHandler {
 public:
     Handler(XrdSysError *log, const char *config, XrdOucEnv *myEnv,
@@ -43,6 +51,7 @@ private:
 
     static bool xsecretkey(XrdOucStream &Config, XrdSysError *log, std::string &secret);
     static bool xsitename(XrdOucStream &Config, XrdSysError *log, std::string &location);
+    static bool xtrace(XrdOucStream &Config, XrdSysError *log);
 
     XrdAccAuthorize *m_chain;
     XrdSysError *m_log;
