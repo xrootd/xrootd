@@ -5,6 +5,7 @@
 #include "handler.hh"
 #include "authz.hh"
 
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -33,11 +34,24 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
     XrdAccAuthorize *chain_authz;
 
     if (parms && parms[0]) {
-        // TODO: tokenize string instead.
+        XrdOucString parms_str(parms);
+        XrdOucString chained_lib;
         XrdSysError *err = new XrdSysError(log, "authlib");
+        int from = parms_str.tokenize(chained_lib, 0, ' ');
+        const char *chained_parms = NULL;
+        err->Emsg("Config", "Will chain library", chained_lib.c_str());
+        if (from > 0)
+        {
+            parms_str.erasefromstart(from);
+            if (parms_str.length())
+            {
+                err->Emsg("Config", "Will chain parameters", parms_str.c_str());
+                chained_parms = parms_str.c_str();
+            }
+        }
         char resolvePath[2048];
         bool usedAltPath{true};
-        if (!XrdOucPinPath(parms, usedAltPath, resolvePath, 2048)) {
+        if (!XrdOucPinPath(chained_lib.c_str(), usedAltPath, resolvePath, 2048)) {
             err->Emsg("Config", "Failed to locate appropriately versioned chained auth library:", parms);
             delete err;
             return NULL;
@@ -58,7 +72,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
             delete err;
             return NULL;
         }
-        chain_authz = (*ep)(log, config, NULL);
+        chain_authz = (*ep)(log, config, chained_parms);
     }
     else
     {
