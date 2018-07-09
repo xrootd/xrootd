@@ -34,6 +34,7 @@ public:
     }
 
 private:
+    ssize_t m_max_duration;
     XrdAccAuthorize *m_chain;
     XrdSysError m_log;
     std::string m_secret;

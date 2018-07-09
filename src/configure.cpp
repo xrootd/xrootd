@@ -12,7 +12,7 @@
 using namespace Macaroons;
 
 bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
-    std::string &location, std::string &secret)
+    std::string &location, std::string &secret, ssize_t &max_duration)
 {
   XrdOucStream config_obj(log, getenv("XRDINSTANCE"), env, "=====> ");
 
@@ -26,6 +26,9 @@ bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
 
   // Set default mask for logging.
   log->setMsgMask(LogMask::Error | LogMask::Warning);
+
+  // Set default maximum duration (24 hours).
+  max_duration = 24*3600;
 
   // Process items
   //
@@ -43,6 +46,7 @@ bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
     if (!strcmp("secretkey", var)) {success = xsecretkey(config_obj, log, secret);}
     else if (!strcmp("sitename", var)) {success = xsitename(config_obj, log, location);}
     else if (!strcmp("trace", var)) {success = xtrace(config_obj, log);}
+    else if (!strcmp("maxduration", var)) {success = xmaxduration(config_obj, log, max_duration);}
     else {
         log->Say("Config warning: ignoring unknown directive '", orig_var, "'.");
         config_obj.Echo();
@@ -111,6 +115,30 @@ bool Handler::xtrace(XrdOucStream &config_obj, XrdSysError *log)
     return true;
 }
 
+
+bool Handler::xmaxduration(XrdOucStream &config_obj, XrdSysError *log, ssize_t &max_duration)
+{
+  char *val = config_obj.GetWord();
+  if (!val || !val[0])
+  {
+    log->Emsg("Config", "macaroons.maxduration requires a value");
+    return false;
+  }
+  char *endptr = NULL;
+  long int max_duration_parsed = strtoll(val, &endptr, 10);
+  if (endptr == val)
+  {
+    log->Emsg("Config", "Unable to parse macaroons.maxduration as an integer", val);
+    return false;
+  }
+  if (errno != 0)
+  {
+    log->Emsg("Config", "Failure when parsing macaroons.maxduration as an integer", strerror(errno));
+  }
+  max_duration = max_duration_parsed;
+
+  return true;
+}
 
 bool Handler::xsitename(XrdOucStream &config_obj, XrdSysError *log, std::string &location)
 {

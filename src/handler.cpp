@@ -178,7 +178,14 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     }
     time_t now;
     time(&now);
-    now += validity;
+    if (m_max_duration > 0)
+    {
+        now += (validity > m_max_duration) ? m_max_duration : validity;
+    }
+    else
+    {
+        now += validity;
+    }
     char utc_time_buf[21];
     if (!strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&now)))
     {

@@ -24,10 +24,11 @@ class Handler : public XrdHttpExtHandler {
 public:
     Handler(XrdSysError *log, const char *config, XrdOucEnv *myEnv,
         XrdAccAuthorize *chain) :
+        m_max_duration(86400),
         m_chain(chain),
         m_log(log)
     {
-        if (!Config(config, myEnv, m_log, m_location, m_secret))
+        if (!Config(config, myEnv, m_log, m_location, m_secret, m_max_duration))
         {
             throw std::runtime_error("Macaroon handler config failed.");
         }
@@ -43,7 +44,7 @@ public:
     // Static configuration method; made static to allow Authz object to reuse
     // this code.
     static bool Config(const char *config, XrdOucEnv *env, XrdSysError *log,
-        std::string &location, std::string &secret);
+        std::string &location, std::string &secret, ssize_t &max_duration);
 
 private:
     std::string GenerateID(const XrdSecEntity &, const std::string &, const std::string &);
@@ -52,7 +53,9 @@ private:
     static bool xsecretkey(XrdOucStream &Config, XrdSysError *log, std::string &secret);
     static bool xsitename(XrdOucStream &Config, XrdSysError *log, std::string &location);
     static bool xtrace(XrdOucStream &Config, XrdSysError *log);
+    static bool xmaxduration(XrdOucStream &Config, XrdSysError *log, ssize_t &max_duration);
 
+    ssize_t m_max_duration;
     XrdAccAuthorize *m_chain;
     XrdSysError *m_log;
     std::string m_location;

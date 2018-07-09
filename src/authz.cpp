@@ -20,7 +20,7 @@ namespace {
 class AuthzCheck
 {
 public:
-    AuthzCheck(const char *req_path, const Access_Operation req_oper, XrdSysError &log);
+    AuthzCheck(const char *req_path, const Access_Operation req_oper, ssize_t m_max_duration, XrdSysError &log);
 
     const std::string &GetSecName() const {return m_sec_name;}
 
@@ -46,6 +46,7 @@ private:
     int verify_path(const unsigned char *pred, size_t pred_sz);
     int verify_name(const unsigned char *pred, size_t pred_sz);
 
+    ssize_t m_max_duration;
     XrdSysError &m_log;
     const std::string m_path;
     std::string m_desired_activity;
@@ -105,10 +106,11 @@ static XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
 
 
 Authz::Authz(XrdSysLogger *log, char const *config, XrdAccAuthorize *chain)
-    : m_chain(chain),
+    : m_max_duration(86400),
+    m_chain(chain),
     m_log(log, "macarons_")
 {
-    if (!Handler::Config(config, nullptr, &m_log, m_location, m_secret))
+    if (!Handler::Config(config, nullptr, &m_log, m_location, m_secret, m_max_duration))
     {
         throw std::runtime_error("Macaroon authorization config failed.");
     }
@@ -141,7 +143,7 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
         return XrdAccPriv_None;
     }
 
-    AuthzCheck check_helper(path, oper, m_log);
+    AuthzCheck check_helper(path, oper, m_max_duration, m_log);
 
     macaroon_returncode mac_err = MACAROON_SUCCESS;
     if (macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_before_s, &check_helper, &mac_err) ||
@@ -193,8 +195,9 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
 }
 
 
-AuthzCheck::AuthzCheck(const char *req_path, const Access_Operation req_oper, XrdSysError &log)
-      : m_log(log),
+AuthzCheck::AuthzCheck(const char *req_path, const Access_Operation req_oper, ssize_t max_duration, XrdSysError &log)
+      : m_max_duration(max_duration),
+        m_log(log),
         m_path(req_path),
         m_oper(req_oper),
         m_now(time(NULL))
@@ -292,6 +295,12 @@ AuthzCheck::verify_before(const unsigned char * pred, size_t pred_sz)
         m_log.Log(LogMask::Debug, "AuthzCheck", "failed to generate unix time", &pred_str[7]);
         return 1;
     }
+    if ((m_max_duration > 0) && (caveat_time > m_now + m_max_duration))
+    {
+        m_log.Log(LogMask::Warning, "AuthzCheck", "Max token age is greater than configured max duration; rejecting");
+        return 1;
+    }
+
     int result = (m_now >= caveat_time);
     if (!result) m_log.Log(LogMask::Debug, "AuthzCheck", "verify before successful");
     else m_log.Log(LogMask::Debug, "AuthzCheck", "verify before failed");
