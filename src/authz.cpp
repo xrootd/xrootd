@@ -166,8 +166,15 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
     }
 
-    // TODO: check location matches our location
-    // TODO: record identifier into the log.
+    const unsigned char *macaroon_loc;
+    size_t location_sz;
+    macaroon_location(macaroon, &macaroon_loc, &location_sz);
+    if (strncmp(reinterpret_cast<const char *>(macaroon_loc), m_location.c_str(), location_sz))
+    {
+        m_log.Emsg("Access", "Macaroon is for incorrect location", reinterpret_cast<const char *>(macaroon_loc));
+        macaroon_verifier_destroy(verifier);
+        return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
+    }
 
     if (macaroon_verify(verifier, macaroon,
                          reinterpret_cast<const unsigned char *>(m_secret.c_str()),
@@ -175,16 +182,20 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
                          NULL, 0, // discharge macaroons
                          &mac_err))
     {
-        //m_log.Emsg("Access", "Macaroon verification failed:", macaroon_error(mac_err));
+        m_log.Log(LogMask::Debug, "Access", "Macaroon verification failed");
         macaroon_verifier_destroy(verifier);
         macaroon_destroy(macaroon);
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
     }
-    //m_log.Emsg("Access", "Macaroon verification successful.");
+    const unsigned char *macaroon_id;
+    size_t id_sz;
+    macaroon_identifier(macaroon, &macaroon_id, &id_sz);
+    std::string macaroon_id_str(reinterpret_cast<const char *>(macaroon_id), id_sz);
+    m_log.Log(LogMask::Info, "Access", "Macaroon verification successful; ID", macaroon_id_str.c_str());
 
     // Copy the name, if present into the macaroon, into the credential object.
     if (Entity && check_helper.GetSecName().size()) {
-        //m_log.Emsg("Access", "Setting the security name to", check_helper.GetSecName().c_str());
+        m_log.Log(LogMask::Debug, "Access", "Setting the security name to", check_helper.GetSecName().c_str());
         XrdSecEntity &myEntity = *const_cast<XrdSecEntity *>(Entity);
         if (myEntity.name) {free(myEntity.name);}
         myEntity.name = strdup(check_helper.GetSecName().c_str());
