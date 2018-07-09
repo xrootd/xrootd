@@ -1,6 +1,6 @@
 
 Name: xrootd-macaroons
-Version: 0.2.0
+Version: 0.3.0
 Release: 1%{?dist}
 Summary: Macaroons support for XRootD
 
@@ -41,6 +41,11 @@ BuildRequires: json-c-devel
 %{_libdir}/libXrdMacaroons-4.so
 
 %changelog
+* Mon Jul 09 2018 Brian Bockelman <bbockelm@cse.unl.edu> - 0.3.0-1
+- Add the concept of a max duration.
+- Check the location matches the current location.
+- Record ID usage in the logs.
+
 * Mon Jul 09 2018 Brian Bockelman <bbockelm@cse.unl.edu> - 0.2.0-1
 - Record authz name within the macaroon; set it on request.
 - Allow multiple logging levels.
