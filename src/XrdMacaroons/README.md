@@ -11,6 +11,7 @@ Configuration
 To enable, you need to add three lines to the configuration file:
 
 ```
+ofs.authlib libXrdMacaroons.so
 http.exthandler xrdmacaroons libXrdMacaroons.so
 macaroons.secretkey /etc/xrootd/macaroon-secret
 all.sitename Example_Site

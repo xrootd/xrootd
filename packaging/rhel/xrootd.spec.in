@@ -63,6 +63,9 @@ BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
 BuildRequires: libcurl-devel
+BuildRequires: libuuid-devel
+BuildRequires: libmacaroons-devel
+BuildRequires: json-c-devel
 
 BuildRequires: python2-devel
 %if %{?fedora}%{!?fedora:0} >= 13
