@@ -89,6 +89,17 @@ check_function_exists( curl_multi_wait HAVE_CURL_MULTI_WAIT )
 compiler_define_if_found( HAVE_CURL_MULTI_WAIT HAVE_CURL_MULTI_WAIT )
 endif()
 
+if( ENABLE_MACAROONS )
+find_package( Macaroons REQUIRED )
+include (FindPkgConfig)
+pkg_check_modules(JSON REQUIRED json-c)
+pkg_check_modules(UUID REQUIRED uuid)
+
+set( BUILD_MACAROONS TRUE )
+else()
+set( BUILD_MACAROONS FALSE )
+endif()
+
 if( ENABLE_CEPH )
   find_package( ceph )
   if( CEPH_FOUND )
