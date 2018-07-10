@@ -9,8 +9,8 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecEntity.hh"
 
-#include "handler.hh"
-#include "authz.hh"
+#include "XrdMacaroonsHandler.hh"
+#include "XrdMacaroonsAuthz.hh"
 
 using namespace Macaroons;
 

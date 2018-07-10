@@ -15,13 +15,14 @@ if( BUILD_MACAROONS )
   add_library(
     ${LIB_XRD_MACAROONS}
     MODULE
-    XrdMacaroons/macaroons.cpp
-    XrdMacaroons/handler.cpp     XrdMacaroons/handler.hh
-    XrdMacaroons/authz.cpp       XrdMacaroons/authz.hh
-    XrdMacaroons//configure.cpp)
+    XrdMacaroons/XrdMacaroons.cc
+    XrdMacaroons/XrdMacaroonsHandler.cc     XrdMacaroons/XrdMacaroonsHandler.hh
+    XrdMacaroons/XrdMacaroonsAuthz.cc       XrdMacaroons/XrdMacaroonsAuthz.hh
+    XrdMacaroons/XrdMacaroonsConfigure.cc)
 
   target_link_libraries(
     ${LIB_XRD_MACAROONS} -ldl
+    XrdHttpUtils
     XrdUtils
     XrdServer
     ${MACAROONS_LIB}

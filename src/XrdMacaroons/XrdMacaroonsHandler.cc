@@ -13,7 +13,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSec/XrdSecEntity.hh"
 
-#include "handler.hh"
+#include "XrdMacaroonsHandler.hh"
 
 using namespace Macaroons;
 

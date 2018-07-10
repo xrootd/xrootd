@@ -6,7 +6,7 @@
 
 #include <XrdOuc/XrdOucStream.hh>
 
-#include "handler.hh"
+#include "XrdMacaroonsHandler.hh"
 
 
 using namespace Macaroons;

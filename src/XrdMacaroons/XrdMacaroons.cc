@@ -2,8 +2,8 @@
 #include <stdexcept>
 #include <dlfcn.h>
 
-#include "handler.hh"
-#include "authz.hh"
+#include "XrdMacaroonsHandler.hh"
+#include "XrdMacaroonsAuthz.hh"
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
