@@ -55,4 +55,6 @@ src/XrdSecsss/xrdsssadmin
 src/XrdXrootd/xrootd
 test/testconfig.sh
 xrootd.spec
-
+dist
+*.egg-info
+bindings/python/VERSION
