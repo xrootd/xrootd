@@ -93,7 +93,12 @@ private:
 
   void getfhandle();
 
-  
+  /// Cook and send the response after the bridge did something
+  /// Return values:
+  ///  0->everything OK, additionsl steps may be required
+  ///  1->request processed completely
+  ///  -1->error
+  int PostProcessHTTPReq(bool final = false);
 
   // Parse a resource string, typically a filename, setting the resource field and the opaque data
   void parseResource(char *url);
@@ -257,19 +262,6 @@ public:
   ///  1->request processed
   ///  -1->error
   int ProcessHTTPReq();
-
-  /// Cook and send the response after the bridge did something
-  /// Return values:
-  ///  0->everything OK, additionsl steps may be required
-  ///  1->request processed completely
-  ///  -1->error
-  int PostProcessHTTPReq(bool final = false);
-
-
-
-
-
-
 
 
   // ------------
