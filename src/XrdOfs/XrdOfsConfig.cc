@@ -1713,6 +1713,7 @@ int XrdOfs::xatr(XrdOucStream &Config, XrdSysError &Eroute)
 {
    char *val;
    static const int xanRsv = 7;
+   long long vtmp;
    int maxN = kXR_faMaxNlen, maxV = kXR_faMaxVlen;
    bool isOn = true;
 
@@ -1722,16 +1723,18 @@ int XrdOfs::xatr(XrdOucStream &Config, XrdSysError &Eroute)
                      {Eroute.Emsg("Config","xattr maxnsz value not specified");
                       return 1;
                      }
-                  if (XrdOuca2x::a2i(Eroute,"maxnsz",val,&maxN,
+                  if (XrdOuca2x::a2sz(Eroute,"maxnsz",val,&vtmp,
                                      xanRsv+1,kXR_faMaxNlen+xanRsv)) return 1;
+                  maxN = static_cast<int>(vtmp);
                  }
          else if (!strcmp("maxvsz", val))
                  {if (!(val = Config.GetWord()))
                      {Eroute.Emsg("Config","xattr maxvsz value not specified");
                       return 1;
                      }
-                  if (XrdOuca2x::a2i(Eroute,"maxvsz",val,&maxV,0,kXR_faMaxVlen))
+                  if (XrdOuca2x::a2sz(Eroute,"maxvsz",val,&vtmp,0,kXR_faMaxVlen))
                      return 1;
+                  maxV = static_cast<int>(vtmp);
                  }
          else if (!strcmp("uset",   val))
                  {if (!(val = Config.GetWord()))
