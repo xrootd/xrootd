@@ -185,6 +185,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcmp(key, "Destination")) {
       destination.assign(val, line+len-val);
       trim(destination);
+    } else if (!strcmp(key, "Want-Digest")) {
+      m_req_digest.assign(val, line + len - val);
+      trim(m_req_digest);
     } else if (!strcmp(key, "Depth")) {
       depth = -1;
       if (strcmp(val, "infinity"))
@@ -1469,9 +1472,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     }
     case XrdHttpReq::rtHEAD:
     {
-
-      if (xrdresp == kXR_ok) {
-
+      if (xrdresp != kXR_ok) {
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                               httpStatusText.c_str(), httpStatusText.length());
+        return -1;
+      } else if (reqstate == 0) {
         if (iovN > 0) {
 
           // Now parse the stat info
@@ -1484,18 +1489,32 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   &fileflags,
                   &filemodtime);
 
-          prot->SendSimpleResp(200, NULL, NULL, NULL, filesize);
-          return 1;
+          if (m_req_digest.size()) {
+            if (prot->doChksum(resourceplusopaque) < 0) {
+              prot->SendSimpleResp(500, NULL, NULL, "Failed to route checksum request", 0);
+              return -1;
+            }
+            return 0;
+          } else {
+            prot->SendSimpleResp(200, NULL, NULL, NULL, filesize);
+            return 1;
+          }
         }
 
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                              httpStatusText.c_str(), httpStatusText.length());
         reset();
         return 1;
-      } else {
-        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), httpStatusText.length());
-        return -1;
+      } else { // We requested a checksum and now have its response.
+        if (iovN > 0) {
+          TRACEI(REQ, "Checksum for HEAD " << resource << " value=" << reinterpret_cast<char *>(iovP[0].iov_base));
+
+          std::string digest_response = "Digest: ";
+          digest_response += m_req_digest;
+          digest_response += "=";
+          digest_response += reinterpret_cast<char *>(iovP[0].iov_base);
+          prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize);
+        }
       }
     }
     case XrdHttpReq::rtGET:

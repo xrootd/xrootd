@@ -202,6 +202,9 @@ public:
   /// The destination field specified in the req
   std::string destination;
 
+  /// The requested digest type
+  std::string m_req_digest;
+
   /// Additional opaque info that may come from the hdr2cgi directive
   std::string hdr2cgistr;
   
