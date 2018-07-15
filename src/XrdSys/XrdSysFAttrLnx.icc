@@ -60,9 +60,9 @@ int XrdSysFAttr::Del(const char *Aname, const char *Path, int fd)
 //
    ec = (fd < 0 ? removexattr(Path, Avar) : fremovexattr(fd, Avar));
 
-// Diagnose errors but ignore errors if it doesn't exist
+// Diagnose errors.
 //
-   if (ec && (ec = Diagnose("remove", Aname, Path, errno)) == -ENOENT) ec = 0;
+   if (ec) ec = Diagnose("remove", Aname, Path, errno);
    return ec;
 }
   
@@ -85,9 +85,9 @@ int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
    ec = (fd < 0 ?  getxattr(Path, Avar, Aval, Avsz)
                 : fgetxattr(fd,   Avar, Aval, Avsz));
 
-// Diagnose errors. We return 0 on ENOENT to indicate no attribute.
+// Diagnose errors.
 //
-   if (ec < 0 && (ec = Diagnose("get", Aname, Path, errno)) == -ENOENT) ec = 0;
+   if (ec < 0) ec = Diagnose("get", Aname, Path, errno);
    return ec;
 }
 
