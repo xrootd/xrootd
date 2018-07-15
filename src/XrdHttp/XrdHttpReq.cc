@@ -1473,8 +1473,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     case XrdHttpReq::rtHEAD:
     {
       if (xrdresp != kXR_ok) {
-        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                               httpStatusText.c_str(), httpStatusText.length());
+        // NOTE that HEAD MUST NOT return a body, even in the case of failure.
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0);
         return -1;
       } else if (reqstate == 0) {
         if (iovN > 0) {
@@ -1491,7 +1491,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
           if (m_req_digest.size()) {
             if (prot->doChksum(resourceplusopaque) < 0) {
-              prot->SendSimpleResp(500, NULL, NULL, "Failed to route checksum request", 0);
+              prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
               return -1;
             }
             return 0;
@@ -1501,8 +1501,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           }
         }
 
-        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), httpStatusText.length());
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0);
         reset();
         return 1;
       } else { // We requested a checksum and now have its response.
