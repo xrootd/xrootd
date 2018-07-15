@@ -86,9 +86,9 @@ virtual int  Copy(const char *iPath, int iFD, const char *oPath, int oFD,
 //! @param  Path   -> Path of the file whose attribute is to be removed.
 //! @param  fd        If >=0 is the file descriptor of the opened subject file.
 //!
-//! @return =0     Attribute was successfully removed or did not exist.
-//! @return <0     Attribute was not removed, the return value is -errno that
-//!                describes the reason for the failure.
+//! @return =0     Attribute was successfully removed.
+//! @return <0     Attribute was not removed or does not exist. The return value
+//!                is -errno that describes the reason for the failure.
 //------------------------------------------------------------------------------
 
 virtual int  Del(const char *Aname, const char *Path, int fd=-1) = 0;
@@ -115,7 +115,7 @@ virtual void Free(AList *aPL) = 0;
 //!
 //! @return >0     The number of bytes placed in Aval. However, if avsz is zero
 //!                then the value is the actual size of the attribute value.
-//! @return =0     The attribute does not exist.
+//! @return =0     The attribute exists but has no associated value.
 //! @return <0     The attribute value could not be returned. The returned
 //!                value is -errno describing the reason.
 //------------------------------------------------------------------------------

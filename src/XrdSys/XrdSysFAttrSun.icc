@@ -51,17 +51,13 @@ int XrdSysFAttr::Del(const char *Aname, const char *Path, int fd)
    fd =  (fd < 0 ? attropen(Path, ".", O_RDONLY)
                  : openat(    fd, ".", O_RDONLY|O_XATTR));
 
-// If the preceeding open failed, diagnose the problem. We ignore ENOENT.
+// If the preceeding open failed, diagnose the problem.
 //
-   if (fd < 0)
-      {if (errno == ENOENT) return 0;
-       return Diagnose("open to remove", Aname, Path, errno);
-      }
+   if (fd < 0) return Diagnose("open to remove", Aname, Path, errno);
 
 // Now unlink the attribute file
 //
-   if (unlinkat(fd, Aname, 0) < 0 && errno != ENOENT)
-      ec = Diagnose("remove", Aname, Path, errno);
+   if (unlinkat(fd, Aname, 0) < 0) ec = Diagnose("remove", Aname, Path, errno);
 
 // All done
 //
@@ -83,11 +79,9 @@ int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
    fd =  (fd < 0 ? attropen(Path, Aname, O_RDONLY)
                  : openat(    fd, Aname, O_RDONLY|O_XATTR));
 
-// If the preceeding open failed, diagnose the problem. We ignore ENOENT.
+// If the preceeding open failed, diagnose the problem.
 //
-   if (fd < 0)
-      {if (errno == ENOENT) return 0;
-       return Diagnose("open to get", Aname, Path, errno);
+   if (fd < 0) return Diagnose("open to get", Aname, Path, errno);
       }
 
 // If a size was passed, then read the variable data. Otherwise, the caller
@@ -101,7 +95,7 @@ int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
 // Close the underlying directory and diagnose any errors and return result.
 //
    close(fd);
-   if (ec < 0) ec = (ec == -ENOENT ? 0 : Diagnose("get", Aname, Path, -ec));
+   if (ec < 0) ec = Diagnose("get", Aname, Path, -ec);
    return ec;
 }
 
@@ -184,7 +178,7 @@ int XrdSysFAttr::Set(const char *Aname, const void *Aval, int Avsz,
    fd =  (fd < 0 ? attropen(Path, Aname, oFlag, aMode)
                  : openat(    fd, Aname, oFlag, aMode));
 
-// If the preceeding open failed, diagnose the problem. We ignore ENOENT.
+// If the preceeding open failed, diagnose the problem.
 //
    if (fd < 0) return Diagnose("open to set", Aname, Path, errno);
 
