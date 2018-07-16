@@ -519,6 +519,41 @@ xrootd_docker_test:
   only:
     - schedules
 
+
+pyxrootd_dockerimage:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/xrootd
+    DOCKER_FILE: xrootd-docker/Dockerfile-python.ci
+  dependencies:
+    - xrootd_docker_get
+  only:
+    - schedules
+    
+pyxrootd_docker_test:
+  stage: test
+  script:
+    - docker pull gitlab-registry.cern.ch/dss/xrootd
+    - sudo ./xrootd-docker/start.sh -i gitlab-registry.cern.ch/dss/xrootd
+    - docker exec metaman sh -c "head -c 1000000 /dev/urandom > /tmp/smallfile"
+    - docker exec metaman sh -c "head -c 1000000 /dev/urandom > /tmp/smallcopy"
+    - docker exec metaman sh -c "head -c 100000000 /dev/urandom > /tmp/bigfile"
+    - docker exec metaman sh -c "head -c 100000000 /dev/urandom > /tmp/bigcopy"
+    - docker exec metaman sh -c "cd xrootd/bindings/python && pytest"
+
+  after_script:
+    - sudo ./xrootd-docker/clean.sh
+  tags:
+    - xrootd-shell
+  dependencies:
+    - xrootd_docker_get
+  only:
+    - schedules
+
 publish:rhel:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
