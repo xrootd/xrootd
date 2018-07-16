@@ -432,11 +432,13 @@ int XrdXrootdProtocol::do_CKsum(char *algT, const char *Path, char *Opaque)
 
 // Diagnose any hard errors
 //
-   if (rc) return fsError(rc, 0, myError, Path, Opaque);
+   if (rc && (myError.getErrInfo() != ENOTSUP)) {
+      return fsError(rc, 0, myError, Path, Opaque);
+   }
 
 // Return result if it is actually available
 //
-   if (*csData)
+   if (!rc && *csData)
       {if (*csData == '!') return Response.Send(csData+1);
        struct iovec iov[4] = {{0,0}, {algT, (size_t)CKTLen}, {&Space, 1},
                               {(char *)csData, strlen(csData)+1}};
