@@ -130,6 +130,7 @@ build:fedora-rawhide:
   stage: build:rpm
   image: fedora:rawhide
   script:
+    - dnf -y update gdbm
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
     - ./makesrpm.sh --define "_with_python3 1"
