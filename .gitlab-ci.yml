@@ -533,7 +533,8 @@ pyxrootd_dockerimage:
   dependencies:
     - xrootd_docker_get
   only:
-    - schedules
+    - web
+  allow_failure: true
     
 pyxrootd_docker_test:
   stage: test
@@ -553,7 +554,8 @@ pyxrootd_docker_test:
   dependencies:
     - xrootd_docker_get
   only:
-    - schedules
+    - web
+  allow_failure: true
 
 publish:rhel:
   stage: publish
