@@ -1,7 +1,7 @@
 from setuptools import setup, Extension
 from setuptools.command.install import install
 from setuptools.command.sdist import sdist
-from setuptools.command.bdist_rpm import bdist_rpm
+from distutils.command.bdist import bdist
 
 import subprocess
 import sys
@@ -45,7 +45,7 @@ class CustomDist(sdist):
         sdist.run(self)
 
 
-class CustomWheelGen(bdist_rpm):
+class CustomWheelGen(bdist):
     # Do not generate wheel
     def run(self):
         return
