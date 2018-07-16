@@ -33,6 +33,19 @@ xrdsrcincdir = "${XRD_SRCINCDIR}"
 xrdbinincdir = "${XRD_BININCDIR}"
 version      = "${XROOTD_VERSION}"
 
+if version.startswith('unknown'):
+  try:
+    import os
+    version_file_path = os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'VERSION')
+    print('Version file path: {}'.format(version_file_path))
+    f = open(version_file_path, 'r')
+    version = f.read().split('/n')[0] 
+    print('Version from file: {}'.format(version))
+    f.close()
+  except Exception as e:
+    print('{} \nCannot open VERSION_INFO file. {} will be used'.format(e, version))
+
+
 print('XRootD library dir:    ', xrdlibdir)
 print('XRootD src include dir:', xrdsrcincdir)
 print('XRootD bin include dir:', xrdbinincdir)

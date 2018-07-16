@@ -378,6 +378,34 @@ release:deb_ubuntu_xenial:
     - branches
     - /^(?!v[0-9]+).*/
 
+release:pypi:
+  stage: build:rpm
+  script:
+    - ./publish.sh
+  tags:
+    - xrootd-shell
+  only:
+    - web
+  except:
+    - branches
+    - /^(?!v[0-9]+).*/
+  allow_failure: true
+
+publish:pypi:
+  stage: publish
+  script:
+    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/xrootd/release/pypi-dist
+    - sudo -u stci -H cp dist/*.tar.gz /eos/project/s/storage-ci/www/xrootd/release/pypi-dist/.
+  tags:
+    - xrootd-shell
+  only:
+    - web
+  except:
+    - branches
+    - /^(?!v[0-9]+).*/
+  allow_failure: true
+
+
 weekly:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
