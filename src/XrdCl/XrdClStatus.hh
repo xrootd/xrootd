@@ -79,12 +79,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Post Master related errors
   //----------------------------------------------------------------------------
-  const uint16_t errInvalidMessage     = 201;
-  const uint16_t errHandShakeFailed    = 202;
-  const uint16_t errLoginFailed        = 203;
-  const uint16_t errAuthFailed         = 204;
-  const uint16_t errQueryNotSupported  = 205;
-  const uint16_t errOperationExpired   = 206;
+  const uint16_t errInvalidMessage       = 201;
+  const uint16_t errHandShakeFailed      = 202;
+  const uint16_t errLoginFailed          = 203;
+  const uint16_t errAuthFailed           = 204;
+  const uint16_t errQueryNotSupported    = 205;
+  const uint16_t errOperationExpired     = 206;
+  const uint16_t errOperationInterrupted = 207;
 
   //----------------------------------------------------------------------------
   // XRootD related errors

@@ -278,6 +278,20 @@ namespace XrdCl
     return Status();
   }
 
+  //------------------------------------------------------------------------
+  // Shut down a channel
+  //------------------------------------------------------------------------
+  Status PostMaster::ForceDisconnect( const URL &url )
+  {
+    XrdSysMutexHelper scopedLock( pChannelMapMutex );
+    ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
+
+    if( it == pChannelMap.end() )
+      return Status( stError, errInvalidOp );
+
+    return it->second->ForceDisconnect();
+  }
+
   //----------------------------------------------------------------------------
   // Get the channel
   //----------------------------------------------------------------------------

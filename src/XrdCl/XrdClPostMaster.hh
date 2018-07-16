@@ -198,6 +198,11 @@ namespace XrdCl
         return pJobManager;
       }
 
+      //------------------------------------------------------------------------
+      //! Shut down a channel
+      //------------------------------------------------------------------------
+      Status ForceDisconnect( const URL &url );
+
     private:
       Channel *GetChannel( const URL &url );
 

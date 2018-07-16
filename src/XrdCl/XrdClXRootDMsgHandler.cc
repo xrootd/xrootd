@@ -1897,7 +1897,7 @@ namespace XrdCl
     // 3) if another error occurred and the validity of the message expired
     //--------------------------------------------------------------------------
     if( status.code == errOperationExpired || pRequest->GetSessionId() ||
-        time(0) >= pExpiration )
+        status.code == errOperationInterrupted || time(0) >= pExpiration )
     {
       log->Error( XRootDMsg, "[%s] Unable to get the response to request %s",
                   pUrl.GetHostId().c_str(),
