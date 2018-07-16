@@ -381,6 +381,7 @@ release:deb_ubuntu_xenial:
 release:pypi:
   stage: build:rpm
   script:
+    - cp packaging/wheel/* .
     - ./publish.sh
   tags:
     - xrootd-shell
