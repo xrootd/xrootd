@@ -315,6 +315,12 @@ namespace XrdCl
 
       }
 
+      XAttr( const std::string  &name, const std::string &value ) :
+        XAttrStatus( name, XRootDStatus() ), value( value )
+      {
+
+      }
+
       std::string value;
   };
 

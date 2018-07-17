@@ -548,8 +548,8 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // List extended attributes - sync
   //------------------------------------------------------------------------
-  XRootDStatus File::ListXAttr( std::vector<std::string>  *&result,
-                                uint16_t                    timeout )
+  XRootDStatus File::ListXAttr( std::vector<XAttr>  *&result,
+                                uint16_t              timeout )
   {
     SyncResponseHandler handler;
     Status st = ListXAttr( &handler, timeout );

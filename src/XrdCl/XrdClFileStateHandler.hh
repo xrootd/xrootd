@@ -435,6 +435,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<typename T>
       Status XAttrOperationImpl( kXR_char              subcode,
+                                 kXR_char              options,
                                  const std::vector<T> &attrs,
                                  ResponseHandler      *handler,
                                  uint16_t              timeout = 0 );

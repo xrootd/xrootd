@@ -821,9 +821,9 @@ namespace XrdCl
       //!
       //! @return        : status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus ListXAttr( const std::string          &path,
-                              std::vector<std::string>  *&result,
-                              uint16_t                    timeout = 0 );
+      XRootDStatus ListXAttr( const std::string    &path,
+                              std::vector<XAttr>  *&result,
+                              uint16_t              timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Set filesystem property
@@ -883,6 +883,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<typename T>
       Status XAttrOperationImpl( kXR_char              subcode,
+                                 kXR_char              options,
                                  const std::string    &path,
                                  const std::vector<T> &attrs,
                                  ResponseHandler      *handler,

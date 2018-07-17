@@ -1869,7 +1869,7 @@ namespace XrdCl
       case kXR_fattrList:
       {
         Status status;
-        std::vector<std::string> resp;
+        std::vector<XAttr> resp;
 
         while( len > 0 )
         {
@@ -1877,12 +1877,21 @@ namespace XrdCl
           if( !( status = ReadFromBuffer( data, len, name ) ).IsOK() )
             return status;
 
-          resp.push_back( name );
+          kXR_int32 vlen = 0;
+          if( !( status = ReadFromBuffer( data, len, vlen ) ).IsOK() )
+            return status;
+          vlen = ntohl( vlen );
+
+          std::string value;
+          if( !( status = ReadFromBuffer( data, len, vlen, value ) ).IsOK() )
+            return status;
+
+          resp.push_back( XAttr( name, value ) );
         }
 
         // set up the response object
         response = new AnyObject();
-        response->Set( new std::vector<std::string>( std::move( resp ) ) );
+        response->Set( new std::vector<XAttr>( std::move( resp ) ) );
 
         return Status();
       }
