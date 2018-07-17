@@ -71,6 +71,10 @@ int compareHash(
         const char *h2);
 
 
+bool Fromhexdigest(const unsigned char *input, int length, unsigned char *out);
+
+void Tobase64(const unsigned char *input, int length, char *out);
+
 
 // Create a new quoted string
 char *quote(const char *str);

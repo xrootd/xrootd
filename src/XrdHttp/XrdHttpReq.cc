@@ -66,24 +66,42 @@
 #define TRACELINK prot->Link
 
 
+static XrdOucString convert_digest_name(const std::string &rfc_name)
+{
+  if (!strcasecmp(rfc_name.c_str(), "md5")) {
+    return "md5";
+  } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
+    return "adler32";
+  } else if (strcasecmp(rfc_name.c_str(), "SHA")) {
+    return "sha1";
+  } else if (strcasecmp(rfc_name.c_str(), "SHA-256")) {
+    return "sha256";
+  } else if (strcasecmp(rfc_name.c_str(), "SHA-512")) {
+    return "sha512";
+  } else if (strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+    return "cksum";
+  }
+  return "unknown";
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+static bool needs_base64_padding(const std::string &rfc_name)
+{
+  if (!strcasecmp(rfc_name.c_str(), "md5")) {
+    return true;
+  } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
+    return false;
+  } else if (strcasecmp(rfc_name.c_str(), "SHA")) {
+    return true;
+  } else if (strcasecmp(rfc_name.c_str(), "SHA-256")) {
+    return true;
+  } else if (strcasecmp(rfc_name.c_str(), "SHA-512")) {
+    return true;
+  } else if (strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+    return false;
+  }
+  return false;
+}
 
 
 void trim(std::string &str)
@@ -873,7 +891,17 @@ int XrdHttpReq::ProcessHTTPReq() {
         }
         return 0;
       } else {
-        if (prot->doChksum(resourceplusopaque) < 0) {
+        const char *opaque = strchr(resourceplusopaque.c_str(), '?');
+        // Note that doChksum requires that the memory stays alive until the callback is invoked.
+        m_resource_with_digest = resourceplusopaque;
+        if (!opaque) {
+          m_resource_with_digest += "?cks.type=";
+          m_resource_with_digest += convert_digest_name(m_req_digest);
+        } else {
+          m_resource_with_digest += "&cks.type=";
+          m_resource_with_digest += convert_digest_name(m_req_digest);
+        }
+        if (prot->doChksum(m_resource_with_digest) < 0) {
           // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
           prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
           return -1;
@@ -1511,10 +1539,26 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         if (iovN > 0) {
           TRACEI(REQ, "Checksum for HEAD " << resource << " " << reinterpret_cast<char *>(iovP[0].iov_base) << "=" << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
 
+          bool convert_to_base64 = needs_base64_padding(m_req_digest);
+          char *digest_value = reinterpret_cast<char *>(iovP[iovN-1].iov_base);
+          if (convert_to_base64) {
+            size_t digest_length = strlen(digest_value);
+            unsigned char *digest_binary_value = (unsigned char *)malloc(digest_length);
+            if (!Fromhexdigest(reinterpret_cast<unsigned char *>(digest_value), digest_length, digest_binary_value)) {
+              prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+              free(digest_binary_value);
+            }
+            char *digest_base64_value = (char *)malloc(digest_length);
+            Tobase64(digest_binary_value, digest_length/2, digest_base64_value);
+            free(digest_binary_value);
+            digest_value = digest_base64_value;
+          }
+
           std::string digest_response = "Digest: ";
           digest_response += m_req_digest;
           digest_response += "=";
-          digest_response += reinterpret_cast<char *>(iovP[iovN-1].iov_base);
+          digest_response += digest_value;
+          if (convert_to_base64) {free(digest_value);}
           prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize);
           return 1;
         } else {

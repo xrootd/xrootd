@@ -209,6 +209,10 @@ public:
 
   /// The requested digest type
   std::string m_req_digest;
+  /// The checksum algorithm is specified as part of the opaque data in the URL.
+  /// Hence, when a digest is generated to satisfy a request, we cache the tweaked
+  /// URL in this data member.
+  XrdOucString m_resource_with_digest;
 
   /// Additional opaque info that may come from the hdr2cgi directive
   std::string hdr2cgistr;
