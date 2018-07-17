@@ -557,8 +557,8 @@ namespace XrdCl
       //!
       //! @return        : status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus ListXAttr( std::vector<std::string>  *&result,
-                              uint16_t                    timeout = 0 );
+      XRootDStatus ListXAttr( std::vector<XAttr>  *&result,
+                              uint16_t              timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Check if the file is open

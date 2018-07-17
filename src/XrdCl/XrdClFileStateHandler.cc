@@ -1107,7 +1107,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Issue a new fattr get request
     //--------------------------------------------------------------------------
-    return XAttrOperationImpl( kXR_fattrSet, attrs, handler, timeout );
+    return XAttrOperationImpl( kXR_fattrSet, 0, attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -1130,7 +1130,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Issue a new fattr get request
     //--------------------------------------------------------------------------
-    return XAttrOperationImpl( kXR_fattrGet, attrs, handler, timeout );
+    return XAttrOperationImpl( kXR_fattrGet, 0, attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -1153,7 +1153,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Issue a new fattr del request
     //--------------------------------------------------------------------------
-    return XAttrOperationImpl( kXR_fattrDel, attrs, handler, timeout );
+    return XAttrOperationImpl( kXR_fattrDel, 0, attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -1176,7 +1176,8 @@ namespace XrdCl
     // Issue a new fattr get request
     //--------------------------------------------------------------------------
     static const std::vector<std::string> nothing;
-    return XAttrOperationImpl( kXR_fattrList, nothing, handler, timeout );
+    return XAttrOperationImpl( kXR_fattrList, ClientFattrRequest::aData,
+                               nothing, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -1660,6 +1661,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   template<typename T>
   Status FileStateHandler::XAttrOperationImpl( kXR_char              subcode,
+                                               kXR_char              options,
                                                const std::vector<T> &attrs,
                                                ResponseHandler      *handler,
                                                uint16_t              timeout )
@@ -1674,6 +1676,7 @@ namespace XrdCl
     req->requestid = kXR_fattr;
     req->subcode   = subcode;
     req->numattr   = attrs.size();
+    req->options   = options;
     memcpy( req->fhandle, pFileHandle, 4 );
     XRootDStatus st = MessageUtils::CreateXAttrBody( msg, attrs );
     if( !st.IsOK() ) return st;
