@@ -396,6 +396,7 @@ release:pypi:
 publish:pypi:
   stage: publish
   script:
+    - yum install --nogpg -y sssd-client sudo
     - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/xrootd/release/pypi-dist
     - sudo -u stci -H cp dist/*.tar.gz /eos/project/s/storage-ci/www/xrootd/release/pypi-dist/.
   tags:
@@ -484,6 +485,7 @@ xrootd_docker_get:
     - xrootd-shell
   only:
     - schedules
+    - web
     
 xrootd_dockerimage:
   stage: build:dockerimage
