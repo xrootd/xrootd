@@ -462,9 +462,11 @@ int XrdXrootdProtocol::do_CKsum(char *algT, const char *Path, char *Opaque)
   
 int XrdXrootdProtocol::do_Close()
 {
+   static XrdXrootdCallBack closeCB("close", XROOTD_MON_CLOSE);
    XrdXrootdFile *fp;
    XrdXrootdFHandle fh(Request.close.fhandle);
    int rc;
+   bool doDel = true;
 
 // Keep statistics
 //
@@ -481,22 +483,33 @@ int XrdXrootdProtocol::do_Close()
 //
    Link->Serialize();
 
-// Do an explicit close of the file here; reflecting any errors
+// Setup the callback to allow close() to return SFS_STARTED so we can defer
+// the response to the close request as it may be a lengthy operation. In
+// this case the argument is the actual file pointer and the link reference
+// is recorded in the file object.
+//
+   fp->cbArg = ReqID.getID();
+   fp->XrdSfsp->error.setErrCB(&closeCB, (unsigned long long)fp);
+
+// Do an explicit close of the file here; check for exceptions. Stall requests
+// leave the file open as there will be a retry. Otherwise, we remove the
+// file from our open table but a "started" return defers the the delete.
 //
    rc = fp->XrdSfsp->close();
    TRACEP(FS, "close rc=" <<rc <<" fh=" <<fh.handle);
-   if (SFS_OK != rc)
-      {if (rc == SFS_ERROR || rc == SFS_STALL)
-          return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
-       return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
-      }
+   if (rc >= SFS_STALL) return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+   if (rc == SFS_STARTED) doDel = false;
 
-// Delete the file from the file table; this will unlock/close the file and
-// produce any required final monitoring records.
+// Delete the file from the file table. If the file object is deleted then it
+// will unlock the file In all cases, final monitoring records will be produced.
 //
-   FTab->Del((Monitor.Files() ? Monitor.Agent : 0), fh.handle);
+   FTab->Del((Monitor.Files() ? Monitor.Agent : 0), fh.handle, doDel);
    numFiles--;
-   return Response.Send();
+
+// Send back the right response
+//
+   if (SFS_OK == rc) return Response.Send();
+   return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
 }
 
 /******************************************************************************/
@@ -1805,6 +1818,7 @@ int XrdXrootdProtocol::do_Qfh()
   
 int XrdXrootdProtocol::do_Qopaque(short qopt)
 {
+   static XrdXrootdCallBack qpqCB("query", XROOTD_MON_QUERY);
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    XrdSfsFSctl myData;
    const char *Act, *AData;
@@ -1837,6 +1851,9 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
        fsctl_cmd = SFS_FSCTL_PLUGIN;
        Act = " qopaquf '"; AData = argp->buff;
       }
+// The query is elegible for a defered response, indicate we're ok with that
+//
+   myError.setErrCB(&qpqCB, ReqID.getID());
 
 // Preform the actual function using the supplied arguments
 //

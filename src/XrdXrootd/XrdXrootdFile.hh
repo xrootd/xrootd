@@ -30,10 +30,62 @@
 /******************************************************************************/
 
 #include <string.h>
+#include <vector>
 
 #include "XProtocol/XPtypes.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdFileStats.hh"
 
+/******************************************************************************/
+/*                       X r d X r o o t d F i l e H P                        */
+/******************************************************************************/
+
+class XrdXrootdFileHP
+{
+public:
+
+void Avail(int fHandle) {fhMutex.Lock();
+                         bool done = (1 == refs--);
+                         if (noMore)
+                            {fhMutex.UnLock();
+                             if (done) delete this;
+                            } else {
+                             fhAvail.push_back(fHandle);
+                             fhMutex.UnLock();
+                            }
+                        }
+
+void Delete() {fhMutex.Lock();
+               if (!refs) {fhMutex.UnLock(); delete this;}
+                  else {noMore = true; fhMutex.UnLock();}
+              }
+
+int  Get() {int fh;
+            fhMutex.Lock();
+            if (fhAvail.empty()) fh = -1;
+               else {fh = fhAvail.back();
+                     fhAvail.pop_back();
+                    }
+            fhMutex.UnLock();
+            return fh;
+           }
+
+void Ref() {fhMutex.Lock(); refs++; fhMutex.UnLock();}
+
+     XrdXrootdFileHP(int rsv=2) : refs(1), noMore(false)
+                                {fhAvail.reserve(rsv);}
+
+private:
+
+    ~XrdXrootdFileHP() {}
+
+XrdSysMutex      fhMutex;
+std::vector<int> fhAvail;
+int              refs;
+bool             noMore;
+};
+
+  
 /******************************************************************************/
 /*                         X r d X r o o t d F i l e                          */
 /******************************************************************************/
@@ -46,19 +98,25 @@ class XrdXrootdFile
 {
 public:
 
-XrdSfsFile  *XrdSfsp;           // -> Actual file object
-char        *mmAddr;            // Memory mapped location, if any
-char        *FileKey;           // -> File hash name (actual file name now)
-char         FileMode;          // 'r' or 'w'
-char         AsyncMode;         // 1 -> if file in async r/w mode
-char         isMMapped;         // 1 -> file is memory mapped
-char         sfEnabled;         // 1 -> file is sendfile enabled
-int          fdNum;             // File descriptor number if regular file
-const char  *ID;                // File user
+XrdSfsFile        *XrdSfsp;      // -> Actual file object
+union {char       *mmAddr;       // Memory mapped location, if any
+       unsigned
+       long long   cbArg;        // Callback argument upon close()
+      };
+char              *FileKey;      // -> File hash name (actual file name now)
+char               FileMode;     // 'r' or 'w'
+char               AsyncMode;    // 1 -> if file in async r/w mode
+char               isMMapped;    // 1 -> file is memory mapped
+char               sfEnabled;    // 1 -> file is sendfile enabled
+union {int         fdNum;        // File descriptor number if regular file
+       int         fHandle;      // The file handle upon close()
+      };
+XrdXrootdFileHP   *fhProc;       // File handle processor (set at close time)
+const char        *ID;           // File user
 
-XrdXrootdFileStats Stats;       // File access statistics
+XrdXrootdFileStats Stats;        // File access statistics
 
-static void Init(XrdXrootdFileLock *lp, int sfok) {Locker = lp; sfOK = sfok;}
+static void Init(XrdXrootdFileLock *lp, XrdSysError *erP, int sfok);
 
            XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
                          char mode='r', bool async=false, int sfOK=0,
@@ -93,7 +151,7 @@ public:
 
        int            Add(XrdXrootdFile *fp);
 
-       void           Del(XrdXrootdMonitor *monP, int fnum);
+       XrdXrootdFile *Del(XrdXrootdMonitor *monP, int fnum, bool dodel=true);
 
 inline XrdXrootdFile *Get(int fnum)
                          {if (fnum >= 0)
@@ -106,7 +164,7 @@ inline XrdXrootdFile *Get(int fnum)
 
        void           Recycle(XrdXrootdMonitor *monP);
 
-       XrdXrootdFileTable(unsigned int mid=0) : FTfree(0), monID(mid),
+       XrdXrootdFileTable(unsigned int mid=0) : fhProc(0), FTfree(0), monID(mid),
                                                 XTab(0), XTnum(0), XTfree(0)
                          {memset((void *)FTab, 0, sizeof(FTab));}
 
@@ -115,6 +173,8 @@ private:
       ~XrdXrootdFileTable() {} // Always use Recycle() to delete this object!
 
 static const char *TraceID;
+static const char *ID;
+XrdXrootdFileHP   *fhProc;
 
 XrdXrootdFile *FTab[XRD_FTABSIZE];
 int            FTfree;

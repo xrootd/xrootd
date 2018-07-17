@@ -40,6 +40,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
+#include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
@@ -76,6 +77,7 @@ inline void            Recycle(){myMutex.Lock();
                       ~XrdXrootdCBJob() {}
 
 private:
+void DoClose(XrdOucErrInfo *eInfo);
 void DoStatx(XrdOucErrInfo *eInfo);
 static XrdSysMutex         myMutex;
 static XrdXrootdCBJob     *FreeJob;
@@ -93,10 +95,13 @@ int                        Result;
 
 extern XrdOucTrace       *XrdXrootdTrace;
 
-       XrdSysError       *XrdXrootdCallBack::eDest;
-       XrdXrootdStats    *XrdXrootdCallBack::SI;
-       XrdScheduler      *XrdXrootdCallBack::Sched;
-       int                XrdXrootdCallBack::Port;
+namespace
+{
+       XrdSysError       *eDest;
+       XrdXrootdStats    *SI;
+       XrdScheduler      *Sched;
+       int                Port;
+}
 
        XrdSysMutex        XrdXrootdCBJob::myMutex;
        XrdXrootdCBJob    *XrdXrootdCBJob::FreeJob;
@@ -136,19 +141,28 @@ XrdXrootdCBJob *XrdXrootdCBJob::Alloc(XrdXrootdCallBack *cbF,
   
 void XrdXrootdCBJob::DoIt()
 {
+   static const char *TraceID = "DoIt";
+
+// Do some tracing here
+//
+   TRACE(RSP, eInfo->getErrUser() <<' ' <<cbFunc->Func() <<" async callback");
 
 // Some operations differ in  the way we handle them. For instance, for open()
 // if it succeeds then we must force the client to retry the open request
 // because we can't attach the file to the client here. We do this by asking
-// the client to wait zero seconds. Protocol demands a client retry.
+// the client to wait zero seconds. Protocol demands a client retry. Close
+// operations are always final and we need to do some cleanup.
 //
-   if (SFS_OK == Result)
-     {if (*(cbFunc->Func()) == 'o'){int rc = 0; cbFunc->sendResp(eInfo, kXR_wait, &rc);}
-          else {if (*(cbFunc->Func()) == 'x') DoStatx(eInfo);
-                cbFunc->sendResp(eInfo, kXR_ok, 0, eInfo->getErrText(),
-                                                   eInfo->getErrTextLen());
-               }
-      } else cbFunc->sendError(Result, eInfo, Path);
+        if (*(cbFunc->Func()) == 'c') DoClose(eInfo);
+   else if (SFS_OK == Result)
+          {if (*(cbFunc->Func()) == 'o')
+              {int rc = 0; cbFunc->sendResp(eInfo, kXR_wait, &rc);}
+              else {if (*(cbFunc->Func()) == 'x') DoStatx(eInfo);
+                       cbFunc->sendResp(eInfo, kXR_ok, 0, eInfo->getErrText(),
+                                               eInfo->getErrTextLen());
+                   }
+          }
+   else cbFunc->sendError(Result, eInfo, Path);
 
 // Tell the requestor that the callback has completed
 //
@@ -156,6 +170,40 @@ void XrdXrootdCBJob::DoIt()
       else delete eInfo;
    eInfo = 0;
    Recycle();
+}
+  
+/******************************************************************************/
+/*                               D o C l o s e                                */
+/******************************************************************************/
+  
+void XrdXrootdCBJob::DoClose(XrdOucErrInfo *eInfo)
+{
+   XrdXrootdFile *fP = (XrdXrootdFile *)eInfo->getErrArg();
+
+// For close the main argument is the file pointer. Set the main arg to
+// be the request identifier which is saved in he file object.
+//
+   eInfo->setErrArg(fP->cbArg);
+
+// Responses to close() must be final; otherwise it's a systm error.
+//
+   if (Result != SFS_OK && Result != SFS_ERROR)
+      {char buff[64];
+       SI->errorCnt++;
+       sprintf(buff, "Invalid close() callcback result of %d for", Result);
+       eDest->Emsg("DoClose", buff, Path);
+       Result = SFS_ERROR;
+       eInfo->setErrInfo(kXR_FSError, "Internal error; file close forced");
+      }
+
+// Send appropriate response (OK or error)
+//
+   if (Result == SFS_OK) cbFunc->sendResp(eInfo, kXR_ok);
+      else               cbFunc->sendError(Result, eInfo, Path);
+
+// Delete he file object
+//
+   delete fP;
 }
   
 /******************************************************************************/
@@ -238,7 +286,7 @@ void XrdXrootdCallBack::sendError(int            rc,
                                   XrdOucErrInfo *eInfo,
                                   const char    *Path)
 {
-   const char *TraceID = "fsError";
+   static const char *TraceID = "fsError";
    static int Xserr = kXR_ServerError;
    int ecode;
    const char *eMsg = eInfo->getErrText(ecode);
@@ -316,7 +364,7 @@ void XrdXrootdCallBack::sendResp(XrdOucErrInfo  *eInfo,
                                  const char     *Msg,
                                  int             Mlen)
 {
-   const char *TraceID = "sendResp";
+   static const char *TraceID = "sendResp";
    struct iovec       rspVec[4];
    XrdXrootdReqID     ReqID;
    int                dlen = 0, n = 1;
@@ -362,7 +410,7 @@ void XrdXrootdCallBack::sendVesp(XrdOucErrInfo  *eInfo,
                                  struct iovec   *ioV,
                                  int             ioN)
 {
-   const char *TraceID = "sendVesp";
+   static const char *TraceID = "sendVesp";
    XrdXrootdReqID     ReqID;
    int                dlen = 0;
 
@@ -389,4 +437,21 @@ void XrdXrootdCallBack::sendVesp(XrdOucErrInfo  *eInfo,
 // Release any external buffer from the errinfo object
 //
    if (eInfo->extData()) eInfo->Reset();
+}
+
+/******************************************************************************/
+/*                               S e t V a l s                                */
+/******************************************************************************/
+  
+void XrdXrootdCallBack::setVals(XrdSysError    *erp,
+                                XrdXrootdStats *SIp,
+                                XrdScheduler   *schp,
+                                int             port)
+{
+// Set values into out unnamed static space
+//
+   eDest = erp;
+   SI    = SIp;
+   Sched = schp;
+   Port  = port;
 }
