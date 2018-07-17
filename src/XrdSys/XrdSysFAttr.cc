@@ -143,7 +143,7 @@ XrdSysFAttr::AList *XrdSysFAttr::getEnt(const char *Path,  int fd,
 
 // Get the data size of this attribute if so wanted
 //
-   if (!n || (msP && !(sz = Get(Aname, 0, 0, Path, fd)))) return 0;
+   if (!n || (msP && (sz = Get(Aname, 0, 0, Path, fd)) < 0)) return 0;
 
 // Allocate a new dynamic struct
 //

@@ -66,8 +66,6 @@ bool          verr;   // True if a value is in error, otherwise it's the name
                      vnsz(0), iNum(anum), iEnd(0), verr(false) {}
              ~faCTL() {if (info) delete [] info;}
 };
-
-static const int iovNum = 16;
 }
 
 #define CRED (const XrdSecEntity *)Client
@@ -171,6 +169,29 @@ void FillRC(kXR_char *faRC, XrdSfsFAInfo *info, int inum)
 }
 }
 
+/******************************************************************************/
+/*                                 I O V e c                                  */
+/******************************************************************************/
+  
+namespace
+{
+class IOVec
+{
+public:
+struct iovec *Alloc(int &num)
+                   {if (num > IOV_MAX) num = IOV_MAX;
+                    theIOV = new struct iovec[num];
+                    return theIOV;
+                   }
+
+       IOVec() : theIOV(0) {}
+      ~IOVec() {if (theIOV) delete [] theIOV;}
+
+private:
+struct iovec *theIOV;
+};
+}
+  
 /******************************************************************************/
 /*                               S e n d E r r                                */
 /******************************************************************************/
@@ -287,8 +308,8 @@ int XrdXrootdProtocol::ProcFAttr(char *faPath, char *faCgi,  char *faArgs,
 
 // Prevalidate the number of attributes (list must have zero)
 //
-   if ((faCode == kXR_fattrList && fNumAttr != 0)
-   ||  (faCode != kXR_fattrList && fNumAttr > kXR_faMaxVars))
+   if ((faCode == kXR_fattrList &&  fNumAttr != 0)
+   ||  (faCode != kXR_fattrList && (fNumAttr == 0 || fNumAttr > kXR_faMaxVars)))
       return Response.Send( kXR_ArgInvalid, "fattr numattr is invalid");
 
 // Allocate an SFS control object now
@@ -363,11 +384,11 @@ int XrdXrootdProtocol::XeqFADel(XrdSfsFACtl &ctl, char *faVars, int faVLen)
 int XrdXrootdProtocol::XeqFAGet(XrdSfsFACtl &ctl, char *faVars, int faVLen)
 {
    XrdOucErrInfo eInfo(Link->ID, Monitor.Did, clientPV);
-   struct iovec iov[iovNum];
-   kXR_int32 fasz[iovNum];
+   IOVec iovHelper;
+   struct iovec *iov;
    kXR_char  faRC[2];
    XResponseType rcode;
-   int k, rc, dlen;
+   int k, rc, dlen, vLen;
 
 // Set correct subcode
 //
@@ -382,6 +403,11 @@ int XrdXrootdProtocol::XeqFAGet(XrdSfsFACtl &ctl, char *faVars, int faVLen)
 //
    FillRC(faRC, ctl.info, ctl.iNum);
 
+// Allocate an iovec. We need two elements for each info entry.
+//
+   int iovNum = ctl.iNum*2+3;
+   iov = iovHelper.Alloc(iovNum);
+
 // Prefill the io vector (number of errors, vars, followed the rc-names
 //
    iov[1].iov_base = faRC;
@@ -394,16 +420,17 @@ int XrdXrootdProtocol::XeqFAGet(XrdSfsFACtl &ctl, char *faVars, int faVLen)
 // Return the value for for each variable, segment the response, if need be
 //
    for (int i = 0; i < ctl.iNum; i++)
-       {iov[k  ].iov_base = &fasz[i];
-        iov[k++].iov_len  = sizeof(fasz[0]);
-        dlen += sizeof(fasz[0]);
-        if (ctl.info[i].faRC || ctl.info[i].VLen == 0) fasz[i] = 0;
-           else {fasz[i] = htonl(ctl.info[i].VLen);
+       {iov[k  ].iov_base = &ctl.info[i].VLen;
+        iov[k++].iov_len  = sizeof(ctl.info[i].VLen);
+        dlen += sizeof(ctl.info[i].VLen);
+        if (ctl.info[i].faRC || ctl.info[i].VLen == 0) ctl.info[i].VLen = 0;
+           else {vLen = ctl.info[i].VLen;
+                 ctl.info[i].VLen  = htonl(ctl.info[i].VLen);
                  iov[k  ].iov_base = (void *)ctl.info[i].Value;
-                 iov[k++].iov_len  =         ctl.info[i].VLen;
-                 dlen += ctl.info[i].VLen;
+                 iov[k++].iov_len  = vLen;
+                 dlen += vLen;
                 }
-        if (k+2 >= iovNum)
+        if (k+1 >= iovNum)
           {rcode = (i+1 == ctl.iNum ? kXR_ok : kXR_oksofar);
            if ((rc = Response.Send(rcode, iov, k, dlen))) return rc;
            k = 1; dlen = 0;
@@ -416,12 +443,67 @@ int XrdXrootdProtocol::XeqFAGet(XrdSfsFACtl &ctl, char *faVars, int faVLen)
 }
   
 /******************************************************************************/
+/*                              X e q F A L s d                               */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::XeqFALsd(XrdSfsFACtl &ctl)
+{
+   IOVec iovHelper;
+   struct iovec *iov;
+   XResponseType rcode;
+   int k = 1, rc = 0, dlen = 0, vLen;
+   bool xresp = false;
+
+// Make sure we have something to send
+//
+   if (!ctl.iNum) return Response.Send();
+
+// Allocate an iovec. We need three elements for each info entry.
+//
+   int iovNum = ctl.iNum*3+1;
+   iov = iovHelper.Alloc(iovNum);
+
+// Return the value for for each variable, segment the response, if need be
+//
+   for (int i = 0; i < ctl.iNum; i++)
+       {if (ctl.info[i].faRC) continue;
+        iov[k  ].iov_base = ctl.info[i].Name;
+        iov[k++].iov_len  = ctl.info[i].NLen+1;
+        dlen += ctl.info[i].NLen+1;
+
+        vLen = ctl.info[i].VLen;
+        ctl.info[i].VLen = htonl(vLen);
+        iov[k  ].iov_base = &ctl.info[i].VLen;
+        iov[k++].iov_len  = sizeof(ctl.info[i].VLen);
+        dlen += sizeof(ctl.info[i].VLen);
+
+        iov[k  ].iov_base = (void *)ctl.info[i].Value;
+        iov[k++].iov_len  = vLen;
+        dlen += vLen;
+
+        if (k+2 >= iovNum)
+          {rcode = (i+1 == ctl.iNum ? kXR_ok : kXR_oksofar);
+           if ((rc = Response.Send(rcode, iov, k, dlen))) return rc;
+           k = 1; dlen = 0; xresp = true;
+          }
+       }
+
+// Check if we need to send out the last amount of data
+//
+   return (dlen ? Response.Send(iov, k, dlen) : 0);
+
+// Check if anything was sent at all
+//
+   return (xresp ? 0 : Response.Send());
+}
+  
+/******************************************************************************/
 /*                              X e q F A L s t                               */
 /******************************************************************************/
   
 int XrdXrootdProtocol::XeqFALst(XrdSfsFACtl &ctl)
 {
-   struct iovec iov[iovNum];
+   struct iovec iov[16];
    XrdOucErrInfo eInfo(Link->ID, Monitor.Did, clientPV);
    int rc;
 
@@ -429,10 +511,19 @@ int XrdXrootdProtocol::XeqFALst(XrdSfsFACtl &ctl)
 //
    ctl.rqst = XrdSfsFACtl::faLst;
 
+// Set correct options
+//
+   if (Request.fattr.options & ClientFattrRequest::aData)
+      ctl.opts |= XrdSfsFACtl::retval;
+
 // Execute the action
 //
    if ((rc = osFS->fsctl(SFS_FSCTL_FATTR, (const char *)&ctl, eInfo, CRED)))
       return fsError(rc, XROOTD_MON_OPENR, eInfo, ctl.path, (char *)ctl.pcgi);
+
+// Check for more complicated return
+//
+   if (ctl.opts & XrdSfsFACtl::retval) return XeqFALsd(ctl);
 
 // If there is only a single buffer, hen we can do a simple response
 //
@@ -451,16 +542,17 @@ int XrdXrootdProtocol::XeqFALst(XrdSfsFACtl &ctl)
        dlen += dP->dlen;
        dP = dP->next;
        i++;
-       if (i == iovNum)
+       if (i == (int)sizeof(iov))
           {rc = Response.Send((dP ? kXR_oksofar : kXR_ok), iov, i, dlen);
-           if (rc || dP == 0) break;
+           if (rc || dP == 0) return rc;
+           dlen = 0;
+           i = 1;
           }
-       i = 1;
       }
 
-// All done
+// Check if we need to send out the last amount of data
 //
-   return rc;
+   return (dlen ? Response.Send(iov, i, dlen) : 0);
 }
 
 /******************************************************************************/
