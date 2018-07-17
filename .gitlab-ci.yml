@@ -485,7 +485,6 @@ xrootd_docker_get:
     - xrootd-shell
   only:
     - schedules
-    - web
     
 xrootd_dockerimage:
   stage: build:dockerimage
@@ -536,7 +535,7 @@ pyxrootd_dockerimage:
   dependencies:
     - xrootd_docker_get
   only:
-    - web
+    - schedules
   allow_failure: true
     
 pyxrootd_docker_test:
@@ -557,7 +556,7 @@ pyxrootd_docker_test:
   dependencies:
     - xrootd_docker_get
   only:
-    - web
+    - schedules
   allow_failure: true
 
 publish:rhel:
