@@ -865,14 +865,21 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtHEAD:
     {
-
-      // Do a Stat
-      if (prot->doStat((char *) resourceplusopaque.c_str())) {
-        prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0);
-        return -1;
+      if (reqstate == 0) {
+        // Always start with Stat; in the case of a checksum request, we'll have a follow-up query
+        if (prot->doStat((char *) resourceplusopaque.c_str())) {
+          prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0);
+          return -1;
+        }
+        return 0;
+      } else {
+        if (prot->doChksum(resourceplusopaque) < 0) {
+          // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
+          prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+          return -1;
+        }
+        return 1;
       }
-
-      return 1;
     }
     case XrdHttpReq::rtGET:
     {
@@ -1490,10 +1497,6 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   &filemodtime);
 
           if (m_req_digest.size()) {
-            if (prot->doChksum(resourceplusopaque) < 0) {
-              prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
-              return -1;
-            }
             return 0;
           } else {
             prot->SendSimpleResp(200, NULL, NULL, NULL, filesize);
@@ -1506,13 +1509,17 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         return 1;
       } else { // We requested a checksum and now have its response.
         if (iovN > 0) {
-          TRACEI(REQ, "Checksum for HEAD " << resource << " value=" << reinterpret_cast<char *>(iovP[0].iov_base));
+          TRACEI(REQ, "Checksum for HEAD " << resource << " " << reinterpret_cast<char *>(iovP[0].iov_base) << "=" << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
 
           std::string digest_response = "Digest: ";
           digest_response += m_req_digest;
           digest_response += "=";
-          digest_response += reinterpret_cast<char *>(iovP[0].iov_base);
+          digest_response += reinterpret_cast<char *>(iovP[iovN-1].iov_base);
           prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize);
+          return 1;
+        } else {
+          prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+          return -1;
         }
       }
     }
