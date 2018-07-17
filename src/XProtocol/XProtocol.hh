@@ -458,7 +458,8 @@ struct ClientFattrRequest {
 
 // Valid options:
 //
-   static const int isNew = 0x01; // For set, the variable must not exist
+   static const int isNew = 0x01; // For set,  the variable must not exist
+   static const int aData = 0x10; // For list, return attribute value
 };
 struct ClientGetfileRequest {
    kXR_char  streamid[2];

@@ -253,7 +253,6 @@ int XrdOfs::fsctl(const int               cmd,
    int retc, i, blen, privs, opcode = cmd & SFS_FSCTL_CMD;
    const char *tident = einfo.getErrUser();
    char *bP, *cP;
-   XTRACE(fsctl, args, "");
 
 // Process the LOCATE request
 //
@@ -268,6 +267,8 @@ int XrdOfs::fsctl(const int               cmd,
        int Resp1Len;
        int find_flag = SFS_O_LOCATE | (cmd & locMask);
        XrdOucEnv loc_Env(opq ? opq+1 : 0,0,client);
+
+       ZTRACE(fsctl, "locate args=" <<(args ? args : "''"));
 
        if (cmd & SFS_O_TRUNC)           locArg = (char *)"*";
           else {     if (*Path == '*') {locArg = Path; Path++;}
@@ -303,6 +304,7 @@ int XrdOfs::fsctl(const int               cmd,
       {char pbuff[1024];
        const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv fs_Env(opq ? opq+1 : 0,0,client);
+       ZTRACE(fsctl, "statfs args=" <<(args ? args : "''"));
        AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote()
        &&  (retc = Finder->Space(einfo, Path, &fs_Env)))
@@ -320,6 +322,7 @@ int XrdOfs::fsctl(const int               cmd,
       {char pbuff[1024];
        const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv statls_Env(opq ? opq+1 : 0,0,client);
+       ZTRACE(fsctl, "statls args=" <<(args ? args : "''"));
        AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote())
           {statls_Env.Put("cms.qvfs", "1");
@@ -341,6 +344,7 @@ int XrdOfs::fsctl(const int               cmd,
       {char pbuff[1024];
        const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv xa_Env(opq ? opq+1 : 0,0,client);
+       ZTRACE(fsctl, "statxa args=" <<(args ? args : "''"));
        AUTHORIZE(client,0,AOP_Stat,"statxa",Path,einfo);
        if (Finder && Finder->isRemote()
        && (retc = Finder->Locate(einfo,Path,SFS_O_RDONLY|SFS_O_STAT,&xa_Env)))
@@ -366,6 +370,7 @@ int XrdOfs::fsctl(const int               cmd,
    if (opcode == SFS_FSCTL_STATCC)
       {static const int lcc_flag = SFS_O_LOCATE | SFS_O_LOCAL;
        XrdOucEnv lcc_Env(0,0,client);
+       ZTRACE(fsctl, "statcc args=" <<(args ? args : "''"));
             if (Finder)   retc = Finder  ->Locate(einfo,".",lcc_flag,&lcc_Env);
        else if (Balancer) retc = Balancer->Locate(einfo,".",lcc_flag,&lcc_Env);
        else retc = SFS_ERROR;
@@ -376,7 +381,8 @@ int XrdOfs::fsctl(const int               cmd,
 // Process the FATTR request.
 //
    if (opcode == SFS_FSCTL_FATTR)
-      {if (args) return ctlFAttr((XrdSfsFACtl &)*args, einfo, client);
+      {ZTRACE(fsctl, "fattr args=" <<(args ? "action" : "info"));
+       if (args) return ctlFAttr((XrdSfsFACtl &)*args, einfo, client);
           else {XrdOucEnv *envP = einfo.getEnv();
                 if (!envP || !usxMaxNsz) return SFS_ERROR;
                 envP->PutInt("usxMaxNsz", usxMaxNsz);
@@ -503,9 +509,10 @@ int XrdOfs::ctlFALst(XrdSfsFACtl &faCtl, XrdOucEnv &faEnv, XrdOucErrInfo &einfo)
 {
    EPNAME("ctlFALst");
    XrdSysXAttr::AList *alP, *aEnt;
-   char *nP;
-   int rc, pfLen, iX = 0, faSize = 0;
-   int  getMsz = (faCtl.opts & XrdSfsFACtl::retvsz) != 0;
+   char *nP, *bP;
+   int bL, rc, pfLen, iX = 0, faSize = 0, fvSize = 0;
+   bool getMsz = (faCtl.opts & XrdSfsFACtl::retvsz) == XrdSfsFACtl::retvsz;
+   bool getVal = (faCtl.opts & XrdSfsFACtl::retval) == XrdSfsFACtl::retval;
    bool xPlode = (faCtl.opts & XrdSfsFACtl::xplode) != 0;
 
 // Get all of the attribute names
@@ -556,6 +563,8 @@ int XrdOfs::ctlFALst(XrdSfsFACtl &faCtl, XrdOucEnv &faEnv, XrdOucErrInfo &einfo)
                 {faCtl.info[iX].Name = nP;
                  faCtl.info[iX].NLen = aEnt->Nlen - pfLen;
                  faCtl.info[iX].VLen = aEnt->Vlen;
+                 if (getVal && aEnt->Vlen) faCtl.info[iX].Value = aEnt->Name;
+                 fvSize += aEnt->Vlen;
                  iX++;
                 }
              nP += aEnt->Nlen-pfLen+1;
@@ -563,13 +572,41 @@ int XrdOfs::ctlFALst(XrdSfsFACtl &faCtl, XrdOucEnv &faEnv, XrdOucErrInfo &einfo)
          aEnt = aEnt->Next;
         }
 
-      {faCtl.info = 0;
-       faCtl.iNum = 0;
+// If we don't need to return values, we are done
+//
+   if (!getVal)
+      {XrdSysFAttr::Xat->Free(alP);
        return SFS_OK;
       }
-   faCtl.fabP->dlen = nP - faCtl.fabP->data;
 
-// Finish up
+// Allocate a buffer to hold all of the values
+//
+   if (!GetFABuff(faCtl, fvSize))
+      {XrdSysFAttr::Xat->Free(alP);
+       return SetNoMem(faCtl, 0);
+      }
+
+// Setup to retrieve attributes
+//
+   bP = faCtl.fabP->data;
+   bL = faCtl.fabP->dlen;
+
+// Retrieve the attribute values
+//
+   for (unsigned int i = 0; i < faCtl.iNum; i++)
+       {if (faCtl.info[i].VLen)
+           {nP = faCtl.info[i].Name;
+            faCtl.info[i].Name  = faCtl.info[i].Value;
+            faCtl.info[i].Value = 0;
+            if (!GetFAVal(faCtl, bP, bL, i) && !GulpFAVal(faCtl, bP, bL, i))
+               {XrdSysFAttr::Xat->Free(alP);
+                return SetNoMem(faCtl, i);
+               }
+            faCtl.info[i].Name = nP;
+           }
+       }
+
+// Free up the buffer list and return success
 //
    XrdSysFAttr::Xat->Free(alP);
    return SFS_OK;

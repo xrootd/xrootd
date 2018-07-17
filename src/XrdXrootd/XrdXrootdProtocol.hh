@@ -235,6 +235,7 @@ static int   xlimit(XrdOucStream &Config);
                        int   faALen, int   faCode, bool  doAChk);
        int   XeqFADel(XrdSfsFACtl &ctl, char *faVars, int faVLen);
        int   XeqFAGet(XrdSfsFACtl &ctl, char *faVars, int faVLen);
+       int   XeqFALsd(XrdSfsFACtl &ctl);
        int   XeqFALst(XrdSfsFACtl &ctl);
        int   XeqFASet(XrdSfsFACtl &ctl, char *faVars, int faVLen);
 

@@ -87,6 +87,7 @@ static const int accChk = 0x01;   //!< Perform access check
 static const int newAtr = 0x02;   //!< For set the attribute must not exist
 static const int xplode = 0x04;   //!< Construct an info vec from faList
 static const int retvsz = 0x0c;   //!< Above plus return size of attr value
+static const int retval = 0x1c;   //!< Above plus return actual  attr value
 
               XrdSfsFACtl(const char *p, const char *opq, int anum)
                          : path(p), pcgi(opq), info(0), envP(0), fabP(0),
