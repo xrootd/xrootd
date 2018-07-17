@@ -387,6 +387,10 @@ release:pypi:
   script:
     - cp packaging/wheel/* .
     - ./publish.sh
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - dist/
   tags:
     - xrootd-shell
   only:
@@ -398,11 +402,12 @@ release:pypi:
 
 publish:pypi:
   stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/xrootd/release/pypi-dist
     - sudo -u stci -H cp dist/*.tar.gz /eos/project/s/storage-ci/www/xrootd/release/pypi-dist/.
   tags:
-    - xrootd-shell
+    - docker-slc6
   only:
     - web
   except:
