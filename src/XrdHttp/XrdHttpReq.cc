@@ -2397,6 +2397,10 @@ void XrdHttpReq::reset() {
   resource = "";
   allheaders.clear();
 
+  // Reset the state of the request's digest request.
+  m_req_digest.clear();
+  m_resource_with_digest = "";
+
   headerok = false;
   keepalive = true;
   length = 0;
