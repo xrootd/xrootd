@@ -36,6 +36,8 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <aio.h>
+#include <sys/types.h>
+#include <attr/xattr.h>
 
 namespace
 {
@@ -596,6 +598,154 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Set extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus LocalFileHandler::SetXAttr( const std::vector<xattr_t> &attrs,
+                                           ResponseHandler            *handler,
+                                           uint16_t                    timeout )
+  {
+    static const std::string prefix = "user.U.";
+    std::vector<XAttrStatus> response;
+
+    auto itr = attrs.begin();
+    for( ; itr != attrs.end(); ++itr )
+    {
+      std::string name  = prefix + std::get<xattr_name>( *itr );
+      std::string value = std::get<xattr_value>( *itr );
+
+      int err = fsetxattr( fd, name.c_str(), value.c_str(), value.size(), 0 );
+      XRootDStatus status = err ? XRootDStatus( stError, XProtocol::mapError( errno ) ) :
+                                  XRootDStatus();
+
+      response.push_back( XAttrStatus( name, status ) );
+    }
+
+    AnyObject *resp = new AnyObject();
+    resp->Set( new std::vector<XAttrStatus>( std::move( response ) ) );
+
+    return QueueTask( new XRootDStatus(), resp, handler );
+  }
+
+  //------------------------------------------------------------------------
+  // Get extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus LocalFileHandler::GetXAttr( const std::vector<std::string> &attrs,
+                                           ResponseHandler                *handler,
+                                           uint16_t                        timeout )
+  {
+    static const std::string prefix = "user.U.";
+    std::vector<XAttr> response;
+
+    auto itr = attrs.begin();
+    for( ; itr != attrs.end(); ++itr )
+    {
+      std::string name  = prefix + *itr;
+      std::unique_ptr<char[]> buffer;
+
+      ssize_t size = fgetxattr( fd, name.c_str(), buffer.get(), 0 );
+      buffer.reset( new char[size] );
+
+      int err = fgetxattr( fd, name.c_str(), buffer.get(), size );
+
+      XRootDStatus status;
+      std::string  value;
+
+      if( err != -1 )
+        value.append( buffer.get(), size );
+      else
+        status = XRootDStatus( stError, XProtocol::mapError( errno ) );
+
+      response.push_back( XAttr( *itr, value, status ) );
+    }
+
+    AnyObject *resp = new AnyObject();
+    resp->Set( new std::vector<XAttr>( std::move( response ) ) );
+
+    return QueueTask( new XRootDStatus(), resp, handler );
+  }
+
+  //------------------------------------------------------------------------
+  // Delete extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus LocalFileHandler::DelXAttr( const std::vector<std::string> &attrs,
+                                           ResponseHandler                *handler,
+                                           uint16_t                        timeout )
+  {
+    static const std::string prefix = "user.U.";
+    std::vector<XAttrStatus> response;
+
+    auto itr = attrs.begin();
+    for( ; itr != attrs.end(); ++itr )
+    {
+      std::string name  = prefix + *itr;
+      int err = fremovexattr( fd, name.c_str() );
+      XRootDStatus status = err ? XRootDStatus( stError, XProtocol::mapError( errno ) ) :
+                                  XRootDStatus();
+
+      response.push_back( XAttrStatus( name, status ) );
+    }
+
+    AnyObject *resp = new AnyObject();
+    resp->Set( new std::vector<XAttrStatus>( std::move( response ) ) );
+
+    return QueueTask( new XRootDStatus(), resp, handler );
+  }
+
+  //------------------------------------------------------------------------
+  // List extended attributes - async
+  //------------------------------------------------------------------------
+  XRootDStatus LocalFileHandler::ListXAttr( ResponseHandler  *handler,
+                                            uint16_t          timeout )
+  {
+    static const std::string prefix = "user.U.";
+
+    std::unique_ptr<char[]> buffer;
+    ssize_t size = flistxattr( fd , buffer.get(),  0 );
+    buffer.reset( new char[size] );
+    int err = flistxattr( fd, buffer.get(), size );
+
+    if( err == -1 )
+    {
+      XRootDStatus *status = new XRootDStatus( stError, XProtocol::mapError( errno ) );
+      return QueueTask( status, 0, handler );
+    }
+
+    std::vector<XAttr> response;
+    char *ptr = buffer.get();
+
+    while( size > 0 )
+    {
+      size_t len = strlen( ptr );
+      std::string name( ptr, len );
+      size -= len + 1; // the +1 stands for the null terminating the string
+      ptr  += len + 1; // the +1 stands for the null terminating the string
+
+      if( name.find( prefix ) == 0 )
+        response.push_back( name );
+    }
+
+    auto itr = response.begin();
+    for( ; itr != response.end(); ++itr )
+    {
+      size = fgetxattr( fd, itr->name.c_str(), 0, 0 );
+      buffer.reset( new char[size] );
+
+      int err = fgetxattr( fd, itr->name.c_str(), buffer.get(), size );
+
+      if( err != -1 )
+        itr->value.append( buffer.get(), size );
+      else
+        itr->status = XRootDStatus( stError, XProtocol::mapError( errno ) );
+      itr->name = itr->name.substr( prefix.size() );
+    }
+
+    AnyObject *resp = new AnyObject();
+    resp->Set( new std::vector<XAttr>( std::move( response ) ) );
+
+    return QueueTask( new XRootDStatus(), resp, handler );
+  }
+
+  //------------------------------------------------------------------------
   // QueueTask - queues error/success tasks for all operations.
   // Must always return stOK.
   // Is always creating the same HostList containing only localhost.
@@ -749,6 +899,100 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //------------------------------------------------------------------------
+  // Parses kXR_fattr request and calls respective XAttr operation
+  //------------------------------------------------------------------------
+  XRootDStatus LocalFileHandler::XAttrImpl( kXR_char          code,
+                                            kXR_char          numattr,
+                                            size_t         bodylen,
+                                            char             *body,
+                                            ResponseHandler  *handler )
+  {
+    // shift body by 1 to omit the empty path
+    if( bodylen > 0 )
+    {
+      ++body;
+      --bodylen;
+    }
+
+    switch( code )
+    {
+      case kXR_fattrGet:
+      case kXR_fattrDel:
+      {
+        std::vector<std::string> attrs;
+        // parse namevec
+        for( kXR_char i = 0; i < numattr; ++i )
+        {
+          if( bodylen < sizeof( kXR_unt16 ) ) return XRootDStatus( stError, errDataError );
+          // shift by RC size
+          body    += sizeof( kXR_unt16 );
+          bodylen -= sizeof( kXR_unt16 );
+          // get the size of attribute name
+          size_t len = strlen( body );
+          if( len > bodylen ) return XRootDStatus( stError, errDataError );
+          attrs.push_back( std::string( body, len ) );
+          body    += len + 1; // +1 for the null terminating the string
+          bodylen -= len + 1; // +1 for the null terminating the string
+        }
+
+        if( code == kXR_fattrGet )
+          return GetXAttr( attrs, handler );
+
+        return DelXAttr( attrs, handler );
+      }
+
+      case kXR_fattrSet:
+      {
+        std::vector<xattr_t> attrs;
+        // parse namevec
+        for( kXR_char i = 0; i < numattr; ++i )
+        {
+          if( bodylen < sizeof( kXR_unt16 ) ) return XRootDStatus( stError, errDataError );
+          // shift by RC size
+          body    += sizeof( kXR_unt16 );
+          bodylen -= sizeof( kXR_unt16 );
+          // get the size of attribute name
+          size_t len = strlen( body );
+          if( len > bodylen ) return XRootDStatus( stError, errDataError );
+          std::string name( body, len );
+          attrs.push_back( std::make_tuple( name, "" ) );
+          body    += len + 1; // +1 for the null terminating the string
+          bodylen -= len + 1; // +1 for the null terminating the string
+        }
+        // parse valuevec
+        for( kXR_char i = 0; i < numattr; ++i )
+        {
+          // get value length
+          if( bodylen < sizeof( kXR_int32 ) ) return XRootDStatus( stError, errDataError );
+          kXR_int32 len = 0;
+          memcpy( &len, body, sizeof( kXR_int32 ) );
+          len = ntohl( len );
+          body    += sizeof( kXR_int32 );
+          bodylen -= sizeof( kXR_int32 );
+          // get value
+          if( size_t( len ) > bodylen ) return XRootDStatus( stError, errDataError );
+          std::string value( body, len );
+          std::get<xattr_value>( attrs[i] ) = value;
+          body    += len;
+          bodylen -= len;
+        }
+
+        return SetXAttr( attrs, handler );
+      }
+
+      case kXR_fattrList:
+      {
+        return ListXAttr( handler );
+      }
+
+      default:
+        return XRootDStatus( stError, errInvalidArgs );
+    }
+
+    return XRootDStatus();
+  }
+
   XRootDStatus LocalFileHandler::ExecRequest( const URL         &url,
                                               Message           *msg,
                                               ResponseHandler   *handler,
@@ -818,6 +1062,12 @@ namespace XrdCl
       {
         return VectorRead( *sendParams.chunkList, 0,
                            handler, sendParams.timeout );
+      }
+
+      case kXR_fattr:
+      {
+        return XAttrImpl( req->fattr.subcode, req->fattr.numattr, req->fattr.dlen,
+                          msg->GetBuffer( sizeof(ClientRequestHdr ) ), handler );
       }
 
       default:
