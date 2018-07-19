@@ -210,6 +210,70 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Visa( ResponseHandler *handler, uint16_t timeout = 0 );
+
+
+      //------------------------------------------------------------------------
+      //! Set extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to set
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttrStatus objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SetXAttr( const std::vector<xattr_t> &attrs,
+                             ResponseHandler            *handler,
+                             uint16_t                    timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Get extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to get
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttr objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus GetXAttr( const std::vector<std::string> &attrs,
+                             ResponseHandler                *handler,
+                             uint16_t                        timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Delete extended attributes - async
+      //!
+      //! @param attrs   : list of extended attributes to set
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttrStatus objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus DelXAttr( const std::vector<std::string> &attrs,
+                             ResponseHandler                *handler,
+                             uint16_t                        timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! List extended attributes - async
+      //!
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttr objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ListXAttr( ResponseHandler           *handler,
+                              uint16_t                   timeout = 0 );
+
       //------------------------------------------------------------------------
       //! creates the directories specified in file_path
       //!
@@ -241,6 +305,15 @@ namespace XrdCl
 
       XRootDStatus OpenImpl( const std::string &url, uint16_t flags,
                              uint16_t mode, AnyObject *&resp );
+
+      //------------------------------------------------------------------------
+      //! Parses kXR_fattr request and calls respective XAttr operation
+      //------------------------------------------------------------------------
+      XRootDStatus XAttrImpl( kXR_char          code,
+                              kXR_char          numattr,
+                              size_t         bodylen,
+                              char             *body,
+                              ResponseHandler  *handler );
 
       //---------------------------------------------------------------------
       // Receives LocalFileTasks to handle them async
