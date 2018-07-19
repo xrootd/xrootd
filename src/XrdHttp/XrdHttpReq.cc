@@ -789,6 +789,13 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
         break;
       case kXR_Unsupported:
         httpStatusCode = 405; httpStatusText = "Operation not supported";
+        break;
+      case kXR_FileLocked:
+        httpStatusCode = 423; httpStatusText = "Resource is a locked";
+        break;
+      case kXR_isDirectory:
+        httpStatusCode = 409; httpStatusText = "Resource is a directory";
+        break;
       default:
         break;
     }
@@ -1932,7 +1939,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
         if (xrdresp != kXR_ok) {
 
-          prot->SendSimpleResp(409, NULL, NULL, (char *) "Error man!", 0);
+          prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                               httpStatusText.c_str(), httpStatusText.length());
           return -1;
         }
 
@@ -2252,7 +2260,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
-        prot->SendSimpleResp(409, NULL, NULL, (char *) etext.c_str(), 0);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                             httpStatusText.c_str(), httpStatusText.length());
         return -1;
       }
 
