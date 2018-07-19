@@ -51,6 +51,7 @@ class FileSystemTest: public CppUnit::TestCase
       CPPUNIT_TEST( DirListTest );
       CPPUNIT_TEST( SendInfoTest );
       CPPUNIT_TEST( PrepareTest );
+      CPPUNIT_TEST( XAttrTest );
       CPPUNIT_TEST( PlugInTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
@@ -67,6 +68,7 @@ class FileSystemTest: public CppUnit::TestCase
     void DirListTest();
     void SendInfoTest();
     void PrepareTest();
+    void XAttrTest();
     void PlugInTest();
 };
 
@@ -628,6 +630,101 @@ void FileSystemTest::PrepareTest()
   CPPUNIT_ASSERT( id );
   CPPUNIT_ASSERT( id->GetSize() );
   delete id;
+}
+
+//------------------------------------------------------------------------------
+// Extended attributes test
+//------------------------------------------------------------------------------
+void FileSystemTest::XAttrTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Get the environment variables
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string remoteFile;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "DiskServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",    remoteFile ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  FileSystem fs( url );
+
+  std::map<std::string, std::string> attributes
+  {
+      std::make_pair( "version",  "v1.2.3-45" ),
+      std::make_pair( "checksum", "2ccc0e85556a6cd193dd8d2b40aab50c" ),
+      std::make_pair( "index",    "4" )
+  };
+
+  //----------------------------------------------------------------------------
+  // Test SetXAttr
+  //----------------------------------------------------------------------------
+  std::vector<xattr_t> attrs;
+  for( auto &a : attributes )
+    attrs.push_back( std::make_tuple( a.first, a.second ) );
+
+  std::vector<XAttrStatus> *result1 = 0;
+  CPPUNIT_ASSERT_XRDST( fs.SetXAttr( remoteFile, attrs, result1 ) );
+
+  for( auto &xst : *result1 )
+    CPPUNIT_ASSERT_XRDST( xst.status );
+
+  delete result1;
+  result1 = 0;
+
+  //----------------------------------------------------------------------------
+  // Test GetXAttr
+  //----------------------------------------------------------------------------
+  std::vector<std::string> names;
+  for( auto &a : attributes )
+    names.push_back( a.first );
+
+  std::vector<XAttr> *result2 = 0;
+  CPPUNIT_ASSERT_XRDST( fs.GetXAttr( remoteFile, names, result2 ) );
+
+  for( auto &xa : *result2 )
+  {
+    CPPUNIT_ASSERT_XRDST( xa.status );
+    auto match = attributes.find( xa.name );
+    CPPUNIT_ASSERT( match != attributes.end() );
+    CPPUNIT_ASSERT( match->second == xa.value );
+  }
+
+  delete result2;
+  result2 = 0;
+
+  //----------------------------------------------------------------------------
+  // Test ListXAttr
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( fs.ListXAttr( remoteFile, result2 ) );
+
+  for( auto &xa : *result2 )
+  {
+    CPPUNIT_ASSERT_XRDST( xa.status );
+    auto match = attributes.find( xa.name );
+    CPPUNIT_ASSERT( match != attributes.end() );
+    CPPUNIT_ASSERT( match->second == xa.value );
+  }
+
+  delete result2;
+  result2 = 0;
+
+  //----------------------------------------------------------------------------
+  // Test DelXAttr
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( fs.DelXAttr( remoteFile, names, result1 ) );
+
+  for( auto &xst : *result1 )
+    CPPUNIT_ASSERT_XRDST( xst.status );
+
+  delete result1;
+  result1 = 0;
 }
 
 //------------------------------------------------------------------------------
