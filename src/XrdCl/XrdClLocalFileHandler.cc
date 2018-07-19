@@ -37,7 +37,7 @@
 #include <arpa/inet.h>
 #include <aio.h>
 #include <sys/types.h>
-#include <attr/xattr.h>
+#include <sys/xattr.h>
 
 namespace
 {
