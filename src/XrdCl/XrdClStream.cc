@@ -830,6 +830,69 @@ namespace XrdCl
     }
   }
 
+  //------------------------------------------------------------------------
+  // Force error
+  //------------------------------------------------------------------------
+  Status Stream::ForceError( Status status )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    for( size_t substream = 0; substream < pSubStreams.size(); ++substream )
+    {
+      Log    *log = DefaultEnv::GetLog();
+      if( pSubStreams[substream]->status != Socket::Connected )
+        return Status( stError, errInvalidOp );
+      pSubStreams[substream]->socket->Close();
+      pSubStreams[substream]->status = Socket::Disconnected;
+      log->Error( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
+                  pStreamName.c_str(), status.ToString().c_str() );
+
+      //--------------------------------------------------------------------
+      // Reinsert the stuff that we have failed to sent
+      //--------------------------------------------------------------------
+      if( pSubStreams[substream]->outMsgHelper.msg )
+      {
+        OutMessageHelper &h = pSubStreams[substream]->outMsgHelper;
+        pSubStreams[substream]->outQueue->PushFront( h.msg, h.handler, h.expires,
+                                                     h.stateful );
+        pSubStreams[substream]->outMsgHelper.Reset();
+      }
+
+      //--------------------------------------------------------------------
+      // Reinsert the receiving handler
+      //--------------------------------------------------------------------
+      if( pSubStreams[substream]->inMsgHelper.handler )
+      {
+        InMessageHelper &h = pSubStreams[substream]->inMsgHelper;
+        pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
+        h.Reset();
+      }
+
+      pConnectionCount = 0;
+
+      //------------------------------------------------------------------------
+      // We're done here, unlock the stream mutex to avoid deadlocks and
+      // report the disconnection event to the handlers
+      //------------------------------------------------------------------------
+      log->Debug( PostMasterMsg, "[%s] Reporting disconnection to queued "
+                  "message handlers.", pStreamName.c_str() );
+
+      SubStreamList::iterator it;
+      OutQueue q;
+      for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+        q.GrabItems( *(*it)->outQueue );
+      scopedLock.UnLock();
+
+      q.Report( status );
+
+      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken,
+                                         pStreamNum, status );
+      pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status,
+                                      pStreamNum );
+    }
+
+    return Status();
+  }
+
   //----------------------------------------------------------------------------
   // On fatal error
   //----------------------------------------------------------------------------

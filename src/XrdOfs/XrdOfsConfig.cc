@@ -82,6 +82,9 @@ extern XrdOucTrace OfsTrace;
 class  XrdOss;
 extern XrdOss     *XrdOfsOss;
 
+class  XrdScheduler;
+       XrdScheduler *ofsSchedP;
+
 XrdVERSIONINFO(XrdOfs,XrdOfs);
 
 namespace
@@ -154,6 +157,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       {Eroute.Emsg("Finder", "Network i/f undefined; unable to self-locate.");
        NoGo = 1;
       }
+   ofsSchedP = (XrdScheduler *)EnvInfo->GetPtr("XrdScheduler*");
 
 // Preset all variables with common defaults
 //

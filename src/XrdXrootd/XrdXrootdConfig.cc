@@ -334,7 +334,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Create the file lock manager
 //
    Locker = (XrdXrootdFileLock *)new XrdXrootdFileLock1();
-   XrdXrootdFile::Init(Locker, as_nosf == 0);
+   XrdXrootdFile::Init(Locker, &eDest, as_nosf == 0);
    if (as_nosf) eDest.Say("Config warning: sendfile I/O has been disabled!");
 
 // Schedule protocol object cleanup (also advise the transit protocol)

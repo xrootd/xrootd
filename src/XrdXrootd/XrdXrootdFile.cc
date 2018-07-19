@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
   
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -57,6 +58,18 @@ extern XrdOucTrace      *XrdXrootdTrace;
        int              XrdXrootdFile::sfOK         = 1;
        const char      *XrdXrootdFile::TraceID      = "File";
        const char      *XrdXrootdFileTable::TraceID = "FileTable";
+       const char      *XrdXrootdFileTable::ID      = "";
+
+namespace
+{
+             XrdSysError   *eDest;
+
+static const unsigned long  heldSpotV = 1UL;;
+
+static       XrdXrootdFile *heldSpotP = (XrdXrootdFile *)1;
+
+static const unsigned long  heldMask = ~1UL;
+}
 
 /******************************************************************************/
 /*                        x r d _ F i l e   C l a s s                         */
@@ -77,6 +90,7 @@ XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
     mmAddr   = 0;
     FileMode = mode;
     AsyncMode= (async ? 1 : 0);
+    fhProc   = 0;
     ID       = id;
 
     Stats.Init();
@@ -104,6 +118,18 @@ XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
 }
   
 /******************************************************************************/
+/*                                                                            */
+/*                                  I n i t                                   */
+/******************************************************************************/
+  
+void XrdXrootdFile::Init(XrdXrootdFileLock *lp, XrdSysError *erP, int sfok)
+{
+   Locker = lp;
+   eDest  = erP;
+   sfOK   = sfok;
+}
+
+/******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
   
@@ -116,6 +142,9 @@ XrdXrootdFile::~XrdXrootdFile()
        XrdSfsp = 0;
        Locker->Unlock(FileKey, FileMode);
       }
+
+   if (fhProc) fhProc->Avail(fHandle);
+
    if (FileKey) free(FileKey);
 }
 
@@ -131,6 +160,26 @@ int XrdXrootdFileTable::Add(XrdXrootdFile *fp)
    const int allocsz = XRD_FTABSIZE*sizeof(fp);
    XrdXrootdFile **newXTab, **oldXTab;
    int i;
+
+// If we have a file handle processor, see if it can give us a file handle
+// that's already in our table.
+//
+   if (fhProc && (i = fhProc->Get()) >= 0) 
+      {XrdXrootdFile **fP;
+       if (i < XRD_FTABSIZE)   fP = &FTab[i];
+          else {i -= XRD_FTABSIZE;
+                if (XTab && i < XTnum) fP = &XTab[i];
+                   else fP = 0;
+               }
+       if (fP && *fP == heldSpotP)
+          {*fP = fp;
+           TRACEI(FS, "reusing fh " <<i <<" for " <<fp->FileKey);
+           return i;
+          }
+       char fhn[32];
+       snprintf(fhn, sizeof(fhn), "%d", i);
+       eDest->Emsg("FTab_Add", "Invalid recycled fHandle",fhn,"ignored.");
+      }
 
 // Find a free spot in the internal table
 //
@@ -176,23 +225,28 @@ int XrdXrootdFileTable::Add(XrdXrootdFile *fp)
 /*                                   D e l                                    */
 /******************************************************************************/
   
-void XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum)
+XrdXrootdFile *XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum,
+                                       bool dodel)
 {
-   XrdXrootdFile *fp;
+   union {XrdXrootdFile *fp; unsigned long fv;};
+   XrdXrootdFile *repVal = (dodel ? 0 : heldSpotP);
+   int  fh = fnum;
 
    if (fnum < XRD_FTABSIZE) 
       {fp = FTab[fnum];
-       FTab[fnum] = 0;
+       FTab[fnum] = repVal;
        if (fnum < FTfree) FTfree = fnum;
       } else {
        fnum -= XRD_FTABSIZE;
        if (XTab && fnum < XTnum)
           {fp = XTab[fnum];
-           XTab[fnum] = 0;
+           XTab[fnum] = repVal;
            if (fnum < XTfree) XTfree = fnum;
           }
            else fp = 0;
       }
+
+   fv &= heldMask;
 
    if (fp)
       {XrdXrootdFileStats &Stats = fp->Stats;
@@ -201,8 +255,15 @@ void XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum)
                              Stats.xfr.read + Stats.xfr.readv,
                              Stats.xfr.write);
        if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, false);
-       delete fp;  // Will do the close
+       if (dodel) {delete fp; fp = 0;}  // Will do the close
+          else {if (!fhProc) fhProc = new XrdXrootdFileHP;
+                   else fhProc->Ref();
+                fp->fHandle = fh;
+                fp->fhProc  = fhProc;
+                TRACEI(FS, "defer fh " <<fh <<" del for " <<fp->FileKey);
+               }
       }
+   return fp;
 }
 
 /******************************************************************************/
@@ -221,7 +282,7 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP)
 //
    FTfree = 0;
    for (i = 0; i < XRD_FTABSIZE; i++)
-       if (FTab[i])
+       if (FTab[i] && FTab[i] != heldSpotP)
           {XrdXrootdFileStats &Stats = FTab[i]->Stats;
            if (monP) monP->Close(Stats.FileID,
                                  Stats.xfr.read+Stats.xfr.readv,
@@ -234,7 +295,7 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP)
 //
 if (XTab)
   {for (i = 0; i < XTnum; i++)
-      {if (XTab[i])
+      {if (XTab[i] && XTab[i] != heldSpotP)
           {XrdXrootdFileStats &Stats = XTab[i]->Stats;
            if (monP) monP->Close(Stats.FileID,
                                  Stats.xfr.read+Stats.xfr.readv,
@@ -245,6 +306,11 @@ if (XTab)
        }
    free(XTab); XTab = 0; XTnum = 0; XTfree = 0;
   }
+
+// If we have a filehandle processor, delete it. Note that it will stay alive
+// until all requests for file handles against it are resolved.
+//
+   if (fhProc) fhProc->Delete();
 
 // Delete this object
 //
