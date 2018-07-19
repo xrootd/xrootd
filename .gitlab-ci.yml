@@ -384,7 +384,10 @@ release:deb_ubuntu_xenial:
 
 release:pypi:
   stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
+    - yum install -y git python-pip which
+    - pip install setuptools --upgrade
     - cp packaging/wheel/* .
     - ./publish.sh
   artifacts:
