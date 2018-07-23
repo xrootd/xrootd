@@ -16,17 +16,19 @@ namespace XrdCl {
             OperationHandler(ResponseHandler *handler);
             void AddOperation(HandledOperation *op);
             void AddNextHandler(ResponseHandler *handler);
+            void SetSemaphore(XrdSysSemaphore *sem);
             ResponseHandler* GetHandler();
             virtual void HandleResponseWithHosts(XRootDStatus *status, AnyObject *response, HostList *hostList);
             virtual void HandleResponse(XRootDStatus *status, AnyObject *response);
             virtual ~OperationHandler();
 
         protected:
-            void RunOperation();
+            void RunNextOperation();
 
         private:
             ResponseHandler *responseHandler;
             HandledOperation *nextOperation;
+            XrdSysSemaphore *semaphore;
 
     };
 
@@ -103,6 +105,7 @@ namespace XrdCl {
             HandledOperation(Operation* op, OperationHandler* h);
             ~HandledOperation();
             void AddOperation(HandledOperation *op);
+            void SetSemaphore(XrdSysSemaphore *sem);
             HandledOperation& operator|(HandledOperation &op);
             XRootDStatus Run();
             string GetName();
@@ -115,10 +118,12 @@ namespace XrdCl {
         public:
             Workflow(HandledOperation& op);
             ~Workflow();
-            XRootDStatus Run();
+            Workflow& Run();
+            void Wait();
 
         private:
             HandledOperation *firstOperation;
+            XrdSysSemaphore *semaphore;
     };
 
 }
