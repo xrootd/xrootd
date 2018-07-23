@@ -88,6 +88,7 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "Invalid signature",          // kXR_SigVerErr
                     "Decryption failed",          // kXR_DecryptErr
                     "Overloaded",                 // kXR_Overloaded
+                    "Filesystem is read only",    // kXR_fsReadOnly
                     "Invalid payload format",     // kXR_BadPayload
                     "File attrbute not found"     // kXR_AttrNotFound
                    };
