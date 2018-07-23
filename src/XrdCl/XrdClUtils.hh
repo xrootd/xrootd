@@ -156,6 +156,15 @@ namespace XrdCl
                                     uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Check if peer supports tpc / tpc lite
+      //!
+      //! @return : suDone if TPC lite is supported, suPartial if plain TPC is
+      //!           supported, stError otherwise
+      //------------------------------------------------------------------------
+      static XRootDStatus CheckTPCLite( const std::string &server,
+                                        uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Convert the fully qualified host name to country code
       //------------------------------------------------------------------------
       static std::string FQDNToCC( const std::string &fqdn );

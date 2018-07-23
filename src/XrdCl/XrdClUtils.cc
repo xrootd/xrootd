@@ -387,6 +387,55 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //------------------------------------------------------------------------
+  // Check if peer supports tpc / tpc lite
+  //------------------------------------------------------------------------
+  XRootDStatus Utils::CheckTPCLite( const std::string &server, uint16_t timeout )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( UtilityMsg, "Checking if the data server %s supports tpc / tpc lite",
+                server.c_str() );
+
+    FileSystem    sourceDSFS( server );
+    Buffer        queryArg; queryArg.FromString( "tpc tpcdlg" );
+    Buffer       *queryResponse;
+    XRootDStatus  st;
+    st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse,
+                           timeout );
+    if( !st.IsOK() )
+    {
+      log->Error( UtilityMsg, "Cannot query source data server %s: %s",
+                  server.c_str(), st.ToStr().c_str() );
+      st.status = stFatal;
+      return st;
+    }
+
+    std::string answer = queryResponse->ToString();
+    delete queryResponse;
+
+    std::vector<std::string> resp;
+    Utils::splitString( resp, answer, "\n" );
+
+    if( !isdigit( resp[0][0]) || atoi( resp[0].c_str() ) == 0 )
+    {
+      log->Debug( UtilityMsg, "Third party copy not supported at: %s",
+                  server.c_str() );
+      return XRootDStatus( stError, errNotSupported );
+    }
+
+    if( resp.size() == 1 || resp[1] == "tpcdlg" )
+    {
+      log->Debug( UtilityMsg, "TPC lite not supported at: %s",
+                  server.c_str() );
+      return XRootDStatus( stOK, suPartial );
+    }
+
+    log->Debug( UtilityMsg, "TPC lite supported at: %s",
+                server.c_str() );
+
+    return XRootDStatus();
+  }
+
   //----------------------------------------------------------------------------
   // Convert the fully qualified host name to country code
   //----------------------------------------------------------------------------

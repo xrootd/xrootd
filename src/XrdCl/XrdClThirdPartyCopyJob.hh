@@ -54,6 +54,22 @@ namespace XrdCl
                                  PropertyList *properties );
 
     private:
+
+      //------------------------------------------------------------------------
+      //! Run vanilla copy job
+      //------------------------------------------------------------------------
+      XRootDStatus RunTPC( CopyProgressHandler *progress,
+                           uint64_t             sourceSize,
+                           bool                 force,
+                           bool                 coerce,
+                           int                  nbStrm );
+
+      XRootDStatus RunLite( CopyProgressHandler *progress,
+                            uint64_t             sourceSize,
+                            bool                 force,
+                            bool                 coerce,
+                            int                  nbStrm );
+
       static std::string GenerateKey();
   };
 }
