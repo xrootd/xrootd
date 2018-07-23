@@ -538,7 +538,7 @@ pyxrootd_dockerimage:
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/xrootd
+    TO: gitlab-registry.cern.ch/dss/pyxrootd
     DOCKER_FILE: xrootd-docker/Dockerfile-python.ci
   dependencies:
     - xrootd_docker_get
@@ -549,16 +549,16 @@ pyxrootd_dockerimage:
 pyxrootd_docker_test:
   stage: test
   script:
-    - docker pull gitlab-registry.cern.ch/dss/xrootd
-    - sudo ./xrootd-docker/start.sh -i gitlab-registry.cern.ch/dss/xrootd
-    - docker exec metaman sh -c "head -c 1000000 /dev/urandom > /tmp/smallfile"
-    - docker exec metaman sh -c "head -c 1000000 /dev/urandom > /tmp/smallcopy"
-    - docker exec metaman sh -c "head -c 100000000 /dev/urandom > /tmp/bigfile"
-    - docker exec metaman sh -c "head -c 100000000 /dev/urandom > /tmp/bigcopy"
-    - docker exec metaman sh -c "cd xrootd/bindings/python && pytest"
+    - docker pull gitlab-registry.cern.ch/dss/pyxrootd
+    - sudo docker run -i gitlab-registry.cern.ch/dss/pyxrootd --name pyxrootd-container
+    - docker exec pyxrootd-container sh -c "head -c 1000000 /dev/urandom > /tmp/smallfile"
+    - docker exec pyxrootd-container sh -c "head -c 1000000 /dev/urandom > /tmp/smallcopy"
+    - docker exec pyxrootd-container sh -c "head -c 100000000 /dev/urandom > /tmp/bigfile"
+    - docker exec pyxrootd-container sh -c "head -c 100000000 /dev/urandom > /tmp/bigcopy"
+    - docker exec pyxrootd-container sh -c "cd xrootd/bindings/python && pytest"
+    - docker rm -f metaman
+    - docker rmi $(docker images -f "dangling=true" -q)
 
-  after_script:
-    - sudo ./xrootd-docker/clean.sh
   tags:
     - xrootd-shell
   dependencies:
