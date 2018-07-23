@@ -209,6 +209,7 @@ int SendErr(XrdXrootdResponse &Resp, faCTL &ctl, XErrorCode eCode)
 }
 
   
+/* For future use
 int SendErr(XrdXrootdResponse &Resp, const char *what, const char *path, int rc)
 {
    int eCode = XProtocol::mapError(rc);
@@ -219,6 +220,7 @@ int SendErr(XrdXrootdResponse &Resp, const char *what, const char *path, int rc)
 
    return Resp.Send((XErrorCode)eCode, eBuff);
 }
+*/
 }
   
 /******************************************************************************/

@@ -54,6 +54,10 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -455,7 +459,7 @@ int XrdCksManager::Get(const char *Pfn, XrdCksData &Cks)
 
 // Retreive the attribute
 //
-   if ((rc = xCS.Get(Pfn)) <= 0) return (rc ? rc : -ESRCH);
+   if ((rc = xCS.Get(Pfn)) <= 0) return (rc && rc != -ENOATTR ? rc : -ESRCH);
 
 // Mark state of the name and copy the attribute over
 //

@@ -1431,7 +1431,7 @@ int XrdOfs::chksum(      csFunc            Func,   // In
    if (rc >= 0 || rc == -ENODATA || rc == -ESTALE || rc == -ESRCH)
 #endif
       {if (rc >= 0) {cksData.Get(buff, MAXPATHLEN); rc = 0;}
-          else {*buff = 0; rc = ENOENT;}
+          else {*buff = 0; rc = -rc;}
        einfo.setErrInfo(rc, buff);
        return SFS_OK;
       }
