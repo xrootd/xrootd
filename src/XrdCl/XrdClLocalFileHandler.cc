@@ -956,7 +956,7 @@ namespace XrdCl
           size_t len = strlen( body );
           if( len > bodylen ) return XRootDStatus( stError, errDataError );
           std::string name( body, len );
-          attrs.push_back( std::make_tuple( name, "" ) );
+          attrs.push_back( std::make_tuple( name, std::string() ) );
           body    += len + 1; // +1 for the null terminating the string
           bodylen -= len + 1; // +1 for the null terminating the string
         }
