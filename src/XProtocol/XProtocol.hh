@@ -945,6 +945,7 @@ static int mapError(int rc)
       {if (rc < 0) rc = -rc;
        switch(rc)
           {case ENOENT:       return kXR_NotFound;
+           case EINVAL:       return kXR_ArgInvalid;
            case EPERM:        return kXR_NotAuthorized;
            case EACCES:       return kXR_NotAuthorized;
            case EIO:          return kXR_IOError;
@@ -998,7 +999,8 @@ static int toErrno( int xerr )
         case kXR_SigVerErr:     return EILSEQ;
         case kXR_DecryptErr:    return ERANGE;
         case kXR_Overloaded:    return EUSERS;
-        case  kXR_fsReadOnly:   return EROFS;
+        case kXR_fsReadOnly:    return EROFS;
+        case kXR_BadPayload:    return EINVAL;
         case kXR_AttrNotFound:  return ENOATTR;
         default:                return ENOMSG;
        }
