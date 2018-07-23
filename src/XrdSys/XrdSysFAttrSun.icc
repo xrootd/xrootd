@@ -39,6 +39,14 @@
 #include "XrdSys/XrdSysFAttr.hh"
 
 /******************************************************************************/
+/*                 P l a t f o r m   D e p e n d e n c i e s                  */
+/******************************************************************************/
+
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
+
+/******************************************************************************/
 /*                      X r d S y s F A t t r : : D e l                       */
 /******************************************************************************/
 
@@ -125,10 +133,10 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
    fd =  (fd < 0 ? attropen(Path, ".", O_RDONLY)
                  : openat(    fd, ".", O_RDONLY|O_XATTR));
 
-// If the preceeding open failed, diagnose the problem. We ignore ENOENT.
+// If the preceeding open failed, diagnose the problem. We ignore ENOATTR.
 //
    if (fd < 0)
-      {if (errno == ENOENT) return 0;
+      {if (errno == ENOATTR) return 0;
        return Diagnose("open to list", "*", Path, errno);
       }
 
@@ -136,7 +144,7 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 //
    if (!(dP = fdopendir(fd)))
       {rc = errno; close(fd);
-       if (rc == ENOENT) return 0;
+       if (rc == ENOATTR) return 0;
        return Diagnose("open to list", "*", Path, rc);
       }
 

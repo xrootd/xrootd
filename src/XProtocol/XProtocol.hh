@@ -372,6 +372,7 @@ enum XErrorCode {
    kXR_Overloaded,      // 3024
    kXR_fsReadOnly,      // 3025
    kXR_BadPayload,      // 3026
+   kXR_AttrNotFound,    // 3027
    kXR_ERRFENCE,    // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -930,6 +931,10 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
 #define ENETUNREACH 114
 #endif
 #endif
+
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
   
 class XProtocol
 {
@@ -961,6 +966,7 @@ static int mapError(int rc)
            case ERANGE:       return kXR_DecryptErr;
            case EUSERS:       return kXR_Overloaded;
            case EROFS:        return kXR_fsReadOnly;
+           case ENOATTR:      return kXR_AttrNotFound;
            default:           return kXR_FSError;
           }
       }
@@ -994,6 +1000,7 @@ static int toErrno( int xerr )
         case kXR_DecryptErr:    return ERANGE;
         case kXR_Overloaded:    return EUSERS;
         case  kXR_fsReadOnly:   return EROFS;
+        case kXR_AttrNotFound:  return ENOATTR;
         default:                return ENOMSG;
        }
 }

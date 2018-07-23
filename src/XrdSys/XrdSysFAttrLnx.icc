@@ -106,7 +106,7 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
    *aPL = 0;
    Tlen = (fd < 0 ? listxattr(Path, Buff, 0) : flistxattr(fd, Buff, 0));
    if (Tlen < 0)
-      {if ((ec = Diagnose("list", "*", Path, errno)) == -ENOENT) ec = 0;
+      {if ((ec = Diagnose("list", "*", Path, errno)) == -ENOATTR) ec = 0;
        return ec;
       }
 
@@ -125,7 +125,7 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 //
    Tlen = (fd < 0 ? listxattr(Path, Buff, Tlen) : flistxattr(fd, Buff, Tlen));
    if (Tlen < 0)
-      {if ((ec = Diagnose("list", "*", Path, errno)) == -ENOENT) ec = 0;
+      {if ((ec = Diagnose("list", "*", Path, errno)) == -ENOATTR) ec = 0;
        free(Buff);
        return ec;
       }

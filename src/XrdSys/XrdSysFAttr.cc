@@ -103,7 +103,7 @@ int XrdSysFAttr::Diagnose(const char *Op, const char *Var,
 
 // Screen out common case
 //
-   if (ec == ENOATTR || ec == ENOENT) return -ENOENT;
+   if (ec == ENOATTR || ec == ENOENT) return -ec;
 
 // Format message insert and print if we can actually say anything
 //
