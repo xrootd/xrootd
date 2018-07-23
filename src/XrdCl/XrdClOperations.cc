@@ -12,6 +12,7 @@ namespace XrdCl {
     OperationHandler::OperationHandler(ResponseHandler *handler){
         responseHandler = handler;
         nextOperation = NULL;
+        semaphore = NULL;
     }
 
     void OperationHandler::AddOperation(HandledOperation *op){
@@ -23,19 +24,31 @@ namespace XrdCl {
     }
 
     void OperationHandler::HandleResponseWithHosts(XRootDStatus *status, AnyObject *response, HostList *hostList){
+        bool operationStatus = status->IsOK();
         responseHandler->HandleResponseWithHosts(status, response, hostList);
-        RunOperation();
+        if(operationStatus){
+            RunNextOperation();
+        } else {
+            cout<<"Operation status = "<<operationStatus<<". Next operation will not be run."<<endl;
+        }
+        
     }
 
     void OperationHandler::HandleResponse(XRootDStatus *status, AnyObject *response){
         responseHandler->HandleResponse(status, response);
-        RunOperation();
+        if(status->IsOK()){
+            RunNextOperation();
+        } else {
+            cout<<"Operation status = "<<status->IsOK()<<". Next operation will not be run."<<endl;
+        }
     }
 
-    void OperationHandler::RunOperation(){
+    void OperationHandler::RunNextOperation(){
         if(nextOperation){ 
             cout<<"Running next operation:  "<<nextOperation->GetName()<<endl;
             nextOperation->Run(); 
+        } else if (semaphore){
+            semaphore->Post();
         }
     }
 
@@ -47,6 +60,13 @@ namespace XrdCl {
 
     ResponseHandler* OperationHandler::GetHandler(){
         return responseHandler;
+    }
+
+    void OperationHandler::SetSemaphore(XrdSysSemaphore *sem){
+        semaphore = sem;
+        if(nextOperation){
+            nextOperation->SetSemaphore(sem);
+        }
     }
 
 
@@ -176,20 +196,40 @@ namespace XrdCl {
         if(operation) { delete operation; }
     }
 
+    void HandledOperation::SetSemaphore(XrdSysSemaphore *sem){
+        if(handler){
+            handler->SetSemaphore(sem);
+        }
+    }
 
 
     //////////////// Workflow
 
     Workflow::Workflow(HandledOperation &op){
         firstOperation = &op;
+        semaphore = NULL;
     }
 
     Workflow::~Workflow(){
         delete firstOperation;
+        delete semaphore;
     }
 
-    XRootDStatus Workflow::Run(){
-        return firstOperation->Run();
+    Workflow& Workflow::Run(){
+        if(!semaphore){
+            semaphore = new XrdSysSemaphore();
+            firstOperation->SetSemaphore(semaphore);
+            semaphore->Wait();
+            firstOperation->Run();
+        } else {
+            cout<<"Workflow is already running"<<endl;
+        }
+        return *this;
+    }
+
+    void Workflow::Wait(){
+        semaphore->Wait();
+        return;
     }
 
 };
