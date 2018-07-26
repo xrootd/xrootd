@@ -66,24 +66,42 @@
 #define TRACELINK prot->Link
 
 
+static XrdOucString convert_digest_name(const std::string &rfc_name)
+{
+  if (!strcasecmp(rfc_name.c_str(), "md5")) {
+    return "md5";
+  } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
+    return "adler32";
+  } else if (strcasecmp(rfc_name.c_str(), "SHA")) {
+    return "sha1";
+  } else if (strcasecmp(rfc_name.c_str(), "SHA-256")) {
+    return "sha256";
+  } else if (strcasecmp(rfc_name.c_str(), "SHA-512")) {
+    return "sha512";
+  } else if (strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+    return "cksum";
+  }
+  return "unknown";
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+static bool needs_base64_padding(const std::string &rfc_name)
+{
+  if (!strcasecmp(rfc_name.c_str(), "md5")) {
+    return true;
+  } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
+    return false;
+  } else if (strcasecmp(rfc_name.c_str(), "SHA")) {
+    return true;
+  } else if (strcasecmp(rfc_name.c_str(), "SHA-256")) {
+    return true;
+  } else if (strcasecmp(rfc_name.c_str(), "SHA-512")) {
+    return true;
+  } else if (strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+    return false;
+  }
+  return false;
+}
 
 
 void trim(std::string &str)
@@ -185,6 +203,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcmp(key, "Destination")) {
       destination.assign(val, line+len-val);
       trim(destination);
+    } else if (!strcmp(key, "Want-Digest")) {
+      m_req_digest.assign(val, line + len - val);
+      trim(m_req_digest);
     } else if (!strcmp(key, "Depth")) {
       depth = -1;
       if (strcmp(val, "infinity"))
@@ -869,14 +890,31 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtHEAD:
     {
-
-      // Do a Stat
-      if (prot->doStat((char *) resourceplusopaque.c_str())) {
-        prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0);
-        return -1;
+      if (reqstate == 0) {
+        // Always start with Stat; in the case of a checksum request, we'll have a follow-up query
+        if (prot->doStat((char *) resourceplusopaque.c_str())) {
+          prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0);
+          return -1;
+        }
+        return 0;
+      } else {
+        const char *opaque = strchr(resourceplusopaque.c_str(), '?');
+        // Note that doChksum requires that the memory stays alive until the callback is invoked.
+        m_resource_with_digest = resourceplusopaque;
+        if (!opaque) {
+          m_resource_with_digest += "?cks.type=";
+          m_resource_with_digest += convert_digest_name(m_req_digest);
+        } else {
+          m_resource_with_digest += "&cks.type=";
+          m_resource_with_digest += convert_digest_name(m_req_digest);
+        }
+        if (prot->doChksum(m_resource_with_digest) < 0) {
+          // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
+          prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+          return -1;
+        }
+        return 1;
       }
-
-      return 1;
     }
     case XrdHttpReq::rtGET:
     {
@@ -1476,9 +1514,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     }
     case XrdHttpReq::rtHEAD:
     {
-
-      if (xrdresp == kXR_ok) {
-
+      if (xrdresp != kXR_ok) {
+        // NOTE that HEAD MUST NOT return a body, even in the case of failure.
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0);
+        return -1;
+      } else if (reqstate == 0) {
         if (iovN > 0) {
 
           // Now parse the stat info
@@ -1491,18 +1531,47 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   &fileflags,
                   &filemodtime);
 
-          prot->SendSimpleResp(200, NULL, NULL, NULL, filesize);
-          return 1;
+          if (m_req_digest.size()) {
+            return 0;
+          } else {
+            prot->SendSimpleResp(200, NULL, NULL, NULL, filesize);
+            return 1;
+          }
         }
 
-        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), httpStatusText.length());
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0);
         reset();
         return 1;
-      } else {
-        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), httpStatusText.length());
-        return -1;
+      } else { // We requested a checksum and now have its response.
+        if (iovN > 0) {
+          TRACEI(REQ, "Checksum for HEAD " << resource << " " << reinterpret_cast<char *>(iovP[0].iov_base) << "=" << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
+
+          bool convert_to_base64 = needs_base64_padding(m_req_digest);
+          char *digest_value = reinterpret_cast<char *>(iovP[iovN-1].iov_base);
+          if (convert_to_base64) {
+            size_t digest_length = strlen(digest_value);
+            unsigned char *digest_binary_value = (unsigned char *)malloc(digest_length);
+            if (!Fromhexdigest(reinterpret_cast<unsigned char *>(digest_value), digest_length, digest_binary_value)) {
+              prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+              free(digest_binary_value);
+            }
+            char *digest_base64_value = (char *)malloc(digest_length);
+            Tobase64(digest_binary_value, digest_length/2, digest_base64_value);
+            free(digest_binary_value);
+            digest_value = digest_base64_value;
+          }
+
+          std::string digest_response = "Digest: ";
+          digest_response += m_req_digest;
+          digest_response += "=";
+          digest_response += digest_value;
+          if (convert_to_base64) {free(digest_value);}
+          prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize);
+          return 1;
+        } else {
+          prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+          return -1;
+        }
       }
     }
     case XrdHttpReq::rtGET:
@@ -2336,6 +2405,10 @@ void XrdHttpReq::reset() {
   request = rtUnset;
   resource = "";
   allheaders.clear();
+
+  // Reset the state of the request's digest request.
+  m_req_digest.clear();
+  m_resource_with_digest = "";
 
   headerok = false;
   keepalive = true;

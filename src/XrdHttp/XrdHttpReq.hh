@@ -93,7 +93,12 @@ private:
 
   void getfhandle();
 
-  
+  /// Cook and send the response after the bridge did something
+  /// Return values:
+  ///  0->everything OK, additionsl steps may be required
+  ///  1->request processed completely
+  ///  -1->error
+  int PostProcessHTTPReq(bool final = false);
 
   // Parse a resource string, typically a filename, setting the resource field and the opaque data
   void parseResource(char *url);
@@ -202,6 +207,13 @@ public:
   /// The destination field specified in the req
   std::string destination;
 
+  /// The requested digest type
+  std::string m_req_digest;
+  /// The checksum algorithm is specified as part of the opaque data in the URL.
+  /// Hence, when a digest is generated to satisfy a request, we cache the tweaked
+  /// URL in this data member.
+  XrdOucString m_resource_with_digest;
+
   /// Additional opaque info that may come from the hdr2cgi directive
   std::string hdr2cgistr;
   
@@ -254,19 +266,6 @@ public:
   ///  1->request processed
   ///  -1->error
   int ProcessHTTPReq();
-
-  /// Cook and send the response after the bridge did something
-  /// Return values:
-  ///  0->everything OK, additionsl steps may be required
-  ///  1->request processed completely
-  ///  -1->error
-  int PostProcessHTTPReq(bool final = false);
-
-
-
-
-
-
 
 
   // ------------

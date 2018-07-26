@@ -2657,6 +2657,20 @@ int XrdHttpProtocol::doStat(char *fname) {
 }
 
 
+int XrdHttpProtocol::doChksum(const XrdOucString &fname) {
+  size_t length;
+  memset(&CurrentReq.xrdreq, 0, sizeof (ClientRequest));
+  CurrentReq.xrdreq.query.requestid = htons(kXR_query);
+  CurrentReq.xrdreq.query.infotype = htons(kXR_Qcksum);
+  memset(CurrentReq.xrdreq.query.reserved1, '\0', sizeof(CurrentReq.xrdreq.query.reserved1));
+  memset(CurrentReq.xrdreq.query.fhandle, '\0', sizeof(CurrentReq.xrdreq.query.fhandle));
+  memset(CurrentReq.xrdreq.query.reserved2, '\0', sizeof(CurrentReq.xrdreq.query.reserved2));
+  length = fname.length() + 1;
+  CurrentReq.xrdreq.query.dlen = htonl(length);
+
+  return Bridge->Run(reinterpret_cast<char *>(&CurrentReq.xrdreq), const_cast<char *>(fname.c_str()), length) ? 0 : -1;
+}
+
 
 static XrdVERSIONINFODEF(compiledVer, XrdHttpProtocolTest, XrdVNUMBER, XrdVERSION);
 

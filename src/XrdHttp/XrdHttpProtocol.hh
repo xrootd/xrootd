@@ -107,7 +107,8 @@ public:
   /// Perform a Stat request
   int doStat(char *fname);
 
-
+  /// Perform a checksum request
+  int doChksum(const XrdOucString &fname);
 
   /// Ctor, dtors and copy ctor
   XrdHttpProtocol operator =(const XrdHttpProtocol &rhs);

@@ -149,7 +149,34 @@ void Tobase64(const unsigned char *input, int length, char *out) {
 }
 
 
+static int
+char_to_int(int c)
+{
+  if (isdigit(c)) {
+    return c - '0';
+  } else {
+    c = tolower(c);
+    if (c >= 'a' && c <= 'f') {
+      return c - 'a' + 10;
+    }
+    return -1;
+  }
+}
 
+
+// Decode a hex digest array to raw bytes.
+//
+bool Fromhexdigest(const unsigned char *input, int length, unsigned char *out) {
+  for (int idx=0; idx < length; idx += 2) {
+    int upper =  char_to_int(input[idx]);
+    int lower =  char_to_int(input[idx+1]);
+    if ((upper < 0) || (lower < 0)) {
+      return false;
+    }
+    out[idx/2] = (upper << 4) + lower;
+  }
+  return true;
+}
 
 
 // Simple itoa function
