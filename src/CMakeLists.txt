@@ -41,6 +41,10 @@ if( BUILD_HTTP )
   include( XrdTpc )
 endif()
 
+if( BUILD_MACAROONS )
+  include( XrdMacaroons )
+endif()
+
 if( BUILD_CEPH )
   include( XrdCeph )
 endif()
