@@ -4,10 +4,17 @@
 %if %{?rhel:1}%{!?rhel:0}
     %if %{rhel} >= 7
         %define use_systemd 1
+        %define have_macaroons 1
     %else
         %define use_systemd 0
+        %define have_macaroons 0
     %endif
 %else
+    %if %{?fedora}%{!?fedora:0} >= 28
+        %define have_macaroons 1
+    %else
+        %define have_macaroons 0
+    %endif
     %if %{?fedora}%{!?fedora:0} >= 19
         %define use_systemd 1
     %else
@@ -784,7 +791,9 @@ fi
 %{_libdir}/libXrdHttp-4.so
 %{_libdir}/libXrdHttpTPC-4.so
 %{_libdir}/libXrdHttpUtils.so.*
+%if %{have_macaroons}
 %{_libdir}/libXrdMacaroons-4.so
+%endif
 %{_libdir}/libXrdN2No2p-4.so
 %{_libdir}/libXrdOssSIgpfsT-4.so
 %{_libdir}/libXrdServer.so.*

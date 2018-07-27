@@ -94,7 +94,7 @@ include (FindPkgConfig)
 pkg_check_modules(JSON json-c)
 pkg_check_modules(UUID uuid)
 
-if( Macaroons_FOUND AND JSON_FOUND AND UUID_FOUND )
+if( MACAROONS_FOUND AND JSON_FOUND AND UUID_FOUND )
   set( BUILD_MACAROONS TRUE )
 else()
   set( BUILD_MACAROONS FALSE )
