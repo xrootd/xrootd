@@ -24,15 +24,24 @@ XrdThrottleTimer xtimer = m_throttle.StartIOTimer();
 class ErrorSentry
 {
 public:
-    ErrorSentry(XrdOucErrInfo &dst_err, XrdOucErrInfo &src_err)
+    ErrorSentry(XrdOucErrInfo &dst_err, XrdOucErrInfo &src_err, bool forOpen=false)
         : m_dst_err(dst_err), m_src_err(src_err)
-    {}
+    {
+        unsigned long long cbArg;
+        XrdOucEICB *cbVal = dst_err.getErrCB(cbArg);
+
+        if (forOpen)
+        {
+            src_err.setUCap(dst_err.getUCap());
+        }
+        src_err.setErrCB(cbVal, cbArg);
+    }
 
     ~ErrorSentry()
     {
         if (m_src_err.getErrInfo())
         {
-            m_dst_err = m_src_err;;
+            m_dst_err = m_src_err;
         }
         else
         {
@@ -73,7 +82,7 @@ File::open(const char                *fileName,
 {
    m_uid = XrdThrottleManager::GetUid(client->name);
    m_throttle.PrepLoadShed(opaque, m_loadshed);
-   ErrorSentry sentry(error, m_sfs->error);
+   ErrorSentry sentry(error, m_sfs->error, true);
    return m_sfs->open(fileName, openMode, createMode, client, opaque);
 }
 
