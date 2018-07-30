@@ -52,8 +52,13 @@
 #include <process.h>
 #endif // WIN32
 
+#include <set>
+#include <string>
+
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -88,6 +93,89 @@
 namespace {XrdSysMutex forkMutex;}
 
 /******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+
+struct StreamInfo
+      {char *myHost;
+       char *myName;
+       char *myExec;
+
+       std::set<std::string> *fcList;
+       std::set<std::string>::iterator itFC;
+
+       StreamInfo() : myHost(0), myName(0), myExec(0), fcList(0) {}
+      ~StreamInfo() {if (fcList) delete fcList;}
+      };
+
+namespace
+{
+class contHandler
+{
+public:
+
+char        *path;
+XrdOucTList *tlP;
+
+void  Add(const char *sfx) {tlP = new XrdOucTList(sfx,(int)strlen(sfx),tlP);}
+
+      contHandler() : path(0), tlP(0) {}
+     ~contHandler() {XrdOucTList *tlN;
+                     while(tlP) {tlN = tlP; tlP = tlP->next; delete tlN;}
+                     if (path) free(path);
+                    }
+};
+}
+  
+/******************************************************************************/
+/*                       L o c a l   F u n c t i o n s                        */
+/******************************************************************************/
+
+namespace
+{
+bool KeepFile(const char *fname, XrdOucTList *tlP)
+{
+   struct sfxList {const char *txt; int len;};
+   static sfxList sfx[] = {{".cfsaved",    8},
+                           {".rpmsave",    8},
+                           {".rpmnew",     7},
+                           {".dpkg-old",   9},
+                           {".dpkg-dist", 10},
+                           {"~",           1}
+                          };
+   static int sfxLNum = sizeof(sfx)/sizeof(struct sfxList);
+   int n;
+
+// We don't keep file that start with a dot
+//
+   if (*fname == '.') return false;
+   n = strlen(fname);
+
+// Process white list first, otherwise use the black list
+//
+   if (tlP)
+      {while(tlP)
+            {if (tlP->ival[0] < n && !strcmp(tlP->text, fname+n-tlP->ival[0]))
+                return true;
+             tlP = tlP->next;
+            }
+       return false;
+      }
+
+// Check all other suffixes we wish to avoid
+//
+   for (int i = 0; i < sfxLNum; i++)
+       {if (sfx[i].len < n && !strcmp(sfx[i].txt, fname+n-sfx[i].len))
+           return false;
+       }
+
+// This file can be kept
+//
+   return true;
+}
+}
+
+/******************************************************************************/
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
 /******************************************************************************/
   
@@ -95,18 +183,22 @@ XrdOucStream::XrdOucStream(XrdSysError *erobj, const char *ifname,
                            XrdOucEnv   *anEnv, const char *Pfx)
 {
  char *cp;
+
+
      if (ifname)
         {myInst = strdup(ifname);
-         if (!(cp = index(myInst, ' '))) {cp = myInst; myExec = 0;}
+         myInfo = new StreamInfo;
+         if (!(cp = index(myInst, ' '))) {cp = myInst; myInfo->myExec = 0;}
             else {*cp = '\0'; cp++;
-                  myExec = (*myInst ? myInst : 0);
+                  myInfo->myExec = (*myInst ? myInst : 0);
                  }
-         if ((myHost = index(cp, '@')))
-            {*myHost = '\0';
-             myHost++;
-             myName = (*cp ? cp : 0);
-            } else {myHost = cp; myName = 0;}
-        } else myInst = myHost = myName = myExec = 0;
+         if ( (myInfo->myHost = index(cp, '@')))
+            {*(myInfo->myHost) = '\0';
+             myInfo->myHost++;
+             myInfo->myName = (*cp ? cp : 0);
+            } else {myInfo->myHost = cp; myInfo->myName = 0;}
+        } else {myInst = 0; myInfo = 0;}
+     myRsv1 = myRsv2 = 0;
 
      FD     = -1;
      FE     = -1;
@@ -157,7 +249,9 @@ int XrdOucStream::Attach(int FileDescriptor, int bsz)
 
     // Close the current stream. Close will handle unopened streams.
     //
+    StreamInfo *saveInfo = myInfo; myInfo = 0;
     Close();
+    myInfo = saveInfo;
 
     // Allocate a new buffer for this stream
     //
@@ -216,6 +310,13 @@ void XrdOucStream::Close(int hold)
        {if (*llBuff && llBok > 1) Eroute->Say(llPrefix, llBuff);
         llBok = 0;
        }
+
+    // Delete any info object we have allocated
+    //
+    if (myInfo)
+       {delete myInfo;
+        myInfo = 0;
+       }
 }
 
 /******************************************************************************/
@@ -248,9 +349,20 @@ int XrdOucStream::Drain()
 /*                                  E c h o                                   */
 /******************************************************************************/
   
+bool XrdOucStream::Echo(int ec, const char *t1, const char *t2, const char *t3)
+{
+   if (Eroute)
+      {if (t1) Eroute->Emsg("Stream", t1, t2, t3);
+       if (llBok > 1 && Verbose && llBuff) Eroute->Say(llPrefix,llBuff);
+      }
+   ecode = ec;
+   llBok = 0;
+   return false;
+}
+
 void XrdOucStream::Echo()
 {
-   if (llBok && Verbose && *llBuff && Eroute) Eroute->Say(llPrefix, llBuff);
+   if (llBok > 1 && Verbose && llBuff && Eroute) Eroute->Say(llPrefix,llBuff);
    llBok = 0;
 }
 
@@ -518,35 +630,15 @@ char *XrdOucStream::GetToken(char **rest, int lowcase)
 
 char *XrdOucStream::GetFirstWord(int lowcase)
 {
-   char *theWord;
-
       // If in the middle of a line, flush to the end of the line. Suppress
       // variable substitution when doing this to avoid errors.
       //
-  do {if (xline)
+      if (xline)
          {XrdOucEnv *oldEnv = SetEnv(0);
           while(GetWord(lowcase)) {}
           SetEnv(oldEnv);
          }
-
-      // Check if this a "continue" statement and is valid in this context
-      //
-      theWord = GetWord(lowcase);
-      if (!myInst || !theWord || strcmp(theWord, "continue")) return theWord;
-      if (sawif)
-         {ecode = EINVAL;
-          if (Eroute)
-              Eroute->Emsg("Stream", "'continue' invalid within 'if-fi'.");
-          return 0;
-         }
-
-      // Get the path, if none then ignore this continue
-      //
-      theWord = GetWord(lowcase);
-      if (Eroute) Eroute->Say(llPrefix, "continue ", theWord);
-      if (!theWord) continue;
-      if (!docont(theWord)) return 0;
-     } while(true);
+      return GetWord(lowcase);
 }
 
 /******************************************************************************/
@@ -558,9 +650,7 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
    char *var;
    int   skip2fi = 0;
 
-
-   if (llBok > 1 && Verbose && *llBuff && Eroute) Eroute->Say(llPrefix,llBuff);
-   llBok = 0;
+   Echo();
 
    if (!myInst)
       {if (!myEnv) return add2llB(GetFirstWord(lowcase), 1);
@@ -576,6 +666,13 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
               }
            return add2llB(var, 1);
           }
+
+        add2llB(var, 1);
+
+        if (!strcmp("continue", var))
+           {if (!docont()) return 0;
+            continue;
+           }
 
         if (       !strcmp("if",   var)) var = doif();
         if (var && !strcmp("else", var)) var = doelse();
@@ -615,7 +712,7 @@ char *XrdOucStream::GetWord(int lowcase)
 
      // Find the next non-blank non-comment line
      //
-     while(GetLine())
+do  {while(GetLine())
         {// Get the first token (none if it is a blank line)
          //
          if (!(wp = GetToken(lowcase))) continue;
@@ -633,6 +730,21 @@ char *XrdOucStream::GetWord(int lowcase)
             else xcont = 0;
          return add2llB((myEnv ? vSubs(wp) : wp));
          }
+
+     if (myInfo && myInfo->fcList)
+        {if (myInfo->itFC == myInfo->fcList->end())
+            {bleft = 0;
+             flags |= XrdOucStream_EOM;
+             break;
+            }
+         const char *path = (*(myInfo->itFC)).c_str();
+         myInfo->itFC++;
+         if (!docontF(path)) break;
+         bleft = 0;
+         flags &= ~XrdOucStream_EOM;
+        } else break;
+    } while(true);
+
       xline = 0;
       return (char *)0;
 }
@@ -832,10 +944,63 @@ char *XrdOucStream::add2llB(char *tok, int reset)
 /*                                d o c o n t                                 */
 /******************************************************************************/
   
-bool XrdOucStream::docont(char *path)
+bool XrdOucStream::docont()
 {
-   int cFD;
+   char *theWord;
+
+// A continue is not valid within the scope of an if
+//
+   if (sawif) return Echo(EINVAL, "'continue' invalid within 'if-fi'.");
+
+// Get the path (keep case), if none then ignore this continue
+//
+   theWord = GetWord();
+   if (!theWord)
+      {Echo();
+       return true;
+      }
+
+// Prepare to handle the directive
+//
+   contHandler cH;
+   cH.path = strdup(theWord);
+
+// Grab additioal tokens which may be suffixes
+//
+   theWord = GetWord();
+   while(theWord && *theWord == '*')
+        {if (!*(theWord+1)) return Echo(EINVAL, "suffix missing after '*'.");
+         cH.Add(theWord+1);
+         theWord = GetWord();
+        }
+
+// If we have a token, it better be an if
+//
+   if (theWord && strcmp(theWord, "if"))
+      return Echo(EINVAL, "expecting 'if' but found", theWord);
+
+// Process the 'if'
+//
+   if (theWord && !XrdOucUtils::doIf(Eroute, *this, "continue directive",
+                                myInfo->myHost,myInfo->myName,myInfo->myExec))
+      return true;
+   Echo();
+// if (Eroute) Eroute->Say(llPrefix, "continue ", path, " if true");
+// if (Eroute) Eroute->Say(llPrefix, "continue ", bnext);
+   return docont(cH.path, cH.tlP);
+}
+  
+/******************************************************************************/
+
+bool XrdOucStream::docont(const char *path, XrdOucTList *tlP)
+{
+   struct stat Stat;
    bool noentok;
+
+// A continue directive in the context of a continuation is illegal
+//
+   if ((myInfo && myInfo->fcList) || (flags & XrdOucStream_CONT) != 0)
+      return Echo(EINVAL, "'continue' is a continuation is not allowed.");
 
 // Check if this file must exist (we also take care of empty paths)
 //
@@ -844,9 +1009,9 @@ bool XrdOucStream::docont(char *path)
        if (!(*path)) return true;
       }
 
-// Open the file and handle any errots
+// Check if this is a file or directory
 //
-   if ((cFD = XrdSysFD_Open(path, O_RDONLY)) < 0)
+   if (stat(path, &Stat))
       {if (errno == ENOENT && noentok) return true;
        if (Eroute)
           {Eroute->Emsg("Stream", errno, "open", path);
@@ -855,15 +1020,89 @@ bool XrdOucStream::docont(char *path)
        return false;
       }
 
-// Check if we are continuing too often (possible loop)
+// For directory continuation, there is much more to do (this can only happen
+// once). Note that we used to allow a limited number of chained fle
+// continuations. No more, but we are still setup to easily do so.
 //
-   flags += XrdOucStream_CADD;
-   if ((flags & XrdOucStream_CONT) > XrdOucStream_CMAX)
-      {close(cFD);
+   if ((Stat.st_mode & S_IFMT) == S_IFDIR)
+      {if (!docontD(path, tlP)) return false;
+       path = (*(myInfo->itFC)).c_str();
+       myInfo->itFC++;
+      } else flags |= XrdOucStream_CADD;
+
+//     if ((flags & XrdOucStream_CONT) > XrdOucStream_CMAX)
+//        {if (Eroute)
+//            {Eroute->Emsg("Stream", EMLINK, "continue to", path);
+//             ecode = ECANCELED;
+//            } else ecode = EMLINK;
+//         return false;
+//        }
+//    }
+
+// Continue with the next file
+//
+   return docontF(path, noentok);
+}
+
+/******************************************************************************/
+/*                               d o c o n t D                                */
+/******************************************************************************/
+  
+bool XrdOucStream::docontD(const char *path, XrdOucTList *tlP)
+{
+   static const mode_t isXeq = S_IXUSR | S_IXGRP | S_IXOTH;
+   XrdOucNSWalk nsWalk(Eroute, path, 0, XrdOucNSWalk::retFile);
+   int rc;
+
+// Get all of the file entries in this directory
+//
+   XrdOucNSWalk::NSEnt *nsX, *nsP = nsWalk.Index(rc);
+   if (rc)
+      {if (Eroute) Eroute->Emsg("Stream", rc, "index config files in", path);
+       ecode = ECANCELED;
+       return false;
+      }
+
+// Keep only files of interest
+//
+   myInfo->fcList = new std::set<std::string>;
+   while((nsX = nsP))
+        {nsP = nsP->Next;
+         if ((nsX->Stat.st_mode & isXeq) == 0 && KeepFile(nsX->File, tlP))
+            myInfo->fcList->insert(std::string(nsX->Path));
+         delete nsX;
+        }
+
+// Check if we have anything in the map
+//
+   if (myInfo->fcList->size() == 0)
+      {delete myInfo->fcList;
+       myInfo->fcList = 0;
+       return true;
+      }
+
+// All done
+//
+   myInfo->itFC = myInfo->fcList->begin();
+   return true;
+}
+  
+/******************************************************************************/
+/*                                 c o n t F                                  */
+/******************************************************************************/
+
+bool XrdOucStream::docontF(const char *path, bool noentok)
+{
+   int cFD;
+
+// Open the file and handle any errors
+//
+   if ((cFD = XrdSysFD_Open(path, O_RDONLY)) < 0)
+      {if (errno == ENOENT && noentok) return true;
        if (Eroute)
-          {Eroute->Emsg("Stream", EMLINK, "continue to", path);
+          {Eroute->Emsg("Stream", errno, "open", path);
            ecode = ECANCELED;
-          } else ecode = EMLINK;
+          } else ecode = errno;
        return false;
       }
 
@@ -880,11 +1119,11 @@ bool XrdOucStream::docont(char *path)
 
 // Indicate we are switching to anther file
 //
-   if (Eroute) Eroute->Say(llPrefix, "Continuing with file ", path, " ...");
+   if (Eroute) Eroute->Say("Config continuing with file ", path, " ...");
    bleft = 0;
    return true;
 }
-
+  
 /******************************************************************************/
 /*                                d o e l s e                                 */
 /******************************************************************************/
@@ -974,7 +1213,8 @@ char *XrdOucStream::doif()
 // Check if we should continue
 //
    sawif = 1; skpel = 0;
-   if ((rc = XrdOucUtils::doIf(Eroute,*this,"if directive",myHost,myName,myExec)))
+   if ((rc = XrdOucUtils::doIf(Eroute,*this,"if directive",
+                               myInfo->myHost,myInfo->myName,myInfo->myExec)))
       {if (rc >= 0) skpel = 1;
           else {ecode = EINVAL;
                 if(Eroute) Eroute->Say(llPrefix,
