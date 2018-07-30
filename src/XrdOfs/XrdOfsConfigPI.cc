@@ -280,7 +280,7 @@ bool XrdOfsConfigPI::Parse(TheLib what)
                               if (CksConfig->ParseLib(*Config, libType))
                                  return false;
                               if (libType) cksLcl = libType == 1;
-                              RepLib(theCksLib, CksConfig->ManLib(), nullParms);
+                              RepLib(theCksLib, CksConfig->ManLib(), nullParms, false);
                               return true;
                              }
                           Eroute->Emsg("Config", "Checksum version error!");
@@ -404,7 +404,7 @@ bool   XrdOfsConfigPI::Plugin(XrdOss          *&piP)
 /******************************************************************************/
   
 bool XrdOfsConfigPI::RepLib(XrdOfsConfigPI::TheLib what,
-                            const char *newLib, const char *newParms)
+                            const char *newLib, const char *newParms, bool parseParms)
 {
    const char *parmP;
    char  parms[2048];
@@ -427,7 +427,7 @@ bool XrdOfsConfigPI::RepLib(XrdOfsConfigPI::TheLib what,
 //
    if (newParms) parmP = (newParms == nullParms ? 0 : newParms);
       else {*parms = 0; parmP = parms;
-            if (!Config->GetRest(parms, sizeof(parms)))
+            if (parseParms && !Config->GetRest(parms, sizeof(parms)))
                {Eroute->Emsg("Config", drctv[xLib], "parameters too long");
                 return false;
                }

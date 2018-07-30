@@ -212,7 +212,7 @@ private:
 
 bool          ParseAtrLib();
 bool          ParseOssLib();
-bool          RepLib(TheLib what, const char *newLib, const char *newParms=0);
+bool          RepLib(TheLib what, const char *newLib, const char *newParms=0, bool parseParms=true);
 bool          SetupAttr(TheLib what);
 bool          SetupAuth();
 bool          SetupCms();
