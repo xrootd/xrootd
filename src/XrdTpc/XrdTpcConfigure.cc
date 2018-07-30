@@ -29,7 +29,7 @@ static XrdSfsFileSystem *load_sfs(void *handle, bool alt, XrdSysError &log, cons
         sfs = ep(prior_sfs, log.logger(), configfn, &myEnv);
     } else {
         XrdSfsFileSystem_t ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *, XrdSysLogger *, const char *))
-                              (dlsym(NULL, "XrdSfsGetFileSystem"));
+                              (dlsym(handle, "XrdSfsGetFileSystem"));
         if (ep == NULL) {
             log.Emsg("Config", "Failed to load XrdSfsGetFileSystem from library ", libpath.c_str(), dlerror());
             return NULL;
