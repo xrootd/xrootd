@@ -147,6 +147,7 @@ install(
     XrdClFileSystemUtils.hh
     XrdClLog.hh
     XrdClOperations.hh
+    XrdClOperationParams.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(
