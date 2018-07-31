@@ -71,7 +71,9 @@ BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
 BuildRequires: libcurl-devel
 BuildRequires: libuuid-devel
+%if %{have_macaroons}
 BuildRequires: libmacaroons-devel
+%ensid
 BuildRequires: json-c-devel
 
 BuildRequires: python2-devel
