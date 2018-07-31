@@ -82,7 +82,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
     {
         return new Macaroons::Authz(log, config, chain_authz);
     }
-    catch (std::runtime_error e)
+    catch (std::runtime_error &e)
     {
         XrdSysError err(log, "macaroons");
         err.Emsg("Config", "Configuration of Macaroon authorization handler failed", e.what());
@@ -103,7 +103,7 @@ XrdHttpExtHandler *XrdHttpGetExtHandler(
     {
         return new Macaroons::Handler(log, config, env, def_authz);
     }
-    catch (std::runtime_error e)
+    catch (std::runtime_error &e)
     {
         log->Emsg("Config", "Generation of Macaroon handler failed", e.what());
         return NULL;
