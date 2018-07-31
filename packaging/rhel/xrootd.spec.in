@@ -73,7 +73,7 @@ BuildRequires: libcurl-devel
 BuildRequires: libuuid-devel
 %if %{have_macaroons}
 BuildRequires: libmacaroons-devel
-%ensid
+%endif
 BuildRequires: json-c-devel
 
 BuildRequires: python2-devel
