@@ -107,7 +107,11 @@ off_t XrdOssCopy::Copy(const char *inFn, const char *outFn, int outFD)
    ioSize = (fileSize < (off_t)segSize ? fileSize : segSize);
    while(copySize)
         {if ((inBuff = (char *)mmap(0, ioSize, PROT_READ, 
+#if defined(__FreeBSD__)
+                       MAP_RESERVED0040|MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
+#else
                        MAP_NORESERVE|MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
+#endif
             {OssEroute.Emsg("Copy", errno, "memory map", inFn); break;}
          if (Write(outFn, Out.FD, inBuff, ioSize, Offset) < 0) break;
          copySize -= ioSize; Offset += ioSize;
