@@ -39,6 +39,14 @@
 #include <cxxabi.h>
 #endif
 
+#if defined(__FreeBSD__)
+#define TidType pthread_t
+#define TidFmt  "%p"
+#else
+#define TidType long long
+#define TidFmt  "%lld"
+#endif
+
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucBackTrace.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -215,10 +223,10 @@ int DumpDepth()
 
 namespace
 {
-void DumpStack(char *bP, int bL, int tid)
+void DumpStack(char *bP, int bL, TidType tid)
 {
 #ifndef __GNUC__
-   snprintf(bP, bL, "TBT %d No stack information available, not gnuc.", tid);
+   snprintf(bP, bL, "TBT " TidFmt " No stack information available, not gnuc.", tid);
    return;
 #else
    static int btDepth = DumpDepth(); // One time MT-safe call
@@ -229,7 +237,7 @@ void DumpStack(char *bP, int bL, int tid)
 // Get call symbols if we have any of them here
 //
    if (n > 1) cSyms = backtrace_symbols((void **)cStack, n);
-      else {snprintf(bP, bL, "TBT %d No stack information available.", tid);
+      else {snprintf(bP, bL, "TBT " TidFmt " No stack information available.", tid);
             return;
            }
 
@@ -238,8 +246,8 @@ void DumpStack(char *bP, int bL, int tid)
    if (n > btDepth) n = btDepth+1;
    for (int i = 2; i < n && bL > 24; i++)
        {char *paren = index(cSyms[i], '(');
-        if (!paren) k = snprintf(bP, bL, "TBT %d %s\n", tid, cSyms[i]);
-           else {k = snprintf(bP, bL, "TBT %d ", tid);
+        if (!paren) k = snprintf(bP, bL, "TBT " TidFmt " %s\n", tid, cSyms[i]);
+           else {k = snprintf(bP, bL, "TBT " TidFmt " ", tid);
                  bL -= k; bP += k;
                  k = Demangle(paren, bP, bL);
                 }
@@ -298,7 +306,7 @@ bool Screen(void *thisP, void *objP, bool rrOK)
 void XrdOucBackTrace::DoBT(const char *head,  void *thisP, void *objP,
                            const char *tail,  bool  force)
 {
-   long     tid;
+   TidType tid;
    int      k;
    char     btBuff[4096];
 
@@ -319,7 +327,7 @@ void XrdOucBackTrace::DoBT(const char *head,  void *thisP, void *objP,
 
 // Format the header
 //
-   k = snprintf(btBuff,sizeof(btBuff),"\nTBT %ld %p %s obj %p %s\n",
+   k = snprintf(btBuff,sizeof(btBuff),"\nTBT " TidFmt " %p %s obj %p %s\n",
                 tid, thisP, head, objP, tail);
 
 // Now dump the stack
@@ -454,7 +462,7 @@ void XrdOucBackTrace::XrdBT(const char *head,  void *thisP, void *objP,
                             const char *tail,  bool  force)
 {
    XrdInfo *infoP, *reqInfo, *rspInfo;
-   long     tid;
+   TidType  tid;
    int      k;
    char     btBuff[4096];
    bool     rrOK;
@@ -487,7 +495,7 @@ void XrdOucBackTrace::XrdBT(const char *head,  void *thisP, void *objP,
 // Format the header
 //
    k = snprintf(btBuff, sizeof(btBuff),
-                "\nTBT %ld %p %s obj %p req %s rsp %s %s\n",
+                "\nTBT " TidFmt " %p %s obj %p req %s rsp %s %s\n",
                 tid, thisP, head, objP, reqInfo->name, rspInfo->name, tail);
 
 // Now dump the stack
