@@ -61,7 +61,7 @@ add_library(
 target_link_libraries(
   XrdPosixPreload
   XrdPosix
-  dl )
+  ${CMAKE_DL_LIBS} )
 
 set_target_properties(
   XrdPosixPreload

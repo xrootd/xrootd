@@ -42,7 +42,7 @@ add_library(
 target_link_libraries(
   XrdClient
   XrdUtils
-  dl
+  ${CMAKE_DL_LIBS}
   pthread )
 
 set_target_properties(

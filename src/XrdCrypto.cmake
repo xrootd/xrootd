@@ -36,7 +36,7 @@ add_library(
 target_link_libraries(
   XrdCrypto
   XrdUtils
-  dl )
+  ${CMAKE_DL_LIBS} )
 
 set_target_properties(
   XrdCrypto
