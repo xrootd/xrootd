@@ -34,6 +34,7 @@
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <string.h>
 
 #include "XrdSys/XrdSysPlatform.hh"
 

@@ -173,7 +173,11 @@ int XrdCksManager::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP)
    ioSize = (fileSize < (off_t)segSize ? fileSize : segSize); rc = 0;
    while(calcSize)
         {if ((inBuff = (char *)mmap(0, ioSize, PROT_READ, 
+#if defined(__FreeBSD__)
+                       MAP_RESERVED0040|MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
+#else
                        MAP_NORESERVE|MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
+#endif
             {rc = errno; eDest->Emsg("Cks", rc, "memory map", Pfn); break;}
          madvise(inBuff, ioSize, MADV_SEQUENTIAL);
          csP->Update(inBuff, ioSize);

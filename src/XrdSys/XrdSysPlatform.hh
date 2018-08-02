@@ -72,7 +72,9 @@
 
 #define S_IAMB      0x1FF   /* access mode bits */
 
+#if !defined(__FreeBSD__)
 #define F_DUP2FD F_DUPFD
+#endif
 
 #define STATFS      statfs
 #define STATFS_BUFF struct statfs
@@ -260,6 +262,9 @@ extern "C"
 #define MAXPATHLEN 1024
 #else
 #include <sys/param.h>
+#if defined(__FreeBSD__)
+#define MAXNAMELEN 256
+#endif
 #endif
 // The following gets arround a relative new gcc compiler bug
 //

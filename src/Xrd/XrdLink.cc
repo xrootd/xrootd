@@ -44,7 +44,13 @@
 #ifdef HAVE_SENDFILE
 
 #ifndef __APPLE__
+#if !defined(__FreeBSD__)
 #include <sys/sendfile.h>
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
+#endif
 #endif
 
 #endif

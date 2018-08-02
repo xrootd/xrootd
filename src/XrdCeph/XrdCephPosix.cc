@@ -38,7 +38,9 @@
 #include <stdexcept>
 #include <string>
 #include <sstream>
+#if !defined(__FreeBSD__)
 #include <sys/xattr.h>
+#endif
 #include <time.h>
 #include <limits>
 #include <pthread.h>

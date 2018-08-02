@@ -44,7 +44,7 @@
 #include <sys/conf.h>
 #endif
 #include <sys/stat.h>
-#include <sys/termios.h>
+#include <termios.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #else // WIN32
