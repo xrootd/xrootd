@@ -89,8 +89,8 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 // First obtain the amount of storage we will need for the whole list
 //
    *aPL = 0;
-   Tlen = (fd < 0 ? extattr_get_file(Path,EXTATTR_NAMESPACE_USER, 0, 0)
-                  : extattr_list_fd(   fd,EXTATTR_NAMESPACE_USER, 0, 0));
+   Tlen = (fd < 0 ? extattr_list_file(Path,EXTATTR_NAMESPACE_USER, 0, 0)
+                  : extattr_list_fd(    fd,EXTATTR_NAMESPACE_USER, 0, 0));
    if (Tlen < 0)
       {if ((ec = Diagnose("list", "*", Path, errno)) == -ENOATTR) ec = 0;
        return ec;
@@ -109,8 +109,8 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 // Now get the actual list. We will not recover if someone added an attribute
 // since the time we actual determined the size of the buffer we need.
 //
-   Tlen = (fd < 0 ? extattr_get_file(Path,EXTATTR_NAMESPACE_USER, Buff, Tlen)
-                  : extattr_list_fd(   fd,EXTATTR_NAMESPACE_USER, Buff, Tlen));
+   Tlen = (fd < 0 ? extattr_list_file(Path,EXTATTR_NAMESPACE_USER, Buff, Tlen)
+                  : extattr_list_fd(    fd,EXTATTR_NAMESPACE_USER, Buff, Tlen));
    if (Tlen < 0)
       {if ((ec = Diagnose("list", "*", Path, errno)) == -ENOATTR) ec = 0;
        free(Buff);
