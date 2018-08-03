@@ -16,6 +16,7 @@ add_library(
   ThreadingTest.cc
   IdentityPlugIn.cc
   LocalFileHandlerTest.cc
+  OperationsWorkflowTest.cc
 )
 
 target_link_libraries(
