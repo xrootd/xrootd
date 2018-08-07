@@ -30,7 +30,7 @@ if( BUILD_TPC )
     XrdServer
     XrdUtils
     XrdHttpUtils
-    dl
+    ${CMAKE_DL_LIBS}
     pthread
     ${CURL_LIBRARIES} )
 

@@ -41,7 +41,7 @@ if( BUILD_HTTP )
     XrdServer
     XrdUtils
     XrdCrypto
-    dl
+    ${CMAKE_DL_LIBS}
     pthread
     ${OPENSSL_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY} )

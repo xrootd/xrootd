@@ -138,7 +138,7 @@ target_link_libraries(
   XrdClient
   XrdUtils
   XrdAppUtils
-  dl
+  ${CMAKE_DL_LIBS}
   pthread
   ${EXTRA_LIBS} )
 

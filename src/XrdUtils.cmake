@@ -197,7 +197,7 @@ add_library(
 target_link_libraries(
   XrdUtils
   pthread
-  dl
+  ${CMAKE_DL_LIBS}
   ${SOCKET_LIBRARY}
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )

@@ -21,7 +21,7 @@ if( BUILD_MACAROONS )
     XrdMacaroons/XrdMacaroonsConfigure.cc)
 
   target_link_libraries(
-    ${LIB_XRD_MACAROONS} -ldl
+    ${LIB_XRD_MACAROONS} ${CMAKE_DL_LIBS}
     XrdHttpUtils
     XrdUtils
     XrdServer
