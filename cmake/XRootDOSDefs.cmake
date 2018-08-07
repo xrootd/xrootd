@@ -19,7 +19,7 @@ add_definitions( -DUSE_LIBC_SEMAPHORE=${USE_LIBC_SEMAPHORE} )
 #-------------------------------------------------------------------------------
 # Enable c++0x / c++11
 #-------------------------------------------------------------------------------
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x" )
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -DOPENSSL_NO_FILENAMES" )
 
 #-------------------------------------------------------------------------------
 # GCC
