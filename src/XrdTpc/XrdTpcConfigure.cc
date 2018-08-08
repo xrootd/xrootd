@@ -69,14 +69,24 @@ bool TPCHandler::ConfigureFSLib(XrdOucStream &Config, std::string &path1, bool &
         path2 = val;
     }
     if (!(val = Config.GetWord()) || !strcmp("default", val)) {
-        if (path2 == "libXrdThrottle.so") {
+        // There is not a second path specified or we requested the default path.
+        // Configuration of the form "xrootd.fslib /some/path.so"
+        // or                        "xrootd.fslib /some/path.so default"
+        if ((path2 == "libXrdThrottle.so") || val) {
+            // Default path specified as base or no default path specified, but chaining
+            // with the throttle plugin.
+            // Configuration of the form "xrootd.fslib throttle"
+            //                        or "xrootd.fslib throttle default"
             path1 = "default";
-        } else if (!path2.empty()) {
+        } else {
+            // Only one path was specified - only load base.
+            // Configuration of the form "xrootd.fslib /some/base_path.so"
             path1 = path2;
             path2 = "";
             path1_alt = path2_alt;
         }
     } else if (!strcmp("-2", val)) {
+        // Configuration of the form  "xrootd.fslib /some/path.so -2 /some/base_path.so"
         path1_alt = true;
         if (!(val = Config.GetWord())) {
             m_log.Emsg("Config", "fslib base library not specified");
@@ -84,7 +94,8 @@ bool TPCHandler::ConfigureFSLib(XrdOucStream &Config, std::string &path1, bool &
         }
         path1 = val;
     } else {
-        path2 = val;
+        // Configuration of the form "xrootd.fslib /some/path.so /some/base_path.so"
+        path1 = val;
     }
     return true;
 }
@@ -111,7 +122,10 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
                 m_log.Emsg("Config", "Failed to parse the xrootd.fslib directive");
                 return false;
             }
-            m_log.Emsg("Config", "xrootd.fslib line successfully processed by TPC handler/");
+            m_log.Emsg("Config", "xrootd.fslib line successfully processed by TPC handler.  Base library:", path1.c_str());
+            if (path2.size()) {
+                m_log.Emsg("Config", "Chained library:", path2.c_str());
+            }
         } else if (!strcmp("http.desthttps", val)) {
             if (!(val = Config.GetWord())) {
                 Config.Close();
