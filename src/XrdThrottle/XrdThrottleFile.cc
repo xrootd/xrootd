@@ -59,10 +59,11 @@ File::File(const char                     *user,
                  unique_sfs_ptr            sfs,
                  XrdThrottleManager       &throttle,
                  XrdSysError              &eroute)
+   : XrdSfsFile(user, monid),
 #if __cplusplus >= 201103L
-   : m_sfs(std::move(sfs)), // Guaranteed to be non-null by FileSystem::newFile
+     m_sfs(std::move(sfs)), // Guaranteed to be non-null by FileSystem::newFile
 #else
-   : m_sfs(sfs),
+     m_sfs(sfs),
 #endif
      m_uid(0),
      m_user(user),
@@ -105,7 +106,12 @@ File::fctl(const int               cmd,
       error.setErrInfo(ENOTSUP, "Sendfile not supported by throttle plugin.");
       return SFS_ERROR;
    }
-   else return m_sfs->fctl(cmd, args, out_error);
+   // If out_error is aliased to this->error, then the ErrorSentry destructor will clobber
+   // the out_error with the contents of m_sfs->error, resulting in an incorrect state.
+   // Instead, we pass m_sfs->error as the argument to fctl.  This way, the underlying
+   // m_sfs also sees the aliased behavior, more closely mimicking the case where the
+   // chained SFS doesn't exist.
+   else return m_sfs->fctl(cmd, args, &error == &out_error ? m_sfs->error : out_error);
 }
 
 const char *
