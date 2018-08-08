@@ -80,8 +80,8 @@ static XrdSysError  eDest(&Logger, "");
 };
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
-  
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:z:Z";
+
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:z:ZA";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -109,6 +109,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "xrate",       1, 0, XrdCpConfig::OpXrate},
       {OPT_TYPE "parallel",    1, 0, XrdCpConfig::OpParallel},
       {OPT_TYPE "zip",         1, 0, XrdCpConfig::OpZip},
+      {OPT_TYPE "allow-http",  0, 0, XrdCpConfig::OpAllowHttp},
       {0,                      0, 0, 0}
      };
 
@@ -283,6 +284,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpParallel: OpSpec |= DoParallel;
                            if (!a2i(optarg, &Parallel, 1, 4)) Usage(22);
                            break;
+          case OpAllowHttp: OpSpec |= DoAllowHttp;
+                            break;
           case ':':        UMSG("'" <<OpName() <<"' argument missing.");
                            break;
           case '?':        if (!Legacy(optind-1))
@@ -335,7 +338,9 @@ do{while(optind < Argc && Legacy(optind)) {}
 //
      if (dstFile->Protocol != XrdCpFile::isFile
      &&  dstFile->Protocol != XrdCpFile::isStdIO
-     &&  dstFile->Protocol != XrdCpFile::isXroot)
+     &&  dstFile->Protocol != XrdCpFile::isXroot
+     &&  (!Want(DoAllowHttp) && ((dstFile->Protocol == XrdCpFile::isHttp) ||
+                                 (dstFile->Protocol == XrdCpFile::isHttps))))
         {FMSG(dstFile->ProtName <<"file protocol is not supported.", 22)}
 
 // Resolve this file if it is a local file
@@ -837,8 +842,10 @@ void XrdCpConfig::ProcFile(const char *fname)
              if (numFiles)
                 FMSG("Multiple sources disallowed with stdin.", 22);
             }
-    else if (pFile->Protocol != XrdCpFile::isXroot)
-            {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
+    else if (!((pFile->Protocol == XrdCpFile::isXroot) ||
+               (Want(DoAllowHttp) && ((pFile->Protocol == XrdCpFile::isHttp) ||
+                                      (pFile->Protocol == XrdCpFile::isHttps)))))
+               {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
     else if (OpSpec & DoRecurse && !(Opts & optRmtRec))
             {FMSG("Recursive copy from a remote host is not supported.",22)}
     else isLcl = 0;
@@ -867,7 +874,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--path] [--posc] [--proxy <host>:<port>] [--recursive]\n"
    "         [--retry <n>] [--server] [--silent] [--sources <n>] [--streams <n>]\n"
    "         [--tpc {first|only}] [--verbose] [--version] [--xrate <rate>]\n"
-   "         [--parallel <n>] [--zip <file>]";
+   "         [--parallel <n>] [--zip <file>] [--allow-http]";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
@@ -913,6 +920,8 @@ void XrdCpConfig::Usage(int rc)
    "                    suffix the value with 'k', 'm', or 'g'\n"
    "     --parallel <n> number of copy jobs to be run simultaneously\n\n"
    "-z | --zip <file>   treat the source as a ZIP archive containing given file\n"
+   "-A | --allow-http   allow HTTP as source or destination protocol. Requires\n"
+   "                    the XrdClHttp client plugin\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

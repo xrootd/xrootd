@@ -162,6 +162,12 @@ static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
 static const int    OpZip      =  'z';
 static const int    DoZip      =  0x01000000;//       --zip
 
+// Flag to allow the use of HTTP (and HTTPS) as source and destination
+// protocols. If specified, the XrdClHttp client plugin must be available
+// for the transfer operations to succeed.
+static const int OpAllowHttp = 'A';
+static const int DoAllowHttp = 0x2000000; // --allow-http
+
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.
 // The following options may be passed (largely to support legacy stuff):
