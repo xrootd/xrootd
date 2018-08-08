@@ -13,7 +13,7 @@ XrdSfsDirectory *
 FileSystem::newDir(char *user,
                    int   monid)
 {
-   return (XrdSfsDirectory *)new XrdOfsDirectory(user, monid);
+   return m_sfs_ptr->newDir(user, monid);
 }
 
 XrdSfsFile *
