@@ -31,8 +31,7 @@ namespace XrdCl {
     // OperationHandler
     //----------------------------------------------------------------------------
 
-    OperationHandler::OperationHandler(ForwardingHandler *handler): nextOperation(NULL), semaphore(NULL){
-        responseHandler = handler;
+    OperationHandler::OperationHandler(ForwardingHandler *handler): responseHandler(handler), nextOperation(NULL), workflow(NULL){
         params = handler->GetParamsContainer();
     }
 
@@ -73,9 +72,7 @@ namespace XrdCl {
     }
 
     void OperationHandler::HandleFailedOperationStatus(XRootDStatus *status, AnyObject *response){
-        if(response){
-            delete response;
-        }
+        delete response;
         workflow->EndWorkflowExecution(status);
     }
 
@@ -84,9 +81,8 @@ namespace XrdCl {
     }
 
     OperationHandler::~OperationHandler(){
-        if(nextOperation) { delete nextOperation; }
-        if(params) { delete params; }
-        if(responseHandler) { delete responseHandler; }
+        delete nextOperation;
+        delete params;
     }
 
     void OperationHandler::AssignToWorkflow(Workflow *wf){
@@ -101,25 +97,35 @@ namespace XrdCl {
     // Workflow
     //----------------------------------------------------------------------------
 
-    Workflow::Workflow(Operation<Handled> &op): semaphore(NULL), status(NULL){
-        firstOperation = &op;
-        firstOperationParams = new ParamsContainer();
-    }
+    Workflow::Workflow(Operation<Handled> &op): firstOperation(&op), 
+                                                semaphore(NULL), 
+                                                firstOperationParams(NULL), 
+                                                status(NULL) {}
+
+    Workflow::Workflow(Operation<Handled> *op): firstOperation(op), 
+                                                semaphore(NULL), 
+                                                firstOperationParams(NULL), 
+                                                status(NULL) {}
 
     Workflow::~Workflow(){
         delete firstOperation;
         delete firstOperationParams;
-        if(semaphore) { delete semaphore; }
-        if(status) { delete status; }
+        delete semaphore;
+        delete status;
     }
 
-    Workflow& Workflow::Run(){
+    Workflow& Workflow::Run(ParamsContainer *params, int bucket){
         if(semaphore){
             throw std::logic_error("Workflow is already running");
         }
         semaphore = new XrdSysSemaphore(0);
         firstOperation->AssignToWorkflow(this);
-        firstOperation->Run(firstOperationParams);
+        if(params){
+            firstOperation->Run(params, bucket);
+        } else {
+            firstOperationParams = new ParamsContainer();
+            firstOperation->Run(firstOperationParams);
+        }
         return *this;
     }
 
@@ -138,7 +144,6 @@ namespace XrdCl {
         if(semaphore){
             semaphore->Wait();
         }
-        return;
     }
 
 };

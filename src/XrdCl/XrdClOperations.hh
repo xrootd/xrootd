@@ -25,6 +25,9 @@
 #ifndef __XRD_CL_OPERATIONS_HH__
 #define __XRD_CL_OPERATIONS_HH__
 
+#include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <XrdCl/XrdClFile.hh>
 #include <XrdCl/XrdClOperationParams.hh>
 
@@ -47,15 +50,14 @@ namespace XrdCl {
             }
 
             virtual void HandleResponseWithHosts(XRootDStatus *status, AnyObject *response, HostList *hostList){
-                if(hostList){delete hostList;}
+                delete hostList;
                 HandleResponse(status, response);
             }
 
             virtual void HandleResponse(XRootDStatus *status, AnyObject *response){
-                if(status){delete status;}
-                if(response){delete response;}
+                delete status;
+                delete response;
             }
-
 
         protected:
             ParamsContainer *container;
@@ -74,6 +76,9 @@ namespace XrdCl {
             //! @param op first operation of the sequence
             //------------------------------------------------------------------------            
             Workflow(Operation<Handled>& op);
+
+            Workflow(Operation<Handled>* op);
+
             ~Workflow();
 
             //------------------------------------------------------------------------
@@ -81,7 +86,7 @@ namespace XrdCl {
             //!
             //! @return original workflow object
             //------------------------------------------------------------------------            
-            Workflow& Run();
+            Workflow& Run(ParamsContainer *params = NULL, int bucket = 1);
 
             //------------------------------------------------------------------------
             //! Wait for workflow execution end
@@ -154,7 +159,6 @@ namespace XrdCl {
 
             ForwardingHandler *responseHandler;
             Operation<Handled> *nextOperation;
-            XrdSysSemaphore *semaphore;
             Workflow *workflow;
             ParamsContainer *params;
 
@@ -162,19 +166,27 @@ namespace XrdCl {
 
     //----------------------------------------------------------------------
     //! File operation template
+    //! 
+    //! @tparam state   describes current operation configuration state
     //----------------------------------------------------------------------
     template <State state>
     class Operation {
+        friend class Operation<Bare>;
+        friend class Operation<Configured>;
+        friend class Operation<Handled>;
 
         public:
+            //------------------------------------------------------------------
+            //! Default constructor
+            //------------------------------------------------------------------
+            Operation(): file(NULL), handler(NULL) {}
+
             //------------------------------------------------------------------
             //! Constructor
             //!
             //! @param f  file on which operation will be performed
             //------------------------------------------------------------------
-            Operation(File *f): handler(NULL){
-                file = f;
-            }
+            Operation(File *f): file(f), handler(NULL){}
 
             //------------------------------------------------------------------
             //! Constructor (used internally to change copy object with 
@@ -183,15 +195,10 @@ namespace XrdCl {
             //! @param f  file on which operation will be performed
             //! @param h  operation handler
             //------------------------------------------------------------------
-            Operation(File *f, OperationHandler *h){
-                file = f;
-                handler = h;
-            }
+            Operation(File *f, OperationHandler *h): file(f), handler(h){}
 
             virtual ~Operation(){
-                if(handler){
-                    delete handler;
-                }
+                delete handler;
             }
 
             //------------------------------------------------------------------
@@ -242,7 +249,7 @@ namespace XrdCl {
             //!                 previous operation
             //! @return         status of the operation
             //------------------------------------------------------------------
-            virtual XRootDStatus Run(ParamsContainer *params) = 0;
+            virtual XRootDStatus Run(ParamsContainer *params, int bucket = 1) = 0;
 
             //------------------------------------------------------------------
             //! Handle error caused by missing parameter
@@ -251,7 +258,7 @@ namespace XrdCl {
             //! @return     default operation status (actual status containg
             //!             error information is passed to the handler)
             //------------------------------------------------------------------
-            virtual XRootDStatus HandleError(std::logic_error err){
+            virtual XRootDStatus HandleError(const std::logic_error& err){
                 XRootDStatus *st = new XRootDStatus(stError, err.what());
                 handler->HandleResponse(st, 0);
                 return XRootDStatus();
@@ -307,13 +314,13 @@ namespace XrdCl {
             }
 
         protected:
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try{
-                    std::string url = _url.IsEmpty() ? params->GetParam<std::string>("url") : _url.GetValue();
-                    OpenFlags::Flags flags = _flags.IsEmpty() ? params->GetParam<OpenFlags::Flags>("flags") : _flags.GetValue();
-                    Access::Mode mode = _mode.IsEmpty() ? params->GetParam<Access::Mode>("mode") : _mode.GetValue();
+                    std::string url = _url.IsEmpty() ? params->GetParam<std::string>("url", bucket) : _url.GetValue();
+                    OpenFlags::Flags flags = _flags.IsEmpty() ? params->GetParam<OpenFlags::Flags>("flags", bucket) : _flags.GetValue();
+                    Access::Mode mode = _mode.IsEmpty() ? params->GetParam<Access::Mode>("mode", bucket) : _mode.GetValue();
                     return this->file->Open(url, flags, mode, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }  
@@ -351,13 +358,13 @@ namespace XrdCl {
             }     
 
         protected:    
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try {
-                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset") : _offset.GetValue();
-                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint32_t>("size") : _size.GetValue();
-                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer") : _buffer.GetValue();
+                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset", bucket) : _offset.GetValue();
+                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint32_t>("size", bucket) : _size.GetValue();
+                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer", bucket) : _buffer.GetValue();
                     return this->file->Read(offset, size, buffer, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }        
             }
@@ -388,7 +395,7 @@ namespace XrdCl {
             }
 
         protected:
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 return this->file->Close(this->handler);
             }
 
@@ -418,11 +425,11 @@ namespace XrdCl {
             }
 
         protected:
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try {
-                    bool force = _force.IsEmpty() ? params->GetParam<bool>("force") : _force.GetValue();
+                    bool force = _force.IsEmpty() ? params->GetParam<bool>("force", bucket) : _force.GetValue();
                     return this->file->Stat(force, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
@@ -458,13 +465,13 @@ namespace XrdCl {
             }     
 
         protected:    
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try {
-                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset") : _offset.GetValue();
-                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint32_t>("size") : _size.GetValue();
-                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer") : _buffer.GetValue();
+                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset", bucket) : _offset.GetValue();
+                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint32_t>("size", bucket) : _size.GetValue();
+                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer", bucket) : _buffer.GetValue();
                     return this->file->Write(offset, size, buffer, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
@@ -495,7 +502,7 @@ namespace XrdCl {
             }
 
         protected:
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 return this->file->Sync(this->handler);
             }
 
@@ -525,11 +532,11 @@ namespace XrdCl {
             }     
 
         protected:    
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try {
-                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint64_t>("size") : _size.GetValue();
+                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint64_t>("size", bucket) : _size.GetValue();
                     return this->file->Truncate(size, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
@@ -564,12 +571,12 @@ namespace XrdCl {
             }
 
         protected:    
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try {
-                    const ChunkList& chunks = _chunks.IsEmpty() ? params->GetParam<ChunkList>("chunks") : _chunks.GetValue();
-                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer") : _buffer.GetValue();
+                    const ChunkList& chunks = _chunks.IsEmpty() ? params->GetParam<ChunkList>("chunks", bucket) : _chunks.GetValue();
+                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer", bucket) : _buffer.GetValue();
                     return this->file->VectorRead(chunks, buffer, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
@@ -604,11 +611,11 @@ namespace XrdCl {
             }     
 
         protected:    
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try {
-                    const ChunkList& chunks = _chunks.IsEmpty() ? params->GetParam<ChunkList>("chunks") : _chunks.GetValue();
+                    const ChunkList& chunks = _chunks.IsEmpty() ? params->GetParam<ChunkList>("chunks", bucket) : _chunks.GetValue();
                     return this->file->VectorWrite(chunks, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
@@ -644,13 +651,13 @@ namespace XrdCl {
             }     
 
         protected:    
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try {                    
-                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset") : _offset.GetValue();
-                    const struct iovec* iov = _iov.IsEmpty() ? params->GetPtrParam<struct iovec*>("iov") : _iov.GetValue();
-                    int iovcnt = _iovcnt.IsEmpty() ? params->GetParam<int>("iovcnt") : _iovcnt.GetValue();
+                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset", bucket) : _offset.GetValue();
+                    const struct iovec* iov = _iov.IsEmpty() ? params->GetPtrParam<struct iovec*>("iov", bucket) : _iov.GetValue();
+                    int iovcnt = _iovcnt.IsEmpty() ? params->GetParam<int>("iovcnt", bucket) : _iovcnt.GetValue();
                     return this->file->WriteV(offset, iov, iovcnt, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
 
@@ -687,11 +694,11 @@ namespace XrdCl {
             }     
 
         protected:    
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 try {
-                    const Buffer& arg = _arg.IsEmpty() ? params->GetParam<Buffer>("arg") : _arg.GetValue();
+                    const Buffer& arg = _arg.IsEmpty() ? params->GetParam<Buffer>("arg", bucket) : _arg.GetValue();
                     return this->file->Fcntl(arg, this->handler);
-                } catch(std::logic_error err){
+                } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
@@ -720,7 +727,7 @@ namespace XrdCl {
             }
 
         protected:
-            XRootDStatus Run(ParamsContainer *params){
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
                 return this->file->Visa(this->handler);
             }
 
@@ -731,6 +738,61 @@ namespace XrdCl {
             }
     };
     typedef VisaImpl<Bare> Visa;
+
+
+    template <State state = Bare>
+    class MultiWorkflow: public Operation<state> {
+        public:
+            MultiWorkflow(File *f): Operation<state>(f){}
+            MultiWorkflow(File *f, OperationHandler *h): Operation<state>(f, h){}
+
+            MultiWorkflow(std::initializer_list<Operation<Handled>*> operations){
+                std::initializer_list<Operation<Handled>*>::iterator it = operations.begin();
+                while(it != operations.end()){
+                    std::unique_ptr<Workflow> w(new Workflow(*it));
+                    workflows.push_back(std::move(w));
+                    it++;
+                }
+            }
+            
+            MultiWorkflow(std::vector<std::unique_ptr<Workflow>> workflowsArray, OperationHandler *h){
+                workflows.swap(workflowsArray);
+                this->handler = h;
+            }
+
+        protected:
+            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+                for(int i=0; i<workflows.size(); i++){
+                    workflows[i]->Run(params, bucket);
+                }
+
+                bool statusOK = true;
+                std::string statusMessage = "";
+
+                for(int i=0; i<workflows.size(); i++){
+                    workflows[i]->Wait();                    
+                    auto result = workflows[i]->GetStatus();
+                    if(!result.IsOK()){
+                        statusOK = false;
+                        statusMessage = result.ToStr();
+                    }
+                }
+                const uint16_t status = statusOK ? stOK : stError;
+
+                XRootDStatus *st = new XRootDStatus(status, statusMessage);
+                this->handler->HandleResponseWithHosts(st, NULL, NULL);
+
+                return XRootDStatus();
+            }
+
+            Operation<Handled>* TransformToHandled(OperationHandler *h){
+                MultiWorkflow<Handled> *c = new MultiWorkflow<Handled>(std::move(workflows), h);
+                return c;
+            }
+
+            std::vector<std::unique_ptr<Workflow>> workflows;
+    };
+    typedef MultiWorkflow<Configured> MultiWorkflowOperation;
 
 }
 
