@@ -108,7 +108,7 @@ namespace {
                 }
 
                 buffer = new char[size]();
-                container->SetPtrParam("buffer", buffer);
+                container->SetPtrParam("buffer", buffer, false);
                 container->SetParam("size", size);
 
                 TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
@@ -155,7 +155,7 @@ namespace {
                 vec[1] = v2;
                 vec[2] = v3;
 
-                container->SetPtrParam("iov", vec);
+                container->SetPtrParam("iov", vec, false);
                 container->SetParam("iovcnt", 3);
 
                 TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
