@@ -22,7 +22,12 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#include <XrdCl/XrdClOperations.hh>
+#include <stdexcept>
+#include <string>
+#include "XrdCl/XrdClOperations.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClConstants.hh"
 
 
 namespace XrdCl {
@@ -82,10 +87,12 @@ namespace XrdCl {
 
     OperationHandler::~OperationHandler(){
         delete nextOperation;
-        delete params;
     }
 
     void OperationHandler::AssignToWorkflow(Workflow *wf){
+        if(workflow){
+            throw std::logic_error("Workflow assignment has already been made");
+        }
         workflow = wf;
         if(nextOperation){
             nextOperation->AssignToWorkflow(wf);
@@ -97,33 +104,31 @@ namespace XrdCl {
     // Workflow
     //----------------------------------------------------------------------------
 
-    Workflow::Workflow(Operation<Handled> &op): firstOperation(&op), 
-                                                semaphore(NULL), 
-                                                firstOperationParams(NULL), 
-                                                status(NULL) {}
+    Workflow::Workflow(Operation<Handled> &op, bool enableLogging): firstOperation(&op), status(NULL), logging(enableLogging) {
+        semaphore = NULL;
+        firstOperation->AssignToWorkflow(this);
+    }
 
-    Workflow::Workflow(Operation<Handled> *op): firstOperation(op), 
-                                                semaphore(NULL), 
-                                                firstOperationParams(NULL), 
-                                                status(NULL) {}
+    Workflow::Workflow(Operation<Handled> *op, bool enableLogging): firstOperation(op), status(NULL), logging(enableLogging) {
+        semaphore = NULL;
+        firstOperation->AssignToWorkflow(this);
+    }
 
     Workflow::~Workflow(){
         delete firstOperation;
-        delete firstOperationParams;
-        delete semaphore;
         delete status;
     }
 
-    Workflow& Workflow::Run(ParamsContainer *params, int bucket){
+    Workflow& Workflow::Run(std::shared_ptr<ParamsContainer> params, int bucket){
         if(semaphore){
             throw std::logic_error("Workflow is already running");
         }
-        semaphore = new XrdSysSemaphore(0);
-        firstOperation->AssignToWorkflow(this);
+        semaphore = std::unique_ptr<XrdSysSemaphore>(new XrdSysSemaphore(0));
+        if(logging){ Print(); }
         if(params){
             firstOperation->Run(params, bucket);
         } else {
-            firstOperationParams = new ParamsContainer();
+            std::shared_ptr<ParamsContainer> firstOperationParams = std::shared_ptr<ParamsContainer>(new ParamsContainer());
             firstOperation->Run(firstOperationParams);
         }
         return *this;
@@ -140,10 +145,34 @@ namespace XrdCl {
         return status ? *status : XRootDStatus();
     }
 
-    void Workflow::Wait(){
+    Workflow& Workflow::Wait(){
         if(semaphore){
             semaphore->Wait();
         }
+        return *this;
+    }
+
+    void Workflow::AddOperationInfo(std::string description){
+        operationDescriptions.push_back(description);
+    }
+
+    std::string Workflow::ToString(){
+        std::ostringstream oss;
+        auto lastButOne = (--operationDescriptions.end());
+        for(auto it=operationDescriptions.begin(); it!=operationDescriptions.end(); it++){
+            oss<<(*it);
+            if(it != lastButOne){
+                oss<<" --> ";
+            }
+        }
+        return oss.str();
+    }
+
+    void Workflow::Print(){
+        std::ostringstream oss;
+        oss<<"Running workflow: "<<ToString();
+        XrdCl::Log* log = DefaultEnv::GetLog();
+        log->Info(TaskMgrMsg, oss.str().c_str());
     }
 
 };
