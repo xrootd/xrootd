@@ -33,6 +33,11 @@ namespace XrdCl {
 
     class NotDefParam {} notdef;
 
+    //--------------------------------------------------------------------
+    //! Single value container representing optional value.
+    //!
+    //! @tparam T type of the value stored
+    //--------------------------------------------------------------------
     template <typename T>
     class OptionalParam {
         public:
@@ -60,9 +65,47 @@ namespace XrdCl {
             bool empty;
     };
 
+    //------------------------------------------------------------------
+    //! Single value container specialization for std::string type
+    //! Besides base functionality it contains conversion from 
+    //! const char* type
+    //------------------------------------------------------------------
+    template<>
+    class OptionalParam<std::string>{
+        public:
+            OptionalParam(const std::string& str): empty(false){
+                value = str;
+            }
+
+            OptionalParam(const char *val): empty(false){
+                value = std::string(val);
+            }
+
+            OptionalParam(): empty(true){}
+
+            OptionalParam(NotDefParam notdef): empty(true){}
+
+            bool IsEmpty(){
+                return empty;
+            }
+
+            std::string GetValue(){
+                if(IsEmpty()){
+                    throw std::logic_error("Cannot get parameter: value has not been specified");
+                }
+                return value;
+            }
+
+        private:
+            std::string value;
+            bool empty;
+    };
+
     //--------------------------------------------------------------------
     //! Container to store file operation parameters
-    //! Is is nested  structure, the first layer
+    //! Parameters are stored as key-value pairs and grouped in buckets
+    //! Normally only bucket 1 is used, more buckets are used only in 
+    //! multiworklfow operations 
     //--------------------------------------------------------------------
     class ParamsContainer {
         public:
@@ -73,8 +116,15 @@ namespace XrdCl {
             //! @return     value
             //------------------------------------------------------------
             template <typename T>
-            T GetParam(std::string key, int bucket = 1){
-                T* valuePtr = GetPtrParam<T*>(key, bucket);
+            typename T::type GetParam(int bucket = 1){
+                if(!Exists(T::key, bucket)){
+                    std::ostringstream oss;
+                    oss<<"Parameter "<<T::key<<" has not been specified in bucket "<<bucket;
+                    throw std::logic_error(oss.str());
+                }
+                AnyObject *obj = paramsMap[bucket][T::key];
+                typename T::type *valuePtr = 0;
+                obj->Get(valuePtr);
                 return *valuePtr;
             }
 
@@ -85,14 +135,14 @@ namespace XrdCl {
             //! @return     pointer to stored object
             //------------------------------------------------------------
             template <typename T>
-            T GetPtrParam(std::string key, int bucket = 1){
-                if(!Exists(key, bucket)){
+            typename T::type GetPtrParam(int bucket = 1){
+                if(!Exists(T::key, bucket)){
                     std::ostringstream oss;
-                    oss<<"Parameter "<<key<<" has not been specified in bucket "<<bucket;
+                    oss<<"Parameter "<<T::key<<" has not been specified in bucket "<<bucket;
                     throw std::logic_error(oss.str());
                 }
-                AnyObject *obj = paramsMap[bucket][key];
-                T valuePtr = 0;
+                AnyObject *obj = paramsMap[bucket][T::key];
+                typename T::type valuePtr = 0;
                 obj->Get(valuePtr);
                 return valuePtr;
             }
@@ -105,9 +155,19 @@ namespace XrdCl {
             //! @param bucket   bucket in which key will be added
             //------------------------------------------------------------
             template <typename T>
-            void SetParam(std::string key, T value, int bucket = 1){
-                T *valuePtr = new T(value);
-                SetPtrParam(key, valuePtr, true);
+            void SetParam(typename T::type value, int bucket = 1){
+                typename T::type *valuePtr = new typename T::type(value);
+                if(!BucketExists(bucket)){
+                    paramsMap[bucket] = std::map<std::string, AnyObject*>();
+                }
+                if(paramsMap[bucket].find(T::key) != paramsMap[bucket].end()){
+                    std::ostringstream oss;
+                    oss<<"Parameter "<<T::key<<" has already been set in bucket "<<bucket;
+                    throw std::logic_error(oss.str());
+                }
+                AnyObject *obj = new AnyObject();
+                obj->Set(valuePtr, true);
+                paramsMap[bucket][T::key] = obj;
             }
 
             //------------------------------------------------------------
@@ -117,22 +177,22 @@ namespace XrdCl {
             //! @param value    pointer to save
             //! @param passOwnership    flag indicating whether memory 
             //!                         should be released automatically
-            //!                         after removing object from map
+            //!                         when destroying container
             //! @param bucket   bucket to which key will be saved
             //------------------------------------------------------------
             template <typename T>
-            void SetPtrParam(std::string key, T* value, bool passOwnership, int bucket = 1){
+            void SetPtrParam(typename T::type value, bool passOwnership, int bucket = 1){
                 if(!BucketExists(bucket)){
                     paramsMap[bucket] = std::map<std::string, AnyObject*>();
                 }
-                if(paramsMap[bucket].find(key) != paramsMap[bucket].end()){
+                if(paramsMap[bucket].find(T::key) != paramsMap[bucket].end()){
                     std::ostringstream oss;
-                    oss<<"Parameter "<<key<<" has already been set in bucket "<<bucket;
+                    oss<<"Parameter "<<T::key<<" has already been set in bucket "<<bucket;
                     throw std::logic_error(oss.str());
                 }
                 AnyObject *obj = new AnyObject();
                 obj->Set(value, passOwnership);
-                paramsMap[bucket][key] = obj;
+                paramsMap[bucket][T::key] = obj;
             }     
 
             //------------------------------------------------------------
@@ -143,7 +203,7 @@ namespace XrdCl {
             //! @param bucket   bucket which will be checked
             //! @return         true if exists, false if not
             //------------------------------------------------------------
-            bool Exists(std::string key, int bucket = 1){
+            bool Exists(const std::string &key, int bucket = 1){
                 return paramsMap.find(bucket) != paramsMap.end() && paramsMap[bucket].find(key) != paramsMap[bucket].end();
             }
 

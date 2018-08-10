@@ -28,8 +28,9 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
-#include <XrdCl/XrdClFile.hh>
-#include <XrdCl/XrdClOperationParams.hh>
+#include <sstream>
+#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClOperationParams.hh"
 
 namespace XrdCl {
 
@@ -40,27 +41,56 @@ namespace XrdCl {
     //! Handler allowing forwarding parameters to the next operation in workflow
     //---------------------------------------------------------------------------
     class ForwardingHandler: public ResponseHandler {
+        friend class OperationHandler;
+        
         public:
-            ForwardingHandler(){
-                container = new ParamsContainer();
+            ForwardingHandler(): responseHandler(NULL), wrapper(false){
+                container = std::shared_ptr<ParamsContainer>(new ParamsContainer());
             }
 
-            ParamsContainer *GetParamsContainer(){
-                return container;
+            ForwardingHandler(ResponseHandler *handler): responseHandler(handler), wrapper(true){
+                container = std::shared_ptr<ParamsContainer>(new ParamsContainer());
             }
 
             virtual void HandleResponseWithHosts(XRootDStatus *status, AnyObject *response, HostList *hostList){
-                delete hostList;
-                HandleResponse(status, response);
+                if(wrapper){
+                    responseHandler->HandleResponseWithHosts(status, response, hostList);
+                } else {
+                    CleanMemory(status, response, hostList);
+                }
+                delete this;
             }
 
             virtual void HandleResponse(XRootDStatus *status, AnyObject *response){
-                delete status;
-                delete response;
+                if(wrapper){
+                    responseHandler->HandleResponse(status, response);
+                } else {
+                    CleanMemory(status, response, NULL);
+                }
+                delete this;
             }
 
+            template <typename T>
+            void ForwardParam(typename T::type value, int bucket = 1){
+                container->SetParam<T>(value, bucket);
+            }
+
+        private:
+            void CleanMemory(XRootDStatus *status, AnyObject *response, HostList *hostList){
+                delete status;
+                delete response;
+                delete hostList;
+            }
+
+            std::shared_ptr<ParamsContainer> GetParamsContainer(){
+                return container;
+            }
+
+            std::shared_ptr<ParamsContainer> container;
+
         protected:
-            ParamsContainer *container;
+            ResponseHandler* responseHandler;
+            bool wrapper;
     };
 
     //---------------------------------------------------------------------------
@@ -74,10 +104,15 @@ namespace XrdCl {
             //! Constructor
             //!
             //! @param op first operation of the sequence
-            //------------------------------------------------------------------------            
-            Workflow(Operation<Handled>& op);
+            //------------------------------------------------------------------------
+            Workflow(Operation<Handled>& op, bool enableLogging = true);
 
-            Workflow(Operation<Handled>* op);
+            //------------------------------------------------------------------------
+            //! Constructor
+            //!
+            //! @param op first operation of the sequence
+            //------------------------------------------------------------------------
+            Workflow(Operation<Handled>* op, bool enableLogging = true);
 
             ~Workflow();
 
@@ -85,13 +120,15 @@ namespace XrdCl {
             //! Run first workflow operation
             //!
             //! @return original workflow object
-            //------------------------------------------------------------------------            
-            Workflow& Run(ParamsContainer *params = NULL, int bucket = 1);
+            //------------------------------------------------------------------------
+            Workflow& Run(std::shared_ptr<ParamsContainer> params = NULL, int bucket = 1);
 
             //------------------------------------------------------------------------
             //! Wait for workflow execution end
+            //!
+            //! @return original workflow object
             //------------------------------------------------------------------------
-            void Wait();
+            Workflow& Wait();
 
             //------------------------------------------------------------------------
             //! Get workflow execution status
@@ -100,6 +137,25 @@ namespace XrdCl {
             //! XRootDStatus object
             //------------------------------------------------------------------------
             XRootDStatus GetStatus();
+
+            //------------------------------------------------------------------
+            //! Get workflow description
+            //!
+            //! @return description of the workflow
+            //------------------------------------------------------------------
+            std::string ToString();
+
+            //------------------------------------------------------------------
+            //! Add operation description to the descriptions list
+            //! 
+            //! @param description description of assigned operation
+            //------------------------------------------------------------------
+            void AddOperationInfo(std::string description);
+
+            //------------------------------------------------------------------
+            //! Log operation descriptions
+            //------------------------------------------------------------------
+            void Print();
 
         private:
             //------------------------------------------------------------------------
@@ -111,9 +167,10 @@ namespace XrdCl {
             void EndWorkflowExecution(XRootDStatus *lastOperationStatus);
 
             Operation<Handled> *firstOperation;
-            XrdSysSemaphore *semaphore;
-            ParamsContainer *firstOperationParams;
+            std::unique_ptr<XrdSysSemaphore> semaphore;
             XRootDStatus *status;
+            std::list<std::string> operationDescriptions;
+            bool logging;
     };
 
     //---------------------------------------------------------------------------
@@ -160,8 +217,7 @@ namespace XrdCl {
             ForwardingHandler *responseHandler;
             Operation<Handled> *nextOperation;
             Workflow *workflow;
-            ParamsContainer *params;
-
+            std::shared_ptr<ParamsContainer> params;
     };
 
     //----------------------------------------------------------------------
@@ -171,35 +227,24 @@ namespace XrdCl {
     //----------------------------------------------------------------------
     template <State state>
     class Operation {
-        friend class Operation<Bare>;
-        friend class Operation<Configured>;
-        friend class Operation<Handled>;
+        // Declare friendship between templates
+        template<State> friend class Operation;
+
+        friend class Workflow;
+        friend class OperationHandler;
 
         public:
-            //------------------------------------------------------------------
-            //! Default constructor
-            //------------------------------------------------------------------
-            Operation(): file(NULL), handler(NULL) {}
-
             //------------------------------------------------------------------
             //! Constructor
             //!
             //! @param f  file on which operation will be performed
             //------------------------------------------------------------------
-            Operation(File *f): file(f), handler(NULL){}
-
-            //------------------------------------------------------------------
-            //! Constructor (used internally to change copy object with 
-            //! change of template parameter)
-            //!
-            //! @param f  file on which operation will be performed
-            //! @param h  operation handler
-            //------------------------------------------------------------------
-            Operation(File *f, OperationHandler *h): file(f), handler(h){}
-
-            virtual ~Operation(){
-                delete handler;
+            Operation(File *f): file(f){                
+                static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
+                handler = NULL;
             }
+
+            virtual ~Operation(){}
 
             //------------------------------------------------------------------
             //! Add handler which will be executed after operation ends
@@ -208,16 +253,22 @@ namespace XrdCl {
             //------------------------------------------------------------------
             Operation<Handled>& operator>>(ForwardingHandler *h){
                 static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
-                return *this;
+                auto handler = std::unique_ptr<OperationHandler>(new OperationHandler(h));
+                Operation<Handled> *op = this->TransformToHandled(std::move(handler));
+                return *op;
             }
 
             //------------------------------------------------------------------
-            //! Add next operation to the handler
+            //! Add handler which will be executed after operation ends
             //!
-            //! @param op  operation to add
+            //! @param h  handler to add
             //------------------------------------------------------------------
-            void AddOperation(Operation<Handled> *op){
-                static_assert(state == Handled, "AddOperation method is available only for type Operation<Handled>");
+            Operation<Handled>& operator>>(ResponseHandler *h){
+                static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
+                ForwardingHandler *forwardingHandler = new ForwardingHandler(h);
+                auto handler = std::unique_ptr<OperationHandler>(new OperationHandler(forwardingHandler));
+                Operation<Handled> *op = this->TransformToHandled(std::move(handler));
+                return *op;
             }
             
             //------------------------------------------------------------------
@@ -228,8 +279,31 @@ namespace XrdCl {
             //------------------------------------------------------------------
             Operation<Handled>& operator|(Operation<Handled> &op){
                 static_assert(state == Handled, "Operator || is available only for type Operation<Handled>");
-                return op;
+                AddOperation(&op);
+                return *this;
             }
+
+            virtual std::string ToString() = 0;
+
+        protected:     
+            //------------------------------------------------------------------
+            //! Constructor (used internally to change copy object with 
+            //! change of template parameter)
+            //!
+            //! @param f  file on which operation will be performed
+            //! @param h  operation handler
+            //------------------------------------------------------------------
+            Operation(File *f, std::unique_ptr<OperationHandler> h): file(f){
+                handler = std::move(h);
+            }
+
+            //------------------------------------------------------------------
+            //! Save handler and change template type to handled
+            //!
+            //! @param h    handler object
+            //! @return     handled operation
+            //------------------------------------------------------------------
+            virtual Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h) = 0;
 
             //------------------------------------------------------------------
             //! Set workflow pointer in the handler
@@ -237,9 +311,9 @@ namespace XrdCl {
             //! @param wf   workflow to set
             //------------------------------------------------------------------
             void AssignToWorkflow(Workflow *wf){
-                if(handler){
-                    handler->AssignToWorkflow(wf);
-                }
+                static_assert(state == Handled, "Only Operation<Handled> can be assigned to workflow");
+                wf->AddOperationInfo(ToString());
+                handler->AssignToWorkflow(wf);
             }
 
             //------------------------------------------------------------------
@@ -249,7 +323,7 @@ namespace XrdCl {
             //!                 previous operation
             //! @return         status of the operation
             //------------------------------------------------------------------
-            virtual XRootDStatus Run(ParamsContainer *params, int bucket = 1) = 0;
+            virtual XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1) = 0;
 
             //------------------------------------------------------------------
             //! Handle error caused by missing parameter
@@ -264,43 +338,45 @@ namespace XrdCl {
                 return XRootDStatus();
             }
 
-        protected:     
             //------------------------------------------------------------------
-            //! Save handler and change template type to handled
+            //! Add next operation to the handler
             //!
-            //! @param h    handler object
-            //! @return     handled operation
+            //! @param op  operation to add
             //------------------------------------------------------------------
-            virtual Operation<Handled>* TransformToHandled(OperationHandler *h) = 0;
+            void AddOperation(Operation<Handled> *op){
+                static_assert(state == Handled, "AddOperation method is available only for type Operation<Handled>");
+                if(handler){
+                    handler->AddOperation(op);
+                }
+            }
 
             File *file;
-            OperationHandler* handler;
+            std::unique_ptr<OperationHandler> handler;
     };
-
-    template<> Operation<Handled>& Operation<Configured>::operator>>(ForwardingHandler *h){
-        OperationHandler *handler = new OperationHandler(h);
-        Operation<Handled> *op = this->TransformToHandled(handler);
-        return *op;
-    }
-
-    template<> void Operation<Handled>::AddOperation(Operation<Handled> *op){
-        if(handler){
-            handler->AddOperation(op);
-        }
-    }
-
-    template<> Operation<Handled>& Operation<Handled>::operator|(Operation<Handled> &op){
-        AddOperation(&op);
-        return *this;
-    }
 
 
     template <State state>
     class OpenImpl: public Operation<state> {
         public:
             OpenImpl(File *f): Operation<state>(f){}
-            OpenImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            OpenImpl(File &f): Operation<state>(&f){}
+            OpenImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
             
+            struct UrlArg {
+                static const std::string key;
+                typedef std::string type;
+            };
+
+            struct FlagsArg {
+                static const std::string key;
+                typedef OpenFlags::Flags type;
+            };
+
+            struct ModeArg {
+                static const std::string key;
+                typedef Access::Mode type;
+            };
+
             void SetParams(OptionalParam<std::string> url, OptionalParam<OpenFlags::Flags> flags, OptionalParam<Access::Mode> mode = Access::None){
                 _url = url;
                 _flags = flags;
@@ -308,25 +384,30 @@ namespace XrdCl {
             }
 
             OpenImpl<Configured>& operator()(OptionalParam<std::string> url, OptionalParam<OpenFlags::Flags> flags, OptionalParam<Access::Mode> mode = Access::None){
-                OpenImpl<Configured>* o = new OpenImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                OpenImpl<Configured>* o = new OpenImpl<Configured>(this->file, NULL);
                 o->SetParams(url, flags, mode);
                 return *o;
             }
 
+            std::string ToString(){
+                return "Open";
+            }
+
         protected:
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try{
-                    std::string url = _url.IsEmpty() ? params->GetParam<std::string>("url", bucket) : _url.GetValue();
-                    OpenFlags::Flags flags = _flags.IsEmpty() ? params->GetParam<OpenFlags::Flags>("flags", bucket) : _flags.GetValue();
-                    Access::Mode mode = _mode.IsEmpty() ? params->GetParam<Access::Mode>("mode", bucket) : _mode.GetValue();
-                    return this->file->Open(url, flags, mode, this->handler);
+                    std::string url = _url.IsEmpty() ? params->GetParam<UrlArg>(bucket) : _url.GetValue();
+                    OpenFlags::Flags flags = _flags.IsEmpty() ? params->GetParam<FlagsArg>(bucket) : _flags.GetValue();
+                    Access::Mode mode = _mode.IsEmpty() ? params->GetParam<ModeArg>(bucket) : _mode.GetValue();
+                    return this->file->Open(url, flags, mode, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }  
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                OpenImpl<Handled>* o = new OpenImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                OpenImpl<Handled>* o = new OpenImpl<Handled>(this->file, std::move(h));
                 o->SetParams(_url, _flags, _mode);
                 delete this;
                 return o;
@@ -337,14 +418,33 @@ namespace XrdCl {
             OptionalParam<Access::Mode> _mode;
     };
     typedef OpenImpl<Bare> Open;
+    template <State state> const std::string OpenImpl<state>::UrlArg::key = "url";
+    template <State state> const std::string OpenImpl<state>::FlagsArg::key = "flags";
+    template <State state> const std::string OpenImpl<state>::ModeArg::key = "mode";
 
 
     template <State state>
     class ReadImpl: public Operation<state> {
         public:
             ReadImpl(File *f): Operation<state>(f){}
-            ReadImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
-            
+            ReadImpl(File &f): Operation<state>(&f){}
+            ReadImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
+
+            struct OffsetArg {
+                static const std::string key;
+                typedef uint64_t type;
+            };
+
+            struct SizeArg {
+                static const std::string key;
+                typedef uint32_t type;
+            };
+
+            struct BufferArg {
+                static const std::string key;
+                typedef void* type;
+            };
+
             void SetParams(OptionalParam<uint64_t> offset, OptionalParam<uint32_t> size, OptionalParam<void*> buffer) {
                 _offset = offset;
                 _size = size;
@@ -352,25 +452,30 @@ namespace XrdCl {
             }
 
             ReadImpl<Configured>& operator()(OptionalParam<uint64_t> offset, OptionalParam<uint32_t> size, OptionalParam<void*> buffer) {
-                ReadImpl<Configured>* r = new ReadImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                ReadImpl<Configured>* r = new ReadImpl<Configured>(this->file, NULL);
                 r->SetParams(offset, size, buffer);
                 return *r;
             }     
 
+            std::string ToString(){
+                return "Read";
+            }
+
         protected:    
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try {
-                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset", bucket) : _offset.GetValue();
-                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint32_t>("size", bucket) : _size.GetValue();
-                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer", bucket) : _buffer.GetValue();
-                    return this->file->Read(offset, size, buffer, this->handler);
+                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<OffsetArg>(bucket) : _offset.GetValue();
+                    uint32_t size = _size.IsEmpty() ? params->GetParam<SizeArg>(bucket) : _size.GetValue();
+                    void *buffer = _buffer.IsEmpty() ? params->GetParam<BufferArg>(bucket) : _buffer.GetValue();
+                    return this->file->Read(offset, size, buffer, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }        
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                ReadImpl<Handled>* r = new ReadImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                ReadImpl<Handled>* r = new ReadImpl<Handled>(this->file, std::move(h));
                 r->SetParams(_offset, _size, _buffer);
                 delete this;
                 return r;
@@ -381,26 +486,35 @@ namespace XrdCl {
             OptionalParam<void*> _buffer;
     };
     typedef ReadImpl<Bare> Read;
+    template <State state> const std::string ReadImpl<state>::OffsetArg::key = "offset";
+    template <State state> const std::string ReadImpl<state>::SizeArg::key = "size";
+    template <State state> const std::string ReadImpl<state>::BufferArg::key = "buffer";
 
 
     template <State state = Bare>
     class CloseImpl: public Operation<state> {
         public:
             CloseImpl(File *f): Operation<state>(f){}
-            CloseImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            CloseImpl(File &f): Operation<state>(&f){}
+            CloseImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
 
             CloseImpl<Configured>& operator()(){
-                CloseImpl<Configured> *c = new CloseImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                CloseImpl<Configured> *c = new CloseImpl<Configured>(this->file, NULL);
                 return *c;
             }
 
-        protected:
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
-                return this->file->Close(this->handler);
+            std::string ToString(){
+                return "Close";
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                CloseImpl<Handled> *c = new CloseImpl<Handled>(this->file, h);
+        protected:
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
+                return this->file->Close(this->handler.get());
+            }
+
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                CloseImpl<Handled> *c = new CloseImpl<Handled>(this->file, std::move(h));
                 delete this;
                 return c;
             }
@@ -412,30 +526,42 @@ namespace XrdCl {
     class StatImpl: public Operation<state> {
         public:
             StatImpl(File *f): Operation<state>(f){}
-            StatImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            StatImpl(File &f): Operation<state>(&f){}
+            StatImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
+
+            struct ForceArg {
+                static const std::string key;
+                typedef bool type;
+            };
+
 
             void SetParams(OptionalParam<bool> force) {
                 _force = force;
             }
 
             StatImpl<Configured>& operator()(OptionalParam<bool> force){
-                StatImpl<Configured> *c = new StatImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                StatImpl<Configured> *c = new StatImpl<Configured>(this->file, NULL);
                 c->SetParams(force);
                 return *c;
             }
 
+            std::string ToString(){
+                return "Stat";
+            }
+
         protected:
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try {
-                    bool force = _force.IsEmpty() ? params->GetParam<bool>("force", bucket) : _force.GetValue();
-                    return this->file->Stat(force, this->handler);
+                    bool force = _force.IsEmpty() ? params->GetParam<ForceArg>(bucket) : _force.GetValue();
+                    return this->file->Stat(force, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                StatImpl<Handled> *c = new StatImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                StatImpl<Handled> *c = new StatImpl<Handled>(this->file, std::move(h));
                 c->SetParams(_force);
                 delete this;
                 return c;
@@ -444,14 +570,31 @@ namespace XrdCl {
             OptionalParam<bool> _force;
     };
     typedef StatImpl<Bare> Stat;
+    template <State state> const std::string StatImpl<state>::ForceArg::key = "force";
 
 
     template <State state>
     class WriteImpl: public Operation<state> {
         public:
             WriteImpl(File *f): Operation<state>(f){}
-            WriteImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            WriteImpl(File &f): Operation<state>(&f){}
+            WriteImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
             
+            struct OffsetArg {
+                static const std::string key;
+                typedef uint64_t type;
+            };
+
+            struct SizeArg {
+                static const std::string key;
+                typedef uint32_t type;
+            };
+
+            struct BufferArg {
+                static const std::string key;
+                typedef void* type;
+            };
+
             void SetParams(OptionalParam<uint64_t> offset, OptionalParam<uint32_t> size, OptionalParam<void*> buffer) {
                 _offset = offset;
                 _size = size;
@@ -459,25 +602,30 @@ namespace XrdCl {
             }
 
             WriteImpl<Configured>& operator()(OptionalParam<uint64_t> offset, OptionalParam<uint32_t> size, OptionalParam<void*> buffer) {
-                WriteImpl<Configured>* r = new WriteImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                WriteImpl<Configured>* r = new WriteImpl<Configured>(this->file, NULL);
                 r->SetParams(offset, size, buffer);
                 return *r;
             }     
 
+            std::string ToString(){
+                return "Write";
+            }
+
         protected:    
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try {
-                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset", bucket) : _offset.GetValue();
-                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint32_t>("size", bucket) : _size.GetValue();
-                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer", bucket) : _buffer.GetValue();
-                    return this->file->Write(offset, size, buffer, this->handler);
+                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<OffsetArg>(bucket) : _offset.GetValue();
+                    uint32_t size = _size.IsEmpty() ? params->GetParam<SizeArg>(bucket) : _size.GetValue();
+                    void *buffer = _buffer.IsEmpty() ? params->GetParam<BufferArg>(bucket) : _buffer.GetValue();
+                    return this->file->Write(offset, size, buffer, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                WriteImpl<Handled>* r = new WriteImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                WriteImpl<Handled>* r = new WriteImpl<Handled>(this->file, std::move(h));
                 r->SetParams(_offset, _size, _buffer);
                 delete this;
                 return r;
@@ -488,26 +636,35 @@ namespace XrdCl {
             OptionalParam<void*> _buffer;
     };
     typedef WriteImpl<Bare> Write;
+    template <State state> const std::string WriteImpl<state>::OffsetArg::key = "offset";
+    template <State state> const std::string WriteImpl<state>::SizeArg::key = "size";
+    template <State state> const std::string WriteImpl<state>::BufferArg::key = "buffer";
 
 
     template <State state = Bare>
     class SyncImpl: public Operation<state> {
         public:
             SyncImpl(File *f): Operation<state>(f){}
-            SyncImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            SyncImpl(File &f): Operation<state>(&f){}
+            SyncImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
 
             SyncImpl<Configured>& operator()(){
-                SyncImpl<Configured> *c = new SyncImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                SyncImpl<Configured> *c = new SyncImpl<Configured>(this->file, NULL);
                 return *c;
             }
 
-        protected:
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
-                return this->file->Sync(this->handler);
+            std::string ToString(){
+                return "Sync";
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                SyncImpl<Handled> *c = new SyncImpl<Handled>(this->file, h);
+        protected:
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
+                return this->file->Sync(this->handler.get());
+            }
+
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                SyncImpl<Handled> *c = new SyncImpl<Handled>(this->file, std::move(h));
                 delete this;
                 return c;
             }
@@ -519,30 +676,41 @@ namespace XrdCl {
     class TruncateImpl: public Operation<state> {
         public:
             TruncateImpl(File *f): Operation<state>(f){}
-            TruncateImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            TruncateImpl(File &f): Operation<state>(&f){}
+            TruncateImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
             
+            struct SizeArg {
+                static const std::string key;
+                typedef uint64_t type;
+            };
+
             void SetParams(OptionalParam<uint64_t> size) {
                 _size = size;
             }
 
             TruncateImpl<Configured>& operator()(OptionalParam<uint64_t> size) {
-                TruncateImpl<Configured>* r = new TruncateImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                TruncateImpl<Configured>* r = new TruncateImpl<Configured>(this->file, NULL);
                 r->SetParams(size);
                 return *r;
             }     
 
+            std::string ToString(){
+                return "Truncate";
+            }
+
         protected:    
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try {
-                    uint32_t size = _size.IsEmpty() ? params->GetParam<uint64_t>("size", bucket) : _size.GetValue();
-                    return this->file->Truncate(size, this->handler);
+                    uint32_t size = _size.IsEmpty() ? params->GetParam<SizeArg>(bucket) : _size.GetValue();
+                    return this->file->Truncate(size, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                TruncateImpl<Handled>* r = new TruncateImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                TruncateImpl<Handled>* r = new TruncateImpl<Handled>(this->file, std::move(h));
                 r->SetParams(_size);
                 delete this;
                 return r;
@@ -551,38 +719,55 @@ namespace XrdCl {
             OptionalParam<uint64_t> _size;
     };
     typedef TruncateImpl<Bare> Truncate;
+    template <State state> const std::string TruncateImpl<state>::SizeArg::key = "size";
 
 
     template <State state>
     class VectorReadImpl: public Operation<state> {
         public:
             VectorReadImpl(File *f): Operation<state>(f){}
-            VectorReadImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            VectorReadImpl(File &f): Operation<state>(&f){}
+            VectorReadImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
             
+            struct ChunksArg {
+                static const std::string key;
+                typedef ChunkList type;
+            };
+
+            struct BufferArg {
+                static const std::string key;
+                typedef char* type;
+            };
+
             void SetParams(OptionalParam<ChunkList> chunks, OptionalParam<void*> buffer) {
                 _chunks = chunks;
                 _buffer = buffer;
             }
 
             VectorReadImpl<Configured>& operator()(OptionalParam<ChunkList> chunks, OptionalParam<void*> buffer) {
-                VectorReadImpl<Configured>* r = new VectorReadImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                VectorReadImpl<Configured>* r = new VectorReadImpl<Configured>(this->file, NULL);
                 r->SetParams(chunks, buffer);
                 return *r;
             }
 
+            std::string ToString(){
+                return "VectorRead";
+            }
+
         protected:    
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try {
-                    const ChunkList& chunks = _chunks.IsEmpty() ? params->GetParam<ChunkList>("chunks", bucket) : _chunks.GetValue();
-                    void *buffer = _buffer.IsEmpty() ? params->GetPtrParam<char*>("buffer", bucket) : _buffer.GetValue();
-                    return this->file->VectorRead(chunks, buffer, this->handler);
+                    const ChunkList& chunks = _chunks.IsEmpty() ? params->GetParam<ChunksArg>(bucket) : _chunks.GetValue();
+                    void *buffer = _buffer.IsEmpty() ? params->GetParam<BufferArg>(bucket) : _buffer.GetValue();
+                    return this->file->VectorRead(chunks, buffer, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                VectorReadImpl<Handled>* r = new VectorReadImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                VectorReadImpl<Handled>* r = new VectorReadImpl<Handled>(this->file, std::move(h));
                 r->SetParams(_chunks, _buffer);
                 delete this;
                 return r;
@@ -592,36 +777,49 @@ namespace XrdCl {
             OptionalParam<void*> _buffer;
     };
     typedef VectorReadImpl<Bare> VectorRead;
+    template <State state> const std::string VectorReadImpl<state>::ChunksArg::key = "chunks";
+    template <State state> const std::string VectorReadImpl<state>::BufferArg::key = "buffer";
 
 
     template <State state>
     class VectorWriteImpl: public Operation<state> {
         public:
             VectorWriteImpl(File *f): Operation<state>(f){}
-            VectorWriteImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            VectorWriteImpl(File &f): Operation<state>(&f){}
+            VectorWriteImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
             
+            struct ChunksArg {
+                static const std::string key;
+                typedef ChunkList type;
+            };
+
             void SetParams(OptionalParam<ChunkList> chunks) {
                 _chunks = chunks;
             }
 
             VectorWriteImpl<Configured>& operator()(OptionalParam<ChunkList> chunks) {
-                VectorWriteImpl<Configured>* r = new VectorWriteImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                VectorWriteImpl<Configured>* r = new VectorWriteImpl<Configured>(this->file, NULL);
                 r->SetParams(chunks);
                 return *r;
             }     
 
+            std::string ToString(){
+                return "VectorWrite";
+            }
+
         protected:    
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try {
-                    const ChunkList& chunks = _chunks.IsEmpty() ? params->GetParam<ChunkList>("chunks", bucket) : _chunks.GetValue();
-                    return this->file->VectorWrite(chunks, this->handler);
+                    const ChunkList& chunks = _chunks.IsEmpty() ? params->GetParam<ChunksArg>(bucket) : _chunks.GetValue();
+                    return this->file->VectorWrite(chunks, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                VectorWriteImpl<Handled>* r = new VectorWriteImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                VectorWriteImpl<Handled>* r = new VectorWriteImpl<Handled>(this->file, std::move(h));
                 r->SetParams(_chunks);
                 delete this;
                 return r;
@@ -630,14 +828,31 @@ namespace XrdCl {
             OptionalParam<ChunkList> _chunks;
     };
     typedef VectorWriteImpl<Bare> VectorWrite;
+    template <State state> const std::string VectorWriteImpl<state>::ChunksArg::key = "chunks";
 
 
     template <State state>
     class WriteVImpl: public Operation<state> {
         public:
             WriteVImpl(File *f): Operation<state>(f){}
-            WriteVImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            WriteVImpl(File &f): Operation<state>(&f){}
+            WriteVImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
             
+            struct OffsetArg {
+                static const std::string key;
+                typedef uint64_t type;
+            };
+
+            struct IovArg {
+                static const std::string key;
+                typedef struct iovec* type;
+            };
+
+            struct IovcntArg {
+                static const std::string key;
+                typedef int type;
+            };
+
             void SetParams(OptionalParam<uint64_t> offset, OptionalParam<struct iovec*> iov, OptionalParam<int> iovcnt) {
                 _offset = offset;
                 _iov = iov;
@@ -645,26 +860,31 @@ namespace XrdCl {
             }
 
             WriteVImpl<Configured>& operator()(OptionalParam<uint64_t> offset, OptionalParam<struct iovec*> iov, OptionalParam<int> iovcnt) {
-                WriteVImpl<Configured>* r = new WriteVImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                WriteVImpl<Configured>* r = new WriteVImpl<Configured>(this->file, NULL);
                 r->SetParams(offset, iov, iovcnt);
                 return *r;
             }     
 
+            std::string ToString(){
+                return "WriteV";
+            }
+
         protected:    
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try {                    
-                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<uint64_t>("offset", bucket) : _offset.GetValue();
-                    const struct iovec* iov = _iov.IsEmpty() ? params->GetPtrParam<struct iovec*>("iov", bucket) : _iov.GetValue();
-                    int iovcnt = _iovcnt.IsEmpty() ? params->GetParam<int>("iovcnt", bucket) : _iovcnt.GetValue();
-                    return this->file->WriteV(offset, iov, iovcnt, this->handler);
+                    uint64_t offset = _offset.IsEmpty() ? params->GetParam<OffsetArg>(bucket) : _offset.GetValue();
+                    const struct iovec* iov = _iov.IsEmpty() ? params->GetParam<IovArg>(bucket) : _iov.GetValue();
+                    int iovcnt = _iovcnt.IsEmpty() ? params->GetParam<IovcntArg>(bucket) : _iovcnt.GetValue();
+                    return this->file->WriteV(offset, iov, iovcnt, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
 
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                WriteVImpl<Handled>* r = new WriteVImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                WriteVImpl<Handled>* r = new WriteVImpl<Handled>(this->file, std::move(h));
                 r->SetParams(_offset, _iov, _iovcnt);
                 delete this;
                 return r;
@@ -675,36 +895,50 @@ namespace XrdCl {
             OptionalParam<int> _iovcnt;
     };
     typedef WriteVImpl<Bare> WriteV;
+    template <State state> const std::string WriteVImpl<state>::OffsetArg::key = "offset";
+    template <State state> const std::string WriteVImpl<state>::IovArg::key = "iov";
+    template <State state> const std::string WriteVImpl<state>::IovcntArg::key = "iovcnt";
 
 
     template <State state>
     class FcntlImpl: public Operation<state> {
         public:
             FcntlImpl(File *f): Operation<state>(f){}
-            FcntlImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            FcntlImpl(File &f): Operation<state>(&f){}
+            FcntlImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
             
+            struct BufferArg {
+                static const std::string key;
+                typedef Buffer type;
+            };
+
             void SetParams(OptionalParam<Buffer> arg) {
                 _arg = arg;
             }
 
             FcntlImpl<Configured>& operator()(OptionalParam<Buffer> arg) {
-                FcntlImpl<Configured>* r = new FcntlImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                FcntlImpl<Configured>* r = new FcntlImpl<Configured>(this->file, NULL);
                 r->SetParams(arg);
                 return *r;
             }     
 
+            std::string ToString(){
+                return "Fcntl";
+            }
+
         protected:    
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
                 try {
-                    const Buffer& arg = _arg.IsEmpty() ? params->GetParam<Buffer>("arg", bucket) : _arg.GetValue();
-                    return this->file->Fcntl(arg, this->handler);
+                    const Buffer& arg = _arg.IsEmpty() ? params->GetParam<BufferArg>(bucket) : _arg.GetValue();
+                    return this->file->Fcntl(arg, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                FcntlImpl<Handled>* r = new FcntlImpl<Handled>(this->file, h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                FcntlImpl<Handled>* r = new FcntlImpl<Handled>(this->file, std::move(h));
                 r->SetParams(_arg);
                 delete this;
                 return r;
@@ -713,26 +947,33 @@ namespace XrdCl {
             OptionalParam<Buffer> _arg;
     };
     typedef FcntlImpl<Bare> Fcntl;
+    template <State state> const std::string FcntlImpl<state>::BufferArg::key = "arg";
 
 
     template <State state = Bare>
     class VisaImpl: public Operation<state> {
         public:
             VisaImpl(File *f): Operation<state>(f){}
-            VisaImpl(File *f, OperationHandler *h): Operation<state>(f, h){}
+            VisaImpl(File &f): Operation<state>(&f){}
+            VisaImpl(File *f, std::unique_ptr<OperationHandler> h): Operation<state>(f, std::move(h)){}
 
             VisaImpl<Configured>& operator()(){
-                VisaImpl<Configured> *c = new VisaImpl<Configured>(this->file, this->handler);
+                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+                VisaImpl<Configured> *c = new VisaImpl<Configured>(this->file, NULL);
                 return *c;
             }
 
-        protected:
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
-                return this->file->Visa(this->handler);
+            std::string ToString(){
+                return "Visa";
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                VisaImpl<Handled> *c = new VisaImpl<Handled>(this->file, h);
+        protected:
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1){
+                return this->file->Visa(this->handler.get());
+            }
+
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                VisaImpl<Handled> *c = new VisaImpl<Handled>(this->file, std::move(h));
                 delete this;
                 return c;
             }
@@ -743,26 +984,36 @@ namespace XrdCl {
     template <State state = Bare>
     class MultiWorkflow: public Operation<state> {
         public:
-            MultiWorkflow(File *f): Operation<state>(f){}
-            MultiWorkflow(File *f, OperationHandler *h): Operation<state>(f, h){}
-
-            MultiWorkflow(std::initializer_list<Operation<Handled>*> operations){
+            MultiWorkflow(std::initializer_list<Operation<Handled>*> operations): Operation<state>(NULL, NULL){
                 std::initializer_list<Operation<Handled>*>::iterator it = operations.begin();
                 while(it != operations.end()){
-                    std::unique_ptr<Workflow> w(new Workflow(*it));
+                    std::unique_ptr<Workflow> w(new Workflow(*it, false));
                     workflows.push_back(std::move(w));
                     it++;
                 }
             }
             
-            MultiWorkflow(std::vector<std::unique_ptr<Workflow>> workflowsArray, OperationHandler *h){
+            MultiWorkflow(std::vector<std::unique_ptr<Workflow>> workflowsArray, std::unique_ptr<OperationHandler> h): Operation<state>(NULL, std::move(h)){
                 workflows.swap(workflowsArray);
-                this->handler = h;
+            }
+
+            std::string ToString(){
+                std::ostringstream oss;
+                oss<<"Multiworkflow(";
+                for(int i=0; i<workflows.size(); i++){
+                    oss<<workflows[i]->ToString();
+                    if(i != workflows.size() - 1){
+                        oss<<" && ";
+                    }
+                }
+                oss<<")";
+                return oss.str();
             }
 
         protected:
-            XRootDStatus Run(ParamsContainer *params, int bucket = 1){
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucketDefault = 0){
                 for(int i=0; i<workflows.size(); i++){
+                    int bucket = i + 1;
                     workflows[i]->Run(params, bucket);
                 }
 
@@ -785,8 +1036,8 @@ namespace XrdCl {
                 return XRootDStatus();
             }
 
-            Operation<Handled>* TransformToHandled(OperationHandler *h){
-                MultiWorkflow<Handled> *c = new MultiWorkflow<Handled>(std::move(workflows), h);
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                MultiWorkflow<Handled> *c = new MultiWorkflow<Handled>(std::move(workflows), std::move(h));
                 return c;
             }
 

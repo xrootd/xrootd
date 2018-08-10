@@ -42,12 +42,14 @@ class WorkflowTest: public CppUnit::TestCase
       CPPUNIT_TEST( MissingParameterTest );
       CPPUNIT_TEST( OperationFailureTest );
       CPPUNIT_TEST( DoubleRunningTest );
+      CPPUNIT_TEST( MultiWorkflowOperationTest );
     CPPUNIT_TEST_SUITE_END();
     void ReadingWorkflowTest();
     void WritingWorkflowTest();
     void MissingParameterTest();
     void OperationFailureTest();
     void DoubleRunningTest();
+    void MultiWorkflowOperationTest();
     std::string GetFileUrl(std::string fileName);
 };
 
@@ -108,8 +110,8 @@ namespace {
                 }
 
                 buffer = new char[size]();
-                container->SetPtrParam("buffer", buffer, false);
-                container->SetParam("size", size);
+                ForwardParam<Read::BufferArg>(buffer);
+                ForwardParam<Read::SizeArg>(size);
 
                 TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
             } 
@@ -155,8 +157,8 @@ namespace {
                 vec[1] = v2;
                 vec[2] = v3;
 
-                container->SetPtrParam("iov", vec, false);
-                container->SetParam("iovcnt", 3);
+                ForwardParam<WriteV::IovArg>(vec);
+                ForwardParam<WriteV::IovcntArg>(3);
 
                 TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
             } 
@@ -199,6 +201,28 @@ namespace {
 
         protected:
             std::string _expectedContent;
+    };
+
+    class LockOpenHandler: public TestingForwardingHandler {
+        public:
+            LockOpenHandler(const std::string &firstFilePath, const std::string &secondFilePath){
+                firstPath = firstFilePath;
+                secondPath = secondFilePath;
+            }
+
+            void HandleResponseWithHosts(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response, XrdCl::HostList *hostList){
+                //-----------------------------------------------------------
+                // Set urls for two parallel operations
+                //-----------------------------------------------------------
+                ForwardParam<Open::UrlArg>(firstPath, 1);
+                ForwardParam<Open::UrlArg>(secondPath, 2);
+
+                TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
+            }
+
+        private:
+            std::string firstPath;
+            std::string secondPath;
     };
 
 }
@@ -253,7 +277,7 @@ void WorkflowTest::ReadingWorkflowTest(){
         | Close(f)() >> closeHandler;
 
 
-    Workflow workflow = Workflow(pipe);
+    Workflow workflow(pipe);
     workflow.Run().Wait();
 
     CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
@@ -305,7 +329,7 @@ void WorkflowTest::WritingWorkflowTest(){
         | Read(f)(offset, notdef, notdef) >> readHandler
         | Close(f)() >> closeHandler;
 
-    Workflow workflow = Workflow(pipe);         
+    Workflow workflow(pipe);         
     workflow.Run().Wait();
 
     CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
@@ -356,7 +380,7 @@ void WorkflowTest::MissingParameterTest(){
         | Close(f)() >> closeHandler;
 
 
-    Workflow workflow = Workflow(pipe);
+    Workflow workflow(pipe);
     workflow.Run().Wait();
 
     CPPUNIT_ASSERT(workflow.GetStatus().IsError());
@@ -408,7 +432,7 @@ void WorkflowTest::OperationFailureTest(){
         | Close(f)() >> closeHandler;
 
 
-    Workflow workflow = Workflow(pipe);
+    Workflow workflow(pipe);
     workflow.Run().Wait();
 
     CPPUNIT_ASSERT(workflow.GetStatus().IsError());
@@ -452,7 +476,7 @@ void WorkflowTest::DoubleRunningTest(){
     auto &pipe = Open(f)(fileUrl, flags) >> openHandler | Close(f)() >> closeHandler;
 
 
-    Workflow workflow = Workflow(pipe);
+    Workflow workflow(pipe);
 
     workflow.Run();
 
@@ -483,4 +507,89 @@ void WorkflowTest::DoubleRunningTest(){
     // Release memory
     //----------------------------------------------------------------------------
     delete f;
+}
+
+
+void WorkflowTest::MultiWorkflowOperationTest(){
+    using namespace XrdCl;
+
+    //----------------------------------------------------------------------------
+    // Initialize
+    //----------------------------------------------------------------------------
+    auto lockFile = new File();
+    auto firstFile = new File();
+    auto secondFile = new File();
+
+    std::string lockUrl = GetFileUrl("lockfile.lock");
+    std::string firstFileUrl = GetFileUrl("cb4aacf1-6f28-42f2-b68a-90a73460f424.dat");
+    std::string secondFileUrl = GetFileUrl("testFile.dat");
+
+    const auto readFlags = OpenFlags::Read;
+    const auto createFlags = OpenFlags::New;
+
+    //----------------------------------------------------------------------------
+    // Create lock file
+    //----------------------------------------------------------------------------
+    auto f = new File();
+    
+    auto tmpOpenHandler = new TestingForwardingHandler();
+    auto tmpCloseHandler = new TestingForwardingHandler(); 
+    
+    auto &creatingPipe = Open(f)(lockUrl, createFlags) >> tmpOpenHandler | Close(f)() >> tmpCloseHandler;
+    Workflow w(creatingPipe);
+    w.Run().Wait();
+
+    delete f;
+
+
+    //----------------------------------------------------------------------------
+    // Create and execute workflow
+    //----------------------------------------------------------------------------
+    uint64_t offset = 0;
+    uint32_t size = 50  ;
+    char* firstBuffer = new char[size]();
+    char* secondBuffer = new char[size]();
+
+    auto lockOpenHandler = new LockOpenHandler(firstFileUrl, secondFileUrl);
+    auto lockCloseHandler = new TestingForwardingHandler();
+    auto firstOpenHandler = new TestingForwardingHandler();
+    auto firstReadHandler = new TestingForwardingHandler();
+    auto firstCloseHandler = new TestingForwardingHandler();
+    auto secondOpenHandler = new TestingForwardingHandler();
+    auto secondReadHandler = new TestingForwardingHandler();
+    auto secondCloseHandler = new TestingForwardingHandler();
+    auto multiWorkflowHandler = new TestingForwardingHandler();
+
+    auto &firstPipe = Open(firstFile)(notdef, readFlags) >> firstOpenHandler
+    | Read(firstFile)(offset, size, firstBuffer) >> firstReadHandler
+    | Close(firstFile)() >> firstCloseHandler;
+    
+    auto &secondPipe = Open(secondFile)(notdef, readFlags) >> secondOpenHandler
+    | Read(secondFile)(offset, size, secondBuffer) >> secondReadHandler
+    | Close(secondFile)() >> secondCloseHandler;
+
+    auto &pipe = Open(lockFile)(lockUrl, readFlags) >> lockOpenHandler 
+    | MultiWorkflowOperation{&firstPipe, &secondPipe} >> multiWorkflowHandler
+    | Close(lockFile)() >> lockCloseHandler;
+
+    Workflow workflow(pipe);
+    workflow.Run().Wait();
+
+    CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
+
+    CPPUNIT_ASSERT(lockOpenHandler->Executed());
+    CPPUNIT_ASSERT(lockCloseHandler->Executed());
+    CPPUNIT_ASSERT(firstOpenHandler->Executed());
+    CPPUNIT_ASSERT(firstReadHandler->Executed());
+    CPPUNIT_ASSERT(firstCloseHandler->Executed());
+    CPPUNIT_ASSERT(secondOpenHandler->Executed());
+    CPPUNIT_ASSERT(secondReadHandler->Executed());
+    CPPUNIT_ASSERT(secondCloseHandler->Executed());
+    CPPUNIT_ASSERT(multiWorkflowHandler->Executed());
+
+    delete[] firstBuffer;
+    delete[] secondBuffer;
+    delete firstFile;
+    delete secondFile;
+    delete lockFile;
 }
