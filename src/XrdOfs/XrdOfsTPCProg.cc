@@ -242,6 +242,7 @@ int XrdOfsTPCProg::Xeq()
    credFile cFile(Job);
    const char *Args[6], *eVec[2], **envArg;
    char *lP, *Colon, *cksVal, sBuff[8], *tident = Job->Info.Org;
+   char *Quest = index(Job->Info.Key, '?');
    int rc, aNum = 0;
 
 // If we have credentials, write them out to a file
@@ -254,8 +255,7 @@ int XrdOfsTPCProg::Xeq()
 // Echo out what we are doing if so desired
 //
    if (doEcho)
-      {char *Quest = index(Job->Info.Key, '?');
-       if (Quest) *Quest = 0;
+      {if (Quest) *Quest = 0;
        OfsEroute.Say(Pname,tident," copying ",Job->Info.Key," to ",Job->Info.Dst);
        if (Quest) *Quest = '?';
       }
@@ -281,12 +281,14 @@ int XrdOfsTPCProg::Xeq()
    Args[aNum++] = Job->Info.Key;
    Args[aNum++] = Job->Info.Dst;
 
-// Determine if credentials are being passed
+// Determine if credentials are being passed, If so, we don't need any cgi but
+// we must set an envar to point to the file holding the credentials.
 //
    if (cFile.Path)
       {eVec[0] = cFile.pEnv;
        eVec[1] = 0;
        envArg = eVec;
+       if (Quest) *Quest = 0;
       } else envArg = 0;
 
 // Start the job.
