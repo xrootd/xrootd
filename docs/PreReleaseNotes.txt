@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Implement TpcLite for delegated TPC copy.
   * **[Server]** Allow config continuation to files in a directory.
   * **[Server]** Allow callbacks for close() and opague() requests.
   * **[Server]** Allow the CKS manager to run on the redirector.
