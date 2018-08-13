@@ -323,6 +323,22 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::Read( uint64_t offset, uint32_t size,
       void* buffer, ResponseHandler* handler, uint16_t timeout )
   {
+#if defined(__APPLE__)
+    Log *log = DefaultEnv::GetLog();
+    int read = 0;
+    if( ( read = pread( fd, buffer, size, offset ) ) == -1 )
+    {
+      log->Error( FileMsg, "Read: failed %s", strerror( errno ) );
+      XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                              XProtocol::mapError( errno ),
+                                              strerror( errno ) );
+      return QueueTask( error, 0, handler );
+    }
+    ChunkInfo *chunk = new ChunkInfo( offset, read, buffer );
+    AnyObject *resp = new AnyObject();
+    resp->Set( chunk );
+    return QueueTask( new XRootDStatus(), resp, handler );
+#else
     AioCtx *ctx = new AioCtx( pHostList, handler );
     ctx->SetRead( fd, offset, size, buffer );
 
@@ -337,6 +353,7 @@ namespace XrdCl
     }
 
     return XRootDStatus();
+#endif
   }
 
   //------------------------------------------------------------------------
@@ -345,6 +362,27 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::Write( uint64_t offset, uint32_t size,
       const void* buffer, ResponseHandler* handler, uint16_t timeout )
   {
+#if defined(__APPLE__)
+    const char *buff = reinterpret_cast<const char*>( buffer );
+    size_t bytesWritten = 0;
+    while( bytesWritten < size )
+    {
+      ssize_t ret = pwrite( fd, buff, size, offset );
+      if( ret < 0 )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( FileMsg, "Write: failed %s", strerror( errno ) );
+        XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                                XProtocol::mapError( errno ),
+                                                strerror( errno ) );
+        return QueueTask( error, 0, handler );
+      }
+      offset += ret;
+      buff += ret;
+      bytesWritten += ret;
+    }
+    return QueueTask( new XRootDStatus(), 0, handler );
+#else
     AioCtx *ctx = new AioCtx( pHostList, handler );
     ctx->SetWrite( fd, offset, size, buffer );
 
@@ -359,6 +397,7 @@ namespace XrdCl
     }
 
     return XRootDStatus();
+#endif
   }
 
   //------------------------------------------------------------------------
@@ -367,11 +406,20 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::Sync( ResponseHandler* handler,
       uint16_t timeout )
   {
+#if defined(__APPLE__)
+    if( fsync( fd ) )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Error( FileMsg, "Sync: failed %s", strerror( errno ) );
+      XRootDStatus *error = new XRootDStatus( stError, errOSError,
+                                              XProtocol::mapError( errno ),
+                                              strerror( errno ) );
+      return QueueTask( error, 0, handler );
+    }
+#else
     AioCtx *ctx = new AioCtx( pHostList, handler );
     ctx->SetFsync( fd );
-
     int rc = aio_fsync( O_SYNC, *ctx );
-
     if( rc < 0 )
     {
       Log *log = DefaultEnv::GetLog();
@@ -379,8 +427,8 @@ namespace XrdCl
       return XRootDStatus( stError, errOSError, XProtocol::mapError( rc ),
                            strerror( errno ) );
     }
-
     return XRootDStatus();
+#endif
   }
 
   //------------------------------------------------------------------------
