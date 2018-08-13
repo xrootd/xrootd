@@ -370,10 +370,6 @@ namespace XrdCl
         timeLeft -= (now-start);
     }
 
-    st = Utils::CheckTPC( sourceUrlU.GetHostId(), timeLeft );
-    if( !st.IsOK() )
-      return st;
-
     //--------------------------------------------------------------------------
     // Verify the destination
     //--------------------------------------------------------------------------
@@ -388,7 +384,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     bool delegate;
     properties->Get( "delegate", delegate );
-    properties->Set( "tpcLite", delegate && tpcLite );
+    tpcLite = tpcLite && delegate;
+    properties->Set( "tpcLite", tpcLite );
 
     if( hasInitTimeout )
     {
@@ -397,6 +394,17 @@ namespace XrdCl
       else
         properties->Set( "initTimeout", timeLeft );
     }
+
+    if( tpcLite )
+      return XRootDStatus();
+
+    //--------------------------------------------------------------------------
+    // Verify the source if needed
+    //--------------------------------------------------------------------------
+    st = Utils::CheckTPC( sourceUrlU.GetHostId(), timeLeft );
+    if( !st.IsOK() )
+      return st;
+
     return XRootDStatus();
   }
 
