@@ -450,7 +450,7 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
   log->Debug( AppMsg, "Indexing %s", basePath.c_str() );
 
   DirectoryList *dirList = 0;
-  XRootDStatus st = fs->DirList( basePath, DirListFlags::Recursive, dirList );
+  XRootDStatus st = fs->DirList( URL( basePath ).GetPath(), DirListFlags::Recursive, dirList );
   if( !st.IsOK() )
   {
     log->Info( AppMsg, "Failed to get directory listing for %s: %s",
@@ -465,11 +465,13 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
   for( auto itr = dirList->Begin(); itr != dirList->End(); ++itr )
   {
     DirectoryList::ListEntry *e = *itr;
+    if( e->GetStatInfo()->TestFlags( StatInfo::IsDir ) )
+      continue;
     std::string path = basePath + '/' + e->GetName();
     current = new XrdCpFile( path.c_str(), badUrl );
     if( badUrl )
     {
-      // TODO release memory
+      delete current;
       log->Error( AppMsg, "Bad URL: %s", current->Path );
       return 0;
     }
@@ -718,8 +720,8 @@ int main( int argc, char **argv )
       // Recursively index the remote directory
       //------------------------------------------------------------------------
       delete config.srcFile;
-      config.srcFile = IndexRemote( fs, source.GetURL(),
-                                    source.GetURL().size() );
+      std::string url = source.GetURL();
+      config.srcFile = IndexRemote( fs, url, url.size() );
       if ( !config.srcFile )
       {
         std::cerr << "Error indexing remote directory.";
@@ -792,6 +794,18 @@ int main( int argc, char **argv )
     // Set up the job
     //--------------------------------------------------------------------------
     std::string target = dest;
+    // if this is a recursive copy make sure we preserve the directory structure
+    if( config.Want( XrdCpConfig::DoRecurse ) )
+    {
+      // get the source directory
+      std::string srcDir( sourceFile->Path, sourceFile->Doff );
+      // remove the trailing slash
+      if( srcDir[srcDir.size() - 1] == '/' )
+        srcDir = srcDir.substr( 0, srcDir.size() - 1 );
+      short diroff = srcDir.rfind( '/' );
+      target += '/';
+      target += sourceFile->Path + diroff;
+    }
     AppendCGI( target, config.dstOpq );
 
     properties.Set( "source",         source         );
