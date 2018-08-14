@@ -268,7 +268,7 @@ build:macosx:
     - mkdir build
     - mkdir -p tarball/xrootd
     - cd build
-    - /usr/local/bin/cmake -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2g/include/ -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
+    - /usr/local/bin/cmake -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2o_2/include/ -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
     - make -j4
     - make install
     - cd ../tarball
