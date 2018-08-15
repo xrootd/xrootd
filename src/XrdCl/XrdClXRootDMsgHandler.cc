@@ -72,7 +72,6 @@ namespace
 
 namespace XrdCl
 {
-
   //----------------------------------------------------------------------------
   // Delegate the response handling to the thread-pool
   //----------------------------------------------------------------------------
@@ -522,7 +521,6 @@ namespace XrdCl
         }
 
         std::string xrdCgi = ossXrd.str();
-        pUrl         = newUrl;
         pRedirectUrl = newUrl.GetURL();
 
         URL cgiURL;
@@ -558,8 +556,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Check if we need to return the URL as a response
         //----------------------------------------------------------------------
-        if( pUrl.GetProtocol() != "root" && pUrl.GetProtocol() != "xroot" && 
-            !pUrl.IsLocalFile() )
+        if( newUrl.GetProtocol() != "root" && newUrl.GetProtocol() != "xroot" &&
+            !newUrl.IsLocalFile() )
           pRedirectAsAnswer = true;
 
         if( pRedirectAsAnswer )
@@ -573,8 +571,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Rewrite the message in a way required to send it to another server
         //----------------------------------------------------------------------
-        Status st = RewriteRequestRedirect( cgiURL.GetParams(),
-                                            pUrl.GetPath() );
+        newUrl.SetParams( cgiURL.GetParams() );
+        Status st = RewriteRequestRedirect( newUrl );
         if( !st.IsOK() )
         {
           pStatus = st;
@@ -585,9 +583,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Send the request to the new location
         //----------------------------------------------------------------------
-        pHosts->push_back( pUrl );
-        pHosts->back().url.SetParams( cgiURL.GetParams() );
-        HandleError( RetryAtServer(pUrl) );
+        HandleError( RetryAtServer(newUrl) );
         return;
       }
 
@@ -1139,6 +1135,15 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
+    // Close the redirect entry if necessary
+    //--------------------------------------------------------------------------
+    if( pRdirEntry )
+    {
+      pRdirEntry->status = *status;
+      pRedirectTraceBack.push_back( std::move( pRdirEntry ) );
+    }
+
+    //--------------------------------------------------------------------------
     // Release the stream id
     //--------------------------------------------------------------------------
     if( pSidMgr )
@@ -1601,27 +1606,14 @@ namespace XrdCl
   // Perform the changes to the original request needed by the redirect
   // procedure - allocate new streamid, append redirection data and such
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::RewriteRequestRedirect(
-    const URL::ParamsMap &newCgi,
-    const std::string    &newPath )
+  Status XRootDMsgHandler::RewriteRequestRedirect( const URL &newUrl )
   {
     Log *log = DefaultEnv::GetLog();
-    ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
 
-    //--------------------------------------------------------------------------
-    // Assign a new stream id to the message
-    //--------------------------------------------------------------------------
     Status st;
-    // it could be a redirect from a local metalink,
-    // in this case the pSidMgr is null
-    if( pSidMgr )
-    {
-      pSidMgr->ReleaseSID( req->header.streamid );
-      pSidMgr = 0;
-    }
-    AnyObject sidMgrObj;
     // Append any "xrd.*" parameters present in newCgi so that any authentication
     // requirements are properly enforced
+    const URL::ParamsMap &newCgi = newUrl.GetParams();
     std::string xrdCgi = "";
     std::ostringstream ossXrd;
     for(URL::ParamsMap::const_iterator it = newCgi.begin(); it != newCgi.end(); ++it )
@@ -1637,45 +1629,20 @@ namespace XrdCl
 
     if (xrdCgi.empty())
     {
-      authUrl = pUrl;
+      authUrl = newUrl;
     }
     else
     {
-      std::string surl = pUrl.GetURL();
+      std::string surl = newUrl.GetURL();
       (surl.find('?') == std::string::npos) ? (surl += '?') :
           ((*surl.rbegin() != '&') ? (surl += '&') : (surl += ""));
       surl += xrdCgi;
 
       if (!authUrl.FromString(surl))
       {
-        log->Error( XRootDMsg, "[%s] Failed to build redirection url from data:"
+        log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data:"
 		    "%s", surl.c_str());
         return Status(stError, errInvalidRedirectURL);
-      }
-    }
-
-    // it could be a redirect to a local file, in this case there is no SID
-    if( !authUrl.IsLocalFile() )
-    {
-      st = pPostMaster->QueryTransport( authUrl, XRootDQuery::SIDManager,
-                sidMgrObj );
-
-      if( !st.IsOK() )
-      {
-        log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
-        pUrl.GetHostId().c_str(),
-        pRequest->GetDescription().c_str() );
-        return st;
-      }
-
-      sidMgrObj.Get( pSidMgr );
-      st = pSidMgr->AllocateSID( req->header.streamid );
-      if( !st.IsOK() )
-      {
-        log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
-        pUrl.GetHostId().c_str(),
-        pRequest->GetDescription().c_str() );
-        return st;
       }
     }
 
@@ -1683,7 +1650,7 @@ namespace XrdCl
     // Rewrite particular requests
     //--------------------------------------------------------------------------
     XRootDTransport::UnMarshallRequest( pRequest );
-    MessageUtils::RewriteCGIAndPath( pRequest, newCgi, true, newPath );
+    MessageUtils::RewriteCGIAndPath( pRequest, newCgi, true, newUrl.GetPath() );
     XRootDTransport::MarshallRequest( pRequest );
     return Status();
   }
@@ -1847,6 +1814,15 @@ namespace XrdCl
   void XRootDMsgHandler::HandleError( Status status, Message *msg )
   {
     //--------------------------------------------------------------------------
+    // Close the redirect entry if necessary
+    //--------------------------------------------------------------------------
+    if( pRdirEntry )
+    {
+      pRdirEntry->status = status;
+      pRedirectTraceBack.push_back( std::move( pRdirEntry ) );
+    }
+
+    //--------------------------------------------------------------------------
     // If there was no error then do nothing
     //--------------------------------------------------------------------------
     if( status.IsOK() )
@@ -1938,6 +1914,12 @@ namespace XrdCl
   Status XRootDMsgHandler::RetryAtServer( const URL &url )
   {
     Log *log = DefaultEnv::GetLog();
+
+    //--------------------------------------------------------------------------
+    // Set up a redirect entry
+    //--------------------------------------------------------------------------
+    if( pRdirEntry ) pRedirectTraceBack.push_back( std::move( pRdirEntry ) );
+    pRdirEntry.reset( new RedirectEntry( pUrl, url ) );
 
     if( pUrl.GetLocation() != url.GetLocation() )
     {
@@ -2085,7 +2067,7 @@ namespace XrdCl
   }
   
   //------------------------------------------------------------------------
-  //! Notify the filestatehandler to retry Open() with new URL
+  // Notify the FileStateHandler to retry Open() with new URL
   //------------------------------------------------------------------------
   void XRootDMsgHandler::HandleLocalRedirect( URL *url )
   {
@@ -2113,7 +2095,7 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  //! Check if it is OK to retry this request
+  // Check if it is OK to retry this request
   //------------------------------------------------------------------------
   bool XRootDMsgHandler::IsRetryable( Message *request )
   {
@@ -2144,8 +2126,8 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  //! Check if for given request and Metalink redirector  it is OK to omit
-  //! the kXR_wait and proceed stright to the next entry in the Metalink file
+  // Check if for given request and Metalink redirector  it is OK to omit
+  // the kXR_wait and proceed stright to the next entry in the Metalink file
   //------------------------------------------------------------------------
   bool XRootDMsgHandler::OmitWait( Message *request, const URL &url )
   {
@@ -2170,6 +2152,34 @@ namespace XrdCl
       return true;
 
     return false;
+  }
+
+  //------------------------------------------------------------------------
+  // Dump the redirect-trace-back into the log file
+  //------------------------------------------------------------------------
+  void XRootDMsgHandler::DumpRedirectTraceBack()
+  {
+    if( pRedirectTraceBack.empty() ) return;
+
+    std::stringstream sstrm;
+
+    sstrm << "Redirect trace-back:\n";
+
+    int counter = 0;
+
+    auto itr = pRedirectTraceBack.begin();
+    sstrm << '\t' << counter << ". " << (*itr)->ToString() << '\n';
+
+    auto prev = itr;
+    ++itr;
+    ++counter;
+
+    for( ; itr != pRedirectTraceBack.end(); ++itr, ++prev, ++counter )
+      sstrm << '\t' << counter << ". "
+            << (*itr)->ToString( (*prev)->status.IsOK() ) << '\n';
+
+    Log *log = DefaultEnv::GetLog();
+    log->Info( XRootDMsg, sstrm.str().c_str() );
   }
 
 }

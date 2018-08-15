@@ -33,12 +33,44 @@
 
 #include <sys/uio.h>
 
+#include <list>
+#include <memory>
+
 namespace XrdCl
 {
   class PostMaster;
   class SIDManager;
   class URL;
   class LocalFileHandler;
+
+  //----------------------------------------------------------------------------
+  // Single entry in the redirect-trace-back
+  //----------------------------------------------------------------------------
+  struct RedirectEntry
+  {
+      RedirectEntry( const URL &from, const URL &to ) : from( from ), to( to )
+      {
+
+      }
+
+      URL          from;
+      URL          to;
+      XRootDStatus status;
+
+      std::string ToString( bool prevok = true )
+      {
+        const std::string tostr   = to.GetLocation();
+        const std::string fromstr = from.GetLocation();
+
+        if( prevok )
+        {
+          if( tostr == fromstr )
+            return "Retrying: " + tostr;
+          return "Redirected from: " + fromstr + " to: " + tostr;
+        }
+        return "Failed at: " + fromstr + ", retrying at: " + tostr;
+      }
+  };
 
   //----------------------------------------------------------------------------
   //! Handle/Process/Forward XRootD messages
@@ -112,6 +144,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ~XRootDMsgHandler()
       {
+        DumpRedirectTraceBack();
+
         if( !pHasSessionId )
           delete pRequest;
         delete pResponse;
@@ -345,8 +379,7 @@ namespace XrdCl
       //! Perform the changes to the original request needed by the redirect
       //! procedure - allocate new streamid, append redirection data and such
       //------------------------------------------------------------------------
-      Status RewriteRequestRedirect( const URL::ParamsMap &newCgi,
-                                     const std::string    &newPath );
+      Status RewriteRequestRedirect( const URL &newUrl );
 
       //------------------------------------------------------------------------
       //! Some requests need to be rewritten also after getting kXR_wait - sigh
@@ -403,6 +436,11 @@ namespace XrdCl
       bool OmitWait( Message *request, const URL &url );
 
       //------------------------------------------------------------------------
+      //! Dump the redirect-trace-back into the log file
+      //------------------------------------------------------------------------
+      void DumpRedirectTraceBack();
+
+      //------------------------------------------------------------------------
       // Helper struct for async reading of chunks
       //------------------------------------------------------------------------
       struct ChunkStatus
@@ -412,49 +450,54 @@ namespace XrdCl
         bool done;
       };
 
-      Message                   *pRequest;
-      Message                   *pResponse;
-      std::vector<Message *>     pPartialResps;
-      ResponseHandler           *pResponseHandler;
-      URL                        pUrl;
-      PostMaster                *pPostMaster;
-      SIDManager                *pSidMgr;
-      LocalFileHandler          *pLFileHandler;
-      Status                     pStatus;
-      Status                     pLastError;
-      time_t                     pExpiration;
-      bool                       pRedirectAsAnswer;
-      HostList                  *pHosts;
-      bool                       pHasLoadBalancer;
-      HostInfo                   pLoadBalancer;
-      bool                       pHasSessionId;
-      std::string                pRedirectUrl;
-      ChunkList                 *pChunkList;
-      std::vector<ChunkStatus>   pChunkStatus;
-      uint16_t                   pRedirectCounter;
+      typedef std::list<std::unique_ptr<RedirectEntry>> RedirectTraceBack;
 
-      uint32_t                   pAsyncOffset;
-      uint32_t                   pAsyncReadSize;
-      char*                      pAsyncReadBuffer;
-      uint32_t                   pAsyncMsgSize;
+      Message                        *pRequest;
+      Message                        *pResponse;
+      std::vector<Message *>          pPartialResps;
+      ResponseHandler                *pResponseHandler;
+      URL                             pUrl;
+      PostMaster                     *pPostMaster;
+      SIDManager                     *pSidMgr;
+      LocalFileHandler               *pLFileHandler;
+      Status                          pStatus;
+      Status                          pLastError;
+      time_t                          pExpiration;
+      bool                            pRedirectAsAnswer;
+      HostList                       *pHosts;
+      bool                            pHasLoadBalancer;
+      HostInfo                        pLoadBalancer;
+      bool                            pHasSessionId;
+      std::string                     pRedirectUrl;
+      ChunkList                      *pChunkList;
+      std::vector<ChunkStatus>        pChunkStatus;
+      uint16_t                        pRedirectCounter;
 
-      bool                       pReadRawStarted;
-      uint32_t                   pReadRawCurrentOffset;
+      uint32_t                        pAsyncOffset;
+      uint32_t                        pAsyncReadSize;
+      char*                           pAsyncReadBuffer;
+      uint32_t                        pAsyncMsgSize;
 
-      uint32_t                   pReadVRawMsgOffset;
-      bool                       pReadVRawChunkHeaderDone;
-      bool                       pReadVRawChunkHeaderStarted;
-      bool                       pReadVRawSizeError;
-      int32_t                    pReadVRawChunkIndex;
-      readahead_list             pReadVRawChunkHeader;
-      bool                       pReadVRawMsgDiscard;
+      bool                            pReadRawStarted;
+      uint32_t                        pReadRawCurrentOffset;
 
-      bool                       pOtherRawStarted;
+      uint32_t                        pReadVRawMsgOffset;
+      bool                            pReadVRawChunkHeaderDone;
+      bool                            pReadVRawChunkHeaderStarted;
+      bool                            pReadVRawSizeError;
+      int32_t                         pReadVRawChunkIndex;
+      readahead_list                  pReadVRawChunkHeader;
+      bool                            pReadVRawMsgDiscard;
 
-      bool                       pFollowMetalink;
+      bool                            pOtherRawStarted;
 
-      bool                       pStateful;
-      int                        pAggregatedWaitTime;
+      bool                            pFollowMetalink;
+
+      bool                            pStateful;
+      int                             pAggregatedWaitTime;
+
+      std::unique_ptr<RedirectEntry>  pRdirEntry;
+      RedirectTraceBack               pRedirectTraceBack;
   };
 }
 
