@@ -27,7 +27,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <errno.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -120,6 +122,39 @@ namespace
 {
 static const int op_isOpen    = 0x00010000;
 static const int op_isRead    = 0x00020000;
+
+const char *getTime()
+{
+static char buff[16];
+char tuff[8];
+struct timeval tv;
+struct tm *tmp;
+
+   if (gettimeofday(&tv, 0))
+      {perror("gettimeofday");
+       exit(255);
+      }
+   tmp = localtime(&tv.tv_sec);
+   if (!tmp)
+      {perror("localtime");
+       exit(255);
+      }
+                                   //012345678901234
+   if (strftime(buff, sizeof(buff), "%y%m%d:%H%M%S. ", tmp) <= 0)
+      {errno = EINVAL;
+       perror("strftime");
+       exit(255);
+      }
+
+    snprintf(tuff, sizeof(tuff), "%d", static_cast<int>(tv.tv_usec/100000));
+    buff[14] = tuff[0];
+    return buff;
+}
+
+// Startup time
+//          012345670123456
+//          yymmdd:hhmmss.t
+static const char *startUP = getTime();
 }
  
 /******************************************************************************/
@@ -1698,6 +1733,10 @@ int XrdXrootdProtocol::do_Qconf()
    else if (!strcmp("sitename", val))
            {const char *siteName = getenv("XRDSITE");
             n = snprintf(bp, bleft, "%s\n", (siteName ? siteName : "sitename"));
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("start", val))
+           {n = snprintf(bp, bleft, "%s\n", startUP);
             bp += n; bleft -= n;
            }
    else if (!strcmp("sysid", val))
