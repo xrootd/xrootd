@@ -27,6 +27,7 @@
 #include "IdentityPlugIn.hh"
 #include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClOperations.hh"
+#include "XrdCl/XrdClFileOperations.hh"
 
 using namespace XrdClTests;
 
