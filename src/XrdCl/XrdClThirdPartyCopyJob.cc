@@ -107,6 +107,39 @@ namespace
       XrdCl::XRootDStatus *pStatus;
   };
 
+  class InitTimeoutCalc
+  {
+    public:
+
+      InitTimeoutCalc( uint16_t timeLeft ) :
+        hasInitTimeout( timeLeft ), start( time( 0 ) ), timeLeft( timeLeft )
+      {
+
+      }
+
+      XrdCl::XRootDStatus operator()()
+      {
+        if( !hasInitTimeout ) return XrdCl::XRootDStatus();
+
+        time_t now = time( 0 );
+        if( now - start > timeLeft )
+          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errOperationExpired );
+
+        timeLeft -= ( now - start );
+        return XrdCl::XRootDStatus();
+      }
+
+      operator uint16_t()
+      {
+        return timeLeft;
+      }
+
+    private:
+      bool hasInitTimeout;
+      time_t start;
+      uint16_t timeLeft;
+  };
+
 }
 
 namespace XrdCl
@@ -456,17 +489,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Timeouts
     //--------------------------------------------------------------------------
-    uint16_t timeLeft = 0;
-    pProperties->Get( "initTimeout", timeLeft );
-
-    time_t   start          = 0;
-    bool     hasInitTimeout = false;
-
-    if( timeLeft )
-    {
-      hasInitTimeout = true;
-      start          = time(0);
-    }
+    uint16_t initTimeout = 0;
+    pProperties->Get( "initTimeout", initTimeout );
+    InitTimeoutCalc timeLeft( initTimeout );
 
     uint16_t tpcTimeout = 0;
     pProperties->Get( "tpcTimeout", tpcTimeout );
@@ -530,30 +555,33 @@ namespace XrdCl
     log->Debug( UtilityMsg, "Source url is: %s", tpcSource.GetURL().c_str() );
 
     //--------------------------------------------------------------------------
-    // Calculate the time we have left to perform source open
+    // Calculate the time we have left to perform 1st sync
     //--------------------------------------------------------------------------
-    if( hasInitTimeout )
+    if( !timeLeft().IsOK() )
     {
-      time_t now = time(0);
-      if( now-start > timeLeft )
-      {
-        XRootDStatus status = targetFile.Close( closeTimeout );
-        return XRootDStatus( stError, errOperationExpired );
-      }
-      else
-        timeLeft -= (now-start);
+      XRootDStatus status = targetFile.Close( closeTimeout );
+      return XRootDStatus( stError, errOperationExpired );
     }
 
     //--------------------------------------------------------------------------
     // Set up the rendez-vous and open the source
     //--------------------------------------------------------------------------
-    st = targetFile.Sync( tpcTimeout );
+    st = targetFile.Sync( timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
       XRootDStatus status = targetFile.Close( closeTimeout );
       return st;
+    }
+
+    //--------------------------------------------------------------------------
+    // Calculate the time we have left to perform source open
+    //--------------------------------------------------------------------------
+    if( !timeLeft().IsOK() )
+    {
+      XRootDStatus status = targetFile.Close( closeTimeout );
+      return XRootDStatus( stError, errOperationExpired );
     }
 
     File sourceFile( File::DisableVirtRedirect );
@@ -579,7 +607,7 @@ namespace XrdCl
     Semaphore        *sem  = statusHandler.GetSemaphore();
     StatInfo         *info   = 0;
 
-    st = targetFile.Sync( &statusHandler );
+    st = targetFile.Sync( &statusHandler, tpcTimeout );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable start the copy: %s",
@@ -714,8 +742,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Timeouts
     //--------------------------------------------------------------------------
-    uint16_t timeLeft = 0;
-    pProperties->Get( "initTimeout", timeLeft );
+    uint16_t initTimeout = 0;
+    pProperties->Get( "initTimeout", initTimeout );
+    InitTimeoutCalc timeLeft( initTimeout );
 
     uint16_t tpcTimeout = 0;
     pProperties->Get( "tpcTimeout", tpcTimeout );
@@ -755,11 +784,19 @@ namespace XrdCl
     std::string lastUrl; targetFile.GetProperty( "LastURL", lastUrl );
     realTarget = lastUrl;
 
+    //--------------------------------------------------------------------------
+    // Calculate the time we have left to perform 1st sync
+    //--------------------------------------------------------------------------
+    if( !timeLeft().IsOK() )
+    {
+      XRootDStatus status = targetFile.Close( closeTimeout );
+      return XRootDStatus( stError, errOperationExpired );
+    }
 
     //--------------------------------------------------------------------------
     // Set up the rendez-vous
     //--------------------------------------------------------------------------
-    st = targetFile.Sync( tpcTimeout );
+    st = targetFile.Sync( timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
@@ -775,7 +812,7 @@ namespace XrdCl
     Semaphore        *sem  = statusHandler.GetSemaphore();
     StatInfo         *info   = 0;
 
-    st = targetFile.Sync( &statusHandler );
+    st = targetFile.Sync( &statusHandler, tpcTimeout );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable start the copy: %s",
