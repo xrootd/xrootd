@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Add 'query confg start' to find server start time.
   * **[Server]** Implement TpcLite for delegated TPC copy.
   * **[Server]** Allow config continuation to files in a directory.
   * **[Server]** Allow callbacks for close() and opague() requests.
