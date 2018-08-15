@@ -77,6 +77,17 @@ if( APPLE )
 endif()
 
 #-------------------------------------------------------------------------------
+# FreeBSD
+#-------------------------------------------------------------------------------
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD" )
+  set( CMAKE_INSTALL_LIBDIR "lib" )
+  set( CMAKE_INSTALL_BINDIR "bin" )
+  set( CMAKE_INSTALL_MANDIR "man" )
+  set( CMAKE_INSTALL_INCLUDEDIR "include" )
+  set( CMAKE_INSTALL_DATADIR "share" )
+endif()
+
+#-------------------------------------------------------------------------------
 # Solaris
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
