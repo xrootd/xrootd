@@ -163,12 +163,15 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
 // yet from using anything but the proxy's credentials.
 // to become more clever
 //
-   if (isProxy) wp = 0;
-      else {XrdOucEnv *envP;
-            if (!eri || (envP = eri->getEnv()) == 0) wp = 0;
-               else wp = envP->Get("xrd.wantprot");
-            if (!fwdCreds) eri = 0;
-           }
+   if (isProxy)
+      {wp = 0;
+       if (!fwdCreds) eri = 0;
+      } else {
+       XrdOucEnv *envP;
+       if (!eri || (envP = eri->getEnv()) == 0) wp = 0;
+          else wp = envP->Get("xrd.wantprot");
+      }
+
 // Get the appropriate protocol list as well as the right error object
 //
    const char *wantProt = wp ? (const char *)wp : getenv("XrdSecPROTOCOL");
