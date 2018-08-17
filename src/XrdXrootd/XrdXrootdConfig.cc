@@ -515,6 +515,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("pidpath",       xpidf);
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("redirect",      xred);
+             else if TS_Xeq("require",       xreq);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("trace",         xtrace);
              else if TS_Xeq("limit",         xlimit);
@@ -1616,6 +1617,71 @@ bool XrdXrootdProtocol::xred_xok(int func, char *rHost[2], int rPort[2])
    ||  Route[func].Port[1] != rPort[1]) return false;
 
    return true;
+}
+
+/******************************************************************************/
+/*                                  x r e q                                   */
+/******************************************************************************/
+  
+/* Function: xreq
+
+   Purpose:  To parse the directive: require tls <actions>
+
+             <actions> are one or more of the following actions that require
+                       the connection be secured using TLS. They may be
+                       prefixed by a minus sign to disable the requirement.
+
+                       getfile login modfs openr openw putfile tpc
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xreq(XrdOucStream &Config)
+{
+    char *val;
+    static struct requireopts {const char *opname; int opval;} reqopts[] =
+       {
+        {"all",      TRACE_ALL},
+        {"getfile",  TRACE_EMSG},
+        {"login",    TRACE_EMSG},
+        {"modfs",    TRACE_DEBUG},
+        {"openr",    TRACE_FS},
+        {"openw",    TRACE_LOGIN},
+        {"putfile",  TRACE_LOGIN},
+        {"tpc",      TRACE_MEM}
+       };
+    int i, trval = 0, numopts = sizeof(reqopts)/sizeof(struct requireopts);
+    bool neg;
+
+    if (!(val = Config.GetWord()))
+       {eDest.Emsg("config", "require parameter not specified"); return 1;}
+
+    if (strcmp("tls", val))
+       {eDest.Emsg("config", "invalid require parameter -",val); return 1;}
+
+    if (!(val = Config.GetWord()))
+       {eDest.Emsg("config", "require option not specified"); return 1;}
+
+    while (val)
+         {if (!strcmp(val, "off")) trval = 0;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
+                   for (i = 0; i < numopts; i++)
+                       {if (!strcmp(val, reqopts[i].opname))
+                           {if (neg) trval &= ~reqopts[i].opval;
+                               else  trval |=  reqopts[i].opval;
+                            break;
+                           }
+                       }
+                   if (i >= numopts)
+                      {eDest.Emsg("config", "invalid require option -", val);
+                       return 1;
+                      }
+                  }
+          val = Config.GetWord();
+         }
+
+//  XrdXrootdTrace->What = trval;
+    return 0;
 }
 
 /******************************************************************************/

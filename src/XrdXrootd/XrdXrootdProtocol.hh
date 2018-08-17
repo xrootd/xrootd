@@ -226,6 +226,7 @@ static int   xred(XrdOucStream &Config);
 static bool  xred_php(char *val, char *hP[2], int rPort[2]);
 static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
 static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
+static int   xreq(XrdOucStream &Config);
 static int   xsecl(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
 static int   xlimit(XrdOucStream &Config);

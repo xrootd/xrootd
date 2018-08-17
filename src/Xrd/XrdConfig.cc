@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <pwd.h>
+#include <string>
 #include <string.h>
 #include <stdio.h>
 #include <sys/param.h>
@@ -69,6 +70,8 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysUtils.hh"
 
+#include "XrdTls/XrdTlsContext.hh"
+
 #ifdef __linux__
 #include <netinet/tcp.h>
 #endif
@@ -91,7 +94,9 @@ extern int ka_Icnt;
 
 namespace XrdGlobal
 {
-extern XrdBuffXL xlBuff;
+extern XrdBuffXL  xlBuff;
+
+       XrdTlsContext *tlsCtx = 0;
 }
 
 namespace
@@ -156,6 +161,8 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    mySitName= 0;
    AdminPath= strdup("/tmp");
    HomePath = 0;
+   tlsCert  = 0;
+   tlsKey   = 0;
    AdminMode= 0700;
    HomeMode = 0700;
    Police   = 0;
@@ -168,9 +175,11 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    repInt     = 600;
    repOpts    = 0;
    ppNet      = 0;
+   tlsHSTO    =10;
    NetTCPlep  = -1;
    NetADM     = 0;
    coreV      = 1;
+   tlsSSL     = false;
    memset(NetTCP, 0, sizeof(NetTCP));
 
    Firstcp = Lastcp = 0;
@@ -501,6 +510,19 @@ int XrdConfig::Configure(int argc, char **argv)
        XrdSysThread::setDebug(&Log);
       }
 
+// If tls enabled, set it up
+//
+   if (!tlsCert) ProtInfo.tlsCtx= 0;
+      else {Log.Say("++++++ ", myInstance, " TLS initialization started.");
+            if (SetupTLS())
+               {Log.Say("++++++ ", myInstance, " TLS initialization ended.");
+                ProtInfo.tlsCtx = XrdGlobal::tlsCtx;
+               } else {
+                NoGo = 1;
+                Log.Say("++++++ ", myInstance, " TLS initialization failed.");
+               }
+           }
+
 // Put largest buffer size in the env
 //
    theEnv.PutInt("MaxBuffSize", XrdGlobal::xlBuff.MaxSize());
@@ -590,6 +612,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("report",        xrep);
    TS_Xeq("sitename",      xsit);
    TS_Xeq("timeout",       xtmo);
+   TS_Xeq("tls",           xtls);
    }
 
    // No match found, complain.
@@ -1061,6 +1084,32 @@ int XrdConfig::Setup(char *dfltp)
    return 0;
 }
 
+/******************************************************************************/
+/*                              S e t u p T L S                               */
+/******************************************************************************/
+
+bool XrdConfig::SetupTLS()
+{
+   XrdTlsContext::Protocol prot = (tlsSSL ? XrdTlsContext::doSSL
+                                          : XrdTlsContext::doTLS);
+
+// Create a context
+//
+   static XrdTlsContext xrdTLS(tlsCert, tlsKey, prot);
+
+// Check if all went well
+//
+   if (xrdTLS.Context() == 0)
+      {xrdTLS.PrintErrs("Config failure", &Log);
+       return false;
+      }
+
+// Set address of out TLS object in the global area
+//
+   XrdGlobal::tlsCtx = &xrdTLS;
+   return true;
+}
+  
 /******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
@@ -1795,6 +1844,59 @@ int XrdConfig::xsit(XrdSysError *eDest, XrdOucStream &Config)
     return 0;
 }
 
+/******************************************************************************/
+/*                                  x t l s                                   */
+/******************************************************************************/
+
+/* Function: xtls
+
+   Purpose:  To parse directive: tls <cpath> [<kpath>] [<opts>]
+
+             <cpath>  is the the certificate file to be used.
+             <kpath>  is the the private key file to be used.
+             <opts>   options:
+                      [no]ssl allow ssl protocols (default: nossl)
+                      hsto <sec> handshake timeout interval (default 10).
+
+   Output: 0 upon success or 1 upon failure.
+*/
+
+int XrdConfig::xtls(XrdSysError *eDest, XrdOucStream &Config)
+{
+    char *val;
+
+    if (!(val = Config.GetWord()))
+       {eDest->Emsg("Config", "tls cert path not specified"); return 1;}
+
+    if (tlsCert) free(tlsCert);
+    tlsCert = strdup(val);
+    if (tlsKey)  free(tlsKey);
+    tlsKey  = tlsCert;
+    tlsSSL  = false;
+
+    if (!(val = Config.GetWord())) return 0;
+
+    if (*val == '/')
+       {tlsKey = strdup(val);
+        if (!(val = Config.GetWord())) return 0;
+       }
+
+do {     if (!strcmp(val,   "ssl")) tlsSSL = true;
+    else if (!strcmp(val, "nossl")) tlsSSL = false;
+    else if (!strcmp(val, "hsto" ))
+            {if (!(val = Config.GetWord()))
+                {eDest->Emsg("Config", "tls hsto value not specified");
+                 return 1;
+                }
+             if (XrdOuca2x::a2tm(*eDest,"tls hsto",val,&tlsHSTO,1))
+                return 1;
+            }
+    else {eDest->Emsg("Config", "invalid tls option -",val); return 1;}
+   } while ((val = Config.GetWord()));
+
+    return 0;
+}
+  
 /******************************************************************************/
 /*                                  x t m o                                   */
 /******************************************************************************/
