@@ -398,12 +398,16 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
                default:                 idMap    = 0; break;
           }
 
-// We want to establish the default location of the keytable. We support two
+// We want to establish the default location of the keytable. First check
+// the environment passed from the client then the envar. We support two
 // version of the envar for backward compatability due to an early mistake.
 //
-   if ( ( (kP = getenv("XrdSecSSSKT")) || (kP = getenv("XrdSecsssKT")) )
-   &&  *kP && !stat(kP, &buf)) ktFixed = 1;
-      else kP = 0;
+   if( erp && erp->getEnv() && ( kP = erp->getEnv()->Get( "xrd.sss" ) ) )
+     ktFixed = 1;
+   else if ( ( (kP = getenv("XrdSecSSSKT")) || (kP = getenv("XrdSecsssKT")) )
+             &&  *kP && !stat(kP, &buf))
+     ktFixed = 1;
+   else kP = 0;
 
    if (!kP && !stat(KTPath, &buf)) kP = KTPath;
 
