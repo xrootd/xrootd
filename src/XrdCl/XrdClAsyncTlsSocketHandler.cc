@@ -23,6 +23,8 @@
 #include "XrdCl/XrdClStream.hh"
 #include "XrdCl/XrdClLog.hh"
 
+#include "XrdTls/XrdTlsContext.hh"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
@@ -59,6 +61,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncTlsSocketHandler::OnConnectionReturn()
   {
+    static XrdTlsContext tlsContext; // Need only one thread-safe instance
+
     AsyncSocketHandler::OnConnectionReturn();
 
 
@@ -67,7 +71,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Initialize the TLS layer
       //------------------------------------------------------------------------
-      pTls.reset( new Tls( pSocket->GetFD() ) );
+      //try???? This should be under a try-catch!
+      pTls.reset( new Tls( tlsContext, pSocket->GetFD() ) );
 
       //------------------------------------------------------------------------
       // Make sure the socket is uncorked before we do the TLS/SSL hand shake

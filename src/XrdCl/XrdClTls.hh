@@ -25,6 +25,8 @@
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdTls/XrdTlsConnection.hh"
 
+class XrdTlsContext;
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -37,7 +39,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor - creates async TLS layer for given socker file descriptor
       //------------------------------------------------------------------------
-      Tls( int sfd );
+      Tls( XrdTlsContext &ctx, int sfd );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -75,7 +77,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The TSL I/O wrapper
       //------------------------------------------------------------------------
-      XrdTls::Connection io;
+      XrdTlsConnection io;
   };
 
   //----------------------------------------------------------------------------
