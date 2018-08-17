@@ -4,7 +4,7 @@
 /*                                                                            */
 /*                        X r d P r o t o c o l . h h                         */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*(c) 2004-18 By the Board of Trustees of the Leland Stanford, Jr., University*/
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -48,6 +48,7 @@ class XrdBuffManager;
 class XrdInet;
 class XrdScheduler;
 class XrdStats;
+class XrdTlsContext;
 
 struct sockaddr;
 
@@ -71,8 +72,10 @@ char            *ConfigFN;     // -> Configuration file
 int              Format;       // Binary format of this server
 int              Port;         // Port number
 int              WSize;        // Window size for Port
+int              rsvd1;
 const char      *AdmPath;      // Admin path
 int              AdmMode;      // Admin path mode
+int              rsvd2;
 const char      *myInst;       // Instance name
 const char      *myName;       // Host name
 const char      *myProg;       // Program name
@@ -88,12 +91,16 @@ int              idleWait;     // Max milliseconds connection may be idle
 int              argc;         // Number of arguments
 char           **argv;         // Argument array (prescreened)
 char             DebugON;      // True if started with -d option
+char             rsvd3[7];
 int              WANPort;      // Port prefered for WAN connections (0 if none)
 int              WANWSize;     // Window size for the WANPort
 int              hailWait;     // Max milliseconds to wait for data after accept
+int              rsvd4;
+XrdTlsContext   *tlsCtx;       // Stable -> TLS Context (0 if not initialized)
 
                  XrdProtocol_Config(XrdProtocol_Config &rhs);
-                 XrdProtocol_Config() {}
+                 XrdProtocol_Config() : rsvd1(0), rsvd2(0), rsvd4(0)
+                                        {memset(rsvd3, 0, sizeof(rsvd3));}
                 ~XrdProtocol_Config() {}
 };
 
