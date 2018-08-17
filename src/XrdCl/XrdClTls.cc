@@ -21,7 +21,9 @@
 namespace XrdCl
 {
 
-  Tls::Tls( int sfd ) : io( sfd, XrdTls::Connection::TLS_CLIENT )
+  Tls::Tls( XrdTlsContext &ctx, int sfd ) 
+      : io( ctx, sfd, XrdTlsConnection::TLS_RNB_WNB,
+                      XrdTlsConnection::TLS_HS_XYBLK, true )
   {
 
   }
