@@ -58,6 +58,12 @@ add_library(
 
 
   #-----------------------------------------------------------------------------
+  # XrdTls
+  #-----------------------------------------------------------------------------
+  XrdTls/XrdTlsConnection.cc    XrdTls/XrdTlsConnection.hh
+  XrdTls/XrdTlsContext.cc       XrdTls/XrdTlsContext.hh
+
+  #-----------------------------------------------------------------------------
   # XrdOuc
   #-----------------------------------------------------------------------------
   XrdOuc/XrdOuca2x.cc           XrdOuc/XrdOuca2x.hh
@@ -202,6 +208,7 @@ target_link_libraries(
   XrdUtils
   pthread
   ${CMAKE_DL_LIBS}
+  ssl
   ${SOCKET_LIBRARY}
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )
