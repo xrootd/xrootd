@@ -445,7 +445,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
   {XrdOucEnv     myEnv;
    XrdOucErrInfo eInfo("", &myEnv);
    char buff[128];
-   if (osFS->fsctl(SFS_FSCTL_FATTR, (const char *)0, eInfo, 0) == 0)
+   if (osFS->FAttr(0, eInfo, 0) == SFS_OK)
       {usxMaxNsz = myEnv.GetInt("usxMaxNsz");
        if (usxMaxNsz < 0) usxMaxNsz = 0;
        usxMaxVsz = myEnv.GetInt("usxMaxVsz");

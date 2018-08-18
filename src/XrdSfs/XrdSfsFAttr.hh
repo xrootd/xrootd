@@ -71,8 +71,9 @@ class XrdOucEnv;
   
 struct XrdSfsFACtl
 {
-const char      *path;    //!< The file path to act on
+const char      *path;    //!< The file path to act on (logical)
 const char      *pcgi;    //!< Opaque information (null if none)
+const char      *pfnP;    //!< The file path to act on (physical)
 XrdSfsFAInfo    *info;    //!< Pointer to attribute information
 XrdOucEnv       *envP;    //!< Optional environmental information
 XrdSfsFABuff    *fabP;    //!<  -> Additional memory that was allocated
@@ -90,8 +91,8 @@ static const int retvsz = 0x0c;   //!< Above plus return size of attr value
 static const int retval = 0x1c;   //!< Above plus return actual  attr value
 
               XrdSfsFACtl(const char *p, const char *opq, int anum)
-                         : path(p), pcgi(opq), info(0), envP(0), fabP(0),
-                           iNum(anum), rqst(255), opts(0)
+                         : path(p), pcgi(opq), pfnP(0), info(0), envP(0),
+                           fabP(0), iNum(anum), rqst(255), opts(0)
                            {nPfx[0] = 0; nPfx[1] = 0;}
 
              ~XrdSfsFACtl() {XrdSfsFABuff *dP, *nP = fabP;

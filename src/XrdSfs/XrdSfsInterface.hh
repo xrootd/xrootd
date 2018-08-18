@@ -92,7 +92,6 @@
 #define SFS_FSCTL_STATCC  5 // Return Cluster Config status
 #define SFS_FSCTL_PLUGIN  8 // Return Implementation Dependent Data
 #define SFS_FSCTL_PLUGIO 16 // Return Implementation Dependent Data
-#define SFS_FSCTL_FATTR  32 // Process extended attributes
 
 // Return values for integer & XrdSfsXferSize returning XrdSfs methods
 //
@@ -170,6 +169,8 @@ struct XrdSfsPrep  //!< Prepare parameters
 /******************************************************************************/
 /*                      A b s t r a c t   C l a s s e s                       */
 /******************************************************************************/
+
+struct XrdSfsFACtl;
 
 class  XrdSfsFile;
 class  XrdSfsDirectory;
@@ -317,6 +318,30 @@ virtual void           EnvInfo(XrdOucEnv *envP)
 }
 
 //-----------------------------------------------------------------------------
+//! Perform a filesystem extended attribute function.
+//!
+//! @param  faReq  - pointer to the request object (see XrdSfsFAttr.hh). If the
+//!                  pointer is nill, simply return whether or not extended
+//!                  attributes are supported.
+//! @param  eInfo  - The object where error info or results are to be returned.
+//! @param  client - Client's identify (see common description).
+//!
+//! @return SFS_OK   a null response is sent.
+//! @return SFS_DATA error.code    length of the data to be sent.
+//!                  error.message contains the data to be sent.
+//! @return SFS_STARTED Operation started result will be returned via callback.
+//!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
+//-----------------------------------------------------------------------------
+
+virtual int            FAttr(      XrdSfsFACtl      *faReq,
+                                   XrdOucErrInfo    &eInfo,
+                             const XrdSecEntity     *client = 0)
+                            {(void)faReq; (void)client;
+                             eInfo.setErrInfo(ENOTSUP, "Not supported.");
+                             return SFS_ERROR;
+                            }
+
+//-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 2)
 //!
 //! @param  cmd    - The operation to be performed:
@@ -347,15 +372,12 @@ virtual int            FSctl(const int               cmd,
 //! Perform a filesystem control operation (version 1)
 //!
 //! @param  cmd    - The operation to be performed:
-//!                  SFS_FSCTL_FATTR   Process extended attributes
 //!                  SFS_FSCTL_LOCATE  Locate a file or file servers
 //!                  SFS_FSCTL_STATCC  Return cluster config status
 //!                  SFS_FSCTL_STATFS  Return physical filesystem information
 //!                  SFS_FSCTL_STATLS  Return logical  filesystem information
 //!                  SFS_FSCTL_STATXA  Return extended attributes
 //! @param  args   - Arguments specific to cmd.
-//!                  SFS+FSCTL_FATTR   args -> XrdSfsFACtl object. When args
-//!                                    is nil then return 0 if fattr supported.
 //!                  SFS_FSCTL_LOCATE  args points to the path to be located
 //!                                    ""   path is the first exported path
 //!                                    "*"  return all current servers
