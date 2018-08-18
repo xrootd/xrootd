@@ -363,7 +363,7 @@ int XrdXrootdProtocol::XeqFADel(XrdSfsFACtl &ctl, char *faVars, int faVLen)
 
 // Execute the action
 //
-   if ((rc = osFS->fsctl(SFS_FSCTL_FATTR, (const char *)&ctl, eInfo, CRED)))
+   if ((rc = osFS->FAttr(&ctl, eInfo, CRED)))
       return fsError(rc, XROOTD_MON_OPENW, eInfo, ctl.path, (char *)ctl.pcgi);
 
 // Format the response
@@ -398,7 +398,7 @@ int XrdXrootdProtocol::XeqFAGet(XrdSfsFACtl &ctl, char *faVars, int faVLen)
 
 // Execute the action
 //
-   if ((rc = osFS->fsctl(SFS_FSCTL_FATTR, (const char *)&ctl, eInfo, CRED)))
+   if ((rc = osFS->FAttr(&ctl, eInfo, CRED)))
       return fsError(rc, XROOTD_MON_OPENR, eInfo, ctl.path, (char *)ctl.pcgi);
 
 // Format the common response
@@ -520,7 +520,7 @@ int XrdXrootdProtocol::XeqFALst(XrdSfsFACtl &ctl)
 
 // Execute the action
 //
-   if ((rc = osFS->fsctl(SFS_FSCTL_FATTR, (const char *)&ctl, eInfo, CRED)))
+   if ((rc = osFS->FAttr(&ctl, eInfo, CRED)))
       return fsError(rc, XROOTD_MON_OPENR, eInfo, ctl.path, (char *)ctl.pcgi);
 
 // Check for more complicated return
@@ -576,7 +576,7 @@ int XrdXrootdProtocol::XeqFASet(XrdSfsFACtl &ctl, char *faVars, int faVLen)
 
 // Execute the action
 //
-   if ((rc = osFS->fsctl(SFS_FSCTL_FATTR, (const char *)&ctl, eInfo, CRED)))
+   if ((rc = osFS->FAttr(&ctl, eInfo, CRED)))
       return fsError(rc, XROOTD_MON_OPENW, eInfo, ctl.path, (char *)ctl.pcgi);
 
 // Format the response

@@ -62,6 +62,7 @@ add_library(
   XrdOfs/XrdOfsConfigPI.cc      XrdOfs/XrdOfsConfigPI.hh
   XrdOfs/XrdOfsEvr.cc           XrdOfs/XrdOfsEvr.hh
   XrdOfs/XrdOfsEvs.cc           XrdOfs/XrdOfsEvs.hh
+  XrdOfs/XrdOfsFAttr.cc
   XrdOfs/XrdOfsFSctl.cc
   XrdOfs/XrdOfsHandle.cc        XrdOfs/XrdOfsHandle.hh
   XrdOfs/XrdOfsPoscq.cc         XrdOfs/XrdOfsPoscq.hh

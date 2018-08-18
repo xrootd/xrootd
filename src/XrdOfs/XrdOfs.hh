@@ -220,6 +220,10 @@ public:
                               const XrdSecEntity        *client,
                               const char                *opaque = 0);
 
+        int            FAttr(      XrdSfsFACtl      *faReq,
+                                   XrdOucErrInfo    &eInfo,
+                             const XrdSecEntity     *client = 0);
+
         int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &out_error,
@@ -360,9 +364,6 @@ static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    XrdOfsHandle *hP);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    const char *y="");
-        int   ctlFAttr(XrdSfsFACtl            &faCtl,
-                       XrdOucErrInfo          &einfo,
-                       const XrdSecEntity     *client);
 static  int   fsError(XrdOucErrInfo &myError, int rc);
 const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
         int   Stall(XrdOucErrInfo  &, int, const char *);
