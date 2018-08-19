@@ -550,7 +550,7 @@ pyxrootd_docker_test:
   stage: test
   script:
     - docker pull gitlab-registry.cern.ch/dss/xrootd:pylatest
-    - sudo docker run -i gitlab-registry.cern.ch/dss/pyxrootd --name pyxrootd-container
+    - sudo docker run -i gitlab-registry.cern.ch/dss/xrootd:pylatest --name pyxrootd-container
     - docker exec pyxrootd-container sh -c "head -c 1000000 /dev/urandom > /tmp/smallfile"
     - docker exec pyxrootd-container sh -c "head -c 1000000 /dev/urandom > /tmp/smallcopy"
     - docker exec pyxrootd-container sh -c "head -c 100000000 /dev/urandom > /tmp/bigfile"
