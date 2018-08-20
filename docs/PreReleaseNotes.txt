@@ -22,6 +22,7 @@ Prerelease Notes
 
 
 + **Minor bug fixes**
+  * **[xrdcp]** Correct handling of --infiles option. Fixes #779
   * **[POSIX]** Avoid unnecessary cache open requests.
   * **[Server]** Follow protocol spec when returning file compression info. Fixes #721
 
