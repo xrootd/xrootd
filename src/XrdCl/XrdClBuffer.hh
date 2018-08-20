@@ -45,6 +45,23 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Move Constructor
+      //------------------------------------------------------------------------
+      Buffer( Buffer &&buffer )
+      {
+        Steal( std::move( buffer ) );
+      }
+
+      //------------------------------------------------------------------------
+      //! Move assignment operator
+      //------------------------------------------------------------------------
+      Buffer& operator=( Buffer && buffer )
+      {
+        Steal( std::move( buffer ) );
+        return *this;
+      }
+
+      //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       virtual ~Buffer() { Free(); }
@@ -228,6 +245,22 @@ namespace XrdCl
       }
 
     private:
+
+      void Steal( Buffer &&buffer )
+      {
+        pBuffer = buffer.pBuffer;
+        buffer.pBuffer = 0;
+
+        pSize = buffer.pSize;
+        buffer.pSize = 0;
+
+        pCursor = buffer.pCursor;
+        buffer.pCursor = 0;
+      }
+
+      Buffer( const Buffer& );
+      Buffer& operator=( const Buffer& );
+
       char     *pBuffer;
       uint32_t  pSize;
       uint32_t  pCursor;
