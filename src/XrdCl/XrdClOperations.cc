@@ -105,14 +105,32 @@ namespace XrdCl {
     //----------------------------------------------------------------------------
 
     Workflow::Workflow(Operation<Handled> &op, bool enableLogging): firstOperation(&op), status(NULL), logging(enableLogging) {
-        semaphore = NULL;
+        firstOperation->AssignToWorkflow(this);
+    }
+
+    Workflow::Workflow(Operation<Handled> &&op, bool enableLogging): firstOperation(&op), status(NULL), logging(enableLogging) {
         firstOperation->AssignToWorkflow(this);
     }
 
     Workflow::Workflow(Operation<Handled> *op, bool enableLogging): firstOperation(op), status(NULL), logging(enableLogging) {
-        semaphore = NULL;
         firstOperation->AssignToWorkflow(this);
     }
+
+    Workflow::Workflow(Operation<Configured> &op, bool enableLogging): status(NULL), logging(enableLogging) {
+        firstOperation = &(op.AddDefaultHandler());
+        firstOperation->AssignToWorkflow(this);
+    }
+
+    Workflow::Workflow(Operation<Configured> &&op, bool enableLogging): status(NULL), logging(enableLogging) {
+        firstOperation = &(op.AddDefaultHandler());
+        firstOperation->AssignToWorkflow(this);
+    }
+
+    Workflow::Workflow(Operation<Configured> *op, bool enableLogging): status(NULL), logging(enableLogging) {
+        firstOperation = &(op->AddDefaultHandler());
+        firstOperation->AssignToWorkflow(this);
+    }
+
 
     Workflow::~Workflow(){
         delete firstOperation;

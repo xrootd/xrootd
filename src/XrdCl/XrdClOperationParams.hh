@@ -89,7 +89,7 @@ namespace XrdCl {
                 return empty;
             }
 
-            std::string GetValue(){
+            std::string& GetValue(){
                 if(IsEmpty()){
                     throw std::logic_error("Cannot get parameter: value has not been specified");
                 }
@@ -100,6 +100,36 @@ namespace XrdCl {
             std::string value;
             bool empty;
     };
+
+
+    template<>
+    class OptionalParam<Buffer>{
+        public:
+        
+            OptionalParam(Buffer &buf): empty(false){
+                value = std::move(buf);
+            }
+
+            OptionalParam(): empty(true){}
+
+            OptionalParam(NotDefParam notdef): empty(true){}
+
+            bool IsEmpty(){
+                return empty;
+            }
+
+            Buffer& GetValue(){
+                if(IsEmpty()){
+                    throw std::logic_error("Cannot get parameter: value has not been specified");
+                }
+                return value;
+            }
+
+        private:
+            Buffer value;
+            bool empty;
+    };
+
 
     //--------------------------------------------------------------------
     //! Container to store file operation parameters
@@ -125,7 +155,7 @@ namespace XrdCl {
                 AnyObject *obj = paramsMap[bucket][T::key];
                 typename T::type *valuePtr = 0;
                 obj->Get(valuePtr);
-                return *valuePtr;
+                return std::move(*valuePtr);
             }
 
             //------------------------------------------------------------
@@ -156,7 +186,6 @@ namespace XrdCl {
             //------------------------------------------------------------
             template <typename T>
             void SetParam(typename T::type value, int bucket = 1){
-                typename T::type *valuePtr = new typename T::type(value);
                 if(!BucketExists(bucket)){
                     paramsMap[bucket] = std::map<std::string, AnyObject*>();
                 }
@@ -165,6 +194,7 @@ namespace XrdCl {
                     oss<<"Parameter "<<T::key<<" has already been set in bucket "<<bucket;
                     throw std::logic_error(oss.str());
                 }
+                typename T::type *valuePtr = new typename T::type(value);
                 AnyObject *obj = new AnyObject();
                 obj->Set(valuePtr, true);
                 paramsMap[bucket][T::key] = obj;
