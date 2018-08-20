@@ -51,34 +51,38 @@ namespace XrdCl {
             virtual void HandleResponseWithHosts(XRootDStatus *status, AnyObject *response, HostList *hostList){
                 if(wrapper){
                     responseHandler->HandleResponseWithHosts(status, response, hostList);
+                    delete this;
                 } else {
-                    CleanMemory(status, response, hostList);
+                    delete hostList;
+                    HandleResponse(status, response);
                 }
-                delete this;
             }
 
             virtual void HandleResponse(XRootDStatus *status, AnyObject *response){
                 if(wrapper){
                     responseHandler->HandleResponse(status, response);
                 } else {
-                    CleanMemory(status, response, NULL);
+                    delete status;
+                    delete response;
                 }
                 delete this;
             }
 
+            //------------------------------------------------------------------
+            //! Saves value in param container so that in can be used in 
+            //! next operation 
+            //!
+            //! @tparam T       type of the value which will be saved
+            //! @param value    value to save
+            //! @param bucket   bucket in which value will be saved
+            //------------------------------------------------------------------
             template <typename T>
             void ForwardParam(typename T::type value, int bucket = 1){
                 container->SetParam<T>(value, bucket);
             }
 
         private:
-            void CleanMemory(XRootDStatus *status, AnyObject *response, HostList *hostList){
-                delete status;
-                delete response;
-                delete hostList;
-            }
-
-            std::shared_ptr<ParamsContainer> GetParamsContainer(){
+            std::shared_ptr<ParamsContainer>& GetParamsContainer(){
                 return container;
             }
 
@@ -101,14 +105,42 @@ namespace XrdCl {
             //!
             //! @param op first operation of the sequence
             //------------------------------------------------------------------------
-            Workflow(Operation<Handled>& op, bool enableLogging = true);
+           explicit Workflow(Operation<Handled>& op, bool enableLogging = true);
 
             //------------------------------------------------------------------------
             //! Constructor
             //!
             //! @param op first operation of the sequence
             //------------------------------------------------------------------------
-            Workflow(Operation<Handled>* op, bool enableLogging = true);
+            explicit Workflow(Operation<Handled>&& op, bool enableLogging = true);
+
+            //------------------------------------------------------------------------
+            //! Constructor
+            //!
+            //! @param op first operation of the sequence
+            //------------------------------------------------------------------------
+            explicit Workflow(Operation<Handled>* op, bool enableLogging = true);
+
+            //------------------------------------------------------------------------
+            //! Constructor
+            //!
+            //! @param op first operation of the sequence
+            //------------------------------------------------------------------------
+            explicit Workflow(Operation<Configured>& op, bool enableLogging = true);
+
+            //------------------------------------------------------------------------
+            //! Constructor
+            //!
+            //! @param op first operation of the sequence
+            //------------------------------------------------------------------------
+            explicit Workflow(Operation<Configured>&& op, bool enableLogging = true);
+
+            //------------------------------------------------------------------------
+            //! Constructor
+            //!
+            //! @param op first operation of the sequence
+            //------------------------------------------------------------------------
+            explicit Workflow(Operation<Configured>* op, bool enableLogging = true);
 
             ~Workflow();
 
@@ -217,7 +249,7 @@ namespace XrdCl {
     };
 
     //----------------------------------------------------------------------
-    //! File operation template
+    //! Operation template
     //! 
     //! @tparam state   describes current operation configuration state
     //----------------------------------------------------------------------
@@ -271,8 +303,34 @@ namespace XrdCl {
             //! @return     handled operation
             //------------------------------------------------------------------
             Operation<Handled>& operator|(Operation<Handled> &op){
-                static_assert(state == Handled, "Operator || is available only for type Operation<Handled>");
+                static_assert(state == Handled, "Operator | is available only for types Operation<Handled> and Operation<Configured>");
                 AddOperation(&op);
+                return *this;
+            }
+
+            //------------------------------------------------------------------
+            //! Add operation to handler
+            //!
+            //! @param op   operation to add
+            //! @return     handled operation
+            //------------------------------------------------------------------
+            Operation<Handled>& operator|(Operation<Configured> &op){
+                static_assert(state == Handled, "Operator | is available only for type Operation<Handled>");
+                auto &handledOperation = op.AddDefaultHandler();
+                AddOperation(&handledOperation);
+                return *this;
+            }
+
+            //------------------------------------------------------------------
+            //! Add operation to handler
+            //!
+            //! @param op   operation to add
+            //! @return     handled operation
+            //------------------------------------------------------------------
+            Operation<Handled>& operator|(Operation<Configured> &&op){
+                static_assert(state == Handled, "Operator | is available only for type Operation<Handled>");
+                auto &handledOperation = op.AddDefaultHandler();
+                AddOperation(&handledOperation);
                 return *this;
             }
 
@@ -285,7 +343,7 @@ namespace XrdCl {
             //!
             //! @param h  operation handler
             //------------------------------------------------------------------
-            Operation(std::unique_ptr<OperationHandler> h): handler(std::move(h)){}
+            explicit Operation(std::unique_ptr<OperationHandler> h): handler(std::move(h)){}
 
             //------------------------------------------------------------------
             //! Save handler and change template type to handled
@@ -313,7 +371,7 @@ namespace XrdCl {
             //!                 previous operation
             //! @return         status of the operation
             //------------------------------------------------------------------
-            virtual XRootDStatus Run(std::shared_ptr<ParamsContainer> params, int bucket = 1) = 0;
+            virtual XRootDStatus Run(std::shared_ptr<ParamsContainer> &params, int bucket = 1) = 0;
 
             //------------------------------------------------------------------
             //! Handle error caused by missing parameter
@@ -340,8 +398,169 @@ namespace XrdCl {
                 }
             }
 
+            Operation<Handled>& AddDefaultHandler(){
+                static_assert(state == Configured, "AddDefaultHandler method is available only for type Operation<Configured>");
+                auto handler = new ForwardingHandler();
+                auto &handledOperation = (*this) >> handler;
+                return handledOperation;
+            }
+
             std::unique_ptr<OperationHandler> handler;
     };
+
+    //------------------------------------------------------------------
+    //! Add operation to handler
+    //!
+    //! @param op   operation to add
+    //! @return     handled operation
+    //------------------------------------------------------------------
+    template<> Operation<Handled>& Operation<Configured>::operator|(Operation<Handled> &op){
+        auto &currentOperation = AddDefaultHandler();
+        currentOperation.AddOperation(&op);
+        return currentOperation;
+    }
+
+    //------------------------------------------------------------------
+    //! Add operation to handler
+    //!
+    //! @param op   operation to add
+    //! @return     handled operation
+    //------------------------------------------------------------------
+    template<> Operation<Handled>& Operation<Configured>::operator|(Operation<Configured> &op){
+        auto &currentOperation = AddDefaultHandler();
+        auto &handledOperation = op.AddDefaultHandler();
+        currentOperation.AddOperation(&handledOperation);
+        return currentOperation;
+    }   
+
+    //------------------------------------------------------------------
+    //! Add operation to handler
+    //!
+    //! @param op   operation to add
+    //! @return     handled operation
+    //------------------------------------------------------------------
+    template<> Operation<Handled>& Operation<Configured>::operator|(Operation<Configured> &&op){
+        auto &currentOperation = AddDefaultHandler();
+        auto &handledOperation = op.AddDefaultHandler();
+        currentOperation.AddOperation(&handledOperation);
+        return currentOperation;
+    }   
+
+
+    //-----------------------------------------------------------------------
+    //! Parallel operations
+    //!
+    //! @tparam state   describes current operation configuration state 
+    //-----------------------------------------------------------------------
+    template <State state = Bare>
+    class ParallelOperations: public Operation<state> {
+        template<State> friend class ParallelOperations;
+
+        public:
+            //------------------------------------------------------------------
+            //! Constructor
+            //!
+            //! @param operations   list of operations to run in parallel
+            //------------------------------------------------------------------
+            ParallelOperations(std::initializer_list<Operation<Handled>*> operations): Operation<state>(nullptr){
+                static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
+                std::initializer_list<Operation<Handled>*>::iterator it = operations.begin();
+                while(it != operations.end()){
+                    std::unique_ptr<Workflow> w(new Workflow(*it, false));
+                    workflows.push_back(std::move(w));
+                    ++it;
+                }
+            }
+
+            template<typename Container>
+            ParallelOperations(Container &container): Operation<state>(nullptr){
+                static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
+                static_assert(std::is_same<typename Container::value_type, Operation<Handled>*>::value, "Invalid type in container");
+                typename Container::iterator it = container.begin();
+                while(it != container.end()){
+                    std::unique_ptr<Workflow> w(new Workflow(*it, false));
+                    workflows.push_back(std::move(w));
+                    ++it;
+                }
+            }
+            
+            //------------------------------------------------------------------
+            //! Get description of parallel operations flow
+            //!
+            //! @return std::string description
+            //------------------------------------------------------------------
+            std::string ToString(){
+                std::ostringstream oss;
+                oss<<"Parallel(";
+                for(int i=0; i<workflows.size(); i++){
+                    oss<<workflows[i]->ToString();
+                    if(i != workflows.size() - 1){
+                        oss<<" && ";
+                    }
+                }
+                oss<<")";
+                return oss.str();
+            }
+
+        private:
+            //------------------------------------------------------------------------
+            //! Run operations 
+            //!
+            //! @param params           parameters container
+            //! @param bucketDefault    bucket in parameters container
+            //!                         (not used here, provided only for compatibility with the interface )
+            //! @return XRootDStatus    status of the operations
+            //------------------------------------------------------------------------
+            XRootDStatus Run(std::shared_ptr<ParamsContainer> &params, int bucketDefault = 0){
+                for(int i=0; i<workflows.size(); i++){
+                    int bucket = i + 1;
+                    workflows[i]->Run(params, bucket);
+                }
+
+                bool statusOK = true;
+                std::string statusMessage = "";
+
+                for(int i=0; i<workflows.size(); i++){
+                    workflows[i]->Wait();                    
+                    auto result = workflows[i]->GetStatus();
+                    if(!result.IsOK()){
+                        statusOK = false;
+                        statusMessage = result.ToStr();
+                        break;
+                    }
+                }
+                const uint16_t status = statusOK ? stOK : stError;
+
+                XRootDStatus *st = new XRootDStatus(status, statusMessage);
+                this->handler->HandleResponseWithHosts(st, NULL, NULL);
+
+                return XRootDStatus();
+            }
+
+            //------------------------------------------------------------------
+            //! Add handler and change operation status to handled
+            //!
+            //! @param h                        handler to add
+            //! @return Operation<Handled>*     operation with handled status
+            //------------------------------------------------------------------
+            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
+                ParallelOperations<Handled> *c = new ParallelOperations<Handled>(std::move(workflows), std::move(h));
+                return c;
+            }
+
+            //------------------------------------------------------------------
+            //! Internal constructor - used to change status 
+            //!
+            //! @param workflowsArray   array of workflows to run
+            //! @param h                parallel operations handler
+            //------------------------------------------------------------------
+            ParallelOperations(std::vector<std::unique_ptr<Workflow>> workflowsArray, std::unique_ptr<OperationHandler> h): Operation<state>(std::move(h)){
+                workflows.swap(workflowsArray);
+            }
+
+            std::vector<std::unique_ptr<Workflow>> workflows;
+    };
+    typedef ParallelOperations<Configured> Parallel;
 
 }
 
