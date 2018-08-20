@@ -550,15 +550,15 @@ pyxrootd_docker_test:
   stage: test
   script:
     - docker pull gitlab-registry.cern.ch/dss/xrootd:pylatest
-    - sudo docker run -i gitlab-registry.cern.ch/dss/xrootd:pylatest --name pyxrootd-container
+    - docker run -i --name pyxrootd-container -h pyxrootd-container gitlab-registry.cern.ch/dss/xrootd:pylatest /sbin/init
     - docker exec pyxrootd-container sh -c "head -c 1000000 /dev/urandom > /tmp/smallfile"
     - docker exec pyxrootd-container sh -c "head -c 1000000 /dev/urandom > /tmp/smallcopy"
     - docker exec pyxrootd-container sh -c "head -c 100000000 /dev/urandom > /tmp/bigfile"
     - docker exec pyxrootd-container sh -c "head -c 100000000 /dev/urandom > /tmp/bigcopy"
     - docker exec pyxrootd-container sh -c "cd xrootd/bindings/python && pytest"
-    - docker rm -f metaman
-    - docker rmi $(docker images -f "dangling=true" -q)
-
+    - docker rm -f pyxrootd-container
+    - docker rmi -f gitlab-registry.cern.ch/dss/xrootd:pylatest
+    
   tags:
     - xrootd-shell
   dependencies:
