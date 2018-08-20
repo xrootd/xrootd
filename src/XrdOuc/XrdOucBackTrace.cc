@@ -39,12 +39,14 @@
 #include <cxxabi.h>
 #endif
 
-#if defined(__FreeBSD__)
-#define TidType pthread_t
-#define TidFmt  "%p"
-#else
+// Linux and MacOS provide actual thread number, others a thread pointer.
+//
+#if defined(__linux__) || defined(__APPLE__)
 #define TidType long long
 #define TidFmt  "%lld"
+#else
+#define TidType pthread_t
+#define TidFmt  "%p"
 #endif
 
 #include "XProtocol/XProtocol.hh"
