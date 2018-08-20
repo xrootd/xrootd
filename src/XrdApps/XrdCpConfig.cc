@@ -332,8 +332,6 @@ do{while(optind < Argc && Legacy(optind)) {}
 //
    if (getenv("XRD_MAKEPATH")) OpSpec |= DoPath;
 
-   if( parmCnt > 1 )
-   {
 // Process the destination first as it is special
 //
      dstFile = new XrdCpFile(parmVal[--parmCnt], rc);
@@ -354,7 +352,6 @@ do{while(optind < Argc && Legacy(optind)) {}
         {if (rc != ENOENT || (Argc - optind - 1) > 1 || OpSpec & DoRecurse)
             FMSG(strerror(rc) <<" processing " <<dstFile->Path, 2);
         }
-   }
 
 // Now pick up all the source files from the command line
 //
