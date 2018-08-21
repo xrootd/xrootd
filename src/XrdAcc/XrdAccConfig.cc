@@ -107,6 +107,7 @@ XrdAccConfig::XrdAccConfig()
    dbpath        = strdup("/opt/xrd/etc/Authfile");
    Database      = 0;
    Authorization = 0;
+   spChar        = 0;
 
 // Establish other defaults
 //
@@ -327,12 +328,27 @@ int XrdAccConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute
    TS_Xeq("gidretran",     xgrt);
    TS_Xeq("nisdomain",     xnis);
    TS_Bit("pgo",           options, ACC_PGO);
+   TS_Xeq("spacechar",     xspc);
 
 // No match found, complain.
 //
    Eroute.Emsg("Config", "unknown directive", var);
    Config.Echo();
    return 1;
+}
+  
+/******************************************************************************/
+/*                              s u b S p a c e                               */
+/******************************************************************************/
+
+void XrdAccConfig::subSpace(char *id)
+{
+   char *spc;
+
+   while((spc = index(id, spChar)))
+        {*spc = ' ';
+         id = spc+1;
+        }
 }
   
 /******************************************************************************/
@@ -514,6 +530,32 @@ int XrdAccConfig::xnis(XrdOucStream &Config, XrdSysError &Eroute)
       GroupMaster.SetDomain(strdup(val));
       return 0;
 }
+
+/******************************************************************************/
+/*                                  x s p c                                   */
+/******************************************************************************/
+
+/* Function: xspc
+
+   Purpose:  To parse the directive: spacechar <char>
+
+             <char>    the character that is to be considred as a space.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdAccConfig::xspc(XrdOucStream &Config, XrdSysError &Eroute)
+{
+    char *val;
+
+      val = Config.GetWord();
+      if (!val || !val[0])
+         {Eroute.Emsg("Config","spacechar argument not specified");return 1;}
+      if (strlen(val) != 1)
+         {Eroute.Emsg("Config","invalid spacechar argument -", val);return 1;}
+      spChar = *val;
+      return 0;
+}
   
 /******************************************************************************/
 /*                   D a t a b a s e   P r o c e s s i n g                    */
@@ -560,6 +602,7 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
    switch(rectype)
          {case    Group_ID: hp = tabs.G_Hash;
                             gtype=XrdAccUnixGroup;
+                            if (spChar) subSpace(authid);
                             break;
           case     Host_ID: hp = tabs.H_Hash;
                             domname = (authid[0] == '.');
@@ -570,14 +613,17 @@ int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
                             gtype=XrdAccNetGroup;
                             break;
           case      Org_ID: hp = tabs.O_Hash;
+                            if (spChar) subSpace(authid);
                             break;
           case     Role_ID: hp = tabs.R_Hash;
+                            if (spChar) subSpace(authid);
                             break;
           case Template_ID: hp = tabs.T_Hash;
                             break;
           case     User_ID: hp = tabs.U_Hash;
                             alluser = (authid[0] == '*' && !authid[1]);
                             anyuser = (authid[0] == '=' && !authid[1]);
+                            if (!alluser && !anyuser && spChar) subSpace(authid);
                             break;
           case      Xxx_ID: hp = 0; xclsv = true;
                             break;
@@ -730,7 +776,8 @@ int XrdAccConfig::idDef(XrdSysError &Eroute,
         {if (!(idType = Database->getID(&idname))) break;
          haveID = true;
          switch(idType)
-               {case 'g': if (theID.grp)  idDup = true;
+               {case 'g': if (spChar) subSpace(idname);
+                          if (theID.grp)  idDup = true;
                              else{theID.grp   = strdup(idname);
                                   theID.glen  = strlen(idname);
                                  }
@@ -741,13 +788,19 @@ int XrdAccConfig::idDef(XrdSysError &Eroute,
                                  }
                           break;
                 case 'o': if (theID.org)  idDup = true;
-                             else theID.org   = strdup(idname);
+                             else {if (spChar) subSpace(idname);
+                                   theID.org   = strdup(idname);
+                                  }
                           break;
                 case 'r': if (theID.role) idDup = true;
-                             else theID.role  = strdup(idname);
+                             else {if (spChar) subSpace(idname);
+                                   theID.role  = strdup(idname);
+                                  }
                           break;
                 case 'u': if (theID.user) idDup = true;
-                             else theID.user  = strdup(idname);
+                             else {if (spChar) subSpace(idname);
+                                   theID.user  = strdup(idname);
+                                  }
                           break;
                 default:  snprintf(buff, sizeof(buff), "'%c: %s' for",
                                                        idType, idname);
