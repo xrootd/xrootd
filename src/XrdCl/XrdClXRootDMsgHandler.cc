@@ -52,23 +52,30 @@ namespace
   class WaitTask: public XrdCl::Task
   {
     public:
-      WaitTask( XrdCl::XRootDMsgHandler *handler ): pHandler( handler )
+
+      WaitTask( XrdCl::MsgHandlerRef &handlerRef ): pHandlerRef( handlerRef )
       {
         std::ostringstream o;
-        o << "WaitTask for: 0x" << handler->GetRequest();
+        o << "WaitTask for: 0x" << handlerRef->GetRequest();
         SetName( o.str() );
+      }
+
+      ~WaitTask()
+      {
+        pHandlerRef.Free();
       }
 
       virtual time_t Run( time_t now )
       {
-        pHandler->WaitDone( now );
+        XrdSysMutexHelper lck( pHandlerRef );
+        if( pHandlerRef ) pHandlerRef->WaitDone( now );
         return 0;
       }
-    private:
-      XrdCl::XRootDMsgHandler *pHandler;
-  };
 
-};
+    private:
+      XrdCl::MsgHandlerRef &pHandlerRef;
+  };
+}
 
 namespace XrdCl
 {
@@ -362,6 +369,11 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
+    // we have an response for the message so it's not in fly anymore
+    //--------------------------------------------------------------------------
+    pMsgInFly = false;
+
+    //--------------------------------------------------------------------------
     // Reset the aggregated wait (used to omit wait response in case of Metalink
     // redirector)
     //--------------------------------------------------------------------------
@@ -653,7 +665,7 @@ namespace XrdCl
         if( resendTime < pExpiration )
         {
           TaskManager *taskMgr = pPostMaster->GetTaskManager();
-          taskMgr->RegisterTask( new WaitTask( this ), resendTime );
+          taskMgr->RegisterTask( new WaitTask( pRef->Self() ), resendTime );
         }
         else
         {
@@ -728,6 +740,12 @@ namespace XrdCl
 
     if( streamNum != 0 )
       return 0;
+
+    //--------------------------------------------------------------------------
+    // Invalidate pRef in case there is a WaitTask
+    //--------------------------------------------------------------------------
+    if( !status.IsOK() && status.code == errOperationInterrupted )
+      pRef->Invalidate();
 
     HandleError( status, 0 );
     return RemoveHandler;
@@ -1063,7 +1081,10 @@ namespace XrdCl
                  pUrl.GetHostId().c_str(), message->GetDescription().c_str() );
       Status st = pPostMaster->Receive( pUrl, this, pExpiration );
       if( st.IsOK() )
+      {
+        pMsgInFly = true;
         return;
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -1149,7 +1170,8 @@ namespace XrdCl
     if( pSidMgr )
     {
       ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
-      if( !status->IsOK() && status->code == errOperationExpired )
+      if( !status->IsOK() && pMsgInFly &&
+          ( status->code == errOperationExpired || status->code == errOperationInterrupted ) )
         pSidMgr->TimeOutSID( req->header.streamid );
       else
         pSidMgr->ReleaseSID( req->header.streamid );
@@ -1814,15 +1836,6 @@ namespace XrdCl
   void XRootDMsgHandler::HandleError( Status status, Message *msg )
   {
     //--------------------------------------------------------------------------
-    // Close the redirect entry if necessary
-    //--------------------------------------------------------------------------
-    if( pRdirEntry )
-    {
-      pRdirEntry->status = status;
-      pRedirectTraceBack.push_back( std::move( pRdirEntry ) );
-    }
-
-    //--------------------------------------------------------------------------
     // If there was no error then do nothing
     //--------------------------------------------------------------------------
     if( status.IsOK() )
@@ -1966,8 +1979,10 @@ namespace XrdCl
           return st;
         }
       }
+
+      pUrl = url;
     }
-    pUrl = url;
+
     if( pUrl.IsMetalink() && pFollowMetalink )
       return pPostMaster->Redirect( pUrl, pRequest, this );
     else if( pUrl.IsLocalFile() )
