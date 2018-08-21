@@ -834,9 +834,47 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           TRACEI(REQ, " Setting dn: " << SecEntity.moninfo);
         }
 
-        // TODO: compare the xrdhttphost with the real client IP
-        // If they are different then reject
+        nfo = CurrentReq.opaque->Get("xrdhttprole");
+        if (nfo) {
+          TRACEI(DEBUG, " Setting role: " << nfo);
+          SecEntity.role = unquote(nfo);
+          TRACEI(REQ, " Setting role: " << SecEntity.role);
+        }
 
+        nfo = CurrentReq.opaque->Get("xrdhttpgrps");
+        if (nfo) {
+          TRACEI(DEBUG, " Setting grps: " << nfo);
+          SecEntity.grps = unquote(nfo);
+          TRACEI(REQ, " Setting grps: " << SecEntity.grps);
+        }
+        
+        nfo = CurrentReq.opaque->Get("xrdhttpendorsements");
+        if (nfo) {
+          TRACEI(DEBUG, " Setting endorsements: " << nfo);
+          SecEntity.endorsements = unquote(nfo);
+          TRACEI(REQ, " Setting endorsements: " << SecEntity.endorsements);
+        }
+        
+        nfo = CurrentReq.opaque->Get("xrdhttpcredslen");
+        if (nfo) {
+          TRACEI(DEBUG, " Setting credslen: " << nfo);
+          char *s1 = unquote(nfo);
+          if (s1 && s1[0]) {
+            SecEntity.credslen = atoi(s1);
+            TRACEI(REQ, " Setting credslen: " << SecEntity.credslen);
+          }
+          if (s1) free(s1);
+        }
+        
+        if (SecEntity.credslen) {
+          nfo = CurrentReq.opaque->Get("xrdhttpcreds");
+          if (nfo) {
+            TRACEI(DEBUG, " Setting creds: " << nfo);
+            SecEntity.creds = unquote(nfo);
+            TRACEI(REQ, " Setting creds: " << SecEntity.creds);
+          }
+        }
+        
         char hash[512];
 
         calcHashes(hash, CurrentReq.resource.c_str(), (kXR_int16) CurrentReq.request,

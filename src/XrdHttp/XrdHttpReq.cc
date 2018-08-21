@@ -730,6 +730,60 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
         }
       }
 
+      if (secent->role) {
+        s += "&xrdhttprole=";
+        char *s1 = quote(secent->role);
+        if (s1) {
+          s += s1;
+          free(s1);
+        }
+      }
+      
+      if (secent->grps) {
+        s += "&xrdhttpgrps=";
+        char *s1 = quote(secent->grps);
+        if (s1) {
+          s += s1;
+          free(s1);
+        }
+      }
+      
+      if (secent->endorsements) {
+        s += "&xrdhttpendorsements=";
+        char *s1 = quote(secent->endorsements);
+        if (s1) {
+          s += s1;
+          free(s1);
+        }
+      }
+      
+      if (secent->credslen) {
+        s += "&xrdhttpcredslen=";
+        char buf[16];
+        sprintf(buf, "%d", secent->credslen);
+        char *s1 = quote(buf);
+        if (s1) {
+          s += s1;
+          free(s1);
+        }
+      }
+      
+      if (secent->credslen) {
+        if (secent->creds) {
+          s += "&xrdhttpcreds=";
+          // Apparently this string might be not 0-terminated (!)
+          char *zerocreds = strndup(secent->creds, secent->credslen);
+          if (zerocreds) {
+            char *s1 = quote(zerocreds);
+            if (s1) {
+              s += s1;
+              free(s1);
+            }
+            free(zerocreds);
+          }
+        }
+      }
+      
     }
   }
 
