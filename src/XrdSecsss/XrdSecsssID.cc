@@ -180,7 +180,7 @@ int XrdSecsssID::Register(const char *lid, XrdSecEntity *eP, int doRep)
 //
    if (!(idP = genID(eP))) return 0;
    myMutex.Lock(); 
-   rc = (Registry.Add(lid, idP, hOpt) ? 0 : 1);
+   rc = (Registry.Add(lid, idP, 0, XrdOucHash_Options(hOpt)) ? 0 : 1);
    myMutex.UnLock();
    return rc;
 }
