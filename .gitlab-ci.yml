@@ -556,8 +556,10 @@ pyxrootd_docker_test:
     - docker exec pyxrootd-container sh -c "head -c 100000000 /dev/urandom > /tmp/bigfile"
     - docker exec pyxrootd-container sh -c "head -c 100000000 /dev/urandom > /tmp/bigcopy"
     - docker exec pyxrootd-container sh -c "cd xrootd/bindings/python && pytest"
-    - docker rm -f pyxrootd-container
-    - docker rmi -f gitlab-registry.cern.ch/dss/xrootd:pylatest
+    
+  after_script:
+    - sudo docker rm -f pyxrootd-container
+    - sudo rmi -f gitlab-registry.cern.ch/dss/xrootd:pylatest
     
   tags:
     - xrootd-shell
