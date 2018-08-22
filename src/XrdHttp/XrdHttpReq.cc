@@ -1525,7 +1525,8 @@ int XrdHttpReq::ProcessHTTPReq() {
 
       l = s.length() + 1;
       xrdreq.mv.dlen = htonl(l);
-
+      xrdreq.mv.arg1len = resourceplusopaque.length();
+      
       if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
         prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0);
         return -1;
