@@ -47,6 +47,8 @@ public:
 
 XrdSsiSessReal  *nextSess;
 
+const char      *GetKey() {return resKey;}
+
         void     InitSession(XrdSsiServReal *servP,
                              const char     *sName,
                              int             uent,
@@ -60,9 +62,14 @@ XrdSsiMutex     *MutexP() {return &sessMutex;}
 
         bool     Run(XrdSsiRequest *reqP);
 
+        void     SetKey(const char *key)
+                       {if (resKey) free(resKey);
+                        resKey =  (key ? strdup(key) : 0);
+                       }
+
         void     TaskFinished(XrdSsiTaskReal *tP);
 
-        void     UnHold();
+        void     UnHold(bool cleanup=true);
 
         void     UnLock() {sessMutex.UnLock();}
 
@@ -77,7 +84,7 @@ XrdSsiMutex     *MutexP() {return &sessMutex;}
                                 bool            hold=false)
                                : XrdSsiEvent("SessReal"),
                                  sessMutex(XrdSsiMutex::Recursive),
-                                 sessName(0), sessNode(0)
+                                 resKey(0), sessName(0), sessNode(0)
                                  {InitSession(servP, sName, uent, hold);}
 
                 ~XrdSsiSessReal();
@@ -94,6 +101,7 @@ XrdSsiServReal  *myService;
 XrdSsiTaskReal  *attBase;
 XrdSsiTaskReal  *freeTask;
 XrdSsiRequest   *requestP;
+char            *resKey;
 char            *sessName;
 char            *sessNode;
 uint32_t         nextTID;

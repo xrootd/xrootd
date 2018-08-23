@@ -127,6 +127,7 @@ XrdSsiSessReal::~XrdSsiSessReal()
 {
    XrdSsiTaskReal *tP;
 
+   if (resKey)   free(resKey);
    if (sessName) free(sessName);
    if (sessNode) free(sessNode);
 
@@ -150,6 +151,7 @@ void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName,
    isHeld    = hold;
    inOpen    = false;
    noReuse   = false;
+   if (resKey) {free(resKey); resKey = 0;}
    if (sessName) free(sessName);
    sessName  = (sName ? strdup(sName) : 0);
    if (sessNode) free(sessNode);
@@ -310,6 +312,7 @@ void XrdSsiSessReal::Shutdown(XrdCl::XRootDStatus &epStatus, bool onClose)
                        sessName, sessNode, eNum);
        Log.Emsg("Shutdown", mBuff, eText.c_str());
        sessMutex.UnLock();
+       myService->Recycle(this, false);
       } else {
        if (sessName) {free(sessName); sessName = 0;}
        if (sessNode) {free(sessNode); sessNode = 0;}
@@ -354,14 +357,18 @@ void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
 /*                                U n H o l d                                 */
 /******************************************************************************/
   
-void XrdSsiSessReal::UnHold()
+void XrdSsiSessReal::UnHold(bool cleanup)
 {
    XrdSsiMutexMon sessMon(sessMutex);
+
+// Immediately stopo reuse of this object
+//
+   if (isHeld && resKey && myService) myService->StopReuse(resKey);
 
 // Turn off the hold flag and if we have no attached tasks, schedule shutdown
 //
    isHeld = false;
-   if (!attBase) XrdSsi::schedP->Schedule(new CleanUp(this));
+   if (cleanup && !attBase) XrdSsi::schedP->Schedule(new CleanUp(this));
 }
 
 /******************************************************************************/

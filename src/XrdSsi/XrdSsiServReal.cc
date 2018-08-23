@@ -213,6 +213,11 @@ void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
        return;
       }
 
+// Tag the session object with the resource key if it is being held. We need
+// to do this before doing provision as that may fail at any point.
+//
+   if (hold) sObj->SetKey(resKey.c_str());
+
 // Now just provision this resource which will execute the request should it
 // be successful. If Provision() fails, we need to delete the session object
 // because its file object now is in an usable state (funky client interface).
@@ -220,7 +225,7 @@ void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
    if (!(sObj->Provision(&reqRef, epURL))) Recycle(sObj, false);
 
 // If this was started with a reusable resource, put the session in the cache.
-// The resource key was constructed by the call to ResReuse() and teh cache
+// The resource key was constructed by the call to ResReuse() and the cache
 // mutex is still held at this point (will be released upon return).
 //
    if (hold) resCache[resKey] = sObj;
@@ -233,13 +238,18 @@ void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
 void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj, bool reuse)
 {
    EPNAME("Recycle");
-   static const char *tident = "ServReal";
+   static const char *tident = "ServRecycle";
+   const char *resKey;
 
 // Clear all pending events (likely not needed)
 //
    sObj->ClrEvent();
 
-// Add to queue unless we have too many of these
+// Remove entry from the reusable cache if present
+//
+   if ((resKey = sObj->GetKey())) StopReuse(resKey);
+
+// Add to queue unless we have too many of these or caller wants a deletion.
 //
    myMutex.Lock();
    actvSes--;
@@ -304,4 +314,25 @@ bool XrdSsiServReal::Stop()
    myMutex.UnLock();
    delete this;
    return true;
+}
+
+/******************************************************************************/
+/*                             S t o p R e u s e                              */
+/******************************************************************************/
+  
+void XrdSsiServReal::StopReuse(const char *resKey)
+{
+   EPNAME("StopReuse");
+   static const char *tident = "ServReuse";
+   std::map<std::string, XrdSsiSessReal *>::iterator it;
+
+// Remove this entry from the reuse cache
+//
+   rcMutex.Lock();
+   it = resCache.find(resKey);
+   if (it != resCache.end())
+      {resCache.erase(it);
+       DEBUG("resCache " <<resKey <<" removed.");
+      }
+    rcMutex.UnLock();
 }

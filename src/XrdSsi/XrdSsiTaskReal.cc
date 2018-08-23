@@ -387,7 +387,10 @@ bool XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status) // Session is locked!
    tStat  = isDone;
    mhPend = false;
    defer  = false;
-   if (sessP) sessP->UnLock();
+   if (sessP)
+      {sessP->UnHold(false);
+       sessP->UnLock();
+      }
 
 // Reflect an error to the request object.
 //
