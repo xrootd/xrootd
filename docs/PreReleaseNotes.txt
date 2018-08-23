@@ -20,7 +20,7 @@ Prerelease Notes
   * **[TPC]** Allow number of streams to use to be passed to the server.
 
 + **Major bug fixes**
-
+  * **[SSI]** Do not leak memory when a fatal error occurs. Fixes #775
 
 + **Minor bug fixes**
   * **[Secsss]** Pass correct parameters when registering an ID. Fixes #689
