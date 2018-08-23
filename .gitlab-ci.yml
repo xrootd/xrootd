@@ -559,7 +559,7 @@ pyxrootd_docker_test:
     
   after_script:
     - sudo docker rm -f pyxrootd-container
-    - sudo rmi -f gitlab-registry.cern.ch/dss/xrootd:pylatest
+    - sudo docker rmi -f gitlab-registry.cern.ch/dss/xrootd:pylatest
     
   tags:
     - xrootd-shell
