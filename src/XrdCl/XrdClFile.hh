@@ -471,7 +471,7 @@ namespace XrdCl
       //! @return        : status of the operation
       //------------------------------------------------------------------------
       XRootDStatus SetXAttr( const std::vector<xattr_t>  &attrs,
-                             std::vector<XAttrStatus>   *&result,
+                             std::vector<XAttrStatus>    &result,
                              uint16_t                     timeout = 0 );
 
       //------------------------------------------------------------------------
@@ -501,7 +501,7 @@ namespace XrdCl
       //! @return        : status of the operation
       //------------------------------------------------------------------------
       XRootDStatus GetXAttr( const std::vector<std::string>  &attrs,
-                             std::vector<XAttr>             *&result,
+                             std::vector<XAttr>              &result,
                              uint16_t                         timeout = 0 );
 
       //------------------------------------------------------------------------
@@ -531,7 +531,7 @@ namespace XrdCl
       //! @return        : status of the operation
       //------------------------------------------------------------------------
       XRootDStatus DelXAttr( const std::vector<std::string>  &attrs,
-                             std::vector<XAttrStatus>       *&result,
+                             std::vector<XAttrStatus>        &result,
                              uint16_t                         timeout = 0 );
 
       //------------------------------------------------------------------------
@@ -557,8 +557,8 @@ namespace XrdCl
       //!
       //! @return        : status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus ListXAttr( std::vector<XAttr>  *&result,
-                              uint16_t              timeout = 0 );
+      XRootDStatus ListXAttr( std::vector<XAttr>  &result,
+                              uint16_t             timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Check if the file is open

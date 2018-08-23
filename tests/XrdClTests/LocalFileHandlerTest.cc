@@ -44,6 +44,7 @@ class LocalFileHandlerTest: public CppUnit::TestCase
       CPPUNIT_TEST( VectorWriteTest );
       CPPUNIT_TEST( SyncTest );
       CPPUNIT_TEST( WriteVTest );
+      CPPUNIT_TEST( XAttrTest );
     CPPUNIT_TEST_SUITE_END();
     void CreateTestFileFunc( std::string url, std::string content = "GenericTestFile" );
     void OpenCloseTest();
@@ -57,6 +58,7 @@ class LocalFileHandlerTest: public CppUnit::TestCase
     void VectorWriteTest();
     void SyncTest();
     void WriteVTest();
+    void XAttrTest();
 };
 CPPUNIT_TEST_SUITE_REGISTRATION( LocalFileHandlerTest );
 
@@ -423,6 +425,8 @@ void LocalFileHandlerTest::VectorWriteTest()
    delete[] (char*)chunks[1].buffer;
    delete[] buffer;
    delete   info;
+
+   CPPUNIT_ASSERT( remove( targetURL.c_str() ) == 0 );
 }
 
 void LocalFileHandlerTest::WriteVTest()
@@ -461,5 +465,86 @@ void LocalFileHandlerTest::WriteVTest()
   std::string expected = "GenericWriteVTest";
   CPPUNIT_ASSERT( std::string( buffer.data(), buffer.size() ) == expected );
   CPPUNIT_ASSERT_XRDST( file.Close() );
+  CPPUNIT_ASSERT( remove( targetURL.c_str() ) == 0 );
+}
+
+void LocalFileHandlerTest::XAttrTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  // (we do the test in /data as /tmp might be on tpmfs,
+  //  which does not support xattrs)
+  //----------------------------------------------------------------------------
+  std::string targetURL = "/data/lfilehandlertestfilexattr";
+  CreateTestFileFunc( targetURL );
+
+  File f;
+  CPPUNIT_ASSERT_XRDST( f.Open( targetURL, OpenFlags::Update ) );
+
+  //----------------------------------------------------------------------------
+  // Test XAttr Set
+  //----------------------------------------------------------------------------
+  std::vector<xattr_t> attrs;
+  attrs.push_back( xattr_t( "version", "v3.3.3" ) );
+  attrs.push_back( xattr_t( "description", "a very important file" ) );
+  attrs.push_back( xattr_t( "checksum", "0x22334455" ) );
+
+  std::vector<XAttrStatus> st_resp;
+
+  CPPUNIT_ASSERT_XRDST( f.SetXAttr( attrs, st_resp ) );
+
+  std::vector<XAttrStatus>::iterator itr1;
+  for( itr1 = st_resp.begin(); itr1 != st_resp.end(); ++itr1 )
+    CPPUNIT_ASSERT_XRDST( itr1->status );
+
+  //----------------------------------------------------------------------------
+  // Test XAttr Get
+  //----------------------------------------------------------------------------
+  std::vector<std::string> names;
+  names.push_back( "version" );
+  names.push_back( "description" );
+  std::vector<XAttr> resp;
+  CPPUNIT_ASSERT_XRDST( f.GetXAttr( names, resp ) );
+
+  CPPUNIT_ASSERT_XRDST( resp[0].status );
+  CPPUNIT_ASSERT_XRDST( resp[1].status );
+
+  CPPUNIT_ASSERT( resp.size() == 2 );
+  int vid = resp[0].name == "version" ? 0 : 1;
+  int did = vid == 0 ? 1 : 0;
+  CPPUNIT_ASSERT( resp[vid].name == "version" &&
+                  resp[vid].value == "v3.3.3" );
+  CPPUNIT_ASSERT( resp[did].name == "description" &&
+                  resp[did].value == "a very important file" );
+
+  //----------------------------------------------------------------------------
+  // Test XAttr Del
+  //----------------------------------------------------------------------------
+  names.clear();
+  names.push_back( "description" );
+  st_resp.clear();
+  CPPUNIT_ASSERT_XRDST( f.DelXAttr( names, st_resp ) );
+  CPPUNIT_ASSERT( st_resp.size() == 1 );
+  CPPUNIT_ASSERT_XRDST( st_resp[0].status );
+
+  //----------------------------------------------------------------------------
+  // Test XAttr List
+  //----------------------------------------------------------------------------
+  resp.clear();
+  CPPUNIT_ASSERT_XRDST( f.ListXAttr( resp ) );
+  CPPUNIT_ASSERT( resp.size() == 2 );
+  vid = resp[0].name == "version" ? 0 : 1;
+  int cid = vid == 0 ? 1 : 0;
+  CPPUNIT_ASSERT( resp[vid].name == "version" &&
+                  resp[vid].value == "v3.3.3" );
+  CPPUNIT_ASSERT( resp[cid].name == "checksum" &&
+                  resp[cid].value == "0x22334455" );
+
+  //----------------------------------------------------------------------------
+  // Cleanup
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f.Close() );
   CPPUNIT_ASSERT( remove( targetURL.c_str() ) == 0 );
 }

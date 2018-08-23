@@ -24,6 +24,9 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XProtocol/XProtocol.hh"
 
+#include "XrdSys/XrdSysXAttr.hh"
+#include "XrdSys/XrdSysFAttr.hh"
+
 #include <string>
 #include <memory>
 #include <stdexcept>
@@ -36,8 +39,6 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <aio.h>
-#include <sys/types.h>
-#include <sys/xattr.h>
 
 namespace
 {
@@ -604,7 +605,9 @@ namespace XrdCl
                                            ResponseHandler            *handler,
                                            uint16_t                    timeout )
   {
-    static const std::string prefix = "user.U.";
+    XrdSysXAttr *xattr = XrdSysFAttr::Xat;
+
+    static const std::string prefix = "U.";
     std::vector<XAttrStatus> response;
 
     auto itr = attrs.begin();
@@ -612,12 +615,11 @@ namespace XrdCl
     {
       std::string name  = prefix + std::get<xattr_name>( *itr );
       std::string value = std::get<xattr_value>( *itr );
-
-      int err = fsetxattr( fd, name.c_str(), value.c_str(), value.size(), 0 );
-      XRootDStatus status = err ? XRootDStatus( stError, XProtocol::mapError( errno ) ) :
+      int err = xattr->Set( name.c_str(), value.c_str(), value.size(), 0, fd );
+      XRootDStatus status = err ? XRootDStatus( stError, XProtocol::mapError( -errno ) ) :
                                   XRootDStatus();
 
-      response.push_back( XAttrStatus( name, status ) );
+      response.push_back( XAttrStatus( name.substr( prefix.size() ), status ) );
     }
 
     AnyObject *resp = new AnyObject();
@@ -633,7 +635,9 @@ namespace XrdCl
                                            ResponseHandler                *handler,
                                            uint16_t                        timeout )
   {
-    static const std::string prefix = "user.U.";
+    XrdSysXAttr *xattr = XrdSysFAttr::Xat;
+
+    static const std::string prefix = "U.";
     std::vector<XAttr> response;
 
     auto itr = attrs.begin();
@@ -642,18 +646,17 @@ namespace XrdCl
       std::string name  = prefix + *itr;
       std::unique_ptr<char[]> buffer;
 
-      ssize_t size = fgetxattr( fd, name.c_str(), buffer.get(), 0 );
+      int size = xattr->Get( name.c_str(), 0, 0, 0, fd );
       buffer.reset( new char[size] );
-
-      int err = fgetxattr( fd, name.c_str(), buffer.get(), size );
+      int ret = xattr->Get( name.c_str(), buffer.get(), size, 0, fd );
 
       XRootDStatus status;
       std::string  value;
 
-      if( err != -1 )
-        value.append( buffer.get(), size );
-      else
-        status = XRootDStatus( stError, XProtocol::mapError( errno ) );
+      if( ret >= 0 )
+        value.append( buffer.get(), ret );
+      else if( ret < 0 )
+        status = XRootDStatus( stError, XProtocol::mapError( -ret ) );
 
       response.push_back( XAttr( *itr, value, status ) );
     }
@@ -671,15 +674,17 @@ namespace XrdCl
                                            ResponseHandler                *handler,
                                            uint16_t                        timeout )
   {
-    static const std::string prefix = "user.U.";
+    XrdSysXAttr *xattr = XrdSysFAttr::Xat;
+
+    static const std::string prefix = "U.";
     std::vector<XAttrStatus> response;
 
     auto itr = attrs.begin();
     for( ; itr != attrs.end(); ++itr )
     {
-      std::string name  = prefix + *itr;
-      int err = fremovexattr( fd, name.c_str() );
-      XRootDStatus status = err ? XRootDStatus( stError, XProtocol::mapError( errno ) ) :
+      std::string name = prefix + *itr;
+      int err = xattr->Del( name.c_str(), 0, fd );
+      XRootDStatus status = err ? XRootDStatus( stError, XProtocol::mapError( -errno ) ) :
                                   XRootDStatus();
 
       response.push_back( XAttrStatus( name, status ) );
@@ -697,47 +702,40 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::ListXAttr( ResponseHandler  *handler,
                                             uint16_t          timeout )
   {
-    static const std::string prefix = "user.U.";
+    XrdSysXAttr *xattr = XrdSysFAttr::Xat;
 
-    std::unique_ptr<char[]> buffer;
-    ssize_t size = flistxattr( fd , buffer.get(),  0 );
-    buffer.reset( new char[size] );
-    int err = flistxattr( fd, buffer.get(), size );
+    static const std::string prefix = "U.";
+    std::vector<XAttr> response;
 
-    if( err == -1 )
+    XrdSysXAttr::AList *alist = 0;
+    int err = xattr->List( &alist, 0, fd, 1 );
+
+    if( err < 0 )
     {
-      XRootDStatus *status = new XRootDStatus( stError, XProtocol::mapError( errno ) );
+      XRootDStatus *status = new XRootDStatus( stError, XProtocol::mapError( -err ) );
       return QueueTask( status, 0, handler );
     }
 
-    std::vector<XAttr> response;
-    char *ptr = buffer.get();
-
-    while( size > 0 )
+    XrdSysXAttr::AList *ptr = alist;
+    while( ptr )
     {
-      size_t len = strlen( ptr );
-      std::string name( ptr, len );
-      size -= len + 1; // the +1 stands for the null terminating the string
-      ptr  += len + 1; // the +1 stands for the null terminating the string
+      std::string name( ptr->Name, ptr->Nlen );
+      int vlen = ptr->Vlen;
+      ptr = ptr->Next;
 
-      if( name.find( prefix ) == 0 )
-        response.push_back( name );
+      if( name.find( prefix ) != 0 ) continue;
+
+      std::unique_ptr<char[]> buffer( new char[vlen] );
+      int ret = xattr->Get( name.c_str(),
+                            buffer.get(), vlen, 0, fd );
+
+      std::string value = ret >= 0 ? std::string( buffer.get(), ret ) :
+                                     std::string();
+      XRootDStatus status = ret >= 0 ? XRootDStatus() :
+                                       XRootDStatus( stError, XProtocol::mapError( -ret ) );
+      response.push_back( XAttr( name.substr( prefix.size() ), value, status ) );
     }
-
-    auto itr = response.begin();
-    for( ; itr != response.end(); ++itr )
-    {
-      size = fgetxattr( fd, itr->name.c_str(), 0, 0 );
-      buffer.reset( new char[size] );
-
-      int err = fgetxattr( fd, itr->name.c_str(), buffer.get(), size );
-
-      if( err != -1 )
-        itr->value.append( buffer.get(), size );
-      else
-        itr->status = XRootDStatus( stError, XProtocol::mapError( errno ) );
-      itr->name = itr->name.substr( prefix.size() );
-    }
+    xattr->Free( alist );
 
     AnyObject *resp = new AnyObject();
     resp->Set( new std::vector<XAttr>( std::move( response ) ) );
