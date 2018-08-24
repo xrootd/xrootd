@@ -27,6 +27,7 @@
 
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClOperations.hh"
+#include "XrdCl/XrdClOperationHandlers.hh"
 
 
 namespace XrdCl {
@@ -99,6 +100,18 @@ namespace XrdCl {
                 return *o;
             }
 
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
             std::string ToString(){
                 return "Open";
             }
@@ -167,6 +180,18 @@ namespace XrdCl {
                 return *r;
             }     
 
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ChunkInfo&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new FunctionWrapper<ChunkInfo>(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ChunkInfo&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<ChunkInfo>(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
             std::string ToString(){
                 return "Read";
             }
@@ -213,6 +238,18 @@ namespace XrdCl {
                 return *c;
             }
 
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
             std::string ToString(){
                 return "Close";
             }
@@ -253,6 +290,18 @@ namespace XrdCl {
                 StatImpl<Configured> *c = new StatImpl<Configured>(this->file, NULL);
                 c->SetParams(force);
                 return *c;
+            }
+
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, StatInfo&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new FunctionWrapper<StatInfo>(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, StatInfo&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<StatInfo>(handleFunction);
+                return this->AddHandler(forwardingHandler);
             }
 
             std::string ToString(){
@@ -320,6 +369,18 @@ namespace XrdCl {
                 return *r;
             }     
 
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
             std::string ToString(){
                 return "Write";
             }
@@ -366,6 +427,18 @@ namespace XrdCl {
                 return *c;
             }
 
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
             std::string ToString(){
                 return "Sync";
             }
@@ -390,7 +463,6 @@ namespace XrdCl {
             TruncateImpl(File *f): FileOperation<state>(f){}
             TruncateImpl(File &f): FileOperation<state>(&f){}
             TruncateImpl(File *f, std::unique_ptr<OperationHandler> h): FileOperation<state>(f, std::move(h)){}
-            // TruncateImpl(const TruncateImpl& obj): FileOperation<state>(obj.file, nullptr){}
             
             struct SizeArg {
                 static const std::string key;
@@ -406,7 +478,19 @@ namespace XrdCl {
                 TruncateImpl<Configured>* r = new TruncateImpl<Configured>(this->file, NULL);
                 r->SetParams(size);
                 return *r;
-            }     
+            }
+
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            } 
 
             std::string ToString(){
                 return "Truncate";
@@ -467,6 +551,18 @@ namespace XrdCl {
                 return *r;
             }
 
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
             std::string ToString(){
                 return "VectorRead";
             }
@@ -518,7 +614,19 @@ namespace XrdCl {
                 VectorWriteImpl<Configured>* r = new VectorWriteImpl<Configured>(this->file, NULL);
                 r->SetParams(chunks);
                 return *r;
-            }     
+            }
+
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
 
             std::string ToString(){
                 return "VectorWrite";
@@ -580,7 +688,19 @@ namespace XrdCl {
                 WriteVImpl<Configured>* r = new WriteVImpl<Configured>(this->file, NULL);
                 r->SetParams(offset, iov, iovcnt);
                 return *r;
-            }     
+            }
+
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
 
             std::string ToString(){
                 return "WriteV";
@@ -639,6 +759,18 @@ namespace XrdCl {
                 return *r;
             }     
 
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new FunctionWrapper<Buffer>(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<Buffer>(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
             std::string ToString(){
                 return "Fcntl";
             }
@@ -677,6 +809,18 @@ namespace XrdCl {
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 VisaImpl<Configured> *c = new VisaImpl<Configured>(this->file, NULL);
                 return *c;
+            }
+
+            using Operation<state>::operator>>;
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new FunctionWrapper<Buffer>(handleFunction);
+                return this->AddHandler(forwardingHandler);
+            }
+
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&, ParamsContainerWrapper&)> handleFunction){
+                ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<Buffer>(handleFunction);
+                return this->AddHandler(forwardingHandler);
             }
 
             std::string ToString(){

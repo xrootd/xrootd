@@ -82,13 +82,18 @@ namespace XrdCl {
             }
 
         private:
-            std::shared_ptr<ParamsContainer>& GetParamsContainer(){
+            std::shared_ptr<ParamsContainer>& GetParamsContainer(){                
                 return container;
             }
 
             std::shared_ptr<ParamsContainer> container;
 
         protected:
+            std::unique_ptr<ParamsContainerWrapper> GetParamsContainerWrapper(){
+                auto paramsContainerWrapper = std::unique_ptr<ParamsContainerWrapper>(new ParamsContainerWrapper(container));
+                return paramsContainerWrapper;
+            }
+
             ResponseHandler* responseHandler;
             bool wrapper;
     };
@@ -277,10 +282,7 @@ namespace XrdCl {
             //! @param h  handler to add
             //------------------------------------------------------------------
             Operation<Handled>& operator>>(ForwardingHandler *h){
-                static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
-                auto handler = std::unique_ptr<OperationHandler>(new OperationHandler(h));
-                Operation<Handled> *op = this->TransformToHandled(std::move(handler));
-                return *op;
+                return AddHandler(h);
             }
 
             //------------------------------------------------------------------
@@ -289,11 +291,8 @@ namespace XrdCl {
             //! @param h  handler to add
             //------------------------------------------------------------------
             Operation<Handled>& operator>>(ResponseHandler *h){
-                static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
                 ForwardingHandler *forwardingHandler = new ForwardingHandler(h);
-                auto handler = std::unique_ptr<OperationHandler>(new OperationHandler(forwardingHandler));
-                Operation<Handled> *op = this->TransformToHandled(std::move(handler));
-                return *op;
+                return AddHandler(forwardingHandler);
             }
             
             //------------------------------------------------------------------
@@ -398,6 +397,24 @@ namespace XrdCl {
                 }
             }
 
+            //------------------------------------------------------------------
+            //! Add handler to the operation 
+            //!
+            //! @param h    handler to be added
+            //! @return Operation<Handled>& 
+            //------------------------------------------------------------------
+            Operation<Handled>& AddHandler(ForwardingHandler *forwardingHandler){
+                static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
+                auto handler = std::unique_ptr<OperationHandler>(new OperationHandler(forwardingHandler));
+                Operation<Handled> *op = this->TransformToHandled(std::move(handler));
+                return *op;
+            }
+
+            //------------------------------------------------------------------
+            //! Add default handler to the operation
+            //!
+            //! @return Operation<Handled>& 
+            //------------------------------------------------------------------
             Operation<Handled>& AddDefaultHandler(){
                 static_assert(state == Configured, "AddDefaultHandler method is available only for type Operation<Configured>");
                 auto handler = new ForwardingHandler();
@@ -471,6 +488,8 @@ namespace XrdCl {
                     ++it;
                 }
             }
+
+            ParallelOperations(ParallelOperations &&obj): Operation<state>(std::move(obj.handler)), workflows(std::move(obj.workflows)){}
 
             template<typename Container>
             ParallelOperations(Container &container): Operation<state>(nullptr){
