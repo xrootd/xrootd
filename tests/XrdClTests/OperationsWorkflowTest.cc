@@ -248,60 +248,6 @@ namespace {
             std::string _expectedContent;
     };
 
-    class LockOpenHandler: public TestingForwardingHandler {
-        public:
-            LockOpenHandler(const std::string &firstFilePath, const std::string &secondFilePath)
-            : firstPath(firstFilePath), secondPath(secondFilePath){}
-
-            void HandleResponseWithHosts(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response, XrdCl::HostList *hostList){
-                //-----------------------------------------------------------
-                // Set urls for two parallel operations
-                //-----------------------------------------------------------
-                ForwardParam<Open::UrlArg>(firstPath, 1);
-                ForwardParam<Open::UrlArg>(secondPath, 2);
-
-                TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
-            }
-
-        private:
-            std::string firstPath;
-            std::string secondPath;
-    };
-
-    class CleaningHandler: public TestingForwardingHandler {
-        private:
-            std::string filePath;
-            
-            void Clean(XrdCl::AnyObject *response){
-                LocationInfo *info = 0;
-                response->Get(info);
-
-                LocationInfo::Iterator it;
-                for( it = info->Begin(); it != info->End(); ++it )
-                {
-                    auto url = URL(it->GetAddress());
-                    auto fs = new FileSystem(url);
-                    auto st = fs->RmDir(filePath);
-                    CPPUNIT_ASSERT(st.IsOK());
-
-                    delete fs;
-                }
-            }
-
-        public:
-            CleaningHandler(const std::string &path): filePath(path){}
-
-            void HandleResponseWithHosts(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response, XrdCl::HostList *hostList) {                
-                Clean(response);
-                TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
-            }
-
-            void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-                Clean(response);
-                TestingForwardingHandler::HandleResponse(status, response);
-            }
-    };
-
 }
 
 
@@ -351,29 +297,6 @@ void WorkflowTest::ReadingWorkflowTest(){
     delete f;
 }
 
-class FileDeletingHandler: public TestingForwardingHandler {
-    public:
-        FileDeletingHandler(File *f){
-            file = f;
-        }
-
-        void HandleResponseWithHosts(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response, XrdCl::HostList *hostList) {
-            delete status;
-            delete response;
-            delete hostList;
-            delete file;
-            delete this;
-        }
-
-        void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-            delete status;
-            delete response;
-            delete this;
-        }
-    
-    private:
-        File *file;
-};
 
 void WorkflowTest::WritingWorkflowTest(){
     using namespace XrdCl;
@@ -651,7 +574,12 @@ void WorkflowTest::ParallelTest(){
     char* firstBuffer = new char[size]();
     char* secondBuffer = new char[size]();
 
-    auto lockOpenHandler = new LockOpenHandler(firstFileUrl, secondFileUrl);
+    bool lockHandlerExecuted = false;
+    auto lockOpenHandler = [&firstFileUrl, &secondFileUrl, &lockHandlerExecuted](XRootDStatus &st, ParamsContainerWrapper& params) -> void {
+        params.ForwardParam<Open::UrlArg>(firstFileUrl, 1);
+        params.ForwardParam<Open::UrlArg>(secondFileUrl, 2);
+        lockHandlerExecuted = true;
+    };
     auto lockCloseHandler = new TestingForwardingHandler();
     auto firstOpenHandler = new TestingForwardingHandler();
     auto firstReadHandler = new TestingForwardingHandler();
@@ -679,7 +607,7 @@ void WorkflowTest::ParallelTest(){
 
     CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
 
-    CPPUNIT_ASSERT(lockOpenHandler->Executed());
+    CPPUNIT_ASSERT(lockHandlerExecuted);
     CPPUNIT_ASSERT(lockCloseHandler->Executed());
     CPPUNIT_ASSERT(firstOpenHandler->Executed());
     CPPUNIT_ASSERT(firstReadHandler->Executed());
@@ -798,7 +726,22 @@ void WorkflowTest::MixedWorkflowTest(){
     auto firstStatHandler = new StatHandler(true, firstContentLength);
     auto secondReadHandler = new ReadHandler(secondContent);
     auto secondStatHandler = new StatHandler(true, secondContentLength);
-    auto cleaningHandler = new CleaningHandler(dirPath);
+    
+    bool cleaningHandlerExecuted = false;
+    
+    auto cleaningHandler = [&dirPath, &cleaningHandlerExecuted](XRootDStatus &st, LocationInfo& info){
+        LocationInfo::Iterator it;
+        for( it = info.Begin(); it != info.End(); ++it )
+        {
+            auto url = URL(it->GetAddress());
+            auto fs = new FileSystem(url);
+            auto st = fs->RmDir(dirPath);
+            CPPUNIT_ASSERT(st.IsOK());
+
+            delete fs;
+        }
+        cleaningHandlerExecuted = true;
+    };
 
     auto &firstFileOperations = Open(f1)(firstFileUrl, flags, noneAccess)
         | Write(f1)(offset, firstContentLength, firstText)
@@ -831,7 +774,7 @@ void WorkflowTest::MixedWorkflowTest(){
     CPPUNIT_ASSERT(firstReadHandler->Executed());
     CPPUNIT_ASSERT(secondStatHandler->Executed());
     CPPUNIT_ASSERT(secondReadHandler->Executed());
-    CPPUNIT_ASSERT(cleaningHandler->Executed());
+    CPPUNIT_ASSERT(cleaningHandlerExecuted);
 
     delete f1;
     delete f2;
