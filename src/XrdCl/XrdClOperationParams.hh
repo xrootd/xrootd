@@ -268,6 +268,21 @@ namespace XrdCl {
             std::map<int, std::map<std::string, AnyObject*>> paramsMap;
     };
 
+
+    class ParamsContainerWrapper {
+        public:
+            ParamsContainerWrapper(std::shared_ptr<ParamsContainer> paramsContainer): container(paramsContainer){}
+            
+            template <typename T>
+            void ForwardParam(typename T::type value, int bucket = 1){
+                container->SetParam<T>(value, bucket);
+            }
+
+        private:
+            std::shared_ptr<ParamsContainer> container;
+
+    };
+
 }
 
 
