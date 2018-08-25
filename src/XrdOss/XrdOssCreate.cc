@@ -83,10 +83,11 @@ class XrdOssCreateInfo
      {public:
       unsigned long long pOpts;
       const char        *Path;
+      const char        *LFN;
       mode_t             Amode;
       int                cOpts;
-      XrdOssCreateInfo(const char *path, mode_t amode, int opts)
-                      : Path(path), Amode(amode), cOpts(opts) {}
+      XrdOssCreateInfo(const char *path, const char *lfn, mode_t amode, int opts)
+                      : Path(path), LFN(lfn), Amode(amode), cOpts(opts) {}
      ~XrdOssCreateInfo() {}
      };
 
@@ -117,7 +118,7 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
     char  local_path[MAXPATHLEN+1], *p, pc;
     unsigned long long remotefs;
     int isLink = 0, Missing = 1, retc = 0, datfd;
-    XrdOssCreateInfo crInfo(local_path, access_mode, Opts);
+    XrdOssCreateInfo crInfo(local_path, path, access_mode, Opts);
     struct stat buf;
 
 // Get options associated with this path and check if it's r/w
@@ -228,6 +229,7 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
 {
    EPNAME("Alloc_Cache")
    int datfd, rc;
+   const char *spName;
    char pbuff[MAXPATHLEN+1], cgbuff[XrdOssSpace::minSNbsz], *tmp;
    XrdOssCache::allocInfo aInfo(crInfo.Path, pbuff, sizeof(pbuff));
 
@@ -237,9 +239,17 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
    &&  XrdOuca2x::a2sz(OssEroute,"invalid asize",tmp,&aInfo.cgSize,0))
       return -XRDOSS_E8018;
 
+// Determine the space we should use for this allocation
+//
+   spName = env.Get(OSS_CGROUP);
+   if (!spName || (SPList.NotEmpty() && SPList.Default() == spAssign))
+      {XrdOucPList *pl = SPList.About(crInfo.LFN);
+       if (pl && (!spName || pl->Attr() == spAssign)) spName = pl->Name();
+      }
+
 // Get the correct cache group and partition path
 //
-   if ((aInfo.cgPath=XrdOssCache::Parse(env.Get(OSS_CGROUP),cgbuff,sizeof(cgbuff))))
+   if ((aInfo.cgPath=XrdOssCache::Parse(spName,cgbuff,sizeof(cgbuff))))
       aInfo.cgPlen = strlen(aInfo.cgPath);
 
 // Allocate space in the cache.

@@ -316,7 +316,7 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 
 // Configure space (final pass)
 //
-   ConfigSpace();
+   ConfigSpace(Eroute);
 
 // Set the prefix for files in cache file systems  
    if ( OptFlags & XrdOss_CacheFS ) 
@@ -424,6 +424,13 @@ void XrdOssSys::Config_Display(XrdSysError &Eroute)
      fp = RPList.First();
      while(fp)
           {List_Path("       oss.path ", fp->Path(), fp->Flag(), Eroute);
+           fp = fp->Next();
+          }
+     fp = SPList.First();
+     while(fp)
+          {Eroute.Say("       oss.space ", fp->Name(),
+                      (fp->Attr() == spAssign ? " assign  " : " default "),
+                       fp->Path());
            fp = fp->Next();
           }
 }
@@ -570,7 +577,7 @@ int XrdOssSys::ConfigProc(XrdSysError &Eroute)
 /*                           C o n f i g S p a c e                            */
 /******************************************************************************/
 
-void XrdOssSys::ConfigSpace()
+void XrdOssSys::ConfigSpace(XrdSysError &Eroute)
 {
    XrdOucPList *fp = RPList.First();
    int noCacheFS = !(OptFlags & XrdOss_CacheFS);
@@ -585,6 +592,25 @@ void XrdOssSys::ConfigSpace()
             ConfigSpace(fp->Path());
          fp = fp->Next();
         }
+
+// If there is a space list then verify it
+//
+   if ((fp = SPList.First()))
+      {XrdOssCache_Group  *fsg;
+       const char *what;
+       bool zAssign = false;
+       while(fp)
+            {if (fp->Attr() != spAssign) what = "default space ";
+                else {zAssign = true;    what = "assign space ";}
+             const char *grp = fp->Name();
+             fsg = XrdOssCache_Group::fsgroups;
+             while(fsg) {if (!strcmp(fsg->group,grp)) break; fsg = fsg->next;}
+             if (!fsg) Eroute.Say("Config warning: unable to ", what, grp,
+                                  " to ", fp->Path(), "; space not defined.");
+             fp = fp->Next();
+            }
+       if (zAssign) SPList.Default(static_cast<unsigned long long>(spAssign));
+      }
 }
 
 /******************************************************************************/
@@ -1436,6 +1462,7 @@ int XrdOssSys::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
 /* Function: xspace
 
    Purpose:  To parse the directive: space <name> <path>
+                                 or: space <name> {assign}default} <lfn> [...]
 
              <name>   logical name for the filesystem.
              <path>   path to the filesystem.
@@ -1454,6 +1481,7 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
    struct dirent *dp;
    struct stat buff;
    DIR *DFD;
+   bool isAsgn;
 
 // Get the space name
 //
@@ -1467,6 +1495,11 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
 //
    if (!(val = Config.GetWord()))
       {Eroute.Emsg("Config", "space path not specified"); return 1;}
+
+// Check if assignment
+//
+   if (((isAsgn = !strcmp("assign",val)) || ! strcmp("default",val)) && !isCD)
+      return xspace(Config, Eroute, grp, isAsgn);
 
    k = strlen(val);
    if (k >= (int)(sizeof(fn)-1) || val[0] != '/' || k < 2)
@@ -1525,6 +1558,36 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
    closedir(DFD);
    return rc != 0;
 }
+
+/******************************************************************************/
+
+int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute,
+                      const char *grp, bool isAsgn)
+{
+   XrdOucPList *pl;
+   char *path;
+
+// Get the path
+//
+   path = Config.GetWord();
+   if (!path || !path[0])
+      {Eroute.Emsg("Config", "space path not specified"); return 1;}
+
+// Create a new path list object and add it to list of paths
+//
+do{if ((pl = SPList.Match(path))) pl->Set(path, grp);
+      else {pl = new XrdOucPList(path, grp);
+            SPList.Insert(pl);
+           }
+   pl->Set((isAsgn ? spAssign : 0));
+  } while((path = Config.GetWord()));
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
 
 int XrdOssSys::xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute)
 {

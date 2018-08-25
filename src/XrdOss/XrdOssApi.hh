@@ -242,6 +242,9 @@ int       Trace;          //    Trace flags
 int       Solitary;       //    True if running in stand-alone mode
 int       OptFlags;       //    General option flags
 
+XrdOucPListAnchor SPList;    // The path to space list
+#define           spAssign 1
+
 char             *N2N_Lib;   // -> Name2Name Library Path
 char             *N2N_Parms; // -> Name2Name Object Parameters
 XrdOucName2Name  *lcl_N2N;   // -> File mapper for local  files
@@ -325,7 +328,7 @@ int                Stage_RT(const char *, const char *, XrdOucEnv &, unsigned lo
 void   ConfigMio(XrdSysError &Eroute);
 int    ConfigN2N(XrdSysError &Eroute, XrdOucEnv *envP);
 int    ConfigProc(XrdSysError &Eroute);
-void   ConfigSpace();
+void   ConfigSpace(XrdSysError &Eroute);
 void   ConfigSpace(const char *Lfn);
 void   ConfigSpath(XrdSysError &Eroute, const char *Pn,
                    unsigned long long &Fv, int noMSS);
@@ -347,6 +350,8 @@ int    xnml(XrdOucStream &Config, XrdSysError &Eroute);
 int    xpath(XrdOucStream &Config, XrdSysError &Eroute);
 int    xprerd(XrdOucStream &Config, XrdSysError &Eroute);
 int    xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD=0);
+int    xspace(XrdOucStream &Config, XrdSysError &Eroute,
+              const char *grp, bool isAsgn);
 int    xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute);
 int    xstg(XrdOucStream &Config, XrdSysError &Eroute);
 int    xstl(XrdOucStream &Config, XrdSysError &Eroute);
