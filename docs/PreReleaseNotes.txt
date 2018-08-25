@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Allow space preassignment of file creation paths.
   * **[Server]** [Server] Allow spaces in id's via acc.spacechar. Fixes #712
   * **[Server]** Add 'query confg start' to find server start time.
   * **[Server]** Implement TpcLite for delegated TPC copy.
