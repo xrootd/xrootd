@@ -171,7 +171,7 @@ namespace XrdCl
     std::string checkSumType;
     std::string checkSumPreset;
     uint64_t    sourceSize;
-    bool        force, coerce, delegate, tpcLite;
+    bool        force, coerce, delegate;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
     pProperties->Get( "checkSumType",    checkSumType );
@@ -180,7 +180,6 @@ namespace XrdCl
     pProperties->Get( "force",           force );
     pProperties->Get( "coerce",          coerce );
     pProperties->Get( "delegate",        delegate );
-    pProperties->Get( "tpcLite",         tpcLite );
 
     if( delegate )
     {
@@ -198,14 +197,123 @@ namespace XrdCl
     env->GetInt( "SubStreamsPerChannel", nbStrm );
 
     //--------------------------------------------------------------------------
-    // Choose TPC algorithm
+    // Generate the destination CGI
     //--------------------------------------------------------------------------
-    XRootDStatus st = tpcLite ?
-                      RunLite( progress, sourceSize, force, coerce, nbStrm )
-                              :
-                      RunTPC( progress, sourceSize, force, coerce, nbStrm );
+    URL tpcSource;
+    pProperties->Get( "tpcSource", tpcSource );
 
+    log->Debug( UtilityMsg, "Generating the TPC URLs" );
+
+    std::string  tpcKey  = GenerateKey();
+    char        *cgiBuff = new char[2048];
+    const char  *cgiP    = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
+                                                tpcSource.GetHostId().c_str(),
+                                                tpcSource.GetPath().c_str(),
+                                                0, cgiBuff, 2048, nbStrm );
+    if( *cgiP == '!' )
+    {
+      log->Error( UtilityMsg, "Unable to setup target url: %s", cgiP+1 );
+      delete [] cgiBuff;
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+
+    URL cgiURL; cgiURL.SetParams( cgiBuff );
+    delete [] cgiBuff;
+
+    URL realTarget = GetTarget();
+    URL::ParamsMap params = realTarget.GetParams();
+    MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
+
+    std::ostringstream o; o << sourceSize;
+    params["oss.asize"] = o.str();
+    params["tpc.stage"] = "copy";
+    realTarget.SetParams( params );
+
+    log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetURL().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Init timeout
+    //--------------------------------------------------------------------------
+    uint16_t initTimeout = 0;
+    pProperties->Get( "initTimeout", initTimeout );
+    InitTimeoutCalc timeLeft( initTimeout );
+
+    //--------------------------------------------------------------------------
+    // Open the target file
+    //--------------------------------------------------------------------------
+    File targetFile( File::DisableVirtRedirect );
+    // set WriteRecovery property
+    std::string value;
+    DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
+    targetFile.SetProperty( "WriteRecovery", value );
+
+    OpenFlags::Flags targetFlags = OpenFlags::Update;
+    if( force )
+      targetFlags |= OpenFlags::Delete;
+    else
+      targetFlags |= OpenFlags::New;
+
+    if( coerce )
+      targetFlags |= OpenFlags::Force;
+
+    XRootDStatus st;
+    st = targetFile.Open( realTarget.GetURL(), targetFlags, Access::None,
+                          timeLeft );
+
+    if( !st.IsOK() )
+    {
+      log->Error( UtilityMsg, "Unable to open target %s: %s",
+                  realTarget.GetURL().c_str(), st.ToStr().c_str() );
+      return st;
+    }
+    std::string lastUrl; targetFile.GetProperty( "LastURL", lastUrl );
+    realTarget = lastUrl;
+
+    if( !timeLeft().IsOK() )
+    {
+      // we still want to send a close, but we time it out fast
+      st = targetFile.Close( 1 );
+      return XRootDStatus( stError, errOperationExpired );
+    }
+
+    //--------------------------------------------------------------------------
+    // Verify the destination
+    //--------------------------------------------------------------------------
+    st = Utils::CheckTPCLite( realTarget.GetHostId() );
     if( !st.IsOK() ) return st;
+
+    //--------------------------------------------------------------------------
+    // if target supports TPC-lite and we have a credential to delegate we can
+    // go ahead and use TPC-lite
+    //--------------------------------------------------------------------------
+    bool tpcLite = ( st.code != suPartial ) && delegate;
+
+    if( !timeLeft().IsOK() ) return XRootDStatus( stError, errOperationExpired );
+
+    if( tpcLite )
+    {
+      //------------------------------------------------------------------------
+      // Run TPC-lite algorithm
+      //------------------------------------------------------------------------
+      XRootDStatus st = RunLite( progress, sourceSize, targetFile,
+                                uint16_t( timeLeft ), force, coerce, nbStrm );
+      if( !st.IsOK() ) return st;
+    }
+    else
+    {
+      //------------------------------------------------------------------------
+      // Verify the source if needed
+      //------------------------------------------------------------------------
+      st = Utils::CheckTPC( tpcSource.GetHostId(), timeLeft );
+      if( !st.IsOK() ) return st;
+
+      //------------------------------------------------------------------------
+      // Run vanilla TPC algorithm
+      //------------------------------------------------------------------------
+      XRootDStatus st = RunTPC( progress, sourceSize, realTarget, targetFile, tpcKey,
+                                uint16_t( timeLeft ), force, coerce, nbStrm );
+      if( !st.IsOK() ) return st;
+    }
 
     //--------------------------------------------------------------------------
     // Verify the checksums if needed
@@ -262,8 +370,8 @@ namespace XrdCl
       {
         gettimeofday( &tStart, 0 );
         st = Utils::GetRemoteCheckSum( targetCheckSum, checkSumType,
-                                       GetTarget().GetHostId(),
-                                       GetTarget().GetPath() );
+                                       realTarget.GetHostId(),
+                                       realTarget.GetPath() );
 
         gettimeofday( &tEnd, 0 );
         if( !st.IsOK() )
@@ -326,17 +434,9 @@ namespace XrdCl
         target.GetProtocol() != "xroot" )
       return XRootDStatus( stError, errNotSupported );
 
-    uint16_t timeLeft       = 0;
-    properties->Get( "initTimeout", timeLeft );
-
-    time_t   start          = 0;
-    bool     hasInitTimeout = false;
-
-    if( timeLeft )
-    {
-      hasInitTimeout = true;
-      start          = time(0);
-    }
+    uint16_t initTimeout       = 0;
+    properties->Get( "initTimeout", initTimeout );
+    InitTimeoutCalc timeLeft( initTimeout );
 
     //--------------------------------------------------------------------------
     // Check if we can open the source file and whether the actual data server
@@ -383,60 +483,18 @@ namespace XrdCl
       delete statInfo;
     }
 
-    if( hasInitTimeout )
+    if( !timeLeft().IsOK() )
     {
-      time_t now = time(0);
-      if( now-start > timeLeft )
-        timeLeft = 1; // we still want to send a close, but we time it out fast
-      else
-        timeLeft -= (now-start);
+      // we still want to send a close, but we time it out quickly
+      st = sourceFile.Close( 1 );
+      return XRootDStatus( stError, errOperationExpired );
     }
 
     st = sourceFile.Close( timeLeft );
 
-    if( hasInitTimeout )
-    {
-      time_t now = time(0);
-      if( now-start > timeLeft )
-        return XRootDStatus( stError, errOperationExpired );
-      else
-        timeLeft -= (now-start);
-    }
-
-    //--------------------------------------------------------------------------
-    // Verify the destination
-    //--------------------------------------------------------------------------
-    st = Utils::CheckTPCLite( target.GetHostId() );
-    if( !st.IsOK() )
-      return st;
-    bool tpcLite = st.code != suPartial;
-
-    //--------------------------------------------------------------------------
-    // Check if we can use TPC lite
-    // (by now we know target supports TPC so the only missing pice is delegation)
-    //--------------------------------------------------------------------------
-    bool delegate;
-    properties->Get( "delegate", delegate );
-    tpcLite = tpcLite && delegate;
-    properties->Set( "tpcLite", tpcLite );
-
-    if( hasInitTimeout )
-    {
-      if( timeLeft == 0 )
-        properties->Set( "initTimeout", 1 );
-      else
-        properties->Set( "initTimeout", timeLeft );
-    }
-
-    if( tpcLite )
-      return XRootDStatus();
-
-    //--------------------------------------------------------------------------
-    // Verify the source if needed
-    //--------------------------------------------------------------------------
-    st = Utils::CheckTPC( sourceUrlU.GetHostId(), timeLeft );
-    if( !st.IsOK() )
-      return st;
+    if( !timeLeft().IsOK() )
+      return XRootDStatus( stError, errOperationExpired );
+    properties->Set( "initTimeout", uint16_t( timeLeft ) );
 
     return XRootDStatus();
   }
@@ -446,96 +504,24 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus ThirdPartyCopyJob::RunTPC( CopyProgressHandler *progress,
                                           uint64_t             sourceSize,
+                                          URL                 &realTarget,
+                                          File                &targetFile,
+                                          const std::string   &tpcKey,
+                                          uint16_t             initTimeout,
                                           bool                 force,
                                           bool                 coerce,
                                           int                  nbStrm )
   {
-    //--------------------------------------------------------------------------
-    // Generate the destination CGI
-    //--------------------------------------------------------------------------
-    URL tpcSource;
-    pProperties->Get( "tpcSource", tpcSource );
-
     Log *log = DefaultEnv::GetLog();
-    log->Debug( UtilityMsg, "Generating the TPC URLs" );
-
-    std::string  tpcKey = GenerateKey();
-    char        *cgiBuff = new char[2048];
-    const char  *cgiP = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
-                                             tpcSource.GetHostId().c_str(),
-                                             tpcSource.GetPath().c_str(),
-                                             0, cgiBuff, 2048, nbStrm );
-    if( *cgiP == '!' )
-    {
-      log->Error( UtilityMsg, "Unable to setup target url: %s", cgiP+1 );
-      delete [] cgiBuff;
-      return XRootDStatus( stError, errInvalidArgs );
-    }
-
-    URL cgiURL; cgiURL.SetParams( cgiBuff );
-    delete [] cgiBuff;
-
-    URL realTarget = GetTarget();
-    URL::ParamsMap params = realTarget.GetParams();
-    MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
-
-    std::ostringstream o; o << sourceSize;
-    params["oss.asize"] = o.str();
-    params["tpc.stage"] = "copy";
-    realTarget.SetParams( params );
-
-    log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetURL().c_str() );
-
-    //--------------------------------------------------------------------------
-    // Timeouts
-    //--------------------------------------------------------------------------
-    uint16_t initTimeout = 0;
-    pProperties->Get( "initTimeout", initTimeout );
-    InitTimeoutCalc timeLeft( initTimeout );
-
-    uint16_t tpcTimeout = 0;
-    pProperties->Get( "tpcTimeout", tpcTimeout );
-
-    //--------------------------------------------------------------------------
-    // Open the target file
-    //--------------------------------------------------------------------------
-    File targetFile( File::DisableVirtRedirect );
-    // set WriteRecovery property
-    std::string value;
-    DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
-    targetFile.SetProperty( "WriteRecovery", value );
-
-    // Set the close timeout to the default value of the stream timeout
-    int closeTimeout = 0;
-    (void) DefaultEnv::GetEnv()->GetInt( "StreamTimeout", closeTimeout);
-
-    OpenFlags::Flags targetFlags = OpenFlags::Update;
-    if( force )
-      targetFlags |= OpenFlags::Delete;
-    else
-      targetFlags |= OpenFlags::New;
-
-    if( coerce )
-      targetFlags |= OpenFlags::Force;
-
-    XRootDStatus st;
-    st = targetFile.Open( realTarget.GetURL(), targetFlags, Access::None,
-                          timeLeft );
-
-    if( !st.IsOK() )
-    {
-      log->Error( UtilityMsg, "Unable to open target %s: %s",
-                  realTarget.GetURL().c_str(), st.ToStr().c_str() );
-      return st;
-    }
-    std::string lastUrl; targetFile.GetProperty( "LastURL", lastUrl );
-    realTarget = lastUrl;
 
     //--------------------------------------------------------------------------
     // Generate the source CGI
     //--------------------------------------------------------------------------
-    cgiBuff = new char[2048];
-    cgiP = XrdOucTPC::cgiC2Src( tpcKey.c_str(),
+    URL tpcSource;
+    pProperties->Get( "tpcSource", tpcSource );
+
+    char       *cgiBuff = new char[2048];
+    const char *cgiP    = XrdOucTPC::cgiC2Src( tpcKey.c_str(),
                                 realTarget.GetHostName().c_str(), -1, cgiBuff,
                                 2048 );
     if( *cgiP == '!' )
@@ -545,28 +531,24 @@ namespace XrdCl
       return XRootDStatus( stError, errInvalidArgs );
     }
 
-    cgiURL.SetParams( cgiBuff );
+    URL cgiURL; cgiURL.SetParams( cgiBuff );
     delete [] cgiBuff;
-    params = tpcSource.GetParams();
+    URL::ParamsMap params = tpcSource.GetParams();
     MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
     params["tpc.stage"] = "copy";
     tpcSource.SetParams( params );
 
     log->Debug( UtilityMsg, "Source url is: %s", tpcSource.GetURL().c_str() );
 
-    //--------------------------------------------------------------------------
-    // Calculate the time we have left to perform 1st sync
-    //--------------------------------------------------------------------------
-    if( !timeLeft().IsOK() )
-    {
-      XRootDStatus status = targetFile.Close( closeTimeout );
-      return XRootDStatus( stError, errOperationExpired );
-    }
+    // Set the close timeout to the default value of the stream timeout
+    int closeTimeout = 0;
+    (void) DefaultEnv::GetEnv()->GetInt( "StreamTimeout", closeTimeout);
 
     //--------------------------------------------------------------------------
     // Set up the rendez-vous and open the source
     //--------------------------------------------------------------------------
-    st = targetFile.Sync( timeLeft );
+    InitTimeoutCalc timeLeft( initTimeout );
+    XRootDStatus st = targetFile.Sync( timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
@@ -586,6 +568,7 @@ namespace XrdCl
 
     File sourceFile( File::DisableVirtRedirect );
     // set ReadRecovery property
+    std::string value;
     DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
     sourceFile.SetProperty( "ReadRecovery", value );
 
@@ -606,6 +589,9 @@ namespace XrdCl
     TPCStatusHandler  statusHandler;
     Semaphore        *sem  = statusHandler.GetSemaphore();
     StatInfo         *info   = 0;
+
+    uint16_t tpcTimeout = 0;
+    pProperties->Get( "tpcTimeout", tpcTimeout );
 
     st = targetFile.Sync( &statusHandler, tpcTimeout );
     if( !st.IsOK() )
@@ -697,106 +683,23 @@ namespace XrdCl
 
   XRootDStatus ThirdPartyCopyJob::RunLite( CopyProgressHandler *progress,
                                            uint64_t             sourceSize,
+                                           File                &targetFile,
+                                           uint16_t             initTimeout,
                                            bool                 force,
                                            bool                 coerce,
                                            int                  nbStrm )
   {
-
-    //--------------------------------------------------------------------------
-    // Generate the destination CGI
-    //--------------------------------------------------------------------------
-    URL tpcSource;
-    pProperties->Get( "tpcSource", tpcSource );
-
     Log *log = DefaultEnv::GetLog();
-    log->Debug( UtilityMsg, "Generating the TPC URLs" );
-
-    std::string  tpcKey  = "delegate";
-    char        *cgiBuff = new char[2048];
-    const char  *cgiP    = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
-                                                tpcSource.GetHostId().c_str(),
-                                                tpcSource.GetPath().c_str(),
-                                                0, cgiBuff, 2048, nbStrm );
-    if( *cgiP == '!' )
-    {
-      log->Error( UtilityMsg, "Unable to setup target url: %s", cgiP+1 );
-      delete [] cgiBuff;
-      return XRootDStatus( stError, errInvalidArgs );
-    }
-
-    URL cgiURL; cgiURL.SetParams( cgiBuff );
-    delete [] cgiBuff;
-
-    URL realTarget = GetTarget();
-
-    URL::ParamsMap params = realTarget.GetParams();
-    MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
-
-    std::ostringstream o; o << sourceSize;
-    params["oss.asize"] = o.str();
-    params["tpc.stage"] = "copy";
-    realTarget.SetParams( params );
-
-    log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetURL().c_str() );
-
-    //--------------------------------------------------------------------------
-    // Timeouts
-    //--------------------------------------------------------------------------
-    uint16_t initTimeout = 0;
-    pProperties->Get( "initTimeout", initTimeout );
-    InitTimeoutCalc timeLeft( initTimeout );
-
-    uint16_t tpcTimeout = 0;
-    pProperties->Get( "tpcTimeout", tpcTimeout );
-
-    //--------------------------------------------------------------------------
-    // Open the target file
-    //--------------------------------------------------------------------------
-    File targetFile( File::DisableVirtRedirect );
-    // set WriteRecovery property
-    std::string value;
-    DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
-    targetFile.SetProperty( "WriteRecovery", value );
 
     // Set the close timeout to the default value of the stream timeout
     int closeTimeout = 0;
     (void) DefaultEnv::GetEnv()->GetInt( "StreamTimeout", closeTimeout);
 
-    OpenFlags::Flags targetFlags = OpenFlags::Update;
-    if( force )
-      targetFlags |= OpenFlags::Delete;
-    else
-      targetFlags |= OpenFlags::New;
-
-    if( coerce )
-      targetFlags |= OpenFlags::Force;
-
-    XRootDStatus st;
-    st = targetFile.Open( realTarget.GetURL(), targetFlags, Access::None,
-                          timeLeft );
-
-    if( !st.IsOK() )
-    {
-      log->Error( UtilityMsg, "Unable to open target %s: %s",
-                  realTarget.GetURL().c_str(), st.ToStr().c_str() );
-      return st;
-    }
-    std::string lastUrl; targetFile.GetProperty( "LastURL", lastUrl );
-    realTarget = lastUrl;
-
-    //--------------------------------------------------------------------------
-    // Calculate the time we have left to perform 1st sync
-    //--------------------------------------------------------------------------
-    if( !timeLeft().IsOK() )
-    {
-      XRootDStatus status = targetFile.Close( closeTimeout );
-      return XRootDStatus( stError, errOperationExpired );
-    }
-
     //--------------------------------------------------------------------------
     // Set up the rendez-vous
     //--------------------------------------------------------------------------
-    st = targetFile.Sync( timeLeft );
+    InitTimeoutCalc timeLeft( initTimeout );
+    XRootDStatus st = targetFile.Sync( timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
@@ -811,6 +714,9 @@ namespace XrdCl
     TPCStatusHandler  statusHandler;
     Semaphore        *sem  = statusHandler.GetSemaphore();
     StatInfo         *info   = 0;
+
+    uint16_t tpcTimeout = 0;
+    pProperties->Get( "tpcTimeout", tpcTimeout );
 
     st = targetFile.Sync( &statusHandler, tpcTimeout );
     if( !st.IsOK() )

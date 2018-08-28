@@ -24,6 +24,8 @@
 
 namespace XrdCl
 {
+  class File;
+
   class ThirdPartyCopyJob: public CopyJob
   {
     public:
@@ -60,12 +62,18 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RunTPC( CopyProgressHandler *progress,
                            uint64_t             sourceSize,
+                           URL                 &realTarget,
+                           File                &targetFile,
+                           const std::string   &tpcKey,
+                           uint16_t             timeLeft,
                            bool                 force,
                            bool                 coerce,
                            int                  nbStrm );
 
       XRootDStatus RunLite( CopyProgressHandler *progress,
                             uint64_t             sourceSize,
+                            File                &targetFile,
+                            uint16_t             timeLeft,
                             bool                 force,
                             bool                 coerce,
                             int                  nbStrm );
