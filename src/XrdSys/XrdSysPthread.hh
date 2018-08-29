@@ -146,6 +146,15 @@ inline int CondLock()
         return 1;
        }
 
+inline int TimedLock(int wait_ms)
+       {struct timespec wait;
+        clock_gettime(CLOCK_REALTIME, &wait);
+        wait.tv_nsec += wait_ms * 100000;
+        wait.tv_sec += (wait.tv_nsec / 100000000);
+        wait.tv_nsec = wait.tv_nsec % 100000000;
+        return !pthread_mutex_timedlock(&cs, &wait);
+       }
+
 inline void   Lock() {pthread_mutex_lock(&cs);}
 
 inline void UnLock() {pthread_mutex_unlock(&cs);}

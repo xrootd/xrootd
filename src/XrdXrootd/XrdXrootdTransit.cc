@@ -415,7 +415,13 @@ int XrdXrootdTransit::Process()
 // be deleted while a timer is outstanding as the link has been disabled. So,
 // we can reissue the request with little worry.
 //
-   if (!runALen || RunCopy(runArgs, runALen)) rc = Process2();
+   if (!runALen || RunCopy(runArgs, runALen)) {
+      do{rc = Process2();
+        if (rc == 0) {
+          rc = realProt->Process(NULL);
+        }
+      } while((rc == 0) && !runError && !runWait);
+   }
       else rc = Send(kXR_error, ioV, 2, 0);
 
 // Defer the request if need be
