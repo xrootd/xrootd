@@ -189,9 +189,11 @@ int XrdHttpReq::parseLine(char *line, int len) {
     // Screen out the needed header lines
     if (!strcmp(key, "Connection")) {
 
-
-      if (!strcmp(val, "Keep-Alive"))
+      if (!strcasecmp(val, "Keep-Alive\r\n")) {
         keepalive = true;
+      } else if (!strcasecmp(val, "close\r\n")) {
+        keepalive = false;
+      }
 
     } else if (!strcmp(key, "Host")) {
       parseHost(val);
@@ -406,8 +408,13 @@ int XrdHttpReq::parseFirstLine(char *line, int len) {
     }
     
     requestverb = key;
-    line[pos] = ' ';
 
+    // The last token should be the protocol.  If it is HTTP/1.0, then
+    // keepalive is disabled by default.
+    if (!strcmp(p+1, "HTTP/1.0\r\n")) {
+      keepalive = false;
+    }
+    line[pos] = ' ';
   }
 
   return 0;
@@ -659,7 +666,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   
   TRACE(REQ, " XrdHttpReq::Redir Redirecting to " << redirdest);
 
-  prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0);
+  prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
 
   reset();
   return false;
@@ -932,13 +939,13 @@ int XrdHttpReq::ProcessHTTPReq() {
     case XrdHttpReq::rtUnset:
     case XrdHttpReq::rtUnknown:
     {
-      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request unknown", 0);
+      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request unknown", 0, false);
       reset();
       return -1;
     }
     case XrdHttpReq::rtMalformed:
     {
-      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed", 0);
+      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed", 0, false);
       reset();
       return -1;
     }
@@ -947,7 +954,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       if (reqstate == 0) {
         // Always start with Stat; in the case of a checksum request, we'll have a follow-up query
         if (prot->doStat((char *) resourceplusopaque.c_str())) {
-          prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0);
+          prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
           return -1;
         }
         return 0;
@@ -964,7 +971,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         }
         if (prot->doChksum(m_resource_with_digest) < 0) {
           // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
-          prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+          prot->SendSimpleResp(500, NULL, NULL, NULL, 0, false);
           return -1;
         }
         return 1;
@@ -988,14 +995,14 @@ int XrdHttpReq::ProcessHTTPReq() {
 
                 // Default case: the icon and the css of the HTML rendering of XrdHttp
                 if (resource == "/static/css/xrdhttp.css") {
-                    prot->SendSimpleResp(200, NULL, NULL, (char *) static_css_xrdhttp_css, static_css_xrdhttp_css_len);
+                    prot->SendSimpleResp(200, NULL, NULL, (char *) static_css_xrdhttp_css, static_css_xrdhttp_css_len, keepalive);
                     reset();
-                    return 1;
+                    return keepalive ? 1 : -1;
                   }
                 if (resource == "/static/icons/xrdhttp.ico") {
-                    prot->SendSimpleResp(200, NULL, NULL, (char *) favicon_ico, favicon_ico_len);
+                    prot->SendSimpleResp(200, NULL, NULL, (char *) favicon_ico, favicon_ico_len, keepalive);
                     reset();
-                    return 1;
+                    return keepalive ? 1 : -1;
                   }
 
               }
@@ -1013,7 +1020,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                   s.append(resource);
                   appendOpaque(s, 0, 0, 0);
 
-                  prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0);
+                  prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0, false);
                   return -1;
 
 
@@ -1023,9 +1030,9 @@ int XrdHttpReq::ProcessHTTPReq() {
                   if (prot->staticpreload) {
                     XrdHttpProtocol::StaticPreloadInfo *mydata = prot->staticpreload->Find(resource.c_str());
                     if (mydata) {
-                      prot->SendSimpleResp(200, NULL, NULL, (char *) mydata->data, mydata->len);
+                      prot->SendSimpleResp(200, NULL, NULL, (char *) mydata->data, mydata->len, keepalive);
                       reset();
-                      return 1;
+                      return keepalive ? 1 : -1;
                     }
                   }
                   
@@ -1041,7 +1048,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           if (prot->doStat((char *) resourceplusopaque.c_str())) {
             XrdOucString errmsg = "Error stating";
             errmsg += resource.c_str();
-            prot->SendSimpleResp(404, NULL, NULL, (char *) errmsg.c_str(), 0);
+            prot->SendSimpleResp(404, NULL, NULL, (char *) errmsg.c_str(), 0, false);
             return -1;
           }
 
@@ -1052,7 +1059,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           if (fileflags & kXR_isDir) {
 
             if (prot->listdeny) {
-              prot->SendSimpleResp(503, NULL, NULL, (char *) "Listings are disabled.", 0);
+              prot->SendSimpleResp(503, NULL, NULL, (char *) "Listings are disabled.", 0, false);
               return -1;
             }
 
@@ -1066,7 +1073,7 @@ int XrdHttpReq::ProcessHTTPReq() {
               s.append(resource);
               appendOpaque(s, 0, 0, 0);
 
-              prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0);
+              prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0, false);
               return -1;
             }
 
@@ -1083,7 +1090,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.dirlist.dlen = htonl(l);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) res.c_str(), l)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0);
+              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
               return -1;
             }
 
@@ -1102,7 +1109,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.open.options = htons(kXR_retstat | kXR_open_read);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0);
+              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
               return -1;
             }
 
@@ -1130,7 +1137,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.close.fhandle, fhandle, 4);
 
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0);
+              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0, false);
               return -1;
             }
 
@@ -1192,7 +1199,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             }
             
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0);
+              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
               return -1;
             }
           } else {
@@ -1201,7 +1208,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             length = ReqReadV();
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) ralist, length)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0);
+              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
               return -1;
             }
 
@@ -1234,7 +1241,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_delete);
 
         if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
-          prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0);
+          prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, keepalive);
           return -1;
         }
 
@@ -1263,7 +1270,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           TRACEI(REQ, "Writing " << prot->BuffUsed());
           if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, prot->BuffUsed())) {
-            prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run write request.", 0);
+            prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run write request.", 0, false);
             return -1;
           }
 
@@ -1286,7 +1293,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 
           if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-            prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0);
+            prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0, false);
             return -1;
           }
 
@@ -1302,9 +1309,9 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtOPTIONS:
     {
-      prot->SendSimpleResp(200, NULL, (char *) "DAV: 1\r\nDAV: <http://apache.org/dav/propset/fs/1>\r\nAllow: HEAD,GET,PUT,PROPFIND,DELETE,OPTIONS", NULL, 0);
+      prot->SendSimpleResp(200, NULL, (char *) "DAV: 1\r\nDAV: <http://apache.org/dav/propset/fs/1>\r\nAllow: HEAD,GET,PUT,PROPFIND,DELETE,OPTIONS", NULL, 0, keepalive);
       reset();
-      return 1;
+      return  keepalive ? 1 : -1;
     }
     case XrdHttpReq::rtDELETE:
     {
@@ -1326,7 +1333,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.stat.dlen = htonl(l);
 
           if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
-            prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0);
+            prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
             return -1;
           }
 
@@ -1346,7 +1353,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.rmdir.dlen = htonl(l);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
-              prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run rmdir request.", 0);
+              prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run rmdir request.", 0, false);
               return -1;
             }
           } else {
@@ -1360,7 +1367,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.rm.dlen = htonl(l);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
-              prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run rm request.", 0);
+              prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run rm request.", 0, false);
               return -1;
             }
           }
@@ -1376,7 +1383,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtPATCH:
     {
-      prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported yet.", 0);
+      prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported yet.", 0, false);
 
       return -1;
     }
@@ -1396,12 +1403,12 @@ int XrdHttpReq::ProcessHTTPReq() {
             // We have to specifically read all the request body
 
             if (prot->BuffgetData(length, &p, true) < length) {
-              prot->SendSimpleResp(501, NULL, NULL, (char *) "Error in getting the PROPFIND request body.", 0);
+              prot->SendSimpleResp(501, NULL, NULL, (char *) "Error in getting the PROPFIND request body.", 0, false);
               return -1;
             }
 
             if ((depth > 1) || (depth < 0)) {
-              prot->SendSimpleResp(501, NULL, NULL, (char *) "Invalid depth value.", 0);
+              prot->SendSimpleResp(501, NULL, NULL, (char *) "Invalid depth value.", 0, false);
               return -1;
             }
 
@@ -1420,7 +1427,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.stat.dlen = htonl(l);
 
           if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
-            prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0);
+            prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
             return -1;
           }
 
@@ -1452,7 +1459,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.dirlist.dlen = htonl(l);
 
           if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
-            prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0);
+            prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
             return -1;
           }
 
@@ -1478,7 +1485,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       xrdreq.mkdir.dlen = htonl(l);
 
       if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
-        prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0);
+        prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
         return -1;
       }
 
@@ -1499,7 +1506,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       char *ppath;
       int port = 0;
       if (parseURL((char *) destination.c_str(), buf, port, &ppath)) {
-        prot->SendSimpleResp(501, NULL, NULL, (char *) "Cannot parse destination url.", 0);
+        prot->SendSimpleResp(501, NULL, NULL, (char *) "Cannot parse destination url.", 0, false);
         return -1;
       }
 
@@ -1514,7 +1521,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       // If we are a data server instead we cannot enforce anything, we will
       // just ignore the host part of the destination
       if ((prot->myRole == kXR_isManager) && strcmp(buf, buf2)) {
-        prot->SendSimpleResp(501, NULL, NULL, (char *) "Only in-place renaming is supported for MOVE.", 0);
+        prot->SendSimpleResp(501, NULL, NULL, (char *) "Only in-place renaming is supported for MOVE.", 0, false);
         return -1;
       }
 
@@ -1528,7 +1535,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       xrdreq.mv.arg1len = htons(resourceplusopaque.length());
       
       if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
-        prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0);
+        prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
         return -1;
       }
 
@@ -1538,7 +1545,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     default:
     {
-      prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported.", 0);
+      prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported.", 0, false);
       return -1;
     }
 
@@ -1559,19 +1566,19 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
   switch (request) {
     case XrdHttpReq::rtUnknown:
     {
-      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed 1", 0);
+      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed 1", 0, false);
       return -1;
     }
     case XrdHttpReq::rtMalformed:
     {
-      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed 2", 0);
+      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed 2", 0, false);
       return -1;
     }
     case XrdHttpReq::rtHEAD:
     {
       if (xrdresp != kXR_ok) {
         // NOTE that HEAD MUST NOT return a body, even in the case of failure.
-        prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0, false);
         return -1;
       } else if (reqstate == 0) {
         if (iovN > 0) {
@@ -1589,14 +1596,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           if (m_req_digest.size()) {
             return 0;
           } else {
-            prot->SendSimpleResp(200, NULL, NULL, NULL, filesize);
-            return 1;
+            prot->SendSimpleResp(200, NULL, NULL, NULL, filesize, keepalive);
+            return keepalive ? 1 : -1;
           }
         }
 
-        prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0, keepalive);
         reset();
-        return 1;
+        return keepalive ? 1 : -1;
       } else { // We requested a checksum and now have its response.
         if (iovN > 0) {
           TRACEI(REQ, "Checksum for HEAD " << resource << " " << reinterpret_cast<char *>(iovP[0].iov_base) << "=" << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
@@ -1607,8 +1614,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             size_t digest_length = strlen(digest_value);
             unsigned char *digest_binary_value = (unsigned char *)malloc(digest_length);
             if (!Fromhexdigest(reinterpret_cast<unsigned char *>(digest_value), digest_length, digest_binary_value)) {
-              prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+              prot->SendSimpleResp(500, NULL, NULL, NULL, 0, false);
               free(digest_binary_value);
+              return -1;
             }
             char *digest_base64_value = (char *)malloc(digest_length);
             Tobase64(digest_binary_value, digest_length/2, digest_base64_value);
@@ -1621,10 +1629,10 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           digest_response += "=";
           digest_response += digest_value;
           if (convert_to_base64) {free(digest_value);}
-          prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize);
-          return 1;
+          prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize, keepalive);
+          return keepalive ? 1 : -1;
         } else {
-          prot->SendSimpleResp(500, NULL, NULL, NULL, 0);
+          prot->SendSimpleResp(500, NULL, NULL, NULL, 0, false);
           return -1;
         }
       }
@@ -1637,7 +1645,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
         if (xrdresp == kXR_error) {
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                               httpStatusText.c_str(), httpStatusText.length());
+                               httpStatusText.c_str(), httpStatusText.length(), false);
           return -1;
         }
 
@@ -1818,9 +1826,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           stringresp += XrdVSTRING;
           stringresp += " (CERN IT-SDC)</p>\n";
           
-          prot->SendSimpleResp(200, NULL, NULL, (char *) stringresp.c_str(), 0);
+          prot->SendSimpleResp(200, NULL, NULL, (char *) stringresp.c_str(), 0, keepalive);
           stringresp.clear();
-          return 1;
+          return keepalive ? 1 : -1;
         }
 
 
@@ -1866,7 +1874,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             
             if (prot->myRole == kXR_isManager) {
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                                   httpStatusText.c_str(), httpStatusText.length());
+                                   httpStatusText.c_str(), httpStatusText.length(), false);
               return -1;
             }
 
@@ -1908,7 +1916,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               if (rwOps.size() == 0) {
                 // Full file.
                 
-                prot->SendSimpleResp(200, NULL, NULL, NULL, filesize);
+                prot->SendSimpleResp(200, NULL, NULL, NULL, filesize, keepalive);
                 return 0;
               } else
                 if (rwOps.size() == 1) {
@@ -1921,7 +1929,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 s += buf;
                 
                 
-                prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt);
+                prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
                 return 0;
               } else
                 if (rwOps.size() > 1) {
@@ -1942,7 +1950,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 }
                 cnt += buildPartialHdrEnd((char *) "123456").size();
 
-                prot->SendSimpleResp(206, NULL, (char *) "Content-Type: multipart/byteranges; boundary=123456", NULL, cnt);
+                prot->SendSimpleResp(206, NULL, (char *) "Content-Type: multipart/byteranges; boundary=123456", NULL, cnt, keepalive);
                 return 0;
               }
 
@@ -1957,11 +1965,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               //  return 0;
               //}
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                                   httpStatusText.c_str(), httpStatusText.length());
+                                   httpStatusText.c_str(), httpStatusText.length(), false);
               return -1;
             }
             
-            prot->SendSimpleResp(500, NULL, NULL, (char *) "This line should never be reached, you have been able to.", 0);
+            prot->SendSimpleResp(500, NULL, NULL, (char *) "This line should never be reached, you have been able to.", 0, keepalive);
             return -1;
             
           }
@@ -1969,10 +1977,10 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           {
 
             // Nothing to do if we are postprocessing a close
-            if (ntohs(xrdreq.header.requestid) == kXR_close) return 1;
+            if (ntohs(xrdreq.header.requestid) == kXR_close) return keepalive ? 1 : -1;
             
             // Close() if this was the third state of a readv, otherwise read the next chunk
-            if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return 1;
+            if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return keepalive ? 1: -1;
 
             // Prevent scenario where data is expected but none is actually read
             // E.g. Accessing files which return the results of a script
@@ -2064,7 +2072,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         if (xrdresp != kXR_ok) {
 
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                               httpStatusText.c_str(), httpStatusText.length());
+                               httpStatusText.c_str(), httpStatusText.length(), keepalive);
           return -1;
         }
 
@@ -2075,7 +2083,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         prot->ResumeBytes = min(length - writtenbytes, (long long) prot->BuffAvailable());
 
         if (sendcontinue) {
-          prot->SendSimpleResp(100, NULL, NULL, 0, 0);
+          prot->SendSimpleResp(100, NULL, NULL, 0, 0, keepalive);
           return 0;
         }
 
@@ -2101,11 +2109,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
         if (ntohs(xrdreq.header.requestid) == kXR_close) {
           if (xrdresp == kXR_ok) {
-            prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0);
-            return 1;
+            prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0, keepalive);
+            return keepalive ? 1 : -1;
           } else {
             prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                                 httpStatusText.c_str(), httpStatusText.length());
+                                 httpStatusText.c_str(), httpStatusText.length(), keepalive);
             return -1;
           }
         }
@@ -2127,7 +2135,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
       if (xrdresp != kXR_ok) {
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), httpStatusText.length());
+                             httpStatusText.c_str(), httpStatusText.length(), keepalive);
         return -1;
       }
 
@@ -2156,11 +2164,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         default: // response to rm
         {
           if (xrdresp == kXR_ok) {
-            prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0);
-            return 1;
+            prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0, keepalive);
+            return keepalive ? 1 : -1;
           }
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                               httpStatusText.c_str(), httpStatusText.length());
+                               httpStatusText.c_str(), httpStatusText.length(), keepalive);
           return -1;
         }
       }
@@ -2173,7 +2181,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
       if (xrdresp == kXR_error) {
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), httpStatusText.length());
+                             httpStatusText.c_str(), httpStatusText.length(), false);
         return -1;
       }
 
@@ -2251,9 +2259,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
             prot->SendSimpleResp(207, (char *) "Multi-Status", (char *) "Content-Type: text/xml; charset=\"utf-8\"",
-                    (char *) stringresp.c_str(), stringresp.length());
+                    (char *) stringresp.c_str(), stringresp.length(), keepalive);
             stringresp.clear();
-            return 1;
+            return keepalive ? 1 : -1;
           }
 
           break;
@@ -2366,9 +2374,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
             prot->SendSimpleResp(207, (char *) "Multi-Status", (char *) "Content-Type: text/xml; charset=\"utf-8\"",
-                    (char *) stringresp.c_str(), stringresp.length());
+                    (char *) stringresp.c_str(), stringresp.length(), keepalive);
             stringresp.clear();
-            return 1;
+            return keepalive ? 1 : -1;
           }
 
           break;
@@ -2385,24 +2393,24 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
       if (xrdresp != kXR_ok) {
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), httpStatusText.length());
+                             httpStatusText.c_str(), httpStatusText.length(), false);
         return -1;
       }
 
-      prot->SendSimpleResp(201, NULL, NULL, (char *) ":-)", 0);
-      return 1;
+      prot->SendSimpleResp(201, NULL, NULL, (char *) ":-)", 0, keepalive);
+      return keepalive ? 1 : -1;
 
     }
     case XrdHttpReq::rtMOVE:
     {
 
       if (xrdresp != kXR_ok) {
-        prot->SendSimpleResp(409, NULL, NULL, (char *) etext.c_str(), 0);
+        prot->SendSimpleResp(409, NULL, NULL, (char *) etext.c_str(), 0, false);
         return -1;
       }
 
-      prot->SendSimpleResp(201, NULL, NULL, (char *) ":-)", 0);
-      return 1;
+      prot->SendSimpleResp(201, NULL, NULL, (char *) ":-)", 0, keepalive);
+      return keepalive ? 1 : -1;
 
     }
 
@@ -2415,7 +2423,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
   switch (xrdresp) {
     case kXR_error:
       prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                           httpStatusText.c_str(), httpStatusText.length());
+                           httpStatusText.c_str(), httpStatusText.length(), false);
       return -1;
       break;
 
