@@ -503,17 +503,9 @@ do{xP = XrdOfsHanXpr::Get(); hP = xP->Handle;
   
 int XrdOfsHandle::WaitLock(void)
 {
-   int ntry = LockTries;
-
 // Try to obtain a lock within the retry parameters
 //
-   while(ntry--)
-        {if (hMutex.CondLock()) return 1;
-         if (ntry) XrdSysTimer::Wait(LockWait);
-        }
-
-// Indicate we could not get a lock
-//
+   if (hMutex.TimedLock(LockTries*LockWait)) return 1;
    return 0;
 }
 
