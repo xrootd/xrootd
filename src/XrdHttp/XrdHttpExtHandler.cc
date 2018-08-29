@@ -31,14 +31,14 @@ int XrdHttpExtReq::SendSimpleResp(int code, const char* desc, const char* header
 {
   if (!prot) return -1;
   
-  return prot->SendSimpleResp(code, desc, header_to_add, body, bodylen);
+  return prot->SendSimpleResp(code, desc, header_to_add, body, bodylen, true);
 }
 
 int XrdHttpExtReq::StartChunkedResp(int code, const char *desc, const char *header_to_add)
 {
   if (!prot) return -1;
 
-  return prot->StartChunkedResp(code, desc, header_to_add);
+  return prot->StartChunkedResp(code, desc, header_to_add, true);
 }
 
 int XrdHttpExtReq::ChunkResp(const char *body, long long bodylen)
