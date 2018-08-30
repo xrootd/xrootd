@@ -460,6 +460,31 @@ struct ClientFattrRequest {
 //
    static const int isNew = 0x01; // For set,  the variable must not exist
    static const int aData = 0x10; // For list, return attribute value
+
+// Add an attribute name to nvec (the buffer has to be sufficiently big)
+//
+   static char* NVecInsert( const char *name,  char *buffer );
+
+// Add an attribute name to vvec (the buffer has to be sufficiently big)
+//
+   static char* VVecInsert( const char *value, char *buffer );
+
+// Read error code from nvec
+//
+   static char* NVecRead( char* buffer, kXR_unt16 &rc );
+
+// Read attribute name from nvec, should be deallocated with free()
+//
+   static char* NVecRead( char* buffer, char *&name );
+
+// Read value length from vvec
+//
+   static char* VVecRead( char* buffer, kXR_int32 &len );
+
+// Read attribute value from vvec, should be deallocated with free()
+//
+   static char* VVecRead( char* buffer, kXR_int32 len, char *&value );
+
 };
 struct ClientGetfileRequest {
    kXR_char  streamid[2];

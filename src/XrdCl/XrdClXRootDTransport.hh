@@ -185,22 +185,6 @@ namespace XrdCl
       static void UnMarshallHeader( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Insert new element into xattr name vector
-      //!
-      //! @param name  :  extended attribute name
-      //! @param nvec  :  vector of extended atribute names
-      //------------------------------------------------------------------------
-      static void InsertXAttrNVecEntry( const std::string &name, char *&nvec );
-
-      //------------------------------------------------------------------------
-      //! Insert new element into xattr value vector
-      //!
-      //! @param value  :  extended attribute value
-      //! @param vvec   :  vector of extended atribute values
-      //------------------------------------------------------------------------
-      static void InsertXAttrVVecEntry( const std::string &value, char *&vvec );
-
-      //------------------------------------------------------------------------
       //! Log server error response
       //------------------------------------------------------------------------
       static void LogErrorResponse( const Message &msg );

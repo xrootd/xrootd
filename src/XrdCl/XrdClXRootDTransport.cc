@@ -1029,37 +1029,6 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Insert new element into xattr name vector
-  //----------------------------------------------------------------------------
-  void XRootDTransport::InsertXAttrNVecEntry( const std::string  &name,
-                                                    char        *&nvec )
-  {
-    // copy rc
-    static const kXR_unt16 rc = 0;
-    memcpy( nvec, &rc, sizeof( rc ) );
-    nvec += sizeof( rc );
-    // copy attribute name including trailing null
-    memcpy( nvec, name.c_str(), name.size() + 1 );
-    nvec += name.size() + 1;
-  }
-
-  //----------------------------------------------------------------------------
-  // Insert new element into xattr value vector
-  //----------------------------------------------------------------------------
-  void XRootDTransport::InsertXAttrVVecEntry( const std::string  &value,
-                                                    char        *&vvec )
-  {
-    // copy value size
-    kXR_int32 len = value.size();
-    len = htonl( len );
-    memcpy( vvec, &len, sizeof( len ) );
-    vvec += sizeof( len );
-    // copy value itself
-    memcpy( vvec, value.c_str(), value.size() );
-    vvec += value.size();
-  }
-
-  //----------------------------------------------------------------------------
   // Log server error response
   //----------------------------------------------------------------------------
   void XRootDTransport::LogErrorResponse( const Message &msg )
