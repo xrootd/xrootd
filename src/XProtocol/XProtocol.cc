@@ -53,6 +53,8 @@
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "XProtocol/XProtocol.hh"
 
@@ -135,7 +137,7 @@ const char *XProtocol::errName(kXR_int32 errCode)
 /******************************************************************************/
 /*                               r e q N a m e                                */
 /******************************************************************************/
-  
+
 const char *XProtocol::reqName(kXR_unt16 reqCode)
 {
 // Mangle request code if the byte orderdoesn't match our host order
@@ -149,4 +151,81 @@ const char *XProtocol::reqName(kXR_unt16 reqCode)
 // Return the proper table
 //
    return reqNames[reqCode - kXR_auth];
+}
+
+/******************************************************************************/
+/*                  n v e c & v v e c  o p e r a t i n s                      */
+/******************************************************************************/
+
+// Add an attribute name to nvec (the buffer has to be sufficiently big)
+//
+char* ClientFattrRequest::NVecInsert( const char *name,  char *buffer )
+{
+  // set rc to 0
+  memset( buffer, 0, sizeof( kXR_unt16 ) );
+  buffer += sizeof( kXR_unt16 );
+  // copy attribute name including trailing null
+  size_t len = strlen( name );
+  memcpy( buffer, name, len + 1 );
+  buffer += len + 1;
+
+  // return memory that comes right after newly inserted nvec record
+  return buffer;
+}
+
+// Add an attribute name to vvec (the buffer has to be sufficiently big)
+//
+char* ClientFattrRequest::VVecInsert( const char *value, char *buffer )
+{
+  // copy value size
+  kXR_int32 len    = strlen( value );
+  kXR_int32 lendat = htonl( len );
+  memcpy( buffer, &lendat, sizeof( kXR_int32 ) );
+  buffer += sizeof( kXR_int32 );
+  // copy value itself
+  memcpy( buffer, value, len );
+  buffer += len;
+
+  // return memory that comes right after newly inserted vvec entry
+  return buffer;
+}
+
+// Read error code from nvec
+//
+char* ClientFattrRequest::NVecRead( char* buffer, kXR_unt16 &rc )
+ {
+   rc = *reinterpret_cast<const kXR_unt16*>( buffer );
+   rc = htons( rc );
+   buffer += sizeof( kXR_unt16 );
+   return buffer;
+ }
+
+// Read attribute name from nvec
+//
+char* ClientFattrRequest::NVecRead( char* buffer, char *&name )
+{
+  name = strdup( buffer );
+  buffer += strlen( name ) + 1;
+  return buffer;
+}
+
+// Read value length from vvec
+//
+char* ClientFattrRequest::VVecRead( char* buffer, kXR_int32 &len )
+{
+  len = *reinterpret_cast<const kXR_int32*>( buffer );
+  len = htonl( len );
+  buffer += sizeof( kXR_int32 );
+  return buffer;
+}
+
+// Read attribute value from vvec
+//
+char* ClientFattrRequest::VVecRead( char* buffer, kXR_int32 len, char *&value )
+{
+  value = reinterpret_cast<char*>( malloc( len + 1 ) );
+  strncpy( value, buffer, len );
+  value[len] = 0;
+  buffer += len;
+  return buffer;
 }

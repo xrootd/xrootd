@@ -951,12 +951,11 @@ namespace XrdCl
           body    += sizeof( kXR_unt16 );
           bodylen -= sizeof( kXR_unt16 );
           // get the size of attribute name
-          size_t len = strlen( body );
-          if( len > bodylen ) return XRootDStatus( stError, errDataError );
-          std::string name( body, len );
-          attrs.push_back( std::make_tuple( name, std::string() ) );
-          body    += len + 1; // +1 for the null terminating the string
-          bodylen -= len + 1; // +1 for the null terminating the string
+          char *name = 0;
+          body = ClientFattrRequest::NVecRead( body, name );
+          attrs.push_back( std::make_tuple( std::string( name ), std::string() ) );
+          bodylen -= strlen( name ) + 1; // +1 for the null terminating the string
+          free( name );
         }
         // parse valuevec
         for( kXR_char i = 0; i < numattr; ++i )
@@ -964,16 +963,15 @@ namespace XrdCl
           // get value length
           if( bodylen < sizeof( kXR_int32 ) ) return XRootDStatus( stError, errDataError );
           kXR_int32 len = 0;
-          memcpy( &len, body, sizeof( kXR_int32 ) );
-          len = ntohl( len );
-          body    += sizeof( kXR_int32 );
+          body = ClientFattrRequest::VVecRead( body, len );
           bodylen -= sizeof( kXR_int32 );
           // get value
           if( size_t( len ) > bodylen ) return XRootDStatus( stError, errDataError );
-          std::string value( body, len );
-          std::get<xattr_value>( attrs[i] ) = value;
-          body    += len;
+          char *value = 0;
+          body = ClientFattrRequest::VVecRead( body, len, value );
           bodylen -= len;
+          std::get<xattr_value>( attrs[i] ) = value;
+          free( value );
         }
 
         return SetXAttr( attrs, handler );

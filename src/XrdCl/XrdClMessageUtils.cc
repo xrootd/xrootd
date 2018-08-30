@@ -33,6 +33,8 @@
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdClRedirectorRegistry.hh"
 
+#include "XProtocol/XProtocol.hh"
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -428,9 +430,9 @@ namespace XrdCl
     for( auto itr = attrs.begin(); itr != attrs.end(); ++itr )
     {
       const std::string &name = std::get<xattr_name>( *itr );
-      XRootDTransport::InsertXAttrNVecEntry( name, nvec );
+      nvec = ClientFattrRequest::NVecInsert( name.c_str(), nvec );
       const std::string &value = std::get<xattr_value>( *itr );
-      XRootDTransport::InsertXAttrVVecEntry( value, vvec );
+      vvec = ClientFattrRequest::VVecInsert( value.c_str(), vvec );
     }
 
     return Status();
@@ -469,52 +471,8 @@ namespace XrdCl
     char *nptr = nvec.data();
 
     for( auto itr = attrs.begin(); itr != attrs.end(); ++itr )
-      XRootDTransport::InsertXAttrNVecEntry( *itr, nptr );
+      nptr = ClientFattrRequest::NVecInsert( itr->c_str(), nptr );
 
     return Status();
   }
-
-//  //------------------------------------------------------------------------
-//  // Create body of xattr request and set the body size
-//  //------------------------------------------------------------------------
-//  template<typename T>
-//  Status MessageUtils::CreateXAttrBody( Message               *msg,
-//                                        const std::vector<T>  &vec,
-//                                        const std::string     &path )
-//  {
-//    ClientRequestHdr *hdr = reinterpret_cast<ClientRequestHdr*>( msg->GetBuffer() );
-//
-//    std::vector<char> xattrvec;
-//    Status st = MessageUtils::CreateXAttrVec( vec, xattrvec );
-//    if( !st.IsOK() )
-//      return st;
-//
-//    // update body size in the header
-//    hdr->dlen  = path.size() + 1;
-//    hdr->dlen += xattrvec.size();
-//
-//    // append the body
-//    size_t offset = sizeof( ClientRequestHdr );
-//    msg->Append( path.c_str(), path.size() + 1, offset );
-//    offset += path.size() + 1;
-//    msg->Append( xattrvec.data(), xattrvec.size(), offset );
-//  }
-//
-//  //------------------------------------------------------------------------
-//  // Manually instantiate the template for std::string
-//  //------------------------------------------------------------------------
-//  template<>
-//  Status MessageUtils::CreateXAttrBody<std::string>(
-//                                    Message                         *msg,
-//                                    const std::vector<std::string>  &vec,
-//                                    const std::string               &path );
-//
-//  //------------------------------------------------------------------------
-//  // Manually instantiate the template for xattr_t
-//  //------------------------------------------------------------------------
-//  template<>
-//  Status MessageUtils::CreateXAttrBody<xattr_t>(
-//                                    Message                         *msg,
-//                                    const std::vector<xattr_t>  &vec,
-//                                    const std::string               &path );
 }
