@@ -25,9 +25,9 @@
 #ifndef __XRD_CL_OPERATION_PARAMS_HH__
 #define __XRD_CL_OPERATION_PARAMS_HH__
 
-#include <iostream>
 #include <string>
 #include <sstream>
+#include <unordered_map>
 
 namespace XrdCl {
 
@@ -187,7 +187,7 @@ namespace XrdCl {
             template <typename T>
             void SetParam(typename T::type value, int bucket = 1){
                 if(!BucketExists(bucket)){
-                    paramsMap[bucket] = std::map<std::string, AnyObject*>();
+                    paramsMap[bucket];
                 }
                 if(paramsMap[bucket].find(T::key) != paramsMap[bucket].end()){
                     std::ostringstream oss;
@@ -213,7 +213,7 @@ namespace XrdCl {
             template <typename T>
             void SetPtrParam(typename T::type value, bool passOwnership, int bucket = 1){
                 if(!BucketExists(bucket)){
-                    paramsMap[bucket] = std::map<std::string, AnyObject*>();
+                    paramsMap[bucket];
                 }
                 if(paramsMap[bucket].find(T::key) != paramsMap[bucket].end()){
                     std::ostringstream oss;
@@ -248,13 +248,13 @@ namespace XrdCl {
             }
 
             ~ParamsContainer(){
-                std::map<int, std::map<std::string, AnyObject*>>::iterator buckets = paramsMap.begin();
+                auto buckets = paramsMap.begin();
                 //----------------------------------------------------------------
                 // Destroy dynamically allocated objects stored in map
                 //----------------------------------------------------------------
                 while(buckets != paramsMap.end()){
-                    std::map<std::string, AnyObject*> objectsMap = buckets->second; 
-                    std::map<std::string, AnyObject*>::iterator it = objectsMap.begin();
+                    auto& objectsMap = buckets->second;
+                    auto it = objectsMap.begin();
                     while(it != objectsMap.end()){
                         AnyObject* obj = it->second;
                         it++;
@@ -265,16 +265,16 @@ namespace XrdCl {
             }
 
         private:
-            std::map<int, std::map<std::string, AnyObject*>> paramsMap;
+            std::unordered_map<int, std::unordered_map<std::string, AnyObject*>> paramsMap;
     };
 
 
-    class ParamsContainerWrapper {
+    class OperationContext {
         public:
-            ParamsContainerWrapper(std::shared_ptr<ParamsContainer> paramsContainer): container(paramsContainer){}
+            OperationContext(std::shared_ptr<ParamsContainer> paramsContainer): container(paramsContainer){}
             
             template <typename T>
-            void ForwardParam(typename T::type value, int bucket = 1){
+            void FwdArg(typename T::type value, int bucket = 1){
                 container->SetParam<T>(value, bucket);
             }
 

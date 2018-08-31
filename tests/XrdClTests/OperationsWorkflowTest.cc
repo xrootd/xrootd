@@ -575,7 +575,7 @@ void WorkflowTest::ParallelTest(){
     char* secondBuffer = new char[size]();
 
     bool lockHandlerExecuted = false;
-    auto lockOpenHandler = [&firstFileUrl, &secondFileUrl, &lockHandlerExecuted](XRootDStatus &st, ParamsContainerWrapper& params) -> void {
+    auto lockOpenHandler = [&firstFileUrl, &secondFileUrl, &lockHandlerExecuted](XRootDStatus &st, OperationContext& params) -> void {
         params.ForwardParam<Open::UrlArg>(firstFileUrl, 1);
         params.ForwardParam<Open::UrlArg>(secondFileUrl, 2);
         lockHandlerExecuted = true;

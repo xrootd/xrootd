@@ -103,7 +103,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, LocationInfo&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, LocationInfo&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<LocationInfo>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -174,7 +174,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, LocationInfo&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, LocationInfo&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<LocationInfo>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -245,7 +245,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -316,7 +316,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<Buffer>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -387,7 +387,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -455,7 +455,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -529,7 +529,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -597,7 +597,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -665,7 +665,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -720,7 +720,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new SimpleForwardingFunctionWrapper(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -777,7 +777,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, StatInfo&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, StatInfo&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<StatInfo>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -842,7 +842,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, StatInfoVFS&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, StatInfoVFS&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<StatInfoVFS>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -894,7 +894,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ProtocolInfo&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, ProtocolInfo&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<ProtocolInfo>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -957,7 +957,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, DirectoryList&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, DirectoryList&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<DirectoryList>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -1022,7 +1022,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<Buffer>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }
@@ -1096,7 +1096,7 @@ namespace XrdCl {
                 return this->AddHandler(forwardingHandler);
             }
 
-            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&, ParamsContainerWrapper&)> handleFunction){
+            Operation<Handled>& operator>>(std::function<void(XRootDStatus&, Buffer&, OperationContext&)> handleFunction){
                 ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<Buffer>(handleFunction);
                 return this->AddHandler(forwardingHandler);
             }

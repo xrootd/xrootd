@@ -49,40 +49,30 @@ namespace XrdCl {
     }
 
     void OperationHandler::HandleResponseWithHosts(XRootDStatus *status, AnyObject *response, HostList *hostList){
-        if(!status->IsOK()){
-            return HandleFailedOperationStatus(status, response);
-        }
-        if(nextOperation){
-            responseHandler->HandleResponseWithHosts(status, response, hostList);
-            return RunNextOperation();
-        }
         // We need to copy status as original status object is destroyed in HandleResponse function
-        auto statusCopy = new XRootDStatus(*status);
+        auto statusCopy = XRootDStatus{*status};
         responseHandler->HandleResponseWithHosts(status, response, hostList);
-        workflow->EndWorkflowExecution(statusCopy);
+        if(!statusCopy.IsOK() || !nextOperation){
+            workflow->EndWorkflowExecution(statusCopy);
+            return;
+        }
+        if( !( statusCopy = RunNextOperation() ).IsOK() )
+          workflow->EndWorkflowExecution( statusCopy );
     }
 
     void OperationHandler::HandleResponse(XRootDStatus *status, AnyObject *response){
-        if(!status->IsOK()){
-            return HandleFailedOperationStatus(status, response);   
-        }
-        if(nextOperation){
-            responseHandler->HandleResponse(status, response);
-            return RunNextOperation();
-        }
         // We need to copy status as original status object is destroyed in HandleResponse function
-        auto statusCopy = new XRootDStatus(*status);
+        auto statusCopy = XRootDStatus{*status};
         responseHandler->HandleResponse(status, response);
-        workflow->EndWorkflowExecution(statusCopy);
+        if(!status->IsOK() || !nextOperation){
+            workflow->EndWorkflowExecution(statusCopy);
+        }
+        if( !( statusCopy = RunNextOperation() ).IsOK() )
+          workflow->EndWorkflowExecution( statusCopy );
     }
 
-    void OperationHandler::HandleFailedOperationStatus(XRootDStatus *status, AnyObject *response){
-        delete response;
-        workflow->EndWorkflowExecution(status);
-    }
-
-    void OperationHandler::RunNextOperation(){
-        nextOperation->Run(params);
+    XRootDStatus OperationHandler::RunNextOperation(){
+        return nextOperation->Run(params);
     }
 
     OperationHandler::~OperationHandler(){
@@ -152,9 +142,9 @@ namespace XrdCl {
         return *this;
     }
 
-    void Workflow::EndWorkflowExecution(XRootDStatus *lastOperationStatus){
+    void Workflow::EndWorkflowExecution(const XRootDStatus &lastOperationStatus){
         if(semaphore){
-            status = lastOperationStatus;
+            status = new XRootDStatus(lastOperationStatus);
             semaphore->Post();
         }
     }

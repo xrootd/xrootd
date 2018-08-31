@@ -42,7 +42,7 @@ namespace XrdCl {
     //---------------------------------------------------------------------------
     class ForwardingHandler: public ResponseHandler {
         friend class OperationHandler;
-        
+
         public:
             ForwardingHandler(): container(new ParamsContainer()), responseHandler(NULL), wrapper(false){}
 
@@ -69,28 +69,28 @@ namespace XrdCl {
             }
 
             //------------------------------------------------------------------
-            //! Saves value in param container so that in can be used in 
-            //! next operation 
+            //! Saves value in param container so that in can be used in
+            //! next operation
             //!
             //! @tparam T       type of the value which will be saved
             //! @param value    value to save
             //! @param bucket   bucket in which value will be saved
             //------------------------------------------------------------------
             template <typename T>
-            void ForwardParam(typename T::type value, int bucket = 1){
+            void FwdArg(typename T::type value, int bucket = 1){
                 container->SetParam<T>(value, bucket);
             }
 
         private:
-            std::shared_ptr<ParamsContainer>& GetParamsContainer(){                
+            std::shared_ptr<ParamsContainer>& GetParamsContainer(){
                 return container;
             }
 
             std::shared_ptr<ParamsContainer> container;
 
         protected:
-            std::unique_ptr<ParamsContainerWrapper> GetParamsContainerWrapper(){
-                auto paramsContainerWrapper = std::unique_ptr<ParamsContainerWrapper>(new ParamsContainerWrapper(container));
+            std::unique_ptr<OperationContext> GetParamsContainerWrapper(){
+                auto paramsContainerWrapper = std::unique_ptr<OperationContext>(new OperationContext(container));
                 return paramsContainerWrapper;
             }
 
@@ -100,7 +100,7 @@ namespace XrdCl {
 
     //---------------------------------------------------------------------------
     //! File operations workflow
-    //---------------------------------------------------------------------------   
+    //---------------------------------------------------------------------------
     class Workflow {
         friend class OperationHandler;
 
@@ -165,8 +165,8 @@ namespace XrdCl {
 
             //------------------------------------------------------------------------
             //! Get workflow execution status
-            //! 
-            //! @return workflow execution status if available, otherwise default 
+            //!
+            //! @return workflow execution status if available, otherwise default
             //! XRootDStatus object
             //------------------------------------------------------------------------
             XRootDStatus GetStatus();
@@ -180,7 +180,7 @@ namespace XrdCl {
 
             //------------------------------------------------------------------
             //! Add operation description to the descriptions list
-            //! 
+            //!
             //! @param description description of assigned operation
             //------------------------------------------------------------------
             void AddOperationInfo(std::string description);
@@ -193,11 +193,11 @@ namespace XrdCl {
         private:
             //------------------------------------------------------------------------
             //! Release the semaphore and save status
-            //! 
+            //!
             //! @param lastOperationStatus status of last executed operation.
             //!                    It is set as status of workflow execution.
             //------------------------------------------------------------------------
-            void EndWorkflowExecution(XRootDStatus *lastOperationStatus);
+      void EndWorkflowExecution(const XRootDStatus &lastOperationStatus);
 
             Operation<Handled> *firstOperation;
             std::unique_ptr<XrdSysSemaphore> semaphore;
@@ -223,7 +223,7 @@ namespace XrdCl {
             //! @param operation    operation to add
             //------------------------------------------------------------------------
             void AddOperation(Operation<Handled> *operation);
-            
+
             //------------------------------------------------------------------------
             //! Set workflow to this and all next handlers. In the last handler
             //! it is used to finish workflow execution
@@ -236,16 +236,9 @@ namespace XrdCl {
             //------------------------------------------------------------------------
             //! Run next operation if it is available, otherwise end workflow
             //------------------------------------------------------------------------
-            void RunNextOperation();
+            XRootDStatus RunNextOperation();
 
         private:
-            //------------------------------------------------------------------------
-            //! Log information about negative operation status and end workflow
-            //!
-            //! @param status   status of the operation
-            //------------------------------------------------------------------------
-            void HandleFailedOperationStatus(XRootDStatus *status, AnyObject *response);
-
 
             ForwardingHandler *responseHandler;
             Operation<Handled> *nextOperation;
@@ -255,7 +248,7 @@ namespace XrdCl {
 
     //----------------------------------------------------------------------
     //! Operation template
-    //! 
+    //!
     //! @tparam state   describes current operation configuration state
     //----------------------------------------------------------------------
     template <State state>
@@ -270,7 +263,7 @@ namespace XrdCl {
             //------------------------------------------------------------------
             //! Constructor
             //------------------------------------------------------------------
-            Operation(): handler(nullptr){                
+            Operation(): handler(nullptr){
                 static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
             }
 
@@ -294,7 +287,7 @@ namespace XrdCl {
                 ForwardingHandler *forwardingHandler = new ForwardingHandler(h);
                 return AddHandler(forwardingHandler);
             }
-            
+
             //------------------------------------------------------------------
             //! Add operation to handler
             //!
@@ -335,9 +328,9 @@ namespace XrdCl {
 
             virtual std::string ToString() = 0;
 
-        protected:     
+        protected:
             //------------------------------------------------------------------
-            //! Constructor (used internally to change copy object with 
+            //! Constructor (used internally to change copy object with
             //! change of template parameter)
             //!
             //! @param h  operation handler
@@ -398,10 +391,10 @@ namespace XrdCl {
             }
 
             //------------------------------------------------------------------
-            //! Add handler to the operation 
+            //! Add handler to the operation
             //!
             //! @param h    handler to be added
-            //! @return Operation<Handled>& 
+            //! @return Operation<Handled>&
             //------------------------------------------------------------------
             Operation<Handled>& AddHandler(ForwardingHandler *forwardingHandler){
                 static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
@@ -413,7 +406,7 @@ namespace XrdCl {
             //------------------------------------------------------------------
             //! Add default handler to the operation
             //!
-            //! @return Operation<Handled>& 
+            //! @return Operation<Handled>&
             //------------------------------------------------------------------
             Operation<Handled>& AddDefaultHandler(){
                 static_assert(state == Configured, "AddDefaultHandler method is available only for type Operation<Configured>");
@@ -448,7 +441,7 @@ namespace XrdCl {
         auto &handledOperation = op.AddDefaultHandler();
         currentOperation.AddOperation(&handledOperation);
         return currentOperation;
-    }   
+    }
 
     //------------------------------------------------------------------
     //! Add operation to handler
@@ -461,13 +454,13 @@ namespace XrdCl {
         auto &handledOperation = op.AddDefaultHandler();
         currentOperation.AddOperation(&handledOperation);
         return currentOperation;
-    }   
+    }
 
 
     //-----------------------------------------------------------------------
     //! Parallel operations
     //!
-    //! @tparam state   describes current operation configuration state 
+    //! @tparam state   describes current operation configuration state
     //-----------------------------------------------------------------------
     template <State state = Bare>
     class ParallelOperations: public Operation<state> {
@@ -502,7 +495,7 @@ namespace XrdCl {
                     ++it;
                 }
             }
-            
+
             //------------------------------------------------------------------
             //! Get description of parallel operations flow
             //!
@@ -523,7 +516,7 @@ namespace XrdCl {
 
         private:
             //------------------------------------------------------------------------
-            //! Run operations 
+            //! Run operations
             //!
             //! @param params           parameters container
             //! @param bucketDefault    bucket in parameters container
@@ -540,7 +533,7 @@ namespace XrdCl {
                 std::string statusMessage = "";
 
                 for(int i=0; i<workflows.size(); i++){
-                    workflows[i]->Wait();                    
+                    workflows[i]->Wait();
                     auto result = workflows[i]->GetStatus();
                     if(!result.IsOK()){
                         statusOK = false;
@@ -568,7 +561,7 @@ namespace XrdCl {
             }
 
             //------------------------------------------------------------------
-            //! Internal constructor - used to change status 
+            //! Internal constructor - used to change status
             //!
             //! @param workflowsArray   array of workflows to run
             //! @param h                parallel operations handler
