@@ -37,7 +37,7 @@ namespace XrdCl {
     //----------------------------------------------------------------------------
 
     OperationHandler::OperationHandler(ForwardingHandler *handler): responseHandler(handler), nextOperation(NULL), workflow(NULL){
-        params = handler->GetParamsContainer();
+        params = handler->GetArgContainer();
     }
 
     void OperationHandler::AddOperation(Operation<Handled> *operation){
@@ -127,7 +127,7 @@ namespace XrdCl {
         delete status;
     }
 
-    Workflow& Workflow::Run(std::shared_ptr<ParamsContainer> params, int bucket){
+    Workflow& Workflow::Run(std::shared_ptr<ArgsContainer> params, int bucket){
         if(semaphore){
             throw std::logic_error("Workflow is already running");
         }
@@ -136,7 +136,7 @@ namespace XrdCl {
         if(params){
             firstOperation->Run(params, bucket);
         } else {
-            std::shared_ptr<ParamsContainer> firstOperationParams = std::shared_ptr<ParamsContainer>(new ParamsContainer());
+            std::shared_ptr<ArgsContainer> firstOperationParams = std::shared_ptr<ArgsContainer>(new ArgsContainer());
             firstOperation->Run(firstOperationParams);
         }
         return *this;

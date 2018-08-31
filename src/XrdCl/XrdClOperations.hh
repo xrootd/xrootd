@@ -29,8 +29,9 @@
 #include <memory>
 #include <stdexcept>
 #include <sstream>
+#include <tuple>
 #include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClOperationParams.hh"
+#include "XrdCl/XrdClOperationArgs.hh"
 
 namespace XrdCl {
 
@@ -44,9 +45,9 @@ namespace XrdCl {
         friend class OperationHandler;
 
         public:
-            ForwardingHandler(): container(new ParamsContainer()), responseHandler(NULL), wrapper(false){}
+            ForwardingHandler(): container(new ArgsContainer()), responseHandler(NULL), wrapper(false){}
 
-            ForwardingHandler(ResponseHandler *handler): container(new ParamsContainer()), responseHandler(handler), wrapper(true){}
+            ForwardingHandler(ResponseHandler *handler): container(new ArgsContainer()), responseHandler(handler), wrapper(true){}
 
             virtual void HandleResponseWithHosts(XRootDStatus *status, AnyObject *response, HostList *hostList){
                 if(wrapper){
@@ -78,20 +79,19 @@ namespace XrdCl {
             //------------------------------------------------------------------
             template <typename T>
             void FwdArg(typename T::type value, int bucket = 1){
-                container->SetParam<T>(value, bucket);
+                container->SetArg<T>(value, bucket);
             }
 
         private:
-            std::shared_ptr<ParamsContainer>& GetParamsContainer(){
+            std::shared_ptr<ArgsContainer>& GetArgContainer(){
                 return container;
             }
 
-            std::shared_ptr<ParamsContainer> container;
+            std::shared_ptr<ArgsContainer> container;
 
         protected:
-            std::unique_ptr<OperationContext> GetParamsContainerWrapper(){
-                auto paramsContainerWrapper = std::unique_ptr<OperationContext>(new OperationContext(container));
-                return paramsContainerWrapper;
+            std::unique_ptr<OperationContext> GetOperationContext(){
+                return std::unique_ptr<OperationContext>(new OperationContext(container));
             }
 
             ResponseHandler* responseHandler;
@@ -154,7 +154,7 @@ namespace XrdCl {
             //!
             //! @return original workflow object
             //------------------------------------------------------------------------
-            Workflow& Run(std::shared_ptr<ParamsContainer> params = NULL, int bucket = 1);
+            Workflow& Run(std::shared_ptr<ArgsContainer> params = NULL, int bucket = 1);
 
             //------------------------------------------------------------------------
             //! Wait for workflow execution end
@@ -243,7 +243,7 @@ namespace XrdCl {
             ForwardingHandler *responseHandler;
             Operation<Handled> *nextOperation;
             Workflow *workflow;
-            std::shared_ptr<ParamsContainer> params;
+            std::shared_ptr<ArgsContainer> params;
     };
 
     //----------------------------------------------------------------------
@@ -363,7 +363,7 @@ namespace XrdCl {
             //!                 previous operation
             //! @return         status of the operation
             //------------------------------------------------------------------
-            virtual XRootDStatus Run(std::shared_ptr<ParamsContainer> &params, int bucket = 1) = 0;
+            virtual XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1) = 0;
 
             //------------------------------------------------------------------
             //! Handle error caused by missing parameter
@@ -523,7 +523,7 @@ namespace XrdCl {
             //!                         (not used here, provided only for compatibility with the interface )
             //! @return XRootDStatus    status of the operations
             //------------------------------------------------------------------------
-            XRootDStatus Run(std::shared_ptr<ParamsContainer> &params, int bucketDefault = 0){
+            XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucketDefault = 0){
                 for(int i=0; i<workflows.size(); i++){
                     int bucket = i + 1;
                     workflows[i]->Run(params, bucket);

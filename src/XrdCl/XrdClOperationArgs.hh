@@ -39,15 +39,29 @@ namespace XrdCl {
     //! @tparam T type of the value stored
     //--------------------------------------------------------------------
     template <typename T>
-    class OptionalParam {
+    class OptionalArg {
         public:
-            OptionalParam(T val): empty(false){
+            OptionalArg(T val): empty(false){
                 value = val;    
             }
 
-            OptionalParam(): empty(true){}
+            OptionalArg(): empty(true){}
 
-            OptionalParam(NotDefParam notdef): empty(true){}
+            OptionalArg(NotDefParam notdef): empty(true){}
+
+            OptionalArg( OptionalArg && opt ) : value( std::move( opt.value ) )
+            {
+              empty = opt.empty;
+              opt.empty = true;
+            }
+
+            OptionalArg& operator=( OptionalArg &&opt )
+            {
+              value = std::move( opt.value );
+              empty = opt.empty;
+              opt.empty = true;
+              return *this;
+            }
 
             bool IsEmpty(){
                 return empty;
@@ -71,19 +85,33 @@ namespace XrdCl {
     //! const char* type
     //------------------------------------------------------------------
     template<>
-    class OptionalParam<std::string>{
+    class OptionalArg<std::string>{
         public:
-            OptionalParam(const std::string& str): empty(false){
+            OptionalArg(const std::string& str): empty(false){
                 value = str;
             }
 
-            OptionalParam(const char *val): empty(false){
+            OptionalArg(const char *val): empty(false){
                 value = std::string(val);
             }
 
-            OptionalParam(): empty(true){}
+            OptionalArg(): empty(true){}
 
-            OptionalParam(NotDefParam notdef): empty(true){}
+            OptionalArg(NotDefParam notdef): empty(true){}
+
+            OptionalArg( OptionalArg &&opt ) : value( std::move( opt.value ) )
+            {
+              empty = opt.empty;
+              opt.empty = true;
+            }
+
+            OptionalArg& operator=( OptionalArg &&opt )
+            {
+              value = std::move( opt.value );
+              empty = opt.empty;
+              opt.empty = true;
+              return *this;
+            }
 
             bool IsEmpty(){
                 return empty;
@@ -103,16 +131,30 @@ namespace XrdCl {
 
 
     template<>
-    class OptionalParam<Buffer>{
+    class OptionalArg<Buffer>{
         public:
         
-            OptionalParam(Buffer &buf): empty(false){
+            OptionalArg(Buffer &buf): empty(false){
                 value = std::move(buf);
             }
 
-            OptionalParam(): empty(true){}
+            OptionalArg(): empty(true){}
 
-            OptionalParam(NotDefParam notdef): empty(true){}
+            OptionalArg(NotDefParam notdef): empty(true){}
+
+            OptionalArg( OptionalArg && opt ) : value( std::move( opt.value ) )
+            {
+              empty = opt.empty;
+              opt.empty = true;
+            }
+
+            OptionalArg& operator=( OptionalArg &&opt )
+            {
+              value = std::move( opt.value );
+              empty = opt.empty;
+              opt.empty = true;
+              return *this;
+            }
 
             bool IsEmpty(){
                 return empty;
@@ -137,7 +179,7 @@ namespace XrdCl {
     //! Normally only bucket 1 is used, more buckets are used only in 
     //! multiworklfow operations 
     //--------------------------------------------------------------------
-    class ParamsContainer {
+    class ArgsContainer {
         public:
             //------------------------------------------------------------
             //! Get value from container
@@ -146,7 +188,7 @@ namespace XrdCl {
             //! @return     value
             //------------------------------------------------------------
             template <typename T>
-            typename T::type GetParam(int bucket = 1){
+            typename T::type GetArg(int bucket = 1){
                 if(!Exists(T::key, bucket)){
                     std::ostringstream oss;
                     oss<<"Parameter "<<T::key<<" has not been specified in bucket "<<bucket;
@@ -165,7 +207,7 @@ namespace XrdCl {
             //! @return     pointer to stored object
             //------------------------------------------------------------
             template <typename T>
-            typename T::type GetPtrParam(int bucket = 1){
+            typename T::type GetPtrArg(int bucket = 1){
                 if(!Exists(T::key, bucket)){
                     std::ostringstream oss;
                     oss<<"Parameter "<<T::key<<" has not been specified in bucket "<<bucket;
@@ -185,7 +227,7 @@ namespace XrdCl {
             //! @param bucket   bucket in which key will be added
             //------------------------------------------------------------
             template <typename T>
-            void SetParam(typename T::type value, int bucket = 1){
+            void SetArg(typename T::type value, int bucket = 1){
                 if(!BucketExists(bucket)){
                     paramsMap[bucket];
                 }
@@ -211,7 +253,7 @@ namespace XrdCl {
             //! @param bucket   bucket to which key will be saved
             //------------------------------------------------------------
             template <typename T>
-            void SetPtrParam(typename T::type value, bool passOwnership, int bucket = 1){
+            void SetPtrArg(typename T::type value, bool passOwnership, int bucket = 1){
                 if(!BucketExists(bucket)){
                     paramsMap[bucket];
                 }
@@ -247,7 +289,7 @@ namespace XrdCl {
                 return paramsMap.find(bucket) != paramsMap.end();
             }
 
-            ~ParamsContainer(){
+            ~ArgsContainer(){
                 auto buckets = paramsMap.begin();
                 //----------------------------------------------------------------
                 // Destroy dynamically allocated objects stored in map
@@ -271,15 +313,15 @@ namespace XrdCl {
 
     class OperationContext {
         public:
-            OperationContext(std::shared_ptr<ParamsContainer> paramsContainer): container(paramsContainer){}
+            OperationContext(std::shared_ptr<ArgsContainer> paramsContainer): container(paramsContainer){}
             
             template <typename T>
             void FwdArg(typename T::type value, int bucket = 1){
-                container->SetParam<T>(value, bucket);
+                container->SetArg<T>(value, bucket);
             }
 
         private:
-            std::shared_ptr<ParamsContainer> container;
+            std::shared_ptr<ArgsContainer> container;
 
     };
 

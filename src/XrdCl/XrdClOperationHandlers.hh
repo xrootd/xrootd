@@ -50,7 +50,7 @@ namespace XrdCl {
             SimpleForwardingFunctionWrapper(std::function<void(XrdCl::XRootDStatus&, OperationContext&)> handleFunction): fun(handleFunction){}
     
             void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-                auto paramsContainerWrapper = GetParamsContainerWrapper();
+                auto paramsContainerWrapper = GetOperationContext();
                 fun(*status, *paramsContainerWrapper.get());
                 delete status;
                 delete response;
@@ -93,7 +93,7 @@ namespace XrdCl {
                 ResponseType *res = 0;
                 if( status->IsOK() ) response->Get(res);
                 else res = &nullref;
-                auto paramsContainerWrapper = GetParamsContainerWrapper();
+                auto paramsContainerWrapper = GetOperationContext();
                 fun(*status, *res, *paramsContainerWrapper.get());
                 delete status;
                 delete response;
@@ -139,7 +139,7 @@ namespace XrdCl {
               StatInfo *info = 0;
               if( status->IsOK() ) f.Stat( false, info );
               else info = &nullref;
-              auto paramsContainerWrapper = GetParamsContainerWrapper();
+              auto paramsContainerWrapper = GetOperationContext();
               fun( *status, *info, *paramsContainerWrapper.get() );
               delete info;
               delete status;
