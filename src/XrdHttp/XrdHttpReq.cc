@@ -2456,8 +2456,6 @@ void XrdHttpReq::reset() {
   //                bool final //!< true -> final result
 
 
-  keepalive = false;
-  length = 0;
   //xmlbody = 0;
   depth = 0;
   xrdresp = kXR_noResponsesYet;
@@ -2476,6 +2474,7 @@ void XrdHttpReq::reset() {
   headerok = false;
   keepalive = true;
   length = 0;
+  filesize = 0;
   depth = 0;
   sendcontinue = false;
 
