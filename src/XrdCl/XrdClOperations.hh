@@ -573,7 +573,6 @@ namespace XrdCl {
             std::vector<std::unique_ptr<Workflow>> workflows;
     };
     typedef ParallelOperations<Configured> Parallel;
-
 }
 
 

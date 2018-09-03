@@ -84,12 +84,12 @@ namespace XrdCl {
                 typedef OpenFlags::Flags type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path, OptionalArg<OpenFlags::Flags> &flags){
+            void SetArgs(Arg<std::string> &path, Arg<OpenFlags::Flags> &flags){
                 _path = std::move( path );
                 _flags = std::move( flags );
             }
 
-            LocateImpl<Configured>& operator()(OptionalArg<std::string> path, OptionalArg<OpenFlags::Flags> flags){
+            LocateImpl<Configured>& operator()(Arg<std::string> path, Arg<OpenFlags::Flags> flags){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 LocateImpl<Configured>* o = new LocateImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path, flags);
@@ -130,8 +130,8 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
-            OptionalArg<OpenFlags::Flags> _flags;
+            Arg<std::string> _path;
+            Arg<OpenFlags::Flags> _flags;
     };
     typedef LocateImpl<Bare> Locate;
     template <State state> const std::string LocateImpl<state>::PathArg::key = "path";
@@ -155,12 +155,12 @@ namespace XrdCl {
                 typedef OpenFlags::Flags type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path, OptionalArg<OpenFlags::Flags> &flags){
+            void SetArgs(Arg<std::string> &path, Arg<OpenFlags::Flags> &flags){
                 _path = std::move( path );
                 _flags = std::move( flags );
             }
 
-            DeepLocateImpl<Configured>& operator()(OptionalArg<std::string> path, OptionalArg<OpenFlags::Flags> flags){
+            DeepLocateImpl<Configured>& operator()(Arg<std::string> path, Arg<OpenFlags::Flags> flags){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 DeepLocateImpl<Configured>* o = new DeepLocateImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path, flags);
@@ -201,8 +201,8 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
-            OptionalArg<OpenFlags::Flags> _flags;
+            Arg<std::string> _path;
+            Arg<OpenFlags::Flags> _flags;
     };
     typedef DeepLocateImpl<Bare> DeepLocate;
     template <State state> const std::string DeepLocateImpl<state>::PathArg::key = "path";
@@ -226,12 +226,12 @@ namespace XrdCl {
                 typedef std::string type;
             };
 
-            void SetArgs(OptionalArg<std::string> &source, OptionalArg<std::string> &dest){
+            void SetArgs(Arg<std::string> &source, Arg<std::string> &dest){
                 _source = std::move( source );
                 _dest = std::move( dest );
             }
 
-            MvImpl<Configured>& operator()(OptionalArg<std::string> source, OptionalArg<std::string> dest){
+            MvImpl<Configured>& operator()(Arg<std::string> source, Arg<std::string> dest){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 MvImpl<Configured>* o = new MvImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(source, dest);
@@ -272,8 +272,8 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _source; 
-            OptionalArg<std::string> _dest;
+            Arg<std::string> _source;
+            Arg<std::string> _dest;
     };
     typedef MvImpl<Bare> Mv;
     template <State state> const std::string MvImpl<state>::SourceArg::key = "source";
@@ -297,12 +297,12 @@ namespace XrdCl {
                 typedef Buffer type;
             };
 
-            void SetArgs(OptionalArg<QueryCode::Code> &queryCode, OptionalArg<Buffer> &arg){
+            void SetArgs(Arg<QueryCode::Code> &queryCode, Arg<Buffer> &arg){
                 _queryCode = std::move( queryCode );
                 _arg = std::move( arg );
             }
 
-            QueryImpl<Configured>& operator()(OptionalArg<QueryCode::Code> queryCode, OptionalArg<Buffer> arg){
+            QueryImpl<Configured>& operator()(Arg<QueryCode::Code> queryCode, Arg<Buffer> arg){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 QueryImpl<Configured>* o = new QueryImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(queryCode, arg);
@@ -343,8 +343,8 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<QueryCode::Code> _queryCode; 
-            OptionalArg<Buffer> _arg;
+            Arg<QueryCode::Code> _queryCode;
+            Arg<Buffer> _arg;
     };
     typedef QueryImpl<Bare> Query;
     template <State state> const std::string QueryImpl<state>::QueryCodeArg::key = "queryCode";
@@ -368,12 +368,12 @@ namespace XrdCl {
                 typedef uint64_t type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path, OptionalArg<uint64_t> &size){
+            void SetArgs(Arg<std::string> &path, Arg<uint64_t> &size){
                 _path = std::move( path );
                 _size = std::move( size );
             }
 
-            TruncateFsImpl<Configured>& operator()(OptionalArg<std::string> path, OptionalArg<uint64_t> size){
+            TruncateFsImpl<Configured>& operator()(Arg<std::string> path, Arg<uint64_t> size){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 TruncateFsImpl<Configured>* o = new TruncateFsImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path, size);
@@ -414,8 +414,8 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
-            OptionalArg<uint64_t> _size;
+            Arg<std::string> _path;
+            Arg<uint64_t> _size;
     };
     template <State state> const std::string TruncateFsImpl<state>::PathArg::key = "path";
     template <State state> const std::string TruncateFsImpl<state>::SizeArg::key = "size";
@@ -437,11 +437,11 @@ namespace XrdCl {
                 typedef std::string type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path){
+            void SetArgs(Arg<std::string> &path){
                 _path = std::move( path );
             }
 
-            RmImpl<Configured>& operator()(OptionalArg<std::string> path){
+            RmImpl<Configured>& operator()(Arg<std::string> path){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 RmImpl<Configured>* o = new RmImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path);
@@ -481,7 +481,7 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
+            Arg<std::string> _path;
     };
     typedef RmImpl<Bare> Rm;
     template <State state> const std::string RmImpl<state>::PathArg::key = "path";
@@ -509,13 +509,13 @@ namespace XrdCl {
                 typedef Access::Mode type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path, OptionalArg<MkDirFlags::Flags> &flags, OptionalArg<Access::Mode> &mode){
+            void SetArgs(Arg<std::string> &path, Arg<MkDirFlags::Flags> &flags, Arg<Access::Mode> &mode){
                 _path = std::move( path );
                 _flags = std::move( flags );
                 _mode = std::move( mode );
             }
 
-            MkDirImpl<Configured>& operator()(OptionalArg<std::string> path, OptionalArg<MkDirFlags::Flags> flags, OptionalArg<Access::Mode> mode){
+            MkDirImpl<Configured>& operator()(Arg<std::string> path, Arg<MkDirFlags::Flags> flags, Arg<Access::Mode> mode){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 MkDirImpl<Configured>* o = new MkDirImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path, flags, mode);
@@ -557,9 +557,9 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
-            OptionalArg<MkDirFlags::Flags> _flags;
-            OptionalArg<Access::Mode> _mode;
+            Arg<std::string> _path;
+            Arg<MkDirFlags::Flags> _flags;
+            Arg<Access::Mode> _mode;
     };
     typedef MkDirImpl<Bare> MkDir;
     template <State state> const std::string MkDirImpl<state>::PathArg::key = "path";
@@ -579,11 +579,11 @@ namespace XrdCl {
                 typedef std::string type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path){
+            void SetArgs(Arg<std::string> &path){
                 _path = std::move( path );
             }
 
-            RmDirImpl<Configured>& operator()(OptionalArg<std::string> path){
+            RmDirImpl<Configured>& operator()(Arg<std::string> path){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 RmDirImpl<Configured>* o = new RmDirImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path);
@@ -623,7 +623,7 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
+            Arg<std::string> _path;
     };
     typedef RmDirImpl<Bare> RmDir;
     template <State state> const std::string RmDirImpl<state>::PathArg::key = "path";
@@ -646,12 +646,12 @@ namespace XrdCl {
                 typedef Access::Mode type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path, OptionalArg<Access::Mode> &mode){
+            void SetArgs(Arg<std::string> &path, Arg<Access::Mode> &mode){
                 _path = std::move( path );
                 _mode = std::move( mode );
             }
 
-            ChModImpl<Configured>& operator()(OptionalArg<std::string> path, OptionalArg<Access::Mode> mode){
+            ChModImpl<Configured>& operator()(Arg<std::string> path, Arg<Access::Mode> mode){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 ChModImpl<Configured>* o = new ChModImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path, mode);
@@ -692,8 +692,8 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
-            OptionalArg<Access::Mode> _mode;
+            Arg<std::string> _path;
+            Arg<Access::Mode> _mode;
     };
     typedef ChModImpl<Bare> ChMod;
     template <State state> const std::string ChModImpl<state>::PathArg::key = "path";
@@ -759,11 +759,11 @@ namespace XrdCl {
                 typedef std::string type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path){
+            void SetArgs(Arg<std::string> &path){
                 _path = std::move( path );
             }
 
-            StatFsImpl<Configured>& operator()(OptionalArg<std::string> path){
+            StatFsImpl<Configured>& operator()(Arg<std::string> path){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 StatFsImpl<Configured>* o = new StatFsImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path);
@@ -803,7 +803,7 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
+            Arg<std::string> _path;
     };
     template <State state> const std::string StatFsImpl<state>::PathArg::key = "path";
 
@@ -824,11 +824,11 @@ namespace XrdCl {
                 typedef std::string type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path){
+            void SetArgs(Arg<std::string> &path){
                 _path = std::move( path );
             }
 
-            StatVFSImpl<Configured>& operator()(OptionalArg<std::string> path){
+            StatVFSImpl<Configured>& operator()(Arg<std::string> path){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 StatVFSImpl<Configured>* o = new StatVFSImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path);
@@ -868,7 +868,7 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
+            Arg<std::string> _path;
     };
     typedef StatVFSImpl<Bare> StatVFS;
     template <State state> const std::string StatVFSImpl<state>::PathArg::key = "path";
@@ -938,12 +938,12 @@ namespace XrdCl {
                 typedef DirListFlags::Flags type;
             };
 
-            void SetArgs(OptionalArg<std::string> &path, OptionalArg<DirListFlags::Flags> &flags){
+            void SetArgs(Arg<std::string> &path, Arg<DirListFlags::Flags> &flags){
                 _path = std::move( path );
                 _flags = std::move( flags );
             }
 
-            DirListImpl<Configured>& operator()(OptionalArg<std::string> path, OptionalArg<DirListFlags::Flags> flags){
+            DirListImpl<Configured>& operator()(Arg<std::string> path, Arg<DirListFlags::Flags> flags){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 DirListImpl<Configured>* o = new DirListImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(path, flags);
@@ -984,8 +984,8 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _path; 
-            OptionalArg<DirListFlags::Flags> _flags;
+            Arg<std::string> _path;
+            Arg<DirListFlags::Flags> _flags;
     };
     typedef DirListImpl<Bare> DirList;
     template <State state> const std::string DirListImpl<state>::PathArg::key = "path";
@@ -1004,11 +1004,11 @@ namespace XrdCl {
                 typedef std::string type;
             };
 
-            void SetArgs(OptionalArg<std::string> &info){
+            void SetArgs(Arg<std::string> &info){
                 _info = std::move( info );
             }
 
-            SendInfoImpl<Configured>& operator()(OptionalArg<std::string> info){
+            SendInfoImpl<Configured>& operator()(Arg<std::string> info){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 SendInfoImpl<Configured>* o = new SendInfoImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(info);
@@ -1048,7 +1048,7 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::string> _info; 
+            Arg<std::string> _info;
     };
     typedef SendInfoImpl<Bare> SendInfo;
     template <State state> const std::string SendInfoImpl<state>::InfoArg::key = "info";
@@ -1076,13 +1076,13 @@ namespace XrdCl {
                 typedef uint8_t type;
             };
 
-            void SetArgs(OptionalArg<std::vector<std::string>> &fileList, OptionalArg<PrepareFlags::Flags> &flags, OptionalArg<uint8_t> &priority){
+            void SetArgs(Arg<std::vector<std::string>> &fileList, Arg<PrepareFlags::Flags> &flags, Arg<uint8_t> &priority){
                 _fileList = std::move( fileList );
                 _flags = std::move( flags );
                 _priority = std::move( priority );
             }
 
-            PrepareImpl<Configured>& operator()(OptionalArg<std::vector<std::string>> fileList, OptionalArg<PrepareFlags::Flags> flags, OptionalArg<uint8_t> priority){
+            PrepareImpl<Configured>& operator()(Arg<std::vector<std::string>> fileList, Arg<PrepareFlags::Flags> flags, Arg<uint8_t> priority){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 PrepareImpl<Configured>* o = new PrepareImpl<Configured>(this->filesystem, NULL);
                 o->SetArgs(fileList, flags, priority);
@@ -1124,9 +1124,9 @@ namespace XrdCl {
                 return o;
             }
             
-            OptionalArg<std::vector<std::string>> _fileList; 
-            OptionalArg<PrepareFlags::Flags> _flags;
-            OptionalArg<uint8_t> _priority;
+            Arg<std::vector<std::string>> _fileList;
+            Arg<PrepareFlags::Flags> _flags;
+            Arg<uint8_t> _priority;
     };
     typedef PrepareImpl<Bare> Prepare;
     template <State state> const std::string PrepareImpl<state>::FileListArg::key = "fileList";

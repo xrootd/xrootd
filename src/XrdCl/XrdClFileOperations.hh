@@ -87,13 +87,13 @@ namespace XrdCl {
                 typedef Access::Mode type;
             };
 
-            void SetArgs(OptionalArg<std::string> &url, OptionalArg<OpenFlags::Flags> &flags, OptionalArg<Access::Mode> &mode = Access::None){
+            void SetArgs(Arg<std::string> &url, Arg<OpenFlags::Flags> &flags, Arg<Access::Mode> &mode = Access::None){
                 _url = std::move( url );
                 _flags = std::move( flags );
                 _mode = std::move( mode );
             }
 
-            OpenImpl<Configured>& operator()(OptionalArg<std::string> url, OptionalArg<OpenFlags::Flags> flags, OptionalArg<Access::Mode> mode = Access::None){
+            OpenImpl<Configured>& operator()(Arg<std::string> url, Arg<OpenFlags::Flags> flags, Arg<Access::Mode> mode = Access::None){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 OpenImpl<Configured>* o = new OpenImpl<Configured>(this->file, NULL);
                 o->SetArgs(url, flags, mode);
@@ -144,10 +144,10 @@ namespace XrdCl {
                 delete this;
                 return o;
             }
-            
-            OptionalArg<std::string> _url;
-            OptionalArg<OpenFlags::Flags> _flags;
-            OptionalArg<Access::Mode> _mode;
+
+            Arg<std::string> _url;
+            Arg<OpenFlags::Flags> _flags;
+            Arg<Access::Mode> _mode;
     };
     typedef OpenImpl<Bare> Open;
     template <State state> const std::string OpenImpl<state>::UrlArg::key = "url";
@@ -177,13 +177,13 @@ namespace XrdCl {
                 typedef void* type;
             };
 
-            void SetArgs(OptionalArg<uint64_t> &offset, OptionalArg<uint32_t> &size, OptionalArg<void*> &buffer) {
+            void SetArgs(Arg<uint64_t> &offset, Arg<uint32_t> &size, Arg<void*> &buffer) {
                 _offset = std::move( offset );
                 _size = std::move( size );
                 _buffer = std::move( buffer );
             }
 
-            ReadImpl<Configured>& operator()(OptionalArg<uint64_t> offset, OptionalArg<uint32_t> size, OptionalArg<void*> buffer) {
+            ReadImpl<Configured>& operator()(Arg<uint64_t> offset, Arg<uint32_t> size, Arg<void*> buffer) {
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 ReadImpl<Configured>* r = new ReadImpl<Configured>(this->file, NULL);
                 r->SetArgs(offset, size, buffer);
@@ -225,9 +225,9 @@ namespace XrdCl {
                 return r;
             }
 
-            OptionalArg<uint64_t> _offset;
-            OptionalArg<uint32_t> _size;
-            OptionalArg<void*> _buffer;
+            Arg<uint64_t> _offset;
+            Arg<uint32_t> _size;
+            Arg<void*> _buffer;
     };
     typedef ReadImpl<Bare> Read;
     template <State state> const std::string ReadImpl<state>::OffsetArg::key = "offset";
@@ -291,11 +291,11 @@ namespace XrdCl {
             };
 
 
-            void SetArgs(OptionalArg<bool> &force) {
+            void SetArgs(Arg<bool> &force) {
                 _force = std::move( force );
             }
 
-            StatImpl<Configured>& operator()(OptionalArg<bool> force){
+            StatImpl<Configured>& operator()(Arg<bool> force){
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 StatImpl<Configured> *c = new StatImpl<Configured>(this->file, NULL);
                 c->SetArgs(force);
@@ -335,7 +335,7 @@ namespace XrdCl {
                 return c;
             }
 
-            OptionalArg<bool> _force;
+            Arg<bool> _force;
     };
     template <State state> const std::string StatImpl<state>::ForceArg::key = "force";
 
@@ -366,13 +366,13 @@ namespace XrdCl {
                 typedef void* type;
             };
 
-            void SetArgs(OptionalArg<uint64_t> &offset, OptionalArg<uint32_t> &size, OptionalArg<void*> &buffer) {
+            void SetArgs(Arg<uint64_t> &offset, Arg<uint32_t> &size, Arg<void*> &buffer) {
                 _offset = std::move( offset );
                 _size = std::move( size );
                 _buffer = std::move( buffer );
             }
 
-            WriteImpl<Configured>& operator()(OptionalArg<uint64_t> offset, OptionalArg<uint32_t> size, OptionalArg<void*> buffer) {
+            WriteImpl<Configured>& operator()(Arg<uint64_t> offset, Arg<uint32_t> size, Arg<void*> buffer) {
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 WriteImpl<Configured>* r = new WriteImpl<Configured>(this->file, NULL);
                 r->SetArgs(offset, size, buffer);
@@ -414,9 +414,9 @@ namespace XrdCl {
                 return r;
             }
 
-            OptionalArg<uint64_t> _offset;
-            OptionalArg<uint32_t> _size;
-            OptionalArg<void*> _buffer;
+            Arg<uint64_t> _offset;
+            Arg<uint32_t> _size;
+            Arg<void*> _buffer;
     };
     typedef WriteImpl<Bare> Write;
     template <State state> const std::string WriteImpl<state>::OffsetArg::key = "offset";
@@ -479,11 +479,11 @@ namespace XrdCl {
                 typedef uint64_t type;
             };
 
-            void SetArgs(OptionalArg<uint64_t> &size) {
+            void SetArgs(Arg<uint64_t> &size) {
                 _size = std::move( size );
             }
 
-            TruncateImpl<Configured>& operator()(OptionalArg<uint64_t> size) {
+            TruncateImpl<Configured>& operator()(Arg<uint64_t> size) {
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 TruncateImpl<Configured>* r = new TruncateImpl<Configured>(this->file, NULL);
                 r->SetArgs(size);
@@ -523,7 +523,7 @@ namespace XrdCl {
                 return r;
             }
 
-            OptionalArg<uint64_t> _size;
+            Arg<uint64_t> _size;
     };
     template <State state> const std::string TruncateImpl<state>::SizeArg::key = "size";
 
@@ -549,12 +549,12 @@ namespace XrdCl {
                 typedef char* type;
             };
 
-            void SetArgs(OptionalArg<ChunkList> &chunks, OptionalArg<void*> &buffer) {
+            void SetArgs(Arg<ChunkList> &chunks, Arg<void*> &buffer) {
                 _chunks = std::move( chunks );
                 _buffer = std::move( buffer );
             }
 
-            VectorReadImpl<Configured>& operator()(OptionalArg<ChunkList> chunks, OptionalArg<void*> buffer) {
+            VectorReadImpl<Configured>& operator()(Arg<ChunkList> chunks, Arg<void*> buffer) {
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 VectorReadImpl<Configured>* r = new VectorReadImpl<Configured>(this->file, NULL);
                 r->SetArgs(chunks, buffer);
@@ -595,8 +595,8 @@ namespace XrdCl {
                 return r;
             }
 
-            OptionalArg<ChunkList> _chunks;
-            OptionalArg<void*> _buffer;
+            Arg<ChunkList> _chunks;
+            Arg<void*> _buffer;
     };
     typedef VectorReadImpl<Bare> VectorRead;
     template <State state> const std::string VectorReadImpl<state>::ChunksArg::key = "chunks";
@@ -615,11 +615,11 @@ namespace XrdCl {
                 typedef ChunkList type;
             };
 
-            void SetArgs(OptionalArg<ChunkList> &chunks) {
+            void SetArgs(Arg<ChunkList> &chunks) {
                 _chunks = std::move( chunks );
             }
 
-            VectorWriteImpl<Configured>& operator()(OptionalArg<ChunkList> chunks) {
+            VectorWriteImpl<Configured>& operator()(Arg<ChunkList> chunks) {
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 VectorWriteImpl<Configured>* r = new VectorWriteImpl<Configured>(this->file, NULL);
                 r->SetArgs(chunks);
@@ -659,7 +659,7 @@ namespace XrdCl {
                 return r;
             }
 
-            OptionalArg<ChunkList> _chunks;
+            Arg<ChunkList> _chunks;
     };
     typedef VectorWriteImpl<Bare> VectorWrite;
     template <State state> const std::string VectorWriteImpl<state>::ChunksArg::key = "chunks";
@@ -687,13 +687,13 @@ namespace XrdCl {
                 typedef int type;
             };
 
-            void SetArgs(OptionalArg<uint64_t> &offset, OptionalArg<struct iovec*> &iov, OptionalArg<int> &iovcnt) {
+            void SetArgs(Arg<uint64_t> &offset, Arg<struct iovec*> &iov, Arg<int> &iovcnt) {
                 _offset = std::move( offset );
                 _iov = std::move( iov );
                 _iovcnt = std::move( iovcnt );
             }
 
-            WriteVImpl<Configured>& operator()(OptionalArg<uint64_t> offset, OptionalArg<struct iovec*> iov, OptionalArg<int> iovcnt) {
+            WriteVImpl<Configured>& operator()(Arg<uint64_t> offset, Arg<struct iovec*> iov, Arg<int> iovcnt) {
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 WriteVImpl<Configured>* r = new WriteVImpl<Configured>(this->file, NULL);
                 r->SetArgs(offset, iov, iovcnt);
@@ -736,9 +736,9 @@ namespace XrdCl {
                 return r;
             }
 
-            OptionalArg<uint64_t> _offset;
-            OptionalArg<struct iovec*> _iov;
-            OptionalArg<int> _iovcnt;
+            Arg<uint64_t> _offset;
+            Arg<struct iovec*> _iov;
+            Arg<int> _iovcnt;
     };
     typedef WriteVImpl<Bare> WriteV;
     template <State state> const std::string WriteVImpl<state>::OffsetArg::key = "offset";
@@ -758,11 +758,11 @@ namespace XrdCl {
                 typedef Buffer type;
             };
 
-            void SetArgs(OptionalArg<Buffer> &arg) {
+            void SetArgs(Arg<Buffer> &arg) {
                 _arg = std::move(arg);
             }
 
-            FcntlImpl<Configured>& operator()(OptionalArg<Buffer> arg) {
+            FcntlImpl<Configured>& operator()(Arg<Buffer> arg) {
                 static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
                 FcntlImpl<Configured>* r = new FcntlImpl<Configured>(this->file, NULL);
                 r->SetArgs(arg);
@@ -802,7 +802,7 @@ namespace XrdCl {
                 return r;
             }
 
-            OptionalArg<Buffer> _arg;
+            Arg<Buffer> _arg;
     };
     typedef FcntlImpl<Bare> Fcntl;
     template <State state> const std::string FcntlImpl<state>::BufferArg::key = "arg";

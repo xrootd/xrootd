@@ -39,27 +39,27 @@ namespace XrdCl {
     //! @tparam T type of the value stored
     //--------------------------------------------------------------------
     template <typename T>
-    class OptionalArg {
+    class Arg {
         public:
-            OptionalArg(T val): empty(false){
+            Arg(T val): empty(false){
                 value = val;    
             }
 
-            OptionalArg(): empty(true){}
+            Arg(): empty(true){}
 
-            OptionalArg(NotDefParam notdef): empty(true){}
+            Arg(NotDefParam notdef): empty(true){}
 
-            OptionalArg( OptionalArg && opt ) : value( std::move( opt.value ) )
+            Arg( Arg && opt ) : value( std::move( opt.value ) )
             {
               empty = opt.empty;
               opt.empty = true;
             }
 
-            OptionalArg& operator=( OptionalArg &&opt )
+            Arg& operator=( Arg &&arg )
             {
-              value = std::move( opt.value );
-              empty = opt.empty;
-              opt.empty = true;
+              value = std::move( arg.value );
+              empty = arg.empty;
+              arg.empty = true;
               return *this;
             }
 
@@ -85,27 +85,27 @@ namespace XrdCl {
     //! const char* type
     //------------------------------------------------------------------
     template<>
-    class OptionalArg<std::string>{
+    class Arg<std::string>{
         public:
-            OptionalArg(const std::string& str): empty(false){
+            Arg(const std::string& str): empty(false){
                 value = str;
             }
 
-            OptionalArg(const char *val): empty(false){
+            Arg(const char *val): empty(false){
                 value = std::string(val);
             }
 
-            OptionalArg(): empty(true){}
+            Arg(): empty(true){}
 
-            OptionalArg(NotDefParam notdef): empty(true){}
+            Arg(NotDefParam notdef): empty(true){}
 
-            OptionalArg( OptionalArg &&opt ) : value( std::move( opt.value ) )
+            Arg( Arg &&arg ) : value( std::move( arg.value ) )
             {
-              empty = opt.empty;
-              opt.empty = true;
+              empty = arg.empty;
+              arg.empty = true;
             }
 
-            OptionalArg& operator=( OptionalArg &&opt )
+            Arg& operator=( Arg &&opt )
             {
               value = std::move( opt.value );
               empty = opt.empty;
@@ -131,24 +131,24 @@ namespace XrdCl {
 
 
     template<>
-    class OptionalArg<Buffer>{
+    class Arg<Buffer>{
         public:
         
-            OptionalArg(Buffer &buf): empty(false){
+            Arg(Buffer &buf): empty(false){
                 value = std::move(buf);
             }
 
-            OptionalArg(): empty(true){}
+            Arg(): empty(true){}
 
-            OptionalArg(NotDefParam notdef): empty(true){}
+            Arg(NotDefParam notdef): empty(true){}
 
-            OptionalArg( OptionalArg && opt ) : value( std::move( opt.value ) )
+            Arg( Arg && arg ) : value( std::move( arg.value ) )
             {
-              empty = opt.empty;
-              opt.empty = true;
+              empty = arg.empty;
+              arg.empty = true;
             }
 
-            OptionalArg& operator=( OptionalArg &&opt )
+            Arg& operator=( Arg &&opt )
             {
               value = std::move( opt.value );
               empty = opt.empty;
