@@ -64,7 +64,7 @@ namespace XrdCl {
         // We need to copy status as original status object is destroyed in HandleResponse function
         auto statusCopy = XRootDStatus{*status};
         responseHandler->HandleResponse(status, response);
-        if(!status->IsOK() || !nextOperation){
+        if(!statusCopy.IsOK() || !nextOperation){
             workflow->EndWorkflowExecution(statusCopy);
         }
         if( !( statusCopy = RunNextOperation() ).IsOK() )

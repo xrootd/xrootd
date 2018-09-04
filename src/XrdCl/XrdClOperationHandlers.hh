@@ -117,7 +117,7 @@ namespace XrdCl {
               if( status->IsOK() ) f.Stat( false, info );
               else info = &nullref;
               fun( *status, *info );
-              delete info;
+              if( info != &nullref ) delete info;
               delete status;
               delete response;
               delete this;
@@ -141,7 +141,7 @@ namespace XrdCl {
               else info = &nullref;
               auto paramsContainerWrapper = GetOperationContext();
               fun( *status, *info, *paramsContainerWrapper.get() );
-              delete info;
+              if( info != &nullref ) delete info;
               delete status;
               delete response;
               delete this;

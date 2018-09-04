@@ -67,7 +67,7 @@ namespace XrdCl {
                 return empty;
             }
 
-            T GetValue(){
+            T& GetValue(){
                 if(IsEmpty()){
                     throw std::logic_error("Cannot get parameter: value has not been specified");
                 }
@@ -172,7 +172,6 @@ namespace XrdCl {
             bool empty;
     };
 
-
     //--------------------------------------------------------------------
     //! Container to store file operation parameters
     //! Parameters are stored as key-value pairs and grouped in buckets
@@ -188,7 +187,7 @@ namespace XrdCl {
             //! @return     value
             //------------------------------------------------------------
             template <typename T>
-            typename T::type GetArg(int bucket = 1){
+            typename T::type& GetArg(int bucket = 1){
                 if(!Exists(T::key, bucket)){
                     std::ostringstream oss;
                     oss<<"Parameter "<<T::key<<" has not been specified in bucket "<<bucket;
@@ -197,7 +196,7 @@ namespace XrdCl {
                 AnyObject *obj = paramsMap[bucket][T::key];
                 typename T::type *valuePtr = 0;
                 obj->Get(valuePtr);
-                return std::move(*valuePtr);
+                return *valuePtr;
             }
 
             //------------------------------------------------------------
@@ -310,7 +309,109 @@ namespace XrdCl {
             std::unordered_map<int, std::unordered_map<std::string, AnyObject*>> paramsMap;
     };
 
+    //--------------------------------------------------------------------
+    //! Helper class for moving Args between tuples
+    //--------------------------------------------------------------------
+    template<int I, typename... T>
+    struct ArgsMover
+    {
+        static const size_t size = sizeof...( T );
 
+        inline static void Do( std::tuple<T...> &from, std::tuple<T...> &to )
+        {
+          std::get<size - I>( to ) = std::move( std::get<size - I>( from ) );
+          ArgsMover<I - 1, T...>::Do( from, to );
+        }
+
+        inline static void Do( std::tuple<T&...> &from, std::tuple<T...> &to )
+        {
+          std::get<size - I>( to ) = std::move( std::get<size - I>( from ) );
+          ArgsMover<I - 1, T...>::Do( from, to );
+        }
+    };
+
+    template<typename... T>
+    struct ArgsMover<0, T...>
+    {
+        inline static void Do( std::tuple<T...> &from, std::tuple<T...> &to )
+        {
+
+        }
+
+        inline static void Do( std::tuple<T&...> &from, std::tuple<T...> &to )
+        {
+
+        }
+    };
+
+    template<typename... T>
+    inline void MoveArgs( std::tuple<T...> &from, std::tuple<T...> &to )
+    {
+      ArgsMover<sizeof...( T ), T...>::Do( from, to );
+    }
+
+    template<typename... T>
+    inline void MoveArgs( std::tuple<T&...> &&from, std::tuple<T...> &to )
+    {
+      ArgsMover<sizeof...( T ), T...>::Do( from, to );
+    }
+
+    //--------------------------------------------------------------------
+    //! A template encapsulating arguments of given operation
+    //--------------------------------------------------------------------
+    template<typename... T>
+    class Args
+    {
+      public:
+        Args() { }
+
+        Args( const Args &args ) : _args( args )
+        {
+
+        }
+
+        Args& operator=( const Args &args )
+        {
+          _args = args._args;
+          return *this;
+        }
+
+        Args( Args &&args )
+        {
+          MoveArgs( args._args, _args );
+        }
+
+        Args& operator=( Args &&args )
+        {
+          MoveArgs( args._args, _args );
+          return *this;
+        }
+
+        void TakeArgs( std::tuple<T...> && args )
+        {
+          MoveArgs( args, _args );
+        }
+
+        void TakeArgs( T&&... args )
+        {
+          MoveArgs( std::tie( args... ), _args );
+        }
+
+        template<typename ArgDesc>
+        typename ArgDesc::type& Get( std::shared_ptr<ArgsContainer> &params, int bucket )
+        {
+          auto& arg = std::get<ArgDesc::index>( _args );
+          return arg.IsEmpty() ? params->GetArg<ArgDesc>(bucket) : arg.GetValue();
+        }
+
+      protected:
+
+        std::tuple<T...> _args;
+    };
+
+    //--------------------------------------------------------------------
+    //! Operation context for a lambda function.
+    //--------------------------------------------------------------------
     class OperationContext {
         public:
             OperationContext(std::shared_ptr<ArgsContainer> paramsContainer): container(paramsContainer){}

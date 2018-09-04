@@ -267,6 +267,12 @@ namespace XrdCl {
                 static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
             }
 
+            template<State from>
+            Operation( Operation<from> && op ) : handler( std::move( op.handler ) )
+            {
+
+            }
+
             virtual ~Operation(){}
 
             //------------------------------------------------------------------
@@ -482,7 +488,7 @@ namespace XrdCl {
                 }
             }
 
-            ParallelOperations(ParallelOperations &&obj): Operation<state>(std::move(obj.handler)), workflows(std::move(obj.workflows)){}
+            ParallelOperations(ParallelOperations &&obj): Operation<state>(std::move(obj)), workflows(std::move(obj.workflows)){}
 
             template<typename Container>
             ParallelOperations(Container &container): Operation<state>(nullptr){
