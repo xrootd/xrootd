@@ -264,7 +264,7 @@ namespace XrdCl {
             //! Constructor
             //------------------------------------------------------------------
             Operation(): handler(nullptr){
-                static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
+
             }
 
             template<State from>
@@ -335,13 +335,6 @@ namespace XrdCl {
             virtual std::string ToString() = 0;
 
         protected:
-            //------------------------------------------------------------------
-            //! Constructor (used internally to change copy object with
-            //! change of template parameter)
-            //!
-            //! @param h  operation handler
-            //------------------------------------------------------------------
-            explicit Operation(std::unique_ptr<OperationHandler> h): handler(std::move(h)){}
 
             //------------------------------------------------------------------
             //! Save handler and change template type to handled
@@ -462,6 +455,61 @@ namespace XrdCl {
         return currentOperation;
     }
 
+    //----------------------------------------------------------------------
+    //! ArgsOperation template
+    //!
+    //! @param Derived  the class that derives from this template
+    //! @param state    describes current operation configuration state
+    //! @param Args     operation arguments
+    //----------------------------------------------------------------------
+    template<template<State> class Derived, State state, typename... Args>
+    class ArgsOperation : public Operation<state>
+    {
+        template<template<State> class, State, typename...> friend class ArgsOperation;
+
+      public:
+
+        ArgsOperation() {
+            static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
+        }
+
+        template<State from>
+        ArgsOperation( ArgsOperation<Derived, from, Args...> && op ) : Operation<state>( std::move( op ) ), args( std::move( op.args ) )
+        {
+
+        }
+
+        Derived<Configured> operator()( Args... args )
+        {
+          static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
+          Derived<Bare> *me = static_cast<Derived<Bare>*>( this );
+          me->TakeArgs( std::move( args )... );
+          return Derived<Configured>( std::move( *me ) );
+        }
+
+      protected:
+
+        inline void TakeArgs( Args&&... args )
+        {
+          this->args = std::tuple<Args...>( std::move( args )... );
+        }
+
+        std::tuple<Args...> args;
+    };
+
+    //----------------------------------------------------------------------
+    //! Get helper function for ArgsOperation template
+    //!
+    //! @param args     tuple with operation arguments
+    //! @param params   params forwarded by previous operation
+    //! @param bucket   bucket assigned to this operation
+    //----------------------------------------------------------------------
+    template<typename ArgDesc, typename... Args>
+    inline typename ArgDesc::type& Get( std::tuple<Args...> &args, std::shared_ptr<ArgsContainer> &params, int bucket )
+    {
+      auto &arg = std::get<ArgDesc::index>( args );
+      return arg.IsEmpty() ? params->GetArg<ArgDesc>(bucket) : arg.GetValue();
+    }
 
     //-----------------------------------------------------------------------
     //! Parallel operations
@@ -478,7 +526,7 @@ namespace XrdCl {
             //!
             //! @param operations   list of operations to run in parallel
             //------------------------------------------------------------------
-            ParallelOperations(std::initializer_list<Operation<Handled>*> operations): Operation<state>(nullptr){
+            ParallelOperations(std::initializer_list<Operation<Handled>*> operations){
                 static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
                 std::initializer_list<Operation<Handled>*>::iterator it = operations.begin();
                 while(it != operations.end()){
@@ -488,10 +536,11 @@ namespace XrdCl {
                 }
             }
 
-            ParallelOperations(ParallelOperations &&obj): Operation<state>(std::move(obj)), workflows(std::move(obj.workflows)){}
+            template <State from>
+            ParallelOperations(ParallelOperations<from> &&obj): Operation<state>(std::move(obj)), workflows(std::move(obj.workflows)){}
 
             template<typename Container>
-            ParallelOperations(Container &container): Operation<state>(nullptr){
+            ParallelOperations(Container &container){
                 static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
                 static_assert(std::is_same<typename Container::value_type, Operation<Handled>*>::value, "Invalid type in container");
                 typename Container::iterator it = container.begin();
@@ -562,18 +611,9 @@ namespace XrdCl {
             //! @return Operation<Handled>*     operation with handled status
             //------------------------------------------------------------------
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                ParallelOperations<Handled> *c = new ParallelOperations<Handled>(std::move(workflows), std::move(h));
+                this->handler = std::move( h );
+                ParallelOperations<Handled> *c = new ParallelOperations<Handled>( std::move( *this ) );
                 return c;
-            }
-
-            //------------------------------------------------------------------
-            //! Internal constructor - used to change status
-            //!
-            //! @param workflowsArray   array of workflows to run
-            //! @param h                parallel operations handler
-            //------------------------------------------------------------------
-            ParallelOperations(std::vector<std::unique_ptr<Workflow>> workflowsArray, std::unique_ptr<OperationHandler> h): Operation<state>(std::move(h)){
-                workflows.swap(workflowsArray);
             }
 
             std::vector<std::unique_ptr<Workflow>> workflows;

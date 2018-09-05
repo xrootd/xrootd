@@ -32,10 +32,10 @@
 
 namespace XrdCl {
 
-    template <State state>
-    class FileSystemOperation: public Operation<state> {
+    template<template<State> class Derived, State state, typename... Args>
+    class FileSystemOperation: public ArgsOperation<Derived, state, Args...> {
 
-          template<State> friend class FileSystemOperation;
+          template<template<State> class, State, typename...> friend class FileSystemOperation;
 
         public:
             //------------------------------------------------------------------
@@ -46,42 +46,25 @@ namespace XrdCl {
             //------------------------------------------------------------------
             explicit FileSystemOperation(FileSystem *fs): filesystem(fs){}
 
-            //------------------------------------------------------------------
-            //! Copy constructor - used to return Bare objects by value
-            //------------------------------------------------------------------
-            FileSystemOperation(const FileSystemOperation<Bare> &op): Operation<Bare>(), filesystem(op.filesystem){
-                static_assert(state == Bare, "Copy constructor is available only for type FileOperation<Bare>");
-            }
-
             template<State from>
-            FileSystemOperation( FileSystemOperation<from> && op ): Operation<state>( std::move( op ) ), filesystem( op.filesystem ) { }
+            FileSystemOperation( FileSystemOperation<Derived, from, Args...> && op ): ArgsOperation<Derived, state, Args...>( std::move( op ) ), filesystem( op.filesystem ) { }
 
             virtual ~FileSystemOperation(){}
 
         protected:
-            //------------------------------------------------------------------
-            //! Constructor (used internally to change copy object with 
-            //! change of template parameter)
-            //!
-            //! @param fs   filesystem object on which operation will be performed
-            //! @param h    operation handler
-            //------------------------------------------------------------------
-            FileSystemOperation(FileSystem *fs, std::unique_ptr<OperationHandler> h): Operation<state>(std::move(h)), filesystem(fs){}
 
             FileSystem *filesystem;
-
     };
 
 
     template <State state>
-    class LocateImpl: public FileSystemOperation<state>, public Args<Arg<std::string>, Arg<OpenFlags::Flags>> {
+    class LocateImpl: public FileSystemOperation<LocateImpl, state, Arg<std::string>, Arg<OpenFlags::Flags>> {
         public:
-            LocateImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            LocateImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            LocateImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            LocateImpl(FileSystem *fs): FileSystemOperation<LocateImpl, state, Arg<std::string>, Arg<OpenFlags::Flags>>(fs){}
+            LocateImpl(FileSystem &fs): FileSystemOperation<LocateImpl, state, Arg<std::string>, Arg<OpenFlags::Flags>>(&fs){}
 
             template<State from>
-            LocateImpl( LocateImpl<from> && locate ) : FileSystemOperation<state>( std::move( locate ) ), Args<Arg<std::string>, Arg<OpenFlags::Flags>>( std::move( locate ) ) { }
+            LocateImpl( LocateImpl<from> && locate ) : FileSystemOperation<LocateImpl, state, Arg<std::string>, Arg<OpenFlags::Flags>>( std::move( locate ) ) { }
 
             struct PathArg {
                 static const int index = 0;
@@ -94,12 +77,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef OpenFlags::Flags type;
             };
-
-            LocateImpl<Configured> operator()(Arg<std::string> path, Arg<OpenFlags::Flags> flags){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ), std::move( flags ) );
-                return LocateImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -120,8 +97,8 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string      &path  = Get<PathArg>( params, bucket );
-                    OpenFlags::Flags &flags = Get<FlagsArg>( params, bucket);
+                    std::string      &path  = Get<PathArg>( this->args, params, bucket );
+                    OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket);
                     return this->filesystem->Locate(path, flags, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -129,8 +106,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                LocateImpl<Handled>* o = new LocateImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                LocateImpl<Handled>* o = new LocateImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -140,14 +117,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class DeepLocateImpl: public FileSystemOperation<state>, public Args<Arg<std::string>, Arg<OpenFlags::Flags>> {
+    class DeepLocateImpl: public FileSystemOperation<DeepLocateImpl, state, Arg<std::string>, Arg<OpenFlags::Flags>> {
         public:
-            DeepLocateImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            DeepLocateImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            DeepLocateImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            DeepLocateImpl(FileSystem *fs): FileSystemOperation<DeepLocateImpl, state, Arg<std::string>, Arg<OpenFlags::Flags>>(fs){}
+            DeepLocateImpl(FileSystem &fs): FileSystemOperation<DeepLocateImpl, state, Arg<std::string>, Arg<OpenFlags::Flags>>(&fs){}
 
             template<State from>
-            DeepLocateImpl( DeepLocateImpl<from> && locate ) : FileSystemOperation<state>( std::move( locate ) ), Args<Arg<std::string>, Arg<OpenFlags::Flags>>( std::move( locate ) ) { }
+            DeepLocateImpl( DeepLocateImpl<from> && locate ) : FileSystemOperation<DeepLocateImpl, state, Arg<std::string>, Arg<OpenFlags::Flags>>( std::move( locate ) ) { }
 
             struct PathArg {
                 static const int index = 0;
@@ -160,12 +136,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef OpenFlags::Flags type;
             };
-
-            DeepLocateImpl<Configured> operator()(Arg<std::string> path, Arg<OpenFlags::Flags> flags){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ), std::move( flags ) );
-                return DeepLocateImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -186,8 +156,8 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                  std::string      &path  = Get<PathArg>( params, bucket );
-                  OpenFlags::Flags &flags = Get<FlagsArg>( params, bucket);
+                  std::string      &path  = Get<PathArg>( this->args, params, bucket );
+                  OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket);
                     return this->filesystem->DeepLocate(path, flags, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -195,8 +165,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                DeepLocateImpl<Handled>* o = new DeepLocateImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                DeepLocateImpl<Handled>* o = new DeepLocateImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -206,14 +176,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class MvImpl: public FileSystemOperation<state>, public Args<Arg<std::string>, Arg<std::string>> {
+    class MvImpl: public FileSystemOperation<MvImpl, state, Arg<std::string>, Arg<std::string>> {
         public:
-            MvImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            MvImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            MvImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            MvImpl(FileSystem *fs): FileSystemOperation<MvImpl, state, Arg<std::string>, Arg<std::string>>(fs){}
+            MvImpl(FileSystem &fs): FileSystemOperation<MvImpl, state, Arg<std::string>, Arg<std::string>>(&fs){}
 
             template<State from>
-            MvImpl( MvImpl<from> && mv ) : FileSystemOperation<state>( std::move( mv ) ), Args<Arg<std::string>, Arg<std::string>>( std::move( mv ) ) { }
+            MvImpl( MvImpl<from> && mv ) : FileSystemOperation<MvImpl, state, Arg<std::string>, Arg<std::string>>( std::move( mv ) ) { }
 
             struct SourceArg {
                 static const int index = 0;
@@ -226,12 +195,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef std::string type;
             };
-
-            MvImpl<Configured> operator()(Arg<std::string> source, Arg<std::string> dest){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( source ), std::move( dest ) );
-                return MvImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -252,8 +215,8 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string &source = Get<SourceArg>( params, bucket );
-                    std::string &dest   = Get<DestArg>( params, bucket );
+                    std::string &source = Get<SourceArg>( this->args, params, bucket );
+                    std::string &dest   = Get<DestArg>( this->args, params, bucket );
                     return this->filesystem->Mv(source, dest, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -261,8 +224,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                MvImpl<Handled>* o = new MvImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                MvImpl<Handled>* o = new MvImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -272,14 +235,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class QueryImpl: public FileSystemOperation<state>, public Args<Arg<QueryCode::Code>, Arg<Buffer>> {
+    class QueryImpl: public FileSystemOperation<QueryImpl, state, Arg<QueryCode::Code>, Arg<Buffer>> {
         public:
-            QueryImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            QueryImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            QueryImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            QueryImpl(FileSystem *fs): FileSystemOperation<QueryImpl, state, Arg<QueryCode::Code>, Arg<Buffer>>(fs){}
+            QueryImpl(FileSystem &fs): FileSystemOperation<QueryImpl, state, Arg<QueryCode::Code>, Arg<Buffer>>(&fs){}
 
             template<State from>
-            QueryImpl( QueryImpl<from> && query ) : FileSystemOperation<state>( std::move( query ) ), Args<Arg<QueryCode::Code>, Arg<Buffer>>( std::move( query ) ) { }
+            QueryImpl( QueryImpl<from> && query ) : FileSystemOperation<QueryImpl, state, Arg<QueryCode::Code>, Arg<Buffer>>( std::move( query ) ) { }
 
             struct QueryCodeArg {
                 static const int index = 0;
@@ -292,12 +254,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef Buffer type;
             };
-
-            QueryImpl<Configured> operator()(Arg<QueryCode::Code> queryCode, Arg<Buffer> arg){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( queryCode ), std::move( arg ) );
-                return QueryImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -318,8 +274,8 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    QueryCode::Code &queryCode = Get<QueryCodeArg>( params, bucket );
-                    const Buffer    &arg       = Get<BufferArg>( params, bucket );
+                    QueryCode::Code &queryCode = Get<QueryCodeArg>( this->args, params, bucket );
+                    const Buffer    &arg       = Get<BufferArg>( this->args, params, bucket );
                     return this->filesystem->Query(queryCode, arg, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -327,8 +283,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                QueryImpl<Handled>* o = new QueryImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                QueryImpl<Handled>* o = new QueryImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -338,14 +294,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class TruncateFsImpl: public FileSystemOperation<state>, public Args<Arg<std::string>, Arg<uint64_t>> {
+    class TruncateFsImpl: public FileSystemOperation<TruncateFsImpl, state, Arg<std::string>, Arg<uint64_t>> {
         public:
-            TruncateFsImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            TruncateFsImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            TruncateFsImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            TruncateFsImpl(FileSystem *fs): FileSystemOperation<TruncateFsImpl, state, Arg<std::string>, Arg<uint64_t>>(fs){}
+            TruncateFsImpl(FileSystem &fs): FileSystemOperation<TruncateFsImpl, state, Arg<std::string>, Arg<uint64_t>>(&fs){}
 
             template<State from>
-            TruncateFsImpl( TruncateFsImpl<from> && trunc ) : FileSystemOperation<state>( std::move( trunc ) ), Args<Arg<std::string>, Arg<uint64_t>>( std::move( trunc ) ) { }
+            TruncateFsImpl( TruncateFsImpl<from> && trunc ) : FileSystemOperation<TruncateFsImpl, state, Arg<std::string>, Arg<uint64_t>>( std::move( trunc ) ) { }
 
             struct PathArg {
                 static const int index = 0;
@@ -358,12 +313,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef uint64_t type;
             };
-
-            TruncateFsImpl<Configured> operator()(Arg<std::string> path, Arg<uint64_t> size){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ), std::move( size ) );
-                return TruncateFsImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -384,17 +333,17 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string &path = Get<PathArg>( params, bucket );
-                    uint64_t    &size = Get<SizeArg>( params, bucket );
+                    std::string &path = Get<PathArg>( this->args, params, bucket );
+                    uint64_t    &size = Get<SizeArg>( this->args, params, bucket );
                     return this->filesystem->Truncate(path, size, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
-            }  
+            }
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                TruncateFsImpl<Handled>* o = new TruncateFsImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                TruncateFsImpl<Handled>* o = new TruncateFsImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -402,31 +351,24 @@ namespace XrdCl {
     template <State state> const std::string TruncateFsImpl<state>::SizeArg::key = "size";
 
     TruncateFsImpl<Bare> Truncate(FileSystem *fs){
-        return TruncateFsImpl<Bare>(fs, nullptr);
+        return TruncateFsImpl<Bare>(fs);
     }
 
 
     template <State state>
-    class RmImpl: public FileSystemOperation<state>, public Args<Arg<std::string>> {
+    class RmImpl: public FileSystemOperation<RmImpl, state, Arg<std::string>> {
         public:
-            RmImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            RmImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            RmImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            RmImpl(FileSystem *fs): FileSystemOperation<RmImpl, state, Arg<std::string>>(fs){}
+            RmImpl(FileSystem &fs): FileSystemOperation<RmImpl, state, Arg<std::string>>(&fs){}
 
             template<State from>
-            RmImpl( RmImpl<from> && rm ) : FileSystemOperation<state>( std::move( rm ) ), Args<Arg<std::string>>( std::move( rm ) ) { }
+            RmImpl( RmImpl<from> && rm ) : FileSystemOperation<RmImpl, state, Arg<std::string>>( std::move( rm ) ) { }
 
             struct PathArg {
                 static const int index = 0;
                 static const std::string key;
                 typedef std::string type;
             };
-
-            RmImpl<Configured> operator()(Arg<std::string> path){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ) );
-                return RmImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -447,16 +389,16 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string& path = Get<PathArg>( params, bucket );
+                    std::string& path = Get<PathArg>( this->args, params, bucket );
                     return this->filesystem->Rm(path, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
-            }  
+            }
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                RmImpl<Handled>* o = new RmImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                RmImpl<Handled>* o = new RmImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -465,15 +407,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class MkDirImpl: public FileSystemOperation<state>, public Args<Arg<std::string>, Arg<MkDirFlags::Flags>, Arg<Access::Mode>> {
+    class MkDirImpl: public FileSystemOperation<MkDirImpl, state, Arg<std::string>, Arg<MkDirFlags::Flags>, Arg<Access::Mode>> {
         public:
-            MkDirImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            MkDirImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            MkDirImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            MkDirImpl(FileSystem *fs): FileSystemOperation<MkDirImpl, state, Arg<std::string>, Arg<MkDirFlags::Flags>, Arg<Access::Mode>>(fs){}
+            MkDirImpl(FileSystem &fs): FileSystemOperation<MkDirImpl, state, Arg<std::string>, Arg<MkDirFlags::Flags>, Arg<Access::Mode>>(&fs){}
 
             template<State from>
-            MkDirImpl( MkDirImpl<from> && mkdir ) : FileSystemOperation<state>( std::move( mkdir ) ),
-                                                    Args<Arg<std::string>, Arg<MkDirFlags::Flags>, Arg<Access::Mode>>( std::move( mkdir ) ) { }
+            MkDirImpl( MkDirImpl<from> && mkdir ) : FileSystemOperation<MkDirImpl, state, Arg<std::string>, Arg<MkDirFlags::Flags>, Arg<Access::Mode>>( std::move( mkdir ) ) { }
 
             struct PathArg {
                 static const int index = 0;
@@ -492,12 +432,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef Access::Mode type;
             };
-
-            MkDirImpl<Configured> operator()(Arg<std::string> path, Arg<MkDirFlags::Flags> flags, Arg<Access::Mode> mode){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ), std::move( flags ), std::move( mode ) );
-                return MkDirImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -518,9 +452,9 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string       &path  = Get<PathArg>( params, bucket );
-                    MkDirFlags::Flags &flags = Get<FlagsArg>( params, bucket );
-                    Access::Mode      &mode  = Get<ModeArg>( params, bucket );
+                    std::string       &path  = Get<PathArg>( this->args, params, bucket );
+                    MkDirFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
+                    Access::Mode      &mode  = Get<ModeArg>( this->args, params, bucket );
                     return this->filesystem->MkDir(path, flags, mode, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -528,8 +462,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                MkDirImpl<Handled>* o = new MkDirImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                MkDirImpl<Handled>* o = new MkDirImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -540,26 +474,19 @@ namespace XrdCl {
 
 
     template <State state>
-    class RmDirImpl: public FileSystemOperation<state>, public Args<Arg<std::string>> {
+    class RmDirImpl: public FileSystemOperation<RmDirImpl, state, Arg<std::string>> {
         public:
-            RmDirImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            RmDirImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            RmDirImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            RmDirImpl(FileSystem *fs): FileSystemOperation<RmDirImpl, state, Arg<std::string>>(fs){}
+            RmDirImpl(FileSystem &fs): FileSystemOperation<RmDirImpl, state, Arg<std::string>>(&fs){}
 
             template<State from>
-            RmDirImpl( RmDirImpl<from> && rmdir ) : FileSystemOperation<state>( std::move( rmdir ) ), Args<Arg<std::string>>( std::move( rmdir ) ) { }
+            RmDirImpl( RmDirImpl<from> && rmdir ) : FileSystemOperation<RmDirImpl, state, Arg<std::string>>( std::move( rmdir ) ) { }
 
             struct PathArg {
                 static const int index = 0;
                 static const std::string key;
                 typedef std::string type;
             };
-
-            RmDirImpl<Configured> operator()(Arg<std::string> path){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ) );
-                return RmDirImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -580,7 +507,7 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string &path = Get<PathArg>( params, bucket );
+                    std::string &path = Get<PathArg>( this->args, params, bucket );
                     return this->filesystem->RmDir(path, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -588,8 +515,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                RmDirImpl<Handled>* o = new RmDirImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                RmDirImpl<Handled>* o = new RmDirImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -598,14 +525,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class ChModImpl: public FileSystemOperation<state>, public Args<Arg<std::string>, Arg<Access::Mode>> {
+    class ChModImpl: public FileSystemOperation<ChModImpl, state, Arg<std::string>, Arg<Access::Mode>> {
         public:
-            ChModImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            ChModImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            ChModImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            ChModImpl(FileSystem *fs): FileSystemOperation<ChModImpl, state, Arg<std::string>, Arg<Access::Mode>>(fs){}
+            ChModImpl(FileSystem &fs): FileSystemOperation<ChModImpl, state, Arg<std::string>, Arg<Access::Mode>>(&fs){}
 
             template<State from>
-            ChModImpl( ChModImpl<from> && chmod ) : FileSystemOperation<state>( std::move( chmod ) ), Args<Arg<std::string>, Arg<Access::Mode>>( std::move( chmod ) ) { }
+            ChModImpl( ChModImpl<from> && chmod ) : FileSystemOperation<ChModImpl, state, Arg<std::string>, Arg<Access::Mode>>( std::move( chmod ) ) { }
 
             struct PathArg {
                 static const int index = 0;
@@ -618,12 +544,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef Access::Mode type;
             };
-
-            ChModImpl<Configured> operator()(Arg<std::string> path, Arg<Access::Mode> mode){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ), std::move( mode ) );
-                return ChModImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -644,8 +564,8 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string  &path = Get<PathArg>( params, bucket );
-                    Access::Mode &mode = Get<ModeArg>( params, bucket );
+                    std::string  &path = Get<PathArg>( this->args, params, bucket );
+                    Access::Mode &mode = Get<ModeArg>( this->args, params, bucket );
                     return this->filesystem->ChMod(path, mode, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -653,8 +573,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                ChModImpl<Handled>* o = new ChModImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                ChModImpl<Handled>* o = new ChModImpl<Handled>( ( *this ) );
                 return o;
             }
     };
@@ -664,19 +584,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class PingImpl: public FileSystemOperation<state> {
+    class PingImpl: public FileSystemOperation<PingImpl, state> {
         public:
-            PingImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            PingImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            PingImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            PingImpl(FileSystem *fs): FileSystemOperation<PingImpl, state>(fs){}
+            PingImpl(FileSystem &fs): FileSystemOperation<PingImpl, state>(&fs){}
 
             template<State from>
-            PingImpl( PingImpl<from> && ping ) : FileSystemOperation<state>( std::move( ping ) ) { }
-
-            PingImpl<Configured> operator()(){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                return PingImpl<Configured>( std::move( *this ) );
-            }
+            PingImpl( PingImpl<from> && ping ) : FileSystemOperation<PingImpl, state>( std::move( ping ) ) { }
 
             using Operation<state>::operator>>;
 
@@ -704,7 +618,7 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                PingImpl<Handled>* o = new PingImpl<Handled>(this->filesystem, std::move(h));
+                PingImpl<Handled>* o = new PingImpl<Handled>( std::move( *this ) );
                 return o;
             }            
     };
@@ -712,26 +626,19 @@ namespace XrdCl {
 
 
     template <State state>
-    class StatFsImpl: public FileSystemOperation<state>, public Args<Arg<std::string>> {
+    class StatFsImpl: public FileSystemOperation<StatFsImpl, state, Arg<std::string>> {
         public:
-            StatFsImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            StatFsImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            StatFsImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            StatFsImpl(FileSystem *fs): FileSystemOperation<StatFsImpl, state, Arg<std::string>>(fs){}
+            StatFsImpl(FileSystem &fs): FileSystemOperation<StatFsImpl, state, Arg<std::string>>(&fs){}
 
             template<State from>
-            StatFsImpl( StatFsImpl && statfs ) : FileSystemOperation<state>( std::move( statfs ) ), Args<Arg<std::string>>( std::move( statfs ) ) { }
+            StatFsImpl( StatFsImpl<from> && statfs ) : FileSystemOperation<StatFsImpl, state, Arg<std::string>>( std::move( statfs ) ) { }
 
             struct PathArg {
                 static const int index = 0;
                 static const std::string key;
                 typedef std::string type;
             };
-
-            StatFsImpl<Configured> operator()(Arg<std::string> path){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ) );
-                return StatFsImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -752,47 +659,40 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string &path = Get<PathArg>( params, bucket );
+                    std::string &path = Get<PathArg>( this->args, params, bucket );
                     return this->filesystem->RmDir(path, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
                 }
-            }  
+            }
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                StatFsImpl<Handled>* o = new StatFsImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                StatFsImpl<Handled>* o = new StatFsImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
     template <State state> const std::string StatFsImpl<state>::PathArg::key = "path";
 
     StatFsImpl<Bare> Stat(FileSystem *fs){
-        return StatFsImpl<Bare>(fs, nullptr);
+        return StatFsImpl<Bare>(fs);
     }
 
 
     template <State state>
-    class StatVFSImpl: public FileSystemOperation<state>, public Args<Arg<std::string>> {
+    class StatVFSImpl: public FileSystemOperation<StatVFSImpl, state, Arg<std::string>> {
         public:
-            StatVFSImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            StatVFSImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            StatVFSImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            StatVFSImpl(FileSystem *fs): FileSystemOperation<StatVFSImpl, state, Arg<std::string>>(fs){}
+            StatVFSImpl(FileSystem &fs): FileSystemOperation<StatVFSImpl, state, Arg<std::string>>(&fs){}
 
             template<State from>
-            StatVFSImpl( StatVFSImpl<state> && statvfs ) : FileSystemOperation<state>( std::move( statvfs ) ), Args<Arg<std::string>>( std::move( statvfs ) ) { }
+            StatVFSImpl( StatVFSImpl<state> && statvfs ) : FileSystemOperation<StatVFSImpl, state, Arg<std::string>>( std::move( statvfs ) ) { }
 
             struct PathArg {
                 static const int index = 0;
                 static const std::string key;
                 typedef std::string type;
             };
-
-            StatVFSImpl<Configured> operator()(Arg<std::string> path){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ) );
-                return StatVFSImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -813,7 +713,7 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string &path = Get<PathArg>( params, bucket );
+                    std::string &path = Get<PathArg>( this->args, params, bucket );
                     return this->filesystem->StatVFS(path, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -821,8 +721,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                StatVFSImpl<Handled>* o = new StatVFSImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+              this->handler = std::move( h );
+                StatVFSImpl<Handled>* o = new StatVFSImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -831,19 +731,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class ProtocolImpl: public FileSystemOperation<state> {
+    class ProtocolImpl: public FileSystemOperation<ProtocolImpl, state> {
         public:
-            ProtocolImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            ProtocolImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            ProtocolImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            ProtocolImpl(FileSystem *fs): FileSystemOperation<ProtocolImpl, state>(fs){}
+            ProtocolImpl(FileSystem &fs): FileSystemOperation<ProtocolImpl, state>(&fs){}
 
             template<State from>
-            ProtocolImpl( ProtocolImpl<from> && prot ) : FileSystemOperation<state>( std::move( prot ) ) { }
-
-            ProtocolImpl<Configured> operator()(){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                return ProtocolImpl<Configured>( std::move( *this ) );
-            }
+            ProtocolImpl( ProtocolImpl<from> && prot ) : FileSystemOperation<ProtocolImpl, state>( std::move( prot ) ) { }
 
             using Operation<state>::operator>>;
 
@@ -871,7 +765,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                ProtocolImpl<Handled>* o = new ProtocolImpl<Handled>(this->filesystem, std::move(h));
+                this->handler = std::move( h );
+                ProtocolImpl<Handled>* o = new ProtocolImpl<Handled>( std::move( *this ) );
                 return o;
             }            
     };
@@ -879,14 +774,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class DirListImpl: public FileSystemOperation<state>, Args<Arg<std::string>, Arg<DirListFlags::Flags>> {
+    class DirListImpl: public FileSystemOperation<DirListImpl, state, Arg<std::string>, Arg<DirListFlags::Flags>> {
         public:
-            DirListImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            DirListImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            DirListImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            DirListImpl(FileSystem *fs): FileSystemOperation<DirListImpl, state, Arg<std::string>, Arg<DirListFlags::Flags>>(fs){}
+            DirListImpl(FileSystem &fs): FileSystemOperation<DirListImpl, state, Arg<std::string>, Arg<DirListFlags::Flags>>(&fs){}
 
             template<State from>
-            DirListImpl( DirListImpl<from> && dirls ) : FileSystemOperation<state>( std::move( dirls ) ), Args<Arg<std::string>, Arg<DirListFlags::Flags>>( std::move( dirls ) ) { }
+            DirListImpl( DirListImpl<from> && dirls ) : FileSystemOperation<DirListImpl, state, Arg<std::string>, Arg<DirListFlags::Flags>>( std::move( dirls ) ) { }
 
             struct PathArg {
                 static const int index = 0;
@@ -899,12 +793,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef DirListFlags::Flags type;
             };
-
-            DirListImpl<Configured> operator()(Arg<std::string> path, Arg<DirListFlags::Flags> flags){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( path ), std::move( flags ) );
-                return DirListImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -925,8 +813,8 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string         &path  = Get<PathArg>( params, bucket );
-                    DirListFlags::Flags &flags = Get<FlagsArg>( params, bucket );
+                    std::string         &path  = Get<PathArg>( this->args, params, bucket );
+                    DirListFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
                     return this->filesystem->DirList(path, flags, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -934,8 +822,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                DirListImpl<Handled>* o = new DirListImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                DirListImpl<Handled>* o = new DirListImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -945,26 +833,19 @@ namespace XrdCl {
 
 
     template <State state>
-    class SendInfoImpl: public FileSystemOperation<state>, Args<Arg<std::string>> {
+    class SendInfoImpl: public FileSystemOperation<SendInfoImpl, state, Arg<std::string>> {
         public:
-            SendInfoImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            SendInfoImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            SendInfoImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            SendInfoImpl(FileSystem *fs): FileSystemOperation<SendInfoImpl, state, Arg<std::string>>(fs){}
+            SendInfoImpl(FileSystem &fs): FileSystemOperation<SendInfoImpl, state, Arg<std::string>>(&fs){}
 
             template<State from>
-            SendInfoImpl( SendInfoImpl<from> && sendinfo ) : FileSystemOperation<state>( std::move( sendinfo ) ), Args<Arg<std::string>, Arg<DirListFlags::Flags>>( std::move( sendinfo ) ) { }
+            SendInfoImpl( SendInfoImpl<from> && sendinfo ) : FileSystemOperation<SendInfoImpl, state, Arg<std::string>>( std::move( sendinfo ) ) { }
 
             struct InfoArg {
                 static const int index = 0;
                 static const std::string key;
                 typedef std::string type;
             };
-
-            SendInfoImpl<Configured> operator()(Arg<std::string> info){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( info ) );
-                return SendInfoImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -985,7 +866,7 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::string &info = Get<InfoArg>( params, bucket );
+                    std::string &info = Get<InfoArg>( this->args, params, bucket );
                     return this->filesystem->SendInfo(info, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -993,8 +874,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                SendInfoImpl<Handled>* o = new SendInfoImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                SendInfoImpl<Handled>* o = new SendInfoImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
@@ -1003,14 +884,13 @@ namespace XrdCl {
 
 
     template <State state>
-    class PrepareImpl: public FileSystemOperation<state>, Args<Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>, Arg<uint8_t>> {
+    class PrepareImpl: public FileSystemOperation<PrepareImpl, state, Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>, Arg<uint8_t>> {
         public:
-            PrepareImpl(FileSystem *fs): FileSystemOperation<state>(fs){}
-            PrepareImpl(FileSystem &fs): FileSystemOperation<state>(&fs){}
-            PrepareImpl(FileSystem *fs, std::unique_ptr<OperationHandler> h): FileSystemOperation<state>(fs, std::move(h)){}
+            PrepareImpl(FileSystem *fs): FileSystemOperation<PrepareImpl, state, Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>, Arg<uint8_t>>(fs){}
+            PrepareImpl(FileSystem &fs): FileSystemOperation<PrepareImpl, state, Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>, Arg<uint8_t>>(&fs){}
 
             template<State from>
-            PrepareImpl( PrepareImpl<from> && prep ) : FileSystemOperation<state>( std::move( prep ) ), Args<Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>, Arg<uint8_t>>( std::move( prep ) ) { }
+            PrepareImpl( PrepareImpl<from> && prep ) : FileSystemOperation<PrepareImpl, state, Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>, Arg<uint8_t>>( std::move( prep ) ) { }
 
             struct FileListArg {
                 static const int index = 0;
@@ -1029,12 +909,6 @@ namespace XrdCl {
                 static const std::string key;
                 typedef uint8_t type;
             };
-
-            PrepareImpl<Configured> operator()(Arg<std::vector<std::string>> fileList, Arg<PrepareFlags::Flags> flags, Arg<uint8_t> priority){
-                static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-                this->TakeArgs( std::move( fileList ), std::move( flags ), std::move( priority ) );
-                return PrepareImpl<Configured>( std::move( *this ) );
-            }
 
             using Operation<state>::operator>>;
 
@@ -1055,9 +929,9 @@ namespace XrdCl {
         protected:
             XRootDStatus Run(std::shared_ptr<ArgsContainer> &params, int bucket = 1){
                 try{
-                    std::vector<std::string> &fileList = Get<FileListArg>( params, bucket );
-                    PrepareFlags::Flags      &flags    = Get<FlagsArg>( params, bucket );
-                    uint8_t                  &priority = Get<PriorityArg>( params, bucket );
+                    std::vector<std::string> &fileList = Get<FileListArg>( this->args, params, bucket );
+                    PrepareFlags::Flags      &flags    = Get<FlagsArg>( this->args, params, bucket );
+                    uint8_t                  &priority = Get<PriorityArg>( this->args, params, bucket );
                     return this->filesystem->Prepare(fileList, flags, priority, this->handler.get());
                 } catch(const std::logic_error& err){
                     return this->HandleError(err);
@@ -1065,8 +939,8 @@ namespace XrdCl {
             }  
 
             Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                PrepareImpl<Handled>* o = new PrepareImpl<Handled>(this->filesystem, std::move(h));
-                o->TakeArgs( std::move( _args ) );
+                this->handler = std::move( h );
+                PrepareImpl<Handled>* o = new PrepareImpl<Handled>( std::move( *this ) );
                 return o;
             }
     };
