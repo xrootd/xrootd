@@ -826,7 +826,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
         
         CurrentReq.appendOpaque(dest, &SecEntity, hash, timenow);
-        SendSimpleResp(302, NULL, (char *) dest.c_str(), 0, 0);
+        SendSimpleResp(302, NULL, (char *) dest.c_str(), 0, 0, true);
         CurrentReq.reset();
         return -1;
       }
@@ -1415,7 +1415,7 @@ int XrdHttpProtocol::SendData(const char *body, int bodylen) {
   return 0;
 }
 
-int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen) {
+int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive) {
   std::stringstream ss;
   const std::string crlf = "\r\n";
 
@@ -1430,6 +1430,10 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
     else ss << "Unknown";
   }
   ss << crlf;
+  if (keepalive)
+    ss << "Connection: Keep-Alive" << crlf;
+  else
+    ss << "Connection: Close" << crlf;
 
   if (bodylen >= 0) ss << "Content-Length: " << bodylen << crlf;
 
@@ -1446,7 +1450,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
   return 0;
 }
 
-int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *header_to_add) {
+int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *header_to_add, bool keepalive) {
   const std::string crlf = "\r\n";
 
   std::stringstream ss;
@@ -1456,7 +1460,7 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
   ss << "Transfer-Encoding: chunked";
 
   TRACEI(RSP, "Starting chunked response");
-  return StartSimpleResp(code, desc, ss.str().c_str(), -1);
+  return StartSimpleResp(code, desc, ss.str().c_str(), -1, keepalive);
 }
 
 int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
@@ -1484,14 +1488,14 @@ int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
 /// Header_to_add is a set of header lines each CRLF terminated to be added to the header
 /// Returns 0 if OK
 
-int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen) {
+int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen, bool keepalive) {
 
   long long content_length = bodylen;
   if (bodylen <= 0) {
     content_length = body ? strlen(body) : 0;
   }
 
-  if (StartSimpleResp(code, desc, header_to_add, content_length) < 0)
+  if (StartSimpleResp(code, desc, header_to_add, content_length, keepalive) < 0)
     return -1;
 
   //
