@@ -402,8 +402,8 @@ int BIO_XrdLink_write(BIO *bio, const char *data, size_t datal, size_t *written)
   BIO_clear_retry_flags(bio);
   if (ret <= 0) {
     *written = 0;
-    if ((ret == EINTR) || (ret == EINPROGRESS) || (ret == EAGAIN) || (ret == EWOULDBLOCK))
-      BIO_set_retry_read(bio);
+    if ((errno == EINTR) || (errno == EINPROGRESS) || (errno == EAGAIN) || (errno == EWOULDBLOCK))
+      BIO_set_retry_write(bio);
     return ret;
   }
   *written = ret;
@@ -422,8 +422,8 @@ int BIO_XrdLink_write(BIO *bio, const char *data, int datal)
   int ret = lp->Send(data, datal);
   BIO_clear_retry_flags(bio);
   if (ret <= 0) {
-    if ((ret == EINTR) || (ret == EINPROGRESS) || (ret == EAGAIN) || (ret == EWOULDBLOCK))
-      BIO_set_retry_read(bio);
+    if ((errno == EINTR) || (errno == EINPROGRESS) || (errno == EAGAIN) || (errno == EWOULDBLOCK))
+      BIO_set_retry_write(bio);
   }
   return ret;
 }
@@ -445,7 +445,7 @@ static int BIO_XrdLink_read(BIO *bio, char *data, size_t datal, size_t *read)
   BIO_clear_retry_flags(bio);
   if (ret <= 0) {
     *read = 0;
-    if ((ret == EINTR) || (ret == EINPROGRESS) || (ret == EAGAIN) || (ret == EWOULDBLOCK))
+    if ((errno == EINTR) || (errno == EINPROGRESS) || (errno == EAGAIN) || (errno == EWOULDBLOCK))
       BIO_set_retry_read(bio);
     return ret;
   }
@@ -464,7 +464,7 @@ static int BIO_XrdLink_read(BIO *bio, char *data, int datal)
   int ret = lp->Recv(data, datal);
   BIO_clear_retry_flags(bio);
   if (ret <= 0) {
-    if ((ret == EINTR) || (ret == EINPROGRESS) || (ret == EAGAIN) || (ret == EWOULDBLOCK))
+    if ((errno == EINTR) || (errno == EINPROGRESS) || (errno == EAGAIN) || (errno == EWOULDBLOCK))
       BIO_set_retry_read(bio);
   }
   return ret;
