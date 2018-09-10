@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
 // Copyright (c) 2011-2017 by European Organization for Nuclear Research (CERN)
-// Author: Krzysztof Jamrog <krzysztof.piotr.jamrog@cern.ch>
+// Author: Krzysztof Jamrog <krzysztof.piotr.jamrog@cern.ch>,
+//         Michal Simon <michal.simon@cern.ch>
 //------------------------------------------------------------------------------
 // This file is part of the XRootD software suite.
 //
@@ -27,135 +28,189 @@
 
 #include "XrdCl/XrdClOperations.hh"
 
+namespace XrdCl
+{
 
-namespace XrdCl {
+  class SimpleFunctionWrapper: public ForwardingHandler
+  {
+    public:
+      SimpleFunctionWrapper(
+          std::function<void( XrdCl::XRootDStatus& )> handleFunction ) :
+          fun( handleFunction )
+      {
+      }
 
-    class SimpleFunctionWrapper: public ForwardingHandler {
-        public:
-            SimpleFunctionWrapper(std::function<void(XrdCl::XRootDStatus&)> handleFunction): fun(handleFunction){}
-    
-            void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-                fun(*status);
-                delete status;
-                delete response;
-                delete this;
-            }
+      void HandleResponse( XrdCl::XRootDStatus *status,
+          XrdCl::AnyObject *response )
+      {
+        fun( *status );
+        delete status;
+        delete response;
+        delete this;
+      }
 
-        private:
-            std::function<void(XrdCl::XRootDStatus&)> fun;
-    };
+    private:
+      std::function<void( XrdCl::XRootDStatus& )> fun;
+  };
 
-    class SimpleForwardingFunctionWrapper: public ForwardingHandler {
-        public:
-            SimpleForwardingFunctionWrapper(std::function<void(XrdCl::XRootDStatus&, OperationContext&)> handleFunction): fun(handleFunction){}
-    
-            void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-                auto paramsContainerWrapper = GetOperationContext();
-                fun(*status, *paramsContainerWrapper.get());
-                delete status;
-                delete response;
-                delete this;
-            }
+  class SimpleForwardingFunctionWrapper: public ForwardingHandler
+  {
+    public:
+      SimpleForwardingFunctionWrapper(
+          std::function<void( XrdCl::XRootDStatus&, OperationContext& )> handleFunction ) :
+          fun( handleFunction )
+      {
+      }
 
-        private:
-            std::function<void(XrdCl::XRootDStatus&, OperationContext&)> fun;
-    };
+      void HandleResponse( XrdCl::XRootDStatus *status,
+          XrdCl::AnyObject *response )
+      {
+        auto paramsContainerWrapper = GetOperationContext();
+        fun( *status, *paramsContainerWrapper.get() );
+        delete status;
+        delete response;
+        delete this;
+      }
 
-    template<typename ResponseType>
-    class FunctionWrapper: public ForwardingHandler {
-        public:
-            FunctionWrapper(std::function<void(XrdCl::XRootDStatus&, ResponseType&)> handleFunction): fun(handleFunction){}
+    private:
+      std::function<void( XrdCl::XRootDStatus&, OperationContext& )> fun;
+  };
 
-            void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-                ResponseType *res = 0;
-                if( status->IsOK() ) response->Get(res);
-                else res = &nullref;
-                fun(*status, *res);
-                delete status;
-                delete response;
-                delete this;
-            }
+  template<typename ResponseType>
+  class FunctionWrapper: public ForwardingHandler
+  {
+    public:
+      FunctionWrapper(
+          std::function<void( XrdCl::XRootDStatus&, ResponseType& )> handleFunction ) :
+          fun( handleFunction )
+      {
+      }
 
-        private:
-            std::function<void(XrdCl::XRootDStatus&, ResponseType&)> fun;
-            static ResponseType nullref;
-    };
+      void HandleResponse( XrdCl::XRootDStatus *status,
+          XrdCl::AnyObject *response )
+      {
+        ResponseType *res = 0;
+        if( status->IsOK() )
+          response->Get( res );
+        else
+          res = &nullref;
+        fun( *status, *res );
+        delete status;
+        delete response;
+        delete this;
+      }
 
-    template<typename ResponseType>
-    ResponseType FunctionWrapper<ResponseType>::nullref;
+    private:
+      std::function<void( XrdCl::XRootDStatus&, ResponseType& )> fun;
+      static ResponseType nullref;
+  };
 
-    template<typename ResponseType>
-    class ForwardingFunctionWrapper: public ForwardingHandler {
-        public:
-            ForwardingFunctionWrapper(std::function<void(XrdCl::XRootDStatus&, ResponseType&, OperationContext&)> handleFunction): fun(handleFunction){}
+  template<typename ResponseType>
+  ResponseType FunctionWrapper<ResponseType>::nullref;
 
-            void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-                ResponseType *res = 0;
-                if( status->IsOK() ) response->Get(res);
-                else res = &nullref;
-                auto paramsContainerWrapper = GetOperationContext();
-                fun(*status, *res, *paramsContainerWrapper.get());
-                delete status;
-                delete response;
-                delete this;
-            }
+  template<typename ResponseType>
+  class ForwardingFunctionWrapper: public ForwardingHandler
+  {
+    public:
+      ForwardingFunctionWrapper(
+          std::function<
+              void( XrdCl::XRootDStatus&, ResponseType&, OperationContext& )> handleFunction ) :
+          fun( handleFunction )
+      {
+      }
 
-        private:
-            std::function<void(XrdCl::XRootDStatus&, ResponseType&, OperationContext &wrapper)> fun;
-            static ResponseType nullref;
-    };
+      void HandleResponse( XrdCl::XRootDStatus *status,
+          XrdCl::AnyObject *response )
+      {
+        ResponseType *res = 0;
+        if( status->IsOK() )
+          response->Get( res );
+        else
+          res = &nullref;
+        auto paramsContainerWrapper = GetOperationContext();
+        fun( *status, *res, *paramsContainerWrapper.get() );
+        delete status;
+        delete response;
+        delete this;
+      }
 
-    template<typename ResponseType>
-    ResponseType ForwardingFunctionWrapper<ResponseType>::nullref;
+    private:
+      std::function<
+          void( XrdCl::XRootDStatus&, ResponseType&, OperationContext &wrapper )> fun;
+      static ResponseType nullref;
+  };
 
-    class ExOpenFuncWrapper : public ForwardingHandler {
-        public:
-            ExOpenFuncWrapper(File &f, std::function<void(XrdCl::XRootDStatus&, StatInfo&)> handleFunction): f(f), fun(handleFunction){}
+  template<typename ResponseType>
+  ResponseType ForwardingFunctionWrapper<ResponseType>::nullref;
 
-            void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-              StatInfo *info = 0;
-              if( status->IsOK() ) f.Stat( false, info );
-              else info = &nullref;
-              fun( *status, *info );
-              if( info != &nullref ) delete info;
-              delete status;
-              delete response;
-              delete this;
-            }
+  class ExOpenFuncWrapper: public ForwardingHandler
+  {
+    public:
+      ExOpenFuncWrapper( File &f,
+          std::function<void( XrdCl::XRootDStatus&, StatInfo& )> handleFunction ) :
+          f( f ), fun( handleFunction )
+      {
+      }
 
-        private:
-            File &f;
-            std::function<void(XrdCl::XRootDStatus&, StatInfo&)> fun;
-            static StatInfo nullref;
-    };
+      void HandleResponse( XrdCl::XRootDStatus *status,
+          XrdCl::AnyObject *response )
+      {
+        StatInfo *info = 0;
+        if( status->IsOK() )
+          f.Stat( false, info );
+        else
+          info = &nullref;
+        fun( *status, *info );
+        if( info != &nullref )
+          delete info;
+        delete status;
+        delete response;
+        delete this;
+      }
 
-    StatInfo ExOpenFuncWrapper::nullref;
+    private:
+      File &f;
+      std::function<void( XrdCl::XRootDStatus&, StatInfo& )> fun;
+      static StatInfo nullref;
+  };
 
-    class ForwardingExOpenFuncWrapper : public ForwardingHandler {
-        public:
-            ForwardingExOpenFuncWrapper(File &f, std::function<void(XrdCl::XRootDStatus&, StatInfo&, OperationContext&)> handleFunction): f(f), fun(handleFunction){}
+  StatInfo ExOpenFuncWrapper::nullref;
 
-            void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-              StatInfo *info = 0;
-              if( status->IsOK() ) f.Stat( false, info );
-              else info = &nullref;
-              auto paramsContainerWrapper = GetOperationContext();
-              fun( *status, *info, *paramsContainerWrapper.get() );
-              if( info != &nullref ) delete info;
-              delete status;
-              delete response;
-              delete this;
-            }
+  class ForwardingExOpenFuncWrapper: public ForwardingHandler
+  {
+    public:
+      ForwardingExOpenFuncWrapper( File &f,
+          std::function<
+              void( XrdCl::XRootDStatus&, StatInfo&, OperationContext& )> handleFunction ) :
+          f( f ), fun( handleFunction )
+      {
+      }
 
-        private:
-            File &f;
-            std::function<void(XrdCl::XRootDStatus&, StatInfo&, OperationContext&)> fun;
-            static StatInfo nullref;
-    };
+      void HandleResponse( XrdCl::XRootDStatus *status,
+          XrdCl::AnyObject *response )
+      {
+        StatInfo *info = 0;
+        if( status->IsOK() )
+          f.Stat( false, info );
+        else
+          info = &nullref;
+        auto paramsContainerWrapper = GetOperationContext();
+        fun( *status, *info, *paramsContainerWrapper.get() );
+        if( info != &nullref )
+          delete info;
+        delete status;
+        delete response;
+        delete this;
+      }
 
-    StatInfo ForwardingExOpenFuncWrapper::nullref;
+    private:
+      File &f;
+      std::function<void( XrdCl::XRootDStatus&, StatInfo&, OperationContext& )> fun;
+      static StatInfo nullref;
+  };
+
+  StatInfo ForwardingExOpenFuncWrapper::nullref;
 
 }
-
 
 #endif // __XRD_CL_OPERATIONS_HANDLERS_HH__
