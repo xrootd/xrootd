@@ -36,7 +36,7 @@ namespace XrdCl {
     // OperationHandler
     //----------------------------------------------------------------------------
 
-    OperationHandler::OperationHandler(ForwardingHandler *handler): responseHandler(handler), nextOperation(NULL), workflow(NULL){
+    OperationHandler::OperationHandler(ForwardingHandler *handler, bool own): responseHandler(handler), ownHandler(own), nextOperation(NULL), workflow(NULL){
         params = handler->GetArgContainer();
     }
 
@@ -52,6 +52,7 @@ namespace XrdCl {
         // We need to copy status as original status object is destroyed in HandleResponse function
         auto statusCopy = XRootDStatus{*status};
         responseHandler->HandleResponseWithHosts(status, response, hostList);
+        ownHandler = false;
         if(!statusCopy.IsOK() || !nextOperation){
             workflow->EndWorkflowExecution(statusCopy);
             return;
@@ -64,6 +65,7 @@ namespace XrdCl {
         // We need to copy status as original status object is destroyed in HandleResponse function
         auto statusCopy = XRootDStatus{*status};
         responseHandler->HandleResponse(status, response);
+        ownHandler = false;
         if(!statusCopy.IsOK() || !nextOperation){
             workflow->EndWorkflowExecution(statusCopy);
         }
@@ -77,6 +79,7 @@ namespace XrdCl {
 
     OperationHandler::~OperationHandler(){
         delete nextOperation;
+        if( ownHandler ) delete responseHandler;
     }
 
     void OperationHandler::AssignToWorkflow(Workflow *wf){

@@ -212,7 +212,7 @@ namespace XrdCl {
     //---------------------------------------------------------------------------
     class OperationHandler: public ResponseHandler {
         public:
-            OperationHandler(ForwardingHandler *handler);
+            OperationHandler(ForwardingHandler *handler, bool own);
             virtual void HandleResponseWithHosts(XRootDStatus *status, AnyObject *response, HostList *hostList);
             virtual void HandleResponse(XRootDStatus *status, AnyObject *response);
             virtual ~OperationHandler();
@@ -241,6 +241,7 @@ namespace XrdCl {
         private:
 
             ForwardingHandler *responseHandler;
+            bool               ownHandler;
             Operation<Handled> *nextOperation;
             Workflow *workflow;
             std::shared_ptr<ArgsContainer> params;
@@ -366,7 +367,7 @@ namespace XrdCl {
         //------------------------------------------------------------------
         Operation<Handled>* ToHandled()
         {
-          this->handler.reset( new OperationHandler( new ForwardingHandler() ) );
+          this->handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
           Derived<state> *me  = static_cast<Derived<state>*>( this );
           return new Derived<Handled>( std::move( *me ) );
           return 0;
@@ -392,7 +393,7 @@ namespace XrdCl {
         //! @param h  handler to add
         //------------------------------------------------------------------
         Derived<Handled> operator>>(ForwardingHandler *h){
-            return StreamImpl( h );
+            return StreamImpl( h, false );
         }
 
         //------------------------------------------------------------------
@@ -447,10 +448,10 @@ namespace XrdCl {
         //! @param h    handler to be added
         //! @return     TODO
         //------------------------------------------------------------------
-        inline Derived<Handled> StreamImpl( ForwardingHandler *handler )
+        inline Derived<Handled> StreamImpl( ForwardingHandler *handler, bool own = true )
         {
           static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
-          this->handler.reset( new OperationHandler( handler ) );
+          this->handler.reset( new OperationHandler( handler, own ) );
           return Transform<Handled>();
         }
 
@@ -471,7 +472,7 @@ namespace XrdCl {
         inline static
         Derived<Handled> PipeImpl( ArgsOperation<Derived, Configured, Args...> &me, Operation<Handled> &op )
         {
-          me.handler.reset( new OperationHandler( new ForwardingHandler() ) );
+          me.handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
           me.AddOperation( op.Move() );
           return me.Transform<Handled>();
         }
@@ -479,7 +480,7 @@ namespace XrdCl {
         inline static
         Derived<Handled> PipeImpl( ArgsOperation<Derived, Configured, Args...> &me, Operation<Configured> &op )
         {
-          me.handler.reset( new OperationHandler( new ForwardingHandler() ) );
+          me.handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
           me.AddOperation( op.ToHandled() );
           return me.Transform<Handled>();
         }
