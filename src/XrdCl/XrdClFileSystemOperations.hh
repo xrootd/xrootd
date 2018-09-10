@@ -34,7 +34,7 @@ namespace XrdCl
 {
 
   template<template<State> class Derived, State state, typename ... Args>
-  class FileSystemOperation: public OperationBase<Derived, state, Args...>
+  class FileSystemOperation: public ConcreteOperation<Derived, state, Args...>
   {
 
       template<template<State> class, State, typename ...> friend class FileSystemOperation;
@@ -52,7 +52,7 @@ namespace XrdCl
       }
 
       template<State from>
-      FileSystemOperation( FileSystemOperation<Derived, from, Args...> && op ): OperationBase<Derived, state, Args...>( std::move( op ) ), filesystem( op.filesystem )
+      FileSystemOperation( FileSystemOperation<Derived, from, Args...> && op ): ConcreteOperation<Derived, state, Args...>( std::move( op ) ), filesystem( op.filesystem )
       {}
 
       virtual ~FileSystemOperation()
@@ -100,7 +100,7 @@ namespace XrdCl
           typedef OpenFlags::Flags type;
       };
 
-      using OperationBase<LocateImpl, state, Arg<std::string>,
+      using ConcreteOperation<LocateImpl, state, Arg<std::string>,
           Arg<OpenFlags::Flags>>::operator>>;
 
       LocateImpl<Handled> operator>>(
@@ -181,7 +181,7 @@ namespace XrdCl
           typedef OpenFlags::Flags type;
       };
 
-      using OperationBase<DeepLocateImpl, state, Arg<std::string>,
+      using ConcreteOperation<DeepLocateImpl, state, Arg<std::string>,
           Arg<OpenFlags::Flags>>::operator>>;
 
       DeepLocateImpl<Handled> operator>>(
@@ -263,7 +263,7 @@ namespace XrdCl
           typedef std::string type;
       };
 
-      using OperationBase<MvImpl, state, Arg<std::string>, Arg<std::string>>::operator>>;
+      using ConcreteOperation<MvImpl, state, Arg<std::string>, Arg<std::string>>::operator>>;
 
       MvImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -342,7 +342,7 @@ namespace XrdCl
           typedef Buffer type;
       };
 
-      using OperationBase<QueryImpl, state, Arg<QueryCode::Code>, Arg<Buffer>>::operator>>;
+      using ConcreteOperation<QueryImpl, state, Arg<QueryCode::Code>, Arg<Buffer>>::operator>>;
 
       QueryImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, Buffer& )> handleFunction )
@@ -423,7 +423,7 @@ namespace XrdCl
           typedef uint64_t type;
       };
 
-      using OperationBase<TruncateFsImpl, state, Arg<std::string>, Arg<uint64_t>>::operator>>;
+      using ConcreteOperation<TruncateFsImpl, state, Arg<std::string>, Arg<uint64_t>>::operator>>;
 
       TruncateFsImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -497,7 +497,7 @@ namespace XrdCl
           typedef std::string type;
       };
 
-      using OperationBase<RmImpl, state, Arg<std::string>>::operator>>;
+      using ConcreteOperation<RmImpl, state, Arg<std::string>>::operator>>;
 
       RmImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -580,7 +580,7 @@ namespace XrdCl
           typedef Access::Mode type;
       };
 
-      using OperationBase<MkDirImpl, state, Arg<std::string>,
+      using ConcreteOperation<MkDirImpl, state, Arg<std::string>,
           Arg<MkDirFlags::Flags>, Arg<Access::Mode>>::operator>>;
 
       MkDirImpl<Handled> operator>>(
@@ -656,7 +656,7 @@ namespace XrdCl
           typedef std::string type;
       };
 
-      using OperationBase<RmDirImpl, state, Arg<std::string>>::operator>>;
+      using ConcreteOperation<RmDirImpl, state, Arg<std::string>>::operator>>;
 
       RmDirImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -733,7 +733,7 @@ namespace XrdCl
           typedef Access::Mode type;
       };
 
-      using OperationBase<ChModImpl, state, Arg<std::string>, Arg<Access::Mode>>::operator>>;
+      using ConcreteOperation<ChModImpl, state, Arg<std::string>, Arg<Access::Mode>>::operator>>;
 
       ChModImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -795,7 +795,7 @@ namespace XrdCl
       {
       }
 
-      using OperationBase<PingImpl, state>::operator>>;
+      using ConcreteOperation<PingImpl, state>::operator>>;
 
       PingImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -860,7 +860,7 @@ namespace XrdCl
           typedef std::string type;
       };
 
-      using OperationBase<StatFsImpl, state, Arg<std::string>>::operator>>;
+      using ConcreteOperation<StatFsImpl, state, Arg<std::string>>::operator>>;
 
       StatFsImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, StatInfo& )> handleFunction )
@@ -932,7 +932,7 @@ namespace XrdCl
           typedef std::string type;
       };
 
-      using OperationBase<StatVFSImpl, state, Arg<std::string>>::operator>>;
+      using ConcreteOperation<StatVFSImpl, state, Arg<std::string>>::operator>>;
 
       StatVFSImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, StatInfoVFS& )> handleFunction )
@@ -991,7 +991,7 @@ namespace XrdCl
       {
       }
 
-      using OperationBase<ProtocolImpl, state>::operator>>;
+      using ConcreteOperation<ProtocolImpl, state>::operator>>;
 
       ProtocolImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, ProtocolInfo& )> handleFunction )
@@ -1065,7 +1065,7 @@ namespace XrdCl
           typedef DirListFlags::Flags type;
       };
 
-      using OperationBase<DirListImpl, state, Arg<std::string>,
+      using ConcreteOperation<DirListImpl, state, Arg<std::string>,
           Arg<DirListFlags::Flags>>::operator>>;
 
       DirListImpl<Handled> operator>>(
@@ -1138,7 +1138,7 @@ namespace XrdCl
           typedef std::string type;
       };
 
-      using OperationBase<SendInfoImpl, state, Arg<std::string>>::operator>>;
+      using ConcreteOperation<SendInfoImpl, state, Arg<std::string>>::operator>>;
 
       SendInfoImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, Buffer& )> handleFunction )
@@ -1222,7 +1222,7 @@ namespace XrdCl
           typedef uint8_t type;
       };
 
-      using OperationBase<PrepareImpl, state, Arg<std::vector<std::string>>,
+      using ConcreteOperation<PrepareImpl, state, Arg<std::vector<std::string>>,
           Arg<PrepareFlags::Flags>, Arg<uint8_t>>::operator>>;
 
       PrepareImpl<Handled> operator>>(

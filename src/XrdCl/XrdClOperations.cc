@@ -156,6 +156,14 @@ namespace XrdCl
     firstOperation->AssignToWorkflow( this );
   }
 
+  Workflow::Workflow( Pipeline &&pipeline, bool enableLogging ) :
+      status( NULL ), logging( enableLogging )
+  {
+    if( !pipeline.operation )
+      throw std::invalid_argument( "Pipeline already has been executed." );
+    firstOperation = pipeline.operation.release();
+  }
+
   Workflow::~Workflow()
   {
     delete firstOperation;

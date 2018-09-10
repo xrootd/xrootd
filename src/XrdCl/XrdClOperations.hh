@@ -41,7 +41,10 @@ namespace XrdCl
   {
     Bare, Configured, Handled
   };
+
   template<State state> class Operation;
+
+  class Pipeline;
 
   //---------------------------------------------------------------------------
   //! Handler allowing forwarding parameters to the next operation in workflow
@@ -174,6 +177,13 @@ namespace XrdCl
       //! @param op first operation of the sequence
       //------------------------------------------------------------------------
       explicit Workflow( Operation<Configured>* op, bool enableLogging = true );
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param a pipeline object
+      //------------------------------------------------------------------------
+      Workflow( Pipeline &&pipeline, bool enableLogging = true );
 
       ~Workflow();
 
@@ -373,6 +383,67 @@ namespace XrdCl
       std::unique_ptr<OperationHandler> handler;
   };
 
+
+  //----------------------------------------------------------------------
+  //! A wrapper around operation pipeline
+  //----------------------------------------------------------------------
+  class Pipeline
+  {
+      friend class Workflow;
+
+    public:
+
+      Pipeline( Operation<Handled>  *op ) : operation( op->Move() )
+      {
+
+      }
+
+      Pipeline( Operation<Handled>  &op ) : operation( op.Move() )
+      {
+
+      }
+
+      Pipeline( Operation<Handled> &&op ) : operation( op.Move() )
+      {
+
+      }
+
+      Pipeline( Operation<Configured>  *op ) : operation( op->ToHandled() )
+      {
+
+      }
+
+      Pipeline( Operation<Configured>  &op ) : operation( op.ToHandled() )
+      {
+
+      }
+
+      Pipeline( Operation<Configured> &&op ) : operation( op.ToHandled() )
+      {
+
+      }
+
+      Pipeline( Pipeline &&pipe ) : operation( std::move( pipe.operation ) )
+      {
+
+      }
+
+      Pipeline& operator=( Pipeline &&pipe )
+      {
+        operation = std::move( pipe.operation );
+        return *this;
+      }
+
+      operator Operation<Handled>&()
+      {
+        return *operation.get();
+      }
+
+    private:
+
+      std::unique_ptr<Operation<Handled>> operation;
+  };
+
   //----------------------------------------------------------------------
   //! ArgsOperation template
   //!
@@ -381,17 +452,17 @@ namespace XrdCl
   //! @param Args     operation arguments
   //----------------------------------------------------------------------
   template<template<State> class Derived, State state, typename ... Args>
-  class OperationBase: public Operation<state>
+  class ConcreteOperation: public Operation<state>
   {
-      template<template<State> class, State, typename ...> friend class OperationBase;
+      template<template<State> class, State, typename ...> friend class ConcreteOperation;
 
       public:
 
-      OperationBase()
+      ConcreteOperation()
       {}
 
       template<State from>
-      OperationBase( OperationBase<Derived, from, Args...> && op ) : Operation<state>( std::move( op ) ), args( std::move( op.args ) )
+      ConcreteOperation( ConcreteOperation<Derived, from, Args...> && op ) : Operation<state>( std::move( op ) ), args( std::move( op.args ) )
       {
 
       }
@@ -500,21 +571,21 @@ namespace XrdCl
       }
 
       inline static
-      Derived<Handled> PipeImpl( OperationBase<Derived, Handled, Args...> &me, Operation<Handled> &op )
+      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, Args...> &me, Operation<Handled> &op )
       {
         me.AddOperation( op.Move() );
         return me.Transform<Handled>();
       }
 
       inline static
-      Derived<Handled> PipeImpl( OperationBase<Derived, Handled, Args...> &me, Operation<Configured> &op )
+      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, Args...> &me, Operation<Configured> &op )
       {
         me.AddOperation( op.ToHandled() );
         return me.Transform<Handled>();
       }
 
       inline static
-      Derived<Handled> PipeImpl( OperationBase<Derived, Configured, Args...> &me, Operation<Handled> &op )
+      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, Args...> &me, Operation<Handled> &op )
       {
         me.handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
         me.AddOperation( op.Move() );
@@ -522,7 +593,7 @@ namespace XrdCl
       }
 
       inline static
-      Derived<Handled> PipeImpl( OperationBase<Derived, Configured, Args...> &me, Operation<Configured> &op )
+      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, Args...> &me, Operation<Configured> &op )
       {
         me.handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
         me.AddOperation( op.ToHandled() );
@@ -553,7 +624,7 @@ namespace XrdCl
   //! @tparam state   describes current operation configuration state
   //-----------------------------------------------------------------------
   template<State state = Bare>
-  class ParallelOperation: public OperationBase<ParallelOperation, state>
+  class ParallelOperation: public ConcreteOperation<ParallelOperation, state>
   {
       template<State> friend class ParallelOperation;
 
@@ -578,22 +649,20 @@ namespace XrdCl
 
       template<State from>
       ParallelOperation( ParallelOperation<from> &&obj ) :
-          OperationBase<ParallelOperation, state>( std::move( obj ) ), workflows(
+          ConcreteOperation<ParallelOperation, state>( std::move( obj ) ), workflows(
               std::move( obj.workflows ) )
       {
       }
 
-      template<typename Container>
+      template<class Container>
       ParallelOperation( Container &container )
       {
         static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
-        static_assert(std::is_same<typename Container::value_type, Operation<Handled>*>::value, "Invalid type in container");
-        typename Container::iterator it = container.begin();
-        while( it != container.end() )
+        auto itr = container.begin();
+        for( ; itr != container.end(); ++itr )
         {
-          std::unique_ptr<Workflow> w( new Workflow( *it, false ) );
+          std::unique_ptr<Workflow> w( new Workflow( *itr, false ) );
           workflows.push_back( std::move( w ) );
-          ++it;
         }
       }
 

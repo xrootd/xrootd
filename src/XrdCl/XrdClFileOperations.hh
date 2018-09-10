@@ -34,7 +34,7 @@ namespace XrdCl
 {
 
   template<template<State> class Derived, State state, typename ... Arguments>
-  class FileOperation: public OperationBase<Derived, state, Arguments...>
+  class FileOperation: public ConcreteOperation<Derived, state, Arguments...>
   {
 
       template<template<State> class, State, typename ...> friend class FileOperation;
@@ -51,7 +51,7 @@ namespace XrdCl
       }
 
       template<State from>
-      FileOperation( FileOperation<Derived, from, Arguments...> && op ) : OperationBase<Derived, state, Arguments...>( std::move( op ) ), file( op.file )
+      FileOperation( FileOperation<Derived, from, Arguments...> && op ) : ConcreteOperation<Derived, state, Arguments...>( std::move( op ) ), file( op.file )
       {
 
       }
@@ -113,12 +113,12 @@ namespace XrdCl
       OpenImpl<Configured> operator()( Arg<std::string> url,
           Arg<OpenFlags::Flags> flags, Arg<Access::Mode> mode = Access::None )
       {
-        return this->OperationBase<OpenImpl, state, Arg<std::string>,
+        return this->ConcreteOperation<OpenImpl, state, Arg<std::string>,
             Arg<OpenFlags::Flags>, Arg<Access::Mode>>::operator ()(
             std::move( url ), std::move( flags ), std::move( mode ) );
       }
 
-      using OperationBase<OpenImpl, state, Arg<std::string>,
+      using ConcreteOperation<OpenImpl, state, Arg<std::string>,
           Arg<OpenFlags::Flags>, Arg<Access::Mode>>::operator>>;
 
       OpenImpl<Handled> operator>>(
@@ -223,7 +223,7 @@ namespace XrdCl
           typedef void* type;
       };
 
-      using OperationBase<ReadImpl, state, Arg<uint64_t>, Arg<uint32_t>,
+      using ConcreteOperation<ReadImpl, state, Arg<uint64_t>, Arg<uint32_t>,
           Arg<void*>>::operator>>;
 
       ReadImpl<Handled> operator>>(
@@ -293,7 +293,7 @@ namespace XrdCl
 
       }
 
-      using OperationBase<CloseImpl, state>::operator>>;
+      using ConcreteOperation<CloseImpl, state>::operator>>;
 
       CloseImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -351,7 +351,7 @@ namespace XrdCl
           typedef bool type;
       };
 
-      using OperationBase<StatImpl, state, Arg<bool>>::operator>>;
+      using ConcreteOperation<StatImpl, state, Arg<bool>>::operator>>;
 
       StatImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, StatInfo& )> handleFunction )
@@ -439,7 +439,7 @@ namespace XrdCl
           typedef void* type;
       };
 
-      using OperationBase<WriteImpl, state, Arg<uint64_t>, Arg<uint32_t>,
+      using ConcreteOperation<WriteImpl, state, Arg<uint64_t>, Arg<uint32_t>,
           Arg<void*>>::operator>>;
 
       WriteImpl<Handled> operator>>(
@@ -505,7 +505,7 @@ namespace XrdCl
       {
       }
 
-      using OperationBase<SyncImpl, state>::operator>>;
+      using ConcreteOperation<SyncImpl, state>::operator>>;
 
       SyncImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -563,7 +563,7 @@ namespace XrdCl
           typedef uint64_t type;
       };
 
-      using OperationBase<TruncateImpl, state, Arg<uint64_t>>::operator>>;
+      using ConcreteOperation<TruncateImpl, state, Arg<uint64_t>>::operator>>;
 
       TruncateImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -642,7 +642,7 @@ namespace XrdCl
           typedef char* type;
       };
 
-      using OperationBase<VectorReadImpl, state, Arg<ChunkList>, Arg<void*>>::operator>>;
+      using ConcreteOperation<VectorReadImpl, state, Arg<ChunkList>, Arg<void*>>::operator>>;
 
       VectorReadImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -714,7 +714,7 @@ namespace XrdCl
           typedef ChunkList type;
       };
 
-      using OperationBase<VectorWriteImpl, state, Arg<ChunkList>>::operator>>;
+      using ConcreteOperation<VectorWriteImpl, state, Arg<ChunkList>>::operator>>;
 
       VectorWriteImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -799,7 +799,7 @@ namespace XrdCl
           typedef int type;
       };
 
-      using OperationBase<WriteVImpl, state, Arg<uint64_t>, Arg<struct iovec*>,
+      using ConcreteOperation<WriteVImpl, state, Arg<uint64_t>, Arg<struct iovec*>,
           Arg<int>>::operator>>;
 
       WriteVImpl<Handled> operator>>(
@@ -872,7 +872,7 @@ namespace XrdCl
           typedef Buffer type;
       };
 
-      using OperationBase<FcntlImpl, state, Arg<Buffer>>::operator>>;
+      using ConcreteOperation<FcntlImpl, state, Arg<Buffer>>::operator>>;
 
       FcntlImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, Buffer& )> handleFunction )
@@ -931,7 +931,7 @@ namespace XrdCl
       {
       }
 
-      using OperationBase<VisaImpl, state>::operator>>;
+      using ConcreteOperation<VisaImpl, state>::operator>>;
 
       VisaImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, Buffer& )> handleFunction )
