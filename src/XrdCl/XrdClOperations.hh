@@ -191,9 +191,10 @@ namespace XrdCl
       //! Run first workflow operation
       //!
       //! @return original workflow object
+      //! @throws logic_error if the workflow is already running
       //------------------------------------------------------------------------
-      Workflow& Run( std::shared_ptr<ArgsContainer> params = NULL, int bucket =
-          1 );
+      Workflow& Run( std::shared_ptr<ArgsContainer> params = NULL,
+                     int bucket = 1 );
 
       //------------------------------------------------------------------------
       //! Wait for workflow execution end
@@ -253,8 +254,6 @@ namespace XrdCl
   {
     public:
       OperationHandler( ForwardingHandler *handler, bool own );
-      virtual void HandleResponseWithHosts( XRootDStatus *status,
-          AnyObject *response, HostList *hostList );
       virtual void HandleResponse( XRootDStatus *status, AnyObject *response );
       virtual ~OperationHandler();
 
@@ -269,7 +268,8 @@ namespace XrdCl
       //! Set workflow to this and all next handlers. In the last handler
       //! it is used to finish workflow execution
       //!
-      //! @param wf   workflow to set
+      //! @param  wf           :  workflow to set
+      //! @throws logic_error  :  if a workflow has been already assigned
       //------------------------------------------------------------------------
       void AssignToWorkflow( Workflow *wf );
 
@@ -350,8 +350,7 @@ namespace XrdCl
       //!                 previous operation
       //! @return         status of the operation
       //------------------------------------------------------------------
-      virtual XRootDStatus Run( std::shared_ptr<ArgsContainer> &params,
-          int bucket = 1 ) = 0;
+      virtual XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 ) = 0;
 
       //------------------------------------------------------------------
       //! Handle error caused by missing parameter

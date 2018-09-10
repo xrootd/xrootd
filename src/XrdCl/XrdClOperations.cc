@@ -55,34 +55,16 @@ namespace XrdCl
     }
   }
 
-  void OperationHandler::HandleResponseWithHosts( XRootDStatus *status,
-      AnyObject *response, HostList *hostList )
+  void OperationHandler::HandleResponse( XRootDStatus *status, AnyObject *response )
   {
     // We need to copy status as original status object is destroyed in HandleResponse function
-    auto statusCopy = XRootDStatus
-    { *status };
-    responseHandler->HandleResponseWithHosts( status, response, hostList );
-    ownHandler = false;
-    if( !statusCopy.IsOK() || !nextOperation )
-    {
-      workflow->EndWorkflowExecution( statusCopy );
-      return;
-    }
-    if( !( statusCopy = RunNextOperation() ).IsOK() )
-      workflow->EndWorkflowExecution( statusCopy );
-  }
-
-  void OperationHandler::HandleResponse( XRootDStatus *status,
-      AnyObject *response )
-  {
-    // We need to copy status as original status object is destroyed in HandleResponse function
-    auto statusCopy = XRootDStatus
-    { *status };
+    auto statusCopy = XRootDStatus{ *status };
     responseHandler->HandleResponse( status, response );
     ownHandler = false;
     if( !statusCopy.IsOK() || !nextOperation )
     {
-      workflow->EndWorkflowExecution( statusCopy );
+      workflow->EndWorkflowExecution( statusCopy ); // TODO check policy
+      return;
     }
     if( !( statusCopy = RunNextOperation() ).IsOK() )
       workflow->EndWorkflowExecution( statusCopy );
@@ -184,10 +166,10 @@ namespace XrdCl
     if( params )
     {
       firstOperation->Run( params, bucket );
-    } else
+    }
+    else
     {
-      std::shared_ptr<ArgsContainer> firstOperationParams = std::shared_ptr<
-          ArgsContainer>( new ArgsContainer() );
+      std::shared_ptr<ArgsContainer> firstOperationParams = std::shared_ptr<ArgsContainer>( new ArgsContainer() );
       firstOperation->Run( firstOperationParams );
     }
     return *this;
