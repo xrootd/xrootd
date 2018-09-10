@@ -535,6 +535,13 @@ int XrdXrootdProtocol::do_Close()
    if (rc >= SFS_STALL) return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
    if (rc == SFS_STARTED) doDel = false;
 
+// Before we potentially delete the file handle in FTab->Del, generate the
+// appropriate error code (if necessary).  Note that we delay the call
+// to Response.Send() in the successful case to avoid holding on to the lock
+// while the response is sent.
+   int retval = 0;
+   if (SFS_OK != rc) retval = fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+
 // Delete the file from the file table. If the file object is deleted then it
 // will unlock the file In all cases, final monitoring records will be produced.
 //
@@ -544,7 +551,7 @@ int XrdXrootdProtocol::do_Close()
 // Send back the right response
 //
    if (SFS_OK == rc) return Response.Send();
-   return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+   return retval;
 }
 
 /******************************************************************************/
