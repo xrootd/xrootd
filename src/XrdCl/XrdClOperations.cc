@@ -94,30 +94,30 @@ namespace XrdCl {
     // Workflow
     //----------------------------------------------------------------------------
 
-    Workflow::Workflow(Operation<Handled> &op, bool enableLogging): firstOperation(&op), status(NULL), logging(enableLogging) {
+    Workflow::Workflow(Operation<Handled> &op, bool enableLogging): firstOperation( op.Move() ), status(NULL), logging(enableLogging) {
         firstOperation->AssignToWorkflow(this);
     }
 
-    Workflow::Workflow(Operation<Handled> &&op, bool enableLogging): firstOperation(&op), status(NULL), logging(enableLogging) {
+    Workflow::Workflow(Operation<Handled> &&op, bool enableLogging): firstOperation( op.Move() ), status(NULL), logging(enableLogging) {
         firstOperation->AssignToWorkflow(this);
     }
 
-    Workflow::Workflow(Operation<Handled> *op, bool enableLogging): firstOperation(op), status(NULL), logging(enableLogging) {
+    Workflow::Workflow(Operation<Handled> *op, bool enableLogging): firstOperation( op->Move() ), status(NULL), logging(enableLogging) {
         firstOperation->AssignToWorkflow(this);
     }
 
     Workflow::Workflow(Operation<Configured> &op, bool enableLogging): status(NULL), logging(enableLogging) {
-        firstOperation = &(op.AddDefaultHandler());
+        firstOperation = op.ToHandled();
         firstOperation->AssignToWorkflow(this);
     }
 
     Workflow::Workflow(Operation<Configured> &&op, bool enableLogging): status(NULL), logging(enableLogging) {
-        firstOperation = &(op.AddDefaultHandler());
+        firstOperation = op.ToHandled();
         firstOperation->AssignToWorkflow(this);
     }
 
     Workflow::Workflow(Operation<Configured> *op, bool enableLogging): status(NULL), logging(enableLogging) {
-        firstOperation = &(op->AddDefaultHandler());
+        firstOperation = op->ToHandled();
         firstOperation->AssignToWorkflow(this);
     }
 

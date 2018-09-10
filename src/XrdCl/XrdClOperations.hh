@@ -275,74 +275,14 @@ namespace XrdCl {
 
             virtual ~Operation(){}
 
-            //------------------------------------------------------------------
-            //! Add handler which will be executed after operation ends
-            //!
-            //! @param h  handler to add
-            //------------------------------------------------------------------
-            Operation<Handled>& operator>>(ForwardingHandler *h){
-                return AddHandler(h);
-            }
 
-            //------------------------------------------------------------------
-            //! Add handler which will be executed after operation ends
-            //!
-            //! @param h  handler to add
-            //------------------------------------------------------------------
-            Operation<Handled>& operator>>(ResponseHandler *h){
-                ForwardingHandler *forwardingHandler = new ForwardingHandler(h);
-                return AddHandler(forwardingHandler);
-            }
+            virtual Operation<state>* Move() = 0;
 
-            //------------------------------------------------------------------
-            //! Add operation to handler
-            //!
-            //! @param op   operation to add
-            //! @return     handled operation
-            //------------------------------------------------------------------
-            Operation<Handled>& operator|(Operation<Handled> &op){
-                static_assert(state == Handled, "Operator | is available only for types Operation<Handled> and Operation<Configured>");
-                AddOperation(&op);
-                return *this;
-            }
-
-            //------------------------------------------------------------------
-            //! Add operation to handler
-            //!
-            //! @param op   operation to add
-            //! @return     handled operation
-            //------------------------------------------------------------------
-            Operation<Handled>& operator|(Operation<Configured> &op){
-                static_assert(state == Handled, "Operator | is available only for type Operation<Handled>");
-                auto &handledOperation = op.AddDefaultHandler();
-                AddOperation(&handledOperation);
-                return *this;
-            }
-
-            //------------------------------------------------------------------
-            //! Add operation to handler
-            //!
-            //! @param op   operation to add
-            //! @return     handled operation
-            //------------------------------------------------------------------
-            Operation<Handled>& operator|(Operation<Configured> &&op){
-                static_assert(state == Handled, "Operator | is available only for type Operation<Handled>");
-                auto &handledOperation = op.AddDefaultHandler();
-                AddOperation(&handledOperation);
-                return *this;
-            }
+            virtual Operation<Handled>* ToHandled() = 0;
 
             virtual std::string ToString() = 0;
 
         protected:
-
-            //------------------------------------------------------------------
-            //! Save handler and change template type to handled
-            //!
-            //! @param h    handler object
-            //! @return     handled operation
-            //------------------------------------------------------------------
-            virtual Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h) = 0;
 
             //------------------------------------------------------------------
             //! Set workflow pointer in the handler
@@ -383,77 +323,13 @@ namespace XrdCl {
             //! @param op  operation to add
             //------------------------------------------------------------------
             void AddOperation(Operation<Handled> *op){
-                static_assert(state == Handled, "AddOperation method is available only for type Operation<Handled>");
                 if(handler){
                     handler->AddOperation(op);
                 }
             }
 
-            //------------------------------------------------------------------
-            //! Add handler to the operation
-            //!
-            //! @param h    handler to be added
-            //! @return Operation<Handled>&
-            //------------------------------------------------------------------
-            Operation<Handled>& AddHandler(ForwardingHandler *forwardingHandler){
-                static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
-                auto handler = std::unique_ptr<OperationHandler>(new OperationHandler(forwardingHandler));
-                Operation<Handled> *op = this->TransformToHandled(std::move(handler));
-                return *op;
-            }
-
-            //------------------------------------------------------------------
-            //! Add default handler to the operation
-            //!
-            //! @return Operation<Handled>&
-            //------------------------------------------------------------------
-            Operation<Handled>& AddDefaultHandler(){
-                static_assert(state == Configured, "AddDefaultHandler method is available only for type Operation<Configured>");
-                auto handler = new ForwardingHandler();
-                auto &handledOperation = (*this) >> handler;
-                return handledOperation;
-            }
-
             std::unique_ptr<OperationHandler> handler;
     };
-
-    //------------------------------------------------------------------
-    //! Add operation to handler
-    //!
-    //! @param op   operation to add
-    //! @return     handled operation
-    //------------------------------------------------------------------
-    template<> Operation<Handled>& Operation<Configured>::operator|(Operation<Handled> &op){
-        auto &currentOperation = AddDefaultHandler();
-        currentOperation.AddOperation(&op);
-        return currentOperation;
-    }
-
-    //------------------------------------------------------------------
-    //! Add operation to handler
-    //!
-    //! @param op   operation to add
-    //! @return     handled operation
-    //------------------------------------------------------------------
-    template<> Operation<Handled>& Operation<Configured>::operator|(Operation<Configured> &op){
-        auto &currentOperation = AddDefaultHandler();
-        auto &handledOperation = op.AddDefaultHandler();
-        currentOperation.AddOperation(&handledOperation);
-        return currentOperation;
-    }
-
-    //------------------------------------------------------------------
-    //! Add operation to handler
-    //!
-    //! @param op   operation to add
-    //! @return     handled operation
-    //------------------------------------------------------------------
-    template<> Operation<Handled>& Operation<Configured>::operator|(Operation<Configured> &&op){
-        auto &currentOperation = AddDefaultHandler();
-        auto &handledOperation = op.AddDefaultHandler();
-        currentOperation.AddOperation(&handledOperation);
-        return currentOperation;
-    }
 
     //----------------------------------------------------------------------
     //! ArgsOperation template
@@ -469,9 +345,7 @@ namespace XrdCl {
 
       public:
 
-        ArgsOperation() {
-            static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
-        }
+        ArgsOperation() { }
 
         template<State from>
         ArgsOperation( ArgsOperation<Derived, from, Args...> && op ) : Operation<state>( std::move( op ) ), args( std::move( op.args ) )
@@ -479,12 +353,85 @@ namespace XrdCl {
 
         }
 
+        Operation<state>* Move()
+        {
+          Derived<state> *me  = static_cast<Derived<state>*>( this );
+          return new Derived<state>( std::move( *me ) );
+        }
+
+        //------------------------------------------------------------------
+        //! Transform operation to handled
+        //!
+        //! @return Operation<Handled>&
+        //------------------------------------------------------------------
+        Operation<Handled>* ToHandled()
+        {
+          this->handler.reset( new OperationHandler( new ForwardingHandler() ) );
+          Derived<state> *me  = static_cast<Derived<state>*>( this );
+          return new Derived<Handled>( std::move( *me ) );
+          return 0;
+        }
+
+        template<State to>
+        Derived<to> Transform()
+        {
+          Derived<state> *me  = static_cast<Derived<state>*>( this );
+          return Derived<to>( std::move( *me ) );
+        }
+
         Derived<Configured> operator()( Args... args )
         {
           static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-          Derived<Bare> *me = static_cast<Derived<Bare>*>( this );
-          me->TakeArgs( std::move( args )... );
-          return Derived<Configured>( std::move( *me ) );
+          this->TakeArgs( std::move( args )... );
+          return Transform<Configured>();
+        }
+
+        //------------------------------------------------------------------
+        //! Add handler which will be executed after operation ends
+        //!
+        //! @param h  handler to add
+        //------------------------------------------------------------------
+        Derived<Handled> operator>>(ForwardingHandler *h){
+            return StreamImpl( h );
+        }
+
+        //------------------------------------------------------------------
+        //! Add handler which will be executed after operation ends
+        //!
+        //! @param h  handler to add
+        //------------------------------------------------------------------
+        Derived<Handled> operator>>(ResponseHandler *h){
+            return StreamImpl( new ForwardingHandler( h ) );
+        }
+
+        //------------------------------------------------------------------
+        //! Add operation to handler
+        //!
+        //! @param op   operation to add
+        //! @return     handled operation
+        //------------------------------------------------------------------
+        Derived<Handled> operator|( Operation<Handled> &op )
+        {
+          static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
+          return PipeImpl( *this, op );
+        }
+
+        Derived<Handled> operator|( Operation<Handled> &&op )
+        {
+          static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
+          return PipeImpl( *this, op );
+        }
+
+        Derived<Handled> operator|( Operation<Configured> &op )
+        {
+          static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
+          return PipeImpl( *this, op );
+        }
+
+        Derived<Handled> operator|( Operation<Configured> &&op )
+        {
+          static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
+          return PipeImpl( *this, op );
         }
 
       protected:
@@ -492,6 +439,49 @@ namespace XrdCl {
         inline void TakeArgs( Args&&... args )
         {
           this->args = std::tuple<Args...>( std::move( args )... );
+        }
+
+        //------------------------------------------------------------------
+        //! implements operator>> functionality
+        //!
+        //! @param h    handler to be added
+        //! @return     TODO
+        //------------------------------------------------------------------
+        inline Derived<Handled> StreamImpl( ForwardingHandler *handler )
+        {
+          static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
+          this->handler.reset( new OperationHandler( handler ) );
+          return Transform<Handled>();
+        }
+
+        inline static
+        Derived<Handled> PipeImpl( ArgsOperation<Derived, Handled, Args...> &me, Operation<Handled> &op )
+        {
+          me.AddOperation( op.Move() );
+          return me.Transform<Handled>();
+        }
+
+        inline static
+        Derived<Handled> PipeImpl( ArgsOperation<Derived, Handled, Args...> &me, Operation<Configured> &op )
+        {
+          me.AddOperation( op.ToHandled() );
+          return me.Transform<Handled>();
+        }
+
+        inline static
+        Derived<Handled> PipeImpl( ArgsOperation<Derived, Configured, Args...> &me, Operation<Handled> &op )
+        {
+          me.handler.reset( new OperationHandler( new ForwardingHandler() ) );
+          me.AddOperation( op.Move() );
+          return me.Transform<Handled>();
+        }
+
+        inline static
+        Derived<Handled> PipeImpl( ArgsOperation<Derived, Configured, Args...> &me, Operation<Configured> &op )
+        {
+          me.handler.reset( new OperationHandler( new ForwardingHandler() ) );
+          me.AddOperation( op.ToHandled() );
+          return me.Transform<Handled>();
         }
 
         std::tuple<Args...> args;
@@ -517,7 +507,7 @@ namespace XrdCl {
     //! @tparam state   describes current operation configuration state
     //-----------------------------------------------------------------------
     template <State state = Bare>
-    class ParallelOperations: public Operation<state> {
+    class ParallelOperations: public ArgsOperation<ParallelOperations, state> {
         template<State> friend class ParallelOperations;
 
         public:
@@ -537,7 +527,7 @@ namespace XrdCl {
             }
 
             template <State from>
-            ParallelOperations(ParallelOperations<from> &&obj): Operation<state>(std::move(obj)), workflows(std::move(obj.workflows)){}
+            ParallelOperations(ParallelOperations<from> &&obj): ArgsOperation<ParallelOperations, state>(std::move(obj)), workflows(std::move(obj.workflows)){}
 
             template<typename Container>
             ParallelOperations(Container &container){
@@ -602,18 +592,6 @@ namespace XrdCl {
                 this->handler->HandleResponseWithHosts(st, NULL, NULL);
 
                 return XRootDStatus();
-            }
-
-            //------------------------------------------------------------------
-            //! Add handler and change operation status to handled
-            //!
-            //! @param h                        handler to add
-            //! @return Operation<Handled>*     operation with handled status
-            //------------------------------------------------------------------
-            Operation<Handled>* TransformToHandled(std::unique_ptr<OperationHandler> h){
-                this->handler = std::move( h );
-                ParallelOperations<Handled> *c = new ParallelOperations<Handled>( std::move( *this ) );
-                return c;
             }
 
             std::vector<std::unique_ptr<Workflow>> workflows;
