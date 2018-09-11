@@ -72,13 +72,13 @@ static XrdOucString convert_digest_name(const std::string &rfc_name)
     return "md5";
   } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
     return "adler32";
-  } else if (strcasecmp(rfc_name.c_str(), "SHA")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA")) {
     return "sha1";
-  } else if (strcasecmp(rfc_name.c_str(), "SHA-256")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA-256")) {
     return "sha256";
-  } else if (strcasecmp(rfc_name.c_str(), "SHA-512")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA-512")) {
     return "sha512";
-  } else if (strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
     return "cksum";
   }
   return "unknown";
