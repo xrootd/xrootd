@@ -395,6 +395,11 @@ namespace XrdCl
     return StatImpl<Bare>( file );
   }
 
+  StatImpl<Bare> Stat( File &file )
+  {
+    return StatImpl<Bare>( file );
+  }
+
   template<State state>
   class WriteImpl: public FileOperation<WriteImpl, state, Arg<uint64_t>,
       Arg<uint32_t>, Arg<void*>>
@@ -500,7 +505,7 @@ namespace XrdCl
       }
 
       template<State from>
-      SyncImpl( SyncImpl<state> && sync ) :
+      SyncImpl( SyncImpl<from> && sync ) :
           FileOperation<SyncImpl, state>( std::move( sync ) )
       {
       }
@@ -603,6 +608,11 @@ namespace XrdCl
       "size";
 
   TruncateImpl<Bare> Truncate( File *file )
+  {
+    return TruncateImpl<Bare>( file );
+  }
+
+  TruncateImpl<Bare> Truncate( File &file )
   {
     return TruncateImpl<Bare>( file );
   }

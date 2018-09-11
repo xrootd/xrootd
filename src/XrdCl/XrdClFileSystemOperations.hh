@@ -210,7 +210,7 @@ namespace XrdCl
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
+          std::string      &path  = Get<PathArg>( this->args, params, bucket );
           OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
           return this->filesystem->DeepLocate( path, flags,
               this->handler.get() );
@@ -469,6 +469,12 @@ namespace XrdCl
   {
     return TruncateFsImpl<Bare>( fs );
   }
+
+  TruncateFsImpl<Bare> Truncate( FileSystem &fs )
+  {
+    return TruncateFsImpl<Bare>( fs );
+  }
+
 
   template<State state>
   class RmImpl: public FileSystemOperation<RmImpl, state, Arg<std::string>>
@@ -900,6 +906,11 @@ namespace XrdCl
       "path";
 
   StatFsImpl<Bare> Stat( FileSystem *fs )
+  {
+    return StatFsImpl<Bare>( fs );
+  }
+
+  StatFsImpl<Bare> Stat( FileSystem &fs )
   {
     return StatFsImpl<Bare>( fs );
   }

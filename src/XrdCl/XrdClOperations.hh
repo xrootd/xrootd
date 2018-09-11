@@ -26,13 +26,13 @@
 #ifndef __XRD_CL_OPERATIONS_HH__
 #define __XRD_CL_OPERATIONS_HH__
 
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <sstream>
 #include <tuple>
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClOperationArgs.hh"
+
 
 namespace XrdCl
 {
@@ -55,42 +55,21 @@ namespace XrdCl
 
     public:
       ForwardingHandler() :
-          container( new ArgsContainer() ), responseHandler( NULL ), wrapper(
-              false )
-      {
-      }
-
-      ForwardingHandler( ResponseHandler *handler ) :
-          container( new ArgsContainer() ), responseHandler( handler ), wrapper(
-              true )
+          container( new ArgsContainer() ), responseHandler( NULL )
       {
       }
 
       virtual void HandleResponseWithHosts( XRootDStatus *status,
           AnyObject *response, HostList *hostList )
       {
-        if( wrapper )
-        {
-          responseHandler->HandleResponseWithHosts( status, response,
-              hostList );
-          delete this;
-        } else
-        {
-          delete hostList;
-          HandleResponse( status, response );
-        }
+        delete hostList;
+        HandleResponse( status, response );
       }
 
       virtual void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
-        if( wrapper )
-        {
-          responseHandler->HandleResponse( status, response );
-        } else
-        {
-          delete status;
-          delete response;
-        }
+        delete status;
+        delete response;
         delete this;
       }
 
@@ -124,7 +103,34 @@ namespace XrdCl
       }
 
       ResponseHandler* responseHandler;
-      bool wrapper;
+  };
+
+  class WrappingHandler : public ForwardingHandler
+  {
+      friend class OperationHandler;
+
+    public:
+
+      WrappingHandler( ResponseHandler *handler ) : handler( handler )
+      {
+
+      }
+
+      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
+      {
+        handler->HandleResponseWithHosts( status, response, hostList );
+        delete this;
+      }
+
+      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      {
+        handler->HandleResponse( status, response );
+        delete this;
+      }
+
+    private:
+
+      ResponseHandler *handler;
   };
 
   //---------------------------------------------------------------------------
@@ -193,7 +199,7 @@ namespace XrdCl
       //! @return original workflow object
       //! @throws logic_error if the workflow is already running
       //------------------------------------------------------------------------
-      Workflow& Run( std::shared_ptr<ArgsContainer> params = NULL,
+      XRootDStatus Run( std::shared_ptr<ArgsContainer> params = NULL,
                      int bucket = 1 );
 
       //------------------------------------------------------------------------
@@ -201,7 +207,7 @@ namespace XrdCl
       //!
       //! @return original workflow object
       //------------------------------------------------------------------------
-      Workflow& Wait();
+      void Wait();
 
       //------------------------------------------------------------------------
       //! Get workflow execution status
@@ -254,8 +260,10 @@ namespace XrdCl
   {
     public:
       OperationHandler( ForwardingHandler *handler, bool own );
-      virtual void HandleResponse( XRootDStatus *status, AnyObject *response );
-      virtual ~OperationHandler();
+      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList );
+      void HandleResponse( XRootDStatus *status, AnyObject *response );
+      ~OperationHandler();
+
 
       //------------------------------------------------------------------------
       //! Add new operation to the sequence
@@ -280,6 +288,8 @@ namespace XrdCl
       XRootDStatus RunNextOperation();
 
     private:
+
+      void HandleResponseImpl( XRootDStatus *status, AnyObject *response, HostList *hostList = 0);
 
       ForwardingHandler *responseHandler;
       bool ownHandler;
@@ -362,7 +372,7 @@ namespace XrdCl
       virtual XRootDStatus HandleError( const std::logic_error& err )
       {
         XRootDStatus *st = new XRootDStatus( stError, err.what() );
-        handler->HandleResponse( st, 0 );
+        handler->HandleResponseWithHosts( st, 0, 0 );
         return XRootDStatus();
       }
 
@@ -509,6 +519,11 @@ namespace XrdCl
         return StreamImpl( h, false );
       }
 
+      Derived<Handled> operator>>(ForwardingHandler &h)
+      {
+        return StreamImpl( &h, false );
+      }
+
       //------------------------------------------------------------------
       //! Add handler which will be executed after operation ends
       //!
@@ -516,7 +531,12 @@ namespace XrdCl
       //------------------------------------------------------------------
       Derived<Handled> operator>>(ResponseHandler *h)
       {
-        return StreamImpl( new ForwardingHandler( h ) );
+        return StreamImpl( new WrappingHandler( h ) );
+      }
+
+      Derived<Handled> operator>>(ResponseHandler &h)
+      {
+        return StreamImpl( new WrappingHandler( &h ) );
       }
 
       //------------------------------------------------------------------
@@ -560,7 +580,7 @@ namespace XrdCl
       //! implements operator>> functionality
       //!
       //! @param h    handler to be added
-      //! @return     TODO
+      //! @return     return an instance of Derived<Handled>
       //------------------------------------------------------------------
       inline Derived<Handled> StreamImpl( ForwardingHandler *handler, bool own = true )
       {
@@ -615,140 +635,6 @@ namespace XrdCl
   {
     auto &arg = std::get<ArgDesc::index>( args );
     return arg.IsEmpty() ? params->GetArg<ArgDesc>( bucket ) : arg.GetValue();
-  }
-
-  //-----------------------------------------------------------------------
-  //! Parallel operations
-  //!
-  //! @tparam state   describes current operation configuration state
-  //-----------------------------------------------------------------------
-  template<State state = Bare>
-  class ParallelOperation: public ConcreteOperation<ParallelOperation, state>
-  {
-      template<State> friend class ParallelOperation;
-
-    public:
-
-      template<State from>
-      ParallelOperation( ParallelOperation<from> &&obj ) :
-          ConcreteOperation<ParallelOperation, state>( std::move( obj ) ), workflows(
-              std::move( obj.workflows ) )
-      {
-      }
-
-      template<class Container>
-      ParallelOperation( Container &container )
-      {
-        static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
-        auto itr = container.begin();
-        for( ; itr != container.end(); ++itr )
-        {
-          std::unique_ptr<Workflow> w( new Workflow( *itr, false ) );
-          workflows.push_back( std::move( w ) );
-        }
-      }
-
-      //------------------------------------------------------------------
-      //! Get description of parallel operations flow
-      //!
-      //! @return std::string description
-      //------------------------------------------------------------------
-      std::string ToString()
-      {
-        std::ostringstream oss;
-        oss << "Parallel(";
-        for( int i = 0; i < workflows.size(); i++ )
-        {
-          oss << workflows[i]->ToString();
-          if( i != workflows.size() - 1 )
-          {
-            oss << " && ";
-          }
-        }
-        oss << ")";
-        return oss.str();
-      }
-
-    private:
-      //------------------------------------------------------------------------
-      //! Run operations
-      //!
-      //! @param params           parameters container
-      //! @param bucketDefault    bucket in parameters container
-      //!                         (not used here, provided only for compatibility with the interface )
-      //! @return XRootDStatus    status of the operations
-      //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params,
-          int bucketDefault = 0 )
-      {
-        for( int i = 0; i < workflows.size(); i++ )
-        {
-          int bucket = i + 1;
-          workflows[i]->Run( params, bucket );
-        }
-
-        bool statusOK = true;
-        std::string statusMessage = "";
-
-        for( int i = 0; i < workflows.size(); i++ )
-        {
-          workflows[i]->Wait();
-          auto result = workflows[i]->GetStatus();
-          if( !result.IsOK() )
-          {
-            statusOK = false;
-            statusMessage = result.ToStr();
-            break;
-          }
-        }
-        const uint16_t status = statusOK ? stOK : stError;
-
-        XRootDStatus *st = new XRootDStatus( status, statusMessage );
-        this->handler->HandleResponseWithHosts( st, NULL, NULL );
-
-        return XRootDStatus();
-      }
-
-      std::vector<std::unique_ptr<Workflow>> workflows;
-  };
-
-  //-----------------------------------------------------------------------
-  //! Factory function for creating parallel operation from a vector
-  //-----------------------------------------------------------------------
-  template<class Container>
-  ParallelOperation<Configured> Parallel( Container &container )
-  {
-    return ParallelOperation<Configured>( container );
-  }
-
-  //-----------------------------------------------------------------------
-  //! Helper function for converting parameter pack into a vector
-  //-----------------------------------------------------------------------
-  void PipesToVec( std::vector<Pipeline>& )
-  {
-    // base case
-  }
-
-  template<typename ... Operations>
-  void PipesToVec( std::vector<Pipeline> &v, Pipeline pipeline, Operations&... operations )
-  {
-    v.emplace_back( std::move( pipeline ) );
-    PipesToVec( v, operations... );
-  }
-
-  //-----------------------------------------------------------------------
-  //! Factory function for creating parallel operation from
-  //! a given number of operations
-  //! (we use && reference since due to reference colapsing this will fit
-  //! both r- and l-value references)
-  //-----------------------------------------------------------------------
-  template<typename ... Operations>
-  ParallelOperation<Configured> Parallel( Operations&& ... operations )
-  {
-    constexpr size_t size = sizeof...( operations );
-    std::vector<Pipeline> v; v.reserve( size );
-    PipesToVec( v, operations... );
-    return Parallel( v );
   }
 }
 

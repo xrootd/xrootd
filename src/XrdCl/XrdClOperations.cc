@@ -55,11 +55,11 @@ namespace XrdCl
     }
   }
 
-  void OperationHandler::HandleResponse( XRootDStatus *status, AnyObject *response )
+  void OperationHandler::HandleResponseImpl( XRootDStatus *status, AnyObject *response, HostList *hostList )
   {
     // We need to copy status as original status object is destroyed in HandleResponse function
     auto statusCopy = XRootDStatus{ *status };
-    responseHandler->HandleResponse( status, response );
+    responseHandler->HandleResponseWithHosts( status, response, hostList );
     ownHandler = false;
     if( !statusCopy.IsOK() || !nextOperation )
     {
@@ -69,6 +69,17 @@ namespace XrdCl
     if( !( statusCopy = RunNextOperation() ).IsOK() )
       workflow->EndWorkflowExecution( statusCopy );
   }
+
+  void OperationHandler::HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
+  {
+    HandleResponseImpl( status, response, hostList );
+  }
+
+  void OperationHandler::HandleResponse( XRootDStatus *status, AnyObject *response )
+  {
+    HandleResponseImpl( status, response );
+  }
+
 
   XRootDStatus OperationHandler::RunNextOperation()
   {
@@ -152,7 +163,7 @@ namespace XrdCl
     delete status;
   }
 
-  Workflow& Workflow::Run( std::shared_ptr<ArgsContainer> params, int bucket )
+  XRootDStatus Workflow::Run( std::shared_ptr<ArgsContainer> params, int bucket )
   {
     if( semaphore )
     {
@@ -164,15 +175,10 @@ namespace XrdCl
       Print();
     }
     if( params )
-    {
-      firstOperation->Run( params, bucket );
-    }
-    else
-    {
-      std::shared_ptr<ArgsContainer> firstOperationParams = std::shared_ptr<ArgsContainer>( new ArgsContainer() );
-      firstOperation->Run( firstOperationParams );
-    }
-    return *this;
+      return firstOperation->Run( params, bucket );
+
+    std::shared_ptr<ArgsContainer> firstOperationParams = std::shared_ptr<ArgsContainer>( new ArgsContainer() );
+    return firstOperation->Run( firstOperationParams );
   }
 
   void Workflow::EndWorkflowExecution( const XRootDStatus &lastOperationStatus )
@@ -189,13 +195,12 @@ namespace XrdCl
     return status ? *status : XRootDStatus();
   }
 
-  Workflow& Workflow::Wait()
+  void Workflow::Wait()
   {
     if( semaphore )
     {
       semaphore->Wait();
     }
-    return *this;
   }
 
   void Workflow::AddOperationInfo( std::string description )
