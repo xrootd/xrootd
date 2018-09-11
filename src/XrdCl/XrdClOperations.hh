@@ -628,23 +628,6 @@ namespace XrdCl
       template<State> friend class ParallelOperation;
 
     public:
-      //------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param operations   list of operations to run in parallel
-      //------------------------------------------------------------------
-      ParallelOperation( std::initializer_list<Operation<Handled>*> operations )
-      {
-        static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
-        std::initializer_list<Operation<Handled>*>::iterator it =
-            operations.begin();
-        while( it != operations.end() )
-        {
-          std::unique_ptr<Workflow> w( new Workflow( *it, false ) );
-          workflows.push_back( std::move( w ) );
-          ++it;
-        }
-      }
 
       template<State from>
       ParallelOperation( ParallelOperation<from> &&obj ) :
@@ -728,7 +711,45 @@ namespace XrdCl
 
       std::vector<std::unique_ptr<Workflow>> workflows;
   };
-  typedef ParallelOperation<Configured> Parallel;
+
+  //-----------------------------------------------------------------------
+  //! Factory function for creating parallel operation from a vector
+  //-----------------------------------------------------------------------
+  template<class Container>
+  ParallelOperation<Configured> Parallel( Container &container )
+  {
+    return ParallelOperation<Configured>( container );
+  }
+
+  //-----------------------------------------------------------------------
+  //! Helper function for converting parameter pack into a vector
+  //-----------------------------------------------------------------------
+  void PipesToVec( std::vector<Pipeline>& )
+  {
+    // base case
+  }
+
+  template<typename ... Operations>
+  void PipesToVec( std::vector<Pipeline> &v, Pipeline pipeline, Operations&... operations )
+  {
+    v.emplace_back( std::move( pipeline ) );
+    PipesToVec( v, operations... );
+  }
+
+  //-----------------------------------------------------------------------
+  //! Factory function for creating parallel operation from
+  //! a given number of operations
+  //! (we use && reference since due to reference colapsing this will fit
+  //! both r- and l-value references)
+  //-----------------------------------------------------------------------
+  template<typename ... Operations>
+  ParallelOperation<Configured> Parallel( Operations&& ... operations )
+  {
+    constexpr size_t size = sizeof...( operations );
+    std::vector<Pipeline> v; v.reserve( size );
+    PipesToVec( v, operations... );
+    return Parallel( v );
+  }
 }
 
 #endif // __XRD_CL_OPERATIONS_HH__
