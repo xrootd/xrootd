@@ -95,10 +95,9 @@ private:
   void parseResource(char *url);
 public:
 
-  XrdHttpReq(XrdHttpProtocol *protinstance) {
+  XrdHttpReq(XrdHttpProtocol *protinstance) : keepalive(true) {
 
     prot = protinstance;
-    keepalive = false;
     length = 0;
     //xmlbody = 0;
     depth = 0;

@@ -133,7 +133,7 @@ private:
   static int InitSecurity();
 
   /// Start a response back to the client
-  int StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen);
+  int StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);
 
   /// Send some generic data to the client
   int SendData(const char *body, int bodylen);
@@ -227,11 +227,11 @@ private:
   int BuffgetLine(XrdOucString &dest);
 
   /// Sends a basic response. If the length is < 0 then it is calculated internally
-  int SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen);
+  int SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen, bool keepalive);
 
   /// Starts a chunked response; body of request is sent over multiple parts using the SendChunkResp
   //  API.
-  int StartChunkedResp(int code, const char *desc, const char *header_to_add);
+  int StartChunkedResp(int code, const char *desc, const char *header_to_add, bool keepalive);
 
   /// Send a (potentially partial) body in a chunked response; invoking with NULL body
   //  indicates that this is the last chunk in the response.
@@ -265,8 +265,6 @@ private:
   /// connection being established
   bool ssldone;
 
-  
-  
   static XrdCryptoFactory *myCryptoFactory;
 protected:
 
