@@ -89,7 +89,7 @@ namespace XrdCl
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
-        ResponseType *res = 0;
+        ResponseType *res = nullptr;
         if( status->IsOK() )
           response->Get( res );
         else
@@ -122,7 +122,7 @@ namespace XrdCl
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
-        ResponseType *res = 0;
+        ResponseType *res = nullptr;
         if( status->IsOK() )
           response->Get( res );
         else
@@ -155,14 +155,13 @@ namespace XrdCl
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
-        StatInfo *info = 0;
+        StatInfo *info = nullptr;
         if( status->IsOK() )
           f.Stat( false, info );
         else
           info = &nullref;
         fun( *status, *info );
-        if( info != &nullref )
-          delete info;
+        if( info != &nullref ) delete info;
         delete status;
         delete response;
         delete this;
@@ -189,15 +188,14 @@ namespace XrdCl
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
-        StatInfo *info = 0;
+        StatInfo *info = nullptr;
         if( status->IsOK() )
           f.Stat( false, info );
         else
           info = &nullref;
         auto paramsContainerWrapper = GetOperationContext();
         fun( *status, *info, *paramsContainerWrapper.get() );
-        if( info != &nullref )
-          delete info;
+        if( info != &nullref ) delete info;
         delete status;
         delete response;
         delete this;

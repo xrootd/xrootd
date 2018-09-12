@@ -245,31 +245,9 @@ namespace XrdCl
           throw std::logic_error( oss.str() );
         }
         AnyObject *obj = paramsMap[bucket][T::key];
-        typename T::type *valuePtr = 0;
+        typename T::type *valuePtr = nullptr;
         obj->Get( valuePtr );
         return *valuePtr;
-      }
-
-      //------------------------------------------------------------
-      //! Get pointer from container
-      //!
-      //! @param key  key under which the pointer is stored
-      //! @return     pointer to stored object
-      //------------------------------------------------------------
-      template<typename T>
-      typename T::type GetPtrArg( int bucket = 1 )
-      {
-        if( !Exists( T::key, bucket ) )
-        {
-          std::ostringstream oss;
-          oss << "Parameter " << T::key << " has not been specified in bucket "
-              << bucket;
-          throw std::logic_error( oss.str() );
-        }
-        AnyObject *obj = paramsMap[bucket][T::key];
-        typename T::type valuePtr = 0;
-        obj->Get( valuePtr );
-        return valuePtr;
       }
 
       //------------------------------------------------------------

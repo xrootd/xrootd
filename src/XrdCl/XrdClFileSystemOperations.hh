@@ -132,7 +132,8 @@ namespace XrdCl
           std::string &path = Get<PathArg>( this->args, params, bucket );
           OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
           return this->filesystem->Locate( path, flags, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -210,11 +211,12 @@ namespace XrdCl
       {
         try
         {
-          std::string      &path  = Get<PathArg>( this->args, params, bucket );
+          std::string &path = Get<PathArg>( this->args, params, bucket );
           OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
           return this->filesystem->DeepLocate( path, flags,
               this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -294,7 +296,8 @@ namespace XrdCl
           std::string &source = Get<SourceArg>( this->args, params, bucket );
           std::string &dest = Get<DestArg>( this->args, params, bucket );
           return this->filesystem->Mv( source, dest, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -342,7 +345,8 @@ namespace XrdCl
           typedef Buffer type;
       };
 
-      using ConcreteOperation<QueryImpl, state, Arg<QueryCode::Code>, Arg<Buffer>>::operator>>;
+      using ConcreteOperation<QueryImpl, state, Arg<QueryCode::Code>,
+          Arg<Buffer>>::operator>>;
 
       QueryImpl<Handled> operator>>(
           std::function<void( XRootDStatus&, Buffer& )> handleFunction )
@@ -374,7 +378,8 @@ namespace XrdCl
               bucket );
           const Buffer &arg = Get<BufferArg>( this->args, params, bucket );
           return this->filesystem->Query( queryCode, arg, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -423,7 +428,8 @@ namespace XrdCl
           typedef uint64_t type;
       };
 
-      using ConcreteOperation<TruncateFsImpl, state, Arg<std::string>, Arg<uint64_t>>::operator>>;
+      using ConcreteOperation<TruncateFsImpl, state, Arg<std::string>,
+          Arg<uint64_t>>::operator>>;
 
       TruncateFsImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -454,7 +460,8 @@ namespace XrdCl
           std::string &path = Get<PathArg>( this->args, params, bucket );
           uint64_t &size = Get<SizeArg>( this->args, params, bucket );
           return this->filesystem->Truncate( path, size, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -474,7 +481,6 @@ namespace XrdCl
   {
     return TruncateFsImpl<Bare>( fs );
   }
-
 
   template<State state>
   class RmImpl: public FileSystemOperation<RmImpl, state, Arg<std::string>>
@@ -533,7 +539,8 @@ namespace XrdCl
         {
           std::string& path = Get<PathArg>( this->args, params, bucket );
           return this->filesystem->Rm( path, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -621,7 +628,8 @@ namespace XrdCl
           Access::Mode &mode = Get<ModeArg>( this->args, params, bucket );
           return this->filesystem->MkDir( path, flags, mode,
               this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -692,7 +700,8 @@ namespace XrdCl
         {
           std::string &path = Get<PathArg>( this->args, params, bucket );
           return this->filesystem->RmDir( path, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -739,7 +748,8 @@ namespace XrdCl
           typedef Access::Mode type;
       };
 
-      using ConcreteOperation<ChModImpl, state, Arg<std::string>, Arg<Access::Mode>>::operator>>;
+      using ConcreteOperation<ChModImpl, state, Arg<std::string>,
+          Arg<Access::Mode>>::operator>>;
 
       ChModImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -770,7 +780,8 @@ namespace XrdCl
           std::string &path = Get<PathArg>( this->args, params, bucket );
           Access::Mode &mode = Get<ModeArg>( this->args, params, bucket );
           return this->filesystem->ChMod( path, mode, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -830,7 +841,8 @@ namespace XrdCl
         try
         {
           return this->filesystem->Ping( this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -896,7 +908,8 @@ namespace XrdCl
         {
           std::string &path = Get<PathArg>( this->args, params, bucket );
           return this->filesystem->RmDir( path, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -973,7 +986,8 @@ namespace XrdCl
         {
           std::string &path = Get<PathArg>( this->args, params, bucket );
           return this->filesystem->StatVFS( path, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -1031,7 +1045,8 @@ namespace XrdCl
         try
         {
           return this->filesystem->Protocol( this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -1109,7 +1124,8 @@ namespace XrdCl
           DirListFlags::Flags &flags = Get<FlagsArg>( this->args, params,
               bucket );
           return this->filesystem->DirList( path, flags, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -1179,7 +1195,8 @@ namespace XrdCl
         {
           std::string &info = Get<InfoArg>( this->args, params, bucket );
           return this->filesystem->SendInfo( info, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -1269,7 +1286,8 @@ namespace XrdCl
           uint8_t &priority = Get<PriorityArg>( this->args, params, bucket );
           return this->filesystem->Prepare( fileList, flags, priority,
               this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }

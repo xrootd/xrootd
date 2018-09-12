@@ -167,7 +167,8 @@ namespace XrdCl
           OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
           Access::Mode &mode = Get<ModeArg>( this->args, params, bucket );
           return this->file->Open( url, flags, mode, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -257,7 +258,8 @@ namespace XrdCl
           uint32_t &size = Get<SizeArg>( this->args, params, bucket );
           void *buffer = Get<BufferArg>( this->args, params, bucket );
           return this->file->Read( offset, size, buffer, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -381,7 +383,8 @@ namespace XrdCl
         {
           bool force = Get<ForceArg>( this->args, params, bucket );
           return this->file->Stat( force, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -477,7 +480,8 @@ namespace XrdCl
           uint32_t &size = Get<SizeArg>( this->args, params, bucket );
           void *buffer = Get<BufferArg>( this->args, params, bucket );
           return this->file->Write( offset, size, buffer, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -598,7 +602,8 @@ namespace XrdCl
         {
           uint64_t &size = Get<SizeArg>( this->args, params, bucket );
           return this->file->Truncate( size, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -684,7 +689,8 @@ namespace XrdCl
               bucket );
           void *buffer = Get<BufferArg>( this->args, params, bucket );
           return this->file->VectorRead( chunks, buffer, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -755,7 +761,8 @@ namespace XrdCl
           const ChunkList& chunks = Get<ChunksArg>( this->args, params,
               bucket );
           return this->file->VectorWrite( chunks, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -809,8 +816,8 @@ namespace XrdCl
           typedef int type;
       };
 
-      using ConcreteOperation<WriteVImpl, state, Arg<uint64_t>, Arg<struct iovec*>,
-          Arg<int>>::operator>>;
+      using ConcreteOperation<WriteVImpl, state, Arg<uint64_t>,
+          Arg<struct iovec*>, Arg<int>>::operator>>;
 
       WriteVImpl<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
@@ -842,7 +849,8 @@ namespace XrdCl
           const struct iovec *iov = Get<IovArg>( this->args, params, bucket );
           int &iovcnt = Get<IovcntArg>( this->args, params, bucket );
           return this->file->WriteV( offset, iov, iovcnt, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }
@@ -912,7 +920,8 @@ namespace XrdCl
         {
           const Buffer& arg = Get<BufferArg>( this->args, params, bucket );
           return this->file->Fcntl( arg, this->handler.get() );
-        } catch( const std::logic_error& err )
+        }
+        catch( const std::logic_error& err )
         {
           return this->HandleError( err );
         }

@@ -33,7 +33,6 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClOperationArgs.hh"
 
-
 namespace XrdCl
 {
 
@@ -55,7 +54,7 @@ namespace XrdCl
 
     public:
       ForwardingHandler() :
-          container( new ArgsContainer() ), responseHandler( NULL )
+          container( new ArgsContainer() ), responseHandler( nullptr )
       {
       }
 
@@ -105,18 +104,20 @@ namespace XrdCl
       ResponseHandler* responseHandler;
   };
 
-  class WrappingHandler : public ForwardingHandler
+  class WrappingHandler: public ForwardingHandler
   {
       friend class OperationHandler;
 
     public:
 
-      WrappingHandler( ResponseHandler *handler ) : handler( handler )
+      WrappingHandler( ResponseHandler *handler ) :
+          handler( handler )
       {
 
       }
 
-      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
+      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response,
+          HostList *hostList )
       {
         handler->HandleResponseWithHosts( status, response, hostList );
         delete this;
@@ -199,8 +200,8 @@ namespace XrdCl
       //! @return original workflow object
       //! @throws logic_error if the workflow is already running
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> params = NULL,
-                     int bucket = 1 );
+      XRootDStatus Run( std::shared_ptr<ArgsContainer> params = nullptr,
+          int bucket = 1 );
 
       //------------------------------------------------------------------------
       //! Wait for workflow execution end
@@ -260,10 +261,10 @@ namespace XrdCl
   {
     public:
       OperationHandler( ForwardingHandler *handler, bool own );
-      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList );
+      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response,
+          HostList *hostList );
       void HandleResponse( XRootDStatus *status, AnyObject *response );
       ~OperationHandler();
-
 
       //------------------------------------------------------------------------
       //! Add new operation to the sequence
@@ -289,7 +290,8 @@ namespace XrdCl
 
     private:
 
-      void HandleResponseImpl( XRootDStatus *status, AnyObject *response, HostList *hostList = 0);
+      void HandleResponseImpl( XRootDStatus *status, AnyObject *response,
+          HostList *hostList = nullptr );
 
       ForwardingHandler *responseHandler;
       bool ownHandler;
@@ -360,7 +362,8 @@ namespace XrdCl
       //!                 previous operation
       //! @return         status of the operation
       //------------------------------------------------------------------
-      virtual XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 ) = 0;
+      virtual XRootDStatus Run( std::shared_ptr<ArgsContainer> &params,
+          int bucket = 1 ) = 0;
 
       //------------------------------------------------------------------
       //! Handle error caused by missing parameter
@@ -372,7 +375,7 @@ namespace XrdCl
       virtual XRootDStatus HandleError( const std::logic_error& err )
       {
         XRootDStatus *st = new XRootDStatus( stError, err.what() );
-        handler->HandleResponseWithHosts( st, 0, 0 );
+        handler->HandleResponseWithHosts( st, nullptr, nullptr );
         return XRootDStatus();
       }
 
@@ -392,7 +395,6 @@ namespace XrdCl
       std::unique_ptr<OperationHandler> handler;
   };
 
-
   //----------------------------------------------------------------------
   //! A wrapper around operation pipeline
   //----------------------------------------------------------------------
@@ -402,37 +404,44 @@ namespace XrdCl
 
     public:
 
-      Pipeline( Operation<Handled>  *op ) : operation( op->Move() )
+      Pipeline( Operation<Handled> *op ) :
+          operation( op->Move() )
       {
 
       }
 
-      Pipeline( Operation<Handled>  &op ) : operation( op.Move() )
+      Pipeline( Operation<Handled> &op ) :
+          operation( op.Move() )
       {
 
       }
 
-      Pipeline( Operation<Handled> &&op ) : operation( op.Move() )
+      Pipeline( Operation<Handled> &&op ) :
+          operation( op.Move() )
       {
 
       }
 
-      Pipeline( Operation<Configured>  *op ) : operation( op->ToHandled() )
+      Pipeline( Operation<Configured> *op ) :
+          operation( op->ToHandled() )
       {
 
       }
 
-      Pipeline( Operation<Configured>  &op ) : operation( op.ToHandled() )
+      Pipeline( Operation<Configured> &op ) :
+          operation( op.ToHandled() )
       {
 
       }
 
-      Pipeline( Operation<Configured> &&op ) : operation( op.ToHandled() )
+      Pipeline( Operation<Configured> &&op ) :
+          operation( op.ToHandled() )
       {
 
       }
 
-      Pipeline( Pipeline &&pipe ) : operation( std::move( pipe.operation ) )
+      Pipeline( Pipeline &&pipe ) :
+          operation( std::move( pipe.operation ) )
       {
 
       }
@@ -492,7 +501,6 @@ namespace XrdCl
         this->handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
         Derived<state> *me = static_cast<Derived<state>*>( this );
         return new Derived<Handled>( std::move( *me ) );
-        return 0;
       }
 
       template<State to>
@@ -519,6 +527,11 @@ namespace XrdCl
         return StreamImpl( h, false );
       }
 
+      //------------------------------------------------------------------
+      //! Add handler which will be executed after operation ends
+      //!
+      //! @param h  handler to add
+      //------------------------------------------------------------------
       Derived<Handled> operator>>(ForwardingHandler &h)
       {
         return StreamImpl( &h, false );
@@ -534,6 +547,11 @@ namespace XrdCl
         return StreamImpl( new WrappingHandler( h ) );
       }
 
+      //------------------------------------------------------------------
+      //! Add handler which will be executed after operation ends
+      //!
+      //! @param h  handler to add
+      //------------------------------------------------------------------
       Derived<Handled> operator>>(ResponseHandler &h)
       {
         return StreamImpl( new WrappingHandler( &h ) );

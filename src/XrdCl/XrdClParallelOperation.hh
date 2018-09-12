@@ -29,7 +29,6 @@
 #include "XrdCl/XrdClOperations.hh"
 #include "XrdCl/XrdClOperationHandlers.hh"
 
-
 namespace XrdCl
 {
   //-----------------------------------------------------------------------
@@ -65,7 +64,8 @@ namespace XrdCl
 
       using ConcreteOperation<ParallelOperation, state>::operator>>;
 
-      ParallelOperation<Handled> operator>>( std::function<void( XRootDStatus& )> handleFunction )
+      ParallelOperation<Handled> operator>>(
+          std::function<void( XRootDStatus& )> handleFunction )
       {
         ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
             handleFunction );
@@ -128,7 +128,7 @@ namespace XrdCl
         const uint16_t status = statusOK ? stOK : stError;
 
         XRootDStatus *st = new XRootDStatus( status, statusMessage );
-        this->handler->HandleResponseWithHosts( st, NULL, NULL );
+        this->handler->HandleResponseWithHosts( st, nullptr, nullptr );
 
         return XRootDStatus();
       }
@@ -158,33 +158,39 @@ namespace XrdCl
   // definitions, as they may call each other.
   //-----------------------------------------------------------------------
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<Configured> &operation, Others&... others );
+  void PipesToVec( std::vector<Pipeline> &v, Operation<Configured> &operation,
+      Others&... others );
 
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<Handled>    &operation, Others&... others );
+  void PipesToVec( std::vector<Pipeline> &v, Operation<Handled> &operation,
+      Others&... others );
 
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Pipeline              &pipeline,  Others&... others );
+  void PipesToVec( std::vector<Pipeline> &v, Pipeline &pipeline,
+      Others&... others );
 
   //-----------------------------------------------------------------------
   // Define PipesToVec
   //-----------------------------------------------------------------------
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<Configured> &operation, Others&... others )
+  void PipesToVec( std::vector<Pipeline> &v, Operation<Configured> &operation,
+      Others&... others )
   {
     v.emplace_back( operation );
     PipesToVec( v, others... );
   }
 
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<Handled> &operation, Others&... others )
+  void PipesToVec( std::vector<Pipeline> &v, Operation<Handled> &operation,
+      Others&... others )
   {
     v.emplace_back( operation );
     PipesToVec( v, others... );
   }
 
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Pipeline &pipeline, Others&... others )
+  void PipesToVec( std::vector<Pipeline> &v, Pipeline &pipeline,
+      Others&... others )
   {
     v.emplace_back( std::move( pipeline ) );
     PipesToVec( v, others... );
@@ -200,7 +206,8 @@ namespace XrdCl
   ParallelOperation<Configured> Parallel( Operations&& ... operations )
   {
     constexpr size_t size = sizeof...( operations );
-    std::vector<Pipeline> v; v.reserve( size );
+    std::vector<Pipeline> v;
+    v.reserve( size );
     PipesToVec( v, operations... );
     return Parallel( v );
   }

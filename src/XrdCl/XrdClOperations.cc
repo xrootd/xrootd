@@ -38,8 +38,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
 
   OperationHandler::OperationHandler( ForwardingHandler *handler, bool own ) :
-      responseHandler( handler ), ownHandler( own ), nextOperation( NULL ), workflow(
-          NULL )
+      responseHandler( handler ), ownHandler( own ), nextOperation( nullptr ), workflow(
+          nullptr )
   {
     params = handler->GetArgContainer();
   }
@@ -49,16 +49,18 @@ namespace XrdCl
     if( nextOperation )
     {
       nextOperation->AddOperation( operation );
-    } else
+    }
+    else
     {
       nextOperation = operation;
     }
   }
 
-  void OperationHandler::HandleResponseImpl( XRootDStatus *status, AnyObject *response, HostList *hostList )
+  void OperationHandler::HandleResponseImpl( XRootDStatus *status,
+      AnyObject *response, HostList *hostList )
   {
     // We need to copy status as original status object is destroyed in HandleResponse function
-    auto statusCopy = XRootDStatus{ *status };
+    auto statusCopy = XRootDStatus { *status };
     responseHandler->HandleResponseWithHosts( status, response, hostList );
     ownHandler = false;
     if( !statusCopy.IsOK() || !nextOperation )
@@ -70,16 +72,17 @@ namespace XrdCl
       workflow->EndWorkflowExecution( statusCopy );
   }
 
-  void OperationHandler::HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
+  void OperationHandler::HandleResponseWithHosts( XRootDStatus *status,
+      AnyObject *response, HostList *hostList )
   {
     HandleResponseImpl( status, response, hostList );
   }
 
-  void OperationHandler::HandleResponse( XRootDStatus *status, AnyObject *response )
+  void OperationHandler::HandleResponse( XRootDStatus *status,
+      AnyObject *response )
   {
     HandleResponseImpl( status, response );
   }
-
 
   XRootDStatus OperationHandler::RunNextOperation()
   {
@@ -89,8 +92,7 @@ namespace XrdCl
   OperationHandler::~OperationHandler()
   {
     delete nextOperation;
-    if( ownHandler )
-      delete responseHandler;
+    if( ownHandler ) delete responseHandler;
   }
 
   void OperationHandler::AssignToWorkflow( Workflow *wf )
@@ -111,46 +113,46 @@ namespace XrdCl
   //----------------------------------------------------------------------------
 
   Workflow::Workflow( Operation<Handled> &op, bool enableLogging ) :
-      firstOperation( op.Move() ), status( NULL ), logging( enableLogging )
+      firstOperation( op.Move() ), status( nullptr ), logging( enableLogging )
   {
     firstOperation->AssignToWorkflow( this );
   }
 
   Workflow::Workflow( Operation<Handled> &&op, bool enableLogging ) :
-      firstOperation( op.Move() ), status( NULL ), logging( enableLogging )
+      firstOperation( op.Move() ), status( nullptr ), logging( enableLogging )
   {
     firstOperation->AssignToWorkflow( this );
   }
 
   Workflow::Workflow( Operation<Handled> *op, bool enableLogging ) :
-      firstOperation( op->Move() ), status( NULL ), logging( enableLogging )
+      firstOperation( op->Move() ), status( nullptr ), logging( enableLogging )
   {
     firstOperation->AssignToWorkflow( this );
   }
 
   Workflow::Workflow( Operation<Configured> &op, bool enableLogging ) :
-      status( NULL ), logging( enableLogging )
+      status( nullptr ), logging( enableLogging )
   {
     firstOperation = op.ToHandled();
     firstOperation->AssignToWorkflow( this );
   }
 
   Workflow::Workflow( Operation<Configured> &&op, bool enableLogging ) :
-      status( NULL ), logging( enableLogging )
+      status( nullptr ), logging( enableLogging )
   {
     firstOperation = op.ToHandled();
     firstOperation->AssignToWorkflow( this );
   }
 
   Workflow::Workflow( Operation<Configured> *op, bool enableLogging ) :
-      status( NULL ), logging( enableLogging )
+      status( nullptr ), logging( enableLogging )
   {
     firstOperation = op->ToHandled();
     firstOperation->AssignToWorkflow( this );
   }
 
   Workflow::Workflow( Pipeline &&pipeline, bool enableLogging ) :
-      status( NULL ), logging( enableLogging )
+      status( nullptr ), logging( enableLogging )
   {
     if( !pipeline.operation )
       throw std::invalid_argument( "Pipeline already has been executed." );
@@ -163,7 +165,8 @@ namespace XrdCl
     delete status;
   }
 
-  XRootDStatus Workflow::Run( std::shared_ptr<ArgsContainer> params, int bucket )
+  XRootDStatus Workflow::Run( std::shared_ptr<ArgsContainer> params,
+      int bucket )
   {
     if( semaphore )
     {
@@ -174,10 +177,10 @@ namespace XrdCl
     {
       Print();
     }
-    if( params )
-      return firstOperation->Run( params, bucket );
+    if( params ) return firstOperation->Run( params, bucket );
 
-    std::shared_ptr<ArgsContainer> firstOperationParams = std::shared_ptr<ArgsContainer>( new ArgsContainer() );
+    std::shared_ptr<ArgsContainer> firstOperationParams = std::shared_ptr<
+        ArgsContainer>( new ArgsContainer() );
     return firstOperation->Run( firstOperationParams );
   }
 
