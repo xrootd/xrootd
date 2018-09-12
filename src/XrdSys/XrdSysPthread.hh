@@ -145,7 +145,43 @@ inline int CondLock()
        {if (pthread_mutex_trylock( &cs )) return 0;
         return 1;
        }
+#ifdef __APPLE__
+inline int TimedLock( int wait_ms )
+{
+  struct timespec wait, cur, dur;
+  clock_gettime(CLOCK_REALTIME, &wait);
+  wait.tv_nsec += wait_ms * 100000;
+  wait.tv_sec += (wait.tv_nsec / 100000000);
+  wait.tv_nsec = wait.tv_nsec % 100000000;
 
+  int rc;
+  while( ( rc = pthread_mutex_trylock( &cs ) ) == EBUSY )
+  {
+    clock_gettime( CLOCK_REALTIME, &cur );
+    if( ( cur.tv_sec > wait.tv_sec ) || 
+	( ( cur.tv_sec == wait.tv_sec ) && ( cur.tv_nsec >= wait.tv_nsec ) ) )
+      return 0;
+
+    dur.tv_sec  = wait.tv_sec  - cur.tv_sec;
+    dur.tv_nsec = wait.tv_nsec - cur.tv_nsec;
+    if( dur.tv_nsec < 0 )
+    {
+      --dur.tv_sec;
+      dur.tv_nsec += 1000000000;
+    }
+    
+    if( ( dur.tv_sec != 0 ) || ( dur.tv_nsec > 1000000 ) )
+    {
+      dur.tv_sec  = 0;
+      dur.tv_nsec = 1000000;
+    }
+
+    nanosleep( &dur, 0 );
+  }
+
+  return !rc;
+}
+#else
 inline int TimedLock(int wait_ms)
        {struct timespec wait;
         clock_gettime(CLOCK_REALTIME, &wait);
@@ -154,6 +190,7 @@ inline int TimedLock(int wait_ms)
         wait.tv_nsec = wait.tv_nsec % 100000000;
         return !pthread_mutex_timedlock(&cs, &wait);
        }
+#endif
 
 inline void   Lock() {pthread_mutex_lock(&cs);}
 
