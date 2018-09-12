@@ -31,11 +31,13 @@
 
 namespace XrdCl
 {
-  //-----------------------------------------------------------------------
-  //! Parallel operations
+  //----------------------------------------------------------------------------
+  //! Parallel operations, allows to execute two or more pipelines in
+  //! parallel.
   //!
-  //! @tparam state   describes current operation configuration state
-  //-----------------------------------------------------------------------
+  //! @arg state : describes current operation configuration state
+  //!              (@see Operation)
+  //----------------------------------------------------------------------------
   template<State state = Bare>
   class ParallelOperation: public ConcreteOperation<ParallelOperation, state>
   {
@@ -43,6 +45,9 @@ namespace XrdCl
 
     public:
 
+      //------------------------------------------------------------------------
+      //! Constructor: copy-move a ParallelOperation in different state
+      //------------------------------------------------------------------------
       template<State from>
       ParallelOperation( ParallelOperation<from> &&obj ) :
           ConcreteOperation<ParallelOperation, state>( std::move( obj ) ), workflows(
@@ -50,6 +55,13 @@ namespace XrdCl
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @arg   Container : iterable container type
+      //!
+      //! @param container : iterable container with pipelines
+      //------------------------------------------------------------------------
       template<class Container>
       ParallelOperation( Container &container )
       {
@@ -62,8 +74,16 @@ namespace XrdCl
         }
       }
 
+      //------------------------------------------------------------------------
+      //! make visible the >> inherited from ConcreteOperation
+      //------------------------------------------------------------------------
       using ConcreteOperation<ParallelOperation, state>::operator>>;
 
+      //------------------------------------------------------------------------
+      //! Adds handler for the operation
+      //!
+      //! @param handleFunction : callback (function, functor or lambda)
+      //------------------------------------------------------------------------
       ParallelOperation<Handled> operator>>(
           std::function<void( XRootDStatus& )> handleFunction )
       {
@@ -72,11 +92,9 @@ namespace XrdCl
         return this->StreamImpl( forwardingHandler );
       }
 
-      //------------------------------------------------------------------
-      //! Get description of parallel operations flow
-      //!
-      //! @return std::string description
-      //------------------------------------------------------------------
+      //------------------------------------------------------------------------
+      //! @return : operation name
+      //------------------------------------------------------------------------
       std::string ToString()
       {
         std::ostringstream oss;
@@ -94,13 +112,13 @@ namespace XrdCl
       }
 
     private:
+
       //------------------------------------------------------------------------
-      //! Run operations
+      //! Run operation
       //!
-      //! @param params           parameters container
-      //! @param bucketDefault    bucket in parameters container
-      //!                         (not used here, provided only for compatibility with the interface )
-      //! @return XRootDStatus    status of the operations
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Run( std::shared_ptr<ArgsContainer> &params,
           int bucketDefault = 0 )
@@ -136,27 +154,27 @@ namespace XrdCl
       std::vector<std::unique_ptr<Workflow>> workflows;
   };
 
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Factory function for creating parallel operation from a vector
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   template<class Container>
   ParallelOperation<Configured> Parallel( Container &container )
   {
     return ParallelOperation<Configured>( container );
   }
 
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Helper function for converting parameter pack into a vector
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void PipesToVec( std::vector<Pipeline>& )
   {
     // base case
   }
 
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Declare PipesToVec (we need to do declare those functions ahead of
   // definitions, as they may call each other.
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   template<typename ... Others>
   void PipesToVec( std::vector<Pipeline> &v, Operation<Configured> &operation,
       Others&... others );
@@ -169,9 +187,9 @@ namespace XrdCl
   void PipesToVec( std::vector<Pipeline> &v, Pipeline &pipeline,
       Others&... others );
 
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Define PipesToVec
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   template<typename ... Others>
   void PipesToVec( std::vector<Pipeline> &v, Operation<Configured> &operation,
       Others&... others )
@@ -196,12 +214,12 @@ namespace XrdCl
     PipesToVec( v, others... );
   }
 
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Factory function for creating parallel operation from
   //! a given number of operations
   //! (we use && reference since due to reference colapsing this will fit
   //! both r- and l-value references)
-  //-----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   template<typename ... Operations>
   ParallelOperation<Configured> Parallel( Operations&& ... operations )
   {

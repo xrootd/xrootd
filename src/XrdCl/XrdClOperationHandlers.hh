@@ -31,15 +31,27 @@
 namespace XrdCl
 {
 
+  //----------------------------------------------------------------------------
+  //! Lambda wrapper
+  //----------------------------------------------------------------------------
   class SimpleFunctionWrapper: public ForwardingHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda
+      //------------------------------------------------------------------------
       SimpleFunctionWrapper(
           std::function<void( XrdCl::XRootDStatus& )> handleFunction ) :
           fun( handleFunction )
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
@@ -50,18 +62,33 @@ namespace XrdCl
       }
 
     private:
+      //------------------------------------------------------------------------
+      //! user defined function, functor or lambda
+      //------------------------------------------------------------------------
       std::function<void( XrdCl::XRootDStatus& )> fun;
   };
 
+  //----------------------------------------------------------------------------
+  //! Lambda wrapper
+  //----------------------------------------------------------------------------
   class SimpleForwardingFunctionWrapper: public ForwardingHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda
+      //------------------------------------------------------------------------
       SimpleForwardingFunctionWrapper(
           std::function<void( XrdCl::XRootDStatus&, OperationContext& )> handleFunction ) :
           fun( handleFunction )
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
@@ -73,19 +100,36 @@ namespace XrdCl
       }
 
     private:
+      //------------------------------------------------------------------------
+      //! user defined function, functor or lambda
+      //------------------------------------------------------------------------
       std::function<void( XrdCl::XRootDStatus&, OperationContext& )> fun;
   };
 
+  //----------------------------------------------------------------------------
+  //! Lambda wrapper
+  //!
+  //! @arg ResponseType : type of response returned by the server
+  //----------------------------------------------------------------------------
   template<typename ResponseType>
   class FunctionWrapper: public ForwardingHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda
+      //------------------------------------------------------------------------
       FunctionWrapper(
           std::function<void( XrdCl::XRootDStatus&, ResponseType& )> handleFunction ) :
           fun( handleFunction )
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
@@ -101,17 +145,36 @@ namespace XrdCl
       }
 
     private:
+      //------------------------------------------------------------------------
+      //! user defined function, functor or lambda
+      //------------------------------------------------------------------------
       std::function<void( XrdCl::XRootDStatus&, ResponseType& )> fun;
+
+      //------------------------------------------------------------------------
+      //! Null reference to the response (not really but acts as one)
+      //------------------------------------------------------------------------
       static ResponseType nullref;
   };
 
+  //----------------------------------------------------------------------------
+  // Initialize the 'null-reference'
+  //----------------------------------------------------------------------------
   template<typename ResponseType>
   ResponseType FunctionWrapper<ResponseType>::nullref;
 
+  //----------------------------------------------------------------------------
+  //! Lambda wrapper
+  //----------------------------------------------------------------------------
   template<typename ResponseType>
   class ForwardingFunctionWrapper: public ForwardingHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda
+      //------------------------------------------------------------------------
       ForwardingFunctionWrapper(
           std::function<
               void( XrdCl::XRootDStatus&, ResponseType&, OperationContext& )> handleFunction ) :
@@ -119,6 +182,9 @@ namespace XrdCl
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
@@ -135,23 +201,45 @@ namespace XrdCl
       }
 
     private:
+      //------------------------------------------------------------------------
+      //! user defined function, functor or lambda
+      //------------------------------------------------------------------------
       std::function<
           void( XrdCl::XRootDStatus&, ResponseType&, OperationContext &wrapper )> fun;
+
+      //------------------------------------------------------------------------
+      //! Null reference to the response (not really but acts as one)
+      //------------------------------------------------------------------------
       static ResponseType nullref;
   };
 
+  //----------------------------------------------------------------------------
+  // Initialize the 'null-reference'
+  //----------------------------------------------------------------------------
   template<typename ResponseType>
   ResponseType ForwardingFunctionWrapper<ResponseType>::nullref;
 
+  //----------------------------------------------------------------------------
+  //! Lambda wrapper
+  //----------------------------------------------------------------------------
   class ExOpenFuncWrapper: public ForwardingHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda
+      //------------------------------------------------------------------------
       ExOpenFuncWrapper( File &f,
           std::function<void( XrdCl::XRootDStatus&, StatInfo& )> handleFunction ) :
           f( f ), fun( handleFunction )
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
@@ -169,15 +257,34 @@ namespace XrdCl
 
     private:
       File &f;
+      //------------------------------------------------------------------------
+      //! user defined function, functor or lambda
+      //------------------------------------------------------------------------
       std::function<void( XrdCl::XRootDStatus&, StatInfo& )> fun;
+
+      //------------------------------------------------------------------------
+      //! Null reference to the response (not really but acts as one)
+      //------------------------------------------------------------------------
       static StatInfo nullref;
   };
 
+  //----------------------------------------------------------------------------
+  // Initialize the 'null-reference'
+  //----------------------------------------------------------------------------
   StatInfo ExOpenFuncWrapper::nullref;
 
+  //----------------------------------------------------------------------------
+  //! Lambda wrapper
+  //----------------------------------------------------------------------------
   class ForwardingExOpenFuncWrapper: public ForwardingHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda
+      //------------------------------------------------------------------------
       ForwardingExOpenFuncWrapper( File &f,
           std::function<
               void( XrdCl::XRootDStatus&, StatInfo&, OperationContext& )> handleFunction ) :
@@ -185,6 +292,9 @@ namespace XrdCl
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
       void HandleResponse( XrdCl::XRootDStatus *status,
           XrdCl::AnyObject *response )
       {
@@ -203,10 +313,20 @@ namespace XrdCl
 
     private:
       File &f;
+      //------------------------------------------------------------------------
+      //! user defined function, functor or lambda
+      //------------------------------------------------------------------------
       std::function<void( XrdCl::XRootDStatus&, StatInfo&, OperationContext& )> fun;
+
+      //------------------------------------------------------------------------
+      //! Null reference to the response (not really but acts as one)
+      //------------------------------------------------------------------------
       static StatInfo nullref;
   };
 
+  //----------------------------------------------------------------------------
+  // Initialize the 'null-reference'
+  //----------------------------------------------------------------------------
   StatInfo ForwardingExOpenFuncWrapper::nullref;
 
 }

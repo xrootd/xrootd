@@ -30,8 +30,9 @@
 #include <stdexcept>
 #include <sstream>
 #include <tuple>
-#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClOperationArgs.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
 {
@@ -45,19 +46,26 @@ namespace XrdCl
 
   class Pipeline;
 
-  //---------------------------------------------------------------------------
-  //! Handler allowing forwarding parameters to the next operation in workflow
-  //---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Handler allowing forwarding parameters to the next operation in pipeline
+  //----------------------------------------------------------------------------
   class ForwardingHandler: public ResponseHandler
   {
       friend class OperationHandler;
 
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //------------------------------------------------------------------------
       ForwardingHandler() :
-          container( new ArgsContainer() ), responseHandler( nullptr )
+          container( new ArgsContainer() )
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Callback function.
+      //------------------------------------------------------------------------
       virtual void HandleResponseWithHosts( XRootDStatus *status,
           AnyObject *response, HostList *hostList )
       {
@@ -65,6 +73,9 @@ namespace XrdCl
         HandleResponse( status, response );
       }
 
+      //------------------------------------------------------------------------
+      //! Callback function.
+      //------------------------------------------------------------------------
       virtual void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
         delete status;
@@ -72,14 +83,14 @@ namespace XrdCl
         delete this;
       }
 
-      //------------------------------------------------------------------
-      //! Saves value in param container so that in can be used in
-      //! next operation
+      //------------------------------------------------------------------------
+      //! Forward an argument to next operation in pipeline
       //!
-      //! @tparam T       type of the value which will be saved
-      //! @param value    value to save
-      //! @param bucket   bucket in which value will be saved
-      //------------------------------------------------------------------
+      //! @arg    T       :  type of the value which will be saved
+      //!
+      //! @param  value   :  value to save
+      //! @param  bucket  :  bucket in which value will be saved
+      //------------------------------------------------------------------------
       template<typename T>
       void FwdArg( typename T::type value, int bucket = 1 )
       {
@@ -87,35 +98,56 @@ namespace XrdCl
       }
 
     private:
+
+      //------------------------------------------------------------------------
+      //! @return : container with arguments for forwarding
+      //------------------------------------------------------------------------
       std::shared_ptr<ArgsContainer>& GetArgContainer()
       {
         return container;
       }
 
+      //------------------------------------------------------------------------
+      //! container with arguments for forwarding
+      //------------------------------------------------------------------------
       std::shared_ptr<ArgsContainer> container;
 
     protected:
+
+      //------------------------------------------------------------------------
+      //! @return  :  operation context
+      //------------------------------------------------------------------------
       std::unique_ptr<OperationContext> GetOperationContext()
       {
         return std::unique_ptr<OperationContext>(
             new OperationContext( container ) );
       }
-
-      ResponseHandler* responseHandler;
   };
 
+  //----------------------------------------------------------------------------
+  //! Handler allowing wrapping a normal ResponseHandler into
+  //! a ForwaridngHandler.
+  //----------------------------------------------------------------------------
   class WrappingHandler: public ForwardingHandler
   {
       friend class OperationHandler;
 
     public:
 
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param handler : the handler to be wrapped up
+      //------------------------------------------------------------------------
       WrappingHandler( ResponseHandler *handler ) :
           handler( handler )
       {
 
       }
 
+      //------------------------------------------------------------------------
+      //! Callback function.
+      //------------------------------------------------------------------------
       void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response,
           HostList *hostList )
       {
@@ -123,6 +155,9 @@ namespace XrdCl
         delete this;
       }
 
+      //------------------------------------------------------------------------
+      //! Callback function.
+      //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
         handler->HandleResponse( status, response );
@@ -131,12 +166,15 @@ namespace XrdCl
 
     private:
 
+      //------------------------------------------------------------------------
+      //! The wrapped handler
+      //------------------------------------------------------------------------
       ResponseHandler *handler;
   };
 
-  //---------------------------------------------------------------------------
-  //! File operations workflow
-  //---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! An operations workflow
+  //----------------------------------------------------------------------------
   class Workflow
   {
       friend class OperationHandler;
@@ -145,35 +183,45 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param op first operation of the sequence
+      //! @param op : first operation of the sequence
+      //! @param enableLogging : true if logging should be enabled,
+      //!                        false otherwise
       //------------------------------------------------------------------------
       explicit Workflow( Operation<Handled>& op, bool enableLogging = true );
 
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param op first operation of the sequence
+      //! @param op : first operation of the sequence
+      //! @param enableLogging : true if logging should be enabled,
+      //!                        false otherwise
       //------------------------------------------------------------------------
       explicit Workflow( Operation<Handled> && op, bool enableLogging = true );
 
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param op first operation of the sequence
+      //! @param op : first operation of the sequence
+      //! @param enableLogging : true if logging should be enabled,
+      //!                        false otherwise
       //------------------------------------------------------------------------
       explicit Workflow( Operation<Handled>* op, bool enableLogging = true );
 
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param op first operation of the sequence
+      //! @param op : first operation of the sequence
+      //! @param enableLogging : true if logging should be enabled,
+      //!                        false otherwise
       //------------------------------------------------------------------------
       explicit Workflow( Operation<Configured>& op, bool enableLogging = true );
 
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param op first operation of the sequence
+      //! @param op : first operation of the sequence
+      //! @param enableLogging : true if logging should be enabled,
+      //!                        false otherwise
       //------------------------------------------------------------------------
       explicit Workflow( Operation<Configured> && op,
           bool enableLogging = true );
@@ -181,95 +229,140 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param op first operation of the sequence
+      //! @param op : first operation of the sequence
+      //! @param enableLogging : true if logging should be enabled,
+      //!                        false otherwise
       //------------------------------------------------------------------------
       explicit Workflow( Operation<Configured>* op, bool enableLogging = true );
 
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param a pipeline object
+      //! @param pipeline : a pipeline object
+      //! @param enableLogging : true if logging should be enabled,
+      //!                        false otherwise
       //------------------------------------------------------------------------
       Workflow( Pipeline &&pipeline, bool enableLogging = true );
 
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
       ~Workflow();
 
       //------------------------------------------------------------------------
-      //! Run first workflow operation
+      //! Start the pipeline
       //!
-      //! @return original workflow object
+      //! @return : status of the operation
+      //!
       //! @throws logic_error if the workflow is already running
       //------------------------------------------------------------------------
       XRootDStatus Run( std::shared_ptr<ArgsContainer> params = nullptr,
           int bucket = 1 );
 
       //------------------------------------------------------------------------
-      //! Wait for workflow execution end
-      //!
-      //! @return original workflow object
+      //! Wait for the pipeline execution to end
       //------------------------------------------------------------------------
       void Wait();
 
       //------------------------------------------------------------------------
       //! Get workflow execution status
       //!
-      //! @return workflow execution status if available, otherwise default
-      //! XRootDStatus object
+      //! @return : workflow execution status
       //------------------------------------------------------------------------
       XRootDStatus GetStatus();
 
-      //------------------------------------------------------------------
+       //-----------------------------------------------------------------------
       //! Get workflow description
       //!
-      //! @return description of the workflow
-      //------------------------------------------------------------------
+      //! @return : description of the workflow
+       //-----------------------------------------------------------------------
       std::string ToString();
 
-      //------------------------------------------------------------------
+       //-----------------------------------------------------------------------
       //! Add operation description to the descriptions list
       //!
-      //! @param description description of assigned operation
-      //------------------------------------------------------------------
+      //! @param description : description of assigned operation
+       //-----------------------------------------------------------------------
       void AddOperationInfo( std::string description );
 
-      //------------------------------------------------------------------
+       //-----------------------------------------------------------------------
       //! Log operation descriptions
-      //------------------------------------------------------------------
+       //-----------------------------------------------------------------------
       void Print();
 
     private:
       //------------------------------------------------------------------------
       //! Release the semaphore and save status
       //!
-      //! @param lastOperationStatus status of last executed operation.
-      //!                    It is set as status of workflow execution.
+      //! @param lastOperationStatus : status of last executed operation,
+      //!                              it is set as status of workflow execution
       //------------------------------------------------------------------------
       void EndWorkflowExecution( const XRootDStatus &lastOperationStatus );
 
+      //------------------------------------------------------------------------
+      //! first operation in the pipeline
+      //------------------------------------------------------------------------
       Operation<Handled> *firstOperation;
+
+      //------------------------------------------------------------------------
+      //! Synchronization semaphore, will be released once the pipeline
+      //! execution came to an end
+      //------------------------------------------------------------------------
       std::unique_ptr<XrdSysSemaphore> semaphore;
+
+      //------------------------------------------------------------------------
+      //! Status of the workflow
+      //------------------------------------------------------------------------
       XRootDStatus *status;
+
+      //------------------------------------------------------------------------
+      //! Description of the workflow
+      //------------------------------------------------------------------------
       std::list<std::string> operationDescriptions;
+
+      //------------------------------------------------------------------------
+      //! true if logging is enabled, false otherwise
+      //------------------------------------------------------------------------
       bool logging;
   };
 
-  //---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Wrapper for ForwardingHandler, used only internally to run next operation
   //! after previous one is finished
-  //---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   class OperationHandler: public ResponseHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param handler : the forwarding handler of our operation
+      //! @param own     : if true we have the ownership of handler (it's
+      //!                  memory), and it is our responsibility to deallocate it
+      //------------------------------------------------------------------------
       OperationHandler( ForwardingHandler *handler, bool own );
+
+      //------------------------------------------------------------------------
+      //! Callback function.
+      //------------------------------------------------------------------------
       void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response,
           HostList *hostList );
+
+      //------------------------------------------------------------------------
+      //! Callback function.
+      //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response );
+
+      //------------------------------------------------------------------------
+      //! Destructor.
+      //------------------------------------------------------------------------
       ~OperationHandler();
 
       //------------------------------------------------------------------------
-      //! Add new operation to the sequence
+      //! Add new operation to the pipeline
       //!
-      //! @param operation    operation to add
+      //! @param operation  :  operation to add
       //------------------------------------------------------------------------
       void AddOperation( Operation<Handled> *operation );
 
@@ -290,21 +383,48 @@ namespace XrdCl
 
     private:
 
+      //------------------------------------------------------------------------
+      //! Callback function implementation;
+      //------------------------------------------------------------------------
       void HandleResponseImpl( XRootDStatus *status, AnyObject *response,
           HostList *hostList = nullptr );
 
+      //------------------------------------------------------------------------
+      //! The forwarding handler of our operation
+      //------------------------------------------------------------------------
       ForwardingHandler *responseHandler;
+
+      //------------------------------------------------------------------------
+      //! true, if we own the handler
+      //------------------------------------------------------------------------
       bool ownHandler;
-      Operation<Handled> *nextOperation;
+
+      //------------------------------------------------------------------------
+      //! Next operation in the pipeline
+      //------------------------------------------------------------------------
+      std::unique_ptr<Operation<Handled>> nextOperation;
+
+      //------------------------------------------------------------------------
+      //! Workflow object.
+      //------------------------------------------------------------------------
       Workflow *workflow;
+
+      //------------------------------------------------------------------------
+      //! Arguments for forwarding
+      //------------------------------------------------------------------------
       std::shared_ptr<ArgsContainer> params;
   };
 
-  //----------------------------------------------------------------------
-  //! Operation template
+  //----------------------------------------------------------------------------
+  //! Operation template. An Operation is a once-use-only object - once executed
+  //! by a Workflow engine it is invalidated. Also if used as an argument for
+  //! >> or | the original object gets invalidated.
   //!
-  //! @tparam state   describes current operation configuration state
-  //----------------------------------------------------------------------
+  //! @arg state :  describes current operation state:
+  //!                 - Bare       : a bare operation
+  //!                 - Configured : operation with its arguments
+  //!                 - Handled    : operation with its arguments and handler
+  //----------------------------------------------------------------------------
   template<State state>
   class Operation
   {
@@ -315,15 +435,18 @@ namespace XrdCl
       friend class OperationHandler;
 
     public:
-      //------------------------------------------------------------------
+
+      //------------------------------------------------------------------------
       //! Constructor
-      //------------------------------------------------------------------
-      Operation() :
-          handler( nullptr )
+      //------------------------------------------------------------------------
+      Operation()
       {
 
       }
 
+      //------------------------------------------------------------------------
+      //! Move constructor between template instances.
+      //------------------------------------------------------------------------
       template<State from>
       Operation( Operation<from> && op ) :
           handler( std::move( op.handler ) )
@@ -331,23 +454,40 @@ namespace XrdCl
 
       }
 
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
       virtual ~Operation()
       {
       }
 
+      //------------------------------------------------------------------------
+      //! Move current object into newly allocated instance
+      //!
+      //! @return : the new instance
+      //------------------------------------------------------------------------
       virtual Operation<state>* Move() = 0;
 
+       //------------------------------------------------------------------------
+      //! Move current object into newly allocated instance, and convert
+      //! it into 'Handled' state.
+      //!
+      //! @return : the new instance
+      //------------------------------------------------------------------------
       virtual Operation<Handled>* ToHandled() = 0;
 
+      //------------------------------------------------------------------------
+      //! Name of the operation.
+      //------------------------------------------------------------------------
       virtual std::string ToString() = 0;
 
     protected:
 
-      //------------------------------------------------------------------
-      //! Set workflow pointer in the handler
+      //------------------------------------------------------------------------
+      //! Assign workflow to OperationHandler
       //!
-      //! @param wf   workflow to set
-      //------------------------------------------------------------------
+      //! @param wf : the workflow
+      //------------------------------------------------------------------------
       void AssignToWorkflow( Workflow *wf )
       {
         static_assert(state == Handled, "Only Operation<Handled> can be assigned to workflow");
@@ -355,23 +495,24 @@ namespace XrdCl
         handler->AssignToWorkflow( wf );
       }
 
-      //------------------------------------------------------------------
+      //------------------------------------------------------------------------
       //! Run operation
       //!
-      //! @param params   container with parameters forwarded from
-      //!                 previous operation
-      //! @return         status of the operation
-      //------------------------------------------------------------------
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
       virtual XRootDStatus Run( std::shared_ptr<ArgsContainer> &params,
           int bucket = 1 ) = 0;
 
-      //------------------------------------------------------------------
+      //------------------------------------------------------------------------
       //! Handle error caused by missing parameter
       //!
-      //! @param err  error object
-      //! @return     default operation status (actual status containg
-      //!             error information is passed to the handler)
-      //------------------------------------------------------------------
+      //! @param err : error object
+      //!
+      //! @return    : default operation status (actual status containg
+      //!              error information is passed to the handler)
+      //------------------------------------------------------------------------
       virtual XRootDStatus HandleError( const std::logic_error& err )
       {
         XRootDStatus *st = new XRootDStatus( stError, err.what() );
@@ -379,11 +520,11 @@ namespace XrdCl
         return XRootDStatus();
       }
 
-      //------------------------------------------------------------------
-      //! Add next operation to the handler
+      //------------------------------------------------------------------------
+      //! Add next operation in the pipeline
       //!
-      //! @param op  operation to add
-      //------------------------------------------------------------------
+      //! @param op : operation to add
+      //------------------------------------------------------------------------
       void AddOperation( Operation<Handled> *op )
       {
         if( handler )
@@ -392,30 +533,46 @@ namespace XrdCl
         }
       }
 
+      //------------------------------------------------------------------------
+      //! Operation handler
+      //------------------------------------------------------------------------
       std::unique_ptr<OperationHandler> handler;
   };
 
-  //----------------------------------------------------------------------
-  //! A wrapper around operation pipeline
-  //----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! A wrapper around operation pipeline. A Pipeline is a once-use-only
+  //! object - once executed by a Workflow engine it is invalidated.
+  //!
+  //! Takes ownership of given operation pipeline (which is in most would
+  //! be a temporary object)
+  //----------------------------------------------------------------------------
   class Pipeline
   {
       friend class Workflow;
 
     public:
 
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
       Pipeline( Operation<Handled> *op ) :
           operation( op->Move() )
       {
 
       }
 
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
       Pipeline( Operation<Handled> &op ) :
           operation( op.Move() )
       {
 
       }
 
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
       Pipeline( Operation<Handled> &&op ) :
           operation( op.Move() )
       {
@@ -428,12 +585,18 @@ namespace XrdCl
 
       }
 
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
       Pipeline( Operation<Configured> &op ) :
           operation( op.ToHandled() )
       {
 
       }
 
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
       Pipeline( Operation<Configured> &&op ) :
           operation( op.ToHandled() )
       {
@@ -446,12 +609,18 @@ namespace XrdCl
 
       }
 
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
       Pipeline& operator=( Pipeline &&pipe )
       {
         operation = std::move( pipe.operation );
         return *this;
       }
 
+      //------------------------------------------------------------------------
+      //! Conversion to Operation<Handled>
+      //------------------------------------------------------------------------
       operator Operation<Handled>&()
       {
         return *operation.get();
@@ -459,43 +628,65 @@ namespace XrdCl
 
     private:
 
+      //------------------------------------------------------------------------
+      //! First iteam in the pipeline
+      //------------------------------------------------------------------------
       std::unique_ptr<Operation<Handled>> operation;
   };
 
-  //----------------------------------------------------------------------
-  //! ArgsOperation template
+  //----------------------------------------------------------------------------
+  //! Concrete Operation template
+  //! Defines | and >> operator as well as operation arguments.
   //!
-  //! @param Derived  the class that derives from this template
-  //! @param state    describes current operation configuration state
-  //! @param Args     operation arguments
-  //----------------------------------------------------------------------
+  //! @arg Derived : the class that derives from this template (CRTP)
+  //! @arg state   : describes current operation configuration state
+  //! @arg Args    : operation arguments
+  //----------------------------------------------------------------------------
   template<template<State> class Derived, State state, typename ... Args>
   class ConcreteOperation: public Operation<state>
   {
       template<template<State> class, State, typename ...> friend class ConcreteOperation;
 
-      public:
+    public:
 
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
       ConcreteOperation()
-      {}
-
-      template<State from>
-      ConcreteOperation( ConcreteOperation<Derived, from, Args...> && op ) : Operation<state>( std::move( op ) ), args( std::move( op.args ) )
       {
 
       }
 
+      //------------------------------------------------------------------------
+      //! Move constructor from other states
+      //!
+      //! @arg from : state from which the object is being converted
+      //!
+      //! @param op : the object that is being converted
+      //------------------------------------------------------------------------
+      template<State from>
+      ConcreteOperation( ConcreteOperation<Derived, from, Args...> && op ) :
+        Operation<state>( std::move( op ) ), args( std::move( op.args ) )
+      {
+
+      }
+
+      //------------------------------------------------------------------------
+      //! Move current object into newly allocated instance
+      //!
+      //! @return : the new instance
+      //------------------------------------------------------------------------
       Operation<state>* Move()
       {
         Derived<state> *me = static_cast<Derived<state>*>( this );
         return new Derived<state>( std::move( *me ) );
       }
 
-      //------------------------------------------------------------------
+      //------------------------------------------------------------------------
       //! Transform operation to handled
       //!
       //! @return Operation<Handled>&
-      //------------------------------------------------------------------
+      //------------------------------------------------------------------------
       Operation<Handled>* ToHandled()
       {
         this->handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
@@ -503,6 +694,11 @@ namespace XrdCl
         return new Derived<Handled>( std::move( *me ) );
       }
 
+      //------------------------------------------------------------------------
+      //! Transform into a new instance with desired state
+      //!
+      //! @return : new instance in the desired state
+      //------------------------------------------------------------------------
       template<State to>
       Derived<to> Transform()
       {
@@ -510,96 +706,122 @@ namespace XrdCl
         return Derived<to>( std::move( *me ) );
       }
 
+      //------------------------------------------------------------------------
+      //! Generic function call operator. Sets the arguments for the
+      //! given operation.
+      //!
+      //! @param args : parameter pack with operation arguments
+      //!
+      //! @return     : move-copy of myself in 'Configured' state
+      //------------------------------------------------------------------------
       Derived<Configured> operator()( Args... args )
       {
         static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-        this->TakeArgs( std::move( args )... );
+        this->args = std::tuple<Args...>( std::move( args )... );
         return Transform<Configured>();
       }
 
-      //------------------------------------------------------------------
-      //! Add handler which will be executed after operation ends
+      //------------------------------------------------------------------------
+      //! Adds handler to the operation
       //!
-      //! @param h  handler to add
-      //------------------------------------------------------------------
+      //! @param h : handler to add
+      //------------------------------------------------------------------------
       Derived<Handled> operator>>(ForwardingHandler *h)
       {
         return StreamImpl( h, false );
       }
 
-      //------------------------------------------------------------------
-      //! Add handler which will be executed after operation ends
+      //------------------------------------------------------------------------
+      //! Adds handler for the operation
       //!
-      //! @param h  handler to add
-      //------------------------------------------------------------------
+      //! @param h : handler to add
+      //------------------------------------------------------------------------
       Derived<Handled> operator>>(ForwardingHandler &h)
       {
         return StreamImpl( &h, false );
       }
 
-      //------------------------------------------------------------------
-      //! Add handler which will be executed after operation ends
+      //------------------------------------------------------------------------
+      //! Adds handler for the operation
       //!
-      //! @param h  handler to add
-      //------------------------------------------------------------------
+      //! @param h : handler to add
+      //------------------------------------------------------------------------
       Derived<Handled> operator>>(ResponseHandler *h)
       {
         return StreamImpl( new WrappingHandler( h ) );
       }
 
-      //------------------------------------------------------------------
-      //! Add handler which will be executed after operation ends
+      //------------------------------------------------------------------------
+      //! Adds handler for the operation
       //!
-      //! @param h  handler to add
-      //------------------------------------------------------------------
+      //! @param h : handler to add
+      //------------------------------------------------------------------------
       Derived<Handled> operator>>(ResponseHandler &h)
       {
         return StreamImpl( new WrappingHandler( &h ) );
       }
 
-      //------------------------------------------------------------------
-      //! Add operation to handler
+      //------------------------------------------------------------------------
+      //! Creates a pipeline of 2 or more operations
       //!
-      //! @param op   operation to add
-      //! @return     handled operation
-      //------------------------------------------------------------------
+      //! @param op  : operation to add
+      //!
+      //! @return    : handled operation
+      //------------------------------------------------------------------------
       Derived<Handled> operator|( Operation<Handled> &op )
       {
         static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
         return PipeImpl( *this, op );
       }
 
+      //------------------------------------------------------------------------
+      //! Creates a pipeline of 2 or more operations
+      //!
+      //! @param op :  operation to add
+      //!
+      //! @return   :  handled operation
+      //------------------------------------------------------------------------
       Derived<Handled> operator|( Operation<Handled> &&op )
       {
         static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
         return PipeImpl( *this, op );
       }
 
+      //------------------------------------------------------------------------
+      //! Creates a pipeline of 2 or more operations
+      //!
+      //! @param op   operation to add
+      //!
+      //! @return     handled operation
+      //------------------------------------------------------------------------
       Derived<Handled> operator|( Operation<Configured> &op )
       {
         static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
         return PipeImpl( *this, op );
       }
 
+      //------------------------------------------------------------------------
+      //! Creates a pipeline of 2 or more operations
+      //!
+      //! @param op  : operation to add
+      //!
+      //! @return    : handled operation
+      //------------------------------------------------------------------------
       Derived<Handled> operator|( Operation<Configured> &&op )
       {
         static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
         return PipeImpl( *this, op );
       }
 
-      protected:
+  protected:
 
-      inline void TakeArgs( Args&&... args )
-      {
-        this->args = std::tuple<Args...>( std::move( args )... );
-      }
-
-      //------------------------------------------------------------------
-      //! implements operator>> functionality
+      //------------------------------------------------------------------------
+      //! Implements operator>> functionality
       //!
-      //! @param h    handler to be added
-      //! @return     return an instance of Derived<Handled>
-      //------------------------------------------------------------------
+      //! @param h  :  handler to be added
+      //! @
+      //! @return   :  return an instance of Derived<Handled>
+      //------------------------------------------------------------------------
       inline Derived<Handled> StreamImpl( ForwardingHandler *handler, bool own = true )
       {
         static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
@@ -607,6 +829,14 @@ namespace XrdCl
         return Transform<Handled>();
       }
 
+      //------------------------------------------------------------------------
+      //! Implements operator| functionality
+      //!
+      //! @param me  :  reference to myself (*this)
+      //! @param op  :  reference to the other operation
+      //!
+      //! @return    :  move-copy of myself
+      //------------------------------------------------------------------------
       inline static
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, Args...> &me, Operation<Handled> &op )
       {
@@ -614,6 +844,14 @@ namespace XrdCl
         return me.Transform<Handled>();
       }
 
+      //------------------------------------------------------------------------
+      //! Implements operator| functionality
+      //!
+      //! @param me  :  reference to myself (*this)
+      //! @param op  :  reference to the other operation
+      //!
+      //! @return    :  move-copy of myself
+      //------------------------------------------------------------------------
       inline static
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, Args...> &me, Operation<Configured> &op )
       {
@@ -629,6 +867,14 @@ namespace XrdCl
         return me.Transform<Handled>();
       }
 
+      //------------------------------------------------------------------------
+      //! Implements operator| functionality
+      //!
+      //! @param me  :  reference to myself (*this)
+      //! @param op  :  reference to the other operation
+      //!
+      //! @return    :  move-copy of myself
+      //------------------------------------------------------------------------
       inline static
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, Args...> &me, Operation<Configured> &op )
       {
@@ -637,16 +883,30 @@ namespace XrdCl
         return me.Transform<Handled>();
       }
 
+      //------------------------------------------------------------------------
+      //! Operation arguments
+      //------------------------------------------------------------------------
       std::tuple<Args...> args;
     };
 
-    //----------------------------------------------------------------------
-    //! Get helper function for ArgsOperation template
-    //!
-    //! @param args     tuple with operation arguments
-    //! @param params   params forwarded by previous operation
-    //! @param bucket   bucket assigned to this operation
-    //----------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Helper function for extracting arguments from a argument tuple and
+  //! argument container. Priority goes to arguments specified in the
+  //! tuple, only if not defined there an arguments is being looked up
+  //! in the argument container.
+  //!
+  //! @arg   ArgDesc : descryptor of the argument type
+  //! @arg   Args    : types of operation arguments
+  //!
+  //! @param args    : tuple with operation arguments
+  //! @param params  : container with forwarded arguments
+  //! @param bucket  : bucket number in the container
+  //!
+  //! @return        : requested argument
+  //!
+  //! @throws        : logic_error if the argument has not been specified
+  //!                 neither in the tuple nor in the container
+  //----------------------------------------------------------------------------
   template<typename ArgDesc, typename ... Args>
   inline typename ArgDesc::type& Get( std::tuple<Args...> &args,
       std::shared_ptr<ArgsContainer> &params, int bucket )

@@ -33,35 +33,55 @@
 namespace XrdCl
 {
 
-  class NotDefParam
+  //----------------------------------------------------------------------------
+  //! A argument that has not been defined
+  //----------------------------------------------------------------------------
+  class NotDefArg
   {
-  } notdef;
+  } notdef; //> a global for specifying not defined arguments
 
-  //--------------------------------------------------------------------
-  //! Single value container representing optional value.
+  //----------------------------------------------------------------------------
+  //! Operation argument.
+  //! The argument is optional, user may initialize it with 'notdef'
   //!
-  //! @tparam T type of the value stored
-  //--------------------------------------------------------------------
+  //! @arg T : real type of the argument
+  //----------------------------------------------------------------------------
   template<typename T>
   class Arg
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param val : value of the argument
+      //------------------------------------------------------------------------
       Arg( T val ) :
           empty( false )
       {
         value = val;
       }
 
-      Arg() :
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //------------------------------------------------------------------------
+      Arg() : empty( true )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param notdef : place holder meaning the argument is not defined yet
+      //------------------------------------------------------------------------
+      Arg( NotDefArg notdef ) :
           empty( true )
       {
       }
 
-      Arg( NotDefParam notdef ) :
-          empty( true )
-      {
-      }
-
+      //------------------------------------------------------------------------
+      //! Move Constructor.
+      //------------------------------------------------------------------------
       Arg( Arg && opt ) :
           value( std::move( opt.value ) )
       {
@@ -69,6 +89,9 @@ namespace XrdCl
         opt.empty = true;
       }
 
+      //------------------------------------------------------------------------
+      //! Move-Assignment.
+      //------------------------------------------------------------------------
       Arg& operator=( Arg &&arg )
       {
         value = std::move( arg.value );
@@ -77,11 +100,18 @@ namespace XrdCl
         return *this;
       }
 
+      //------------------------------------------------------------------------
+      //! @return : true if the argument has not been defined yet,
+      //!           false otherwise
+      //------------------------------------------------------------------------
       bool IsEmpty()
       {
         return empty;
       }
 
+      //------------------------------------------------------------------------
+      //! @return : value of the argument
+      //------------------------------------------------------------------------
       T& GetValue()
       {
         if( IsEmpty() )
@@ -93,41 +123,72 @@ namespace XrdCl
       }
 
     private:
+
+      //------------------------------------------------------------------------
+      //! value of the argument
+      //------------------------------------------------------------------------
       T value;
+
+      //------------------------------------------------------------------------
+      //! true if the argument has not been defined yet, false otherwise
+      //------------------------------------------------------------------------
       bool empty;
   };
 
-  //------------------------------------------------------------------
-  //! Single value container specialization for std::string type
-  //! Besides base functionality it contains conversion from
-  //! const char* type
-  //------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Operation argument.
+  //! Specialized for 'std::string', migh be constructed in addition from c-like
+  //! string (const char*)
+  //!
+  //! @arg T : real type of the argument
+  //----------------------------------------------------------------------------
   template<>
   class Arg<std::string>
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param val : value of the argument
+      //------------------------------------------------------------------------
       Arg( const std::string& str ) :
           empty( false )
       {
         value = str;
       }
 
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param val : value of the argument
+      //------------------------------------------------------------------------
       Arg( const char *val ) :
           empty( false )
       {
         value = std::string( val );
       }
 
-      Arg() :
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //------------------------------------------------------------------------
+      Arg() : empty( true )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param notdef : place holder meaning the argument is not defined yet
+      //------------------------------------------------------------------------
+      Arg( NotDefArg notdef ) :
           empty( true )
       {
       }
 
-      Arg( NotDefParam notdef ) :
-          empty( true )
-      {
-      }
-
+      //------------------------------------------------------------------------
+      //! Move Constructor.
+      //-----------------------------------------------------------------------
       Arg( Arg &&arg ) :
           value( std::move( arg.value ) )
       {
@@ -135,6 +196,9 @@ namespace XrdCl
         arg.empty = true;
       }
 
+      //------------------------------------------------------------------------
+      //! Move-Assignment.
+      //------------------------------------------------------------------------
       Arg& operator=( Arg &&opt )
       {
         value = std::move( opt.value );
@@ -143,11 +207,18 @@ namespace XrdCl
         return *this;
       }
 
+      //------------------------------------------------------------------------
+      //! @return : true if the argument has not been defined yet,
+      //!           false otherwise
+      //------------------------------------------------------------------------
       bool IsEmpty()
       {
         return empty;
       }
 
+      //------------------------------------------------------------------------
+      //! @return : value of the argument
+      //------------------------------------------------------------------------
       std::string& GetValue()
       {
         if( IsEmpty() )
@@ -159,185 +230,82 @@ namespace XrdCl
       }
 
     private:
+
+      //------------------------------------------------------------------------
+      //! value of the argument
+      //------------------------------------------------------------------------
       std::string value;
+
+      //------------------------------------------------------------------------
+      //! true if the argument has not been defined yet, false otherwise
+      //------------------------------------------------------------------------
       bool empty;
   };
 
-  template<>
-  class Arg<Buffer>
-  {
-    public:
-
-      Arg( Buffer &buf ) :
-          empty( false )
-      {
-        value = std::move( buf );
-      }
-
-      Arg() :
-          empty( true )
-      {
-      }
-
-      Arg( NotDefParam notdef ) :
-          empty( true )
-      {
-      }
-
-      Arg( Arg && arg ) :
-          value( std::move( arg.value ) )
-      {
-        empty = arg.empty;
-        arg.empty = true;
-      }
-
-      Arg& operator=( Arg &&opt )
-      {
-        value = std::move( opt.value );
-        empty = opt.empty;
-        opt.empty = true;
-        return *this;
-      }
-
-      bool IsEmpty()
-      {
-        return empty;
-      }
-
-      Buffer& GetValue()
-      {
-        if( IsEmpty() )
-        {
-          throw std::logic_error(
-              "Cannot get parameter: value has not been specified" );
-        }
-        return value;
-      }
-
-    private:
-      Buffer value;
-      bool empty;
-  };
-
-  //--------------------------------------------------------------------
-  //! Container to store file operation parameters
-  //! Parameters are stored as key-value pairs and grouped in buckets
-  //! Normally only bucket 1 is used, more buckets are used only in
-  //! multiworklfow operations
-  //--------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Container with argument for forwarding
+  //----------------------------------------------------------------------------
   class ArgsContainer
   {
     public:
-      //------------------------------------------------------------
-      //! Get value from container
+
+      //------------------------------------------------------------------------
+      //! Get an argument from container
       //!
-      //! @param key  key under which the value is stored
-      //! @return     value
-      //------------------------------------------------------------
-      template<typename T>
-      typename T::type& GetArg( int bucket = 1 )
+      //! @arg ArgDesc  : descryptor of the argument type
+      //!
+      //! @param bucket : bucket number of the desired argument
+      //------------------------------------------------------------------------
+      template<typename ArgDesc>
+      typename ArgDesc::type& GetArg( int bucket = 1 )
       {
-        if( !Exists( T::key, bucket ) )
+        if( !Exists( ArgDesc::key, bucket ) )
         {
           std::ostringstream oss;
-          oss << "Parameter " << T::key << " has not been specified in bucket "
+          oss << "Parameter " << ArgDesc::key << " has not been specified in bucket "
               << bucket;
           throw std::logic_error( oss.str() );
         }
-        AnyObject *obj = paramsMap[bucket][T::key];
-        typename T::type *valuePtr = nullptr;
+        AnyObject *obj = paramsMap[bucket][ArgDesc::key];
+        typename ArgDesc::type *valuePtr = nullptr;
         obj->Get( valuePtr );
         return *valuePtr;
       }
 
-      //------------------------------------------------------------
-      //! Save value in container
+      //------------------------------------------------------------------------
+      //! Set an argument in container
       //!
-      //! @param key      key under which the value will be saved
-      //! @param value    value to save
-      //! @param bucket   bucket in which key will be added
-      //------------------------------------------------------------
-      template<typename T>
-      void SetArg( typename T::type value, int bucket = 1 )
+      //! @arg ArgDesc  : descryptor of the argument type
+      //!
+      //! @param bucket : bucket number of the desired argument
+      //------------------------------------------------------------------------
+      template<typename ArgDesc>
+      void SetArg( typename ArgDesc::type value, int bucket = 1 )
       {
         if( !BucketExists( bucket ) )
         {
           paramsMap[bucket];
         }
-        if( paramsMap[bucket].find( T::key ) != paramsMap[bucket].end() )
+        if( paramsMap[bucket].find( ArgDesc::key ) != paramsMap[bucket].end() )
         {
           std::ostringstream oss;
-          oss << "Parameter " << T::key << " has already been set in bucket "
+          oss << "Parameter " << ArgDesc::key << " has already been set in bucket "
               << bucket;
           throw std::logic_error( oss.str() );
         }
-        typename T::type *valuePtr = new typename T::type( value );
+        typename ArgDesc::type *valuePtr = new typename ArgDesc::type( value );
         AnyObject *obj = new AnyObject();
         obj->Set( valuePtr, true );
-        paramsMap[bucket][T::key] = obj;
+        paramsMap[bucket][ArgDesc::key] = obj;
       }
 
-      //------------------------------------------------------------
-      //! Save pointer in container
-      //!
-      //! @param key      key under which the pointer will be saved
-      //! @param value    pointer to save
-      //! @param passOwnership    flag indicating whether memory
-      //!                         should be released automatically
-      //!                         when destroying container
-      //! @param bucket   bucket to which key will be saved
-      //------------------------------------------------------------
-      template<typename T>
-      void SetPtrArg( typename T::type value, bool passOwnership,
-          int bucket = 1 )
-      {
-        if( !BucketExists( bucket ) )
-        {
-          paramsMap[bucket];
-        }
-        if( paramsMap[bucket].find( T::key ) != paramsMap[bucket].end() )
-        {
-          std::ostringstream oss;
-          oss << "Parameter " << T::key << " has already been set in bucket "
-              << bucket;
-          throw std::logic_error( oss.str() );
-        }
-        AnyObject *obj = new AnyObject();
-        obj->Set( value, passOwnership );
-        paramsMap[bucket][T::key] = obj;
-      }
-
-      //------------------------------------------------------------
-      //! Check whether given key exists in the container under
-      //! given bucket
-      //!
-      //! @param key      key to check
-      //! @param bucket   bucket which will be checked
-      //! @return         true if exists, false if not
-      //------------------------------------------------------------
-      bool Exists( const std::string &key, int bucket = 1 )
-      {
-        return paramsMap.find( bucket ) != paramsMap.end()
-            && paramsMap[bucket].find( key ) != paramsMap[bucket].end();
-      }
-
-      //------------------------------------------------------------------
-      //! Check whether given bucket exist in the container
-      //!
-      //! @param bucket   bucket to check
-      //! @return         true if exists, false if not
-      //------------------------------------------------------------------
-      bool BucketExists( int bucket )
-      {
-        return paramsMap.find( bucket ) != paramsMap.end();
-      }
-
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
       ~ArgsContainer()
       {
         auto buckets = paramsMap.begin();
-        //----------------------------------------------------------------
         // Destroy dynamically allocated objects stored in map
-        //----------------------------------------------------------------
         while( buckets != paramsMap.end() )
         {
           auto& objectsMap = buckets->second;
@@ -353,29 +321,78 @@ namespace XrdCl
       }
 
     private:
+
+      //------------------------------------------------------------------------
+      //! Check if given key exists in given bucket
+      //!
+      //! @param key    : key of the argument
+      //! @param bucket : the bucket we want to check
+      //!
+      //! @return       : true if the argument exists, false otherwise
+      //------------------------------------------------------------------------
+      bool Exists( const std::string &key, int bucket = 1 )
+      {
+        return paramsMap.find( bucket ) != paramsMap.end()
+            && paramsMap[bucket].find( key ) != paramsMap[bucket].end();
+      }
+
+      //------------------------------------------------------------------------
+      //! Check if given bucket exist
+      //!
+      //! @param bucket : bucket number
+      //!
+      //! @return       : true if the bucket exists, false otherwise
+      //------------------------------------------------------------------------
+      bool BucketExists( int bucket )
+      {
+        return paramsMap.find( bucket ) != paramsMap.end();
+      }
+
+      //------------------------------------------------------------------------
+      //! map of buckets with arguments
+      //------------------------------------------------------------------------
       std::unordered_map<int, std::unordered_map<std::string, AnyObject*>> paramsMap;
   };
 
-  //--------------------------------------------------------------------
-  //! Operation context for a lambda function.
-  //--------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Operation Context.
+  //!
+  //! Acts as an additional parameter to a lambda so it can forward arguments.
+  //----------------------------------------------------------------------------
   class OperationContext
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param paramsContainer : container with argument
+      //------------------------------------------------------------------------
       OperationContext( std::shared_ptr<ArgsContainer> paramsContainer ) :
           container( paramsContainer )
       {
       }
 
-      template<typename T>
-      void FwdArg( typename T::type value, int bucket = 1 )
+      //------------------------------------------------------------------------
+      //! Forward argument to next operation in pipeline
+      //!
+      //! @arg ArgDesc  : descryptor of the argument type
+      //!
+      //! @param value  : value of the argument
+      //! @param bucket : the bucket where the argument should be stored
+      //------------------------------------------------------------------------
+      template<typename ArgDesc>
+      void FwdArg( typename ArgDesc::type value, int bucket = 1 )
       {
-        container->SetArg < T > ( value, bucket );
+        container->SetArg <ArgDesc> ( value, bucket );
       }
 
     private:
-      std::shared_ptr<ArgsContainer> container;
 
+      //------------------------------------------------------------------------
+      //! Container with arguments for forwarding
+      //------------------------------------------------------------------------
+      std::shared_ptr<ArgsContainer> container;
   };
 
 }

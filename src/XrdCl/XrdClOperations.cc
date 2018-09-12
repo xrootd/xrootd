@@ -34,16 +34,17 @@ namespace XrdCl
 {
 
   //----------------------------------------------------------------------------
-  // OperationHandler
+  // OperationHandler Constructor.
   //----------------------------------------------------------------------------
-
   OperationHandler::OperationHandler( ForwardingHandler *handler, bool own ) :
-      responseHandler( handler ), ownHandler( own ), nextOperation( nullptr ), workflow(
-          nullptr )
+      responseHandler( handler ), ownHandler( own ), workflow( nullptr )
   {
     params = handler->GetArgContainer();
   }
 
+  //----------------------------------------------------------------------------
+  // OperationHandler::AddOperation
+  //----------------------------------------------------------------------------
   void OperationHandler::AddOperation( Operation<Handled> *operation )
   {
     if( nextOperation )
@@ -52,10 +53,13 @@ namespace XrdCl
     }
     else
     {
-      nextOperation = operation;
+      nextOperation.reset( operation );
     }
   }
 
+  //----------------------------------------------------------------------------
+  // OperationHandler::HandleResponseImpl
+  //----------------------------------------------------------------------------
   void OperationHandler::HandleResponseImpl( XRootDStatus *status,
       AnyObject *response, HostList *hostList )
   {
@@ -72,29 +76,43 @@ namespace XrdCl
       workflow->EndWorkflowExecution( statusCopy );
   }
 
+  //----------------------------------------------------------------------------
+  // OperationHandler::HandleResponseWithHosts
+  //----------------------------------------------------------------------------
   void OperationHandler::HandleResponseWithHosts( XRootDStatus *status,
       AnyObject *response, HostList *hostList )
   {
     HandleResponseImpl( status, response, hostList );
   }
 
+  //----------------------------------------------------------------------------
+  // OperationHandler::HandleResponse
+  //----------------------------------------------------------------------------
   void OperationHandler::HandleResponse( XRootDStatus *status,
       AnyObject *response )
   {
     HandleResponseImpl( status, response );
   }
 
+  //----------------------------------------------------------------------------
+  // OperationHandler::RunNextOperation
+  //----------------------------------------------------------------------------
   XRootDStatus OperationHandler::RunNextOperation()
   {
     return nextOperation->Run( params );
   }
 
+  //----------------------------------------------------------------------------
+  // OperationHandler Destructor
+  //----------------------------------------------------------------------------
   OperationHandler::~OperationHandler()
   {
-    delete nextOperation;
     if( ownHandler ) delete responseHandler;
   }
 
+  //----------------------------------------------------------------------------
+  // OperationHandler::AssignToWorkflow
+  //----------------------------------------------------------------------------
   void OperationHandler::AssignToWorkflow( Workflow *wf )
   {
     if( workflow )
@@ -108,28 +126,37 @@ namespace XrdCl
     }
   }
 
-  //----------------------------------------------------------------------------
-  // Workflow
-  //----------------------------------------------------------------------------
 
+  //----------------------------------------------------------------------------
+  // Workflow Constructor.
+  //----------------------------------------------------------------------------
   Workflow::Workflow( Operation<Handled> &op, bool enableLogging ) :
       firstOperation( op.Move() ), status( nullptr ), logging( enableLogging )
   {
     firstOperation->AssignToWorkflow( this );
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow Constructor.
+  //----------------------------------------------------------------------------
   Workflow::Workflow( Operation<Handled> &&op, bool enableLogging ) :
       firstOperation( op.Move() ), status( nullptr ), logging( enableLogging )
   {
     firstOperation->AssignToWorkflow( this );
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow Constructor.
+  //----------------------------------------------------------------------------
   Workflow::Workflow( Operation<Handled> *op, bool enableLogging ) :
       firstOperation( op->Move() ), status( nullptr ), logging( enableLogging )
   {
     firstOperation->AssignToWorkflow( this );
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow Constructor.
+  //----------------------------------------------------------------------------
   Workflow::Workflow( Operation<Configured> &op, bool enableLogging ) :
       status( nullptr ), logging( enableLogging )
   {
@@ -137,6 +164,9 @@ namespace XrdCl
     firstOperation->AssignToWorkflow( this );
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow Constructor.
+  //----------------------------------------------------------------------------
   Workflow::Workflow( Operation<Configured> &&op, bool enableLogging ) :
       status( nullptr ), logging( enableLogging )
   {
@@ -144,6 +174,9 @@ namespace XrdCl
     firstOperation->AssignToWorkflow( this );
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow Constructor.
+  //----------------------------------------------------------------------------
   Workflow::Workflow( Operation<Configured> *op, bool enableLogging ) :
       status( nullptr ), logging( enableLogging )
   {
@@ -151,6 +184,9 @@ namespace XrdCl
     firstOperation->AssignToWorkflow( this );
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow Constructor.
+  //----------------------------------------------------------------------------
   Workflow::Workflow( Pipeline &&pipeline, bool enableLogging ) :
       status( nullptr ), logging( enableLogging )
   {
@@ -159,12 +195,18 @@ namespace XrdCl
     firstOperation = pipeline.operation.release();
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow Destructor.
+  //----------------------------------------------------------------------------
   Workflow::~Workflow()
   {
     delete firstOperation;
     delete status;
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow::Run
+  //----------------------------------------------------------------------------
   XRootDStatus Workflow::Run( std::shared_ptr<ArgsContainer> params,
       int bucket )
   {
@@ -184,6 +226,9 @@ namespace XrdCl
     return firstOperation->Run( firstOperationParams );
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow::EndWorkflowExecution
+  //----------------------------------------------------------------------------
   void Workflow::EndWorkflowExecution( const XRootDStatus &lastOperationStatus )
   {
     if( semaphore )
@@ -193,11 +238,17 @@ namespace XrdCl
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow::GetStatus
+  //----------------------------------------------------------------------------
   XRootDStatus Workflow::GetStatus()
   {
     return status ? *status : XRootDStatus();
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow::Wait
+  //----------------------------------------------------------------------------
   void Workflow::Wait()
   {
     if( semaphore )
@@ -206,11 +257,17 @@ namespace XrdCl
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow::AddOperationInfo
+  //----------------------------------------------------------------------------
   void Workflow::AddOperationInfo( std::string description )
   {
     operationDescriptions.push_back( description );
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow::ToString
+  //----------------------------------------------------------------------------
   std::string Workflow::ToString()
   {
     std::ostringstream oss;
@@ -227,6 +284,9 @@ namespace XrdCl
     return oss.str();
   }
 
+  //----------------------------------------------------------------------------
+  // Workflow::Print
+  //----------------------------------------------------------------------------
   void Workflow::Print()
   {
     std::ostringstream oss;
