@@ -8,6 +8,8 @@ set( Linux    FALSE )
 set( MacOSX   FALSE )
 set( Solaris  FALSE )
 
+set( XrdClPipelines FALSE )
+
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 set( LIBRARY_PATH_PREFIX "lib" )
 
@@ -40,6 +42,10 @@ if( CMAKE_COMPILER_IS_GNUCXX )
   # interfears  with custom semaphore implementation
   if( (GCC_VERSION VERSION_GREATER 4.9.2) AND (USE_LIBC_SEMAPHORE EQUAL 0) )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer" )
+  endif()
+  
+  if( GCC_VERSION VERSION_GREATER 4.8.0 )
+  	set( XrdClPipelines TRUE )
   endif()
 
   # gcc 6.0 is more pedantic

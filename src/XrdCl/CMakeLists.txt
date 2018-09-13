@@ -8,6 +8,21 @@ set( XRD_CL_VERSION   2.0.0 )
 set( XRD_CL_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
+# The XrdCl Pipelining API
+# (we build this API only if the compiler has a good support for c++11)
+#-------------------------------------------------------------------------------
+if( XrdClPipelines )
+  set( XrdClPipelineSources
+       XrdClOperations.cc          XrdClOperations.hh
+       							   XrdClOperationHandlers.hh
+       							   XrdClOperationArgs.hh
+								   XrdClParallelOperation.hh
+								   XrdClFileOperations.hh
+								   XrdClFileSystemOperations.hh
+  )
+endif()
+
+#-------------------------------------------------------------------------------
 # The XrdCl lib
 #-------------------------------------------------------------------------------
 add_library(
@@ -70,7 +85,8 @@ add_library(
   XrdClLocalFileHandler.cc    XrdClLocalFileHandler.hh
   XrdClLocalFileTask.cc       XrdClLocalFileTask.hh
   XrdClZipListHandler.cc      XrdClZipListHandler.hh
-  XrdClOperations.cc          XrdClOperations.hh
+  
+  ${XrdClPipelineSources}
 )
 
 target_link_libraries(
