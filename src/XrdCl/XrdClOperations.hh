@@ -841,7 +841,7 @@ namespace XrdCl
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, Args...> &me, Operation<Handled> &op )
       {
         me.AddOperation( op.Move() );
-        return me.Transform<Handled>();
+        return me.template Transform<Handled>();
       }
 
       //------------------------------------------------------------------------
@@ -856,15 +856,23 @@ namespace XrdCl
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, Args...> &me, Operation<Configured> &op )
       {
         me.AddOperation( op.ToHandled() );
-        return me.Transform<Handled>();
+        return me.template Transform<Handled>();
       }
 
+      //------------------------------------------------------------------------
+      //! Implements operator| functionality
+      //!
+      //! @param me  :  reference to myself (*this)
+      //! @param op  :  reference to the other operation
+      //!
+      //! @return    :  move-copy of myself
+      //------------------------------------------------------------------------
       inline static
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, Args...> &me, Operation<Handled> &op )
       {
         me.handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
         me.AddOperation( op.Move() );
-        return me.Transform<Handled>();
+        return me.template Transform<Handled>();
       }
 
       //------------------------------------------------------------------------
@@ -880,7 +888,7 @@ namespace XrdCl
       {
         me.handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
         me.AddOperation( op.ToHandled() );
-        return me.Transform<Handled>();
+        return me.template Transform<Handled>();
       }
 
       //------------------------------------------------------------------------
