@@ -509,7 +509,7 @@ int main( int argc, char **argv )
   XrdCpConfig config( argv[0] );
   config.Config( argc, argv, XrdCpConfig::optRmtRec );
   if( !AllOptionsSupported( &config ) )
-    return 254;
+    return 50; // generic error
   ProcessCommandLineEnv( &config );
 
   //----------------------------------------------------------------------------
@@ -582,7 +582,7 @@ int main( int argc, char **argv )
     else
     {
       std::cerr << "Invalid parameter: " << config.CksVal << std::endl;
-      return 254;
+      return 50; // generic error
     }
   }
 
@@ -630,7 +630,7 @@ int main( int argc, char **argv )
     std::cerr << (int)std::numeric_limits<uint8_t>::max();
     std::cerr << " chunks in parallel. You asked for " << parallelChunks;
     std::cerr << "." << std::endl;
-    return 254;
+    return 50; // generic error
   }
 
   log->Dump( AppMsg, "Chunk size: %d, parallel chunks %d, streams: %d",
@@ -699,7 +699,7 @@ int main( int argc, char **argv )
   {
     std::cerr << "Multiple sources were given but target is not a directory.";
     std::cerr << std::endl;
-    return 255;
+    return 50; // generic error
   }
 
   //----------------------------------------------------------------------------
@@ -725,7 +725,7 @@ int main( int argc, char **argv )
       if ( !config.srcFile )
       {
         std::cerr << "Error indexing remote directory.";
-        return 255;
+        return 50; // generic error
       }
     }
 

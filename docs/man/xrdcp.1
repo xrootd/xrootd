@@ -463,7 +463,7 @@ If set the client tries first IPv4 address (turned off by default).
 
 .SH RETURN CODES
 .RE
-\fB50\fR  : generic error (e.g. config, internal, data, OS)
+\fB50\fR  : generic error (e.g. config, internal, data, OS, command line option)
 
 \fB51\fR  : socket related error
 
@@ -473,9 +473,7 @@ If set the client tries first IPv4 address (turned off by default).
 
 \fB54\fR  : redirection error
 
-\fB254\fR : command line option error
-
-\fB255\fR : problem with source / destination (e.g. multiple sources were given, but target is not a directory)
+\fB55\fR  : query response was negative (this is not an error)
 
 .SH NOTES
 Documentation for all components associated with \fBxrdcp\fR can be found at

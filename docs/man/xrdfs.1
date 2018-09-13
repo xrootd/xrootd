@@ -77,8 +77,8 @@ Move path1 to path2 locally on the same server.
 .RS 3
 Get info about the file or directory.
 .br
-\fI-q\fR query optional flag query parameter that makes
-xrdfs return error code to the shell if the
+\fI-q\fR \fB<flags>\fR Makes
+xrdfs return error code 55 to the shell if the
 requested flag combination is not present;
 flags may be combined together using '|' or '&'
 .br
@@ -211,6 +211,20 @@ Output last part of files to stdout.
 \fBspaceinfo\fR \fIpath\fR
 .RS 3
 Get space statistics for given path.
+
+.SH RETURN CODES
+.RE
+\fB50\fR  : generic error (e.g. config, internal, data, OS)
+
+\fB51\fR  : socket related error
+
+\fB52\fR  : postmaster related error
+
+\fB53\fR  : XRootD related error
+
+\fB54\fR  : redirection error
+
+\fB55\fR  : query response was negative (this is not an error)
 
 .SH NOTES
 For the list of available environment variables please refere to xrdcopy(1)
