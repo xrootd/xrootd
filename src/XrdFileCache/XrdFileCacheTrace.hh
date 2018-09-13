@@ -11,7 +11,7 @@
 #define TRACE_Dump     5
 
 
-#define TRACE_STR_None    ""
+#define TRACE_STR_None     ""
 #define TRACE_STR_Error    "error "
 #define TRACE_STR_Warning  "warning "
 #define TRACE_STR_Info     "info "

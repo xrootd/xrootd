@@ -49,8 +49,10 @@ Print::Print(XrdOss* oss, bool v, const char* path) : m_oss(oss), m_verbose(v), 
 }
 
 
-bool Print::isInfoFile(const char* path) {
-   if (strncmp(&path[strlen(path)-6], ".cinfo", 6)) {
+bool Print::isInfoFile(const char* path)
+{
+   if (strncmp(&path[strlen(path)-6], ".cinfo", 6))
+   {
       printf("%s is not cinfo file.\n\n", path);
       return false;
    }
@@ -78,7 +80,7 @@ void Print::printFile(const std::string& path)
       if (cfi.TestBit(i)) cntd++;
 
    const Info::Store& store = cfi.RefStoredData();
-   char creationBuff[1000];
+   char   creationBuff[1000];
    time_t creationTime = store.m_creationTime;
    strftime(creationBuff, 1000, "%c", localtime(&creationTime));
 
@@ -191,18 +193,18 @@ int main(int argc, char *argv[])
 
 
    XrdOucStream Config(&err, getenv("XRDINSTANCE"), &myEnv, "=====> ");
-   XrdOucArgs Spec(&err, "pfc_print: ",    "",
-                   "verbose",        1, "v",
-                   "config",       1, "c",
-                   (const char *)0);
+   XrdOucArgs   Spec(&err, "xrdpfc_print: ", "",
+                     "verbose",      1, "v",
+                     "config",       1, "c",
+                     (const char *) 0);
 
 
    Spec.Set(argc-1, &argv[1]);
    char theOpt;
 
-   while((theOpt = Spec.getopt()) != (char)-1)
+   while ((theOpt = Spec.getopt()) != (char)-1)
    {
-      switch(theOpt)
+      switch (theOpt)
       {
       case 'c':
       {
@@ -274,4 +276,6 @@ int main(int argc, char *argv[])
          XrdFileCache::Print p(oss, verbose, path);
       }
    }
+
+   return 0;
 }

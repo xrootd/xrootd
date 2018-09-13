@@ -63,6 +63,8 @@ void *PrefetchThread(void* ptr)
    return NULL;
 }
 
+//==============================================================================
+
 extern "C"
 {
 XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
@@ -94,29 +96,35 @@ XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
 }
 }
 
+//==============================================================================
+
+void Configuration::calculate_fractional_usages(long long  du,      long long  fu,
+                                                double    &frac_du, double    &frac_fu)
+{
+  // Calculate fractional disk / file usage and clamp them to [0, 1].
+
+  // Fractional total usage above LWM:
+  // - can be > 1 if usage is above HWM;
+  // - can be < 0 if triggered via age-based-purging.
+  frac_du = (double) (du - m_diskUsageLWM) / (m_diskUsageHWM - m_diskUsageLWM);
+
+  // Fractional file usage above baseline.
+  // - can be > 1 if file usage is above max;
+  // - can be < 0 if file usage is below baseline.
+  frac_fu = (double) (fu - m_fileUsageBaseline) / (m_fileUsageMax - m_fileUsageBaseline);
+
+  frac_du = std::min( std::max( frac_du, 0.0), 1.0 );
+  frac_fu = std::min( std::max( frac_fu, 0.0), 1.0 );
+}
+
+//==============================================================================
+
 Cache &Cache::GetInstance()
 {
    if (m_factory == NULL)
       m_factory = new Cache();
    return *m_factory;
 }
-
-class DiskSyncer : public XrdJob
-{
-private:
-File *m_file;
-public:
-DiskSyncer(File *f, const char *desc = "") :
-   XrdJob(desc),
-   m_file(f)
-{}
-void DoIt()
-{
-   m_file->Sync();
-   Cache::GetInstance().FileSyncDone(m_file);
-   delete this;
-}
-};
 
 bool Cache::Decide(XrdOucCacheIO* io)
 {
@@ -233,10 +241,15 @@ void Cache::ProcessWriteTasks()
       {
          m_writeQ.condVar.Wait();
       }
+
+      // MT -- optimize to pop several blocks if they are available (or swap the list).
+      // This makes sense especially for smallish block sizes.
+
       Block* block = m_writeQ.queue.front();
       m_writeQ.queue.pop_front();
       m_writeQ.size--;
-      TRACE(Dump, "Cache::ProcessWriteTasks  for %p " <<  (void*)(block) << " path " << block->m_file->lPath());
+      m_writeQ.writes_between_purges += block->get_size();
+      TRACE(Dump, "Cache::ProcessWriteTasks for block " <<  (void*)(block) << " path " << block->m_file->lPath());
       m_writeQ.condVar.UnLock();
 
       block->m_file->WriteBlockToDisk(block);
@@ -345,13 +358,54 @@ void Cache::ReleaseFile(File* f)
   
 namespace
 {
+
+class DiskSyncer : public XrdJob
+{
+private:
+   File *m_file;
+
+public:
+   DiskSyncer(File *f, const char *desc = "") :
+      XrdJob(desc),
+      m_file(f)
+   {}
+
+   void DoIt()
+   {
+      m_file->Sync();
+      Cache::GetInstance().FileSyncDone(m_file);
+      delete this;
+   }
+};
+
+
+class CommandExecutor : public XrdJob
+{
+private:
+   std::string m_command_url;
+
+public:
+   CommandExecutor(const std::string& command, const char *desc = "") :
+      XrdJob(desc),
+      m_command_url(command)
+   {}
+
+   void DoIt()
+   {
+      Cache::GetInstance().ExecuteCommandUrl(m_command_url);
+      delete this;
+   }
+};
+
+
 void *callDoIt(void *pp)
 {
      XrdJob *jP = (XrdJob *)pp;
      jP->DoIt();
      return (void *)0;
 }
-};
+
+}
 
 
 void Cache::schedule_file_sync(File* f, bool ref_cnt_already_set)
@@ -623,6 +677,24 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    std::string f_name = url.GetPath();
    std::string i_name = f_name + ".cinfo";
 
+   // Intercept xrdpfc_command requests.
+   if (strncmp("/xrdpfc_command/", f_name.c_str(), 16) == 0)
+   {
+      // Schedule a job to process command request.
+      {
+         CommandExecutor *ce = new CommandExecutor(f_name, "CommandExecutor");
+         if (schedP) {
+            schedP->Schedule(ce);
+         } else {
+            // XXXX ANDY is this else really needed?
+            pthread_t tid;
+            XrdSysThread::Run(&tid, callDoIt, ce, 0, "CommandExecutor");
+         }
+      }
+
+      return -EAGAIN;
+   }
+
    {
       XrdSysCondVarHelper lock(&m_active_cond);
       m_purge_delay_set.insert(f_name);
@@ -632,7 +704,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    int res = m_output_fs->Stat(i_name.c_str(), &sbuff);
    if (res == 0)
    {
-      TRACE( Dump, "Cache::Prefetch defer open " << f_name);
+      TRACE(Dump, "Cache::Prefetch defer open " << f_name);
       return 1;
    }
    else
@@ -662,7 +734,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
 
    if (m_output_fs->Stat(f_name.c_str(), &sbuff) == XrdOssOK)
    {
-      if ( S_ISDIR(sbuff.st_mode))
+      if (S_ISDIR(sbuff.st_mode))
       {
          return 0;
       }

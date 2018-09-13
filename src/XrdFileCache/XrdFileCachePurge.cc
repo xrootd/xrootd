@@ -4,49 +4,81 @@
 using namespace XrdFileCache;
 
 #include <fcntl.h>
+#include <sys/time.h>
+
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysTrace.hh"
 
 namespace
 {
+
 class FPurgeState
 {
 public:
    struct FS
    {
       std::string path;
-      long long nByte;
-      FS(const char* p, long long n) : path(p), nByte(n) {}
+      long long   nBytes;
+      time_t      time;
+
+      FS(const std::string& p, long long n, time_t t) : path(p), nBytes(n), time(t) {}
    };
 
    typedef std::multimap<time_t, FS> map_t;
-   typedef map_t::iterator map_i;
-   map_t fmap;
-   
-   FPurgeState(long long iNByteReq) : nByteReq(iNByteReq), nByteAccum(0) {}
+   typedef map_t::iterator           map_i;
+   map_t  fmap; // map of files that are purge candidates
 
-   void checkFile (time_t iTime, const char* iPath,  long long iNByte)
+   typedef std::list<FS>    list_t;
+   typedef list_t::iterator list_i;
+   list_t flist; // list of files to be removed unconditionally
+
+   FPurgeState(long long iNBytesReq) : nBytesReq(iNBytesReq), nBytesAccum(0), nBytesTotal(0), tMinTimeStamp(0) {}
+
+   void      setMinTime(time_t min_time) { tMinTimeStamp = min_time; }
+   time_t    getMinTime()          const { return tMinTimeStamp; }
+
+   long long getNBytesTotal()      const { return nBytesTotal; }
+
+   void checkFile(const std::string& iPath, long long iNBytes, time_t iTime)
    {
-      if (nByteAccum < nByteReq || iTime < fmap.rbegin()->first)
+      nBytesTotal += iNBytes;
+
+      if (tMinTimeStamp > 0 && iTime < tMinTimeStamp)
       {
-         fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNByte)));
-         nByteAccum += iNByte;
+         flist.push_back(FS(iPath, iNBytes, iTime));
+         nBytesAccum += iNBytes;
+      }
+      else if (nBytesAccum < nBytesReq || iTime < fmap.rbegin()->first)
+      {
+         fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNBytes, iTime)));
+         nBytesAccum += iNBytes;
 
          // remove newest files from map if necessary
-         while (nByteAccum > nByteReq)
+         while (nBytesAccum > nBytesReq)
          {
             time_t nt = fmap.begin()->first;
             std::pair<map_i, map_i> ret = fmap.equal_range(nt);
             for (map_i it2 = ret.first; it2 != ret.second; ++it2)
-               nByteAccum -= it2->second.nByte;
+               nBytesAccum -= it2->second.nBytes;
             fmap.erase(ret.first, ret.second);
          }
       }
    }
 
+   void MoveListEntriesToMap()
+   {
+      for (list_i i = flist.begin(); i != flist.end(); ++i)
+      {
+         fmap.insert(std::make_pair(i->time, *i));
+      }
+      flist.clear();
+   }
+
 private:
-   long long nByteReq;
-   long long nByteAccum;
+   long long nBytesReq;
+   long long nBytesAccum;
+   long long nBytesTotal;
+   time_t    tMinTimeStamp;
 };
 
 XrdSysTrace* GetTrace()
@@ -55,7 +87,7 @@ XrdSysTrace* GetTrace()
    return Cache::GetInstance().GetTrace();
 }
 
-void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState& purgeState)
+void FillFileMapRecurse(XrdOssDF* iOssDF, const std::string& path, FPurgeState& purgeState)
 {
    char buff[256];
    XrdOucEnv env;
@@ -83,7 +115,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
          if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen], XrdFileCache::Info::m_infoExtension, InfoExtLen) == 0)
          {
             // We could also check if it is currently opened with Cache::HaveActiveFileWihtLocalPath()
-            // This is not relay necessary because we do that check before unlinking the file
+            // This is not really necessary because we do that check before unlinking the file
             Info cinfo(Cache::GetInstance().GetTrace());
             if (fh->Open(np.c_str(), O_RDONLY, 0600, env) == XrdOssOK && cinfo.Read(fh, np))
             {
@@ -91,7 +123,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                if (cinfo.GetLatestDetachTime(accessTime))
                {
                   TRACE(Dump, "FillFileMapRecurse() checking " << buff << " accessTime  " << accessTime);
-                  purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBytes());
+                  purgeState.checkFile(np, cinfo.GetNDownloadedBytes(), accessTime);
                }
                else
                {
@@ -106,7 +138,7 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
                   {
                      accessTime = fstat.st_mtime;
                      TRACE(Dump, "FillFileMapRecurse() have access time for " << np << " via stat: " << accessTime);
-                     purgeState.checkFile(accessTime, np.c_str(), cinfo.GetNDownloadedBytes());
+                     purgeState.checkFile(np, cinfo.GetNDownloadedBytes(), accessTime);
                   }
                   else
                   {
@@ -140,24 +172,31 @@ void FillFileMapRecurse( XrdOssDF* iOssDF, const std::string& path, FPurgeState&
       }
    }
 }
-}
+
+} // end anon namespace
+
+//------------------------------------------------------------------------------
+
 void Cache::CacheDirCleanup()
 {
-   XrdOucEnv env;
+   XrdOucEnv    env;
    XrdOss*      oss = Cache::GetInstance().GetOss();
    XrdOssVSInfo sP;
+   long long    estimated_file_usage = m_configuration.m_fileUsageMax;
 
-   while (1)
+   int age_based_purge_countdown = 0; // enforce on first purge loop entry.
+
+   while (true)
    {
-
       {
          XrdSysCondVarHelper lock(&m_active_cond);
 
          m_in_purge = true;
       }
 
-      // get amount of space to erase
-      long long bytesToRemove = 0;
+      long long bytesToRemove_d = 0, bytesToRemove_f = 0;
+
+      // get amount of space to potentially erase based on total disk usage
       if (oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
          TRACE(Error, "Cache::CacheDirCleanup() can't get statvs for oss space " << m_configuration.m_data_space);
@@ -167,58 +206,131 @@ void Cache::CacheDirCleanup()
       {
          long long ausage = sP.Total - sP.Free;
          TRACE(Info, "Cache::CacheDirCleanup() used disk space " << ausage << " bytes.");
+
          if (ausage > m_configuration.m_diskUsageHWM)
          {
-            bytesToRemove = ausage - m_configuration.m_diskUsageLWM;
-            TRACE(Info, "Cache::CacheDirCleanup() need to remove " <<  bytesToRemove << " bytes.");
+            bytesToRemove_d = ausage - m_configuration.m_diskUsageLWM;
          }
       }
 
-      if (bytesToRemove > 0)
+      // estimate amount of space to erase based on file usage
+      if (m_configuration.are_file_usage_limits_set())
       {
-         // make a sorted map of file patch by access time
+         long long estimated_writes_since_last_purge;
+         {
+            XrdSysCondVarHelper lock(&m_writeQ.condVar);
+
+            estimated_writes_since_last_purge = m_writeQ.writes_between_purges;
+            m_writeQ.writes_between_purges = 0;
+         }
+         estimated_file_usage += estimated_writes_since_last_purge;
+
+         bytesToRemove_f = std::max(estimated_file_usage - m_configuration.m_fileUsageNominal, 0ll);
+
+         // Here we estimate fractional usages -- to decide if full scan is necessary before actual purge.
+         double frac_du = 0, frac_fu = 0;
+         m_configuration.calculate_fractional_usages(sP.Total - sP.Free, estimated_file_usage, frac_du, frac_fu);
+
+         if (frac_fu > 1.0 - frac_du)
+         {
+            bytesToRemove_f = std::max(bytesToRemove_f, sP.Total - sP.Free - m_configuration.m_diskUsageLWM);
+         }
+      }
+
+      TRACE(Debug, "Cache::CacheDirCleanup() bytes_to_remove_disk=" <<  bytesToRemove_d <<
+                                           " bytes_to remove_files=" << bytesToRemove_f << ".");
+
+      long long bytesToRemove = std::max(bytesToRemove_d, bytesToRemove_f);
+
+      bool enforce_age_based_purge = false;
+      if (m_configuration.is_age_based_purge_in_effect())
+      {
+         if (--age_based_purge_countdown <= 0)
+         {
+            enforce_age_based_purge   = true;
+            age_based_purge_countdown = m_configuration.m_purgeColdFilesPeriod;
+         }
+      }
+
+      if (bytesToRemove > 0 || enforce_age_based_purge)
+      {
+         // Make a sorted map of file paths sorted by access time.
+         FPurgeState purgeState(bytesToRemove * 5 / 4); // prepare 20% more volume than required
+
+         if (m_configuration.is_age_based_purge_in_effect())
+         {
+            struct timeval t;
+            gettimeofday(&t, 0);
+            purgeState.setMinTime(t.tv_sec - m_configuration.m_purgeColdFilesAge);
+         }
+
          XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
          if (dh->Opendir("", env) == XrdOssOK)
          {
-            FPurgeState purgeState(bytesToRemove * 5 / 4); // prepare 20% more volume than required
-
             FillFileMapRecurse(dh, "", purgeState);
+            dh->Close();
+         }
+         delete dh; dh = 0;
 
-            // loop over map and remove files with highest value of access time
-            struct stat fstat;
-            for (FPurgeState::map_i it = purgeState.fmap.begin(); it != purgeState.fmap.end(); ++it)
+         estimated_file_usage = purgeState.getNBytesTotal();
+
+         // Adjust bytesToRemove_f and then bytesToRemove based on actual file usage.
+         if (m_configuration.are_file_usage_limits_set())
+         {
+            bytesToRemove_f = std::max(estimated_file_usage - m_configuration.m_fileUsageNominal, 0ll);
+
+            double frac_du = 0, frac_fu = 0;
+            m_configuration.calculate_fractional_usages(sP.Total - sP.Free, estimated_file_usage, frac_du, frac_fu);
+
+            if (frac_fu > 1.0 - frac_du)
             {
-
-               std::string infoPath = it->second.path;
-               std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::m_infoExtension));
-
-               if (IsFileActiveOrPurgeProtected(dataPath))
-                  continue;
-
-               // remove info file
-               if (oss->Stat(infoPath.c_str(), &fstat) == XrdOssOK)
-               {
-                  // cinfo file can be on another oss.space, do not subtract for now.
-                  // bytesToRemove -= fstat.st_size;
-                  oss->Unlink(infoPath.c_str());
-                  TRACE(Info, "Cache::CacheDirCleanup() removed file:" <<  infoPath <<  " size: " << fstat.st_size);
-               }
-
-               // remove data file
-               if (oss->Stat(dataPath.c_str(), &fstat) == XrdOssOK)
-               {
-                  bytesToRemove -= it->second.nByte;
-
-                  oss->Unlink(dataPath.c_str());
-                  TRACE(Info, "Cache::CacheDirCleanup() removed file: %s " << dataPath << " size " << it->second.nByte);
-               }
-
-               if (bytesToRemove <= 0)
-                  break;
+               bytesToRemove_f = std::max(bytesToRemove_f, sP.Total - sP.Free - m_configuration.m_diskUsageLWM);
             }
          }
-         dh->Close();
-         delete dh; dh = 0;
+         bytesToRemove = std::max(bytesToRemove_d, bytesToRemove_f);
+
+         purgeState.MoveListEntriesToMap();
+
+         // LOOP over map and remove files with highest value of access time.
+         struct stat fstat;
+         for (FPurgeState::map_i it = purgeState.fmap.begin(); it != purgeState.fmap.end(); ++it)
+         {
+            std::string infoPath = it->second.path;
+            std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::m_infoExtension));
+
+            if (IsFileActiveOrPurgeProtected(dataPath))
+               continue;
+
+            // remove info file
+            if (oss->Stat(infoPath.c_str(), &fstat) == XrdOssOK)
+            {
+               // cinfo file can be on another oss.space, do not subtract for now.
+               // Could be relevant for very small block sizes.
+               // bytesToRemove        -= fstat.st_size;
+               // estimated_file_usage -= fstat.st_size;
+
+               oss->Unlink(infoPath.c_str());
+               TRACE(Info, "Cache::CacheDirCleanup() removed file:" <<  infoPath <<  " size: " << fstat.st_size);
+            }
+
+            // remove data file
+            if (oss->Stat(dataPath.c_str(), &fstat) == XrdOssOK)
+            {
+               bytesToRemove        -= it->second.nBytes;
+               estimated_file_usage -= it->second.nBytes;
+
+               oss->Unlink(dataPath.c_str());
+               TRACE(Info, "Cache::CacheDirCleanup() removed file: " << dataPath << " size " << it->second.nBytes);
+            }
+
+            // Continue purging cold files i needed.
+            if (m_configuration.is_age_based_purge_in_effect() && it->second.time < purgeState.getMinTime())
+               continue;
+
+            // Finish when enough space has been freed.
+            if (bytesToRemove <= 0)
+               break;
+         }
       }
 
       {

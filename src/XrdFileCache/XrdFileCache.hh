@@ -54,9 +54,15 @@ struct Configuration
       m_hdfsmode(false),
       m_data_space("public"),
       m_meta_space("public"),
+      m_diskTotalSpace(-1),
       m_diskUsageLWM(-1),
       m_diskUsageHWM(-1),
+      m_fileUsageBaseline(-1),
+      m_fileUsageNominal(-1),
+      m_fileUsageMax(-1),
       m_purgeInterval(300),
+      m_purgeColdFilesAge(-1),
+      m_purgeColdFilesPeriod(-1),
       m_bufferSize(1024*1024),
       m_RamAbsAvailable(0),
       m_NRamBuffers(-1),
@@ -65,20 +71,32 @@ struct Configuration
       m_flushCnt(100)
    {}
 
+   bool are_file_usage_limits_set()    const { return m_fileUsageMax > 0; }
+   bool is_age_based_purge_in_effect() const { return m_purgeColdFilesAge > 0; }
+   bool is_purge_plugin_set_up()       const { return false; }
+
+   void calculate_fractional_usages(long long du, long long fu, double &frac_du, double &frac_fu);
+
    bool m_hdfsmode;                     //!< flag for enabling block-level operation
 
    std::string m_username;              //!< username passed to oss plugin
    std::string m_data_space;            //!< oss space for data files
    std::string m_meta_space;            //!< oss space for metadata files (cinfo)
 
-   long long m_diskUsageLWM;            //!< cache purge low water mark
-   long long m_diskUsageHWM;            //!< cache purge high water mark
+   long long m_diskTotalSpace;          //!< total disk space on configured partition or oss space
+   long long m_diskUsageLWM;            //!< cache purge - disk usage low water mark
+   long long m_diskUsageHWM;            //!< cache purge - disk usage high water mark
+   long long m_fileUsageBaseline;       //!< cache purge - files usage baseline
+   long long m_fileUsageNominal;        //!< cache purge - files usage nominal
+   long long m_fileUsageMax;            //!< cache purge - files usage maximum
    int       m_purgeInterval;           //!< sleep interval between cache purges
+   int       m_purgeColdFilesAge;       //!< purge files older than this age
+   int       m_purgeColdFilesPeriod;    //!< peform cold file purge every this many purge cycles
 
    long long m_bufferSize;              //!< prefetch buffer size, default 1MB
    long long m_RamAbsAvailable;         //!< available from configuration
    int       m_NRamBuffers;             //!< number of total in-memory cache blocks, cached
-   size_t    m_prefetch_max_blocks;     //!< maximum number of blocks to prefetch per file
+   int       m_prefetch_max_blocks;     //!< maximum number of blocks to prefetch per file
 
    long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
    long long m_flushCnt;                //!< nuber of unsynced blcoks on disk before flush is called
@@ -88,10 +106,14 @@ struct TmpConfiguration
 {
    std::string m_diskUsageLWM;
    std::string m_diskUsageHWM;
+   std::string m_fileUsageBaseline;
+   std::string m_fileUsageNominal;
+   std::string m_fileUsageMax;
    std::string m_flushRaw;
 
    TmpConfiguration() :
-      m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95"), m_flushRaw("100")
+      m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95"),
+      m_flushRaw("100")
    {}
 };
 
@@ -216,11 +238,15 @@ public:
    
    XrdSysTrace* GetTrace() { return m_trace; }
 
+   void ExecuteCommandUrl(const std::string& command_url);
+
 private:
    bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
    bool ConfigXeq(char *, XrdOucStream &);
    bool xdlib(XrdOucStream &);
    bool xtrace(XrdOucStream &);
+
+   bool cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name);
 
    static Cache     *m_factory;         //!< this object
    static 
@@ -247,10 +273,12 @@ private:
 
    struct WriteQ
    {
-      WriteQ() : condVar(0), size(0) {}
+      WriteQ() : condVar(0), size(0), writes_between_purges(0) {}
+
       XrdSysCondVar     condVar;      //!< write list condVar
       size_t            size;         //!< cache size of a container
       std::list<Block*> queue;        //!< container
+      long long         writes_between_purges; //!< upper bound on amount of bytes written between two purge passes
    };
 
    WriteQ m_writeQ;
