@@ -231,6 +231,11 @@ namespace XrdCl
       virtual Status GetSignature( Message *toSign, Message *&sign,
                                    AnyObject &channelData );
 
+      //------------------------------------------------------------------------
+      //! Classify errno while reading/writing
+      //------------------------------------------------------------------------
+      Status ClassifyErrno( int error );
+
     private:
 
       //------------------------------------------------------------------------

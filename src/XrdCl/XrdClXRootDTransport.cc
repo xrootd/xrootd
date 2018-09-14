@@ -227,11 +227,8 @@ namespace XrdCl
       while( leftToBeRead )
       {
         int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
-        if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
-          return Status( stOK, suRetry );
-
         if( status <= 0 )
-          return Status( stError, errSocketError, errno );
+          return ClassifyErrno( errno );
 
         leftToBeRead -= status;
         message->AdvanceCursor( status );
@@ -266,11 +263,8 @@ namespace XrdCl
     while( leftToBeRead )
     {
       int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
-      if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
-        return Status( stOK, suRetry );
-
       if( status <= 0 )
-        return Status( stError, errSocketError, errno );
+        return ClassifyErrno( errno );
 
       leftToBeRead -= status;
       message->AdvanceCursor( status );
@@ -1231,6 +1225,46 @@ namespace XrdCl
     }
 
     return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Classify errno while reading/writing
+  //------------------------------------------------------------------------
+  Status XRootDTransport::ClassifyErrno( int error )
+  {
+    switch( errno )
+    {
+
+      case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+      case EWOULDBLOCK:
+#endif
+      {
+        //------------------------------------------------------------------
+        // Reading/writing operation would block! So we are done for now,
+        // but we will be back ;-)
+        //------------------------------------------------------------------
+        return Status( stOK, suRetry );
+      }
+      case ECONNRESET:
+      case EDESTADDRREQ:
+      case EMSGSIZE:
+      case ENOTCONN:
+      case ENOTSOCK:
+      {
+        //------------------------------------------------------------------
+        // Actual socket error error!
+        //------------------------------------------------------------------
+        return Status( stError, errSocketError, errno );
+      }
+      default:
+      {
+        //------------------------------------------------------------------
+        // Not a socket error
+        //------------------------------------------------------------------
+        return Status( stError, errInternal, errno );
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
