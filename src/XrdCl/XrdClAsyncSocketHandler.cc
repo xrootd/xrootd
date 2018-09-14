@@ -467,18 +467,10 @@ namespace XrdCl
       int status = pSocket->Send( msg->GetBufferAtCursor(), leftToBeWritten );
       if( status <= 0 )
       {
-        //----------------------------------------------------------------------
-        // Writing operation would block! So we are done for now, but we will
-        // return
-        //----------------------------------------------------------------------
-        if( errno == EAGAIN || errno == EWOULDBLOCK )
-          return Status( stOK, suRetry );
-
-        //----------------------------------------------------------------------
-        // Actual socket error error!
-        //----------------------------------------------------------------------
-        toWrite->SetCursor( 0 );
-        return Status( stError, errSocketError, errno );
+        Status ret = ClassifyErrno( errno );
+        if( !ret.IsOK() )
+          toWrite->SetCursor( 0 );
+        return ret;
       }
       msg->AdvanceCursor( status );
       leftToBeWritten -= status;
@@ -533,19 +525,10 @@ namespace XrdCl
       int bytesWritten = pSocket->WriteV( iov, iovcnt );
       if( bytesWritten <= 0 )
       {
-        //----------------------------------------------------------------------
-        // Writing operation would block! So we are done for now, but we will
-        // return
-        //----------------------------------------------------------------------
-        if( errno == EAGAIN || errno == EWOULDBLOCK )
-          return Status( stOK, suRetry );
-
-        //----------------------------------------------------------------------
-        // Actual socket error error!
-        //----------------------------------------------------------------------
-        if( sign ) sign->SetCursor( 0 );
-        toWrite->SetCursor( 0 );
-        return Status( stError, errSocketError, errno );
+        Status ret = ClassifyErrno( errno );
+        if( !ret.IsOK() )
+          toWrite->SetCursor( 0 );
+        return ret;
       }
 
       leftToBeWritten -= bytesWritten;
@@ -1079,5 +1062,42 @@ namespace XrdCl
     if( rsp->hdr.status == kXR_wait )
       waitSeconds = rsp->body.wait.seconds;
     return waitSeconds;
+  }
+
+  Status AsyncSocketHandler::ClassifyErrno( int error )
+  {
+    switch( errno )
+    {
+
+      case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+      case EWOULDBLOCK:
+#endif
+      {
+        //------------------------------------------------------------------
+        // Reading/writing operation would block! So we are done for now,
+        // but we will be back ;-)
+        //------------------------------------------------------------------
+        return Status( stOK, suRetry );
+      }
+      case ECONNRESET:
+      case EDESTADDRREQ:
+      case EMSGSIZE:
+      case ENOTCONN:
+      case ENOTSOCK:
+      {
+        //------------------------------------------------------------------
+        // Actual socket error error!
+        //------------------------------------------------------------------
+        return Status( stError, errSocketError, errno );
+      }
+      default:
+      {
+        //------------------------------------------------------------------
+        // Not a socket error
+        //------------------------------------------------------------------
+        return Status( stError, errInternal, errno );
+      }
+    }
   }
 }

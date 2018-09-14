@@ -271,6 +271,14 @@ namespace XrdCl
       inline kXR_int32 HandleWaitRsp( Message *rsp );
 
       //------------------------------------------------------------------------
+      //! Classify errno while reading/writing
+      //!
+      //! Once we are at R5, change Transport interface and use:
+      //!   Transport::ClassifyErrno
+      //------------------------------------------------------------------------
+      Status ClassifyErrno( int error );
+
+      //------------------------------------------------------------------------
       // Data members
       //------------------------------------------------------------------------
       Poller                        *pPoller;
