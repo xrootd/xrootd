@@ -4,6 +4,11 @@ include_directories( ${CPPUNIT_INCLUDE_DIRS} ../common)
 
 set( LIB_XRD_CL_TEST_MONITOR XrdClTestMonitor-${PLUGIN_VERSION} )
 
+
+if( XrdClPipelines )
+  set( OperationsWorkflowTest OperationsWorkflowTest.cc )
+endif()
+
 add_library(
   XrdClTests MODULE
   UtilsTest.cc
@@ -16,7 +21,8 @@ add_library(
   ThreadingTest.cc
   IdentityPlugIn.cc
   LocalFileHandlerTest.cc
-  OperationsWorkflowTest.cc
+  
+  ${OperationsWorkflowTest}
 )
 
 target_link_libraries(
