@@ -44,6 +44,7 @@ class Stats;
 //----------------------------------------------------------------------------
 //! Status of cached file. Can be read from and written into a binary file.
 //----------------------------------------------------------------------------
+
 class Info
 {
 public:
@@ -73,7 +74,6 @@ public:
    };
 
 
-
    //------------------------------------------------------------------------
    //! Constructor.
    //------------------------------------------------------------------------
@@ -91,12 +91,19 @@ public:
    //---------------------------------------------------------------------
    void SetBitWritten(int i);
 
+   //---------------------------------------------------------------------
    //! \brief Mark block as disk written
    //!
    //! @param i block index
    //---------------------------------------------------------------------
    void SetBitSynced(int i);
 
+   //---------------------------------------------------------------------
+   //! \brief Mark all blocks as writte.
+   //---------------------------------------------------------------------
+   void SetAllBitsSynced();
+
+   //---------------------------------------------------------------------
    //! \brief Mark block as written from prefetchxs
    //!
    //! @param i block index
@@ -145,10 +152,15 @@ public:
    //---------------------------------------------------------------------
    void WriteIOStatDetach(Stats& s);
 
-  //---------------------------------------------------------------------
+   //---------------------------------------------------------------------
    //! Write single open/close time for given bytes read from disk.
    //---------------------------------------------------------------------
    void WriteIOStatSingle(long long bytes_disk);
+
+   //---------------------------------------------------------------------
+   //! Write open/close with given time and bytes read from disk.
+   //---------------------------------------------------------------------
+   void WriteIOStatSingle(long long bytes_disk, time_t att, time_t dtc);
 
    //---------------------------------------------------------------------
    //! Check download status in given block range
@@ -247,7 +259,7 @@ protected:
    unsigned char *m_buff_written;            //!< download state vector
    unsigned char *m_buff_prefetch;           //!< prefetch statistics
 
-   int m_sizeInBits;                         //!cached
+   int  m_sizeInBits;                        //!< cached
    bool m_complete;                          //!< cached
 
 private:
@@ -258,6 +270,8 @@ private:
    XrdCksCalc*   m_cksCalc;
 };
 
+//------------------------------------------------------------------------------
+
 inline bool Info::TestBit(int i) const
 {
    const int cn = i/8;
@@ -266,7 +280,6 @@ inline bool Info::TestBit(int i) const
    const int off = i - cn*8;
    return (m_buff_written[cn] & cfiBIT(off)) == cfiBIT(off);
 }
-
 
 inline bool Info::TestPrefetchBit(int i) const
 {
@@ -360,14 +373,10 @@ inline void Info::SetBitPrefetch(int i)
    m_buff_prefetch[cn] |= cfiBIT(off);
 }
 
-
 inline long long Info::GetBufferSize() const
 {
    return m_store.m_bufferSize;
 }
 
-//----------------------------------------------------------------
-// XrdFileCacheInfoBlock
-//----------------------------------------------------------------
 }
 #endif

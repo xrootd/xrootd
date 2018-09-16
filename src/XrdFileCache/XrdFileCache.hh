@@ -52,6 +52,7 @@ struct Configuration
 {
    Configuration() :
       m_hdfsmode(false),
+      m_allow_xrdpfc_command(false),
       m_data_space("public"),
       m_meta_space("public"),
       m_diskTotalSpace(-1),
@@ -78,6 +79,7 @@ struct Configuration
    void calculate_fractional_usages(long long du, long long fu, double &frac_du, double &frac_fu);
 
    bool m_hdfsmode;                     //!< flag for enabling block-level operation
+   bool m_allow_xrdpfc_command;         //!< flag for enabling access to /xrdpfc-command/ functionality.
 
    std::string m_username;              //!< username passed to oss plugin
    std::string m_data_space;            //!< oss space for data files
@@ -195,7 +197,7 @@ public:
    //---------------------------------------------------------------------
    //! Thread function running disk cache purge periodically.
    //---------------------------------------------------------------------
-   void CacheDirCleanup();
+   void Purge();
 
    //---------------------------------------------------------------------
    //! Add downloaded block in write queue.

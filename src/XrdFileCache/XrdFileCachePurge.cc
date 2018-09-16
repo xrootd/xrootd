@@ -48,19 +48,16 @@ public:
          flist.push_back(FS(iPath, iNBytes, iTime));
          nBytesAccum += iNBytes;
       }
-      else if (nBytesAccum < nBytesReq || iTime < fmap.rbegin()->first)
+      else if (nBytesAccum < nBytesReq || ( ! fmap.empty() && iTime < fmap.rbegin()->first))
       {
-         fmap.insert(std::pair<const time_t, FS> (iTime, FS(iPath, iNBytes, iTime)));
+         fmap.insert(std::make_pair(iTime, FS(iPath, iNBytes, iTime)));
          nBytesAccum += iNBytes;
 
          // remove newest files from map if necessary
-         while (nBytesAccum > nBytesReq)
+         while ( ! fmap.empty() && nBytesAccum - fmap.rbegin()->second.nBytes >= nBytesReq)
          {
-            time_t nt = fmap.begin()->first;
-            std::pair<map_i, map_i> ret = fmap.equal_range(nt);
-            for (map_i it2 = ret.first; it2 != ret.second; ++it2)
-               nBytesAccum -= it2->second.nBytes;
-            fmap.erase(ret.first, ret.second);
+            nBytesAccum -= fmap.rbegin()->second.nBytes;
+            fmap.erase(--(fmap.rbegin().base()));
          }
       }
    }
@@ -122,7 +119,7 @@ void FillFileMapRecurse(XrdOssDF* iOssDF, const std::string& path, FPurgeState& 
                time_t accessTime;
                if (cinfo.GetLatestDetachTime(accessTime))
                {
-                  TRACE(Dump, "FillFileMapRecurse() checking " << buff << " accessTime  " << accessTime);
+                  // TRACE(Dump, "FillFileMapRecurse() checking " << buff << " accessTime  " << accessTime);
                   purgeState.checkFile(np, cinfo.GetNDownloadedBytes(), accessTime);
                }
                else
@@ -177,14 +174,21 @@ void FillFileMapRecurse(XrdOssDF* iOssDF, const std::string& path, FPurgeState& 
 
 //------------------------------------------------------------------------------
 
-void Cache::CacheDirCleanup()
+void Cache::Purge()
 {
+   static const char *trc_pfx = "Cache::Purge() ";
+
    XrdOucEnv    env;
    XrdOss*      oss = Cache::GetInstance().GetOss();
    XrdOssVSInfo sP;
-   long long    estimated_file_usage = m_configuration.m_fileUsageMax;
+   long long    disk_usage;
+   long long    estimated_file_usage = m_configuration.m_diskUsageHWM;
 
-   int age_based_purge_countdown = 0; // enforce on first purge loop entry.
+   // Pause before initial run
+   sleep(1);
+
+   int  age_based_purge_countdown = 0; // enforce on first purge loop entry.
+   bool is_first = true;
 
    while (true)
    {
@@ -194,22 +198,24 @@ void Cache::CacheDirCleanup()
          m_in_purge = true;
       }
 
+      TRACE(Info, trc_pfx << "Started.");
+
       long long bytesToRemove_d = 0, bytesToRemove_f = 0;
 
       // get amount of space to potentially erase based on total disk usage
       if (oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
-         TRACE(Error, "Cache::CacheDirCleanup() can't get statvs for oss space " << m_configuration.m_data_space);
-         exit(1);
+         TRACE(Error, trc_pfx << "can't get statvs for oss space " << m_configuration.m_data_space);
+         continue;
       }
       else
       {
-         long long ausage = sP.Total - sP.Free;
-         TRACE(Info, "Cache::CacheDirCleanup() used disk space " << ausage << " bytes.");
+         disk_usage = sP.Total - sP.Free;
+         TRACE(Debug, trc_pfx << "used disk space " << disk_usage << " bytes.");
 
-         if (ausage > m_configuration.m_diskUsageHWM)
+         if (disk_usage > m_configuration.m_diskUsageHWM)
          {
-            bytesToRemove_d = ausage - m_configuration.m_diskUsageLWM;
+            bytesToRemove_d = disk_usage - m_configuration.m_diskUsageLWM;
          }
       }
 
@@ -225,20 +231,19 @@ void Cache::CacheDirCleanup()
          }
          estimated_file_usage += estimated_writes_since_last_purge;
 
+         TRACE(Debug, trc_pfx << "estimated usage by files " << estimated_file_usage << " bytes.");
+
          bytesToRemove_f = std::max(estimated_file_usage - m_configuration.m_fileUsageNominal, 0ll);
 
          // Here we estimate fractional usages -- to decide if full scan is necessary before actual purge.
          double frac_du = 0, frac_fu = 0;
-         m_configuration.calculate_fractional_usages(sP.Total - sP.Free, estimated_file_usage, frac_du, frac_fu);
+         m_configuration.calculate_fractional_usages(disk_usage, estimated_file_usage, frac_du, frac_fu);
 
          if (frac_fu > 1.0 - frac_du)
          {
-            bytesToRemove_f = std::max(bytesToRemove_f, sP.Total - sP.Free - m_configuration.m_diskUsageLWM);
+            bytesToRemove_f = std::max(bytesToRemove_f, disk_usage - m_configuration.m_diskUsageLWM);
          }
       }
-
-      TRACE(Debug, "Cache::CacheDirCleanup() bytes_to_remove_disk=" <<  bytesToRemove_d <<
-                                           " bytes_to remove_files=" << bytesToRemove_f << ".");
 
       long long bytesToRemove = std::max(bytesToRemove_d, bytesToRemove_f);
 
@@ -252,6 +257,16 @@ void Cache::CacheDirCleanup()
          }
       }
 
+      TRACE(Debug, trc_pfx << "Precheck:");
+      TRACE(Debug, "\tbytes_to_remove_disk    = " << bytesToRemove_d << " B");
+      TRACE(Debug, "\tbytes_to remove_files   = " << bytesToRemove_f << " B (" << (is_first ? "max possible for initial run" : "estimated") << ")");
+      TRACE(Debug, "\tbytes_to_remove         = " << bytesToRemove   << " B");
+      TRACE(Debug, "\tenforce_age_based_purge = " << enforce_age_based_purge);
+      is_first = false;
+
+      long long bytesToRemove_at_start = 0; // set after file scan
+      int       deleted_file_count     = 0;
+
       if (bytesToRemove > 0 || enforce_age_based_purge)
       {
          // Make a sorted map of file paths sorted by access time.
@@ -259,9 +274,7 @@ void Cache::CacheDirCleanup()
 
          if (m_configuration.is_age_based_purge_in_effect())
          {
-            struct timeval t;
-            gettimeofday(&t, 0);
-            purgeState.setMinTime(t.tv_sec - m_configuration.m_purgeColdFilesAge);
+            purgeState.setMinTime(time(0) - m_configuration.m_purgeColdFilesAge);
          }
 
          XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
@@ -274,27 +287,44 @@ void Cache::CacheDirCleanup()
 
          estimated_file_usage = purgeState.getNBytesTotal();
 
+         TRACE(Debug, trc_pfx << "actual usage by files " << estimated_file_usage << " bytes.");
+
          // Adjust bytesToRemove_f and then bytesToRemove based on actual file usage.
          if (m_configuration.are_file_usage_limits_set())
          {
             bytesToRemove_f = std::max(estimated_file_usage - m_configuration.m_fileUsageNominal, 0ll);
 
             double frac_du = 0, frac_fu = 0;
-            m_configuration.calculate_fractional_usages(sP.Total - sP.Free, estimated_file_usage, frac_du, frac_fu);
+            m_configuration.calculate_fractional_usages(disk_usage, estimated_file_usage, frac_du, frac_fu);
 
             if (frac_fu > 1.0 - frac_du)
             {
-               bytesToRemove_f = std::max(bytesToRemove_f, sP.Total - sP.Free - m_configuration.m_diskUsageLWM);
+               bytesToRemove_f = std::max(bytesToRemove_f, disk_usage - m_configuration.m_diskUsageLWM);
             }
          }
-         bytesToRemove = std::max(bytesToRemove_d, bytesToRemove_f);
+         bytesToRemove          = std::max(bytesToRemove_d, bytesToRemove_f);
+         bytesToRemove_at_start = bytesToRemove;
+
+         TRACE(Debug, trc_pfx << "After scan:");
+         TRACE(Debug, "\tbytes_to_remove_disk    = " << bytesToRemove_d << " B");
+         TRACE(Debug, "\tbytes_to remove_files   = " << bytesToRemove_f << " B (measured)");
+         TRACE(Debug, "\tbytes_to_remove         = " << bytesToRemove   << " B");
+         TRACE(Debug, "\tenforce_age_based_purge = " << enforce_age_based_purge);
+         TRACE(Debug, "\tmin_time                = " << purgeState.getMinTime());
+         if (enforce_age_based_purge) 
 
          purgeState.MoveListEntriesToMap();
 
-         // LOOP over map and remove files with highest value of access time.
+         // Loop over map and remove files with oldest values of access time.
          struct stat fstat;
          for (FPurgeState::map_i it = purgeState.fmap.begin(); it != purgeState.fmap.end(); ++it)
          {
+            // Finish when enough space has been freed but not while purging of cold files is in progress.
+            if (bytesToRemove <= 0 && ! (m_configuration.is_age_based_purge_in_effect() && it->first < purgeState.getMinTime()))
+            {
+               break;
+            }
+
             std::string infoPath = it->second.path;
             std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::m_infoExtension));
 
@@ -308,9 +338,10 @@ void Cache::CacheDirCleanup()
                // Could be relevant for very small block sizes.
                // bytesToRemove        -= fstat.st_size;
                // estimated_file_usage -= fstat.st_size;
+               // ++deleted_file_count;
 
                oss->Unlink(infoPath.c_str());
-               TRACE(Info, "Cache::CacheDirCleanup() removed file:" <<  infoPath <<  " size: " << fstat.st_size);
+               TRACE(Dump, trc_pfx << "Removed file: '" << infoPath << "' size: " << fstat.st_size);
             }
 
             // remove data file
@@ -318,18 +349,12 @@ void Cache::CacheDirCleanup()
             {
                bytesToRemove        -= it->second.nBytes;
                estimated_file_usage -= it->second.nBytes;
+               ++deleted_file_count;
 
                oss->Unlink(dataPath.c_str());
-               TRACE(Info, "Cache::CacheDirCleanup() removed file: " << dataPath << " size " << it->second.nBytes);
+               TRACE(Dump, trc_pfx << "Removed file: '" << dataPath << "' size: " << it->second.nBytes <<
+                     ", time: " << it->first);
             }
-
-            // Continue purging cold files i needed.
-            if (m_configuration.is_age_based_purge_in_effect() && it->second.time < purgeState.getMinTime())
-               continue;
-
-            // Finish when enough space has been freed.
-            if (bytesToRemove <= 0)
-               break;
          }
       }
 
@@ -340,6 +365,7 @@ void Cache::CacheDirCleanup()
          m_in_purge = false;
       }
 
+      TRACE(Info, trc_pfx << "Finished, removed " << deleted_file_count << " data files, total size " << bytesToRemove_at_start - bytesToRemove << " B.");
       sleep(m_configuration.m_purgeInterval);
    }
 }

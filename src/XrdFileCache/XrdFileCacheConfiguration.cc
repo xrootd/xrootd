@@ -148,7 +148,6 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    const char *theINS = getenv("XRDINSTANCE");
 
    // Indicate whether or not we are a client instance
-   // XXXX ANDY -- you had != ... also, do you really want ' ' at the end?
    m_isClient = (theINS != 0 && strncmp("*client ", theINS, 8) == 0);
 
    XrdOucEnv myEnv;
@@ -200,7 +199,7 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
    {
       if (! strcmp(var,"pfc.osslib"))
       {
-         ofsCfg->Parse(XrdOfsConfigPI::theOssLib);
+         retval = ofsCfg->Parse(XrdOfsConfigPI::theOssLib);
       }
       else if (! strcmp(var,"pfc.decisionlib"))
       {
@@ -210,6 +209,10 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
       {
          retval = xtrace(Config);
       }
+      else if (! strcmp(var,"pfc.allow_xrdpfc_command"))
+      {
+         m_configuration.m_allow_xrdpfc_command = true;
+      }
       else if (! strncmp(var,"pfc.", 4))
       {
          retval = ConfigParameters(std::string(var+4), Config, tmpc);
@@ -217,7 +220,6 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
 
       if ( ! retval)
       {
-         retval = false;
          TRACE(Error, "Cache::Config() error in parsing");
          break;
       }

@@ -112,25 +112,25 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
       static const char* usage =
          "Usage: create_file [-s filesize] [-b blocksize] [-t access_time] [-d access_duration]\n"
          " Notes:\n"
-         " . Default filesize=1G, blocksize=1M, access_time=-10, access_duration=10.\n"
+         " . Default filesize=1G, blocksize=<as configured>, access_time=-10, access_duration=10.\n"
          " . -t and -d can be given multiple times to record several accesses.\n"
          " . Negative arguments given to -t are interpreted as relative to now.\n";
 
+      const Configuration &conf = m_configuration;
+
       token = cp.get_token();
 
-      TRACE(Debug, err_prefix << "argument string is '" << token <<"'.");
+      TRACE(Debug, err_prefix << "Entered with argument string '" << token <<"'.");
 
       std::vector<char*> argv;
       SplitParser ap(token, " ");
       int argc = ap.fill_argv(argv);
-
       
       long long   file_size    = ONE_GB;
-      long long   block_size   = ONE_MB;
+      long long   block_size   = conf.m_bufferSize;
       int         access_time    [MAX_ACCESSES];
       int         access_duration[MAX_ACCESSES];
       int         at_count = 0, ad_count = 0;
-      time_t      time_now;
       XrdOucArgs  Spec(&m_log, err_prefix, "hvs:b:t:d:",
                        "help",         1, "h",
                        "verbose",      1, "v",
@@ -140,11 +140,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
                        "duration",     1, "d",
                        (const char *) 0);
 
-      {
-         struct timeval t;
-         gettimeofday(&t, 0);
-         time_now = t.tv_sec;
-      }
+      time_t time_now = time(0);
 
       Spec.Set(argc, &argv[0]);
       char theOpt;
@@ -189,7 +185,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
       }
       if (Spec.getarg())
       {
-         TRACE(Error, err_prefix << "Options must take up all the Options -t and -d must be given the same number of times.");
+         TRACE(Error, err_prefix << "Options must take up all the arguments.");
          return;
       }
 
@@ -202,86 +198,100 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          return;
       }
 
-      TRACE(Debug, err_prefix << "Command arguments parsed successfully, proceeding to execution.");
-
       std::string file_path (cp.get_reminder());
       std::string cinfo_path(file_path + Info::m_infoExtension);
 
-      printf("\nFile:  %s\nCInfo: %s\n", file_path.c_str(), cinfo_path.c_str());
+      TRACE(Debug, err_prefix << "Command arguments parsed successfully. Proceeding to create file " << file_path);
 
-      // XXXX Check if they exist ... bail out if they do.
+      // Check if cinfo exists ... bail out if it does.
+      {
+         struct stat infoStat;
+         if (GetOss()->Stat(cinfo_path.c_str(), &infoStat) == XrdOssOK)
+         {
+            TRACE(Error, err_prefix << "cinfo file alreay exists for '" << file_path << "'. Refusing to overwrite.");
+            return;
+         }
+      }
+
+      TRACE(Debug, err_prefix << "Command arguments parsed successfully, proceeding to execution.");
 
       {
-         const Configuration &conf = m_configuration;
+         const char          *myUser = conf.m_username.c_str();
+         XrdOucEnv            myEnv;
 
-         XrdOss     &myOss  = * GetOss();
-         const char *myUser =   conf.m_username.c_str();
-         XrdOucEnv   myEnv;
+         // Create the data file.
 
-         // Create the data file itself.
          char size_str[32]; sprintf(size_str, "%lld", file_size);
          myEnv.Put("oss.asize",  size_str);
          myEnv.Put("oss.cgroup", conf.m_data_space.c_str());
-         if (myOss.Create(myUser, file_path.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
+         int cret;
+         if ((cret = GetOss()->Create(myUser, file_path.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Create failed for data file " << file_path
-                   << ", err=" << strerror(errno));
+            TRACE(Error, err_prefix << "Create failed for data file " << file_path << ", cret=" << cret << ERRNO_AND_ERRSTR);
             return;
          }
 
-         XrdOssDF *myFile = myOss.newFile(myUser);
+         XrdOssDF *myFile = GetOss()->newFile(myUser);
          if (myFile->Open(file_path.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Open failed for data file " << file_path
-                   << ", err=" << strerror(errno));
+            TRACE(Error, err_prefix << "Open failed for data file " << file_path << ERRNO_AND_ERRSTR);
             delete myFile;
             return;
          }
 
-         // Create the info file
-
-         struct stat infoStat;
-         bool fileExisted = (myOss.Stat(cinfo_path.c_str(), &infoStat) == XrdOssOK);
+         // Create the info file.
 
          myEnv.Put("oss.asize", "64k"); // TODO: Calculate? Get it from configuration? Do not know length of access lists ...
          myEnv.Put("oss.cgroup", conf.m_meta_space.c_str());
-         if (myOss.Create(myUser, cinfo_path.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
+         if (GetOss()->Create(myUser, cinfo_path.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Create failed for info file " << cinfo_path
-                                    << ", err=" << strerror(errno));
+            TRACE(Error, err_prefix << "Create failed for info file " << cinfo_path << ERRNO_AND_ERRSTR);
             myFile->Close(); delete myFile;
             return;
          }
 
-         XrdOssDF *myInfoFile = myOss.newFile(myUser);
+         XrdOssDF *myInfoFile = GetOss()->newFile(myUser);
          if (myInfoFile->Open(cinfo_path.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Open failed for info file " << cinfo_path
-                                    << ", err=" << strerror(errno));
+            TRACE(Error, err_prefix << "Open failed for info file " << cinfo_path << ERRNO_AND_ERRSTR);
             delete myInfoFile;
             myFile->Close(); delete myFile;
             return;
          }
 
-         Info myInfo;
-         if (fileExisted && myInfo.Read(myInfoFile, cinfo_path))
+         // Allocate space for the data file.
+
+         if (posix_fallocate(myFile->getFD(), 0, file_size))
          {
-            TRACE(Debug, "Read existing info file.");
-         }
-         else
-         {
-            myInfo.SetBufferSize(conf.m_bufferSize);
-            myInfo.SetFileSize(file_size);
-            myInfo.Write(myInfoFile);
-            myInfoFile->Fsync();
-            int ss = (file_size - 1) / myInfo.GetBufferSize() + 1;
-            TRACE(Debug, "Creating new file info, data size = " <<  file_size << " num blocks = "  << ss);
+            TRACE(Error, err_prefix << "posix_fallocate failed for data file " << file_path << ERRNO_AND_ERRSTR);
          }
 
-         myInfo.WriteIOStatAttach();
+         // Fill up cinfo.
+
+         Info myInfo(m_trace, false);
+         myInfo.SetBufferSize(block_size);
+         myInfo.SetFileSize(file_size);
+         myInfo.SetAllBitsSynced();
+
+         for (int i = 0; i < at_count; ++i)
+         {
+            time_t att_time = access_time[i] >= 0 ? access_time[i] : time_now + access_time[i];
+
+            myInfo.WriteIOStatSingle(file_size, att_time, att_time + access_duration[i]);
+         }
+
+         myInfo.Write(myInfoFile);
 
          myInfoFile->Close(); delete myInfoFile;
          myFile->Close();     delete myFile;
+
+         TRACE(Info, err_prefix << "Created file '" << file_path << "', size=" << (file_size>>20) << "MB.");
+
+         {
+            XrdSysCondVarHelper lock(&m_writeQ.condVar);
+
+            m_writeQ.writes_between_purges += file_size;
+         }
       }
 
       return;
@@ -296,3 +306,60 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
       TRACE(Error, top_epfx << "Unknown or empty command '" << token << "'");
    }
 }
+
+
+//==============================================================================
+// Example python script to use /xrdpfc_command/
+//==============================================================================
+/*
+from XRootD import client
+from XRootD.client.flags import OpenFlags
+
+import sys
+import time
+
+#-------------------------------------------------------------------------------
+
+port = int( sys.argv[1] );
+
+g_srv = "root://localhost:%d/" % port
+g_com = "/xrdpfc_command/create_file/"
+g_dir = "/store/user/matevz/"
+
+#-------------------------------------------------------------------------------
+
+def xxsend(args, file) :
+
+  url = g_srv + g_com + args + g_dir + file
+  print "Opening ", url
+
+  with client.File() as f:
+    status, response = f.open(url, OpenFlags.READ)
+
+    print '%r' % status
+    print '%r' % response
+
+#-------------------------------------------------------------------------------
+
+pfx1 = "AAAA"
+pfx2 = "BBBB"
+
+for i in range(1, 1024 + 1):
+
+  atime = -10000 + i
+
+  xxsend("-s 4g -t %d -d 10" % atime,
+         "%s-%04d" % (pfx1, i))
+
+  time.sleep(0.01)
+
+
+for i in range(1, 512 + 1):
+
+  atime = -5000 + i
+
+  xxsend("-s 4g -t %d -d 10" % atime,
+         "%s-%04d" % (pfx2, i))
+
+  time.sleep(0.01)
+ */

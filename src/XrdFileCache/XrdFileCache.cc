@@ -43,9 +43,9 @@ Cache * Cache::m_factory = NULL;
 XrdScheduler *Cache::schedP = NULL;
 
 
-void *CacheDirCleanupThread(void* cache_void)
+void *PurgeThread(void* cache_void)
 {
-   Cache::GetInstance().CacheDirCleanup();
+   Cache::GetInstance().Purge();
    return NULL;
 }
 
@@ -89,7 +89,7 @@ XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
    XrdSysThread::Run(&tid2, PrefetchThread, (void*)(&factory), 0, "XrdFileCache Prefetch ");
 
    pthread_t tid;
-   XrdSysThread::Run(&tid, CacheDirCleanupThread, NULL, 0, "XrdFileCache CacheDirCleanup");
+   XrdSysThread::Run(&tid, PurgeThread, NULL, 0, "XrdFileCache Purge");
    
    
    return &factory;
@@ -678,7 +678,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    std::string i_name = f_name + ".cinfo";
 
    // Intercept xrdpfc_command requests.
-   if (strncmp("/xrdpfc_command/", f_name.c_str(), 16) == 0)
+   if (m_configuration.m_allow_xrdpfc_command && strncmp("/xrdpfc_command/", f_name.c_str(), 16) == 0)
    {
       // Schedule a job to process command request.
       {
@@ -686,7 +686,6 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
          if (schedP) {
             schedP->Schedule(ce);
          } else {
-            // XXXX ANDY is this else really needed?
             pthread_t tid;
             XrdSysThread::Run(&tid, callDoIt, ce, 0, "CommandExecutor");
          }
