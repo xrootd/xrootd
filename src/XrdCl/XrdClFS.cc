@@ -37,6 +37,7 @@
 #include <cstdio>
 #include <iostream>
 #include <iomanip>
+#include <cmath>
 
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
