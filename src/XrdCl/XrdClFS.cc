@@ -206,6 +206,14 @@ XRootDStatus DoCD( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Helper function to calculate number of digits in a number
+//------------------------------------------------------------------------------
+int nbDigits( uint64_t nb )
+{
+  return int( log10( double(nb) ) + 1);
+}
+
+//------------------------------------------------------------------------------
 // List a directory
 //------------------------------------------------------------------------------
 XRootDStatus DoLS( FileSystem                      *fs,
@@ -323,7 +331,10 @@ XRootDStatus DoLS( FileSystem                      *fs,
 
         std::cout << " " << info->GetModTimeAsString();
 
-        std::cout << std::setw(12) << info->GetSize() << " ";
+        uint64_t size = info->GetSize();
+        int width = nbDigits( size ) + 2;
+        if( width < 12 ) width = 12;
+        std::cout << std::setw( width ) << info->GetSize() << " ";
       }
     }
     if( showUrls )
