@@ -125,7 +125,9 @@ Info::~Info()
 
 void Info::SetAllBitsSynced()
 {
-   memset(m_store.m_buff_synced, 255, GetSizeInBytes());
+   const int nb = GetSizeInBytes();
+   for (int i = 0; i < nb; ++i)
+      m_store.m_buff_synced[i] = 255;
    m_complete = true;
 }
 
