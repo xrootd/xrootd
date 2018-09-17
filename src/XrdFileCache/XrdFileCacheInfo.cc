@@ -125,9 +125,16 @@ Info::~Info()
 
 void Info::SetAllBitsSynced()
 {
+   // The following should be:
+   //   memset(m_store.m_buff_synced, 255, GetSizeInBytes());
+   // but GCC produces an overzealous 'possible argument transpose warning' and
+   // xrootd build uses warnings->errors escalation.
+   // This workaround can be removed for gcc >= 5.
+   // See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61294
    const int nb = GetSizeInBytes();
    for (int i = 0; i < nb; ++i)
       m_store.m_buff_synced[i] = 255;
+
    m_complete = true;
 }
 
