@@ -19,6 +19,7 @@ add_library(
   XrdFileCache/XrdFileCache.cc              XrdFileCache/XrdFileCache.hh
   XrdFileCache/XrdFileCacheConfiguration.cc
   XrdFileCache/XrdFileCachePurge.cc
+  XrdFileCache/XrdFileCacheCommand.cc
   XrdFileCache/XrdFileCacheFile.cc          XrdFileCache/XrdFileCacheFile.hh
   XrdFileCache/XrdFileCacheVRead.cc
   XrdFileCache/XrdFileCacheStats.hh
@@ -67,7 +68,7 @@ set_target_properties(
 add_executable(
   xrdpfc_print
   XrdFileCache/XrdFileCachePrint.hh  XrdFileCache/XrdFileCachePrint.cc
-  XrdFileCache/XrdFileCacheInfo.hh  XrdFileCache/XrdFileCacheInfo.cc)
+  XrdFileCache/XrdFileCacheInfo.hh   XrdFileCache/XrdFileCacheInfo.cc)
 
 target_link_libraries(
   xrdpfc_print
@@ -89,7 +90,6 @@ install(
 install(
   TARGETS xrdpfc_print
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
-
 
 install(
   FILES

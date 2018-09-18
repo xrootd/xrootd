@@ -123,6 +123,23 @@ Info::~Info()
 
 //------------------------------------------------------------------------------
 
+void Info::SetAllBitsSynced()
+{
+   // The following should be:
+   //   memset(m_store.m_buff_synced, 255, GetSizeInBytes());
+   // but GCC produces an overzealous 'possible argument transpose warning' and
+   // xrootd build uses warnings->errors escalation.
+   // This workaround can be removed for gcc >= 5.
+   // See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61294
+   const int nb = GetSizeInBytes();
+   for (int i = 0; i < nb; ++i)
+      m_store.m_buff_synced[i] = 255;
+
+   m_complete = true;
+}
+
+//------------------------------------------------------------------------------
+
 void Info::SetBufferSize(long long bs)
 {
    // Needed only info is created first time in File::Open()
@@ -149,10 +166,10 @@ void Info::ResizeBits(int s)
    if (m_buff_prefetch) free(m_buff_prefetch);
 
    m_sizeInBits = s;
-   m_buff_written      = (unsigned char*) malloc(GetSizeInBytes());
+   m_buff_written        = (unsigned char*) malloc(GetSizeInBytes());
    m_store.m_buff_synced = (unsigned char*) malloc(GetSizeInBytes());
-   memset(m_buff_written,      0, GetSizeInBytes());
-   memset(m_store.m_buff_synced,       0, GetSizeInBytes());
+   memset(m_buff_written,        0, GetSizeInBytes());
+   memset(m_store.m_buff_synced, 0, GetSizeInBytes());
 
    if (m_hasPrefetchBuffer)
    {
@@ -160,7 +177,6 @@ void Info::ResizeBits(int s)
       memset(m_buff_prefetch, 0, GetSizeInBytes());
    }
 }
-
 
 //------------------------------------------------------------------------------
 
@@ -229,7 +245,6 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    {
       if (r.Read(*it, sizeof(AStat))) return false;
    }
-
 
    return true;
 }
@@ -324,9 +339,9 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
    FpHelper w(fp, 0, m_trace, m_traceID, trace_pfx + "oss write failed");
 
    m_store.m_version = m_defaultVersion;
-   if (w.Write(m_store.m_version)) return false;
+   if (w.Write(m_store.m_version))    return false;
    if (w.Write(m_store.m_bufferSize)) return false;
-   if (w.Write(m_store.m_fileSize)) return false;
+   if (w.Write(m_store.m_fileSize))   return false;
 
    if (w.WriteRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
 
@@ -379,6 +394,19 @@ void Info::WriteIOStatSingle(long long bytes_disk)
 
    AStat as;
    as.AttachTime = as.DetachTime = time(0);
+   as.BytesDisk  = bytes_disk;
+   m_store.m_astats.push_back(as);
+}
+
+void Info::WriteIOStatSingle(long long bytes_disk, time_t att, time_t dtc)
+{
+   m_store.m_accessCnt++;
+   if (m_store.m_astats.size() >= m_maxNumAccess)
+      m_store.m_astats.erase(m_store.m_astats.begin());
+
+   AStat as;
+   as.AttachTime = att;
+   as.DetachTime = dtc;
    as.BytesDisk  = bytes_disk;
    m_store.m_astats.push_back(as);
 }

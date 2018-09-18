@@ -19,6 +19,7 @@ Prerelease Notes
   * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
   * **[XrdSsi]** Provide summary monitoring information to report stream.
   * **[TPC]** Allow number of streams to use to be passed to the server.
+  * **[Proxy]** Implement new options in pfc.diskusage for better control of purging.
 
 + **Major bug fixes**
   * **[SSI]** Do not leak memory when a fatal error occurs. Fixes #775
@@ -33,5 +34,5 @@ Prerelease Notes
   * **[Proxy]** Add method to cache to get local file path of cached file.
   * **[All]** Place protocol definition under a modified BSD license.
   * **[Proxy]** Avoid auth failure due to URL cgi directives.
-
+  * **[Proxy]** Fix wrong logic in cache purge algorithm.
 
