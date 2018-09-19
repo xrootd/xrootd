@@ -27,7 +27,8 @@ add_library(
   XrdFileCache/XrdFileCacheIO.cc            XrdFileCache/XrdFileCacheIO.hh
   XrdFileCache/XrdFileCacheIOEntireFile.cc  XrdFileCache/XrdFileCacheIOEntireFile.hh
   XrdFileCache/XrdFileCacheIOFileBlock.cc   XrdFileCache/XrdFileCacheIOFileBlock.hh
-  XrdFileCache/XrdFileCacheDecision.hh)
+  XrdFileCache/XrdFileCacheDecision.hh
+  XrdFileCache/posix_fallocate_osx.hh)
 
 target_link_libraries(
   ${LIB_XRD_FILECACHE}

@@ -35,6 +35,10 @@
 #include <vector>
 #include <sys/time.h>
 
+#ifdef __APPLE__
+#include "posix_fallocate_osx.hh"
+#endif
+
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
