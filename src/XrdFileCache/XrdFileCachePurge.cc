@@ -289,7 +289,8 @@ void Cache::Purge()
 
          TRACE(Debug, trc_pfx << "actual usage by files " << estimated_file_usage << " bytes.");
 
-         // Adjust bytesToRemove_f and then bytesToRemove based on actual file usage.
+         // Adjust bytesToRemove_f and then bytesToRemove based on actual file usage,
+         // possibly retreating below nominal file usage (but not below baseline file usage).
          if (m_configuration.are_file_usage_limits_set())
          {
             bytesToRemove_f = std::max(estimated_file_usage - m_configuration.m_fileUsageNominal, 0ll);
@@ -299,10 +300,18 @@ void Cache::Purge()
 
             if (frac_fu > 1.0 - frac_du)
             {
-               bytesToRemove_f = std::max(bytesToRemove_f, disk_usage - m_configuration.m_diskUsageLWM);
+               bytesToRemove = std::max(bytesToRemove_f, disk_usage - m_configuration.m_diskUsageLWM);
+               bytesToRemove = std::min(bytesToRemove,   estimated_file_usage - m_configuration.m_fileUsageBaseline);
+            }
+            else
+            {
+               bytesToRemove = std::max(bytesToRemove_d, bytesToRemove_f);
             }
          }
-         bytesToRemove          = std::max(bytesToRemove_d, bytesToRemove_f);
+         else
+         {
+            bytesToRemove = std::max(bytesToRemove_d, bytesToRemove_f);
+         }
          bytesToRemove_at_start = bytesToRemove;
 
          TRACE(Debug, trc_pfx << "After scan:");
@@ -311,9 +320,11 @@ void Cache::Purge()
          TRACE(Debug, "\tbytes_to_remove         = " << bytesToRemove   << " B");
          TRACE(Debug, "\tenforce_age_based_purge = " << enforce_age_based_purge);
          TRACE(Debug, "\tmin_time                = " << purgeState.getMinTime());
-         if (enforce_age_based_purge) 
 
-         purgeState.MoveListEntriesToMap();
+         if (enforce_age_based_purge)
+         {
+            purgeState.MoveListEntriesToMap();
+         }
 
          // Loop over map and remove files with oldest values of access time.
          struct stat fstat;

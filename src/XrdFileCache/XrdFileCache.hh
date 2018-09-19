@@ -128,7 +128,7 @@ public:
    //---------------------------------------------------------------------
    //! Constructor
    //---------------------------------------------------------------------
-   Cache();
+   Cache(XrdSysLogger *logger);
 
    //---------------------------------------------------------------------
    //! Obtain a new IO object that fronts existing XrdOucCacheIO.
@@ -176,15 +176,19 @@ public:
    //---------------------------------------------------------------------
    //! \brief Parse configuration file
    //!
-   //! @param logger             xrootd logger
    //! @param config_filename    path to configuration file
    //! @param parameters         optional parameters to be passed
    //!
    //! @return parse status
    //---------------------------------------------------------------------
-   bool Config(XrdSysLogger *logger, const char *config_filename, const char *parameters);
+   bool Config(const char *config_filename, const char *parameters);
 
    //---------------------------------------------------------------------
+   //! Singleton creation.
+   //---------------------------------------------------------------------
+   static Cache &CreateInstance(XrdSysLogger *logger);
+
+  //---------------------------------------------------------------------
    //! Singleton access.
    //---------------------------------------------------------------------
    static Cache &GetInstance();
@@ -250,9 +254,8 @@ private:
 
    bool cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name);
 
-   static Cache     *m_factory;         //!< this object
-   static 
-   XrdScheduler     *schedP;
+   static Cache        *m_factory;      //!< this object
+   static XrdScheduler *schedP;
 
    XrdSysError       m_log;             //!< XrdFileCache namespace logger
    XrdSysTrace      *m_trace;

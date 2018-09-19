@@ -140,14 +140,17 @@ bool Cache::xtrace(XrdOucStream &Config)
    return false;
 }
 
+
 //______________________________________________________________________________
+/* Function: Config
 
-bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char *parameters)
+   Purpose: To parse configuration file and configure Cache instance.
+   Output:  true upon success or false upon failure.
+ */
+bool Cache::Config(const char *config_filename, const char *parameters)
 {
-   m_log.logger(logger);
-   const char *theINS = getenv("XRDINSTANCE");
-
    // Indicate whether or not we are a client instance
+   const char *theINS = getenv("XRDINSTANCE");
    m_isClient = (theINS != 0 && strncmp("*client ", theINS, 8) == 0);
 
    XrdOucEnv myEnv;
@@ -361,15 +364,33 @@ bool Cache::Config(XrdSysLogger *logger, const char *config_filename, const char
 
 bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfiguration &tmpc)
 {
+   struct ConfWordGetter
+   {
+      XrdOucStream &m_config;
+      char         *m_last_word;
+
+      ConfWordGetter(XrdOucStream& c) : m_config(c), m_last_word((char*)1) {}
+
+      char* GetWord() { if (m_last_word != 0) m_last_word = m_config.GetWord(); return m_last_word; }
+      bool  HasLast() { return (m_last_word != 0); }
+   };
+
+   ConfWordGetter cwg(config);
+
    XrdSysError err(0, "");
    if ( part == "user" )
    {
-      m_configuration.m_username = config.GetWord();
+      m_configuration.m_username = cwg.GetWord();
+      if ( ! cwg.HasLast())
+      {
+         m_log.Emsg("Config", "Error: pfc.user requires a parameter.");
+         return false;
+      }
    }
    else if ( part == "diskusage" )
    {
-      tmpc.m_diskUsageLWM = config.GetWord();
-      tmpc.m_diskUsageHWM = config.GetWord();
+      tmpc.m_diskUsageLWM = cwg.GetWord();
+      tmpc.m_diskUsageHWM = cwg.GetWord();
 
       if (tmpc.m_diskUsageHWM.empty())
       {
@@ -378,15 +399,15 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       }
 
       const char *p = 0;
-      while ((p = config.GetWord()))
+      while ((p = cwg.GetWord()))
       {
          if (strcmp(p, "files") == 0)
          {
-            tmpc.m_fileUsageBaseline = config.GetWord();
-            tmpc.m_fileUsageNominal  = config.GetWord();
-            tmpc.m_fileUsageMax      = config.GetWord();
+            tmpc.m_fileUsageBaseline = cwg.GetWord();
+            tmpc.m_fileUsageNominal  = cwg.GetWord();
+            tmpc.m_fileUsageMax      = cwg.GetWord();
 
-            if (tmpc.m_fileUsageMax.empty())
+            if ( ! cwg.HasLast())
             {
                m_log.Emsg("Config", "Error: pfc.diskusage files directive requires three arguments.");
                return false;
@@ -396,21 +417,18 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          {
             if (strcmp(p, "sleep") == 0) m_log.Emsg("Config", "warning sleep directive is deprecated in pfc.diskusage. Please use purgeinterval instead.");
 
-            p = config.GetWord();
-            if (XrdOuca2x::a2tm(m_log, "Error getting purgeinterval", p, &m_configuration.m_purgeInterval, 60, 3600))
+            if (XrdOuca2x::a2tm(m_log, "Error getting purgeinterval", cwg.GetWord(), &m_configuration.m_purgeInterval, 60, 3600))
             {
                return false;
             }
          }
          else if (strcmp(p, "purgecoldfiles") == 0)
          {
-            p = config.GetWord();
-            if (XrdOuca2x::a2tm(m_log, "Error getting purgecoldfiles age ", p, &m_configuration.m_purgeColdFilesAge, 3600, 3600*24*360))
+            if (XrdOuca2x::a2tm(m_log, "Error getting purgecoldfiles age ", cwg.GetWord(), &m_configuration.m_purgeColdFilesAge, 3600, 3600*24*360))
             {
                return false;
             }
-            p = config.GetWord();
-            if (XrdOuca2x::a2i(m_log, "Error getting purgecoldfiles period", p, &m_configuration.m_purgeColdFilesPeriod, 1, 1000))
+            if (XrdOuca2x::a2i(m_log, "Error getting purgecoldfiles period", cwg.GetWord(), &m_configuration.m_purgeColdFilesPeriod, 1, 1000))
             {
                return false;
             }
@@ -425,7 +443,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    {
       long long minBSize =  4 * 1024;
       long long maxBSize = 16 * 1024 * 1024;
-      if (XrdOuca2x::a2sz(m_log, "get block size", config.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
+      if (XrdOuca2x::a2sz(m_log, "get block size", cwg.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
       {
          return false;
       }
@@ -437,8 +455,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          m_log.Emsg("Config", "pfc.nramprefetch is deprecated, please use pfc.prefetch instead. Replacing the directive internally.");
       }
 
-      const char* p = config.GetWord();
-      if (XrdOuca2x::a2i(m_log, "Error setting prefetch block count", p, &m_configuration.m_prefetch_max_blocks, 0, 128))
+      if (XrdOuca2x::a2i(m_log, "Error setting prefetch block count", cwg.GetWord(), &m_configuration.m_prefetch_max_blocks, 0, 128))
       {
          return false;
       }
@@ -447,25 +464,22 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    else if ( part == "nramread" )
    {
       m_log.Emsg("Config", "pfc.nramread is deprecated, please use pfc.ram instead. Ignoring this directive.");
-      config.GetWord(); // Ignoring argument.
+      cwg.GetWord(); // Ignoring argument.
    }
    else if ( part == "ram" )
    {
       long long minRAM = m_isClient ? 256 * 1024 * 1024 : 1024 * 1024 * 1024;
       long long maxRAM = 256 * minRAM;
-      if ( XrdOuca2x::a2sz(m_log, "get RAM available", config.GetWord(), &m_configuration.m_RamAbsAvailable, minRAM, maxRAM))
+      if ( XrdOuca2x::a2sz(m_log, "get RAM available", cwg.GetWord(), &m_configuration.m_RamAbsAvailable, minRAM, maxRAM))
       {
          return false;
       }
    }
    else if ( part == "spaces" )
    {
-      const char *par;
-      par = config.GetWord();
-      if (par) m_configuration.m_data_space = par;
-      par = config.GetWord();
-      if (par) m_configuration.m_meta_space = par;
-      else
+      m_configuration.m_data_space = cwg.GetWord();
+      m_configuration.m_meta_space = cwg.GetWord();
+      if ( ! cwg.HasLast())
       {
          m_log.Emsg("Config", "spacenames requires two parameters: <data-space> <metadata-space>.");
          return false;
@@ -479,15 +493,14 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       }
       m_configuration.m_hdfsmode = true;
 
-      const char* params = config.GetWord();
+      const char* params = cwg.GetWord();
       if (params)
       {
          if (! strncmp("hdfsbsize", params, 9))
          {
             long long minBlSize =  32 * 1024;
             long long maxBlSize = 128 * 1024 * 1024;
-            params = config.GetWord();
-            if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", params, &m_configuration.m_hdfsbsize, minBlSize, maxBlSize))
+            if ( XrdOuca2x::a2sz(m_log, "Error getting file fragment size", cwg.GetWord(), &m_configuration.m_hdfsbsize, minBlSize, maxBlSize))
             {
                return false;
             }
@@ -501,7 +514,12 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
    else if ( part == "flush" )
    {
-      tmpc.m_flushRaw = config.GetWord();
+      tmpc.m_flushRaw = cwg.GetWord();
+      if ( ! cwg.HasLast())
+      {
+         m_log.Emsg("Config", "Error: pfc.flush requires a parameter.");
+         return false;
+      }
    }
    else
    {
@@ -519,5 +537,5 @@ void Cache::EnvInfo(XrdOucEnv &theEnv)
 {
 // Extract out the pointer to the scheduler
 //
-   schedP = (XrdScheduler *)theEnv.GetPtr("XrdScheduler*");
+   schedP = (XrdScheduler *) theEnv.GetPtr("XrdScheduler*");
 }
