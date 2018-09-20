@@ -27,6 +27,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysFallocate.hh"
 
 #include <algorithm>
 #include <cstring>
