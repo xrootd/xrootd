@@ -24,37 +24,37 @@ add_library(
   #-----------------------------------------------------------------------------
   # XrdSys
   #-----------------------------------------------------------------------------
+                                XrdSys/XrdSysAtomics.hh
   XrdSys/XrdSysDNS.cc           XrdSys/XrdSysDNS.hh
   XrdSys/XrdSysDir.cc           XrdSys/XrdSysDir.hh
-                                XrdSys/XrdSysFD.hh
-  XrdSys/XrdSysPlugin.cc        XrdSys/XrdSysPlugin.hh
-  XrdSys/XrdSysPriv.cc          XrdSys/XrdSysPriv.hh
-  XrdSys/XrdSysPlatform.cc      XrdSys/XrdSysPlatform.hh
-  XrdSys/XrdSysPthread.cc       XrdSys/XrdSysPthread.hh
-                                XrdSys/XrdSysSemWait.hh
-  XrdSys/XrdSysTimer.cc         XrdSys/XrdSysTimer.hh
-  XrdSys/XrdSysTrace.cc         XrdSys/XrdSysTrace.hh
-  XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
-  XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
+  XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
   XrdSys/XrdSysFAttr.cc         XrdSys/XrdSysFAttr.hh
                                 XrdSys/XrdSysFAttrBsd.icc
                                 XrdSys/XrdSysFAttrLnx.icc
                                 XrdSys/XrdSysFAttrMac.icc
                                 XrdSys/XrdSysFAttrSun.icc
+                                XrdSys/XrdSysFD.hh
+  XrdSys/XrdSysFallocate.cc     XrdSys/XrdSysFallocate.hh
+                                XrdSys/XrdSysHeaders.hh
   XrdSys/XrdSysIOEvents.cc      XrdSys/XrdSysIOEvents.hh
                                 XrdSys/XrdSysIOEventsPollE.icc
                                 XrdSys/XrdSysIOEventsPollKQ.icc
                                 XrdSys/XrdSysIOEventsPollPoll.icc
                                 XrdSys/XrdSysIOEventsPollPort.icc
-                                XrdSys/XrdSysAtomics.hh
-                                XrdSys/XrdSysHeaders.hh
-  XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
+                                XrdSys/XrdSysLinuxSemaphore.hh
+                                XrdSys/XrdSysLogPI.hh
   XrdSys/XrdSysLogger.cc        XrdSys/XrdSysLogger.hh
   XrdSys/XrdSysLogging.cc       XrdSys/XrdSysLogging.hh
-                                XrdSys/XrdSysLogPI.hh
-                                XrdSys/XrdSysLinuxSemaphore.hh
+  XrdSys/XrdSysPlatform.cc      XrdSys/XrdSysPlatform.hh
+  XrdSys/XrdSysPlugin.cc        XrdSys/XrdSysPlugin.hh
+  XrdSys/XrdSysPriv.cc          XrdSys/XrdSysPriv.hh
+  XrdSys/XrdSysPthread.cc       XrdSys/XrdSysPthread.hh
+                                XrdSys/XrdSysSemWait.hh
+  XrdSys/XrdSysTimer.cc         XrdSys/XrdSysTimer.hh
+  XrdSys/XrdSysTrace.cc         XrdSys/XrdSysTrace.hh
+  XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
   XrdSys/XrdSysXAttr.cc         XrdSys/XrdSysXAttr.hh
-  XrdSys/XrdSysFallocate.cc     XrdSys/XrdSysFallocate.hh
+  XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
 
 
   #-----------------------------------------------------------------------------
