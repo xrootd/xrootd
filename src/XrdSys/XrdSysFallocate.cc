@@ -22,6 +22,10 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
+// Implementation of posix_allocate for OSX.
+
+#ifdef __APPLE__
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -69,7 +73,7 @@
 //      file descriptions associated with the file.
 
 
-static int posix_fallocate(int fd, off_t offset, off_t len)
+int posix_fallocate(int fd, off_t offset, off_t len)
 {
     off_t c_test;
     int ret;
@@ -92,3 +96,5 @@ static int posix_fallocate(int fd, off_t offset, off_t len)
     }
     return ret;
 }
+
+#endif

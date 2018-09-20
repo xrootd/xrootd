@@ -54,6 +54,8 @@ add_library(
                                 XrdSys/XrdSysLogPI.hh
                                 XrdSys/XrdSysLinuxSemaphore.hh
   XrdSys/XrdSysXAttr.cc         XrdSys/XrdSysXAttr.hh
+  XrdSys/XrdSysFallocate.cc     XrdSys/XrdSysFallocate.hh
+
 
   #-----------------------------------------------------------------------------
   # XrdOuc

@@ -27,6 +27,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysFallocate.hh"
 
 #include <algorithm>
 #include <cstring>
@@ -34,10 +35,6 @@
 #include <fcntl.h>
 #include <vector>
 #include <sys/time.h>
-
-#ifdef __APPLE__
-#include "posix_fallocate_osx.hh"
-#endif
 
 using namespace XrdFileCache;
 
