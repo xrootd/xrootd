@@ -172,7 +172,16 @@ namespace
       //------------------------------------------------------------------------
       // Destructor
       //------------------------------------------------------------------------
-      virtual ~Source() {};
+      Source( const std::string &checkSumType = "" ) : pCkSumHelper( 0 )
+      {
+        if( !checkSumType.empty() )
+          pCkSumHelper = new CheckSumHelper( "source", checkSumType );
+      };
+
+      virtual ~Source()
+      {
+        delete pCkSumHelper;
+      }
 
       //------------------------------------------------------------------------
       //! Initialize the source
@@ -199,6 +208,10 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType ) = 0;
+
+    protected:
+
+      CheckSumHelper    *pCkSumHelper;
   };
 
   //----------------------------------------------------------------------------
@@ -210,13 +223,21 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Destination():
-        pPosc( false ), pForce( false ), pCoerce( false ), pMakeDir( false ) {}
+      Destination( const std::string &checkSumType = "" ):
+        pPosc( false ), pForce( false ), pCoerce( false ), pMakeDir( false ),
+        pCkSumHelper( 0 )
+      {
+        if( !checkSumType.empty() )
+          pCkSumHelper = new CheckSumHelper( "destination", checkSumType );
+      }
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      virtual ~Destination() {}
+      virtual ~Destination()
+      {
+        delete pCkSumHelper;
+      }
 
       //------------------------------------------------------------------------
       //! Initialize the destination
@@ -284,6 +305,8 @@ namespace
       bool pForce;
       bool pCoerce;
       bool pMakeDir;
+
+      CheckSumHelper    *pCkSumHelper;
   };
 
   //----------------------------------------------------------------------------
@@ -296,10 +319,11 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       StdInSource( const std::string &ckSumType, uint32_t chunkSize ):
-        pCkSumHelper(0), pCurrentOffset(0), pChunkSize( chunkSize )
+        Source( ckSumType ),
+        pCurrentOffset(0),
+        pChunkSize( chunkSize )
       {
-        if( !ckSumType.empty() )
-          pCkSumHelper = new CheckSumHelper( "stdin", ckSumType );
+
       }
 
       //------------------------------------------------------------------------
@@ -307,7 +331,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~StdInSource()
       {
-        delete pCkSumHelper;
+
       }
 
       //------------------------------------------------------------------------
@@ -392,7 +416,6 @@ namespace
       StdInSource(const StdInSource &other);
       StdInSource &operator = (const StdInSource &other);
 
-      CheckSumHelper *pCkSumHelper;
       uint64_t        pCurrentOffset;
       uint32_t        pChunkSize;
   };
@@ -408,11 +431,14 @@ namespace
       //------------------------------------------------------------------------
       XRootDSource( const XrdCl::URL *url,
                     uint32_t          chunkSize,
-                    uint8_t           parallelChunks ):
+                    uint8_t           parallelChunks,
+                    const std::string &ckSumType ):
+        Source( ckSumType ),
         pUrl( url ), pFile( new XrdCl::File() ), pSize( -1 ),
         pCurrentOffset( 0 ), pChunkSize( chunkSize ),
         pParallel( parallelChunks )
       {
+
       }
 
       //------------------------------------------------------------------------
@@ -451,6 +477,9 @@ namespace
 
         pSize = statInfo->GetSize();
         delete statInfo;
+
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+          return pCkSumHelper->Initialize();
 
         return XRootDStatus();
       }
@@ -506,7 +535,12 @@ namespace
         }
 
         if( pUrl->IsLocalFile() )
-          return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
+        {
+          if( pCkSumHelper )
+            return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+          else
+            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
+        }
 
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
@@ -586,6 +620,10 @@ namespace
         }
 
         ci = ch->chunk;
+        // if it is a local file update the checksum
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+          pCkSumHelper->Update( ci.buffer, ci.length );
+
         return XRootDStatus( stOK, suContinue );
       }
 
@@ -637,9 +675,10 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       XRootDSourceZip( const std::string &filename, const XrdCl::URL *archive,
-                    uint32_t          chunkSize,
-                    uint8_t           parallelChunks ):
-                      XRootDSource( archive, chunkSize, parallelChunks ),
+                       uint32_t          chunkSize,
+                       uint8_t           parallelChunks,
+                       const std::string &ckSumType ):
+                      XRootDSource( archive, chunkSize, parallelChunks, ckSumType ),
                       pFilename( filename ),
                       pZipArchive( new XrdCl::ZipArchiveReader( *pFile ) )
       {
@@ -680,8 +719,13 @@ namespace
         st = pZipArchive->GetSize( pFilename, size );
         if( st.IsOK() )
           pSize = size;
+        else
+          return st;
 
-        return st;
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+          return pCkSumHelper->Initialize();
+
+        return XrdCl::XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -704,6 +748,10 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        // if it is a local file update the checksum
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+          return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+
         return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
       }
 
@@ -726,7 +774,9 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       XRootDSourceDynamic( const XrdCl::URL *url,
-                           uint32_t          chunkSize ):
+                           uint32_t          chunkSize,
+                           const std::string &ckSumType ):
+        Source( ckSumType ),
         pUrl( url ), pFile( new XrdCl::File() ), pCurrentOffset( 0 ),
         pChunkSize( chunkSize ), pDone( false )
       {
@@ -758,6 +808,9 @@ namespace
         XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
         if( !st.IsOK() )
           return st;
+
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+          return pCkSumHelper->Initialize();
 
         return XRootDStatus();
       }
@@ -816,6 +869,10 @@ namespace
         if( bytesRead < pChunkSize )
           pDone = true;
 
+        // if it is a local file update the checksum
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+          pCkSumHelper->Update( buffer, bytesRead );
+
         ci.offset = pCurrentOffset;
         ci.length = bytesRead;
         ci.buffer = buffer;
@@ -837,6 +894,14 @@ namespace
           XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
           checkSum = redirector->GetCheckSum( checkSumType );
           if( !checkSum.empty() ) return XrdCl::XRootDStatus();
+        }
+
+        if( pUrl->IsLocalFile() )
+        {
+          if( pCkSumHelper )
+            return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+          else
+            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
         }
 
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
@@ -998,7 +1063,7 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       StdOutDestination( const std::string &ckSumType ):
-        pCkSumHelper( "stdout", ckSumType ), pCurrentOffset(0)
+        Destination( ckSumType ), pCurrentOffset(0)
       {
       }
 
@@ -1014,7 +1079,9 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize()
       {
-        return pCkSumHelper.Initialize();
+        if( pCkSumHelper )
+          return pCkSumHelper->Initialize();
+        return XrdCl::XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -1062,7 +1129,8 @@ namespace
         }
         while( length );
 
-        pCkSumHelper.Update( ci.buffer, ci.length );
+        if( pCkSumHelper )
+          pCkSumHelper->Update( ci.buffer, ci.length );
         delete [] (char*)ci.buffer; ci.buffer = 0;
         return XRootDStatus();
       }
@@ -1081,13 +1149,14 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
-        return pCkSumHelper.GetCheckSum( checkSum, checkSumType );
+        if( pCkSumHelper )
+          return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
       }
 
     private:
       StdOutDestination(const StdOutDestination &other);
       StdOutDestination &operator = (const StdOutDestination &other);
-      CheckSumHelper pCkSumHelper;
       uint64_t       pCurrentOffset;
   };
 
@@ -1100,7 +1169,9 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      XRootDDestination( const XrdCl::URL *url, uint8_t parallelChunks ):
+      XRootDDestination( const XrdCl::URL *url, uint8_t parallelChunks,
+                         const std::string &ckSumType ):
+        Destination( ckSumType ),
         pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ), pParallel( parallelChunks )
       {
       }
@@ -1145,7 +1216,14 @@ namespace
 
         Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
 
-        return pFile->Open( pUrl->GetURL(), flags, mode );
+        XrdCl::XRootDStatus st = pFile->Open( pUrl->GetURL(), flags, mode );
+        if( !st.IsOK() )
+          return st;
+
+        if( pUrl->IsLocalFile() && pCkSumHelper )
+          return pCkSumHelper->Initialize();
+
+        return XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -1191,6 +1269,7 @@ namespace
           CleanUpChunks();
           return ch->status;
         }
+
         return QueueChunk( ci );
       }
 
@@ -1214,6 +1293,11 @@ namespace
       //------------------------------------------------------------------------
       XrdCl::XRootDStatus QueueChunk( XrdCl::ChunkInfo &ci )
       {
+        // we are writing chunks in order so we can calc the checksum
+        // in case of local files
+        if( pUrl->IsLocalFile() && pCkSumHelper )
+          pCkSumHelper->Update( ci.buffer, ci.length );
+
         ChunkHandler *ch = new ChunkHandler(ci);
         XrdCl::XRootDStatus st;
         st = pFile->Write( ci.offset, ci.length, ci.buffer, ch );
@@ -1255,7 +1339,12 @@ namespace
                                                std::string &checkSumType )
       {
         if( pUrl->IsLocalFile() )
-          return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
+        {
+          if( pCkSumHelper )
+            return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+          else
+            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
+        }
 
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
@@ -1355,15 +1444,15 @@ namespace XrdCl
     if( xcp )
       src.reset( new XRootDSourceXCp( &GetSource(), chunkSize, parallelChunks, nbXcpSources, blockSize ) );
     else if( zip ) // TODO make zip work for xcp
-      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks ) );
+      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks, checkSumType ) );
     else if( GetSource().GetProtocol() == "stdio" )
       src.reset( new StdInSource( checkSumType, chunkSize ) );
     else
     {
       if( dynamicSource )
-        src.reset( new XRootDSourceDynamic( &GetSource(), chunkSize ) );
+        src.reset( new XRootDSourceDynamic( &GetSource(), chunkSize, checkSumType ) );
       else
-        src.reset( new XRootDSource( &GetSource(), chunkSize, parallelChunks ) );
+        src.reset( new XRootDSource( &GetSource(), chunkSize, parallelChunks, checkSumType ) );
     }
 
     XRootDStatus st = src->Initialize();
@@ -1388,7 +1477,7 @@ namespace XrdCl
         newDestUrl.SetParams( params );
  //     makeDir = true; // Backward compatability for xroot destinations!!!
       }
-      dest.reset( new XRootDDestination( &newDestUrl, parallelChunks ) );
+      dest.reset( new XRootDDestination( &newDestUrl, parallelChunks, checkSumType ) );
     }
 
     dest->SetForce( force );
