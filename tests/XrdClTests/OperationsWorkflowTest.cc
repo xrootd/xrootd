@@ -66,10 +66,6 @@ CPPUNIT_TEST_SUITE_REGISTRATION( WorkflowTest );
 namespace {
     using namespace XrdCl;
 
-    void PrintStatus(Workflow &workflow){
-        std::cout<<workflow.GetStatus().ToStr()<<std::endl;
-    }
-
     XrdCl::URL GetAddress(){
         Env *testEnv = TestEnv::GetEnv();
         std::string address;
@@ -309,12 +305,8 @@ void WorkflowTest::ReadingWorkflowTest(){
                 | Read(f)(offset, notdef, notdef) >> &readHandler
                 | Close(f)() >> &closeHandler;
 
-
-    Workflow workflow(pipe);
-    CPPUNIT_ASSERT_XRDST( workflow.Run() );
-    workflow.Wait();
-
-    CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
+    XRootDStatus status = WaitFor( pipe );
+    CPPUNIT_ASSERT(status.IsOK());
 
     CPPUNIT_ASSERT(openHandler.Executed());
     CPPUNIT_ASSERT(statHandler.Executed());
@@ -367,11 +359,8 @@ void WorkflowTest::WritingWorkflowTest(){
                 | Close(f)() >> &closeHandler
                 | Rm(fs)(relativePath) >> &removeHandler;
 
-    Workflow workflow(pipe);
-    CPPUNIT_ASSERT_XRDST( workflow.Run() );
-    workflow.Wait();
-
-    CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
+    XRootDStatus status = WaitFor( pipe );
+    CPPUNIT_ASSERT(status.IsOK());
 
     CPPUNIT_ASSERT(openHandler.Executed());
     CPPUNIT_ASSERT(writeHandler.Executed());
@@ -413,12 +402,8 @@ void WorkflowTest::MissingParameterTest(){
                 | Read(f)(offset, notdef, notdef) >> &readHandler
                 | Close(f)() >> &closeHandler;
 
-
-    Workflow workflow(pipe);
-    CPPUNIT_ASSERT_XRDST( workflow.Run() );
-    workflow.Wait();
-
-    CPPUNIT_ASSERT(workflow.GetStatus().IsError());
+    XRootDStatus status = WaitFor( pipe );
+    CPPUNIT_ASSERT(status.IsError());
 
     CPPUNIT_ASSERT(openHandler.Executed());
     CPPUNIT_ASSERT(statHandler.Executed());
@@ -465,12 +450,8 @@ void WorkflowTest::OperationFailureTest(){
                 | Read(f)(offset, notdef, notdef) >> &readHandler
                 | Close(f)() >> &closeHandler;
 
-
-    Workflow workflow(pipe);
-    CPPUNIT_ASSERT_XRDST( workflow.Run() );
-    workflow.Wait();
-
-    CPPUNIT_ASSERT(workflow.GetStatus().IsError());
+    XRootDStatus status = WaitFor( pipe );
+    CPPUNIT_ASSERT(status.IsError());
 
     //----------------------------------------------------------------------------
     // If there is an error, handlers should not be executed
@@ -505,30 +486,38 @@ void WorkflowTest::DoubleRunningTest(){
 
     auto &&pipe = Open(f)(fileUrl, flags) >> &openHandler | Close(f)() >> &closeHandler;
 
-
-    Workflow workflow(pipe);
-
-    workflow.Run();
+    std::future<XRootDStatus> ftr = Async( pipe );
 
     //----------------------------------------------------------------------------
     // Running workflow again should fail
     //----------------------------------------------------------------------------
-    try {
-        workflow.Run();
+    try
+    {
+        Async( pipe );
         CPPUNIT_ASSERT(false);
-    } catch(std::logic_error &err){}
+    }
+    catch(std::logic_error &err)
+    {
 
-    workflow.Wait();
+    }
+
+
+    XRootDStatus status = ftr.get();
 
     //----------------------------------------------------------------------------
     // Running workflow again should fail
     //----------------------------------------------------------------------------
-    try {
-        workflow.Run();
+    try
+    {
+        Async( pipe );
         CPPUNIT_ASSERT(false);
-    } catch(std::logic_error &err){}
+    }
+    catch(std::logic_error &err)
+    {
 
-    CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
+    }
+
+    CPPUNIT_ASSERT(status.IsOK());
 
     CPPUNIT_ASSERT(openHandler.Executed());
     CPPUNIT_ASSERT(closeHandler.Executed());
@@ -575,9 +564,7 @@ void WorkflowTest::ParallelTest(){
         Open(dataF)(secondFileUrl, createFlags) | Close(dataF)()
     ) >> &parallelOperationHandler;
 
-    Workflow w(creatingPipe);
-    CPPUNIT_ASSERT_XRDST( w.Run() );
-    w.Wait();
+    CPPUNIT_ASSERT_XRDST( WaitFor( creatingPipe ) );
 
     delete f;
     delete dataF;
@@ -618,12 +605,8 @@ void WorkflowTest::ParallelTest(){
                 | Parallel(firstPipe, secondPipe) >> &multiWorkflowHandler
                 | Close(lockFile)() >> &lockCloseHandler;
 
-    Workflow workflow(pipe);
-    CPPUNIT_ASSERT_XRDST( workflow.Run() );
-    workflow.Wait();
-
-
-    CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
+    XRootDStatus status = WaitFor( pipe );
+    CPPUNIT_ASSERT(status.IsOK());
 
     CPPUNIT_ASSERT(lockHandlerExecuted);
     CPPUNIT_ASSERT(lockCloseHandler.Executed());
@@ -653,12 +636,11 @@ void WorkflowTest::ParallelTest(){
     TestingForwardingHandler lockRemovingHandler;
     TestingForwardingHandler dataFileRemovingHandler;
 
-    Workflow deletingWorkflow(Parallel(
+    Pipeline deletingPipe (Parallel(
         (Rm(fs)(lockRelativePath) >> lockRemovingHandler),
         (Rm(fs)(dataRelativePath) >> dataFileRemovingHandler)
     ));
-    CPPUNIT_ASSERT_XRDST( deletingWorkflow.Run() );
-    deletingWorkflow.Wait();
+    CPPUNIT_ASSERT_XRDST( WaitFor( std::move( deletingPipe ) ) );
 
     CPPUNIT_ASSERT(lockRemovingHandler.Executed());
     CPPUNIT_ASSERT(dataFileRemovingHandler.Executed());
@@ -692,11 +674,10 @@ void WorkflowTest::FileSystemWorkflowTest(){
                   | Locate(fs)(destDirUrl, OpenFlags::Refresh) >> &secondLocateHandler
                   | RmDir(fs)(destDirUrl) >> &removeHandler;
 
-    Workflow workflow(fsPipe);
-    CPPUNIT_ASSERT_XRDST( workflow.Run() );
-    workflow.Wait();
+    Pipeline pipe(fsPipe);
 
-    CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
+    XRootDStatus status = WaitFor( std::move( pipe ) );
+    CPPUNIT_ASSERT(status.IsOK());
 
     CPPUNIT_ASSERT(mkDirHandler.Executed());
     CPPUNIT_ASSERT(locateHandler.Executed());
@@ -781,11 +762,8 @@ void WorkflowTest::MixedWorkflowTest(){
                 | Rm(fs)(secondFilePath)
                 | DeepLocate(fs)(dirPath, OpenFlags::Refresh) >> cleaningHandler;
 
-    Workflow workflow(pipe);
-    CPPUNIT_ASSERT_XRDST( workflow.Run() );
-    workflow.Wait();
-
-    CPPUNIT_ASSERT(workflow.GetStatus().IsOK());
+    XRootDStatus status = WaitFor( pipe );
+    CPPUNIT_ASSERT(status.IsOK());
 
     CPPUNIT_ASSERT(firstStatHandler.Executed());
     CPPUNIT_ASSERT(firstReadHandler.Executed());

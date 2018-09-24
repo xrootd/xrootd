@@ -50,8 +50,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       ParallelOperation( ParallelOperation<from> &&obj ) :
-          ConcreteOperation<ParallelOperation, state>( std::move( obj ) ), workflows(
-              std::move( obj.workflows ) )
+          ConcreteOperation<ParallelOperation, state>( std::move( obj ) ), pipelines(
+              std::move( obj.pipelines ) )
       {
       }
 
@@ -63,15 +63,15 @@ namespace XrdCl
       //! @param container : iterable container with pipelines
       //------------------------------------------------------------------------
       template<class Container>
-      ParallelOperation( Container &container )
+      ParallelOperation( Container &&container )
       {
         static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
-        auto itr = container.begin();
-        for( ; itr != container.end(); ++itr )
-        {
-          std::unique_ptr<Workflow> w( new Workflow( *itr, false ) );
-          workflows.push_back( std::move( w ) );
-        }
+
+        pipelines.reserve( container.size() );
+        auto begin = std::make_move_iterator( container.begin() );
+        auto end   = std::make_move_iterator( container.end() );
+        std::copy( begin, end, std::back_inserter( pipelines ) );
+        container.clear(); // there's junk inside so we clear it
       }
 
       //------------------------------------------------------------------------
@@ -99,10 +99,10 @@ namespace XrdCl
       {
         std::ostringstream oss;
         oss << "Parallel(";
-        for( int i = 0; i < workflows.size(); i++ )
+        for( int i = 0; i < pipelines.size(); i++ )
         {
-          oss << workflows[i]->ToString();
-          if( i != workflows.size() - 1 )
+          oss << pipelines[i]->ToString();
+          if( i != pipelines.size() - 1 )
           {
             oss << " && ";
           }
@@ -120,38 +120,30 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params,
-          int bucketDefault = 0 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params,
+                            int                                   bucketDefault = 0 ) // TODO that's wrong ! we sync in the handler !
       {
-        for( int i = 0; i < workflows.size(); i++ )
+        for( int i = 0; i < pipelines.size(); i++ )
         {
           int bucket = i + 1;
-          workflows[i]->Run( params, bucket );
+          pipelines[i].Run( params, bucket );
         }
 
-        bool statusOK = true;
-        std::string statusMessage = "";
-
-        for( int i = 0; i < workflows.size(); i++ )
+        for( auto &pipe : pipelines )
         {
-          workflows[i]->Wait();
-          auto result = workflows[i]->GetStatus();
-          if( !result.IsOK() )
+          XRootDStatus st = pipe.ftr.get();
+          if( !st.IsOK() )
           {
-            statusOK = false;
-            statusMessage = result.ToStr();
-            break;
+            this->handler->HandleResponse( new XRootDStatus( st ), nullptr );
+            return st;
           }
         }
-        const uint16_t status = statusOK ? stOK : stError;
 
-        XRootDStatus *st = new XRootDStatus( status, statusMessage );
-        this->handler->HandleResponseWithHosts( st, nullptr, nullptr );
-
+        this->handler->HandleResponse( new XRootDStatus(), nullptr );
         return XRootDStatus();
       }
 
-      std::vector<std::unique_ptr<Workflow>> workflows;
+      std::vector<Pipeline> pipelines;
   };
 
   //----------------------------------------------------------------------------

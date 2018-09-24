@@ -239,13 +239,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -256,7 +256,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
       }
   };
@@ -370,13 +370,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -387,7 +387,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
       }
   };
@@ -478,13 +478,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         return this->file->Close( this->handler.get() );
       }
@@ -578,13 +578,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -593,7 +593,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
       }
   };
@@ -722,13 +722,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -739,7 +739,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
       }
   };
@@ -827,13 +827,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         return this->file->Sync( this->handler.get() );
       }
@@ -927,13 +927,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -942,7 +942,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
       }
   };
@@ -1061,13 +1061,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -1078,7 +1078,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
       }
   };
@@ -1174,13 +1174,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -1190,7 +1190,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
       }
   };
@@ -1302,13 +1302,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -1319,7 +1319,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
 
       }
@@ -1415,13 +1415,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         try
         {
@@ -1430,7 +1430,7 @@ namespace XrdCl
         }
         catch( const std::logic_error& err )
         {
-          return this->HandleError( err );
+          return XRootDStatus( stError, err.what() );
         }
       }
   };
@@ -1516,13 +1516,13 @@ namespace XrdCl
     protected:
 
       //------------------------------------------------------------------------
-      //! Run operation (@see Operation)
+      //! RunImpl operation (@see Operation)
       //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
       {
         return this->file->Visa( this->handler.get() );
       }

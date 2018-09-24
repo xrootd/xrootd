@@ -30,6 +30,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <tuple>
+#include <future>
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClOperationArgs.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -51,7 +52,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class ForwardingHandler: public ResponseHandler
   {
-      friend class OperationHandler;
+      friend class PipelineHandler;
 
     public:
 
@@ -130,7 +131,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class WrappingHandler: public ForwardingHandler
   {
-      friend class OperationHandler;
+      friend class PipelineHandler;
 
     public:
 
@@ -173,165 +174,13 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
-  //! An operations workflow
-  //----------------------------------------------------------------------------
-  class Workflow
-  {
-      friend class OperationHandler;
-
-    public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param op : first operation of the sequence
-      //! @param enableLogging : true if logging should be enabled,
-      //!                        false otherwise
-      //------------------------------------------------------------------------
-      explicit Workflow( Operation<Handled>& op, bool enableLogging = true );
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param op : first operation of the sequence
-      //! @param enableLogging : true if logging should be enabled,
-      //!                        false otherwise
-      //------------------------------------------------------------------------
-      explicit Workflow( Operation<Handled> && op, bool enableLogging = true );
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param op : first operation of the sequence
-      //! @param enableLogging : true if logging should be enabled,
-      //!                        false otherwise
-      //------------------------------------------------------------------------
-      explicit Workflow( Operation<Handled>* op, bool enableLogging = true );
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param op : first operation of the sequence
-      //! @param enableLogging : true if logging should be enabled,
-      //!                        false otherwise
-      //------------------------------------------------------------------------
-      explicit Workflow( Operation<Configured>& op, bool enableLogging = true );
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param op : first operation of the sequence
-      //! @param enableLogging : true if logging should be enabled,
-      //!                        false otherwise
-      //------------------------------------------------------------------------
-      explicit Workflow( Operation<Configured> && op,
-          bool enableLogging = true );
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param op : first operation of the sequence
-      //! @param enableLogging : true if logging should be enabled,
-      //!                        false otherwise
-      //------------------------------------------------------------------------
-      explicit Workflow( Operation<Configured>* op, bool enableLogging = true );
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param pipeline : a pipeline object
-      //! @param enableLogging : true if logging should be enabled,
-      //!                        false otherwise
-      //------------------------------------------------------------------------
-      Workflow( Pipeline &&pipeline, bool enableLogging = true );
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      ~Workflow();
-
-      //------------------------------------------------------------------------
-      //! Start the pipeline
-      //!
-      //! @return : status of the operation
-      //!
-      //! @throws logic_error if the workflow is already running
-      //------------------------------------------------------------------------
-      XRootDStatus Run( std::shared_ptr<ArgsContainer> params = nullptr,
-          int bucket = 1 );
-
-      //------------------------------------------------------------------------
-      //! Wait for the pipeline execution to end
-      //------------------------------------------------------------------------
-      void Wait();
-
-      //------------------------------------------------------------------------
-      //! Get workflow execution status
-      //!
-      //! @return : workflow execution status
-      //------------------------------------------------------------------------
-      XRootDStatus GetStatus();
-
-       //-----------------------------------------------------------------------
-      //! Get workflow description
-      //!
-      //! @return : description of the workflow
-       //-----------------------------------------------------------------------
-      std::string ToString();
-
-       //-----------------------------------------------------------------------
-      //! Add operation description to the descriptions list
-      //!
-      //! @param description : description of assigned operation
-       //-----------------------------------------------------------------------
-      void AddOperationInfo( std::string description );
-
-       //-----------------------------------------------------------------------
-      //! Log operation descriptions
-       //-----------------------------------------------------------------------
-      void Print();
-
-    private:
-      //------------------------------------------------------------------------
-      //! Release the semaphore and save status
-      //!
-      //! @param lastOperationStatus : status of last executed operation,
-      //!                              it is set as status of workflow execution
-      //------------------------------------------------------------------------
-      void EndWorkflowExecution( const XRootDStatus &lastOperationStatus );
-
-      //------------------------------------------------------------------------
-      //! first operation in the pipeline
-      //------------------------------------------------------------------------
-      Operation<Handled> *firstOperation;
-
-      //------------------------------------------------------------------------
-      //! Synchronization semaphore, will be released once the pipeline
-      //! execution came to an end
-      //------------------------------------------------------------------------
-      std::unique_ptr<XrdSysSemaphore> semaphore;
-
-      //------------------------------------------------------------------------
-      //! Status of the workflow
-      //------------------------------------------------------------------------
-      XRootDStatus *status;
-
-      //------------------------------------------------------------------------
-      //! Description of the workflow
-      //------------------------------------------------------------------------
-      std::list<std::string> operationDescriptions;
-
-      //------------------------------------------------------------------------
-      //! true if logging is enabled, false otherwise
-      //------------------------------------------------------------------------
-      bool logging;
-  };
-
-  //----------------------------------------------------------------------------
   //! Wrapper for ForwardingHandler, used only internally to run next operation
   //! after previous one is finished
   //----------------------------------------------------------------------------
-  class OperationHandler: public ResponseHandler
+  class PipelineHandler: public ResponseHandler
   {
+      template<State> friend class Operation;
+
     public:
 
       //------------------------------------------------------------------------
@@ -341,7 +190,7 @@ namespace XrdCl
       //! @param own     : if true we have the ownership of handler (it's
       //!                  memory), and it is our responsibility to deallocate it
       //------------------------------------------------------------------------
-      OperationHandler( ForwardingHandler *handler, bool own );
+      PipelineHandler( ForwardingHandler *handler, bool own );
 
       //------------------------------------------------------------------------
       //! Callback function.
@@ -357,7 +206,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Destructor.
       //------------------------------------------------------------------------
-      ~OperationHandler();
+      ~PipelineHandler();
 
       //------------------------------------------------------------------------
       //! Add new operation to the pipeline
@@ -373,13 +222,7 @@ namespace XrdCl
       //! @param  wf           :  workflow to set
       //! @throws logic_error  :  if a workflow has been already assigned
       //------------------------------------------------------------------------
-      void AssignToWorkflow( Workflow *wf );
-
-    protected:
-      //------------------------------------------------------------------------
-      //! Run next operation if it is available, otherwise end workflow
-      //------------------------------------------------------------------------
-      XRootDStatus RunNextOperation();
+      void Assign( std::promise<XRootDStatus> prms );
 
     private:
 
@@ -405,14 +248,14 @@ namespace XrdCl
       std::unique_ptr<Operation<Handled>> nextOperation;
 
       //------------------------------------------------------------------------
-      //! Workflow object.
+      //! The promise that there will be a result (traveling along the pipeline)
       //------------------------------------------------------------------------
-      Workflow *workflow;
+      std::promise<XRootDStatus> prms;
 
       //------------------------------------------------------------------------
       //! Arguments for forwarding
       //------------------------------------------------------------------------
-      std::shared_ptr<ArgsContainer> params;
+      std::shared_ptr<ArgsContainer> args;
   };
 
   //----------------------------------------------------------------------------
@@ -431,15 +274,17 @@ namespace XrdCl
       // Declare friendship between templates
       template<State> friend class Operation;
 
-      friend class Workflow;
-      friend class OperationHandler;
+      friend std::future<XRootDStatus> Async( Pipeline );
+
+      friend class Pipeline;
+      friend class PipelineHandler;
 
     public:
 
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Operation()
+      Operation() : valid( true )
       {
 
       }
@@ -449,9 +294,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       Operation( Operation<from> && op ) :
-          handler( std::move( op.handler ) )
+          handler( std::move( op.handler ) ), valid( true )
       {
-
+        if( !op.valid ) throw std::invalid_argument( "Cannot construct "
+            "Operation from an invalid Operation!" );
+        op.valid = false;
       }
 
       //------------------------------------------------------------------------
@@ -481,29 +328,50 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual std::string ToString() = 0;
 
-    protected:
-
       //------------------------------------------------------------------------
-      //! Assign workflow to OperationHandler
+      //! Conversion to boolean
       //!
-      //! @param wf : the workflow
+      //! @return : true if it is a valid operation, false otherwise
       //------------------------------------------------------------------------
-      void AssignToWorkflow( Workflow *wf )
+      operator bool() const
       {
-        static_assert(state == Handled, "Only Operation<Handled> can be assigned to workflow");
-        wf->AddOperationInfo( ToString() );
-        handler->AssignToWorkflow( wf );
+        return valid;
       }
+
+    protected:
 
       //------------------------------------------------------------------------
       //! Run operation
       //!
+      //! @param prom   : the promise that we will have a result
+      //! @param args   : forwarded arguments
+      //! @param bucket : number of the bucket with arguments
+      //!
+      //! @return       : stOK if operation was scheduled for execution
+      //!                 successfully, stError otherwise
+      //------------------------------------------------------------------------
+      void Run( std::promise<XRootDStatus>             prms,
+                        const std::shared_ptr<ArgsContainer>  &args,
+                        int                                    bucket = 1 )
+      {
+        static_assert(state == Handled, "Only Operation<Handled> can be assigned to workflow");
+        handler->Assign( std::move( prms ) );
+        XRootDStatus st = RunImpl( args, bucket );
+        if( st.IsOK() ) handler.release();
+        else
+          ForceHandler( st );
+      }
+
+      //------------------------------------------------------------------------
+      //! Run the actual operation
+      //!
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
+      //! @param bucket : number of the bucket with arguments
       //------------------------------------------------------------------------
-      virtual XRootDStatus Run( std::shared_ptr<ArgsContainer> &params,
-          int bucket = 1 ) = 0;
+      virtual XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer>& args,
+                                    int                                   bucket = 1 ) = 0;
 
       //------------------------------------------------------------------------
       //! Handle error caused by missing parameter
@@ -513,11 +381,12 @@ namespace XrdCl
       //! @return    : default operation status (actual status containg
       //!              error information is passed to the handler)
       //------------------------------------------------------------------------
-      virtual XRootDStatus HandleError( const std::logic_error& err )
+      void ForceHandler( const XRootDStatus &status )
       {
-        XRootDStatus *st = new XRootDStatus( stError, err.what() );
-        handler->HandleResponseWithHosts( st, nullptr, nullptr );
-        return XRootDStatus();
+        handler->HandleResponse( new XRootDStatus( status ), nullptr );
+        // HandleResponse already freed the memory so we have to
+        // release the unique pointer
+        handler.release();
       }
 
       //------------------------------------------------------------------------
@@ -536,7 +405,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Operation handler
       //------------------------------------------------------------------------
-      std::unique_ptr<OperationHandler> handler;
+      std::unique_ptr<PipelineHandler> handler;
+
+      //------------------------------------------------------------------------
+      //! Flag indicating if it is a valid object
+      //------------------------------------------------------------------------
+      bool valid;
   };
 
   //----------------------------------------------------------------------------
@@ -548,7 +422,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class Pipeline
   {
-      friend class Workflow;
+      template<State> friend class ParallelOperation;
+      friend std::future<XRootDStatus> Async( Pipeline );
 
     public:
 
@@ -626,13 +501,88 @@ namespace XrdCl
         return *operation.get();
       }
 
+      //------------------------------------------------------------------------
+      //! Conversion to boolean
+      //!
+      //! @return : true if it's a valid pipeline, false otherwise
+      //------------------------------------------------------------------------
+      operator bool()
+      {
+        if( !operation ) return false;
+        return bool( *operation );
+      }
+
     private:
 
       //------------------------------------------------------------------------
-      //! First iteam in the pipeline
+      //! Member access declaration, provides access to the underlying
+      //! operation.
+      //!
+      //! @return : pointer to the underlying
+      //------------------------------------------------------------------------
+      Operation<Handled>* operator->()
+      {
+        return operation.get();
+      }
+
+      //------------------------------------------------------------------------
+      //! Schedules the underlying pipeline for execution.
+      //!
+      //! @param args   : forwarded arguments
+      //! @param bucket : number of bucket with forwarded params
+      //------------------------------------------------------------------------
+      void Run( std::shared_ptr<ArgsContainer> args, int bucket )
+      {
+        if( !bool( *operation ) )
+          throw std::invalid_argument( "Cannot run invalid Pipeline!" );
+
+        if( ftr.valid() )
+          throw std::logic_error( "Pipeline is already running" );
+
+        // a promise that the pipe will have a result
+        std::promise<XRootDStatus> prms;
+        ftr = prms.get_future();
+        if( !args ) args = std::make_shared<ArgsContainer>();
+        operation->Run( std::move( prms ), args, bucket );
+      }
+
+      //------------------------------------------------------------------------
+      //! First operation in the pipeline
       //------------------------------------------------------------------------
       std::unique_ptr<Operation<Handled>> operation;
+
+      //------------------------------------------------------------------------
+      //! The future result of the pipeline
+      //------------------------------------------------------------------------
+      std::future<XRootDStatus> ftr;
+
   };
+
+  //----------------------------------------------------------------------------
+  //! Helper function, schedules execution of given pipeline
+  //!
+  //! @param pipeline : the pipeline to be executed
+  //!
+  //! @return         : future status of the operation
+  //----------------------------------------------------------------------------
+  inline std::future<XRootDStatus> Async( Pipeline pipeline )
+  {
+    pipeline.Run( std::make_shared<ArgsContainer>(), 1 );
+    return std::move( pipeline.ftr );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Helper function, schedules execution of given pipeline and waits for
+  //! the status
+  //!
+  //! @param pipeline : the pipeline to be executed
+  //!
+  //! @return         : status of the operation
+  //----------------------------------------------------------------------------
+  inline XRootDStatus WaitFor( Pipeline pipeline )
+  {
+    return Async( std::move( pipeline ) ).get();
+  }
 
   //----------------------------------------------------------------------------
   //! Concrete Operation template
@@ -689,7 +639,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Operation<Handled>* ToHandled()
       {
-        this->handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
+        this->handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
         Derived<state> *me = static_cast<Derived<state>*>( this );
         return new Derived<Handled>( std::move( *me ) );
       }
@@ -825,7 +775,7 @@ namespace XrdCl
       inline Derived<Handled> StreamImpl( ForwardingHandler *handler, bool own = true )
       {
         static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
-        this->handler.reset( new OperationHandler( handler, own ) );
+        this->handler.reset( new PipelineHandler( handler, own ) );
         return Transform<Handled>();
       }
 
@@ -870,7 +820,7 @@ namespace XrdCl
       inline static
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, Args...> &me, Operation<Handled> &op )
       {
-        me.handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
+        me.handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
         me.AddOperation( op.Move() );
         return me.template Transform<Handled>();
       }
@@ -886,7 +836,7 @@ namespace XrdCl
       inline static
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, Args...> &me, Operation<Configured> &op )
       {
-        me.handler.reset( new OperationHandler( new ForwardingHandler(), true ) );
+        me.handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
         me.AddOperation( op.ToHandled() );
         return me.template Transform<Handled>();
       }
@@ -917,7 +867,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<typename ArgDesc, typename ... Args>
   inline typename ArgDesc::type& Get( std::tuple<Args...> &args,
-      std::shared_ptr<ArgsContainer> &params, int bucket )
+      const std::shared_ptr<ArgsContainer> &params, int bucket )
   {
     auto &arg = std::get<ArgDesc::index>( args );
     return arg.IsEmpty() ? params->GetArg<ArgDesc>( bucket ) : arg.GetValue();
