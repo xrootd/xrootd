@@ -270,7 +270,7 @@ void Cache::Purge()
       if (bytesToRemove > 0 || enforce_age_based_purge)
       {
          // Make a sorted map of file paths sorted by access time.
-         FPurgeState purgeState(bytesToRemove * 5 / 4); // prepare 20% more volume than required
+         FPurgeState purgeState(2 * bytesToRemove); // prepare twice more volume than required
 
          if (m_configuration.is_age_based_purge_in_effect())
          {
@@ -328,6 +328,8 @@ void Cache::Purge()
 
          // Loop over map and remove files with oldest values of access time.
          struct stat fstat;
+         int         protected_cnt = 0;
+         long long   protected_sum = 0;
          for (FPurgeState::map_i it = purgeState.fmap.begin(); it != purgeState.fmap.end(); ++it)
          {
             // Finish when enough space has been freed but not while purging of cold files is in progress.
@@ -340,7 +342,12 @@ void Cache::Purge()
             std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::m_infoExtension));
 
             if (IsFileActiveOrPurgeProtected(dataPath))
+            {
+               ++protected_cnt;
+               protected_sum += it->second.nBytes;
+               TRACE(Debug, trc_pfx << "File is active or purge-protected: " << dataPath << " size: " << it->second.nBytes);
                continue;
+            }
 
             // remove info file
             if (oss->Stat(infoPath.c_str(), &fstat) == XrdOssOK)
@@ -363,9 +370,12 @@ void Cache::Purge()
                ++deleted_file_count;
 
                oss->Unlink(dataPath.c_str());
-               TRACE(Dump, trc_pfx << "Removed file: '" << dataPath << "' size: " << it->second.nBytes <<
-                     ", time: " << it->first);
+               TRACE(Dump, trc_pfx << "Removed file: '" << dataPath << "' size: " << it->second.nBytes << ", time: " << it->first);
             }
+         }
+         if (protected_cnt > 0)
+         {
+            TRACE(Info, trc_pfx << "Encountered " << protected_cnt << " protected files, sum of their size: " << protected_sum);
          }
       }
 
@@ -376,7 +386,9 @@ void Cache::Purge()
          m_in_purge = false;
       }
 
-      TRACE(Info, trc_pfx << "Finished, removed " << deleted_file_count << " data files, total size " << bytesToRemove_at_start - bytesToRemove << " B.");
+      TRACE(Info, trc_pfx << "Finished, removed " << deleted_file_count << " data files, total size " <<
+            bytesToRemove_at_start - bytesToRemove << ", bytes to remove at end: " << bytesToRemove);
+
       sleep(m_configuration.m_purgeInterval);
    }
 }

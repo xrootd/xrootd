@@ -708,7 +708,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    int res = m_output_fs->Stat(i_name.c_str(), &sbuff);
    if (res == 0)
    {
-      TRACE(Dump, "Cache::Prefetch defer open " << f_name);
+      TRACE(Dump, "Cache::Prepare defer open " << f_name);
       return 1;
    }
    else
