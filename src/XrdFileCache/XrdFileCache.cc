@@ -71,16 +71,17 @@ XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
                               const char   *config_filename,
                               const char   *parameters)
 {
-   XrdSysError err(0, "");
-   err.logger(logger);
-   err.Emsg("Retrieve", "Retrieving a caching proxy factory.");
-   Cache &factory = Cache::GetInstance();
-   if (! factory.Config(logger, config_filename, parameters))
+   XrdSysError err(logger, "");
+   err.Say("++++++ Proxy file cache initialization started.");
+
+   Cache &factory = Cache::CreateInstance(logger);
+
+   if (! factory.Config(config_filename, parameters))
    {
-      err.Emsg("Retrieve", "Error - unable to create a factory.");
+      err.Say("Config Proxy file cache initialization failed.");
       return NULL;
    }
-   err.Emsg("Retrieve", "Success - returning a factory.");
+   err.Say("------ Proxy file cache initialization completed.");
 
    pthread_t tid1;
    XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)(&factory), 0, "XrdFileCache WriteTasks ");
@@ -90,8 +91,7 @@ XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
 
    pthread_t tid;
    XrdSysThread::Run(&tid, PurgeThread, NULL, 0, "XrdFileCache Purge");
-   
-   
+
    return &factory;
 }
 }
@@ -119,10 +119,16 @@ void Configuration::calculate_fractional_usages(long long  du,      long long  f
 
 //==============================================================================
 
+Cache &Cache::CreateInstance(XrdSysLogger *logger)
+{
+   assert (m_factory == NULL);
+   m_factory = new Cache(logger);
+   return *m_factory;
+}
+
 Cache &Cache::GetInstance()
 {
-   if (m_factory == NULL)
-      m_factory = new Cache();
+   assert (m_factory != NULL);
    return *m_factory;
 }
 
@@ -147,10 +153,10 @@ bool Cache::Decide(XrdOucCacheIO* io)
    return true;
 }
 
-Cache::Cache() :
+Cache::Cache(XrdSysLogger *logger) :
    XrdOucCache(),
-   m_log(0, "XrdFileCache_"),
-   m_trace(0),
+   m_log(logger, "XrdFileCache_"),
+   m_trace(new XrdSysTrace("XrdFileCache", logger)),
    m_traceID("Manager"),
    m_prefetch_condVar(0),
    m_RAMblocks_used(0),
@@ -158,8 +164,7 @@ Cache::Cache() :
    m_in_purge(false),
    m_active_cond(0)
 {
-   m_trace = new XrdSysTrace("XrdFileCache");
-   // default log level is Warning
+   // Default log level is Warning.
    m_trace->What = 2;
 }
 
@@ -703,7 +708,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    int res = m_output_fs->Stat(i_name.c_str(), &sbuff);
    if (res == 0)
    {
-      TRACE(Dump, "Cache::Prefetch defer open " << f_name);
+      TRACE(Dump, "Cache::Prepare defer open " << f_name);
       return 1;
    }
    else
