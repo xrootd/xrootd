@@ -243,6 +243,11 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
 
 bool XrdPosixFile::Close(XrdCl::XRootDStatus &Status)
 {
+// If this is a defered open, disable any future calls as we are ready to
+// shutdown this beast!
+//
+   if (PrepIO) PrepIO->Disable();
+
 // If we don't need to close the file, then return success. Otherwise, do the
 // actual close and return the status. We should have already been removed
 // from the file table at this point and should be unlocked.
@@ -330,7 +335,7 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
 //
    delete status;
    delete response;
-   if (rc) delete this;
+   if (rc < 0) delete this;
 }
 
 /******************************************************************************/
@@ -366,9 +371,11 @@ int XrdPosixFile::Read (char *Buff, long long Offs, int Len)
    XrdCl::XRootDStatus Status;
    uint32_t bytes;
 
-// Issue read and return appropriately
+// Issue read and return appropriately.
 //
+   Ref();
    Status = clFile.Read((uint64_t)Offs, (uint32_t)Len, Buff, bytes);
+   unRef();
 
    return (Status.IsOK() ? (int)bytes : XrdPosixMap::Result(Status));
 }
@@ -384,11 +391,15 @@ void XrdPosixFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,
 
 // Issue read
 //
+   Ref();
    Status = clFile.Read((uint64_t)offs, (uint32_t)rlen, buff, rhp);
 
 // Check status
 //
-   if (!Status.IsOK()) rhp->Sched(-XrdPosixMap::Result(Status));
+   if (!Status.IsOK())
+      {rhp->Sched(-XrdPosixMap::Result(Status));
+       unRef();
+      }
 }
 
 /******************************************************************************/
@@ -416,7 +427,9 @@ int XrdPosixFile::ReadV (const XrdOucIOVec *readV, int n)
 // Issue the readv. We immediately delete the vrInfo as w don't need it as a
 // readv will succeed only if actually read the number of bytes requested.
 //
+   Ref();
    Status = clFile.VectorRead(chunkVec, (void *)0, vrInfo);
+   unRef();
    delete vrInfo;
 
 // Return appropriate result
@@ -447,11 +460,15 @@ void XrdPosixFile::ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n)
 //
    XrdPosixFileRH *rhp =  XrdPosixFileRH::Alloc(&iocb, this, 0, nbytes,
                                                 XrdPosixFileRH::isReadV);
+   Ref();
    Status = clFile.VectorRead(chunkVec, (void *)0, rhp);
 
 // Return appropriate result
 //
-   if (!Status.IsOK()) rhp->Sched(-XrdPosixMap::Result(Status));
+   if (!Status.IsOK())
+      {rhp->Sched(-XrdPosixMap::Result(Status));
+       unRef();
+      }
 }
 
 /******************************************************************************/
@@ -464,9 +481,11 @@ bool XrdPosixFile::Stat(XrdCl::XRootDStatus &Status, bool force)
 
 // Get the stat information from the open file
 //
+   Ref();
    Status = clFile.Stat(force, sInfo);
    if (!Status.IsOK())
-      {delete sInfo;
+      {unRef();
+       delete sInfo;
        return false;
       }
 
@@ -479,12 +498,30 @@ bool XrdPosixFile::Stat(XrdCl::XRootDStatus &Status, bool force)
 
 // Delete our status information and return final result
 //
+   unRef();
    delete sInfo;
    return true;
 }
 
 /******************************************************************************/
 /*                                  S y n c                                   */
+/******************************************************************************/
+
+int XrdPosixFile::Sync()
+{
+   XrdCl::XRootDStatus Status;
+
+// Issue the Sync
+//
+   Ref();
+   Status = clFile.Sync();
+   unRef();
+
+// Return result
+//
+   return XrdPosixMap::Result(Status);
+}
+
 /******************************************************************************/
 
 void XrdPosixFile::Sync(XrdOucCacheIOCB &iocb)
@@ -503,6 +540,25 @@ void XrdPosixFile::Sync(XrdOucCacheIOCB &iocb)
 }
   
 /******************************************************************************/
+/*                                 T r u n c                                  */
+/******************************************************************************/
+
+int XrdPosixFile::Trunc(long long Offset)
+{
+   XrdCl::XRootDStatus Status;
+
+// Issue truncate request
+//
+   Ref();
+   Status = clFile.Truncate((uint64_t)Offset);
+   unRef();
+
+// Return results
+//
+   return XrdPosixMap::Result(Status);
+}
+  
+/******************************************************************************/
 /*                                 W r i t e                                  */
 /******************************************************************************/
 
@@ -512,7 +568,9 @@ int XrdPosixFile::Write(char *Buff, long long Offs, int Len)
 
 // Issue read and return appropriately
 //
+   Ref();
    Status = clFile.Write((uint64_t)Offs, (uint32_t)Len, Buff);
+   unRef();
 
    return (Status.IsOK() ? Len : XrdPosixMap::Result(Status));
 }
@@ -528,20 +586,13 @@ void XrdPosixFile::Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
 
 // Issue read
 //
+   Ref();
    Status = clFile.Write((uint64_t)offs, (uint32_t)wlen, buff, rhp);
 
 // Check status
 //
-   if (!Status.IsOK()) rhp->Sched(-XrdPosixMap::Result(Status));
-}
-  
-/******************************************************************************/
-/*                                  D o I t                                   */
-/******************************************************************************/
-void XrdPosixFile::DoIt()
-{
-// Virtual function of XrdJob.
-// Called from XrdPosixXrootd::Close if the file is still IO active.
-
-   delete this;
+   if (!Status.IsOK())
+      {rhp->Sched(-XrdPosixMap::Result(Status));
+       unRef();
+      }
 }

@@ -59,7 +59,7 @@ virtual     ~XrdPosixCallBack() {}
 };
 
 //-----------------------------------------------------------------------------
-//! @brief An abstract class to define a callback for open file requests.
+//! @brief An abstract class to define a callback for file I/O requests.
 //!
 //! This abstract class defines the callback interface for Fsync(), Pread(),
 //! Pwrite(), and VRead(). Async I/O is not supported for Read(), Readv(),

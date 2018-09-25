@@ -47,7 +47,6 @@
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixObject.hh"
 
-#include "Xrd/XrdJob.hh"
 /******************************************************************************/
 /*                    X r d P o s i x F i l e   C l a s s                     */
 /******************************************************************************/
@@ -57,8 +56,7 @@ class XrdPosixPrepIO;
 
 class XrdPosixFile : public XrdPosixObject, 
                      public XrdOucCacheIO2,
-                     public XrdCl::ResponseHandler,
-                     public XrdJob
+                     public XrdCl::ResponseHandler
 {
 public:
 
@@ -130,12 +128,11 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        bool          Stat(XrdCl::XRootDStatus &Status, bool force=false);
 
-       int           Sync() {return XrdPosixMap::Result(clFile.Sync());}
+       int           Sync();
 
        void          Sync(XrdOucCacheIOCB &iocb);
 
-       int           Trunc(long long Offset)
-                          {return XrdPosixMap::Result(clFile.Truncate((uint64_t)Offset));}
+       int           Trunc(long long Offset);
 
        void          UpdtSize(size_t newsz)
                               {updMutex.Lock();
@@ -152,8 +149,6 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        void          Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
                            int wlen);
-
-       void          DoIt();
 
        size_t        mySize;
        time_t        myMtime;
