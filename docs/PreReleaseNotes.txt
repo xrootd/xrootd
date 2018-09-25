@@ -22,6 +22,7 @@ Prerelease Notes
   * **[Proxy]** Implement new options in pfc.diskusage for better control of purging.
 
 + **Major bug fixes**
+  * **[POSIX]** Avoid SEGV due to race condition between open() and close().
   * **[SSI]** Do not leak memory when a fatal error occurs. Fixes #775
 
 + **Minor bug fixes**
