@@ -42,7 +42,6 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cach
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
    GetBlockSizeFromPath();
    initLocalStat();
-   if (m_infoFile) m_info.WriteIOStatAttach();
 }
 
 //______________________________________________________________________________
@@ -66,11 +65,8 @@ XrdOucCacheIO* IOFileBlock::Detach()
      XrdSysMutexHelper lock(&m_mutex);
      for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
      {
-       if (it->second)
-       {
          it->second->RequestSyncOfDetachStats();
-         m_cache.ReleaseFile(it->second);
-       }
+         m_cache.ReleaseFile(it->second, this);
      }
    }
    XrdOucCacheIO *io = GetInput();
@@ -242,26 +238,14 @@ int IOFileBlock::initLocalStat()
 }
 
 //______________________________________________________________________________
-void IOFileBlock::RelinquishFile(File* f)
-{
-   // called from cache::GetFile if File f changes ownership
-   
-   XrdSysMutexHelper lock(&m_mutex);
-   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
-   {
-      if (it->second == f)
-         it->second = 0;
-   }
-}
-//______________________________________________________________________________
 bool IOFileBlock::ioActive()
 {
    XrdSysMutexHelper lock(&m_mutex);
    bool active = false;
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
-      // need to initiate stop on all File / block objects
-      if (it->second && it->second->ioActive())
+      // Need to initiate stop on all File / block objects.
+      if (it->second->ioActive(this))
       {
          active = true;
       }
@@ -288,12 +272,12 @@ int IOFileBlock::Read(char *buff, long long off, int size)
       size = fileSize - off;
 
    long long off0 = off;
-   int idx_first = off0/m_blocksize;
-   int idx_last = (off0 + size - 1) / m_blocksize;
+   int idx_first  = off0 / m_blocksize;
+   int idx_last   = (off0 + size - 1) / m_blocksize;
    int bytes_read = 0;
    TRACEIO(Dump, "IOFileBlock::Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
 
-   for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
+   for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx)
    {
       // locate block
       File* fb;
@@ -341,14 +325,14 @@ int IOFileBlock::Read(char *buff, long long off, int size)
 
       TRACEIO(Dump, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
-      int retvalBlock = fb->Read(buff, off, readBlockSize);
+      int retvalBlock = fb->Read(this, buff, off, readBlockSize);
 
       TRACEIO(Dump, "IOFileBlock::Read()  Block read returned " << retvalBlock);
       if (retvalBlock == readBlockSize)
       {
          bytes_read += retvalBlock;
-         buff += retvalBlock;
-         off += retvalBlock;
+         buff       += retvalBlock;
+         off        += retvalBlock;
       }
       else if (retvalBlock > 0)
       {

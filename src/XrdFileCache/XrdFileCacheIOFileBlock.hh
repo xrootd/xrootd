@@ -70,8 +70,6 @@ public:
 
    virtual long long FSize();
 
-   virtual void RelinquishFile(File*);
-
 private:
    long long                  m_blocksize;       //!< size of file-block
    std::map<int, File*>       m_blocks;          //!< map of created blocks

@@ -90,8 +90,6 @@ public:
 
    virtual long long FSize();
 
-   virtual void RelinquishFile(File*);
-
 private:
    XrdSysMutex  m_mutex;
    File        *m_file;

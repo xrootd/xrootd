@@ -236,11 +236,11 @@ public:
    
    File* GetFile(const std::string&, IO*, long long off = 0, long long filesize = 0);
 
-   void ReleaseFile(File*);
+   void  ReleaseFile(File*, IO*);
 
-   void ScheduleFileSync(File* f) { schedule_file_sync(f, false); }
+   void ScheduleFileSync(File* f) { schedule_file_sync(f, false, false); }
 
-   void FileSyncDone(File*);
+   void FileSyncDone(File*, bool high_debug);
    
    XrdSysTrace* GetTrace() { return m_trace; }
 
@@ -270,9 +270,10 @@ private:
 
    Configuration m_configuration;           //!< configurable parameters
 
-   XrdSysCondVar m_prefetch_condVar;        //!< central lock for this class
+   XrdSysCondVar m_prefetch_condVar;        //!< lock for vector of prefetching files
+   bool          m_prefetch_enabled;        //!< set to true when prefetching is enabled
 
-   XrdSysMutex m_RAMblock_mutex;            //!< central lock for this class
+   XrdSysMutex m_RAMblock_mutex;            //!< lock for allcoation of RAM blocks
    int         m_RAMblocks_used;
    bool        m_isClient;                  //!< True if running as client
 
@@ -298,10 +299,10 @@ private:
    bool          m_in_purge;
    XrdSysCondVar m_active_cond;
 
-   void inc_ref_cnt(File*, bool lock);
-   void dec_ref_cnt(File*);
+   void inc_ref_cnt(File*, bool lock, bool high_debug);
+   void dec_ref_cnt(File*, bool high_debug);
 
-   void schedule_file_sync(File*, bool ref_cnt_already_set);
+   void schedule_file_sync(File*, bool ref_cnt_already_set, bool high_debug);
 
    // prefetching
    typedef std::vector<File*>  PrefetchList;

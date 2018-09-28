@@ -147,7 +147,11 @@ public:
    //---------------------------------------------------------------------
    void WriteIOStatAttach();
 
+   //! Write bytes missed, hits, and disk
    //---------------------------------------------------------------------
+   void WriteIOStat(Stats& s);
+
+  //---------------------------------------------------------------------
    //! Write close time together with bytes missed, hits, and disk
    //---------------------------------------------------------------------
    void WriteIOStatDetach(Stats& s);

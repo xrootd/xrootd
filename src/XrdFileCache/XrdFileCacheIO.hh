@@ -39,8 +39,6 @@ public:
 
    virtual void Update(XrdOucCacheIO2 &iocp);
 
-   virtual void RelinquishFile(File*) = 0;
-
    XrdSysTrace* GetTrace() { return m_cache.GetTrace(); }
 
    XrdOucCacheIO2* GetInput();
