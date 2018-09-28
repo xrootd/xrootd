@@ -444,9 +444,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "initTimeout", 10 );
   CPPUNIT_ASSERT_XRDST( process4.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process4.Prepare() );
-  CPPUNIT_ASSERT_XRDST_NOTOK( process4.Run(0), errOperationExpired );
-
-
+  CPPUNIT_ASSERT_XRDST_NOTOK( process4.Prepare(), errConnectionError );
+//  CPPUNIT_ASSERT_XRDST_NOTOK( process4.Run(0), errOperationExpired );
 }
 
 //------------------------------------------------------------------------------
