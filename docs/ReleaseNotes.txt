@@ -7,6 +7,36 @@ Release Notes
 
 
 -------------
+Version 4.8.5
+-------------
+
++ **Major bug fixes**
+  * **[XrdCrypto]** add protection against missing extension.
+  * **[XrdCl]** Ensure DeepLocate counter doesn't overflow, fixes #758
+  * **[XrdCl]** Fix recursive copy, fixes #792
+  * **[XrdCl]** Correctly classify errno while reading/writing to 
+                a socket.
+  * **[XrdCl]** Fix local checksum double I/O problem.
+  * **[XrdHttp]** Fix callback of protocol plugin after bridge delay.
+  * **[XrdHttp]** Obey the `Connection` request header.
+  * **[XrdHttp]** Reset filesize when the XrdHttpReq object is used.
+
++ **Minor bug fixes**
+  * **[XrdCl]** xrdfs ls: fix formatting issue,fixes #823
+  * **[XrdCl]** If stream is broken delete the in-message.
+  * **[XrdCrypto]** fix signatures of Export methods.
+
++ **Miscellaneous**
+  * **[XrdCl]** Expose kXR_cancel flag in FileSystem::Prepare, closes #699
+  * **[XrdCl]** Specify file for extraction from ZIP archive also 
+                through opaque info.
+  * **[XrdCl]** Document xrdcp/xrdfs return codes, closes #628
+  * **[XrdCl]** Explicitly log request retries, closes #690
+  * **[XrdCl/XrdSec]** Add CGI to specify 'sss' keytab.
+  * **[XrdSecsss]** Add possiblity to inject an endorsement string into an 
+                    SSS SecEntity object.
+
+-------------
 Version 4.8.4
 -------------
 
