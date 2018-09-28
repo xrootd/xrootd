@@ -31,6 +31,12 @@
 
 namespace XrdCl
 {
+
+  class ParallelHandler: public PipelineHandler
+  {
+
+  };
+
   //----------------------------------------------------------------------------
   //! Parallel operations, allows to execute two or more pipelines in
   //! parallel.
@@ -39,7 +45,7 @@ namespace XrdCl
   //!              (@see Operation)
   //----------------------------------------------------------------------------
   template<State state = Bare>
-  class ParallelOperation: public ConcreteOperation<ParallelOperation, state>
+  class ParallelOperation: public ConcreteOperation<ParallelOperation, state, Resp<void>>
   {
       template<State> friend class ParallelOperation;
 
@@ -50,8 +56,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       ParallelOperation( ParallelOperation<from> &&obj ) :
-          ConcreteOperation<ParallelOperation, state>( std::move( obj ) ), pipelines(
-              std::move( obj.pipelines ) )
+          ConcreteOperation<ParallelOperation, state, Resp<void>>( std::move( obj ) ),
+            pipelines( std::move( obj.pipelines ) )
       {
       }
 
@@ -72,24 +78,6 @@ namespace XrdCl
         auto end   = std::make_move_iterator( container.end() );
         std::copy( begin, end, std::back_inserter( pipelines ) );
         container.clear(); // there's junk inside so we clear it
-      }
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<ParallelOperation, state>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      ParallelOperation<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
       }
 
       //------------------------------------------------------------------------

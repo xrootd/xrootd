@@ -40,11 +40,11 @@ namespace XrdCl
   //! @arg state   : describes current operation configuration state
   //! @arg Args    : operation arguments
   //----------------------------------------------------------------------------
-  template<template<State> class Derived, State state, typename ... Arguments>
-  class FileOperation: public ConcreteOperation<Derived, state, Arguments...>
+  template<template<State> class Derived, State state, typename Response, typename ... Arguments>
+  class FileOperation: public ConcreteOperation<Derived, state, Response, Arguments...>
   {
 
-      template<template<State> class, State, typename ...> friend class FileOperation;
+      template<template<State> class, State, typename, typename ...> friend class FileOperation;
 
     public:
       //------------------------------------------------------------------------
@@ -52,7 +52,7 @@ namespace XrdCl
       //!
       //! @param f : file on which the operation will be performed
       //------------------------------------------------------------------------
-      FileOperation(File *f): file(f)
+      FileOperation( File *f ): file(f)
       {
         static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
       }
@@ -65,7 +65,8 @@ namespace XrdCl
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
       template<State from>
-      FileOperation( FileOperation<Derived, from, Arguments...> && op ) : ConcreteOperation<Derived, state, Arguments...>( std::move( op ) ), file( op.file )
+      FileOperation( FileOperation<Derived, from, Response, Arguments...> && op ) :
+        ConcreteOperation<Derived, state, Response, Arguments...>( std::move( op ) ), file( op.file )
       {
 
       }
@@ -90,16 +91,70 @@ namespace XrdCl
   //! Open operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class OpenImpl: public FileOperation<OpenImpl, state, Arg<std::string>,
+  class OpenImpl: public FileOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
       Arg<OpenFlags::Flags>, Arg<Access::Mode>>
   {
+      //------------------------------------------------------------------------
+      //! Helper for extending the operator>> capabilities.
+      //!
+      //! In addition to standard overloads for std::function adds:
+      //! - void( XRootDStatus&, StatInfo& )
+      //! - void( XRootDStatus&, StatInfo&, OperationContext& )
+      //------------------------------------------------------------------------
+      struct ExResp : public Resp<void>
+      {
+          //--------------------------------------------------------------------
+          //! Constructor
+          //!
+          //! @param file : the underlying XrdCl::File object
+          //--------------------------------------------------------------------
+          ExResp( XrdCl::File &file ): file( file )
+          {
+
+          }
+
+          //--------------------------------------------------------------------
+          //! A factory method
+          //!
+          //! @param func : the function/functor/lambda that should be wrapped
+          //! @return     : ForwardingHandler instance
+          //--------------------------------------------------------------------
+          inline ForwardingHandler* Create( std::function<void( XRootDStatus&,
+              StatInfo& )> func )
+          {
+            return new ExOpenFuncWrapper( this->file, func );
+          }
+
+          //--------------------------------------------------------------------
+          //! A factory method
+          //!
+          //! @param func : the function/functor/lambda that should be wrapped
+          //! @return     : ForwardingHandler instance
+          //--------------------------------------------------------------------
+          inline ForwardingHandler* Create( std::function<void( XRootDStatus&,
+              StatInfo&, OperationContext& )> func )
+          {
+            return new ForwardingExOpenFuncWrapper( this->file, func );
+          }
+
+          //--------------------------------------------------------------------
+          //! Make other overloads of Create visible
+          //--------------------------------------------------------------------
+          using Resp<void>::Create;
+
+          //--------------------------------------------------------------------
+          //! The underlying XrdCl::File object
+          //--------------------------------------------------------------------
+          XrdCl::File &file;
+      };
+
     public:
 
       //------------------------------------------------------------------------
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       OpenImpl( File *f ) :
-          FileOperation<OpenImpl, state, Arg<std::string>,
+          FileOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
               Arg<OpenFlags::Flags>, Arg<Access::Mode>>( f )
       {
       }
@@ -108,7 +163,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       OpenImpl( File &f ) :
-          FileOperation<OpenImpl, state, Arg<std::string>,
+          FileOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
               Arg<OpenFlags::Flags>, Arg<Access::Mode>>( &f )
       {
 
@@ -123,7 +178,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       OpenImpl( OpenImpl<from> && open ) :
-          FileOperation<OpenImpl, state, Arg<std::string>,
+          FileOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
               Arg<OpenFlags::Flags>, Arg<Access::Mode>>( std::move( open ) )
       {
 
@@ -165,67 +220,28 @@ namespace XrdCl
       OpenImpl<Configured> operator()( Arg<std::string> url,
           Arg<OpenFlags::Flags> flags, Arg<Access::Mode> mode = Access::None )
       {
-        return this->ConcreteOperation<OpenImpl, state, Arg<std::string>,
-            Arg<OpenFlags::Flags>, Arg<Access::Mode>>::operator ()(
-            std::move( url ), std::move( flags ), std::move( mode ) );
+        return this->ConcreteOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
+            Arg<OpenFlags::Flags>, Arg<Access::Mode>>::
+            operator ()( std::move( url ), std::move( flags ), std::move( mode ) );
       }
 
       //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<OpenImpl, state, Arg<std::string>,
-          Arg<OpenFlags::Flags>, Arg<Access::Mode>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
+      //! Overload of operator>> defined in ConcreteOperation, we're adding
+      //! additional capabilities by using ExResp factory (@see ExResp).
       //!
-      //! @param handleFunction : callback (function, functor or lambda)
+      //! @param func : function/functor/lambda
       //------------------------------------------------------------------------
-      OpenImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
+      template<typename Hdlr>
+      OpenImpl<Handled> operator>>( Hdlr hdlr )
       {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      OpenImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, StatInfo& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ExOpenFuncWrapper(
-            *this->file, handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      OpenImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      OpenImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, StatInfo&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingExOpenFuncWrapper(
-            *this->file, handleFunction );
-        return this->StreamImpl( forwardingHandler );
+        // check if the resulting handler should be owned by us or by the user,
+        // if the user passed us directly a ForwardingHandler it's owned by the
+        // user, otherwise we need to wrap the argument in a handler and in this
+        // case the resulting handler will be owned by us
+        constexpr bool own = !( std::is_same<Hdlr, ForwardingHandler>::value ||
+                                std::is_same<Hdlr, ForwardingHandler*>::value );
+        ExResp factory( *this->file );
+        return this->StreamImpl( factory.Create( hdlr ), own );
       }
 
       //------------------------------------------------------------------------
@@ -269,8 +285,8 @@ namespace XrdCl
   //! Read operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class ReadImpl: public FileOperation<ReadImpl, state, Arg<uint64_t>,
-      Arg<uint32_t>, Arg<void*>>
+  class ReadImpl: public FileOperation<ReadImpl, state, Resp<ChunkInfo>,
+      Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>
   {
     public:
 
@@ -278,8 +294,8 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       ReadImpl( File *f ) :
-          FileOperation<ReadImpl, state, Arg<uint64_t>, Arg<uint32_t>,
-              Arg<void*>>( f )
+          FileOperation<ReadImpl, state, Resp<ChunkInfo>, Arg<uint64_t>,
+              Arg<uint32_t>, Arg<void*>>( f )
       {
       }
 
@@ -287,8 +303,8 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       ReadImpl( File &f ) :
-          FileOperation<ReadImpl, state, Arg<uint64_t>, Arg<uint32_t>,
-              Arg<void*>>( &f )
+          FileOperation<ReadImpl, state, Resp<ChunkInfo>, Arg<uint64_t>,
+              Arg<uint32_t>, Arg<void*>>( &f )
       {
       }
 
@@ -301,8 +317,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       ReadImpl( ReadImpl<from> && read ) :
-          FileOperation<ReadImpl, state, Arg<uint64_t>, Arg<uint32_t>,
-              Arg<void*>>( std::move( read ) )
+          FileOperation<ReadImpl, state, Resp<ChunkInfo>, Arg<uint64_t>,
+              Arg<uint32_t>, Arg<void*>>( std::move( read ) )
       {
       }
 
@@ -326,38 +342,6 @@ namespace XrdCl
           static const std::string key;
           typedef void* type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<ReadImpl, state, Arg<uint64_t>, Arg<uint32_t>,
-          Arg<void*>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      ReadImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, ChunkInfo& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<ChunkInfo>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      ReadImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, ChunkInfo&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            ChunkInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -400,7 +384,7 @@ namespace XrdCl
   //! Close operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state = Bare>
-  class CloseImpl: public FileOperation<CloseImpl, state>
+  class CloseImpl: public FileOperation<CloseImpl, state, Resp<void>>
   {
     public:
 
@@ -408,7 +392,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       CloseImpl( File *f ) :
-          FileOperation<CloseImpl, state>( f )
+          FileOperation<CloseImpl, state, Resp<void>>( f )
       {
 
       }
@@ -417,7 +401,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       CloseImpl( File &f ) :
-          FileOperation<CloseImpl, state>( &f )
+          FileOperation<CloseImpl, state, Resp<void>>( &f )
       {
 
       }
@@ -431,40 +415,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       CloseImpl( CloseImpl<from> && close ) :
-          FileOperation<CloseImpl, state>( std::move( close ) )
+          FileOperation<CloseImpl, state, Resp<void>>( std::move( close ) )
       {
 
-      }
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<CloseImpl, state>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      CloseImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      CloseImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
       }
 
       //------------------------------------------------------------------------
@@ -495,7 +448,7 @@ namespace XrdCl
   //! Stat operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state = Bare>
-  class StatImpl: public FileOperation<StatImpl, state, Arg<bool>>
+  class StatImpl: public FileOperation<StatImpl, state, Resp<StatInfo>, Arg<bool>>
   {
     public:
 
@@ -503,7 +456,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       StatImpl( File *f ) :
-          FileOperation<StatImpl, state, Arg<bool>>( f )
+          FileOperation<StatImpl, state, Resp<StatInfo>, Arg<bool>>( f )
       {
       }
 
@@ -511,7 +464,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       StatImpl( File &f ) :
-          FileOperation<StatImpl, state, Arg<bool>>( &f )
+          FileOperation<StatImpl, state, Resp<StatInfo>, Arg<bool>>( &f )
       {
       }
 
@@ -524,7 +477,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       StatImpl( StatImpl<from> && stat ) :
-          FileOperation<StatImpl, state, Arg<bool>>( std::move( stat ) )
+          FileOperation<StatImpl, state, Resp<StatInfo>, Arg<bool>>( std::move( stat ) )
       {
 
       }
@@ -535,37 +488,6 @@ namespace XrdCl
           static const std::string key;
           typedef bool type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<StatImpl, state, Arg<bool>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      StatImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, StatInfo& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<StatInfo>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      StatImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, StatInfo&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            StatInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -621,7 +543,7 @@ namespace XrdCl
   //! Write operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class WriteImpl: public FileOperation<WriteImpl, state, Arg<uint64_t>,
+  class WriteImpl: public FileOperation<WriteImpl, state, Resp<void>, Arg<uint64_t>,
       Arg<uint32_t>, Arg<void*>>
   {
     public:
@@ -630,7 +552,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       WriteImpl( File *f ) :
-          FileOperation<WriteImpl, state, Arg<uint64_t>, Arg<uint32_t>,
+          FileOperation<WriteImpl, state, Resp<void>, Arg<uint64_t>, Arg<uint32_t>,
               Arg<void*>>( f )
       {
       }
@@ -639,7 +561,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       WriteImpl( File &f ) :
-          FileOperation<WriteImpl, state, Arg<uint64_t>, Arg<uint32_t>,
+          FileOperation<WriteImpl, state, Resp<void>, Arg<uint64_t>, Arg<uint32_t>,
               Arg<void*>>( &f )
       {
       }
@@ -653,7 +575,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       WriteImpl( WriteImpl<from> && write ) :
-          FileOperation<WriteImpl, state, Arg<uint64_t>, Arg<uint32_t>,
+          FileOperation<WriteImpl, state, Resp<void>, Arg<uint64_t>, Arg<uint32_t>,
               Arg<void*>>( std::move( write ) )
       {
       }
@@ -678,38 +600,6 @@ namespace XrdCl
           static const std::string key;
           typedef void* type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<WriteImpl, state, Arg<uint64_t>, Arg<uint32_t>,
-          Arg<void*>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      WriteImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      WriteImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -752,7 +642,7 @@ namespace XrdCl
   //! Sync operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state = Bare>
-  class SyncImpl: public FileOperation<SyncImpl, state>
+  class SyncImpl: public FileOperation<SyncImpl, state, Resp<void>>
   {
     public:
 
@@ -760,7 +650,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       SyncImpl( File *f ) :
-          FileOperation<SyncImpl, state>( f )
+          FileOperation<SyncImpl, state, Resp<void>>( f )
       {
       }
 
@@ -768,7 +658,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       SyncImpl( File &f ) :
-          FileOperation<SyncImpl, state>( &f )
+          FileOperation<SyncImpl, state, Resp<void>>( &f )
       {
       }
 
@@ -781,39 +671,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       SyncImpl( SyncImpl<from> && sync ) :
-          FileOperation<SyncImpl, state>( std::move( sync ) )
+          FileOperation<SyncImpl, state, Resp<void>>( std::move( sync ) )
       {
-      }
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<SyncImpl, state>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      SyncImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      SyncImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
       }
 
       //------------------------------------------------------------------------
@@ -844,7 +703,7 @@ namespace XrdCl
   //! Truncate operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class TruncateImpl: public FileOperation<TruncateImpl, state, Arg<uint64_t>>
+  class TruncateImpl: public FileOperation<TruncateImpl, state, Resp<void>, Arg<uint64_t>>
   {
     public:
 
@@ -852,7 +711,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       TruncateImpl( File *f ) :
-          FileOperation<TruncateImpl, state, Arg<uint64_t>>( f )
+          FileOperation<TruncateImpl, state, Resp<void>, Arg<uint64_t>>( f )
       {
       }
 
@@ -860,7 +719,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       TruncateImpl( File &f ) :
-          FileOperation<TruncateImpl, state, Arg<uint64_t>>( &f )
+          FileOperation<TruncateImpl, state, Resp<void>, Arg<uint64_t>>( &f )
       {
       }
 
@@ -873,7 +732,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       TruncateImpl( TruncateImpl<from> && trunc ) :
-          FileOperation<TruncateImpl, state, Arg<uint64_t>>(
+          FileOperation<TruncateImpl, state, Resp<void>, Arg<uint64_t>>(
               std::move( trunc ) )
       {
       }
@@ -884,37 +743,6 @@ namespace XrdCl
           static const std::string key;
           typedef uint64_t type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<TruncateImpl, state, Arg<uint64_t>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      TruncateImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      TruncateImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -971,7 +799,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<State state>
   class VectorReadImpl: public FileOperation<VectorReadImpl, state,
-      Arg<ChunkList>, Arg<void*>>
+      Resp<VectorReadInfo>, Arg<ChunkList>, Arg<void*>>
   {
     public:
 
@@ -979,7 +807,8 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       VectorReadImpl( File *f ) :
-          FileOperation<VectorReadImpl, state, Arg<ChunkList>, Arg<void*>>( f )
+          FileOperation<VectorReadImpl, state, Resp<VectorReadInfo>, Arg<ChunkList>,
+          Arg<void*>>( f )
       {
       }
 
@@ -987,7 +816,8 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       VectorReadImpl( File &f ) :
-          FileOperation<VectorReadImpl, state, Arg<ChunkList>, Arg<void*>>( &f )
+          FileOperation<VectorReadImpl, state, Resp<VectorReadInfo>, Arg<ChunkList>,
+          Arg<void*>>( &f )
       {
       }
 
@@ -1000,8 +830,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       VectorReadImpl( VectorReadImpl<from> && vread ) :
-          FileOperation<VectorReadImpl, state, Arg<ChunkList>, Arg<void*>>(
-              std::move( vread ) )
+          FileOperation<VectorReadImpl, state, Resp<VectorReadInfo>, Arg<ChunkList>,
+              Arg<void*>>( std::move( vread ) )
       {
       }
 
@@ -1018,37 +848,6 @@ namespace XrdCl
           static const std::string key;
           typedef char* type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<VectorReadImpl, state, Arg<ChunkList>, Arg<void*>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      VectorReadImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      VectorReadImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1090,7 +889,7 @@ namespace XrdCl
   //! VectorWrite operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class VectorWriteImpl: public FileOperation<VectorWriteImpl, state,
+  class VectorWriteImpl: public FileOperation<VectorWriteImpl, state, Resp<void>,
       Arg<ChunkList>>
   {
     public:
@@ -1099,7 +898,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       VectorWriteImpl( File *f ) :
-          FileOperation<VectorWriteImpl, state, Arg<ChunkList>>( f )
+          FileOperation<VectorWriteImpl, state, Resp<void>, Arg<ChunkList>>( f )
       {
       }
 
@@ -1107,7 +906,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       VectorWriteImpl( File &f ) :
-          FileOperation<VectorWriteImpl, state, Arg<ChunkList>>( &f )
+          FileOperation<VectorWriteImpl, state, Resp<void>, Arg<ChunkList>>( &f )
       {
       }
 
@@ -1120,7 +919,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       VectorWriteImpl( VectorWriteImpl<from> && vwrite ) :
-          FileOperation<VectorWriteImpl, state, Arg<ChunkList>>(
+          FileOperation<VectorWriteImpl, state, Resp<void>, Arg<ChunkList>>(
               std::move( vwrite ) )
       {
       }
@@ -1131,37 +930,6 @@ namespace XrdCl
           static const std::string key;
           typedef ChunkList type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<VectorWriteImpl, state, Arg<ChunkList>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      VectorWriteImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      VectorWriteImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1201,7 +969,7 @@ namespace XrdCl
   //! WriteV operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class WriteVImpl: public FileOperation<WriteVImpl, state, Arg<uint64_t>,
+  class WriteVImpl: public FileOperation<WriteVImpl, state, Resp<void>, Arg<uint64_t>,
       Arg<struct iovec*>, Arg<int>>
   {
     public:
@@ -1210,7 +978,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       WriteVImpl( File *f ) :
-          FileOperation<WriteVImpl, state, Arg<uint64_t>, Arg<struct iovec*>,
+          FileOperation<WriteVImpl, state, Resp<void>, Arg<uint64_t>, Arg<struct iovec*>,
               Arg<int>>( f )
       {
       }
@@ -1219,7 +987,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       WriteVImpl( File &f ) :
-          FileOperation<WriteVImpl, state, Arg<uint64_t>, Arg<struct iovec*>,
+          FileOperation<WriteVImpl, state, Resp<void>, Arg<uint64_t>, Arg<struct iovec*>,
               Arg<int>>( &f )
       {
       }
@@ -1233,7 +1001,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       WriteVImpl( WriteVImpl<from> && writev ) :
-          FileOperation<WriteVImpl, state, Arg<uint64_t>, Arg<struct iovec*>,
+          FileOperation<WriteVImpl, state, Resp<void>, Arg<uint64_t>, Arg<struct iovec*>,
               Arg<int>>( std::move( writev ) )
       {
       }
@@ -1258,38 +1026,6 @@ namespace XrdCl
           static const std::string key;
           typedef int type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<WriteVImpl, state, Arg<uint64_t>,
-          Arg<struct iovec*>, Arg<int>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      WriteVImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      WriteVImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1333,7 +1069,7 @@ namespace XrdCl
   //! Fcntl operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class FcntlImpl: public FileOperation<FcntlImpl, state, Arg<Buffer>>
+  class FcntlImpl: public FileOperation<FcntlImpl, state, Resp<Buffer>, Arg<Buffer>>
   {
     public:
 
@@ -1341,7 +1077,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       FcntlImpl( File *f ) :
-          FileOperation<FcntlImpl, state, Arg<Buffer>>( f )
+          FileOperation<FcntlImpl, state, Resp<Buffer>, Arg<Buffer>>( f )
       {
       }
 
@@ -1349,7 +1085,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       FcntlImpl( File &f ) :
-          FileOperation<FcntlImpl, state, Arg<Buffer>>( &f )
+          FileOperation<FcntlImpl, state, Resp<Buffer>, Arg<Buffer>>( &f )
       {
       }
 
@@ -1362,7 +1098,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       FcntlImpl( FcntlImpl<from> && fcntl ) :
-          FileOperation<FcntlImpl, state, Arg<Buffer>>( std::move( fcntl ) )
+          FileOperation<FcntlImpl, state, Resp<Buffer>, Arg<Buffer>>( std::move( fcntl ) )
       {
       }
 
@@ -1372,37 +1108,6 @@ namespace XrdCl
           static const std::string key;
           typedef Buffer type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<FcntlImpl, state, Arg<Buffer>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      FcntlImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<Buffer>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      FcntlImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            Buffer>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1441,7 +1146,7 @@ namespace XrdCl
   //! Visa operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<State state = Bare>
-  class VisaImpl: public FileOperation<VisaImpl, state>
+  class VisaImpl: public FileOperation<VisaImpl, state, Resp<Buffer>>
   {
     public:
 
@@ -1449,7 +1154,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       VisaImpl( File *f ) :
-          FileOperation<VisaImpl, state>( f )
+          FileOperation<VisaImpl, state, Resp<Buffer>>( f )
       {
       }
 
@@ -1457,7 +1162,7 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       VisaImpl( File &f ) :
-          FileOperation<VisaImpl, state>( &f )
+          FileOperation<VisaImpl, state, Resp<Buffer>>( &f )
       {
       }
 
@@ -1470,39 +1175,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       VisaImpl( VisaImpl<from> && visa ) :
-          FileOperation<VisaImpl, state>( std::move( visa ) )
+          FileOperation<VisaImpl, state, Resp<Buffer>>( std::move( visa ) )
       {
-      }
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<VisaImpl, state>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      VisaImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<Buffer>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      VisaImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            Buffer>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
       }
 
       //------------------------------------------------------------------------

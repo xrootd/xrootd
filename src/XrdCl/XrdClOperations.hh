@@ -33,6 +33,7 @@
 #include <future>
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClOperationArgs.hh"
+#include "XrdCl/XrdClOperationHandlers.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
@@ -46,132 +47,6 @@ namespace XrdCl
   template<State state> class Operation;
 
   class Pipeline;
-
-  //----------------------------------------------------------------------------
-  //! Handler allowing forwarding parameters to the next operation in pipeline
-  //----------------------------------------------------------------------------
-  class ForwardingHandler: public ResponseHandler
-  {
-      friend class PipelineHandler;
-
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //------------------------------------------------------------------------
-      ForwardingHandler() :
-          container( new ArgsContainer() )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback function.
-      //------------------------------------------------------------------------
-      virtual void HandleResponseWithHosts( XRootDStatus *status,
-          AnyObject *response, HostList *hostList )
-      {
-        delete hostList;
-        HandleResponse( status, response );
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback function.
-      //------------------------------------------------------------------------
-      virtual void HandleResponse( XRootDStatus *status, AnyObject *response )
-      {
-        delete status;
-        delete response;
-        delete this;
-      }
-
-      //------------------------------------------------------------------------
-      //! Forward an argument to next operation in pipeline
-      //!
-      //! @arg    T       :  type of the value which will be saved
-      //!
-      //! @param  value   :  value to save
-      //! @param  bucket  :  bucket in which value will be saved
-      //------------------------------------------------------------------------
-      template<typename T>
-      void FwdArg( typename T::type value, int bucket = 1 )
-      {
-        container->SetArg<T>( value, bucket );
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      //! @return : container with arguments for forwarding
-      //------------------------------------------------------------------------
-      std::shared_ptr<ArgsContainer>& GetArgContainer()
-      {
-        return container;
-      }
-
-      //------------------------------------------------------------------------
-      //! container with arguments for forwarding
-      //------------------------------------------------------------------------
-      std::shared_ptr<ArgsContainer> container;
-
-    protected:
-
-      //------------------------------------------------------------------------
-      //! @return  :  operation context
-      //------------------------------------------------------------------------
-      std::unique_ptr<OperationContext> GetOperationContext()
-      {
-        return std::unique_ptr<OperationContext>(
-            new OperationContext( container ) );
-      }
-  };
-
-  //----------------------------------------------------------------------------
-  //! Handler allowing wrapping a normal ResponseHandler into
-  //! a ForwaridngHandler.
-  //----------------------------------------------------------------------------
-  class WrappingHandler: public ForwardingHandler
-  {
-      friend class PipelineHandler;
-
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //!
-      //! @param handler : the handler to be wrapped up
-      //------------------------------------------------------------------------
-      WrappingHandler( ResponseHandler *handler ) :
-          handler( handler )
-      {
-
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback function.
-      //------------------------------------------------------------------------
-      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response,
-          HostList *hostList )
-      {
-        handler->HandleResponseWithHosts( status, response, hostList );
-        delete this;
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback function.
-      //------------------------------------------------------------------------
-      void HandleResponse( XRootDStatus *status, AnyObject *response )
-      {
-        handler->HandleResponse( status, response );
-        delete this;
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      //! The wrapped handler
-      //------------------------------------------------------------------------
-      ResponseHandler *handler;
-  };
 
   //----------------------------------------------------------------------------
   //! Wrapper for ForwardingHandler, used only internally to run next operation
@@ -592,10 +467,10 @@ namespace XrdCl
   //! @arg state   : describes current operation configuration state
   //! @arg Args    : operation arguments
   //----------------------------------------------------------------------------
-  template<template<State> class Derived, State state, typename ... Args>
+  template<template<State> class Derived, State state, typename HdlrFactory, typename ... Args>
   class ConcreteOperation: public Operation<state>
   {
-      template<template<State> class, State, typename ...> friend class ConcreteOperation;
+      template<template<State> class, State, typename, typename ...> friend class ConcreteOperation;
 
     public:
 
@@ -615,45 +490,10 @@ namespace XrdCl
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
       template<State from>
-      ConcreteOperation( ConcreteOperation<Derived, from, Args...> && op ) :
+      ConcreteOperation( ConcreteOperation<Derived, from, HdlrFactory, Args...> && op ) :
         Operation<state>( std::move( op ) ), args( std::move( op.args ) )
       {
 
-      }
-
-      //------------------------------------------------------------------------
-      //! Move current object into newly allocated instance
-      //!
-      //! @return : the new instance
-      //------------------------------------------------------------------------
-      Operation<state>* Move()
-      {
-        Derived<state> *me = static_cast<Derived<state>*>( this );
-        return new Derived<state>( std::move( *me ) );
-      }
-
-      //------------------------------------------------------------------------
-      //! Transform operation to handled
-      //!
-      //! @return Operation<Handled>&
-      //------------------------------------------------------------------------
-      Operation<Handled>* ToHandled()
-      {
-        this->handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
-        Derived<state> *me = static_cast<Derived<state>*>( this );
-        return new Derived<Handled>( std::move( *me ) );
-      }
-
-      //------------------------------------------------------------------------
-      //! Transform into a new instance with desired state
-      //!
-      //! @return : new instance in the desired state
-      //------------------------------------------------------------------------
-      template<State to>
-      Derived<to> Transform()
-      {
-        Derived<state> *me = static_cast<Derived<state>*>( this );
-        return Derived<to>( std::move( *me ) );
       }
 
       //------------------------------------------------------------------------
@@ -672,43 +512,23 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Adds handler to the operation
+      //! Adds ResponseHandler/function/functor/lambda/future handler for
+      //! the operation.
       //!
-      //! @param h : handler to add
-      //------------------------------------------------------------------------
-      Derived<Handled> operator>>(ForwardingHandler *h)
-      {
-        return StreamImpl( h, false );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
+      //! Note: due to reference collapsing this covers both l-value and
+      //!       r-value references.
       //!
-      //! @param h : handler to add
+      //! @param func : function/functor/lambda
       //------------------------------------------------------------------------
-      Derived<Handled> operator>>(ForwardingHandler &h)
+      template<typename Hdlr>
+      Derived<Handled> operator>>( Hdlr &&hdlr )
       {
-        return StreamImpl( &h, false );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param h : handler to add
-      //------------------------------------------------------------------------
-      Derived<Handled> operator>>(ResponseHandler *h)
-      {
-        return StreamImpl( new WrappingHandler( h ) );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param h : handler to add
-      //------------------------------------------------------------------------
-      Derived<Handled> operator>>(ResponseHandler &h)
-      {
-        return StreamImpl( new WrappingHandler( &h ) );
+        // check if the resulting handler should be owned by us or by the user,
+        // if the user passed us directly a ForwardingHandler it's owned by the
+        // user, otherwise we need to wrap the argument in a handler and in this
+        // case the resulting handler will be owned by us
+        constexpr bool own = !IsForwardingHandler<Hdlr>::value;
+        return this->StreamImpl( HdlrFactory::Create( hdlr ), own );
       }
 
       //------------------------------------------------------------------------
@@ -766,6 +586,41 @@ namespace XrdCl
   protected:
 
       //------------------------------------------------------------------------
+      //! Move current object into newly allocated instance
+      //!
+      //! @return : the new instance
+      //------------------------------------------------------------------------
+      Operation<state>* Move()
+      {
+        Derived<state> *me = static_cast<Derived<state>*>( this );
+        return new Derived<state>( std::move( *me ) );
+      }
+
+      //------------------------------------------------------------------------
+      //! Transform operation to handled
+      //!
+      //! @return Operation<Handled>&
+      //------------------------------------------------------------------------
+      Operation<Handled>* ToHandled()
+      {
+        this->handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
+        Derived<state> *me = static_cast<Derived<state>*>( this );
+        return new Derived<Handled>( std::move( *me ) );
+      }
+
+      //------------------------------------------------------------------------
+      //! Transform into a new instance with desired state
+      //!
+      //! @return : new instance in the desired state
+      //------------------------------------------------------------------------
+      template<State to>
+      Derived<to> Transform()
+      {
+        Derived<state> *me = static_cast<Derived<state>*>( this );
+        return Derived<to>( std::move( *me ) );
+      }
+
+      //------------------------------------------------------------------------
       //! Implements operator>> functionality
       //!
       //! @param h  :  handler to be added
@@ -788,7 +643,8 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, Args...> &me, Operation<Handled> &op )
+      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, HdlrFactory,
+          Args...> &me, Operation<Handled> &op )
       {
         me.AddOperation( op.Move() );
         return me.template Transform<Handled>();
@@ -803,7 +659,8 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, Args...> &me, Operation<Configured> &op )
+      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, HdlrFactory,
+          Args...> &me, Operation<Configured> &op )
       {
         me.AddOperation( op.ToHandled() );
         return me.template Transform<Handled>();
@@ -818,7 +675,8 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, Args...> &me, Operation<Handled> &op )
+      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, HdlrFactory,
+          Args...> &me, Operation<Handled> &op )
       {
         me.handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
         me.AddOperation( op.Move() );
@@ -834,7 +692,8 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, Args...> &me, Operation<Configured> &op )
+      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, HdlrFactory,
+          Args...> &me, Operation<Configured> &op )
       {
         me.handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
         me.AddOperation( op.ToHandled() );

@@ -40,11 +40,11 @@ namespace XrdCl
   //! @arg state   : describes current operation configuration state
   //! @arg Args    : operation arguments
   //----------------------------------------------------------------------------
-  template<template<State> class Derived, State state, typename ... Args>
-  class FileSystemOperation: public ConcreteOperation<Derived, state, Args...>
+  template<template<State> class Derived, State state, typename Response, typename ... Args>
+  class FileSystemOperation: public ConcreteOperation<Derived, state, Response, Args...>
   {
 
-      template<template<State> class, State, typename ...> friend class FileSystemOperation;
+      template<template<State> class, State, typename, typename ...> friend class FileSystemOperation;
 
     public:
       //------------------------------------------------------------------------
@@ -52,7 +52,7 @@ namespace XrdCl
       //!
       //! @param fs : file system on which the operation will be performed
       //------------------------------------------------------------------------
-      explicit FileSystemOperation(FileSystem *fs): filesystem(fs)
+      explicit FileSystemOperation( FileSystem *fs ): filesystem(fs)
       {
         static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
       }
@@ -65,7 +65,8 @@ namespace XrdCl
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
       template<State from>
-      FileSystemOperation( FileSystemOperation<Derived, from, Args...> && op ): ConcreteOperation<Derived, state, Args...>( std::move( op ) ), filesystem( op.filesystem )
+      FileSystemOperation( FileSystemOperation<Derived, from, Response, Args...> && op ):
+        ConcreteOperation<Derived, state, Response, Args...>( std::move( op ) ), filesystem( op.filesystem )
       {
 
       }
@@ -90,7 +91,7 @@ namespace XrdCl
   //! Locate operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class LocateImpl: public FileSystemOperation<LocateImpl, state,
+  class LocateImpl: public FileSystemOperation<LocateImpl, state, Resp<LocationInfo>,
       Arg<std::string>, Arg<OpenFlags::Flags>>
   {
     public:
@@ -99,7 +100,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       LocateImpl( FileSystem *fs ) :
-          FileSystemOperation<LocateImpl, state, Arg<std::string>,
+          FileSystemOperation<LocateImpl, state, Resp<LocationInfo>, Arg<std::string>,
               Arg<OpenFlags::Flags>>( fs )
       {
       }
@@ -108,7 +109,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       LocateImpl( FileSystem &fs ) :
-          FileSystemOperation<LocateImpl, state, Arg<std::string>,
+          FileSystemOperation<LocateImpl, state, Resp<LocationInfo>, Arg<std::string>,
               Arg<OpenFlags::Flags>>( &fs )
       {
       }
@@ -122,7 +123,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       LocateImpl( LocateImpl<from> && locate ) :
-          FileSystemOperation<LocateImpl, state, Arg<std::string>,
+          FileSystemOperation<LocateImpl, state, Resp<LocationInfo>, Arg<std::string>,
               Arg<OpenFlags::Flags>>( std::move( locate ) )
       {
       }
@@ -146,38 +147,6 @@ namespace XrdCl
           static const std::string key;
           typedef OpenFlags::Flags type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<LocateImpl, state, Arg<std::string>,
-          Arg<OpenFlags::Flags>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      LocateImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, LocationInfo& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new FunctionWrapper<LocationInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      LocateImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, LocationInfo&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            LocationInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -219,7 +188,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<State state>
   class DeepLocateImpl: public FileSystemOperation<DeepLocateImpl, state,
-      Arg<std::string>, Arg<OpenFlags::Flags>>
+      Resp<LocationInfo>, Arg<std::string>, Arg<OpenFlags::Flags>>
   {
     public:
 
@@ -227,8 +196,8 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       DeepLocateImpl( FileSystem *fs ) :
-          FileSystemOperation<DeepLocateImpl, state, Arg<std::string>,
-              Arg<OpenFlags::Flags>>( fs )
+          FileSystemOperation<DeepLocateImpl, state, Resp<LocationInfo>,
+              Arg<std::string>, Arg<OpenFlags::Flags>>( fs )
       {
       }
 
@@ -236,8 +205,8 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       DeepLocateImpl( FileSystem &fs ) :
-          FileSystemOperation<DeepLocateImpl, state, Arg<std::string>,
-              Arg<OpenFlags::Flags>>( &fs )
+          FileSystemOperation<DeepLocateImpl, state, Resp<LocationInfo>,
+              Arg<std::string>, Arg<OpenFlags::Flags>>( &fs )
       {
       }
 
@@ -250,8 +219,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       DeepLocateImpl( DeepLocateImpl<from> && locate ) :
-          FileSystemOperation<DeepLocateImpl, state, Arg<std::string>,
-              Arg<OpenFlags::Flags>>( std::move( locate ) )
+          FileSystemOperation<DeepLocateImpl, state, Resp<LocationInfo>,
+              Arg<std::string>, Arg<OpenFlags::Flags>>( std::move( locate ) )
       {
       }
 
@@ -274,38 +243,6 @@ namespace XrdCl
           static const std::string key;
           typedef OpenFlags::Flags type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<DeepLocateImpl, state, Arg<std::string>,
-          Arg<OpenFlags::Flags>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      DeepLocateImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, LocationInfo& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new FunctionWrapper<LocationInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      DeepLocateImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, LocationInfo&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            LocationInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -347,7 +284,7 @@ namespace XrdCl
   //! Mv operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class MvImpl: public FileSystemOperation<MvImpl, state, Arg<std::string>,
+  class MvImpl: public FileSystemOperation<MvImpl, state, Resp<void>, Arg<std::string>,
       Arg<std::string>>
   {
     public:
@@ -356,7 +293,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       MvImpl( FileSystem *fs ) :
-          FileSystemOperation<MvImpl, state, Arg<std::string>, Arg<std::string>>(
+          FileSystemOperation<MvImpl, state, Resp<void>, Arg<std::string>, Arg<std::string>>(
               fs )
       {
       }
@@ -365,7 +302,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       MvImpl( FileSystem &fs ) :
-          FileSystemOperation<MvImpl, state, Arg<std::string>, Arg<std::string>>(
+          FileSystemOperation<MvImpl, state, Resp<void>, Arg<std::string>, Arg<std::string>>(
               &fs )
       {
       }
@@ -379,7 +316,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       MvImpl( MvImpl<from> && mv ) :
-          FileSystemOperation<MvImpl, state, Arg<std::string>, Arg<std::string>>(
+          FileSystemOperation<MvImpl, state, Resp<void>, Arg<std::string>, Arg<std::string>>(
               std::move( mv ) )
       {
       }
@@ -403,37 +340,6 @@ namespace XrdCl
           static const std::string key;
           typedef std::string type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<MvImpl, state, Arg<std::string>, Arg<std::string>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      MvImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      MvImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -474,7 +380,7 @@ namespace XrdCl
   //! Query operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class QueryImpl: public FileSystemOperation<QueryImpl, state,
+  class QueryImpl: public FileSystemOperation<QueryImpl, state, Resp<Buffer>,
       Arg<QueryCode::Code>, Arg<Buffer>>
   {
     public:
@@ -483,7 +389,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       QueryImpl( FileSystem *fs ) :
-          FileSystemOperation<QueryImpl, state, Arg<QueryCode::Code>,
+          FileSystemOperation<QueryImpl, state, Resp<Buffer>, Arg<QueryCode::Code>,
               Arg<Buffer>>( fs )
       {
       }
@@ -492,7 +398,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       QueryImpl( FileSystem &fs ) :
-          FileSystemOperation<QueryImpl, state, Arg<QueryCode::Code>,
+          FileSystemOperation<QueryImpl, state, Resp<Buffer>, Arg<QueryCode::Code>,
               Arg<Buffer>>( &fs )
       {
       }
@@ -506,7 +412,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       QueryImpl( QueryImpl<from> && query ) :
-          FileSystemOperation<QueryImpl, state, Arg<QueryCode::Code>,
+          FileSystemOperation<QueryImpl, state, Resp<Buffer>, Arg<QueryCode::Code>,
               Arg<Buffer>>( std::move( query ) )
       {
       }
@@ -530,38 +436,6 @@ namespace XrdCl
           static const std::string key;
           typedef Buffer type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<QueryImpl, state, Arg<QueryCode::Code>,
-          Arg<Buffer>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      QueryImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<Buffer>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      QueryImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            Buffer>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -603,7 +477,7 @@ namespace XrdCl
   //! Truncate operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class TruncateFsImpl: public FileSystemOperation<TruncateFsImpl, state,
+  class TruncateFsImpl: public FileSystemOperation<TruncateFsImpl, state, Resp<void>,
       Arg<std::string>, Arg<uint64_t>>
   {
     public:
@@ -612,7 +486,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       TruncateFsImpl( FileSystem *fs ) :
-          FileSystemOperation<TruncateFsImpl, state, Arg<std::string>,
+          FileSystemOperation<TruncateFsImpl, state, Resp<void>, Arg<std::string>,
               Arg<uint64_t>>( fs )
       {
       }
@@ -621,7 +495,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       TruncateFsImpl( FileSystem &fs ) :
-          FileSystemOperation<TruncateFsImpl, state, Arg<std::string>,
+          FileSystemOperation<TruncateFsImpl, state, Resp<void>, Arg<std::string>,
               Arg<uint64_t>>( &fs )
       {
       }
@@ -635,7 +509,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       TruncateFsImpl( TruncateFsImpl<from> && trunc ) :
-          FileSystemOperation<TruncateFsImpl, state, Arg<std::string>,
+          FileSystemOperation<TruncateFsImpl, state, Resp<void>, Arg<std::string>,
               Arg<uint64_t>>( std::move( trunc ) )
       {
       }
@@ -659,38 +533,6 @@ namespace XrdCl
           static const std::string key;
           typedef uint64_t type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<TruncateFsImpl, state, Arg<std::string>,
-          Arg<uint64_t>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      TruncateFsImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      TruncateFsImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -740,7 +582,7 @@ namespace XrdCl
   //! Rm operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class RmImpl: public FileSystemOperation<RmImpl, state, Arg<std::string>>
+  class RmImpl: public FileSystemOperation<RmImpl, state, Resp<void>, Arg<std::string>>
   {
     public:
 
@@ -748,7 +590,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       RmImpl( FileSystem *fs ) :
-          FileSystemOperation<RmImpl, state, Arg<std::string>>( fs )
+          FileSystemOperation<RmImpl, state, Resp<void>, Arg<std::string>>( fs )
       {
       }
 
@@ -756,7 +598,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       RmImpl( FileSystem &fs ) :
-          FileSystemOperation<RmImpl, state, Arg<std::string>>( &fs )
+          FileSystemOperation<RmImpl, state, Resp<void>, Arg<std::string>>( &fs )
       {
       }
 
@@ -769,7 +611,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       RmImpl( RmImpl<from> && rm ) :
-          FileSystemOperation<RmImpl, state, Arg<std::string>>(
+          FileSystemOperation<RmImpl, state, Resp<void>, Arg<std::string>>(
               std::move( rm ) )
       {
       }
@@ -783,37 +625,6 @@ namespace XrdCl
           static const std::string key;
           typedef std::string type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<RmImpl, state, Arg<std::string>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      RmImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      RmImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -852,7 +663,7 @@ namespace XrdCl
   //! MkDir operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class MkDirImpl: public FileSystemOperation<MkDirImpl, state,
+  class MkDirImpl: public FileSystemOperation<MkDirImpl, state, Resp<void>,
       Arg<std::string>, Arg<MkDirFlags::Flags>, Arg<Access::Mode>>
   {
     public:
@@ -861,7 +672,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       MkDirImpl( FileSystem *fs ) :
-          FileSystemOperation<MkDirImpl, state, Arg<std::string>,
+          FileSystemOperation<MkDirImpl, state, Resp<void>, Arg<std::string>,
               Arg<MkDirFlags::Flags>, Arg<Access::Mode>>( fs )
       {
       }
@@ -870,7 +681,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       MkDirImpl( FileSystem &fs ) :
-          FileSystemOperation<MkDirImpl, state, Arg<std::string>,
+          FileSystemOperation<MkDirImpl, state, Resp<void>, Arg<std::string>,
               Arg<MkDirFlags::Flags>, Arg<Access::Mode>>( &fs )
       {
       }
@@ -884,7 +695,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       MkDirImpl( MkDirImpl<from> && mkdir ) :
-          FileSystemOperation<MkDirImpl, state, Arg<std::string>,
+          FileSystemOperation<MkDirImpl, state, Resp<void>, Arg<std::string>,
               Arg<MkDirFlags::Flags>, Arg<Access::Mode>>( std::move( mkdir ) )
       {
       }
@@ -918,38 +729,6 @@ namespace XrdCl
           static const std::string key;
           typedef Access::Mode type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<MkDirImpl, state, Arg<std::string>,
-          Arg<MkDirFlags::Flags>, Arg<Access::Mode>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      MkDirImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      MkDirImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -994,7 +773,8 @@ namespace XrdCl
   //! RmDir operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class RmDirImpl: public FileSystemOperation<RmDirImpl, state, Arg<std::string>>
+  class RmDirImpl: public FileSystemOperation<RmDirImpl, state, Resp<void>,
+      Arg<std::string>>
   {
     public:
 
@@ -1002,7 +782,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       RmDirImpl( FileSystem *fs ) :
-          FileSystemOperation<RmDirImpl, state, Arg<std::string>>( fs )
+          FileSystemOperation<RmDirImpl, state, Resp<void>, Arg<std::string>>( fs )
       {
       }
 
@@ -1010,7 +790,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       RmDirImpl( FileSystem &fs ) :
-          FileSystemOperation<RmDirImpl, state, Arg<std::string>>( &fs )
+          FileSystemOperation<RmDirImpl, state, Resp<void>, Arg<std::string>>( &fs )
       {
       }
 
@@ -1023,7 +803,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       RmDirImpl( RmDirImpl<from> && rmdir ) :
-          FileSystemOperation<RmDirImpl, state, Arg<std::string>>(
+          FileSystemOperation<RmDirImpl, state, Resp<void>, Arg<std::string>>(
               std::move( rmdir ) )
       {
       }
@@ -1037,37 +817,6 @@ namespace XrdCl
           static const std::string key;
           typedef std::string type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<RmDirImpl, state, Arg<std::string>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      RmDirImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      RmDirImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1106,7 +855,7 @@ namespace XrdCl
   //! ChMod operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class ChModImpl: public FileSystemOperation<ChModImpl, state,
+  class ChModImpl: public FileSystemOperation<ChModImpl, state, Resp<void>,
       Arg<std::string>, Arg<Access::Mode>>
   {
     public:
@@ -1115,7 +864,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       ChModImpl( FileSystem *fs ) :
-          FileSystemOperation<ChModImpl, state, Arg<std::string>,
+          FileSystemOperation<ChModImpl, state, Resp<void>, Arg<std::string>,
               Arg<Access::Mode>>( fs )
       {
       }
@@ -1124,7 +873,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       ChModImpl( FileSystem &fs ) :
-          FileSystemOperation<ChModImpl, state, Arg<std::string>,
+          FileSystemOperation<ChModImpl, state, Resp<void>, Arg<std::string>,
               Arg<Access::Mode>>( &fs )
       {
       }
@@ -1138,7 +887,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       ChModImpl( ChModImpl<from> && chmod ) :
-          FileSystemOperation<ChModImpl, state, Arg<std::string>,
+          FileSystemOperation<ChModImpl, state, Resp<void>, Arg<std::string>,
               Arg<Access::Mode>>( std::move( chmod ) )
       {
       }
@@ -1162,38 +911,6 @@ namespace XrdCl
           static const std::string key;
           typedef Access::Mode type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<ChModImpl, state, Arg<std::string>,
-          Arg<Access::Mode>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      ChModImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      ChModImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1234,7 +951,7 @@ namespace XrdCl
   //! Ping operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class PingImpl: public FileSystemOperation<PingImpl, state>
+  class PingImpl: public FileSystemOperation<PingImpl, state, Resp<void>>
   {
     public:
 
@@ -1242,7 +959,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       PingImpl( FileSystem *fs ) :
-          FileSystemOperation<PingImpl, state>( fs )
+          FileSystemOperation<PingImpl, state, Resp<void>>( fs )
       {
       }
 
@@ -1250,7 +967,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       PingImpl( FileSystem &fs ) :
-          FileSystemOperation<PingImpl, state>( &fs )
+          FileSystemOperation<PingImpl, state, Resp<void>>( &fs )
       {
       }
 
@@ -1263,39 +980,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       PingImpl( PingImpl<from> && ping ) :
-          FileSystemOperation<PingImpl, state>( std::move( ping ) )
+          FileSystemOperation<PingImpl, state, Resp<void>>( std::move( ping ) )
       {
-      }
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<PingImpl, state>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      PingImpl<Handled> operator>>(
-          std::function<void( XRootDStatus& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new SimpleFunctionWrapper(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      PingImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new SimpleForwardingFunctionWrapper( handleFunction );
-        return this->StreamImpl( forwardingHandler );
       }
 
       //------------------------------------------------------------------------
@@ -1333,7 +1019,7 @@ namespace XrdCl
   //! Stat operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class StatFsImpl: public FileSystemOperation<StatFsImpl, state,
+  class StatFsImpl: public FileSystemOperation<StatFsImpl, state, Resp<StatInfo>,
       Arg<std::string>>
   {
     public:
@@ -1342,7 +1028,8 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       StatFsImpl( FileSystem *fs ) :
-          FileSystemOperation<StatFsImpl, state, Arg<std::string>>( fs )
+          FileSystemOperation<StatFsImpl, state, Resp<StatInfo>,
+              Arg<std::string>>( fs )
       {
       }
 
@@ -1350,7 +1037,8 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       StatFsImpl( FileSystem &fs ) :
-          FileSystemOperation<StatFsImpl, state, Arg<std::string>>( &fs )
+          FileSystemOperation<StatFsImpl, state, Resp<StatInfo>,
+              Arg<std::string>>( &fs )
       {
       }
 
@@ -1363,7 +1051,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<State from>
       StatFsImpl( StatFsImpl<from> && statfs ) :
-          FileSystemOperation<StatFsImpl, state, Arg<std::string>>(
+          FileSystemOperation<StatFsImpl, state, Resp<StatInfo>, Arg<std::string>>(
               std::move( statfs ) )
       {
       }
@@ -1377,37 +1065,6 @@ namespace XrdCl
           static const std::string key;
           typedef std::string type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<StatFsImpl, state, Arg<std::string>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      StatFsImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, StatInfo& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<StatInfo>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      StatFsImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, StatInfo&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            StatInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1456,23 +1113,23 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<State state>
   class StatVFSImpl: public FileSystemOperation<StatVFSImpl, state,
-      Arg<std::string>>
+      Resp<StatInfoVFS>, Arg<std::string>>
   {
     public:
 
       //------------------------------------------------------------------------
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      StatVFSImpl( FileSystem *fs ) :
-          FileSystemOperation<StatVFSImpl, state, Arg<std::string>>( fs )
+      StatVFSImpl( FileSystem *fs ) : FileSystemOperation<StatVFSImpl, state,
+          Resp<StatInfoVFS>, Arg<std::string>>( fs )
       {
       }
 
       //------------------------------------------------------------------------
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      StatVFSImpl( FileSystem &fs ) :
-          FileSystemOperation<StatVFSImpl, state, Arg<std::string>>( &fs )
+      StatVFSImpl( FileSystem &fs ) : FileSystemOperation<StatVFSImpl, state,
+          Resp<StatInfoVFS>, Arg<std::string>>( &fs )
       {
       }
 
@@ -1484,9 +1141,8 @@ namespace XrdCl
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
       template<State from>
-      StatVFSImpl( StatVFSImpl<state> && statvfs ) :
-          FileSystemOperation<StatVFSImpl, state, Arg<std::string>>(
-              std::move( statvfs ) )
+      StatVFSImpl( StatVFSImpl<state> && statvfs ) : FileSystemOperation<StatVFSImpl,
+          state, Resp<StatInfoVFS>, Arg<std::string>>( std::move( statvfs ) )
       {
       }
 
@@ -1499,37 +1155,6 @@ namespace XrdCl
           static const std::string key;
           typedef std::string type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<StatVFSImpl, state, Arg<std::string>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      StatVFSImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, StatInfoVFS& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<StatInfoVFS>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      StatVFSImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, StatInfoVFS&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            StatInfoVFS>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1568,7 +1193,8 @@ namespace XrdCl
   //! Protocol operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class ProtocolImpl: public FileSystemOperation<ProtocolImpl, state>
+  class ProtocolImpl: public FileSystemOperation<ProtocolImpl, state,
+      Resp<ProtocolInfo>>
   {
     public:
 
@@ -1576,7 +1202,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       ProtocolImpl( FileSystem *fs ) :
-          FileSystemOperation<ProtocolImpl, state>( fs )
+          FileSystemOperation<ProtocolImpl, state, Resp<ProtocolInfo>>( fs )
       {
       }
 
@@ -1584,7 +1210,7 @@ namespace XrdCl
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
       ProtocolImpl( FileSystem &fs ) :
-          FileSystemOperation<ProtocolImpl, state>( &fs )
+          FileSystemOperation<ProtocolImpl, state, Resp<ProtocolInfo>>( &fs )
       {
       }
 
@@ -1596,40 +1222,9 @@ namespace XrdCl
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
       template<State from>
-      ProtocolImpl( ProtocolImpl<from> && prot ) :
-          FileSystemOperation<ProtocolImpl, state>( std::move( prot ) )
+      ProtocolImpl( ProtocolImpl<from> && prot ) : FileSystemOperation<ProtocolImpl,
+          state, Resp<ProtocolInfo>>( std::move( prot ) )
       {
-      }
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<ProtocolImpl, state>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      ProtocolImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, ProtocolInfo& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new FunctionWrapper<ProtocolInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      ProtocolImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, ProtocolInfo&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            ProtocolInfo>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
       }
 
       //------------------------------------------------------------------------
@@ -1667,7 +1262,7 @@ namespace XrdCl
   //! DirList operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class DirListImpl: public FileSystemOperation<DirListImpl, state,
+  class DirListImpl: public FileSystemOperation<DirListImpl, state, Resp<DirectoryList>,
       Arg<std::string>, Arg<DirListFlags::Flags>>
   {
     public:
@@ -1675,18 +1270,16 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      DirListImpl( FileSystem *fs ) :
-          FileSystemOperation<DirListImpl, state, Arg<std::string>,
-              Arg<DirListFlags::Flags>>( fs )
+      DirListImpl( FileSystem *fs ) : FileSystemOperation<DirListImpl, state,
+          Resp<DirectoryList>, Arg<std::string>, Arg<DirListFlags::Flags>>( fs )
       {
       }
 
       //------------------------------------------------------------------------
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      DirListImpl( FileSystem &fs ) :
-          FileSystemOperation<DirListImpl, state, Arg<std::string>,
-              Arg<DirListFlags::Flags>>( &fs )
+      DirListImpl( FileSystem &fs ) : FileSystemOperation<DirListImpl, state,
+          Resp<DirectoryList>, Arg<std::string>, Arg<DirListFlags::Flags>>( &fs )
       {
       }
 
@@ -1698,9 +1291,9 @@ namespace XrdCl
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
       template<State from>
-      DirListImpl( DirListImpl<from> && dirls ) :
-          FileSystemOperation<DirListImpl, state, Arg<std::string>,
-              Arg<DirListFlags::Flags>>( std::move( dirls ) )
+      DirListImpl( DirListImpl<from> && dirls ) : FileSystemOperation<DirListImpl,
+          state, Resp<DirectoryList>, Arg<std::string>,
+          Arg<DirListFlags::Flags>>( std::move( dirls ) )
       {
       }
 
@@ -1723,38 +1316,6 @@ namespace XrdCl
           static const std::string key;
           typedef DirListFlags::Flags type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<DirListImpl, state, Arg<std::string>,
-          Arg<DirListFlags::Flags>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      DirListImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, DirectoryList& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler =
-            new FunctionWrapper<DirectoryList>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      DirListImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, DirectoryList&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            DirectoryList>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1796,7 +1357,7 @@ namespace XrdCl
   //! SendInfo operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class SendInfoImpl: public FileSystemOperation<SendInfoImpl, state,
+  class SendInfoImpl: public FileSystemOperation<SendInfoImpl, state, Resp<Buffer>,
       Arg<std::string>>
   {
     public:
@@ -1804,16 +1365,16 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      SendInfoImpl( FileSystem *fs ) :
-          FileSystemOperation<SendInfoImpl, state, Arg<std::string>>( fs )
+      SendInfoImpl( FileSystem *fs ) : FileSystemOperation<SendInfoImpl, state,
+          Resp<Buffer>, Arg<std::string>>( fs )
       {
       }
 
       //------------------------------------------------------------------------
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      SendInfoImpl( FileSystem &fs ) :
-          FileSystemOperation<SendInfoImpl, state, Arg<std::string>>( &fs )
+      SendInfoImpl( FileSystem &fs ) : FileSystemOperation<SendInfoImpl, state,
+          Resp<Buffer>, Arg<std::string>>( &fs )
       {
       }
 
@@ -1825,9 +1386,8 @@ namespace XrdCl
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
       template<State from>
-      SendInfoImpl( SendInfoImpl<from> && sendinfo ) :
-          FileSystemOperation<SendInfoImpl, state, Arg<std::string>>(
-              std::move( sendinfo ) )
+      SendInfoImpl( SendInfoImpl<from> && sendinfo ) : FileSystemOperation<SendInfoImpl,
+          state, Resp<Buffer>, Arg<std::string>>( std::move( sendinfo ) )
       {
       }
 
@@ -1840,37 +1400,6 @@ namespace XrdCl
           static const std::string key;
           typedef std::string type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<SendInfoImpl, state, Arg<std::string>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      SendInfoImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<Buffer>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      SendInfoImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            Buffer>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1909,7 +1438,7 @@ namespace XrdCl
   //! Prepare operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
   template<State state>
-  class PrepareImpl: public FileSystemOperation<PrepareImpl, state,
+  class PrepareImpl: public FileSystemOperation<PrepareImpl, state, Resp<Buffer>,
       Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>, Arg<uint8_t>>
   {
     public:
@@ -1917,18 +1446,18 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      PrepareImpl( FileSystem *fs ) :
-          FileSystemOperation<PrepareImpl, state, Arg<std::vector<std::string>>,
-              Arg<PrepareFlags::Flags>, Arg<uint8_t>>( fs )
+      PrepareImpl( FileSystem *fs ) : FileSystemOperation<PrepareImpl, state,
+          Resp<Buffer>, Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>,
+          Arg<uint8_t>>( fs )
       {
       }
 
       //------------------------------------------------------------------------
       //! Constructor (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      PrepareImpl( FileSystem &fs ) :
-          FileSystemOperation<PrepareImpl, state, Arg<std::vector<std::string>>,
-              Arg<PrepareFlags::Flags>, Arg<uint8_t>>( &fs )
+      PrepareImpl( FileSystem &fs ) : FileSystemOperation<PrepareImpl, state,
+          Resp<Buffer>, Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>,
+          Arg<uint8_t>>( &fs )
       {
       }
 
@@ -1940,9 +1469,9 @@ namespace XrdCl
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
       template<State from>
-      PrepareImpl( PrepareImpl<from> && prep ) :
-          FileSystemOperation<PrepareImpl, state, Arg<std::vector<std::string>>,
-              Arg<PrepareFlags::Flags>, Arg<uint8_t>>( std::move( prep ) )
+      PrepareImpl( PrepareImpl<from> && prep ) : FileSystemOperation<PrepareImpl,
+          state, Resp<Buffer>, Arg<std::vector<std::string>>,
+          Arg<PrepareFlags::Flags>, Arg<uint8_t>>( std::move( prep ) )
       {
       }
 
@@ -1975,38 +1504,6 @@ namespace XrdCl
           static const std::string key;
           typedef uint8_t type;
       };
-
-      //------------------------------------------------------------------------
-      //! make visible the >> inherited from ConcreteOperation
-      //------------------------------------------------------------------------
-      using ConcreteOperation<PrepareImpl, state, Arg<std::vector<std::string>>,
-          Arg<PrepareFlags::Flags>, Arg<uint8_t>>::operator>>;
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      PrepareImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new FunctionWrapper<Buffer>(
-            handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
-
-      //------------------------------------------------------------------------
-      //! Adds handler for the operation
-      //!
-      //! @param handleFunction : callback (function, functor or lambda)
-      //------------------------------------------------------------------------
-      PrepareImpl<Handled> operator>>(
-          std::function<void( XRootDStatus&, Buffer&, OperationContext& )> handleFunction )
-      {
-        ForwardingHandler *forwardingHandler = new ForwardingFunctionWrapper<
-            Buffer>( handleFunction );
-        return this->StreamImpl( forwardingHandler );
-      }
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)

@@ -49,6 +49,7 @@ class WorkflowTest: public CppUnit::TestCase
       CPPUNIT_TEST( ParallelTest );
       CPPUNIT_TEST( FileSystemWorkflowTest );
       CPPUNIT_TEST( MixedWorkflowTest );
+      CPPUNIT_TEST( WorkflowWithFutureTest );
     CPPUNIT_TEST_SUITE_END();
     void ReadingWorkflowTest();
     void WritingWorkflowTest();
@@ -58,6 +59,7 @@ class WorkflowTest: public CppUnit::TestCase
     void ParallelTest();
     void FileSystemWorkflowTest();
     void MixedWorkflowTest();
+    void WorkflowWithFutureTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( WorkflowTest );
@@ -301,9 +303,9 @@ void WorkflowTest::ReadingWorkflowTest(){
     uint64_t offset = 0;
 
     auto &&pipe = Open(f)(fileUrl, flags) >> &openHandler
-                | Stat(f)(true) >> &statHandler
+                | Stat(f)(true) >> statHandler
                 | Read(f)(offset, notdef, notdef) >> &readHandler
-                | Close(f)() >> &closeHandler;
+                | Close(f)() >> closeHandler;
 
     XRootDStatus status = WaitFor( pipe );
     CPPUNIT_ASSERT(status.IsOK());
@@ -770,4 +772,69 @@ void WorkflowTest::MixedWorkflowTest(){
     CPPUNIT_ASSERT(secondStatHandler.Executed());
     CPPUNIT_ASSERT(secondReadHandler.Executed());
     CPPUNIT_ASSERT(cleaningHandlerExecuted);
+}
+
+
+void WorkflowTest::WorkflowWithFutureTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
+  std::string fileUrl = address + "/";
+  fileUrl += filePath;
+
+  //----------------------------------------------------------------------------
+  // Fetch some data and checksum
+  //----------------------------------------------------------------------------
+  const uint32_t MB = 1024*1024;
+  char *expected = new char[40*MB];
+  char *buffer   = new char[40*MB];
+  uint32_t bytesRead = 0;
+  File f;
+
+  //----------------------------------------------------------------------------
+  // Open and Read and Close in standard way
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
+  CPPUNIT_ASSERT_XRDST( f.Read( 10*MB, 40*MB, expected, bytesRead ) );
+  CPPUNIT_ASSERT( bytesRead == 40*MB );
+  CPPUNIT_ASSERT_XRDST( f.Close() );
+
+  //----------------------------------------------------------------------------
+  // Now do the test
+  //----------------------------------------------------------------------------
+  File file;
+  std::future<ChunkInfo> ftr;
+  Pipeline pipeline = Open( file )( fileUrl, OpenFlags::Read ) | Read( file )( 10*MB, 40*MB, buffer ) >> ftr | Close( file )();
+  std::future<XRootDStatus> status = Async( std::move( pipeline ) );
+
+  try
+  {
+    ChunkInfo result = ftr.get();
+    CPPUNIT_ASSERT( result.length = bytesRead );
+    CPPUNIT_ASSERT( strncmp( expected, (char*)result.buffer, bytesRead ) == 0 );
+  }
+  catch( PipelineException &ex )
+  {
+    CPPUNIT_ASSERT( false );
+  }
+
+  CPPUNIT_ASSERT_XRDST( status.get() )
+
+  delete[] expected;
+  delete[] buffer;
 }
