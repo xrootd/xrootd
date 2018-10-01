@@ -1,9 +1,32 @@
 stages:
   - build:rpm
+  - build:dockerimage:prepare
   - build:dockerimage
   - test
   - publish
   - clean
+
+.template:deb_ubuntu_bionic: &deb_ubuntu_bionic_def
+  stage: build:rpm
+  image: ubuntu:bionic
+  script:
+    - apt-get update
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
+    - cp -R packaging/debian/ .
+    - mk-build-deps --build-dep debian/control
+    - gdebi -n xrootd-build-deps-depends*.deb
+    - version=`./genversion.sh --print-only`
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution bionic -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
+    - mkdir bionic
+    - cp deb_packages/*.deb  bionic
+    - cp deb_packages/*.ddeb bionic
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - bionic/
+  tags:
+    - docker-ubuntu
 
 .template:deb_ubuntu_artful: &deb_ubuntu_artful_def
   stage: build:rpm
@@ -26,21 +49,22 @@ stages:
     - artful/
   tags:
     - docker-ubuntu
-
+    
 .template:deb_ubuntu_xenial: &deb_ubuntu_xenial_def
   stage: build:rpm
   image: ubuntu:xenial
   script:
     - apt-get update
-    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core # pkg-create-dbgsym
     - cp -R packaging/debian/ .
     - mk-build-deps --build-dep debian/control
     - gdebi -n xrootd-build-deps-depends*.deb
     - version=`./genversion.sh --print-only`
-    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution xenial -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages"
     - mkdir xenial
     - cp deb_packages/*.deb  xenial
+#    - cp ../*.ddeb  xenial
   artifacts:
     expire_in: 1 day
     paths:
@@ -54,10 +78,10 @@ build:cc7:
   script:
     - yum install --nogpg -y gcc-c++ rpm-build which git
     - cd packaging/
-    - ./makesrpm.sh
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir cc-7/
     - cp packaging/*.src.rpm cc-7
@@ -75,40 +99,16 @@ build:cc7:
     - tags
     - schedules
     
-build:cc7:ceph:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
-    - cd packaging/
-    - ./makesrpm.sh --define '_with_ceph11 1'
-    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-luminous/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - rpmbuild --rebuild --define="_with_ceph11 1" --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - repo=/eos/project/s/storage-ci/www/xrootd/ceph/cc-7/x86_64/$(date +'%Y%m%d')
-    - sudo -u stci -H mkdir -p $repo
-    - sudo -u stci -H find $repo -type f -name '*.rpm' -delete
-    - sudo -u stci -H cp *.src.rpm $repo
-    - sudo -u stci -H cp RPMS/* $repo
-    - sudo -u stci -H createrepo --update -q $repo
-  tags:
-    - docker-slc6
-  only:
-    - master
-  except:
-    - tags
-    - schedules
-
 build:slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ rpm-build which tar git
     - cd packaging/
-    - ./makesrpm.sh
+    - ./makesrpm.sh --define "_with_python3 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir slc-6
     - cp packaging/*.src.rpm slc-6
@@ -132,10 +132,10 @@ build:fedora-rawhide:
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
-    - ./makesrpm.sh
+    - ./makesrpm.sh --define "_with_python3 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir fc-rawhide
     - cp packaging/*.src.rpm fc-rawhide
@@ -159,10 +159,10 @@ build:fedora-26:
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
-    - ./makesrpm.sh
+    - ./makesrpm.sh --define "_with_python3 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir fc-26/
     - cp packaging/*.src.rpm fc-26
@@ -186,10 +186,10 @@ build:fedora-25:
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
-    - ./makesrpm.sh
+    - ./makesrpm.sh --define "_with_python3 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir fc-25/
     - cp packaging/*.src.rpm fc-25
@@ -213,10 +213,10 @@ build:fedora-24:
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
-    - ./makesrpm.sh
+    - ./makesrpm.sh --define "_with_python3 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir fc-24/
     - cp packaging/*.src.rpm fc-24
@@ -233,7 +233,16 @@ build:fedora-24:
   except:
     - tags
     - schedules
-    
+ 
+build:deb_ubuntu_bionic:
+  <<: *deb_ubuntu_bionic_def
+  only:
+    - master
+    - /^stable-.*$/
+  except:
+    - tags
+    - schedules 
+ 
 build:deb_ubuntu_artful:
   <<: *deb_ubuntu_artful_def
   only:
@@ -258,7 +267,7 @@ build:macosx:
     - mkdir build
     - mkdir -p tarball/xrootd
     - cd build
-    - /usr/local/bin/cmake -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2g/include/ -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
+    - /usr/local/bin/cmake -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2o_2/include/ -D OPENSSL_SSL_LIBRARY=/usr/local/Cellar/openssl/1.0.2o_2/lib/libssl.dylib -D OPENSSL_CRYPTO_LIBRARY=/usr/local/Cellar/openssl/1.0.2o_2/lib/libcrypto.dylib -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
     - make -j4
     - make install
     - cd ../tarball
@@ -288,7 +297,7 @@ release:cc7-x86_64:
     - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-x86_64
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el7"
+    - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el7" --define="_with_python3 1"
     - cd ..
     - cp packaging/build/*.rpm cc-7-x86_64
   artifacts:
@@ -308,7 +317,7 @@ release:slc6-x86_64:
   script:
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6"
+    - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6" --define="_with_python3 1"
     - cd ..
     - mkdir slc-6-x86_64
     - cp packaging/build/*.rpm slc-6-x86_64
@@ -329,7 +338,7 @@ release:slc6-i386:
   script:
     - cd packaging/
     - ./makesrpm.sh
-    - /bin/mock --init -r epel-6-i386 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6"
+    - /bin/mock --init -r epel-6-i386 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6" --define="_with_python3 1"
     - cd ..
     - mkdir slc-6-i386
     - cp packaging/build/*.rpm slc-6-i386
@@ -345,26 +354,13 @@ release:slc6-i386:
     - branches
     - /^(?!v[0-9]+).*/
 
-release:cc7:ceph:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
-    - cd packaging/
-    - ./makesrpm.sh --define '_with_ceph11 1'
-    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-luminous/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - rpmbuild --rebuild --define="_with_ceph11 1" --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - repo=/eos/project/s/storage-ci/www/xrootd/ceph-release/cc-7/x86_64/
-    - sudo -u stci -H mkdir -p $repo
-    - sudo -u stci -H cp *.src.rpm $repo
-    - sudo -u stci -H cp RPMS/* $repo
-    - sudo -u stci -H createrepo --update -q $repo
-  tags:
-    - docker-cc7
+release:deb_ubuntu_bionic:
+  <<: *deb_ubuntu_bionic_def
   only:
-    - tags
-  when: manual
+    - web
+  except:
+    - branches
+    - /^(?!v[0-9]+).*/
 
 release:deb_ubuntu_artful:
   <<: *deb_ubuntu_artful_def
@@ -407,6 +403,7 @@ publish:pypi:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
+    - yum install --nogpg -y sssd-client sudo
     - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/xrootd/release/pypi-dist
     - sudo -u stci -H cp dist/*.tar.gz /eos/project/s/storage-ci/www/xrootd/release/pypi-dist/.
   tags:
@@ -418,7 +415,8 @@ publish:pypi:
     - /^(?!v[0-9]+).*/
   allow_failure: true
 
-biweekly:cc7:
+
+weekly:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -430,10 +428,10 @@ biweekly:cc7:
     - ((a[2]++)) || true
     - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
     - cd packaging/
-    - ./makesrpm.sh --version $experimental_version
+    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir epel-7/
     - cp packaging/*.src.rpm epel-7
@@ -449,7 +447,7 @@ biweekly:cc7:
   except:
     - tags
 
-biweekly:slc6:
+weekly:slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -461,10 +459,10 @@ biweekly:slc6:
     - ((a[2]++)) || true
     - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
     - cd packaging/
-    - ./makesrpm.sh --version $experimental_version
+    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir epel-6/
     - cp packaging/*.src.rpm epel-6
@@ -479,6 +477,93 @@ biweekly:slc6:
     - schedules
   except:
     - tags
+    
+xrootd_docker_get:
+  stage: build:dockerimage:prepare
+  script:
+    - git clone https://gitlab.cern.ch/eos/xrootd-docker.git
+    - if [ ! -d "epel-7" ]; then mkdir epel-7; cp cc-7/* epel-7; fi
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - xrootd-docker/
+    - epel-7/
+  tags:
+    - xrootd-shell
+  only:
+    - schedules
+    
+xrootd_dockerimage:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/xrootd
+    DOCKER_FILE: xrootd-docker/Dockerfile.ci
+  dependencies:
+    - xrootd_docker_get
+  only:
+    - schedules
+    
+xrootd_docker_test:
+  stage: test
+  script:
+    - docker pull gitlab-registry.cern.ch/dss/xrootd
+    - sudo ./xrootd-docker/start.sh -i gitlab-registry.cern.ch/dss/xrootd
+    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/UtilsTest/"
+    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/SocketTest/"
+    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/PollerTest/"
+    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/PostMasterTest/"
+##    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/FileSystemTest/"
+##    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/FileTest/"
+    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/LocalFileHandlerTest/"
+
+  after_script:
+    - sudo ./xrootd-docker/clean.sh
+  tags:
+    - xrootd-shell
+  dependencies:
+    - xrootd_docker_get
+  only:
+    - schedules
+
+
+pyxrootd_dockerimage:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/xrootd:pylatest
+    DOCKER_FILE: xrootd-docker/Dockerfile-python.ci
+  dependencies:
+    - xrootd_docker_get
+  only:
+    - schedules
+  allow_failure: true
+    
+pyxrootd_docker_test:
+  stage: test
+  script:
+    - docker pull gitlab-registry.cern.ch/dss/xrootd:pylatest
+    - sudo docker run -dit --privileged -e "container=docker" --name pyxrootd-container -h pyxrootd-container gitlab-registry.cern.ch/dss/xrootd:pylatest /sbin/init
+    - docker exec pyxrootd-container systemctl start xrootd@standalone
+    - docker exec pyxrootd-container sh -c "cd xrootd/bindings/python/tests && pytest test_file.py test_filesystem.py test_copy.py test_threads.py test_url.py"
+    
+  after_script:
+    - sudo docker rm -f pyxrootd-container
+    - sudo docker rmi -f gitlab-registry.cern.ch/dss/xrootd:pylatest
+    
+  tags:
+    - xrootd-shell
+  dependencies:
+    - xrootd_docker_get
+  only:
+    - schedules
+  allow_failure: true
 
 publish:rhel:
   stage: publish
@@ -518,6 +603,7 @@ publish:debian:
   tags:
     - docker-ubuntu
   dependencies:
+    - build:deb_ubuntu_bionic
     - build:deb_ubuntu_artful
     - build:deb_ubuntu_xenial
   only:
@@ -566,6 +652,7 @@ publish:debian:release:
   tags:
     - docker-ubuntu
   dependencies:
+    - release:deb_ubuntu_bionic
     - release:deb_ubuntu_artful
     - release:deb_ubuntu_xenial
   only:
@@ -574,7 +661,7 @@ publish:debian:release:
     - branches
     - /^(?!v[0-9]+).*/
 
-publish:biweekly:
+publish:weekly:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -589,8 +676,8 @@ publish:biweekly:
   tags:
     - docker-slc6
   dependencies:
-    - biweekly:cc7
-    - biweekly:slc6
+    - weekly:cc7
+    - weekly:slc6
   only:
     - schedules
   except:
@@ -601,6 +688,7 @@ clean:artifacts:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
+    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/master/*/*/; do find ${commit_dir} -mindepth 1 -maxdepth 1 -type d -ctime +10 | xargs rm -rf; createrepo --update -q ${commit_dir}; done'
     - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/stable-*/*/*/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +30 -delete; createrepo --update -q ${commit_dir}; done'
     - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/experimental/*/x86_64/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +30 -delete; createrepo --update -q ${commit_dir}; done'
   tags:
