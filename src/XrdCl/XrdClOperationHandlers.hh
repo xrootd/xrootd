@@ -749,7 +749,7 @@ namespace XrdCl
   //! @arg Response : response type
   //----------------------------------------------------------------------------
   template<typename Response>
-  struct Resp: public RespBase<Response>
+  struct Resp: RespBase<Response>
   {
       //------------------------------------------------------------------------
       //! A factory method
@@ -787,7 +787,7 @@ namespace XrdCl
   //! @arg Response : response type
   //----------------------------------------------------------------------------
   template<>
-  struct Resp<void>: public RespBase<void>
+  struct Resp<void>: RespBase<void>
   {
       //------------------------------------------------------------------------
       //! A factory method

@@ -561,12 +561,11 @@ void WorkflowTest::ParallelTest(){
     TestingForwardingHandler first;
     TestingForwardingHandler second;
 
-    auto &&creatingPipe = Parallel(
-        Open(f)(lockUrl, createFlags) >> &first | Close(f)() >> &second,
-        Open(dataF)(secondFileUrl, createFlags) | Close(dataF)()
-    ) >> &parallelOperationHandler;
-
-    CPPUNIT_ASSERT_XRDST( WaitFor( creatingPipe ) );
+    std::vector<Pipeline> pipes; pipes.reserve( 2 );
+    pipes.emplace_back( Open(f)(lockUrl, createFlags) >> &first | Close(f)() >> second );
+    pipes.emplace_back( Open(dataF)(secondFileUrl, createFlags) | Close(dataF)() );
+    CPPUNIT_ASSERT_XRDST( WaitFor( Parallel( pipes ) >> parallelOperationHandler ) );
+    CPPUNIT_ASSERT( pipes.empty() );
 
     delete f;
     delete dataF;

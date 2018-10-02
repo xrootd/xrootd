@@ -94,10 +94,12 @@ namespace XrdCl
       //! Set workflow to this and all next handlers. In the last handler
       //! it is used to finish workflow execution
       //!
-      //! @param  wf           :  workflow to set
-      //! @throws logic_error  :  if a workflow has been already assigned
+      //! @param  prms         :  a promis that the pipeline will have a result
+      //! @param  final        :  a callable that should be called at the end of
+      //!                         pipeline
       //------------------------------------------------------------------------
-      void Assign( std::promise<XRootDStatus> prms );
+      void Assign( std::promise<XRootDStatus>               prms,
+                   std::function<void(const XRootDStatus&)> final );
 
     private:
 
@@ -126,6 +128,12 @@ namespace XrdCl
       //! The promise that there will be a result (traveling along the pipeline)
       //------------------------------------------------------------------------
       std::promise<XRootDStatus> prms;
+
+      //------------------------------------------------------------------------
+      //! The lambda/function/functor that should be called at the end of the
+      //! pipeline (traveling along the pipeline)
+      //------------------------------------------------------------------------
+      std::function<void(const XRootDStatus&)> final;
 
       //------------------------------------------------------------------------
       //! Arguments for forwarding
@@ -203,34 +211,26 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual std::string ToString() = 0;
 
-      //------------------------------------------------------------------------
-      //! Conversion to boolean
-      //!
-      //! @return : true if it is a valid operation, false otherwise
-      //------------------------------------------------------------------------
-      operator bool() const
-      {
-        return valid;
-      }
-
     protected:
 
       //------------------------------------------------------------------------
       //! Run operation
       //!
       //! @param prom   : the promise that we will have a result
+      //! @param final  : the object to call at the end of pipeline
       //! @param args   : forwarded arguments
       //! @param bucket : number of the bucket with arguments
       //!
       //! @return       : stOK if operation was scheduled for execution
       //!                 successfully, stError otherwise
       //------------------------------------------------------------------------
-      void Run( std::promise<XRootDStatus>             prms,
-                        const std::shared_ptr<ArgsContainer>  &args,
-                        int                                    bucket = 1 )
+      void Run( std::promise<XRootDStatus>                prms,
+                std::function<void(const XRootDStatus&)>  final,
+                const std::shared_ptr<ArgsContainer>     &args,
+                int                                       bucket = 1 )
       {
         static_assert(state == Handled, "Only Operation<Handled> can be assigned to workflow");
-        handler->Assign( std::move( prms ) );
+        handler->Assign( std::move( prms ), std::move( final ) );
         XRootDStatus st = RunImpl( args, bucket );
         if( st.IsOK() ) handler.release();
         else
@@ -370,9 +370,12 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Conversion to Operation<Handled>
+      //!
+      //! @throws : std::logic_error if pipeline is invalid
       //------------------------------------------------------------------------
       operator Operation<Handled>&()
       {
+        if( !bool( operation ) ) throw std::logic_error( "Invalid pipeline." );
         return *operation.get();
       }
 
@@ -383,8 +386,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       operator bool()
       {
-        if( !operation ) return false;
-        return bool( *operation );
+        return bool( operation );
       }
 
     private:
@@ -405,20 +407,19 @@ namespace XrdCl
       //!
       //! @param args   : forwarded arguments
       //! @param bucket : number of bucket with forwarded params
+      //! @param final  : to be called at the end of the pipeline
       //------------------------------------------------------------------------
-      void Run( std::shared_ptr<ArgsContainer> args, int bucket )
+      void Run( std::shared_ptr<ArgsContainer> args, int bucket,
+                std::function<void(const XRootDStatus&)> final = nullptr )
       {
-        if( !bool( *operation ) )
-          throw std::invalid_argument( "Cannot run invalid Pipeline!" );
-
         if( ftr.valid() )
-          throw std::logic_error( "Pipeline is already running" );
+          throw std::logic_error( "Pipeline is already running" ); // TODO vs Parallel
 
         // a promise that the pipe will have a result
         std::promise<XRootDStatus> prms;
         ftr = prms.get_future();
         if( !args ) args = std::make_shared<ArgsContainer>();
-        operation->Run( std::move( prms ), args, bucket );
+        operation->Run( std::move( prms ), std::move( final ), args, bucket );
       }
 
       //------------------------------------------------------------------------

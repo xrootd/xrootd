@@ -29,6 +29,8 @@
 #include "XrdCl/XrdClOperations.hh"
 #include "XrdCl/XrdClOperationHandlers.hh"
 
+#include <atomic>
+
 namespace XrdCl
 {
 
@@ -102,6 +104,51 @@ namespace XrdCl
     private:
 
       //------------------------------------------------------------------------
+      //! Helper class for handling the PipelineHandler of the
+      //! ParallelOperation (RAII).
+      //!
+      //! Guarantees that the handler will be executed exactly once.
+      //------------------------------------------------------------------------
+      struct Ctx
+      {
+        //----------------------------------------------------------------------
+        //! Constructor.
+        //!
+        //! @param handler : the PipelineHandler of the Parallel operation
+        //----------------------------------------------------------------------
+        Ctx( PipelineHandler *handler ): handler( handler )
+        {
+
+        }
+
+        //----------------------------------------------------------------------
+        //! Destructor.
+        //----------------------------------------------------------------------
+        ~Ctx()
+        {
+          Handle( XRootDStatus() );
+        }
+
+        //----------------------------------------------------------------------
+        //! Forwards the status to the PipelineHandler if the handler haven't
+        //! been called yet.
+        //!
+        //! @param st : status
+        //----------------------------------------------------------------------
+        void Handle( const XRootDStatus &st )
+        {
+          PipelineHandler* hdlr = handler.exchange( nullptr );
+          if( hdlr )
+            hdlr->HandleResponse( new XRootDStatus( st ), nullptr );
+        }
+
+        //----------------------------------------------------------------------
+        //! PipelineHandler of the ParallelOperation
+        //----------------------------------------------------------------------
+        std::atomic<PipelineHandler*> handler;
+      };
+
+      //------------------------------------------------------------------------
       //! Run operation
       //!
       //! @param params :  container with parameters forwarded from
@@ -109,25 +156,23 @@ namespace XrdCl
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params,
-                            int                                   bucketDefault = 0 ) // TODO that's wrong ! we sync in the handler !
+                            int                                   bucketDefault = 0 )
       {
-        for( int i = 0; i < pipelines.size(); i++ )
-        {
-          int bucket = i + 1;
-          pipelines[i].Run( params, bucket );
-        }
+        std::shared_ptr<Ctx> ctx( new Ctx( this->handler.release() ) );
 
-        for( auto &pipe : pipelines )
+        try
         {
-          XRootDStatus st = pipe.ftr.get();
-          if( !st.IsOK() )
+          for( size_t i = 0; i < pipelines.size(); ++i )
           {
-            this->handler->HandleResponse( new XRootDStatus( st ), nullptr );
-            return st;
+            pipelines[i].Run( params, i + 1,
+                [ctx]( const XRootDStatus &st ){ if( !st.IsOK() ) ctx->Handle( st ); } );
           }
         }
+        catch( std::logic_error &ex )
+        {
+          ctx->Handle( XRootDStatus( stError, errInvalidOp ) );
+        }
 
-        this->handler->HandleResponse( new XRootDStatus(), nullptr );
         return XRootDStatus();
       }
 
@@ -197,7 +242,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory function for creating parallel operation from
   //! a given number of operations
-  //! (we use && reference since due to reference colapsing this will fit
+  //! (we use && reference since due to reference collapsing this will fit
   //! both r- and l-value references)
   //----------------------------------------------------------------------------
   template<typename ... Operations>

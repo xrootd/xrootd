@@ -72,11 +72,12 @@ namespace XrdCl
 
     if( !st.IsOK() || !nextOperation )
     {
+      if( final ) final( st );
       prms.set_value( st );
       return;
     }
 
-    nextOperation->Run( std::move( prms ), args );
+    nextOperation->Run( std::move( prms ), std::move( final ), args );
   }
 
   //----------------------------------------------------------------------------
@@ -108,9 +109,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // OperationHandler::AssignToWorkflow
   //----------------------------------------------------------------------------
-  void PipelineHandler::Assign( std::promise<XRootDStatus> p )
+  void PipelineHandler::Assign( std::promise<XRootDStatus>                p,
+                                std::function<void(const XRootDStatus&)>  f )
   {
-    prms = std::move( p );
+    prms  = std::move( p );
+    final = std::move( f );
   }
 
 }
