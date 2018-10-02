@@ -399,7 +399,7 @@ namespace XrdCl
       {
         StatInfo *info = nullptr;
         if( status->IsOK() )
-          f.Stat( false, info );
+          XRootDStatus st = f.Stat( false, info );
         else
           info = &nullref;
         fun( *status, *info );
@@ -453,7 +453,7 @@ namespace XrdCl
       {
         StatInfo *info = nullptr;
         if( status->IsOK() )
-          f.Stat( false, info );
+          XRootDStatus st = f.Stat( false, info );
         else
           info = &nullref;
         auto paramsContainerWrapper = GetOperationContext();
