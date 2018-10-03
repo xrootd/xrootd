@@ -1882,16 +1882,19 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          // Fill the information needed by the external function
          if (AuthzCertFmt == 1) {
             // May have been already done
-            if (!Entity.creds || Entity.credslen == 0) {
+            if (!Entity.creds || (Entity.creds && Entity.credslen == 0)) {
                // PEM base64
                bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
+               // If not empty Entity.creds is a pointer to hs->Chain and
+               // we need not to free it
             }
          } else {
             // May have been already done
-            if (!Entity.creds || Entity.credslen > 0) {
+            if (Entity.creds && Entity.credslen > 0) {
+               // Entity.creds is in PEM form, we need to free it
                free(Entity.creds);
                // Raw (opaque) format, to be used with XrdCrypto
                Entity.creds = (char *) hs->Chain;
