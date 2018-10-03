@@ -334,6 +334,11 @@ do{while(optind < Argc && Legacy(optind)) {}
      dstFile = new XrdCpFile(parmVal[--parmCnt], rc);
      if (rc) FMSG("Invalid url, '" <<dstFile->Path <<"'.", 22);
 
+// Allow HTTP if XRDCP_ALLOW_HTTP is set
+   if (getenv("XRDCP_ALLOW_HTTP")) {
+       OpSpec |= DoAllowHttp;
+   }
+
 // Do a protocol check
 //
      if (dstFile->Protocol != XrdCpFile::isFile
