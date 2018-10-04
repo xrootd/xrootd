@@ -21,6 +21,7 @@ Version 4.8.5
   * **[XrdHttp]** Obey the `Connection` request header.
   * **[XrdHttp]** Reset filesize when the XrdHttpReq object is used.
   * **[XrdHttp]** Do not increment reqstate when headers are incomplete.
+  * **[Proxy]** Fix incorrect rc check when processing Fstat(). 
 
 + **Minor bug fixes**
   * **[XrdCl]** xrdfs ls: fix formatting issue,fixes #823
