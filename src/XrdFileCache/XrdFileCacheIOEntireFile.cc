@@ -114,7 +114,7 @@ int IOEntireFile::initCachedStat(const char* path)
    if (res)
    {
       res = GetInput()->Fstat(tmpStat);
-      TRACEIO(Debug, "IOEntireFile::initCachedStat  get stat from client res= " << res << "size = " << tmpStat.st_size);
+      TRACEIO(Debug, "IOEntireFile::initCachedStat get stat from client res = " << res << ", size = " << tmpStat.st_size);
    }
 
    if (res == 0)
@@ -129,36 +129,22 @@ int IOEntireFile::initCachedStat(const char* path)
 bool IOEntireFile::ioActive()
 {
    XrdSysMutexHelper lock(&m_mutex);
-   bool active = m_file && m_file->ioActive();
-   return active;
-}
 
-//______________________________________________________________________________
-void IOEntireFile::RelinquishFile(File*)
-{
-   // Called from Cache::GetFile
-
-   TRACE(Debug, "IOEntireFile::RelinquishFile() " << this);
-
-   XrdSysMutexHelper lock(&m_mutex);
-   m_file = 0;
+   return m_file->ioActive(this);
 }
 
 //______________________________________________________________________________
 XrdOucCacheIO *IOEntireFile::Detach()
 {
-   // Called from XrdPosixFile destructor
+   // Called from XrdPosixFile destructor.
 
    TRACE(Info, "IOEntireFile::Detach() " << this);
 
    {
       XrdSysMutexHelper lock(&m_mutex);
-      if (m_file)
-      {
-         m_file->RequestSyncOfDetachStats();
-         Cache::GetInstance().ReleaseFile(m_file);
-         m_file = 0;
-      }
+
+      m_file->RequestSyncOfDetachStats();
+      Cache::GetInstance().ReleaseFile(m_file, this);
    }
    XrdOucCacheIO *io = GetInput();
    delete this;
@@ -185,7 +171,7 @@ int IOEntireFile::Read(char *buff, long long off, int size)
    ssize_t bytes_read = 0;
    ssize_t retval = 0;
 
-   retval = m_file->Read(buff, off, size);
+   retval = m_file->Read(this, buff, off, size);
    if (retval >= 0)
    {
       bytes_read += retval;
@@ -207,9 +193,9 @@ int IOEntireFile::Read(char *buff, long long off, int size)
 /*
  * Perform a readv from the cache
  */
-int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
+int IOEntireFile::ReadV(const XrdOucIOVec *readV, int n)
 {
    TRACEIO(Dump, "IO::ReadV(), get " <<  n << " requests" );
-   return m_file->ReadV(readV, n);
+   return m_file->ReadV(this, readV, n);
 }
 

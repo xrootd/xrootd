@@ -10,13 +10,29 @@
 #define TRACE_Debug    4
 #define TRACE_Dump     5
 
-
 #define TRACE_STR_None     ""
 #define TRACE_STR_Error    "error "
 #define TRACE_STR_Warning  "warning "
 #define TRACE_STR_Info     "info "
 #define TRACE_STR_Debug    "debug "
 #define TRACE_STR_Dump     "dump "
+
+#define TRACE_STR_0        ""
+#define TRACE_STR_1        "error "
+#define TRACE_STR_2        "warning "
+#define TRACE_STR_3        "info "
+#define TRACE_STR_4        "debug "
+#define TRACE_STR_5        "dump "
+
+namespace
+{
+  const char* TraceInt2Str(int lvl)
+  {
+    static const char* t_strings[] = { "", "error ", "warning ", "info ", "debug ", "dump " };
+
+    return t_strings[lvl];
+  }
+}
 
 #ifndef NODEBUG
 
@@ -33,10 +49,14 @@
    if (XRD_TRACE What >= TRACE_ ## act) \
    {XRD_TRACE Beg(0, m_traceID) << TRACE_STR_ ## act  << x; XRD_TRACE End(); }
 
+#define TRACE_INT(act, x) \
+   if (XRD_TRACE What >= act) \
+   {XRD_TRACE Beg(0, m_traceID) << TraceInt2Str(act) << x; XRD_TRACE End(); }
+
 #define TRACE_TEST(act, x) \
    XRD_TRACE Beg("", m_traceID) << TRACE_STR_ ## act  << x; XRD_TRACE End(); 
 
-#define TRACE_PC(act, pre_code, x)           \
+#define TRACE_PC(act, pre_code, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
    {pre_code; XRD_TRACE Beg(0, m_traceID) << TRACE_STR_ ## act  <<x; XRD_TRACE End(); }
 

@@ -367,14 +367,6 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
 
 //------------------------------------------------------------------------------
 
-void Info::WriteIOStatDetach(Stats& s)
-{
-   m_store.m_astats.back().DetachTime  = time(0);
-   m_store.m_astats.back().BytesDisk   = s.m_BytesDisk;
-   m_store.m_astats.back().BytesRam    = s.m_BytesRam;
-   m_store.m_astats.back().BytesMissed = s.m_BytesMissed;
-}
-
 void Info::WriteIOStatAttach()
 {
    m_store.m_accessCnt++;
@@ -384,6 +376,21 @@ void Info::WriteIOStatAttach()
    AStat as;
    as.AttachTime = time(0);
    m_store.m_astats.push_back(as);
+}
+
+void Info::WriteIOStat(Stats& s)
+{
+   m_store.m_astats.back().BytesDisk   = s.m_BytesDisk;
+   m_store.m_astats.back().BytesRam    = s.m_BytesRam;
+   m_store.m_astats.back().BytesMissed = s.m_BytesMissed;
+}
+
+void Info::WriteIOStatDetach(Stats& s)
+{
+   m_store.m_astats.back().DetachTime  = time(0);
+   m_store.m_astats.back().BytesDisk   = s.m_BytesDisk;
+   m_store.m_astats.back().BytesRam    = s.m_BytesRam;
+   m_store.m_astats.back().BytesMissed = s.m_BytesMissed;
 }
 
 void Info::WriteIOStatSingle(long long bytes_disk)

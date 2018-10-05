@@ -39,27 +39,27 @@ using namespace XrdFileCache;
 
 namespace
 {
+
 const int PREFETCH_MAX_ATTEMPTS = 10;
 
-
-
 Cache* cache() { return &Cache::GetInstance(); }
+
 }
 
 const char *File::m_traceID = "File";
 
 //------------------------------------------------------------------------------
 
-File::File(IO *io, const std::string& path, long long iOffset, long long iFileSize) :
+File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_ref_cnt(0),
    m_is_open(false),
-   m_io(io),
    m_output(0),
    m_infoFile(0),
    m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
    m_filename(path),
    m_offset(iOffset),
    m_fileSize(iFileSize),
+   m_current_io(m_io_map.end()),
    m_non_flushed_cnt(0),
    m_in_sync(false),
    m_downloadCond(0),
@@ -106,53 +106,58 @@ void File::BlockRemovedFromWriteQ(Block* b)
 
 //------------------------------------------------------------------------------
 
-bool File::ioActive()
+bool File::ioActive(IO *io)
 {
    // Retruns true if delay is needed
 
-   TRACEF(Debug, "File::ioActive start");
-   bool blockMapEmpty = false;
+   TRACEF(Debug, "File::ioActive start for io " << io);
+
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
 
-      if (! m_is_open) return false;
-
-      if (m_prefetchState != kStopped)
+      if ( ! m_is_open)
       {
-         m_prefetchState = kStopped;
-         cache()->DeRegisterPrefetchFile(this);
+         TRACEF(Error, "ioActive for io " << io <<" called on a closed file. This should not happen.");
+         return false;
       }
 
-      // High debug print
-      // for (BlockMap_i it = m_block_map.begin(); it != m_block_map.end(); ++it)
-      // {
-      //    Block* b = it->second;
-      //    TRACEF(Dump, "File::ioActive block idx = " <<  b->m_offset/m_cfi.GetBufferSize() << " prefetch = " << b->prefetch <<  " refcnt " << b->refcnt);
-      // }
-      TRACEF(Info, "ioActive block_map.size() = " << m_block_map.size());
+      IoMap_i mi = m_io_map.find(io);
 
-      // Remove failed blocks.
-      BlockMap_i itr = m_block_map.begin();
-      while (itr != m_block_map.end())
+      if (mi != m_io_map.end())
       {
-         if (itr->second->is_failed() && itr->second->m_refcnt == 1)
+         TRACEF(Info, "ioActive for io " << io <<
+                ", active_prefetces " << mi->second.m_active_prefetches <<
+                ", allow_prefetching " << mi->second.m_allow_prefetching << 
+                "; (block_map.size() = " << m_block_map.size() << ").");
+
+         mi->second.m_allow_prefetching = false;
+
+         // Check if any IO is still available for prfetching. If not, stop it.
+         if (m_prefetchState == kOn || m_prefetchState == kHold)
          {
-            BlockMap_i toErase = itr;
-            ++itr;
-            TRACEF(Debug, "Remove failed block " <<  toErase->second->m_offset/m_cfi.GetBufferSize());
-            free_block(toErase->second);
+            if ( ! select_current_io_or_disable_prefetching(false) )
+            {
+               TRACEF(Debug, "ioActive stopping prefetching after io " << io << " retreat.");
+            }
+         }
+
+         // On last IO, consider write queue blocks. Note, this also contains
+         // blocks being prefetched.
+         if (m_io_map.size() == 1)
+         {
+            return ! m_block_map.empty();
          }
          else
          {
-            ++itr;
+            return mi->second.m_active_prefetches > 0;
          }
       }
-
-      // Check if map is empty.
-      blockMapEmpty = m_block_map.empty();
+      else
+      {
+         TRACEF(Error, "ioActive io " << io <<" not found in IoMap. This should not happen.");
+         return false;
+      }
    }
-
-   return ! blockMapEmpty;
 }
 
 //------------------------------------------------------------------------------
@@ -176,7 +181,7 @@ bool File::FinalizeSyncBeforeExit()
        Stats loc_stats = m_stats.Clone();
        m_cfi.WriteIOStatDetach(loc_stats);
        m_detachTimeIsLogged = true;
-       TRACEF(Debug, "File::FinalizeSyncBeforeExit scheduling sync to write detach stats");
+       TRACEF(Debug, "File::FinalizeSyncBeforeExit requesting sync to write detach stats");
        return true;
      }
    }
@@ -186,36 +191,68 @@ bool File::FinalizeSyncBeforeExit()
 
 //------------------------------------------------------------------------------
 
-void File::ReleaseIO()
+void File::AddIO(IO *io)
 {
-   // called from Cache::ReleaseFile
+   // Called from Cache::GetFile() when a new IO asks for the file.
+
+   TRACEF(Debug, "File::AddIO() io = " << (void*)io);
 
    m_downloadCond.Lock();
-   m_io = 0;
+
+   IoMap_i mi = m_io_map.find(io);
+
+   if (mi == m_io_map.end())
+   {
+      m_io_map.insert(std::make_pair(io, IODetails()));
+
+      if (m_prefetchState == kStopped)
+      {
+         m_prefetchState = kOn;
+         cache()->RegisterPrefetchFile(this);
+      }
+   }
+   else
+   {
+      TRACEF(Error, "File::AddIO() io = " << (void*)io << " already registered.");
+   }
+
    m_downloadCond.UnLock();
- }
+}
 
 //------------------------------------------------------------------------------
 
-IO* File::SetIO(IO *io)
+void File::RemoveIO(IO *io)
 {
-   // called if this object is recycled by other IO or detached from cache
+   // Called from Cache::ReleaseFile.
 
-   bool cacheActivatePrefetch = false;
+   TRACEF(Debug, "File::RemoveIO() io = " << (void*)io);
 
-   TRACEF(Debug, "File::SetIO()  " <<  (void*)io);
-   IO* oldIO = m_io;
    m_downloadCond.Lock();
-   m_io = io;
-   if (io && m_prefetchState != kComplete)
+
+   IoMap_i mi = m_io_map.find(io);
+
+   if (mi != m_io_map.end())
    {
-      cacheActivatePrefetch = true;
-      m_prefetchState = kOn;
+      if (mi == m_current_io)
+      {
+         ++m_current_io;
+      }
+
+      m_io_map.erase(mi);
+
+      if (m_io_map.empty() && m_prefetchState != kStopped && m_prefetchState != kComplete)
+      {
+         TRACEF(Error, "File::RemoveIO() io = " << (void*)io << " Prefetching is not stopped/complete -- it should be by now.");
+         m_prefetchState = kStopped;
+         cache()->DeRegisterPrefetchFile(this);
+      }
    }
+   else
+   {
+      TRACEF(Error, "File::RemoveIO() io = " << (void*)io << " is NOT registered.");
+   }
+
    m_downloadCond.UnLock();
-   
-   if (cacheActivatePrefetch) cache()->RegisterPrefetchFile(this);
-   return oldIO;
 }
 
 //------------------------------------------------------------------------------
@@ -289,10 +326,9 @@ bool File::Open()
    m_cfi.WriteIOStatAttach();
    m_downloadCond.Lock();
    m_is_open = true;
-   m_prefetchState = (m_cfi.IsComplete()) ? kComplete : kOn;
+   m_prefetchState = (m_cfi.IsComplete()) ? kComplete : kStopped; // Will engage in AddIO().
    m_downloadCond.UnLock();
 
-   if (m_prefetchState == kOn) cache()->RegisterPrefetchFile(this);
    return true;
 }
 
@@ -334,7 +370,7 @@ bool File::overlap(int blk,            // block to query
 
 //------------------------------------------------------------------------------
 
-Block* File::PrepareBlockRequest(int i, bool prefetch)
+Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
 {
    // Must be called w/ block_map locked.
    // Checks on size etc should be done before.
@@ -342,20 +378,20 @@ Block* File::PrepareBlockRequest(int i, bool prefetch)
    // Reference count is 0 so increase it in calling function if you want to
    // catch the block while still in memory.
 
-   const long long BS = m_cfi.GetBufferSize();
+   const long long BS   = m_cfi.GetBufferSize();
    const int last_block = m_cfi.GetSizeInBits() - 1;
 
    long long off     = i * BS;
    long long this_bs = (i == last_block) ? m_fileSize - off : BS;
 
-   Block *b = new Block(this, off, this_bs, prefetch); // should block be reused to avoid recreation
+   Block *b = new Block(this, io, off, this_bs, prefetch); // should block be reused to avoid recreation
 
    m_block_map[i] = b;
 
    // Actual Read request is issued in ProcessBlockRequests().
    TRACEF(Dump, "File::PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << " address " << (void*) b);
 
-   if (m_prefetchState == kOn && (int) m_block_map.size() > Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+   if (m_prefetchState == kOn && (int) m_block_map.size() >= Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
    {
       m_prefetchState = kHold;
       cache()->DeRegisterPrefetchFile(this);
@@ -364,21 +400,29 @@ Block* File::PrepareBlockRequest(int i, bool prefetch)
    return b;
 }
 
-void File::ProcessBlockRequests(BlockList_t& blks)
+void File::ProcessBlockRequest(Block *b, bool prefetch)
+{
+   // This *must not* be called with block_map locked.
+
+  BlockResponseHandler* oucCB = new BlockResponseHandler(b, prefetch);
+  b->get_io()->GetInput()->Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
+}
+
+void File::ProcessBlockRequests(BlockList_t& blks, bool prefetch)
 {
    // This *must not* be called with block_map locked.
 
    for (BlockList_i bi = blks.begin(); bi != blks.end(); ++bi)
    {
       Block *b = *bi;
-      BlockResponseHandler* oucCB = new BlockResponseHandler(b);
-      m_io->GetInput()->Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
+      BlockResponseHandler* oucCB = new BlockResponseHandler(b, prefetch);
+      b->get_io()->GetInput()->Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
    }
 }
 
 //------------------------------------------------------------------------------
 
-int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
+int File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, IntList_t& blocks,
                               char* req_buf, long long req_off, long long req_size)
 {
    const long long BS = m_cfi.GetBufferSize();
@@ -396,7 +440,7 @@ int File::RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
 
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
-      m_io->GetInput()->Read( *handler, req_buf + off, *ii * BS + blk_off, size);
+      io->GetInput()->Read( *handler, req_buf + off, *ii * BS + blk_off, size);
       TRACEF(Dump, "RequestBlockDirect success, idx = " <<  *ii << " size = " <<  size);
 
       total += size;
@@ -449,11 +493,11 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
 //------------------------------------------------------------------------------
 
-int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
+int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 {
    if ( ! isOpen())
    {
-      return m_io->GetInput()->Read(iUserBuff, iUserOff, iUserSize);
+      return io->GetInput()->Read(iUserBuff, iUserOff, iUserSize);
    }
 
    const long long BS = m_cfi.GetBufferSize();
@@ -495,7 +539,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       // On disk?
       else if (m_cfi.TestBit(offsetIdx(block_idx)))
       {
-         TRACEF(Dump, "File::Read()  read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
+         TRACEF(Dump, "File::Read() read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
          blks_on_disk.push_back(block_idx);
       }
       // Then we have to get it ...
@@ -505,7 +549,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
          if (cache()->RequestRAMBlock())
          {
             TRACEF(Dump, "File::Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
-            Block *b = PrepareBlockRequest(block_idx, false);
+            Block *b = PrepareBlockRequest(block_idx, io, false);
             if ( ! b)
             {
                preProcOK = false;
@@ -533,7 +577,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
       return -1;
    }
 
-   ProcessBlockRequests(blks_to_request);
+   ProcessBlockRequests(blks_to_request, false);
 
    long long bytes_read = 0;
    bool      error_cond = false;
@@ -547,7 +591,7 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    {
       direct_handler = new DirectResponseHandler(blks_direct.size());
 
-      direct_size = RequestBlocksDirect(direct_handler, blks_direct, iUserBuff, iUserOff, iUserSize);
+      direct_size = RequestBlocksDirect(io, direct_handler, blks_direct, iUserBuff, iUserOff, iUserSize);
       // failed to send direct client request
       if (direct_size < 0)
       {
@@ -581,14 +625,23 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
    while ( ! blks_to_process.empty())
    {
       BlockList_t finished;
-
+      BlockList_t to_reissue;
       {
          XrdSysCondVarHelper _lck(m_downloadCond);
 
          BlockList_i bi = blks_to_process.begin();
          while (bi != blks_to_process.end())
          {
-            if ((*bi)->is_finished())
+            if ((*bi)->is_failed() && (*bi)->get_io() != io)
+            {
+               TRACEF(Info, "File::Read() requested block " << (void*)(*bi) << " failed with another io " <<
+                      (*bi)->get_io() << " - reissuing request with my io " << io);
+
+               (*bi)->reset_error_and_set_io(io);
+               to_reissue.push_back(*bi);
+               ++bi;
+            }
+            else if ((*bi)->is_finished())
             {
                TRACEF(Dump, "File::Read() requested block finished " << (void*)(*bi) << ", is_failed()=" << (*bi)->is_failed());
                finished.push_back(*bi);
@@ -601,12 +654,15 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             }
          }
 
-         if (finished.empty())
+         if (finished.empty() && to_reissue.empty())
          {
             m_downloadCond.Wait();
             continue;
          }
       }
+
+      ProcessBlockRequests(to_reissue, false);
+      to_reissue.clear();
 
       BlockList_i bi = finished.begin();
       while (bi != finished.end())
@@ -633,8 +689,8 @@ int File::Read(char* iUserBuff, long long iUserOff, int iUserSize)
             {
                error_cond = true;
                errno = -(*bi)->m_errno;
-               TRACEF(Error, "File::Read(), block "<< (*bi)->m_offset/BS << " finished with error "
-                                                   << errno << " " << strerror(errno));
+               TRACEF(Error, "File::Read() io " << io << ", block "<< (*bi)->m_offset/BS <<
+                      " finished with error " << errno << " " << strerror(errno));
             }
          }
          ++bi;
@@ -783,6 +839,8 @@ void File::Sync()
    TRACEF(Dump, "File::Sync()");
    m_output->Fsync();
 
+   Stats loc_stats = m_stats.Clone();
+   m_cfi.WriteIOStat(loc_stats);
    m_cfi.Write(m_infoFile);
    m_infoFile->Fsync();
 
@@ -804,7 +862,7 @@ void File::Sync()
 
 void File::inc_ref_count(Block* b)
 {
-   // Method always called under lock
+   // Method always called under lock.
    b->m_refcnt++;
    TRACEF(Dump, "File::inc_ref_count " << b << " refcnt  " << b->m_refcnt);
 }
@@ -813,7 +871,7 @@ void File::inc_ref_count(Block* b)
 
 void File::dec_ref_count(Block* b)
 {
-   // Method always called under lock
+   // Method always called under lock.
    b->m_refcnt--;
    assert(b->m_refcnt >= 0);
 
@@ -826,6 +884,7 @@ void File::dec_ref_count(Block* b)
 
 void File::free_block(Block* b)
 {
+   // Method always called under lock.
    int i = b->m_offset/BufferSize();
    TRACEF(Dump, "File::free_block block " << b << "  idx =  " <<  i);
    size_t ret = m_block_map.erase(i);
@@ -849,16 +908,100 @@ void File::free_block(Block* b)
 
 //------------------------------------------------------------------------------
 
-void File::ProcessBlockResponse(Block* b, int res)
+bool File::select_current_io_or_disable_prefetching(bool skip_current)
+{
+   // Method always called under lock. It also expects prefetch to be active.
+
+   int  io_size = (int) m_io_map.size();
+   bool io_ok   = false;
+
+   if (io_size == 1)
+   {
+      io_ok = m_io_map.begin()->second.m_allow_prefetching;
+      if (io_ok)
+      {
+         m_current_io = m_io_map.begin();
+      }
+   }
+   else if (io_size > 1)
+   {
+      IoMap_i mi = m_current_io;
+      if (skip_current && mi != m_io_map.end()) ++mi;
+
+      for (int i = 0; i < io_size; ++i)
+      {
+         if (mi == m_io_map.end()) mi = m_io_map.begin();
+
+         if (mi->second.m_allow_prefetching)
+         {
+            m_current_io = mi;
+            io_ok = true;
+            break;
+         }
+         ++mi;
+      }
+   }
+
+   if ( ! io_ok)
+   {
+      m_current_io    = m_io_map.end();
+      m_prefetchState = kStopped;
+      cache()->DeRegisterPrefetchFile(this);
+   }
+
+   return io_ok;
+}
+
+//------------------------------------------------------------------------------
+
+void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 {
    XrdSysCondVarHelper _lck(m_downloadCond);
 
+   Block *b = brh->m_block;
+
    TRACEF(Dump, "File::ProcessBlockResponse " << (void*)b << "  " << b->m_offset/BufferSize());
+
+   // Deregister block from IO's prefetch count, if needed.
+   if (brh->m_for_prefetch)
+   {
+      IoMap_i mi = m_io_map.find(b->get_io());
+      if (mi != m_io_map.end())
+      {
+         --mi->second.m_active_prefetches;
+
+         // If failed and IO is still prefetching -- disable prefetching on this IO.
+         if (res < 0 && mi->second.m_allow_prefetching)
+         {
+            TRACEF(Debug, "File::ProcessBlockResponse after failed prefetch on io " << b->get_io() << " disabling prefetching on this io.");
+            mi->second.m_allow_prefetching = false;
+
+            // Check if any IO is still available for prfetching. If not, stop it.
+            if (m_prefetchState == kOn || m_prefetchState == kHold)
+            {
+               if ( ! select_current_io_or_disable_prefetching(false) )
+               {
+                  TRACEF(Debug, "ProcessBlockResponse stopping prefetching after io " <<  b->get_io() << " marked as bad.");
+               }
+            }
+         }
+
+         // If failed with no subscribers -- remove the block now.
+         if (res < 0 && b->m_refcnt == 0)
+         {
+            free_block(b);
+         }
+      }
+      else
+      {
+         TRACEF(Error, "File::ProcessBlockResponse io " << b->get_io() << " not found in IoMap.");
+      }
+   }
 
    if (res >= 0)
    {
-      b->m_downloaded = true;
-      // Increase ref-count or the writer.
+      b->set_downloaded();
+      // Increase ref-count for the writer.
       TRACEF(Dump, "File::ProcessBlockResponse inc_ref_count " <<  (int)(b->m_offset/BufferSize()));
       inc_ref_count(b);
       cache()->AddWriteTask(b, true);
@@ -867,14 +1010,7 @@ void File::ProcessBlockResponse(Block* b, int res)
    {
       TRACEF(Error, "File::ProcessBlockResponse block " << b << "  " << (int)(b->m_offset/BufferSize()) << " error=" << res);
 
-      // TODO: how long to keep block marked as failed? when to retry?
-      //
-      // Now a failed block is kept (with block memory released) in the
-      // block-map until a file is closed. Ref-count is increased to prevent
-      // deletion of the failed block until close time.
-
-      b->set_error_and_free(res);
-      inc_ref_count(b);
+      b->set_error(res);
    }
 
    m_downloadCond.Broadcast();
@@ -906,6 +1042,7 @@ void File::Prefetch()
 {
    // Check that block is not on disk and not in RAM.
    // TODO: Could prefetch several blocks at once!
+   //       blks_max could be an argument
 
    BlockList_t blks;
 
@@ -914,39 +1051,51 @@ void File::Prefetch()
       XrdSysCondVarHelper _lck(m_downloadCond);
 
       if (m_prefetchState != kOn)
+      {
          return;
+      }
 
+      if ( ! select_current_io_or_disable_prefetching(true) )
+      {
+         TRACEF(Error, "File::Prefetch no available IO object found, prefetching stopped. This should not happen, i.e., prefetching should be stopped before.");
+         return;
+      }
+
+      // Select block(s) to fetch.
       for (int f = 0; f < m_cfi.GetSizeInBits(); ++f)
       {
          if ( ! m_cfi.TestBit(f))
          {
-            f += m_offset/m_cfi.GetBufferSize();
-            BlockMap_i bi = m_block_map.find(f);
+            int f_act = f + m_offset / m_cfi.GetBufferSize();
+
+            BlockMap_i bi = m_block_map.find(f_act);
             if (bi == m_block_map.end())
             {
-               TRACEF(Dump, "File::Prefetch take block " << f);
+               TRACEF(Dump, "File::Prefetch take block " << f_act);
                cache()->RequestRAMBlock();
-               blks.push_back( PrepareBlockRequest(f, true) );
+               blks.push_back( PrepareBlockRequest(f_act, m_current_io->first, true) );
                m_prefetchReadCnt++;
                m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
                break;
             }
          }
       }
-   }
 
+      if (blks.empty())
+      {
+         TRACEF(Debug, "File::Prefetch file is complete, stopping prefetch.");
+         m_prefetchState = kComplete;
+         cache()->DeRegisterPrefetchFile(this);
+      }
+      else
+      {
+         m_current_io->second.m_active_prefetches += (int) blks.size();
+      }
+   }
 
    if ( ! blks.empty())
    {
-      ProcessBlockRequests(blks);
-   }
-   else
-   {
-      TRACEF(Dump, "File::Prefetch no free block found ");
-      m_downloadCond.Lock();
-      m_prefetchState = kComplete;
-      m_downloadCond.UnLock();
-      cache()->DeRegisterPrefetchFile(this);
+      ProcessBlockRequests(blks, true);
    }
 }
 
@@ -969,7 +1118,7 @@ XrdSysTrace* File::GetTrace()
 
 void BlockResponseHandler::Done(int res)
 {
-   m_block->m_file->ProcessBlockResponse(m_block, res);
+   m_block->m_file->ProcessBlockResponse(this, res);
 
    delete this;
 }

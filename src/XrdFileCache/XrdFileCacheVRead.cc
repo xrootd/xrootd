@@ -13,17 +13,17 @@
 
 namespace XrdFileCache
 {
-// a list of IOVec chuncks that match a given block index
-// first element is block index, the following vector elements are chunk readv indicies
-struct  ReadVChunkListDisk
+// A list of IOVec chuncks that match a given block index.
+// arr vector holds chunk readv indicies.
+struct ReadVChunkListDisk
 {
    ReadVChunkListDisk(int i) : block_idx(i) {}
 
-   int block_idx;
+   int              block_idx;
    std::vector<int> arr;
 };
 
-struct  ReadVChunkListRAM
+struct ReadVChunkListRAM
 {
    ReadVChunkListRAM(Block*b, std::vector <int>* iarr) : block(b), arr(iarr) {}
 
@@ -77,11 +77,11 @@ using namespace XrdFileCache;
 
 //------------------------------------------------------------------------------
 
-int File::ReadV(const XrdOucIOVec *readV, int n)
+int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
 {
    if ( ! isOpen())
    {
-      return m_io->GetInput()->ReadV(readV, n);
+      return io->GetInput()->ReadV(readV, n);
    }
 
    TRACEF(Dump, "ReadV for " << n << " chunks.");
@@ -104,7 +104,7 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
 
    // TODO The following call never fails (other than with out of mem exception).
    // This should be implemented in PrepareBlockRequest().
-   if ( ! VReadPreProcess(readV, n, blocks_to_process, blocks_on_disk, chunkVec))
+   if ( ! VReadPreProcess(io, readV, n, blocks_to_process, blocks_on_disk, chunkVec))
    {
       bytesRead = -1;
       errno = ENOMEM;
@@ -117,7 +117,7 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
       if ( ! chunkVec.empty())
       {
          direct_handler = new DirectResponseHandler(1);
-         m_io->GetInput()->ReadV(*direct_handler, &chunkVec[0], chunkVec.size());
+         io->GetInput()->ReadV(*direct_handler, &chunkVec[0], chunkVec.size());
       }
    }
 
@@ -139,7 +139,7 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
    // read from cached blocks
    if (bytesRead >= 0)
    {
-      int br = VReadProcessBlocks(readV, n, blocks_to_process.bv, blks_processed);
+      int br = VReadProcessBlocks(io, readV, n, blocks_to_process.bv, blks_processed);
       if (br < 0)
       {
          bytesRead = br;
@@ -179,8 +179,9 @@ int File::ReadV(const XrdOucIOVec *readV, int n)
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
 
-      // decrease ref count on the remaining blocks
-      // this happens in case read process has been broke due to previous errors
+      // Decrease ref count on the remaining blocks.
+      // This happens when read process aborts due to encountered errors.
+      // [ See better implementation of the whole process in File::Read(). ]
       for (std::vector<ReadVChunkListRAM>::iterator i = blocks_to_process.bv.begin(); i != blocks_to_process.bv.end(); ++i)
          dec_ref_count(i->block);
 
@@ -208,7 +209,7 @@ bool File::VReadValidate(const XrdOucIOVec *vr, int n)
    for (int i = 0; i < n; ++i)
    {
       if (vr[i].offset < 0 || vr[i].offset >= m_fileSize ||
-                         vr[i].offset + vr[i].size > m_fileSize)
+          vr[i].offset + vr[i].size > m_fileSize)
       {
          return false;
       }
@@ -218,7 +219,7 @@ bool File::VReadValidate(const XrdOucIOVec *vr, int n)
 
 //------------------------------------------------------------------------------
 
-bool File::VReadPreProcess(const XrdOucIOVec *readV, int n,
+bool File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
                            ReadVBlockListRAM        &blocks_to_process,
                            ReadVBlockListDisk       &blocks_on_disk,
                            std::vector<XrdOucIOVec> &chunkVec)
@@ -254,7 +255,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n,
          {
             if (Cache::GetInstance().RequestRAMBlock())
             {
-               Block *b = PrepareBlockRequest(block_idx, false);
+               Block *b = PrepareBlockRequest(block_idx, io, false);
                // TODO this can not fail (other than out of memory which we don't handle).
                if (! b) return false;
                inc_ref_count(b);
@@ -266,8 +267,8 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n,
             else
             {
                long long off;      // offset in user buffer
-               long long blk_off;      // offset in block
-               long long size;      // size to copy
+               long long blk_off;  // offset in block
+               long long size;     // size to copy
                const long long BS = m_cfi.GetBufferSize();
                overlap(block_idx, BS, readV[iov_idx].offset, readV[iov_idx].size, off, blk_off, size);
                chunkVec.push_back(XrdOucIOVec2(readV[iov_idx].data+off, BS*block_idx + blk_off,size));
@@ -280,7 +281,7 @@ bool File::VReadPreProcess(const XrdOucIOVec *readV, int n,
 
    m_downloadCond.UnLock();
 
-   ProcessBlockRequests(blks_to_request);
+   ProcessBlockRequests(blks_to_request, false);
 
    return true;
 }
@@ -325,20 +326,31 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
 
 //------------------------------------------------------------------------------
 
-int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
+int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
                              std::vector<ReadVChunkListRAM>& blocks_to_process,
                              std::vector<ReadVChunkListRAM>& blocks_processed)
 {
    int bytes_read = 0;
-   while ((! blocks_to_process.empty()) && (bytes_read >= 0))
+   while ( ! blocks_to_process.empty() && bytes_read >= 0)
    {
       std::vector<ReadVChunkListRAM> finished;
+      BlockList_t                    to_reissue;
       {
          XrdSysCondVarHelper _lck(m_downloadCond);
+
          std::vector<ReadVChunkListRAM>::iterator bi = blocks_to_process.begin();
          while (bi != blocks_to_process.end())
          {
-            if (bi->block->is_finished())
+            if (bi->block->is_failed() && bi->block->get_io() != io)
+            {
+               TRACEF(Info, "File::VReadProcessBlocks() requested block " << bi->block << " failed with another io " <<
+                      bi->block->get_io() << " - reissuing request with my io " << io);
+
+               bi->block->reset_error_and_set_io(io);
+               to_reissue.push_back(bi->block);
+               ++bi;
+            }
+            else if (bi->block->is_finished())
             {
                finished.push_back(ReadVChunkListRAM(bi->block, bi->arr));
                // Here we rely on the fact that std::vector does not reallocate on erase!
@@ -350,12 +362,15 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
             }
          }
 
-         if (finished.empty())
+         if (finished.empty() && to_reissue.empty())
          {
             m_downloadCond.Wait();
             continue;
          }
       }
+
+      ProcessBlockRequests(to_reissue, false);
+      to_reissue.clear();
 
       std::vector<ReadVChunkListRAM>::iterator bi = finished.begin();
       while (bi != finished.end())
@@ -378,6 +393,8 @@ int File::VReadProcessBlocks(const XrdOucIOVec *readV, int n,
          {
             bytes_read = -1;
             errno = -bi->block->m_errno;
+            TRACEF(Error, "File::VReadProcessBlocks() io " << io << ", block "<< bi->block <<
+                   " finished with error " << errno << " " << strerror(errno));
             break;
          }
 
