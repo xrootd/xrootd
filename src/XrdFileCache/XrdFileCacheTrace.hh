@@ -24,16 +24,6 @@
 #define TRACE_STR_4        "debug "
 #define TRACE_STR_5        "dump "
 
-namespace
-{
-  const char* TraceInt2Str(int lvl)
-  {
-    static const char* t_strings[] = { "", "error ", "warning ", "info ", "debug ", "dump " };
-
-    return t_strings[lvl];
-  }
-}
-
 #ifndef NODEBUG
 
 #include "XrdSys/XrdSysHeaders.hh"
@@ -51,7 +41,8 @@ namespace
 
 #define TRACE_INT(act, x) \
    if (XRD_TRACE What >= act) \
-   {XRD_TRACE Beg(0, m_traceID) << TraceInt2Str(act) << x; XRD_TRACE End(); }
+   {static const char* t_what[]={"","error ","warning ","info ","debug ","dump "};\
+    XRD_TRACE Beg(0, m_traceID) << t_what[act] << x; XRD_TRACE End(); }
 
 #define TRACE_TEST(act, x) \
    XRD_TRACE Beg("", m_traceID) << TRACE_STR_ ## act  << x; XRD_TRACE End(); 
