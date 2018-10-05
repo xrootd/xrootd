@@ -22,6 +22,7 @@ Prerelease Notes
   * **[Proxy]** Implement new options in pfc.diskusage for better control of purging.
 
 + **Major bug fixes**
+  * **[Proxy]** Fix incorrect rc check when processing Fstat() (disabled progbar).
   * **[POSIX]** Avoid SEGV due to race condition between open() and close().
   * **[SSI]** Do not leak memory when a fatal error occurs. Fixes #775
 
