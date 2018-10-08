@@ -13,6 +13,11 @@ Prerelease Notes
   * **[Server]** Allow better handling for proxy caching clusters.
   * **[Server]** Allow configurable posc sync level.
   * **[Server]** Implement framework for a kXR_prepare plug-in.
+  * **[SSI]** Export request scaling interface.
+  * **[SSI]** Add generic Control() method for future use.
+  * **[SSI]** Simplify GetResponseData() to return void not enum (breaks ABI).
+  * **[Server]** Trivialize OFS plugin wrapping (breaks ABI).
+  * **[Server]** Add additional fields to he SecEntity structure (breaks ABI).
 
 + **Major bug fixes**
 
