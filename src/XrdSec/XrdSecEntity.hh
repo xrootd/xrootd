@@ -43,6 +43,7 @@
 //------------------------------------------------------------------------------
 
 #include <string.h>
+#include <sys/types.h>
 
 #define XrdSecPROTOIDSIZE 8
 
@@ -68,30 +69,37 @@ const    char   *tident;                  // Trace identifier always preset
                                           // that is common to the session. Free
                                           // it in your XrdSfsFileSystem::Disc()
                                           // implementation, as needed.
+         uid_t   uid;                     // Unix uid or 0 if none
+         gid_t   gid;                     // Unix gid or 0 if none
+         void   *future[3];               // Reserved for future expansion
+
          XrdSecEntity(const char *pName = "")
                      {Reset();
-	              strncpy(prot, pName, XrdSecPROTOIDSIZE-1);
+                      strncpy(prot, pName, XrdSecPROTOIDSIZE-1);
                       prot[XrdSecPROTOIDSIZE-1] = '\0';
                      }
         ~XrdSecEntity() {}
 
-	void Reset()
-	{
-          memset( prot, 0, XrdSecPROTOIDSIZE );
-	  name = 0;
-	  host = 0;
-	  vorg = 0;
-	  role = 0;
-	  grps = 0;
-	  endorsements = 0;
-	  moninfo = 0;
-	  creds = 0;
-	  credslen = 0;
-	  rsvd = 0;
-	  addrInfo = 0;
-	  tident = 0;
-	  sessvar = 0;
-	}
+         void Reset()
+              {
+               memset( prot, 0, XrdSecPROTOIDSIZE );
+               name = 0;
+               host = 0;
+               vorg = 0;
+               role = 0;
+               grps = 0;
+               endorsements = 0;
+               moninfo = 0;
+               creds = 0;
+               credslen = 0;
+               rsvd = 0;
+               addrInfo = 0;
+               tident = 0;
+               sessvar = 0;
+               uid     = 0;
+               gid     = 0;
+               memset(future, 0, sizeof(future));
+             }
 };
 
 #define XrdSecClientName XrdSecEntity
