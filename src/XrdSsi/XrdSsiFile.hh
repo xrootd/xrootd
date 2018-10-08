@@ -99,16 +99,17 @@ public:
                         
 // Constructor and destructor
 //                      
-                         XrdSsiFile(const char *user, int MonID);
+                         XrdSsiFile(const char *user, int MonID)
+                                   : XrdSfsFile(myEInfo), fsFile(0), fSessP(0),
+                                     xioP(0), myEInfo(user, MonID) {}
                         
 virtual                 ~XrdSsiFile();
                         
 private:                
-void                     CopyECB(bool forOpen=false);
-int                      CopyErr(const char *op, int rc);
 
 XrdSfsFile              *fsFile;
 XrdSsiFileSess          *fSessP;
 XrdSfsXio               *xioP;
+XrdOucErrInfo            myEInfo;
 };
 #endif

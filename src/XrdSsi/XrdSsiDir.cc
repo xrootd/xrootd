@@ -65,7 +65,6 @@ int XrdSsiDir::open(const char              *dir_path, // In
 */
 {
    static const char *epname = "opendir";
-   int eNum;
 
 // Verify that this object is not already associated with an open file
 //
@@ -74,21 +73,18 @@ int XrdSsiDir::open(const char              *dir_path, // In
 
 // Open a regular file if this is wanted
 //
-   if (fsChk)
-      {if (!FSPath.Find(dir_path))
-          {if (!(dirP = theFS->newDir((char *)tident, error.getErrMid())))
-              return XrdSsiUtils::Emsg(epname, ENOMEM, epname, dir_path, error);
-           error.Reset(); dirP->error = error;
-           if ((eNum = dirP->open(dir_path, client, info)))
-              {error = dirP->error;
-               delete dirP; dirP = 0;
-              } else return SFS_OK;
-          } else error.setErrInfo(ENOTSUP, "Directory operations not "
-                                           "not supported on given path.");
-       } else error.setErrInfo(ENOTSUP, "Directory operations not supported.");
+   if (fsChk && FSPath.Find(dir_path))
+      {if (!(dirP = theFS->newDir((char *)tident, error.getErrMid())))
+          return XrdSsiUtils::Emsg(epname, ENOMEM, epname, dir_path, error);
+       dirP->error = error;
+       return dirP->open(dir_path, client, info);
+      }
 
 // All done
 //
+   if (fsChk) error.setErrInfo(ENOTSUP, "Directory operations not "
+                                        "supported on given path.");
+      else error.setErrInfo(ENOTSUP, "Directory operations not supported.");
    return SFS_ERROR;
 }
 
@@ -109,22 +105,12 @@ const char *XrdSsiDir::nextEntry()
 */
 {
    const char *epname = "readdir";
-   const char *dent;
 
-// Check if this directory is actually open
+// Get next directory entry if we can
 //
-   if (!dirP) {XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
-               return 0;
-              }
-
-// Read the next directory entry
-//
-   dent = dirP->nextEntry();
-   if (!dent) error = dirP->error;
-
-// Return the actual entry
-//
-   return dent;
+   if (dirP) return dirP->nextEntry();
+   XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
+   return 0;
 }
 
 /******************************************************************************/
@@ -141,21 +127,11 @@ int XrdSsiDir::close()
 */
 {
    const char *epname = "closedir";
-   int retc;
 
-// Check if this directory is actually open
+// Close as needed
 //
-   if (!dirP) return XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
-
-// Close this directory
-//
-    if ((retc = dirP->close())) error = dirP->error;
-
-// All done
-//
-   delete dirP;
-   dirP = 0;
-   return retc;
+   if (dirP) return dirP->close();
+   return XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
 }
 
 /******************************************************************************/
@@ -174,19 +150,11 @@ int XrdSsiDir::autoStat(struct stat *buf)
 */
 {
    const char *epname = "autoStat";
-   int retc;
 
 // Check if this directory is actually open
 //
-   if (!dirP) return XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
-
-// Do the autostat
-//
-   if ((retc = dirP->autoStat(buf))) error = dirP->error;
-
-// All done
-//
-   return retc;
+   if (dirP) return dirP->autoStat(buf);
+   return XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
 }
 
 /******************************************************************************/
@@ -199,7 +167,7 @@ const char *XrdSsiDir::FName()
 
 // Check if this directory is actually open
 //
-   if (!dirP) return dirP->FName();
+   if (dirP) return dirP->FName();
    XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
    return "";
 }
