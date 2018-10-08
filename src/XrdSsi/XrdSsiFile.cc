@@ -60,13 +60,6 @@ extern bool              fsChk;
 using namespace XrdSsi;
 
 /******************************************************************************/
-/*                X r d S s i F i l e   C o n s t r u c t o r                 */
-/******************************************************************************/
-
-XrdSsiFile::XrdSsiFile(const char *user, int monid)
-          : XrdSfsFile(user, monid), fsFile(0), fSessP(0), xioP(0) {}
-
-/******************************************************************************/
 /*                 X r d S s i F i l e   D e s t r u c t o r                  */
 /******************************************************************************/
   
@@ -76,7 +69,7 @@ XrdSsiFile::~XrdSsiFile()
 // If we have a file object then delete it -- it needs to close. Else do it.
 //
    if (fsFile) delete fsFile;
-   if (fSessP)        fSessP->Recycle();
+   if (fSessP) fSessP->Recycle();
 }
   
 /******************************************************************************/
@@ -89,88 +82,17 @@ int XrdSsiFile::close()
 
   Input:    None
 
-  Output:   Always returns SFS_OK
+  Output:   Always returns SFS_OK for SSI or whatever SfsFile returns
 */
 {
 
-// Route this request as needed (no callback possible)
+// Route this request as needed
 //
-   if (fsFile)
-      {int rc = fsFile->close();
-       return (rc ? CopyErr("close", rc) : rc);
-      }
+   if (fsFile) return fsFile->close();
 
 // Forward this to the file session object
 //
    return fSessP->close();
-}
-  
-/******************************************************************************/
-/* Private:                      C o p y E C B                                */
-/******************************************************************************/
-  
-void XrdSsiFile::CopyECB(bool forOpen)
-{
-   unsigned long long cbArg;
-   XrdOucEICB        *cbVal = error.getErrCB(cbArg);
-
-// We only need to copy some information
-//
-   if (forOpen) fsFile->error.setUCap(error.getUCap());
-   fsFile->error.setErrCB(cbVal, cbArg);
-}
-
-/******************************************************************************/
-/* Private:                      C o p y E r r                                */
-/******************************************************************************/
-  
-int XrdSsiFile::CopyErr(const char *op, int rc)
-{
-   XrdOucBuffer *buffP;
-   const char   *eText;
-   int           eTLen, eCode;
-
-// Get the error information
-//
-   eText = fsFile->error.getErrText(eCode);
-
-// Handle callbacks
-//
-   if (rc == SFS_STARTED || rc == SFS_DATAVEC)
-      {unsigned long long cbArg;
-       XrdOucEICB        *cbVal = fsFile->error.getErrCB(cbArg);
-       error.setErrCB(cbVal, cbArg);
-       if (rc == SFS_DATAVEC)
-          {struct iovec *iovP = (struct iovec *)eText;
-           char *mBuff = error.getMsgBuff(eTLen);
-           eTLen = iovP->iov_len;
-           memcpy(mBuff, eText, eTLen);
-           error.setErrCode(eCode);
-           return SFS_DATAVEC;
-          }
-      }
-
-// Check if we need to copy an external buffer. If this fails then if there is
-// an ofs callback pending, we must tell the ofs plugin we failed.
-//
-   if (!(fsFile->error.extData())) error.setErrInfo(eCode, eText);
-      else {eTLen = fsFile->error.getErrTextLen();
-            buffP = EmsgPool.Alloc(eTLen);
-            if (buffP)
-               {memcpy(buffP->Buffer(), eText, eTLen);
-                error.setErrInfo(eCode, buffP);
-               } else {
-                XrdSsiUtils::Emsg("CopyErr",ENOMEM,op,fsFile->FName(),error);
-                if (rc == SFS_STARTED && fsFile->error.getErrCB())
-                   {rc = eCode = SFS_ERROR;
-                    fsFile->error.getErrCB()->Done(eCode, &error);
-                   }
-              }
-           }
-
-// All done
-//
-   return rc;
 }
   
 /******************************************************************************/
@@ -208,11 +130,7 @@ int      XrdSsiFile::fctl(const int           cmd,
 
 // Route this request as needed (callback possible)
 //
-   if (fsFile)
-      {CopyECB();
-       int rc = fsFile->fctl(cmd, alen, args, client);
-       return (rc ? CopyErr("fctl", rc) : rc);
-      }
+   if (fsFile) return fsFile->fctl(cmd, alen, args, client);
 
 // Forward this to the session object
 //
@@ -253,10 +171,7 @@ int XrdSsiFile::getCXinfo(char cxtype[4], int &cxrsz)
 {
 // Route this request as needed (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->getCXinfo(cxtype, cxrsz);
-       return (rc ? CopyErr("getcx", rc) : rc);
-      }
+   if (fsFile) return fsFile->getCXinfo(cxtype, cxrsz);
 
 // Indicate we don't support compression
 //
@@ -279,10 +194,7 @@ int XrdSsiFile::getMmap(void **Addr, off_t &Size)         // Out
 {
 // Route this request as needed (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->getMmap(Addr, Size);
-       return (rc ? CopyErr("getmmap", rc) : rc);
-      }
+   if (fsFile) return fsFile->getMmap(Addr, Size);
 
 // Indicate we don't support memory mapping
 //
@@ -323,15 +235,9 @@ int XrdSsiFile::open(const char          *path,      // In
 // Open a regular file if this is wanted
 //
    if (fsChk && FSPath.Find(path))
-      {if (!(fsFile = theFS->newFile((char *)error.getErrUser(),
-                                             error.getErrMid())))
+      {if (!(fsFile = theFS->newFile(error)))
           return XrdSsiUtils::Emsg(epname, ENOMEM, "open file", path, error);
-       CopyECB(true);
-       if ((eNum = fsFile->open(path, open_mode, Mode, client, info)))
-          {eNum = CopyErr(epname, eNum);
-           delete fsFile; fsFile = 0;
-          }
-       return eNum;
+       return fsFile->open(path, open_mode, Mode, client, info);
       }
 
 // Convert opaque and security into an environment
@@ -364,10 +270,7 @@ int            XrdSsiFile::read(XrdSfsFileOffset  offset,    // In
 
 // Route to file system if need be (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->read(offset, blen);
-       return (rc ? CopyErr("read", rc) : rc);
-      }
+   if (fsFile) return fsFile->read(offset, blen);
 
 // We ignore these
 //
@@ -396,10 +299,7 @@ XrdSfsXferSize XrdSsiFile::read(XrdSfsFileOffset  offset,    // In
 
 // Route to file system if need be (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->read(offset, buff, blen);
-       return (rc ? CopyErr("read", rc) : rc);
-      }
+   if (fsFile) return fsFile->read(offset, buff, blen);
 
 // Forward this to the file session
 //
@@ -415,10 +315,7 @@ int XrdSsiFile::read(XrdSfsAio *aiop)
 
 // Route to file system if need be (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->read(aiop);
-       return (rc ? CopyErr("readaio", rc) : rc);
-      }
+   if (fsFile) return fsFile->read(aiop);
 
 // Execute this request in a synchronous fashion
 //
@@ -449,10 +346,7 @@ XrdSfsXferSize XrdSsiFile::readv(XrdOucIOVec     *readV,     // In
 
 // Route this request to file system if need be (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->readv(readV, readCount);
-       return (rc ? CopyErr("readv", rc) : rc);
-      }
+   if (fsFile) return fsFile->readv(readV, readCount);
 
    return XrdSsiUtils::Emsg("readv", ENOSYS, "readv", fSessP->FName(), error);
 }
@@ -468,10 +362,7 @@ int XrdSsiFile::SendData(XrdSfsDio         *sfDio,
 
 // Route this request to file system if need be (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->SendData(sfDio, offset, size);
-       return (rc ? CopyErr("SendData", rc) : rc);
-      }
+   if (fsFile) return fsFile->SendData(sfDio, offset, size);
 
 // Forward this to the file session object
 //
@@ -494,10 +385,7 @@ int XrdSsiFile::stat(struct stat     *buf)         // Out
 
 // Route this request to file system if need be (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->stat(buf);
-       return (rc ? CopyErr("stat", rc) : rc);
-      }
+   if (fsFile) return fsFile->stat(buf);
 
 // Otherwise there is no stat information
 //
@@ -521,11 +409,7 @@ int XrdSsiFile::sync()
 
 // Route this request to file system if need be (callback possible)
 //
-   if (fsFile)
-      {CopyECB();
-       int rc = fsFile->sync();
-       return (rc ? CopyErr("sync", rc) : rc);
-      }
+   if (fsFile) return fsFile->sync();
 
 // We don't support this
 //
@@ -541,11 +425,7 @@ int XrdSsiFile::sync(XrdSfsAio *aiop)
 
 // Route this request to file system if need be (callback possible)
 //
-   if (fsFile)
-      {CopyECB();
-       int rc = fsFile->sync(aiop);
-       return (rc ? CopyErr("syncaio", rc) : rc);
-      }
+   if (fsFile) return fsFile->sync(aiop);
 
 // We don't support this
 //
@@ -568,11 +448,7 @@ int XrdSsiFile::truncate(XrdSfsFileOffset  flen)  // In
 
 // Route this request to file system if need be (callback possible)
 //
-   if (fsFile)
-      {CopyECB();
-       int rc = fsFile->truncate(flen);
-       return (rc ? CopyErr("trunc", rc) : rc);
-      }
+   if (fsFile) return fsFile->truncate(flen);
 
 // Route this to the file session object
 //
@@ -604,10 +480,7 @@ XrdSfsXferSize XrdSsiFile::write(XrdSfsFileOffset      offset,    // In
 
 // Route this request to file system if need be (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->write(offset, buff, blen);
-       return (rc ? CopyErr("write", rc) : rc);
-      }
+   if (fsFile) return fsFile->write(offset, buff, blen);
 
 // Route this to the file session object
 //
@@ -623,10 +496,7 @@ int XrdSsiFile::write(XrdSfsAio *aiop)
 
 // Route to file system if need be (no callback possible)
 //
-   if (fsFile)
-      {int rc = fsFile->write(aiop);
-       return (rc ? CopyErr("writeaio", rc) : rc);
-      }
+   if (fsFile) return fsFile->write(aiop);
 
 // Execute this request in a synchronous fashion
 //

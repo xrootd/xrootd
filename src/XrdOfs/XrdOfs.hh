@@ -77,22 +77,31 @@ const   char       *FName() {return (const char *)fname;}
 
         int         autoStat(struct stat *buf);
 
-                    XrdOfsDirectory(const char *user, int MonID)
-                          : XrdSfsDirectory(user, MonID)
-                          {dp     = 0;
-                           tident = (user ? user : "");
-                           fname=0; atEOF=0;
-                          }
+                    XrdOfsDirectory(XrdOucErrInfo &eInfo, const char *user)
+                          : XrdSfsDirectory(eInfo), tident(user ? user : ""),
+                            fname(0), dp(0), atEOF(0) {}
+
 virtual            ~XrdOfsDirectory() {if (dp) close();}
 
 protected:
 const char    *tident;
 char          *fname;
-
-private:
 XrdOssDF      *dp;
 int            atEOF;
 char           dname[MAXNAMLEN];
+};
+
+class XrdOfsDirFull : public XrdOfsDirectory
+{
+public:
+                    XrdOfsDirFull(const char *user, int MonID)
+                          : XrdOfsDirectory(myEInfo, user), myEInfo(user, MonID)
+                          {}
+
+virtual            ~XrdOfsDirFull() {}
+
+private:
+XrdOucErrInfo  myEInfo; // Accessible only by reference error
 };
 
 /******************************************************************************/
@@ -156,21 +165,34 @@ public:
 
         int            getCXinfo(char cxtype[4], int &cxrsz);
 
-                       XrdOfsFile(const char *user, int MonID);
+                       XrdOfsFile(XrdOucErrInfo &eInfo, const char *user);
 
                       ~XrdOfsFile() {viaDel = 1; if (oh) close();}
 
 protected:
-       const char   *tident;
 
-private:
-
-void           GenFWEvent();
-
+const char    *tident;
 XrdOfsHandle  *oh;
 XrdOfsTPC     *myTPC;
 int            dorawio;
 char           viaDel;
+
+private:
+
+void           GenFWEvent();
+};
+
+class XrdOfsFileFull : public XrdOfsFile
+{
+public:
+                    XrdOfsFileFull(const char *user, int MonID)
+                          : XrdOfsFile(myEInfo, user), myEInfo(user, MonID)
+                          {}
+
+virtual            ~XrdOfsFileFull() {}
+
+private:
+XrdOucErrInfo  myEInfo; // Accessible only by reference error
 };
 
 /******************************************************************************/
@@ -194,10 +216,16 @@ public:
 // Object allocation
 //
         XrdSfsDirectory *newDir(char *user=0, int MonID=0)
-                        {return (XrdSfsDirectory *)new XrdOfsDirectory(user,MonID);}
+                        {return new XrdOfsDirFull(user, MonID);}
+
+        XrdSfsDirectory *newDir(XrdOucErrInfo &eInfo)
+                        {return new XrdOfsDirectory(eInfo, eInfo.getErrUser());}
 
         XrdSfsFile      *newFile(char *user=0,int MonID=0)
-                        {return      (XrdSfsFile *)new XrdOfsFile(user, MonID);}
+                        {return new XrdOfsFileFull(user, MonID);}
+
+        XrdSfsFile      *newFile(XrdOucErrInfo &eInfo)
+                        {return new XrdOfsFile(eInfo, eInfo.getErrUser());}
 
 // Other functions
 //
