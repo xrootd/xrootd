@@ -143,7 +143,7 @@ namespace
 
       XrdCl::JobManager *jmngr;
 
-  }
+  };
 
   //----------------------------------------------------------------------------
   // Get delimiter for the opaque info
