@@ -44,12 +44,9 @@
 namespace
 {
 
-  static struct LocalFS_t
+  class LocalFS
   {
-      LocalFS_t() : jmngr( XrdCl::DefaultEnv::GetPostMaster()->GetJobManager() )
-      {
-
-      }
+    public:
 
       XrdCl::XRootDStatus Stat( const std::string       &path,
                                 XrdCl::ResponseHandler  *handler,
@@ -91,6 +88,32 @@ namespace
         return QueueTask( new XRootDStatus(), resp, handler );
       }
 
+      static LocalFS& Instance()
+      {
+        static LocalFS instance;
+        return instance;
+      }
+
+    private:
+
+      //------------------------------------------------------------------------
+      // Private constructors
+      //------------------------------------------------------------------------
+      LocalFS() : jmngr( XrdCl::DefaultEnv::GetPostMaster()->GetJobManager() )
+      {
+
+      }
+
+      //------------------------------------------------------------------------
+      // Private copy constructors
+      //------------------------------------------------------------------------
+      LocalFS( const LocalFS& );
+
+      //------------------------------------------------------------------------
+      // Private assignment operator
+      //------------------------------------------------------------------------
+      LocalFS& operator=( const LocalFS& );
+
       //------------------------------------------------------------------------
       // QueueTask - queues error/success tasks for all operations.
       // Must always return stOK.
@@ -116,11 +139,9 @@ namespace
         return XRootDStatus();
       }
 
-    private:
-
       XrdCl::JobManager *jmngr;
 
-  } LocalFS;
+  }
 
   //----------------------------------------------------------------------------
   // Get delimiter for the opaque info
@@ -1266,7 +1287,7 @@ namespace XrdCl
       return pPlugIn->Stat( path, handler, timeout );
 
     if( pUrl->IsLocalFile() )
-      return LocalFS.Stat( path, handler, timeout );
+      return LocalFS::Instance().Stat( path, handler, timeout );
 
     std::string fPath = FilterXrdClCgi( path );
 
