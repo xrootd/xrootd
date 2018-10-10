@@ -127,6 +127,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOfs/XrdOfsHandle.hh
   XrdOfs/XrdOfsTrace.hh
   XrdOfs/XrdOfsTPCInfo.hh
+  XrdSecsss/XrdSecsssID.hh
   XrdSsi/XrdSsiAtomics.hh
   XrdSsi/XrdSsiCluster.hh
   XrdSsi/XrdSsiEntity.hh
