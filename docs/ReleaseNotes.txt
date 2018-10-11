@@ -34,6 +34,7 @@ Version 4.8.5
                 through opaque info.
   * **[XrdCl]** Document xrdcp/xrdfs return codes, closes #628
   * **[XrdCl]** Explicitly log request retries, closes #690
+  * **[XrdCl]** Remove redundant stat from ZIP open sequence.
   * **[XrdCl/XrdSec]** Add CGI to specify 'sss' keytab.
   * **[XrdSecsss]** Add possiblity to inject an endorsement string into an 
                     SSS SecEntity object.
@@ -47,7 +48,7 @@ Version 4.8.4
   * **[XrdCl]** Treat empty redirect response as error.
 
 + **Minor bug fixes**
-  * **[XrdCl]** [XrdCl] Use NEED2SECURE macro properly.
+  * **[XrdCl]** Use NEED2SECURE macro properly.
 
 + **Miscellaneous**
   * **[XrdSecgsi]** Improving checking of CA expiration.
