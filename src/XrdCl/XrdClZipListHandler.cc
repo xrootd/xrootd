@@ -33,6 +33,12 @@ namespace XrdCl
     std::unique_ptr<XRootDStatus> status( statusptr );
     std::unique_ptr<AnyObject>    response( responseptr );
 
+    if( pStep == DONE )
+    {
+      delete this;
+      return;
+    }
+
     if( !status->IsOK() )
     {
       pHandler->HandleResponse( status.release(), response.release() );
@@ -45,7 +51,13 @@ namespace XrdCl
     {
       *status = XRootDStatus( stError, errOperationExpired );
       pHandler->HandleResponse( status.release(), 0 );
-      delete this;
+      if( pZip.IsOpen() )
+      {
+        DoZipClose( 1 );
+        pStep = DONE;
+      }
+      else
+        delete this;
       return;
     }
     uint16_t left = pTimeout - took;

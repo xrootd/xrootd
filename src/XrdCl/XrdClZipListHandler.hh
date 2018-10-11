@@ -29,6 +29,8 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClZipArchiveReader.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 #include <string>
 #include <memory>
@@ -77,6 +79,13 @@ namespace XrdCl
         pTimeout( timeout ), pStartTime( time( 0 ) ),
         pZip( pFile ), pStep( STAT )
       {
+        if( !pTimeout )
+        {
+          int val = DefaultRequestTimeout;
+          DefaultEnv::GetEnv()->GetInt( "RequestTimeout", val );
+          pTimeout = val;
+        }
+
         pUrl.SetPath( path );
       }
 
