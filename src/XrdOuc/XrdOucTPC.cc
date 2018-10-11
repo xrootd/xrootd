@@ -46,7 +46,6 @@ const char *XrdOucTPC::tpcKey = "tpc.key";
 const char *XrdOucTPC::tpcLfn = "tpc.lfn";
 const char *XrdOucTPC::tpcOrg = "tpc.org";
 const char *XrdOucTPC::tpcPsh = "tpc.psh";
-const char *XrdOucTPC::tpcRep = "tpc.rep";
 const char *XrdOucTPC::tpcSrc = "tpc.src";
 const char *XrdOucTPC::tpcSpr = "tpc.spr";
 const char *XrdOucTPC::tpcStr = "tpc.str";
@@ -62,7 +61,7 @@ const char *XrdOucTPC::cgiC2Dst(const char *cKey, const char *xSrc,
                                       char *Buff, int Blen, int strms,
                                 const char *iHst,
                                 const char *sprt, const char *tprt,
-                                      bool  repl,       bool  push)
+                                      bool  push)
 {
    tpcInfo Info;
    char    *bP = Buff;
@@ -107,11 +106,6 @@ const char *XrdOucTPC::cgiC2Dst(const char *cKey, const char *xSrc,
    if (tprt)
       {bP += n; Blen -= n;
        if (Blen > 1) n = snprintf(bP, Blen, "&%s=%s", tpcTpr, tprt);
-      }
-
-   if (repl)
-      {bP += n; Blen -= n;
-       if (Blen > 1) n = snprintf(bP, Blen, "&%s=1", tpcRep);
       }
 
    if (push)

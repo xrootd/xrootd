@@ -39,9 +39,8 @@ public:
 static
 const char *cgiC2Dst(const char *cKey, const char *xSrc, const char *xLfn,
                      const char *xCks,       char *Buff, int Blen, int strms=0,
-                     const char *iHst=0,
-                     const char *sprt=0, const char *tprt=0,
-                     bool repl=false, bool push=false);
+                     const char *iHst=0, const char *sprt=0, const char *tprt=0,
+                     bool push=false);
 
 static
 const char *cgiC2Src(const char *cKey, const char *xDst, int xTTL,
@@ -58,7 +57,6 @@ static const char *tpcKey;
 static const char *tpcLfn;
 static const char *tpcOrg;
 static const char *tpcPsh;
-static const char *tpcRep;
 static const char *tpcSpr;
 static const char *tpcSrc;
 static const char *tpcStr;
