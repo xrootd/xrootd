@@ -209,7 +209,10 @@ namespace XrdCl
     const char  *cgiP    = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
                                                 tpcSource.GetHostId().c_str(),
                                                 tpcSource.GetPath().c_str(),
-                                                0, cgiBuff, 2048, nbStrm );
+                                                0, cgiBuff, 2048, nbStrm,
+                                                GetSource().GetHostId().c_str(),
+                                                GetSource().GetProtocol().c_str(),
+                                                GetTarget().GetProtocol().c_str() );
     if( *cgiP == '!' )
     {
       log->Error( UtilityMsg, "Unable to setup target url: %s", cgiP+1 );
