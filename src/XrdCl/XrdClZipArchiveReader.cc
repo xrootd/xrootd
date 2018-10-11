@@ -625,8 +625,22 @@ XRootDStatus ZipArchiveReaderImpl::StatArchive( ResponseHandler *userHandler )
   // just to be on the safe side
   ClearRecords();
 
+  // create a stat handler
   StatArchiveHandler *handler = new StatArchiveHandler( this, userHandler );
-  XRootDStatus st = pArchive.Stat( true, handler );
+
+  // let's check if we got a stat together with the open response
+  StatInfo *response = 0;
+  XRootDStatus st = pArchive.Stat( false, response ); // always returns stOK
+  if( st.IsOK() && response )
+  {
+    AnyObject *resp = new AnyObject();
+    resp->Set( response );
+    handler->HandleResponse( new XRootDStatus(), resp ); //this will deallocate the handler memory
+    return XRootDStatus();
+  }
+
+  // if we don't have the stat yet, we need to issue a stat request
+  st = pArchive.Stat( true, handler );
   if( !st.IsOK() ) delete handler;
   return st;
 }
