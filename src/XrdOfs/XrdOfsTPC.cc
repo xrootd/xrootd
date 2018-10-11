@@ -595,6 +595,8 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
                {if (!fcAuth[i].aOpt)
                    return Death(Args,"no delegated credentials for tpc",EACCES);
                } else enVar  = fcAuth[i].aVar;
+            const char *tpcDlg = Args.Env->Get(XrdOucTPC::tpcDlg);
+            if (tpcDlg) tpcSrc = tpcDlg;
             break;
            }
        }
