@@ -121,8 +121,6 @@ if( BUILD_CRYPTO )
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 endif()
 # FIXME: Unused files
-#-rw-r--r-- 1 ljanyst ljanyst  2499 2011-03-21 16:13 XrdCryptosslX509Store.cc
-#-rw-r--r-- 1 ljanyst ljanyst  1750 2011-03-21 16:13 XrdCryptosslX509Store.hh
 #-rw-r--r-- 1 ljanyst ljanyst 16721 2011-03-21 16:13 XrdCryptotest.cc
 
 
