@@ -31,8 +31,8 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClDlgEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 
 #include <stdio.h>
 #include <iostream>
@@ -548,15 +548,12 @@ int main( int argc, char **argv )
     // inhere and we need the env var when we are establishing the
     // connection and authenticating), but we are also setting a delegate
     // parameter for CopyJob so it can be used on its own.
-    XrdOucEnv env;
-    env.Export( "XrdSecGSIDELEGPROXY", 1 );
+    DlgEnv::Instance().Enable();
     delegate = true;
   }
   else
-  {
-    XrdOucEnv env;
-    env.Export( "XrdSecGSIDELEGPROXY", 0 );
-  }
+    DlgEnv::Instance().Disable();
+
   if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoPath    ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc     = true;
@@ -911,6 +908,7 @@ int main( int argc, char **argv )
     return st.GetShellCode();
   }
   CleanUpResults( resultVect );
+
   return 0;
 }
 

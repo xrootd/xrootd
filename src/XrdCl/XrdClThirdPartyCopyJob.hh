@@ -21,6 +21,7 @@
 
 #include "XrdCl/XrdClCopyProcess.hh"
 #include "XrdCl/XrdClCopyJob.hh"
+#include "XrdCl/XrdClFile.hh"
 
 namespace XrdCl
 {
@@ -44,6 +45,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus Run( CopyProgressHandler *progress = 0 );
 
+    private:
+
       //------------------------------------------------------------------------
       //! Check whether doing a third party copy is feasible for given
       //! job descriptor
@@ -52,33 +55,38 @@ namespace XrdCl
       //! @return error when a third party copy cannot be performed and
       //!         fatal error when no copy can be performed
       //------------------------------------------------------------------------
-      static XRootDStatus CanDo( const URL &source, const URL &target,
-                                 PropertyList *properties );
-
-    private:
+      XRootDStatus CanDo();
 
       //------------------------------------------------------------------------
       //! Run vanilla copy job
       //------------------------------------------------------------------------
-      XRootDStatus RunTPC( CopyProgressHandler *progress,
-                           uint64_t             sourceSize,
-                           URL                 &realTarget,
-                           File                &targetFile,
-                           const std::string   &tpcKey,
-                           uint16_t             timeLeft,
-                           bool                 force,
-                           bool                 coerce,
-                           int                  nbStrm );
+      XRootDStatus RunTPC( CopyProgressHandler *progress );
 
-      XRootDStatus RunLite( CopyProgressHandler *progress,
-                            uint64_t             sourceSize,
-                            File                &targetFile,
-                            uint16_t             timeLeft,
-                            bool                 force,
-                            bool                 coerce,
-                            int                  nbStrm );
+      //------------------------------------------------------------------------
+      //! Run TPC-lite copy job
+      //------------------------------------------------------------------------
+      XRootDStatus RunLite( CopyProgressHandler *progress );
 
+      //------------------------------------------------------------------------
+      //! Generate TPC key
+      //------------------------------------------------------------------------
       static std::string GenerateKey();
+
+      XrdCl::File dstFile;
+      URL         tpcSource;
+      URL         realTarget;
+      std::string tpcKey;
+
+      std::string checkSumMode;
+      std::string checkSumType;
+      std::string checkSumPreset;
+      uint64_t    sourceSize;
+      uint16_t    initTimeout;
+      bool        force;
+      bool        coerce;
+      bool        delegate;
+      int         nbStrm;
+      bool        tpcLite;
   };
 }
 

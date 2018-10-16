@@ -23,7 +23,6 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClThirdPartyCopyJob.hh"
-#include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -32,8 +31,8 @@
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClDlgEnv.hh"
 #include "XrdOuc/XrdOucTPC.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 #include <iostream>
@@ -150,7 +149,15 @@ namespace XrdCl
   ThirdPartyCopyJob::ThirdPartyCopyJob( uint16_t      jobId,
                                         PropertyList *jobProperties,
                                         PropertyList *jobResults ):
-    CopyJob( jobId, jobProperties, jobResults )
+    CopyJob( jobId, jobProperties, jobResults ),
+    dstFile( File::DisableVirtRedirect ),
+    sourceSize( 0 ),
+    initTimeout( 0 ),
+    force( false ),
+    coerce( false ),
+    delegate( false ),
+    nbStrm( 0 ),
+    tpcLite( false )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Creating a third party copy job, from %s to %s",
@@ -164,157 +171,23 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
-    //--------------------------------------------------------------------------
-    // Decode the parameters
-    //--------------------------------------------------------------------------
-    std::string checkSumMode;
-    std::string checkSumType;
-    std::string checkSumPreset;
-    uint64_t    sourceSize;
-    bool        force, coerce, delegate;
-
-    pProperties->Get( "checkSumMode",    checkSumMode );
-    pProperties->Get( "checkSumType",    checkSumType );
-    pProperties->Get( "checkSumPreset",  checkSumPreset );
-    pProperties->Get( "sourceSize",      sourceSize );
-    pProperties->Get( "force",           force );
-    pProperties->Get( "coerce",          coerce );
-    pProperties->Get( "delegate",        delegate );
-
-    if( delegate )
-    {
-      XrdOucEnv env;
-      env.Export( "XrdSecGSIDELEGPROXY", 1 );
-    }
-    else
-    {
-      XrdOucEnv env;
-      env.Export( "XrdSecGSIDELEGPROXY", 0 );
-    }
-
-    int nbStrm = 0;
-    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
-    env->GetInt( "SubStreamsPerChannel", nbStrm );
-
-    //--------------------------------------------------------------------------
-    // Generate the destination CGI
-    //--------------------------------------------------------------------------
-    URL tpcSource;
-    pProperties->Get( "tpcSource", tpcSource );
-
-    log->Debug( UtilityMsg, "Generating the TPC URLs" );
-
-    std::string  tpcKey  = GenerateKey();
-    char        *cgiBuff = new char[2048];
-    const char  *cgiP    = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
-                                                tpcSource.GetHostId().c_str(),
-                                                tpcSource.GetPath().c_str(),
-                                                0, cgiBuff, 2048, nbStrm,
-                                                GetSource().GetHostId().c_str(),
-                                                GetSource().GetProtocol().c_str(),
-                                                GetTarget().GetProtocol().c_str() );
-    if( *cgiP == '!' )
-    {
-      log->Error( UtilityMsg, "Unable to setup target url: %s", cgiP+1 );
-      delete [] cgiBuff;
-      return XRootDStatus( stError, errInvalidArgs );
-    }
-
-    URL cgiURL; cgiURL.SetParams( cgiBuff );
-    delete [] cgiBuff;
-
-    URL realTarget = GetTarget();
-    URL::ParamsMap params = realTarget.GetParams();
-    MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
-
-    std::ostringstream o; o << sourceSize;
-    params["oss.asize"] = o.str();
-    params["tpc.stage"] = "copy";
-    realTarget.SetParams( params );
-
-    log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetURL().c_str() );
-
-    //--------------------------------------------------------------------------
-    // Init timeout
-    //--------------------------------------------------------------------------
-    uint16_t initTimeout = 0;
-    pProperties->Get( "initTimeout", initTimeout );
-    InitTimeoutCalc timeLeft( initTimeout );
-
-    //--------------------------------------------------------------------------
-    // Open the target file
-    //--------------------------------------------------------------------------
-    File targetFile( File::DisableVirtRedirect );
-    // set WriteRecovery property
-    std::string value;
-    DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
-    targetFile.SetProperty( "WriteRecovery", value );
-
-    OpenFlags::Flags targetFlags = OpenFlags::Update;
-    if( force )
-      targetFlags |= OpenFlags::Delete;
-    else
-      targetFlags |= OpenFlags::New;
-
-    if( coerce )
-      targetFlags |= OpenFlags::Force;
-
-    XRootDStatus st;
-    st = targetFile.Open( realTarget.GetURL(), targetFlags, Access::None,
-                          timeLeft );
-
-    if( !st.IsOK() )
-    {
-      log->Error( UtilityMsg, "Unable to open target %s: %s",
-                  realTarget.GetURL().c_str(), st.ToStr().c_str() );
-      return st;
-    }
-    std::string lastUrl; targetFile.GetProperty( "LastURL", lastUrl );
-    realTarget = lastUrl;
-
-    if( !timeLeft().IsOK() )
-    {
-      // we still want to send a close, but we time it out fast
-      st = targetFile.Close( 1 );
-      return XRootDStatus( stError, errOperationExpired );
-    }
-
-    //--------------------------------------------------------------------------
-    // Verify the destination
-    //--------------------------------------------------------------------------
-    st = Utils::CheckTPCLite( realTarget.GetHostId() );
+    XRootDStatus st = CanDo();
     if( !st.IsOK() ) return st;
-
-    //--------------------------------------------------------------------------
-    // if target supports TPC-lite and we have a credential to delegate we can
-    // go ahead and use TPC-lite
-    //--------------------------------------------------------------------------
-    bool tpcLite = ( st.code != suPartial ) && delegate;
-
-    if( !timeLeft().IsOK() ) return XRootDStatus( stError, errOperationExpired );
 
     if( tpcLite )
     {
       //------------------------------------------------------------------------
       // Run TPC-lite algorithm
       //------------------------------------------------------------------------
-      XRootDStatus st = RunLite( progress, sourceSize, targetFile,
-                                uint16_t( timeLeft ), force, coerce, nbStrm );
+      XRootDStatus st = RunLite( progress );
       if( !st.IsOK() ) return st;
     }
     else
     {
       //------------------------------------------------------------------------
-      // Verify the source if needed
-      //------------------------------------------------------------------------
-      st = Utils::CheckTPC( tpcSource.GetHostId(), timeLeft );
-      if( !st.IsOK() ) return st;
-
-      //------------------------------------------------------------------------
       // Run vanilla TPC algorithm
       //------------------------------------------------------------------------
-      XRootDStatus st = RunTPC( progress, sourceSize, realTarget, targetFile, tpcKey,
-                                uint16_t( timeLeft ), force, coerce, nbStrm );
+      XRootDStatus st = RunTPC( progress );
       if( !st.IsOK() ) return st;
     }
 
@@ -349,13 +222,9 @@ namespace XrdCl
               !( vrCheckSum = redirector->GetCheckSum( checkSumType ) ).empty() )
             sourceCheckSum = vrCheckSum;
           else
-          {
-            URL tpcSource;
-            pProperties->Get( "tpcSource", tpcSource );
             st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
                                          tpcSource.GetHostId(),
                                          tpcSource.GetPath() );
-          }
         }
         gettimeofday( &oEnd, 0 );
         if( !st.IsOK() )
@@ -416,9 +285,10 @@ namespace XrdCl
   // Check whether doing a third party copy is feasible for given
   // job descriptor
   //----------------------------------------------------------------------------
-  XRootDStatus ThirdPartyCopyJob::CanDo( const URL &source, const URL &target,
-                                         PropertyList *properties )
+  XRootDStatus ThirdPartyCopyJob::CanDo()
   {
+    const URL &source = GetSource();
+    const URL &target = GetTarget();
 
     //--------------------------------------------------------------------------
     // Check the initial settings
@@ -428,22 +298,31 @@ namespace XrdCl
                 "is possible", source.GetURL().c_str(),
                 target.GetURL().c_str() );
 
-
-    if( source.GetProtocol() != "root" &&
-        source.GetProtocol() != "xroot" )
-      return XRootDStatus( stError, errNotSupported );
-
     if( target.GetProtocol() != "root" &&
         target.GetProtocol() != "xroot" )
       return XRootDStatus( stError, errNotSupported );
 
-    uint16_t initTimeout       = 0;
-    properties->Get( "initTimeout", initTimeout );
+    pProperties->Get( "initTimeout", initTimeout );
     InitTimeoutCalc timeLeft( initTimeout );
 
+    pProperties->Get( "checkSumMode",    checkSumMode );
+    pProperties->Get( "checkSumType",    checkSumType );
+    pProperties->Get( "checkSumPreset",  checkSumPreset );
+    pProperties->Get( "force",           force );
+    pProperties->Get( "coerce",          coerce );
+    pProperties->Get( "delegate",        delegate );
+
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    env->GetInt( "SubStreamsPerChannel", nbStrm );
+
+    bool tpcLiteOnly = false;
+
+    if( !delegate )
+      log->Info( UtilityMsg, "We are NOT using delegation" );
+
     //--------------------------------------------------------------------------
-    // Check if we can open the source file and whether the actual data server
-    // can support the third party copy
+    // Check if we can open the source. Note in TPC-lite scenario it is optional
+    // for this step to be successful.
     //--------------------------------------------------------------------------
     File          sourceFile;
     // set WriteRecovery property
@@ -461,29 +340,42 @@ namespace XrdCl
                 sourceURL.GetURL().c_str() );
     st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read, Access::None,
                           timeLeft );
-    if( !st.IsOK() )
-    {
-      log->Error( UtilityMsg, "Cannot open source file %s: %s",
-                  source.GetURL().c_str(), st.ToStr().c_str() );
-      st.status = stFatal;
-      return st;
-    }
-    std::string sourceUrl; sourceFile.GetProperty( "LastURL", sourceUrl );
-    URL         sourceUrlU = sourceUrl;
-    properties->Set( "tpcSource", sourceUrl );
 
-    VirtualRedirector *redirector = 0;
-    long long size = -1;
-    if( source.IsMetalink() &&
-        ( redirector = RedirectorRegistry::Instance().Get( sourceURL ) ) &&
-        ( size = redirector->GetSize() ) >= 0 )
-      properties->Set( "sourceSize", size );
+    if( st.IsOK() )
+    {
+      std::string sourceUrl;
+      sourceFile.GetProperty( "LastURL", sourceUrl );
+      tpcSource = sourceUrl;
+
+      VirtualRedirector *redirector = 0;
+      long long size = -1;
+      if( source.IsMetalink() &&
+          ( redirector = RedirectorRegistry::Instance().Get( tpcSource ) ) &&
+          ( size = redirector->GetSize() ) >= 0 )
+        sourceSize = size;
+      else
+      {
+        StatInfo *statInfo;
+        st = sourceFile.Stat( false, statInfo );
+        if (st.IsOK()) sourceSize = statInfo->GetSize();
+        delete statInfo;
+      }
+    }
     else
     {
-      StatInfo *statInfo;
-      st = sourceFile.Stat( false, statInfo );
-      if (st.IsOK()) properties->Set( "sourceSize", statInfo->GetSize() );
-      delete statInfo;
+      log->Info( UtilityMsg, "Cannot open source file %s: %s",
+                  source.GetURL().c_str(), st.ToStr().c_str() );
+      if( !delegate )
+      {
+        //----------------------------------------------------------------------
+        // If we cannot contact the source and there is no credential to delegate
+        // it cannot possibly work
+        //----------------------------------------------------------------------
+        st.status = stFatal;
+        return st;
+      }
+
+      tpcLiteOnly = true;
     }
 
     if( !timeLeft().IsOK() )
@@ -497,7 +389,144 @@ namespace XrdCl
 
     if( !timeLeft().IsOK() )
       return XRootDStatus( stError, errOperationExpired );
-    properties->Set( "initTimeout", uint16_t( timeLeft ) );
+
+    //--------------------------------------------------------------------------
+    // Now we need to check the destination !!!
+    //--------------------------------------------------------------------------
+    if( delegate )
+      DlgEnv::Instance().Enable();
+    else
+      DlgEnv::Instance().Disable();
+
+    //--------------------------------------------------------------------------
+    // Generate the destination CGI
+    //--------------------------------------------------------------------------
+    log->Debug( UtilityMsg, "Generating the destination TPC URL" );
+
+    tpcKey  = GenerateKey();
+    char        *cgiBuff = new char[2048];
+    const char  *cgiP    = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
+                                                tpcSource.GetHostId().c_str(),
+                                                tpcSource.GetPath().c_str(),
+                                                0, cgiBuff, 2048, nbStrm,
+                                                GetSource().GetHostId().c_str(),
+                                                GetSource().GetProtocol().c_str(),
+                                                GetTarget().GetProtocol().c_str() );
+
+    if( *cgiP == '!' )
+    {
+      log->Error( UtilityMsg, "Unable to setup target url: %s", cgiP+1 );
+      delete [] cgiBuff;
+      return XRootDStatus( stError, errNotSupported );
+    }
+
+    URL cgiURL; cgiURL.SetParams( cgiBuff );
+    delete [] cgiBuff;
+
+    realTarget = GetTarget();
+    params = realTarget.GetParams();
+    MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
+
+    std::ostringstream o; o << sourceSize;
+    params["oss.asize"] = o.str();
+    params["tpc.stage"] = "copy";
+    realTarget.SetParams( params );
+
+    log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetURL().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Open the target file
+    //--------------------------------------------------------------------------
+    // set WriteRecovery property
+    DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
+    dstFile.SetProperty( "WriteRecovery", value );
+
+    OpenFlags::Flags targetFlags = OpenFlags::Update;
+    if( force )
+      targetFlags |= OpenFlags::Delete;
+    else
+      targetFlags |= OpenFlags::New;
+
+    if( coerce )
+      targetFlags |= OpenFlags::Force;
+
+    st = dstFile.Open( realTarget.GetURL(), targetFlags, Access::None, timeLeft );
+    if( !st.IsOK() )
+    {
+      log->Error( UtilityMsg, "Unable to open target %s: %s",
+                  realTarget.GetURL().c_str(), st.ToStr().c_str() );
+      if( st.code == errErrorResponse &&
+          st.errNo == kXR_FSError &&
+          st.GetErrorMessage().find( "tpc not supported" ) != std::string::npos )
+        return XRootDStatus( stError, errNotSupported ); // the open failed due to lack of TPC support on the server side
+      return st;
+    }
+
+    std::string lastUrl; dstFile.GetProperty( "LastURL", lastUrl );
+    realTarget = lastUrl;
+
+    if( !timeLeft().IsOK() )
+    {
+      // we still want to send a close, but we time it out fast
+      st = dstFile.Close( 1 );
+      return XRootDStatus( stError, errOperationExpired );
+    }
+
+    //--------------------------------------------------------------------------
+    // Verify if the destination supports TPC / TPC-lite
+    //--------------------------------------------------------------------------
+    st = Utils::CheckTPCLite( realTarget.GetHostId() );
+    if( !st.IsOK() )
+    {
+      // we still want to send a close, but we time it out fast
+      st = dstFile.Close( 1 );
+      return XRootDStatus( stError, errNotSupported ); // doesn't support TPC
+    }
+
+    //--------------------------------------------------------------------------
+    // if target supports TPC-lite and we have a credential to delegate we can
+    // go ahead and use TPC-lite
+    //--------------------------------------------------------------------------
+    tpcLite = ( st.code != suPartial ) && delegate;
+
+    if( !tpcLite && tpcLiteOnly ) // doesn't support TPC-lite and it was our only hope
+    {
+      st = dstFile.Close( 1 );
+      return XRootDStatus( stError, errNotSupported );
+    }
+
+    //--------------------------------------------------------------------------
+    // adjust the InitTimeout
+    //--------------------------------------------------------------------------
+    if( !timeLeft().IsOK() )
+    {
+      // we still want to send a close, but we time it out fast
+      st = dstFile.Close( 1 );
+      return XRootDStatus( stError, errOperationExpired );
+    }
+
+    //--------------------------------------------------------------------------
+    // If we don't use delegation the source has to support TPC
+    //--------------------------------------------------------------------------
+    if( !tpcLite )
+    {
+      st = Utils::CheckTPC( URL( tpcSource ).GetHostId(), timeLeft );
+      if( !st.IsOK() )
+      {
+        log->Error( UtilityMsg, "Source (%s) does not support TPC",
+                    tpcSource.GetHostId().c_str() );
+        return XRootDStatus( stError, errNotSupported );
+      }
+
+      if( !timeLeft().IsOK() )
+      {
+        // we still want to send a close, but we time it out quickly
+        st = sourceFile.Close( 1 );
+        return XRootDStatus( stError, errOperationExpired );
+      }
+    }
+
+    initTimeout = uint16_t( timeLeft );
 
     return XRootDStatus();
   }
@@ -505,24 +534,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Run vanilla copy job
   //----------------------------------------------------------------------------
-  XRootDStatus ThirdPartyCopyJob::RunTPC( CopyProgressHandler *progress,
-                                          uint64_t             sourceSize,
-                                          URL                 &realTarget,
-                                          File                &targetFile,
-                                          const std::string   &tpcKey,
-                                          uint16_t             initTimeout,
-                                          bool                 force,
-                                          bool                 coerce,
-                                          int                  nbStrm )
+  XRootDStatus ThirdPartyCopyJob::RunTPC( CopyProgressHandler *progress )
   {
     Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
     // Generate the source CGI
     //--------------------------------------------------------------------------
-    URL tpcSource;
-    pProperties->Get( "tpcSource", tpcSource );
-
     char       *cgiBuff = new char[2048];
     const char *cgiP    = XrdOucTPC::cgiC2Src( tpcKey.c_str(),
                                 realTarget.GetHostName().c_str(), -1, cgiBuff,
@@ -551,12 +569,12 @@ namespace XrdCl
     // Set up the rendez-vous and open the source
     //--------------------------------------------------------------------------
     InitTimeoutCalc timeLeft( initTimeout );
-    XRootDStatus st = targetFile.Sync( timeLeft );
+    XRootDStatus st = dstFile.Sync( timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
-      XRootDStatus status = targetFile.Close( closeTimeout );
+      XRootDStatus status = dstFile.Close( closeTimeout );
       return st;
     }
 
@@ -565,7 +583,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !timeLeft().IsOK() )
     {
-      XRootDStatus status = targetFile.Close( closeTimeout );
+      XRootDStatus status = dstFile.Close( closeTimeout );
       return XRootDStatus( stError, errOperationExpired );
     }
 
@@ -582,7 +600,7 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Unable to open source %s: %s",
                   tpcSource.GetURL().c_str(), st.ToStr().c_str() );
-      XRootDStatus status = targetFile.Close( closeTimeout );
+      XRootDStatus status = dstFile.Close( closeTimeout );
       return st;
     }
 
@@ -596,13 +614,13 @@ namespace XrdCl
     uint16_t tpcTimeout = 0;
     pProperties->Get( "tpcTimeout", tpcTimeout );
 
-    st = targetFile.Sync( &statusHandler, tpcTimeout );
+    st = dstFile.Sync( &statusHandler, tpcTimeout );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable start the copy: %s",
                   st.ToStr().c_str() );
       XRootDStatus statusS = sourceFile.Close( closeTimeout );
-      XRootDStatus statusT = targetFile.Close( closeTimeout );
+      XRootDStatus statusT = dstFile.Close( closeTimeout );
       return st;
     }
 
@@ -616,7 +634,7 @@ namespace XrdCl
 
       if( progress )
       {
-        st = targetFile.Stat( true, info );
+        st = dstFile.Stat( true, info );
         if( st.IsOK() )
         {
           progress->JobProgress( pJobId, info->GetSize(), sourceSize );
@@ -628,7 +646,7 @@ namespace XrdCl
         {
           log->Debug( UtilityMsg, "Cancelation requested by progress handler" );
           Buffer arg, *response = 0; arg.FromString( "ofs.tpc cancel" );
-          XRootDStatus st = targetFile.Fcntl( arg, response );
+          XRootDStatus st = dstFile.Fcntl( arg, response );
           if( !st.IsOK() )
             log->Debug( UtilityMsg, "Error while trying to cancel tpc: %s",
                         st.ToStr().c_str() );
@@ -659,12 +677,12 @@ namespace XrdCl
 
       // Ignore close response
       XRootDStatus statusS = sourceFile.Close( closeTimeout );
-      XRootDStatus statusT = targetFile.Close( closeTimeout );
+      XRootDStatus statusT = dstFile.Close( closeTimeout );
       return st;
     }
 
     XRootDStatus statusS = sourceFile.Close( closeTimeout );
-    XRootDStatus statusT = targetFile.Close( closeTimeout );
+    XRootDStatus statusT = dstFile.Close( closeTimeout );
 
     if ( !statusS.IsOK() || !statusT.IsOK() )
     {
@@ -684,13 +702,7 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  XRootDStatus ThirdPartyCopyJob::RunLite( CopyProgressHandler *progress,
-                                           uint64_t             sourceSize,
-                                           File                &targetFile,
-                                           uint16_t             initTimeout,
-                                           bool                 force,
-                                           bool                 coerce,
-                                           int                  nbStrm )
+  XRootDStatus ThirdPartyCopyJob::RunLite( CopyProgressHandler *progress )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -702,12 +714,12 @@ namespace XrdCl
     // Set up the rendez-vous
     //--------------------------------------------------------------------------
     InitTimeoutCalc timeLeft( initTimeout );
-    XRootDStatus st = targetFile.Sync( timeLeft );
+    XRootDStatus st = dstFile.Sync( timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
-      XRootDStatus status = targetFile.Close( closeTimeout );
+      XRootDStatus status = dstFile.Close( closeTimeout );
       return st;
     }
 
@@ -721,12 +733,12 @@ namespace XrdCl
     uint16_t tpcTimeout = 0;
     pProperties->Get( "tpcTimeout", tpcTimeout );
 
-    st = targetFile.Sync( &statusHandler, tpcTimeout );
+    st = dstFile.Sync( &statusHandler, tpcTimeout );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable start the copy: %s",
                   st.ToStr().c_str() );
-      XRootDStatus statusT = targetFile.Close( closeTimeout );
+      XRootDStatus statusT = dstFile.Close( closeTimeout );
       return st;
     }
 
@@ -740,7 +752,7 @@ namespace XrdCl
 
       if( progress )
       {
-        st = targetFile.Stat( true, info );
+        st = dstFile.Stat( true, info );
         if( st.IsOK() )
         {
           progress->JobProgress( pJobId, info->GetSize(), sourceSize );
@@ -752,7 +764,7 @@ namespace XrdCl
         {
           log->Debug( UtilityMsg, "Cancelation requested by progress handler" );
           Buffer arg, *response = 0; arg.FromString( "ofs.tpc cancel" );
-          XRootDStatus st = targetFile.Fcntl( arg, response );
+          XRootDStatus st = dstFile.Fcntl( arg, response );
           if( !st.IsOK() )
             log->Debug( UtilityMsg, "Error while trying to cancel tpc: %s",
                         st.ToStr().c_str() );
@@ -782,11 +794,11 @@ namespace XrdCl
                   st.ToStr().c_str() );
 
       // Ignore close response
-      XRootDStatus statusT = targetFile.Close( closeTimeout );
+      XRootDStatus statusT = dstFile.Close( closeTimeout );
       return st;
     }
 
-    st = targetFile.Close( closeTimeout );
+    st = dstFile.Close( closeTimeout );
 
     if ( !st.IsOK() )
     {
