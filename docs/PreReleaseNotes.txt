@@ -33,6 +33,7 @@ Prerelease Notes
   * **[Server]** Follow protocol spec when returning file compression info. Fixes #721
 
 + **Miscellaneous**
+  * **[TPC]** Set envars XRD_TRACEID, XRDTPC_SPROT, and XRDTPC_TPROT
   * **[TPC]** Allow source protocol to be transmitted to server via tpc.spr CGI.
   * **[Proxy]** Add method to cache to get local file path of cached file.
   * **[All]** Place protocol definition under a modified BSD license.
