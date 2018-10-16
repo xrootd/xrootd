@@ -72,12 +72,15 @@ void        Success() {isAOK = true;}
 
             XrdOfsTPCInfo(const char *vKey=0, const char *vOrg=0,
                           const char *vLfn=0, const char *vDst=0,
-                          const char *vCks=0) : cbP(0),
+                          const char *vCks=0, const char *vSpr=0,
+                          const char *vTpr=0) : cbP(0),
                       Cks(vCks ? strdup(vCks) :0),
                       Key(vKey ? strdup(vKey) :0),
                       Org(vOrg ? strdup(vOrg) :0),
                       Lfn(vLfn ? strdup(vLfn) :0),
                       Dst(vDst ? strdup(vDst) :0),
+                      Spr(vSpr ? strdup(vSpr) :0),
+                      Tpr(vTpr ? strdup(vTpr) :0),
                       Env(0), Crd(0), Csz(0), Str(0),
                       inWtR(false), isDST(false), isAOK(false)
                       {}
@@ -90,6 +93,8 @@ char           *Key;   // Rendezvous key    or src  URL
 char           *Org;   // Rendezvous origin
 char           *Lfn;   // Rendezvous path   or dest LFN
 char           *Dst;   // Rendezvous dest   or dest PFN
+char           *Spr;   // Source protocol
+char           *Tpr;   // Target protocol
 const char     *Env;   // -> creds envar name
 char           *Crd;   // Credentials to be forwarded dst->src
 int             Csz;   // Size of credentials

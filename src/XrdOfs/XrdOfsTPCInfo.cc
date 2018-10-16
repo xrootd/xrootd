@@ -70,6 +70,8 @@ XrdOfsTPCInfo::~XrdOfsTPCInfo()
    if (Org) {free(Org); Org = 0;}
    if (Lfn) {free(Lfn); Lfn = 0;}
    if (Dst) {free(Dst); Dst = 0;}
+   if (Spr) {free(Spr); Spr = 0;}
+   if (Tpr) {free(Tpr); Tpr = 0;}
    if (Cks) {free(Cks); Cks = 0;}
    if (Crd) {free(Crd); Crd = 0; Csz = 0;}
    if (cbP) delete cbP;

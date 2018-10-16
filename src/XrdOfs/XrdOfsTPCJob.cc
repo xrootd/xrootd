@@ -55,9 +55,10 @@ XrdOfsTPCJob      *XrdOfsTPCJob::jobLast  = 0;
   
 XrdOfsTPCJob::XrdOfsTPCJob(const char *Url, const char *Org,
                            const char *Lfn, const char *Pfn,
-                           const char *Cks, short lfnLoc[2])
-                          : XrdOfsTPC(Url, Org, Lfn, Pfn, Cks), myProg(0),
-                            Status(isWaiting)
+                           const char *Cks, short lfnLoc[2],
+                           const char *Spr, const char *Tpr)
+                          : XrdOfsTPC(Url, Org, Lfn, Pfn, Cks, Spr, Tpr),
+                            myProg(0), Status(isWaiting)
 {  lfnPos[0] = lfnLoc[0]; lfnPos[1] = lfnLoc[1]; }
   
 /******************************************************************************/

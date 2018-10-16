@@ -577,6 +577,8 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
    const char *tpcSrc = Args.Env->Get(XrdOucTPC::tpcSrc);
    const char *tpcCks = Args.Env->Get(XrdOucTPC::tpcCks);
    const char *tpcStr = Args.Env->Get(XrdOucTPC::tpcStr);
+   const char *tpcSpr = Args.Env->Get(XrdOucTPC::tpcSpr);
+   const char *tpcTpr = Args.Env->Get(XrdOucTPC::tpcTpr);
    const char *theCGI, *enVar = 0;
          char  Buff[512], myURL[4096], sVal = 0;
          int   n, doRN = 0, myURLen = sizeof(myURL);
@@ -645,7 +647,8 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 // actually peform this copy.
 //
    if (!(myTPC = new XrdOfsTPCJob(myURL, Args.Usr->tident,
-                                  Args.Lfn, Args.Pfn, tpcCks, lfnLoc)))
+                                  Args.Lfn, Args.Pfn, tpcCks, lfnLoc,
+                                  tpcSpr, tpcTpr)))
       return Death(Args, "insufficient memory", ENOMEM);
 
 // Set credentials for the job if we need to

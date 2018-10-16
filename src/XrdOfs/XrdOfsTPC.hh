@@ -118,8 +118,10 @@ static  int   Validate (XrdOfsTPC **theTPC, Facts &Args);
               XrdOfsTPC() : Refs(1), inQ(0) {}
 
               XrdOfsTPC(const char *Url, const char *Org,
-                        const char *Lfn, const char *Pfn, const char *Cks=0)
-                       : Info(Url, Org, Lfn, Pfn, Cks), Refs(1), inQ(0) {}
+                        const char *Lfn, const char *Pfn, const char *Cks=0,
+                        const char *Spr=0, const char *Tpr=0)
+                       : Info(Url, Org, Lfn, Pfn, Cks, Spr, Tpr),
+                         Refs(1), inQ(0) {}
 
 virtual      ~XrdOfsTPC() {}
 
