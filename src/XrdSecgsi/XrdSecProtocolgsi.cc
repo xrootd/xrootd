@@ -552,8 +552,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
 
    //
    // Honour trust / unstrust DNS settings (switch or env)
-   if (opt.trustdns)
-      TrustDNS = opt.trustdns;
+   TrustDNS = opt.trustdns;
    DEBUG("trust DNS option: "<<TrustDNS);
 
    //
