@@ -308,6 +308,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    // usage of DNS (processed on XrdSecProtocolgsiInit).
    // Default is to fallback to DNS lookups in limited
    // cases for backward compatibility.
+   expectedHost = NULL;
    if (TrustDNS) {
       if (!hname || !XrdNetAddrInfo::isHostName(hname)) {
          Entity.host = strdup(endPoint.Name(""));
@@ -337,6 +338,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
       // We have been told via environment variable to not trust DNS; use the exact
       // hostname provided by the user.
       Entity.host = strdup(hname);
+      expectedHost = strdup(hname);
    }
    epAddr = endPoint;
    Entity.addrInfo = &epAddr;
@@ -1031,6 +1033,7 @@ void XrdSecProtocolgsi::Delete()
    SafeDelete(sessionKsig);   // RSA key to sign
    SafeDelete(sessionKver);   // RSA key to verify
    SafeDelete(proxyChain);    // Chain with delegated proxies
+   SafeDelete(expectedHost);
 
    delete this;
 }
@@ -3118,10 +3121,20 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    //
    // Verify server identity
-   // First, check the DN.  On failure, we will iterate through
-   // the alternate names.
-   if (!ServerCertNameOK(hs->Chain->End()->Subject(), emsg) &&
+   // First, check the DN against the client-provided hostname.
+   // On failure, we will iterate through the alternate names in the cert.
+   // If that fails, we will do a reverse DNS lookup of the IP address.
+   if (!ServerCertNameOK(hs->Chain->End()->Subject(), Entity.host, emsg) &&
        !hs->Chain->End()->MatchesSAN(Entity.host)) {
+      if ((expectedHost == NULL) && TrustDNS && Entity.addrInfo) {
+         char canonname[256];
+         if (Entity.addrInfo->Format(canonname, 256, XrdNetAddrInfo::fmtName, XrdNetAddrInfo::noPort) > 0) {
+            expectedHost = strdup(canonname);
+            if (!ServerCertNameOK(hs->Chain->End()->Subject(), Entity.host, emsg)) {
+               return -1;
+            }
+         }
+      }
       return -1;
    }
    //
@@ -5259,7 +5272,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
 
 
 //_____________________________________________________________________________
-bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg)
+bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, const char *hname, XrdOucString &emsg)
 {
    // Check that the server certificate subject name is consistent with the
    // expectations defined by the static SrvAllowedNames
@@ -5277,12 +5290,12 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
    if (cnidx != STR_NPOS) srvcn.assign(srvsubj, cnidx + 3);
 
    // Always check if the server CN is in the standard form "[*/]<target host name>[/*]"
-   if (Entity.host) {
+   if (hname) {
       size_t ih = srvcn.find("/");
       if (ih != std::string::npos) {
          srvcn.erasefromstart(ih + 1);
       }
-      allowed = XrdCryptoX509::MatchHostnames(srvcn.c_str(), Entity.host);
+      allowed = XrdCryptoX509::MatchHostnames(srvcn.c_str(), hname);
 
       // Update the error msg, if the case
       if (!allowed) {
@@ -5290,7 +5303,7 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
             emsg = "server certificate CN '"; emsg += srvcn;
             emsg += "' does not match the expected format(s):";
          }
-         String defcn("[*/]"); defcn += Entity.host; defcn += "[/*]";
+         String defcn("[*/]"); defcn += hname; defcn += "[/*]";
          emsg += " '"; emsg += defcn; emsg += "' (default)";
       }
    }
@@ -5299,12 +5312,12 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
    if (SrvAllowedNames.length() > 0) {
       // The SrvAllowedNames string contains the allowed formats separated by a '|'.
       // The specifications can contain the <host> or <fqdn> placeholders which
-      // are replaced by Entity.host; they can also contain the '*' wildcard, in
+      // are replaced by hname; they can also contain the '*' wildcard, in
       // which case XrdOucString::matches is used. A '-' before the specification
       // will deny the matching CN's; the last matching wins.
       String allowedfmts(SrvAllowedNames);
-      allowedfmts.replace("<host>", (const char *) Entity.host);
-      allowedfmts.replace("<fqdn>", (const char *) Entity.host);
+      allowedfmts.replace("<host>", hname);
+      allowedfmts.replace("<fqdn>", hname);
       int from = 0;
       String fmt;
       while ((from = allowedfmts.tokenize(fmt, from, '|')) != -1) {
