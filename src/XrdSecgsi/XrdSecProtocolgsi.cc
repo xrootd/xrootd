@@ -3127,12 +3127,10 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    if (!ServerCertNameOK(hs->Chain->End()->Subject(), Entity.host, emsg) &&
        !hs->Chain->End()->MatchesSAN(Entity.host)) {
       if ((expectedHost == NULL) && TrustDNS && Entity.addrInfo) {
-         char canonname[256];
-         if (Entity.addrInfo->Format(canonname, 256, XrdNetAddrInfo::fmtName, XrdNetAddrInfo::noPort) > 0) {
-            expectedHost = strdup(canonname);
-            if (!ServerCertNameOK(hs->Chain->End()->Subject(), Entity.host, emsg)) {
+         const char *name = Entity.addrInfo->Name();
+         expectedHost = strdup(name);
+         if ((name == NULL) || !ServerCertNameOK(hs->Chain->End()->Subject(), expectedHost, emsg)) {
                return -1;
-            }
          }
       }
       return -1;
