@@ -390,7 +390,8 @@ private:
    XrdCryptoRSA    *sessionKsig;   // RSA key to sign
    XrdCryptoRSA    *sessionKver;   // RSA key to verify
    X509Chain       *proxyChain;    // Chain with the delegated proxy on servers
-   bool             srvMode;       // TRUE if server mode 
+   bool             srvMode;       // TRUE if server mode
+   char            *expectedHost;  // Expected hostname if TrustDNS is enabled.
 
    // Temporary Handshake local info
    gsiHSVars     *hs;
@@ -426,7 +427,7 @@ private:
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
    static int     VerifyCRL(XrdCryptoX509Crl *crl, XrdCryptoX509 *xca, XrdOucString crldir,
                            XrdCryptoFactory *CF, int hashalg);
-   bool           ServerCertNameOK(const char *subject, String &e);
+   bool           ServerCertNameOK(const char *subject, const char *hname, String &e);
    static XrdSutCacheEntry *GetSrvCertEnt(XrdSutCERef   &gcref,
                                        XrdCryptoFactory *cf,
                                        time_t timestamp, String &cal);
