@@ -155,8 +155,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params,
-                            int                                   bucketDefault = 0 )
+      XRootDStatus RunImpl()
       {
         std::shared_ptr<Ctx> ctx( new Ctx( this->handler.release() ) );
 
@@ -164,13 +163,16 @@ namespace XrdCl
         {
           for( size_t i = 0; i < pipelines.size(); ++i )
           {
-            pipelines[i].Run( params, i + 1,
-                [ctx]( const XRootDStatus &st ){ if( !st.IsOK() ) ctx->Handle( st ); } );
+            pipelines[i].Run( [ctx]( const XRootDStatus &st ){ if( !st.IsOK() ) ctx->Handle( st ); } );
           }
         }
-        catch( std::logic_error &ex )
+        catch( const PipelineException& ex )
         {
-          ctx->Handle( XRootDStatus( stError, errInvalidOp ) );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
 
         return XRootDStatus();

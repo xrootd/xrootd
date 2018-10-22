@@ -32,8 +32,8 @@
 #include <tuple>
 #include <future>
 #include "XrdCl/XrdClXRootDResponses.hh"
-#include "XrdCl/XrdClOperationArgs.hh"
 #include "XrdCl/XrdClOperationHandlers.hh"
+#include "XrdClArg.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
@@ -49,7 +49,7 @@ namespace XrdCl
   class Pipeline;
 
   //----------------------------------------------------------------------------
-  //! Wrapper for ForwardingHandler, used only internally to run next operation
+  //! Wrapper for ResponseHandler, used only internally to run next operation
   //! after previous one is finished
   //----------------------------------------------------------------------------
   class PipelineHandler: public ResponseHandler
@@ -61,11 +61,16 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor.
       //!
-      //! @param handler : the forwarding handler of our operation
+      //! @param handler : the handler of our operation
       //! @param own     : if true we have the ownership of handler (it's
       //!                  memory), and it is our responsibility to deallocate it
       //------------------------------------------------------------------------
-      PipelineHandler( ForwardingHandler *handler, bool own );
+      PipelineHandler( ResponseHandler *handler, bool own );
+
+      //------------------------------------------------------------------------
+      //! Default Constructor.
+      //------------------------------------------------------------------------
+      PipelineHandler();
 
       //------------------------------------------------------------------------
       //! Callback function.
@@ -109,10 +114,18 @@ namespace XrdCl
       void HandleResponseImpl( XRootDStatus *status, AnyObject *response,
           HostList *hostList = nullptr );
 
+      inline void dealloc( XRootDStatus *status, AnyObject *response,
+          HostList *hostList )
+      {
+        delete status;
+        delete response;
+        delete hostList;
+      }
+
       //------------------------------------------------------------------------
-      //! The forwarding handler of our operation
+      //! The handler of our operation
       //------------------------------------------------------------------------
-      ForwardingHandler *responseHandler;
+      ResponseHandler *responseHandler;
 
       //------------------------------------------------------------------------
       //! true, if we own the handler
@@ -134,11 +147,6 @@ namespace XrdCl
       //! pipeline (traveling along the pipeline)
       //------------------------------------------------------------------------
       std::function<void(const XRootDStatus&)> final;
-
-      //------------------------------------------------------------------------
-      //! Arguments for forwarding
-      //------------------------------------------------------------------------
-      std::shared_ptr<ArgsContainer> args;
   };
 
   //----------------------------------------------------------------------------
@@ -225,13 +233,11 @@ namespace XrdCl
       //!                 successfully, stError otherwise
       //------------------------------------------------------------------------
       void Run( std::promise<XRootDStatus>                prms,
-                std::function<void(const XRootDStatus&)>  final,
-                const std::shared_ptr<ArgsContainer>     &args,
-                int                                       bucket = 1 )
+                std::function<void(const XRootDStatus&)>  final )
       {
         static_assert(state == Handled, "Only Operation<Handled> can be assigned to workflow");
         handler->Assign( std::move( prms ), std::move( final ) );
-        XRootDStatus st = RunImpl( args, bucket );
+        XRootDStatus st = RunImpl();
         if( st.IsOK() ) handler.release();
         else
           ForceHandler( st );
@@ -245,8 +251,7 @@ namespace XrdCl
       //! @return       :  status of the operation
       //! @param bucket : number of the bucket with arguments
       //------------------------------------------------------------------------
-      virtual XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer>& args,
-                                    int                                   bucket = 1 ) = 0;
+      virtual XRootDStatus RunImpl() = 0;
 
       //------------------------------------------------------------------------
       //! Handle error caused by missing parameter
@@ -409,17 +414,15 @@ namespace XrdCl
       //! @param bucket : number of bucket with forwarded params
       //! @param final  : to be called at the end of the pipeline
       //------------------------------------------------------------------------
-      void Run( std::shared_ptr<ArgsContainer> args, int bucket,
-                std::function<void(const XRootDStatus&)> final = nullptr )
+      void Run( std::function<void(const XRootDStatus&)> final = nullptr )
       {
         if( ftr.valid() )
-          throw std::logic_error( "Pipeline is already running" ); // TODO vs Parallel
+          throw std::logic_error( "Pipeline is already running" );
 
         // a promise that the pipe will have a result
         std::promise<XRootDStatus> prms;
         ftr = prms.get_future();
-        if( !args ) args = std::make_shared<ArgsContainer>();
-        operation->Run( std::move( prms ), std::move( final ), args, bucket );
+        operation->Run( std::move( prms ), std::move( final ) );
       }
 
       //------------------------------------------------------------------------
@@ -443,7 +446,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   inline std::future<XRootDStatus> Async( Pipeline pipeline )
   {
-    pipeline.Run( std::make_shared<ArgsContainer>(), 1 );
+    pipeline.Run();
     return std::move( pipeline.ftr );
   }
 
@@ -525,10 +528,10 @@ namespace XrdCl
       Derived<Handled> operator>>( Hdlr &&hdlr )
       {
         // check if the resulting handler should be owned by us or by the user,
-        // if the user passed us directly a ForwardingHandler it's owned by the
+        // if the user passed us directly a ResponseHandler it's owned by the
         // user, otherwise we need to wrap the argument in a handler and in this
         // case the resulting handler will be owned by us
-        constexpr bool own = !IsForwardingHandler<Hdlr>::value;
+        constexpr bool own = !IsResponseHandler<Hdlr>::value;
         return this->StreamImpl( HdlrFactory::Create( hdlr ), own );
       }
 
@@ -604,7 +607,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Operation<Handled>* ToHandled()
       {
-        this->handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
+        this->handler.reset( new PipelineHandler() );
         Derived<state> *me = static_cast<Derived<state>*>( this );
         return new Derived<Handled>( std::move( *me ) );
       }
@@ -628,7 +631,7 @@ namespace XrdCl
       //! @
       //! @return   :  return an instance of Derived<Handled>
       //------------------------------------------------------------------------
-      inline Derived<Handled> StreamImpl( ForwardingHandler *handler, bool own = true )
+      inline Derived<Handled> StreamImpl( ResponseHandler *handler, bool own )
       {
         static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
         this->handler.reset( new PipelineHandler( handler, own ) );
@@ -679,7 +682,7 @@ namespace XrdCl
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, HdlrFactory,
           Args...> &me, Operation<Handled> &op )
       {
-        me.handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
+        me.handler.reset( new PipelineHandler() );
         me.AddOperation( op.Move() );
         return me.template Transform<Handled>();
       }
@@ -696,7 +699,7 @@ namespace XrdCl
       Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, HdlrFactory,
           Args...> &me, Operation<Configured> &op )
       {
-        me.handler.reset( new PipelineHandler( new ForwardingHandler(), true ) );
+        me.handler.reset( new PipelineHandler() );
         me.AddOperation( op.ToHandled() );
         return me.template Transform<Handled>();
       }
@@ -706,32 +709,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::tuple<Args...> args;
     };
-
-  //----------------------------------------------------------------------------
-  //! Helper function for extracting arguments from a argument tuple and
-  //! argument container. Priority goes to arguments specified in the
-  //! tuple, only if not defined there an arguments is being looked up
-  //! in the argument container.
-  //!
-  //! @arg   ArgDesc : descryptor of the argument type
-  //! @arg   Args    : types of operation arguments
-  //!
-  //! @param args    : tuple with operation arguments
-  //! @param params  : container with forwarded arguments
-  //! @param bucket  : bucket number in the container
-  //!
-  //! @return        : requested argument
-  //!
-  //! @throws        : logic_error if the argument has not been specified
-  //!                 neither in the tuple nor in the container
-  //----------------------------------------------------------------------------
-  template<typename ArgDesc, typename ... Args>
-  inline typename ArgDesc::type& Get( std::tuple<Args...> &args,
-      const std::shared_ptr<ArgsContainer> &params, int bucket )
-  {
-    auto &arg = std::get<ArgDesc::index>( args );
-    return arg.IsEmpty() ? params->GetArg<ArgDesc>( bucket ) : arg.GetValue();
-  }
 }
 
 #endif // __XRD_CL_OPERATIONS_HH__

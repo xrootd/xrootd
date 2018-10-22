@@ -15,7 +15,8 @@ if( XrdClPipelines )
   set( XrdClPipelineSources
        XrdClOperations.cc          XrdClOperations.hh
        							   XrdClOperationHandlers.hh
-       							   XrdClOperationArgs.hh
+       							   XrdClArg.hh
+       							   XrdClFwd.hh
 								   XrdClParallelOperation.hh
 								   XrdClFileOperations.hh
 								   XrdClFileSystemOperations.hh

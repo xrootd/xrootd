@@ -129,24 +129,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Flags Argument Descriptors
-      //------------------------------------------------------------------------
-      struct FlagsArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef OpenFlags::Flags type;
-      };
+      enum { PathArg, FlagsArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -165,23 +150,25 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
-          OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
+          std::string      path  = std::get<PathArg>( this->args ).Get();
+          OpenFlags::Flags flags = std::get<FlagsArg>( this->args ).Get();
           return this->filesystem->Locate( path, flags, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef LocateImpl<Bare> Locate;
-  template<State state> const std::string LocateImpl<state>::PathArg::key  = "path";
-  template<State state> const std::string LocateImpl<state>::FlagsArg::key = "flags";
 
   //----------------------------------------------------------------------------
   //! DeepLocate operation (@see FileSystemOperation)
@@ -225,24 +212,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Flags Argument Descriptors
-      //------------------------------------------------------------------------
-      struct FlagsArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef OpenFlags::Flags type;
-      };
+      enum { PathArg, FlagsArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -261,24 +233,25 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
-          OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
-          return this->filesystem->DeepLocate( path, flags,
-              this->handler.get() );
+          std::string      path  = std::get<PathArg>( this->args ).Get();
+          OpenFlags::Flags flags = std::get<FlagsArg>( this->args ).Get();
+          return this->filesystem->DeepLocate( path, flags, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef DeepLocateImpl<Bare> DeepLocate;
-  template<State state> const std::string DeepLocateImpl<state>::PathArg::key  = "path";
-  template<State state> const std::string DeepLocateImpl<state>::FlagsArg::key = "flags";
 
   //----------------------------------------------------------------------------
   //! Mv operation (@see FileSystemOperation)
@@ -322,24 +295,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Source Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct SourceArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Dest Argument Descriptors
-      //------------------------------------------------------------------------
-      struct DestArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef std::string type;
-      };
+      enum { SourceArg, DestArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -358,23 +316,25 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &source = Get<SourceArg>( this->args, params, bucket );
-          std::string &dest = Get<DestArg>( this->args, params, bucket );
+          std::string source = std::get<SourceArg>( this->args ).Get();
+          std::string dest   = std::get<DestArg>( this->args ).Get();
           return this->filesystem->Mv( source, dest, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef MvImpl<Bare> Mv;
-  template<State state> const std::string MvImpl<state>::SourceArg::key = "source";
-  template<State state> const std::string MvImpl<state>::DestArg::key   = "dest";
 
   //----------------------------------------------------------------------------
   //! Query operation (@see FileSystemOperation)
@@ -418,24 +378,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! QueryCode Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct QueryCodeArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef QueryCode::Code type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Buffer Argument Descriptors
-      //------------------------------------------------------------------------
-      struct BufferArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef Buffer type;
-      };
+      enum { QueryCodeArg, BufferArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -454,24 +399,25 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          QueryCode::Code &queryCode = Get<QueryCodeArg>( this->args, params,
-              bucket );
-          const Buffer &arg = Get<BufferArg>( this->args, params, bucket );
-          return this->filesystem->Query( queryCode, arg, this->handler.get() );
+          QueryCode::Code queryCode = std::get<QueryCodeArg>( this->args ).Get();
+          const Buffer    buffer( std::get<BufferArg>( this->args ).Get() );
+          return this->filesystem->Query( queryCode, buffer, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef QueryImpl<Bare> Query;
-  template<State state> const std::string QueryImpl<state>::QueryCodeArg::key = "queryCode";
-  template<State state> const std::string QueryImpl<state>::BufferArg::key    = "arg";
 
   //----------------------------------------------------------------------------
   //! Truncate operation (@see FileSystemOperation)
@@ -515,24 +461,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Size Argument Descriptors
-      //------------------------------------------------------------------------
-      struct SizeArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef uint64_t type;
-      };
+      enum { PathArg, SizeArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -551,22 +482,24 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
-          uint64_t &size = Get<SizeArg>( this->args, params, bucket );
+          std::string path = std::get<PathArg>( this->args ).Get();
+          uint64_t    size = std::get<SizeArg>( this->args ).Get();
           return this->filesystem->Truncate( path, size, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
-  template<State state> const std::string TruncateFsImpl<state>::PathArg::key = "path";
-  template<State state> const std::string TruncateFsImpl<state>::SizeArg::key = "size";
 
   TruncateFsImpl<Bare> Truncate( FileSystem *fs )
   {
@@ -617,14 +550,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
+      enum { PathArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -643,21 +571,24 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string& path = Get<PathArg>( this->args, params, bucket );
+          std::string path = std::get<PathArg>( this->args ).Get();
           return this->filesystem->Rm( path, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef RmImpl<Bare> Rm;
-  template<State state> const std::string RmImpl<state>::PathArg::key = "path";
 
   //----------------------------------------------------------------------------
   //! MkDir operation (@see FileSystemOperation)
@@ -701,34 +632,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Flags Argument Descriptors
-      //------------------------------------------------------------------------
-      struct FlagsArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef MkDirFlags::Flags type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Mode Argument Descriptors
-      //------------------------------------------------------------------------
-      struct ModeArg
-      {
-          static const int index = 2;
-          static const std::string key;
-          typedef Access::Mode type;
-      };
+      enum { PathArg, FlagsArg, ModeArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -747,27 +653,26 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
-          MkDirFlags::Flags &flags = Get<FlagsArg>( this->args, params,
-              bucket );
-          Access::Mode &mode = Get<ModeArg>( this->args, params, bucket );
-          return this->filesystem->MkDir( path, flags, mode,
-              this->handler.get() );
+          std::string       path  = std::get<PathArg>( this->args ).Get();
+          MkDirFlags::Flags flags = std::get<FlagsArg>( this->args ).Get();
+          Access::Mode      mode  = std::get<ModeArg>( this->args ).Get();
+          return this->filesystem->MkDir( path, flags, mode, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef MkDirImpl<Bare> MkDir;
-  template<State state> const std::string MkDirImpl<state>::PathArg::key  = "path";
-  template<State state> const std::string MkDirImpl<state>::FlagsArg::key = "flags";
-  template<State state> const std::string MkDirImpl<state>::ModeArg::key  = "mode";
 
   //----------------------------------------------------------------------------
   //! RmDir operation (@see FileSystemOperation)
@@ -809,14 +714,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
+      enum { PathArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -835,21 +735,24 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
+          std::string path = std::get<PathArg>( this->args ).Get();
           return this->filesystem->RmDir( path, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef RmDirImpl<Bare> RmDir;
-  template<State state> const std::string RmDirImpl<state>::PathArg::key = "path";
 
   //----------------------------------------------------------------------------
   //! ChMod operation (@see FileSystemOperation)
@@ -893,24 +796,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Mode Argument Descriptors
-      //------------------------------------------------------------------------
-      struct ModeArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef Access::Mode type;
-      };
+      enum { PathArg, ModeArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -929,23 +817,25 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
-          Access::Mode &mode = Get<ModeArg>( this->args, params, bucket );
+          std::string  path = std::get<PathArg>( this->args ).Get();
+          Access::Mode mode = std::get<ModeArg>( this->args ).Get();
           return this->filesystem->ChMod( path, mode, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef ChModImpl<Bare> ChMod;
-  template<State state> const std::string ChModImpl<state>::PathArg::key = "path";
-  template<State state> const std::string ChModImpl<state>::ModeArg::key = "mode";
 
   //----------------------------------------------------------------------------
   //! Ping operation (@see FileSystemOperation)
@@ -1001,16 +891,9 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
-        try
-        {
-          return this->filesystem->Ping( this->handler.get() );
-        }
-        catch( const std::logic_error& err )
-        {
-          return XRootDStatus( stError, err.what() );
-        }
+        return this->filesystem->Ping( this->handler.get() );
       }
   };
   typedef PingImpl<Bare> Ping;
@@ -1057,14 +940,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
+      enum { PathArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1083,20 +961,23 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
+          std::string path = std::get<PathArg>( this->args ).Get();
           return this->filesystem->RmDir( path, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
-  template<State state> const std::string StatFsImpl<state>::PathArg::key = "path";
 
   StatFsImpl<Bare> Stat( FileSystem *fs )
   {
@@ -1147,14 +1028,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
+      enum { PathArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1173,21 +1049,24 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
+          std::string path = std::get<PathArg>( this->args ).Get();
           return this->filesystem->StatVFS( path, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef StatVFSImpl<Bare> StatVFS;
-  template<State state> const std::string StatVFSImpl<state>::PathArg::key = "path";
 
   //----------------------------------------------------------------------------
   //! Protocol operation (@see FileSystemOperation)
@@ -1244,16 +1123,9 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
-        try
-        {
-          return this->filesystem->Protocol( this->handler.get() );
-        }
-        catch( const std::logic_error& err )
-        {
-          return XRootDStatus( stError, err.what() );
-        }
+        return this->filesystem->Protocol( this->handler.get() );
       }
   };
   typedef ProtocolImpl<Bare> Protocol;
@@ -1298,24 +1170,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Path Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct PathArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Flags Argument Descriptors
-      //------------------------------------------------------------------------
-      struct FlagsArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef DirListFlags::Flags type;
-      };
+      enum { PathArg, FlagsArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1334,24 +1191,25 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &path = Get<PathArg>( this->args, params, bucket );
-          DirListFlags::Flags &flags = Get<FlagsArg>( this->args, params,
-              bucket );
+          std::string         path  = std::get<PathArg>( this->args ).Get();
+          DirListFlags::Flags flags = std::get<FlagsArg>( this->args ).Get();
           return this->filesystem->DirList( path, flags, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef DirListImpl<Bare> DirList;
-  template<State state> const std::string DirListImpl<state>::PathArg::key  = "path";
-  template<State state> const std::string DirListImpl<state>::FlagsArg::key = "flags";
 
   //----------------------------------------------------------------------------
   //! SendInfo operation (@see FileSystemOperation)
@@ -1392,14 +1250,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Info Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct InfoArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
+      enum { InfoArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1418,21 +1271,24 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &info = Get<InfoArg>( this->args, params, bucket );
+          std::string info = std::get<InfoArg>( this->args ).Get();
           return this->filesystem->SendInfo( info, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef SendInfoImpl<Bare> SendInfo;
-  template<State state> const std::string SendInfoImpl<state>::InfoArg::key = "info";
 
   //----------------------------------------------------------------------------
   //! Prepare operation (@see FileSystemOperation)
@@ -1476,34 +1332,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! FileList Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct FileListArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::vector<std::string> type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Flags Argument Descriptors
-      //------------------------------------------------------------------------
-      struct FlagsArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef PrepareFlags::Flags type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Priority Argument Descriptors
-      //------------------------------------------------------------------------
-      struct PriorityArg
-      {
-          static const int index = 2;
-          static const std::string key;
-          typedef uint8_t type;
-      };
+      enum { FileListArg, FlagsArg, PriorityArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1522,29 +1353,27 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::vector<std::string> &fileList = Get<FileListArg>( this->args,
-              params, bucket );
-          PrepareFlags::Flags &flags = Get<FlagsArg>( this->args, params,
-              bucket );
-          uint8_t &priority = Get<PriorityArg>( this->args, params, bucket );
+          std::vector<std::string> fileList = std::get<FileListArg>( this->args ).Get();
+          PrepareFlags::Flags      flags    = std::get<FlagsArg>( this->args ).Get();
+          uint8_t                  priority = std::get<PriorityArg>( this->args ).Get();
           return this->filesystem->Prepare( fileList, flags, priority,
               this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef PrepareImpl<Bare> Prepare;
-  template<State state> const std::string PrepareImpl<state>::FileListArg::key = "fileList";
-  template<State state> const std::string PrepareImpl<state>::FlagsArg::key    = "flags";
-  template<State state> const std::string PrepareImpl<state>::PriorityArg::key = "priority";
-
 }
 
 #endif // __XRD_CL_FILE_SYSTEM_OPERATIONS_HH__

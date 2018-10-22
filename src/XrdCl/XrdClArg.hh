@@ -26,6 +26,8 @@
 #ifndef __XRD_CL_OPERATION_PARAMS_HH__
 #define __XRD_CL_OPERATION_PARAMS_HH__
 
+#include "XrdCl/XrdClFwd.hh"
+
 #include <string>
 #include <sstream>
 #include <unordered_map>
@@ -34,11 +36,182 @@ namespace XrdCl
 {
 
   //----------------------------------------------------------------------------
-  //! A argument that has not been defined
+  //! Base class for Arg.
   //----------------------------------------------------------------------------
-  class NotDefArg
+  template<typename T>
+  class ArgBase
   {
-  } notdef; //> a global for specifying not defined arguments
+    public:
+
+      //------------------------------------------------------------------------
+      //! Default Constructor.
+      //------------------------------------------------------------------------
+      ArgBase()
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor.
+      //------------------------------------------------------------------------
+      virtual ~ArgBase()
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param value : the value of the argument
+      //------------------------------------------------------------------------
+      ArgBase( T value ) : holder( new PlainValue( std::move( value ) ) )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param ftr : future value of the argument
+      //------------------------------------------------------------------------
+      ArgBase( std::future<T> &&ftr ) : holder( new FutureValue( std::move( ftr ) ) )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //!
+      //! @param fwd : forwarded value of the argument
+      //------------------------------------------------------------------------
+      ArgBase( const Fwd<T> &fwd ) : holder( new FwdValue( fwd ) )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Get Constructor.
+      //------------------------------------------------------------------------
+      ArgBase( ArgBase &&arg ) : holder( std::move( arg.holder ) )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! @return : value of the argument
+      //------------------------------------------------------------------------
+      T Get()
+      {
+        if( !holder ) throw std::logic_error( "XrdCl::ArgBase::Get(): value not set." );
+        return holder->Get();
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! Abstract class for holding a value
+      //------------------------------------------------------------------------
+      struct ValueHolder
+      {
+        //----------------------------------------------------------------------
+        //! Virtual Destructor (important ;-).
+        //----------------------------------------------------------------------
+        virtual ~ValueHolder()
+        {
+        }
+
+        //----------------------------------------------------------------------
+        //! @return : the value
+        //----------------------------------------------------------------------
+        virtual T Get() = 0;
+      };
+
+      //------------------------------------------------------------------------
+      //! A helper class for holding plain value
+      //------------------------------------------------------------------------
+      struct PlainValue : public ValueHolder
+      {
+          //--------------------------------------------------------------------
+          //! Constructor
+          //!
+          //! @param value : the value to be hold by us
+          //--------------------------------------------------------------------
+          PlainValue( T &&value ) : value( std::move( value ) )
+          {
+          }
+
+          //--------------------------------------------------------------------
+          //! @return : the value
+          //--------------------------------------------------------------------
+          T Get()
+          {
+            return std::move( value );
+          }
+
+        private:
+          //--------------------------------------------------------------------
+          //! the value
+          //--------------------------------------------------------------------
+          T value;
+      };
+
+      //------------------------------------------------------------------------
+      //! A helper class for holding future value
+      //------------------------------------------------------------------------
+      struct FutureValue : public ValueHolder
+      {
+          //--------------------------------------------------------------------
+          //! Constructor
+          //!
+          //! @param value : the future value to be hold by us
+          //--------------------------------------------------------------------
+          FutureValue( std::future<T> &&ftr ) : ftr( std::move( ftr ) )
+          {
+          }
+
+          //--------------------------------------------------------------------
+          //! @return : the value
+          //--------------------------------------------------------------------
+          T Get()
+          {
+            return ftr.get();
+          }
+
+        private:
+          //--------------------------------------------------------------------
+          //! the future value
+          //--------------------------------------------------------------------
+          std::future<T> ftr;
+      };
+
+      //------------------------------------------------------------------------
+      //! A helper class for holding forwarded value
+      //------------------------------------------------------------------------
+      struct FwdValue : public ValueHolder
+      {
+          //--------------------------------------------------------------------
+          //! Constructor
+          //!
+          //! @param value : the forwarded value to be hold by us
+          //--------------------------------------------------------------------
+          FwdValue( const Fwd<T> &fwd ) : fwd( fwd )
+          {
+          }
+
+          //--------------------------------------------------------------------
+          //! @return : the value
+          //--------------------------------------------------------------------
+          T Get()
+          {
+            return std::move( *fwd );
+          }
+
+        private:
+          //--------------------------------------------------------------------
+          //! the forwarded value
+          //--------------------------------------------------------------------
+          Fwd<T> fwd;
+      };
+
+      //------------------------------------------------------------------------
+      //! Holds the value of the argument
+      //------------------------------------------------------------------------
+      std::unique_ptr<ValueHolder> holder;
+  };
 
   //----------------------------------------------------------------------------
   //! Operation argument.
@@ -47,354 +220,127 @@ namespace XrdCl
   //! @arg T : real type of the argument
   //----------------------------------------------------------------------------
   template<typename T>
-  class Arg
+  class Arg : public ArgBase<T>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor.
-      //!
-      //! @param val : value of the argument
+      //! Default Constructor.
       //------------------------------------------------------------------------
-      Arg( T val ) :
-          empty( false )
-      {
-        value = val;
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //------------------------------------------------------------------------
-      Arg() : empty( true )
+      Arg()
       {
       }
 
       //------------------------------------------------------------------------
       //! Constructor.
       //!
-      //! @param notdef : place holder meaning the argument is not defined yet
+      //! @param value : value of the argument (will be std::moved)
       //------------------------------------------------------------------------
-      Arg( NotDefArg notdef ) :
-          empty( true )
+      Arg( T value ) : ArgBase<T>( std::move( value ) )
       {
       }
 
       //------------------------------------------------------------------------
-      //! Move Constructor.
+      //! Constructor.
+      //!
+      //! @param ftr : future value of the argument (will be std::moved)
       //------------------------------------------------------------------------
-      Arg( Arg && opt ) :
-          value( std::move( opt.value ) )
+      Arg( std::future<T> &&ftr ) : ArgBase<T>( std::move( ftr ) )
       {
-        empty = opt.empty;
-        opt.empty = true;
       }
 
       //------------------------------------------------------------------------
-      //! Move-Assignment.
+      //! Constructor.
+      //!
+      //! @param fwd : forwarded value of the argument (will be std::moved)
+      //------------------------------------------------------------------------
+      Arg( const Fwd<T> &fwd ) : ArgBase<T>( fwd )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Get Constructor.
+      //------------------------------------------------------------------------
+      Arg( Arg &&arg ) : ArgBase<T>( std::move( arg ) )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Get-Assignment.
       //------------------------------------------------------------------------
       Arg& operator=( Arg &&arg )
       {
-        value = std::move( arg.value );
-        empty = arg.empty;
-        arg.empty = true;
+        this->holder = std::move( arg.holder );
         return *this;
       }
-
-      //------------------------------------------------------------------------
-      //! @return : true if the argument has not been defined yet,
-      //!           false otherwise
-      //------------------------------------------------------------------------
-      bool IsEmpty()
-      {
-        return empty;
-      }
-
-      //------------------------------------------------------------------------
-      //! @return : value of the argument
-      //------------------------------------------------------------------------
-      T& GetValue()
-      {
-        if( IsEmpty() )
-        {
-          throw std::logic_error(
-              "Cannot get parameter: value has not been specified" );
-        }
-        return value;
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      //! value of the argument
-      //------------------------------------------------------------------------
-      T value;
-
-      //------------------------------------------------------------------------
-      //! true if the argument has not been defined yet, false otherwise
-      //------------------------------------------------------------------------
-      bool empty;
   };
 
   //----------------------------------------------------------------------------
   //! Operation argument.
-  //! Specialized for 'std::string', migh be constructed in addition from c-like
+  //! Specialized for 'std::string', might be constructed in addition from c-like
   //! string (const char*)
-  //!
-  //! @arg T : real type of the argument
   //----------------------------------------------------------------------------
   template<>
-  class Arg<std::string>
+  class Arg<std::string> : public ArgBase<std::string>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor.
-      //!
-      //! @param val : value of the argument
+      //! Default Constructor.
       //------------------------------------------------------------------------
-      Arg( const std::string& str ) :
-          empty( false )
+      Arg()
       {
-        value = str;
       }
 
       //------------------------------------------------------------------------
       //! Constructor.
       //!
-      //! @param val : value of the argument
+      //! @param value : value of the argument
       //------------------------------------------------------------------------
-      Arg( const char *val ) :
-          empty( false )
-      {
-        value = std::string( val );
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //------------------------------------------------------------------------
-      Arg() : empty( true )
+      Arg( std::string str ) : ArgBase<std::string>( str )
       {
       }
 
       //------------------------------------------------------------------------
       //! Constructor.
       //!
-      //! @param notdef : place holder meaning the argument is not defined yet
+      //! @param val : value of the argument
       //------------------------------------------------------------------------
-      Arg( NotDefArg notdef ) :
-          empty( true )
+      Arg( const char *cstr ) : ArgBase<std::string>( cstr )
       {
       }
 
       //------------------------------------------------------------------------
-      //! Move Constructor.
+      //! Constructor.
+      //------------------------------------------------------------------------
+      Arg( std::future<std::string> &&ftr ) : ArgBase<std::string>( std::move( ftr ) )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //------------------------------------------------------------------------
+      Arg( const Fwd<std::string> &fwd ) : ArgBase<std::string>( fwd )
+      {
+      }
+
+
+      //------------------------------------------------------------------------
+      //! Get Constructor.
       //-----------------------------------------------------------------------
-      Arg( Arg &&arg ) :
-          value( std::move( arg.value ) )
+      Arg( Arg &&arg ) : ArgBase<std::string>( std::move( arg ) )
       {
-        empty = arg.empty;
-        arg.empty = true;
       }
 
       //------------------------------------------------------------------------
-      //! Move-Assignment.
+      //! Get-Assignment.
       //------------------------------------------------------------------------
-      Arg& operator=( Arg &&opt )
+      Arg& operator=( Arg &&arg )
       {
-        value = std::move( opt.value );
-        empty = opt.empty;
-        opt.empty = true;
+        this->holder = std::move( arg.holder );
         return *this;
       }
-
-      //------------------------------------------------------------------------
-      //! @return : true if the argument has not been defined yet,
-      //!           false otherwise
-      //------------------------------------------------------------------------
-      bool IsEmpty()
-      {
-        return empty;
-      }
-
-      //------------------------------------------------------------------------
-      //! @return : value of the argument
-      //------------------------------------------------------------------------
-      std::string& GetValue()
-      {
-        if( IsEmpty() )
-        {
-          throw std::logic_error(
-              "Cannot get parameter: value has not been specified" );
-        }
-        return value;
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      //! value of the argument
-      //------------------------------------------------------------------------
-      std::string value;
-
-      //------------------------------------------------------------------------
-      //! true if the argument has not been defined yet, false otherwise
-      //------------------------------------------------------------------------
-      bool empty;
   };
-
-  //----------------------------------------------------------------------------
-  //! Container with argument for forwarding
-  //----------------------------------------------------------------------------
-  class ArgsContainer
-  {
-    public:
-
-      //------------------------------------------------------------------------
-      //! Get an argument from container
-      //!
-      //! @arg ArgDesc  : descryptor of the argument type
-      //!
-      //! @param bucket : bucket number of the desired argument
-      //------------------------------------------------------------------------
-      template<typename ArgDesc>
-      typename ArgDesc::type& GetArg( int bucket = 1 )
-      {
-        if( !Exists( ArgDesc::key, bucket ) )
-        {
-          std::ostringstream oss;
-          oss << "Parameter " << ArgDesc::key << " has not been specified in bucket "
-              << bucket;
-          throw std::logic_error( oss.str() );
-        }
-        AnyObject *obj = paramsMap[bucket][ArgDesc::key];
-        typename ArgDesc::type *valuePtr = nullptr;
-        obj->Get( valuePtr );
-        return *valuePtr;
-      }
-
-      //------------------------------------------------------------------------
-      //! Set an argument in container
-      //!
-      //! @arg ArgDesc  : descryptor of the argument type
-      //!
-      //! @param bucket : bucket number of the desired argument
-      //------------------------------------------------------------------------
-      template<typename ArgDesc>
-      void SetArg( typename ArgDesc::type value, int bucket = 1 )
-      {
-        if( !BucketExists( bucket ) )
-        {
-          paramsMap[bucket];
-        }
-        if( paramsMap[bucket].find( ArgDesc::key ) != paramsMap[bucket].end() )
-        {
-          std::ostringstream oss;
-          oss << "Parameter " << ArgDesc::key << " has already been set in bucket "
-              << bucket;
-          throw std::logic_error( oss.str() );
-        }
-        typename ArgDesc::type *valuePtr = new typename ArgDesc::type( value );
-        AnyObject *obj = new AnyObject();
-        obj->Set( valuePtr, true );
-        paramsMap[bucket][ArgDesc::key] = obj;
-      }
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      ~ArgsContainer()
-      {
-        auto buckets = paramsMap.begin();
-        // Destroy dynamically allocated objects stored in map
-        while( buckets != paramsMap.end() )
-        {
-          auto& objectsMap = buckets->second;
-          auto it = objectsMap.begin();
-          while( it != objectsMap.end() )
-          {
-            AnyObject* obj = it->second;
-            it++;
-            delete obj;
-          }
-          buckets++;
-        }
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      //! Check if given key exists in given bucket
-      //!
-      //! @param key    : key of the argument
-      //! @param bucket : the bucket we want to check
-      //!
-      //! @return       : true if the argument exists, false otherwise
-      //------------------------------------------------------------------------
-      bool Exists( const std::string &key, int bucket = 1 )
-      {
-        return paramsMap.find( bucket ) != paramsMap.end()
-            && paramsMap[bucket].find( key ) != paramsMap[bucket].end();
-      }
-
-      //------------------------------------------------------------------------
-      //! Check if given bucket exist
-      //!
-      //! @param bucket : bucket number
-      //!
-      //! @return       : true if the bucket exists, false otherwise
-      //------------------------------------------------------------------------
-      bool BucketExists( int bucket )
-      {
-        return paramsMap.find( bucket ) != paramsMap.end();
-      }
-
-      //------------------------------------------------------------------------
-      //! map of buckets with arguments
-      //------------------------------------------------------------------------
-      std::unordered_map<int, std::unordered_map<std::string, AnyObject*>> paramsMap;
-  };
-
-  //----------------------------------------------------------------------------
-  //! Operation Context.
-  //!
-  //! Acts as an additional parameter to a lambda so it can forward arguments.
-  //----------------------------------------------------------------------------
-  class OperationContext
-  {
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param paramsContainer : container with argument
-      //------------------------------------------------------------------------
-      OperationContext( std::shared_ptr<ArgsContainer> paramsContainer ) :
-          container( paramsContainer )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Forward argument to next operation in pipeline
-      //!
-      //! @arg ArgDesc  : descryptor of the argument type
-      //!
-      //! @param value  : value of the argument
-      //! @param bucket : the bucket where the argument should be stored
-      //------------------------------------------------------------------------
-      template<typename ArgDesc>
-      void FwdArg( typename ArgDesc::type value, int bucket = 1 )
-      {
-        container->SetArg <ArgDesc> ( value, bucket );
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      //! Container with arguments for forwarding
-      //------------------------------------------------------------------------
-      std::shared_ptr<ArgsContainer> container;
-  };
-
 }
 
 #endif // __XRD_CL_OPERATION_PARAMS_HH__

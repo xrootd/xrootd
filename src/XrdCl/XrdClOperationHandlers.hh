@@ -30,85 +30,6 @@
 
 namespace XrdCl
 {
-
-  //----------------------------------------------------------------------------
-  //! Handler allowing forwarding parameters to the next operation in pipeline
-  //----------------------------------------------------------------------------
-  class ForwardingHandler: public ResponseHandler
-  {
-      friend class PipelineHandler;
-
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //------------------------------------------------------------------------
-      ForwardingHandler() :
-          container( new ArgsContainer() )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback function.
-      //------------------------------------------------------------------------
-      virtual void HandleResponseWithHosts( XRootDStatus *status,
-          AnyObject *response, HostList *hostList )
-      {
-        delete hostList;
-        HandleResponse( status, response );
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback function.
-      //------------------------------------------------------------------------
-      virtual void HandleResponse( XRootDStatus *status, AnyObject *response )
-      {
-        delete status;
-        delete response;
-        delete this;
-      }
-
-      //------------------------------------------------------------------------
-      //! Forward an argument to next operation in pipeline
-      //!
-      //! @arg    T       :  type of the value which will be saved
-      //!
-      //! @param  value   :  value to save
-      //! @param  bucket  :  bucket in which value will be saved
-      //------------------------------------------------------------------------
-      template<typename T>
-      void FwdArg( typename T::type value, int bucket = 1 )
-      {
-        container->SetArg<T>( value, bucket );
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      //! @return : container with arguments for forwarding
-      //------------------------------------------------------------------------
-      std::shared_ptr<ArgsContainer>& GetArgContainer()
-      {
-        return container;
-      }
-
-      //------------------------------------------------------------------------
-      //! container with arguments for forwarding
-      //------------------------------------------------------------------------
-      std::shared_ptr<ArgsContainer> container;
-
-    protected:
-
-      //------------------------------------------------------------------------
-      //! @return  :  operation context
-      //------------------------------------------------------------------------
-      std::unique_ptr<OperationContext> GetOperationContext()
-      {
-        return std::unique_ptr<OperationContext>(
-            new OperationContext( container ) );
-      }
-  };
-
   //----------------------------------------------------------------------------
   //! Helper class for checking if a given Handler is derived
   //! from ForwardingHandler
@@ -116,13 +37,13 @@ namespace XrdCl
   //! @arg Hdlr : type of given handler
   //----------------------------------------------------------------------------
   template<typename Hdlr>
-  struct IsForwardingHandler
+  struct IsResponseHandler
   {
       //------------------------------------------------------------------------
       //! true if the Hdlr type has been derived from ForwardingHandler,
       //! false otherwise
       //------------------------------------------------------------------------
-      static constexpr bool value = std::is_base_of<XrdCl::ForwardingHandler, Hdlr>::value;
+      static constexpr bool value = std::is_base_of<XrdCl::ResponseHandler, Hdlr>::value;
   };
 
   //----------------------------------------------------------------------------
@@ -132,67 +53,19 @@ namespace XrdCl
   //! @arg Hdlr : type of given handler
   //----------------------------------------------------------------------------
   template<typename Hdlr>
-  struct IsForwardingHandler<Hdlr*>
+  struct IsResponseHandler<Hdlr*>
   {
       //------------------------------------------------------------------------
       //! true if the Hdlr type has been derived from ForwardingHandler,
       //! false otherwise
       //------------------------------------------------------------------------
-      static constexpr bool value = std::is_base_of<XrdCl::ForwardingHandler, Hdlr>::value;
-  };
-
-  //----------------------------------------------------------------------------
-  //! Handler allowing wrapping a normal ResponseHandler into
-  //! a ForwaridngHandler.
-  //----------------------------------------------------------------------------
-  class WrappingHandler: public ForwardingHandler
-  {
-      friend class PipelineHandler;
-
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //!
-      //! @param handler : the handler to be wrapped up
-      //------------------------------------------------------------------------
-      WrappingHandler( ResponseHandler *handler ) :
-          handler( handler )
-      {
-
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback function.
-      //------------------------------------------------------------------------
-      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response,
-          HostList *hostList )
-      {
-        handler->HandleResponseWithHosts( status, response, hostList );
-        delete this;
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback function.
-      //------------------------------------------------------------------------
-      void HandleResponse( XRootDStatus *status, AnyObject *response )
-      {
-        handler->HandleResponse( status, response );
-        delete this;
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      //! The wrapped handler
-      //------------------------------------------------------------------------
-      ResponseHandler *handler;
+      static constexpr bool value = std::is_base_of<XrdCl::ResponseHandler, Hdlr>::value;
   };
 
   //----------------------------------------------------------------------------
   //! Lambda wrapper
   //----------------------------------------------------------------------------
-  class SimpleFunctionWrapper: public ForwardingHandler
+  class SimpleFunctionWrapper: public ResponseHandler
   {
     public:
 
@@ -231,7 +104,7 @@ namespace XrdCl
   //! @arg ResponseType : type of response returned by the server
   //----------------------------------------------------------------------------
   template<typename ResponseType>
-  class FunctionWrapper: public ForwardingHandler
+  class FunctionWrapper: public ResponseHandler
   {
     public:
 
@@ -275,65 +148,30 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
-  //! Lambda wrapper
-  //----------------------------------------------------------------------------
-  class SimpleForwardingFunctionWrapper: public ForwardingHandler
-  {
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //
-      //! @param func : function, functor or lambda
-      //------------------------------------------------------------------------
-      SimpleForwardingFunctionWrapper(
-          std::function<void( XRootDStatus&, OperationContext& )> handleFunction ) :
-          fun( handleFunction )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback method.
-      //------------------------------------------------------------------------
-      void HandleResponse( XRootDStatus *status, AnyObject *response )
-      {
-        auto paramsContainerWrapper = GetOperationContext();
-        fun( *status, *paramsContainerWrapper.get() );
-        delete status;
-        delete response;
-        delete this;
-      }
-
-    private:
-      //------------------------------------------------------------------------
-      //! user defined function, functor or lambda
-      //------------------------------------------------------------------------
-      std::function<void( XRootDStatus&, OperationContext& )> fun;
-  };
-
-  //----------------------------------------------------------------------------
   // Initialize the 'null-reference'
   //----------------------------------------------------------------------------
   template<typename ResponseType>
   ResponseType FunctionWrapper<ResponseType>::nullref;
 
+
   //----------------------------------------------------------------------------
-  //! Lambda wrapper
+  //! Packaged Task wrapper
+  //!
+  //! @arg Response : type of response returned by the server
+  //! @arg Return   : type of the value returned by the task
   //----------------------------------------------------------------------------
-  template<typename ResponseType>
-  class ForwardingFunctionWrapper: public ForwardingHandler
+  template<typename Response, typename Return>
+  class TaskWrapper: public ResponseHandler
   {
     public:
 
       //------------------------------------------------------------------------
       //! Constructor.
       //
-      //! @param func : function, functor or lambda
+      //! @param task : a std::packaged_task
       //------------------------------------------------------------------------
-      ForwardingFunctionWrapper(
-          std::function<
-              void( XRootDStatus&, ResponseType&, OperationContext& )> handleFunction ) :
-          fun( handleFunction )
+      TaskWrapper( std::packaged_task<Return( XRootDStatus&, Response& )> && task ) :
+        task( std::move( task ) )
       {
       }
 
@@ -342,42 +180,82 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
-        ResponseType *res = nullptr;
+        Response *resp = nullptr;
         if( status->IsOK() )
-          response->Get( res );
+          response->Get( resp );
         else
-          res = &nullref;
-        auto paramsContainerWrapper = GetOperationContext();
-        fun( *status, *res, *paramsContainerWrapper.get() );
+          resp = &nullref;
+        task( *status, *resp );
         delete status;
         delete response;
         delete this;
       }
 
     private:
+
       //------------------------------------------------------------------------
-      //! user defined function, functor or lambda
+      //! user defined task
       //------------------------------------------------------------------------
-      std::function<
-          void( XRootDStatus&, ResponseType&, OperationContext &wrapper )> fun;
+      std::packaged_task<Return( XRootDStatus&, Response& )> task;
 
       //------------------------------------------------------------------------
       //! Null reference to the response (not really but acts as one)
       //------------------------------------------------------------------------
-      static ResponseType nullref;
+      static Response nullref;
   };
 
   //----------------------------------------------------------------------------
   // Initialize the 'null-reference'
   //----------------------------------------------------------------------------
-  template<typename ResponseType>
-  ResponseType ForwardingFunctionWrapper<ResponseType>::nullref;
+  template<typename Response, typename Return>
+  Response TaskWrapper<Response, Return>::nullref;
+
+  //----------------------------------------------------------------------------
+  //! Packaged Task wrapper, specialization for requests that have no response
+  //! except for status.
+  //!
+  //! @arg Response : type of response returned by the server
+  //! @arg Return   : type of the value returned by the task
+  //----------------------------------------------------------------------------
+  template<typename Return>
+  class TaskWrapper<void, Return>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param task : a std::packaged_task
+      //------------------------------------------------------------------------
+      TaskWrapper( std::packaged_task<Return( XRootDStatus& )> && task ) :
+        task( std::move( task ) )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
+      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      {
+        task( *status );
+        delete status;
+        delete response;
+        delete this;
+      }
+
+    private:
+
+      //------------------------------------------------------------------------
+      //! user defined task
+      //------------------------------------------------------------------------
+      std::packaged_task<Return( XRootDStatus& )> task;
+  };
 
 
   //----------------------------------------------------------------------------
   //! Lambda wrapper
   //----------------------------------------------------------------------------
-  class ExOpenFuncWrapper: public ForwardingHandler
+  class ExOpenFuncWrapper: public ResponseHandler
   {
     public:
 
@@ -426,61 +304,6 @@ namespace XrdCl
   // Initialize the 'null-reference'
   //----------------------------------------------------------------------------
   StatInfo ExOpenFuncWrapper::nullref;
-
-  //----------------------------------------------------------------------------
-  //! Lambda wrapper
-  //----------------------------------------------------------------------------
-  class ForwardingExOpenFuncWrapper: public ForwardingHandler
-  {
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //
-      //! @param func : function, functor or lambda
-      //------------------------------------------------------------------------
-      ForwardingExOpenFuncWrapper( File &f,
-          std::function<
-              void( XRootDStatus&, StatInfo&, OperationContext& )> handleFunction ) :
-          f( f ), fun( handleFunction )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback method.
-      //------------------------------------------------------------------------
-      void HandleResponse( XRootDStatus *status, AnyObject *response )
-      {
-        StatInfo *info = nullptr;
-        if( status->IsOK() )
-          XRootDStatus st = f.Stat( false, info );
-        else
-          info = &nullref;
-        auto paramsContainerWrapper = GetOperationContext();
-        fun( *status, *info, *paramsContainerWrapper.get() );
-        if( info != &nullref ) delete info;
-        delete status;
-        delete response;
-        delete this;
-      }
-
-    private:
-      File &f;
-      //------------------------------------------------------------------------
-      //! user defined function, functor or lambda
-      //------------------------------------------------------------------------
-      std::function<void( XRootDStatus&, StatInfo&, OperationContext& )> fun;
-
-      //------------------------------------------------------------------------
-      //! Null reference to the response (not really but acts as one)
-      //------------------------------------------------------------------------
-      static StatInfo nullref;
-  };
-
-  //----------------------------------------------------------------------------
-  // Initialize the 'null-reference'
-  //----------------------------------------------------------------------------
-  StatInfo ForwardingExOpenFuncWrapper::nullref;
 
   //----------------------------------------------------------------------------
   //! Pipeline exception, wrapps an XRootDStatus
@@ -544,7 +367,7 @@ namespace XrdCl
   //! @arg Response : response type
   //----------------------------------------------------------------------------
   template<typename Response>
-  class FutureWrapperBase : public ForwardingHandler
+  class FutureWrapperBase : public ResponseHandler
   {
     public:
 
@@ -687,45 +510,23 @@ namespace XrdCl
   struct RespBase
   {
       //------------------------------------------------------------------------
-      //! A factory method
+      //!  A factory method, simply forwards the given handler
       //!
       //! @param h : the ResponseHandler that should be wrapped
       //! @return  : a ForwardingHandler instance
       //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( ResponseHandler *hdlr )
-      {
-        return new WrappingHandler( hdlr );
-      }
-
-      //------------------------------------------------------------------------
-      //! A factory method
-      //!
-      //! @param h : the ResponseHandler that should be wrapped
-      //! @return  : a ForwardingHandler instance
-      //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( ResponseHandler &hdlr )
-      {
-        return new WrappingHandler( &hdlr );
-      }
-
-      //------------------------------------------------------------------------
-      //! A factory method, simply forwards the given ForwardingHandler
-      //!
-      //! @param h : the ForwardingHandler that should be forwarded
-      //! @return  : a ForwardingHandler instance
-      //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( ForwardingHandler *hdlr )
+      inline static ResponseHandler* Create( ResponseHandler *hdlr )
       {
         return hdlr;
       }
 
       //------------------------------------------------------------------------
-      //! A factory method, simply forwards the given ForwardingHandler
+      //!  A factory method, simply forwards the given handler
       //!
-      //! @param h : the ForwardingHandler that should be forwarded
+      //! @param h : the ResponseHandler that should be wrapped
       //! @return  : a ForwardingHandler instance
       //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( ForwardingHandler &hdlr )
+      inline static ResponseHandler* Create( ResponseHandler &hdlr )
       {
         return &hdlr;
       }
@@ -736,7 +537,7 @@ namespace XrdCl
       //! @arg   Response : response type
       //! @param ftr      : the std::future that should be wrapped
       //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( std::future<Response> &ftr )
+      inline static ResponseHandler* Create( std::future<Response> &ftr )
       {
         return new FutureWrapper<Response>( ftr );
       }
@@ -757,7 +558,7 @@ namespace XrdCl
       //! @param func : the function/functor/lambda that should be wrapped
       //! @return     : FunctionWrapper instance
       //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( std::function<void( XRootDStatus&,
+      inline static ResponseHandler* Create( std::function<void( XRootDStatus&,
           Response& )> func )
       {
         return new FunctionWrapper<Response>( func );
@@ -766,13 +567,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! A factory method
       //!
-      //! @param func : the function/functor/lambda that should be wrapped
-      //! @return     : ForwardingFunctionWrapper instance
+      //! @param func : the task that should be wrapped
+      //! @return     : TaskWrapper instance
       //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( std::function<void( XRootDStatus&,
-          Response&, OperationContext& )> func )
+      template<typename Return>
+      inline static ResponseHandler* Create( std::packaged_task<Return( XRootDStatus&,
+          Response& )> &task )
       {
-        return new ForwardingFunctionWrapper<Response>( func );
+        return new TaskWrapper<Response, Return>( std::move( task ) );
       }
 
       //------------------------------------------------------------------------
@@ -795,7 +597,7 @@ namespace XrdCl
       //! @param func : the function/functor/lambda that should be wrapped
       //! @return     : SimpleFunctionWrapper instance
       //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( std::function<void( XRootDStatus& )> func )
+      inline static ResponseHandler* Create( std::function<void( XRootDStatus& )> func )
       {
         return new SimpleFunctionWrapper( func );
       }
@@ -803,13 +605,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! A factory method
       //!
-      //! @param func : the function/functor/lambda that should be wrapped
-      //! @return     : SimpleForwardingFunctionWrapper instance
+      //! @param func : the task that should be wrapped
+      //! @return     : TaskWrapper instance
       //------------------------------------------------------------------------
-      inline static ForwardingHandler* Create( std::function<void( XRootDStatus&,
-          OperationContext& )> func )
+      template<typename Return>
+      inline static ResponseHandler* Create( std::packaged_task<Return( XRootDStatus& )> &task )
       {
-        return new SimpleForwardingFunctionWrapper( func );
+        return new TaskWrapper<void, Return>( std::move( task ) );
       }
 
       //------------------------------------------------------------------------

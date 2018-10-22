@@ -110,31 +110,18 @@ namespace XrdCl
           //--------------------------------------------------------------------
           ExResp( XrdCl::File &file ): file( file )
           {
-
           }
 
           //--------------------------------------------------------------------
           //! A factory method
           //!
           //! @param func : the function/functor/lambda that should be wrapped
-          //! @return     : ForwardingHandler instance
+          //! @return     : ResponseHandler instance
           //--------------------------------------------------------------------
-          inline ForwardingHandler* Create( std::function<void( XRootDStatus&,
+          inline ResponseHandler* Create( std::function<void( XRootDStatus&,
               StatInfo& )> func )
           {
             return new ExOpenFuncWrapper( this->file, func );
-          }
-
-          //--------------------------------------------------------------------
-          //! A factory method
-          //!
-          //! @param func : the function/functor/lambda that should be wrapped
-          //! @return     : ForwardingHandler instance
-          //--------------------------------------------------------------------
-          inline ForwardingHandler* Create( std::function<void( XRootDStatus&,
-              StatInfo&, OperationContext& )> func )
-          {
-            return new ForwardingExOpenFuncWrapper( this->file, func );
           }
 
           //--------------------------------------------------------------------
@@ -185,34 +172,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! URL Argument Descriptors
+      //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      struct UrlArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef std::string type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Flags Argument Descriptors
-      //------------------------------------------------------------------------
-      struct FlagsArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef OpenFlags::Flags type;
-      };
-
-      //------------------------------------------------------------------------
-      //! Mode Argument Descriptors
-      //------------------------------------------------------------------------
-      struct ModeArg
-      {
-          static const int index = 2;
-          static const std::string key;
-          typedef Access::Mode type;
-      };
+      enum { UrlArg, FlagsArg, ModeArg };
 
       //------------------------------------------------------------------------
       //! Overloaded operator() (in order to provide default value for mode)
@@ -235,11 +197,10 @@ namespace XrdCl
       OpenImpl<Handled> operator>>( Hdlr hdlr )
       {
         // check if the resulting handler should be owned by us or by the user,
-        // if the user passed us directly a ForwardingHandler it's owned by the
+        // if the user passed us directly a ResponseHandler it's owned by the
         // user, otherwise we need to wrap the argument in a handler and in this
         // case the resulting handler will be owned by us
-        constexpr bool own = !( std::is_same<Hdlr, ForwardingHandler>::value ||
-                                std::is_same<Hdlr, ForwardingHandler*>::value );
+        constexpr bool own = !IsResponseHandler<Hdlr>::value;
         ExResp factory( *this->file );
         return this->StreamImpl( factory.Create( hdlr ), own );
       }
@@ -261,25 +222,26 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          std::string &url = Get<UrlArg>( this->args, params, bucket );
-          OpenFlags::Flags &flags = Get<FlagsArg>( this->args, params, bucket );
-          Access::Mode &mode = Get<ModeArg>( this->args, params, bucket );
+          std::string      url   = std::get<UrlArg>( this->args ).Get();
+          OpenFlags::Flags flags = std::get<FlagsArg>( this->args ).Get();
+          Access::Mode     mode  = std::get<ModeArg>( this->args ).Get();
           return this->file->Open( url, flags, mode, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef OpenImpl<Bare> Open;
-  template<State state> const std::string OpenImpl<state>::UrlArg::key   = "url";
-  template<State state> const std::string OpenImpl<state>::FlagsArg::key = "flags";
-  template<State state> const std::string OpenImpl<state>::ModeArg::key  = "mode";
 
   //----------------------------------------------------------------------------
   //! Read operation (@see FileOperation)
@@ -322,26 +284,10 @@ namespace XrdCl
       {
       }
 
-      struct OffsetArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef uint64_t type;
-      };
-
-      struct SizeArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef uint32_t type;
-      };
-
-      struct BufferArg
-      {
-          static const int index = 2;
-          static const std::string key;
-          typedef void* type;
-      };
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { OffsetArg, SizeArg, BufferArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -360,25 +306,26 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          uint64_t &offset = Get<OffsetArg>( this->args, params, bucket );
-          uint32_t &size = Get<SizeArg>( this->args, params, bucket );
-          void *buffer = Get<BufferArg>( this->args, params, bucket );
+          uint64_t  offset = std::get<OffsetArg>( this->args ).Get();
+          uint32_t  size   = std::get<SizeArg>( this->args ).Get();
+          void     *buffer = std::get<BufferArg>( this->args ).Get();
           return this->file->Read( offset, size, buffer, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef ReadImpl<Bare> Read;
-  template<State state> const std::string ReadImpl<state>::OffsetArg::key = "offset";
-  template<State state> const std::string ReadImpl<state>::SizeArg::key   = "size";
-  template<State state> const std::string ReadImpl<state>::BufferArg::key = "buffer";
 
   //----------------------------------------------------------------------------
   //! Close operation (@see FileOperation)
@@ -437,7 +384,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         return this->file->Close( this->handler.get() );
       }
@@ -482,12 +429,10 @@ namespace XrdCl
 
       }
 
-      struct ForceArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef bool type;
-      };
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { ForceArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -506,20 +451,23 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          bool force = Get<ForceArg>( this->args, params, bucket );
+          bool force = std::get<ForceArg>( this->args ).Get();
           return this->file->Stat( force, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
-  template<State state> const std::string StatImpl<state>::ForceArg::key = "force";
 
   //----------------------------------------------------------------------------
   //! Factory for creating StatImpl objects (as there is another Stat in
@@ -580,26 +528,10 @@ namespace XrdCl
       {
       }
 
-      struct OffsetArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef uint64_t type;
-      };
-
-      struct SizeArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef uint32_t type;
-      };
-
-      struct BufferArg
-      {
-          static const int index = 2;
-          static const std::string key;
-          typedef void* type;
-      };
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { OffsetArg, SizeArg, BufferArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -618,25 +550,26 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          uint64_t &offset = Get<OffsetArg>( this->args, params, bucket );
-          uint32_t &size = Get<SizeArg>( this->args, params, bucket );
-          void *buffer = Get<BufferArg>( this->args, params, bucket );
+          uint64_t  offset = std::get<OffsetArg>( this->args ).Get();
+          uint32_t  size   = std::get<SizeArg>( this->args ).Get();
+          void     *buffer = std::get<BufferArg>( this->args ).Get();
           return this->file->Write( offset, size, buffer, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef WriteImpl<Bare> Write;
-  template<State state> const std::string WriteImpl<state>::OffsetArg::key = "offset";
-  template<State state> const std::string WriteImpl<state>::SizeArg::key   = "size";
-  template<State state> const std::string WriteImpl<state>::BufferArg::key = "buffer";
 
   //----------------------------------------------------------------------------
   //! Sync operation (@see FileOperation)
@@ -692,7 +625,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         return this->file->Sync( this->handler.get() );
       }
@@ -737,12 +670,10 @@ namespace XrdCl
       {
       }
 
-      struct SizeArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef uint64_t type;
-      };
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { SizeArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -761,20 +692,23 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          uint64_t &size = Get<SizeArg>( this->args, params, bucket );
+          uint64_t size = std::get<SizeArg>( this->args ).Get();
           return this->file->Truncate( size, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
-  template<State state> const std::string TruncateImpl<state>::SizeArg::key = "size";
 
   //----------------------------------------------------------------------------
   //! Factory for creating TruncateImpl objects (as there is another Stat in
@@ -835,19 +769,10 @@ namespace XrdCl
       {
       }
 
-      struct ChunksArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef ChunkList type;
-      };
-
-      struct BufferArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef char* type;
-      };
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { ChunksArg, BufferArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -866,24 +791,25 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          const ChunkList &chunks = Get<ChunksArg>( this->args, params,
-              bucket );
-          void *buffer = Get<BufferArg>( this->args, params, bucket );
+          ChunkList chunks( std::get<ChunksArg>( this->args ).Get() );
+          void *buffer = std::get<BufferArg>( this->args ).Get();
           return this->file->VectorRead( chunks, buffer, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef VectorReadImpl<Bare> VectorRead;
-  template<State state> const std::string VectorReadImpl<state>::ChunksArg::key = "chunks";
-  template<State state> const std::string VectorReadImpl<state>::BufferArg::key = "buffer";
 
   //----------------------------------------------------------------------------
   //! VectorWrite operation (@see FileOperation)
@@ -924,12 +850,10 @@ namespace XrdCl
       {
       }
 
-      struct ChunksArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef ChunkList type;
-      };
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { ChunksArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -948,22 +872,24 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          const ChunkList& chunks = Get<ChunksArg>( this->args, params,
-              bucket );
+          const ChunkList chunks( std::get<ChunksArg>( this->args ).Get() );
           return this->file->VectorWrite( chunks, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef VectorWriteImpl<Bare> VectorWrite;
-  template<State state> const std::string VectorWriteImpl<state>::ChunksArg::key = "chunks";
 
   //----------------------------------------------------------------------------
   //! WriteV operation (@see FileOperation)
@@ -1006,26 +932,10 @@ namespace XrdCl
       {
       }
 
-      struct OffsetArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef uint64_t type;
-      };
-
-      struct IovArg
-      {
-          static const int index = 1;
-          static const std::string key;
-          typedef struct iovec* type;
-      };
-
-      struct IovcntArg
-      {
-          static const int index = 2;
-          static const std::string key;
-          typedef int type;
-      };
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { OffsetArg, IovArg, IovcntArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1044,26 +954,26 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          uint64_t &offset = Get<OffsetArg>( this->args, params, bucket );
-          const struct iovec *iov = Get<IovArg>( this->args, params, bucket );
-          int &iovcnt = Get<IovcntArg>( this->args, params, bucket );
+          uint64_t            offset = std::get<OffsetArg>( this->args ).Get();
+          const struct iovec *iov    = std::get<IovArg>( this->args ).Get();
+          int                 iovcnt = std::get<IovcntArg>( this->args ).Get();
           return this->file->WriteV( offset, iov, iovcnt, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
         }
-
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
       }
   };
   typedef WriteVImpl<Bare> WriteV;
-  template<State state> const std::string WriteVImpl<state>::OffsetArg::key = "offset";
-  template<State state> const std::string WriteVImpl<state>::IovArg::key    = "iov";
-  template<State state> const std::string WriteVImpl<state>::IovcntArg::key = "iovcnt";
 
   //----------------------------------------------------------------------------
   //! Fcntl operation (@see FileOperation)
@@ -1102,12 +1012,10 @@ namespace XrdCl
       {
       }
 
-      struct BufferArg
-      {
-          static const int index = 0;
-          static const std::string key;
-          typedef Buffer type;
-      };
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { BufferArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1126,21 +1034,24 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         try
         {
-          const Buffer& arg = Get<BufferArg>( this->args, params, bucket );
+          Buffer arg( std::get<BufferArg>( this->args ).Get() );
           return this->file->Fcntl( arg, this->handler.get() );
         }
-        catch( const std::logic_error& err )
+        catch( const PipelineException& ex )
         {
-          return XRootDStatus( stError, err.what() );
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
         }
       }
   };
   typedef FcntlImpl<Bare> Fcntl;
-  template<State state> const std::string FcntlImpl<state>::BufferArg::key = "arg";
 
   //----------------------------------------------------------------------------
   //! Visa operation (@see FileOperation)
@@ -1171,7 +1082,7 @@ namespace XrdCl
       //!
       //! @arg from : state from which the object is being converted
       //!
-      //! @param op : the object that is being converted
+      //! @param op : thBe object that is being converted
       //------------------------------------------------------------------------
       template<State from>
       VisaImpl( VisaImpl<from> && visa ) :
@@ -1196,7 +1107,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( const std::shared_ptr<ArgsContainer> &params, int bucket = 1 )
+      XRootDStatus RunImpl()
       {
         return this->file->Visa( this->handler.get() );
       }
