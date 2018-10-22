@@ -1064,6 +1064,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("key", xsslkey);
       else if TS_Xeq("cadir", xsslcadir);
       else if TS_Xeq("cipherfilter", xsslcipherfilter);
+      else if TS_Xeq("verifydepth", xsslverifydepth);
       else if TS_Xeq("gridmap", xgmap);
       else if TS_Xeq("cafile", xsslcafile);
       else if TS_Xeq("secretkey", xsecretkey);
