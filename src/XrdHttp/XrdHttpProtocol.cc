@@ -90,7 +90,7 @@ char *XrdHttpProtocol::secretkey = 0;
 char *XrdHttpProtocol::gridmap = 0;
 XrdOucGMap *XrdHttpProtocol::servGMap = 0;  // Grid mapping service
 
-int XrdHttpProtocol::sslverifydepth = 9;
+int XrdHttpProtocol::sslverifydepth = 12;
 SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
