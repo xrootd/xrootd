@@ -270,6 +270,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Arg& operator=( Arg &&arg )
       {
+        if( &arg == this ) return *this;
         this->holder = std::move( arg.holder );
         return *this;
       }
@@ -337,6 +338,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Arg& operator=( Arg &&arg )
       {
+        if( &arg == this ) return *this;
         this->holder = std::move( arg.holder );
         return *this;
       }

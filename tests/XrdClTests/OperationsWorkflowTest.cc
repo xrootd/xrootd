@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClParallelOperation.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClFileSystemOperations.hh"
+#include "XrdCl/XrdClFwd.hh"
 
 using namespace XrdClTests;
 
@@ -103,9 +104,9 @@ namespace {
         return fileUrl;
     }
 
-    class TestingForwardingHandler: public ForwardingHandler {
+    class TestingHandler: public ResponseHandler {
         public:
-            TestingForwardingHandler(){
+            TestingHandler(){
                 executed = false;
             }
 
@@ -129,8 +130,7 @@ namespace {
             bool executed;
     };
 
-
-    class ExpectErrorHandler: public ForwardingHandler
+    class ExpectErrorHandler: public ResponseHandler
     {
       public:
           ExpectErrorHandler(){
@@ -157,123 +157,13 @@ namespace {
           bool executed;
     };
 
-
-    class StatHandler: public TestingForwardingHandler {
-        public:
-            StatHandler(bool sizeCheck, uint32_t expectedSize = 0){
-                _expectedSize = expectedSize;
-                _sizeCheck = sizeCheck;
-                buffer = NULL;
-            }
-
-            void HandleResponseWithHosts(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response, XrdCl::HostList *hostList) {
-                StatInfo *stat = 0;
-                response->Get(stat);
-
-                CPPUNIT_ASSERT(stat);
-                CPPUNIT_ASSERT(stat->TestFlags(StatInfo::IsReadable));
-
-                uint32_t size = stat->GetSize();
-                if(_sizeCheck){
-                    CPPUNIT_ASSERT_EQUAL(size, _expectedSize);
-                }
-
-                buffer = new char[size]();
-                FwdArg<Read::BufferArg>(buffer);
-                FwdArg<Read::SizeArg>(size);
-
-                TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
-            }
-
-            ~StatHandler(){
-                if(buffer){
-                    delete[] buffer;
-                }
-            }
-
-        private:
-            char* buffer;
-            uint32_t _expectedSize;
-            bool _sizeCheck;
-    };
-
-
     char* createBuf(const char* content, uint32_t length){
         char* buf = new char[length + 1]();
         strncpy(buf, content, length);
         return buf;
     }
 
-    class WriteVOpenHandler: public TestingForwardingHandler {
-        public:
-            WriteVOpenHandler(std::string *textsArr, int textsNumber){
-                vec = nullptr;
-                firstBuf = nullptr;
-                secondBuf = nullptr;
-                thirdBuf = nullptr;
-                contents = textsArr;
-                amount = textsNumber;
-            }
 
-            void HandleResponseWithHosts(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response, XrdCl::HostList *hostList) {
-                firstBuf = createBuf(contents[0].c_str(), contents[0].length());
-                secondBuf = createBuf(contents[1].c_str(), contents[1].length());
-                thirdBuf = createBuf(contents[2].c_str(), contents[2].length());
-
-                iovec v1 = {firstBuf, contents[0].length()};
-                iovec v2 = {secondBuf, contents[1].length()};
-                iovec v3 = {thirdBuf, contents[2].length()};
-
-                vec = new iovec[3];
-                vec[0] = v1;
-                vec[1] = v2;
-                vec[2] = v3;
-
-                FwdArg<WriteV::IovArg>(vec);
-                FwdArg<WriteV::IovcntArg>(3);
-
-                TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
-            }
-
-            ~WriteVOpenHandler(){
-                if(vec){
-                    delete[] firstBuf;
-                    delete[] secondBuf;
-                    delete[] thirdBuf;
-                    delete[] vec;
-                }
-
-            }
-
-        protected:
-            std::string *contents;
-            int amount;
-            struct iovec* vec;
-            char* firstBuf;
-            char* secondBuf;
-            char* thirdBuf;
-    };
-
-    class ReadHandler: public TestingForwardingHandler {
-        public:
-
-            ReadHandler(std::string expectedContent){
-                _expectedContent = expectedContent;
-            }
-
-            void HandleResponseWithHosts(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response, XrdCl::HostList *hostList){
-                ChunkInfo * info = 0;
-                response->Get( info );
-                std::string content = std::string((char*)info->buffer, info->length);
-                CPPUNIT_ASSERT_EQUAL(content, _expectedContent);
-
-                TestingForwardingHandler::HandleResponseWithHosts(status, response, hostList);
-
-            }
-
-        protected:
-            std::string _expectedContent;
-    };
 
 }
 
@@ -290,10 +180,15 @@ void WorkflowTest::ReadingWorkflowTest(){
     //----------------------------------------------------------------------------
     // Create handlers
     //----------------------------------------------------------------------------
-    TestingForwardingHandler openHandler;
-    StatHandler statHandler(true, 1048576000);
-    TestingForwardingHandler readHandler;
-    TestingForwardingHandler closeHandler;
+    TestingHandler openHandler;
+    TestingHandler readHandler;
+    TestingHandler closeHandler;
+
+    //----------------------------------------------------------------------------
+    // Forward parameters between operations
+    //----------------------------------------------------------------------------
+    Fwd<uint32_t> size;
+    Fwd<void*>    buffer;
 
     //----------------------------------------------------------------------------
     // Create and execute workflow
@@ -302,18 +197,25 @@ void WorkflowTest::ReadingWorkflowTest(){
     const OpenFlags::Flags flags = OpenFlags::Read;
     uint64_t offset = 0;
 
-    auto &&pipe = Open(f)(fileUrl, flags) >> &openHandler
-                | Stat(f)(true) >> statHandler
-                | Read(f)(offset, notdef, notdef) >> &readHandler
-                | Close(f)() >> closeHandler;
+    auto &&pipe = Open(f)(fileUrl, flags) >> openHandler // by reference
+                | Stat(f)(true) >> [size, buffer]( XRootDStatus &status, StatInfo &stat )
+                    {
+                      CPPUNIT_ASSERT_XRDST( status );
+                      CPPUNIT_ASSERT( stat.GetSize() == 1048576000 );
+                      size = stat.GetSize();
+                      buffer = new char[stat.GetSize()];
+                    }
+                | Read(f)(offset, size, buffer) >> &readHandler // by pointer
+                | Close(f)() >> closeHandler; // by reference
 
     XRootDStatus status = WaitFor( pipe );
-    CPPUNIT_ASSERT(status.IsOK());
+    CPPUNIT_ASSERT_XRDST( status );
 
-    CPPUNIT_ASSERT(openHandler.Executed());
-    CPPUNIT_ASSERT(statHandler.Executed());
-    CPPUNIT_ASSERT(readHandler.Executed());
-    CPPUNIT_ASSERT(closeHandler.Executed());
+    CPPUNIT_ASSERT( openHandler.Executed() );
+    CPPUNIT_ASSERT( readHandler.Executed() );
+    CPPUNIT_ASSERT( closeHandler.Executed() );
+
+    delete[] reinterpret_cast<char*>( *buffer );
 }
 
 
@@ -337,40 +239,64 @@ void WorkflowTest::WritingWorkflowTest(){
     //----------------------------------------------------------------------------
     // Create handlers
     //----------------------------------------------------------------------------
-    WriteVOpenHandler openHandler(texts, 3);
-    TestingForwardingHandler writeHandler;
-    TestingForwardingHandler syncHandler;
-    StatHandler statHandler(true, createdFileSize);
-    ReadHandler readHandler(texts[0] + texts[1] + texts[2]);
-    TestingForwardingHandler closeHandler;
-    TestingForwardingHandler removeHandler;
+    std::packaged_task<std::string(XRootDStatus&, ChunkInfo&)> parserd {
+      []( XRootDStatus& status, ChunkInfo &chunk )
+        {
+          CPPUNIT_ASSERT_XRDST( status );
+          char* buffer = reinterpret_cast<char*>( chunk.buffer );
+          std::string ret( buffer, chunk.length );
+          delete[] buffer;
+          return ret;
+        }
+    };
+    std::future<std::string> rdresp = parserd.get_future();
 
-
+    //----------------------------------------------------------------------------
+    // Forward parameters between operations
+    //----------------------------------------------------------------------------
+    Fwd<iovec*>   iov;
+    Fwd<int>      iovcnt;
+    Fwd<uint32_t> size;
+    Fwd<void*>    buffer;
 
     //----------------------------------------------------------------------------
     // Create and execute workflow
     //----------------------------------------------------------------------------
+    Pipeline pipe = Open( f )( fileUrl, flags ) >> [iov, iovcnt, texts]( XRootDStatus &status )
+                      {
+                        CPPUNIT_ASSERT_XRDST( status );
+                        iovec *vec = new iovec[3];
+                        vec[0].iov_base = strdup( texts[0].c_str() );
+                        vec[0].iov_len  = texts[0].size();
+                        vec[1].iov_base = strdup( texts[1].c_str() );
+                        vec[1].iov_len  = texts[1].size();
+                        vec[2].iov_base = strdup( texts[2].c_str() );
+                        vec[2].iov_len  = texts[2].size();
+                        iov = vec;
+                        iovcnt = 3;
+                      }
+                  | WriteV( f )( 0, iov, iovcnt )
+                  | Sync( f )()
+                  | Stat( f )( true ) >> [size, buffer, createdFileSize]( XRootDStatus &status, StatInfo &info )
+                      {
+                        CPPUNIT_ASSERT_XRDST( status );
+                        CPPUNIT_ASSERT( createdFileSize == info.GetSize() );
+                        size   = info.GetSize();
+                        buffer = new char[info.GetSize()];
+                      }
+                  | Read( f )( 0, size, buffer ) >> parserd
+                  | Close( f )()
+                  | Rm( fs )( relativePath );
 
-    uint64_t offset = 0;
+    XRootDStatus status = WaitFor( std::move( pipe ) );
+    CPPUNIT_ASSERT_XRDST( status );
+    CPPUNIT_ASSERT( rdresp.get() == texts[0] + texts[1] + texts[2] );
 
-    auto &&pipe = Open(f)(fileUrl, flags) >> &openHandler
-                | WriteV(f)(offset, notdef, notdef) >> &writeHandler
-                | Sync(f)() >> &syncHandler
-                | Stat(f)(true) >> &statHandler
-                | Read(f)(offset, notdef, notdef) >> &readHandler
-                | Close(f)() >> &closeHandler
-                | Rm(fs)(relativePath) >> &removeHandler;
-
-    XRootDStatus status = WaitFor( pipe );
-    CPPUNIT_ASSERT(status.IsOK());
-
-    CPPUNIT_ASSERT(openHandler.Executed());
-    CPPUNIT_ASSERT(writeHandler.Executed());
-    CPPUNIT_ASSERT(syncHandler.Executed());
-    CPPUNIT_ASSERT(statHandler.Executed());
-    CPPUNIT_ASSERT(readHandler.Executed());
-    CPPUNIT_ASSERT(closeHandler.Executed());
-    CPPUNIT_ASSERT(removeHandler.Executed());
+    iovec *vec = *iov;
+    free( vec[0].iov_base );
+    free( vec[1].iov_base );
+    free( vec[2].iov_base );
+    delete[] vec;
 }
 
 
@@ -381,44 +307,39 @@ void WorkflowTest::MissingParameterTest(){
     // Initialize
     //----------------------------------------------------------------------------
     std::string fileUrl = GetFileUrl("cb4aacf1-6f28-42f2-b68a-90a73460f424.dat");
-    auto f = new File();
+    File f;
 
     //----------------------------------------------------------------------------
     // Create handlers
     //----------------------------------------------------------------------------
-    TestingForwardingHandler openHandler;
-    TestingForwardingHandler statHandler;
     ExpectErrorHandler readHandler;
-    TestingForwardingHandler closeHandler;
 
+    //----------------------------------------------------------------------------
+    // Bad forwards
+    //----------------------------------------------------------------------------
+    Fwd<uint32_t> size;
+    Fwd<void*>    buffer;
 
     //----------------------------------------------------------------------------
     // Create and execute workflow
     //----------------------------------------------------------------------------
 
+    bool closed = false;
     const OpenFlags::Flags flags = OpenFlags::Read;
     uint64_t offset = 0;
 
-    auto &&pipe = Open(f)(fileUrl, flags) >> &openHandler
-                | Stat(f)(true) >> &statHandler
-                | Read(f)(offset, notdef, notdef) >> &readHandler
-                | Close(f)() >> &closeHandler;
+    Pipeline pipe = Open( f )( fileUrl, flags )
+                  | Stat( f )( true )
+                  | Read( f )( offset, size, buffer ) >> readHandler // by reference
+                  | Close( f )() >> [&]( XRootDStatus& st ){ closed = true; };
 
-    XRootDStatus status = WaitFor( pipe );
-    CPPUNIT_ASSERT(status.IsError());
-
-    CPPUNIT_ASSERT(openHandler.Executed());
-    CPPUNIT_ASSERT(statHandler.Executed());
+    XRootDStatus status = WaitFor( std::move( pipe ) );
+    CPPUNIT_ASSERT( status.IsError() );
     //----------------------------------------------------------------------------
     // If there is an error, last handlers should not be executed
     //----------------------------------------------------------------------------
-    CPPUNIT_ASSERT(readHandler.Executed());
-    CPPUNIT_ASSERT(!closeHandler.Executed());
-
-    //----------------------------------------------------------------------------
-    // Release memory
-    //----------------------------------------------------------------------------
-    delete f;
+    CPPUNIT_ASSERT( readHandler.Executed() );
+    CPPUNIT_ASSERT( !closed );
 }
 
 
@@ -436,32 +357,54 @@ void WorkflowTest::OperationFailureTest(){
     // Create handlers
     //----------------------------------------------------------------------------
     ExpectErrorHandler openHandler;
-    TestingForwardingHandler statHandler;
-    TestingForwardingHandler readHandler;
-    TestingForwardingHandler closeHandler;
+    std::future<StatInfo> statresp;
+    std::future<ChunkInfo> readresp;
+    std::future<void> closeresp;
 
     //----------------------------------------------------------------------------
     // Create and execute workflow
     //----------------------------------------------------------------------------
 
     const OpenFlags::Flags flags = OpenFlags::Read;
-    uint64_t offset = 0;
+    auto &&pipe = Open( f )( fileUrl, flags ) >> &openHandler // by pointer
+                | Stat( f )( true ) >> statresp
+                | Read( f )( 0, 0, nullptr ) >> readresp
+                | Close( f )() >> closeresp;
 
-    auto &&pipe = Open(f)(fileUrl, flags) >> &openHandler
-                | Stat(f)(true) >> &statHandler
-                | Read(f)(offset, notdef, notdef) >> &readHandler
-                | Close(f)() >> &closeHandler;
-
-    XRootDStatus status = WaitFor( pipe );
-    CPPUNIT_ASSERT(status.IsError());
+    XRootDStatus status = WaitFor( pipe ); // by obscure operation type
+    CPPUNIT_ASSERT( status.IsError() );
 
     //----------------------------------------------------------------------------
     // If there is an error, handlers should not be executed
     //----------------------------------------------------------------------------
     CPPUNIT_ASSERT(openHandler.Executed());
-    CPPUNIT_ASSERT(!statHandler.Executed());
-    CPPUNIT_ASSERT(!readHandler.Executed());
-    CPPUNIT_ASSERT(!closeHandler.Executed());
+
+    try
+    {
+      statresp.get();
+    }
+    catch( PipelineException &ex )
+    {
+      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+    }
+
+    try
+    {
+      readresp.get();
+    }
+    catch( PipelineException &ex )
+    {
+      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+    }
+
+    try
+    {
+      closeresp.get();
+    }
+    catch( PipelineException &ex )
+    {
+      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+    }
 }
 
 
@@ -472,21 +415,17 @@ void WorkflowTest::DoubleRunningTest(){
     // Initialize
     //----------------------------------------------------------------------------
     std::string fileUrl = GetFileUrl("cb4aacf1-6f28-42f2-b68a-90a73460f424.dat");
-    auto f = new File();
-
-    //----------------------------------------------------------------------------
-    // Create handlers
-    //----------------------------------------------------------------------------
-    TestingForwardingHandler openHandler;
-    TestingForwardingHandler closeHandler;
+    File f;
 
     //----------------------------------------------------------------------------
     // Create and execute workflow
     //----------------------------------------------------------------------------
 
     const OpenFlags::Flags flags = OpenFlags::Read;
+    bool opened = false, closed = false;
 
-    auto &&pipe = Open(f)(fileUrl, flags) >> &openHandler | Close(f)() >> &closeHandler;
+    auto &&pipe = Open( f )( fileUrl, flags ) >> [&]( XRootDStatus &status ){ opened = status.IsOK(); }
+                | Close( f )() >> [&]( XRootDStatus &status ){ closed = status.IsOK(); };
 
     std::future<XRootDStatus> ftr = Async( pipe );
 
@@ -496,9 +435,9 @@ void WorkflowTest::DoubleRunningTest(){
     try
     {
         Async( pipe );
-        CPPUNIT_ASSERT(false);
+        CPPUNIT_ASSERT( false );
     }
-    catch(std::logic_error &err)
+    catch( std::logic_error &err )
     {
 
     }
@@ -512,22 +451,17 @@ void WorkflowTest::DoubleRunningTest(){
     try
     {
         Async( pipe );
-        CPPUNIT_ASSERT(false);
+        CPPUNIT_ASSERT( false );
     }
-    catch(std::logic_error &err)
+    catch( std::logic_error &err )
     {
 
     }
 
-    CPPUNIT_ASSERT(status.IsOK());
+    CPPUNIT_ASSERT( status.IsOK() );
 
-    CPPUNIT_ASSERT(openHandler.Executed());
-    CPPUNIT_ASSERT(closeHandler.Executed());
-
-    //----------------------------------------------------------------------------
-    // Release memory
-    //----------------------------------------------------------------------------
-    delete f;
+    CPPUNIT_ASSERT( opened );
+    CPPUNIT_ASSERT( closed );
 }
 
 
@@ -557,67 +491,61 @@ void WorkflowTest::ParallelTest(){
     auto f = new File();
     auto dataF = new File();
 
-    TestingForwardingHandler parallelOperationHandler;
-    TestingForwardingHandler first;
-    TestingForwardingHandler second;
-
     std::vector<Pipeline> pipes; pipes.reserve( 2 );
-    pipes.emplace_back( Open(f)(lockUrl, createFlags) >> &first | Close(f)() >> second );
-    pipes.emplace_back( Open(dataF)(secondFileUrl, createFlags) | Close(dataF)() );
-    CPPUNIT_ASSERT_XRDST( WaitFor( Parallel( pipes ) >> parallelOperationHandler ) );
+    pipes.emplace_back( Open( f )( lockUrl, createFlags ) | Close( f )() );
+    pipes.emplace_back( Open( dataF )( secondFileUrl, createFlags ) | Close( dataF )() );
+    CPPUNIT_ASSERT_XRDST( WaitFor( Parallel( pipes ) >> []( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); } ) );
     CPPUNIT_ASSERT( pipes.empty() );
 
     delete f;
     delete dataF;
-
 
     //----------------------------------------------------------------------------
     // Create and execute workflow
     //----------------------------------------------------------------------------
     uint64_t offset = 0;
     uint32_t size = 50  ;
-    char* firstBuffer = new char[size]();
+    char* firstBuffer  = new char[size]();
     char* secondBuffer = new char[size]();
 
+    Fwd<std::string> url1, url2;
+
     bool lockHandlerExecuted = false;
-    auto lockOpenHandler = [&firstFileUrl, &secondFileUrl, &lockHandlerExecuted](XRootDStatus &st, OperationContext& params) -> void {
-        params.FwdArg<Open::UrlArg>(firstFileUrl, 1);
-        params.FwdArg<Open::UrlArg>(secondFileUrl, 2);
-        lockHandlerExecuted = true;
-    };
-    TestingForwardingHandler lockCloseHandler;
-    TestingForwardingHandler firstOpenHandler;
-    TestingForwardingHandler firstReadHandler;
-    TestingForwardingHandler firstCloseHandler;
-    TestingForwardingHandler secondOpenHandler;
-    TestingForwardingHandler secondReadHandler;
-    TestingForwardingHandler secondCloseHandler;
-    TestingForwardingHandler multiWorkflowHandler;
+    auto lockOpenHandler = [&,url1, url2]( XRootDStatus &status )
+        {
+          url1 = GetFileUrl( "cb4aacf1-6f28-42f2-b68a-90a73460f424.dat" );
+          url2 = GetFileUrl( dataFileName );
+          lockHandlerExecuted = true;
+        };
 
-    Pipeline firstPipe = Open(firstFile)(notdef, readFlags) >> &firstOpenHandler
-                     | Read(firstFile)(offset, size, firstBuffer) >> &firstReadHandler
-                     | Close(firstFile)() >> &firstCloseHandler;
+    std::future<void> parallelresp, closeresp;
 
-    Pipeline secondPipe = Open(secondFile)(notdef, readFlags) >> &secondOpenHandler
-                      | Read(secondFile)(offset, size, secondBuffer) >> &secondReadHandler
-                      | Close(secondFile)() >> &secondCloseHandler;
+    Pipeline firstPipe = Open( firstFile )( url1, readFlags )
+                       | Read(firstFile)( offset, size, firstBuffer )
+                       | Close(firstFile)();
 
-    auto &&pipe = Open(lockFile)(lockUrl, readFlags) >> lockOpenHandler
-                | Parallel(firstPipe, secondPipe) >> &multiWorkflowHandler
-                | Close(lockFile)() >> &lockCloseHandler;
+    Pipeline secondPipe = Open(secondFile)(url2, readFlags)
+                        | Read(secondFile)(offset, size, secondBuffer)
+                        | Close(secondFile)();
 
-    XRootDStatus status = WaitFor( pipe );
+    Pipeline pipe = Open( lockFile )( lockUrl, readFlags ) >> lockOpenHandler
+                  | Parallel( firstPipe, secondPipe ) >> parallelresp
+                  | Close( lockFile )() >> closeresp;
+
+    XRootDStatus status = WaitFor( std::move( pipe ) );
     CPPUNIT_ASSERT(status.IsOK());
 
     CPPUNIT_ASSERT(lockHandlerExecuted);
-    CPPUNIT_ASSERT(lockCloseHandler.Executed());
-    CPPUNIT_ASSERT(firstOpenHandler.Executed());
-    CPPUNIT_ASSERT(firstReadHandler.Executed());
-    CPPUNIT_ASSERT(firstCloseHandler.Executed());
-    CPPUNIT_ASSERT(secondOpenHandler.Executed());
-    CPPUNIT_ASSERT(secondReadHandler.Executed());
-    CPPUNIT_ASSERT(secondCloseHandler.Executed());
-    CPPUNIT_ASSERT(multiWorkflowHandler.Executed());
+
+    try
+    {
+      parallelresp.get();
+      closeresp.get();
+    }
+    catch( std::exception &ex )
+    {
+      CPPUNIT_ASSERT( false );
+    }
 
     delete[] firstBuffer;
     delete[] secondBuffer;
@@ -629,53 +557,48 @@ void WorkflowTest::ParallelTest(){
     dataF = new File();
 
     auto url = GetAddress();
-    auto fs = new FileSystem(url);
+    FileSystem fs( url );
 
     auto lockRelativePath = GetPath(lockFileName);
     auto dataRelativePath = GetPath(dataFileName);
 
-    TestingForwardingHandler lockRemovingHandler;
-    TestingForwardingHandler dataFileRemovingHandler;
-
-    Pipeline deletingPipe (Parallel(
-        (Rm(fs)(lockRelativePath) >> lockRemovingHandler),
-        (Rm(fs)(dataRelativePath) >> dataFileRemovingHandler)
-    ));
+    bool exec1 = false, exec2 = false;
+    Pipeline deletingPipe( Parallel( Rm( fs )( lockRelativePath ) >> [&]( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); exec1 = true; },
+                                     Rm( fs )( dataRelativePath ) >> [&]( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); exec2 = true; } ) );
     CPPUNIT_ASSERT_XRDST( WaitFor( std::move( deletingPipe ) ) );
 
-    CPPUNIT_ASSERT(lockRemovingHandler.Executed());
-    CPPUNIT_ASSERT(dataFileRemovingHandler.Executed());
+    CPPUNIT_ASSERT( exec1 );
+    CPPUNIT_ASSERT( exec2 );
 
     delete f;
     delete dataF;
-    delete fs;
 }
 
 
 void WorkflowTest::FileSystemWorkflowTest(){
     using namespace XrdCl;
 
-    TestingForwardingHandler mkDirHandler;
-    TestingForwardingHandler locateHandler;
-    TestingForwardingHandler moveHandler;
-    TestingForwardingHandler secondLocateHandler;
-    TestingForwardingHandler removeHandler;
+    TestingHandler mkDirHandler;
+    TestingHandler locateHandler;
+    TestingHandler moveHandler;
+    TestingHandler secondLocateHandler;
+    TestingHandler removeHandler;
 
     auto url = GetAddress();
-    auto fs = new FileSystem(url);
+    FileSystem fs( url );
 
     std::string newDirUrl = GetPath("sourceDirectory");
     std::string destDirUrl = GetPath("destDirectory");
 
     auto noneFlags = OpenFlags::None;
 
-    auto &&fsPipe = MkDir(fs)(newDirUrl, MkDirFlags::None, Access::None) >> &mkDirHandler
-                  | Locate(fs)(newDirUrl, noneFlags) >> &locateHandler
-                  | Mv(fs)(newDirUrl, destDirUrl) >> &moveHandler
-                  | Locate(fs)(destDirUrl, OpenFlags::Refresh) >> &secondLocateHandler
-                  | RmDir(fs)(destDirUrl) >> &removeHandler;
+    Pipeline fsPipe = MkDir( fs )( newDirUrl, MkDirFlags::None, Access::None ) >> mkDirHandler
+                    | Locate( fs )( newDirUrl, noneFlags ) >> locateHandler
+                    | Mv( fs )( newDirUrl, destDirUrl ) >> moveHandler
+                    | Locate( fs )( destDirUrl, OpenFlags::Refresh ) >> secondLocateHandler
+                    | RmDir( fs )( destDirUrl ) >> removeHandler;
 
-    Pipeline pipe(fsPipe);
+    Pipeline pipe( std::move( fsPipe) );
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
     CPPUNIT_ASSERT(status.IsOK());
@@ -685,49 +608,41 @@ void WorkflowTest::FileSystemWorkflowTest(){
     CPPUNIT_ASSERT(moveHandler.Executed());
     CPPUNIT_ASSERT(secondLocateHandler.Executed());
     CPPUNIT_ASSERT(removeHandler.Executed());
-
-    delete fs;
 }
 
 
 void WorkflowTest::MixedWorkflowTest(){
     using namespace XrdCl;
 
-    auto url = GetAddress();
-    FileSystem fs(url);
-    File f1;
-    File f2;
+    const size_t nbFiles = 2;
+
+    FileSystem fs( GetAddress() );
+    File file[nbFiles];
 
     auto flags = OpenFlags::Write | OpenFlags::Delete | OpenFlags::Update;
-    auto noneAccess = Access::None;
 
     std::string dirName = "tempDir";
-    auto dirPath = GetPath(dirName);
+    std::string dirPath = GetPath( dirName );
 
     std::string firstFileName = dirName + "/firstFile";
     std::string secondFileName = dirName + "/secondFile";
-    auto firstFileUrl = GetFileUrl(firstFileName);
-    auto secondFileUrl = GetFileUrl(secondFileName);
-    auto firstFilePath = GetPath(firstFileName);
-    auto secondFilePath = GetPath(secondFileName);
+    std::string url[nbFiles] = { GetFileUrl(firstFileName), GetFileUrl(secondFileName) };
 
-    std::string firstContent = "First file content";
-    std::string secondContent = "Second file content";
-    char* firstText = const_cast<char*>(firstContent.c_str());
-    char* secondText = const_cast<char*>(secondContent.c_str());
-    auto firstContentLength = firstContent.size();
-    auto secondContentLength = secondContent.size();
+    std::string path[nbFiles] = { GetPath(firstFileName), GetPath(secondFileName) };
 
-    uint64_t offset = 0;
+    std::string content[nbFiles] = { "First file content",  "Second file content" };
+    char* text[nbFiles] = { const_cast<char*>(content[0].c_str()), const_cast<char*>(content[1].c_str()) };
+    size_t length[nbFiles] = { content[0].size(), content[1].size() };
 
-    ReadHandler firstReadHandler(firstContent);
-    StatHandler firstStatHandler(true, firstContentLength);
-    ReadHandler secondReadHandler(secondContent);
-    StatHandler secondStatHandler(true, secondContentLength);
-    
+
+    Fwd<uint32_t> size[nbFiles];
+    Fwd<void*> buffer[nbFiles];
+
+    std::future<ChunkInfo> ftr[nbFiles];
+
     bool cleaningHandlerExecuted = false;
-    
-    auto cleaningHandler = [&dirPath, &cleaningHandlerExecuted](XRootDStatus &st, LocationInfo& info){
+    auto cleaningHandler = [&](XRootDStatus &status, LocationInfo& info)
+      {
         LocationInfo::Iterator it;
         for( it = info.Begin(); it != info.End(); ++it )
         {
@@ -737,39 +652,43 @@ void WorkflowTest::MixedWorkflowTest(){
             CPPUNIT_ASSERT(st.IsOK());
         }
         cleaningHandlerExecuted = true;
-    };
-
-    auto &&firstFileOperations = Open(f1)(firstFileUrl, flags, noneAccess)
-                               | Write(f1)(offset, firstContentLength, firstText)
-                               | Sync(f1)()
-                               | Stat(f1)(true) >> &firstStatHandler
-                               | Read(f1)(offset, notdef, notdef) >> &firstReadHandler
-                               | Close(f1)();
-    
-    auto &&secondFileOperations = Open(f2)(secondFileUrl, flags, noneAccess)
-                                | Write(f2)(offset, secondContentLength, secondText)
-                                | Sync(f2)()
-                                | Stat(f2)(true) >> &secondStatHandler
-                                | Read(f2)(offset, notdef, notdef) >> &secondReadHandler
-                                | Close(f2)();
+      };
 
     std::vector<Pipeline> fileWorkflows;
-    fileWorkflows.emplace_back( firstFileOperations );
-    fileWorkflows.emplace_back( secondFileOperations );
+    for( size_t i = 0; i < nbFiles; ++i )
+    {
+      auto &&operation = Open( file[i] )( url[i], flags )
+                       | Write( file[i] )( 0, length[i], text[i] )
+                       | Sync( file[i] )()
+                       | Stat( file[i] )( true ) >> [size, buffer, i]( XRootDStatus &status, StatInfo &info )
+                           {
+                             CPPUNIT_ASSERT_XRDST( status );
+                             size[i] = info.GetSize();
+                             buffer[i] = new char[*size[i]];
+                           }
+                       | Read( file[i] )( 0, size[i], buffer[i] ) >> ftr[i]
+                       | Close( file[i] )();
+      fileWorkflows.emplace_back( operation );
+    }
 
-    auto &&pipe = MkDir(fs)(dirPath, MkDirFlags::None, noneAccess)
-                | Parallel( fileWorkflows )
-                | Rm(fs)(firstFilePath)
-                | Rm(fs)(secondFilePath)
-                | DeepLocate(fs)(dirPath, OpenFlags::Refresh) >> cleaningHandler;
+    Pipeline pipe = MkDir( fs )( dirPath, MkDirFlags::None, Access::None ) >> []( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); }
+                  | Parallel( fileWorkflows )
+                  | Rm( fs )( path[0] )
+                  | Rm( fs )( path[1] )
+                  | DeepLocate( fs )( dirPath, OpenFlags::Refresh ) >> cleaningHandler;
 
-    XRootDStatus status = WaitFor( pipe );
-    CPPUNIT_ASSERT(status.IsOK());
+    XRootDStatus status = WaitFor( std::move( pipe ) );
+    CPPUNIT_ASSERT_XRDST( status );
 
-    CPPUNIT_ASSERT(firstStatHandler.Executed());
-    CPPUNIT_ASSERT(firstReadHandler.Executed());
-    CPPUNIT_ASSERT(secondStatHandler.Executed());
-    CPPUNIT_ASSERT(secondReadHandler.Executed());
+    for( size_t i = 0; i < nbFiles; ++i )
+    {
+      ChunkInfo chunk = ftr[i].get();
+      char *buffer = reinterpret_cast<char*>( chunk.buffer );
+      std::string result( buffer, chunk.length );
+      delete[] buffer;
+      CPPUNIT_ASSERT( result == content[i] );
+    }
+
     CPPUNIT_ASSERT(cleaningHandlerExecuted);
 }
 

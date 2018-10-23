@@ -42,6 +42,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     FwdStorage& operator=( const T &value )
     {
+      if( ptr ) throw std::logic_error( "XrdCl::Fwd already contains value." );
       ptr = new( &storage.memory ) T( value );
       return *this;
     }
@@ -178,6 +179,19 @@ namespace XrdCl
       {
         if( !bool( this->get()->ptr ) ) throw std::logic_error( "XrdCl::Fwd contains no value!" );
         return *this->get()->ptr;
+      }
+
+      //------------------------------------------------------------------------
+      //! Dereferencing member operator. Note if Fwd has not been assigned with
+      //! a value this will trigger an exception
+      //!
+      //! @return : pointer to the underlying value
+      //! @throws : std::logic_error
+      //------------------------------------------------------------------------
+      T* operator->() const
+      {
+        if( !bool( this->get()->ptr ) ) throw std::logic_error( "XrdCl::Fwd contains no value!" );
+        return this->get()->ptr;
       }
 
   };

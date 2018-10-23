@@ -194,7 +194,7 @@ namespace XrdCl
       //! @param func : function/functor/lambda
       //------------------------------------------------------------------------
       template<typename Hdlr>
-      OpenImpl<Handled> operator>>( Hdlr hdlr )
+      OpenImpl<Handled> operator>>( Hdlr &&hdlr )
       {
         // check if the resulting handler should be owned by us or by the user,
         // if the user passed us directly a ResponseHandler it's owned by the
