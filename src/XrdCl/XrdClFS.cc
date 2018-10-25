@@ -1509,9 +1509,9 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   ls [-l] [-u] [-R] [-D] [dirname]\n"                             );
   printf( "     Get directory listing.\n"                                     );
   printf( "     -l stat every entry and pring long listing\n"                 );
-  printf( "     -u print paths as URLs\n\n"                                   );
-  printf( "     -R list subdirectories recursively"                           );
-  printf( "     -D show duplicate entries"                                    );
+  printf( "     -u print paths as URLs\n"                                     );
+  printf( "     -R list subdirectories recursively\n"                         );
+  printf( "     -D show duplicate entries\n\n"                                );
 
   printf( "   locate [-n] [-r] [-d] <path>\n"                                 );
   printf( "     Get the locations of the path.\n"                             );
