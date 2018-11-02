@@ -142,9 +142,9 @@ enum kgsiErrors {
 #define REL2(x,y)   { if (x) delete x; if (y) delete y; }
 #define REL3(x,y,z) { if (x) delete x; if (y) delete y; if (z) delete z; }
 
-#define SafeDelete(x) { if (x) delete x ; x = 0; }
-#define SafeDelArray(x) { if (x) delete [] x ; x = 0; }
-#define SafeFree(x) { if (x) free(x) ; x = 0; }
+#define SafeDelete(x) { if (x) {delete x ; x = 0;} }
+#define SafeDelArray(x) { if (x) {delete [] x ; x = 0;} }
+#define SafeFree(x) { if (x) {free(x) ; x = 0;} }
 
 // External functions for generic mapping
 typedef char *(*XrdSecgsiGMAP_t)(const char *, int);

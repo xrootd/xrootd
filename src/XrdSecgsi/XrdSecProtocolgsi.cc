@@ -3777,7 +3777,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
       XrdOucString spxy;
       XrdSutBucket *bpxy = (*c2mem)(proxyChain, true);
       bpxy->ToString(spxy);
-      SafeFree(Entity.creds);
+      if (Entity.credslen > 0) SafeFree(Entity.creds);
       Entity.creds = strdup(spxy.c_str());
       Entity.credslen = spxy.length();
       DEBUG("proxy chain exported in Entity.creds (" << Entity.credslen << " bytes)");
