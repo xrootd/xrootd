@@ -284,7 +284,7 @@ int XrdOfsTPCProg::Xeq()
 // Always export the trace identifier of the original issuer
 //
    char tidBuff[512];
-   snprintf(tidBuff, sizeof(tidBuff), "XRD_TRACEID=%s", tident);
+   snprintf(tidBuff, sizeof(tidBuff), "XRD_TIDENT=%s", tident);
    eVec[0] = tidBuff;
    envArg = eVec;
    i = 1;
