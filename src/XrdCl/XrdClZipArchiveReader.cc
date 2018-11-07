@@ -39,6 +39,16 @@
 namespace XrdCl
 {
 
+template<typename RESP>
+struct ZipHandlerException
+{
+    ZipHandlerException( XRootDStatus *status, RESP *response ) : status( status ), response( response ) { }
+
+    XRootDStatus *status;
+    RESP         *response;
+};
+
+
 struct EOCD
 {
     EOCD( const char *buffer )
@@ -120,17 +130,99 @@ struct CDFH
 
       pFilename = std::string( buffer + 46, filenameLength );
 
+      // now parse the 'extra' (may contain the zip64 extension to CDFH)
+      ParseExtra( buffer + 46 + filenameLength, extraLength );
+
       pCdfhSize = kCdfhBaseSize + filenameLength +extraLength + commentLength;
+    }
+
+    void ParseExtra( const char *buffer, uint16_t length)
+    {
+      static const uint32_t ovrflw32 = 0xffffffff;
+      static const uint16_t ovrflw16 = 0xffff;
+      static const uint16_t ZIP64_EXTENSION_SIGN = 0x0001;
+
+      uint16_t exsize = 0;
+      uint64_t *ovrflw[3] = {0, 0, 0};
+      uint8_t count = 0;
+
+      // check if compressed size is overflown
+      if( pCompressedSize == ovrflw32)
+      {
+        ovrflw[count] = &pCompressedSize;
+        ++count;
+        exsize += sizeof( uint64_t );
+      }
+
+      // check if original size is overflown
+      if( pUncompressedSize == ovrflw32 )
+      {
+        ovrflw[count] = &pUncompressedSize;
+        ++count;
+        exsize += sizeof( uint64_t );
+      }
+
+      // check if offset is overflown
+      if( pOffset == ovrflw32 )
+      {
+        ovrflw[count] = &pOffset;
+        ++count;
+        exsize += sizeof( uint64_t );
+      }
+
+      // check if number of disks is overflown
+      if( pDiskNb == ovrflw16 )
+        exsize += sizeof( uint32_t );
+
+      // if the expected size of ZIP64 extension is 0 we
+      // can skip parsing of 'extra'
+      if( exsize == 0 ) return;
+
+      // Parse the extra part
+      const char *end = buffer + length;
+      uint16_t signature = 0;
+      uint16_t blksize   = 0;
+      while( buffer < end )
+      {
+        signature = *reinterpret_cast<const uint16_t*>( buffer );
+        buffer += sizeof( uint16_t );
+        blksize   = *reinterpret_cast<const uint16_t*>( buffer );
+        buffer += sizeof( uint16_t );
+
+        // is it ZIP64 extension
+        if( signature == ZIP64_EXTENSION_SIGN )
+        {
+          if( blksize != exsize )
+            throw ZipHandlerException<AnyObject>( new XRootDStatus( stError, errDataError, 0, "Wrong size of ZIP64 extension!" ), 0 );
+
+          for( uint8_t j = 0; j < count; ++j )
+          {
+            uint64_t value = *reinterpret_cast<const uint64_t*>( buffer );
+            buffer += sizeof( uint64_t );
+            exsize -= sizeof( uint64_t );
+            *ovrflw[j] = value;
+          }
+
+          if( exsize == sizeof( uint32_t ) )
+          {
+            pDiskNb = *reinterpret_cast<const uint32_t*>( buffer );
+            buffer += sizeof( uint32_t );
+          }
+
+          break;
+        }
+        buffer += blksize;
+      }
     }
 
     uint16_t    pZipVersion;
     uint16_t    pMinZipVersion;
     uint16_t    pCompressionMethod;
     uint32_t    pCrc32;
-    uint32_t    pCompressedSize;
-    uint32_t    pUncompressedSize;
-    uint16_t    pDiskNb;
-    uint32_t    pOffset;
+    uint64_t    pCompressedSize;
+    uint64_t    pUncompressedSize;
+    uint32_t    pDiskNb;
+    uint64_t    pOffset;
     std::string pFilename;
     uint16_t    pCdfhSize;
 
@@ -196,7 +288,7 @@ class ZipArchiveReaderImpl
       return st;
     }
 
-    XRootDStatus GetSize( const std::string & filename, uint32_t &size ) const
+    XRootDStatus GetSize( const std::string & filename, uint64_t &size ) const
     {
       std::map<std::string, size_t>::const_iterator it = pFileToCdfh.find( filename );
       if( it == pFileToCdfh.end() ) return XRootDStatus( stError, errNotFound );
@@ -321,15 +413,6 @@ class ZipArchiveReaderImpl
     size_t                         pRefCount;
     bool                           pOpen;
     std::string                    pBoundFile;
-};
-
-template<typename RESP>
-struct ZipHandlerException
-{
-    ZipHandlerException( XRootDStatus *status, RESP *response ) : status( status ), response( response ) { }
-
-    XRootDStatus *status;
-    RESP         *response;
 };
 
 
@@ -804,9 +887,9 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   // The next record is either the next LFH (next file)
   // or the start of the Central-directory.
   uint64_t nextRecordOffset = ( cditr->second + 1 < pCdRecords.size() ) ? pCdRecords[cditr->second + 1]->pOffset : pEocd->pCdOffset;
-  uint32_t fileSize = cdfh->pCompressionMethod ? cdfh->pCompressedSize : cdfh->pUncompressedSize;
+  uint64_t fileSize = cdfh->pCompressionMethod ? cdfh->pCompressedSize : cdfh->pUncompressedSize;
   uint64_t offset = nextRecordOffset - fileSize + relativeOffset;
-  uint32_t sizeTillEnd = fileSize - relativeOffset;
+  uint64_t sizeTillEnd = fileSize - relativeOffset;
   if( size > sizeTillEnd ) size = sizeTillEnd;
 
   // check if we have the whole file in our local buffer
@@ -882,7 +965,7 @@ XRootDStatus ZipArchiveReader::Close( uint16_t timeout )
   return MessageUtils::WaitForStatus( &handler );
 }
 
-XRootDStatus ZipArchiveReader::GetSize( const std::string &filename, uint32_t &size ) const
+XRootDStatus ZipArchiveReader::GetSize( const std::string &filename, uint64_t &size ) const
 {
   return pImpl->GetSize( filename, size );
 }

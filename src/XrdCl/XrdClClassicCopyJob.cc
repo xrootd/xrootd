@@ -715,7 +715,7 @@ namespace
         if( !st.IsOK() )
           return st;
 
-        uint32_t size = 0;
+        uint64_t size = 0;
         st = pZipArchive->GetSize( pFilename, size );
         if( st.IsOK() )
           pSize = size;
