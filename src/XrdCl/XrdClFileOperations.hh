@@ -37,24 +37,34 @@ namespace XrdCl
   //! Base class for all file releated operations
   //!
   //! @arg Derived : the class that derives from this template (CRTP)
-  //! @arg state   : describes current operation configuration state
+  //! @arg HasHndl : true if operation has a handler, false otherwise
   //! @arg Args    : operation arguments
   //----------------------------------------------------------------------------
-  template<template<State> class Derived, State state, typename Response, typename ... Arguments>
-  class FileOperation: public ConcreteOperation<Derived, state, Response, Arguments...>
+  template<template<bool> class Derived, bool HasHndl, typename Response, typename ... Arguments>
+  class FileOperation: public ConcreteOperation<Derived, HasHndl, Response, Arguments...>
   {
 
-      template<template<State> class, State, typename, typename ...> friend class FileOperation;
+      template<template<bool> class, bool, typename, typename ...> friend class FileOperation;
 
     public:
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param f : file on which the operation will be performed
+      //! @param f    : file on which the operation will be performed
+      //! @param args : file operation arguments
       //------------------------------------------------------------------------
-      FileOperation( File *f ): file(f)
+      FileOperation( File *f, Arguments... args): ConcreteOperation<Derived, false, Response, Arguments...>( std::move( args )... ), file(f)
       {
-        static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param f    : file on which the operation will be performed
+      //! @param args : file operation arguments
+      //------------------------------------------------------------------------
+      FileOperation( File &f, Arguments... args): FileOperation( &f, std::move( args )... )
+      {
       }
 
       //------------------------------------------------------------------------
@@ -64,9 +74,9 @@ namespace XrdCl
       //!
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
-      template<State from>
+      template<bool from>
       FileOperation( FileOperation<Derived, from, Response, Arguments...> && op ) :
-        ConcreteOperation<Derived, state, Response, Arguments...>( std::move( op ) ), file( op.file )
+        ConcreteOperation<Derived, HasHndl, Response, Arguments...>( std::move( op ) ), file( op.file )
       {
 
       }
@@ -85,13 +95,13 @@ namespace XrdCl
       //! The file object itself
       //------------------------------------------------------------------------
       File *file;
-    };
+  };
 
   //----------------------------------------------------------------------------
   //! Open operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class OpenImpl: public FileOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
+  template<bool HasHndl>
+  class OpenImpl: public FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>,
       Arg<OpenFlags::Flags>, Arg<Access::Mode>>
   {
       //------------------------------------------------------------------------
@@ -140,20 +150,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
-      OpenImpl( File *f ) :
-          FileOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
-              Arg<OpenFlags::Flags>, Arg<Access::Mode>>( f )
+      OpenImpl( File *f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
+                Arg<Access::Mode> mode = Access::None ) :
+          FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
+            Arg<Access::Mode>>( f, std::move( url ), std::move( flags ), std::move( mode ) )
       {
       }
 
       //------------------------------------------------------------------------
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
-      OpenImpl( File &f ) :
-          FileOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
-              Arg<OpenFlags::Flags>, Arg<Access::Mode>>( &f )
+      OpenImpl( File &f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
+                Arg<Access::Mode> mode = Access::None ) :
+          FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
+            Arg<Access::Mode>>( &f, std::move( url ), std::move( flags ), std::move( mode ) )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -163,29 +174,18 @@ namespace XrdCl
       //!
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
-      template<State from>
+      template<bool from>
       OpenImpl( OpenImpl<from> && open ) :
-          FileOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
+          FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>,
               Arg<OpenFlags::Flags>, Arg<Access::Mode>>( std::move( open ) )
       {
-
       }
+
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
       enum { UrlArg, FlagsArg, ModeArg };
-
-      //------------------------------------------------------------------------
-      //! Overloaded operator() (in order to provide default value for mode)
-      //------------------------------------------------------------------------
-      OpenImpl<Configured> operator()( Arg<std::string> url,
-          Arg<OpenFlags::Flags> flags, Arg<Access::Mode> mode = Access::None )
-      {
-        return this->ConcreteOperation<OpenImpl, state, Resp<void>, Arg<std::string>,
-            Arg<OpenFlags::Flags>, Arg<Access::Mode>>::
-            operator ()( std::move( url ), std::move( flags ), std::move( mode ) );
-      }
 
       //------------------------------------------------------------------------
       //! Overload of operator>> defined in ConcreteOperation, we're adding
@@ -194,7 +194,7 @@ namespace XrdCl
       //! @param func : function/functor/lambda
       //------------------------------------------------------------------------
       template<typename Hdlr>
-      OpenImpl<Handled> operator>>( Hdlr &&hdlr )
+      OpenImpl<true> operator>>( Hdlr &&hdlr )
       {
         // check if the resulting handler should be owned by us or by the user,
         // if the user passed us directly a ResponseHandler it's owned by the
@@ -241,48 +241,22 @@ namespace XrdCl
         }
       }
   };
-  typedef OpenImpl<Bare> Open;
+  typedef OpenImpl<false> Open;
 
   //----------------------------------------------------------------------------
   //! Read operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class ReadImpl: public FileOperation<ReadImpl, state, Resp<ChunkInfo>,
+  template<bool HasHndl>
+  class ReadImpl: public FileOperation<ReadImpl, HasHndl, Resp<ChunkInfo>,
       Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      ReadImpl( File *f ) :
-          FileOperation<ReadImpl, state, Resp<ChunkInfo>, Arg<uint64_t>,
-              Arg<uint32_t>, Arg<void*>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      ReadImpl( File &f ) :
-          FileOperation<ReadImpl, state, Resp<ChunkInfo>, Arg<uint64_t>,
-              Arg<uint32_t>, Arg<void*>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      ReadImpl( ReadImpl<from> && read ) :
-          FileOperation<ReadImpl, state, Resp<ChunkInfo>, Arg<uint64_t>,
-              Arg<uint32_t>, Arg<void*>>( std::move( read ) )
-      {
-      }
+      using FileOperation<ReadImpl, HasHndl, Resp<ChunkInfo>, Arg<uint64_t>,
+                          Arg<uint32_t>, Arg<void*>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -325,47 +299,20 @@ namespace XrdCl
         }
       }
   };
-  typedef ReadImpl<Bare> Read;
+  typedef ReadImpl<false> Read;
 
   //----------------------------------------------------------------------------
   //! Close operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state = Bare>
-  class CloseImpl: public FileOperation<CloseImpl, state, Resp<void>>
+  template<bool HasHndl>
+  class CloseImpl: public FileOperation<CloseImpl, HasHndl, Resp<void>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      CloseImpl( File *f ) :
-          FileOperation<CloseImpl, state, Resp<void>>( f )
-      {
-
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      CloseImpl( File &f ) :
-          FileOperation<CloseImpl, state, Resp<void>>( &f )
-      {
-
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      CloseImpl( CloseImpl<from> && close ) :
-          FileOperation<CloseImpl, state, Resp<void>>( std::move( close ) )
-      {
-
-      }
+      using FileOperation<CloseImpl, HasHndl, Resp<void>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -389,45 +336,20 @@ namespace XrdCl
         return this->file->Close( this->handler.get() );
       }
   };
-  typedef CloseImpl<Bare> Close;
+  typedef CloseImpl<false> Close;
 
   //----------------------------------------------------------------------------
   //! Stat operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state = Bare>
-  class StatImpl: public FileOperation<StatImpl, state, Resp<StatInfo>, Arg<bool>>
+  template<bool HasHndl>
+  class StatImpl: public FileOperation<StatImpl, HasHndl, Resp<StatInfo>, Arg<bool>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      StatImpl( File *f ) :
-          FileOperation<StatImpl, state, Resp<StatInfo>, Arg<bool>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      StatImpl( File &f ) :
-          FileOperation<StatImpl, state, Resp<StatInfo>, Arg<bool>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      StatImpl( StatImpl<from> && stat ) :
-          FileOperation<StatImpl, state, Resp<StatInfo>, Arg<bool>>( std::move( stat ) )
-      {
-
-      }
+      using FileOperation<StatImpl, HasHndl, Resp<StatInfo>, Arg<bool>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -473,60 +395,34 @@ namespace XrdCl
   //! Factory for creating StatImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  StatImpl<Bare> Stat( File *file )
+  StatImpl<false> Stat( File *file, Arg<bool> force )
   {
-    return StatImpl<Bare>( file );
+    return StatImpl<false>( file, std::move( force ) );
   }
 
   //----------------------------------------------------------------------------
   //! Factory for creating StatImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  StatImpl<Bare> Stat( File &file )
+  StatImpl<false> Stat( File &file, Arg<bool> force )
   {
-    return StatImpl<Bare>( file );
+    return StatImpl<false>( file, std::move( force ) );
   }
 
   //----------------------------------------------------------------------------
   //! Write operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class WriteImpl: public FileOperation<WriteImpl, state, Resp<void>, Arg<uint64_t>,
+  template<bool HasHndl>
+  class WriteImpl: public FileOperation<WriteImpl, HasHndl, Resp<void>, Arg<uint64_t>,
       Arg<uint32_t>, Arg<void*>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      WriteImpl( File *f ) :
-          FileOperation<WriteImpl, state, Resp<void>, Arg<uint64_t>, Arg<uint32_t>,
-              Arg<void*>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      WriteImpl( File &f ) :
-          FileOperation<WriteImpl, state, Resp<void>, Arg<uint64_t>, Arg<uint32_t>,
-              Arg<void*>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      WriteImpl( WriteImpl<from> && write ) :
-          FileOperation<WriteImpl, state, Resp<void>, Arg<uint64_t>, Arg<uint32_t>,
-              Arg<void*>>( std::move( write ) )
-      {
-      }
+      using FileOperation<WriteImpl, HasHndl, Resp<void>, Arg<uint64_t>, Arg<uint32_t>,
+                          Arg<void*>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -569,44 +465,20 @@ namespace XrdCl
         }
       }
   };
-  typedef WriteImpl<Bare> Write;
+  typedef WriteImpl<false> Write;
 
   //----------------------------------------------------------------------------
   //! Sync operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state = Bare>
-  class SyncImpl: public FileOperation<SyncImpl, state, Resp<void>>
+  template<bool HasHndl>
+  class SyncImpl: public FileOperation<SyncImpl, HasHndl, Resp<void>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      SyncImpl( File *f ) :
-          FileOperation<SyncImpl, state, Resp<void>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      SyncImpl( File &f ) :
-          FileOperation<SyncImpl, state, Resp<void>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      SyncImpl( SyncImpl<from> && sync ) :
-          FileOperation<SyncImpl, state, Resp<void>>( std::move( sync ) )
-      {
-      }
+      using FileOperation<SyncImpl, HasHndl, Resp<void>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -630,45 +502,20 @@ namespace XrdCl
         return this->file->Sync( this->handler.get() );
       }
   };
-  typedef SyncImpl<Bare> Sync;
+  typedef SyncImpl<false> Sync;
 
   //----------------------------------------------------------------------------
   //! Truncate operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class TruncateImpl: public FileOperation<TruncateImpl, state, Resp<void>, Arg<uint64_t>>
+  template<bool HasHndl>
+  class TruncateImpl: public FileOperation<TruncateImpl, HasHndl, Resp<void>, Arg<uint64_t>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      TruncateImpl( File *f ) :
-          FileOperation<TruncateImpl, state, Resp<void>, Arg<uint64_t>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      TruncateImpl( File &f ) :
-          FileOperation<TruncateImpl, state, Resp<void>, Arg<uint64_t>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      TruncateImpl( TruncateImpl<from> && trunc ) :
-          FileOperation<TruncateImpl, state, Resp<void>, Arg<uint64_t>>(
-              std::move( trunc ) )
-      {
-      }
+      using FileOperation<TruncateImpl, HasHndl, Resp<void>, Arg<uint64_t>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -714,60 +561,34 @@ namespace XrdCl
   //! Factory for creating TruncateImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  TruncateImpl<Bare> Truncate( File *file )
+  TruncateImpl<false> Truncate( File *file, Arg<uint64_t> size )
   {
-    return TruncateImpl<Bare>( file );
+    return TruncateImpl<false>( file, std::move( size ) );
   }
 
   //----------------------------------------------------------------------------
   //! Factory for creating TruncateImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  TruncateImpl<Bare> Truncate( File &file )
+  TruncateImpl<false> Truncate( File &file, Arg<uint64_t> size )
   {
-    return TruncateImpl<Bare>( file );
+    return TruncateImpl<false>( file, std::move( size ) );
   }
 
   //----------------------------------------------------------------------------
   //! VectorRead operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class VectorReadImpl: public FileOperation<VectorReadImpl, state,
+  template<bool HasHndl>
+  class VectorReadImpl: public FileOperation<VectorReadImpl, HasHndl,
       Resp<VectorReadInfo>, Arg<ChunkList>, Arg<void*>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      VectorReadImpl( File *f ) :
-          FileOperation<VectorReadImpl, state, Resp<VectorReadInfo>, Arg<ChunkList>,
-          Arg<void*>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      VectorReadImpl( File &f ) :
-          FileOperation<VectorReadImpl, state, Resp<VectorReadInfo>, Arg<ChunkList>,
-          Arg<void*>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      VectorReadImpl( VectorReadImpl<from> && vread ) :
-          FileOperation<VectorReadImpl, state, Resp<VectorReadInfo>, Arg<ChunkList>,
-              Arg<void*>>( std::move( vread ) )
-      {
-      }
+      using FileOperation<VectorReadImpl, HasHndl, Resp<VectorReadInfo>, Arg<ChunkList>,
+                          Arg<void*>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -809,46 +630,21 @@ namespace XrdCl
         }
       }
   };
-  typedef VectorReadImpl<Bare> VectorRead;
+  typedef VectorReadImpl<false> VectorRead;
 
   //----------------------------------------------------------------------------
   //! VectorWrite operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class VectorWriteImpl: public FileOperation<VectorWriteImpl, state, Resp<void>,
+  template<bool HasHndl>
+  class VectorWriteImpl: public FileOperation<VectorWriteImpl, HasHndl, Resp<void>,
       Arg<ChunkList>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      VectorWriteImpl( File *f ) :
-          FileOperation<VectorWriteImpl, state, Resp<void>, Arg<ChunkList>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      VectorWriteImpl( File &f ) :
-          FileOperation<VectorWriteImpl, state, Resp<void>, Arg<ChunkList>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      VectorWriteImpl( VectorWriteImpl<from> && vwrite ) :
-          FileOperation<VectorWriteImpl, state, Resp<void>, Arg<ChunkList>>(
-              std::move( vwrite ) )
-      {
-      }
+      using FileOperation<VectorWriteImpl, HasHndl, Resp<void>, Arg<ChunkList>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -889,48 +685,22 @@ namespace XrdCl
         }
       }
   };
-  typedef VectorWriteImpl<Bare> VectorWrite;
+  typedef VectorWriteImpl<false> VectorWrite;
 
   //----------------------------------------------------------------------------
   //! WriteV operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class WriteVImpl: public FileOperation<WriteVImpl, state, Resp<void>, Arg<uint64_t>,
+  template<bool HasHndl>
+  class WriteVImpl: public FileOperation<WriteVImpl, HasHndl, Resp<void>, Arg<uint64_t>,
       Arg<struct iovec*>, Arg<int>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      WriteVImpl( File *f ) :
-          FileOperation<WriteVImpl, state, Resp<void>, Arg<uint64_t>, Arg<struct iovec*>,
-              Arg<int>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      WriteVImpl( File &f ) :
-          FileOperation<WriteVImpl, state, Resp<void>, Arg<uint64_t>, Arg<struct iovec*>,
-              Arg<int>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      WriteVImpl( WriteVImpl<from> && writev ) :
-          FileOperation<WriteVImpl, state, Resp<void>, Arg<uint64_t>, Arg<struct iovec*>,
-              Arg<int>>( std::move( writev ) )
-      {
-      }
+      using FileOperation<WriteVImpl, HasHndl, Resp<void>, Arg<uint64_t>,
+                          Arg<struct iovec*>, Arg<int>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -973,44 +743,20 @@ namespace XrdCl
         }
       }
   };
-  typedef WriteVImpl<Bare> WriteV;
+  typedef WriteVImpl<false> WriteV;
 
   //----------------------------------------------------------------------------
   //! Fcntl operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class FcntlImpl: public FileOperation<FcntlImpl, state, Resp<Buffer>, Arg<Buffer>>
+  template<bool HasHndl>
+  class FcntlImpl: public FileOperation<FcntlImpl, HasHndl, Resp<Buffer>, Arg<Buffer>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      FcntlImpl( File *f ) :
-          FileOperation<FcntlImpl, state, Resp<Buffer>, Arg<Buffer>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      FcntlImpl( File &f ) :
-          FileOperation<FcntlImpl, state, Resp<Buffer>, Arg<Buffer>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      FcntlImpl( FcntlImpl<from> && fcntl ) :
-          FileOperation<FcntlImpl, state, Resp<Buffer>, Arg<Buffer>>( std::move( fcntl ) )
-      {
-      }
+      using FileOperation<FcntlImpl, HasHndl, Resp<Buffer>, Arg<Buffer>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -1051,44 +797,20 @@ namespace XrdCl
         }
       }
   };
-  typedef FcntlImpl<Bare> Fcntl;
+  typedef FcntlImpl<false> Fcntl;
 
   //----------------------------------------------------------------------------
   //! Visa operation (@see FileOperation)
   //----------------------------------------------------------------------------
-  template<State state = Bare>
-  class VisaImpl: public FileOperation<VisaImpl, state, Resp<Buffer>>
+  template<bool HasHndl>
+  class VisaImpl: public FileOperation<VisaImpl, HasHndl, Resp<Buffer>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
+      //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      VisaImpl( File *f ) :
-          FileOperation<VisaImpl, state, Resp<Buffer>>( f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      VisaImpl( File &f ) :
-          FileOperation<VisaImpl, state, Resp<Buffer>>( &f )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : thBe object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      VisaImpl( VisaImpl<from> && visa ) :
-          FileOperation<VisaImpl, state, Resp<Buffer>>( std::move( visa ) )
-      {
-      }
+      using FileOperation<VisaImpl, HasHndl, Resp<Buffer>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1112,7 +834,7 @@ namespace XrdCl
         return this->file->Visa( this->handler.get() );
       }
   };
-  typedef VisaImpl<Bare> Visa;
+  typedef VisaImpl<false> Visa;
 }
 
 #endif // __XRD_CL_FILE_OPERATIONS_HH__

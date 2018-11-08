@@ -39,12 +39,7 @@
 namespace XrdCl
 {
 
-  enum State
-  {
-    Bare, Configured, Handled
-  };
-
-  template<State state> class Operation;
+  template<bool HasHndl> class Operation;
 
   class Pipeline;
 
@@ -54,7 +49,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class PipelineHandler: public ResponseHandler
   {
-      template<State> friend class Operation;
+      template<bool> friend class Operation;
 
     public:
 
@@ -93,7 +88,7 @@ namespace XrdCl
       //!
       //! @param operation  :  operation to add
       //------------------------------------------------------------------------
-      void AddOperation( Operation<Handled> *operation );
+      void AddOperation( Operation<true> *operation );
 
       //------------------------------------------------------------------------
       //! Set workflow to this and all next handlers. In the last handler
@@ -135,7 +130,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Next operation in the pipeline
       //------------------------------------------------------------------------
-      std::unique_ptr<Operation<Handled>> nextOperation;
+      std::unique_ptr<Operation<true>> nextOperation;
 
       //------------------------------------------------------------------------
       //! The promise that there will be a result (traveling along the pipeline)
@@ -154,16 +149,14 @@ namespace XrdCl
   //! by a Workflow engine it is invalidated. Also if used as an argument for
   //! >> or | the original object gets invalidated.
   //!
-  //! @arg state :  describes current operation state:
-  //!                 - Bare       : a bare operation
-  //!                 - Configured : operation with its arguments
-  //!                 - Handled    : operation with its arguments and handler
+  //! @arg HasHndl : true if operation has a handler, false otherwise
   //----------------------------------------------------------------------------
-  template<State state>
+  template<bool HasHndl>
   class Operation
   {
       // Declare friendship between templates
-      template<State> friend class Operation;
+      template<bool>
+      friend class Operation;
 
       friend std::future<XRootDStatus> Async( Pipeline );
 
@@ -177,13 +170,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Operation() : valid( true )
       {
-
       }
 
       //------------------------------------------------------------------------
       //! Move constructor between template instances.
       //------------------------------------------------------------------------
-      template<State from>
+      template<bool from>
       Operation( Operation<from> && op ) :
           handler( std::move( op.handler ) ), valid( true )
       {
@@ -200,24 +192,24 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Name of the operation.
+      //------------------------------------------------------------------------
+      virtual std::string ToString() = 0;
+
+      //------------------------------------------------------------------------
       //! Move current object into newly allocated instance
       //!
       //! @return : the new instance
       //------------------------------------------------------------------------
-      virtual Operation<state>* Move() = 0;
+      virtual Operation<HasHndl>* Move() = 0;
 
        //------------------------------------------------------------------------
       //! Move current object into newly allocated instance, and convert
-      //! it into 'Handled' state.
+      //! it into 'handled' operation.
       //!
       //! @return : the new instance
       //------------------------------------------------------------------------
-      virtual Operation<Handled>* ToHandled() = 0;
-
-      //------------------------------------------------------------------------
-      //! Name of the operation.
-      //------------------------------------------------------------------------
-      virtual std::string ToString() = 0;
+      virtual Operation<true>* ToHandled() = 0;
 
     protected:
 
@@ -235,7 +227,7 @@ namespace XrdCl
       void Run( std::promise<XRootDStatus>                prms,
                 std::function<void(const XRootDStatus&)>  final )
       {
-        static_assert(state == Handled, "Only Operation<Handled> can be assigned to workflow");
+        static_assert(HasHndl, "Only an operation that has a handler can be assigned to workflow");
         handler->Assign( std::move( prms ), std::move( final ) );
         XRootDStatus st = RunImpl();
         if( st.IsOK() ) handler.release();
@@ -274,7 +266,7 @@ namespace XrdCl
       //!
       //! @param op : operation to add
       //------------------------------------------------------------------------
-      void AddOperation( Operation<Handled> *op )
+      void AddOperation( Operation<true> *op )
       {
         if( handler )
         {
@@ -302,7 +294,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class Pipeline
   {
-      template<State> friend class ParallelOperation;
+      template<bool> friend class ParallelOperation;
       friend std::future<XRootDStatus> Async( Pipeline );
 
     public:
@@ -310,7 +302,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Pipeline( Operation<Handled> *op ) :
+      Pipeline( Operation<true> *op ) :
           operation( op->Move() )
       {
 
@@ -319,7 +311,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Pipeline( Operation<Handled> &op ) :
+      Pipeline( Operation<true> &op ) :
           operation( op.Move() )
       {
 
@@ -328,13 +320,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Pipeline( Operation<Handled> &&op ) :
+      Pipeline( Operation<true> &&op ) :
           operation( op.Move() )
       {
 
       }
 
-      Pipeline( Operation<Configured> *op ) :
+      Pipeline( Operation<false> *op ) :
           operation( op->ToHandled() )
       {
 
@@ -343,7 +335,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Pipeline( Operation<Configured> &op ) :
+      Pipeline( Operation<false> &op ) :
           operation( op.ToHandled() )
       {
 
@@ -352,7 +344,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Pipeline( Operation<Configured> &&op ) :
+      Pipeline( Operation<false> &&op ) :
           operation( op.ToHandled() )
       {
 
@@ -374,11 +366,11 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Conversion to Operation<Handled>
+      //! Conversion to Operation<true>
       //!
       //! @throws : std::logic_error if pipeline is invalid
       //------------------------------------------------------------------------
-      operator Operation<Handled>&()
+      operator Operation<true>&()
       {
         if( !bool( operation ) ) throw std::logic_error( "Invalid pipeline." );
         return *operation.get();
@@ -402,7 +394,7 @@ namespace XrdCl
       //!
       //! @return : pointer to the underlying
       //------------------------------------------------------------------------
-      Operation<Handled>* operator->()
+      Operation<true>* operator->()
       {
         return operation.get();
       }
@@ -428,7 +420,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! First operation in the pipeline
       //------------------------------------------------------------------------
-      std::unique_ptr<Operation<Handled>> operation;
+      std::unique_ptr<Operation<true>> operation;
 
       //------------------------------------------------------------------------
       //! The future result of the pipeline
@@ -468,22 +460,25 @@ namespace XrdCl
   //! Defines | and >> operator as well as operation arguments.
   //!
   //! @arg Derived : the class that derives from this template (CRTP)
-  //! @arg state   : describes current operation configuration state
+  //! @arg HasHndl : true if operation has a handler, false otherwise
   //! @arg Args    : operation arguments
   //----------------------------------------------------------------------------
-  template<template<State> class Derived, State state, typename HdlrFactory, typename ... Args>
-  class ConcreteOperation: public Operation<state>
+  template<template<bool> class Derived, bool HasHndl, typename HdlrFactory, typename ... Args>
+  class ConcreteOperation: public Operation<HasHndl>
   {
-      template<template<State> class, State, typename, typename ...> friend class ConcreteOperation;
+      template<template<bool> class, bool, typename, typename ...>
+      friend class ConcreteOperation;
 
     public:
 
       //------------------------------------------------------------------------
       //! Constructor
+      //!
+      //! @param args : operation arguments
       //------------------------------------------------------------------------
-      ConcreteOperation()
+      ConcreteOperation( Args&&... args ) : args( std::tuple<Args...>( std::move( args )... ) )
       {
-
+        static_assert( !HasHndl, "It is only possible to construct operation without handler" );
       }
 
       //------------------------------------------------------------------------
@@ -493,26 +488,11 @@ namespace XrdCl
       //!
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
-      template<State from>
+      template<bool from>
       ConcreteOperation( ConcreteOperation<Derived, from, HdlrFactory, Args...> && op ) :
-        Operation<state>( std::move( op ) ), args( std::move( op.args ) )
+        Operation<HasHndl>( std::move( op ) ), args( std::move( op.args ) )
       {
 
-      }
-
-      //------------------------------------------------------------------------
-      //! Generic function call operator. Sets the arguments for the
-      //! given operation.
-      //!
-      //! @param args : parameter pack with operation arguments
-      //!
-      //! @return     : move-copy of myself in 'Configured' state
-      //------------------------------------------------------------------------
-      Derived<Configured> operator()( Args... args )
-      {
-        static_assert(state == Bare, "Operator () is available only for type Operation<Bare>");
-        this->args = std::tuple<Args...>( std::move( args )... );
-        return Transform<Configured>();
       }
 
       //------------------------------------------------------------------------
@@ -525,7 +505,7 @@ namespace XrdCl
       //! @param func : function/functor/lambda
       //------------------------------------------------------------------------
       template<typename Hdlr>
-      Derived<Handled> operator>>( Hdlr &&hdlr )
+      Derived<true> operator>>( Hdlr &&hdlr )
       {
         // check if the resulting handler should be owned by us or by the user,
         // if the user passed us directly a ResponseHandler it's owned by the
@@ -542,9 +522,8 @@ namespace XrdCl
       //!
       //! @return    : handled operation
       //------------------------------------------------------------------------
-      Derived<Handled> operator|( Operation<Handled> &op )
+      Derived<true> operator|( Operation<true> &op )
       {
-        static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
         return PipeImpl( *this, op );
       }
 
@@ -555,9 +534,8 @@ namespace XrdCl
       //!
       //! @return   :  handled operation
       //------------------------------------------------------------------------
-      Derived<Handled> operator|( Operation<Handled> &&op )
+      Derived<true> operator|( Operation<true> &&op )
       {
-        static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
         return PipeImpl( *this, op );
       }
 
@@ -568,9 +546,8 @@ namespace XrdCl
       //!
       //! @return     handled operation
       //------------------------------------------------------------------------
-      Derived<Handled> operator|( Operation<Configured> &op )
+      Derived<true> operator|( Operation<false> &op )
       {
-        static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
         return PipeImpl( *this, op );
       }
 
@@ -581,35 +558,34 @@ namespace XrdCl
       //!
       //! @return    : handled operation
       //------------------------------------------------------------------------
-      Derived<Handled> operator|( Operation<Configured> &&op )
+      Derived<true> operator|( Operation<false> &&op )
       {
-        static_assert(state != Bare, "Operator | is available only for Operations that have been at least configured.");
         return PipeImpl( *this, op );
       }
 
-  protected:
+    protected:
 
       //------------------------------------------------------------------------
       //! Move current object into newly allocated instance
       //!
       //! @return : the new instance
       //------------------------------------------------------------------------
-      Operation<state>* Move()
+      Operation<HasHndl>* Move()
       {
-        Derived<state> *me = static_cast<Derived<state>*>( this );
-        return new Derived<state>( std::move( *me ) );
+        Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
+        return new Derived<HasHndl>( std::move( *me ) );
       }
 
       //------------------------------------------------------------------------
       //! Transform operation to handled
       //!
-      //! @return Operation<Handled>&
+      //! @return Operation<true>&
       //------------------------------------------------------------------------
-      Operation<Handled>* ToHandled()
+      Operation<true>* ToHandled()
       {
         this->handler.reset( new PipelineHandler() );
-        Derived<state> *me = static_cast<Derived<state>*>( this );
-        return new Derived<Handled>( std::move( *me ) );
+        Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
+        return new Derived<true>( std::move( *me ) );
       }
 
       //------------------------------------------------------------------------
@@ -617,10 +593,10 @@ namespace XrdCl
       //!
       //! @return : new instance in the desired state
       //------------------------------------------------------------------------
-      template<State to>
+      template<bool to>
       Derived<to> Transform()
       {
-        Derived<state> *me = static_cast<Derived<state>*>( this );
+        Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
         return Derived<to>( std::move( *me ) );
       }
 
@@ -629,13 +605,13 @@ namespace XrdCl
       //!
       //! @param h  :  handler to be added
       //! @
-      //! @return   :  return an instance of Derived<Handled>
+      //! @return   :  return an instance of Derived<true>
       //------------------------------------------------------------------------
-      inline Derived<Handled> StreamImpl( ResponseHandler *handler, bool own )
+      inline Derived<true> StreamImpl( ResponseHandler *handler, bool own )
       {
-        static_assert(state == Configured, "Operator >> is available only for type Operation<Configured>");
+        static_assert( !HasHndl, "Operator >> is available only for operation without handler" );
         this->handler.reset( new PipelineHandler( handler, own ) );
-        return Transform<Handled>();
+        return Transform<true>();
       }
 
       //------------------------------------------------------------------------
@@ -647,11 +623,11 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, HdlrFactory,
-          Args...> &me, Operation<Handled> &op )
+      Derived<true> PipeImpl( ConcreteOperation<Derived, true, HdlrFactory,
+          Args...> &me, Operation<true> &op )
       {
         me.AddOperation( op.Move() );
-        return me.template Transform<Handled>();
+        return me.template Transform<true>();
       }
 
       //------------------------------------------------------------------------
@@ -663,11 +639,11 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Handled, HdlrFactory,
-          Args...> &me, Operation<Configured> &op )
+      Derived<true> PipeImpl( ConcreteOperation<Derived, true, HdlrFactory,
+          Args...> &me, Operation<false> &op )
       {
         me.AddOperation( op.ToHandled() );
-        return me.template Transform<Handled>();
+        return me.template Transform<true>();
       }
 
       //------------------------------------------------------------------------
@@ -679,12 +655,12 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, HdlrFactory,
-          Args...> &me, Operation<Handled> &op )
+      Derived<true> PipeImpl( ConcreteOperation<Derived, false, HdlrFactory,
+          Args...> &me, Operation<true> &op )
       {
         me.handler.reset( new PipelineHandler() );
         me.AddOperation( op.Move() );
-        return me.template Transform<Handled>();
+        return me.template Transform<true>();
       }
 
       //------------------------------------------------------------------------
@@ -696,12 +672,12 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<Handled> PipeImpl( ConcreteOperation<Derived, Configured, HdlrFactory,
-          Args...> &me, Operation<Configured> &op )
+      Derived<true> PipeImpl( ConcreteOperation<Derived, false, HdlrFactory,
+          Args...> &me, Operation<false> &op )
       {
         me.handler.reset( new PipelineHandler() );
         me.AddOperation( op.ToHandled() );
-        return me.template Transform<Handled>();
+        return me.template Transform<true>();
       }
 
       //------------------------------------------------------------------------

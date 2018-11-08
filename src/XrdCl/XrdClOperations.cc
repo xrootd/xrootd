@@ -51,7 +51,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // OperationHandler::AddOperation
   //----------------------------------------------------------------------------
-  void PipelineHandler::AddOperation( Operation<Handled> *operation )
+  void PipelineHandler::AddOperation( Operation<true> *operation )
   {
     if( nextOperation )
     {

@@ -37,24 +37,35 @@ namespace XrdCl
   //! Base class for all file system releated operations
   //!
   //! @arg Derived : the class that derives from this template (CRTP)
-  //! @arg state   : describes current operation configuration state
+  //! @arg HasHndl : true if operation has a handler, false otherwise
   //! @arg Args    : operation arguments
   //----------------------------------------------------------------------------
-  template<template<State> class Derived, State state, typename Response, typename ... Args>
-  class FileSystemOperation: public ConcreteOperation<Derived, state, Response, Args...>
+  template<template<bool> class Derived, bool HasHndl, typename Response, typename ... Args>
+  class FileSystemOperation: public ConcreteOperation<Derived, HasHndl, Response, Args...>
   {
 
-      template<template<State> class, State, typename, typename ...> friend class FileSystemOperation;
+      template<template<bool> class, bool, typename, typename ...> friend class FileSystemOperation;
 
     public:
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param fs : file system on which the operation will be performed
+      //! @param fs   : file system on which the operation will be performed
+      //! @param args : file operation arguments
       //------------------------------------------------------------------------
-      explicit FileSystemOperation( FileSystem *fs ): filesystem(fs)
+      FileSystemOperation( FileSystem *fs, Args... args): ConcreteOperation<Derived,
+          false, Response, Args...>( std::move( args )... ), filesystem(fs)
       {
-        static_assert(state == Bare, "Constructor is available only for type Operation<Bare>");
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param fs   : file system on which the operation will be performed
+      //! @param args : file operation arguments
+      //------------------------------------------------------------------------
+      FileSystemOperation( FileSystem &fs, Args... args): FileSystemOperation( &fs, std::move( args )... )
+      {
       }
 
       //------------------------------------------------------------------------
@@ -64,11 +75,10 @@ namespace XrdCl
       //!
       //! @param op : the object that is being converted
       //------------------------------------------------------------------------
-      template<State from>
+      template<bool from>
       FileSystemOperation( FileSystemOperation<Derived, from, Response, Args...> && op ):
-        ConcreteOperation<Derived, state, Response, Args...>( std::move( op ) ), filesystem( op.filesystem )
+        ConcreteOperation<Derived, HasHndl, Response, Args...>( std::move( op ) ), filesystem( op.filesystem )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -76,7 +86,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual ~FileSystemOperation()
       {
-
       }
 
     protected:
@@ -90,43 +99,17 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Locate operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class LocateImpl: public FileSystemOperation<LocateImpl, state, Resp<LocationInfo>,
+  template<bool HasHndl>
+  class LocateImpl: public FileSystemOperation<LocateImpl, HasHndl, Resp<LocationInfo>,
       Arg<std::string>, Arg<OpenFlags::Flags>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      LocateImpl( FileSystem *fs ) :
-          FileSystemOperation<LocateImpl, state, Resp<LocationInfo>, Arg<std::string>,
-              Arg<OpenFlags::Flags>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      LocateImpl( FileSystem &fs ) :
-          FileSystemOperation<LocateImpl, state, Resp<LocationInfo>, Arg<std::string>,
-              Arg<OpenFlags::Flags>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      LocateImpl( LocateImpl<from> && locate ) :
-          FileSystemOperation<LocateImpl, state, Resp<LocationInfo>, Arg<std::string>,
-              Arg<OpenFlags::Flags>>( std::move( locate ) )
-      {
-      }
+      using FileSystemOperation<LocateImpl, HasHndl, Resp<LocationInfo>, Arg<std::string>,
+                                Arg<OpenFlags::Flags>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -168,48 +151,22 @@ namespace XrdCl
         }
       }
   };
-  typedef LocateImpl<Bare> Locate;
+  typedef LocateImpl<false> Locate;
 
   //----------------------------------------------------------------------------
   //! DeepLocate operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class DeepLocateImpl: public FileSystemOperation<DeepLocateImpl, state,
+  template<bool HasHndl>
+  class DeepLocateImpl: public FileSystemOperation<DeepLocateImpl, HasHndl,
       Resp<LocationInfo>, Arg<std::string>, Arg<OpenFlags::Flags>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      DeepLocateImpl( FileSystem *fs ) :
-          FileSystemOperation<DeepLocateImpl, state, Resp<LocationInfo>,
-              Arg<std::string>, Arg<OpenFlags::Flags>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      DeepLocateImpl( FileSystem &fs ) :
-          FileSystemOperation<DeepLocateImpl, state, Resp<LocationInfo>,
-              Arg<std::string>, Arg<OpenFlags::Flags>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      DeepLocateImpl( DeepLocateImpl<from> && locate ) :
-          FileSystemOperation<DeepLocateImpl, state, Resp<LocationInfo>,
-              Arg<std::string>, Arg<OpenFlags::Flags>>( std::move( locate ) )
-      {
-      }
+      using FileSystemOperation<DeepLocateImpl, HasHndl, Resp<LocationInfo>, Arg<std::string>,
+                                Arg<OpenFlags::Flags>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -251,48 +208,22 @@ namespace XrdCl
         }
       }
   };
-  typedef DeepLocateImpl<Bare> DeepLocate;
+  typedef DeepLocateImpl<false> DeepLocate;
 
   //----------------------------------------------------------------------------
   //! Mv operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class MvImpl: public FileSystemOperation<MvImpl, state, Resp<void>, Arg<std::string>,
+  template<bool HasHndl>
+  class MvImpl: public FileSystemOperation<MvImpl, HasHndl, Resp<void>, Arg<std::string>,
       Arg<std::string>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      MvImpl( FileSystem *fs ) :
-          FileSystemOperation<MvImpl, state, Resp<void>, Arg<std::string>, Arg<std::string>>(
-              fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      MvImpl( FileSystem &fs ) :
-          FileSystemOperation<MvImpl, state, Resp<void>, Arg<std::string>, Arg<std::string>>(
-              &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      MvImpl( MvImpl<from> && mv ) :
-          FileSystemOperation<MvImpl, state, Resp<void>, Arg<std::string>, Arg<std::string>>(
-              std::move( mv ) )
-      {
-      }
+      using FileSystemOperation<MvImpl, HasHndl, Resp<void>, Arg<std::string>,
+                                Arg<std::string>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -334,48 +265,22 @@ namespace XrdCl
         }
       }
   };
-  typedef MvImpl<Bare> Mv;
+  typedef MvImpl<false> Mv;
 
   //----------------------------------------------------------------------------
   //! Query operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class QueryImpl: public FileSystemOperation<QueryImpl, state, Resp<Buffer>,
+  template<bool HasHndl>
+  class QueryImpl: public FileSystemOperation<QueryImpl, HasHndl, Resp<Buffer>,
       Arg<QueryCode::Code>, Arg<Buffer>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      QueryImpl( FileSystem *fs ) :
-          FileSystemOperation<QueryImpl, state, Resp<Buffer>, Arg<QueryCode::Code>,
-              Arg<Buffer>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      QueryImpl( FileSystem &fs ) :
-          FileSystemOperation<QueryImpl, state, Resp<Buffer>, Arg<QueryCode::Code>,
-              Arg<Buffer>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      QueryImpl( QueryImpl<from> && query ) :
-          FileSystemOperation<QueryImpl, state, Resp<Buffer>, Arg<QueryCode::Code>,
-              Arg<Buffer>>( std::move( query ) )
-      {
-      }
+      using FileSystemOperation<QueryImpl, HasHndl, Resp<Buffer>, Arg<QueryCode::Code>,
+                                Arg<Buffer>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -417,48 +322,22 @@ namespace XrdCl
         }
       }
   };
-  typedef QueryImpl<Bare> Query;
+  typedef QueryImpl<false> Query;
 
   //----------------------------------------------------------------------------
   //! Truncate operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class TruncateFsImpl: public FileSystemOperation<TruncateFsImpl, state, Resp<void>,
+  template<bool HasHndl>
+  class TruncateFsImpl: public FileSystemOperation<TruncateFsImpl, HasHndl, Resp<void>,
       Arg<std::string>, Arg<uint64_t>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      TruncateFsImpl( FileSystem *fs ) :
-          FileSystemOperation<TruncateFsImpl, state, Resp<void>, Arg<std::string>,
-              Arg<uint64_t>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      TruncateFsImpl( FileSystem &fs ) :
-          FileSystemOperation<TruncateFsImpl, state, Resp<void>, Arg<std::string>,
-              Arg<uint64_t>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      TruncateFsImpl( TruncateFsImpl<from> && trunc ) :
-          FileSystemOperation<TruncateFsImpl, state, Resp<void>, Arg<std::string>,
-              Arg<uint64_t>>( std::move( trunc ) )
-      {
-      }
+      using FileSystemOperation<TruncateFsImpl, HasHndl, Resp<void>, Arg<std::string>,
+                                Arg<uint64_t>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -501,53 +380,28 @@ namespace XrdCl
       }
   };
 
-  TruncateFsImpl<Bare> Truncate( FileSystem *fs )
+  TruncateFsImpl<false> Truncate( FileSystem *fs, Arg<std::string> path, Arg<uint64_t> size )
   {
-    return TruncateFsImpl<Bare>( fs );
+    return TruncateFsImpl<false>( fs, std::move( path ), std::move( size ) );
   }
 
-  TruncateFsImpl<Bare> Truncate( FileSystem &fs )
+  TruncateFsImpl<false> Truncate( FileSystem &fs, Arg<std::string> path, Arg<uint64_t> size )
   {
-    return TruncateFsImpl<Bare>( fs );
+    return TruncateFsImpl<false>( fs, std::move( path ), std::move( size ) );
   }
 
   //----------------------------------------------------------------------------
   //! Rm operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class RmImpl: public FileSystemOperation<RmImpl, state, Resp<void>, Arg<std::string>>
+  template<bool HasHndl>
+  class RmImpl: public FileSystemOperation<RmImpl, HasHndl, Resp<void>, Arg<std::string>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      RmImpl( FileSystem *fs ) :
-          FileSystemOperation<RmImpl, state, Resp<void>, Arg<std::string>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      RmImpl( FileSystem &fs ) :
-          FileSystemOperation<RmImpl, state, Resp<void>, Arg<std::string>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      RmImpl( RmImpl<from> && rm ) :
-          FileSystemOperation<RmImpl, state, Resp<void>, Arg<std::string>>(
-              std::move( rm ) )
-      {
-      }
+      using FileSystemOperation<RmImpl, HasHndl, Resp<void>, Arg<std::string>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -588,48 +442,22 @@ namespace XrdCl
         }
       }
   };
-  typedef RmImpl<Bare> Rm;
+  typedef RmImpl<false> Rm;
 
   //----------------------------------------------------------------------------
   //! MkDir operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class MkDirImpl: public FileSystemOperation<MkDirImpl, state, Resp<void>,
+  template<bool HasHndl>
+  class MkDirImpl: public FileSystemOperation<MkDirImpl, HasHndl, Resp<void>,
       Arg<std::string>, Arg<MkDirFlags::Flags>, Arg<Access::Mode>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      MkDirImpl( FileSystem *fs ) :
-          FileSystemOperation<MkDirImpl, state, Resp<void>, Arg<std::string>,
-              Arg<MkDirFlags::Flags>, Arg<Access::Mode>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      MkDirImpl( FileSystem &fs ) :
-          FileSystemOperation<MkDirImpl, state, Resp<void>, Arg<std::string>,
-              Arg<MkDirFlags::Flags>, Arg<Access::Mode>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      MkDirImpl( MkDirImpl<from> && mkdir ) :
-          FileSystemOperation<MkDirImpl, state, Resp<void>, Arg<std::string>,
-              Arg<MkDirFlags::Flags>, Arg<Access::Mode>>( std::move( mkdir ) )
-      {
-      }
+      using FileSystemOperation<MkDirImpl, HasHndl, Resp<void>, Arg<std::string>,
+                                Arg<MkDirFlags::Flags>, Arg<Access::Mode>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -672,46 +500,21 @@ namespace XrdCl
         }
       }
   };
-  typedef MkDirImpl<Bare> MkDir;
+  typedef MkDirImpl<false> MkDir;
 
   //----------------------------------------------------------------------------
   //! RmDir operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class RmDirImpl: public FileSystemOperation<RmDirImpl, state, Resp<void>,
+  template<bool HasHndl>
+  class RmDirImpl: public FileSystemOperation<RmDirImpl, HasHndl, Resp<void>,
       Arg<std::string>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      RmDirImpl( FileSystem *fs ) :
-          FileSystemOperation<RmDirImpl, state, Resp<void>, Arg<std::string>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      RmDirImpl( FileSystem &fs ) :
-          FileSystemOperation<RmDirImpl, state, Resp<void>, Arg<std::string>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      RmDirImpl( RmDirImpl<from> && rmdir ) :
-          FileSystemOperation<RmDirImpl, state, Resp<void>, Arg<std::string>>(
-              std::move( rmdir ) )
-      {
-      }
+      using FileSystemOperation<RmDirImpl, HasHndl, Resp<void>, Arg<std::string>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -752,48 +555,22 @@ namespace XrdCl
         }
       }
   };
-  typedef RmDirImpl<Bare> RmDir;
+  typedef RmDirImpl<false> RmDir;
 
   //----------------------------------------------------------------------------
   //! ChMod operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class ChModImpl: public FileSystemOperation<ChModImpl, state, Resp<void>,
+  template<bool HasHndl>
+  class ChModImpl: public FileSystemOperation<ChModImpl, HasHndl, Resp<void>,
       Arg<std::string>, Arg<Access::Mode>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      ChModImpl( FileSystem *fs ) :
-          FileSystemOperation<ChModImpl, state, Resp<void>, Arg<std::string>,
-              Arg<Access::Mode>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      ChModImpl( FileSystem &fs ) :
-          FileSystemOperation<ChModImpl, state, Resp<void>, Arg<std::string>,
-              Arg<Access::Mode>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      ChModImpl( ChModImpl<from> && chmod ) :
-          FileSystemOperation<ChModImpl, state, Resp<void>, Arg<std::string>,
-              Arg<Access::Mode>>( std::move( chmod ) )
-      {
-      }
+      using FileSystemOperation<ChModImpl, HasHndl, Resp<void>, Arg<std::string>,
+                                Arg<Access::Mode>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -835,44 +612,20 @@ namespace XrdCl
         }
       }
   };
-  typedef ChModImpl<Bare> ChMod;
+  typedef ChModImpl<false> ChMod;
 
   //----------------------------------------------------------------------------
   //! Ping operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class PingImpl: public FileSystemOperation<PingImpl, state, Resp<void>>
+  template<bool HasHndl>
+  class PingImpl: public FileSystemOperation<PingImpl, HasHndl, Resp<void>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      PingImpl( FileSystem *fs ) :
-          FileSystemOperation<PingImpl, state, Resp<void>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      PingImpl( FileSystem &fs ) :
-          FileSystemOperation<PingImpl, state, Resp<void>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      PingImpl( PingImpl<from> && ping ) :
-          FileSystemOperation<PingImpl, state, Resp<void>>( std::move( ping ) )
-      {
-      }
+      using FileSystemOperation<PingImpl, HasHndl, Resp<void>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -896,48 +649,22 @@ namespace XrdCl
         return this->filesystem->Ping( this->handler.get() );
       }
   };
-  typedef PingImpl<Bare> Ping;
+  typedef PingImpl<false> Ping;
 
   //----------------------------------------------------------------------------
   //! Stat operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class StatFsImpl: public FileSystemOperation<StatFsImpl, state, Resp<StatInfo>,
+  template<bool HasHndl>
+  class StatFsImpl: public FileSystemOperation<StatFsImpl, HasHndl, Resp<StatInfo>,
       Arg<std::string>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      StatFsImpl( FileSystem *fs ) :
-          FileSystemOperation<StatFsImpl, state, Resp<StatInfo>,
-              Arg<std::string>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      StatFsImpl( FileSystem &fs ) :
-          FileSystemOperation<StatFsImpl, state, Resp<StatInfo>,
-              Arg<std::string>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      StatFsImpl( StatFsImpl<from> && statfs ) :
-          FileSystemOperation<StatFsImpl, state, Resp<StatInfo>, Arg<std::string>>(
-              std::move( statfs ) )
-      {
-      }
+      using FileSystemOperation<StatFsImpl, HasHndl, Resp<StatInfo>,
+                                Arg<std::string>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -979,53 +706,30 @@ namespace XrdCl
       }
   };
 
-  StatFsImpl<Bare> Stat( FileSystem *fs )
+  StatFsImpl<false> Stat( FileSystem *fs, Arg<std::string> path )
   {
-    return StatFsImpl<Bare>( fs );
+    return StatFsImpl<false>( fs, std::move( path ) );
   }
 
-  StatFsImpl<Bare> Stat( FileSystem &fs )
+  StatFsImpl<false> Stat( FileSystem &fs, Arg<std::string> path )
   {
-    return StatFsImpl<Bare>( fs );
+    return StatFsImpl<false>( fs, std::move( path ) );
   }
 
   //----------------------------------------------------------------------------
   //! StatVS operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class StatVFSImpl: public FileSystemOperation<StatVFSImpl, state,
+  template<bool HasHndl>
+  class StatVFSImpl: public FileSystemOperation<StatVFSImpl, HasHndl,
       Resp<StatInfoVFS>, Arg<std::string>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      StatVFSImpl( FileSystem *fs ) : FileSystemOperation<StatVFSImpl, state,
-          Resp<StatInfoVFS>, Arg<std::string>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      StatVFSImpl( FileSystem &fs ) : FileSystemOperation<StatVFSImpl, state,
-          Resp<StatInfoVFS>, Arg<std::string>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      StatVFSImpl( StatVFSImpl<state> && statvfs ) : FileSystemOperation<StatVFSImpl,
-          state, Resp<StatInfoVFS>, Arg<std::string>>( std::move( statvfs ) )
-      {
-      }
+      using FileSystemOperation<StatVFSImpl, HasHndl, Resp<StatInfoVFS>,
+                                Arg<std::string>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -1066,45 +770,21 @@ namespace XrdCl
         }
       }
   };
-  typedef StatVFSImpl<Bare> StatVFS;
+  typedef StatVFSImpl<false> StatVFS;
 
   //----------------------------------------------------------------------------
   //! Protocol operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class ProtocolImpl: public FileSystemOperation<ProtocolImpl, state,
+  template<bool HasHndl>
+  class ProtocolImpl: public FileSystemOperation<ProtocolImpl, HasHndl,
       Resp<ProtocolInfo>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      ProtocolImpl( FileSystem *fs ) :
-          FileSystemOperation<ProtocolImpl, state, Resp<ProtocolInfo>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      ProtocolImpl( FileSystem &fs ) :
-          FileSystemOperation<ProtocolImpl, state, Resp<ProtocolInfo>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      ProtocolImpl( ProtocolImpl<from> && prot ) : FileSystemOperation<ProtocolImpl,
-          state, Resp<ProtocolInfo>>( std::move( prot ) )
-      {
-      }
+      using FileSystemOperation<ProtocolImpl, HasHndl, Resp<ProtocolInfo>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -1128,46 +808,22 @@ namespace XrdCl
         return this->filesystem->Protocol( this->handler.get() );
       }
   };
-  typedef ProtocolImpl<Bare> Protocol;
+  typedef ProtocolImpl<false> Protocol;
 
   //----------------------------------------------------------------------------
   //! DirList operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class DirListImpl: public FileSystemOperation<DirListImpl, state, Resp<DirectoryList>,
+  template<bool HasHndl>
+  class DirListImpl: public FileSystemOperation<DirListImpl, HasHndl, Resp<DirectoryList>,
       Arg<std::string>, Arg<DirListFlags::Flags>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      DirListImpl( FileSystem *fs ) : FileSystemOperation<DirListImpl, state,
-          Resp<DirectoryList>, Arg<std::string>, Arg<DirListFlags::Flags>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      DirListImpl( FileSystem &fs ) : FileSystemOperation<DirListImpl, state,
-          Resp<DirectoryList>, Arg<std::string>, Arg<DirListFlags::Flags>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      DirListImpl( DirListImpl<from> && dirls ) : FileSystemOperation<DirListImpl,
-          state, Resp<DirectoryList>, Arg<std::string>,
-          Arg<DirListFlags::Flags>>( std::move( dirls ) )
-      {
-      }
+      using FileSystemOperation<DirListImpl, HasHndl, Resp<DirectoryList>, Arg<std::string>,
+          Arg<DirListFlags::Flags>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -1209,45 +865,22 @@ namespace XrdCl
         }
       }
   };
-  typedef DirListImpl<Bare> DirList;
+  typedef DirListImpl<false> DirList;
 
   //----------------------------------------------------------------------------
   //! SendInfo operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class SendInfoImpl: public FileSystemOperation<SendInfoImpl, state, Resp<Buffer>,
+  template<bool HasHndl>
+  class SendInfoImpl: public FileSystemOperation<SendInfoImpl, HasHndl, Resp<Buffer>,
       Arg<std::string>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      SendInfoImpl( FileSystem *fs ) : FileSystemOperation<SendInfoImpl, state,
-          Resp<Buffer>, Arg<std::string>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      SendInfoImpl( FileSystem &fs ) : FileSystemOperation<SendInfoImpl, state,
-          Resp<Buffer>, Arg<std::string>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      SendInfoImpl( SendInfoImpl<from> && sendinfo ) : FileSystemOperation<SendInfoImpl,
-          state, Resp<Buffer>, Arg<std::string>>( std::move( sendinfo ) )
-      {
-      }
+      using FileSystemOperation<SendInfoImpl, HasHndl, Resp<Buffer>,
+                                Arg<std::string>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -1288,48 +921,22 @@ namespace XrdCl
         }
       }
   };
-  typedef SendInfoImpl<Bare> SendInfo;
+  typedef SendInfoImpl<false> SendInfo;
 
   //----------------------------------------------------------------------------
   //! Prepare operation (@see FileSystemOperation)
   //----------------------------------------------------------------------------
-  template<State state>
-  class PrepareImpl: public FileSystemOperation<PrepareImpl, state, Resp<Buffer>,
+  template<bool HasHndl>
+  class PrepareImpl: public FileSystemOperation<PrepareImpl, HasHndl, Resp<Buffer>,
       Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>, Arg<uint8_t>>
   {
     public:
 
       //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
+      //! Inherit constructors from FileSystemOperation (@see FileSystemOperation)
       //------------------------------------------------------------------------
-      PrepareImpl( FileSystem *fs ) : FileSystemOperation<PrepareImpl, state,
-          Resp<Buffer>, Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>,
-          Arg<uint8_t>>( fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileSystemOperation)
-      //------------------------------------------------------------------------
-      PrepareImpl( FileSystem &fs ) : FileSystemOperation<PrepareImpl, state,
-          Resp<Buffer>, Arg<std::vector<std::string>>, Arg<PrepareFlags::Flags>,
-          Arg<uint8_t>>( &fs )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor from other states
-      //!
-      //! @arg from : state from which the object is being converted
-      //!
-      //! @param op : the object that is being converted
-      //------------------------------------------------------------------------
-      template<State from>
-      PrepareImpl( PrepareImpl<from> && prep ) : FileSystemOperation<PrepareImpl,
-          state, Resp<Buffer>, Arg<std::vector<std::string>>,
-          Arg<PrepareFlags::Flags>, Arg<uint8_t>>( std::move( prep ) )
-      {
-      }
+      using FileSystemOperation<PrepareImpl, HasHndl, Resp<Buffer>, Arg<std::vector<std::string>>,
+                                Arg<PrepareFlags::Flags>, Arg<uint8_t>>::FileSystemOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -1373,7 +980,7 @@ namespace XrdCl
         }
       }
   };
-  typedef PrepareImpl<Bare> Prepare;
+  typedef PrepareImpl<false> Prepare;
 }
 
 #endif // __XRD_CL_FILE_SYSTEM_OPERATIONS_HH__

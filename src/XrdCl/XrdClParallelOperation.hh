@@ -46,19 +46,19 @@ namespace XrdCl
   //! @arg state : describes current operation configuration state
   //!              (@see Operation)
   //----------------------------------------------------------------------------
-  template<State state = Bare>
-  class ParallelOperation: public ConcreteOperation<ParallelOperation, state, Resp<void>>
+  template<bool HasHndl>
+  class ParallelOperation: public ConcreteOperation<ParallelOperation, HasHndl, Resp<void>>
   {
-      template<State> friend class ParallelOperation;
+      template<bool> friend class ParallelOperation;
 
     public:
 
       //------------------------------------------------------------------------
       //! Constructor: copy-move a ParallelOperation in different state
       //------------------------------------------------------------------------
-      template<State from>
+      template<bool from>
       ParallelOperation( ParallelOperation<from> &&obj ) :
-          ConcreteOperation<ParallelOperation, state, Resp<void>>( std::move( obj ) ),
+          ConcreteOperation<ParallelOperation, HasHndl, Resp<void>>( std::move( obj ) ),
             pipelines( std::move( obj.pipelines ) )
       {
       }
@@ -73,7 +73,7 @@ namespace XrdCl
       template<class Container>
       ParallelOperation( Container &&container )
       {
-        static_assert(state == Configured, "Constructor is available only for type ParallelOperations<Configured>");
+        static_assert( !HasHndl, "Constructor is available only operation without handler");
 
         pipelines.reserve( container.size() );
         auto begin = std::make_move_iterator( container.begin() );
@@ -185,9 +185,9 @@ namespace XrdCl
   //! Factory function for creating parallel operation from a vector
   //----------------------------------------------------------------------------
   template<class Container>
-  ParallelOperation<Configured> Parallel( Container &container )
+  ParallelOperation<false> Parallel( Container &container )
   {
-    return ParallelOperation<Configured>( container );
+    return ParallelOperation<false>( container );
   }
 
   //----------------------------------------------------------------------------
@@ -203,11 +203,11 @@ namespace XrdCl
   // definitions, as they may call each other.
   //----------------------------------------------------------------------------
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<Configured> &operation,
+  void PipesToVec( std::vector<Pipeline> &v, Operation<false> &operation,
       Others&... others );
 
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<Handled> &operation,
+  void PipesToVec( std::vector<Pipeline> &v, Operation<true> &operation,
       Others&... others );
 
   template<typename ... Others>
@@ -218,7 +218,7 @@ namespace XrdCl
   // Define PipesToVec
   //----------------------------------------------------------------------------
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<Configured> &operation,
+  void PipesToVec( std::vector<Pipeline> &v, Operation<false> &operation,
       Others&... others )
   {
     v.emplace_back( operation );
@@ -226,7 +226,7 @@ namespace XrdCl
   }
 
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<Handled> &operation,
+  void PipesToVec( std::vector<Pipeline> &v, Operation<true> &operation,
       Others&... others )
   {
     v.emplace_back( operation );
@@ -248,7 +248,7 @@ namespace XrdCl
   //! both r- and l-value references)
   //----------------------------------------------------------------------------
   template<typename ... Operations>
-  ParallelOperation<Configured> Parallel( Operations&& ... operations )
+  ParallelOperation<false> Parallel( Operations&& ... operations )
   {
     constexpr size_t size = sizeof...( operations );
     std::vector<Pipeline> v;

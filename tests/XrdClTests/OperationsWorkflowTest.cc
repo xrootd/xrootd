@@ -197,16 +197,16 @@ void WorkflowTest::ReadingWorkflowTest(){
     const OpenFlags::Flags flags = OpenFlags::Read;
     uint64_t offset = 0;
 
-    auto &&pipe = Open(f)(fileUrl, flags) >> openHandler // by reference
-                | Stat(f)(true) >> [size, buffer]( XRootDStatus &status, StatInfo &stat )
+    auto &&pipe = Open( f, fileUrl, flags ) >> openHandler // by reference
+                | Stat( f, true) >> [size, buffer]( XRootDStatus &status, StatInfo &stat )
                     {
                       CPPUNIT_ASSERT_XRDST( status );
                       CPPUNIT_ASSERT( stat.GetSize() == 1048576000 );
                       size = stat.GetSize();
                       buffer = new char[stat.GetSize()];
                     }
-                | Read(f)(offset, size, buffer) >> &readHandler // by pointer
-                | Close(f)() >> closeHandler; // by reference
+                | Read( f, offset, size, buffer ) >> &readHandler // by pointer
+                | Close( f ) >> closeHandler; // by reference
 
     XRootDStatus status = WaitFor( pipe );
     CPPUNIT_ASSERT_XRDST( status );
@@ -239,7 +239,7 @@ void WorkflowTest::WritingWorkflowTest(){
     //----------------------------------------------------------------------------
     // Create handlers
     //----------------------------------------------------------------------------
-    std::packaged_task<std::string(XRootDStatus&, ChunkInfo&)> parserd {
+    std::packaged_task<std::string(XRootDStatus&, ChunkInfo&)> parser {
       []( XRootDStatus& status, ChunkInfo &chunk )
         {
           CPPUNIT_ASSERT_XRDST( status );
@@ -249,7 +249,7 @@ void WorkflowTest::WritingWorkflowTest(){
           return ret;
         }
     };
-    std::future<std::string> rdresp = parserd.get_future();
+    std::future<std::string> rdresp = parser.get_future();
 
     //----------------------------------------------------------------------------
     // Forward parameters between operations
@@ -262,7 +262,7 @@ void WorkflowTest::WritingWorkflowTest(){
     //----------------------------------------------------------------------------
     // Create and execute workflow
     //----------------------------------------------------------------------------
-    Pipeline pipe = Open( f )( fileUrl, flags ) >> [iov, iovcnt, texts]( XRootDStatus &status )
+    Pipeline pipe = Open( f, fileUrl, flags ) >> [iov, iovcnt, texts]( XRootDStatus &status )
                       {
                         CPPUNIT_ASSERT_XRDST( status );
                         iovec *vec = new iovec[3];
@@ -275,18 +275,18 @@ void WorkflowTest::WritingWorkflowTest(){
                         iov = vec;
                         iovcnt = 3;
                       }
-                  | WriteV( f )( 0, iov, iovcnt )
-                  | Sync( f )()
-                  | Stat( f )( true ) >> [size, buffer, createdFileSize]( XRootDStatus &status, StatInfo &info )
+                  | WriteV( f, 0, iov, iovcnt )
+                  | Sync( f )
+                  | Stat( f, true ) >> [size, buffer, createdFileSize]( XRootDStatus &status, StatInfo &info )
                       {
                         CPPUNIT_ASSERT_XRDST( status );
                         CPPUNIT_ASSERT( createdFileSize == info.GetSize() );
                         size   = info.GetSize();
                         buffer = new char[info.GetSize()];
                       }
-                  | Read( f )( 0, size, buffer ) >> parserd
-                  | Close( f )()
-                  | Rm( fs )( relativePath );
+                  | Read( f, 0, size, buffer ) >> parser
+                  | Close( f )
+                  | Rm( fs, relativePath );
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
     CPPUNIT_ASSERT_XRDST( status );
@@ -328,10 +328,10 @@ void WorkflowTest::MissingParameterTest(){
     const OpenFlags::Flags flags = OpenFlags::Read;
     uint64_t offset = 0;
 
-    Pipeline pipe = Open( f )( fileUrl, flags )
-                  | Stat( f )( true )
-                  | Read( f )( offset, size, buffer ) >> readHandler // by reference
-                  | Close( f )() >> [&]( XRootDStatus& st ){ closed = true; };
+    Pipeline pipe = Open( f, fileUrl, flags )
+                  | Stat( f, true )
+                  | Read( f, offset, size, buffer ) >> readHandler // by reference
+                  | Close( f ) >> [&]( XRootDStatus& st ){ closed = true; };
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
     CPPUNIT_ASSERT( status.IsError() );
@@ -366,10 +366,10 @@ void WorkflowTest::OperationFailureTest(){
     //----------------------------------------------------------------------------
 
     const OpenFlags::Flags flags = OpenFlags::Read;
-    auto &&pipe = Open( f )( fileUrl, flags ) >> &openHandler // by pointer
-                | Stat( f )( true ) >> statresp
-                | Read( f )( 0, 0, nullptr ) >> readresp
-                | Close( f )() >> closeresp;
+    auto &&pipe = Open( f, fileUrl, flags ) >> &openHandler // by pointer
+                | Stat( f, true ) >> statresp
+                | Read( f, 0, 0, nullptr ) >> readresp
+                | Close( f ) >> closeresp;
 
     XRootDStatus status = WaitFor( pipe ); // by obscure operation type
     CPPUNIT_ASSERT( status.IsError() );
@@ -424,8 +424,8 @@ void WorkflowTest::DoubleRunningTest(){
     const OpenFlags::Flags flags = OpenFlags::Read;
     bool opened = false, closed = false;
 
-    auto &&pipe = Open( f )( fileUrl, flags ) >> [&]( XRootDStatus &status ){ opened = status.IsOK(); }
-                | Close( f )() >> [&]( XRootDStatus &status ){ closed = status.IsOK(); };
+    auto &&pipe = Open( f, fileUrl, flags ) >> [&]( XRootDStatus &status ){ opened = status.IsOK(); }
+                | Close( f ) >> [&]( XRootDStatus &status ){ closed = status.IsOK(); };
 
     std::future<XRootDStatus> ftr = Async( pipe );
 
@@ -492,8 +492,8 @@ void WorkflowTest::ParallelTest(){
     auto dataF = new File();
 
     std::vector<Pipeline> pipes; pipes.reserve( 2 );
-    pipes.emplace_back( Open( f )( lockUrl, createFlags ) | Close( f )() );
-    pipes.emplace_back( Open( dataF )( secondFileUrl, createFlags ) | Close( dataF )() );
+    pipes.emplace_back( Open( f, lockUrl, createFlags ) | Close( f ) );
+    pipes.emplace_back( Open( dataF, secondFileUrl, createFlags ) | Close( dataF ) );
     CPPUNIT_ASSERT_XRDST( WaitFor( Parallel( pipes ) >> []( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); } ) );
     CPPUNIT_ASSERT( pipes.empty() );
 
@@ -520,17 +520,17 @@ void WorkflowTest::ParallelTest(){
 
     std::future<void> parallelresp, closeresp;
 
-    Pipeline firstPipe = Open( firstFile )( url1, readFlags )
-                       | Read(firstFile)( offset, size, firstBuffer )
-                       | Close(firstFile)();
+    Pipeline firstPipe = Open( firstFile, url1, readFlags )
+                       | Read( firstFile, offset, size, firstBuffer )
+                       | Close( firstFile );
 
-    Pipeline secondPipe = Open(secondFile)(url2, readFlags)
-                        | Read(secondFile)(offset, size, secondBuffer)
-                        | Close(secondFile)();
+    Pipeline secondPipe = Open( secondFile, url2, readFlags )
+                        | Read( secondFile, offset, size, secondBuffer )
+                        | Close( secondFile );
 
-    Pipeline pipe = Open( lockFile )( lockUrl, readFlags ) >> lockOpenHandler
+    Pipeline pipe = Open( lockFile, lockUrl, readFlags ) >> lockOpenHandler
                   | Parallel( firstPipe, secondPipe ) >> parallelresp
-                  | Close( lockFile )() >> closeresp;
+                  | Close( lockFile ) >> closeresp;
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
     CPPUNIT_ASSERT(status.IsOK());
@@ -563,8 +563,8 @@ void WorkflowTest::ParallelTest(){
     auto dataRelativePath = GetPath(dataFileName);
 
     bool exec1 = false, exec2 = false;
-    Pipeline deletingPipe( Parallel( Rm( fs )( lockRelativePath ) >> [&]( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); exec1 = true; },
-                                     Rm( fs )( dataRelativePath ) >> [&]( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); exec2 = true; } ) );
+    Pipeline deletingPipe( Parallel( Rm( fs, lockRelativePath ) >> [&]( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); exec1 = true; },
+                                     Rm( fs, dataRelativePath ) >> [&]( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); exec2 = true; } ) );
     CPPUNIT_ASSERT_XRDST( WaitFor( std::move( deletingPipe ) ) );
 
     CPPUNIT_ASSERT( exec1 );
@@ -592,11 +592,11 @@ void WorkflowTest::FileSystemWorkflowTest(){
 
     auto noneFlags = OpenFlags::None;
 
-    Pipeline fsPipe = MkDir( fs )( newDirUrl, MkDirFlags::None, Access::None ) >> mkDirHandler
-                    | Locate( fs )( newDirUrl, noneFlags ) >> locateHandler
-                    | Mv( fs )( newDirUrl, destDirUrl ) >> moveHandler
-                    | Locate( fs )( destDirUrl, OpenFlags::Refresh ) >> secondLocateHandler
-                    | RmDir( fs )( destDirUrl ) >> removeHandler;
+    Pipeline fsPipe = MkDir( fs, newDirUrl, MkDirFlags::None, Access::None ) >> mkDirHandler
+                    | Locate( fs, newDirUrl, noneFlags ) >> locateHandler
+                    | Mv( fs, newDirUrl, destDirUrl ) >> moveHandler
+                    | Locate( fs, destDirUrl, OpenFlags::Refresh ) >> secondLocateHandler
+                    | RmDir( fs, destDirUrl ) >> removeHandler;
 
     Pipeline pipe( std::move( fsPipe) );
 
@@ -657,25 +657,25 @@ void WorkflowTest::MixedWorkflowTest(){
     std::vector<Pipeline> fileWorkflows;
     for( size_t i = 0; i < nbFiles; ++i )
     {
-      auto &&operation = Open( file[i] )( url[i], flags )
-                       | Write( file[i] )( 0, length[i], text[i] )
-                       | Sync( file[i] )()
-                       | Stat( file[i] )( true ) >> [size, buffer, i]( XRootDStatus &status, StatInfo &info )
+      auto &&operation = Open( file[i], url[i], flags )
+                       | Write( file[i], 0, length[i], text[i] )
+                       | Sync( file[i] )
+                       | Stat( file[i], true ) >> [size, buffer, i]( XRootDStatus &status, StatInfo &info )
                            {
                              CPPUNIT_ASSERT_XRDST( status );
                              size[i] = info.GetSize();
                              buffer[i] = new char[*size[i]];
                            }
-                       | Read( file[i] )( 0, size[i], buffer[i] ) >> ftr[i]
-                       | Close( file[i] )();
+                       | Read( file[i], 0, size[i], buffer[i] ) >> ftr[i]
+                       | Close( file[i] );
       fileWorkflows.emplace_back( operation );
     }
 
-    Pipeline pipe = MkDir( fs )( dirPath, MkDirFlags::None, Access::None ) >> []( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); }
+    Pipeline pipe = MkDir( fs, dirPath, MkDirFlags::None, Access::None ) >> []( XRootDStatus &status ){ CPPUNIT_ASSERT_XRDST( status ); }
                   | Parallel( fileWorkflows )
-                  | Rm( fs )( path[0] )
-                  | Rm( fs )( path[1] )
-                  | DeepLocate( fs )( dirPath, OpenFlags::Refresh ) >> cleaningHandler;
+                  | Rm( fs, path[0] )
+                  | Rm( fs, path[1] )
+                  | DeepLocate( fs, dirPath, OpenFlags::Refresh ) >> cleaningHandler;
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
     CPPUNIT_ASSERT_XRDST( status );
@@ -737,7 +737,7 @@ void WorkflowTest::WorkflowWithFutureTest()
   //----------------------------------------------------------------------------
   File file;
   std::future<ChunkInfo> ftr;
-  Pipeline pipeline = Open( file )( fileUrl, OpenFlags::Read ) | Read( file )( 10*MB, 40*MB, buffer ) >> ftr | Close( file )();
+  Pipeline pipeline = Open( file, fileUrl, OpenFlags::Read ) | Read( file, 10*MB, 40*MB, buffer ) >> ftr | Close( file );
   std::future<XRootDStatus> status = Async( std::move( pipeline ) );
 
   try
