@@ -839,6 +839,7 @@ int main( int argc, char **argv )
     properties.Set( "xcp",            xcp            );
     properties.Set( "xcpBlockSize",   blockSize      );
     properties.Set( "delegate",       delegate       );
+    properties.Set( "targetIsDir",    targetIsDir    );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );

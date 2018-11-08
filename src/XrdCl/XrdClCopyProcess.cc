@@ -294,47 +294,37 @@ namespace XrdCl
       if( target.GetProtocol() != "stdio" )
       {
         // handle directories
-        FileSystem fs( target );
-        StatInfo *infoptr = 0;
-        XRootDStatus st = fs.Stat( target.GetPath(), infoptr );
+        bool targetIsDir;
+        props.Get( "targetIsDir", targetIsDir );
 
-        if( !st.IsOK() )
+        if( targetIsDir )
         {
-          if( st.code != errNotFound && st.errNo != kXR_NotFound )
-            return st;
-        }
-        else
-        {
-          std::unique_ptr<StatInfo> info( infoptr );
-          if( info->TestFlags( StatInfo::IsDir) )
+          std::string path = target.GetPath() + '/';
+          std::string fn;
+
+          bool isZip = false;
+          props.Get( "zipArchive", isZip );
+          if( isZip )
           {
-            std::string path = target.GetPath() + '/';
-            std::string fn;
-
-            bool isZip = false;
-            props.Get( "zipArchive", isZip );
-            if( isZip )
-            {
-              props.Get( "zipSource", fn );
-            }
-            else if( source.IsMetalink() )
-            {
-              RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
-              VirtualRedirector *redirector = registry.Get( source );
-              fn = redirector->GetTargetName();
-            }
-            else
-            {
-              fn = source.GetPath();
-            }
-
-            size_t pos = fn.rfind( '/' );
-            if( pos != std::string::npos )
-              fn = fn.substr( pos + 1 );
-            path += fn;
-            target.SetPath( path );
-            props.Set( "target", target.GetURL() );
+            props.Get( "zipSource", fn );
           }
+          else if( source.IsMetalink() )
+          {
+            RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
+            VirtualRedirector *redirector = registry.Get( source );
+            fn = redirector->GetTargetName();
+          }
+          else
+          {
+            fn = source.GetPath();
+          }
+
+          size_t pos = fn.rfind( '/' );
+          if( pos != std::string::npos )
+            fn = fn.substr( pos + 1 );
+          path += fn;
+          target.SetPath( path );
+          props.Set( "target", target.GetURL() );
         }
       }
 
