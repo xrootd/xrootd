@@ -227,7 +227,13 @@ namespace XrdCl
       while( leftToBeRead )
       {
         int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
-        if( status <= 0 )
+
+        // if the server shut down the socket declare a socket error (it
+        // will trigger a re-connect)
+        if( status == 0 )
+          return Status( stError, errSocketError, errno );
+
+        if( status < 0 )
           return ClassifyErrno( errno );
 
         leftToBeRead -= status;
@@ -263,7 +269,13 @@ namespace XrdCl
     while( leftToBeRead )
     {
       int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
-      if( status <= 0 )
+
+      // if the server shut down the socket declare a socket error (it
+      // will trigger a re-connect)
+      if( status == 0 )
+        return Status( stError, errSocketError, errno );
+
+      if( status < 0 )
         return ClassifyErrno( errno );
 
       leftToBeRead -= status;
