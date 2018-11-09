@@ -13,6 +13,8 @@ xrdcp - copy files
 [\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
 [\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR] [\fB--verbose\fR]
 [\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
+[\fB--dynamic-src\fR] [\fB--infiles\fR \fIfn\fR] [\fB--path\fR]
+[\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -97,8 +99,6 @@ neither produces summary information nor displays the progress bar.
 .RE
 \fB-y\fR | \fB--sources\fR \fInum\fR
 .RS 5
-[NOT YET IMPLEMENTED]
-
 uses up to \fInum\fR sources to copy the file.
 
 .RE
@@ -132,7 +132,7 @@ displays summary output.
 displays version information and immediately exits.
 
 .RE
-\fB-z\fR | \fB--zip\fR
+\fB-z\fR | \fB--zip\fR \fIfile\fR
 .RS 5
 copy given file from a ZIP archive (same as xrdcl.unzip opaque info).
 
@@ -145,6 +145,31 @@ limits the copy speed to the specified \fIrate\fB. The rate may be qualified
 with the letter \fBk\fR, \fBm\fR, or \fBg\fR to indicate kilo, mega, or giga
 bytes, respectively. The option only applies when the source or destination is
 local.
+
+.RE
+\fB-Z\fR | \fB--dynamic-src\fR
+.RS 5
+file size may change during the copy
+
+.RE
+\fB-I\fR | \fB--infiles\fR \fIfn\fR
+.RS 5
+specifies the file that contains a list of input files
+
+.RE
+\fB-p\fR | \fB--path\fR
+.RS 5
+automatically create remote destination path
+
+.RE
+\fB--parallel\fR \fIn\fR
+.RS 5
+number of copy jobs to be run simultaneously
+
+.RE
+\fB--allow-http\fR
+.RS 5
+allow HTTP as source or destination protocol. Requires the XrdClHttp client plugin
 
 .SH LEGACY OPTIONS
 Legacy options are provided for backward compatability. These are now
