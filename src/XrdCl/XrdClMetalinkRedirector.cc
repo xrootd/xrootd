@@ -68,8 +68,7 @@ namespace XrdCl
       //----------------------------------------------------------------------------
       // Handle the response
       //----------------------------------------------------------------------------
-      virtual void HandleResponseWithHosts( XRootDStatus *status,
-          AnyObject *response, HostList *hostList )
+      virtual void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
         try
         {
@@ -102,9 +101,8 @@ namespace XrdCl
               delete mrh;
               throw new XRootDStatus( st );
             }
-            // clean up
-            DeallocArgs( 0, response, hostList );
-          } else // we have the whole metalink file
+          }
+          else // we have the whole metalink file
           {
             // we don't need the File object anymore
             delete pRedirector->pFile;
@@ -115,20 +113,20 @@ namespace XrdCl
             pRedirector->FinalizeInitialization();
             // we are done, pass the status to the user (whatever it is)
             if( pUserHandler )
-              pUserHandler->HandleResponseWithHosts( new XRootDStatus( st ),
-                  response, hostList );
-            else
-              DeallocArgs( 0, response, hostList );
+              pUserHandler->HandleResponse( new XRootDStatus( st ), 0 );
           }
-        } catch( XRootDStatus *status )
+          // clean up
+          delete response;
+        }
+        catch( XRootDStatus *status )
         {
           pRedirector->FinalizeInitialization( *status );
           // if we were not able to read from the metalink,
           // propagate the error to the user handler
           if( pUserHandler )
-            pUserHandler->HandleResponseWithHosts( status, response, hostList );
+            pUserHandler->HandleResponse( status, 0 );
           else
-            DeallocArgs( status, response, hostList );
+            DeallocArgs( status, response, 0 );
         }
 
         delete this;
