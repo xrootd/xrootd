@@ -304,7 +304,7 @@ namespace XrdCl
       if( target.GetProtocol() != "stdio" )
       {
         // handle directories
-        bool targetIsDir;
+        bool targetIsDir = false;
         props.Get( "targetIsDir", targetIsDir );
 
         if( targetIsDir )
