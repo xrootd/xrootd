@@ -277,6 +277,16 @@ namespace XrdCl
       if( !source.IsValid() )
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid source" );
 
+      //--------------------------------------------------------------------------
+      // Create a virtual redirector if it is a Metalink file
+      //--------------------------------------------------------------------------
+      if( source.IsMetalink() )
+      {
+        RedirectorRegistry &registry = RedirectorRegistry::Instance();
+        XRootDStatus st = registry.RegisterAndWait( source );
+        if( !st.IsOK() ) return st;
+      }
+
       // handle UNZIP CGI
       const URL::ParamsMap &cgi = source.GetParams();
       URL::ParamsMap::const_iterator itr = cgi.find( "xrdcl.unzip" );
@@ -468,7 +478,16 @@ namespace XrdCl
   {
     std::vector<CopyJob*>::iterator itJ;
     for( itJ = pJobs.begin(); itJ != pJobs.end(); ++itJ )
-      delete *itJ;
+    {
+      CopyJob *job = *itJ;
+      URL src = job->GetSource();
+      if( src.IsMetalink() )
+      {
+        RedirectorRegistry &registry = RedirectorRegistry::Instance();
+        registry.Release( src );
+      }
+      delete job;
+    }
     pJobs.clear();
   }
 }

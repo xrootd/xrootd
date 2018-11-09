@@ -2140,7 +2140,7 @@ namespace XrdCl
 
   //------------------------------------------------------------------------
   // Check if for given request and Metalink redirector  it is OK to omit
-  // the kXR_wait and proceed stright to the next entry in the Metalink file
+  // the kXR_wait and proceed straight to the next entry in the Metalink file
   //------------------------------------------------------------------------
   bool XRootDMsgHandler::OmitWait( Message *request, const URL &url )
   {

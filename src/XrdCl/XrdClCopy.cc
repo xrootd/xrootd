@@ -30,7 +30,6 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClDlgEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -785,24 +784,6 @@ int main( int argc, char **argv )
     log->Dump( AppMsg, "Processing source entry: %s, type %s, target file: %s",
                sourceFile->Path, FileType2String( sourceFile->Protocol ),
                dest.c_str() );
-
-    //--------------------------------------------------------------------------
-    // Create a virtual redirector if it is a metalink file
-    //--------------------------------------------------------------------------
-    URL src( source );
-    if( src.IsMetalink() )
-    {
-      RedirectorRegistry &registry = RedirectorRegistry::Instance();
-      XRootDStatus st = registry.RegisterAndWait( src );
-      if( !st.IsOK() )
-      {
-        std::cerr << "RedirectorRegistry::Register " << source << " -> " << dest << ": ";
-        std::cerr << st.ToStr() << std::endl;
-        resultVect.push_back( results );
-        sourceFile = sourceFile->Next;
-        continue;
-      }
-    }
 
     //--------------------------------------------------------------------------
     // Set up the job
