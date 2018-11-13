@@ -65,8 +65,9 @@ XrdOucEnv::XrdOucEnv(const char *vardata, int varlen,
         {while(*vdp == '&') vdp++;
          varname = vdp;
 
-         while(*vdp && *vdp != '=') vdp++;  // &....=
+         while(*vdp && *vdp != '=' && *vdp != '&') vdp++;  // &....=
          if (!*vdp) break;
+         if (*vdp == '&') continue;
          *vdp = '\0';
          varvalu = ++vdp;
 
