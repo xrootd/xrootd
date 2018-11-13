@@ -703,18 +703,18 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
   
 int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
 {
-   XrdOucErrInfo myInfo("CheckSum");
    int rc, ecode;
 
-// The arguments must have <name> <cstype> <path> (i.e. argc >= 3)
+// The arguments must have <name> <cstype> <path> <tident> (i.e. argc >= 4)
 //
-   if (argc < 3)
+   if (argc < 4)
       {Stream->PutLine("Internal error; not enough checksum args!");
        return 8;
       }
 
 // Issue the checksum calculation (that's all we do here).
 //
+   XrdOucErrInfo myInfo(argv[3]);
    rc = osFS->chksum(XrdSfsFileSystem::csCalc, argv[1], argv[2], myInfo);
 
 // Return result regardless of what it is

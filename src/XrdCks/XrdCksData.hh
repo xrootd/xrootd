@@ -32,6 +32,8 @@
 
 #include <string.h>
 
+class XrdOucEnv;
+
 class XrdCksData
 {
 public:
@@ -40,7 +42,11 @@ static const int NameSize = 16; // Max name  length is NameSize - 1
 static const int ValuSize = 64; // Max value length is 512 bits
 
 char      Name[NameSize];       // Checksum algorithm name
+union    {
 long long fmTime;               // File's mtime when checksum was computed.
+const
+char     *tident;               // Set for get & calc only if proxy server!
+         };
 int       csTime;               // Delta from fmTime when checksum was computed.
 short     Rsvd1;                // Reserved field
 char      Rsvd2;                // Reserved field

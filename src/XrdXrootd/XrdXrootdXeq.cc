@@ -27,6 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/time.h>
@@ -385,7 +386,7 @@ int XrdXrootdProtocol::do_Chmod()
 int XrdXrootdProtocol::do_CKsum(int canit)
 {
    char *opaque;
-   char *algT = JobCKT, *args[4];
+   char *algT = JobCKT, *args[5];
    int rc;
 
 // Check for static routing
@@ -441,7 +442,8 @@ int XrdXrootdProtocol::do_CKsum(int canit)
       {args[0] = algT;
        args[1] = algT;
        args[2] = argp->buff;
-       args[3] = 0;
+       args[3] = const_cast<char *>(Client->tident);
+       args[4] = 0;
       } else {
        args[0] = algT;
        args[1] = argp->buff;
@@ -874,6 +876,7 @@ int XrdXrootdProtocol::do_Login()
       {if (Request.login.username[i] == '\0' ||
            Request.login.username[i] == ' ') break;
        uname[i] = Request.login.username[i];
+       if (!isalnum(uname[i])) uname[i] = '_';
       }
    uname[i] = '\0';
 

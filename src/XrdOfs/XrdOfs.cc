@@ -161,7 +161,6 @@ XrdOfs::XrdOfs()
 //
    Cks       = 0;
    CksPfn    = true;
-   CksPfn    = true;
    CksRdr    = true;
 }
   
@@ -1370,6 +1369,13 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 //
    if (CksPfn && !(Path = XrdOfsOss->Lfn2Pfn(Path, buff, MAXPATHLEN, rc)))
       return Emsg(epname, einfo, rc, "checksum", Path);
+
+// If this is a proxy server then we may need to pass a pointer to the env
+//
+   if (OssIsProxy)
+      {if (Func == XrdSfsFileSystem::csGet || Func == XrdSfsFileSystem::csCalc)
+          cksData.tident = tident;
+      }
 
 // Now determine what to do
 //

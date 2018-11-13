@@ -380,7 +380,7 @@ void XrdXrootdJob2Do::sendResult(char *lp, int caned, int jrc)
 
 // Format the message to be sent
 //
-   if (!caned)
+   if (!caned && lp)
       {jobStat = kXR_ok; trc = "ok";
        if (theArgs[0])
           {        jobVec[n].iov_base = theArgs[0];                 // 1

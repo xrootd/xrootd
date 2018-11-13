@@ -25,11 +25,12 @@ add_library(
   XrdPss/XrdPssAioCB.cc      XrdPss/XrdPssAioCB.hh
   XrdPss/XrdPss.cc           XrdPss/XrdPss.hh
   XrdPss/XrdPssCks.cc        XrdPss/XrdPssCks.hh
-  XrdPss/XrdPssConfig.cc )
+  XrdPss/XrdPssConfig.cc
+                             XrdPss/XrdPssTrace.hh
+  XrdPss/XrdPssUrlInfo.cc    XrdPss/XrdPssUrlInfo.hh )
 
 target_link_libraries(
   ${LIB_XRD_PSS}
-  XrdFfs
   XrdPosix
   XrdUtils )
 

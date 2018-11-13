@@ -315,8 +315,12 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       } else if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
 
 // If the OSS plugin is really a proxy. If it is, it will export its origin.
+// We also suppress translating lfn to pfn (usually done via osslib +cksio).
 //
-   if (getenv("XRDXROOTD_PROXY")) OssIsProxy = 1;
+   if (getenv("XRDXROOTD_PROXY"))
+      {OssIsProxy = 1;
+       CksPfn = false;
+      }
 
 // Setup statistical monitoring
 //

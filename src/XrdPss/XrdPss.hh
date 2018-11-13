@@ -110,9 +110,10 @@ const char *tident;
   
 class XrdNetSecurity;
 class XrdOucEnv;
-class XrdSysError;
 class XrdOucStream;
 class XrdOucTList;
+class XrdPssUrlInfo;
+class XrdSysError;
 
 struct XrdVersionInfo;
 
@@ -143,27 +144,17 @@ int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0);
 static const int    PolNum = 2;
 enum   PolAct {PolPath = 0, PolObj = 1};
 
-static
-const  char *P2CGI(int &cgilen, char *cbuff, int cblen,
-                   const char *Cgi1, const char *Cgi2);
 static int   P2DST(int &retc, char *hBuff, int hBlen, PolAct pType,
                    const char *path);
-static char *P2ID (XrdOucSid::theSid *idVal, char *idBuff, int idBsz);
-static char *P2OUT(int &retc,  char *pbuff, int pblen,
-                   const char *path, const char *Cgi, const char *Ident);
-static char *P2URL(int &retc, char *pbuff, int pblen,
-                   const char *path,       int Split=0,
-                   const char *Cgi=0,      int CgiLn=0,
-                   const char *tIdent=0,  bool doN2N=true);
-static int   T2UID(const char *Ident);
+static int   P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo);
+static int   P2URL(char *pbuff, int pblen, XrdPssUrlInfo &uInfo,
+                   bool doN2N=true);
 static
 const  char *valProt(const char *pname, int &plen, int adj=0);
 
 static const char  *ConfigFN;       // -> Pointer to the config file name
 static const char  *myHost;
 static const char  *myName;
-static uid_t        myUid;
-static gid_t        myGid;
 static
 XrdOucPListAnchor   XPList;        // Exported path list
 
@@ -174,7 +165,6 @@ static const char  *urlPlain;
 static int          urlPlen;
 static int          hdrLen;
 static const char  *hdrData;
-static const char  *urlRdr;
 static int          Streams;
 static int          Workers;
 static int          Trace;

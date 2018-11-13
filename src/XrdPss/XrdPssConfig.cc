@@ -40,15 +40,12 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdFfs/XrdFfsDent.hh"
-#include "XrdFfs/XrdFfsMisc.hh"
-#include "XrdFfs/XrdFfsQueue.hh"
-
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 
 #include "XrdPss/XrdPss.hh"
+#include "XrdPss/XrdPssTrace.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -84,6 +81,8 @@
 #define TS_PSX(x,m)    if (!strcmp(x,var)) \
                           return (psxConfig->m(&eDest, Config) ? 0 : 1);
 
+#define TS_DBG(x,m)    if (!strcmp(x,var)) {SysTrace.What |= m; return 0;}
+
 /*******x**********************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
@@ -91,8 +90,6 @@
 const char  *XrdPssSys::ConfigFN;       // -> Pointer to the config file name
 const char  *XrdPssSys::myHost;
 const char  *XrdPssSys::myName;
-uid_t        XrdPssSys::myUid     =  geteuid();
-gid_t        XrdPssSys::myGid     =  getegid();
 
 XrdOucPListAnchor XrdPssSys::XPList;
 
@@ -104,7 +101,6 @@ const char  *XrdPssSys::urlPlain  =  0;
 int          XrdPssSys::urlPlen   =  0;
 int          XrdPssSys::hdrLen    =  0;
 const char  *XrdPssSys::hdrData   =  0;
-const char  *XrdPssSys::urlRdr    =  0;
 int          XrdPssSys::Streams   =512;
 int          XrdPssSys::Workers   = 16;
 
@@ -129,6 +125,8 @@ extern XrdSysError      eDest;
 
 extern XrdOucSid       *sidP;
 
+extern XrdSysTrace      SysTrace;
+
 static const int maxHLen = 1024;
 }
 
@@ -138,30 +136,6 @@ XrdOucPsx *psxConfig;
 }
 
 using namespace XrdProxy;
-  
-/******************************************************************************/
-/*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
-/******************************************************************************/
-
-void *XrdPssConfigFfs(void *carg)
-{
-   XrdPssSys *myPSS = (XrdPssSys *)carg;
-
-// Initialize the Ffs (we don't use xrd_init() as it messes up the settings
-// We also do not initialize secsss as we don't know how to effectively use it.
-//
-// XrdFfsMisc_xrd_secsss_init();
-   XrdFfsMisc_refresh_url_cache(myPSS->urlRdr);
-   XrdFfsDent_cache_init();
-   XrdFfsQueue_create_workers(myPSS->Workers);
-
-// Tell everyone waiting for this initialization to complete. We use the trick
-// that in all systems a caharcter is atomically accessed and a single change
-// in value will be detected in a consistent way.
-//
-   myPSS->cfgDone = 1;
-   return (void *)0;
-}
 
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
@@ -184,9 +158,7 @@ int XrdPssSys::Configure(const char *cfn)
                                                  {" tr", &allTrunc},
                                                  {0,     0        }
                                                 };
-   const char *xP;
    XrdOucPList *fP;
-   pthread_t tid;
    char *eP, theRdr[maxHLen+1024];
    int i, hpLen, NoGo = 0;
    bool haveFwd = false;
@@ -264,8 +236,7 @@ int XrdPssSys::Configure(const char *cfn)
    delete psxConfig;
 
 // Allocate an Xroot proxy object (only one needed here). Tell it to not
-// shadow open files with real file descriptors (we will be honest). This can
-// be done before we initialize the ffs.
+// shadow open files with real file descriptors (we will be honest).
 //
    Xroot = new XrdPosixXrootd(-32768, 16384);
 
@@ -292,8 +263,8 @@ int XrdPssSys::Configure(const char *cfn)
       {if (!ManList) strcpy(theRdr, "=");
           else sprintf(theRdr, "= %s:%d", ManList->text, ManList->val);
        XrdOucEnv::Export("XRDXROOTD_PROXY", theRdr);
-       if (ManList)
-          {hdrLen = sprintf(theRdr, "%s%%s%s:%d/%%s%%s%%s",
+       if (ManList)               //<prot><id>@<host>:<port>/<path>
+          {hdrLen = sprintf(theRdr, "%s%%s%s:%d/%%s",
                             protName, ManList->text, ManList->val);
            hdrData = strdup(theRdr);
           }
@@ -306,15 +277,14 @@ int XrdPssSys::Configure(const char *cfn)
 
 // Create a plain url for future use
 //
-   urlPlen = sprintf(theRdr, hdrData, "", "", "", "", "", "", "", "");
+   urlPlen = sprintf(theRdr, hdrData, "", "");
    urlPlain= strdup(theRdr);
 
-// Export the origin
+// Export the origin (we use two variable names for backward compatability)
 //
    theRdr[urlPlen-1] = 0;
    XrdOucEnv::Export("XRDXROOTD_PROXY",  theRdr+hpLen);
    XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr+hpLen);
-   theRdr[urlPlen-1] = '/';
 
 // Copy out the forwarding that might be happening via the ofs
 //
@@ -325,20 +295,8 @@ int XrdPssSys::Configure(const char *cfn)
             i++;
            }
 
-// We would really like that the Ffs interface use the generic method of
-// keeping track of data servers. It does not and it even can't handle more
-// than one export (really). But it does mean we need to give it a valid one.
-//
-   if (!(eP = getenv("XRDEXPORTS")) || *eP != '/') xP = "/tmp";
-      else if ((xP = rindex(eP, ' '))) xP++;
-              else xP = eP;
-
-// Setup the redirection url
-//
-   strcpy(&theRdr[urlPlen], xP); urlRdr = strdup(theRdr);
-
 // Check if we have any r/w exports as this will determine whether or not we
-// need to initialize the ffs (we'd rather not if at all possible).
+// need to initialize any r/w cache.
 //
    fP = XPList.First();
    while(fP && !(fP->Flag() & XRDEXP_NOTRW)) fP = fP->Next();
@@ -348,10 +306,9 @@ int XrdPssSys::Configure(const char *cfn)
 //
    if (!fP || !haveFwd) return 0;
 
-// Now spwan a thread to complete ffs initialization which may hang for a while
+// Here we used to initialize the FFS, in the future we will do our own
+// simplified implementation as FFs was way too heavy weight.
 //
-   if (XrdSysThread::Run(&tid, XrdPssConfigFfs, (void *)this, 0, "Ffs Config"))
-      {eDest.Emsg("Config", errno, "start ffs configurator"); return 1;}
 
 // All done
 //
@@ -464,6 +421,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_PSX("ciosync",       ParseCio);
    TS_Xeq("config",        xconf);
    TS_Xeq("defaults",      xdef);
+   TS_DBG("debug",         TRACEPSS_Debug);
    TS_Xeq("export",        xexp);
    TS_PSX("inetmode",      ParseINet);
    TS_Xeq("origin",        xorig);
