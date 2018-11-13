@@ -112,6 +112,7 @@ int XrdPssCks::Get(const char *Pfn, XrdCksData &Cks)
 // Construct the cgi for digest type
 //
    n = snprintf(cgiBuff, sizeof(cgiBuff), "cks.type=%s", Cks.Name);
+   if (n >= (int)sizeof(cgiBuff)) return -ENAMETOOLONG;
 
 // Construct the correct url info
 //
