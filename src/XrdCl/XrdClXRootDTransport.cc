@@ -1418,7 +1418,10 @@ namespace XrdCl
 
     if( rsp->hdr.dlen > 8 )
     {
-      info->protRespBody = new ServerResponseBody_Protocol( rsp->body.protocol );
+      info->protRespBody = new ServerResponseBody_Protocol();
+      info->protRespBody->flags = rsp->body.protocol.flags;
+      info->protRespBody->pval  = rsp->body.protocol.pval;
+      memcpy( &info->protRespBody->secreq, &rsp->body.protocol.secreq, rsp->hdr.dlen - 8 );
       info->protRespSize = rsp->hdr.dlen;
     }
 
