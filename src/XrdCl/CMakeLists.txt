@@ -163,9 +163,18 @@ install(
     XrdClPropertyList.hh
     XrdClFileSystemUtils.hh
     XrdClLog.hh
-#    XrdClOperations.hh
-#    XrdClOperationArgs.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
+  
+install(
+  FILES
+    XrdClOperations.hh
+    XrdClOperationHandlers.hh
+    XrdClArg.hh
+    XrdClFwd.hh
+	XrdClParallelOperation.hh
+	XrdClFileOperations.hh
+	XrdClFileSystemOperations.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private )
 
 install(
   FILES
