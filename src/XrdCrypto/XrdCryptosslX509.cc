@@ -1093,7 +1093,7 @@ err:
 }
 
 //____________________________________________________________________________
-bool XrdCryptosslX509::MatchesSAN(const char *fqdn)
+bool XrdCryptosslX509::MatchesSAN(const char *fqdn, bool &hasSAN)
 {
    EPNAME("MatchesSAN");
 
@@ -1101,16 +1101,23 @@ bool XrdCryptosslX509::MatchesSAN(const char *fqdn)
    // valid lengths to 255 characters.
    char san_fqdn[256];
 
-   if (!fqdn)
+   // Assume we have no SAN extension. Failure may allow the caller to try
+   // using the common name before giving up.
+   hasSAN = false;
+
+   GENERAL_NAMES *gens = static_cast<GENERAL_NAMES *>(X509_get_ext_d2i(cert,
+      NID_subject_alt_name, NULL, NULL));
+   if (!gens)
       return false;
 
    // Only an EEC is usable as a host certificate.
    if (type != kEEC)
       return false;
 
-   GENERAL_NAMES *gens = static_cast<GENERAL_NAMES *>(X509_get_ext_d2i(cert,
-      NID_subject_alt_name, NULL, NULL));
-   if (!gens)
+   // All failures are under the notion that we have a SAN extension.
+   hasSAN = true;
+
+   if (!fqdn)
       return false;
 
    bool success = false;

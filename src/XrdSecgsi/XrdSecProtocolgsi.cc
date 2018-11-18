@@ -38,6 +38,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <iostream>
 
 #include "XrdVersion.hh"
 
@@ -337,6 +338,8 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    } else {
       // We have been told via environment variable to not trust DNS; use the exact
       // hostname provided by the user.
+//    char dnBuff[256];
+//    getdomainname(dnBuff, sizeof(dnBuff));
       Entity.host = strdup(hname);
       expectedHost = strdup(hname);
    }
@@ -1441,6 +1444,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    // Parse input buffer
    if (ParseClientInput(bpar, &bmai, Emsg) == -1) {
       DEBUG(Emsg<<" CF: "<<sessionCF);
+      std::cerr <<"secgsi: " <<Emsg <<'\n' <<std::flush;
       return ErrC(ei,bpar,bmai,0,kGSErrParseBuffer,Emsg.c_str(),stepstr);
    }
    // Dump, if requested
@@ -3120,21 +3124,74 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       return -1;
    }
    //
-   // Verify server identity
+   // Verify server identity using RFC2818 method
+   //
+   
+   // First we check the SAN. If the check succeeds then we are all done.
+   // Otherwise, if there is no SAN extension or if trustDNS is in effect,
+   // we check if the common name matches.
+   //
+   DEBUG("Checking cert is for host " <<Entity.host);
+
+   bool hasSAN, usedDNS = false;
+   const char *wantHost = (Entity.host ? Entity.host : "");
+
+   if (!hs->Chain->End()->MatchesSAN(Entity.host, hasSAN))
+      {if (hasSAN && !TrustDNS)
+          {emsg = "Unable to verify server hostname '"; emsg += wantHost;
+           emsg+= "' using SAN extension; common name fallback disallowed.";
+           return -1;
+          }
+       // If the common name check fails, TrustDNS allows fallback
+       if (!ServerCertNameOK(hs->Chain->End()->Subject(),Entity.host,emsg))
+          {if (!TrustDNS || Entity.addrInfo == 0 || expectedHost)
+              {emsg = "Unable to verify server hostname '"; emsg += wantHost;
+               emsg+= "' using common name; DNS fallback prohibited.";
+               return -1;
+              } 
+           // Use DNS to resolve possible alias name
+           const char *name = Entity.addrInfo->Name();
+           if (name == NULL)
+              {emsg = "Unable to verify server hostname '"; emsg += wantHost;
+               emsg+= "'; DNS fallback translation failed.";
+               return -1;
+              }
+           DEBUG("TrustDNS: checking if cert is for host " <<name);
+           usedDNS = true;
+           bool hostOK = ServerCertNameOK(hs->Chain->End()->Subject(),name,emsg)
+                      || (hasSAN && !hs->Chain->End()->MatchesSAN(name,hasSAN));
+           if (!hostOK) return -1;
+          }
+      }
+
+   // If we used the DNS then we must prohibit proxy delegation of any kind
+   //
+   if (usedDNS)
+      {if (hs->Options & (kOptsFwdPxy | kOptsSigReq))
+          {hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
+           std::cerr <<"secgsi: proxy delegation forbidden when trusting DNS!\n"
+                     <<std::flush;
+          }
+      }
+/* Below is the original SAN checking code that didn't follow the RFC!
+
    // First, check the DN against the client-provided hostname.
    // On failure, we will iterate through the alternate names in the cert.
    // If that fails, we will do a reverse DNS lookup of the IP address.
    if (!ServerCertNameOK(hs->Chain->End()->Subject(), Entity.host, emsg) &&
-       !hs->Chain->End()->MatchesSAN(Entity.host)) {
+       !hs->Chain->End()->MatchesSAN(Entity.host, hasSAN)) {
       if ((expectedHost == NULL) && TrustDNS && Entity.addrInfo) {
          const char *name = Entity.addrInfo->Name();
-         expectedHost = strdup(name);
-         if ((name == NULL) || !ServerCertNameOK(hs->Chain->End()->Subject(), expectedHost, emsg)) {
+         DEBUG("TrustDNS fallback; checking cert is for host "
+               <<(name ? name : "???"));
+         if ((name == NULL)
+         || !ServerCertNameOK(hs->Chain->End()->Subject(), name, emsg)) {
                return -1;
          }
-      }
-      return -1;
+      } else return -1;
    }
+*/
+
    //
    // Extract the server key
    sessionKver = sessionCF->RSA(*(hs->Chain->End()->PKI()));

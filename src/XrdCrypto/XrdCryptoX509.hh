@@ -104,8 +104,8 @@ public:
    const char *SubjectHash() { return SubjectHash(0); }  // hash 
 
    // Returns true if the certificate has a subject alt name which matches
-   // the given hostnem.
-   virtual bool MatchesSAN(const char * fqdn) = 0;
+   // the given hostnem. If it fals and hasSAN is false, there is no SAN extn.
+   virtual bool MatchesSAN(const char * fqdn, bool &hasSAN) = 0;
 
    // Retrieve a given extension if there (in opaque form) 
    virtual XrdCryptoX509data GetExtension(const char *oid);
