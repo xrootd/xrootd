@@ -1761,7 +1761,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( !credentials )
         {
-          log->Debug( XRootDTransportMsg,
+//        log->Debug( XRootDTransportMsg,
+          log->Error( XRootDTransportMsg,
                       "[%s] Auth protocol handler for %s refuses to give "
                       "us more credentials %s",
                       hsData->streamName.c_str(), protocolName.c_str(),
