@@ -97,25 +97,15 @@ XrdNetSecurity   *XrdPssSys::Police[XrdPssSys::PolNum] = {0, 0};
 
 XrdOucTList *XrdPssSys::ManList   =  0;
 const char  *XrdPssSys::protName  =  "root:";
-const char  *XrdPssSys::urlPlain  =  0;
-int          XrdPssSys::urlPlen   =  0;
+const char  *XrdPssSys::hdrData   =  "";
 int          XrdPssSys::hdrLen    =  0;
-const char  *XrdPssSys::hdrData   =  0;
 int          XrdPssSys::Streams   =512;
 int          XrdPssSys::Workers   = 16;
-
-char         XrdPssSys::allChmod  =  0;
-char         XrdPssSys::allMkdir  =  0;
-char         XrdPssSys::allMv     =  0;
-char         XrdPssSys::allRm     =  0;
-char         XrdPssSys::allRmdir  =  0;
-char         XrdPssSys::allTrunc  =  0;
+int          XrdPssSys::Trace     =  0;
 
 bool         XrdPssSys::outProxy  = false;
 bool         XrdPssSys::pfxProxy  = false;
 bool         XrdPssSys::xLfn2Pfn  = false;
-
-char         XrdPssSys::cfgDone   =  0;
 
 namespace XrdProxy
 {
@@ -150,18 +140,8 @@ int XrdPssSys::Configure(const char *cfn)
 
   Output:   0 upon success or !0 otherwise.
 */
-   struct {const char *Typ; char *Loc;} Fwd[] = {{" ch", &allChmod},
-                                                 {" mk", &allMkdir},
-                                                 {" mv", &allMv   },
-                                                 {" rd", &allRmdir},
-                                                 {" rm", &allRm   },
-                                                 {" tr", &allTrunc},
-                                                 {0,     0        }
-                                                };
-   XrdOucPList *fP;
-   char *eP, theRdr[maxHLen+1024];
-   int i, hpLen, NoGo = 0;
-   bool haveFwd = false;
+   char theRdr[maxHLen];
+   int NoGo = 0;
 
 // Get environmental values
 //
@@ -257,58 +237,29 @@ int XrdPssSys::Configure(const char *cfn)
        return 1;
       }
 
-// If this is an outgoing proxy then we are done
+// Construct the redirector name:port (we might not have one) export it
 //
-   if (outProxy)
-      {if (!ManList) strcpy(theRdr, "=");
-          else sprintf(theRdr, "= %s:%d", ManList->text, ManList->val);
-       XrdOucEnv::Export("XRDXROOTD_PROXY", theRdr);
-       if (ManList)               //<prot><id>@<host>:<port>/<path>
-          {hdrLen = sprintf(theRdr, "%s%%s%s:%d/%%s",
-                            protName, ManList->text, ManList->val);
-           hdrData = strdup(theRdr);
-          }
-       return 0;
+   const char *outeq = (outProxy ? "= " : "");
+   if (ManList) sprintf(theRdr, "%s%s:%d", outeq, ManList->text, ManList->val);
+      else strcpy(theRdr, outeq);
+   XrdOucEnv::Export("XRDXROOTD_PROXY",  theRdr);
+   XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr); // Backward compatability
+
+// Construct the contact URL header
+//
+   if (ManList)               //<prot><id>@<host>:<port>/<path>
+      {hdrLen = sprintf(theRdr, "%s%%s%s:%d/%%s",
+                        protName, ManList->text, ManList->val);
+       hdrData = strdup(theRdr);
       }
 
-// Build the URL header
-//
-   if (!(hpLen = buildHdr())) return 1;
-
-// Create a plain url for future use
-//
-   urlPlen = sprintf(theRdr, hdrData, "", "");
-   urlPlain= strdup(theRdr);
-
-// Export the origin (we use two variable names for backward compatability)
-//
-   theRdr[urlPlen-1] = 0;
-   XrdOucEnv::Export("XRDXROOTD_PROXY",  theRdr+hpLen);
-   XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr+hpLen);
-
-// Copy out the forwarding that might be happening via the ofs
-//
-   i = 0;
-   if ((eP = getenv("XRDOFS_FWD")))
-      while(Fwd[i].Typ)
-           {if (!strstr(eP, Fwd[i].Typ)) {*(Fwd[i].Loc) = 1; haveFwd = true;}
-            i++;
-           }
-
 // Check if we have any r/w exports as this will determine whether or not we
-// need to initialize any r/w cache.
+// need to initialize any r/w cache. Currently, we don't support this so we
+// have no particular initialization to do.
 //
-   fP = XPList.First();
-   while(fP && !(fP->Flag() & XRDEXP_NOTRW)) fP = fP->Next();
-
-// We avoid initializing the ffs if we have no r/w paths or there is no need to
-// forward r/w metadata operations (e.g. rm, rmdir, etc).
-//
-   if (!fP || !haveFwd) return 0;
-
-// Here we used to initialize the FFS, in the future we will do our own
-// simplified implementation as FFs was way too heavy weight.
-//
+// XrdOucPList *fP = XPList.First();
+// while(fP && !(fP->Flag() & XRDEXP_NOTRW)) fP = fP->Next();
+// if (!fP) . . .
 
 // All done
 //
@@ -318,41 +269,6 @@ int XrdPssSys::Configure(const char *cfn)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
-/******************************************************************************/
-/*                              b u i l d H d r                               */
-/******************************************************************************/
-  
-int XrdPssSys::buildHdr()
-{
-   XrdOucTList *tp = ManList;
-   char buff[maxHLen], *pb;
-   int n, hpLen, bleft = sizeof(buff);
-
-// Fill in start of header
-//
-   strcpy(buff, protName); hpLen = strlen(buff);
-   pb = buff+hpLen; bleft -= hpLen;
-
-// The redirector list must fit into 1K bytes (along with header)
-//
-   while(tp)
-        {n = snprintf(pb, bleft, "%%s%s:%d%c", tp->text, tp->val,
-                                              (tp->next ? ',':'/'));
-         if (n >= bleft) break;
-         pb += n; bleft -= n;
-         tp = tp->next;
-        }
-
-   if (tp)
-      {eDest.Emsg("Config", "Too many proxy service managers specified.");
-       return 0;
-      }
-
-   hdrData = strdup(buff);
-   hdrLen  = strlen(buff);
-   return hpLen;
-}
-
 /******************************************************************************/
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/

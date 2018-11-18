@@ -161,26 +161,15 @@ XrdOucPListAnchor   XPList;        // Exported path list
 static XrdNetSecurity *Police[PolNum];
 static XrdOucTList *ManList;
 static const char  *protName;
-static const char  *urlPlain;
-static int          urlPlen;
-static int          hdrLen;
 static const char  *hdrData;
+static int          hdrLen;
 static int          Streams;
 static int          Workers;
 static int          Trace;
 
 static bool         outProxy; // True means outgoing proxy
 static bool         pfxProxy; // True means outgoing proxy is prefixed
-
-static char         allChmod;
-static char         allMkdir;
-static char         allMv;
-static char         allRmdir;
-static char         allRm;
-static char         allTrunc;
 static bool         xLfn2Pfn;
-
-static char         cfgDone;   // Configuration completed
 
          XrdPssSys();
 virtual ~XrdPssSys() {}
@@ -192,7 +181,6 @@ XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
 XrdVersionInfo    *myVersion;// -> Compilation version
 
-int    buildHdr();
 int    Configure(const char *);
 int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
