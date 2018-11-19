@@ -264,7 +264,7 @@ int XrdPosixXrootd::Close(int fildes)
 // Close the file if there is no active I/O (possible caching). Delete the
 // object if the close was successful (it might not be).
 //
-   if (!fP->Refs() && !(fP->XCio->ioActive()))
+   if (!(fP->XCio->ioActive()) && !fP->Refs())
       {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
           else {DEBUG(Status.ToString().c_str() <<" closing " <<fP->Origin());}
       } else ret = true;

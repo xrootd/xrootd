@@ -33,6 +33,20 @@
 #include "XrdPosix/XrdPosixTrace.hh"
 
 /******************************************************************************/
+/*                               D i s a b l e                                */
+/******************************************************************************/
+  
+void XrdPosixPrepIO::Disable()
+{
+   EPNAME("PrepIODisable");
+   XrdPosixObjGuard objGuard(fileP);
+
+   DEBUG("Disabling defered open "<<fileP->Origin());
+
+   openRC = -ESHUTDOWN;
+}
+  
+/******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
   
@@ -51,13 +65,13 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
        DMSG("Init", iCalls <<" unexpected PrepIO calls!");
       }
 
-// Check if the file is already opened. This caller may be vestigial
-//
-   if (fileP->clFile.IsOpen()) return true;
-
 // Do not try to open the file if there was previous error
 //
    if (openRC) return false;
+
+// Check if the file is already opened. This caller may be vestigial
+//
+   if (fileP->clFile.IsOpen()) return true;
 
 // Open the file. It is too difficult to do an async open here as there is a
 // possible pending async request and doing both is not easy at all.
