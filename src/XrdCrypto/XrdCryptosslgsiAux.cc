@@ -1045,6 +1045,7 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
          // Notify what we added
          int crit = X509_EXTENSION_get_critical(xpiextdup);
          DEBUG("added extension '"<<s<<"', critical: " << crit);
+         X509_EXTENSION_free( xpiextdup );
       }
       // Do not free the extension: its owned by the certificate
       xpiext = 0;
@@ -1116,12 +1117,16 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       PRINT("problem converting data for extension");
       return -kErrPX_Error;
    }
+   PROXY_CERT_INFO_EXTENSION_free( pci );
+
    // Set extension name.
    ASN1_OBJECT *obj = OBJ_txt2obj(gsiProxyCertInfo_OID, 1);
    if (!obj || X509_EXTENSION_set_object(ext, obj) != 1) {
       PRINT("could not set extension name");
       return -kErrPX_SetAttribute;
    }
+   ASN1_OBJECT_free( obj );
+
    // flag as critical
    if (X509_EXTENSION_set_critical(ext, 1) != 1) {
       PRINT("could not set extension critical flag");
@@ -1140,6 +1145,9 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       PRINT("problems signing the certificate");
       return -kErrPX_Signing;
    }
+
+   EVP_PKEY_free( ekpi ); // decrement reference counter
+   X509_EXTENSION_free( ext );
 
    // Prepare outputs
    *xcpo = new XrdCryptosslX509(xpo);

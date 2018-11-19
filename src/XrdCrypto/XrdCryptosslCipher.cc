@@ -525,6 +525,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
             }
             BIO_free(biop);
          }
+         BN_free( bnpub );
       }
       //
       // If a valid key has been computed, set the cipher

@@ -1538,6 +1538,8 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       if (bpar->UpdateBucket(bpub,lpub,kXRS_puk) != 0)
          return ErrC(ei,bpar,bmai,0, kGSErrAddBucket,
                      XrdSutBuckStr(kXRS_puk),"global",stepstr);
+      delete[] bpub; // bpub is being duplicated inside of 'UpdateBucket'
+
       //
       // Add the proxy certificate
       bmai->AddBucket(hs->Cbck);
@@ -3342,6 +3344,8 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
          emsg = "problems signing the request";
          return 0;
       }
+      delete req;
+
       // Send back the signed request as bucket
       if ((bck = npxy->Export())) {
          // Add it to the main list
@@ -3350,6 +3354,7 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
             return 0;
          }
       }
+      delete npxy; // has been allocated in *X509SignProxyReq
    }
 
    //
