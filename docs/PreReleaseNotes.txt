@@ -36,6 +36,7 @@ Prerelease Notes
   * **[Server]** Follow protocol spec when returning file compression info. Fixes #721
 
 + **Miscellaneous**
+  * **[TPC]** Do not take case into account for hostname matching.
   * **[Secgsi]** Implement stricter version of RFC2818 (host name check) for ciient.
   * **[Server]** Do not allow badly formed CGI to pollute subsequent tokens.
   * **[TPC]** Set envars XRD_TRACEID, XRDTPC_SPROT, and XRDTPC_TPROT
