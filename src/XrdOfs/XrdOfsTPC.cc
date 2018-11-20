@@ -124,7 +124,10 @@ int             Match(const XrdSecEntity *Who, const char *Host);
   
 int XrdOfsTPCAllow::Match(const XrdSecEntity *Who, const char *Host)
 {
-   if (theHN && (!Host        || !(theHN->NameOK(Host  )))) return 0;
+// Host name comparisons should be case insensitive. However, DN's and VO's
+// do take case into account.
+//
+   if (theHN && (!Host        || !(theHN->NameKO(Host  )))) return 0;
    if (theDN && (!(Who->name) || strcmp(theDN, Who->name))) return 0;
    if (theVO && (!(Who->vorg) || strcmp(theDN, Who->vorg))) return 0;
    if (!theGN) return 1;

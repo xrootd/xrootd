@@ -44,6 +44,10 @@ public:
 inline int         Flag() {return flags;}
 inline XrdOucNList *Next() {return next;}
 
+       int         NameKO(const char *pd, const int pl);
+inline int         NameKO(const char *pd)
+                         {return NameKO(pd, strlen(pd));}
+
        int         NameOK(const char *pd, const int pl);
 inline int         NameOK(const char *pd)
                          {return NameOK(pd, strlen(pd));}
