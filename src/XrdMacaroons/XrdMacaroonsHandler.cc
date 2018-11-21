@@ -17,6 +17,7 @@
 
 using namespace Macaroons;
 
+
 static
 ssize_t determine_validity(const std::string& input)
 {
@@ -95,6 +96,7 @@ Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
     return result;
 }
 
+
 std::string
 Handler::GenerateActivities(const XrdHttpExtReq & req) const
 {
@@ -109,19 +111,101 @@ Handler::GenerateActivities(const XrdHttpExtReq & req) const
     return result;
 }
 
+
 // See if the macaroon handler is interested in this request.
 // We intercept all POST requests as we will be looking for a particular
 // header.
 bool
 Handler::MatchesPath(const char *verb, const char *path)
 {
-    return !strcmp(verb, "POST");
+    return !strcmp(verb, "POST") || !strncmp(path, "/.well-known/", 13) ||
+           !strncmp(path, "/.oauth2/", 9);
+}
+
+
+int Handler::ProcessOAuthConfig(XrdHttpExtReq &req) {
+    if (req.verb != "GET")
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Only GET is valid for oauth config.", 0);
+    }
+    auto header = req.headers.find("Host");
+    if (header == req.headers.end())
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Host header is required.", 0);
+    }
+
+    json_object *response_obj = json_object_new_object();
+    if (!response_obj)
+    {
+        return req.SendSimpleResp(500, NULL, NULL, "Unable to create new JSON response object.", 0);
+    }
+    std::string token_endpoint = "https://" + header->second + "/.oauth2/token";
+    json_object *endpoint_obj =
+        json_object_new_string_len(token_endpoint.c_str(), token_endpoint.size());
+    if (!endpoint_obj)
+    {
+        return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON macaroon string.", 0);
+    }
+    json_object_object_add(response_obj, "token_endpoint", endpoint_obj);
+
+    const char *response_result = json_object_to_json_string_ext(response_obj, JSON_C_TO_STRING_PRETTY);
+    int retval = req.SendSimpleResp(200, NULL, NULL, response_result, 0);
+    json_object_put(response_obj);
+    return retval;
+}
+
+
+int Handler::ProcessTokenResult(XrdHttpExtReq &req)
+{
+    if (req.verb != "GET")
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Only GET is valid for token request.", 0);
+    }
+    auto header = req.headers.find("Content-Type");
+    if (header == req.headers.end())
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Content-Type missing; not a valid macaroon request?", 0);
+    }
+    if (header->second != "application/macaroon-request")
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
+    }
+    header = req.headers.find("Content-Length");
+    if (header == req.headers.end())
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Content-Length missing; not a valid POST", 0);
+    }
+    ssize_t blen;
+    try
+    {
+        blen = std::stoll(header->second);
+    }
+    catch (...)
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Content-Length not parseable.", 0);
+    }
+    if (blen <= 0)
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Content-Length has invalid value.", 0);
+    }
+    //for (const auto &header : req.headers) { printf("** Request header: %s=%s\n", header.first.c_str(), header.second.c_str()); }
+    char *request_data;
+    if (req.BuffgetData(blen, &request_data, true) != blen)
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Missing or invalid body of request.", 0);
+    }
 }
 
 
 // Process a macaroon request.
 int Handler::ProcessReq(XrdHttpExtReq &req)
 {
+    if (req.resource == "/.well-known/oauth-configuration") {
+        return ProcessOAuthConfig(req);
+    } else if (req.resource == "/.oauth2/token") {
+        return ProcessTokenRequest(req);
+    }
+
     auto header = req.headers.find("Content-Type");
     if (header == req.headers.end())
     {
@@ -176,6 +260,13 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Invalid ISO 8601 duration for validity key", 0);
     }
+    return GenerateMacaroonResponse(req, req.resource, validity);
+}
+
+
+int
+Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, std::string &resource, ssize_t validity)
+{
     time_t now;
     time(&now);
     if (m_max_duration > 0)
@@ -276,7 +367,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
         }
     }
 
-    std::string path_caveat = "path:" + req.resource;
+    std::string path_caveat = "path:" + resource;
     struct macaroon *mac_with_path = macaroon_add_first_party_caveat(mac_with_activities,
                                                  reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
                                                  path_caveat.size(),
@@ -321,4 +412,3 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     json_object_put(response_obj);
     return retval;
 }
-
