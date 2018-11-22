@@ -1149,10 +1149,6 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
     log->Error( AppMsg, "Prepare request failed: %s", st.ToStr().c_str() );
     return st;
   }
-
-  if( flags & PrepareFlags::Stage )
-    std::cout << response->ToString() << std::endl;
-
   delete response;
   return XRootDStatus();
 }
