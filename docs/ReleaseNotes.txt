@@ -7,6 +7,102 @@ Release Notes
 
 
 -------------
+Version 4.9.0
+-------------
+
++ **New Features**
+  * **[XrdCl]** Provide operation pipelining API.
+  * **[XrdCl]** Redirect traceback dump.
+  * **[XrdCl]** Allow specifying plug-ins on protocol level 
+  * **[XrdCl]** Pass # streams to TPC destination.
+  * **[XrdCl]** Enable proxy delegation.
+  * **[XrdCl]** Enable state redirection for local files.
+  * **[XrdCl]** Add an API to close connection.
+  * **[XrdCl/Server]** Implement TPC-Lite for delegated TPC copy.
+  * **[XrdCl/Server]** Implement kXR_writev operation.
+  * **[Server]** Add &I=<iptype> to 'u' login monitoring record.
+  * **[Server]** Allow spaces in id's via acc.spacechar.
+  * **[Server]** Allow space preassignment of file creation paths.
+  * **[Server]** Identify type of IP connection in monitoring (&I=4|6 in 
+                 'u' record).
+  * **[Server]** Enable use of delegated credentials for 3rd party copy.
+  * **[Server]** Allow callbacks for close() and opague() requests.
+  * **[Server]** Allow the CKS manager to run on the redirector.
+  * **[Server]** Allow config continuation to files in a directory.
+  * **[Server]** Add 'query confg start' to find server start time. 
+  * **[SSI]** Add ability to spread requests to increase parallism.
+  * **[SSI]** Add monitoring capabilities to SSI.
+  * **[SSI]** Properly handle Finished() calls prior to response posting.
+  * **[XrdSsi]** Provide summary monitoring information to report stream.
+  * **[TPC]** Allow number of streams to use to be passed to the server. 
+  * **[TPC]** Support Http TPC.
+  * **[XrdHttp]** Added XrdHttp cipherlist filter string config option.
+  * **[XrdHttp]** Map Xrd error codes to HTTP status codes
+  * **[XrdHttp]** Add plumbing necessary for RFC3230 digest requests. 
+  * **[XrdSecgsi]** Use hostname, not reverse DNS, for address comparison.
+  * **[XrdSecgsi]** Allow XrdSecGSITrustDNS setting to disable use of all
+                    DNS lookups.
+  * **[XrdSecgsi]** Add option to save delegated proxies as credentials.
+  * **[XrdSecgsi]** Improved checking of CA expiration.
+  * **[XrdSecgsi]** Review proxy delegation mechanism.
+  * **[XrdSecgsi]** Support signing of server DH public parameters.
+  * **[XrdCrypto]** Allow XRootD client to accept subjectAltNames. 
+  * **[XrdMacaroons]** Macaroons plugin for XRootD.
+  * **[Proxy]** Implement new options in pfc.diskusage for better control 
+                of purging.
+  * **[Proxy]** Support origins that only talk http.
+  * **[Proxy]** Add 'pss.tid' CGI element to all outgoing URL's.
+  * **[POSIX]** Implement Cache Context Management plugin.
+  * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
+
++ **Major bug fixes**
+  * **[XrdCl]** Handle properly seerver disconnect.
+  * **[XrdCl]** apply TPC timeout to the 2nd sync, fixes #800
+  * **[XrdCl]** Parse correctly CDFH ZIP64 extension.
+  * **[SSI]** Do not leak memory when a fatal error occurs. Fixes #775
+  * **[Server]** Avoid SEGV when the close operation fails.
+  * **[Server]** Fix SEGV when using delegation and VOMSFUN with raw creds.
+  * **[POSIX]** Avoid SEGV due to race condition between open() and close().
+  * **[Proxy]** Support multiple IO objects working with the same file.
+
++ **Minor bug fixes**
+  * **[Server]** Follow protocol spec when returning file compression info.
+  * **[Server]** Fix checksumming on filesystems that don't support fattr.
+  * **[XrdOfs]** Prevent double-parsing of parameters for ofs.ckslib.
+  * **[XrdCl]** Correctly set path in case of state redirect.
+  * **[XrdCl]** Correct handling of --infiles option. Fixes #779
+  * **[XrdCl]** Don't read past buffer when parsing protocol response.
+  * **[XrdHttp]** Fix error codes in the case of PUT and MKDIR.
+  * **[XrdHttp]** Support mv for files with spaces.
+  * **[XrdHttp]** Return correct content-range header.
+  * **[Secsss]** Pass correct parameters when registering an ID. Fixes #689
+
++ **Miscellaneous**
+  * **[XrdCl]** Delete channel on TTL.
+  * **[Server]** Do not allow badly formed CGI to pollute subsequent tokens.
+  * **[TPC]** Do not take case into account for hostname matching.
+  * **[TPC]** Allow source protocol to be transmitted to server via tpc.spr CGI.
+  * **[TPC]** Set envars XRD_TRACEID, XRDTPC_SPROT, and XRDTPC_TPROT
+  * **[Proxy]** Avoid auth failure due to URL cgi directives. 
+  * **[Proxy]** Add method to cache to get local file path of cached file.
+  * **[Proxy]** Fix wrong logic in cache purge algorithm.
+  * **[Proxy]** Resolve conflicts in URL rewriting.
+  * **[POSIX]** Avoid unnecessary cache open requests.
+  * **[XrdCrypto]** Replace C-style string manipulation with C++ equivalent.  
+  * **[Secgsi]** Implement stricter version of RFC2818 (host name check) for 
+                 client.
+  * **[Secgsi]** Enable use of an unique IV in enc/dec cipher operations.
+  * **[XrdHttp]** Break XrdHttp into a module and a utility library.
+  * **[XrdHttp]** Expose query string in external req handler.
+  * **[XrdThrottle]** Update the throttle plugin to propogate underlying
+                      errors.
+  * **[XrdThrottle]** Improve chaining behavior of throttle plugin.
+  * **[RPM]** Use OPENSSL_NO_FILENAMES flag. 
+  * **[Docs]** Update Doxyfile, closes #743
+  * **[All]** Place protocol definition under a modified BSD license.
+  * **[All]** FreeBSD compatibility patch.
+
+-------------
 Version 4.8.5
 -------------
 
