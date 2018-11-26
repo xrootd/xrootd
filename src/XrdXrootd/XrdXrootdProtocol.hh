@@ -121,8 +121,6 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Stats(char *buff, int blen, int do_sync=0);
 
-static int           StatGen(struct stat &buf, char *xxBuff);
-
 //            XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
               XrdXrootdProtocol& operator =(const XrdXrootdProtocol &rhs);
               XrdXrootdProtocol();
@@ -210,6 +208,7 @@ static int   rpCheck(char *fn, char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
 static int   Squash(char *);
+       int   StatGen(struct stat &buf, char *xxBuff, int xxLen, bool xa=false);
 static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
@@ -265,6 +264,14 @@ static int                   RQLxist;   // Something is present in RQList
 static int                   myPID;
 static int                   myRole;     // Role for kXR_protocol (>= 2.9.7)
 static int                   myRolf;     // Role for kXR_protocol (<  2.9.7)
+
+static gid_t                 myGID;
+static uid_t                 myUID;
+static int                   myGNLen;
+static int                   myUNLen;
+static const char           *myGName;
+static const char           *myUName;
+static time_t                keepT;
 
 // Admin control area
 //

@@ -650,8 +650,9 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
    struct stat Stat;
    static const int statSz = 80;
    int bleft, rc = 0, dlen, cnt = 0;
-   char *buff, *dLoc, ebuff[8192];
+   char *buff, *dLoc;
    const char *dname;
+   struct {char ebuff[8192]; char epad[512];} XB;
 
 // Construct the path to the directory as we will be asking for stat calls
 // if the interface does not support autostat.
@@ -668,8 +669,8 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 // client to issue individual stat requests in that case.
 //
    memset(&Stat, 0, sizeof(Stat));
-   strcpy(ebuff, ".\n0 0 0 0\n");
-   buff = ebuff+10; bleft = sizeof(ebuff)-10;
+   strcpy(XB.ebuff, ".\n0 0 0 0\n");
+   buff = XB.ebuff+10; bleft = sizeof(XB.ebuff)-10;
 
 // Start retreiving each entry and place in a local buffer with a trailing new
 // line character (the last entry will have a null byte). If we cannot fit a
@@ -691,23 +692,23 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                        return fsError(rc, XROOTD_MON_STAT, myError,
                                           argp->buff, opaque);
                    }
-                dlen = StatGen(Stat, buff);
+                dlen = StatGen(Stat, buff, sizeof(XB.epad));
                 bleft -= dlen; buff += (dlen-1); *buff = '\n'; buff++;
                }
             dname = 0;
            }
        if (dname)
-          {rc = Response.Send(kXR_oksofar, ebuff, buff-ebuff);
-           buff = ebuff; bleft = sizeof(ebuff);
+          {rc = Response.Send(kXR_oksofar, XB.ebuff, buff-XB.ebuff);
+           buff = XB.ebuff; bleft = sizeof(XB.ebuff);
           }
      } while(!rc && dname);
 
 // Send the ending packet if we actually have one to send
 //
    if (!rc) 
-      {if (ebuff == buff) rc = Response.Send();
+      {if (XB.ebuff == buff) rc = Response.Send();
           else {*(buff-1) = '\0';
-                rc = Response.Send((void *)ebuff, buff-ebuff);
+                rc = Response.Send((void *)XB.ebuff, buff-XB.ebuff);
                }
       }
 
@@ -1474,7 +1475,7 @@ int XrdXrootdProtocol::do_Open()
 // If client wants a stat in open, return the stat information
 //
    if (retStat)
-      {retStat = StatGen(statbuf, ebuff);
+      {retStat = StatGen(statbuf, ebuff, sizeof(ebuff));
        IOResp[1].iov_base = (char *)&myResp; IOResp[1].iov_len = sizeof(myResp);
        IOResp[2].iov_base =         ebuff;   IOResp[2].iov_len = retStat;
        resplen = sizeof(myResp) + retStat;
@@ -2627,7 +2628,7 @@ int XrdXrootdProtocol::do_Stat()
    static const int fsctl_cmd = SFS_FSCTL_STATFS;
    bool doDig;
    int rc;
-   char *opaque, xxBuff[256];
+   char *opaque, xxBuff[1024];
    struct stat buf;
    XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
 
@@ -2649,7 +2650,8 @@ int XrdXrootdProtocol::do_Stat()
                               "stat does not refer to an open file");
        rc = fp->XrdSfsp->stat(&buf);
        TRACEP(FS, "stat rc=" <<rc <<" fh=" <<fh.handle);
-       if (SFS_OK == rc) return Response.Send(xxBuff, StatGen(buf, xxBuff));
+       if (SFS_OK == rc) return Response.Send(xxBuff,
+                                StatGen(buf,xxBuff,sizeof(xxBuff)));
        return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
       }
 
@@ -2676,7 +2678,8 @@ int XrdXrootdProtocol::do_Stat()
        if (doDig) rc = digFS->stat(argp->buff, &buf, myError, CRED, opaque);
           else    rc =  osFS->stat(argp->buff, &buf, myError, CRED, opaque);
        TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
-       if (rc == SFS_OK) return Response.Send(xxBuff, StatGen(buf, xxBuff));
+       if (rc == SFS_OK) return Response.Send(xxBuff,
+                                StatGen(buf,xxBuff,sizeof(xxBuff)));
       }
    return fsError(rc, (doDig ? 0 : XROOTD_MON_STAT),myError,argp->buff,opaque);
 }
@@ -3770,13 +3773,6 @@ int XrdXrootdProtocol::Squash(char *fn)
 
    return XPList.Validate(fn, ofn-fn);
 }
-
-/******************************************************************************/
-/*                               S t a t G e n                                */
-/******************************************************************************/
-  
-#define XRDXROOTD_STAT_CLASSNAME XrdXrootdProtocol
-#include "XrdXrootd/XrdXrootdStat.icc"
 
 /******************************************************************************/
 /*                                v p E m s g                                 */

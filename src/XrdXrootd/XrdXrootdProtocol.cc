@@ -29,12 +29,15 @@
  
 #include "XrdVersion.hh"
 
-#include "XrdSfs/XrdSfsInterface.hh"
+#include "XProtocol/XProtocol.hh"
+
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
-#include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecProtect.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -117,6 +120,14 @@ int                   XrdXrootdProtocol::myPID = static_cast<int>(getpid());
 
 int                   XrdXrootdProtocol::myRole = 0;
 int                   XrdXrootdProtocol::myRolf = 0;
+
+gid_t                 XrdXrootdProtocol::myGID  = 0;
+uid_t                 XrdXrootdProtocol::myUID  = 0;
+int                   XrdXrootdProtocol::myGNLen= 1;
+int                   XrdXrootdProtocol::myUNLen= 1;
+const char           *XrdXrootdProtocol::myGName= "?";
+const char           *XrdXrootdProtocol::myUName= "?";
+time_t                XrdXrootdProtocol::keepT  = 86400; // 24 hours
 
 int                   XrdXrootdProtocol::PrepareLimit = -1;
 bool                  XrdXrootdProtocol::PrepareAlt = false;
@@ -664,6 +675,113 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 // Push ourselves on the stack
 //
    if (Response.isOurs()) ProtStack.Push(&ProtLink);
+}
+
+/******************************************************************************/
+/*                               S t a t G e n                                */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
+                               bool xtnd)
+{
+   const mode_t isReadable = (S_IRUSR | S_IRGRP | S_IROTH);
+   const mode_t isWritable = (S_IWUSR | S_IWGRP | S_IWOTH);
+   const mode_t isExecable = (S_IXUSR | S_IXGRP | S_IXOTH);
+   uid_t theuid;
+   gid_t thegid;
+   union {long long uuid; struct {int hi; int lo;} id;} Dev;
+   long long fsz;
+   int m, n, flags = 0;
+
+// Get the right uid/gid
+//
+   theuid = (Client && Client->uid ? Client->uid : myUID);
+   thegid = (Client && Client->gid ? Client->gid : myGID);
+
+// Compute the unique id
+//
+   Dev.id.lo = buf.st_ino;
+   Dev.id.hi = buf.st_dev;
+
+// Compute correct setting of the readable flag
+//
+   if (buf.st_mode & isReadable
+   &&((buf.st_mode & S_IRUSR && theuid == buf.st_uid)
+   || (buf.st_mode & S_IRGRP && thegid == buf.st_gid)
+   ||  buf.st_mode & S_IROTH)) flags |= kXR_readable;
+
+// Compute correct setting of the writable flag
+//
+   if (buf.st_mode & isWritable
+   &&((buf.st_mode & S_IWUSR && theuid == buf.st_uid)
+   || (buf.st_mode & S_IWGRP && thegid == buf.st_gid)
+   ||  buf.st_mode & S_IWOTH)) flags |= kXR_writable;
+
+// Compute correct setting of the execable flag
+//
+   if (buf.st_mode & isExecable
+   &&((buf.st_mode & S_IXUSR && theuid == buf.st_uid)
+   || (buf.st_mode & S_IXGRP && thegid == buf.st_gid)
+   ||  buf.st_mode & S_IXOTH)) flags |= kXR_xset;
+
+// Compute the other flag settings
+//
+        if (!Dev.uuid)                         flags |= kXR_offline;
+        if (S_ISDIR(buf.st_mode))              flags |= kXR_isDir;
+   else if (!S_ISREG(buf.st_mode))             flags |= kXR_other;
+   else{if (buf.st_mode & XRDSFS_POSCPEND)     flags |= kXR_poscpend;
+        if ((buf.st_rdev & XRDSFS_RDVMASK) == 0)
+           {if (buf.st_rdev & XRDSFS_OFFLINE)  flags |= kXR_offline;
+            if (buf.st_rdev & XRDSFS_HASBKUP)  flags |= kXR_bkpexist;
+           }
+       }
+   fsz = static_cast<long long>(buf.st_size);
+
+// Format the default response: <devid> <size> <flags> <mtime>
+//
+   m = snprintf(xxBuff, xxLen, "%lld %lld %d %ld",
+                Dev.uuid, fsz, flags, buf.st_mtime);
+// if (!xtnd || m >= xxLen) return xxLen;
+//
+
+// Format extended response: <ctime> <atime> <mode>
+//
+   char *origP = xxBuff;
+   char *nullP = xxBuff + m++;
+   xxBuff += m; xxLen -= m;
+   n = snprintf(xxBuff, xxLen, "%ld %ld 0%o ",
+                buf.st_ctime, buf.st_atime, buf.st_mode&07777);
+   if (n >= xxLen) return m;
+   xxBuff += n; xxLen -= n;
+
+// Tack on owner
+//
+   if (theuid == myUID)
+      {if (myUNLen >= xxLen) return m;
+       strcpy(xxBuff, myUName);
+       n = myUNLen;
+      } else {
+       if (!(n = XrdOucUtils::UidName(theuid, xxBuff, xxLen, keepT))) return m;
+      }
+   xxBuff += n;
+   *xxBuff++ = ' ';
+   xxLen -= (n+1);
+
+// Tack on group
+//
+   if (thegid == myGID)
+      {if (myGNLen >= xxLen) return m;
+       strcpy(xxBuff, myGName);
+       n = myUNLen;
+      } else {
+       if (!(n = XrdOucUtils::GidName(thegid, xxBuff, xxLen, keepT))) return m;
+      }
+   xxBuff += n+1;
+
+// All done, return full response
+//
+   *nullP = ' ';
+   return xxBuff - origP;
 }
 
 /******************************************************************************/

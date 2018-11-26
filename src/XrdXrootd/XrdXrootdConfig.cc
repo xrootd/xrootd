@@ -565,6 +565,24 @@ void XrdXrootdProtocol::PidFile()
 int XrdXrootdProtocol::ConfigSecurity(XrdOucEnv &xEnv, const char *cfn)
 {
    XrdSecGetProt_t secGetProt = 0;
+   char idBuff[256];
+   int n;
+
+// Obtain our uid and username
+//
+   myUID = geteuid();
+   if ((n = XrdOucUtils::UidName(myUID, idBuff, sizeof(idBuff))))
+      {myUName = strdup(idBuff);
+       myUNLen = n;
+      }
+
+// Obtain our gid and groupname
+//
+   myGID = getegid();
+   if ((n = XrdOucUtils::GidName(myGID, idBuff, sizeof(idBuff))))
+      {myGName = strdup(idBuff);
+       myGNLen = n;
+      }
 
 // Check if we need to loadanything
 //
