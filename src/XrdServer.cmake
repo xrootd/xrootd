@@ -38,7 +38,6 @@ add_library(
   XrdXrootd/XrdXrootdPrepare.cc         XrdXrootd/XrdXrootdPrepare.hh
   XrdXrootd/XrdXrootdProtocol.cc        XrdXrootd/XrdXrootdProtocol.hh
   XrdXrootd/XrdXrootdResponse.cc        XrdXrootd/XrdXrootdResponse.hh
-                                        XrdXrootd/XrdXrootdStat.icc
   XrdXrootd/XrdXrootdStats.cc           XrdXrootd/XrdXrootdStats.hh
   XrdXrootd/XrdXrootdTransit.cc         XrdXrootd/XrdXrootdTransit.hh
   XrdXrootd/XrdXrootdTransPend.cc       XrdXrootd/XrdXrootdTransPend.hh
@@ -149,7 +148,6 @@ add_library(
   XrdCms/XrdCmsFinder.cc          XrdCms/XrdCmsFinder.hh
   XrdCms/XrdCmsClient.cc          XrdCms/XrdCmsClient.hh
   XrdCms/XrdCmsResp.cc            XrdCms/XrdCmsResp.hh
-  XrdCms/XrdCmsReq.cc             XrdCms/XrdCmsReq.hh
   XrdCms/XrdCmsRTable.cc          XrdCms/XrdCmsRTable.hh
                                   XrdCms/XrdCmsTypes.hh
   XrdCms/XrdCmsUtils.cc           XrdCms/XrdCmsUtils.hh

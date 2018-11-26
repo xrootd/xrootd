@@ -42,12 +42,66 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #endif
+#include <map>
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
+  
+/******************************************************************************/
+/*                         L o c a l   M e t h o d s                          */
+/******************************************************************************/
+  
+namespace
+{
+struct idInfo
+{      time_t  Expr;
+       char   *Name;
+
+       idInfo(const char *name, time_t keep)
+             : Expr(time(0)+keep), Name(strdup(name)) {}
+      ~idInfo() {free(Name);}
+};
+
+typedef std::map<unsigned int, struct idInfo*> idMap_t;
+
+idMap_t     gidMap;
+idMap_t     uidMap;
+XrdSysMutex idMutex;
+
+void AddID(idMap_t &idMap, unsigned int id, const char *name, time_t keepT)
+{
+   std::pair<idMap_t::iterator,bool> ret;
+   idInfo *infoP = new idInfo(name, keepT);
+
+   idMutex.Lock();
+   ret = idMap.insert(std::pair<unsigned int, struct idInfo*>(id, infoP));
+   if (ret.second == false) delete infoP;
+   idMutex.UnLock();
+}
+
+int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
+{
+   idMap_t::iterator it;
+   int luRet = 0;
+
+   idMutex.Lock();
+   it = idMap.find(id);
+   if (it != idMap.end())
+      {if (it->second->Expr <= time(0))
+          {delete it->second;
+           idMap.erase(it);
+          } else {
+           if (blen > 0) luRet = snprintf(buff, blen, it->second->Name);
+          }
+      }
+   idMutex.UnLock();
+   return luRet;
+}
+}
   
 /******************************************************************************/
 /*                              e n d s W i t h                               */
@@ -288,7 +342,56 @@ int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psf
 }
 
 /******************************************************************************/
-/*                                G r o u p s                                 */
+/*                               G i d N a m e                                */
+/******************************************************************************/
+  
+int XrdOucUtils::GidName(gid_t gID, char *gName, int gNsz, time_t keepT)
+{
+   static const int maxgBsz = 256*1024;
+   static const int addGsz  = 4096;
+   struct group  *gEnt, gStruct;
+   char gBuff[1024], *gBp = gBuff;
+   int glen, gBsz = sizeof(gBuff), aOK = 1;
+   int n, retVal = 0;
+
+// Get ID from cache, if allowed
+//
+   if (keepT)
+      {int n = LookUp(gidMap, static_cast<unsigned int>(gID),gName,gNsz);
+       if (n > 0) return (n < gNsz ? n : 0);
+      }
+
+// Get the the group struct. If we don't have a large enough buffer, get a
+// larger one and try again up to the maximum buffer we will tolerate.
+//
+   while(( retVal = getgrgid_r(gID, &gStruct, gBp, gBsz, &gEnt) ) == ERANGE)
+        {if (gBsz >= maxgBsz) {aOK = 0; break;}
+         if (gBsz >  addGsz) free(gBp);
+         gBsz += addGsz;
+         if (!(gBp = (char *)malloc(gBsz))) {aOK = 0; break;}
+        }
+
+// Return a group name if all went well
+//
+   if (aOK && retVal == 0 && gEnt != NULL)
+      {if (keepT)
+          AddID(gidMap, static_cast<unsigned int>(gID), gEnt->gr_name, keepT);
+       glen = strlen(gEnt->gr_name);
+       if (glen >= gNsz) glen = 0;
+          else strcpy(gName, gEnt->gr_name);
+      } else {
+       n = snprintf(gName, gNsz, "%ud", static_cast<unsigned int>(gID));
+       if (n >= gNsz) glen = 0;
+      }
+
+// Free any allocated buffer and return result
+//
+   if (gBsz >  addGsz && gBp) free(gBp);
+   return glen;
+}
+
+/******************************************************************************/
+/*                             G r o u p N a m e                              */
 /******************************************************************************/
   
 int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
@@ -788,6 +891,45 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog, int *pipeFD)
 //
   for (myfd = 3; myfd < maxFiles; myfd++)
       if( (!pipeFD || myfd != pipeFD[1]) && myfd != logFD ) close(myfd);
+}
+  
+/******************************************************************************/
+/*                               U i d N a m e                                */
+/******************************************************************************/
+  
+int XrdOucUtils::UidName(uid_t uID, char *uName, int uNsz, time_t keepT)
+{
+   struct passwd *pEnt, pStruct;
+   char pBuff[1024];
+   int n, rc;
+
+// Get ID from cache, if allowed
+//
+   if (keepT)
+      {int n = LookUp(uidMap, static_cast<unsigned int>(uID),uName,uNsz);
+       if (n > 0) return (n < uNsz ? n : 0);
+      }
+
+// Try to obtain the username. We use this form to make sure we are using
+// the standards conforming version (compilation error otherwise).
+//
+   rc = getpwuid_r(uID, &pStruct, pBuff, sizeof(pBuff), &pEnt);
+   if (rc || !pEnt)
+      {n = snprintf(uName, uNsz, "%ud", static_cast<unsigned int>(uID));
+       return (n >= uNsz ? 0 : n);
+      }
+
+// Add entry to the cache if need be
+//
+   if (keepT)
+      AddID(uidMap, static_cast<unsigned int>(uID), pEnt->pw_name, keepT);
+
+// Return length of username or zero if it is too big
+//
+   n = strlen(pEnt->pw_name);
+   if (uNsz <= (int)strlen(pEnt->pw_name)) return 0;
+   strcpy(uName, pEnt->pw_name);
+   return n;
 }
 
 /******************************************************************************/

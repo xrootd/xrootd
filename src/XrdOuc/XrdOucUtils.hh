@@ -56,6 +56,8 @@ static char *genPath(const char *path, const char *inst, const char *psfx=0);
 
 static int   genPath(char *buff, int blen, const char *path, const char *psfx=0);
 
+static int   GidName(gid_t gID, char *gName, int gNsz, time_t keepT=0);
+
 static int   GroupName(gid_t gID, char *gName, int gNsz);
 
 static char *Ident(long long  &mySID, char *iBuff, int iBlen,
@@ -93,6 +95,8 @@ static void  toLower(char *str);
 static int   Token(const char **str, char delim, char *buff, int bsz);
 
 static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
+
+static int   UidName(uid_t uID, char *uName, int uNsz, time_t keepT=0);
 
 static int   UserName(uid_t uID, char *uName, int uNsz);
 
