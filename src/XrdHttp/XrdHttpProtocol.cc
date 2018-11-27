@@ -42,12 +42,16 @@
 #include "XrdHttpSecXtractor.hh"
 #include "XrdHttpExtHandler.hh"
 
+#include "XrdTls/XrdTlsContext.hh"
+
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <vector>
 #include <arpa/inet.h>
 #include <sstream>
 #include <ctype.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define XRHTTP_TK_GRACETIME     600
 
@@ -93,7 +97,6 @@ XrdOucGMap *XrdHttpProtocol::servGMap = 0;  // Grid mapping service
 int XrdHttpProtocol::sslverifydepth = 9;
 SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
-XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
 struct XrdHttpProtocol::XrdHttpExtHandlerInfo XrdHttpProtocol::exthandler[MAX_XRDHTTPEXTHANDLERS];
 int XrdHttpProtocol::exthandlercnt = 0;
@@ -1629,32 +1632,16 @@ extern "C" int verify_callback(int ok, X509_STORE_CTX * store) {
   return ok;
 }
 
-
-
-
-
 /// Initialization of the ssl security
 
 int XrdHttpProtocol::InitSecurity() {
   
-  SSL_library_init();
-  SSL_load_error_strings();
-  OpenSSL_add_all_ciphers();
-  OpenSSL_add_all_algorithms();
-  OpenSSL_add_all_digests();
-  
-#ifdef HAVE_XRDCRYPTO
-#ifndef WIN32
-  // Borrow the initialization of XrdCryptossl, in order to share the
-  // OpenSSL threading bits
-  if (!(myCryptoFactory = XrdCryptoFactory::GetCryptoFactory("ssl"))) {
-          cerr << "Cannot instantiate crypto factory ssl" << endl;
-          exit(1);
-        }
+  static const char *eText = XrdTlsContext::InitSSL();
 
-#endif
-#endif
-
+  if (eText)
+     {cerr << "XrdHttp: " <<eText << endl;
+      exit(1);
+     }
 
   const SSL_METHOD *meth;
 

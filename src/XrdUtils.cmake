@@ -166,12 +166,16 @@ add_library(
   Xrd/XrdInfo.cc                Xrd/XrdInfo.hh
   Xrd/XrdJob.hh
   Xrd/XrdLink.cc                Xrd/XrdLink.hh
+  Xrd/XrdLinkCtl.cc             Xrd/XrdLinkCtl.hh
+  Xrd/XrdLinkXeq.cc             Xrd/XrdLinkXeq.hh
   Xrd/XrdLinkMatch.cc           Xrd/XrdLinkMatch.hh
+  Xrd/XrdGlobals.cc
   Xrd/XrdPoll.cc                Xrd/XrdPoll.hh
                                 Xrd/XrdPollDev.hh
                                 Xrd/XrdPollDev.icc
                                 Xrd/XrdPollE.hh
                                 Xrd/XrdPollE.icc
+                                Xrd/XrdPollInfo.hh
                                 Xrd/XrdPollPoll.hh
                                 Xrd/XrdPollPoll.icc
   Xrd/XrdProtocol.cc            Xrd/XrdProtocol.hh

@@ -4,7 +4,7 @@
 /*                                                                            */
 /*                            X r d L i n k . h h                             */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -30,44 +30,25 @@
 /******************************************************************************/
 
 #include <sys/types.h>
-#include <fcntl.h>
-#include <time.h>
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucSFVec.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "Xrd/XrdJob.hh"
-#include "Xrd/XrdLinkMatch.hh"
-#include "Xrd/XrdProtocol.hh"
   
-/******************************************************************************/
-/*                       X r d L i n k   O p t i o n s                        */
-/******************************************************************************/
-  
-#define XRDLINK_RDLOCK  0x0001
-#define XRDLINK_NOCLOSE 0x0002
-
 /******************************************************************************/
 /*                      C l a s s   D e f i n i t i o n                       */
 /******************************************************************************/
   
-class XrdInet;
-class XrdNetAddr;
-class XrdPoll;
-class XrdOucTrace;
-class XrdScheduler;
-class XrdSendQ;
-class XrdSysError;
+class XrdLinkMatch;
+class XrdLinkXeq;
+class XrdPollInfo;
+class XrdProtocol;
 
-class XrdLink : XrdJob
+class XrdLink : public XrdJob
 {
 public:
-friend class XrdLinkScan;
-friend class XrdPoll;
-friend class XrdPollPoll;
-friend class XrdPollDev;
-friend class XrdPollE;
 
 //-----------------------------------------------------------------------------
 //! Obtain the address information for this link.
@@ -75,66 +56,152 @@ friend class XrdPollE;
 //! @return Pointer to the XrdAddrInfo object. The pointer is valid while the
 //!         end-point is connected.
 //-----------------------------------------------------------------------------
-inline
-XrdNetAddrInfo *AddrInfo() {return (XrdNetAddrInfo *)&Addr;}
+
+XrdNetAddrInfo *AddrInfo();
 
 //-----------------------------------------------------------------------------
-//! Allocate a new link object.
+//! Obtain the number of queued async requests.
 //!
-//! @param  peer    The connection information for the endpoint.
-//! @param  opts    Processing options:
-//!                 XRDLINK_NOCLOSE - do not close the FD upon recycling.
-//!                 XRDLINK_RDLOCK  - obtain a lock prior to reading data.
-//!
-//! @return !0      The pointer to the new object.
-//!         =0      A new link object could not be allocated.
+//! @return         The number of async requests queued.
 //-----------------------------------------------------------------------------
 
-static XrdLink *Alloc(XrdNetAddr &peer, int opts=0);
+int             Backlog();
 
-int           Backlog();
+//-----------------------------------------------------------------------------
+//! Get a copy of the client's name as known by the link.
+//!
+//! @param  buff    Pointer to buffer to hold the name.
+//! @param  blen    Length of the buffer.
+//!
+//! @return !0      The length of the name in gthe buffer.
+//!         =0      The name could not be returned.
+//-----------------------------------------------------------------------------
 
-void          Bind() {}                // Obsolete
-void          Bind(pthread_t tid) { (void)tid; }   // Obsolete
+int             Client(char *buff, int blen);
 
-int           Client(char *buff, int blen);
+//-----------------------------------------------------------------------------
+//! Close the link.
+//!
+//! @param  defer   If true, the link is made unaccessible but the link
+//!                 object not the file descriptor is released.
+//!
+//! @return !0      An error occurred, the return value is the errno.
+//!         =0      Action successfully completed.
+//-----------------------------------------------------------------------------
 
-int           Close(int defer=0);
+int             Close(bool defer=false);
 
-void          DoIt();
 
-void          Enable();
+//-----------------------------------------------------------------------------
+//! Enable the link to field interrupts.
+//-----------------------------------------------------------------------------
 
-int           FDnum() {int fd = FD; return (fd < 0 ? -fd : fd);}
+void            Enable();
 
-static XrdLink *fd2link(int fd)
-                {if (fd < 0) fd = -fd; 
-                 return (fd <= LTLast && LinkBat[fd] ? LinkTab[fd] : 0);
-                }
+//-----------------------------------------------------------------------------
+//! Get the associated file descriptor.
+//!
+//! @return         The file descriptor number.
+//-----------------------------------------------------------------------------
 
-static XrdLink *fd2link(int fd, unsigned int inst)
-                {if (fd < 0) fd = -fd; 
-                 if (fd <= LTLast && LinkBat[fd] && LinkTab[fd]
-                 && LinkTab[fd]->Instance == inst) return LinkTab[fd];
-                 return (XrdLink *)0;
-                }
+inline int      FDnum() {int fd = FD; return (fd < 0 ? -fd : fd);}
+
+//-----------------------------------------------------------------------------
+//! Translate a file descriptor number to the corresponding link object.
+//!
+//! @param  fd      The file descriptor number.
+//!
+//! @return !0      Pointer to the link object.
+//!         =0      The file descriptor is not associated with a link.
+//-----------------------------------------------------------------------------
+
+static XrdLink *fd2link(int fd);
+
+//-----------------------------------------------------------------------------
+//! Translate a file descriptor number and an instance to a link object.
+//!
+//! @param  fd      The file descriptor number.
+//! @param  inst    The file descriptor number instance number.
+//!
+//! @return !0      Pointer to the link object.
+//!         =0      The file descriptor instance is not associated with a link.
+//-----------------------------------------------------------------------------
+
+static XrdLink *fd2link(int fd, unsigned int inst);
+
+//-----------------------------------------------------------------------------
+//! Find the next link matching certain attributes.
+//!
+//! @param  curr    Is an internal tracking value that allows repeated calls.
+//!                 It must be set to a value of 0 or less on the initial call
+//!                 and not touched therafter unless a null pointer is returned.
+//! @param  who     If the object use to check if teh link matches the wanted
+//!                 criterea (typically, client name and host name). If the
+//!                 ppointer is nil, the next link is always returned.
+//!
+//! @return !0      Pointer to the link object that matches the criterea. The
+//!                 link's reference counter is increased to prevent it from
+//!                 being reused. A subsequent call will reduce the number.
+//!         =0      No more links exist with the specified criterea.
+//-----------------------------------------------------------------------------
 
 static XrdLink *Find(int &curr, XrdLinkMatch *who=0);
 
-       int    getIOStats(long long &inbytes, long long &outbytes,
-                              int  &numstall,     int  &numtardy)
-                        { inbytes = BytesIn + BytesInTot;
-                         outbytes = BytesOut+BytesOutTot;
-                         numstall = stallCnt + stallCntTot;
-                         numtardy = tardyCnt + tardyCntTot;
-                         return InUse;
-                        }
+//-----------------------------------------------------------------------------
+//! Get I/O statistics.
+//!
+//! @param  inbytes  The number of bytes read.
+//! @param  outbytes The number of bytes written.
+//! @param  numstall The number of times the link was rescheduled due to
+//!                  unavailability.
+//! @param  numtardy The number of times the link was delayed due to
+//!                  unavailability.
+//!
+//! @return          The link's reference count. The parameters will hold the
+//!                  indicated statistic.
+//-----------------------------------------------------------------------------
 
-static int    getName(int &curr, char *bname, int blen, XrdLinkMatch *who=0);
+       int      getIOStats(long long &inbytes, long long &outbytes,
+                                int  &numstall,     int  &numtardy);
 
-XrdProtocol  *getProtocol() {return Protocol;} // opmutex must be locked
+//-----------------------------------------------------------------------------
+//! Find the next client name matching certain attributes.
+//!
+//! @param  cur     Is an internal tracking value that allows repeated calls.
+//!                 It must be set to a value of 0 or less on the initial call
+//!                 and not touched therafter unless zero is returned.
+//! @param  bname   Pointer to a buffer where the name is to be returned.
+//! @param  blen    The length of the buffer.
+//! @param  who     If the object use to check if the link matches the wanted
+//!                 criterea (typically, client name and host name). If the
+//!                 pointer is nil, a match always occurs.
+//!
+//! @return !0      The length of teh name placed in the buffer.
+//!         =0      No more links exist with the specified criterea.
+//-----------------------------------------------------------------------------
 
-void          Hold(int lk) {(lk ? opMutex.Lock() : opMutex.UnLock());}
+static int      getName(int &curr, char *bname, int blen, XrdLinkMatch *who=0);
+
+//-----------------------------------------------------------------------------
+//! Obtain current protocol object pointer.
+//-----------------------------------------------------------------------------
+
+XrdProtocol    *getProtocol();
+
+//-----------------------------------------------------------------------------
+//! Obtain polling information object (used by poller only)
+//-----------------------------------------------------------------------------
+
+XrdPollInfo    &getPollInfo();
+
+//-----------------------------------------------------------------------------
+//! Lock or unlock the mutex used for control operations.
+//!
+//! @param  lk      When true, a lock is obtained. Otherwise it is released.
+//!                 The caller is responsible for consistency.
+//-----------------------------------------------------------------------------
+
+void            Hold(bool lk);
 
 //-----------------------------------------------------------------------------
 //! Get the fully qualified name of the endpoint.
@@ -143,14 +210,13 @@ void          Hold(int lk) {(lk ? opMutex.Lock() : opMutex.UnLock());}
 //!         while the endpoint is connected.
 //-----------------------------------------------------------------------------
 
-const char   *Host() {return (const char *)HostName;}
+const char     *Host() const {return (const char *)HostName;}
 
-char         *ID;      // This is referenced a lot
+//-----------------------------------------------------------------------------
+//! Pointer to the client's link identity.
+//-----------------------------------------------------------------------------
 
-static   void Init(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP)
-                  {XrdLog = eP; XrdTrace = tP; XrdSched = sP;}
-
-static   void Init(XrdInet *iP) {XrdNetTCP = iP;}
+char           *ID;      // This is referenced a lot (should have been const).
 
 //-----------------------------------------------------------------------------
 //! Obtain the link's instance number.
@@ -158,7 +224,7 @@ static   void Init(XrdInet *iP) {XrdNetTCP = iP;}
 //! @return The link's instance number.
 //-----------------------------------------------------------------------------
 inline
-unsigned int  Inst() {return Instance;}
+unsigned int    Inst() const {return Instance;}
 
 //-----------------------------------------------------------------------------
 //! Indicate whether or not the link has an outstanding error.
@@ -167,7 +233,7 @@ unsigned int  Inst() {return Instance;}
 //!                 the link has no outstanding error.
 //-----------------------------------------------------------------------------
 inline
-bool          isFlawed() {return Etext != 0;}
+bool            isFlawed() const {return Etext != 0;}
 
 //-----------------------------------------------------------------------------
 //! Indicate whether or not this link is of a particular instance.
@@ -175,12 +241,12 @@ bool          isFlawed() {return Etext != 0;}
 //!
 //! @param  inst    the expected instance number.
 //!
-//! @return True    the link matches the instance number.
-//!                 the link differs the instance number.
+//! @return true    the link matches the instance number.
+//!         false   the link differs the instance number.
 //-----------------------------------------------------------------------------
 inline
-bool          isInstance(unsigned int inst)
-                        {return FD >= 0 && Instance == inst;}
+bool            isInstance(unsigned int inst) const
+                          {return FD >= 0 && Instance == inst;}
 
 //-----------------------------------------------------------------------------
 //! Obtain the domain trimmed name of the end-point. The returned value should
@@ -188,8 +254,8 @@ bool          isInstance(unsigned int inst)
 //!
 //! @return Pointer to the name that remains valid during the link's lifetime.
 //-----------------------------------------------------------------------------
-inline
-const char   *Name() {return (const char *)Lname;}
+
+const char     *Name() const;
 
 //-----------------------------------------------------------------------------
 //! Obtain the network address object for this link. The returned value is
@@ -197,141 +263,295 @@ const char   *Name() {return (const char *)Lname;}
 //!
 //! @return Pointer to the object and remains valid during the link's lifetime.
 //-----------------------------------------------------------------------------
-inline const
-XrdNetAddr   *NetAddr() {return &Addr;}
+const
+XrdNetAddr     *NetAddr() const;
 
-int           Peek(char *buff, int blen, int timeout=-1);
+//-----------------------------------------------------------------------------
+//! Issue a socket peek() and return result (do not use for TLS connections).
+//!
+//! @param  buff    pointer to buffer to hold data.
+//! @param  blen    length of buffer.
+//! @param  timeout milliseconds to wait for data. A negative value waits
+//!                 forever.
+//!
+//! @return >=0     buffer holds data equal to the returned value.
+//!         < 0     an error or timeout occurred.
+//-----------------------------------------------------------------------------
 
-int           Recv(char *buff, int blen);
-int           Recv(char *buff, int blen, int timeout);
+int             Peek(char *buff, int blen, int timeout=-1);
 
-int           RecvAll(char *buff, int blen, int timeout=-1);
+//-----------------------------------------------------------------------------
+//! Read data from a link. Note that this call blocks until some data is
+//! available. Use Recv() with a timeout to avoid blocking.
+//!
+//! @param  buff    pointer to buffer to hold data.
+//! @param  blen    length of buffer (implies the maximum bytes wanted).
+//!
+//! @return >=0     buffer holds data equal to the returned value.
+//!         < 0     an error occurred.
+//-----------------------------------------------------------------------------
 
-int           Send(const char *buff, int blen);
-int           Send(const struct iovec *iov, int iocnt, int bytes=0);
+int             Recv(char *buff, int blen);
 
-static int    sfOK;                   // True if Send(sfVec) enabled
+//-----------------------------------------------------------------------------
+//! Read data from a link. Note that this call either reads all the data wanted
+//! or no data if the passed timeout occurs before any data is present.
+//!
+//! @param  buff    pointer to buffer to hold data.
+//! @param  blen    length of buffer (implies the actual bytes wanted).
+//! @param  timeout milliseconds to wait for data. A negative value waits
+//!                 forever.
+//!
+//! @return >=0     buffer holds data equal to the returned value.
+//!         < 0     an error occurred. Note that a special error -ENOMSG
+//!                 is returned if poll() indicated data was present but
+//!                 no bytes were actually read.
+//-----------------------------------------------------------------------------
+
+int             Recv(char *buff, int blen, int timeout);
+
+//-----------------------------------------------------------------------------
+//! Read data from a link. Note that this call reads as much data as it can
+//! or until the passed timeout has occurred.
+//!
+//! @param  buff    pointer to buffer to hold data.
+//! @param  blen    length of buffer (implies the maximum bytes wanted).
+//! @param  timeout milliseconds to wait for data. A negative value waits
+//!                 forever.
+//!
+//! @return >=0     buffer holds data equal to the returned value.
+//!         < 0     an error occurred or when -ETIMEDOUT is returned, no data
+//!                 arrived within the timeout period.
+//-----------------------------------------------------------------------------
+
+int             RecvAll(char *buff, int blen, int timeout=-1);
+
+//-----------------------------------------------------------------------------
+//! Send data on a link. This calls may block unless the socket was marked
+//! nonblocking. If a block would occur, the data is copied for later sending.
+//!
+//! @param  buff    pointer to buffer to send.
+//! @param  blen    length of buffer.
+//!
+//! @return >=0     number of bytes sent.
+//!         < 0     an error or occurred.
+//-----------------------------------------------------------------------------
+
+int             Send(const char *buff, int blen);
+
+//-----------------------------------------------------------------------------
+//! Send data on a link. This calls may block unless the socket was marked
+//! nonblocking. If a block would occur, the data is copied for later sending.
+//!
+//! @param  iov     pointer to the message vector.
+//! @param  iocnt   number of iov elements in the vector.
+//! @param  bytes   the sum of the sizes in the vector.
+//!
+//! @return >=0     number of bytes sent.
+//!         < 0     an error occurred.
+//-----------------------------------------------------------------------------
+
+int             Send(const struct iovec *iov, int iocnt, int bytes=0);
+
+//-----------------------------------------------------------------------------
+//! Send data on a link using sendfile(). This call always blocks until all
+//! data is sent. It should only be called if sfOK is true (see below).
+//!
+//! @param  sdP     pointer to the sendfile vector.
+//! @param  sdn     number of elements in the vector.
+//!
+//! @return >=0     number of bytes sent.
+//!         < 0     an error occurred.
+//-----------------------------------------------------------------------------
+
+static bool     sfOK;                   // True if Send(sfVec) enabled
 
 typedef XrdOucSFVec sfVec;
 
-int           Send(const sfVec *sdP, int sdn); // Iff sfOK > 0
+int             Send(const sfVec *sdP, int sdn); // Iff sfOK is true
 
-void          Serialize();                              // ASYNC Mode
+//-----------------------------------------------------------------------------
+//! Wait for all outstanding requests to be completed on the link.
+//-----------------------------------------------------------------------------
 
-int           setEtext(const char *text);
+void            Serialize();
 
-void          setID(const char *userid, int procid);
+//-----------------------------------------------------------------------------
+//! Set an error indication on he link.
+//!
+//! @param  text    a message describing the error.
+//!
+//! @return  =0     message set, the link is considered in error.
+//!          -1     the message pointer was nil.
+//-----------------------------------------------------------------------------
 
-static void   setKWT(int wkSec, int kwSec);
+int             setEtext(const char *text);
 
-void          setLocation(XrdNetAddrInfo::LocInfo &loc) {Addr.SetLocation(loc);}
+//-----------------------------------------------------------------------------
+//! Set the client's link identity.
+//!
+//! @param  userid pointer to the client's username.
+//! @param  procid the client's process id (i.e. pid).
+//-----------------------------------------------------------------------------
 
-bool          setNB();
+void            setID(const char *userid, int procid);
 
-XrdProtocol  *setProtocol(XrdProtocol *pp);
+//-----------------------------------------------------------------------------
+//! Set the client's location.
+//!
+//! @param  loc    reference to the location information.
+//-----------------------------------------------------------------------------
 
-void          setRef(int cnt);                          // ASYNC Mode
+void            setLocation(XrdNetAddrInfo::LocInfo &loc);
 
-static int    Setup(int maxfd, int idlewait);
+//-----------------------------------------------------------------------------
+//! Set the link to be non-blocking.
+//!
+//! @return true   mode has been set.
+//! @return false  mode is not supported for this operating system.
+//-----------------------------------------------------------------------------
 
-       void   Shutdown(bool getLock);
+bool            setNB();
 
-static int    Stats(char *buff, int blen, int do_sync=0);
+//-----------------------------------------------------------------------------
+//! Set the link's protocol.
+//!
+//! @param  pp     pointer to the protocol object.
+//! @param  runit  if true, starts running the protocol.
+//! @param  push   if true, pushes current protocol to be the alternate one.
+//!
+//! @return        pointer to the previous protocol (may be nil).
+//-----------------------------------------------------------------------------
 
-       void   syncStats(int *ctime=0);
+XrdProtocol    *setProtocol(XrdProtocol *pp, bool runit=false, bool push=false);
 
-       int    Terminate(const XrdLink *owner, int fdnum, unsigned int inst);
+//-----------------------------------------------------------------------------
+//! Set the link's parallel usage count.
+//!
+//! @param  cnt    should be 1 to increased the count and -1 to decrease it.
+//-----------------------------------------------------------------------------
 
-time_t        timeCon() {return conTime;}
+void            setRef(int cnt);
 
-int           UseCnt() {return InUse;}
-
-void          armBridge() {isBridged = 1;}
-int           hasBridge() {return isBridged;}
-
-              XrdLink();
-             ~XrdLink() {}  // Is never deleted!
-
-private:
-
-void   Reset();
-int    sendData(const char *Buff, int Blen);
-
-static XrdSysError  *XrdLog;
-static XrdOucTrace  *XrdTrace;
-static XrdScheduler *XrdSched;
-static XrdInet      *XrdNetTCP;
-
-static XrdSysMutex   LTMutex;    // For the LinkTab only LTMutex->IOMutex allowed
-static XrdLink     **LinkTab;
-static char         *LinkBat;
-static unsigned int  LinkAlloc;
-static int           LTLast;
-static const char   *TraceID;
-static int           devNull;
-static short         killWait;
-static short         waitKill;
-
-// Statistical area (global and local)
+//-----------------------------------------------------------------------------
+//! Enable or disable TLS on the link.
 //
-static long long    LinkBytesIn;
-static long long    LinkBytesOut;
-static long long    LinkConTime;
-static long long    LinkCountTot;
-static int          LinkCount;
-static int          LinkCountMax;
-static int          LinkTimeOuts;
-static int          LinkStalls;
-static int          LinkSfIntr;
-static int          maxFD;
-       long long        BytesIn;
-       long long        BytesInTot;
-       long long        BytesOut;
-       long long        BytesOutTot;
-       int              stallCnt;
-       int              stallCntTot;
-       int              tardyCnt;
-       int              tardyCntTot;
-       int              SfIntr;
-static XrdSysMutex  statsMutex;
+//! @param  enable  if true, TLS is enabled if not already enabled. Otherwise,
+//!                 TLS is disabled and the TLS logical connection torn down.
+//!                 statistics may be contradictory as they are collected async.
+//!
+//! @return         True if successful, false otherwise.
+//-----------------------------------------------------------------------------
 
-// Identification section
-//
-XrdNetAddr          Addr;
-char                Uname[24];       // Uname and Lname must be adjacent!
-char                Lname[232];
-char               *HostName;
-int                 HNlen;
-#if defined( __linux__ ) || defined( __solaris__ )
-pthread_t           TID;     // Hack to keep abi compatability
-#else
-XrdLink            *Next;    // Only used by PollPoll.icc
-#endif
-XrdSysMutex         opMutex;
-XrdSysMutex         rdMutex;
-XrdSysMutex         wrMutex;
-XrdSysSemaphore     IOSemaphore;
-XrdSysCondVar      *KillcvP;        // Protected by opMutex!
-XrdSendQ           *sendQ;          // Protected by wrMutex && opMutex
-XrdProtocol        *Protocol;
-XrdProtocol        *ProtoAlt;
-XrdPoll            *Poller;
-struct pollfd      *PollEnt;
-char               *Etext;
-int                 FD;
-unsigned int        Instance;
-time_t              conTime;
-int                 InUse;
-int                 doPost;
-char                LockReads;
-char                KeepFD;
-char                isEnabled;
-char                isIdle;
-char                inQ;    // Only used by PollPoll.icc
-char                isBridged;
-char                KillCnt;        // Protected by opMutex!
-static const char   KillMax =   60;
-static const char   KillMsk = 0x7f;
-static const char   KillXwt = 0x80;
+bool            setTLS(bool enable);
+
+//-----------------------------------------------------------------------------
+//! Shutdown the link but otherwise keep it intact.
+//!
+//! @param  getlock if true, the operation is performed under a lock.
+//-----------------------------------------------------------------------------
+
+void            Shutdown(bool getLock);
+
+//-----------------------------------------------------------------------------
+//! Obtain link statistics.
+//!
+//! @param  buff    pointer to the buffer for the xml statistics.
+//! @param  blen    length of the buffer.
+//! @param  do_sync if true, the statistics self-consistent. Otherwise, the
+//!                 statistics may be contradictory as they are collected async.
+//!
+//! @return         number of bytes placed in the buffer excluding the null byte.
+//-----------------------------------------------------------------------------
+
+static int      Stats(char *buff, int blen, bool do_sync=0);
+
+//-----------------------------------------------------------------------------
+//! Add all local statistics to the global counters.
+//!
+//! @param  ctime   if not nil, return the total connect time in seconds.
+//-----------------------------------------------------------------------------
+
+void            syncStats(int *ctime=0);
+
+//-----------------------------------------------------------------------------
+//! Terminate a connection.
+//!
+//! @param  owner   pointer to the link ID representing a client who made
+//!                 the connection to be terminated. If nil then this is a
+//!                 request for the link to terminate another link, if possible.
+//! @param  fdnum   the file descriptor number of the link to be terminated.
+//! @param  inst    the link's instance number.
+//!
+//! @return >0      caller should wait this number of seconds and try again.
+//! @return =0      link terminated.
+//! @return <0      link could not be terminated:
+//!                 -EACCES  the links was not created by the passed owner.
+//!                 -EPIPE   link already being terminated.
+//!                 -ESRCH   fdnum does not refer to a link.
+//!                 -ETIME   unsuccessful, too many tries.
+//-----------------------------------------------------------------------------
+
+int             Terminate(const char *owner, int fdnum, unsigned int inst);
+
+//-----------------------------------------------------------------------------
+//! Return the time the link was made active (i.e. time of connection).
+//-----------------------------------------------------------------------------
+
+time_t          timeCon() const {return conTime;}
+
+//-----------------------------------------------------------------------------
+//! Return link's reference count.
+//-----------------------------------------------------------------------------
+
+inline int      UseCnt() const {return InUse;}
+
+//-----------------------------------------------------------------------------
+//! Mark this link as an in-memory communications bridge (internal use only).
+//-----------------------------------------------------------------------------
+
+void            armBridge();
+
+//-----------------------------------------------------------------------------
+//! Determine if this link is a bridge.
+//!
+//! @return true    this link is a bridge.
+//! @return false   this link is a plain old link.
+//-----------------------------------------------------------------------------
+
+inline bool     hasBridge() const {return isBridged;}
+
+//-----------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param  lxq     Reference to the implementation.
+//-----------------------------------------------------------------------------
+
+                XrdLink(XrdLinkXeq &lxq);
+
+protected:
+               ~XrdLink() {}  // Is never deleted!
+
+void            DoIt();       // This is an override of XrdJob::DoIt.
+void            ResetLink();
+int             Wait4Data(int timeout);
+
+void           *rsvd2[3];     // Reserved for future use
+XrdSysCondVar  *KillcvP;      // Protected by opMutex!
+
+XrdSysSemaphore IOSemaphore;  // Serialization semaphore
+time_t          conTime;      // Unix time connected
+char           *Etext;        // -> error text, if nil then no error.
+char           *HostName;     // -> peer's host nameh
+XrdLinkXeq     &linkXQ;       // The implementation
+int             FD;           // File descriptor (may be negative)
+unsigned int    Instance;     // Instance number of this object
+XrdSysRecMutex  opMutex;      // Serialization mutex
+int             InUse;        // Number of threads using this object
+int             doPost;       // Number of threads waiting for serialization
+bool            isBridged;    // If true, this link is an in-memory bridge
+bool            isTLS;        // If true, this link uses TLS for all I/O
+char            KillCnt;      // Number of times a kill has been attempted
+char            rsvd1[5];
 };
 #endif

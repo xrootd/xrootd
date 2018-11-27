@@ -50,6 +50,15 @@ public:
 std::string     GetErrs(const char *pfx=0);
 
 //------------------------------------------------------------------------
+//! Simply initialize the SSL library.
+//!
+//! @return =0       Library initialized.
+//!         !0       Library not initialized, return string indicates why.
+//------------------------------------------------------------------------
+static
+const char     *InitSSL();
+
+//------------------------------------------------------------------------
 //! Print all errors encountered so far.
 //!
 //! @param  pfx      The message prefix to be used (i.e. pfx: msg).
@@ -71,9 +80,11 @@ std::string     GetErrs(const char *pfx=0);
 //! @param  prot     The protocols that the context should support. Choose
 //!                  one of the enums defined below. Note that doSSL includes
 //!                  TLS but deprecates SSL protocols mainly for https support.
+//!                  When prot is doNONE then only the SSL library is
+//!                  initialized but otherwise, no context is established.
 //------------------------------------------------------------------------
 
-       enum Protocol {doSSL = 0, doTLS};
+       enum Protocol {doNONE = 0, doSSL, doTLS};
 
        XrdTlsContext(const char *cert=0, const char *key=0, Protocol prot=doTLS);
 

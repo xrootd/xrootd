@@ -80,6 +80,7 @@ class XrdSfsFileSystem;
 class XrdSecProtocol;
 class XrdBuffer;
 class XrdLink;
+class XrdTlsContext;
 class XrdXrootdAioReq;
 class XrdXrootdFile;
 class XrdXrootdFileLock;
@@ -254,6 +255,7 @@ static XrdSfsFileSystem     *osFS;      // The filesystem
 static XrdSfsFileSystem     *digFS;     // The filesystem (digFS)
 static XrdSecService        *CIA;       // Authentication Server
 static XrdSecProtector      *DHS;       // Protection     Server
+static XrdTlsContext        *tlsCtx;    // Protection     Server TLS available
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager

@@ -69,6 +69,7 @@ char                 *XrdXrootdProtocol::digParm  = 0;
 XrdXrootdFileLock    *XrdXrootdProtocol::Locker;
 XrdSecService        *XrdXrootdProtocol::CIA      = 0;
 XrdSecProtector      *XrdXrootdProtocol::DHS      = 0;
+XrdTlsContext        *XrdXrootdProtocol::tlsCtx   = 0;
 char                 *XrdXrootdProtocol::SecLib   = 0;
 char                 *XrdXrootdProtocol::pidPath  = strdup("/tmp");
 XrdScheduler         *XrdXrootdProtocol::Sched;

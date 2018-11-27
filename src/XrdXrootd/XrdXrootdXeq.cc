@@ -740,7 +740,7 @@ int XrdXrootdProtocol::do_Endsess()
 // Terminate the indicated session, if possible. This could also be a self-termination.
 //
    if ((sessID.FD == 0 && sessID.Inst == 0) 
-   ||  !(rc = Link->Terminate(Link, sessID.FD, sessID.Inst))) return -1;
+   ||  !(rc = Link->Terminate(0, sessID.FD, sessID.Inst))) return -1;
 
 // Trace this request
 //
@@ -1722,7 +1722,8 @@ int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
 
    ServerResponseBody_Protocol theResp;
    ServerResponseBody_Protocol *respP = (rsp ? rsp : &theResp);
-   int RespLen = kXR_ShortProtRespLen;
+   int rc, RespLen = kXR_ShortProtRespLen;
+   bool doTLS = false;
 
 // Keep Statistics
 //
@@ -1738,6 +1739,8 @@ int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
        if (DHS && cvn >= kXR_PROTSIGNVERSION
        &&  Request.protocol.flags & kXR_secreqs)
           RespLen += DHS->ProtResp(respP->secreq, *(Link->AddrInfo()), cvn);
+       doTLS = (Request.protocol.flags & kXR_wantTls) != 0
+            && (myRole & kXR_haveTls) != 0 && rsp == 0;
        respP->flags = theRle;
       } else {
        respP->flags = theRlf;
@@ -1745,8 +1748,20 @@ int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
 
 // Return info
 //
-    respP->pval = verNum;
-    return (rsp ? RespLen : Response.Send((void *)&theResp,RespLen));
+   respP->pval = verNum;
+   if (rsp) return RespLen;
+   rc = Response.Send((void *)&theResp,RespLen);
+
+// If the clientwants to start using TLS, enable it now. If we fail then we
+// have no choice but to terminate the connection.
+//
+   if (rc == 0 && doTLS)
+      {if (!Link->setTLS(true))
+          {eDest.Emsg("Xeq", "Unable to enable tls for", Link->ID);
+           rc = -1;
+          }
+      }
+   return rc;
 }
 
 /******************************************************************************/
@@ -3422,20 +3437,20 @@ int XrdXrootdProtocol::fsOvrld(char opC, const char *Path, char *Cgi)
 //
    if (OD_Bypass && clientPV & XrdOucEI::uUrlOK
    &&  (pOff = XrdOucUtils::isFWD(Path, &port, dest, sizeof(dest))))
-      {    rdrResp[1].iov_base = (void *)&negOne;
+      {    rdrResp[1].iov_base = (char *)&negOne;
            rdrResp[1].iov_len  = sizeof(negOne);
-           rdrResp[2].iov_base = (void *)prot;
+           rdrResp[2].iov_base = (char *)prot;
            rdrResp[2].iov_len  = 7;                        // root://
-           rdrResp[3].iov_base = (void *)dest;
+           rdrResp[3].iov_base = (char *)dest;
            rdrResp[3].iov_len  = strlen(dest);             // host:port
-           rdrResp[4].iov_base = (void *)&slash;
+           rdrResp[4].iov_base = (char *)&slash;
            rdrResp[4].iov_len  = (*Path == '/' ? 1 : 0);   // / or nil for objid
-           rdrResp[5].iov_base = (void *)(Path+pOff);
+           rdrResp[5].iov_base = (char *)(Path+pOff);
            rdrResp[5].iov_len  = strlen(Path+pOff);        // path
        if (Cgi && *Cgi)
-          {rdrResp[6].iov_base = (void *)&quest;
+          {rdrResp[6].iov_base = (char *)&quest;
            rdrResp[6].iov_len  = sizeof(quest);            // ?
-           rdrResp[7].iov_base = (void *)Cgi;
+           rdrResp[7].iov_base = (char *)Cgi;
            rdrResp[7].iov_len  = strlen(Cgi);              // cgi
            iovNum = 8;
           } else iovNum = 6;

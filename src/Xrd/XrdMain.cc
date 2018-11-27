@@ -95,9 +95,7 @@ static XrdConfig  Config;
 
 void              DoIt() {XrdLink *newlink;
                           if ((newlink = theNet->Accept(0, -1, theSem)))
-                             {newlink->setProtocol(theProt);
-                              newlink->DoIt();
-                             }
+                             newlink->setProtocol(theProt, true);
                          }
 
            XrdMain() : XrdJob("main accept"), theSem(0), theProt(0),

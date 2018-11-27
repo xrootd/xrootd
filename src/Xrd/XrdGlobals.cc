@@ -1,10 +1,8 @@
-#ifndef __XRD_POLLPOLL_H__
-#define __XRD_POLLPOLL_H__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d P o l l P o l l . h h                         */
+/*                         X r d G l o b a l s . c c                          */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,45 +27,30 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <poll.h>
+#include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdBuffXL.hh"
+#include "Xrd/XrdInet.hh"
+#include "Xrd/XrdScheduler.hh"
 
-#include "Xrd/XrdPoll.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 
-class XrdLink;
-class XrdPollInfo;
-  
-class XrdPollPoll : XrdPoll
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+
+// All the things that the Xrd package requires.
+//
+class XrdTlsContext;
+class XrdBuffXL;
+
+namespace XrdGlobal
 {
-public:
-
-       void Detach(XrdLink *lp);
-
-       void Disable(XrdLink *lp, const char *etxt=0);
-
-       int  Enable(XrdLink *lp);
-
-       void Start(XrdSysSemaphore *syncp, int &rc);
-
-            XrdPollPoll(struct pollfd *pp, int numfd);
-           ~XrdPollPoll();
-
-protected:
-       void doDetach(int pti);
-       void Exclude(XrdLink *lp);
-       int  Include(XrdLink *lp);
-
-private:
-
-void  doRequests(int maxreq);
-void  dqLink(XrdLink *lp, XrdPollInfo *pInfo);
-void  LogEvent(int req, int pollfd, int cmdfd);
-void  Recover(int numleft);
-void  Restart(int ecode);
-
-struct     pollfd      *PollTab;    //<---
-           int          PollTNum;   // PollMutex protects these elements
-           XrdPollInfo *PollQ;      //<---
-           XrdSysMutex  PollMutex;
-           int          maxent;
-};
-#endif
+XrdSysLogger      Logger;
+XrdSysError       Log(&Logger, "Xrd");
+XrdOucTrace       XrdTrace(&Log);
+XrdScheduler      Sched(&Log, &XrdTrace);
+XrdBuffManager    BuffPool(&Log, &XrdTrace);
+XrdTlsContext    *tlsCtx = 0;
+XrdInet          *XrdNetTCP = 0;
+extern XrdBuffXL  xlBuff;
+int               devNull = -1;
+}

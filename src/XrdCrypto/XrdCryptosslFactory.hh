@@ -45,8 +45,6 @@ int DebugON = 1;
 // The ID must be a unique number
 #define XrdCryptosslFactoryID  1
 
-#define SSLFACTORY_MAX_CRYPTO_MUTEX 256
-
 class XrdCryptosslFactory : public XrdCryptoFactory 
 {
 public:
@@ -107,9 +105,6 @@ public:
    XrdCryptoX509SignProxyReq_t X509SignProxyReq();
    XrdCryptoX509CheckProxy3_t X509CheckProxy3();
    XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr();
-
-   // Required SSL mutexes.
-  static  XrdSysMutex*              CryptoMutexPool[SSLFACTORY_MAX_CRYPTO_MUTEX];
 
 };
 

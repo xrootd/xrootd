@@ -35,7 +35,6 @@
 #include <signal.h>
   
 #include "XrdSys/XrdSysError.hh"
-#include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPollPoll.hh"
 #include "Xrd/XrdScheduler.hh"
 

@@ -91,6 +91,7 @@ void InitTLS()
 // happen when a server and a client instance happen to be both defined.
 //
    if (initDone) return;
+   initDone = true;
 
 // SSL library initialisation
 //
@@ -242,6 +243,25 @@ std::string XrdTlsContext::GetErrs(const char *pfx)
 }
 
 /******************************************************************************/
+/*                               I n i t S S L                                */
+/******************************************************************************/
+  
+const char *XrdTlsContext::InitSSL()
+{
+
+// Disallow use if this object unless SSL provides thread-safety!
+//
+#ifndef OPENSSL_THREADS
+   return "Installed OpenSSL lacks the required thread support!";
+#endif
+
+// Initialize the library (one time call)
+//
+   InitTLS();
+   return 0;
+}
+  
+/******************************************************************************/
 /*                             P r i n t E r r s                              */
 /******************************************************************************/
   
@@ -256,6 +276,4 @@ void XrdTlsContext::PrintErrs(const char *pfx, XrdSysError *eDest)
            do {eMsg(eDest, pfx,  ERR_reason_error_string(eCode));
               } while((eCode = ERR_get_error()));
           }
-
-  eText = 0;
 }

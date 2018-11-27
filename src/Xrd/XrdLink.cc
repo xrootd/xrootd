@@ -2,7 +2,7 @@
 /*                                                                            */
 /*                            X r d L i n k . c c                             */
 /*                                                                            */
-/* (c) 2011 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -61,394 +61,113 @@
 #include "XrdSys/XrdSysPlatform.hh"
 
 #include "Xrd/XrdBuffer.hh"
+
 #include "Xrd/XrdLink.hh"
-#include "Xrd/XrdInet.hh"
+#include "Xrd/XrdLinkCtl.hh"
+#include "Xrd/XrdLinkXeq.hh"
 #include "Xrd/XrdPoll.hh"
-#include "Xrd/XrdScheduler.hh"
-#include "Xrd/XrdSendQ.hh"
 
 #define  TRACELINK this
-#define  XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
- 
-/******************************************************************************/
-/*                         L o c a l   C l a s s e s                          */
-/******************************************************************************/
-/******************************************************************************/
-/*                    C l a s s   x r d _ L i n k S c a n                     */
-/******************************************************************************/
+
+#include "XrdOuc/XrdOucTrace.hh"
+
+#include "XrdSys/XrdSysError.hh"
   
-class XrdLinkScan : XrdJob
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+
+namespace XrdGlobal
 {
-public:
-
-void          DoIt() {idleScan();}
-
-              XrdLinkScan(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP,
-                          int im, int it, const char *lt="idle link scan")
-                         : XrdJob(lt), XrdLog(eP), XrdTrace(tP), XrdSched(sP),
-                           idleCheck(im), idleTicks(it) {}
-             ~XrdLinkScan() {}
-
-private:
-
-void               idleScan();
-
-XrdSysError       *XrdLog;
-XrdOucTrace       *XrdTrace;
-XrdScheduler      *XrdSched;
-int                idleCheck;
-int                idleTicks;
-
-static const char *TraceID;
+extern XrdSysError  Log;
+extern XrdOucTrace  XrdTrace;
 };
+
+using namespace XrdGlobal;
   
 /******************************************************************************/
-/*                               S t a t i c s                                */
+/*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
-
-       XrdSysError    *XrdLink::XrdLog   = 0;
-       XrdOucTrace    *XrdLink::XrdTrace = 0;
-       XrdScheduler   *XrdLink::XrdSched = 0;
-       XrdInet        *XrdLink::XrdNetTCP= 0;
 
 #if defined(HAVE_SENDFILE)
-       int             XrdLink::sfOK = 1;
+       bool        XrdLink::sfOK = true;
 #else
-       int             XrdLink::sfOK = 0;
+       bool        XrdLink::sfOK = false;
 #endif
 
-       XrdLink       **XrdLink::LinkTab;
-       char           *XrdLink::LinkBat;
-       unsigned int    XrdLink::LinkAlloc;
-       int             XrdLink::LTLast = -1;
-       XrdSysMutex     XrdLink::LTMutex;
+namespace
+{
+const char   KillMax =   60;
+const char   KillMsk = 0x7f;
+const char   KillXwt = 0x80;
 
-       const char     *XrdLink::TraceID = "Link";
-
-       long long       XrdLink::LinkBytesIn   = 0;
-       long long       XrdLink::LinkBytesOut  = 0;
-       long long       XrdLink::LinkConTime   = 0;
-       long long       XrdLink::LinkCountTot  = 0;
-       int             XrdLink::LinkCount     = 0;
-       int             XrdLink::LinkCountMax  = 0;
-       int             XrdLink::LinkTimeOuts  = 0;
-       int             XrdLink::LinkStalls    = 0;
-       int             XrdLink::LinkSfIntr    = 0;
-       int             XrdLink::maxFD         = 0;
-       XrdSysMutex     XrdLink::statsMutex;
-
-       const char     *XrdLinkScan::TraceID = "LinkScan";
-       int             XrdLink::devNull = XrdSysFD_Open("/dev/null", O_RDONLY);
-       short           XrdLink::killWait= 3;  // Kill then wait
-       short           XrdLink::waitKill= 4;  // Wait then kill
-
-// The following values are defined for LinkBat[]. We assume that FREE is 0
-//
-#define XRDLINK_FREE 0x00
-#define XRDLINK_USED 0x01
-#define XRDLINK_IDLE 0x02
+const char  *TraceID = "Link";
+}
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdLink::XrdLink() : XrdJob("connection"), IOSemaphore(0, "link i/o")
+XrdLink::XrdLink(XrdLinkXeq &lxq)
+                : XrdJob("connection"), IOSemaphore(0, "link i/o"), linkXQ(lxq)
 {
-  Etext = 0;
-  HostName = 0;
-  Reset();
+   Etext    = 0;
+   HostName = 0;
+   ResetLink();
 }
 
-void XrdLink::Reset()
+void XrdLink::ResetLink()
 {
-  FD    = -1;
-  if (Etext)    {free(Etext); Etext = 0;}
-  if (HostName) {free(HostName); HostName = 0;}
-  Uname[sizeof(Uname)-1] = '@';
-  Uname[sizeof(Uname)-2] = '?';
-  Lname[0] = '?';
-  Lname[1] = '\0';
-  ID       = &Uname[sizeof(Uname)-2];
-  Comment  = ID;
-#if !defined( __linux__ ) && !defined( __solaris__ )
-  Next     = 0;
-#endif
-  sendQ    = 0;
-  Protocol = 0; 
-  ProtoAlt = 0;
-  conTime  = time(0);
-  stallCnt = stallCntTot = 0;
-  tardyCnt = tardyCntTot = 0;
-  SfIntr   = 0;
-  InUse    = 1;
-  Poller   = 0; 
-  PollEnt  = 0;
-  isEnabled= 0;
-  isIdle   = 0;
-  inQ      = 0;
-  isBridged= 0;
-  BytesOut = BytesIn = BytesOutTot = BytesInTot = 0;
-  doPost   = 0;
-  LockReads= 0;
-  KeepFD   = 0;
-  Instance = 0;
-  KillcvP  = 0;
-  KillCnt  = 0;
+   KillcvP  =  0;
+   conTime  = time(0);
+   if (Etext)    {free(Etext); Etext = 0;}
+   if (HostName) {free(HostName); HostName = 0;}
+   Comment  = ID;
+   FD       = -1;
+   Instance =  0;
+   InUse    =  1;
+   doPost   =  0;
+   isBridged= false;
+   isTLS    = false;
+   KillCnt  =  0;
 }
 
 /******************************************************************************/
-/*                                 A l l o c                                  */
+/*                              A d d r I n f o                               */
 /******************************************************************************/
+
+XrdNetAddrInfo *XrdLink::AddrInfo() {return linkXQ.AddrInfo();}
   
-XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
-{
-   static XrdSysMutex  instMutex;
-   static unsigned int myInstance = 1;
-   XrdLink *lp;
-   char hName[1024], *unp, buff[16];
-   int bl, peerFD = peer.SockFD();
+/******************************************************************************/
+/*                             a r m B r i d g e                              */
+/******************************************************************************/
 
-// Make sure that the incomming file descriptor can be handled
-//
-   if (peerFD < 0 || peerFD >= maxFD)
-      {snprintf(hName, sizeof(hName), "%d", peerFD);
-       XrdLog->Emsg("Link", "attempt to alloc out of range FD -",hName);
-       return (XrdLink *)0;
-      }
-
-// Make sure that the link slot is available
-//
-   LTMutex.Lock();
-   if (LinkBat[peerFD])
-      {LTMutex.UnLock();
-       XrdLog->Emsg("Link", "attempt to reuse active link");
-       return (XrdLink *)0;
-      }
-
-// Check if we already have a link object in this slot. If not, allocate
-// a quantum of link objects and put them in the table.
-//
-   if (!(lp = LinkTab[peerFD]))
-      {unsigned int i;
-       XrdLink **blp, *nlp = new XrdLink[LinkAlloc]();
-       if (!nlp)
-          {LTMutex.UnLock();
-           XrdLog->Emsg("Link", ENOMEM, "create link"); 
-           return (XrdLink *)0;
-          }
-       blp = &LinkTab[peerFD/LinkAlloc*LinkAlloc];
-       for (i = 0; i < LinkAlloc; i++, blp++) *blp = &nlp[i];
-       lp = LinkTab[peerFD];
-      }
-      else lp->Reset();
-   LinkBat[peerFD] = XRDLINK_USED;
-   if (peerFD > LTLast) LTLast = peerFD;
-   LTMutex.UnLock();
-
-// Establish the instance number of this link. This is will prevent us from
-// sending asynchronous responses to the wrong client when the file descriptor
-// gets reused for connections to the same host.
-//
-   instMutex.Lock();
-   lp->Instance = myInstance++;
-   instMutex.UnLock();
-
-// Establish the address and connection name of this link
-//
-   peer.Format(hName, sizeof(hName), XrdNetAddr::fmtAuto,
-                                     XrdNetAddr::old6Map4 | XrdNetAddr::noPort);
-   lp->HostName = strdup(hName);
-   lp->HNlen = strlen(hName);
-   XrdNetTCP->Trim(hName);
-   lp->Addr = peer;
-   strlcpy(lp->Lname, hName, sizeof(lp->Lname));
-   bl = sprintf(buff, "?:%d", peerFD);
-   unp = lp->Uname + sizeof(Uname) - bl - 1;
-   memcpy(unp, buff, bl);
-   lp->ID = unp;
-   lp->FD = peerFD;
-   lp->Comment = (const char *)unp;
-
-// Set options as needed
-//
-   lp->LockReads = (0 != (opts & XRDLINK_RDLOCK));
-   lp->KeepFD    = (0 != (opts & XRDLINK_NOCLOSE));
-
-// Update statistics and return the link. We need to actually get the stats
-// mutex even when using atomics because we need to use compound operations.
-// The atomics will keep reporters from seeing partial results.
-//
-   statsMutex.Lock();
-   AtomicInc(LinkCountTot);            // LinkCountTot++
-   if (LinkCountMax <= AtomicInc(LinkCount)) LinkCountMax = LinkCount;
-   statsMutex.UnLock();
-   return lp;
-}
-
+void XrdLink::armBridge() {isBridged = 1;}
+  
 /******************************************************************************/
 /*                               B a c k l o g                                */
 /******************************************************************************/
   
-int XrdLink::Backlog()
-{
-   XrdSysMutexHelper lck(wrMutex);
-
-// Return backlog information
-//
-   return (sendQ ? sendQ->Backlog() : 0);
-}
+int XrdLink::Backlog() {return linkXQ.Backlog();}
 
 /******************************************************************************/
 /*                                C l i e n t                                 */
 /******************************************************************************/
   
-int XrdLink::Client(char *nbuf, int nbsz)
-{
-   int ulen;
-
-// Generate full client name
-//
-   if (nbsz <= 0) return 0;
-   ulen = (Lname - ID);
-   if ((ulen + HNlen) >= nbsz) ulen = 0;
-      else {strncpy(nbuf, ID, ulen);
-            strcpy(nbuf+ulen, HostName);
-            ulen += HNlen;
-           }
-   return ulen;
-}
+int XrdLink::Client(char *nbuf, int nbsz) {return linkXQ.Client(nbuf, nbsz);}
 
 /******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/
   
-int XrdLink::Close(int defer)
-{  XrdSysMutexHelper opHelper(opMutex);
-   int csec, fd, rc = 0;
-
-// If a defer close is requested, we can close the descriptor but we must
-// keep the slot number to prevent a new client getting the same fd number.
-// Linux is peculiar in that any in-progress operations will remain in that
-// state even after the FD is closed unless there is some activity either on
-// the connection or an event occurs that causes an operation restart. We
-// portably solve this problem by issuing a shutdown() on the socket prior
-// closing it. On most platforms, this informs readers that the connection is
-// gone (though not on old (i.e. <= 2.3) versions of Linux, sigh). Also, if
-// nonblocking mode is enabled, we need to do this in a separate thread as
-// a shutdown may block for a pretty long time is lot of messages are queued.
-// We will ask the SendQ object to schedule the shutdown for us before it
-// commits suicide.
-// Note that we can hold the opMutex while we also get the wrMutex.
-//
-   if (defer)
-      {if (!sendQ) Shutdown(false);
-          else {TRACEI(DEBUG, "Shutdown FD only via SendQ");
-                InUse++;
-                FD = -FD;
-                wrMutex.Lock();
-                sendQ->Terminate(this);
-                sendQ = 0;
-                wrMutex.UnLock();
-               }
-       return 0;
-      }
-
-// If we got here then this is not a defered close so we just need to check
-// if there is a sendq appendage we need to get rid of.
-//
-   if (sendQ)
-      {wrMutex.Lock();
-       sendQ->Terminate();
-       sendQ = 0;
-       wrMutex.UnLock();
-      }
-
-// Multiple protocols may be bound to this link. If it is in use, defer the
-// actual close until the use count drops to one.
-//
-   while(InUse > 1)
-      {opHelper.UnLock();
-       TRACEI(DEBUG, "Close defered, use count=" <<InUse);
-       Serialize();
-       opHelper.Lock(&opMutex);
-      }
-   InUse--;
-   Instance = 0;
-
-// Add up the statistic for this link
-//
-   syncStats(&csec);
-
-// Clean this link up
-//
-   if (Protocol) {Protocol->Recycle(this, csec, Etext); Protocol = 0;}
-   if (ProtoAlt) {ProtoAlt->Recycle(this, csec, Etext); ProtoAlt = 0;}
-   if (Etext) {free(Etext); Etext = 0;}
-   InUse    = 0;
-
-// At this point we can have no lock conflicts, so if someone is waiting for
-// us to terminate let them know about it. Note that we will get the condvar
-// mutex while we hold the opMutex. This is the required order! We will also
-// zero out the pointer to the condvar while holding the opmutex.
-//
-   if (KillcvP) {KillcvP->  Lock(); KillcvP->Signal();
-                 KillcvP->UnLock(); KillcvP = 0;
-                }
-
-// Remove ourselves from the poll table and then from the Link table. We may
-// not hold on to the opMutex when we acquire the LTMutex. However, the link
-// table needs to be cleaned up prior to actually closing the socket. So, we
-// do some fancy footwork to prevent multiple closes of this link.
-//
-   fd = (FD < 0 ? -FD : FD);
-   if (FD != -1)
-      {if (Poller) {XrdPoll::Detach(this); Poller = 0;}
-       FD = -1;
-       opHelper.UnLock();
-       LTMutex.Lock();
-       LinkBat[fd] = XRDLINK_FREE;
-       if (fd == LTLast) while(LTLast && !(LinkBat[LTLast])) LTLast--;
-       LTMutex.UnLock();
-      } else opHelper.UnLock();
-
-// Close the file descriptor if it isn't being shared. Do it as the last
-// thing because closes and accepts and not interlocked.
-//
-   if (fd >= 2) {if (KeepFD) rc = 0;
-                    else rc = (close(fd) < 0 ? errno : 0);
-                }
-   if (rc) XrdLog->Emsg("Link", rc, "close", ID);
-   return rc;
-}
+int XrdLink::Close(bool defer) {return linkXQ.Close(defer);}
 
 /******************************************************************************/
-/*                                  D o I t                                   */
+/* Protected:                       D o I t                                   */
 /******************************************************************************/
  
-void XrdLink::DoIt()
-{
-   int rc;
-
-// The Process() return code tells us what to do:
-// < 0 -> Stop getting requests, 
-//        -EINPROGRESS leave link disabled but otherwise all is well
-//        -n           Error, disable and close the link
-// = 0 -> OK, get next request, if allowed, o/w enable the link
-// > 0 -> Slow link, stop getting requests  and enable the link
-//
-   if (Protocol)
-      do {rc = Protocol->Process(this);} while (!rc && XrdSched->canStick());
-      else {XrdLog->Emsg("Link", "Dispatch on closed link", ID);
-            return;
-           }
-
-// Either re-enable the link and cycle back waiting for a new request, leave
-// disabled, or terminate the connection.
-//
-   if (rc >= 0) {if (Poller && !Poller->Enable(this)) Close();}
-      else if (rc != -EINPROGRESS) Close();
-}
+void XrdLink::DoIt() {} // This is overridden by the implementation
   
 /******************************************************************************/
 /*                                E n a b l e                                 */
@@ -456,56 +175,37 @@ void XrdLink::DoIt()
   
 void XrdLink::Enable()
 {
-   if (Poller) Poller->Enable(this);
+   if (linkXQ.PollInfo.Poller) linkXQ.PollInfo.Poller->Enable(this);
 }
 
 /******************************************************************************/
 /*                                  F i n d                                   */
 /******************************************************************************/
 
-// Warning: curr must be set to a value of 0 or less on the initial call and
-//          not touched therafter unless a null pointer is returned. When an
-//          actual link object pointer is returned, it's refcount is increased.
-//          The count is automatically decreased on the next call to Find().
-//
 XrdLink *XrdLink::Find(int &curr, XrdLinkMatch *who)
-{
-   XrdLink *lp;
-   const int MaxSeek = 16;
-   unsigned int myINS;
-   int i, seeklim = MaxSeek;
+                      {return XrdLinkCtl::Find(curr, who);}
 
-// Do initialization
-//
-   LTMutex.Lock();
-   if (curr >= 0 && LinkTab[curr]) LinkTab[curr]->setRef(-1);
-      else curr = -1;
+/******************************************************************************/
+/*                               f d 2 l i n k                                */
+/******************************************************************************/
+  
+XrdLink *XrdLink::fd2link(int fd) {return XrdLinkCtl::fd2link(fd);}
 
-// Find next matching link. Since this may take some time, we periodically
-// release the LTMutex lock which drives up overhead but will still allow
-// other critical operations to occur.
-//
-   for (i = curr+1; i <= LTLast; i++)
-       {if ((lp = LinkTab[i]) && LinkBat[i] && lp->HostName)
-           if (!who 
-           ||   who->Match(lp->ID,lp->Lname-lp->ID-1,lp->HostName,lp->HNlen))
-              {myINS = lp->Instance;
-               LTMutex.UnLock();
-               lp->setRef(1);
-               curr = i;
-               if (myINS == lp->Instance) return lp;
-               LTMutex.Lock();
-              }
-        if (!seeklim--) {LTMutex.UnLock(); seeklim = MaxSeek; LTMutex.Lock();}
-       }
+/******************************************************************************/
 
-// Done scanning the table
-//
-    LTMutex.UnLock();
-    curr = -1;
-    return 0;
-}
+XrdLink *XrdLink::fd2link(int fd, unsigned int inst)
+                         {return XrdLinkCtl::fd2link(fd, inst);}
+  
+/******************************************************************************/
+/*                            g e t I O S t a t s                             */
+/******************************************************************************/
 
+int XrdLink::getIOStats(long long &inbytes, long long &outbytes,
+                             int  &numstall,     int  &numtardy)
+                       {return linkXQ.getIOStats(inbytes,  outbytes,
+                                                 numstall, numtardy);
+                       }
+  
 /******************************************************************************/
 /*                               g e t N a m e                                */
 /******************************************************************************/
@@ -515,77 +215,46 @@ XrdLink *XrdLink::Find(int &curr, XrdLinkMatch *who)
 //          the name in nbuf.
 //
 int XrdLink::getName(int &curr, char *nbuf, int nbsz, XrdLinkMatch *who)
-{
-   XrdLink *lp;
-   const int MaxSeek = 16;
-   int i, ulen = 0, seeklim = MaxSeek;
+                    {return XrdLinkCtl::getName(curr, nbuf, nbsz, who);}
 
-// Find next matching link. Since this may take some time, we periodically
-// release the LTMutex lock which drives up overhead but will still allow
-// other critical operations to occur.
-//
-   LTMutex.Lock();
-   for (i = curr+1; i <= LTLast; i++)
-       {if ((lp = LinkTab[i]) && LinkBat[i] && lp->HostName)
-           if (!who 
-           ||   who->Match(lp->ID,lp->Lname-lp->ID-1,lp->HostName,lp->HNlen))
-              {ulen = lp->Client(nbuf, nbsz);
-               LTMutex.UnLock();
-               curr = i;
-               return ulen;
-              }
-        if (!seeklim--) {LTMutex.UnLock(); seeklim = MaxSeek; LTMutex.Lock();}
-       }
-   LTMutex.UnLock();
+/******************************************************************************/
+/*                           g e t P o l l I n f o                            */
+/******************************************************************************/
 
-// Done scanning the table
-//
-   curr = -1;
-   return 0;
-}
+XrdPollInfo &XrdLink::getPollInfo() {return linkXQ.PollInfo;}
+  
+/******************************************************************************/
+/*                           g e t P r o t o c o l                            */
+/******************************************************************************/
 
+XrdProtocol *XrdLink::getProtocol() {return linkXQ.getProtocol();}
+  
+/******************************************************************************/
+/*                                  H o l d                                   */
+/******************************************************************************/
+
+void XrdLink::Hold(bool lk) {(lk ? opMutex.Lock() : opMutex.UnLock());}
+  
+/******************************************************************************/
+/*                                  N a m e                                   */
+/******************************************************************************/
+
+const char *XrdLink::Name() const {return linkXQ.Name();}
+  
+/******************************************************************************/
+/*                               N e t A d d r                                */
+/******************************************************************************/
+const
+XrdNetAddr *XrdLink::NetAddr() const {return linkXQ.NetAddr();}
+  
 /******************************************************************************/
 /*                                  P e e k                                   */
 /******************************************************************************/
   
 int XrdLink::Peek(char *Buff, int Blen, int timeout)
 {
-   XrdSysMutexHelper theMutex;
-   struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
-   ssize_t mlen;
-   int retc;
-
-// Lock the read mutex if we need to, the helper will unlock it upon exit
-//
-   if (LockReads) theMutex.Lock(&rdMutex);
-
-// Wait until we can actually read something
-//
-   isIdle = 0;
-   do {retc = poll(&polltab, 1, timeout);} while(retc < 0 && errno == EINTR);
-   if (retc != 1)
-      {if (retc == 0) return 0;
-       return XrdLog->Emsg("Link", -errno, "poll", ID);
-      }
-
-// Verify it is safe to read now
-//
-   if (!(polltab.revents & (POLLIN|POLLRDNORM)))
-      {XrdLog->Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
-                           "polling", ID);
-       return -1;
-      }
-
-// Do the peek.
-//
-   do {mlen = recv(FD, Buff, Blen, MSG_PEEK);}
-      while(mlen < 0 && errno == EINTR);
-
-// Return the result
-//
-   if (mlen >= 0) return int(mlen);
-   XrdLog->Emsg("Link", errno, "peek on", ID);
-   return -1;
+   if (isTLS) return linkXQ.TLS_Peek(Buff, Blen, timeout);
+              return linkXQ.Peek    (Buff, Blen, timeout);
 }
   
 /******************************************************************************/
@@ -594,75 +263,17 @@ int XrdLink::Peek(char *Buff, int Blen, int timeout)
   
 int XrdLink::Recv(char *Buff, int Blen)
 {
-   ssize_t rlen;
-
-// Note that we will read only as much as is queued. Use Recv() with a
-// timeout to receive as much data as possible.
-//
-   if (LockReads) rdMutex.Lock();
-   isIdle = 0;
-   do {rlen = read(FD, Buff, Blen);} while(rlen < 0 && errno == EINTR);
-   if (rlen > 0) AtomicAdd(BytesIn, rlen);
-   if (LockReads) rdMutex.UnLock();
-
-   if (rlen >= 0) return int(rlen);
-   if (FD >= 0) XrdLog->Emsg("Link", errno, "receive from", ID);
-   return -1;
+   if (isTLS) return linkXQ.TLS_Recv(Buff, Blen);
+              return linkXQ.Recv    (Buff, Blen);
 }
 
 /******************************************************************************/
 
 int XrdLink::Recv(char *Buff, int Blen, int timeout)
 {
-   XrdSysMutexHelper theMutex;
-   struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
-   ssize_t rlen, totlen = 0;
-   int retc;
-
-// Lock the read mutex if we need to, the helper will unlock it upon exit
-//
-   if (LockReads) theMutex.Lock(&rdMutex);
-
-// Wait up to timeout milliseconds for data to arrive
-//
-   isIdle = 0;
-   while(Blen > 0)
-        {do {retc = poll(&polltab,1,timeout);} while(retc < 0 && errno == EINTR);
-         if (retc != 1)
-            {if (retc == 0)
-                {tardyCnt++;
-                 if (totlen)
-                    {if ((++stallCnt & 0xff) == 1) TRACEI(DEBUG,"read timed out");
-                     AtomicAdd(BytesIn, totlen);
-                    }
-                 return int(totlen);
-                }
-             return (FD >= 0 ? XrdLog->Emsg("Link", -errno, "poll", ID) : -1);
-            }
-
-         // Verify it is safe to read now
-         //
-         if (!(polltab.revents & (POLLIN|POLLRDNORM)))
-            {XrdLog->Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
-                                 "polling", ID);
-             return -1;
-            }
-
-         // Read as much data as you can. Note that we will force an error
-         // if we get a zero-length read after poll said it was OK.
-         //
-         do {rlen = recv(FD, Buff, Blen, 0);} while(rlen < 0 && errno == EINTR);
-         if (rlen <= 0)
-            {if (!rlen) return -ENOMSG;
-             return (FD<0 ? -1 : XrdLog->Emsg("Link",-errno,"receive from",ID));
-            }
-         totlen += rlen; Blen -= rlen; Buff += rlen;
-        }
-
-   AtomicAdd(BytesIn, totlen);
-   return int(totlen);
+   if (isTLS) return linkXQ.TLS_Recv(Buff, Blen, timeout);
+              return linkXQ.Recv    (Buff, Blen, timeout);
 }
-
 
 /******************************************************************************/
 /*                               R e c v A l l                                */
@@ -670,39 +281,8 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
   
 int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
 {
-   struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
-   ssize_t rlen;
-   int     retc;
-
-// Check if timeout specified. Notice that the timeout is the max we will
-// for some data. We will wait forever for all the data. Yeah, it's weird.
-//
-   if (timeout >= 0)
-      {do {retc = poll(&polltab,1,timeout);} while(retc < 0 && errno == EINTR);
-       if (retc != 1)
-          {if (!retc) return -ETIMEDOUT;
-           XrdLog->Emsg("Link",errno,"poll",ID);
-           return -1;
-          }
-       if (!(polltab.revents & (POLLIN|POLLRDNORM)))
-          {XrdLog->Emsg("Link",XrdPoll::Poll2Text(polltab.revents),"polling",ID);
-           return -1;
-          }
-      }
-
-// Note that we will block until we receive all he bytes.
-//
-   if (LockReads) rdMutex.Lock();
-   isIdle = 0;
-   do {rlen = recv(FD,Buff,Blen,MSG_WAITALL);} while(rlen < 0 && errno == EINTR);
-   if (rlen > 0) AtomicAdd(BytesIn, rlen);
-   if (LockReads) rdMutex.UnLock();
-
-   if (int(rlen) == Blen) return Blen;
-   if (!rlen) {TRACEI(DEBUG, "No RecvAll() data; errno=" <<errno);}
-      else if (rlen > 0) XrdLog->Emsg("RecvAll","Premature end from", ID);
-              else if (FD >= 0) XrdLog->Emsg("Link",errno,"recieve from",ID);
-   return -1;
+   if (isTLS) return linkXQ.TLS_RecvAll(Buff, Blen, timeout);
+              return linkXQ.RecvAll    (Buff, Blen, timeout);
 }
 
 /******************************************************************************/
@@ -711,362 +291,41 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
   
 int XrdLink::Send(const char *Buff, int Blen)
 {
-   ssize_t retc = 0, bytesleft = Blen;
-
-// Get a lock
-//
-   wrMutex.Lock();
-   isIdle = 0;
-   AtomicAdd(BytesOut, Blen);
-
-// Do non-blocking writes if we are setup to do so.
-//
-   if (sendQ)
-      {retc = sendQ->Send(Buff, Blen);
-       wrMutex.UnLock();
-       return retc;
-      }
-
-// Write the data out
-//
-   while(bytesleft)
-        {if ((retc = write(FD, Buff, bytesleft)) < 0)
-            {if (errno == EINTR) continue;
-                else break;
-            }
-         bytesleft -= retc; Buff += retc;
-        }
-
-// All done
-//
-   wrMutex.UnLock();
-   if (retc >= 0) return Blen;
-   XrdLog->Emsg("Link", errno, "send to", ID);
-   return -1;
+   if (isTLS) return linkXQ.TLS_Send(Buff, Blen);
+              return linkXQ.Send    (Buff, Blen);
 }
 
 /******************************************************************************/
   
 int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 {
-   ssize_t bytesleft, n, retc = 0;
-   const char *Buff;
-   int i;
-
-// Add up bytes if they were not given to us
+// Allways make sure we have a total byte count
 //
-   if (!bytes) for (i = 0; i < iocnt; i++) bytes += iov[i].iov_len;
+   if (!bytes) for (int i = 0; i < iocnt; i++) bytes += iov[i].iov_len;
 
-// Get a lock and assume we will be successful (statistically we are)
+// Execute the send
 //
-   wrMutex.Lock();
-   isIdle = 0;
-   AtomicAdd(BytesOut, bytes);
-
-// Do non-blocking writes if we are setup to do so.
-//
-   if (sendQ)
-      {retc = sendQ->Send(iov, iocnt, bytes);
-       wrMutex.UnLock();
-       return retc;
-      }
-
-// Write the data out. On some version of Unix (e.g., Linux) a writev() may
-// end at any time without writing all the bytes when directed to a socket.
-// So, we attempt to resume the writev() using a combination of write() and
-// a writev() continuation. This approach slowly converts a writev() to a
-// series of writes if need be. We must do this inline because we must hold
-// the lock until all the bytes are written or an error occurs.
-//
-   bytesleft = static_cast<ssize_t>(bytes);
-   while(bytesleft)
-        {do {retc = writev(FD, iov, iocnt);} while(retc < 0 && errno == EINTR);
-         if (retc >= bytesleft || retc < 0) break;
-         bytesleft -= retc;
-         while(retc >= (n = static_cast<ssize_t>(iov->iov_len)))
-              {retc -= n; iov++; iocnt--;}
-         Buff = (const char *)iov->iov_base + retc; n -= retc; iov++; iocnt--;
-         while(n) {if ((retc = write(FD, Buff, n)) < 0)
-                      {if (errno == EINTR) continue;
-                          else break;
-                      }
-                   n -= retc; Buff += retc;
-                  }
-         if (retc < 0 || iocnt < 1) break;
-        }
-
-// All done
-//
-   wrMutex.UnLock();
-   if (retc >= 0) return bytes;
-   XrdLog->Emsg("Link", errno, "send to", ID);
-   return -1;
+   if (isTLS) return linkXQ.TLS_Send(iov, iocnt, bytes);
+              return linkXQ.Send    (iov, iocnt, bytes);
 }
  
 /******************************************************************************/
+
 int XrdLink::Send(const sfVec *sfP, int sfN)
 {
-#if !defined(HAVE_SENDFILE) || defined(__APPLE__)
-   return -1;
-#else
 // Make sure we have valid vector count
 //
    if (sfN < 1 || sfN > XrdOucSFVec::sfMax)
-      {XrdLog->Emsg("Link", EINVAL, "send file to", ID);
+      {Log.Emsg("Link", E2BIG, "send file to", ID);
        return -1;
       }
 
-#ifdef __solaris__
-    sendfilevec_t vecSF[XrdOucSFVec::sfMax], *vecSFP = vecSF;
-    size_t xframt, totamt, bytes = 0;
-    ssize_t retc;
-    int i = 0;
-
-// Construct the sendfilev() vector
+// Do the send
 //
-   for (i = 0; i < sfN; sfP++, i++)
-       {if (sfP->fdnum < 0)
-           {vecSF[i].sfv_fd  = SFV_FD_SELF;
-            vecSF[i].sfv_off = (off_t)sfP->buffer;
-           } else {
-            vecSF[i].sfv_fd  = sfP->fdnum;
-            vecSF[i].sfv_off = sfP->offset;
-           }
-        vecSF[i].sfv_flag = 0;
-        vecSF[i].sfv_len  = sfP->sendsz;
-        bytes += sfP->sendsz;
-       }
-   totamt = bytes;
-
-// Lock the link, issue sendfilev(), and unlock the link. The documentation
-// is very spotty and inconsistent. We can only retry this operation under
-// very limited conditions.
-//
-   wrMutex.Lock();
-   isIdle = 0;
-do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
-
-// Check if all went well and return if so (usual case)
-//
-   if (xframt == bytes)
-      {AtomicAdd(BytesOut, bytes);
-       wrMutex.UnLock();
-       return totamt;
-      }
-
-// The only one we will recover from is EINTR. We cannot legally get EAGAIN.
-//
-   if (retc < 0 && errno != EINTR) break;
-
-// Try to resume the transfer
-//
-   if (xframt > 0)
-      {AtomicAdd(BytesOut, xframt); bytes -= xframt; SfIntr++;
-       while(xframt > 0 && sfN)
-            {if ((ssize_t)xframt < (ssize_t)vecSFP->sfv_len)
-                {vecSFP->sfv_off += xframt; vecSFP->sfv_len -= xframt; break;}
-             xframt -= vecSFP->sfv_len; vecSFP++; sfN--;
-            }
-      }
-  } while(sfN > 0);
-
-// See if we can recover without destroying the connection
-//
-   retc = (retc < 0 ? errno : ECANCELED);
-   wrMutex.UnLock();
-   XrdLog->Emsg("Link", retc, "send file to", ID);
-   return -1;
-
-#elif defined(__linux__)
-
-   static const int setON = 1, setOFF = 0;
-   ssize_t retc = 0, bytesleft;
-   off_t myOffset;
-   int i, xfrbytes = 0, uncork = 1, xIntr = 0;
-
-// lock the link
-//
-   wrMutex.Lock();
-   isIdle = 0;
-
-// In linux we need to cork the socket. On permanent errors we do not uncork
-// the socket because it will be closed in short order.
-//
-   if (setsockopt(FD, SOL_TCP, TCP_CORK, &setON, sizeof(setON)) < 0)
-      {XrdLog->Emsg("Link", errno, "cork socket for", ID); 
-       uncork = 0; sfOK = 0;
-      }
-
-// Send the header first
-//
-   for (i = 0; i < sfN; sfP++, i++)
-       {if (sfP->fdnum < 0) retc = sendData(sfP->buffer, sfP->sendsz);
-           else {myOffset = sfP->offset; bytesleft = sfP->sendsz;
-                 while(bytesleft
-                    && (retc=sendfile(FD,sfP->fdnum,&myOffset,bytesleft)) > 0)
-                      {bytesleft -= retc; xIntr++;}
-                }
-        if (retc <  0 && errno == EINTR) continue;
-        if (retc <= 0) break;
-        xfrbytes += sfP->sendsz;
-       }
-
-// Diagnose any sendfile errors
-//
-   if (retc <= 0)
-      {if (retc == 0) errno = ECANCELED;
-       wrMutex.UnLock();
-       XrdLog->Emsg("Link", errno, "send file to", ID);
-       return -1;
-      }
-
-// Now uncork the socket
-//
-   if (uncork && setsockopt(FD, SOL_TCP, TCP_CORK, &setOFF, sizeof(setOFF)) < 0)
-      XrdLog->Emsg("Link", errno, "uncork socket for", ID);
-
-// All done
-//
-   if (xIntr > sfN) SfIntr += (xIntr - sfN);
-   AtomicAdd(BytesOut, xfrbytes);
-   wrMutex.UnLock();
-   return xfrbytes;
-#endif
-#endif
+   if (isTLS) return linkXQ.TLS_Send(sfP, sfN);
+              return linkXQ.Send    (sfP, sfN);
 }
 
-/******************************************************************************/
-/* private                      s e n d D a t a                               */
-/******************************************************************************/
-  
-int XrdLink::sendData(const char *Buff, int Blen)
-{
-   ssize_t retc = 0, bytesleft = Blen;
-
-// Write the data out
-//
-   while(bytesleft)
-        {if ((retc = write(FD, Buff, bytesleft)) < 0)
-            {if (errno == EINTR) continue;
-                else break;
-            }
-         bytesleft -= retc; Buff += retc;
-        }
-
-// All done
-//
-   return retc;
-}
-
-/******************************************************************************/
-/*                              s e t E t e x t                               */
-/******************************************************************************/
-
-int XrdLink::setEtext(const char *text)
-{
-     opMutex.Lock();
-     if (Etext) free(Etext);
-     Etext = (text ? strdup(text) : 0);
-     opMutex.UnLock();
-     return -1;
-}
-  
-/******************************************************************************/
-/*                                 s e t I D                                  */
-/******************************************************************************/
-  
-void XrdLink::setID(const char *userid, int procid)
-{
-   char buff[sizeof(Uname)], *bp, *sp;
-   int ulen;
-
-   snprintf(buff, sizeof(buff), "%s.%d:%d", userid, procid, FD);
-   ulen = strlen(buff);
-   sp = buff + ulen - 1;
-   bp = &Uname[sizeof(Uname)-1];
-   if (ulen > (int)sizeof(Uname)) ulen = sizeof(Uname);
-   *bp = '@'; bp--;
-   while(ulen--) {*bp = *sp; bp--; sp--;}
-   ID = bp+1;
-   Comment = (const char *)ID;
-}
- 
-/******************************************************************************/
-/*                                 s e t N B                                  */
-/******************************************************************************/
-  
-bool XrdLink::setNB()
-{
-// We don't support non-blocking output except for Linux at the moment
-//
-#if !defined(__linux__)
-   return false;
-#else
-// Trace this request
-//
-   TRACEI(DEBUG,"enabling non-blocking output");
-
-// If we don't already have a sendQ object get one. This is a one-time call
-// so to optimize checking if this object exists we also get the opMutex.'
-//
-   opMutex.Lock();
-   if (!sendQ)
-      {wrMutex.Lock();
-       sendQ = new XrdSendQ(*this, wrMutex);
-       wrMutex.UnLock();
-      }
-   opMutex.UnLock();
-   return true;
-#endif
-}
-
-/******************************************************************************/
-/*                                 S e t u p                                  */
-/******************************************************************************/
-
-int XrdLink::Setup(int maxfds, int idlewait)
-{
-   int numalloc, iticks, ichk;
-
-// Compute the number of link objects we should allocate at a time. Generally,
-// we like to allocate 8k of them at a time but always as a power of two.
-//
-   maxFD = maxfds;
-   numalloc = 8192 / sizeof(XrdLink);
-   LinkAlloc = 1;
-   while((numalloc = numalloc/2)) LinkAlloc = LinkAlloc*2;
-   TRACE(DEBUG, "Allocating " <<LinkAlloc <<" link objects at a time");
-
-// Create the link table
-//
-   if (!(LinkTab = (XrdLink **)malloc(maxfds*sizeof(XrdLink *)+LinkAlloc)))
-      {XrdLog->Emsg("Link", ENOMEM, "create LinkTab"); return 0;}
-   memset((void *)LinkTab, 0, maxfds*sizeof(XrdLink *));
-
-// Create the slot status table
-//
-   if (!(LinkBat = (char *)malloc(maxfds*sizeof(char)+LinkAlloc)))
-      {XrdLog->Emsg("Link", ENOMEM, "create LinkBat"); return 0;}
-   memset((void *)LinkBat, XRDLINK_FREE, maxfds*sizeof(char));
-
-// Create an idle connection scan job
-//
-   if (idlewait)
-      {if (!(ichk = idlewait/3)) {iticks = 1; ichk = idlewait;}
-          else iticks = 3;
-       XrdLinkScan *ls = new XrdLinkScan(XrdLog,XrdTrace,XrdSched,ichk,iticks);
-       XrdSched->Schedule((XrdJob *)ls, ichk+time(0));
-      }
-
-// Initialize the send queue
-//
-   XrdSendQ::Init(XrdLog, XrdSched);
-
-// All done
-//
-   return 1;
-}
-  
 /******************************************************************************/
 /*                             S e r i a l i z e                              */
 /******************************************************************************/
@@ -1088,31 +347,55 @@ void XrdLink::Serialize()
 }
 
 /******************************************************************************/
-/*                                s e t K W T                                 */
+/*                              s e t E t e x t                               */
 /******************************************************************************/
-  
-void XrdLink::setKWT(int wkSec, int kwSec)
+
+int XrdLink::setEtext(const char *text)
 {
-   if (wkSec > 0) waitKill = static_cast<short>(wkSec);
-   if (kwSec > 0) killWait = static_cast<short>(kwSec);
+     opMutex.Lock();
+     if (Etext) free(Etext);
+     Etext = (text ? strdup(text) : 0);
+     opMutex.UnLock();
+     return -1;
 }
   
+/******************************************************************************/
+/*                                 s e t I D                                  */
+/******************************************************************************/
+  
+void XrdLink::setID(const char *userid, int procid)
+                   {linkXQ.setID(userid, procid);}
+ 
+/******************************************************************************/
+/*                                 s e t N B                                  */
+/******************************************************************************/
+  
+bool XrdLink::setNB() {return linkXQ.setNB();}
+
+/******************************************************************************/
+/*                           s e t L o c a t i o n                            */
+/******************************************************************************/
+  
+void XrdLink::setLocation(XrdNetAddrInfo::LocInfo &loc)
+                         {linkXQ.setLocation(loc);}
+
 /******************************************************************************/
 /*                           s e t P r o t o c o l                            */
 /******************************************************************************/
   
-XrdProtocol *XrdLink::setProtocol(XrdProtocol *pp)
+XrdProtocol *XrdLink::setProtocol(XrdProtocol *pp, bool runit, bool push)
 {
 
-// Set new protocol.
+// Ask the mplementation to set or push the protocol
 //
-   opMutex.Lock();
-   XrdProtocol *op = Protocol;
-   Protocol = pp; 
-   opMutex.UnLock();
+   XrdProtocol *op = linkXQ.setProtocol(pp, push);
+
+// Run the protocol if so requested
+//
+   if (runit) DoIt();
    return op;
 }
-
+  
 /******************************************************************************/
 /*                                s e t R e f                                 */
 /******************************************************************************/
@@ -1125,7 +408,7 @@ void XrdLink::setRef(int use)
 
          if (!InUse)
             {InUse = 1; opMutex.UnLock();
-             XrdLog->Emsg("Link", "Zero use count for", ID);
+             Log.Emsg("Link", "Zero use count for", ID);
             }
     else if (InUse == 1 && doPost)
             {while(doPost)
@@ -1138,222 +421,112 @@ void XrdLink::setRef(int use)
     else if (InUse < 0)
             {InUse = 1;
              opMutex.UnLock();
-             XrdLog->Emsg("Link", "Negative use count for", ID);
+             Log.Emsg("Link", "Negative use count for", ID);
             }
     else opMutex.UnLock();
 }
  
 /******************************************************************************/
+/*                                s e t T L S                                 */
+/******************************************************************************/
+
+bool XrdLink::setTLS(bool enable)
+{
+// If we are already in a compatible mode, we are done
+//
+   if (isTLS == enable) return true;
+
+   return linkXQ.setTLS(enable);
+}
+  
+/******************************************************************************/
 /*                              S h u t d o w n                               */
 /******************************************************************************/
 
-void XrdLink::Shutdown(bool getLock)
-{
-   int temp, theFD;
-
-// Trace the entry
-//
-   TRACEI(DEBUG, (getLock ? "Async" : "Sync") <<" link shutdown in progress");
-
-// Get the lock if we need too (external entry via another thread)
-//
-   if (getLock) opMutex.Lock();
-
-// If there is something to do, do it now
-//
-   temp = Instance; Instance = 0;
-   if (!KeepFD)
-      {theFD = (FD < 0 ? -FD : FD);
-       shutdown(theFD, SHUT_RDWR);
-       if (dup2(devNull, theFD) < 0)
-          {Instance = temp;
-           XrdLog->Emsg("Link", errno, "shutdown FD for", ID);
-          }
-      }
-
-// All done
-//
-   if (getLock) opMutex.UnLock();
-}
+void XrdLink::Shutdown(bool getLock) {linkXQ.Shutdown(getLock);}
 
 /******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
 
-int XrdLink::Stats(char *buff, int blen, int do_sync)
-{
-   static const char statfmt[] = "<stats id=\"link\"><num>%d</num>"
-          "<maxn>%d</maxn><tot>%lld</tot><in>%lld</in><out>%lld</out>"
-          "<ctime>%lld</ctime><tmo>%d</tmo><stall>%d</stall>"
-          "<sfps>%d</sfps></stats>";
-   int i, myLTLast;
-
-// Check if actual length wanted
-//
-   if (!buff) return sizeof(statfmt)+17*6;
-
-// We must synchronize the statistical counters
-//
-   if (do_sync)
-      {LTMutex.Lock(); myLTLast = LTLast; LTMutex.UnLock();
-       for (i = 0; i <= myLTLast; i++) 
-           if (LinkBat[i] == XRDLINK_USED && LinkTab[i]) 
-              LinkTab[i]->syncStats();
-      }
-
-// Obtain lock on the stats area and format it
-//
-   AtomicBeg(statsMutex);
-   i = snprintf(buff, blen, statfmt, AtomicGet(LinkCount),
-                                     AtomicGet(LinkCountMax),
-                                     AtomicGet(LinkCountTot),
-                                     AtomicGet(LinkBytesIn),
-                                     AtomicGet(LinkBytesOut),
-                                     AtomicGet(LinkConTime),
-                                     AtomicGet(LinkTimeOuts),
-                                     AtomicGet(LinkStalls),
-                                     AtomicGet(LinkSfIntr));
-   AtomicEnd(statsMutex);
-   return i;
-}
+int XrdLink::Stats(char *buff, int blen, bool do_sync)
+                  {return XrdLinkXeq::Stats(buff, blen, do_sync);}
   
 /******************************************************************************/
 /*                             s y n c S t a t s                              */
 /******************************************************************************/
   
-void XrdLink::syncStats(int *ctime)
-{
-   long long tmpLL;
-   int       tmpI4;
-
-// If this is dynamic, get the opMutex lock
-//
-   if (!ctime) opMutex.Lock();
-
-// Either the caller has the opMutex or this is called out of close. In either
-// case, we need to get the read and write mutexes; each followed by the stats
-// mutex. This order is important because we should not hold the stats mutex
-// for very long and the r/w mutexes may take a long time to acquire. If we
-// must maintain the link count we need to actually acquire the stats mutex as
-// we will be doing compound operations. Atomics are still used to keep other
-// threads from seeing partial results.
-//
-   AtomicBeg(rdMutex);
-
-   if (ctime)
-      {*ctime = time(0) - conTime;
-       AtomicAdd(LinkConTime, *ctime);
-       statsMutex.Lock();
-       if (LinkCount > 0) AtomicDec(LinkCount);
-       statsMutex.UnLock();
-      }
-
-   AtomicBeg(statsMutex);
-
-   tmpLL = AtomicFAZ(BytesIn);
-   AtomicAdd(LinkBytesIn, tmpLL);  AtomicAdd(BytesInTot, tmpLL);
-   tmpI4 = AtomicFAZ(tardyCnt);
-   AtomicAdd(LinkTimeOuts, tmpI4); AtomicAdd(tardyCntTot, tmpI4);
-   tmpI4 = AtomicFAZ(stallCnt);
-   AtomicAdd(LinkStalls, tmpI4);   AtomicAdd(stallCntTot, tmpI4);
-   AtomicEnd(statsMutex); AtomicEnd(rdMutex);
-
-   AtomicBeg(wrMutex);    AtomicBeg(statsMutex);
-   tmpLL = AtomicFAZ(BytesOut);
-   AtomicAdd(LinkBytesOut, tmpLL); AtomicAdd(BytesOutTot, tmpLL);
-   tmpI4 = AtomicFAZ(SfIntr);
-   AtomicAdd(LinkSfIntr, tmpI4);
-   AtomicEnd(statsMutex); AtomicEnd(wrMutex);
-
-// Make sure the protocol updates it's statistics as well
-//
-   if (Protocol) Protocol->Stats(0, 0, 1);
-
-// Clear our local counters
-//
-   if (!ctime) opMutex.UnLock();
-}
+void XrdLink::syncStats(int *ctime) {linkXQ.syncStats(ctime);}
  
 /******************************************************************************/
 /*                             T e r m i n a t e                              */
 /******************************************************************************/
   
-int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
+int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
 {
-   XrdSysCondVar killDone(0);
-   XrdLink *lp;
-   char buff[1024], *cp;
-   int wTime, killTries;
 
-// Find the correspodning link
+// Find the correspodning link and check for self-termination. Otherwise, if
+// the target link is owned by the owner then ask the link to terminate itself.
 //
-   if (!(lp = fd2link(fdnum, inst))) return -ESRCH;
+   if (!owner)
+      {XrdLink *lp;
+       char *cp;
+       if (!(lp = fd2link(fdnum, inst))) return -ESRCH;
+       if (lp == this) return 0;
+       lp->Hold(true);
+       if (!(cp = index(ID, ':')) || strncmp(lp->ID, ID, cp-ID)
+       || strcmp(HostName, lp->Host()))
+          {lp->Hold(false);
+           return -EACCES;
+          }
+       int rc = lp->Terminate(ID, fdnum, inst);
+       lp->Hold(false);
+       return rc;
+      }
 
-// If this is self termination, then indicate that to the caller
-//
-   if (lp == owner) return 0;
-
-// Serialize the target link
-//
-   lp->Serialize();
-   lp->opMutex.Lock();
-
+// At this pint, we are excuting in the context of the target link.
 // If this link is now dead, simply ignore the request. Typically, this
 // indicates a race condition that the server won.
 //
-   if ( lp->FD != fdnum ||   lp->Instance != inst
-   || !(lp->Poller)     || !(lp->Protocol))
-      {lp->opMutex.UnLock();
-       return -EPIPE;
-      }
-
-// Verify that the owner of this link is making the request
-//
-   if (owner 
-   && (!(cp = index(owner->ID, ':')) 
-      || strncmp(lp->ID, owner->ID, cp-(owner->ID))
-      || strcmp(owner->Lname, lp->Lname)))
-      {lp->opMutex.UnLock();
-       return -EACCES;
-      }
+   if ( FD != fdnum || Instance != inst
+   || !linkXQ.PollInfo.Poller || !linkXQ.getProtocol()) return -EPIPE;
 
 // Check if we have too many tries here
 //
-   killTries = lp->KillCnt & KillMsk;
-   if (killTries > KillMax)
-      {lp->opMutex.UnLock();
-       return -ETIME;
-      }
+   int wTime, killTries;
+   killTries = KillCnt & KillMsk;
+   if (killTries > KillMax) return -ETIME;
 
 // Wait time increases as we have more unsuccessful kills. Update numbers.
 //
    wTime = killTries++;
-   lp->KillCnt = killTries | KillXwt;
+   KillCnt = killTries | KillXwt;
 
-// Make sure we can disable this link. Of not, then force the caller to wait
+// Make sure we can disable this link. If not, then force the caller to wait
 // a tad more than the read timeout interval.
 //
-   if (!(lp->isEnabled) || lp->InUse > 1 || lp->KillcvP)
-      {wTime = wTime*2+waitKill;
-       lp->opMutex.UnLock();
+   if (!linkXQ.PollInfo.isEnabled || InUse > 1 || KillcvP)
+      {wTime = wTime*2+XrdLinkCtl::waitKill;
        return (wTime > 60 ? 60: wTime);
       }
 
 // Set the pointer to our condvar. We are holding the opMutex to prevent a race.
 //
-   lp->KillcvP = &killDone;
+   XrdSysCondVar killDone(0);
+   KillcvP = &killDone;
    killDone.Lock();
 
 // We can now disable the link and schedule a close
 //
-   snprintf(buff, sizeof(buff), "ended by %s", ID);
+   char buff[1024];
+   snprintf(buff, sizeof(buff), "ended by %s", owner);
    buff[sizeof(buff)-1] = '\0';
-   lp->Poller->Disable(lp, buff);
-   lp->opMutex.UnLock();
+   linkXQ.PollInfo.Poller->Disable(this, buff);
+   opMutex.UnLock();
 
 // Now wait for the link to shutdown. This avoids lock problems.
 //
-   if (killDone.Wait(int(killWait))) wTime += killWait;
+   if (killDone.Wait(int(XrdLinkCtl::killWait))) wTime += XrdLinkCtl::killWait;
       else wTime = -EPIPE;
    killDone.UnLock();
 
@@ -1362,7 +535,7 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
 // an arbitrary mutex with a condvar. But since this code is rarely executed
 // the ugliness is sort of tolerable.
 //
-   lp->opMutex.Lock(); lp->KillcvP = 0; lp->opMutex.UnLock();
+   opMutex.Lock(); KillcvP = 0; opMutex.UnLock();
 
 // Do some tracing
 //
@@ -1371,49 +544,28 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
 }
 
 /******************************************************************************/
-/*                              i d l e S c a n                               */
+/*                             W a i t 4 D a t a                              */
 /******************************************************************************/
   
-#undef   TRACELINK
-#define  TRACELINK lp
-
-void XrdLinkScan::idleScan()
+int XrdLink::Wait4Data(int timeout)
 {
-   XrdLink *lp;
-   int i, ltlast, lnum = 0, tmo = 0, tmod = 0;
+   struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
+   int retc;
 
-// Get the current link high watermark
+// Issue poll and do preliminary check
 //
-   XrdLink::LTMutex.Lock();
-   ltlast = XrdLink::LTLast;
-   XrdLink::LTMutex.UnLock();
+   do {retc = poll(&polltab, 1, timeout);} while(retc < 0 && errno == EINTR);
+   if (retc != 1)
+      {if (retc == 0) return 0;
+       Log.Emsg("Link", -errno, "poll", ID);
+       return -1;
+      }
 
-// Scan across all links looking for idle links. Links are never deallocated
-// so we don't need any special kind of lock for these
+// Verify it is safe to read now
 //
-   for (i = 0; i <= ltlast; i++)
-       {if (XrdLink::LinkBat[i] != XRDLINK_USED 
-        || !(lp = XrdLink::LinkTab[i])) continue;
-        lnum++;
-        lp->opMutex.Lock();
-        if (lp->isIdle) tmo++;
-        lp->isIdle++;
-        if ((int(lp->isIdle)) < idleTicks) {lp->opMutex.UnLock(); continue;}
-        lp->isIdle = 0;
-        if (!(lp->Poller) || !(lp->isEnabled))
-           XrdLog->Emsg("LinkScan","Link",lp->ID,"is disabled and idle.");
-           else if (lp->InUse == 1)
-                   {lp->Poller->Disable(lp, "idle timeout");
-                    tmod++;
-                   }
-        lp->opMutex.UnLock();
-       }
-
-// Trace what we did
-//
-   TRACE(CONN, lnum <<" links; " <<tmo <<" idle; " <<tmod <<" force closed");
-
-// Reschedule ourselves
-//
-   XrdSched->Schedule((XrdJob *)this, idleCheck+time(0));
+   if (!(polltab.revents & (POLLIN|POLLRDNORM)))
+      {Log.Emsg("Link", XrdPoll::Poll2Text(polltab.revents), "polling", ID);
+       return -1;
+      }
+   return 1;
 }

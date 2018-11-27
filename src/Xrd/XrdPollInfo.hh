@@ -1,10 +1,10 @@
-#ifndef __XRD_POLLPOLL_H__
-#define __XRD_POLLPOLL_H__
+#ifndef __XRD_POLLINFO_H__
+#define __XRD_POLLINFO_H__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d P o l l P o l l . h h                         */
+/*                        X r d P o l l I n f o . h h                         */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,45 +29,30 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <poll.h>
+class  XrdLink;
+class  XrdPoll;
+struct pollfd;
 
-#include "Xrd/XrdPoll.hh"
-
-class XrdLink;
-class XrdPollInfo;
-  
-class XrdPollPoll : XrdPoll
+class XrdPollInfo
 {
 public:
 
-       void Detach(XrdLink *lp);
+XrdPollInfo   *Next;        // Chain of links waiting for a PollPoll event
+XrdLink       *Link;        // Link associated with this object
+struct pollfd *PollEnt;     // Used only by PollPoll
+XrdPoll       *Poller;      // -> Poller object associated with this object
+int            pollFD;      // Associated file descriptor number
+bool           inQ;         // True -> in a PollPoll event queue
+bool           isEnabled;   // True -> interrupts are enabled
+char           rsv[2];      // Reserved for future flags
 
-       void Disable(XrdLink *lp, const char *etxt=0);
+void           Zorch() {Next      = 0;     PollEnt  = 0;
+                        Poller    = 0;     pollFD   = -1;
+                        isEnabled = false; inQ      = false;
+                        rsv[0]    = 0;     rsv[1]   = 0;
+                       }
 
-       int  Enable(XrdLink *lp);
-
-       void Start(XrdSysSemaphore *syncp, int &rc);
-
-            XrdPollPoll(struct pollfd *pp, int numfd);
-           ~XrdPollPoll();
-
-protected:
-       void doDetach(int pti);
-       void Exclude(XrdLink *lp);
-       int  Include(XrdLink *lp);
-
-private:
-
-void  doRequests(int maxreq);
-void  dqLink(XrdLink *lp, XrdPollInfo *pInfo);
-void  LogEvent(int req, int pollfd, int cmdfd);
-void  Recover(int numleft);
-void  Restart(int ecode);
-
-struct     pollfd      *PollTab;    //<---
-           int          PollTNum;   // PollMutex protects these elements
-           XrdPollInfo *PollQ;      //<---
-           XrdSysMutex  PollMutex;
-           int          maxent;
+               XrdPollInfo(XrdLink *lnk) : Link(lnk) {Zorch();}
+              ~XrdPollInfo() {}
 };
 #endif

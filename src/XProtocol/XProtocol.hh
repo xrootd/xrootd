@@ -89,6 +89,16 @@
 #define kXR_attrProxy 0x00000200
 #define kXR_attrSuper 0x00000400
 
+#define kXR_haveTls   0x80000000
+#define kXR_tlsAll    0x7f000000
+#define kXR_tlsGPFile 0x40000000
+#define kXR_tlsLogin  0x20000000
+#define kXR_tlsModFS  0x10000000
+#define kXR_tlsOpenR  0x08000000
+#define kXR_tlsOpenW  0x04000000
+#define kXR_tlsTPC    0x02000000
+#define kXR_tlsXXX    0x01000000
+
 #define kXR_maxReqRetry 10
 
 // Kind of error inside a XTNetFile's routine (temporary)
@@ -232,7 +242,8 @@ enum XOpenRequestOption {
 };
 
 enum XProtocolRequestFlags {
-   kXR_secreqs  = 1      // Return security requirements
+   kXR_secreqs  = 1,     // Options: Return security requirements
+   kXR_wantTls  = 2      // Options: Change connection to use TLS
 };
 
 enum XQueryType {

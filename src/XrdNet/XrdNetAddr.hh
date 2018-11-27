@@ -218,7 +218,15 @@ static void SetIPV6();
 //!              XrdnetAddrInfo for the definition of the stucture.
 //------------------------------------------------------------------------------
 
-void        SetLocation(XrdNetAddrInfo::LocInfo &loc) {addrLoc = loc;}
+void        SetLocation(XrdNetAddrInfo::LocInfo &loc);
+
+//------------------------------------------------------------------------------
+//! Set the location's TLS state.
+//!
+//! @param  val  True if TLS is being used, false otherwise.
+//------------------------------------------------------------------------------
+
+void        SetTLS(bool val);
 
 //------------------------------------------------------------------------------
 //! Assignment operator and copy constructor are inherited, no need to define
