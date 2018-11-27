@@ -351,7 +351,7 @@ int XrdOucUtils::GidName(gid_t gID, char *gName, int gNsz, time_t keepT)
    static const int addGsz  = 4096;
    struct group  *gEnt, gStruct;
    char gBuff[1024], *gBp = gBuff;
-   int glen, gBsz = sizeof(gBuff), aOK = 1;
+   int glen = 0, gBsz = sizeof(gBuff), aOK = 1;
    int n, retVal = 0;
 
 // Get ID from cache, if allowed
