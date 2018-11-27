@@ -537,3 +537,26 @@ void XrdNetAddr::SetIPV6()
 //
    XrdNetUtils::SetAuto(XrdNetUtils::allIPMap);
 }
+
+/******************************************************************************/
+/*                           S e t L o c a t i o n                            */
+/******************************************************************************/
+  
+void XrdNetAddr::SetLocation(XrdNetAddrInfo::LocInfo &loc)
+{
+// Copy in the new location information but preserve the flags
+//
+   char oldFlags = addrLoc.Flags;
+   addrLoc = loc;
+   addrLoc.Flags = oldFlags;
+}
+
+/******************************************************************************/
+/*                                S e t T L S                                 */
+/******************************************************************************/
+  
+void XrdNetAddr::SetTLS(bool val)
+{
+   if (val) addrLoc.Flags |=  LocInfo::isTLS;
+      else  addrLoc.Flags &= ~LocInfo::isTLS;
+}

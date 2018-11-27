@@ -41,7 +41,6 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdCrypto/XrdCryptoFactory.hh"
 #include "Xrd/XrdObject.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -271,10 +270,8 @@ private:
   /// connection being established
   bool ssldone;
 
-  static XrdCryptoFactory *myCryptoFactory;
+
 protected:
-
-
 
   // Statistical area
   //

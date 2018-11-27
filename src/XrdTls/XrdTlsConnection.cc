@@ -35,7 +35,7 @@ XrdTlsConnection::XrdTlsConnection( XrdTlsContext &ctx, int  sfd,
                                     XrdTlsConnection::RW_Mode rwm,
                                     XrdTlsConnection::HS_Mode hsm,
                                     bool isClient )
-                 : hsDone( false )
+                 : ssl(0), sFD(-1), hsDone(false )
 {
 
 // Simply initialize this object and throw an exception if it fails
@@ -65,6 +65,18 @@ int XrdTlsConnection::Connect()
     int error = SSL_get_error( ssl, rc );
     return error;
   }
+  
+/******************************************************************************/
+/*                              E r r 2 T e x t                               */
+/******************************************************************************/
+
+std::string XrdTlsConnection::Err2Text(int errc)
+{
+   char eBuff[1024];
+
+   ERR_error_string_n(errc, eBuff, sizeof(eBuff));
+   return std::string(eBuff);
+}
   
 /******************************************************************************/
 /*                             G e t E r r o r s                              */
@@ -163,9 +175,68 @@ const char *XrdTlsConnection::Init( XrdTlsContext &ctx, int sfd,
    sFD = sfd;
    if (wbio == 0) wbio = rbio;
    SSL_set_bio( ssl, rbio, wbio );
-   return 0;
+
+// Do an acccept or connect depending on who this is
+//
+   int rc = (isClient ? Connect() : Accept());
+   return (rc == SSL_ERROR_NONE ? 0 : "TLS handshake failed");
 }
 
+/******************************************************************************/
+/*                                  P e e k                                   */
+/******************************************************************************/
+  
+  int XrdTlsConnection::Peek( char *buffer, size_t size, int &bytesPeek )
+  {
+    int error;
+
+    //------------------------------------------------------------------------
+    // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
+    // have to explicitly call SSL_connect or SSL_do_handshake.
+    //------------------------------------------------------------------------
+ do{int rc = SSL_peek( ssl, buffer, size );
+
+    // Note that according to SSL whenever rc > 0 then SSL_ERROR_NONE can be
+    // returned to the caller. So, we short-circuit all the error handling.
+    //
+    if( rc > 0 )
+      {bytesPeek = rc;
+       return SSL_ERROR_NONE;
+      }
+
+    // We have a potential error. Get the SSL error code and whether or
+    // not the handshake actually is finished (semi-accurate)
+    //
+    hsDone = bool( SSL_is_init_finished( ssl ) );
+    error = SSL_get_error( ssl, rc );
+
+    // The connection creator may wish that we wait for the handshake to
+    // complete. This is a tricky issue for non-blocking bio's as a read
+    // may force us to wait until writes are possible. All of this is rare!
+    //
+    if ((!hsMode || hsDone || (error != SSL_ERROR_WANT_READ &&
+                               error != SSL_ERROR_WANT_WRITE))
+    ||   (hsMode == xyBlock && error == SSL_ERROR_WANT_READ)) return error;
+
+   } while(Wait4OK(error == SSL_ERROR_WANT_READ));
+
+    return SSL_ERROR_SYSCALL;
+  }
+
+/******************************************************************************/
+/*                               P e n d i n g                                */
+/******************************************************************************/
+
+int XrdTlsConnection::Pending(bool any)
+{
+   if (!any) return SSL_pending(ssl);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+   return SSL_pending(ssl) != 0;
+#else
+   return SSL_has_pending(ssl);
+#endif
+}
+  
 /******************************************************************************/
 /*                             P r i n t E r r s                              */
 /******************************************************************************/
@@ -182,7 +253,15 @@ void XrdTlsConnection::PrintErrs(const char *pfx, XrdSysError *eDest)
   int XrdTlsConnection::Read( char *buffer, size_t size, int &bytesRead )
   {
     int error;
-
+/*
+ if (!(cAttr & rBlocking))
+    {size = SSL_pending(ssl);
+     if (size < 1)
+        {bytesRead = 0;
+         return SSL_ERROR_NONE;
+        }
+    }
+*/
     //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
     // have to explicitly call SSL_connect or SSL_do_handshake.
@@ -251,7 +330,8 @@ void XrdTlsConnection::Shutdown(bool force)
 /*                                 W r i t e                                  */
 /******************************************************************************/
   
-  int XrdTlsConnection::Write( char *buffer, size_t size, int &bytesWritten )
+  int XrdTlsConnection::Write( const char *buffer, size_t size,
+                               int &bytesWritten )
   {
     int error;
 

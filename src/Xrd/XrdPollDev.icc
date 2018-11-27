@@ -36,6 +36,7 @@
 
 #include "XrdSys/XrdSysError.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdPollInfo.hh"
 #include "Xrd/XrdPollPoll.hh"
 #include "Xrd/XrdScheduler.hh"
   
@@ -87,22 +88,23 @@ XrdPollDev::~XrdPollDev()
 void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
 {
    XrdSysSemaphore mySem(0);
+   XrdPollInfo &pInfo = lp->getPollInfo();
    PipeData cmdbuff[2];
    int myerrno = 0;
 
 // Simply return if the link is already disabled
 //
-   if (!lp->isEnabled) return;
+   if (!pInfo.isEnabled) return;
 
 // Trace this event
 //
-   TRACEI(POLL, "Poller " <<PID <<" async disabling link " <<lp->FD);
+   TRACEI(POLL, "Poller " <<PID <<" async disabling link " <<pInfo.pollFD);
 
 // Send a disable request to the poller thread handling this link. We need to
 // wait until the operation is actually completed before returning.
 //
    cmdbuff[0].req          = PipeData::DiFD;
-   cmdbuff[0].Parms.Arg.fd = lp->FD;
+   cmdbuff[0].Parms.Arg.fd = pInfo.pollFD;
    cmdbuff[1].req          = PipeData::Post;
    cmdbuff[1].Parms.theSem = &mySem;
    myerrno = sendCmd((char *)&cmdbuff, sizeof(cmdbuff));
@@ -122,17 +124,18 @@ void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
 
 int XrdPollDev::Enable(XrdLink *lp)
 {
+   XrdPollInfo &pInfo = lp->getPollInfo();
    PipeData cmdbuff;
    int nogo;
 
 // Simply return if the link is already enabled
 //
-   if (lp->isEnabled) return 1;
+   if (pInfo.isEnabled) return 1;
 
 // Send an enable request to the poller thread handling this link
 //
    cmdbuff.req           = PipeData::EnFD;
-   cmdbuff.Parms.Arg.fd  = lp->FD;
+   cmdbuff.Parms.Arg.fd  = pInfo.pollFD;
    nogo = sendCmd((char *)&cmdbuff, sizeof(cmdbuff));
 
 // Verify that all went well
@@ -150,7 +153,7 @@ void XrdPollDev::Exclude(XrdLink *lp)
 
 // Make sure this link is not enabled
 //
-   if (lp->isEnabled) 
+   if (lp->getPollInfo().isEnabled)
       {XrdLog->Emsg("Poll", "Detach of enabled link", lp->ID);
        Disable(lp);
       }
@@ -219,15 +222,17 @@ void XrdPollDev::Start(XrdSysSemaphore *syncsem, int &retcode)
        for (i = 0; i < numpolled; i++)
            {if (PollTab[i].fd == ReqFD) {xReq = 1; continue;}
             if (lp = XrdLink::fd2link(PollTab[i].fd))
-               if (!(lp->isEnabled))
-                  XrdLog->Emsg("Poll", "Disabled event occured for", lp->ID);
-                  else {lp->isEnabled = 0;
-                        if (!(PollTab[i].revents & pollOK))
-                           Finish(lp, Poll2Text(PollTab[i].revents));
-                        lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
-                        if (!jlast) jlast=(XrdJob *)lp;
-                        num2sched++;
-                       } else LogEvent(&PollTab[i]);
+               {XrdPollInfo &pInfo = lp->getPollInfo();
+                if (!(pInfo.isEnabled))
+                   XrdLog->Emsg("Poll", "Disabled event occured for", lp->ID);
+                   else {pInfo.isEnabled = false;
+                         if (!(PollTab[i].revents & pollOK))
+                            Finish(lp, Poll2Text(PollTab[i].revents));
+                         lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
+                         if (!jlast) jlast=(XrdJob *)lp;
+                         num2sched++;
+                        }
+               } else LogEvent(&PollTab[i]);
             PollTab[i].events  = POLLREMOVE;
             PollTab[i].revents = 0;
            }
@@ -261,8 +266,9 @@ void XrdPollDev::doRequests(int maxreq)
    struct pollfd ptab = {0, 0, 0};
    XrdLink *lp;
    const char *act;
-   char buff[16], edval;
+   char buff[16];
    int num2do;
+   bool edval;
 
 // To keep ourselves from being swamped, base request read-aheads on the number
 // of pending poll events.
@@ -284,12 +290,12 @@ void XrdPollDev::doRequests(int maxreq)
                  }
          else if (ReqBuff.req == PipeData::EnFD)
                  {ptab.events = POLLIN | POLLRDNORM; 
-                  act = " enable fd ";  edval = 0x01; numEnabled++;
+                  act = " enable fd ";  edval = true; numEnabled++;
                  }
          else if (ReqBuff.req == PipeData::DiFD)
                  {ptab.events = POLLREMOVE; 
                   num2do++;
-                  act = " disable fd "; edval = 0x00;
+                  act = " disable fd "; edval = false;
                  }
          else    {XrdLog->Emsg("Poll", "Received an invalid poll pipe request");
                   continue;
@@ -298,7 +304,7 @@ void XrdPollDev::doRequests(int maxreq)
          TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.Parms.Arg.fd);
          if (write(PollDfd, &ptab, sizeof(struct pollfd)) != sizeof(struct pollfd))
             XrdLog->Emsg("Poll", errno, act);
-         if (lp) lp->isEnabled = edval;
+         if (lp) lp->getPollInfo().isEnabled = edval;
         }
 }
   

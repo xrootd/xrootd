@@ -34,7 +34,6 @@
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
 #include "Xrd/XrdScheduler.hh"
-#define   XRD_TRACE Trace.
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdOuc/XrdOucTrace.hh"
@@ -89,12 +88,6 @@ int   xtmo(XrdSysError *edest, XrdOucStream &Config);
 int   yport(XrdSysError *edest, const char *ptyp, const char *pval);
 
 static const char  *TraceID;
-
-XrdSysLogger        Logger;
-XrdSysError         Log;
-XrdOucTrace         Trace;
-XrdScheduler        Sched;
-XrdBuffManager      BuffPool;
 XrdNetSecurity     *Police;
 const char         *myProg;
 const char         *myName;

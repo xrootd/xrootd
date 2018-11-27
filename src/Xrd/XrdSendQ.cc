@@ -63,12 +63,23 @@ private:
 XrdLink *myLink;
 };
 
+
+/******************************************************************************/
+/*                        G l o b a l   O b j e c t s                         */
+/******************************************************************************/
+
+namespace XrdGlobal
+{
+extern XrdSysError  Log;
+extern XrdScheduler Sched;
+};
+
+using namespace XrdGlobal;
+
 /******************************************************************************/
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
 
-XrdScheduler *XrdSendQ::Sched = 0;
-XrdSysError  *XrdSendQ::Say   = 0;
 unsigned int  XrdSendQ::qWarn = 3;
 unsigned int  XrdSendQ::qMax  = 0xffffffff;
 bool          XrdSendQ::qPerm = false;
@@ -143,8 +154,8 @@ bool XrdSendQ::QMsg(XrdSendQ::mBuff *theMsg)
           {char qBuff[80];
            snprintf(qBuff, sizeof(qBuff),
                     "%u) reached; %hu message(s) discarded!", qMax, discards);
-           Say->Emsg("SendQ", mLink.Host(),
-                     "appears to be slow; queue limit (", qBuff);
+           Log.Emsg("SendQ", mLink.Host(),
+                    "appears to be slow; queue limit (", qBuff);
           }
        return false;
       }
@@ -160,7 +171,7 @@ bool XrdSendQ::QMsg(XrdSendQ::mBuff *theMsg)
 // If there is no active thread handling this queue, schedule one
 //
    if (!active)
-      {Sched->Schedule((XrdJob *)this);
+      {Sched.Schedule((XrdJob *)this);
        active = true;
       }
 
@@ -170,7 +181,7 @@ bool XrdSendQ::QMsg(XrdSendQ::mBuff *theMsg)
       {char qBuff[32];
        qWmsg += qWarn;
        snprintf(qBuff, sizeof(qBuff), "%ud messages queued!", inQ);
-       Say->Emsg("SendQ", mLink.Host(), "appears to be slow;", qBuff);
+       Log.Emsg("SendQ", mLink.Host(), "appears to be slow;", qBuff);
       } else {
        if (inQ < qWarn && qWmsg != qWarn) qWmsg = qWarn;
       }
@@ -328,7 +339,7 @@ int XrdSendQ::SendNB(const char *Buff, int Blen)
 //
    if (retc <= 0)
       {if (!retc || errno == EAGAIN || retc == EWOULDBLOCK) return bytesleft;
-       Say->Emsg("SendQ", errno, "send to", mLink.ID);
+       Log.Emsg("SendQ", errno, "send to", mLink.ID);
        return -1;
       }
    return bytesleft;
@@ -363,7 +374,7 @@ int XrdSendQ::SendNB(const struct iovec *iov, int iocnt, int bytes, int &iovX)
               if (retc <= 0)
                  {if (!retc || errno == EAGAIN || retc == EWOULDBLOCK)
                      return msgL;
-                  Say->Emsg("SendQ", errno, "send to", mLink.ID);
+                  Log.Emsg("SendQ", errno, "send to", mLink.ID);
                   return -1;
                  }
               msgL -= retc;
@@ -386,7 +397,7 @@ void XrdSendQ::Terminate(XrdLink *lP)
 {
 // First step is to see if we need to schedule a shutdown prior to quiting
 //
-   if (lP) Sched->Schedule((XrdJob *)new LinkShutdown(lP));
+   if (lP) Sched.Schedule((XrdJob *)new LinkShutdown(lP));
 
 // If there is an active thread then we need to let the thread handle the
 // termination of this object. Otherwise, we can do it now.

@@ -36,6 +36,7 @@
   
 #include <unistd.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <string>
 #include <string.h>
@@ -51,8 +52,10 @@
 #include "Xrd/XrdConfig.hh"
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdLinkCtl.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdStats.hh"
+#include "Xrd/XrdTrace.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetIF.hh"
@@ -66,6 +69,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysUtils.hh"
@@ -80,10 +84,23 @@
 #endif
 
 /******************************************************************************/
-/*                        S t a t i c   O b j e c t s                         */
+/*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
-  
-       const char       *XrdConfig::TraceID = "Config";
+
+namespace XrdGlobal
+{
+extern XrdSysLogger      Logger;
+extern XrdSysError       Log;
+extern XrdOucTrace       XrdTrace;
+extern XrdScheduler      Sched;
+extern XrdBuffManager    BuffPool;
+extern XrdTlsContext    *tlsCtx;
+extern XrdInet          *XrdNetTCP;
+extern XrdBuffXL         xlBuff;
+extern int               devNull;
+};
+
+using namespace XrdGlobal;
 
 namespace XrdNetSocketCFG
 {
@@ -91,18 +108,21 @@ extern int ka_Idle;
 extern int ka_Itvl;
 extern int ka_Icnt;
 };
-
-namespace XrdGlobal
-{
-extern XrdBuffXL  xlBuff;
-
-       XrdTlsContext *tlsCtx = 0;
-}
+  
+/******************************************************************************/
+/*                    F i l e   L o c a l   O b j e c t s                     */
+/******************************************************************************/
 
 namespace
 {
 XrdOucEnv  theEnv;
 };
+  
+/******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+  
+       const char       *XrdConfig::TraceID = "Config";
 
 /******************************************************************************/
 /*                               d e f i n e s                                */
@@ -147,8 +167,7 @@ int             wanopt;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
-                         BuffPool(&Log, &Trace)
+XrdConfig::XrdConfig()
 {
 
 // Preset all variables with common defaults
@@ -190,7 +209,7 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    ProtInfo.Sched   = &Sched;           // Stable -> System Scheduler
    ProtInfo.ConfigFN= 0;                // We will fill this in later
    ProtInfo.Stats   = 0;                // We will fill this in later
-   ProtInfo.Trace   = &Trace;           // Stable -> Trace Information
+   ProtInfo.Trace   = &XrdTrace;        // Stable -> Trace Information
    ProtInfo.AdmPath = AdminPath;        // Stable -> The admin path
    ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
    ProtInfo.theEnv  = &theEnv;          // Additional information
@@ -302,7 +321,7 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'c': if (ConfigFN) free(ConfigFN);
                  ConfigFN = strdup(optarg);
                  break;
-       case 'd': Trace.What |= TRACE_ALL;
+       case 'd': XrdTrace.What |= TRACE_ALL;
                  ProtInfo.DebugON = 1;
                  XrdOucEnv::Export("XRDDEBUG",  "1");
                  break;
@@ -496,6 +515,14 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    Log.Say("++++++ ", myInstance, " initialization started.");
 
+// Allocate /dev/null as we need it and can't live without it
+//
+   devNull = XrdSysFD_Open("/dev/null", O_RDONLY);
+   if (devNull < 0)
+      {Log.Emsg("Config", errno, "open '/dev/null' which is required!");
+       NoGo = 1;
+      }
+
 // Process the configuration file, if one is present
 //
    if (ConfigFN && *ConfigFN)
@@ -506,7 +533,7 @@ int XrdConfig::Configure(int argc, char **argv)
       }
    if (clPort >= 0) PortTCP = clPort;
    if (ProtInfo.DebugON) 
-      {Trace.What = TRACE_ALL;
+      {XrdTrace.What = TRACE_ALL;
        XrdSysThread::setDebug(&Log);
       }
 
@@ -977,9 +1004,8 @@ int XrdConfig::Setup(char *dfltp)
 
 // Setup the link and socket polling infrastructure
 //
-   XrdLink::Init(&Log, &Trace, &Sched);
-   XrdPoll::Init(&Log, &Trace, &Sched);
-   if (!XrdLink::Setup(ProtInfo.ConnMax, ProtInfo.idleWait)
+   XrdPoll::Init(&Log, &XrdTrace, &Sched);
+   if (!XrdLinkCtl::Setup(ProtInfo.ConnMax, ProtInfo.idleWait)
    ||  !XrdPoll::Setup(ProtInfo.ConnMax)) return 1;
 
 // Modify the AdminPath to account for any instance name. Note that there is
@@ -1004,7 +1030,7 @@ int XrdConfig::Setup(char *dfltp)
 
 // We now go through all of the protocols and get each respective port number.
 //
-   XrdProtLoad::Init(&Log, &Trace); cp = Firstcp;
+   XrdProtLoad::Init(&Log, &XrdTrace); cp = Firstcp;
    while(cp)
         {ProtInfo.Port = (cp->port < 0 ? PortTCP : cp->port);
          XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
@@ -1022,7 +1048,7 @@ int XrdConfig::Setup(char *dfltp)
 
 // Allocate a WAN port number of we need to
 //
-   if (PortWAN &&  (NetWAN = new XrdInet(&Log, &Trace, Police)))
+   if (PortWAN &&  (NetWAN = new XrdInet(&Log, &XrdTrace, Police)))
       {if (Wan_Opts || Wan_Blen) NetWAN->setDefaults(Wan_Opts, Wan_Blen);
        if (myDomain) NetWAN->setDomain(myDomain);
        if (NetWAN->BindSD((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
@@ -1043,7 +1069,7 @@ int XrdConfig::Setup(char *dfltp)
             else for (i = 0; i < XrdProtLoad::ProtoMax && NetTCP[i]; i++)
                      {if (cp->port == NetTCP[i]->Port()) break;}
          if (i >= XrdProtLoad::ProtoMax || !NetTCP[i])
-            {NetTCP[++NetTCPlep] = new XrdInet(&Log, &Trace, Police);
+            {NetTCP[++NetTCPlep] = new XrdInet(&Log, &XrdTrace, Police);
              if (Net_Opts || Net_Blen)
                 NetTCP[NetTCPlep]->setDefaults(Net_Opts, Net_Blen);
              if (myDomain) NetTCP[NetTCPlep]->setDomain(myDomain);
@@ -1059,7 +1085,7 @@ int XrdConfig::Setup(char *dfltp)
                  ProtInfo.WANWSize= Wan_Blen;
                 } else ProtInfo.WANPort = ProtInfo.WANWSize = 0;
              if (!(cp->port)) arbNet = NetTCPlep;
-             if (!NetTCPlep) XrdLink::Init(NetTCP[0]);
+             if (!NetTCPlep) XrdNetTCP = NetTCP[0];
              XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
             }
          if (!XrdProtLoad::Load(cp->libpath,cp->proname,cp->parms,&ProtInfo))
@@ -1209,7 +1235,7 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
        {eDest->Emsg("Config", "allow target name not specified"); return 1;}
 
     if (!Police) {Police = new XrdNetSecurity();
-                  if (Trace.What == TRACE_ALL) Police->Trace(&Trace);
+                  if (XrdTrace.What == TRACE_ALL) Police->Trace(&XrdTrace);
                  }
     if (ishost)  Police->AddHost(val);
        else      Police->AddNetGroup(val);
@@ -1965,7 +1991,7 @@ int XrdConfig::xtmo(XrdSysError *eDest, XrdOucStream &Config)
    if (V_read >  0) ProtInfo.readWait = V_read*1000;
    if (V_hail >= 0) ProtInfo.hailWait = V_hail*1000;
    if (V_idle >= 0) ProtInfo.idleWait = V_idle;
-   XrdLink::setKWT(V_read, V_kill);
+   XrdLinkCtl::setKWT(V_read, V_kill);
    return 0;
 }
   
@@ -2021,6 +2047,6 @@ int XrdConfig::xtrace(XrdSysError *eDest, XrdOucStream &Config)
                   }
           val = Config.GetWord();
          }
-    Trace.What = trval;
+    XrdTrace.What = trval;
     return 0;
 }

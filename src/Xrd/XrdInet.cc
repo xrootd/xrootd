@@ -42,7 +42,7 @@
 #include "XrdSys/XrdSysError.hh"
 
 #include "Xrd/XrdInet.hh"
-#include "Xrd/XrdLink.hh"
+#include "Xrd/XrdLinkCtl.hh"
 
 #define XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
@@ -111,7 +111,7 @@ XrdLink *XrdInet::Accept(int opts, int timeout, XrdSysSemaphore *theSem)
 
 // Allocate a new network object
 //
-   if (!(lp = XrdLink::Alloc(myAddr, lnkopts)))
+   if (!(lp = XrdLinkCtl::Alloc(myAddr, lnkopts)))
       {eDest->Emsg("Accept", ENOMEM, "allocate new link for", myAddr.Name(unk));
        close(myAddr.SockFD());
       } else {
@@ -196,7 +196,7 @@ XrdLink *XrdInet::Connect(const char *host, int port, int opts, int tmo)
 
 // Return a link object
 //
-   if (!(lp = XrdLink::Alloc(myAddr, lnkopts)))
+   if (!(lp = XrdLinkCtl::Alloc(myAddr, lnkopts)))
       {eDest->Emsg("Connect", ENOMEM, "allocate new link to", myAddr.Name(unk));
        close(myAddr.SockFD());
       } else {

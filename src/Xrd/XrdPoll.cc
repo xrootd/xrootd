@@ -46,9 +46,12 @@
 #include "Xrd/XrdPollDev.hh"
 #elif defined( __linux__ )
 #include "Xrd/XrdPollE.hh"
+//#include "Xrd/XrdPollPoll.hh"
 #else
 #include "Xrd/XrdPollPoll.hh"
 #endif
+
+#include "Xrd/XrdPollInfo.hh"
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -158,11 +161,12 @@ int XrdPoll::Attach(XrdLink *lp)
 
 // Complete the link setup
 //
-   lp->Poller = pp;
+   lp->getPollInfo().Poller = pp;
    pp->numAttached++;
    doingAttach.UnLock();
-   TRACEI(POLL, "FD " <<lp->FD <<" attached to poller " <<pp->PID <<"; num=" <<pp->numAttached);
-   return 1;
+   TRACEI(POLL, "FD " <<lp->FDnum() <<" attached to poller " <<pp->PID
+                <<"; num=" <<pp->numAttached);
+   return 1;                                                           
 }
 
 /******************************************************************************/
@@ -175,7 +179,7 @@ void XrdPoll::Detach(XrdLink *lp)
 
 // If link is not attached, simply return
 //
-   if (!(pp = lp->Poller)) return;
+   if (!(pp = lp->getPollInfo().Poller)) return;
 
 // Exclude this link from the associated poll set
 //
@@ -202,21 +206,18 @@ int XrdPoll::Finish(XrdLink *lp, const char *etxt)
 
 // If this link is already scheduled for termination, ignore this call.
 //
-   if (lp->Protocol == &LinkEnd)
-      {TRACEI(POLL, "Link " <<lp->FD <<" already terminating; "
+   if (lp->getProtocol() == &LinkEnd)
+      {TRACEI(POLL, "Link " <<lp->FDnum() <<" already terminating; "
                     <<(etxt ? etxt : "") <<" request ignored.");
        return 0;
       }
 
 // Set the protocol pointer to be link termination
 //
-   lp->ProtoAlt = lp->Protocol;
-   lp->Protocol = static_cast<XrdProtocol *>(&LinkEnd);
-   if (etxt)
-      {if (lp->Etext) free(lp->Etext);
-       lp->Etext = strdup(etxt);
-      } else etxt = "reason unknown";
-   TRACEI(POLL, "Link " <<lp->FD <<" terminating: " <<etxt);
+   lp->setProtocol(&LinkEnd, false, true);
+   if (!etxt) etxt = "reason unknown";
+   lp->setEtext(etxt);
+   TRACEI(POLL, "Link " <<lp->FDnum() <<" terminating: " <<etxt);
    return 1;
 }
   
@@ -362,6 +363,7 @@ int XrdPoll::Stats(char *buff, int blen, int do_sync)
 #include "Xrd/XrdPollDev.icc"
 #elif defined( __linux__ )
 #include "Xrd/XrdPollE.icc"
+//#include "Xrd/XrdPollPoll.icc"
 #else
 #include "Xrd/XrdPollPoll.icc"
 #endif

@@ -104,6 +104,16 @@ enum HS_Mode
   XrdTlsContext *Context() {return tlsctx;}
 
 //------------------------------------------------------------------------
+//! Convert rror code to explanatory text.
+//!
+//! @param  errc     The error code returned by this object.
+//!
+//! @return A string containg the error text.
+//------------------------------------------------------------------------
+
+  std::string Err2Text(int errc);
+
+//------------------------------------------------------------------------
 //! Retrieve all errors encountered so far.
 //!
 //! @param  pfx      The message prefix to be used (i.e. pfx: msg).
@@ -139,6 +149,28 @@ enum HS_Mode
 
   const char *Init( XrdTlsContext &ctx, int sfd, RW_Mode rwm,
                                                  HS_Mode hsm, bool isClient );
+
+//------------------------------------------------------------------------
+//! Peek at the TLS connection data
+//! (If necessary, will establish a TLS/SSL session.)
+//------------------------------------------------------------------------
+
+  int Peek( char *buffer, size_t size, int &bytesPeek );
+
+//------------------------------------------------------------------------
+//! Check if data is pending or readable.
+//!
+//! @param  any      True to return in any data is in the queue. False to
+//!                  return the number of processed bytes.
+//! @return          any = true:  1 is returned if there is data in the queue
+//!                               (processed or not). 0 is returned o/w.
+//!                  any = false: the number of processed bytes that are
+//!                               available. These are not necesarily data
+//!                               bytes. A subsequent read may still return 0.
+//------------------------------------------------------------------------
+
+  int Pending(bool any=true);
+
 //------------------------------------------------------------------------
 //! Print all errors encountered so far.
 //!
@@ -170,7 +202,7 @@ enum HS_Mode
 //! (If necessary, will establish a TLS/SSL session.)
 //------------------------------------------------------------------------
 
-  int Write( char *buffer, size_t size, int &bytesWritten );
+  int Write( const char *buffer, size_t size, int &bytesWritten );
 
 //------------------------------------------------------------------------
 //! @return  :  true if the TLS/SSL session is not established yet,
@@ -221,7 +253,7 @@ bool Wait4OK(bool wantRead);
   char cAttr;
   static const int isServer  = 0x01;
   static const int rBlocking = 0x02;
-  static const int wBlocking = 0x03;
+  static const int wBlocking = 0x04;
 
   char hsMode;
   static const int noBlock = 0;

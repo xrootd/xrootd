@@ -165,6 +165,15 @@ bool        isPrivate();
 bool        isRegistered();
 
 //------------------------------------------------------------------------------
+//! Indicate whether or not the endpoint is using TLS for communications.
+//!
+//! @return True:    This address is     using TLS.
+//!         False:   This address is not using TLS.
+//------------------------------------------------------------------------------
+
+bool        isUsingTLS();
+
+//------------------------------------------------------------------------------
 //! Obtain the location of this address.
 //!
 //! @return !0       pointer to the unverified location information. Not all
@@ -177,13 +186,15 @@ struct LocInfo
        unsigned char  Region;     //!< Region (may combine adjacent countries)
        unsigned char  Locale;     //!< Locale (may combine adjacent regions)
                 char  TimeZone;   //!< +/- hours from GMT (-128 if not set)
-                char  Reserved;
+                char  Flags;      //!< Flags
                 short Speed;      //!< I/F speed (Gb*1024/100)(not supported)
                 int   Latitude;   //!< Degrees +/- xx.xxxxxx  (not supported)
                 int   Longtitude; //!< Degrees +/- xx.xxxxxx  (not supported)
 
-                LocInfo() : Region(0), Locale(0), TimeZone(-128), Reserved(0),
+                LocInfo() : Region(0), Locale(0), TimeZone(-128), Flags(0),
                             Speed(0), Latitude(0), Longtitude(0) {*Country = 0;}
+
+       static const char isTLS = 0x01; //!< Location using TLS
        };
 
 const struct
