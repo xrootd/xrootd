@@ -269,9 +269,7 @@ namespace XrdCl
       void AddOperation( Operation<true> *op )
       {
         if( handler )
-        {
           handler->AddOperation( op );
-        }
       }
 
       //------------------------------------------------------------------------
