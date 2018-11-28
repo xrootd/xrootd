@@ -28,6 +28,9 @@
 
 #include "XrdCl/XrdClFile.hh"
 
+#include<functional>
+#include<future>
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -63,9 +66,120 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
-  //! Lambda wrapper
+  //! Helper class for unpacking single XAttrStatus from bulk response
   //----------------------------------------------------------------------------
-  class SimpleFunctionWrapper: public ResponseHandler
+  class UnpackXAttrStatus : public ResponseHandler
+  {
+    public:
+
+      UnpackXAttrStatus( ResponseHandler *handler ) : handler( handler )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
+      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      {
+        // status is always OK for bulk response
+
+        std::vector<XAttrStatus> *bulk = nullptr;
+        response->Get( bulk );
+        *status = bulk->front().status;
+        handler->HandleResponse( status, nullptr );
+        delete response;
+        delete this;
+      }
+
+    private:
+
+      ResponseHandler *handler;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Helper class for unpacking single XAttr from bulk response
+  //----------------------------------------------------------------------------
+  class UnpackXAttr : public ResponseHandler
+  {
+    public:
+
+      UnpackXAttr( ResponseHandler *handler ) : handler( handler )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
+      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      {
+        // status is always OK for bulk response
+
+        std::vector<XAttr> *bulk = nullptr;
+        response->Get( bulk );
+        *status = bulk->front().status;
+        std::string *rsp = new std::string( std::move( bulk->front().value ) );
+        response->Set( rsp );
+        handler->HandleResponse( status, response );
+        delete this;
+      }
+
+    private:
+
+      ResponseHandler *handler;
+  };
+
+  //----------------------------------------------------------------------------
+  // Helper class for creating null references for particular types
+  //
+  // @arg Response : type for which we need a null reference
+  //----------------------------------------------------------------------------
+  template<typename Response>
+  struct NullRef
+  {
+      static Response value;
+  };
+
+  //----------------------------------------------------------------------------
+  // Initialize the 'null-reference'
+  //----------------------------------------------------------------------------
+  template<typename Response>
+  Response NullRef<Response>::value;
+
+  //----------------------------------------------------------------------------
+  //! Unpack response
+  //!
+  //! @param rsp : AnyObject holding response
+  //! @return    : the response
+  //----------------------------------------------------------------------------
+  template<typename Response>
+  inline Response* GetResponse( AnyObject *rsp )
+  {
+    Response *ret = nullptr;
+    rsp->Get( ret );
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Unpack response
+  //!
+  //! @param rsp    : AnyObject holding response
+  //! @param status :
+  //! @return       : the response
+  //----------------------------------------------------------------------------
+  template<typename Response>
+  inline Response* GetResponse( XRootDStatus *status, AnyObject *rsp )
+  {
+    if( !status->IsOK() ) return &NullRef<Response>::value;
+    return GetResponse<Response>( rsp );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Lambda wrapper
+  //!
+  //! @arg ResponseType : type of response returned by the server
+  //----------------------------------------------------------------------------
+  template<typename Response>
+  class FunctionWrapper: public ResponseHandler
   {
     public:
 
@@ -74,7 +188,47 @@ namespace XrdCl
       //
       //! @param func : function, functor or lambda
       //------------------------------------------------------------------------
-      SimpleFunctionWrapper(
+      FunctionWrapper(
+          std::function<void( XRootDStatus&, Response& )> handleFunction ) :
+          fun( handleFunction )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Callback method.
+      //------------------------------------------------------------------------
+      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      {
+        Response *res = GetResponse<Response>( status, response );
+        fun( *status, *res );
+        delete status;
+        delete response;
+        delete this;
+      }
+
+    private:
+      //------------------------------------------------------------------------
+      //! user defined function, functor or lambda
+      //------------------------------------------------------------------------
+      std::function<void( XRootDStatus&, Response& )> fun;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Lambda wrapper
+  //!
+  //! Template specialization for responses that return no value (void)
+  //----------------------------------------------------------------------------
+  template<>
+  class FunctionWrapper<void> : public ResponseHandler
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda
+      //------------------------------------------------------------------------
+      FunctionWrapper(
           std::function<void( XRootDStatus& )> handleFunction ) :
           fun( handleFunction )
       {
@@ -97,62 +251,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::function<void( XRootDStatus& )> fun;
   };
-
-  //----------------------------------------------------------------------------
-  //! Lambda wrapper
-  //!
-  //! @arg ResponseType : type of response returned by the server
-  //----------------------------------------------------------------------------
-  template<typename ResponseType>
-  class FunctionWrapper: public ResponseHandler
-  {
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor.
-      //
-      //! @param func : function, functor or lambda
-      //------------------------------------------------------------------------
-      FunctionWrapper(
-          std::function<void( XRootDStatus&, ResponseType& )> handleFunction ) :
-          fun( handleFunction )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Callback method.
-      //------------------------------------------------------------------------
-      void HandleResponse( XRootDStatus *status, AnyObject *response )
-      {
-        ResponseType *res = nullptr;
-        if( status->IsOK() )
-          response->Get( res );
-        else
-          res = &nullref;
-        fun( *status, *res );
-        delete status;
-        delete response;
-        delete this;
-      }
-
-    private:
-      //------------------------------------------------------------------------
-      //! user defined function, functor or lambda
-      //------------------------------------------------------------------------
-      std::function<void( XRootDStatus&, ResponseType& )> fun;
-
-      //------------------------------------------------------------------------
-      //! Null reference to the response (not really but acts as one)
-      //------------------------------------------------------------------------
-      static ResponseType nullref;
-  };
-
-  //----------------------------------------------------------------------------
-  // Initialize the 'null-reference'
-  //----------------------------------------------------------------------------
-  template<typename ResponseType>
-  ResponseType FunctionWrapper<ResponseType>::nullref;
-
 
   //----------------------------------------------------------------------------
   //! Packaged Task wrapper
@@ -180,11 +278,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
-        Response *resp = nullptr;
-        if( status->IsOK() )
-          response->Get( resp );
-        else
-          resp = &nullref;
+        Response *resp = GetResponse<Response>( status, response );
         task( *status, *resp );
         delete status;
         delete response;
@@ -197,18 +291,7 @@ namespace XrdCl
       //! user defined task
       //------------------------------------------------------------------------
       std::packaged_task<Return( XRootDStatus&, Response& )> task;
-
-      //------------------------------------------------------------------------
-      //! Null reference to the response (not really but acts as one)
-      //------------------------------------------------------------------------
-      static Response nullref;
   };
-
-  //----------------------------------------------------------------------------
-  // Initialize the 'null-reference'
-  //----------------------------------------------------------------------------
-  template<typename Response, typename Return>
-  Response TaskWrapper<Response, Return>::nullref;
 
   //----------------------------------------------------------------------------
   //! Packaged Task wrapper, specialization for requests that have no response
@@ -279,9 +362,9 @@ namespace XrdCl
         if( status->IsOK() )
           XRootDStatus st = f.Stat( false, info );
         else
-          info = &nullref;
+          info = &NullRef<StatInfo>::value;
         fun( *status, *info );
-        if( info != &nullref ) delete info;
+        if( info != &NullRef<StatInfo>::value ) delete info;
         delete status;
         delete response;
         delete this;
@@ -293,17 +376,7 @@ namespace XrdCl
       //! user defined function, functor or lambda
       //------------------------------------------------------------------------
       std::function<void( XRootDStatus&, StatInfo& )> fun;
-
-      //------------------------------------------------------------------------
-      //! Null reference to the response (not really but acts as one)
-      //------------------------------------------------------------------------
-      static StatInfo nullref;
   };
-
-  //----------------------------------------------------------------------------
-  // Initialize the 'null-reference'
-  //----------------------------------------------------------------------------
-  StatInfo ExOpenFuncWrapper::nullref;
 
   //----------------------------------------------------------------------------
   //! Pipeline exception, wrapps an XRootDStatus
@@ -447,9 +520,11 @@ namespace XrdCl
 
         if( status->IsOK() )
         {
-          Response *resp = 0;
-          response->Get( resp );
-          this->prms.set_value( std::move( *resp ) );
+          Response *resp = GetResponse<Response>( response );
+          if( resp == &NullRef<Response>::value )
+            this->SetException( XRootDStatus( stError, errInternal ) );
+          else
+            this->prms.set_value( std::move( *resp ) );
         }
         else
           this->SetException( *status );
@@ -599,7 +674,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( std::function<void( XRootDStatus& )> func )
       {
-        return new SimpleFunctionWrapper( func );
+        return new FunctionWrapper<void>( func );
       }
 
       //------------------------------------------------------------------------

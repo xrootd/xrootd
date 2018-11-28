@@ -395,7 +395,7 @@ namespace XrdCl
   //! Factory for creating StatImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  StatImpl<false> Stat( File *file, Arg<bool> force )
+  inline StatImpl<false> Stat( File *file, Arg<bool> force )
   {
     return StatImpl<false>( file, std::move( force ) );
   }
@@ -404,7 +404,7 @@ namespace XrdCl
   //! Factory for creating StatImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  StatImpl<false> Stat( File &file, Arg<bool> force )
+  inline StatImpl<false> Stat( File &file, Arg<bool> force )
   {
     return StatImpl<false>( file, std::move( force ) );
   }
@@ -561,7 +561,7 @@ namespace XrdCl
   //! Factory for creating TruncateImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  TruncateImpl<false> Truncate( File *file, Arg<uint64_t> size )
+  inline TruncateImpl<false> Truncate( File *file, Arg<uint64_t> size )
   {
     return TruncateImpl<false>( file, std::move( size ) );
   }
@@ -570,7 +570,7 @@ namespace XrdCl
   //! Factory for creating TruncateImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  TruncateImpl<false> Truncate( File &file, Arg<uint64_t> size )
+  inline TruncateImpl<false> Truncate( File &file, Arg<uint64_t> size )
   {
     return TruncateImpl<false>( file, std::move( size ) );
   }
@@ -835,6 +835,526 @@ namespace XrdCl
       }
   };
   typedef VisaImpl<false> Visa;
+
+  //----------------------------------------------------------------------------
+  //! SetXAttr operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class SetXAttrImpl: public FileOperation<SetXAttrImpl, HasHndl, Resp<void>,
+      Arg<std::string>, Arg<std::string>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<SetXAttrImpl, HasHndl, Resp<void>,
+                          Arg<std::string>, Arg<std::string>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { NameArg, ValueArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "SetXAttrImpl";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl()
+      {
+        try
+        {
+          std::string name  = std::get<NameArg>( this->args ).Get();
+          std::string value = std::get<ValueArg>( this->args ).Get();
+          // wrap the arguments with a vector
+          std::vector<xattr_t> attrs;
+          attrs.push_back( xattr_t( std::move( name ), std::move( value ) ) );
+          // wrap the PipelineHandler so the response gets unpacked properly
+          UnpackXAttrStatus *handler = new UnpackXAttrStatus( this->handler.get() );
+          XRootDStatus st = this->file->SetXAttr( attrs, handler );
+          if( !st.IsOK() ) delete handler;
+          return st;
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating SetXAttrImpl objects (as there is another SetXAttr in
+  //! FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline SetXAttrImpl<false> SetXAttr( File *file, Arg<std::string> name, Arg<std::string> value )
+  {
+    return SetXAttrImpl<false>( file, std::move( name ), std::move( value ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating SetXAttrImpl objects (as there is another SetXAttr in
+  //! FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline SetXAttrImpl<false> SetXAttr( File &file, Arg<std::string> name, Arg<std::string> value )
+  {
+    return SetXAttrImpl<false>( file, std::move( name ), std::move( value ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! SetXAttr bulk operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class SetXAttrBulkImpl: public FileOperation<SetXAttrBulkImpl, HasHndl,
+      Resp<std::vector<XAttrStatus>>, Arg<std::vector<xattr_t>>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<SetXAttrBulkImpl, HasHndl, Resp<std::vector<XAttrStatus>>,
+                          Arg<std::vector<xattr_t>>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { AttrsArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "SetXAttrBulkImpl";
+      }
+
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl()
+      {
+        try
+        {
+          std::vector<xattr_t> attrs = std::get<AttrsArg>( this->args ).Get();
+          return this->file->SetXAttr( attrs, this->handler.get() );
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating SetXAttrBulkImpl objects (as there is another SetXAttr
+  //! in FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline SetXAttrBulkImpl<false> SetXAttr( File *file, Arg<std::vector<xattr_t>> attrs )
+  {
+    return SetXAttrBulkImpl<false>( file, std::move( attrs ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating SetXAttrBulkImpl objects (as there is another SetXAttr
+  //! in FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline SetXAttrBulkImpl<false> SetXAttr( File &file, Arg<std::vector<xattr_t>> attrs )
+  {
+    return SetXAttrBulkImpl<false>( file, std::move( attrs ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! GetXAttr operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class GetXAttrImpl: public FileOperation<GetXAttrImpl, HasHndl, Resp<std::string>,
+      Arg<std::string>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<GetXAttrImpl, HasHndl, Resp<std::string>,
+                          Arg<std::string>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { NameArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "GetXAttrImpl";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl()
+      {
+        try
+        {
+          std::string name = std::get<NameArg>( this->args ).Get();
+          // wrap the argument with a vector
+          std::vector<std::string> attrs;
+          attrs.push_back( std::move( name ) );
+          // wrap the PipelineHandler so the response gets unpacked properly
+          UnpackXAttr *handler = new UnpackXAttr( this->handler.get() );
+          XRootDStatus st = this->file->GetXAttr( attrs, handler );
+          if( !st.IsOK() ) delete handler;
+          return st;
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating GetXAttrImpl objects (as there is another GetXAttr in
+  //! FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline GetXAttrImpl<false> GetXAttr( File *file, Arg<std::string> name )
+  {
+    return GetXAttrImpl<false>( file, std::move( name ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating GetXAttrImpl objects (as there is another GetXAttr in
+  //! FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline GetXAttrImpl<false> GetXAttr( File &file, Arg<std::string> name )
+  {
+    return GetXAttrImpl<false>( file, std::move( name ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! GetXAttr bulk operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class GetXAttrBulkImpl: public FileOperation<GetXAttrBulkImpl, HasHndl, Resp<std::vector<XAttr>>,
+      Arg<std::vector<std::string>>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<GetXAttrBulkImpl, HasHndl, Resp<std::vector<XAttr>>,
+                          Arg<std::vector<std::string>>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { NamesArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "GetXAttrBulkImpl";
+      }
+
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl()
+      {
+        try
+        {
+          std::vector<std::string> attrs = std::get<NamesArg>( this->args ).Get();
+          return this->file->GetXAttr( attrs, this->handler.get() );
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating GetXAttrBulkImpl objects (as there is another GetXAttr in
+  //! FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline GetXAttrBulkImpl<false> GetXAttr( File *file, Arg<std::vector<std::string>> attrs )
+  {
+    return GetXAttrBulkImpl<false>( file, std::move( attrs ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating GetXAttrBulkImpl objects (as there is another GetXAttr in
+  //! FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline GetXAttrBulkImpl<false> GetXAttr( File &file, Arg<std::vector<std::string>> attrs )
+  {
+    return GetXAttrBulkImpl<false>( file, std::move( attrs ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! DelXAttr operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class DelXAttrImpl: public FileOperation<DelXAttrImpl, HasHndl, Resp<void>,
+      Arg<std::string>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<DelXAttrImpl, HasHndl, Resp<void>, Arg<std::string>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { NameArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "DelXAttrImpl";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl()
+      {
+        try
+        {
+          std::string name = std::get<NameArg>( this->args ).Get();
+          // wrap the argument with a vector
+          std::vector<std::string> attrs;
+          attrs.push_back( std::move( name ) );
+          // wrap the PipelineHandler so the response gets unpacked properly
+          UnpackXAttrStatus *handler = new UnpackXAttrStatus( this->handler.get() );
+          XRootDStatus st = this->file->DelXAttr( attrs, handler );
+          if( !st.IsOK() ) delete handler;
+          return st;
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating DelXAttrImpl objects (as there is another DelXAttr in
+  //! FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline DelXAttrImpl<false> DelXAttr( File *file, Arg<std::string> name )
+  {
+    return DelXAttrImpl<false>( file, std::move( name ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating DelXAttrImpl objects (as there is another DelXAttr in
+  //! FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline DelXAttrImpl<false> DelXAttr( File &file, Arg<std::string> name )
+  {
+    return DelXAttrImpl<false>( file, std::move( name ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! DelXAttr bulk operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class DelXAttrBulkImpl: public FileOperation<DelXAttrBulkImpl, HasHndl,
+      Resp<std::vector<XAttrStatus>>, Arg<std::vector<std::string>>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<DelXAttrBulkImpl, HasHndl, Resp<std::vector<XAttrStatus>>,
+                          Arg<std::vector<std::string>>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { NamesArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "DelXAttrBulkImpl";
+      }
+
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl()
+      {
+        try
+        {
+          std::vector<std::string> attrs = std::get<NamesArg>( this->args ).Get();
+          return this->file->DelXAttr( attrs, this->handler.get() );
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating DelXAttrBulkImpl objects (as there is another DelXAttr
+  //! in FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline DelXAttrBulkImpl<false> DelXAttr( File *file, Arg<std::vector<std::string>> attrs )
+  {
+    return DelXAttrBulkImpl<false>( file, std::move( attrs ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating DelXAttrBulkImpl objects (as there is another DelXAttr
+  //! in FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline DelXAttrBulkImpl<false> DelXAttr( File &file, Arg<std::vector<std::string>> attrs )
+  {
+    return DelXAttrBulkImpl<false>( file, std::move( attrs ) );
+  }
+
+  // TODO
+
+  //----------------------------------------------------------------------------
+  //! ListXAttr bulk operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class ListXAttrImpl: public FileOperation<ListXAttrImpl, HasHndl,
+      Resp<std::vector<XAttr>>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<ListXAttrImpl, HasHndl, Resp<std::vector<XAttr>>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "ListXAttrImpl";
+      }
+
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl()
+      {
+        return this->file->ListXAttr( this->handler.get() );
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ListXAttrImpl objects (as there is another ListXAttr
+  //! in FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline ListXAttrImpl<false> ListXAttr( File *file )
+  {
+    return ListXAttrImpl<false>( file );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ListXAttrImpl objects (as there is another ListXAttr
+  //! in FileSystem there would be a clash of typenames).
+  //----------------------------------------------------------------------------
+  inline ListXAttrImpl<false> ListXAttr( File &file )
+  {
+    return ListXAttrImpl<false>( file );
+  }
 }
 
 #endif // __XRD_CL_FILE_OPERATIONS_HH__
