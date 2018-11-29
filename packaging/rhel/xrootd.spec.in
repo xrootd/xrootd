@@ -206,6 +206,8 @@ Summary:	Libraries used by xrootd servers
 Group:		System Environment/Libraries
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+Obsoletes:  xrootd-macaroons
+Obsoletes:  xrootd-tpc
 
 %description server-libs
 This package contains libraries used by xrootd servers.
