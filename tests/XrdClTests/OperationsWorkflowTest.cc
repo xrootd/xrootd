@@ -33,6 +33,8 @@
 #include "XrdCl/XrdClFileSystemOperations.hh"
 #include "XrdCl/XrdClFwd.hh"
 
+#include <algorithm>
+
 using namespace XrdClTests;
 
 //------------------------------------------------------------------------------
@@ -51,6 +53,7 @@ class WorkflowTest: public CppUnit::TestCase
       CPPUNIT_TEST( FileSystemWorkflowTest );
       CPPUNIT_TEST( MixedWorkflowTest );
       CPPUNIT_TEST( WorkflowWithFutureTest );
+      CPPUNIT_TEST( XAttrWorkflowTest );
     CPPUNIT_TEST_SUITE_END();
     void ReadingWorkflowTest();
     void WritingWorkflowTest();
@@ -61,6 +64,7 @@ class WorkflowTest: public CppUnit::TestCase
     void FileSystemWorkflowTest();
     void MixedWorkflowTest();
     void WorkflowWithFutureTest();
+    void XAttrWorkflowTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( WorkflowTest );
@@ -749,4 +753,123 @@ void WorkflowTest::WorkflowWithFutureTest()
 
   delete[] expected;
   delete[] buffer;
+}
+
+void WorkflowTest::XAttrWorkflowTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
+  std::string fileUrl = address + "/";
+  fileUrl += filePath;
+
+  //----------------------------------------------------------------------------
+  // Now do the test
+  //----------------------------------------------------------------------------
+  std::string xattr_name  = "xrd.name";
+  std::string xattr_value = "ala ma kota";
+  File file1, file2;
+
+  // set extended attribute
+  Pipeline set = Open( file1, fileUrl, OpenFlags::Write )
+               | SetXAttr( file1, xattr_name, xattr_value )
+               | Close( file1 );
+  CPPUNIT_ASSERT_XRDST( WaitFor( std::move( set ) ) );
+
+  // read and delete the extended attribute
+  std::future<std::string> rsp1;
+
+  Pipeline get_del = Open( file2, fileUrl, OpenFlags::Update )
+                   | GetXAttr( file2, xattr_name ) >> rsp1
+                   | DelXAttr( file2, xattr_name )
+                   | Close( file2 );
+
+  CPPUNIT_ASSERT_XRDST( WaitFor( std::move( get_del ) ) );
+
+  try
+  {
+    CPPUNIT_ASSERT( xattr_value == rsp1.get() );
+  }
+  catch( PipelineException &ex )
+  {
+    CPPUNIT_ASSERT( false );
+  }
+
+  //----------------------------------------------------------------------------
+  // Test the bulk operations
+  //----------------------------------------------------------------------------
+  std::vector<std::string> names{ "xrd.name1", "xrd.name2" };
+  std::vector<xattr_t> attrs;
+  attrs.push_back( xattr_t( names[0], "ala ma kota" ) );
+  attrs.push_back( xattr_t( names[1], "ela nic nie ma" ) );
+  File file3, file4;
+
+  // set extended attributes
+  Pipeline set_bulk = Open( file3, fileUrl, OpenFlags::Write )
+                    | SetXAttr( file3, attrs )
+                    | Close( file3 );
+  CPPUNIT_ASSERT_XRDST( WaitFor( std::move( set_bulk ) ) );
+
+  // read and delete the extended attribute
+  Pipeline get_del_bulk = Open( file4, fileUrl, OpenFlags::Update )
+                        | ListXAttr( file4 ) >>
+                          [&]( XRootDStatus &status, std::vector<XAttr> &rsp )
+                            {
+                              CPPUNIT_ASSERT_XRDST( status );
+                              CPPUNIT_ASSERT( rsp.size() == attrs.size() );
+                              for( size_t i = 0; i < rsp.size(); ++i )
+                              {
+                                auto itr = std::find_if( attrs.begin(), attrs.end(),
+                                    [&]( xattr_t &a ){ return std::get<0>( a ) == rsp[i].name; } );
+                                CPPUNIT_ASSERT( itr != attrs.end() );
+                                CPPUNIT_ASSERT( std::get<1>( *itr ) == rsp[i].value );
+                              }
+                            }
+                        | DelXAttr( file4, names )
+                        | Close( file4 );
+
+  CPPUNIT_ASSERT_XRDST( WaitFor( std::move( get_del_bulk ) ) );
+
+  //----------------------------------------------------------------------------
+  // Test FileSystem xattr
+  //----------------------------------------------------------------------------
+  FileSystem fs( fileUrl );
+  std::future<std::string> rsp2;
+
+  Pipeline pipeline = SetXAttr( fs, filePath, xattr_name, xattr_value )
+                    | GetXAttr( fs, filePath, xattr_name ) >> rsp2
+                    | ListXAttr( fs, filePath ) >>
+                      [&]( XRootDStatus &status, std::vector<XAttr> &rsp )
+                        {
+                          CPPUNIT_ASSERT_XRDST( status );
+                          CPPUNIT_ASSERT( rsp.size() == 1 );
+                          CPPUNIT_ASSERT( rsp[0].name == xattr_name );
+                          CPPUNIT_ASSERT( rsp[0].value == xattr_value );
+                        }
+                    | DelXAttr( fs, filePath, xattr_name );
+
+  CPPUNIT_ASSERT_XRDST( WaitFor( std::move( pipeline ) ) );
+
+  try
+  {
+    CPPUNIT_ASSERT( xattr_value == rsp2.get() );
+  }
+  catch( PipelineException &ex )
+  {
+    CPPUNIT_ASSERT( false );
+  }
 }
