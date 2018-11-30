@@ -155,7 +155,7 @@ int Handler::ProcessOAuthConfig(XrdHttpExtReq &req) {
 }
 
 
-int Handler::ProcessTokenResult(XrdHttpExtReq &req)
+int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
 {
     if (req.verb != "GET")
     {
@@ -169,11 +169,6 @@ int Handler::ProcessTokenResult(XrdHttpExtReq &req)
     if (header->second != "application/macaroon-request")
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
-    }
-    header = req.headers.find("Content-Length");
-    if (header == req.headers.end())
-    {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Length missing; not a valid POST", 0);
     }
     ssize_t blen;
     try
@@ -194,13 +189,14 @@ int Handler::ProcessTokenResult(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Missing or invalid body of request.", 0);
     }
+    return req.SendSimpleResp(500, NULL, NULL, "Token generation implementation not yet complete", 0);
 }
 
 
 // Process a macaroon request.
 int Handler::ProcessReq(XrdHttpExtReq &req)
 {
-    if (req.resource == "/.well-known/oauth-configuration") {
+    if (req.resource == "/.well-known/oauth-authorization-server") {
         return ProcessOAuthConfig(req);
     } else if (req.resource == "/.oauth2/token") {
         return ProcessTokenRequest(req);
@@ -260,12 +256,35 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Invalid ISO 8601 duration for validity key", 0);
     }
-    return GenerateMacaroonResponse(req, req.resource, validity);
+    json_object *caveats_obj;
+    std::vector<std::string> other_caveats;
+    if (json_object_object_get_ex(macaroon_req, "caveats", &caveats_obj))
+    {                                                   
+        if (json_object_is_type(caveats_obj, json_type_array))
+        { // Caveats were provided.  Let's record them.
+          // TODO - could just add these in-situ.  No need for the other_caveats vector.
+            int array_length = json_object_array_length(caveats_obj);
+            other_caveats.reserve(array_length);
+            for (int idx=0; idx<array_length; idx++)
+            {                           
+                json_object *caveat_item = json_object_array_get_idx(caveats_obj, idx);
+                if (caveat_item)
+                {
+                    const char *caveat_item_str = json_object_get_string(caveat_item);
+                    other_caveats.emplace_back(caveat_item_str);
+                }                            
+            }                                
+        }
+    }
+    json_object_put(caveats_obj);
+
+    return GenerateMacaroonResponse(req, req.resource, other_caveats, validity);
 }
 
 
 int
-Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, std::string &resource, ssize_t validity)
+Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resource,
+    const std::vector<std::string> &other_caveats, ssize_t validity)
 {
     time_t now;
     time(&now);
@@ -286,27 +305,6 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, std::string &resource, ssi
     std::stringstream ss;
     ss << "before:" << utc_time_str;
     std::string utc_time_caveat = ss.str();
-
-    json_object *caveats_obj;
-    std::vector<std::string> other_caveats;
-    if (json_object_object_get_ex(macaroon_req, "caveats", &caveats_obj))
-    {
-        if (json_object_is_type(caveats_obj, json_type_array))
-        { // Caveats were provided.  Let's record them.
-          // TODO - could just add these in-situ.  No need for the other_caveats vector.
-            int array_length = json_object_array_length(caveats_obj);
-            other_caveats.reserve(array_length);
-            for (int idx=0; idx<array_length; idx++)
-            {
-                json_object *caveat_item = json_object_array_get_idx(caveats_obj, idx);
-                if (caveat_item)
-                {
-                    const char *caveat_item_str = json_object_get_string(caveat_item);
-                    other_caveats.emplace_back(caveat_item_str);
-                }
-            }
-        }
-    }
 
     std::string activities = GenerateActivities(req);
     std::string macaroon_id = GenerateID(req.GetSecEntity(), activities, utc_time_str);
