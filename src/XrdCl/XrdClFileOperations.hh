@@ -1298,8 +1298,6 @@ namespace XrdCl
     return DelXAttrBulkImpl<false>( file, std::move( attrs ) );
   }
 
-  // TODO
-
   //----------------------------------------------------------------------------
   //! ListXAttr bulk operation (@see FileOperation)
   //----------------------------------------------------------------------------
