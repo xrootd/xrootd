@@ -15,14 +15,16 @@
 struct stat;
 
 class XrdSfsFile;
+class XrdSysError;
 
 namespace TPC {
 class Stream {
 public:
-    Stream(std::unique_ptr<XrdSfsFile> fh, size_t max_blocks, size_t buffer_size)
+    Stream(std::unique_ptr<XrdSfsFile> fh, size_t max_blocks, size_t buffer_size, XrdSysError &log)
         : m_avail_count(max_blocks),
           m_fh(std::move(fh)),
-          m_offset(0)
+          m_offset(0),
+          m_log(log)
     {
         m_buffers.reserve(max_blocks);
         for (size_t idx=0; idx < max_blocks; idx++) {
@@ -39,6 +41,8 @@ public:
     int Write(off_t offset, const char *buffer, size_t size);
 
     size_t AvailableBuffers() const {return m_avail_count;}
+
+    void DumpBuffers() const;
 
 private:
 
@@ -102,6 +106,10 @@ private:
             m_size = other.m_size;
         }
 
+        off_t GetOffset() const {return m_offset;}
+        size_t GetCapacity() const {return m_capacity;}
+        size_t GetSize() const {return m_size;}
+
     private:
 
         Entry(const Entry&) = delete;
@@ -120,5 +128,6 @@ private:
     std::unique_ptr<XrdSfsFile> m_fh;
     off_t m_offset;
     std::vector<Entry*> m_buffers;
+    XrdSysError &m_log;
 };
 }

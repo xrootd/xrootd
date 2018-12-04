@@ -430,7 +430,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
-    Stream stream(std::move(fh), 0, 0);
+    Stream stream(std::move(fh), 0, 0, m_log);
     State state(0, stream, curl, true);
     state.CopyHeaders(req);
 
