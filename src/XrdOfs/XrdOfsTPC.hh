@@ -88,13 +88,14 @@ struct  iParm {char *Pgm;
                int   Strm;
                int   SMax;
                int   Xmax;
-               int   Grab;
-               int   xEcho;
-               int   autoRM;
+               char  Grab;
+               char  xEcho;
+               char  autoRM;
+               char  oidsOK;
                      iParm() : Pgm(0), Ckst(0), cpath(0), fCreds(0),
                                Dflttl(-1), Maxttl(-1),
                                Logok(-1), Strm(-1), SMax(64), Xmax(-1), Grab(0),
-                               xEcho(-1), autoRM(-1) {}
+                               xEcho(-1), autoRM(-1), oidsOK(0) {}
               };
 
 static  void  Init(iParm &Parms);

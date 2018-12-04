@@ -1313,7 +1313,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                                          [echo] [scan {stderr | stdout}]
                                          [autorm] [pgm <path> [parms]]
                                          [fcreds  [?]<auth> =<evar>]
-                                         [fcpath <path>]
+                                         [fcpath <path>] [oids]
 
              parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
 
@@ -1346,6 +1346,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
              =<evar> the name of the envar to be set with the path to the
                      credentials to be forwarded.
              fcpath  where creds are stored (default <adminpath>/.ofs/.tpccreds).
+             oids    Object ID's are acceptable for the source lfn.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1380,6 +1381,7 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
          if (!strcmp(val, "echo"))  {Parms.xEcho = 1; continue;}
          if (!strcmp(val, "logok")) {Parms.Logok = 1; continue;}
          if (!strcmp(val, "autorm")){Parms.autoRM = 1; continue;}
+         if (!strcmp(val, "oids"))  {Parms.oidsOK = 1; continue;}
          if (!strcmp(val, "pgm"))
             {if (!Config.GetRest(pgm, sizeof(pgm)))
                 {Eroute.Emsg("Config", "tpc command line too long"); return 1;}

@@ -86,6 +86,7 @@ int                errMon   =-3;
 int                fcNum    = 0;
 bool               doEcho   = false;
 bool               autoRM   = false;
+bool               noids    = true;
 }
 
 using namespace XrdOfsTPCParms;
@@ -452,6 +453,7 @@ void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
    if (Parms.Grab   <  0) errMon = Parms.Grab;
    if (Parms.xEcho  >= 0) doEcho = Parms.xEcho != 0;
    if (Parms.autoRM >= 0) autoRM = Parms.autoRM != 0;
+                          noids  = Parms.oidsOK == 0;
 
 // Record all delegated auths
 //
@@ -615,7 +617,8 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 // If the lfn, if present, it must be absolute.
 //
         if (!tpcLfn) tpcLfn = Args.Lfn;
-   else if (*tpcLfn != '/') return Death(Args,"source lfn not absolute",EINVAL);
+   else if (noids && *tpcLfn != '/')
+           return Death(Args,"source lfn not absolute",EINVAL);
    else doRN = (strcmp(Args.Lfn, tpcLfn) != 0);
 
 // Validate number of streams and adjust accordingly
