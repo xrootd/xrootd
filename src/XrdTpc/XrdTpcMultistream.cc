@@ -227,16 +227,23 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     }
     state.ResetAfterRequest();    
 
-    handles.reserve(streams);
+    size_t concurrency = streams * m_pipelining_multiplier;
+
+    handles.reserve(concurrency);
     handles.push_back(new State());
     handles[0]->Move(state);
-    for (size_t idx = 1; idx < streams; idx++) {
+    for (size_t idx = 1; idx < concurrency; idx++) {
         handles.push_back(handles[0]->Duplicate());
     }
 
     // Create the multi-handle and add in the current transfer to it.
-    MultiCurlHandler mch(handles);
+    MultiCurlHandler mch(handles, m_log);
     CURLM *multi_handle = mch.Get();
+
+#ifdef USE_PIPELINING
+    curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, 1);
+    curl_multi_setopt(multi_handle, CURLMOPT_MAX_HOST_CONNECTIONS, streams);
+#endif
 
     // Start response to client prior to the first call to curl_multi_perform
     int retval = req.StartChunkedResp(201, "Created", "Content-Type: text/plain");
@@ -288,16 +295,24 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             }
         } while (msg);
         if (res != static_cast<CURLcode>(-1) && res != CURLE_OK) {
+            m_log.Emsg(log_prefix, "Breaking loop due to failed curl transfer.");
             break;
         }
 
-        if (running_handles < static_cast<int>(streams)) {
+        if (running_handles < static_cast<int>(concurrency)) {
             // Issue new transfers if there is still pending work to do.
             // Otherwise, continue running until there are no handles left.
             if (current_offset != content_size) {
                 current_offset = mch.StartTransfers(current_offset, content_size,
                                                     m_block_size, running_handles);
+                if (!running_handles) {
+                    std::stringstream ss;
+                    ss << "No handles are able to run.  Streams=" << streams << ", concurrency="
+                       << concurrency;
+                    m_log.Emsg(log_prefix, ss.str().c_str());
+                }
             } else if (running_handles == 0) {
+                m_log.Emsg(log_prefix, "Unable to start new transfers; breaking loop.");
                 break;
             }
         }
@@ -335,7 +350,8 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         if (msg && (msg->msg == CURLMSG_DONE)) {
             CURL *easy_handle = msg->easy_handle;
             mch.FinishCurlXfer(easy_handle);
-            res = msg->data.result;  // Transfer result will be examined below.
+            if (res == CURLE_OK || res == static_cast<CURLcode>(-1))
+                res = msg->data.result;  // Transfer result will be examined below.
         }
     } while (msg);
 
