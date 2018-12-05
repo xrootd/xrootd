@@ -1129,58 +1129,107 @@ int XrdSecProtocolgsi::Decrypt(const char *inbuf,  // Data to be decrypted
    return 0;
 }
 
-//_____________________________________________________________________________
+// affilicated function to transfer a byte string (\0 can present in
+// the string) to hex string, and back.
+//// a \0 terminator is added to the end of the hexstr.
+int bytes2hex(const unsigned char* origstr, int len, char** hexstr)
+{   
+    *hexstr = (char*)malloc(len*2+1);
+    int i; 
+    for (i = 0; i < len; i++)
+        sprintf(&(*hexstr)[i*2], "%02x", origstr[i]);
+    (*hexstr)[len*2] = '\0';
+    return len*2+1;
+}
+
+int hex2bytes(const char* hexstr, int len, char** strbuf)
+{
+    char *tmp;
+
+    *strbuf = (char*)malloc(len);
+    int i;
+    for (i = 0; i < len/2; i++)
+    {
+        tmp = strndup((const char*)(&hexstr[i*2]), 2);
+        (*strbuf)[i] = strtol(tmp, NULL, 16);
+        free(tmp);
+    }
+    return len/2;
+}
+
+// Be carefull when using Sign() and Verify(). When sessionMD is NULL, no 
+// MD will be used to sign and verify the data. So Avoid this situation:
+// Sign(), Exchange MD algorithm, Verify()
 int XrdSecProtocolgsi::Sign(const char  *inbuf,   // Data to be signed
                             int inlen,    // Length of data to be signed
                             XrdSecBuffer **outbuf)   // Buffer for the signature
+// Sign data in inbuff and place the signature in outbuf.
+//
+// Returns: < 0 Failed, returned value is -errno (see Encrypt).
+//          = 0 Success, the return value is the length of the signature
+//              placed in outbuf.
 {
-   // Sign data in inbuff and place the signature in outbuf.
-   //
-   // Returns: < 0 Failed, returned value is -errno (see Encrypt).
-   //          = 0 Success, the return value is the length of the signature
-   //              placed in outbuf.
-   //
    EPNAME("Sign");
 
-   // We must have a PKI and a digest
-   if (!sessionKsig || !sessionMD)
+   // We must have a PKI
+   if (!sessionKsig)
       return -ENOENT;
-
    // And something to sign
    if (!inbuf || inlen <= 0 || !outbuf)
       return -EINVAL;
 
-   // Reset digest
-   sessionMD->Reset(0);
+   char *buf;
+   int len; 
+   if (!sessionMD)  // no MD exchanged so far, sign directly
+   {
+      // Output length
+      int lmax = sessionKsig->GetOutlen(inlen);
+      buf = (char *)malloc(lmax);
+      if (!buf)
+         return -ENOMEM;
 
-   // Calculate digest
-   sessionMD->Update(inbuf, inlen);
-   sessionMD->Final();
+      len = sessionKsig->EncryptPrivate(inbuf,
+                                        inlen,
+                                        buf, lmax);
+   }
+   else
+   {
+      // Reset digest
+      sessionMD->Reset(0);
 
-   // Output length
-   int lmax = sessionKsig->GetOutlen(sessionMD->Length());
-   char *buf = (char *)malloc(lmax);
-   if (!buf)
-      return -ENOMEM;
+      // Calculate digest
+      sessionMD->Update(inbuf, inlen);
+      sessionMD->Final();
 
-   // Sign
-   int len = sessionKsig->EncryptPrivate(sessionMD->Buffer(),
-                                         sessionMD->Length(),
-                                         buf, lmax);
+      // Output length
+      int lmax = sessionKsig->GetOutlen(sessionMD->Length());
+
+      buf = (char *)malloc(lmax);
+      if (!buf)
+         return -ENOMEM;
+
+      // Sign
+      len = sessionKsig->EncryptPrivate(sessionMD->Buffer(),
+                                        sessionMD->Length(),
+                                        buf, lmax);
+   }
    if (len <= 0) {
       SafeFree(buf);
       return -EINVAL;
    }
 
-   // Create and fill output buffer
-   *outbuf = new XrdSecBuffer(buf, len);
+   char *hexbuf;
+   int hexlen = bytes2hex((unsigned char*)buf, len, &hexbuf);
 
+   // Create and fill output buffer
+   free(buf);
+   *outbuf = new XrdSecBuffer(hexbuf, hexlen);
+ 
    // We are done
    DEBUG("signature has "<<len<<" bytes");
    return 0;
 }
 
-//_____________________________________________________________________________
 int XrdSecProtocolgsi::Verify(const char  *inbuf,   // Data to be verified
                               int  inlen,           // Length of data in inbuf
                               const char  *sigbuf,  // Buffer with signature
@@ -1195,28 +1244,28 @@ int XrdSecProtocolgsi::Verify(const char  *inbuf,   // Data to be verified
    EPNAME("Verify");
 
    // We must have a PKI and a digest
-   if (!sessionKver || !sessionMD)
+   if (!sessionKver)
       return -ENOENT;
 
    // And something to verify
    if (!inbuf || inlen <= 0 || !sigbuf || siglen <= 0)
       return -EINVAL;
 
-   // Reset digest
-   sessionMD->Reset(0);
+   char *bytbuf;
+   int bytlen;
 
-   // Calculate digest
-   sessionMD->Update(inbuf, inlen);
-   sessionMD->Final();
+   bytlen = hex2bytes(sigbuf, siglen, &bytbuf);
 
    // Output length
-   int lmax = sessionKver->GetOutlen(siglen);
+   //int lmax = sessionKver->GetOutlen(siglen);
+   int lmax = sessionKver->GetOutlen(bytlen);
    char *buf = new char[lmax];
    if (!buf)
       return -ENOMEM;
 
    // Decrypt signature
-   int len = sessionKver->DecryptPublic(sigbuf, siglen, buf, lmax);
+   //int len = sessionKver->DecryptPublic(sigbuf, siglen, buf, lmax);
+   int len = sessionKver->DecryptPublic(bytbuf, bytlen, buf, lmax);
    if (len <= 0) {
       delete[] buf;
       return -EINVAL;
@@ -1224,16 +1273,34 @@ int XrdSecProtocolgsi::Verify(const char  *inbuf,   // Data to be verified
 
    // Verify signature
    bool bad = 1;
-   if (len == sessionMD->Length()) {
-      if (!strncmp(buf, sessionMD->Buffer(), len)) {
+   if (!sessionMD) 
+   {
+      if (len == inlen && !strncmp(buf, inbuf, len)) {
          // Signature matches
          bad = 0;
          DEBUG("signature successfully verified");
       }
    }
+   else
+   {
+      // Reset digest
+      sessionMD->Reset(0);
+
+      // Calculate digest
+      sessionMD->Update(inbuf, inlen);
+      sessionMD->Final();
+
+      if (len == sessionMD->Length() && !strncmp(buf, sessionMD->Buffer(), len)) {
+         // Signature matches
+         bad = 0;
+         DEBUG("signature successfully verified");
+      }
+
+   }
 
    // Cleanup
    if (buf) delete[] buf;
+   free(bytbuf);
 
    // We are done
    return ((bad) ? 1 : 0);
@@ -1755,6 +1822,15 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       if (!(bpub = hs->Rcip->Public(lpub))) 
          return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrNoPublic,
                                          "session",stepstr);
+
+      // Sign the cipher public part (DH parameters) and append it to the unsigned one. 
+      XrdSecBuffer *signedDHpars;
+      Sign(bpub, lpub, &signedDHpars);
+      bpub = (char*)realloc(bpub, lpub + signedDHpars->size);
+      strncpy(bpub+lpub, signedDHpars->buffer, signedDHpars->size);
+      lpub += signedDHpars->size;
+      delete signedDHpars;
+
       //
       // Add it to the global list
       if (bpar->AddBucket(bpub,lpub,kXRS_puk) != 0)
@@ -3070,22 +3146,6 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
 
    //
-   // Extract server public part for session cipher
-   if (!(bck = br->GetBucket(kXRS_puk))) {
-      emsg = "server public part for session cipher missing";
-      hs->Chain = 0;
-      return -1;
-   }
-   //
-   // Initialize session cipher
-   SafeDelete(sessionKey);
-   if (!(sessionKey =
-         sessionCF->Cipher(0,bck->buffer,bck->size,cip.c_str()))) {
-            PRINT("could not instantiate session cipher "
-                  "using cipher public info from server");
-            emsg = "could not instantiate session cipher ";
-   }
-   //
    // Extract server certificate
    if (!(bck = br->GetBucket(kXRS_x509))) {
       emsg = "server certificate missing";
@@ -3200,6 +3260,45 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    if (!sessionKver || !sessionKver->IsValid()) {
       emsg = "server certificate contains an invalid key";
       return -1;
+   }
+
+   // move this part to here, after sessionKver set, in order to verify the signature of DH parameters
+   // Extract server public part for session cipher
+   if (!(bck = br->GetBucket(kXRS_puk))) {
+      emsg = "server public part for session cipher missing";
+      hs->Chain = 0;
+      return -1;
+   }
+
+   char* endOfUnsigned; 
+   endOfUnsigned = strstr(bck->buffer, "---EPUB---");
+
+   int lenOfUnsigned;
+   lenOfUnsigned = (int)(endOfUnsigned - bck->buffer) + 10;
+
+   if (bck->size > lenOfUnsigned) 
+   {
+      if (Verify(bck->buffer, lenOfUnsigned, bck->buffer +lenOfUnsigned, bck->size - lenOfUnsigned))
+      {
+         emsg = "server public part for session cipher can not be verified";
+         return -1;
+      }
+   }
+   else  // talking to an older server that doesn't provide signed DH parameter, disable proxy delegation
+      if (hs->Options & (kOptsFwdPxy | kOptsSigReq))
+          {hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
+           //std::cerr <<"secgsi: proxy delegation forbidden when server does not provide signed DH parameter!\n"
+           //          <<std::flush;
+          }
+
+   //
+   // Initialize session cipher
+   SafeDelete(sessionKey);
+   if (!(sessionKey =
+         sessionCF->Cipher(0,bck->buffer, 143,cip.c_str()))) {
+            PRINT("could not instantiate session cipher "
+                  "using cipher public info from server");
+            emsg = "could not instantiate session cipher ";
    }
 
    // Deactivate what not needed any longer
