@@ -14,6 +14,24 @@ if( BUILD_TPC )
   # The XrdHttp library
   #-----------------------------------------------------------------------------
   include_directories( ${CURL_INCLUDE_DIRS} )
+
+  # On newer versions of libcurl, we can use pipelining of requests.
+  include (CheckCSourceCompiles)
+  SET( CMAKE_REQUIRED_INCLUDES "${CURL_INCLUDE_DIRS}" )
+  check_c_source_compiles("#include <curl/multi.h>
+
+  int main(int argc, char** argv)
+  {
+    (void)argv;
+    int foo = CURLMOPT_MAX_HOST_CONNECTIONS;
+    return 0;
+  }
+  " CURL_PIPELINING
+  )
+  set(XRD_COMPILE_DEFS "XRD_CHUNK_RESP")
+  if ( CURL_PIPELINING )
+    set(XRD_COMPILE_DEFS ${XRD_COMPILE_DEFS} "USE_PIPELINING")
+  endif ()
   
   add_library(
     ${LIB_XRD_TPC}
@@ -46,7 +64,7 @@ if( BUILD_TPC )
     INTERFACE_LINK_LIBRARIES ""
     LINK_INTERFACE_LIBRARIES ""
     LINK_FLAGS "${TPC_LINK_FLAGS}"
-    COMPILE_DEFINITIONS "XRD_CHUNK_RESP")
+    COMPILE_DEFINITIONS "${XRD_COMPILE_DEFS}")
 
   #-----------------------------------------------------------------------------
   # Install

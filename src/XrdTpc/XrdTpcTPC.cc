@@ -431,7 +431,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
-    Stream stream(std::move(fh), 0, 0);
+    Stream stream(std::move(fh), 0, 0, m_log);
     State state(0, stream, curl, true);
     state.CopyHeaders(req);
 
@@ -500,7 +500,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
-    Stream stream(std::move(fh), streams, m_block_size);
+    Stream stream(std::move(fh), streams * m_pipelining_multiplier, m_block_size, m_log);
     State state(0, stream, curl, false);
     state.CopyHeaders(req);
 

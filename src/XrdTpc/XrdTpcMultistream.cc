@@ -30,9 +30,10 @@ public:
 namespace {
 class MultiCurlHandler {
 public:
-    MultiCurlHandler(std::vector<State*> &states) :
+    MultiCurlHandler(std::vector<State*> &states, XrdSysError &log) :
         m_handle(curl_multi_init()),
-        m_states(states)
+        m_states(states),
+        m_log(log)
     {
         if (m_handle == NULL) {
             throw CurlHandlerSetupError("Failed to initialize a libcurl multi-handle");
@@ -102,6 +103,12 @@ public:
              size_t xfer_size = std::min(content_length - current_offset, static_cast<off_t>(block_size));
              if (xfer_size == 0) {return current_offset;}
              if (!(started_new_xfer = StartTransfer(current_offset, xfer_size))) {
+                 // In this case, we need to start new transfers but weren't able to.
+                 if (running_handles == 0) {
+                     if (!CanStartTransfer(true)) {
+                         m_log.Emsg("StartTransfers", "Unable to start transfers.");
+                     }
+                 }
                  break;
              } else {
                  running_handles += 1;
@@ -114,7 +121,7 @@ public:
 private:
 
     bool StartTransfer(off_t offset, size_t size) {
-        if (!CanStartTransfer()) {return false;}
+        if (!CanStartTransfer(false)) {return false;}
         for (std::vector<CURL*>::const_iterator handle_it = m_avail_handles.begin();
              handle_it != m_avail_handles.end();
              handle_it++) {
@@ -153,7 +160,7 @@ private:
         }
     }
 
-    bool CanStartTransfer() const {
+    bool CanStartTransfer(bool log_reason) const {
         size_t idle_handles = m_avail_handles.size();
         size_t transfer_in_progress = 0;
         for (std::vector<State*>::const_iterator state_iter = m_states.begin();
@@ -169,12 +176,25 @@ private:
             }
         }
         if (!idle_handles) {
+            if (log_reason) {
+                m_log.Emsg("CanStartTransfer", "Unable to start transfers as no idle CURL handles are available.");
+            }
             return false;
         }
         ssize_t available_buffers = m_states[0]->AvailableBuffers();
         // To be conservative, set aside buffers for any transfers that have been activated
         // but don't have their first responses back yet.
         available_buffers -= (m_active_handles.size() - transfer_in_progress);
+        if (log_reason && (available_buffers == 0)) {
+            std::stringstream ss;
+            ss << "Unable to start transfers as no buffers are available.  Available buffers: " <<
+                m_states[0]->AvailableBuffers() << ", Active curl handles: " << m_active_handles.size()
+                << ", Transfers in progress: " << transfer_in_progress;
+            m_log.Emsg("CanStartTransfer", ss.str().c_str());
+            if (m_states[0]->AvailableBuffers() == 0) {
+                m_states[0]->DumpBuffers();
+            }
+        }
         return available_buffers > 0;
     }
 
@@ -182,6 +202,7 @@ private:
     std::vector<CURL *> m_avail_handles;
     std::vector<CURL *> m_active_handles;
     std::vector<State*> &m_states;
+    XrdSysError         &m_log;
 };
 }
 
@@ -206,16 +227,23 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     }
     state.ResetAfterRequest();    
 
-    handles.reserve(streams);
+    size_t concurrency = streams * m_pipelining_multiplier;
+
+    handles.reserve(concurrency);
     handles.push_back(new State());
     handles[0]->Move(state);
-    for (size_t idx = 1; idx < streams; idx++) {
+    for (size_t idx = 1; idx < concurrency; idx++) {
         handles.push_back(handles[0]->Duplicate());
     }
 
     // Create the multi-handle and add in the current transfer to it.
-    MultiCurlHandler mch(handles);
+    MultiCurlHandler mch(handles, m_log);
     CURLM *multi_handle = mch.Get();
+
+#ifdef USE_PIPELINING
+    curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, 1);
+    curl_multi_setopt(multi_handle, CURLMOPT_MAX_HOST_CONNECTIONS, streams);
+#endif
 
     // Start response to client prior to the first call to curl_multi_perform
     int retval = req.StartChunkedResp(201, "Created", "Content-Type: text/plain");
@@ -267,16 +295,24 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             }
         } while (msg);
         if (res != static_cast<CURLcode>(-1) && res != CURLE_OK) {
+            m_log.Emsg(log_prefix, "Breaking loop due to failed curl transfer.");
             break;
         }
 
-        if (running_handles < static_cast<int>(streams)) {
+        if (running_handles < static_cast<int>(concurrency)) {
             // Issue new transfers if there is still pending work to do.
             // Otherwise, continue running until there are no handles left.
             if (current_offset != content_size) {
                 current_offset = mch.StartTransfers(current_offset, content_size,
                                                     m_block_size, running_handles);
+                if (!running_handles) {
+                    std::stringstream ss;
+                    ss << "No handles are able to run.  Streams=" << streams << ", concurrency="
+                       << concurrency;
+                    m_log.Emsg(log_prefix, ss.str().c_str());
+                }
             } else if (running_handles == 0) {
+                m_log.Emsg(log_prefix, "Unable to start new transfers; breaking loop.");
                 break;
             }
         }
@@ -294,6 +330,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
                                     &fd_count);
 #endif
         if (mres != CURLM_OK) {
+            m_log.Emsg(log_prefix, "Breaking transfer due to failed curl multi wait.");
             break;
         }
     } while (running_handles);
@@ -313,7 +350,8 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         if (msg && (msg->msg == CURLMSG_DONE)) {
             CURL *easy_handle = msg->easy_handle;
             mch.FinishCurlXfer(easy_handle);
-            res = msg->data.result;  // Transfer result will be examined below.
+            if (res == CURLE_OK || res == static_cast<CURLcode>(-1))
+                res = msg->data.result;  // Transfer result will be examined below.
         }
     } while (msg);
 
@@ -327,8 +365,9 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         m_log.Emsg(log_prefix, "request failed when processing", curl_easy_strerror(res));
         ss << "failure: " << curl_easy_strerror(res);
     } else if (current_offset != content_size) {
-        ss << "failure: Internal logic error led to early abort";
-        m_log.Emsg(log_prefix, "Internal logic error led to early abort");
+        ss << "failure: Internal logic error led to early abort; current offset is " <<
+              current_offset << " while full size is " << content_size;
+        m_log.Emsg(log_prefix, ss.str().c_str());
     } else if (state.GetStatusCode() >= 400) {
         ss << "failure: Remote side failed with status code " << state.GetStatusCode();
         m_log.Emsg(log_prefix, "Remote server failed request", ss.str().c_str());
@@ -341,6 +380,8 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     }
     return req.ChunkResp(NULL, 0);
 }
+
+
 int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
                                    const char *log_prefix, size_t streams)
 {
