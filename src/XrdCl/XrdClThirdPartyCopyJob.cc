@@ -291,6 +291,12 @@ namespace XrdCl
     const URL &target = GetTarget();
 
     //--------------------------------------------------------------------------
+    // We can only do a TPC if both source and destination are remote files
+    //--------------------------------------------------------------------------
+    if( source.IsLocalFile() || target.IsLocalFile() )
+      return XRootDStatus( stError, errNotSupported );
+
+    //--------------------------------------------------------------------------
     // Check the initial settings
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
