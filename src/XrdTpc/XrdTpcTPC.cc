@@ -394,6 +394,7 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
 int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req) {
     m_log.Emsg("ProcessPushReq", "Starting a push request for resource", resource.c_str());
     CURL *curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     if (!curl) {
         char msg[] = "Failed to initialize internal transfer resources";
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
@@ -443,6 +444,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 
 int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
     CURL *curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     if (!curl) {
             char msg[] = "Failed to initialize internal transfer resources";
             return req.SendSimpleResp(500, NULL, NULL, msg, 0);
