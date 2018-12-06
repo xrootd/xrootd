@@ -344,3 +344,51 @@ int XrdOuca2x::Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
  Eroute.Emsg("a2x", etxt1, item, buff);
  return -1;
 }
+
+int b2x(const char* src, int slen, unsigned char* dst, int dlen)
+{
+   static const char *hv = "0123456789abcdef";
+
+// Make sure destination buffer is large enough (2*slen+1)
+//
+   if (dlen < slen*2+1) return 0;
+
+// Do conversion
+//
+   for (int i = 0; i < slen; i++)
+       {*dst++ = hv[(src[i] >> 4) & 0x0f];
+        *dst++ = hv[ src[i]       & 0x0f];
+       }
+
+// End with null byte and return the full length
+//
+   *dst = '\0';
+   return slen*2+1;
+}
+
+int x2b(const unsigned char* src, int slen, char* dst, int dlen, bool radj)
+{
+   int n, len = slen/2 + ((slen & 0x01) != 0);
+   bool odd = false;
+
+// Make sure we have enough destination bytes
+//
+   if (len > dlen) return 0;
+
+// If the length is odd then the first nibble is set to zero
+//
+   if (radj && slen & 0x01) {*dst = 0; odd = true;}
+
+// Perform conversion
+//
+    while(slen--)
+         {     if (*src >= '0' && *src <= '9') n = *src-48;
+          else if (*src >= 'a' && *src <= 'f') n = *src-87;
+          else if (*src >= 'A' && *src <= 'F') n = *src-55;
+          else return 0;
+          if (odd) *dst++ |= n;
+             else  *dst    = n << 4;
+          src++; odd = !odd;
+         }
+    return len;
+}
