@@ -67,6 +67,8 @@ public:
 
     int AvailableBuffers() const;
 
+    void DumpBuffers() const;
+
     // Returns true if at least one byte of the response has been received,
     // but not the entire contents of the response.
     bool BodyTransferInProgress() const {return m_offset && (m_offset != m_content_length);}

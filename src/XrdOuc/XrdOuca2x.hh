@@ -48,6 +48,10 @@ static int a2sz(XrdSysError &, const char *emsg, const char *item, long long *va
 static int a2tm(XrdSysError &, const char *emsg, const char *item, int *val, int minv=-1, int maxv=-1);
 static int a2vp(XrdSysError &, const char *emsg, const char *item, int *val, int minv=-1, int maxv=-1);
 
+static int b2x(const unsigned char* src, int slen, char* dst, int dlen);
+static int x2b(const char* src, int slen, unsigned char* dst, int dlen,
+               bool radj=false);
+
 private:
 static int Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
                                      const char *etxt2, double    val);

@@ -238,3 +238,8 @@ int State::AvailableBuffers() const
 {
     return m_stream->AvailableBuffers();
 }
+
+void State::DumpBuffers() const
+{
+    m_stream->DumpBuffers();
+}

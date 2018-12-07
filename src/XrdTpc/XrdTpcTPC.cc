@@ -394,6 +394,7 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
 int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req) {
     m_log.Emsg("ProcessPushReq", "Starting a push request for resource", resource.c_str());
     CURL *curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     if (!curl) {
         char msg[] = "Failed to initialize internal transfer resources";
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
@@ -430,7 +431,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
-    Stream stream(std::move(fh), 0, 0);
+    Stream stream(std::move(fh), 0, 0, m_log);
     State state(0, stream, curl, true);
     state.CopyHeaders(req);
 
@@ -443,6 +444,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 
 int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
     CURL *curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     if (!curl) {
             char msg[] = "Failed to initialize internal transfer resources";
             return req.SendSimpleResp(500, NULL, NULL, msg, 0);
@@ -498,7 +500,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
-    Stream stream(std::move(fh), streams, m_block_size);
+    Stream stream(std::move(fh), streams * m_pipelining_multiplier, m_block_size, m_log);
     State state(0, stream, curl, false);
     state.CopyHeaders(req);
 

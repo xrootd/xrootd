@@ -1,7 +1,10 @@
 
+#include <sstream>
+
 #include "XrdTpcStream.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSys/XrdSysError.hh"
 
 using namespace TPC;
 
@@ -92,6 +95,25 @@ Stream::Write(off_t offset, const char *buf, size_t size)
 
     return retval;
 }
+
+
+void
+Stream::DumpBuffers() const
+{
+    m_log.Emsg("Stream::DumpBuffers", "Beginning dump of stream buffers.");
+    size_t idx = 0;
+    for (std::vector<Entry*>::const_iterator entry_iter = m_buffers.begin();
+         entry_iter!= m_buffers.end();
+         entry_iter++) {
+        std::stringstream ss;
+        ss << "Buffer " << idx << ": Offset=" << (*entry_iter)->GetOffset() << ", Size="
+           << (*entry_iter)->GetSize() << ", Capacity=" << (*entry_iter)->GetCapacity();
+        m_log.Emsg("Stream::DumpBuffers", ss.str().c_str());
+        idx ++;
+    }
+    m_log.Emsg("Stream::DumpBuffers", "Finish dump of stream buffers.");
+}
+
 
 int
 Stream::Read(off_t offset, char *buf, size_t size)
