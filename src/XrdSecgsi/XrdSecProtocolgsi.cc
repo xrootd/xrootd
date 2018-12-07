@@ -3221,6 +3221,12 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
          return -1;
       }
    }
+   else  // server doesn't provide signed DH parameter, disable proxy delegation
+      if (hs->Options & (kOptsFwdPxy | kOptsSigReq)) {
+         hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
+         std::cerr <<"secgsi: no signed DH parameters from " << Entity.host
+                   << ". Will not delegate x509 proxy to it\n" <<std::flush;
+      }
 
    //
    // Initialize session cipher
