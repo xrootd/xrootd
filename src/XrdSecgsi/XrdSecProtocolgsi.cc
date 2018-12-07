@@ -1690,8 +1690,9 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    String RndmTag;
    String ClntMsg(256);
    // Buffer related
-   XrdSutBuffer    *bpar = 0;  // Global buffer
-   XrdSutBuffer    *bmai = 0;  // Main buffer
+   XrdSutBuffer *bpar = 0;  // Global buffer
+   XrdSutBuffer *bmai = 0;  // Main buffer
+   XrdSutBucket *bck = 0;  // Generic bucket 
    // Proxy export related
    XrdOucString spxy;
    XrdSutBucket *bpxy = 0;
@@ -1749,17 +1750,34 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
 
    case kXGC_certreq:
       //
-      // Client required us to send our certificate and cipher public part:
+      // Client required us to send our certificate and cipher DH public parameters:
       // add first this last one.
       // Extract buffer with public info for the cipher agreement
       if (!(bpub = hs->Rcip->Public(lpub))) 
          return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrNoPublic,
                                          "session",stepstr);
+      bck = new XrdSutBucket(bpub,lpub,kXRS_puk);
+
+      // If client supports decoding of signed DH, do sign them
+      if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+         if (sessionKsig) {
+            //
+            // Encrypt server DH public parameters with server key
+            if (sessionKsig->EncryptPrivate(*bck) <= 0)
+               return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrExportPuK,
+                                 "encrypting server DH public parameters",stepstr);
+         } else {
+            return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrExportPuK,
+                                 "server signing key undefined!",stepstr);
+         }
+      }
+
       //
       // Add it to the global list
-      if (bpar->AddBucket(bpub,lpub,kXRS_puk) != 0)
+      if (bpar->AddBucket(bck) != 0)
          return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrAddBucket,
                                             "main",stepstr);
+
       //
       // Add bucket with list of supported ciphers
       if (bpar->AddBucket(DefCipher,kXRS_cipher_alg) != 0)
@@ -3070,22 +3088,6 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
 
    //
-   // Extract server public part for session cipher
-   if (!(bck = br->GetBucket(kXRS_puk))) {
-      emsg = "server public part for session cipher missing";
-      hs->Chain = 0;
-      return -1;
-   }
-   //
-   // Initialize session cipher
-   SafeDelete(sessionKey);
-   if (!(sessionKey =
-         sessionCF->Cipher(0,bck->buffer,bck->size,cip.c_str()))) {
-            PRINT("could not instantiate session cipher "
-                  "using cipher public info from server");
-            emsg = "could not instantiate session cipher ";
-   }
-   //
    // Extract server certificate
    if (!(bck = br->GetBucket(kXRS_x509))) {
       emsg = "server certificate missing";
@@ -3200,6 +3202,34 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    if (!sessionKver || !sessionKver->IsValid()) {
       emsg = "server certificate contains an invalid key";
       return -1;
+   }
+
+   // move this part to here, after sessionKver set, in order to verify the signature of DH parameters
+   // Extract server public part for session cipher
+   if (!(bck = br->GetBucket(kXRS_puk))) {
+      emsg = "server public part for session cipher missing";
+      hs->Chain = 0;
+      return -1;
+   }
+
+   // If client supports decoding of signed DH, do sign them
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      //
+      // Encrypt server DH public parameters with server key
+      if (sessionKver->DecryptPublic(*bck) <= 0) {
+         emsg = "decrypting server DH public parameters";
+         return -1;
+      }
+   }
+
+   //
+   // Initialize session cipher
+   SafeDelete(sessionKey);
+   if (!(sessionKey =
+         sessionCF->Cipher(0,bck->buffer,bck->size,cip.c_str()))) {
+            PRINT("could not instantiate session cipher "
+                  "using cipher public info from server");
+            emsg = "could not instantiate session cipher ";
    }
 
    // Deactivate what not needed any longer

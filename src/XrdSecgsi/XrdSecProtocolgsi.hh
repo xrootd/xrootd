@@ -63,12 +63,16 @@ typedef XrdCryptogsiX509Chain X509Chain;
   
 #define XrdSecPROTOIDENT    "gsi"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
-#define XrdSecgsiVERSION    10300
+#define XrdSecgsiVERSION    10400
 #define XrdSecNOIPCHK       0x0001
 #define XrdSecDEBUG         0x1000
 #define XrdCryptoMax        10
 
 #define kMAXBUFLEN          1024
+
+
+#define XrdSecgsiVersDHsigned  10400  // Version at which started signing
+                                      // of server DH parameters 
 
 //
 // Message codes either returned by server or included in buffers
