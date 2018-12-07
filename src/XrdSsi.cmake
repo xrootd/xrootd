@@ -31,7 +31,6 @@ XrdSsi/XrdSsiCms.cc                    XrdSsi/XrdSsiCms.hh
 XrdSsi/XrdSsiEvent.cc                  XrdSsi/XrdSsiEvent.hh
 XrdSsi/XrdSsiFileResource.cc           XrdSsi/XrdSsiFileResource.hh
 XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh
-XrdSsi/XrdSsiPacer.cc                  XrdSsi/XrdSsiPacer.hh
                                        XrdSsi/XrdSsiProvider.hh
                                        XrdSsi/XrdSsiRRAgent.hh
                                        XrdSsi/XrdSsiRRInfo.hh

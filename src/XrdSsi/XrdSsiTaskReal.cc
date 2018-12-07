@@ -283,10 +283,6 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 //
    DEBUG("Status="<<statName[tStat]<<" defer=" <<defer<<" mhPend="<<mhPend);
 
-// Regardless of the state, remove this task from the hold queue if there
-//
-   Reset();
-
 // Affect proper procedure
 //
    switch(tStat)
@@ -338,33 +334,6 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
    tStat = isDead;
    DEBUG("Returning " <<!(mhPend || defer));
    return !(mhPend || defer);
-}
-  
-/******************************************************************************/
-/*                               R e d r i v e                                */
-/******************************************************************************/
-  
-void XrdSsiTaskReal::Redrive()
-{
-   EPNAME("TaskRedrive");
-   XrdSsiRequest::PRD_Xeq prdVal;
-   bool last = tStat == isDone;
-
-// Simply call data response method again
-//
-   sessP->UnLock();
-   DEBUG("Redriving ProcessResponseData; len="<<dataRlen<<" last="<<last);
-   prdVal = rqstP->ProcessResponseData(XrdSsiRRAgent::ErrInfoRef(rqstP),
-                                       dataBuff, dataRlen, last);
-   switch(prdVal)
-         {case XrdSsiRequest::PRD_Normal:                               break;
-          case XrdSsiRequest::PRD_Hold:    Hold(0);                     break;
-          case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->GetRequestID()); break;
-          default: char mBuff[32];
-                   snprintf(mBuff, sizeof(mBuff), "%d", prdVal);
-                   Log.Emsg("TaskRedrive", "ProcessResponseData() returned "
-                                           " invalid enum - ", mBuff);
-         }
 }
 
 /******************************************************************************/
@@ -659,7 +628,6 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
    char *dBuff;
    union {uint32_t ubRead; int ibRead;};
    int dLen;
-   XrdSsiRequest::PRD_Xeq prdVal;
    bool last, aOK = status->IsOK();
 
 // Obtain a lock and indicate the any Finish() calls should be defered until
@@ -757,23 +725,11 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
    last = tStat == isDone;
    sessP->UnLock();
    DEBUG("Calling ProcessResponseData; len="<<ibRead<<" last="<<last);
-   prdVal = rqstP->ProcessResponseData(XrdSsiRRAgent::ErrInfoRef(rqstP),
-                                       dBuff, ibRead, last);
+   rqstP->ProcessResponseData(XrdSsiRRAgent::ErrInfoRef(rqstP),
+                              dBuff, ibRead, last);
 
 // If finished was called then we need stop any further action
 //
    if (!XeqEnd(true)) return false;
-
-// The processor requested a hold on further action for this request
-//
-   switch(prdVal)
-         {case XrdSsiRequest::PRD_Normal:                               break;
-          case XrdSsiRequest::PRD_Hold:    Hold(0);                     break;
-          case XrdSsiRequest::PRD_HoldLcl: Hold(rqstP->GetRequestID()); break;
-          default: char mBuff[32];
-                   snprintf(mBuff, sizeof(mBuff), "%d", prdVal);
-                   Log.Emsg("TaskXeqEvent", "ProcessResponseData() returned "
-                                           " invalid enum - ", mBuff);
-         }
    return true;
 }
