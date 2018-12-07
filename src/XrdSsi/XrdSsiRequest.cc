@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "XrdSsi/XrdSsiPacer.hh"
 #include "XrdSsi/XrdSsiRespInfo.hh"
 #include "XrdSsi/XrdSsiResponder.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
@@ -185,19 +184,4 @@ void XrdSsiRequest::ReleaseRequestBuffer()
 {
    XrdSsiMutexMon lck(rrMutex);
    RelRequestBuffer();
-}
-
-/******************************************************************************/
-/*                   R e s t a r t D a t a R e s p o n s e                    */
-/******************************************************************************/
-  
-XrdSsiRequest::RDR_Info XrdSsiRequest::RestartDataResponse
-                                      (XrdSsiRequest::RDR_How  rhow,
-                                       const char             *reqid
-                                      )
-{
-   RDR_Info rInfo;
-
-   XrdSsiPacer::Run(rInfo, rhow, reqid);
-   return rInfo;
 }

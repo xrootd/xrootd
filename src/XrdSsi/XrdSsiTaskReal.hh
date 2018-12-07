@@ -33,7 +33,6 @@
 
 #include "XrdSsi/XrdSsiErrInfo.hh"
 #include "XrdSsi/XrdSsiEvent.hh"
-#include "XrdSsi/XrdSsiPacer.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSsi/XrdSsiResponder.hh"
 
@@ -41,8 +40,8 @@ class XrdSsiRequest;
 class XrdSsiSessReal;
 class XrdSysSemaphore;
 
-class XrdSsiTaskReal : public XrdSsiEvent,     public XrdSsiPacer,
-                       public XrdSsiResponder, public XrdSsiStream
+class XrdSsiTaskReal : public XrdSsiEvent, public XrdSsiResponder,
+                       public XrdSsiStream
 {
 public:
 
@@ -71,7 +70,6 @@ void   Init(XrdSsiRequest *rP, unsigned short tmo=0)
 
 void   PostError();
 
-void   Redrive();
 const 
 char  *RequestID() {return rqstP->GetRequestID();}
 
