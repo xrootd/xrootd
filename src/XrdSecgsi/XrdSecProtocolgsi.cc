@@ -49,6 +49,7 @@
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOuca2x.hh"
 
 #include "XrdSut/XrdSutAux.hh"
 
@@ -1129,33 +1130,7 @@ int XrdSecProtocolgsi::Decrypt(const char *inbuf,  // Data to be decrypted
    return 0;
 }
 
-// affilicated function to transfer a byte string (\0 can present in
-// the string) to hex string, and back.
-//// a \0 terminator is added to the end of the hexstr.
-int bytes2hex(const unsigned char* origstr, int len, char** hexstr)
-{   
-    *hexstr = (char*)malloc(len*2+1);
-    int i; 
-    for (i = 0; i < len; i++)
-        sprintf(&(*hexstr)[i*2], "%02x", origstr[i]);
-    (*hexstr)[len*2] = '\0';
-    return len*2+1;
-}
-
-int hex2bytes(const char* hexstr, int len, char** strbuf)
-{
-    char *tmp;
-
-    *strbuf = (char*)malloc(len);
-    int i;
-    for (i = 0; i < len/2; i++)
-    {
-        tmp = strndup((const char*)(&hexstr[i*2]), 2);
-        (*strbuf)[i] = strtol(tmp, NULL, 16);
-        free(tmp);
-    }
-    return len/2;
-}
+XrdOuca2x abc;
 
 // Be carefull when using Sign() and Verify(). When sessionMD is NULL, no 
 // MD will be used to sign and verify the data. So Avoid this situation:
@@ -1218,8 +1193,8 @@ int XrdSecProtocolgsi::Sign(const char  *inbuf,   // Data to be signed
       return -EINVAL;
    }
 
-   char *hexbuf;
-   int hexlen = bytes2hex((unsigned char*)buf, len, &hexbuf);
+   char *hexbuf = new char[len*2+1];;
+   int hexlen = XrdOuca2x::b2x((unsigned char*)buf, len, hexbuf, len*2+1);
 
    // Create and fill output buffer
    free(buf);
@@ -1251,20 +1226,18 @@ int XrdSecProtocolgsi::Verify(const char  *inbuf,   // Data to be verified
    if (!inbuf || inlen <= 0 || !sigbuf || siglen <= 0)
       return -EINVAL;
 
-   char *bytbuf;
-   int bytlen;
+   int bytlen = siglen/2;
+   char *bytbuf = new char[bytlen];
 
-   bytlen = hex2bytes(sigbuf, siglen, &bytbuf);
+   XrdOuca2x::x2b(sigbuf, siglen, (unsigned char*)bytbuf, siglen/2, false);
 
    // Output length
-   //int lmax = sessionKver->GetOutlen(siglen);
    int lmax = sessionKver->GetOutlen(bytlen);
    char *buf = new char[lmax];
    if (!buf)
       return -ENOMEM;
 
    // Decrypt signature
-   //int len = sessionKver->DecryptPublic(sigbuf, siglen, buf, lmax);
    int len = sessionKver->DecryptPublic(bytbuf, bytlen, buf, lmax);
    if (len <= 0) {
       delete[] buf;
@@ -1300,7 +1273,7 @@ int XrdSecProtocolgsi::Verify(const char  *inbuf,   // Data to be verified
 
    // Cleanup
    if (buf) delete[] buf;
-   free(bytbuf);
+   delete[] bytbuf;
 
    // We are done
    return ((bad) ? 1 : 0);
@@ -3287,15 +3260,15 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    else  // talking to an older server that doesn't provide signed DH parameter, disable proxy delegation
       if (hs->Options & (kOptsFwdPxy | kOptsSigReq))
           {hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
-           //std::cerr <<"secgsi: proxy delegation forbidden when server does not provide signed DH parameter!\n"
-           //          <<std::flush;
+           std::cerr <<"secgsi: no signed DH parameters from " << Entity.host 
+                     << ". Will not delegate x509 proxy to it\n" <<std::flush;
           }
 
    //
    // Initialize session cipher
    SafeDelete(sessionKey);
    if (!(sessionKey =
-         sessionCF->Cipher(0,bck->buffer, 143,cip.c_str()))) {
+         sessionCF->Cipher(0,bck->buffer, lenOfUnsigned,cip.c_str()))) {
             PRINT("could not instantiate session cipher "
                   "using cipher public info from server");
             emsg = "could not instantiate session cipher ";
