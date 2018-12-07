@@ -345,7 +345,7 @@ int XrdOuca2x::Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
  return -1;
 }
 
-int b2x(const char* src, int slen, unsigned char* dst, int dlen)
+int XrdOuca2x::b2x(const unsigned char* src, int slen, char* dst, int dlen)
 {
    static const char *hv = "0123456789abcdef";
 
@@ -366,9 +366,9 @@ int b2x(const char* src, int slen, unsigned char* dst, int dlen)
    return slen*2+1;
 }
 
-int x2b(const unsigned char* src, int slen, char* dst, int dlen, bool radj)
+int XrdOuca2x::x2b(const char* src, int slen, unsigned char* dst, int dlen, bool radj)
 {
-   int n, len = slen/2 + ((slen & 0x01) != 0);
+   int n, len = slen/2 + ((slen & 0x01) == 0);
    bool odd = false;
 
 // Make sure we have enough destination bytes
