@@ -3726,6 +3726,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
                   SafeDelete(hs->PxyChain);
                   NOTIFY("WARNING: proxy req: problem adding bucket to main buffer");
                }
+               delete rPXp;
             } else {
                SafeDelete(hs->PxyChain);
                NOTIFY("WARNING: proxy req: problem creating request");
@@ -3880,6 +3881,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
       Entity.credslen = spxy.length();
       DEBUG("proxy chain exported in Entity.creds (" << Entity.credslen << " bytes)");
       DEBUG("\n\n" << spxy.c_str() << "\n\n");
+      delete bpxy;
       return 0;
    }
 
