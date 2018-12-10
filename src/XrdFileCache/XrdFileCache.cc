@@ -176,14 +176,18 @@ Cache::Cache(XrdSysLogger *logger) :
 
 XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 {
+   // XXXX Make sure we reject access to .cinfo and .crrd files.
+   // Unless there is an easy way to serve them in some other way, i.e.,
+   // not through the cache. Probably need to write a separate IO.
+
    if (Cache::GetInstance().Decide(io))
    {
       TRACE(Info, "Cache::Attach() " << io->Path());
       IO* cio;
       if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
-         cio = new IOFileBlock(io, m_stats, *this);
+         cio = new IOFileBlock(io, m_ouc_stats, *this);
       else
-         cio = new IOEntireFile(io, m_stats, *this);
+         cio = new IOEntireFile(io, m_ouc_stats, *this);
 
       TRACE_PC(Debug, const char* loc = io->Location(),
                "Cache::Attach() " << io->Path() << " location: " <<
@@ -482,6 +486,15 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
    {
       ActiveMap_i it = m_active.find(f->GetLocalPath());
       m_active.erase(it);
+
+      if (m_configuration.are_dirstats_enabled())
+      {
+         // XXXX truncate those, too, to maxdepth, dirstat_path!
+         // find, if found, add up. no need for per file data.
+
+         // XXXX uncomment once thjose are being processed
+         // m_closed_files_stats.insert(std::make_pair(f->GetLocalPath(), f->DeltaStatsFromLastCall()));
+      }
       delete f;
    }
    m_active_cond.UnLock();
