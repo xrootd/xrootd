@@ -193,7 +193,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Helper function for converting parameter pack into a vector
   //----------------------------------------------------------------------------
-  void PipesToVec( std::vector<Pipeline>& )
+  inline void PipesToVec( std::vector<Pipeline>& )
   {
     // base case
   }
@@ -203,15 +203,15 @@ namespace XrdCl
   // definitions, as they may call each other.
   //----------------------------------------------------------------------------
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<false> &operation,
+  inline void PipesToVec( std::vector<Pipeline> &v, Operation<false> &operation,
       Others&... others );
 
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Operation<true> &operation,
+  inline void PipesToVec( std::vector<Pipeline> &v, Operation<true> &operation,
       Others&... others );
 
   template<typename ... Others>
-  void PipesToVec( std::vector<Pipeline> &v, Pipeline &pipeline,
+  inline void PipesToVec( std::vector<Pipeline> &v, Pipeline &pipeline,
       Others&... others );
 
   //----------------------------------------------------------------------------
