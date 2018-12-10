@@ -961,8 +961,6 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
 #define ENOATTR ENODATA
 #endif
 
-struct stat;
-  
 class XProtocol
 {
 public:
