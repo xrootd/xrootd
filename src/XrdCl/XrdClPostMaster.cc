@@ -289,7 +289,11 @@ namespace XrdCl
     if( it == pChannelMap.end() )
       return Status( stError, errInvalidOp );
 
-    return it->second->ForceDisconnect();
+    it->second->ForceDisconnect();
+    delete it->second;
+    pChannelMap.erase( it );
+
+    return Status();
   }
 
   //----------------------------------------------------------------------------

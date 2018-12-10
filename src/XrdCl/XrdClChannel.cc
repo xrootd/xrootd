@@ -340,30 +340,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Channel::ForceDisconnect()
   {
-    Status st;
-
     //--------------------------------------------------------------------------
     // Disconnect and recreate the streams
     //--------------------------------------------------------------------------
     for( uint32_t i = 0; i < pStreams.size(); ++i )
-    {
-      st = pStreams[i]->ForceError( Status( stError, errOperationInterrupted ) );
-      if( !st.IsOK() ) return st;
-      // Recycle the Stream object by calling manually the destructor
-      // and then creating a new object with placement new (this way
-      // we don't have to reallocate memory).
-      pStreams[i]->~Stream();
-      pStreams[i] = new(pStreams[i]) Stream( &pUrl, i );
-      pStreams[i]->SetTransport( pTransport );
-      pStreams[i]->SetPoller( pPoller );
-      pStreams[i]->SetIncomingQueue( &pIncoming );
-      pStreams[i]->SetTaskManager( pTaskManager );
-      pStreams[i]->SetJobManager( pJobManager );
-      pStreams[i]->SetChannelData( &pChannelData );
-      pStreams[i]->Initialize();
-    }
+      pStreams[i]->ForceError( Status( stError, errOperationInterrupted ) );
 
-    return st;
+    return Status();
   }
 
   //----------------------------------------------------------------------------

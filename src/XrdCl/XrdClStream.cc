@@ -833,14 +833,13 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Force error
   //------------------------------------------------------------------------
-  Status Stream::ForceError( Status status )
+  void Stream::ForceError( Status status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     for( size_t substream = 0; substream < pSubStreams.size(); ++substream )
     {
       Log    *log = DefaultEnv::GetLog();
-      if( pSubStreams[substream]->status != Socket::Connected )
-        return Status( stError, errInvalidOp );
+      if( pSubStreams[substream]->status != Socket::Connected ) continue;
       pSubStreams[substream]->socket->Close();
       pSubStreams[substream]->status = Socket::Disconnected;
       log->Error( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
@@ -889,8 +888,6 @@ namespace XrdCl
       pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status,
                                       pStreamNum );
     }
-
-    return Status();
   }
 
   //----------------------------------------------------------------------------
@@ -985,7 +982,16 @@ namespace XrdCl
       {
         log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, disconnecting...",
                     pStreamName.c_str() );
-        Disconnect();
+        scopedLock.UnLock();
+        //----------------------------------------------------------------------
+        // Important note!
+        //
+        // This destroys the Stream object itself, the underlined
+        // AsyncSocketHandler object (that called this method) and the Channel
+        // object that aggregates this Stream.
+        //----------------------------------------------------------------------
+        DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
+        return;
       }
     }
 
