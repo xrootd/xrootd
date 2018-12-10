@@ -235,7 +235,12 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    {
       if (m_output_fs->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
-         m_log.Emsg("Cache::ConfigParameters()", "error obtaining stat info for space ", m_configuration.m_data_space.c_str());
+         m_log.Emsg("Cache::ConfigParameters()", "error obtaining stat info for data space ", m_configuration.m_data_space.c_str());
+         return false;
+      }
+      if (sP.Total < 10ll << 20)
+      {
+         m_log.Emsg("Cache::ConfigParameters()", "available data space is less than 10 MB (can be due to a mistake in oss.localroot directive) for space ", m_configuration.m_data_space.c_str());
          return false;
       }
 
