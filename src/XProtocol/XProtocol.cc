@@ -55,9 +55,6 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "XProtocol/XProtocol.hh"
 
