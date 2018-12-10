@@ -57,7 +57,7 @@ int IOEntireFile::Fstat(struct stat &sbuff)
 {
    XrdCl::URL  url(GetPath());
    std::string name = url.GetPath();
-   name += Info::m_infoExtension;
+   name += Info::s_infoExtension;
 
    int res = 0;
    if( ! m_localStat)

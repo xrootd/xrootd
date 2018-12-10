@@ -1,16 +1,65 @@
 #include "XrdFileCache.hh"
 #include "XrdFileCacheTrace.hh"
 
-using namespace XrdFileCache;
-
 #include <fcntl.h>
 #include <sys/time.h>
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysTrace.hh"
 
+using namespace XrdFileCache;
+
 namespace
 {
+
+class DStatsState
+{
+   DStatsState *m_parent;
+   Stats        m_stats;
+   long long    m_usage; // will be in stats???
+   long long    m_sum_usage; // collected upwards and reset after push
+   bool         m_rrd_dump;  // storing of stats required
+
+   typedef std::map<std::string, DStatsState> DssMap_t;
+   typedef DssMap_t::iterator                 DssMap_i;
+
+   DssMap_t m_subdirs;
+
+   DStatsState& find_path_tok(PathTokenizer &pt, int pos)
+   {
+      // is this ok??
+      if (m_subdirs.empty()) return *this;
+
+      // ??? check if at the end of pt tokens !!!
+
+      DssMap_i i = m_subdirs.find(pt.m_dirs[pos]);
+
+      if (i != m_subdirs.end())
+      {
+      }
+      else
+      {
+         // ??? create if not found ??? to what level, etc ...
+      }
+   }
+
+public:
+   DStatsState() : m_parent(0) {}
+
+   DStatsState(DStatsState *parent) : m_parent(parent) {}
+
+   DStatsState& find_path(const std::string &path, int max_depth=-1)
+   {
+      if (max_depth < 0)
+      {
+         max_depth = Cache::GetInstance().RefConfiguration().m_dirStatsStoreDepth;
+      }
+
+      PathTokenizer pt(path, max_depth);
+
+      return find_path_tok(pt, 0);
+   }
+};
 
 class FPurgeState
 {
@@ -26,13 +75,75 @@ public:
 
    typedef std::multimap<time_t, FS> map_t;
    typedef map_t::iterator           map_i;
-   map_t  fmap; // map of files that are purge candidates
+
+   map_t   fmap; // map of files that are purge candidates
 
    typedef std::list<FS>    list_t;
    typedef list_t::iterator list_i;
-   list_t flist; // list of files to be removed unconditionally
 
-   FPurgeState(long long iNBytesReq) : nBytesReq(iNBytesReq), nBytesAccum(0), nBytesTotal(0), tMinTimeStamp(0) {}
+   list_t  flist; // list of files to be removed unconditionally
+
+
+   // ------------------------------------
+   // Directory handling & stat collection
+   // ------------------------------------
+
+   int          m_dir_level;
+   int          m_max_dir_level_for_stat_collection; // until I honor globs from pfc.dirstats
+   std::string  m_current_dir;
+   std::string  m_current_path; // Note: without leading '/'!
+
+   std::vector<std::string> m_dir_names_stack;
+   std::vector<long long>   m_dir_usage_stack;
+
+   void cd_down(const std::string& dir_name, const std::string& full_path)
+   {
+      ++m_dir_level;
+      if (m_dir_level <= m_max_dir_level_for_stat_collection)
+      {
+         m_dir_usage_stack.push_back(0);
+      }
+      m_dir_names_stack.push_back(dir_name);
+      m_current_dir  = dir_name;
+      m_current_path = full_path;
+   }
+
+   void cd_up(const std::string& full_path)
+   {
+      m_current_path = full_path;
+      m_current_dir  = m_dir_names_stack.back();
+      m_dir_names_stack.pop_back();
+      if (m_dir_level <= m_max_dir_level_for_stat_collection)
+      {
+         // what else to do?
+
+         long long tail = m_dir_usage_stack.back();
+         m_dir_usage_stack.pop_back();
+
+         // or here
+
+         m_dir_usage_stack.back() += tail;
+
+         // or here
+      }
+      --m_dir_level;
+   }
+
+   // --------------------------------
+
+
+   // ------------------------------------------------------------------------
+
+   FPurgeState(long long iNBytesReq) :
+      m_dir_level(0), m_max_dir_level_for_stat_collection(2),
+      nBytesReq(iNBytesReq), nBytesAccum(0), nBytesTotal(0), tMinTimeStamp(0)
+   {
+      m_dir_names_stack.reserve(32);
+      m_dir_usage_stack.reserve(m_max_dir_level_for_stat_collection + 1);
+      m_dir_usage_stack.push_back(0);
+   }
+
+   // ------------------------------------------------------------------------
 
    void      setMinTime(time_t min_time) { tMinTimeStamp = min_time; }
    time_t    getMinTime()          const { return tMinTimeStamp; }
@@ -42,6 +153,8 @@ public:
    void checkFile(const std::string& iPath, long long iNBytes, time_t iTime)
    {
       nBytesTotal += iNBytes;
+
+      m_dir_usage_stack.back() += iNBytes;
 
       if (tMinTimeStamp > 0 && iTime < tMinTimeStamp)
       {
@@ -86,83 +199,98 @@ XrdSysTrace* GetTrace()
 
 void FillFileMapRecurse(XrdOssDF* iOssDF, const std::string& path, FPurgeState& purgeState)
 {
-   char buff[256];
-   XrdOucEnv env;
-   int rdr;
-   const size_t InfoExtLen = strlen(XrdFileCache::Info::m_infoExtension);  // cached var
-
    static const char* m_traceID = "Purge";
-   Cache& factory = Cache::GetInstance();
-   while ((rdr = iOssDF->Readdir(&buff[0], 256)) >= 0)
+
+   const char   *InfoExt    = XrdFileCache::Info::s_infoExtension;
+   const size_t  InfoExtLen = strlen(InfoExt);
+
+   Cache         &cache = Cache::GetInstance();
+   XrdOss        *oss   = cache.GetOss();
+   const Configuration &conf = cache.RefConfiguration();
+
+   char      fname[256];
+   XrdOucEnv env;
+
+   while (iOssDF->Readdir(&fname[0], 256) >= 0)
    {
-      // printf("readdir [%s]\n", buff);
-      std::string np = path + "/" + std::string(buff);
-      size_t fname_len = strlen(&buff[0]);
+      // printf("readdir [%s]\n", fname);
+
+      std::string new_path  = path + "/"; new_path += fname;
+      size_t      fname_len = strlen(&fname[0]);
+
       if (fname_len == 0)
       {
-         // std::cout << "Finish read dir.[" << np <<"] Break loop \n";
+         // std::cout << "Finish read dir.[" << new_path << "] Break loop.\n";
          break;
       }
 
-      if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
+      if (strncmp("..", &fname[0], 2) && strncmp(".", &fname[0], 1))
       {
-         XrdOssDF* dh = factory.GetOss()->newDir(factory.RefConfiguration().m_username.c_str());
-         XrdOssDF* fh = factory.GetOss()->newFile(factory.RefConfiguration().m_username.c_str());
+         XrdOssDF* dh = oss->newDir (conf.m_username.c_str());
+         XrdOssDF* fh = oss->newFile(conf.m_username.c_str());
 
-         if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen], XrdFileCache::Info::m_infoExtension, InfoExtLen) == 0)
+         if (fname_len > InfoExtLen && strncmp(&fname[fname_len - InfoExtLen], InfoExt, InfoExtLen) == 0)
          {
-            // We could also check if it is currently opened with Cache::HaveActiveFileWihtLocalPath()
-            // This is not really necessary because we do that check before unlinking the file
+            // Check if the file is currently opened / purge-protected is done before unlinking of the file.
+
             Info cinfo(Cache::GetInstance().GetTrace());
-            int open_rs;
-            if ((open_rs = fh->Open(np.c_str(), O_RDONLY, 0600, env)) == XrdOssOK && cinfo.Read(fh, np))
+
+            if (fh->Open(new_path.c_str(), O_RDONLY, 0600, env) == XrdOssOK && cinfo.Read(fh, new_path))
             {
+               bool   all_gauda = true;
                time_t accessTime;
-               if (cinfo.GetLatestDetachTime(accessTime))
-               {
-                  // TRACE(Dump, "FillFileMapRecurse() checking " << buff << " accessTime  " << accessTime);
-                  purgeState.checkFile(np, cinfo.GetNDownloadedBytes(), accessTime);
-               }
-               else
+               if ( ! cinfo.GetLatestDetachTime(accessTime))
                {
                   // cinfo file does not contain any known accesses, use stat.mtime instead.
+                  TRACE(Debug, "FillFileMapRecurse() could not get access time for " << new_path << ", trying stat");
 
-                  TRACE(Debug, "FillFileMapRecurse() could not get access time for " << np << ", trying stat");
-
-                  XrdOss* oss = Cache::GetInstance().GetOss();
                   struct stat fstat;
-
-                  if (oss->Stat(np.c_str(), &fstat) == XrdOssOK)
+                  if (oss->Stat(new_path.c_str(), &fstat) == XrdOssOK)
                   {
                      accessTime = fstat.st_mtime;
-                     TRACE(Dump, "FillFileMapRecurse() have access time for " << np << " via stat: " << accessTime);
-                     purgeState.checkFile(np, cinfo.GetNDownloadedBytes(), accessTime);
+                     TRACE(Dump, "FillFileMapRecurse() have access time for " << new_path << " via stat: " << accessTime);
                   }
                   else
                   {
                      // This really shouldn't happen ... but if it does remove cinfo and the data file right away.
-
-                     TRACE(Warning, "FillFileMapRecurse() could not get access time for " << np
-                                                                                          << "; purging.");
-                     oss->Unlink(np.c_str());
-                     np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
-                     oss->Unlink(np.c_str());
+                     TRACE(Warning, "FillFileMapRecurse() could not get access time for " << new_path << "; purging.");
+                     oss->Unlink(new_path.c_str());
+                     new_path = new_path.substr(0, new_path.size() - strlen(InfoExt));
+                     oss->Unlink(new_path.c_str());
+                     all_gauda = false;
                   }
+               }
+
+               if (all_gauda)
+               {
+                  // TRACE(Dump, "FillFileMapRecurse() checking " << fname << " accessTime  " << accessTime);
+                  purgeState.checkFile(new_path, cinfo.GetNDownloadedBytes(), accessTime);
                }
             }
             else
             {
-               TRACE(Warning, "FillFileMapRecurse() can't open or read " << np << ", open exit status " << strerror(-open_rs)
+               TRACE(Warning, "FillFileMapRecurse() can't open or read " << new_path << ", err " << strerror(errno)
                                                                          << "; purging.");
                XrdOss* oss = Cache::GetInstance().GetOss();
-               oss->Unlink(np.c_str());
-               np = np.substr(0, np.size() - strlen(XrdFileCache::Info::m_infoExtension));
-               oss->Unlink(np.c_str());
+               oss->Unlink(new_path.c_str());
+               new_path = new_path.substr(0, new_path.size() - InfoExtLen);
+               oss->Unlink(new_path.c_str());
             }
          }
-         else if (dh->Opendir(np.c_str(), env) == XrdOssOK)
+         else if (dh->Opendir(new_path.c_str(), env) == XrdOssOK)
          {
-            FillFileMapRecurse(dh, np, purgeState);
+            purgeState.cd_down(fname, new_path);
+
+            FillFileMapRecurse(dh, new_path, purgeState);
+
+            purgeState.cd_up(path);
+
+            // here dump stats, if required, into '' new_path + ".crrd" ''
+            // nope, also need access_stats, collected elsewhere ... before or after.
+            // in cdUp, stats are added to the relevant directory.
+            // max-depth controls how far down these will be kept.
+            // Alternatively, I have to continuously compare to the glob list.
+            // Or not, if those are tokenized and I compare them level by level.
          }
 
          delete dh; dh = 0;
@@ -206,7 +334,7 @@ void Cache::Purge()
       // get amount of space to potentially erase based on total disk usage
       if (oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
-         TRACE(Error, trc_pfx << "can't get statvs for oss space " << m_configuration.m_data_space);
+         TRACE(Error, trc_pfx << "can't get StatVS for oss space " << m_configuration.m_data_space);
          continue;
       }
       else
@@ -257,6 +385,10 @@ void Cache::Purge()
             age_based_purge_countdown = m_configuration.m_purgeColdFilesPeriod;
          }
       }
+
+      // XXXX When to do all the access stat magicck, getting, consolidation, etc.
+      // bool enforce_;
+
 
       TRACE(Debug, trc_pfx << "Precheck:");
       TRACE(Debug, "\tbytes_to_remove_disk    = " << bytesToRemove_d << " B");
@@ -340,7 +472,7 @@ void Cache::Purge()
             }
 
             std::string infoPath = it->second.path;
-            std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::m_infoExtension));
+            std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::s_infoExtension));
 
             if (IsFileActiveOrPurgeProtected(dataPath))
             {
@@ -393,3 +525,38 @@ void Cache::Purge()
       sleep(m_configuration.m_purgeInterval);
    }
 }
+
+
+//==============================================================================
+// DirStats specific stuff
+//==============================================================================
+
+/*
+
+  RRDtool DB sketch
+
+  # --start is not needed, default is "now - 10s"
+
+  rrdtool create <dirname>.crrd --step <purge_interval> \
+     DS:open_events:ABSOLUTE:<2*purge_interval>:0:1000 \
+     DS:access_duration:ABSOLUTE:<2*purge_interval>:0:1000000 \
+     DS:bytes_disk:ABSOLUTE:<2*purge_interval>:0:100000000000 \
+     DS:bytes_fetch:ABSOLUTE:<2*purge_interval>:0:100000000000 \
+     DS:bytes_bypass:ABSOLUTE:<2*purge_interval>:0:100000000000 \
+     DS:bytes_served:COMPUTE:bytes_disk,bytes_fetch,bytes_bypass,+,+ \
+     RRA:AVERAGE:0.5:<purge_interval>s:1w \
+     RRA:AVERAGE:0.5:1h:1M \
+     RRA:AVERAGE:0.5:1d:1y \
+
+  Questions / Issues:
+  1. DS min / max -- are they for values after division or before?
+     I'm assuming after in the above.
+  2. What is xxf (argument to RRA)? The thing that is usually 0.5.
+     Ah, xfiles factor, how much can be unknown for consolidated value to eb known.
+  3. Use COMPUTE for bytes_served (sum of the others).
+     ARGH, can not change heartbeat for COMPUTE, will pass it in manually.
+  4. Use rddtool tune -h to change heartbeat on start (if different, maybe).
+
+  5. ADD disk_usage !!!!
+     DS:disk_usage:GAUGE:...
+ */

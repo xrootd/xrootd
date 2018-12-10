@@ -189,11 +189,11 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 
       if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
       {
-         cio = new IOFileBlock(io, m_stats, *this);
+         cio = new IOFileBlock(io, m_ouc_stats, *this);
       }
       else
       {
-         IOEntireFile *ioef = new IOEntireFile(io, m_stats, *this);
+         IOEntireFile *ioef = new IOEntireFile(io, m_ouc_stats, *this);
 
          if ( ! ioef->HasFile())
          {
@@ -569,8 +569,17 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
      {
         ActiveMap_i it = m_active.find(f->GetLocalPath());
         m_active.erase(it);
+
+        if (m_configuration.are_dirstats_enabled())
+        {
+           // XXXX truncate those, too, to maxdepth, dirstat_path!
+           // find, if found, add up. no need for per file data.
+
+           // XXXX uncomment once thjose are being processed
+           // m_closed_files_stats.insert(std::make_pair(f->GetLocalPath(), f->DeltaStatsFromLastCall()));
+        }
+
         delete f;
-     }
    }
 }
 

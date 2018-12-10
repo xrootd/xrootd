@@ -45,9 +45,7 @@ Print::Print(XrdOss* oss, bool v, const char* path) : m_oss(oss), m_verbose(v), 
          printDir(dh, path);
       }
    }
-
 }
-
 
 bool Print::isInfoFile(const char* path)
 {
@@ -59,10 +57,9 @@ bool Print::isInfoFile(const char* path)
    return true;
 }
 
-
 void Print::printFile(const std::string& path)
 {
-   printf("printing %s ...\n", path.c_str());
+   printf("FILE: %s\n", path.c_str());
    XrdOssDF* fh = m_oss->newFile(m_ossUser);
    fh->Open((path).c_str(),O_RDONLY, 0600, m_env);
 
@@ -74,11 +71,11 @@ void Print::printFile(const std::string& path)
       return;
    }
 
-
    int cntd = 0;
    for (int i = 0; i < cfi.GetSizeInBits(); ++i)
+   {
       if (cfi.TestBitWritten(i)) cntd++;
-
+   }
    const Info::Store& store = cfi.RefStoredData();
    char   creationBuff[1000];
    time_t creationTime = store.m_creationTime;
@@ -86,10 +83,9 @@ void Print::printFile(const std::string& path)
 
    printf("version %d, created %s\n",  cfi.GetVersion(), creationBuff);
 
-   printf("fileSize %lld, bufferSize %lld nBlocks %d nDownloaded %d %s\n",
-          cfi.GetFileSize(),cfi.GetBufferSize(), cfi.GetSizeInBits(), cntd,
-          (cfi.GetSizeInBits() == cntd) ? "complete" : "");
-
+   printf("file_size %lld kB, buffer_size %lld kB, n_blocks %d, n_downloaded %d, state %scomplete\n",
+          cfi.GetFileSize() >> 10, cfi.GetBufferSize() >> 10, cfi.GetSizeInBits(), cntd,
+          (cfi.GetSizeInBits() < cntd) ? "in" : "");
 
    if (m_verbose)
    {
@@ -112,49 +108,50 @@ void Print::printFile(const std::string& path)
       printf("\n");
    }
 
-   // printf("\nlatest access statistics:\n");
-   size_t startIdx = cfi.GetAccessCnt() < cfi.GetMaxNumAccess() ? 0 : cfi.GetAccessCnt() - cfi.GetMaxNumAccess();
+   printf("Access records (N_acc_total=%llu):\n"
+          "%-6s %-13s  %-13s  %-12s %-5s %-5s %12s %12s %12s\n",
+          (unsigned long long) store.m_accessCnt,
+          "Record", "Attach", "Detach", "Duration", "N_acc", "N_mrg", "B_hit[kB]", "B_miss[kB]", "B_bypass[kB]");
+
+   int idx = 1;
    for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)
    {
-      printf("access %lu: ", (unsigned long)startIdx++);
-      char as[500];
-      strftime(as, 500, "%c", localtime(&(it->AttachTime)));
+      const int MM = 128;
+      char s[MM];
 
-      char ot[500];
-      if (cfi.GetVersion() == 1)
+      strftime(s, MM, "%y%m%d:%H%M%S", localtime(&(it->AttachTime)));
+      std::string at = s;
+      strftime(s, MM, "%y%m%d:%H%M%S", localtime(&(it->DetachTime)));
+      std::string dt = it->DetachTime > 0 ? s : "------:------";
       {
-         snprintf(ot, 500, "--:--:--");
+         int hours   = it->Duration/3600;
+         int min     = (it->Duration - hours * 3600)/60;
+         int sec     = it->Duration % 60;
+         snprintf(s, MM, "%d:%02d:%02d", hours, min, sec);
       }
-      else if (it->DetachTime == 0)
-      {
-         snprintf(ot, 500, "--:--:--");
-      }
-      else
-      {
-         int lasting = it->DetachTime - it->AttachTime;
-         int hours = lasting/3600;
-         int min   = (lasting - hours * 3600)/60;
-         int sec   = lasting % 60;
-         snprintf(ot, 500, "%02d:%02d:%02d", hours, min, sec);
-      }
+      std::string dur = s;
 
-      printf("%s, duration %s, bytesDisk=%lld, bytesRAM=%lld, bytesMissed=%lld\n", as, ot, it->BytesDisk, it->BytesRam, it->BytesMissed);
+      printf("%-6d %-13s  %-13s  %-12s %5d %5d %12lld %12lld %12lld\n", idx++,
+             at.c_str(), dt.c_str(), dur.c_str(), it->NumIos, it->NumMerged,
+             it->BytesHit >> 10, it->BytesMissed >> 10, it->BytesBypassed >> 10);
    }
 
    delete fh;
-   printf("\n");
 }
 
 void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
 {
    // printf("---------> print dir %s \n", path.c_str());
-   char buff[256];
-   int rdr;
-   while ( (rdr = iOssDF->Readdir(&buff[0], 256)) >= 0)
+
+   const int MM = 1024;
+   char  buff[MM];
+   int   rdr;
+   bool  first = true;
+
+   while ((rdr = iOssDF->Readdir(&buff[0], MM)) >= 0)
    {
       if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
       {
-
          if (strlen(buff) == 0)
          {
             break; // end of readdir
@@ -162,6 +159,9 @@ void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
          std::string np = path + "/" + std::string(&buff[0]);
          if (isInfoFile(buff))
          {
+            if (first) first = false;
+            else       printf("\n");
+
             printFile(np);
          }
          else
@@ -178,7 +178,7 @@ void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
 }
 
 
-//______________________________________________________________________________
+//------------------------------------------------------------------------------
 
 int main(int argc, char *argv[])
 {
@@ -191,13 +191,11 @@ int main(int argc, char *argv[])
    XrdSysLogger log;
    XrdSysError err(&log);
 
-
    XrdOucStream Config(&err, getenv("XRDINSTANCE"), &myEnv, "=====> ");
    XrdOucArgs   Spec(&err, "xrdpfc_print: ", "",
                      "verbose",      1, "v",
                      "config",       1, "c",
                      (const char *) 0);
-
 
    Spec.Set(argc-1, &argv[1]);
    char theOpt;
@@ -226,7 +224,6 @@ int main(int argc, char *argv[])
       }
    }
 
-
    // suppress oss init messages
    int efs = open("/dev/null",O_RDWR, 0);
    XrdSysLogger ossLog(efs);
@@ -234,7 +231,7 @@ int main(int argc, char *argv[])
    XrdOss *oss;
    XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(cfgn,&Config,&ossErr);
    bool ossSucc = ofsCfg->Load(XrdOfsConfigPI::theOssLib);
-   if (! ossSucc)
+   if ( ! ossSucc)
    {
       printf("can't load oss\n");
       exit(1);
@@ -244,14 +241,14 @@ int main(int argc, char *argv[])
    const char* path;
    while ((path = Spec.getarg()))
    {
-      if (! path)
+      if ( ! path)
       {
          printf("%s", usage);
          exit(1);
       }
       
       // append oss.localroot if path starts with 'root://'
-      if (! strncmp(&path[0], "root:/", 6))
+      if ( ! strncmp(&path[0], "root:/", 6))
       {
          if (Config.FDNum() < 0)
          {
@@ -262,7 +259,7 @@ int main(int argc, char *argv[])
          while((var = Config.GetFirstWord()))
          {
             // printf("var %s \n", var);
-            if (! strncmp(var,"oss.localroot", strlen("oss.localroot")))
+            if ( ! strncmp(var,"oss.localroot", strlen("oss.localroot")))
             {
                std::string tmp = Config.GetWord();
                tmp += &path[6];

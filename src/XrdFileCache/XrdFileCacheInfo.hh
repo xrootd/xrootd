@@ -51,26 +51,35 @@ public:
    // !Access statistics
    struct AStat
    {
-      time_t    AttachTime;       //! open time
-      time_t    DetachTime;       //! close time
-      long long BytesDisk;        //! read from disk
-      long long BytesRam;         //! read from ram
-      long long BytesMissed;      //! read remote client
+      time_t    AttachTime;       //!< open time
+      time_t    DetachTime;       //!< close time
+      int       NumIos;           //!< number of IO objects attached during this access
+      int       Duration;         //!< total duration of all IOs attached
+      int       NumMerged;        //!< number of times the record has been merged
+      long long BytesHit;         //!< read from cache
+      long long BytesMissed;      //!< read from remote and cached
+      long long BytesBypassed;    //!< read from remote and dropped
 
-      AStat() : AttachTime(0), DetachTime(0), BytesDisk(0), BytesRam(0), BytesMissed(0) {}
+      AStat() :
+         AttachTime(0), DetachTime(0), NumIos(0), Duration(0), NumMerged(0),
+         BytesHit(0), BytesMissed(0), BytesBypassed(0)
+      {}
+
+      void MergeWith(const AStat &a);
    };
 
-   struct Store {
+   struct Store
+   {
       int                m_version;                //!< info version
       long long          m_bufferSize;             //!< prefetch buffer size
       long long          m_fileSize;               //!< number of file blocks
       unsigned char     *m_buff_synced;            //!< disk written state vector
       char               m_cksum[16];              //!< cksum of downloaded information
       time_t             m_creationTime;           //!< time the info file was created
-      size_t             m_accessCnt;              //!< number of written AStat structs
-      std::vector<AStat> m_astats;                 //!< number of last m_maxAcessCnts
+      size_t             m_accessCnt;              //!< total access count for the file
+      std::vector<AStat> m_astats;                 //!< access records
 
-      Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0),m_creationTime(0), m_accessCnt(0) {}
+      Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0), m_creationTime(0), m_accessCnt(0) {}
    };
 
 
@@ -142,7 +151,12 @@ public:
    bool Write(XrdOssDF* fp, const std::string &fname = "<unknown>");
 
    //---------------------------------------------------------------------
-   //! Disable allocating, writing, and reading of downlaod status
+   //! Compactify access records to the configured maximum.
+   //---------------------------------------------------------------------
+   void CompactifyAccessRecords();
+
+   //---------------------------------------------------------------------
+   //! Disable allocating, writing, and reading of download status
    //---------------------------------------------------------------------
    void DisableDownloadStatus();
 
@@ -156,6 +170,7 @@ public:
    //---------------------------------------------------------------------
    void WriteIOStatAttach();
 
+   //---------------------------------------------------------------------
    //! Write bytes missed, hits, and disk
    //---------------------------------------------------------------------
    void WriteIOStat(Stats& s);
@@ -255,14 +270,12 @@ public:
    //---------------------------------------------------------------------
    void GetCksum( unsigned char* buff, char* digest);
 
-   const static char*   m_infoExtension;
-   const static char*   m_traceID;
-   const static int     m_defaultVersion;
-   const static size_t  m_maxNumAccess;
+   static const char*   m_traceID;          // has to be m_ (convention in TRACE macros)
+   static const char*   s_infoExtension;
+   static const int     s_defaultVersion;
+   static       size_t  s_maxNumAccess;     // can be set from configuration
 
    XrdSysTrace* GetTrace() const {return m_trace; }
-
-   static size_t GetMaxNumAccess() { return m_maxNumAccess; }
 
 protected:
    XrdSysTrace*   m_trace;
@@ -278,8 +291,10 @@ protected:
 private:
    inline unsigned char cfiBIT(int n) const { return 1 << n; }
 
-   // split reading for V1
+   // Reading functions for older cinfo file formats
    bool ReadV1(XrdOssDF* fp, const std::string &fname);
+   bool ReadV2(XrdOssDF* fp, const std::string &fname);
+
    XrdCksCalc*   m_cksCalc;
 };
 

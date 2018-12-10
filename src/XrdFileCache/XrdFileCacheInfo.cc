@@ -39,10 +39,10 @@ namespace
 struct FpHelper
 {
    XrdOssDF    *f_fp;
-   off_t f_off;
+   off_t        f_off;
    XrdSysTrace *f_trace;
    const char  *m_traceID;
-   std::string f_ttext;
+   std::string  f_ttext;
 
    XrdSysTrace* GetTrace() const { return f_trace; }
 
@@ -97,10 +97,10 @@ struct FpHelper
 
 using namespace XrdFileCache;
 
-const char*  Info::m_infoExtension  = ".cinfo";
-const char*  Info::m_traceID        = "Cinfo";
-const int    Info::m_defaultVersion = 2;
-const size_t Info::m_maxNumAccess   = 20;
+const char*  Info::m_traceID        = "CInfo";
+const char*  Info::s_infoExtension  = ".cinfo";
+const int    Info::s_defaultVersion = 3;
+      size_t Info::s_maxNumAccess   = 20; // default, can be changed through configuration
 
 //------------------------------------------------------------------------------
 
@@ -196,13 +196,22 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
 
    if (r.Read(m_store.m_version)) return false;
 
-   if (m_store.m_version == 0)
+   if (m_store.m_version != s_defaultVersion)
    {
-      TRACE(Warning, trace_pfx << " File version 0 non supported");
-      return false;
+      if (abs(m_store.m_version) == 1)
+      {
+         return ReadV1(fp, fname);
+      }
+      else if (m_store.m_version == 2)
+      {
+         return ReadV2(fp, fname);
+      }
+      else
+      {
+         TRACE(Warning, trace_pfx << " File version " << m_store.m_version << " not supported.");
+         return false;
+      }
    }
-   else if (abs(m_store.m_version) == 1)
-      return ReadV1(fp, fname);
 
    if (r.Read(m_store.m_bufferSize)) return false;
 
@@ -213,19 +222,16 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    if (r.ReadRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
    memcpy(m_buff_written, m_store.m_buff_synced, GetSizeInBytes());
 
-
    if (r.ReadRaw(m_store.m_cksum, 16)) return false;
    char tmpCksum[16];
    GetCksum(&m_store.m_buff_synced[0], &tmpCksum[0]);
 
-   /*
-      // debug print cksum
-      for (int i =0; i < 16; ++i)
-      printf("%x", tmpCksum[i] & 0xff);
+   // Debug print cksum:
+   // for (int i =0; i < 16; ++i)
+   //    printf("%x", tmpCksum[i] & 0xff);
+   // for (int i =0; i < 16; ++i)
+   //    printf("%x", m_store.m_cksum[i] & 0xff);
 
-      for (int i =0; i < 16; ++i)
-      printf("%x", m_store.m_cksum[i] & 0xff);
-    */
    if (memcmp(m_store.m_cksum, &tmpCksum[0], 16))
    {
       TRACE(Error, trace_pfx << " buffer cksum and saved cksum don't match \n");
@@ -243,73 +249,18 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
 
    // read access statistics
-   int vs = m_store.m_accessCnt < m_maxNumAccess ? m_store.m_accessCnt : m_maxNumAccess;
-   m_store.m_astats.resize(vs);
-   for (std::vector<AStat>::iterator it = m_store.m_astats.begin(); it != m_store.m_astats.end(); ++it)
+   m_store.m_astats.reserve(std::min(m_store.m_accessCnt, s_maxNumAccess));
+   AStat as;
+   while ( ! r.Read(as, false))
    {
-      if (r.Read(*it, sizeof(AStat))) return false;
-   }
-
-   return true;
-}
-
-bool Info::ReadV1(XrdOssDF* fp, const std::string &fname)
-{
-   struct AStatV1 {
-      time_t DetachTime;       //! close time
-      long long BytesDisk;     //! read from disk
-      long long BytesRam;      //! read from ram
-      long long BytesMissed;   //! read remote client
-   };
-
-   std::string trace_pfx("Info:::ReadV1() ");
-   trace_pfx += fname + " ";
-
-   FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
-
-
-
-   if (r.Read(m_store.m_version)) return false;
-   if (r.Read(m_store.m_bufferSize)) return false;
-
-   long long fs;
-   if (r.Read(fs)) return false;
-   SetFileSize(fs);
-
-   if (r.ReadRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
-   memcpy(m_buff_written, m_store.m_buff_synced, GetSizeInBytes());
-
-
-   m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
-   if (r.ReadRaw(&m_store.m_accessCnt, sizeof(int), false)) m_store.m_accessCnt = 0;  // was: return false;
-   TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
-
-
-   size_t startFillIdx = m_store.m_accessCnt < m_maxNumAccess ? 0 : m_store.m_accessCnt - m_maxNumAccess;
-   AStatV1 av1;
-   for (size_t i = 0; i < m_store.m_accessCnt; ++i)
-   {
-      if (r.ReadRaw(&av1, sizeof(AStatV1))) return false;
-
-      if (i >= startFillIdx)
-      {
-         AStat av2;
-         av2.AttachTime  =  av1.DetachTime;
-         av2.DetachTime  =  av1.DetachTime;
-         av2.BytesDisk   =  av1.BytesDisk;
-         av2.BytesRam    =  av1.BytesRam;
-         av2.BytesMissed =  av1.BytesMissed;
-
-         m_store.m_astats.push_back(av2);
-      }
-
-      if (i == 0) m_store.m_creationTime = av1.DetachTime;
+      m_store.m_astats.emplace_back(as);
    }
 
    return true;
 }
 
 //------------------------------------------------------------------------------
+
 void Info::GetCksum( unsigned char* buff, char* digest)
 {
    if (m_cksCalc)
@@ -322,17 +273,21 @@ void Info::GetCksum( unsigned char* buff, char* digest)
 }
 
 //------------------------------------------------------------------------------
+
 void Info::DisableDownloadStatus()
 {
    // use version sign to skip download status
    m_store.m_version = -m_store.m_version;
 }
+
 //------------------------------------------------------------------------------
 
 bool Info::Write(XrdOssDF* fp, const std::string &fname)
 {
    std::string trace_pfx("Info:::Write() ");
    trace_pfx += fname + " ";
+
+   if (m_store.m_astats.size() > s_maxNumAccess) CompactifyAccessRecords();
 
    int rc;
    if ((rc = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait)))
@@ -343,7 +298,7 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
 
    FpHelper w(fp, 0, m_trace, m_traceID, trace_pfx + "oss write failed");
 
-   m_store.m_version = m_defaultVersion;
+   m_store.m_version = s_defaultVersion;
    if (w.Write(m_store.m_version))    return false;
    if (w.Write(m_store.m_bufferSize)) return false;
    if (w.Write(m_store.m_fileSize))   return false;
@@ -358,7 +313,7 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
    if (w.Write(m_store.m_accessCnt)) return false;
    for (std::vector<AStat>::iterator it = m_store.m_astats.begin(); it != m_store.m_astats.end(); ++it)
    {
-      if (w.WriteRaw(&(*it), sizeof(AStat))) return false;
+      if (w.Write(*it)) return false;
    }
 
    // Can this really fail?
@@ -378,11 +333,63 @@ void Info::ResetAllAccessStats()
    m_store.m_astats.clear();
 }
 
+void Info::AStat::MergeWith(const Info::AStat &b)
+{
+   // Access in b assumed to happen after the one in this.
+
+   DetachTime     = b.DetachTime;
+   NumIos        += b.NumIos;
+   Duration      += b.Duration;
+   NumMerged     += b.NumMerged + 1;
+   BytesHit      += b.BytesHit;
+   BytesMissed   += b.BytesMissed;
+   BytesBypassed += b.BytesBypassed;
+}
+
+void Info::CompactifyAccessRecords()
+{
+   time_t now = time(0);
+
+   std::vector<AStat> &v = m_store.m_astats;
+
+   for (int i = 0; i < (int) v.size() - 1; ++i)
+   {
+      if (v[i].DetachTime == 0)
+         v[i].DetachTime = v[i].AttachTime + v[i].Duration / v[i].NumIos;
+   }
+
+   while (v.size() > s_maxNumAccess)
+   {
+      double min_s = 1e10;
+      int    min_i = -1;
+
+      int M = (int) v.size() - 2;
+      for (int i = 0; i < M; ++i)
+      {
+         AStat &a = v[i], &b = v[i + 1];
+
+         double s = (double) (b.AttachTime - a.DetachTime) /
+                    ((now - b.AttachTime) / 2 + (now - a.DetachTime) / 2);
+
+         if (s < min_s)
+         {
+            min_s = s;
+            min_i = i;
+         }
+      }
+      assert(min_i != -1);
+
+      v[min_i].MergeWith(v[min_i + 1]);
+
+      v.erase(v.begin() + (min_i + 1));
+   }
+}
+
+//------------------------------------------------------------------------------
+
 void Info::WriteIOStatAttach()
 {
    m_store.m_accessCnt++;
-   if (m_store.m_astats.size() >= m_maxNumAccess)
-      m_store.m_astats.erase(m_store.m_astats.begin());
 
    AStat as;
    as.AttachTime = time(0);
@@ -391,41 +398,40 @@ void Info::WriteIOStatAttach()
 
 void Info::WriteIOStat(Stats& s)
 {
-   m_store.m_astats.back().BytesDisk   = s.m_BytesDisk;
-   m_store.m_astats.back().BytesRam    = s.m_BytesRam;
-   m_store.m_astats.back().BytesMissed = s.m_BytesMissed;
+   m_store.m_astats.back().NumIos        = s.m_NumIos;
+   m_store.m_astats.back().Duration      = s.m_Duration;
+   m_store.m_astats.back().BytesHit      = s.m_BytesHit;
+   m_store.m_astats.back().BytesMissed   = s.m_BytesMissed;
+   m_store.m_astats.back().BytesBypassed = s.m_BytesBypassed;
 }
 
 void Info::WriteIOStatDetach(Stats& s)
 {
    m_store.m_astats.back().DetachTime  = time(0);
-   m_store.m_astats.back().BytesDisk   = s.m_BytesDisk;
-   m_store.m_astats.back().BytesRam    = s.m_BytesRam;
-   m_store.m_astats.back().BytesMissed = s.m_BytesMissed;
+   WriteIOStat(s);
 }
 
 void Info::WriteIOStatSingle(long long bytes_disk)
 {
    m_store.m_accessCnt++;
-   if (m_store.m_astats.size() >= m_maxNumAccess)
-      m_store.m_astats.erase(m_store.m_astats.begin());
 
    AStat as;
    as.AttachTime = as.DetachTime = time(0);
-   as.BytesDisk  = bytes_disk;
+   as.NumIos     = 1;
+   as.BytesHit  = bytes_disk;
    m_store.m_astats.push_back(as);
 }
 
 void Info::WriteIOStatSingle(long long bytes_disk, time_t att, time_t dtc)
 {
    m_store.m_accessCnt++;
-   if (m_store.m_astats.size() >= m_maxNumAccess)
-      m_store.m_astats.erase(m_store.m_astats.begin());
 
    AStat as;
    as.AttachTime = att;
    as.DetachTime = dtc;
-   as.BytesDisk  = bytes_disk;
+   as.NumIos     = 1;
+   as.Duration   = dtc - att;
+   as.BytesHit  = bytes_disk;
    m_store.m_astats.push_back(as);
 }
 
@@ -433,9 +439,154 @@ void Info::WriteIOStatSingle(long long bytes_disk, time_t att, time_t dtc)
 
 bool Info::GetLatestDetachTime(time_t& t) const
 {
-   if (! m_store.m_accessCnt) return false;
+   if (m_store.m_astats.empty())
+   {
+      t = m_store.m_creationTime;
+   }
+   else
+   {
+      const AStat& ls = m_store.m_astats.back();
 
-   size_t entry = std::min(m_store.m_accessCnt, m_maxNumAccess) - 1;
-   t =  m_store.m_astats[entry].DetachTime;
+      if (ls.DetachTime == 0)
+         t = ls.AttachTime + ls.Duration;
+      else
+         t = ls.DetachTime;
+   }
+
+   return t != 0;
+}
+
+
+//==============================================================================
+// Support for reading of previous cinfo versions
+//==============================================================================
+
+bool Info::ReadV2(XrdOssDF* fp, const std::string &fname)
+{
+   struct AStatV2
+   {
+      time_t    AttachTime;      //! open time
+      time_t    DetachTime;      //! close time
+      long long BytesHit;        //! read from disk
+      long long BytesMissed;     //! read from ram
+      long long BytesBypassed;   //! read remote client
+   };
+
+   std::string trace_pfx("Info:::ReadV2() ");
+   trace_pfx += fname + " ";
+
+   FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
+
+   if (r.Read(m_store.m_version))    return false;
+   if (r.Read(m_store.m_bufferSize)) return false;
+
+   long long fs;
+   if (r.Read(fs)) return false;
+   SetFileSize(fs);
+
+   if (r.ReadRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
+   memcpy(m_buff_written, m_store.m_buff_synced, GetSizeInBytes());
+
+   if (r.ReadRaw(m_store.m_cksum, 16)) return false;
+   char tmpCksum[16];
+   GetCksum(&m_store.m_buff_synced[0], &tmpCksum[0]);
+
+   // Debug print cksum:
+   // for (int i =0; i < 16; ++i)
+   //    printf("%x", tmpCksum[i] & 0xff);
+   // for (int i =0; i < 16; ++i)
+   //    printf("%x", m_store.m_cksum[i] & 0xff);
+
+   if (strncmp(m_store.m_cksum, &tmpCksum[0], 16))
+   {
+      TRACE(Error, trace_pfx << " buffer cksum and saved cksum don't match \n");
+      return false;
+   }
+
+   // cache complete status
+   m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
+
+   // read creation time
+   if (r.Read(m_store.m_creationTime)) return false;
+
+   // get number of accessess
+   if (r.Read(m_store.m_accessCnt, false)) m_store.m_accessCnt = 0;  // was: return false;
+   TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
+
+   // read access statistics
+   m_store.m_astats.reserve(std::min(m_store.m_accessCnt, s_maxNumAccess));
+   AStatV2 av2;
+   while ( ! r.ReadRaw(&av2, sizeof(AStatV2), false))
+   {
+
+      AStat as;
+      as.AttachTime    = av2.AttachTime;
+      as.DetachTime    = av2.DetachTime;
+      as.NumIos        = 1;
+      as.Duration      = av2.DetachTime - av2.AttachTime;
+      as.NumMerged     = 0;
+      as.BytesHit      = av2.BytesHit;
+      as.BytesMissed   = av2.BytesMissed;
+      as.BytesBypassed = av2.BytesBypassed;
+
+      m_store.m_astats.emplace_back(as);
+   }
+
+   return true;
+}
+
+//------------------------------------------------------------------------------
+
+bool Info::ReadV1(XrdOssDF* fp, const std::string &fname)
+{
+   struct AStatV1
+   {
+      time_t    DetachTime;    //! close time
+      long long BytesHit;      //! read from disk
+      long long BytesMissed;   //! read from ram
+      long long BytesBypassed; //! read remote client
+   };
+
+   std::string trace_pfx("Info:::ReadV1() ");
+   trace_pfx += fname + " ";
+
+   FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
+
+   if (r.Read(m_store.m_version)) return false;
+   if (r.Read(m_store.m_bufferSize)) return false;
+
+   long long fs;
+   if (r.Read(fs)) return false;
+   SetFileSize(fs);
+
+   if (r.ReadRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
+   memcpy(m_buff_written, m_store.m_buff_synced, GetSizeInBytes());
+
+   m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
+   if (r.ReadRaw(&m_store.m_accessCnt, sizeof(int), false)) m_store.m_accessCnt = 0;  // was: return false;
+   TRACE(Dump, trace_pfx << " complete "<< m_complete << " access_cnt " << m_store.m_accessCnt);
+
+   m_store.m_astats.reserve(std::min(m_store.m_accessCnt, s_maxNumAccess));
+   AStatV1 av1;
+   while ( ! r.ReadRaw(&av1, sizeof(AStatV1), false))
+   {
+      AStat as;
+      as.AttachTime    = av1.DetachTime;
+      as.DetachTime    = av1.DetachTime;
+      as.NumIos        = 1;
+      as.Duration      = 0;
+      as.NumMerged     = 0;
+      as.BytesHit      = av1.BytesHit;
+      as.BytesMissed   = av1.BytesMissed;
+      as.BytesBypassed = av1.BytesBypassed;
+
+      m_store.m_astats.emplace_back(as);
+   }
+
+   if ( ! m_store.m_astats.empty())
+   {
+      m_store.m_creationTime = m_store.m_astats.front().AttachTime;
+   }
+
    return true;
 }

@@ -25,10 +25,11 @@ struct ReadVChunkListDisk
 
 struct ReadVChunkListRAM
 {
-   ReadVChunkListRAM(Block*b, std::vector <int>* iarr) : block(b), arr(iarr) {}
+   ReadVChunkListRAM(Block* b, std::vector <int>* iarr, bool ireq) : block(b), arr(iarr), req(ireq) {}
 
    Block            *block;
    std::vector<int> *arr;
+   bool              req; // requested here
 };
 
 // RAM
@@ -36,7 +37,7 @@ struct ReadVBlockListRAM
 {
    std::vector<XrdFileCache::ReadVChunkListRAM> bv;
 
-   bool AddEntry(Block* block, int chunkIdx)
+   bool AddEntry(Block* block, int chunkIdx, bool ireq)
    {
       for (std::vector<ReadVChunkListRAM>::iterator i = bv.begin(); i != bv.end(); ++i)
       {
@@ -46,7 +47,7 @@ struct ReadVBlockListRAM
             return false;
          }
       }
-      bv.push_back(ReadVChunkListRAM(block, new std::vector<int>));
+      bv.push_back(ReadVChunkListRAM(block, new std::vector<int>, ireq));
       bv.back().arr->push_back(chunkIdx);
       return true;
    }
@@ -145,14 +146,15 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
       else
       {
          bytesRead += dr;
-         loc_stats.m_BytesDisk += dr;
+         loc_stats.m_BytesHit += dr;
       }
    }
 
    // read from cached blocks
    if (bytesRead >= 0)
    {
-      int br = VReadProcessBlocks(io, readV, n, blocks_to_process.bv, blks_processed);
+      long long b_hit = 0, b_missed = 0;
+      int br = VReadProcessBlocks(io, readV, n, blocks_to_process.bv, blks_processed, b_hit, b_missed);
       if (br < 0)
       {
          bytesRead = br;
@@ -160,7 +162,8 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
       else
       {
          bytesRead += br;
-         loc_stats.m_BytesRam += br;
+         loc_stats.m_BytesHit    += b_hit;
+         loc_stats.m_BytesMissed += b_missed;
       }
    }
 
@@ -182,7 +185,7 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
             for (std::vector<XrdOucIOVec>::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
             {
                bytesRead += i->size;
-               loc_stats.m_BytesMissed += i->size;
+               loc_stats.m_BytesBypassed += i->size;
             }
          }
          else
@@ -212,7 +215,7 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
    for (std::vector<ReadVChunkListRAM>::iterator i = blks_processed.begin(); i != blks_processed.end(); ++i)
       delete i->arr;
 
-   m_stats.AddStats(loc_stats);
+   m_stats.AddReadStats(loc_stats);
 
    TRACEF(Dump, "VRead exit, total = " << bytesRead);
    return bytesRead;
@@ -255,7 +258,7 @@ void File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
          BlockMap_i bi = m_block_map.find(block_idx);
          if (bi != m_block_map.end())
          {
-            if (blocks_to_process.AddEntry(bi->second, iov_idx))
+            if (blocks_to_process.AddEntry(bi->second, iov_idx, false))
                inc_ref_count(bi->second);
 
             TRACEF(Dump, "VReadPreProcess block "<< block_idx <<" in map");
@@ -272,7 +275,7 @@ void File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
             if (Cache::GetInstance().RequestRAMBlock() && (b = PrepareBlockRequest(block_idx, io, false)) != 0)
             {
                inc_ref_count(b);
-               blocks_to_process.AddEntry(b, iov_idx);
+               blocks_to_process.AddEntry(b, iov_idx, true);
                blks_to_request.push_back(b);
 
                TRACEF(Dump, "VReadPreProcess request block " << block_idx);
@@ -340,7 +343,9 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
 
 int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
                              std::vector<ReadVChunkListRAM>& blocks_to_process,
-                             std::vector<ReadVChunkListRAM>& blocks_processed)
+                             std::vector<ReadVChunkListRAM>& blocks_processed,
+                             long long& bytes_hit,
+                             long long& bytes_missed)
 {
    int bytes_read = 0;
    while ( ! blocks_to_process.empty() && bytes_read >= 0)
@@ -364,7 +369,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
             }
             else if (bi->block->is_finished())
             {
-               finished.push_back(ReadVChunkListRAM(bi->block, bi->arr));
+               finished.push_back(ReadVChunkListRAM(bi->block, bi->arr, bi->req));
                // Here we rely on the fact that std::vector does not reallocate on erase!
                blocks_to_process.erase(bi);
             }
@@ -389,6 +394,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
       {
          if (bi->block->is_ok())
          {
+            long long b_read = 0;
             for (std::vector<int>::iterator chunkIt = bi->arr->begin(); chunkIt < bi->arr->end(); ++chunkIt)
             {
                long long off;      // offset in user buffer
@@ -397,9 +403,17 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
 
                int block_idx = bi->block->m_offset/m_cfi.GetBufferSize();
                overlap(block_idx, m_cfi.GetBufferSize(), readV[*chunkIt].offset, readV[*chunkIt].size, off, blk_off, size);
+
                memcpy(readV[*chunkIt].data + off,  &(bi->block->m_buff[blk_off]), size);
-               bytes_read += size;
+
+               b_read += size;
             }
+
+            bytes_read += b_read;
+            if (bi->req)
+               bytes_missed += b_read;
+            else
+               bytes_hit    += b_read;
          }
          else
          {
