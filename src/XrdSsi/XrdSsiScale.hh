@@ -37,9 +37,9 @@ class XrdSsiScale
 {
 public:
 
-static const int          maxSprd =256;
-static const int          maxEnt  = 32;      // Must be power of two
-static const int          entShft = 8;       // Allows a spread of 256
+static const int          maxSprd =  1024;
+static const int          maxEnt  =    32;       // Must be power of two
+static const int          entShft =    10;       // Allows a spread of 1024
 static const unsigned int maxPend = 65500;
 
 int   getEnt() {entMutex.Lock();
@@ -88,9 +88,11 @@ bool  rsvEnt(int xEnt) {xEnt >>= entShft;
                         return false;
                        }
 
-void  setSpread(short sval) {if (sval <= 0) maxSpread = 0;
+void  setSpread(short sval) {entMutex.Lock();
+                             if (sval <= 0) maxSpread = 0;
                                 else if (sval < maxSprd) maxSpread = sval;
                                         else maxSpread = maxSprd;
+                             entMutex.UnLock();
                             }
 
       XrdSsiScale() : nowEnt(0), maxSpread(4), nowSpread(0)

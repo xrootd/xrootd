@@ -47,6 +47,7 @@
 #include "XrdSsi/XrdSsiLogger.hh"
 #include "XrdSsi/XrdSsiProvider.hh"
 #include "XrdSsi/XrdSsiServReal.hh"
+#include "XrdSsi/XrdSsiScale.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
 
 #include "XrdSys/XrdSysLogger.hh"
@@ -106,6 +107,8 @@ virtual rStat  QueryResource(const char *rName,
                             ) {return notPresent;}
 
 virtual void   SetCBThreads(int cbNum, int ntNum);
+
+virtual void   SetSpread(short ssz);
 
 virtual void   SetTimeout(tmoType what, int tmoval);
 
@@ -254,6 +257,17 @@ void XrdSsiClientProvider::SetScheduler()
 // Start the scheduler
 //
    XrdSsi::schedP->Start();
+}
+
+/******************************************************************************/
+/*       X r d S s i C l i e n t P r o v i d e r : : S e t S p r e a d        */
+/******************************************************************************/
+
+void XrdSsiClientProvider::SetSpread(short ssz)
+{
+    extern XrdSsiScale sidScale;
+
+    sidScale.setSpread(ssz);
 }
 
 /******************************************************************************/
