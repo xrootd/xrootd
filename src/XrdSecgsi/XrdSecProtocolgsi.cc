@@ -3609,13 +3609,13 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
             " - using default");
    }
 
+   XrdOucString cpub;
    if (hs->RemVers >= XrdSecgsiVersDHsigned) {
       // First get the client public key
       if (!(bck = br->GetBucket(kXRS_puk))) {
          cmsg = "bucket with client public key missing";
          return -1;
       }
-      XrdOucString cpub;
       bck->ToString(cpub);
       sessionKver = sessionCF->RSA(cpub.c_str(), cpub.length());
       if (!sessionKver || !sessionKver->IsValid()) {
@@ -3738,6 +3738,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       hs->Chain = 0;
       return -1;
    }
+
    //
    // Finalize chain: get a copy of it (we do not touch the reference)
    hs->Chain = new X509Chain(hs->Chain);
@@ -3771,6 +3772,32 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       cmsg += hs->Chain->LastError();
       return -1;
    }
+
+   //
+   // Extract the client public key from the certificate
+   XrdCryptoRSA *ckey = sessionCF->RSA(*(hs->Chain->End()->PKI()));
+   if (!ckey || !ckey->IsValid()) {
+      cmsg = "client certificate contains an invalid key";
+      return -1;
+   }
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // For new clients, make sure it is the same we got from the bucket
+      XrdOucString cpubcert;
+      if ((ckey->ExportPublic(cpubcert) < 0)) {
+         cmsg = "exporting client public key";
+         return -1;
+      }
+      if (cpubcert != cpub) {
+         cmsg = "client public key does not match the one from the bucket!";
+         return -1;
+      }
+   } else {
+      // For old clients, set the client public key from the certificate
+      sessionKver = ckey;
+   }
+
+   // Deactivate certificate buffer
+   (*bm)->Deactivate(kXRS_x509);
 
    //
    // Check if there will be delegated proxies; these can be through
@@ -3818,18 +3845,6 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          NOTIFY("WARNING: proxy req: wrong number of certificates");
       }
    }
-
-   //
-   // For old clients, extract the client public key from the certificate
-   if (hs->RemVers < XrdSecgsiVersDHsigned) {
-      sessionKver = sessionCF->RSA(*(hs->Chain->End()->PKI()));
-      if (!sessionKver || !sessionKver->IsValid()) {
-         cmsg = "client certificate contains an invalid key";
-         return -1;
-      }
-   }
-   // Deactivate certificate buffer 
-   (*bm)->Deactivate(kXRS_x509);
 
    //
    // Extract the MD algorithm chosen by the client
