@@ -3644,11 +3644,13 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       }
 
       // If the client doesn't provide signed DH parameter, disable proxy delegation
+      if ((PxyReqOpts & kOptsSrvReq) ||
+          hs->Options & (kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy))
+         PRINT("no signed DH parameters from client:" << Entity.tident <<
+               " : will not delegate x509 proxy to it");
       if ((PxyReqOpts & kOptsSrvReq)) PxyReqOpts &= ~kOptsSrvReq;
       if (hs->Options & (kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy))
          hs->Options &= ~(kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy);
-      PRINT("no signed DH parameters from client:" << Entity.tident <<
-             " : will not delegate x509 proxy to it");
    }
 
    // Get the session cipher
