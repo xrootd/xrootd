@@ -1035,6 +1035,7 @@ void XrdSecProtocolgsi::Delete()
    SafeDelete(sessionMD);     // Message Digest instance
    SafeDelete(sessionKsig);   // RSA key to sign
    SafeDelete(sessionKver);   // RSA key to verify
+   if (proxyChain) proxyChain->Cleanup(1);
    SafeDelete(proxyChain);    // Chain with delegated proxies
    SafeDelete(expectedHost);
 

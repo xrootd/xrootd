@@ -381,6 +381,8 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
       PRINT("could not set subject name - return");
       return -kErrPX_SetAttribute;
    }
+   X509_NAME_free(psubj);
+
    //
    // Create the extension CertProxyInfo
    PROXY_CERT_INFO_EXTENSION *pci = PROXY_CERT_INFO_EXTENSION_new();
@@ -698,8 +700,8 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
    // The subject name is the certificate subject + /CN=<rand_uint>
    // with <rand_uint> is a random unsigned int used also as serial
    // number.
-   // Duplicate user subject name (Wei: why?)
-   X509_NAME *psubj = X509_get_subject_name(xpi);
+   // Duplicate user subject name
+   X509_NAME *psubj = X509_NAME_dup(X509_get_subject_name(xpi));
    if (xcro && *xcro && *((int *)(*xcro)) <= 10100) {
       // Delete existing proxy CN addition; for backward compatibility
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
@@ -785,7 +787,6 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
          // Notify what we added
          int crit = X509_EXTENSION_get_critical(xpiextdup);
          DEBUG("added extension '"<<s<<"', critical: " << crit);
-         X509_EXTENSION_free(xpiextdup);
       }
       // Do not free the extension: its owned by the certificate
       xpiext = 0;
@@ -858,7 +859,7 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
 
    // Cleanup
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
-   sk_X509_EXTENSION_free(esk);
+   sk_X509_EXTENSION_pop_free(esk, X509_EXTENSION_free);
 #else /* OPENSSL */
    sk_free(esk);
 #endif /* OPENSSL */
