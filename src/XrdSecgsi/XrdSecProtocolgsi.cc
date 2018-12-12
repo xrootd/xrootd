@@ -1415,6 +1415,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    // Buffer / Bucket related
    XrdSutBuffer *bpar   = 0;  // Global buffer
    XrdSutBuffer *bmai   = 0;  // Main buffer
+   XrdSutBucket *bck    = 0;  // Generic bucket
 
    //
    // Decode received buffer
@@ -1534,12 +1535,42 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       if (!(bpub = sessionKey->Public(lpub))) 
          return ErrC(ei,bpar,bmai,0,
                      kGSErrNoPublic,"session",stepstr);
+
       //
-      // Add it to the global list
-      if (bpar->UpdateBucket(bpub,lpub,kXRS_puk) != 0)
-         return ErrC(ei,bpar,bmai,0, kGSErrAddBucket,
-                     XrdSutBuckStr(kXRS_puk),"global",stepstr);
-      delete[] bpub; // bpub is being duplicated inside of 'UpdateBucket'
+      // If server supports decoding of signed DH, do sign them
+      if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+         bck = new XrdSutBucket(bpub,lpub,kXRS_cipher);
+         if (sessionKsig) {
+            // Encrypt client DH public parameters with client private key
+            if (sessionKsig->EncryptPrivate(*bck) <= 0)
+               return ErrC(ei,bpar,bmai,0, kGSErrExportPuK,
+                                 "encrypting client DH public parameters",stepstr);
+         } else {
+            return ErrC(ei,bpar,bmai,0, kGSErrExportPuK,
+                                 "client signing key undefined!",stepstr);
+         }
+         //
+         // Add it to the global list
+         if (bpar->AddBucket(bck) != 0)
+           return ErrC(ei,bpar,bmai,0, kGSErrAddBucket, "main",stepstr);
+         //
+         // Export client public key
+         XrdOucString cpub;
+         if (sessionKsig->ExportPublic(cpub) < 0)
+            return ErrC(ei,bpar,bmai,0, kGSErrExportPuK,
+                            "exporting client public key",stepstr);
+         // Add it to the global list
+         if (bpar->UpdateBucket(cpub.c_str(),cpub.length(),kXRS_puk) != 0)
+            return ErrC(ei,bpar,bmai,0, kGSErrAddBucket,
+                        XrdSutBuckStr(kXRS_puk),"global",stepstr);
+      } else {
+         //
+         // Add it to the global list
+         if (bpar->UpdateBucket(bpub,lpub,kXRS_puk) != 0)
+            return ErrC(ei,bpar,bmai,0, kGSErrAddBucket,
+                        XrdSutBuckStr(kXRS_puk),"global",stepstr);
+         delete[] bpub; // bpub is being duplicated inside of 'UpdateBucket'
+      }
 
       //
       // Add the proxy certificate
@@ -3213,30 +3244,32 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       return -1;
    }
 
+   //
    // If client supports decoding of signed DH, do sign them
    if (hs->RemVers >= XrdSecgsiVersDHsigned) {
-      //
       // Encrypt server DH public parameters with server key
       if (sessionKver->DecryptPublic(*bck) <= 0) {
          emsg = "decrypting server DH public parameters";
          return -1;
       }
-   }
-   else  // server doesn't provide signed DH parameter, disable proxy delegation
+   } else {
+      // If the server doesn't provide signed DH parameter, disable proxy delegation
       if (hs->Options & (kOptsFwdPxy | kOptsSigReq)) {
          hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
-         std::cerr <<"secgsi: no signed DH parameters from " << Entity.host
-                   << ". Will not delegate x509 proxy to it\n" <<std::flush;
+         PRINT("no signed DH parameters from " << Entity.host
+               << ". Will not delegate x509 proxy to it");
       }
+   }
 
    //
    // Initialize session cipher
    SafeDelete(sessionKey);
    if (!(sessionKey =
          sessionCF->Cipher(0,bck->buffer,bck->size,cip.c_str()))) {
-            PRINT("could not instantiate session cipher "
-                  "using cipher public info from server");
-            emsg = "could not instantiate session cipher ";
+      PRINT("could not instantiate session cipher "
+            "using cipher public info from server");
+      emsg = "could not instantiate session cipher ";
+      return -1;
    }
 
    // Deactivate what not needed any longer
@@ -3576,8 +3609,52 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
             " - using default");
    }
 
-   // First get the session cipher
-   if ((bck = br->GetBucket(kXRS_puk))) {
+   XrdOucString cpub;
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // First get the client public key
+      if (!(bck = br->GetBucket(kXRS_puk))) {
+         cmsg = "bucket with client public key missing";
+         return -1;
+      }
+      bck->ToString(cpub);
+      sessionKver = sessionCF->RSA(cpub.c_str(), cpub.length());
+      if (!sessionKver || !sessionKver->IsValid()) {
+         cmsg = "bucket with client public key contains an invalid key";
+         return -1;
+      }
+
+      // Get the client DH parameters
+      if (!(bck = br->GetBucket(kXRS_cipher))) {
+         cmsg = "bucket with client DH parameters missing";
+         return -1;
+      }
+
+      // Decrypt client DH public parameters with client key
+      if (sessionKver->DecryptPublic(*bck) <= 0) {
+         cmsg = "decrypting client DH public parameters";
+         return -1;
+      }
+
+   } else {
+
+      // Get the client DH parameters
+      if (!(bck = br->GetBucket(kXRS_puk))) {
+         cmsg = "bucket with client DH parameters missing";
+         return -1;
+      }
+
+      // If the client doesn't provide signed DH parameter, disable proxy delegation
+      if ((PxyReqOpts & kOptsSrvReq) ||
+          hs->Options & (kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy))
+         PRINT("no signed DH parameters from client:" << Entity.tident <<
+               " : will not delegate x509 proxy to it");
+      if ((PxyReqOpts & kOptsSrvReq)) PxyReqOpts &= ~kOptsSrvReq;
+      if (hs->Options & (kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy))
+         hs->Options &= ~(kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy);
+   }
+
+   // Get the session cipher
+   if (bck) {
       //
       // Cleanup
       SafeDelete(sessionKey);
@@ -3601,10 +3678,15 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          hs->Chain = 0;
          return -1;
       }
-      //
-      // We need it only once
-      br->Deactivate(kXRS_puk);
+   } else {
+      cmsg = "bucket with DH parameters not found or invalid: cannot finalize session cipher";
+      return -1;
    }
+   //
+   // We need it only once
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) br->Deactivate(kXRS_cipher);
+   br->Deactivate(kXRS_puk);
+
    //
    // Decrypt the main buffer with the session cipher, if available
    if (sessionKey) {
@@ -3658,6 +3740,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       hs->Chain = 0;
       return -1;
    }
+
    //
    // Finalize chain: get a copy of it (we do not touch the reference)
    hs->Chain = new X509Chain(hs->Chain);
@@ -3691,6 +3774,32 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       cmsg += hs->Chain->LastError();
       return -1;
    }
+
+   //
+   // Extract the client public key from the certificate
+   XrdCryptoRSA *ckey = sessionCF->RSA(*(hs->Chain->End()->PKI()));
+   if (!ckey || !ckey->IsValid()) {
+      cmsg = "client certificate contains an invalid key";
+      return -1;
+   }
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // For new clients, make sure it is the same we got from the bucket
+      XrdOucString cpubcert;
+      if ((ckey->ExportPublic(cpubcert) < 0)) {
+         cmsg = "exporting client public key";
+         return -1;
+      }
+      if (cpubcert != cpub) {
+         cmsg = "client public key does not match the one from the bucket!";
+         return -1;
+      }
+   } else {
+      // For old clients, set the client public key from the certificate
+      sessionKver = ckey;
+   }
+
+   // Deactivate certificate buffer
+   (*bm)->Deactivate(kXRS_x509);
 
    //
    // Check if there will be delegated proxies; these can be through
@@ -3738,16 +3847,6 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          NOTIFY("WARNING: proxy req: wrong number of certificates");
       }
    }
-
-   //
-   // Extract the client public key
-   sessionKver = sessionCF->RSA(*(hs->Chain->End()->PKI()));
-   if (!sessionKver || !sessionKver->IsValid()) {
-      cmsg = "server certificate contains an invalid key";
-      return -1;
-   }
-   // Deactivate certificate buffer 
-   (*bm)->Deactivate(kXRS_x509);
 
    //
    // Extract the MD algorithm chosen by the client

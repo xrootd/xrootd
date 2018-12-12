@@ -381,7 +381,6 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
       PRINT("could not set subject name - return");
       return -kErrPX_SetAttribute;
    }
-   X509_NAME_free(psubj);
 
    //
    // Create the extension CertProxyInfo
@@ -479,6 +478,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
       PRINT("could not set subject name");
       return -kErrPX_SetAttribute;
    }
+   X509_NAME_free(psubj);
 
    // Set issuer name
    if (X509_set_issuer_name(xPX, X509_get_subject_name(xEEC)) != 1) {
