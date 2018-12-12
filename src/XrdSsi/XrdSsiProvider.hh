@@ -90,6 +90,26 @@ class XrdSsiProvider
 public:
 
 //-----------------------------------------------------------------------------
+//! Issue a control operation (future).
+//!
+//! @param  cmd      The control command.
+//! @param  argP     The operational argument cast to a void pointer.
+//! @param  resP     A reference to the pointer to hold the operational
+//!                  result object if any.
+//!
+//! @return Upon success 0 is returned and if a resutt is returned is must
+//!         cast to te correct pointer type and deleted,when no longer needed.
+//!         Upon failure, -errno is returned.
+//-----------------------------------------------------------------------------
+
+enum CTL_Cmd {CTL_None = 0};
+
+virtual int    Control(CTL_Cmd cmd, const void *argP, void *&resP)
+                      {(void)cmd; (void)argP; (void)resP;
+                       return (cmd == CTL_None ? 0 : -ENOTSUP);
+                      }
+
+//-----------------------------------------------------------------------------
 //! Obtain a service object (client-side or server-side).
 //!
 //! @param  eInfo    the object where error status is to be placed.
@@ -221,6 +241,16 @@ virtual void   ResourceRemoved(const char *rName) {}
 //-----------------------------------------------------------------------------
 
 virtual void   SetCBThreads(int cbNum, int ntNum=0) {(void)cbNum; (void)ntNum;}
+
+//-----------------------------------------------------------------------------
+//! Set the client-size request spread size.
+//!
+//! @param  ssz      The maximum number of connections to use to to handle
+//!                  requests. The initial default is 4. This method may be
+//!                  called at any time. An ssz value > 1024 is set to 1024.
+//-----------------------------------------------------------------------------
+
+virtual void   SetSpread(short ssz) {(void)ssz;}
 
 //-----------------------------------------------------------------------------
 //! Set default global timeouts. By default, all timeouts are set to infinity.
