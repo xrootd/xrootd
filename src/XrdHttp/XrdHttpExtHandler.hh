@@ -49,7 +49,7 @@ private:
 public:
   XrdHttpExtReq(XrdHttpReq *req, XrdHttpProtocol *pr);
   
-  std::string verb, resource;
+  std::string verb, resource, query;
   std::map<std::string, std::string> &headers;
   
   std::string clientdn, clienthost, clientgroups;
