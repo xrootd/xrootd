@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <iostream>
 #include <poll.h>
+#include <stdio.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 
@@ -74,7 +75,14 @@ std::string XrdTlsConnection::Err2Text(int errc)
 {
    char eBuff[1024];
 
-   ERR_error_string_n(errc, eBuff, sizeof(eBuff));
+   if (errc == SSL_ERROR_SYSCALL)
+      {int rc = errno;
+       if (!rc) rc = EPIPE;
+       snprintf(eBuff, sizeof(eBuff), "%s", strerror(rc));
+       *eBuff = tolower(*eBuff);
+      } else {
+       ERR_error_string_n(errc, eBuff, sizeof(eBuff));
+      }
    return std::string(eBuff);
 }
   

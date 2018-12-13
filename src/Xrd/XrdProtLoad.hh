@@ -43,7 +43,7 @@ static void   Init(XrdSysError *eP, XrdOucTrace *tP)
                   {XrdLog = eP; XrdTrace = tP;}
 
 static int    Load(const char *lname, const char *pname, char *parms,
-                   XrdProtocol_Config *pi);
+                   XrdProtocol_Config *pi, bool istls);
 
 static int    Port(const char *lname, const char *pname, char *parms,
                    XrdProtocol_Config *pi);
@@ -76,10 +76,10 @@ static XrdOucTrace   *XrdTrace;
 static char          *ProtName[ProtoMax];   // ->Supported protocol names
 static XrdProtocol   *Protocol[ProtoMax];   // ->Supported protocol objects
 static int            ProtPort[ProtoMax];   // ->Supported protocol ports
-static XrdProtocol   *ProtoWAN[ProtoMax];   // ->Supported protocol objects WAN
+static bool           ProtoTLS[ProtoMax];   // ->Supported protocol objects TLS
 static int            ProtoCnt;             // Number in table (at least 1)
-static int            ProtWCnt;             // Number in table (WAN may be 0)
 
        int            myPort;
+       char           myProt[ProtoMax+2];   // My protocols
 };
 #endif

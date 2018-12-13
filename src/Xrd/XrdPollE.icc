@@ -247,7 +247,8 @@ void XrdPollE::Start(XrdSysSemaphore *syncsem, int &retcode)
               {XrdPollInfo &pInfo = lp->getPollInfo();
                if (!(pInfo.isEnabled)) remFD(lp, PollTab[i].events);
                   else {pInfo.isEnabled = 0;
-                        if (!(PollTab[i].events & pollOK))
+                        if (!(PollTab[i].events & pollOK)
+                        ||   (PollTab[i].events & POLLRDHUP))
                            Finish(lp, x2Text(PollTab[i].events, eBuff));
                         lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
                         if (!jlast) jlast=(XrdJob *)lp;
@@ -276,7 +277,7 @@ const char *XrdPollE::x2Text(unsigned int events, char *buff)
 {
    if (events & EPOLLERR) return "socket error";
 
-   if (events & (EPOLLHUP | EPOLLRDHUP)) return "client disconnected";
+   if (events & (EPOLLHUP | EPOLLRDHUP)) return "hangup";
 
    sprintf(buff, "unusual event (%.4x)", events);
    return buff;

@@ -67,7 +67,5 @@ hailWait  = rhs.hailWait;
 argc      = rhs.argc;
 argv      = rhs.argv;
 DebugON   = rhs.DebugON;
-WANPort   = rhs.WANPort;
-WANWSize  = rhs.WANWSize;
 myProg    = rhs.myProg;
 }

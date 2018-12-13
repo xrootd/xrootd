@@ -214,6 +214,7 @@ static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
 static int   xdig(XrdOucStream &Config);
+static int   xenf(XrdOucStream &Config);
 static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
@@ -227,7 +228,6 @@ static int   xred(XrdOucStream &Config);
 static bool  xred_php(char *val, char *hP[2], int rPort[2]);
 static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
 static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
-static int   xreq(XrdOucStream &Config);
 static int   xsecl(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
 static int   xlimit(XrdOucStream &Config);
@@ -286,8 +286,7 @@ static int                 hailWait;
 static int                 readWait;
 static int                 Port;
 static int                 Window;
-static int                 WANPort;
-static int                 WANWindow;
+static int                 tlsPort;
 static char               *SecLib;
 static char               *FSLib[2];
 static int                 FSLvn[2];
@@ -318,6 +317,14 @@ static bool   OD_Redir;
 static int    usxMaxNsz;
 static int    usxMaxVsz;
 static char  *usxParms;
+
+static const char Set_TLSData  = 0x01;
+static const char Set_TLSLogin = 0x02;
+static const char Set_TLSSess  = 0x04;
+static const char Set_TLSTPC   = 0x08;
+
+static char   tlsReq;    // TLS requirements
+static char   tlsOld;    // TLS requirements for old clients
 
 // async configuration values
 //
@@ -431,6 +438,8 @@ char                       doWrite;
 char                       doWriteC;
 unsigned char              rvSeq;
 unsigned char              wvSeq;
+
+char                       doTLS;
 
 // Track usage limts.
 //

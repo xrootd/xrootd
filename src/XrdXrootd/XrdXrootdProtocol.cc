@@ -88,8 +88,7 @@ int                   XrdXrootdProtocol::hailWait;
 int                   XrdXrootdProtocol::readWait;
 int                   XrdXrootdProtocol::Port;
 int                   XrdXrootdProtocol::Window;
-int                   XrdXrootdProtocol::WANPort;
-int                   XrdXrootdProtocol::WANWindow;
+int                   XrdXrootdProtocol::tlsPort = 0;
 char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::JobLCL  = 0;
 char                  XrdXrootdProtocol::JobCKCGI=0;
@@ -142,6 +141,9 @@ bool                  XrdXrootdProtocol::OD_Redir = false;
 int                   XrdXrootdProtocol::usxMaxNsz= kXR_faMaxNlen;
 int                   XrdXrootdProtocol::usxMaxVsz= kXR_faMaxVlen;
 char                 *XrdXrootdProtocol::usxParms = 0;
+
+char                  XrdXrootdProtocol::tlsReq   = 0;
+char                  XrdXrootdProtocol::tlsOld   = 0;
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
@@ -990,6 +992,7 @@ void XrdXrootdProtocol::Reset()
    PathID             = 0;
    rvSeq              = 0;
    wvSeq              = 0;
+   doTLS              = 0;
    pioFree = pioFirst = pioLast = 0;
    isActive = isDead  = isNOP = isBound = 0;
    sigNeed = sigHere = sigRead = false;

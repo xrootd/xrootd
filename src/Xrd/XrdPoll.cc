@@ -272,9 +272,9 @@ char *XrdPoll::Poll2Text(short events)
 {
    if (events & POLLERR) return strdup("socket error");
 
-   if (events & POLLHUP) return strdup("client disconnected");
+   if (events & POLLHUP) return strdup("hangup");
 
-   if (events & POLLNVAL) return strdup("client closed socket");
+   if (events & POLLNVAL) return strdup("socket closed");
 
   {char buff[64];
    sprintf(buff, "unusual event (%.4x)", events);

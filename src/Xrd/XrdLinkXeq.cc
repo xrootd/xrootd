@@ -1010,7 +1010,7 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen)
 int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
 {
    XrdSysMutexHelper theMutex;
-   int retc, rlen, totlen = 0, maxnulls = 3;
+   int retc, rlen, totlen = 0;
 
 // Lock the read mutex if we need to, the helper will unlock it upon exit
 //
@@ -1020,7 +1020,8 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
 //
    isIdle = 0;
    while(Blen > 0)
-        {retc = Wait4Data(timeout);
+        {retc = tlsIO.Pending(true);
+         if (!retc) retc = Wait4Data(timeout);
          if (retc < 1)
             {if (retc < 0) return -1;
              tardyCnt++;
@@ -1039,8 +1040,7 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
             {AtomicAdd(BytesIn, totlen);
              return TLS_Error("receive from", retc);
             }
-//???    if (rlen <= 0 && (maxnulls-- < 1)) return -ENOMSG;
-         if (rlen <= 0 && maxnulls) return 0;
+         if (rlen <= 0) break;
          totlen += rlen; Blen -= rlen; Buff += rlen;
         }
 
@@ -1060,8 +1060,9 @@ int XrdLinkXeq::TLS_RecvAll(char *Buff, int Blen, int timeout)
 // wait for some data. We will wait forever for all the data. Yeah, it's weird.
 //
    if (timeout >= 0)
-      {retc = Wait4Data(timeout);
-       if (retc != 1) return (retc ? -1 : -ETIMEDOUT);
+      {retc = tlsIO.Pending(true);
+       if (!retc) retc = Wait4Data(timeout);
+       if (retc < 1) return (retc ? -1 : -ETIMEDOUT);
       }
 
 // Note that we will block until we receive all the bytes.

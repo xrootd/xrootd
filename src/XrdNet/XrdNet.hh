@@ -85,6 +85,7 @@ int             Accept(XrdNetAddr &myAddr,
 //!                  XRDNET_NODNTRIM  - ALL: don't trim domain name in myPeer
 //!                  XRDNET_NOEMSG    - ALL: supress printing error messages
 //!                  XRDNET_NORLKUP   - ALL: avoid doing reverse DNS look-up
+//!                  XRDNET_USETLS    - ALL: enable TLS upon connection
 //! @param  timeout  maximum seconds to wait for a conection. When negative,
 //!                  the default, no time limit applies.
 //! @return !0       Successful connection occurred, myPeer holds information.

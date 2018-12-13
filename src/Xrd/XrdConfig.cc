@@ -150,12 +150,12 @@ char           *proname;
 char           *libpath;
 char           *parms;
 int             port;
-int             wanopt;
+bool            dotls;
 
-                XrdConfigProt(char *pn, char *ln, char *pp, int np=-1, int wo=0)
-                    {Next = 0; proname = pn; libpath = ln; parms = pp; 
-                     port=np; wanopt = wo;
-                    }
+                XrdConfigProt(char *pn, char *ln, char *pp, int np=-1,
+                              bool to=false)
+                    : Next(0), proname(pn), libpath(ln), parms(pp), port(np),
+                      dotls(to) {}
                ~XrdConfigProt()
                     {free(proname);
                      if (libpath) free(libpath);
@@ -174,7 +174,7 @@ XrdConfig::XrdConfig()
 //
    PortTCP  = -1;
    PortUDP  = -1;
-   PortWAN  = 0;
+   PortTLS  = 0;
    ConfigFN = 0;
    myInsName= 0;
    mySitName= 0;
@@ -185,10 +185,9 @@ XrdConfig::XrdConfig()
    AdminMode= 0700;
    HomeMode = 0700;
    Police   = 0;
-   Net_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
    Net_Opts = XRDNET_KEEPALIVE;
-   Wan_Blen = 1024*1024; // Default window size 1M
-   Wan_Opts = XRDNET_KEEPALIVE;
+   TLS_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
+   TLS_Opts = XRDNET_KEEPALIVE | XRDNET_USETLS;
    repDest[0] = 0;
    repDest[1] = 0;
    repInt     = 600;
@@ -215,8 +214,7 @@ XrdConfig::XrdConfig()
    ProtInfo.theEnv  = &theEnv;          // Additional information
 
    ProtInfo.Format   = XrdFORMATB;
-   ProtInfo.WANPort  = 0;
-   ProtInfo.WANWSize = 0;
+   memset(ProtInfo.rsvd3, 0, sizeof(ProtInfo.rsvd3));
    ProtInfo.WSize    = 0;
    ProtInfo.ConnMax  = -1;     // Max       connections (fd limit)
    ProtInfo.readWait = 3*1000; // Wait time for data before we reschedule
@@ -225,6 +223,8 @@ XrdConfig::XrdConfig()
    ProtInfo.DebugON  = 0;      // 1 if started with -d
    ProtInfo.argc     = 0;
    ProtInfo.argv     = 0;
+   ProtInfo.tlsPort  = 0;
+   ProtInfo.tlsCtx   = 0;
 
    XrdNetAddr::SetCache(3*60*60); // Cache address resolutions for 3 hours
 }
@@ -550,6 +550,13 @@ int XrdConfig::Configure(int argc, char **argv)
                }
            }
 
+// If there is TLS port verify that it can be used
+//
+   if (PortTLS > 0 && !XrdGlobal::tlsCtx)
+      {Log.Say("Config TLS port specification ignored; TLS not configured!");
+       PortTLS = -1;
+      }
+
 // Put largest buffer size in the env
 //
    theEnv.PutInt("MaxBuffSize", XrdGlobal::xlBuff.MaxSize());
@@ -566,9 +573,9 @@ int XrdConfig::Configure(int argc, char **argv)
        NoGo = 1;
       }
 
-// Now initialize the default protocl
+// Now initialize the protocols and other stuff
 //
-   if (!NoGo) NoGo = Setup(dfltProt);
+   if (!NoGo) NoGo = Setup(dfltProt, libProt);
 
 // If we hae a net name change the working directory
 //
@@ -966,11 +973,11 @@ int XrdConfig::setFDL()
 /*                                 S e t u p                                  */
 /******************************************************************************/
   
-int XrdConfig::Setup(char *dfltp)
+int XrdConfig::Setup(char *dfltp, char *libProt)
 {
-   XrdInet *NetWAN;
    XrdConfigProt *cp;
-   int i, wsz, arbNet;
+   int i, xport, wsz, arbNet, the_Opts, the_Blen;
+   bool needTLS = false;
 
 // Establish the FD limit
 //
@@ -1028,11 +1035,29 @@ int XrdConfig::Setup(char *dfltp)
           else PortTCP = -1;
       }
 
+// If there is a TLS port then add the default protocol using tls
+//
+   if (PortTLS > 0)
+      {char pBuff[80];
+       snprintf(pBuff, sizeof(pBuff), "%ss", dfltp);
+       cp = new XrdConfigProt(strdup(pBuff), libProt, 0, PortTLS, true);
+       cp->Next = Firstcp;
+       Firstcp = cp;
+      }
+
 // We now go through all of the protocols and get each respective port number.
 //
    XrdProtLoad::Init(&Log, &XrdTrace); cp = Firstcp;
    while(cp)
-        {ProtInfo.Port = (cp->port < 0 ? PortTCP : cp->port);
+        {if (cp->dotls)
+            {if (!tlsCtx)
+                {Log.Emsg("Config", "protocol", cp->proname,
+                          "requires TLS but TLS is not configured!");
+                 return 1;
+                }
+             xport = PortTLS; needTLS = true;
+            } else xport = PortTCP;
+         ProtInfo.Port = (cp->port < 0 ? xport : cp->port);
          XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
          if ((cp->port = XrdProtLoad::Port(cp->libpath, cp->proname,
                                            cp->parms, &ProtInfo)) < 0) return 1;
@@ -1046,19 +1071,6 @@ int XrdConfig::Setup(char *dfltp)
                                  ProtInfo.myName, Firstcp->port,
                                  ProtInfo.myInst, ProtInfo.myProg, mySitName);
 
-// Allocate a WAN port number of we need to
-//
-   if (PortWAN &&  (NetWAN = new XrdInet(&Log, &XrdTrace, Police)))
-      {if (Wan_Opts || Wan_Blen) NetWAN->setDefaults(Wan_Opts, Wan_Blen);
-       if (myDomain) NetWAN->setDomain(myDomain);
-       if (NetWAN->BindSD((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
-       PortWAN  = NetWAN->Port();
-       wsz      = NetWAN->WSize();
-       Wan_Blen = (wsz < Wan_Blen || !Wan_Blen ? wsz : Wan_Blen);
-       TRACE(NET,"WAN port " <<PortWAN <<" wsz=" <<Wan_Blen <<" (" <<wsz <<')');
-       NetTCP[XrdProtLoad::ProtoMax] = NetWAN;
-      } else {PortWAN = 0; Wan_Blen = 0;}
-
 // Load the protocols. For each new protocol port number, create a new
 // network object to handle the port dependent communications part. All
 // port issues will have been resolved at this point.
@@ -1070,26 +1082,27 @@ int XrdConfig::Setup(char *dfltp)
                      {if (cp->port == NetTCP[i]->Port()) break;}
          if (i >= XrdProtLoad::ProtoMax || !NetTCP[i])
             {NetTCP[++NetTCPlep] = new XrdInet(&Log, &XrdTrace, Police);
-             if (Net_Opts || Net_Blen)
-                NetTCP[NetTCPlep]->setDefaults(Net_Opts, Net_Blen);
+             if (cp->dotls)
+                {the_Opts = TLS_Opts; the_Blen = TLS_Blen;
+                } else {
+                 the_Opts = Net_Opts; the_Blen = Net_Blen;
+                }
+             if (the_Opts || the_Blen)
+                NetTCP[NetTCPlep]->setDefaults(the_Opts, the_Blen);
              if (myDomain) NetTCP[NetTCPlep]->setDomain(myDomain);
              if (NetTCP[NetTCPlep]->BindSD(cp->port, "tcp")) return 1;
              ProtInfo.Port   = NetTCP[NetTCPlep]->Port();
              ProtInfo.NetTCP = NetTCP[NetTCPlep];
              wsz             = NetTCP[NetTCPlep]->WSize();
-             ProtInfo.WSize  = (wsz < Net_Blen || !Net_Blen ? wsz : Net_Blen);
-             TRACE(NET,"LCL port " <<ProtInfo.Port <<" wsz=" <<ProtInfo.WSize
-                       <<" (" <<wsz <<')');
-             if (cp->wanopt)
-                {ProtInfo.WANPort = PortWAN;
-                 ProtInfo.WANWSize= Wan_Blen;
-                } else ProtInfo.WANPort = ProtInfo.WANWSize = 0;
+             ProtInfo.WSize  = (wsz < the_Blen || !the_Blen ? wsz : the_Blen);
+             TRACE(NET, cp->proname <<" port " <<ProtInfo.Port <<" wsz="
+                        <<ProtInfo.WSize <<" (" <<wsz <<')');
              if (!(cp->port)) arbNet = NetTCPlep;
              if (!NetTCPlep) XrdNetTCP = NetTCP[0];
              XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
             }
-         if (!XrdProtLoad::Load(cp->libpath,cp->proname,cp->parms,&ProtInfo))
-            return 1;
+         if (!XrdProtLoad::Load(cp->libpath,cp->proname,cp->parms,
+                               &ProtInfo, cp->dotls)) return 1;
          Firstcp = cp->Next; delete cp;
         }
 
@@ -1324,14 +1337,14 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 
 /* Function: xnet
 
-   Purpose:  To parse directive: network [wan] [[no]keepalive] [buffsz <blen>]
+   Purpose:  To parse directive: network [tls] [[no]keepalive] [buffsz <blen>]
                                          [kaparms parms] [cache <ct>] [[no]dnr]
                                          [routes <rtype> [use <ifn1>,<ifn2>]]
                                          [[no]rpipa] [[no]dyndns]
 
              <rtype>: split | common | local
 
-             wan       parameters apply only to the wan port
+             tls       parameters apply only to the tls port
              keepalive do [not] set the socket keepalive option.
              kaparms   keepalive paramters as specfied by parms.
              <blen>    is the socket's send/rcv buffer size.
@@ -1347,7 +1360,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int  i, n, V_keep = -1, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1, V_assumev4;
+    int  i, n, V_keep = -1, V_nodnr = 0, V_iswan = 0, V_istls = 0, V_blen = -1, V_ct = -1, V_assumev4;
     int  v_rpip = -1, V_dyndns = -1;
     long long llp;
     struct netopts {const char *opname; int hasarg; int opval;
@@ -1367,7 +1380,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         {"routes",     3, 1, 0,         "routes"},
         {"rpipa",      0, 1, &v_rpip,   "rpipa"},
         {"norpipa",    0, 0, &v_rpip,   "norpipa"},
-        {"wan",        0, 1, &V_iswan,  "option"}
+        {"tls",        0, 1, &V_istls,  "option"}
        };
     int numopts = sizeof(ntopts)/sizeof(struct netopts);
 
@@ -1426,11 +1439,11 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
       val = Config.GetWord();
      }
 
-     if (V_iswan)
-        {if (V_blen >= 0) Wan_Blen = V_blen;
-         if (V_keep >= 0) Wan_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
-         Wan_Opts |= (V_nodnr ? XRDNET_NORLKUP   : 0);
-         if (!PortWAN) PortWAN = -1;
+     if (V_istls)
+        {if (V_blen >= 0) TLS_Blen = V_blen;
+         if (V_keep >= 0) TLS_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
+         TLS_Opts |= (V_nodnr ? XRDNET_NORLKUP   : 0) | XRDNET_USETLS;
+         if (!PortTLS) PortTLS = -1;
         } else {
          if (V_blen >= 0) Net_Blen = V_blen;
          if (V_keep >= 0) Net_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
@@ -1497,10 +1510,10 @@ int XrdConfig::xnkap(XrdSysError *eDest, char *val)
 
 /* Function: xport
 
-   Purpose:  To parse the directive: port [wan] <tcpnum>
+   Purpose:  To parse the directive: port [tls] <tcpnum>
                                                [if [<hlst>] [named <nlst>]]
 
-             wan        apply this to the wan port
+             tls        apply this to the tls port
              <tcpnum>   number of the tcp port for incomming requests
              <hlst>     list of applicable host patterns
              <nlst>     list of applicable instance names.
@@ -1508,13 +1521,13 @@ int XrdConfig::xnkap(XrdSysError *eDest, char *val)
    Output: 0 upon success or !0 upon failure.
 */
 int XrdConfig::xport(XrdSysError *eDest, XrdOucStream &Config)
-{   int rc, iswan = 0, pnum = 0;
+{   int rc, istls = 0, pnum = 0;
     char *val, cport[32];
 
     do {if (!(val = Config.GetWord()))
            {eDest->Emsg("Config", "tcp port not specified"); return 1;}
-        if (strcmp("wan", val) || iswan) break;
-        iswan = 1;
+        if (strcmp("tls", val) || istls) break;
+        istls = 1;
        } while(1);
 
     strncpy(cport, val, sizeof(cport)-1); cport[sizeof(cport)-1] = '\0';
@@ -1525,7 +1538,7 @@ int XrdConfig::xport(XrdSysError *eDest, XrdOucStream &Config)
           {if (!rc) Config.noEcho(); return (rc < 0);}
 
     if ((pnum = yport(eDest, "tcp", cport)) < 0) return 1;
-    if (iswan) PortWAN = pnum;
+    if (istls) PortTLS = pnum;
        else PortTCP = PortUDP = pnum;
 
     return 0;
@@ -1557,9 +1570,9 @@ int XrdConfig::yport(XrdSysError *eDest, const char *ptype, const char *val)
 
 /* Function: xprot
 
-   Purpose:  To parse the directive: protocol [wan] <name>[:<port>] <loc> [<parm>]
+   Purpose:  To parse the directive: protocol [tls] <name>[:<port>] <loc> [<parm>]
 
-             wan    The protocol is WAN optimized
+             tls    The protocol requires tls.
              <name> The name of the protocol (e.g., rootd)
              <port> Port binding for the protocol, if not the default.
              <loc>  The shared library in which it is located.
@@ -1572,12 +1585,13 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
 {
     XrdConfigProt *cpp;
     char *val, *parms, *lib, proname[64], buff[1024];
-    int vlen, bleft = sizeof(buff), portnum = -1, wanopt = 0;
+    int vlen, bleft = sizeof(buff), portnum = -1;
+    bool dotls = false;
 
     do {if (!(val = Config.GetWord()))
            {eDest->Emsg("Config", "protocol name not specified"); return 1;}
-        if (wanopt || strcmp("wan", val)) break;
-        wanopt = 1;
+        if (dotls || strcmp("tls", val)) break;
+        dotls = true;
        } while(1);
 
     if (strlen(val) > sizeof(proname)-1)
@@ -1604,9 +1618,9 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
     if ((val = index(proname, ':')))
        {if ((portnum = yport(&Log, "tcp", val+1)) < 0) return 1;
            else *val = '\0';
+       } else {
+        if (dotls && !PortTLS) PortTLS = -1;
        }
-
-    if (wanopt && !PortWAN) PortWAN = 1;
 
     if ((cpp = Firstcp))
        do {if (!strcmp(proname, cpp->proname))
@@ -1614,13 +1628,14 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
                if (cpp->parms)   free(cpp->parms);
                cpp->libpath = lib;
                cpp->parms   = parms;
-               cpp->wanopt  = wanopt;
+               cpp->port    = portnum;
+               cpp->dotls   = dotls;
                return 0;
               }
           } while((cpp = cpp->Next));
 
-    if (lib)
-       {cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum, wanopt);
+//  if (lib)
+       {cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum, dotls);
         if (Lastcp) Lastcp->Next = cpp;
            else    Firstcp = cpp;
         Lastcp = cpp;
