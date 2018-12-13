@@ -40,7 +40,7 @@
 #include "XrdCrypto/XrdCryptoCipher.hh"
 
 //_____________________________________________________________________________
-bool XrdCryptoCipher::Finalize(char *, int, const char *)
+bool XrdCryptoCipher::Finalize(bool, char *, int, const char *)
 {
    // Finalize key computation (key agreement)
    ABSTRACTMETHOD("XrdCryptoCipher::Finalize");
