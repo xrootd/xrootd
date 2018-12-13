@@ -53,6 +53,22 @@ namespace XrdCl
     private:
 
       //------------------------------------------------------------------------
+      //! Flags to indicate what is the TLS hand-shake revert state
+      //!
+      //! - None        : there is no revert state
+      //! - ReadOnWrite : OnRead routines will be called on write event due to
+      //!                 TLS handshake
+      //! - WriteOnRead : OnWrite routines will be called on read event due to
+      //!                 TLS handshake
+      //------------------------------------------------------------------------
+      enum TlsHSRevert{ None, ReadOnWrite, WriteOnRead };
+
+      //------------------------------------------------------------------------
+      //! Handle a socket event
+      //------------------------------------------------------------------------
+      virtual void Event( uint8_t type, XrdCl::Socket *socket );
+
+      //------------------------------------------------------------------------
       // Connect returned
       //------------------------------------------------------------------------
       void OnConnectionReturn();
@@ -111,13 +127,34 @@ namespace XrdCl
       Status Flash();
 
       //------------------------------------------------------------------------
-      // TLS/SSL layer asked to retry an I/O operation
+      // Process the status of an operation that issues a TLS write
       //
-      // It could be due to the socket layer or due to TLS/SSL session
-      // re-negotiation (in this case we have to make sure the socket is not
-      // corked).
+      // - If the operation failed there is nothing to be done.
+      //
+      // - If the operation succeeded with suRetry it might be that TLS layer
+      //   asked to reissue the operation but on a read event (SSL_ERROR_WANT_READ)
+      //   due to hand-shake re-negotiations, in this case we need to set a
+      //   respective TLS revert state (pTlsHSRevert=WriteOnRead).
+      //
+      // - Otherwise we need to clear the revert state (pTlsHSRevert=None)
+      //
       //------------------------------------------------------------------------
-      inline void OnTlsRetry();
+      inline void OnTlsWrite( Status& st );
+
+      //------------------------------------------------------------------------
+      // Process the status of an operation that issues a TLS read
+      //
+      // - If the operation failed there is nothing to be done.
+      //
+      // - If the operation succeeded with suRetry it might be that TLS layer
+      //   asked to reissue the operation but on a write event (SSL_ERROR_WANT_WRITE)
+      //   due to hand-shake re-negotiations, in this case we need to set a
+      //   respective TLS revert state (pTlsHSRevert=ReadOnWrite).
+      //
+      // - Otherwise we need to clear the revert state (pTlsHSRevert=None)
+      //
+      //------------------------------------------------------------------------
+      inline void OnTlsRead( Status& st );
 
       //------------------------------------------------------------------------
       // Data members
@@ -127,6 +164,15 @@ namespace XrdCl
       std::unique_ptr<Tls>           pTls;
       bool                           pCorked;
       bool                           pWrtHdrDone;
+      //------------------------------------------------------------------------
+      // In case during TLS hand-shake WantRead has been returned on write or
+      // WantWrite has been returned on read we need to flip the following events.
+      //
+      // None        : all events should be processed normally
+      // ReadOnWrite : on write event the OnRead routines should be called
+      // WriteOnRead : on read event the OnWrite routines should be called
+      //------------------------------------------------------------------------
+      TlsHSRevert                    pTlsHSRevert;
       ChunkList::iterator            pCurrentChunk;
       ChunkList                     *pWrtBody;
   };

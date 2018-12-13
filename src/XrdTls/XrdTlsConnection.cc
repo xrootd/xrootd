@@ -178,7 +178,8 @@ const char *XrdTlsConnection::Init( XrdTlsContext &ctx, int sfd,
 
 // Do an acccept or connect depending on who this is
 //
-   int rc = (isClient ? Connect() : Accept());
+   if( isClient ) return 0;
+   int rc = Accept();
    return (rc == SSL_ERROR_NONE ? 0 : "TLS handshake failed");
 }
 

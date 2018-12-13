@@ -23,7 +23,7 @@ namespace XrdCl
 
   Tls::Tls( XrdTlsContext &ctx, int sfd ) 
       : io( ctx, sfd, XrdTlsConnection::TLS_RNB_WNB,
-                      XrdTlsConnection::TLS_HS_XYBLK, true )
+                      XrdTlsConnection::TLS_HS_NOBLK, true )
   {
 
   }
@@ -58,7 +58,7 @@ namespace XrdCl
       case SSL_ERROR_NONE: return Status();
 
       case SSL_ERROR_WANT_WRITE:
-      case SSL_ERROR_WANT_READ: return Status( stOK, suRetry );
+      case SSL_ERROR_WANT_READ: return Status( stOK, suRetry, error );
 
       case SSL_ERROR_ZERO_RETURN:
       case SSL_ERROR_SYSCALL:
