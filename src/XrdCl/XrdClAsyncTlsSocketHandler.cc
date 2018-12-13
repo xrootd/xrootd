@@ -43,6 +43,7 @@ namespace XrdCl
     pXrdHandler( 0 ),
     pCorked( false ),
     pWrtHdrDone( false ),
+    pTlsHSRevert( None ),
     pWrtBody( 0 )
   {
 
@@ -54,6 +55,29 @@ namespace XrdCl
   AsyncTlsSocketHandler::~AsyncTlsSocketHandler()
   {
 
+  }
+
+  //----------------------------------------------------------------------------
+  // Handler a socket event
+  //----------------------------------------------------------------------------
+  void AsyncTlsSocketHandler::Event( uint8_t type, XrdCl::Socket *socket )
+  {
+    if( pTlsHSRevert == ReadOnWrite )
+    {
+      //------------------------------------------------------------------------
+      // In this case we would like to call the OnRead routine on the Write event
+      //------------------------------------------------------------------------
+      if( type & ReadyToWrite ) type = ReadyToRead;
+    }
+    else if( pTlsHSRevert == WriteOnRead )
+    {
+      //------------------------------------------------------------------------
+      // In this case we would like to call the OnWrite routine on the Read event
+      //------------------------------------------------------------------------
+      if( type & ReadyToRead ) type = ReadyToWrite;
+    }
+
+    AsyncSocketHandler::Event( type, socket );
   }
 
   //----------------------------------------------------------------------------
@@ -71,7 +95,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Initialize the TLS layer
       //------------------------------------------------------------------------
-      //try???? This should be under a try-catch!
+      //try???? This should be under a try-catch! TODO
       pTls.reset( new Tls( tlsContext, pSocket->GetFD() ) );
 
       //------------------------------------------------------------------------
@@ -86,7 +110,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Got a write readiness event
   //----------------------------------------------------------------------------
-
   void AsyncTlsSocketHandler::OnWrite()
   {
     //--------------------------------------------------------------------------
@@ -110,6 +133,7 @@ namespace XrdCl
     if( !pWrtHdrDone )
     {
       Status st = WriteCurrentMessage( pOutgoing );
+      OnTlsWrite( st );
 
       if( !st.IsOK() )
       {
@@ -117,11 +141,7 @@ namespace XrdCl
         return;
       }
 
-      if( st.code == suRetry )
-      {
-        OnTlsRetry();
-        return;
-      }
+      if( st.code == suRetry ) return;
 
       pWrtHdrDone = true;
     }
@@ -148,6 +168,7 @@ namespace XrdCl
       while( pCurrentChunk != pWrtBody->end() )
       {
         Status st = WriteCurrentChunk( *pCurrentChunk );
+        OnTlsWrite( st );
 
         if( !st.IsOK() )
         {
@@ -155,11 +176,7 @@ namespace XrdCl
           return;
         }
 
-        if( st.code == suRetry )
-        {
-          OnTlsRetry();
-          return;
-        }
+        if( st.code == suRetry ) return;
 
         ++pCurrentChunk;
       }
@@ -203,14 +220,16 @@ namespace XrdCl
       return;
     }
 
-    if( !(st = WriteCurrentMessage( pHSOutgoing )).IsOK() )
+    st = WriteCurrentMessage( pHSOutgoing );
+    OnTlsWrite( st );
+
+    if( !st.IsOK() )
     {
       OnFaultWhileHandshaking( st );
       return;
     }
 
-    if( st.code == suRetry )
-      return;
+    if( st.code == suRetry ) return;
 
     delete pHSOutgoing;
     pHSOutgoing = 0;
@@ -338,17 +357,15 @@ namespace XrdCl
     if( !pHeaderDone )
     {
       st = pXrdTransport->GetHeader( pIncoming, pTls.get() );
+      OnTlsRead( st );
+
       if( !st.IsOK() )
       {
         OnFault( st );
         return;
       }
 
-      if( st.code == suRetry )
-      {
-        OnTlsRetry();
-        return;
-      }
+      if( st.code == suRetry ) return;
 
       log->Dump( AsyncSockMsg, "[%s] Received message header for 0x%x size: %d",
                 pStreamName.c_str(), pIncoming, pIncoming->GetCursor() );
@@ -380,6 +397,8 @@ namespace XrdCl
 
       uint32_t bytesRead = 0;
       st = pXrdHandler->ReadMessageBody( pIncoming, pTls.get(), bytesRead );
+      OnTlsRead( st );
+
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -387,11 +406,7 @@ namespace XrdCl
       }
       pIncMsgSize += bytesRead;
 
-      if( st.code == suRetry )
-      {
-        OnTlsRetry();
-        return;
-      }
+      if( st.code == suRetry ) return;
     }
     //--------------------------------------------------------------------------
     // No raw handler, so we read the message to the buffer
@@ -399,17 +414,15 @@ namespace XrdCl
     else
     {
       st = pXrdTransport->GetBody( pIncoming, pTls.get() );
+      OnTlsRead( st );
+
       if( !st.IsOK() )
       {
         OnFault( st );
         return;
       }
 
-      if( st.code == suRetry )
-      {
-        OnTlsRetry();
-        return;
-      }
+      if( st.code == suRetry ) return;
 
       pIncMsgSize = pIncoming->GetSize();
     }
@@ -434,14 +447,15 @@ namespace XrdCl
     // reading has finished
     //--------------------------------------------------------------------------
     Status st = ReadMessage( pHSIncoming );
+    OnTlsRead( st );
+
     if( !st.IsOK() )
     {
       OnFaultWhileHandshaking( st );
       return;
     }
 
-    if( st.code != suDone )
-      return;
+    if( st.code == suRetry ) return;
 
     AsyncSocketHandler::HandleHandShake();
 
@@ -550,17 +564,99 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  // TLS/SSL layer asked to retry an I/O operation
+  // Process the status of an operation that issues a TLS write
   //------------------------------------------------------------------------
-  void AsyncTlsSocketHandler::OnTlsRetry()
+  void AsyncTlsSocketHandler::OnTlsWrite( Status& status )
   {
     //----------------------------------------------------------------------
-    // Make sure the socket is uncorked before we do the TLS/SSL hand shake
+    // There's nothing to be done if the write simply failed
     //----------------------------------------------------------------------
-    if( pCorked && pTls->NeedHandShake() )
+    if( !status.IsOK() ) return;
+
+    if( pTls->NeedHandShake() )
     {
-      Status st = Uncork();
-      if( !st.IsOK() ) OnFault( st );
+      //--------------------------------------------------------------------
+      // Make sure the socket is uncorked before we do the TLS/SSL
+      // hand shake
+      //--------------------------------------------------------------------
+      if( pCorked )
+      {
+        Status st = Uncork();
+        if( !st.IsOK() ) status = st;
+      }
+
+      //--------------------------------------------------------------------
+      // Check if we need to switch on a revert state
+      //--------------------------------------------------------------------
+      if( status.IsOK() && status.code == suRetry && status.errNo == SSL_ERROR_WANT_READ )
+      {
+        pTlsHSRevert = WriteOnRead;
+        Status st = DisableUplink();
+        if( !st.IsOK() ) status = st;
+        //------------------------------------------------------------------
+        // Return early so the revert state wont get cleared
+        //------------------------------------------------------------------
+        return;
+      }
     }
+
+    //----------------------------------------------------------------------
+    // If we got up until here we need to clear the revert state
+    //----------------------------------------------------------------------
+    if( pTlsHSRevert == WriteOnRead )
+    {
+      Status st = EnableUplink();
+      if( !st.IsOK() ) status = st;
+    }
+    pTlsHSRevert = None;
+  }
+
+  //------------------------------------------------------------------------
+  // Process the status of an operation that issues a TLS read
+  //------------------------------------------------------------------------
+  void AsyncTlsSocketHandler::OnTlsRead( Status& status )
+  {
+    //----------------------------------------------------------------------
+    // There's nothing to be done if the write simply failed
+    //----------------------------------------------------------------------
+    if( !status.IsOK() ) return;
+
+    if( pTls->NeedHandShake() )
+    {
+      //--------------------------------------------------------------------
+      // Make sure the socket is uncorked before we do the TLS/SSL
+      // hand shake
+      //--------------------------------------------------------------------
+      if( pCorked )
+      {
+        Status st = Uncork();
+        if( !st.IsOK() ) status = st;
+      }
+
+      //--------------------------------------------------------------------
+      // Check if we need to switch on a revert state
+      //--------------------------------------------------------------------
+      if( status.code == suRetry && status.errNo == SSL_ERROR_WANT_WRITE )
+      {
+        pTlsHSRevert = ReadOnWrite;
+        Status st = EnableUplink();
+        if( !st.IsOK() ) status = st;
+        //------------------------------------------------------------------
+        // Return early so the revert state wont get cleared
+        //------------------------------------------------------------------
+        return;
+      }
+    }
+
+    //----------------------------------------------------------------------
+    // If we got up until here we need to clear the revert state
+    //----------------------------------------------------------------------
+    if( pTlsHSRevert == ReadOnWrite )
+    {
+      Status st = DisableUplink();
+      if( !st.IsOK() ) status = st;
+    }
+    pTlsHSRevert = None;
   }
 }
+
