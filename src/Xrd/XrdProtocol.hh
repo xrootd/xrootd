@@ -92,14 +92,12 @@ int              argc;         // Number of arguments
 char           **argv;         // Argument array (prescreened)
 char             DebugON;      // True if started with -d option
 char             rsvd3[7];
-int              WANPort;      // Port prefered for WAN connections (0 if none)
-int              WANWSize;     // Window size for the WANPort
 int              hailWait;     // Max milliseconds to wait for data after accept
-int              rsvd4;
+int              tlsPort;      // Default TLS port
 XrdTlsContext   *tlsCtx;       // Stable -> TLS Context (0 if not initialized)
 
                  XrdProtocol_Config(XrdProtocol_Config &rhs);
-                 XrdProtocol_Config() : rsvd1(0), rsvd2(0), rsvd4(0)
+                 XrdProtocol_Config() : rsvd1(0), rsvd2(0)
                                         {memset(rsvd3, 0, sizeof(rsvd3));}
                 ~XrdProtocol_Config() {}
 };

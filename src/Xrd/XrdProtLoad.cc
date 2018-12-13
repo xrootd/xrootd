@@ -46,18 +46,18 @@
 XrdSysError *XrdProtLoad::XrdLog   = 0;
 XrdOucTrace *XrdProtLoad::XrdTrace = 0;
 
-XrdProtocol *XrdProtLoad::ProtoWAN[ProtoMax] = {0};
 XrdProtocol *XrdProtLoad::Protocol[ProtoMax] = {0};
 char        *XrdProtLoad::ProtName[ProtoMax] = {0};
 int          XrdProtLoad::ProtPort[ProtoMax] = {0};
+bool         XrdProtLoad::ProtoTLS[ProtoMax] = {false};
 
 int          XrdProtLoad::ProtoCnt = 0;
-int          XrdProtLoad::ProtWCnt = 0;
 
 namespace
 {
 char            *liblist[XrdProtLoad::ProtoMax];
 XrdOucPinLoader *libhndl[XrdProtLoad::ProtoMax];
+const char      *TraceID = "ProtLoad";
 int              libcnt = 0;
 }
 
@@ -66,7 +66,32 @@ int              libcnt = 0;
 /******************************************************************************/
   
  XrdProtLoad::XrdProtLoad(int port) :
-              XrdProtocol("protocol loader"), myPort(port) {}
+              XrdProtocol("protocol loader"), myPort(port)
+{
+   int j = 0;
+   bool hastls = false;
+
+// Extract out the protocols associated with this port
+//
+   for (int i = 0; i < ProtoCnt; i++)
+       {if (myPort == ProtPort[i])
+           {if (ProtoTLS[i]) hastls = true;
+               else myProt[j++] = i;
+           }
+       }
+
+// Setup to handle tls protocols
+//
+   if (hastls)
+      {myProt[j++] = -1;
+       for (int i = 0; i < ProtoCnt; i++)
+           {if (myPort == ProtPort[i]) myProt[j++] = i;}
+      }
+
+// Put in an end marker
+//
+   myProt[j] = -2;
+}
 
  XrdProtLoad::~XrdProtLoad() {}
  
@@ -75,19 +100,14 @@ int              libcnt = 0;
 /******************************************************************************/
 
 int XrdProtLoad::Load(const char *lname, const char *pname,
-                      char *parms, XrdProtocol_Config *pi)
+                      char *parms, XrdProtocol_Config *pi, bool istls)
 {
    XrdProtocol *xp;
-   int i, j, port = pi->Port;
-   int wanopt = pi->WANPort;
+   int port = pi->Port;
 
 // Trace this load if so wanted
 //
-   if (TRACING(TRACE_DEBUG))
-      {XrdTrace->Beg("Protocol");
-       cerr <<"getting protocol object " <<pname;
-       XrdTrace->End();
-      }
+   TRACE(DEBUG, "getting protocol object " <<pname);
 
 // First check to see that we haven't exceeded our protocol count
 //
@@ -103,24 +123,12 @@ int XrdProtLoad::Load(const char *lname, const char *pname,
              return 0;
             }
 
-// If this is a WAN enabled protocol then add it to the WAN table
-//
-   if (wanopt) ProtoWAN[ProtWCnt++] = xp;
-
-// Find a port associated slot in the table
-//
-   for (i = ProtoCnt-1; i >= 0; i--) if (port == ProtPort[i]) break;
-   for (j = ProtoCnt-1; j > i; j--)
-       {ProtName[j+1] = ProtName[j];
-        ProtPort[j+1] = ProtPort[j];
-        Protocol[j+1] = Protocol[j];
-       }
-
 // Add protocol to our table of protocols
 //
-   ProtName[j+1] = strdup(pname);
-   ProtPort[j+1] = port;
-   Protocol[j+1] = xp;
+   ProtName[ProtoCnt] = strdup(pname);
+   ProtPort[ProtoCnt] = port;
+   Protocol[ProtoCnt] = xp;
+   ProtoTLS[ProtoCnt] = istls;
    ProtoCnt++;
    return 1;
 }
@@ -134,17 +142,16 @@ int XrdProtLoad::Port(const char *lname, const char *pname,
 {
    int port;
 
-// Trace this load if so wanted
-//
-   if (TRACING(TRACE_DEBUG))
-      {XrdTrace->Beg("Protocol");
-       cerr <<"getting port from protocol " <<pname;
-       XrdTrace->End();
-      }
-
 // Obtain the port number to be used by this protocol
 //
    port = getProtocolPort(lname, pname, parms, pi);
+
+// Trace this call if so wanted
+//
+   TRACE(DEBUG, "protocol " <<pname <<" wants to use port " <<port);
+
+// Make sure we can use the port
+//
    if (port < 0) XrdLog->Emsg("Protocol","Protocol", pname,
                              "port number could not be determined");
    return port;
@@ -157,19 +164,22 @@ int XrdProtLoad::Port(const char *lname, const char *pname,
 int XrdProtLoad::Process(XrdLink *lp)
 {
      XrdProtocol *pp = 0;
-     int i;
+     char *pVec = myProt;
+     int i = 0;
 
-// Check if this is a WAN lookup or standard lookup
+// Try to find a protocol match for this connection
 //
-   if (myPort < 0)
-      {for (i = 0; i < ProtWCnt; i++)
-           if ((pp = ProtoWAN[i]->Match(lp))) break;
-              else if (lp->isFlawed()) return -1;
-      } else {
-       for (i = 0; i < ProtoCnt; i++)
-           if (myPort == ProtPort[i] && (pp = Protocol[i]->Match(lp))) break;
-               else if (lp->isFlawed()) return -1;
-      }
+   while(*pVec != -2)
+        {if (*pVec == -1) {if (!(lp->setTLS(true))) break;}
+            else {i = *pVec;
+                  if ((pp = Protocol[i]->Match(lp))) break;
+                     else if (lp->isFlawed()) return -1;
+                 }
+         pVec++;
+        }
+
+// Verify that we have an actual protocol
+//
    if (!pp) {lp->setEtext("matching protocol not found"); return -1;}
 
 // Now attach the new protocol object to the link
@@ -177,12 +187,8 @@ int XrdProtLoad::Process(XrdLink *lp)
    lp->setProtocol(pp);
 
 // Trace this load if so wanted
-//                                                x
-   if (TRACING(TRACE_DEBUG))
-      {XrdTrace->Beg("Protocol");
-       cerr <<"matched protocol " <<ProtName[i];
-       XrdTrace->End();
-      }
+//
+   TRACE(DEBUG, "matched port " <<myPort <<" protocol " <<ProtName[i]);
 
 // Attach this link to the appropriate poller
 //

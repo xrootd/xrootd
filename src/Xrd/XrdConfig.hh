@@ -67,7 +67,7 @@ int   getUG(char *parm, uid_t &theUid, gid_t &theGid);
 void  Manifest(const char *pidfn);
 void  setCFG();
 int   setFDL();
-int   Setup(char *dfltp);
+int   Setup(char *dfltp, char *libProt);
 bool  SetupTLS();
 void  Usage(int rc);
 int   xallow(XrdSysError *edest, XrdOucStream &Config);
@@ -105,12 +105,12 @@ XrdConfigProt      *Firstcp;
 XrdConfigProt      *Lastcp;
 int                 Net_Blen;
 int                 Net_Opts;
-int                 Wan_Blen;
-int                 Wan_Opts;
+int                 TLS_Blen;
+int                 TLS_Opts;
 
 int                 PortTCP;      // TCP Port to listen on
 int                 PortUDP;      // UDP Port to listen on (currently unsupported)
-int                 PortWAN;      // TCP port to listen on for WAN connections
+int                 PortTLS;      // TCP port to listen on for TLS connections
 int                 NetTCPlep;
 int                 AdminMode;
 int                 HomeMode;

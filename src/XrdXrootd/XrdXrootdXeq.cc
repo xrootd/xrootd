@@ -1749,7 +1749,7 @@ int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
    ServerResponseBody_Protocol theResp;
    ServerResponseBody_Protocol *respP = (rsp ? rsp : &theResp);
    int rc, RespLen = kXR_ShortProtRespLen;
-   bool doTLS = false;
+   bool wantTLS = false;
 
 // Keep Statistics
 //
@@ -1765,7 +1765,7 @@ int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
        if (DHS && cvn >= kXR_PROTSIGNVERSION
        &&  Request.protocol.flags & kXR_secreqs)
           RespLen += DHS->ProtResp(respP->secreq, *(Link->AddrInfo()), cvn);
-       doTLS = (Request.protocol.flags & kXR_wantTls) != 0
+       wantTLS = (Request.protocol.flags & kXR_wantTls) != 0
             && (myRole & kXR_haveTls) != 0 && rsp == 0;
        respP->flags = theRle;
       } else {
@@ -1781,7 +1781,7 @@ int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
 // If the clientwants to start using TLS, enable it now. If we fail then we
 // have no choice but to terminate the connection.
 //
-   if (rc == 0 && doTLS)
+   if (rc == 0 && wantTLS)
       {if (!Link->setTLS(true))
           {eDest.Emsg("Xeq", "Unable to enable tls for", Link->ID);
            rc = -1;
@@ -1907,12 +1907,8 @@ int XrdXrootdProtocol::do_Qconf()
             n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpcdlg"));
             bp += n; bleft -= n;
            }
-   else if (!strcmp("wan_port", val) && WANPort)
-           {n = snprintf(bp, bleft, "%d\n", WANPort);
-            bp += n; bleft -= n;
-           }
-   else if (!strcmp("wan_window", val) && WANPort)
-           {n = snprintf(bp, bleft, "%d\n", WANWindow);
+   else if (!strcmp("tls_port", val) && tlsPort)
+           {n = snprintf(bp, bleft, "%d\n", tlsPort);
             bp += n; bleft -= n;
            }
    else if (!strcmp("window", val) && Window)
@@ -3638,9 +3634,11 @@ void XrdXrootdProtocol::logLogin(bool xauth)
 
 // Format the line
 //
-   sprintf(lBuff, "%s %s %slogin%s",
+   sprintf(lBuff, "%s %s %s%slogin%s",
                   (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"), ipName,
                   (Status   & XRD_ADMINUSER   ? "admin " : ""),
+                  (Link->AddrInfo()->isUsingTLS()
+                                              ? "tls "   : ""),
                   (xauth                      ? " as"    : ""));
 
 // Document the login

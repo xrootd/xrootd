@@ -81,7 +81,7 @@
 #define kXR_LBalServer 0
 
 // The below are defined for protocol version 2.9.7 or higher
-// These are the flag value in the kXR_protool response
+// These are the flag values in the kXR_protool response
 //
 #define kXR_isManager 0x00000002
 #define kXR_isServer  0x00000001
@@ -89,15 +89,22 @@
 #define kXR_attrProxy 0x00000200
 #define kXR_attrSuper 0x00000400
 
+#define kXR_anongpf   0x00800000
+#define kXR_supgetf   0x00400000
+#define kXR_supputf   0x00200000
+
+#define kXR_Expect    0x000f0000
+#define kXR_ExpNone   0x00000000
+#define kXR_ExpBind   0x00010000
+#define kXR_ExpLogin  0x00020000
+#define kXR_ExpTPC    0x00030000
+
 #define kXR_haveTls   0x80000000
-#define kXR_tlsAll    0x7f000000
-#define kXR_tlsGPFile 0x40000000
-#define kXR_tlsLogin  0x20000000
-#define kXR_tlsModFS  0x10000000
-#define kXR_tlsOpenR  0x08000000
-#define kXR_tlsOpenW  0x04000000
-#define kXR_tlsTPC    0x02000000
-#define kXR_tlsXXX    0x01000000
+#define kXR_tlsAny    0x0f000000
+#define kXR_tlsData   0x01000000
+#define kXR_tlsLogin  0x02000000
+#define kXR_tlsSess   0x04000000
+#define kXR_tlsTPC    0x08000000
 
 #define kXR_maxReqRetry 10
 
