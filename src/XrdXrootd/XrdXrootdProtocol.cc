@@ -142,8 +142,8 @@ int                   XrdXrootdProtocol::usxMaxNsz= kXR_faMaxNlen;
 int                   XrdXrootdProtocol::usxMaxVsz= kXR_faMaxVlen;
 char                 *XrdXrootdProtocol::usxParms = 0;
 
-char                  XrdXrootdProtocol::tlsReq   = 0;
-char                  XrdXrootdProtocol::tlsOld   = 0;
+char                  XrdXrootdProtocol::tlsCap   = 0;
+char                  XrdXrootdProtocol::tlsNot   = 0;
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
@@ -262,11 +262,8 @@ XrdXrootdProtocol& XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
 XrdProtocol *XrdXrootdProtocol::Match(XrdLink *lp)
 {
 static  const int hsSZ = sizeof(ClientInitHandShake);
-static  const int prSZ = sizeof(ClientProtocolRequest);
-static  const int hpSZ = hsSZ + prSZ;
-        char hsbuff[hpSZ];
+        char hsbuff[hsSZ];
         struct ClientInitHandShake   *hsData = (ClientInitHandShake *)hsbuff;
-        struct ClientProtocolRequest *hsRqst = (ClientProtocolRequest *)(hsbuff + hsSZ);
 
 static  struct hs_response
                {kXR_unt16 streamid;
@@ -278,13 +275,12 @@ static  struct hs_response
                          htonl(kXR_PROTOCOLVERSION),
                          (isRedir ? htonl((unsigned int)kXR_LBalServer)
                                   : htonl((unsigned int)kXR_DataServer))};
-
 XrdXrootdProtocol *xp;
 int dlen, rc;
 
 // Peek at the first 20 bytes of data
 //
-   if ((dlen = lp->Peek(hsbuff, hpSZ, hailWait)) < hsSZ)
+   if ((dlen = lp->Peek(hsbuff, hsSZ, hailWait)) < hsSZ)
       {if (dlen <= 0) lp->setEtext("handshake not received");
        return (XrdProtocol *)0;
       }
@@ -300,28 +296,10 @@ int dlen, rc;
    if (hsData->first || hsData->second || hsData->third
    ||  hsData->fourth != 4 || hsData->fifth != ROOTD_PQ) return 0;
 
-// Optimized clients using protocol 2.9.7 or above will piggy-back a protocol
-// request with the handshake. We optimize the response here as well.
+// Send the handshake response. We used optimize the subsequent protocol
+// request sent with handshake but the protocol request is now overloaded.
 //
-   if (dlen != hpSZ||ntohs(hsRqst->requestid) != kXR_protocol||hsRqst->dlen)
-      {dlen = hsSZ;
-       rc = lp->Send((char *)&hsresp, sizeof(hsresp));
-      } else {
-        struct {struct ServerResponseHeader        Hdr;
-                struct ServerResponseBody_Protocol Rsp;
-               }                                   hsprot;
-        struct iovec iov[2] = {{(char *)&hsresp, sizeof(hsresp)},
-                               {(char *)&hsprot, 0}
-                              };
-        int rspLen;
-        memcpy(&Request, hsRqst, sizeof(Request));
-        memcpy(hsprot.Hdr.streamid,hsRqst->streamid,sizeof(hsprot.Hdr.streamid));
-        rspLen              = do_Protocol(&hsprot.Rsp);
-        hsprot.Hdr.dlen     = htonl(rspLen);
-        hsprot.Hdr.status   = 0;
-        iov[1].iov_len      = sizeof(hsprot.Hdr) + rspLen;
-        rc = lp->Send(iov, 2, sizeof(hsresp)+sizeof(hsprot.Hdr)+rspLen);
-       }
+   rc = lp->Send((char *)&hsresp, sizeof(hsresp));
 
 // Verify that our handshake response was actually sent
 //
@@ -332,7 +310,7 @@ int dlen, rc;
 
 // We can now read all 20 bytes and discard them (no need to wait for it)
 //
-   if (lp->Recv(hsbuff, dlen) != dlen)
+   if (lp->Recv(hsbuff, hsSZ) != hsSZ)
       {lp->setEtext("reread failed");
        return (XrdProtocol *)0;
       }
@@ -634,9 +612,10 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 //
    if (lp)
       {XrdSysTimer::s2hms(csec, ctbuff, sizeof(ctbuff));
-       if (reason) {snprintf(buff, sizeof(buff), "%s (%s)", ctbuff, reason);
-                    sfxp = buff;
-                   } else sfxp = ctbuff;
+       if (reason && strcmp(reason, "hangup"))
+          {snprintf(buff, sizeof(buff), "%s (%s)", ctbuff, reason);
+           sfxp = buff;
+          } else sfxp = ctbuff;
 
        eDest.Log(SYS_LOG_02, "Xeq", lp->ID, (char *)What, sfxp);
       }

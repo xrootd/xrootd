@@ -472,7 +472,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Finally note whether or not we have TLS enabled
 //
-   if (tlsCtx) myRole |= kXR_haveTls;
+   if (tlsCtx) myRole |= kXR_haveTLS;
 
 // Return success
 //
@@ -511,7 +511,6 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
             {     if TS_Xeq("async",         xasync);
              else if TS_Xeq("chksum",        xcksum);
              else if TS_Xeq("diglib",        xdig);
-             else if TS_Xeq("enforce",       xenf);
              else if TS_Xeq("export",        xexp);
              else if TS_Xeq("fslib",         xfsl);
              else if TS_Xeq("fsoverload",    xfso);
@@ -521,6 +520,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("redirect",      xred);
              else if TS_Xeq("seclib",        xsecl);
+             else if TS_Xeq("tls",           xtls);
              else if TS_Xeq("trace",         xtrace);
              else if TS_Xeq("limit",         xlimit);
              else {eDest.Say("Config warning: ignoring unknown directive '",var,"'.");
@@ -866,107 +866,6 @@ int XrdXrootdProtocol::xdig(XrdOucStream &Config)
 // All done
 //
    return 0;
-}
-
-/******************************************************************************/
-/*                                  x e n f                                   */
-/******************************************************************************/
-  
-/* Function: xreq
-
-   Purpose:  To parse the directive: enforce {tls|tlsable} <actions>
-
-             tls       Enforce TLS requirements for all clients.
-             tlsable   Enforce TLS requirements only for TLS capable clients.
-             <actions> are one or more of the following actions that require
-                       the connection be secured using TLS. They may be
-                       prefixed by a minus sign to disable the requirement.
-
-                       all     Requires all of the below.
-                       data    All bound sockets must use TLS
-                       login   Logins and all subsequent requests must use TLS
-                       session All requests after login must use TLS
-                       tpc     Third party copy requests must use TLS
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdXrootdProtocol::xenf(XrdOucStream &Config)
-{
-    static const int Set_TLSAll =
-                     Set_TLSData|Set_TLSLogin|Set_TLSSess|Set_TLSTPC;
-    static struct enforceopts {const char *opname; int opval; int enval;}
-    enfopts[] =
-       {
-        {"all",      kXR_tlsAny,   Set_TLSAll},
-        {"data",     kXR_tlsData,  Set_TLSData},
-        {"login",    kXR_tlsLogin, Set_TLSLogin},
-        {"session",  kXR_tlsSess,  Set_TLSSess},
-        {"tpc",      kXR_tlsTPC,   Set_TLSTPC}
-       };
-    char *val;
-    int i, numopts = sizeof(enfopts)/sizeof(struct enforceopts);
-    bool neg, forall;
-
-    if (!(val = Config.GetWord()))
-       {eDest.Emsg("config", "enforce parameter not specified"); return 1;}
-
-         if (strcmp("tls", val)) forall = true;
-    else if (strcmp("tlsable", val)) forall = false;
-    else {eDest.Emsg("config", "invalid enforce parameter -",val); return 1;}
-
-    if (!(val = Config.GetWord()))
-       {eDest.Emsg("config", "enforce option not specified"); return 1;}
-
-    while (val)
-         {if (!strcmp(val, "off"))
-             {myRole &= ~kXR_tlsAny;
-              if (forall) tlsReq = tlsOld = 0;
-                 else tlsReq = 0;
-             } else {
-              if ((neg = (val[0] == '-' && val[1]))) val++;
-              for (i = 0; i < numopts; i++)
-                  {if (!strcmp(val, enfopts[i].opname))
-                      {if (neg) myRole &= ~enfopts[i].opval;
-                          else  myRole |=  enfopts[i].opval;
-                       if (neg) tlsReq &= ~enfopts[i].enval;
-                          else  tlsReq |=  enfopts[i].enval;
-                       if (forall)
-                          {if (neg) tlsOld &= ~enfopts[i].enval;
-                              else  tlsOld |=  enfopts[i].enval;
-                          }
-                       break;
-                      }
-                  }
-              if (i >= numopts)
-                 {eDest.Emsg("config", "invalid enforce option -", val);
-                  return 1;
-                 }
-             }
-          val = Config.GetWord();
-         }
-
-// If data needs TLS but the session does not, then force session TLS
-//
-   if (myRole & kXR_tlsLogin)
-      {myRole &= ~kXR_tlsSess;
-       tlsReq &= ~Set_TLSSess;
-       tlsOld &= ~Set_TLSSess;
-      } else {
-       if ((myRole & kXR_tlsData) && !(myRole & kXR_tlsSess))
-          {myRole |= kXR_tlsSess;
-           tlsReq |= Set_TLSSess;
-           if (forall) tlsOld |= Set_TLSSess;
-          }
-      }
-
-// If there are any TLS requirement then TLS must have been configured.
-//
-    if (myRole & kXR_tlsAny && !tlsCtx)
-       {eDest.Emsg("config", "Unable to honor requirement; TLS not configured!");
-        return 1;
-       }
-    return 0;
 }
   
 /******************************************************************************/
@@ -1757,6 +1656,110 @@ int XrdXrootdProtocol::xsecl(XrdOucStream &Config)
    if (SecLib) free(SecLib);
    SecLib = strdup(val);
    return 0;
+}
+
+/******************************************************************************/
+/*                                  x t l s                                   */
+/******************************************************************************/
+  
+/* Function: xtls
+
+   Purpose:  To parse the directive: [capable] <reqs>
+
+             capable   Enforce TLS requirements only for TLS capable clients.
+                       Otherwise, TLS is enforced for all clients.
+             <reqs>    are one or more of the following tls requirements. Each
+                       may be prefixed by a minus sign to disable it. Note
+                       this directive is cummalitive.
+
+                       all     Requires all of the below.
+                       data    All bound sockets must use TLS. When specified,
+                               session is implied unless login is specified.
+                       login   Logins and all subsequent requests must use TLS
+                       off     Turns all requirements off (default).
+                       session All requests after login must use TLS
+                       tpc     Third party copy requests must use TLS
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xtls(XrdOucStream &Config)
+{
+    static const int Req_TLSAll = Req_TLSData|Req_TLSLogin|Req_TLSTPC;
+    static struct enforceopts {const char *opname; int opval; int enval;}
+    enfopts[] =
+       {
+        {"all",      kXR_tlsAny,   Req_TLSAll},
+        {"data",     kXR_tlsData,  Req_TLSData},
+        {"login",    kXR_tlsLogin, Req_TLSLogin},
+        {"session",  kXR_tlsSess,  Req_TLSSess},
+        {"tpc",      kXR_tlsTPC,   Req_TLSTPC}
+       };
+    char *val;
+    int i, numopts = sizeof(enfopts)/sizeof(struct enforceopts);
+    bool neg, forall = true;
+
+    if (!(val = Config.GetWord()))
+       {eDest.Emsg("config", "tls parameter not specified"); return 1;}
+
+         if (strcmp("tls", val)) forall = true;
+    if (strcmp("capable", val))
+       {forall = false;
+        if (!(val = Config.GetWord()))
+           {eDest.Emsg("config", "tls requirement not specified"); return 1;}
+       }
+
+    while (val)
+         {if (!strcmp(val, "off"))
+             {myRole &= ~kXR_tlsAny;
+              if (forall) tlsCap = tlsNot = 0;
+                 else tlsCap = 0;
+             } else {
+              if ((neg = (val[0] == '-' && val[1]))) val++;
+              for (i = 0; i < numopts; i++)
+                  {if (!strcmp(val, enfopts[i].opname))
+                      {if (neg) myRole &= ~enfopts[i].opval;
+                          else  myRole |=  enfopts[i].opval;
+                       if (neg) tlsCap &= ~enfopts[i].enval;
+                          else  tlsCap |=  enfopts[i].enval;
+                       if (forall)
+                          {if (neg) tlsNot &= ~enfopts[i].enval;
+                              else  tlsNot |=  enfopts[i].enval;
+                          }
+                       break;
+                      }
+                  }
+              if (i >= numopts)
+                 {eDest.Emsg("config", "Invalid tls requirement -", val);
+                  return 1;
+                 }
+             }
+          val = Config.GetWord();
+         }
+
+// If login specified, turn off session as it doesn't make sense together.
+//
+   if (myRole & kXR_tlsLogin) myRole &= ~kXR_tlsSess;
+   if (tlsCap & Req_TLSLogin) tlsCap &= ~Req_TLSSess;
+   if (tlsNot & Req_TLSLogin) tlsNot &= ~Req_TLSSess;
+
+// If data needs TLS but the session does not, then force session TLS
+//
+   if ((myRole & kXR_tlsData) && !(myRole & (kXR_tlsLogin | kXR_tlsSess)))
+      myRole |= kXR_tlsSess;
+   if ((tlsCap & kXR_tlsData) && !(tlsCap & (Req_TLSLogin | Req_TLSSess)))
+      tlsCap |= Req_TLSSess;
+   if ((tlsNot & kXR_tlsData) && !(tlsNot & (Req_TLSLogin | Req_TLSSess)))
+      tlsNot |= Req_TLSSess;
+
+// If there are any TLS requirements then TLS must have been configured.
+//
+    if (myRole & kXR_tlsAny && !tlsCtx)
+       {eDest.Emsg("config", "Unable to honor TLS requirement; "
+                             "TLS not configured!");
+        return 1;
+       }
+    return 0;
 }
   
 /******************************************************************************/

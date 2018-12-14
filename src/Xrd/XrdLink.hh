@@ -522,6 +522,15 @@ void            armBridge();
 inline bool     hasBridge() const {return isBridged;}
 
 //-----------------------------------------------------------------------------
+//! Determine if this link is using TLS.
+//!
+//! @return true    this link is  using TLS.
+//! @return false   this link not using TLS.
+//-----------------------------------------------------------------------------
+
+inline bool     hasTLS() const {return isTLS;}
+
+//-----------------------------------------------------------------------------
 //! Constructor
 //!
 //! @param  lxq     Reference to the implementation.

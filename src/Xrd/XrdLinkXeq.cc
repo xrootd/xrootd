@@ -807,7 +807,7 @@ bool XrdLinkXeq::setTLS(bool enable)
   
 int XrdLinkXeq::SFError(int rc)
 {
-   Log.Emsg("TLS_Link", rc, "send file to", ID);
+   Log.Emsg("TLS", rc, "send file to", ID);
    return -1;
 }
 
@@ -947,7 +947,7 @@ int XrdLinkXeq::TLS_Error(const char *act, int rc)
    char msg[512];
 
    snprintf(msg, sizeof(msg), "Unable to %s %s;", act, ID);
-   Log.Emsg("TLS_Link", msg, reason.c_str());
+   Log.Emsg("TLS", msg, reason.c_str());
    return -1;
 }
   

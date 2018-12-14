@@ -201,7 +201,7 @@ static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   fsRedirNoEnt(const char *eMsg, char *Cgi, int popt);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
-       void  logLogin(bool xauth=false);
+       bool  logLogin(bool xauth=false);
 static int   mapMode(int mode);
 static void  PidFile();
        void  Reset();
@@ -214,7 +214,6 @@ static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
 static int   xdig(XrdOucStream &Config);
-static int   xenf(XrdOucStream &Config);
 static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
@@ -229,6 +228,7 @@ static bool  xred_php(char *val, char *hP[2], int rPort[2]);
 static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
 static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
 static int   xsecl(XrdOucStream &Config);
+static int   xtls(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
 static int   xlimit(XrdOucStream &Config);
 
@@ -318,13 +318,13 @@ static int    usxMaxNsz;
 static int    usxMaxVsz;
 static char  *usxParms;
 
-static const char Set_TLSData  = 0x01;
-static const char Set_TLSLogin = 0x02;
-static const char Set_TLSSess  = 0x04;
-static const char Set_TLSTPC   = 0x08;
+static const char Req_TLSData  = 0x01;
+static const char Req_TLSLogin = 0x02;
+static const char Req_TLSSess  = 0x04;
+static const char Req_TLSTPC   = 0x08;
 
-static char   tlsReq;    // TLS requirements
-static char   tlsOld;    // TLS requirements for old clients
+static char   tlsCap;    // TLS requirements for capable clients
+static char   tlsNot;    // TLS requirements for incapable clients
 
 // async configuration values
 //
