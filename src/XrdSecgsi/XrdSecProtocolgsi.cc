@@ -3699,12 +3699,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          hs->Chain = 0;
          return -1;
       }
-      // Prepare cipher agreement: get a copy of the reference cipher
-      if (!(sessionKey = sessionCF->Cipher(*(hs->Rcip)))) {
-         cmsg = "cannot get reference cipher";
-         hs->Chain = 0;
-         return -1;
-      }
+      sessionKey = hs->Rcip;
       //
       // Instantiate the session cipher 
       if (!(sessionKey->Finalize(hs->HasPad,bck->buffer,bck->size,cip.c_str()))) {
@@ -3827,6 +3822,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          cmsg = "client public key does not match the one from the bucket!";
          return -1;
       }
+      delete ckey;
    } else {
       // For old clients, set the client public key from the certificate
       sessionKver = ckey;

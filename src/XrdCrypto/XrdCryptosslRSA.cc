@@ -260,6 +260,7 @@ int XrdCryptosslRSA::ImportPublic(const char *pub, int lpub)
    // bytes.
    // Return 0 in case of success, -1 in case of failure
 
+   int rc = -1;
    if (fEVP)
       EVP_PKEY_free(fEVP);
    fEVP = 0;
@@ -281,12 +282,12 @@ int XrdCryptosslRSA::ImportPublic(const char *pub, int lpub)
    // Read pub key from BIO
    if ((keytmp = PEM_read_bio_PUBKEY(bpub, 0, 0, 0))) {
       fEVP = keytmp;
-      BIO_free(bpub);
       // Update status
       status = kPublic;
-      return 0;
+      rc = 0;
    }
-   return -1;
+   BIO_free(bpub);
+   return rc;
 }
 
 //_____________________________________________________________________________
