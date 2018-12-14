@@ -281,6 +281,7 @@ int XrdCryptosslRSA::ImportPublic(const char *pub, int lpub)
    // Read pub key from BIO
    if ((keytmp = PEM_read_bio_PUBKEY(bpub, 0, 0, 0))) {
       fEVP = keytmp;
+      BIO_free(bpub);
       // Update status
       status = kPublic;
       return 0;
