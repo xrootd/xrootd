@@ -3228,24 +3228,6 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
                      <<std::flush;
           }
       }
-/* Below is the original SAN checking code that didn't follow the RFC!
-
-   // First, check the DN against the client-provided hostname.
-   // On failure, we will iterate through the alternate names in the cert.
-   // If that fails, we will do a reverse DNS lookup of the IP address.
-   if (!ServerCertNameOK(hs->Chain->End()->Subject(), Entity.host, emsg) &&
-       !hs->Chain->End()->MatchesSAN(Entity.host, hasSAN)) {
-      if ((expectedHost == NULL) && TrustDNS && Entity.addrInfo) {
-         const char *name = Entity.addrInfo->Name();
-         DEBUG("TrustDNS fallback; checking cert is for host "
-               <<(name ? name : "???"));
-         if ((name == NULL)
-         || !ServerCertNameOK(hs->Chain->End()->Subject(), name, emsg)) {
-               return -1;
-         }
-      } else return -1;
-   }
-*/
 
    //
    // Extract the server key
