@@ -425,6 +425,7 @@ int XrdOfsFile::open(const char          *path,      // In
                         SFS_O_RDONLY - Open file for reading.
                         SFS_O_WRONLY - Open file for writing.
                         SFS_O_RDWR   - Open file for update
+                        SFS_O_NOTPC  - Disallow TPC opens
                         SFS_O_REPLICA- Open file for replication
                         SFS_O_CREAT  - Create the file open in RW mode
                         SFS_O_TRUNC  - Trunc  the file open in RW mode
@@ -535,6 +536,11 @@ int XrdOfsFile::open(const char          *path,      // In
    if (XrdOfsFS->Finder && (retc = XrdOfsFS->Finder->Locate(error, path,
                                                    find_flag, &Open_Env)))
       return XrdOfsFS->fsError(error, retc);
+
+// Preset TPC handling and if not allowed, complain
+//
+   if ((tpcKey = Open_Env.Get(XrdOucTPC::tpcKey)) && (open_flag & SFS_O_NOTPC))
+      return XrdOfsFS->Emsg(epname, error, EPROTOTYPE, "tpc", path);
 
 // Create the file if so requested o/w try to attach the file
 //

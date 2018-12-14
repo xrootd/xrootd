@@ -92,10 +92,11 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "Quota exceeded",             // kXR_overQuota
                     "Invalid signature",          // kXR_SigVerErr
                     "Decryption failed",          // kXR_DecryptErr
-                    "Overloaded",                 // kXR_Overloaded
+                    "Server is overloaded",       // kXR_Overloaded
                     "Filesystem is read only",    // kXR_fsReadOnly
                     "Invalid payload format",     // kXR_BadPayload
                     "File attrbute not found"     // kXR_AttrNotFound
+                    "Operation requires TLS"      // kXR_TLSRequired
                    };
 
 const char *reqNames[kXR_REQFENCE-kXR_auth] =

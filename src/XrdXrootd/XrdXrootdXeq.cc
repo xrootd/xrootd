@@ -209,7 +209,7 @@ int XrdXrootdProtocol::do_Auth()
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
        if (DHS) Protect = DHS->New4Server(*AuthProt,clientPV&XrdOucEI::uVMask);
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
-       logLogin(true);
+       if (!logLogin(true)) return -1;
        return rc;
       }
 
@@ -256,6 +256,11 @@ int XrdXrootdProtocol::do_Bind()
 // Update misc stats count
 //
    SI->Bump(SI->miscCnt);
+
+// Check if binds need to occur on a TLS connection
+//
+   if ((doTLS & Req_TLSData) && !Link->hasTLS())
+      return Response.Send(kXR_TLSRequired, "bind requires TLS");
 
 // Find the link we are to bind to
 //
@@ -787,10 +792,10 @@ int XrdXrootdProtocol::do_Getfile()
 //
    SI->Bump(SI->getfCnt);
 
-// Unmarshall the data
+// Check if getfiles need to occur on a TLS connection
 //
-// gopts  = int(ntohl(Request.getfile.options));
-// buffsz = int(ntohl(Request.getfile.buffsz));
+   if ((doTLS & Req_TLSTPC) && !Link->hasTLS())
+      return Response.Send(kXR_TLSRequired, "getfile requires TLS");
 
    return Response.Send(kXR_Unsupported, "getfile request is not supported");
 }
@@ -869,6 +874,11 @@ int XrdXrootdProtocol::do_Login()
 // Keep Statistics
 //
    SI->Bump(SI->LoginAT);
+
+// Check if login need to occur on a TLS connection
+//
+   if ((doTLS & Req_TLSLogin) && !Link->hasTLS())
+      return Response.Send(kXR_TLSRequired, "login requires TLS");
 
 // Unmarshall the data
 //
@@ -1031,10 +1041,7 @@ int XrdXrootdProtocol::do_Login()
 
 // Document this login
 //
-   if (!(Status & XRD_NEED_AUTH))
-      {Client->ueid = genUEID();
-       logLogin();
-      }
+   if (!(Status & XRD_NEED_AUTH) && !logLogin()) return -1;
    return rc;
 }
 
@@ -1414,6 +1421,10 @@ int XrdXrootdProtocol::do_Open()
    fp->error.setErrCB(&openCB, ReqID.getID());
    fp->error.setUCap(clientPV);
 
+// If TPC opens require TLS but this is not a TLS connection, prohibit TPC
+//
+   if ((doTLS && Req_TLSTPC) && !Link->hasTLS()) openopts|= SFS_O_NOTPC;
+
 // Open the file
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
@@ -1740,16 +1751,16 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
 /*                           d o _ P r o t o c o l                            */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
+int XrdXrootdProtocol::do_Protocol()
 {
    static kXR_int32 verNum = static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION));
    static kXR_int32 theRle = static_cast<kXR_int32>(htonl(myRole));
    static kXR_int32 theRlf = static_cast<kXR_int32>(htonl(myRolf));
+   static kXR_int32 theRlt = static_cast<kXR_int32>(htonl(myRole|kXR_gotoTLS));
 
    ServerResponseBody_Protocol theResp;
-   ServerResponseBody_Protocol *respP = (rsp ? rsp : &theResp);
    int rc, RespLen = kXR_ShortProtRespLen;
-   bool wantTLS = false;
+   bool wantTLS = false, ableTLS = false;
 
 // Keep Statistics
 //
@@ -1763,19 +1774,38 @@ int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
           clientPV = (clientPV & ~XrdOucEI::uVMask) | cvn;
           else cvn = (clientPV &  XrdOucEI::uVMask);
        if (DHS && cvn >= kXR_PROTSIGNVERSION
-       &&  Request.protocol.flags & kXR_secreqs)
-          RespLen += DHS->ProtResp(respP->secreq, *(Link->AddrInfo()), cvn);
-       wantTLS = (Request.protocol.flags & kXR_wantTls) != 0
-            && (myRole & kXR_haveTls) != 0 && rsp == 0;
-       respP->flags = theRle;
+       &&  Request.protocol.flags & ClientProtocolRequest::kXR_secreqs)
+          RespLen += DHS->ProtResp(theResp.secreq, *(Link->AddrInfo()), cvn);
+       if ((myRole & kXR_haveTLS) != 0 && !(Link->hasTLS()))
+          {wantTLS = (Request.protocol.flags &
+                      ClientProtocolRequest::kXR_wantTLS) != 0;
+           ableTLS = wantTLS || (Request.protocol.flags &
+                                 ClientProtocolRequest::kXR_ableTLS) != 0;
+           if (ableTLS) doTLS = tlsCap;
+              else      doTLS = tlsNot;
+           if (ableTLS && !wantTLS)
+              switch(Request.protocol.expect & ClientProtocolRequest::kXR_ExpMask)
+                    {case ClientProtocolRequest::kXR_ExpBind:
+                          wantTLS = (doTLS & Req_TLSData)  != 0;
+                          break;
+                     case ClientProtocolRequest::kXR_ExpLogin:
+                          wantTLS = (doTLS & Req_TLSLogin) != 0;
+                          break;
+                     case ClientProtocolRequest::kXR_ExpTPC:
+                          wantTLS = (doTLS & Req_TLSTPC)   != 0;
+                          break;
+                     default: break;
+                    }
+          }
+       theResp.flags = (wantTLS ? theRlt : theRle);
       } else {
-       respP->flags = theRlf;
+       theResp.flags = theRlf;
+       doTLS = tlsNot;
       }
 
-// Return info
+// Send the response
 //
-   respP->pval = verNum;
-   if (rsp) return RespLen;
+   theResp.pval = verNum;
    rc = Response.Send((void *)&theResp,RespLen);
 
 // If the clientwants to start using TLS, enable it now. If we fail then we
@@ -1783,7 +1813,7 @@ int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
 //
    if (rc == 0 && wantTLS)
       {if (!Link->setTLS(true))
-          {eDest.Emsg("Xeq", "Unable to enable tls for", Link->ID);
+          {eDest.Emsg("Xeq", "Unable to enable TLS for", Link->ID);
            rc = -1;
           }
       }
@@ -1802,10 +1832,10 @@ int XrdXrootdProtocol::do_Putfile()
 //
    SI->Bump(SI->putfCnt);
 
-// Unmarshall the data
+// Check if putfiles need to occur on a TLS connection
 //
-// popts  = int(ntohl(Request.putfile.options));
-// buffsz = int(ntohl(Request.putfile.buffsz));
+   if ((doTLS & Req_TLSTPC) && !Link->hasTLS())
+      return Response.Send(kXR_TLSRequired, "putfile requires TLS");
 
    return Response.Send(kXR_Unsupported, "putfile request is not supported");
 }
@@ -3616,9 +3646,9 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
 /* Private:                     l o g L o g i n                               */
 /******************************************************************************/
   
-void XrdXrootdProtocol::logLogin(bool xauth)
+bool XrdXrootdProtocol::logLogin(bool xauth)
 {
-   const char *uName, *ipName;
+   const char *uName, *ipName, *tMsg;
    char lBuff[512];
 
 // Determine ip type
@@ -3632,18 +3662,30 @@ void XrdXrootdProtocol::logLogin(bool xauth)
    if (xauth) uName = (Client->name ? Client->name : "nobody");
       else    uName = 0;
 
+// Check if TLS was or will be used
+//
+   if (Link->hasTLS()) tMsg = "tls ";
+      else if (doTLS & Req_TLSSess) tMsg = "[tls] ";
+              else tMsg = "";
+
 // Format the line
 //
    sprintf(lBuff, "%s %s %s%slogin%s",
                   (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"), ipName,
-                  (Status   & XRD_ADMINUSER   ? "admin " : ""),
-                  (Link->AddrInfo()->isUsingTLS()
-                                              ? "tls "   : ""),
+                  (Status   & XRD_ADMINUSER   ? "admin " : ""), tMsg,
                   (xauth                      ? " as"    : ""));
 
 // Document the login
 //
    eDest.Log(SYS_LOG_01, "Xeq", Link->ID, lBuff, uName);
+
+// Enable TLS if we need to (note sess setting is off is login setting is on)
+//
+   if ((doTLS & Req_TLSSess) && !Link->setTLS(true))
+      {eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
+       return false;
+      }
+   return true;
 }
 
 /******************************************************************************/
