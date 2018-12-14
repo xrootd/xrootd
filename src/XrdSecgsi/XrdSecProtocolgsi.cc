@@ -121,7 +121,12 @@ static const char *gGSErrStr[] = {
 
 // One day in secs
 static const int kOneDay = 86400; 
+// Default proxy location template
 static const char *gUsrPxyDef = "/tmp/x509up_u";
+// Tag for pad support
+static const char *gNoPadTag = "nopad";
+// static const char *gPadTag = "&pad";
+
 
 /******************************************************************************/
 /*                     S t a t i c   C l a s s   D a t a                      */
@@ -258,6 +263,7 @@ void gsiHSVars::Dump(XrdSecProtocolgsi *p)
    PRINT("Crypto mod:          "<<CryptoMod);
    PRINT("Remote version:      "<<RemVers);
    PRINT("Ref cipher:          "<<Rcip);
+   PRINT("Cipher padding:      "<<HasPad);
    PRINT("Bucket for exp cert: "<<Cbck);
    PRINT("Handshake ID:        "<<ID);
    PRINT("Cache reference:     "<<Cref);
@@ -569,15 +575,16 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          DefCrypto = opt.clist;
       //
       // List of crypto modules
-      String cryptlist(DefCrypto,0,-1,64);
+      String cryptlist;
+      String crypts(DefCrypto,0,-1,64);
       // 
       // Load crypto modules
       XrdSutPFEntry ent;
       XrdCryptoFactory *cf = 0;
-      if (cryptlist.length()) {
+      if (crypts.length()) {
          String ncpt = "";
          int from = 0;
-         while ((from = cryptlist.tokenize(ncpt, from, '|')) != -1) {
+         while ((from = crypts.tokenize(ncpt, from, '|')) != -1) {
             if (ncpt.length() > 0 && ncpt[0] != '-') {
                // Try loading 
                if ((cf = XrdCryptoFactory::GetCryptoFactory(ncpt.c_str()))) {
@@ -592,7 +599,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                      PRINT("ref cipher for module "<<ncpt<<
                            " cannot be instantiated : disable");
                      from -= ncpt.length();
-                     cryptlist.erase(ncpt);
                   } else {
                      ncrypt++;
                      if (ncrypt >= XrdCryptoMax) {
@@ -600,12 +606,14 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                               << XrdCryptoMax <<") reached ");
                         break;
                      }
+                     if (cryptlist.length()) cryptlist += ":";
+                     cryptlist += ncpt;
+                     if (!cf->HasPaddingSupport()) cryptlist += gNoPadTag;
                   }
                } else {
                   PRINT("cannot instantiate crypto factory "<<ncpt<<
                            ": disable");
                   from -= ncpt.length();
-                  cryptlist.erase(ncpt);
                }
             }
          }
@@ -1406,7 +1414,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    const char *stepstr = 0;
    char *bpub = 0;
    int lpub = 0;
-   String CryptList = "";
+   String CryptoMod = "";
    String Host = "";
    String RemID = "";
    String Emsg;
@@ -1477,7 +1485,9 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       //
       // Add bucket with cryptomod to the global list
       // (This must be always visible from now on)
-      if (bpar->AddBucket(hs->CryptoMod,kXRS_cryptomod) != 0)
+      CryptoMod = hs->CryptoMod;
+      if (hs->RemVers >= XrdSecgsiVersDHsigned && !(hs->HasPad)) CryptoMod =+ gNoPadTag;
+      if (bpar->AddBucket(CryptoMod,kXRS_cryptomod) != 0)
          return ErrC(ei,bpar,bmai,0,
               kGSErrCreateBucket,XrdSutBuckStr(kXRS_cryptomod),stepstr);
       //
@@ -1716,6 +1726,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    const char *stepstr = 0;
    String Message;
    String CryptList;
+   String Ciphers;
    String Host;
    String SrvPuKExp;
    String Salt;
@@ -1788,10 +1799,10 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       if (!(bpub = hs->Rcip->Public(lpub))) 
          return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrNoPublic,
                                          "session",stepstr);
-      bck = new XrdSutBucket(bpub,lpub,kXRS_puk);
 
       // If client supports decoding of signed DH, do sign them
       if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+         bck = new XrdSutBucket(bpub,lpub,kXRS_cipher);
          if (sessionKsig) {
             //
             // Encrypt server DH public parameters with server key
@@ -1802,6 +1813,9 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrExportPuK,
                                  "server signing key undefined!",stepstr);
          }
+      } else {
+         // Previous naming
+         bck = new XrdSutBucket(bpub,lpub,kXRS_puk);
       }
 
       //
@@ -3111,9 +3125,14 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
                break;
          cip = "";
       }
-      if (cip.length() > 0)
-         // COmmunicate to server
-         br->UpdateBucket(cip, kXRS_cipher_alg);
+      // Must have a common cipher algorithm
+      if (cip.length() <= 0) {
+         emsg = "no common cipher algorithm";
+         hs->Chain = 0;
+         return -1;
+      }
+      // Communicate to server
+      br->UpdateBucket(cip, kXRS_cipher_alg);
    } else {
       NOTIFY("WARNING: list of ciphers supported by server missing"
             " - using default");
@@ -3209,24 +3228,6 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
                      <<std::flush;
           }
       }
-/* Below is the original SAN checking code that didn't follow the RFC!
-
-   // First, check the DN against the client-provided hostname.
-   // On failure, we will iterate through the alternate names in the cert.
-   // If that fails, we will do a reverse DNS lookup of the IP address.
-   if (!ServerCertNameOK(hs->Chain->End()->Subject(), Entity.host, emsg) &&
-       !hs->Chain->End()->MatchesSAN(Entity.host, hasSAN)) {
-      if ((expectedHost == NULL) && TrustDNS && Entity.addrInfo) {
-         const char *name = Entity.addrInfo->Name();
-         DEBUG("TrustDNS fallback; checking cert is for host "
-               <<(name ? name : "???"));
-         if ((name == NULL)
-         || !ServerCertNameOK(hs->Chain->End()->Subject(), name, emsg)) {
-               return -1;
-         }
-      } else return -1;
-   }
-*/
 
    //
    // Extract the server key
@@ -3235,24 +3236,34 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       emsg = "server certificate contains an invalid key";
       return -1;
    }
-
-   // move this part to here, after sessionKver set, in order to verify the signature of DH parameters
-   // Extract server public part for session cipher
-   if (!(bck = br->GetBucket(kXRS_puk))) {
-      emsg = "server public part for session cipher missing";
-      hs->Chain = 0;
-      return -1;
-   }
+   // Move next part to here, after sessionKver set, in order to
+   // verify the signature of DH parameters
 
    //
    // If client supports decoding of signed DH, do sign them
    if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+
+      // Extract server public part for session cipher
+      if (!(bck = br->GetBucket(kXRS_cipher))) {
+         emsg = "server public part for session cipher missing";
+         hs->Chain = 0;
+         return -1;
+      }
+
       // Encrypt server DH public parameters with server key
       if (sessionKver->DecryptPublic(*bck) <= 0) {
          emsg = "decrypting server DH public parameters";
          return -1;
       }
    } else {
+
+      // Extract server public part for session cipher
+      if (!(bck = br->GetBucket(kXRS_puk))) {
+         emsg = "server public part for session cipher missing";
+         hs->Chain = 0;
+         return -1;
+      }
+
       // If the server doesn't provide signed DH parameter, disable proxy delegation
       if (hs->Options & (kOptsFwdPxy | kOptsSigReq)) {
          hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
@@ -3265,7 +3276,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Initialize session cipher
    SafeDelete(sessionKey);
    if (!(sessionKey =
-         sessionCF->Cipher(0,bck->buffer,bck->size,cip.c_str()))) {
+         sessionCF->Cipher(hs->HasPad, 0,bck->buffer,bck->size,cip.c_str())) || !(sessionKey->IsValid())) {
       PRINT("could not instantiate session cipher "
             "using cipher public info from server");
       emsg = "could not instantiate session cipher ";
@@ -3273,7 +3284,11 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
 
    // Deactivate what not needed any longer
-   br->Deactivate(kXRS_puk);
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      br->Deactivate(kXRS_cipher);
+   } else {
+      br->Deactivate(kXRS_puk);
+   }
    br->Deactivate(kXRS_x509);
 
    //
@@ -3513,6 +3528,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
       cmsg += cmod;
       return -1;
    }
+
    //
    // Get version run by client, if there
    if (br->UnmarshalBucket(kXRS_version,hs->RemVers) != 0) {
@@ -3665,15 +3681,10 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          hs->Chain = 0;
          return -1;
       }
-      // Prepare cipher agreement: get a copy of the reference cipher
-      if (!(sessionKey = sessionCF->Cipher(*(hs->Rcip)))) {
-         cmsg = "cannot get reference cipher";
-         hs->Chain = 0;
-         return -1;
-      }
+      sessionKey = hs->Rcip;
       //
       // Instantiate the session cipher 
-      if (!(sessionKey->Finalize(bck->buffer,bck->size,cip.c_str()))) {
+      if (!(sessionKey->Finalize(hs->HasPad,bck->buffer,bck->size,cip.c_str()))) {
          cmsg = "cannot finalize session cipher";
          hs->Chain = 0;
          return -1;
@@ -3793,6 +3804,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          cmsg = "client public key does not match the one from the bucket!";
          return -1;
       }
+      delete ckey;
    } else {
       // For old clients, set the client public key from the certificate
       sessionKver = ckey;
@@ -4878,11 +4890,22 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
       // Check this module
       if (hs->CryptoMod.length() > 0) {
          DEBUG("found module: "<<hs->CryptoMod);
+         // Padding support?
+         bool otherHasPad = true;
+         if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+            if (hs->CryptoMod.endswith(gNoPadTag)) {
+               otherHasPad = false;
+               hs->CryptoMod.replace(gNoPadTag, "");
+            }
+         } else {
+            otherHasPad = false;
+         }
          // Load the crypto factory
          if ((sessionCF = 
               XrdCryptoFactory::GetCryptoFactory(hs->CryptoMod.c_str()))) {
             sessionCF->SetTrace(GSITrace->What);
             if (QTRACE(Debug)) sessionCF->Notify();
+            if (otherHasPad && sessionCF->HasPaddingSupport()) hs->HasPad = 1;
             int fid = sessionCF->ID();
             int i = 0;
             // Retrieve the index in local table
@@ -4902,7 +4925,11 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
                }
             }
             // On servers the ref cipher should be defined at this point
+#if 0
             hs->Rcip = refcip[i];
+#else
+            hs->Rcip = sessionCF->Cipher(hs->HasPad, 0,0,0);
+#endif
             // we are done
             return 0;
          }

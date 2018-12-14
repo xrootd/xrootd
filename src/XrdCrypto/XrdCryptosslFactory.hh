@@ -62,11 +62,13 @@ public:
 
    // Cipher constructors
    bool SupportedCipher(const char *t);
+   bool HasPaddingSupport();
    XrdCryptoCipher *Cipher(const char *t, int l = 0);
    XrdCryptoCipher *Cipher(const char *t, int l, const char *k,
                                           int liv, const char *iv);
    XrdCryptoCipher *Cipher(XrdSutBucket *b);
    XrdCryptoCipher *Cipher(int bits, char *pub, int lpub, const char *t = 0);
+   XrdCryptoCipher *Cipher(bool padded, int bits, char *pub, int lpub, const char *t = 0);
    XrdCryptoCipher *Cipher(const XrdCryptoCipher &c);
 
    // MsgDigest constructors

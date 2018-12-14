@@ -67,12 +67,14 @@ public:
    XrdCryptosslCipher(const char *t, int l, const char *k,
                                      int liv, const char *iv);
    XrdCryptosslCipher(XrdSutBucket *b);
-   XrdCryptosslCipher(int len, char *pub, int lpub, const char *t);
+   XrdCryptosslCipher(bool padded, int len, char *pub, int lpub, const char *t);
+   XrdCryptosslCipher(int len, char *pub, int lpub, const char *t)
+                     : XrdCryptosslCipher(false,len,pub,lpub,t) { }
    XrdCryptosslCipher(const XrdCryptosslCipher &c);
    virtual ~XrdCryptosslCipher();
 
    // Finalize key computation (key agreement)
-   bool Finalize(char *pub, int lpub, const char *t);
+   bool Finalize(bool padded, char *pub, int lpub, const char *t);
    void Cleanup();
 
    // Validity

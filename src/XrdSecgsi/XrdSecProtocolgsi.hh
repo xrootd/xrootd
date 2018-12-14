@@ -489,11 +489,12 @@ private:
 
 class gsiHSVars {
 public:
-   int               Iter;          // iteration number
+   int               Iter;          // Iteration number
    time_t            TimeStamp;     // Time of last call
-   String            CryptoMod;     // crypto module in use
+   String            CryptoMod;     // Crypto module in use
    int               RemVers;       // Version run by remote counterpart
-   XrdCryptoCipher  *Rcip;          // reference cipher
+   XrdCryptoCipher  *Rcip;          // Reference cipher
+   bool              HasPad;        // Whether padding is supported
    XrdSutBucket     *Cbck;          // Bucket with the certificate in export form
    String            ID;            // Handshake ID (dummy for clients)
    XrdSutPFEntry    *Cref;          // Cache reference
@@ -509,7 +510,7 @@ public:
    XrdSutBuffer     *Parms;         // Buffer with server parms on first iteration 
 
    gsiHSVars() { Iter = 0; TimeStamp = -1; CryptoMod = "";
-                 RemVers = -1; Rcip = 0;
+                 RemVers = -1; Rcip = 0; HasPad = 0;
                  Cbck = 0;
                  ID = ""; Cref = 0; Pent = 0; Chain = 0; Crl = 0; PxyChain = 0;
                  RtagOK = 0; Tty = 0; LastStep = 0; Options = 0; HashAlg = 0; Parms = 0;}

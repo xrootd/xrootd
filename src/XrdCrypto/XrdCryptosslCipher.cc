@@ -40,6 +40,7 @@
 //#include <openssl/dsa.h>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
+#include <openssl/dh.h>
 
 // ---------------------------------------------------------------------------//
 //
@@ -129,6 +130,22 @@ static int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
         d->priv_key = priv_key;
     }
     return 1;
+}
+#endif
+
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+static int DH_compute_key_padded(unsigned char *key, const BIGNUM *pub_key, DH *dh)
+{
+    int rv, pad;
+    rv = dh->meth->compute_key(key, pub_key, dh);
+    if (rv <= 0)
+        return rv;
+    pad = BN_num_bytes(dh->p) - rv;
+    if (pad > 0) {
+        memmove(key + pad, key, rv);
+        memset(key, 0, pad);
+    }
+    return rv + pad;
 }
 #endif
 
@@ -432,7 +449,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
 }
 
 //____________________________________________________________________________
-XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
+XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
                                        int lpub, const char *t)
 {
    // Constructor for key agreement.
@@ -516,9 +533,12 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
                      ktmp = new char[DH_size(fDH)];
                      memset(ktmp, 0, DH_size(fDH));
                      if (ktmp) {
-                        if ((ltmp = DH_compute_key((unsigned char *)ktmp,
-                                                    bnpub,fDH)) > 0)
-                           valid = 1;
+                        if (padded) {
+                           ltmp = DH_compute_key_padded((unsigned char *)ktmp,bnpub,fDH);
+                        } else {
+                           ltmp = DH_compute_key((unsigned char *)ktmp,bnpub,fDH);
+                        }
+                        if (ltmp > 0) valid = 1;
                      }
                   }
                }
@@ -650,7 +670,8 @@ void XrdCryptosslCipher::Cleanup()
 }
 
 //____________________________________________________________________________
-bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
+bool XrdCryptosslCipher::Finalize(bool padded,
+                                  char *pub, int /*lpub*/, const char *t)
 {
    // Finalize cipher during key agreement. Should be called
    // for a cipher build with special constructor defining member fDH.
@@ -686,9 +707,12 @@ bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
          ktmp = new char[DH_size(fDH)];
          memset(ktmp, 0, DH_size(fDH));
          if (ktmp) {
-            if ((ltmp =
-                 DH_compute_key((unsigned char *)ktmp,bnpub,fDH)) > 0)
-               valid = 1;
+            if (padded) {
+               ltmp = DH_compute_key_padded((unsigned char *)ktmp,bnpub,fDH);
+            } else {
+               ltmp = DH_compute_key((unsigned char *)ktmp,bnpub,fDH);
+            }
+            if (ltmp > 0) valid = 1;
          }
          BN_free(bnpub);
          bnpub=0;

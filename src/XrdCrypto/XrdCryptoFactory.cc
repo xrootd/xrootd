@@ -110,6 +110,15 @@ bool XrdCryptoFactory::SupportedCipher(const char *)
 }
 
 //______________________________________________________________________________
+bool XrdCryptoFactory::HasPaddingSupport()
+{
+   // Returns true id specified cipher is supported by the implementation
+
+   ABSTRACTMETHOD("XrdCryptoFactory::PaddingSupport");
+   return 0;
+}
+
+//______________________________________________________________________________
 XrdCryptoCipher *XrdCryptoFactory::Cipher(const char *, int)
 {
    // Return an instance of an implementation of XrdCryptoCipher.
@@ -130,6 +139,15 @@ XrdCryptoCipher *XrdCryptoFactory::Cipher(const char *, int, const char *,
 
 //______________________________________________________________________________
 XrdCryptoCipher *XrdCryptoFactory::Cipher(XrdSutBucket *)
+{
+   // Return an instance of an implementation of XrdCryptoCipher.
+
+   ABSTRACTMETHOD("XrdCryptoFactory::Cipher");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoCipher *XrdCryptoFactory::Cipher(bool, int, char *, int, const char *)
 {
    // Return an instance of an implementation of XrdCryptoCipher.
 

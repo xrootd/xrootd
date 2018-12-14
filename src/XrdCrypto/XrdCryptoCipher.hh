@@ -51,7 +51,9 @@ public:
    virtual ~XrdCryptoCipher() {}
 
    // Finalize key computation (key agreement)
-   virtual bool Finalize(char *pub, int lpub, const char *t);
+   virtual bool Finalize(bool padded, char *pub, int lpub, const char *t);
+   bool Finalize(char *pub, int lpub, const char *t)
+               { return Finalize(false, pub, lpub, t); }
 
    // Validity
    virtual bool IsValid();
