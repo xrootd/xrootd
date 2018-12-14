@@ -1486,7 +1486,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       // Add bucket with cryptomod to the global list
       // (This must be always visible from now on)
       CryptoMod = hs->CryptoMod;
-      if (hs->RemVers >= XrdSecgsiVersDHsigned && !(hs->HasPad)) CryptoMod =+ gNoPadTag;
+      if (hs->RemVers >= XrdSecgsiVersDHsigned && !(hs->HasPad)) CryptoMod += gNoPadTag;
       if (bpar->AddBucket(CryptoMod,kXRS_cryptomod) != 0)
          return ErrC(ei,bpar,bmai,0,
               kGSErrCreateBucket,XrdSutBuckStr(kXRS_cryptomod),stepstr);
@@ -3509,6 +3509,16 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    XrdSutBucket *bckm = 0;
 
    //
+   // Get version run by client, if there
+   if (br->UnmarshalBucket(kXRS_version,hs->RemVers) != 0) {
+      hs->RemVers = Version;
+      cmsg = "client version information not found in options:"
+             " assume same as local";
+   } else {
+      br->Deactivate(kXRS_version);
+   }
+
+   //
    // Extract the main buffer 
    if (!(bckm = br->GetBucket(kXRS_main))) {
       cmsg = "main buffer missing";
@@ -3527,16 +3537,6 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
       cmsg = "cannot find / load crypto requested module :";
       cmsg += cmod;
       return -1;
-   }
-
-   //
-   // Get version run by client, if there
-   if (br->UnmarshalBucket(kXRS_version,hs->RemVers) != 0) {
-      hs->RemVers = Version;
-      cmsg = "client version information not found in options:"
-             " assume same as local";
-   } else {
-      br->Deactivate(kXRS_version);
    }
    //
    // Extract bucket with client issuer hash
@@ -4925,11 +4925,7 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
                }
             }
             // On servers the ref cipher should be defined at this point
-#if 0
-            hs->Rcip = refcip[i];
-#else
             hs->Rcip = sessionCF->Cipher(hs->HasPad, 0,0,0);
-#endif
             // we are done
             return 0;
          }
