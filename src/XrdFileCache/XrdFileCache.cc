@@ -165,7 +165,8 @@ Cache::Cache(XrdSysLogger *logger) :
    m_RAMblocks_used(0),
    m_isClient(false),
    m_in_purge(false),
-   m_active_cond(0)
+   m_active_cond(0),
+   m_fs_state(0)
 {
    // Default log level is Warning.
    m_trace->What = 2;
@@ -176,7 +177,7 @@ Cache::Cache(XrdSysLogger *logger) :
 
 XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 {
-   // XXXX Make sure we reject access to .cinfo and .crrd files.
+   // XXX Reject access to .cinfo files.
    // Unless there is an easy way to serve them in some other way, i.e.,
    // not through the cache. Probably need to write a separate IO.
 
@@ -489,11 +490,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
 
       if (m_configuration.are_dirstats_enabled())
       {
-         // XXXX truncate those, too, to maxdepth, dirstat_path!
-         // find, if found, add up. no need for per file data.
-
-         // XXXX uncomment once thjose are being processed
-         // m_closed_files_stats.insert(std::make_pair(f->GetLocalPath(), f->DeltaStatsFromLastCall()));
+         m_closed_files_stats.insert(std::make_pair(f->GetLocalPath(), f->DeltaStatsFromLastCall()));
       }
       delete f;
    }
@@ -713,7 +710,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
 {
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + ".cinfo";
+   std::string i_name = f_name + Info::s_infoExtension;
 
    // Intercept xrdpfc_command requests.
    if (m_configuration.m_allow_xrdpfc_command && strncmp("/xrdpfc_command/", f_name.c_str(), 16) == 0)

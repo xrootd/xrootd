@@ -45,11 +45,14 @@ namespace XrdFileCache
 {
 class File;
 class IO;
+
+class DataFsState;
 }
 
 
 namespace XrdFileCache
 {
+
 //----------------------------------------------------------------------------
 //! Contains parameters configurable from the xrootd config file.
 //----------------------------------------------------------------------------
@@ -123,6 +126,8 @@ struct Configuration
    long long m_flushCnt;                //!< nuber of unsynced blcoks on disk before flush is called
 };
 
+//------------------------------------------------------------------------------
+
 struct TmpConfiguration
 {
    std::string m_diskUsageLWM;
@@ -137,6 +142,8 @@ struct TmpConfiguration
       m_flushRaw("100")
    {}
 };
+
+//==============================================================================
 
 struct SplitParser
 {
@@ -155,11 +162,18 @@ struct SplitParser
       if (first) { first = false; return strtok_r(str, delim, &state); }
       else       { return strtok_r(0, delim, &state); }
    }
-   char* get_reminder()
+
+   char* get_reminder_with_delim()
    {
       if (first) { return str; }
       else       { *(state - 1) = delim[0]; return state - 1; }
    }
+
+   char *get_reminder()
+   {
+      return first ? str : state;
+   }
+
    int fill_argv(std::vector<char*> &argv)
    {
       if (!first) return 0;
@@ -182,20 +196,45 @@ struct PathTokenizer : private SplitParser
 {
    std::vector<const char*>  m_dirs;
    const char               *m_reminder;
+   int                       m_n_dirs;
 
-   PathTokenizer(const std::string &path, int max_depth) :
+   PathTokenizer(const std::string &path, int max_depth, bool parse_as_lfn) :
       SplitParser(path, "/"),
       m_reminder (0)
    {
-      m_dirs.reserve(max_depth + 1);
+      // If parse_as_lfn is true store final token into reminder, regardless of maxdepth.
+      // This assumes the last token is a file name (and full path if lfn, including the file name).
 
-      for (int i = 0; i <= max_depth; ++i)
+      m_dirs.reserve(max_depth);
+
+      char *t;
+      for (int i = 0; i < max_depth; ++i)
       {
-         char *t = get_token();
+         t = get_token();
          if (t == 0) break;
          m_dirs.emplace_back(t);
       }
-      m_reminder = get_reminder();
+      if (parse_as_lfn && (t == 0 || * get_reminder() == 0))
+      {
+         m_reminder = m_dirs.back();
+         m_dirs.pop_back();
+      }
+      else
+      {
+         m_reminder = get_reminder();
+      }
+      m_n_dirs = (int) m_dirs.size();
+   }
+
+   int get_n_dirs()
+   {
+      return m_n_dirs;
+   }
+
+   const char *get_dir(int pos)
+   {
+      if (pos >= m_n_dirs) return 0;
+      return m_dirs[pos];
    }
 
    std::string make_path()
@@ -213,8 +252,22 @@ struct PathTokenizer : private SplitParser
       }
       return res;
    }
+
+   void deboog()
+   {
+      printf("PathTokenizer::deboog size=%d\n", m_n_dirs);
+      for (int i = 0; i < m_n_dirs; ++i)
+      {
+         printf("   %2d: %s\n", i, m_dirs[i]);
+      }
+      printf("  rem: %s\n", m_reminder);
+   }
 };
 
+
+//==============================================================================
+// Cache
+//==============================================================================
 
 //----------------------------------------------------------------------------
 //! Attaches/creates and detaches/deletes cache-io objects for disk based cache.
@@ -407,6 +460,11 @@ private:
    // prefetching
    typedef std::vector<File*>  PrefetchList;
    PrefetchList m_prefetchList;
+
+   // directory state for access / usage info and quotas
+   DataFsState *m_fs_state;
+
+   void copy_out_active_stats_and_update_data_fs_state();
 };
 
 }
