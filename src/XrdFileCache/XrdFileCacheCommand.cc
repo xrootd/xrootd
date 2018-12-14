@@ -162,7 +162,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          return;
       }
 
-      std::string file_path (cp.get_reminder());
+      std::string file_path (cp.get_reminder_with_delim());
       std::string cinfo_path(file_path + Info::s_infoExtension);
 
       TRACE(Debug, err_prefix << "Command arguments parsed successfully. Proceeding to create file " << file_path);

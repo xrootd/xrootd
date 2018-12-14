@@ -168,7 +168,8 @@ Cache::Cache(XrdSysLogger *logger) :
    m_RAMblocks_used(0),
    m_isClient(false),
    m_in_purge(false),
-   m_active_cond(0)
+   m_active_cond(0),
+   m_fs_state(0)
 {
    // Default log level is Warning.
    m_trace->What = 2;
@@ -572,11 +573,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
 
         if (m_configuration.are_dirstats_enabled())
         {
-           // XXXX truncate those, too, to maxdepth, dirstat_path!
-           // find, if found, add up. no need for per file data.
-
-           // XXXX uncomment once thjose are being processed
-           // m_closed_files_stats.insert(std::make_pair(f->GetLocalPath(), f->DeltaStatsFromLastCall()));
+           m_closed_files_stats.insert(std::make_pair(f->GetLocalPath(), f->DeltaStatsFromLastCall()));
         }
 
         delete f;

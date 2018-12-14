@@ -215,18 +215,7 @@ public:
    void StopPrefetchingOnIO(IO *io);
    void RemoveIO(IO *io);
 
-   // XXXX To be moved to .cc, maybe.
-   // Expect this does not need to be locked as it is only called from purge and close/dtor.
-   Stats DeltaStatsFromLastCall()
-   {
-      Stats delta = m_last_stats;
-
-      m_last_stats = m_stats.Clone();
-
-      delta.DeltaToReference(m_last_stats);
-
-      return delta;
-   }
+   Stats DeltaStatsFromLastCall();
 
    // These three methods are called under Cache's m_active lock
    int get_ref_cnt() { return   m_ref_cnt; }

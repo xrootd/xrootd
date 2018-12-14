@@ -94,11 +94,7 @@ public:
 
    void DeltaToReference(const Stats& ref)
    {
-      // Not locked, only used from Cache in predictable.
-      // Hmmh, and from close / destroy when pushing out the final update.
-      // This could be ok, if file is taken out of active map before close/delete.
-      // XXXX Resolve this when actual usage known.
-
+      // Not locked, only used from Cache / Purge thread.
       m_NumIos        = ref.m_NumIos        - m_NumIos;
       m_Duration      = ref.m_Duration      - m_Duration;
       m_BytesHit      = ref.m_BytesHit      - m_BytesHit;
@@ -109,13 +105,24 @@ public:
 
    void AddUp(const Stats& s)
    {
-      // Not locked, only used from Cache.
+      // Not locked, only used from Cache / Purge thread.
       m_NumIos        += s.m_NumIos;
       m_Duration      += s.m_Duration;
       m_BytesHit      += s.m_BytesHit;
       m_BytesMissed   += s.m_BytesMissed;
       m_BytesBypassed += s.m_BytesBypassed;
       m_BytesWritten  += s.m_BytesWritten;
+   }
+
+   void Reset()
+   {
+      // Not locked, only used from Cache / Purge thread.
+      m_NumIos        = 0;
+      m_Duration      = 0;
+      m_BytesHit      = 0;
+      m_BytesMissed   = 0;
+      m_BytesBypassed = 0;
+      m_BytesWritten  = 0;
    }
 
 private:

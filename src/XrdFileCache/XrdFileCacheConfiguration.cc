@@ -495,7 +495,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
             p = cwg.GetWord();
             if (p && p[0] == '/')
             {
-               // XXXX -- should we just store them as sets of PathTokenizer objects, not strings?
+               // XXX -- should we just store them as sets of PathTokenizer objects, not strings?
 
                char d[1024]; d[0] = 0;
                int  depth = 0;

@@ -133,6 +133,22 @@ void File::initiate_emergency_shutdown()
          cache()->DeRegisterPrefetchFile(this);
       }
    }
+
+}
+
+//------------------------------------------------------------------------------
+
+Stats File::DeltaStatsFromLastCall()
+{
+   // Not locked, only used from Cache / Purge thread.
+
+   Stats delta = m_last_stats;
+
+   m_last_stats = m_stats.Clone();
+
+   delta.DeltaToReference(m_last_stats);
+
+   return delta;
 }
 
 //------------------------------------------------------------------------------
