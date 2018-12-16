@@ -68,8 +68,6 @@ public:
                                      int liv, const char *iv);
    XrdCryptosslCipher(XrdSutBucket *b);
    XrdCryptosslCipher(bool padded, int len, char *pub, int lpub, const char *t);
-   XrdCryptosslCipher(int len, char *pub, int lpub, const char *t)
-                     : XrdCryptosslCipher(false,len,pub,lpub,t) { }
    XrdCryptosslCipher(const XrdCryptosslCipher &c);
    virtual ~XrdCryptosslCipher();
 
