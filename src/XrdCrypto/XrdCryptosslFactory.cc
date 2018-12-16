@@ -188,10 +188,10 @@ bool XrdCryptosslFactory::SupportedCipher(const char *t)
 bool XrdCryptosslFactory::HasPaddingSupport()
 {
    // Returns true if cipher padding is supported
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
-   return false;
-#else
+#if defined(HAVE_DH_PADDED)
    return true;
+#else
+   return false;
 #endif
 }
 
