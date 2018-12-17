@@ -133,7 +133,10 @@ static int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
 }
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#if !defined(HAVE_DH_PADDED)
+#if defined(HAVE_DH_PADDED_FUNC)
+int DH_compute_key_padded(unsigned char *, const BIGNUM *, DH *);
+#else
 static int DH_compute_key_padded(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 {
     int rv, pad;
@@ -147,6 +150,7 @@ static int DH_compute_key_padded(unsigned char *key, const BIGNUM *pub_key, DH *
     }
     return rv + pad;
 }
+#endif
 #endif
 
 //_____________________________________________________________________________

@@ -81,3 +81,16 @@ check_symbol_exists(
 if( HAVE_TLS1_FUNC AND HAVE_TLS1_SYMB )
     add_definitions( -DHAVE_TLS1 )
 endif()
+
+check_function_exists(DH_compute_key_padded HAVE_DH_PADDED_FUNC)
+check_symbol_exists(
+        DH_compute_key_padded
+        ${OPENSSL_INCLUDE_DIR}/openssl/dh.h 
+    HAVE_DH_PADDED_SYMB)
+if( HAVE_DH_PADDED_FUNC)
+   if( HAVE_DH_PADDED_SYMB )
+     add_definitions( -DHAVE_DH_PADDED )
+   else()
+     add_definitions( -DHAVE_DH_PADDED_FUNC )
+   endif()
+endif()
