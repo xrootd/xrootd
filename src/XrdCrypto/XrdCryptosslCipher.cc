@@ -133,6 +133,26 @@ static int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
 }
 #endif
 
+#if !defined(HAVE_DH_PADDED)
+#if defined(HAVE_DH_PADDED_FUNC)
+int DH_compute_key_padded(unsigned char *, const BIGNUM *, DH *);
+#else
+static int DH_compute_key_padded(unsigned char *key, const BIGNUM *pub_key, DH *dh)
+{
+    int rv, pad;
+    rv = dh->meth->compute_key(key, pub_key, dh);
+    if (rv <= 0)
+        return rv;
+    pad = BN_num_bytes(dh->p) - rv;
+    if (pad > 0) {
+        memmove(key + pad, key, rv);
+        memset(key, 0, pad);
+    }
+    return rv + pad;
+}
+#endif
+#endif
+
 //_____________________________________________________________________________
 bool XrdCryptosslCipher::IsSupported(const char *cip)
 {
