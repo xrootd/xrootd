@@ -18,6 +18,40 @@
 using namespace Macaroons;
 
 
+char *unquote(const char *str) {
+  int l = strlen(str);
+  char *r = (char *) malloc(l + 1);
+  r[0] = '\0';
+  int i, j = 0;
+
+  for (i = 0; i < l; i++) {
+
+    if (str[i] == '%') {
+      char savec[3];
+      if (l <= i + 3) {
+        free(r);
+        return NULL;
+      }
+      savec[0] = str[i + 1];
+      savec[1] = str[i + 2];
+      savec[2] = '\0';
+
+      r[j] = strtol(savec, 0, 16);
+
+      i += 2;
+    } else if (str[i] == '+') r[j] = ' ';
+    else r[j] = str[i];
+
+    j++;
+  }
+
+  r[j] = '\0';
+
+  return r;
+
+}
+
+
 static
 ssize_t determine_validity(const std::string& input)
 {
