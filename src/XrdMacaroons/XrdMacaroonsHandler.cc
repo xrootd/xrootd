@@ -312,24 +312,22 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     }
     json_object_put(caveats_obj);
 
-    return GenerateMacaroonResponse(req, req.resource, other_caveats, validity);
+    return GenerateMacaroonResponse(req, req.resource, other_caveats, validity, false);
 }
 
 
 int
 Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resource,
-    const std::vector<std::string> &other_caveats, ssize_t validity)
+    const std::vector<std::string> &other_caveats, ssize_t validity, bool oauth_response)
 {
     time_t now;
     time(&now);
     if (m_max_duration > 0)
     {
-        now += (validity > m_max_duration) ? m_max_duration : validity;
+        validity = (validity > m_max_duration) ? m_max_duration : validity;
     }
-    else
-    {
-        now += validity;
-    }
+    now += validity;
+
     char utc_time_buf[21];
     if (!strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&now)))
     {
@@ -437,7 +435,14 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     {
         return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON macaroon string.", 0);
     }
-    json_object_object_add(response_obj, "macaroon", macaroon_obj);
+    json_object_object_add(response_obj, oauth_response ? "access_token" : "macaroon", macaroon_obj);
+
+    json_object *expire_in_obj = json_object_new_int64(validity);
+    if (!expire_in_obj)
+    {
+        return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON validity object.", 0);
+    }
+    json_object_object_add(response_obj, "expire_in", expire_in_obj);
 
     const char *macaroon_result = json_object_to_json_string_ext(response_obj, JSON_C_TO_STRING_PRETTY);
     int retval = req.SendSimpleResp(200, NULL, NULL, macaroon_result, 0);
