@@ -1925,7 +1925,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 char buf[64];
                 
                 XrdOucString s = "Content-Range: bytes ";
-                sprintf(buf, "%lld-%lld/%d", rwOps[0].bytestart, rwOps[0].byteend, cnt);
+                sprintf(buf, "%lld-%lld/%lld", rwOps[0].bytestart, rwOps[0].byteend, filesize);
                 s += buf;
                 
                 
