@@ -1,0 +1,154 @@
+#!/usr/bin/python
+
+"""
+Given an X509 proxy, generate a dCache-style macaroon.
+"""
+
+from __future__ import print_function
+
+import os
+import sys
+import json
+import urlparse
+import argparse
+
+import requests
+
+
+class NoTokenEndpoint(Exception):
+    pass
+
+
+def parse_args():
+    """
+    Parse command line arguments to this tool
+    """
+    parser = argparse.ArgumentParser(
+                        description="Generate a macaroon for authorized transfers")
+    parser.add_argument("url", metavar="URL",
+                        help="URL to generate macaroon for.")
+    parser.add_argument("--activity", nargs="+", help="Activity for authorization (LIST,"
+                        "DOWNLOAD,UPLOAD, etc)")
+    parser.add_argument("--validity", type=int, default=10, help="Time,"
+                        "in minutes, the resulting macaroon should be valid.",
+                        required=False)
+    return parser.parse_args()
+
+
+def configure_authenticated_session():
+    """
+    Generate a new session object for use with requests to the issuer.
+
+    Configures TLS appropriately to work with a GSI environment.
+    """
+    euid = os.geteuid()
+    if euid == 0:
+        cert = '/etc/grid-security/hostcert.pem'
+        key = '/etc/grid-security/hostkey.pem'
+    else:
+        cert = '/tmp/x509up_u%d' % euid
+        key = '/tmp/x509up_u%d' % euid
+
+    cert = os.environ.get('X509_USER_PROXY', cert)
+    key = os.environ.get('X509_USER_PROXY', key)
+
+    session = requests.Session()
+
+    if os.path.exists(cert):
+        session.cert = cert
+    if os.path.exists(key):
+        session.cert = (cert, key)
+    #session.verify = '/etc/grid-security/certificates'
+
+    return session
+
+
+def get_token_endpoint(issuer):
+    """
+    From the provided issuer, use OAuth auto-discovery to bootstrap the token endpoint.
+    """
+    parse_result = urlparse.urlparse(issuer)
+    norm_path = os.path.normpath(parse_result.path)
+    new_path = norm_path if norm_path != "/" else ""
+    new_path = "/.well-known/oauth-authorization-server" + new_path
+    config_url = urlparse.urlunparse(urlparse.ParseResult(
+        scheme = "https",
+        netloc = parse_result.netloc,
+        path = new_path,
+        fragment = "",
+        query = "",
+        params = ""))
+    response = requests.get(config_url)
+    endpoint_info = json.loads(response.text)
+    if response.status_code != requests.codes.ok:
+        print >> sys.stderr, "Failed to access the auto-discovery URL (%s) for issuer %s (status=%d): %s" % (config_url, issuer, response.status_code, response.text[:2048])
+        raise NoTokenEndpoint()
+    elif 'token_endpoint' not in endpoint_info:
+        print >> sys.stderr, "Token endpoint not available for issuer %s" % issuer
+        raise NoTokenEndpoint()
+    return endpoint_info['token_endpoint']
+
+
+def generate_token(url, validity, activity):
+    """
+    Call out to the macaroon issuer, using the specified validity and activity,
+    and receive a resulting token.
+    """
+    print("Querying %s for new token." % url, file=sys.stderr)
+    validity = "PT%dM" % validity
+    print("Validity: %s, activities: %s." % (validity, ", ".join(activity)),
+          file=sys.stderr)
+    data_json = {"caveats": ["activity:%s" % ",".join(activity)],
+                 "validity": validity}
+    with configure_authenticated_session() as session:
+        response = session.post(url,
+                                headers={"Content-Type": "application/macaroon-request"},
+                                data=json.dumps(data_json)
+                               )
+
+    if response.status_code == requests.codes.ok:
+        print("Successfully generated a new token:", file=sys.stderr)
+        return response.text
+    else:
+        print("Issuer failed request (status %d): %s" % (response.status_code, response.text[:2048]), file=sys.stderr)
+        sys.exit(1)
+
+
+def generate_token_oauth(url, validity, activity):
+    parse_result = urlparse.urlparse(url)
+    token_issuer = urlparse.urlunparse(urlparse.ParseResult(
+        scheme = "https",
+        netloc = parse_result.netloc,
+        path = "/",
+        fragment = "",
+        query = "",
+        params = ""))
+    token_endpoint = get_token_endpoint(token_issuer)
+    print("Querying %s for new token." % token_endpoint)
+    scope = " ".join(["{}:{}".format(i, parse_result.path) for i in activity])
+    with configure_authenticated_session() as session:
+        response = session.post(token_endpoint, headers={"Accept": "application/json"},
+                                data={"grant_type": "client_credentials",
+                                      "scope": scope,
+                                      "expire_in": "{}".format(validity*60)})
+
+    if response.status_code == requests.codes.ok:
+        print("Successfully generated a new token:")
+        return response.text
+    else:
+        print("Issuer failed request (status %d): %s" % (response.status_code, response.text[:2048]),
+              file=sys.stderr)
+        sys.exit(1)
+
+
+def main():
+    args = parse_args()
+    try:
+        token = generate_token_oauth(args.url, args.validity, args.activity)
+    except NoTokenEndpoint:
+        token = generate_token(args.url, args.validity, args.activity)
+    print(token)
+
+
+if __name__ == '__main__':
+    main()
