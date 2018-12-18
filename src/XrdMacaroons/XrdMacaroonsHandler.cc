@@ -191,39 +191,109 @@ int Handler::ProcessOAuthConfig(XrdHttpExtReq &req) {
 
 int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
 {
-    if (req.verb != "GET")
+    if (req.verb != "POST")
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Only GET is valid for token request.", 0);
+        return req.SendSimpleResp(400, NULL, NULL, "Only POST is valid for token request.", 0);
     }
     auto header = req.headers.find("Content-Type");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type missing; not a valid macaroon request?", 0);
     }
-    if (header->second != "application/macaroon-request")
+    if (header->second != "application/x-www-form-urlencoded")
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
     }
-    ssize_t blen;
-    try
-    {
-        blen = std::stoll(header->second);
-    }
-    catch (...)
-    {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Length not parseable.", 0);
-    }
-    if (blen <= 0)
-    {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Length has invalid value.", 0);
-    }
-    //for (const auto &header : req.headers) { printf("** Request header: %s=%s\n", header.first.c_str(), header.second.c_str()); }
     char *request_data;
-    if (req.BuffgetData(blen, &request_data, true) != blen)
+    if (req.BuffgetData(req.length, &request_data, true) != req.length)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Missing or invalid body of request.", 0);
     }
-    return req.SendSimpleResp(500, NULL, NULL, "Token generation implementation not yet complete", 0);
+    bool found_grant_type = false;
+    ssize_t validity = -1;
+    std::string scope;
+    std::string token;
+    std::istringstream token_stream(request_data);
+    while (std::getline(token_stream, token, '&'))
+    {
+        std::string::size_type eq = token.find("=");
+        if (eq == std::string::npos)
+        {
+            return req.SendSimpleResp(400, NULL, NULL, "Invalid format for form-encoding", 0);
+        }
+        std::string key = token.substr(0, eq);
+        std::string value = token.substr(eq + 1);
+        //std::cout << "Found key " << key << ", value " << value << std::endl;
+        if (key == "grant_type")
+        {
+            found_grant_type = true;
+            if (value != "client_credentials")
+            {
+                return req.SendSimpleResp(400, NULL, NULL, "Invalid grant type specified.", 0);
+            }
+        }
+        else if (key == "expire_in")
+        {
+            try
+            {
+                validity = std::stoll(value);
+            }
+            catch (...)
+            {
+                return req.SendSimpleResp(400, NULL, NULL, "Expiration request not parseable.", 0);
+            }
+            if (validity <= 0)
+            {
+                return req.SendSimpleResp(400, NULL, NULL, "Expiration request has invalid value.", 0);
+            }
+        }
+        else if (key == "scope")
+        {
+            char *value_raw = unquote(value.c_str());
+            if (value_raw == NULL)
+            {
+                return req.SendSimpleResp(400, NULL, NULL, "Unable to unquote scope.", 0);
+            }
+            scope = value_raw;
+            free(value_raw);
+        }
+    }
+    if (!found_grant_type)
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Grant type not specified.", 0);
+    }
+    if (scope.empty())
+    {
+        return req.SendSimpleResp(400, NULL, NULL, "Scope was not specified.", 0);
+    }
+    std::istringstream token_stream_scope(scope);
+    std::string path;
+    std::vector<std::string> other_caveats;
+    while (std::getline(token_stream_scope, token, ' '))
+    {
+        std::string::size_type col = token.find(":");
+        if (col == std::string::npos)
+        {
+            return req.SendSimpleResp(400, NULL, NULL, "Invalid format for requested scope", 0);
+        }
+        std::string key = token.substr(0, col);
+        std::string value = token.substr(col + 1);
+        //std::cout << "Found activity " << key << ", path " << value << std::endl;
+        if (path.empty())
+        {
+            path = value;
+        }
+        else if (value != path)
+        {
+            return req.SendSimpleResp(500, NULL, NULL, "Server only supports all scopes having the same path", 0);
+        }
+        other_caveats.push_back(key);
+    }
+    if (path.empty())
+    {
+        path = "/";
+    }
+    return GenerateMacaroonResponse(req, path, other_caveats, validity, true);
 }
 
 
