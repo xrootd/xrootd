@@ -38,6 +38,7 @@ namespace XrdCl
   class Stream;
   class JobManager;
   class VirtualRedirector;
+  class TickGeneratorTask;
 
   //----------------------------------------------------------------------------
   //! A communication channel between the client and the server
@@ -168,7 +169,7 @@ namespace XrdCl
       XrdSysMutex            pMutex;
       AnyObject              pChannelData;
       InQueue                pIncoming;
-      Task                  *pTickGenerator;
+      TickGeneratorTask     *pTickGenerator;
       JobManager            *pJobManager;
   };
 }
