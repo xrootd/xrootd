@@ -196,13 +196,8 @@ namespace XrdCl
       template<typename Hdlr>
       OpenImpl<true> operator>>( Hdlr &&hdlr )
       {
-        // check if the resulting handler should be owned by us or by the user,
-        // if the user passed us directly a ResponseHandler it's owned by the
-        // user, otherwise we need to wrap the argument in a handler and in this
-        // case the resulting handler will be owned by us
-        constexpr bool own = !IsResponseHandler<Hdlr>::value;
         ExResp factory( *this->file );
-        return this->StreamImpl( factory.Create( hdlr ), own );
+        return this->StreamImpl( factory.Create( hdlr ) );
       }
 
       //------------------------------------------------------------------------

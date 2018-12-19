@@ -322,14 +322,17 @@ void WorkflowTest::MissingParameterTest(){
     // Create and execute workflow
     //----------------------------------------------------------------------------
 
-    bool closed = false;
+    bool pipebroken = false;
     const OpenFlags::Flags flags = OpenFlags::Read;
     uint64_t offset = 0;
 
     Pipeline pipe = Open( f, fileUrl, flags )
                   | Stat( f, true )
                   | Read( f, offset, size, buffer ) >> readHandler // by reference
-                  | Close( f ) >> [&]( XRootDStatus& st ){ closed = true; };
+                  | Close( f ) >> [&]( XRootDStatus& st )
+                      {
+                        pipebroken = !st.IsOK() && ( st.code == errPipelineFailed );
+                      };
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
     CPPUNIT_ASSERT( status.IsError() );
@@ -337,7 +340,7 @@ void WorkflowTest::MissingParameterTest(){
     // If there is an error, last handlers should not be executed
     //----------------------------------------------------------------------------
     CPPUNIT_ASSERT( readHandler.Executed() );
-    CPPUNIT_ASSERT( !closed );
+    CPPUNIT_ASSERT( pipebroken );
 }
 
 

@@ -1820,6 +1820,7 @@ namespace XrdCl
           return status;
 
         std::vector<XAttr> resp;
+        resp.reserve( nattr );
 
         // read the name vec
         for( kXR_char i = 0; i < nattr; ++i )
