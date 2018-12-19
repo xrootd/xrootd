@@ -396,6 +396,7 @@ private:
    X509Chain       *proxyChain;    // Chain with the delegated proxy on servers
    bool             srvMode;       // TRUE if server mode
    char            *expectedHost;  // Expected hostname if TrustDNS is enabled.
+   bool             useIV;         // Use a non-zeroed unique IV in cipher enc/dec operations
 
    // Temporary Handshake local info
    gsiHSVars     *hs;

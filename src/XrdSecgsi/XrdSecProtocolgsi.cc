@@ -361,6 +361,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    sessionKver = 0;
    sessionKver = 0;
    proxyChain = 0;
+   useIV = false;
 
    //
    // Notify, if required
@@ -1079,13 +1080,23 @@ int XrdSecProtocolgsi::Encrypt(const char *inbuf,  // Data to be encrypted
    if (!inbuf || inlen <= 0 || !outbuf)
       return -EINVAL;
 
+   // Regenerate IV
+   int liv = 0;
+   char *iv = 0;
+   if (useIV) {
+      iv = sessionKey->RefreshIV(liv);
+      sessionKey->SetIV(liv, iv);
+   }
+
    // Get output buffer
-   char *buf = (char *)malloc(sessionKey->EncOutLength(inlen));
+   char *buf = (char *)malloc(sessionKey->EncOutLength(inlen) + liv);
    if (!buf)
       return -ENOMEM;
+   // IV at beginning
+   memcpy(buf, iv, liv);
 
    // Encrypt
-   int len = sessionKey->Encrypt(inbuf, inlen, buf);
+   int len = sessionKey->Encrypt(inbuf, inlen, buf + liv);
    if (len <= 0) {
       SafeFree(buf);
       return -EINVAL;
@@ -1118,13 +1129,24 @@ int XrdSecProtocolgsi::Decrypt(const char *inbuf,  // Data to be decrypted
    if (!inbuf || inlen <= 0 || !outbuf)
       return -EINVAL;
 
+   // Size
+   int liv = (useIV) ? sessionKey->MaxIVLength() : 0;
+   int sz = inlen - liv;
    // Get output buffer
-   char *buf = (char *)malloc(sessionKey->DecOutLength(inlen));
+   char *buf = (char *)malloc(sessionKey->DecOutLength(sz) + liv);
    if (!buf)
       return -ENOMEM;
 
+   // Get and set IV
+   if (useIV) {
+      char *iv = new char[liv];
+      memcpy(iv, inbuf, liv);
+      sessionKey->SetIV(liv, iv);
+      delete[] iv;
+   }
+
    // Decrypt
-   int len = sessionKey->Decrypt(inbuf, inlen, buf);
+   int len = sessionKey->Decrypt(inbuf + liv, sz, buf);
    if (len <= 0) {
       SafeFree(buf);
       return -EINVAL;
@@ -2459,6 +2481,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.mode = mode;
       // debug
       cenv = getenv("XrdSecDEBUG");
+      PRINT("XrdSecDEBUG = "<< cenv << "   "<< getenv("XrdSecDEBUG"));
       if (cenv)
          {if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);
              else {PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
@@ -2535,6 +2558,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       cenv = getenv("XrdSecGSIDELEGPROXY");
       if (cenv)
          opts.dlgpxy = atoi(cenv);
+      PRINT("XrdSecGSIDELEGPROXY = "<< cenv << "   "<< getenv("XrdSecGSIDELEGPROXY"));
 
       // Allowed server name formats
       cenv = getenv("XrdSecGSISRVNAMES");
@@ -2914,7 +2938,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    //
    // Encrypted the bucket
    if (cip) {
-      if (cip->Encrypt(*bck) == 0) {
+      if (cip->Encrypt(*bck, useIV) == 0) {
          PRINT("error encrypting bucket - cipher "
                <<" - type: "<<XrdSutBuckStr(type));
          return -1;
@@ -2997,6 +3021,12 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
       hs->RemVers = Version;
       emsg = "server version information not found in options:"
              " assume same as local";
+   }
+   // Set use IV depending on the remote version
+   useIV = false;
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // Supports setting a unique IV in enc/dec operations
+      useIV = true;
    }
    //
    // Create cache
@@ -3358,7 +3388,7 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    //
    // Decrypt the main buffer with the session cipher, if available
    if (sessionKey) {
-      if (!(sessionKey->Decrypt(*bckm))) {
+      if (!(sessionKey->Decrypt(*bckm, useIV))) {
          emsg = "error   with session cipher";
          return -1;
       }
@@ -3517,6 +3547,8 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    } else {
       br->Deactivate(kXRS_version);
    }
+   // Reset use IV; will be set in next round depending on the remote version
+   useIV = false;
 
    //
    // Extract the main buffer 
@@ -3627,6 +3659,8 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
 
    XrdOucString cpub;
    if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // Supports setting a unique IV in enc/dec operations
+      useIV = true;
       // First get the client public key
       if (!(bck = br->GetBucket(kXRS_puk))) {
          cmsg = "bucket with client public key missing";
@@ -3701,7 +3735,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    //
    // Decrypt the main buffer with the session cipher, if available
    if (sessionKey) {
-      if (!(sessionKey->Decrypt(*bckm))) {
+      if (!(sessionKey->Decrypt(*bckm, useIV))) {
          cmsg = "error decrypting main buffer with session cipher";
          hs->Chain = 0;
          return -1;
@@ -3908,7 +3942,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
    //
    // Decrypt the main buffer with the session cipher, if available
    if (sessionKey) {
-      if (!(sessionKey->Decrypt(*bckm))) {
+      if (!(sessionKey->Decrypt(*bckm, useIV))) {
          cmsg = "error decrypting main buffer with session cipher";
          return 0;
       }

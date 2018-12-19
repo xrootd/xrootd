@@ -90,6 +90,7 @@ public:
    XrdSutBucket *AsBucket();
    char *IV(int &l) const { l = lIV; return fIV; }
    bool IsDefaultLength() const { return deflength; }
+   int  MaxIVLength() const;
 
    // Additional setter
    void  SetIV(int l, const char *iv);
