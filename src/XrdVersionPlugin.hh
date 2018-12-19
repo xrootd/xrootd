@@ -96,7 +96,7 @@
         XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocolPort            )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdHttpGetSecXtractor         )\
-        XrdVERSIONPLUGIN_Rule(Required,  4,  9, XrdHttpGetExtHandler          )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  8, XrdHttpGetExtHandler          )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSysLogPInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssGetStorageSystem        )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssStatInfoInit            )\
