@@ -25,6 +25,7 @@
 #include "XrdHttpExtHandler.hh"
 #include "XrdHttpReq.hh"
 #include "XrdHttpProtocol.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 
 /// Sends a basic response. If the length is < 0 then it is calculated internally
 int XrdHttpExtReq::SendSimpleResp(int code, const char* desc, const char* header_to_add, const char* body, long long int bodylen)
@@ -67,6 +68,9 @@ XrdHttpExtReq::XrdHttpExtReq(XrdHttpReq *req, XrdHttpProtocol *pr): prot(pr),
 verb(req->requestverb), headers(req->allheaders) {
   // Here we fill the request summary with all the fields we can
   resource = req->resource.c_str();
+  int envlen = 0;
+  
+  headers["xrd-http-query"] = req->opaque?req->opaque->Env(envlen):"";
   
   // These fields usually identify the client that connected
 
