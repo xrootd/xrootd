@@ -204,11 +204,13 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
     }
-    char *request_data;
-    if (req.BuffgetData(req.length, &request_data, true) != req.length)
+    char *request_data_raw;
+    // Note: this does not null-terminate the buffer contents.
+    if (req.BuffgetData(req.length, &request_data_raw, true) != req.length)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Missing or invalid body of request.", 0);
     }
+    std::string request_data(request_data_raw, req.length);
     bool found_grant_type = false;
     ssize_t validity = -1;
     std::string scope;
@@ -285,6 +287,11 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
         }
         else if (value != path)
         {
+            std::stringstream ss;
+            ss << "Encountered requested scope request for authorization " << key
+               << " with resource path " << value << "; however, prior request had path "
+               << path;
+            m_log->Emsg("MacaroonRequest", ss.str().c_str());
             return req.SendSimpleResp(500, NULL, NULL, "Server only supports all scopes having the same path", 0);
         }
         other_caveats.push_back(key);
