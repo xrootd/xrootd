@@ -160,7 +160,7 @@ Handler::MatchesPath(const char *verb, const char *path)
 int Handler::ProcessOAuthConfig(XrdHttpExtReq &req) {
     if (req.verb != "GET")
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Only GET is valid for oauth config.", 0);
+        return req.SendSimpleResp(405, NULL, NULL, "Only GET is valid for oauth config.", 0);
     }
     auto header = req.headers.find("Host");
     if (header == req.headers.end())
@@ -193,7 +193,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
 {
     if (req.verb != "POST")
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Only POST is valid for token request.", 0);
+        return req.SendSimpleResp(405, NULL, NULL, "Only POST is valid for token request.", 0);
     }
     auto header = req.headers.find("Content-Type");
     if (header == req.headers.end())
