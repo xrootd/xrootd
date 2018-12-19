@@ -67,6 +67,7 @@ public:
    virtual char *IV(int &l) const;
    virtual bool IsDefaultLength() const;
    virtual char *Public(int &lpub);
+   virtual int  MaxIVLength() const;
 
    // Additional setters
    virtual void SetIV(int l, const char *iv);
@@ -74,8 +75,8 @@ public:
    // Additional methods
    virtual int Encrypt(const char *in, int lin, char *out);
    virtual int Decrypt(const char *in, int lin, char *out);
-   int Encrypt(XrdSutBucket &buck);
-   int Decrypt(XrdSutBucket &buck);
+   int Encrypt(XrdSutBucket &buck, bool useiv = true);
+   int Decrypt(XrdSutBucket &buck, bool useiv = true);
    virtual char *RefreshIV(int &l); 
 };
 

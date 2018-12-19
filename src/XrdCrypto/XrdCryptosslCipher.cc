@@ -1005,8 +1005,8 @@ void XrdCryptosslCipher::GenerateIV()
       lIV = 0;
    }
 
-   // Generate a new one
-   fIV = XrdSutRndm::GetBuffer(EVP_MAX_IV_LENGTH);
+   // Generate a new one, using crypt-like chars
+   fIV = XrdSutRndm::GetBuffer(EVP_MAX_IV_LENGTH, 3);
    if (fIV)
       lIV = EVP_MAX_IV_LENGTH;
 }
@@ -1043,6 +1043,8 @@ int XrdCryptosslCipher::EncDec(int enc, const char *in, int lin, char *out)
    EPNAME("Cipher::EncDec");
 
    int lout = 0;
+
+   const char *action = (enc == 1) ? "encrypting" : "decrypting"; 
 
    // Check inputs
    if (!in || lin <= 0 || !out) {
@@ -1088,7 +1090,7 @@ int XrdCryptosslCipher::EncDec(int enc, const char *in, int lin, char *out)
    int ltmp = 0;
    if (!EVP_CipherUpdate(ctx, (unsigned char *)&out[0], &ltmp,
                                (unsigned char *)in, lin)) {
-      DEBUG("error encrypting");
+      DEBUG("error " << action);
       return 0;
    }
    lout = ltmp;
@@ -1118,4 +1120,12 @@ int XrdCryptosslCipher::DecOutLength(int l)
    int lout = l+EVP_CIPHER_CTX_block_size(ctx)+1;
    lout = (lout <= 0) ? l : lout;
    return lout;
+}
+
+//____________________________________________________________________________
+int XrdCryptosslCipher::MaxIVLength() const
+{
+   // Return the max cipher IV length
+
+   return EVP_MAX_IV_LENGTH;
 }
