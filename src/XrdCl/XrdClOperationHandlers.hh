@@ -30,41 +30,10 @@
 
 #include<functional>
 #include<future>
+#include <atomic>
 
 namespace XrdCl
 {
-  //----------------------------------------------------------------------------
-  //! Helper class for checking if a given Handler is derived
-  //! from ForwardingHandler
-  //!
-  //! @arg Hdlr : type of given handler
-  //----------------------------------------------------------------------------
-  template<typename Hdlr>
-  struct IsResponseHandler
-  {
-      //------------------------------------------------------------------------
-      //! true if the Hdlr type has been derived from ForwardingHandler,
-      //! false otherwise
-      //------------------------------------------------------------------------
-      static constexpr bool value = std::is_base_of<XrdCl::ResponseHandler, Hdlr>::value;
-  };
-
-  //----------------------------------------------------------------------------
-  //! Helper class for checking if a given Handler is derived
-  //! from ForwardingHandler (overloaded for pointers)
-  //!
-  //! @arg Hdlr : type of given handler
-  //----------------------------------------------------------------------------
-  template<typename Hdlr>
-  struct IsResponseHandler<Hdlr*>
-  {
-      //------------------------------------------------------------------------
-      //! true if the Hdlr type has been derived from ForwardingHandler,
-      //! false otherwise
-      //------------------------------------------------------------------------
-      static constexpr bool value = std::is_base_of<XrdCl::ResponseHandler, Hdlr>::value;
-  };
-
   //----------------------------------------------------------------------------
   //! Helper class for unpacking single XAttrStatus from bulk response
   //----------------------------------------------------------------------------
@@ -118,6 +87,7 @@ namespace XrdCl
         response->Get( bulk );
         *status = bulk->front().status;
         std::string *rsp = new std::string( std::move( bulk->front().value ) );
+        delete bulk;
         response->Set( rsp );
         handler->HandleResponse( status, response );
         delete this;
@@ -450,20 +420,9 @@ namespace XrdCl
       //!
       //! @param ftr : the future to be linked with this handler
       //------------------------------------------------------------------------
-      FutureWrapperBase( std::future<Response> &ftr ) : called( false )
+      FutureWrapperBase( std::future<Response> &ftr )
       {
         ftr = prms.get_future();
-      }
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //!
-      //! If the handler was not called sets an exception in the promise
-      //------------------------------------------------------------------------
-      ~FutureWrapperBase()
-      {
-        if( !called )
-          this->SetException( XRootDStatus( stError, errPipelineFailed ) );
       }
 
     protected:
@@ -483,12 +442,6 @@ namespace XrdCl
       //! promise that corresponds to the future
       //------------------------------------------------------------------------
       std::promise<Response> prms;
-
-      //------------------------------------------------------------------------
-      //! true if the handler has been called, false otherwise
-      //------------------------------------------------------------------------
-      bool called;
-
   };
 
   //----------------------------------------------------------------------------
@@ -516,8 +469,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
-        this->called = true;
-
         if( status->IsOK() )
         {
           Response *resp = GetResponse<Response>( response );
@@ -558,9 +509,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
-        this->called = true;
-
-
         if( status->IsOK() )
         {
           prms.set_value();
@@ -573,6 +521,72 @@ namespace XrdCl
         delete this;
       }
   };
+
+
+  //----------------------------------------------------------------------------
+  //! Wrapper class for Pipeline ResponseHandlers.
+  //!
+  //! Makes sure that in case the pipeline has failed before the actual handler
+  //! could be called
+  //----------------------------------------------------------------------------
+  class FinalizeHandler : public ResponseHandler
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param handler : the actual operation handler
+      //------------------------------------------------------------------------
+      FinalizeHandler( ResponseHandler *handler ) : handler( handler )
+      {
+
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~FinalizeHandler()
+      {
+        ResponseHandler* hdlr = handler.exchange( nullptr );
+        if( hdlr )
+          hdlr->HandleResponseWithHosts( new XRootDStatus( stError, errPipelineFailed), nullptr, nullptr );
+      }
+
+      //------------------------------------------------------------------------
+      //! Callback method (@see ResponseHandler)
+      //!
+      //! Note: does not delete itself because it is assumed that it is owned
+      //!       by the PipelineHandler (@see PipelineHandler)
+      //------------------------------------------------------------------------
+      virtual void HandleResponseWithHosts( XRootDStatus *status,
+                                            AnyObject    *response,
+                                            HostList     *hostList )
+      {
+        ResponseHandler* hdlr = handler.exchange( nullptr );
+        if( hdlr )
+          hdlr->HandleResponseWithHosts( status, response, hostList );
+      }
+
+    private:
+
+      //------------------------------------------------------------------------
+      //! The actual operation handler
+      //------------------------------------------------------------------------
+      std::atomic<ResponseHandler*> handler;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Utility function for wrapping a ResponseHandler into a FinalizeHandler
+  //!
+  //! @param handler : the actual handler
+  //!
+  //! @return        : a FinalizeHandler
+  //----------------------------------------------------------------------------
+  inline FinalizeHandler* make_finalized( ResponseHandler *handler )
+  {
+    return new FinalizeHandler( handler );
+  }
 
 
   //----------------------------------------------------------------------------
@@ -592,7 +606,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( ResponseHandler *hdlr )
       {
-        return hdlr;
+        return make_finalized( hdlr );
       }
 
       //------------------------------------------------------------------------
@@ -603,7 +617,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( ResponseHandler &hdlr )
       {
-        return &hdlr;
+        return make_finalized( &hdlr );
       }
 
       //------------------------------------------------------------------------
@@ -614,7 +628,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( std::future<Response> &ftr )
       {
-        return new FutureWrapper<Response>( ftr );
+        return make_finalized( new FutureWrapper<Response>( ftr ) );
       }
   };
 
@@ -636,7 +650,7 @@ namespace XrdCl
       inline static ResponseHandler* Create( std::function<void( XRootDStatus&,
           Response& )> func )
       {
-        return new FunctionWrapper<Response>( func );
+        return make_finalized( new FunctionWrapper<Response>( func ) );
       }
 
       //------------------------------------------------------------------------
@@ -649,7 +663,7 @@ namespace XrdCl
       inline static ResponseHandler* Create( std::packaged_task<Return( XRootDStatus&,
           Response& )> &task )
       {
-        return new TaskWrapper<Response, Return>( std::move( task ) );
+        return make_finalized( new TaskWrapper<Response, Return>( std::move( task ) ) );
       }
 
       //------------------------------------------------------------------------
@@ -674,7 +688,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( std::function<void( XRootDStatus& )> func )
       {
-        return new FunctionWrapper<void>( func );
+        return make_finalized( new FunctionWrapper<void>( func ) );
       }
 
       //------------------------------------------------------------------------
@@ -686,7 +700,7 @@ namespace XrdCl
       template<typename Return>
       inline static ResponseHandler* Create( std::packaged_task<Return( XRootDStatus& )> &task )
       {
-        return new TaskWrapper<void, Return>( std::move( task ) );
+        return make_finalized( new TaskWrapper<void, Return>( std::move( task ) ) );
       }
 
       //------------------------------------------------------------------------

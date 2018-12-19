@@ -60,12 +60,14 @@ namespace XrdCl
       //! @param own     : if true we have the ownership of handler (it's
       //!                  memory), and it is our responsibility to deallocate it
       //------------------------------------------------------------------------
-      PipelineHandler( ResponseHandler *handler, bool own );
+      PipelineHandler( ResponseHandler *handler );
 
       //------------------------------------------------------------------------
       //! Default Constructor.
       //------------------------------------------------------------------------
-      PipelineHandler();
+      PipelineHandler()
+      {
+      }
 
       //------------------------------------------------------------------------
       //! Callback function.
@@ -81,7 +83,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Destructor.
       //------------------------------------------------------------------------
-      ~PipelineHandler();
+      ~PipelineHandler()
+      {
+      }
 
       //------------------------------------------------------------------------
       //! Add new operation to the pipeline
@@ -120,12 +124,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The handler of our operation
       //------------------------------------------------------------------------
-      ResponseHandler *responseHandler;
-
-      //------------------------------------------------------------------------
-      //! true, if we own the handler
-      //------------------------------------------------------------------------
-      bool ownHandler;
+      std::unique_ptr<ResponseHandler> responseHandler;
 
       //------------------------------------------------------------------------
       //! Next operation in the pipeline
@@ -505,12 +504,7 @@ namespace XrdCl
       template<typename Hdlr>
       Derived<true> operator>>( Hdlr &&hdlr )
       {
-        // check if the resulting handler should be owned by us or by the user,
-        // if the user passed us directly a ResponseHandler it's owned by the
-        // user, otherwise we need to wrap the argument in a handler and in this
-        // case the resulting handler will be owned by us
-        constexpr bool own = !IsResponseHandler<Hdlr>::value;
-        return this->StreamImpl( HdlrFactory::Create( hdlr ), own );
+        return this->StreamImpl( HdlrFactory::Create( hdlr ) );
       }
 
       //------------------------------------------------------------------------
@@ -605,10 +599,10 @@ namespace XrdCl
       //! @
       //! @return   :  return an instance of Derived<true>
       //------------------------------------------------------------------------
-      inline Derived<true> StreamImpl( ResponseHandler *handler, bool own )
+      inline Derived<true> StreamImpl( ResponseHandler *handler )
       {
         static_assert( !HasHndl, "Operator >> is available only for operation without handler" );
-        this->handler.reset( new PipelineHandler( handler, own ) );
+        this->handler.reset( new PipelineHandler( handler ) );
         return Transform<true>();
       }
 

@@ -36,15 +36,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // OperationHandler Constructor.
   //----------------------------------------------------------------------------
-  PipelineHandler::PipelineHandler( ResponseHandler *handler, bool own ) :
-      responseHandler( handler ), ownHandler( own )
-  {
-  }
-
-  //----------------------------------------------------------------------------
-  // Default Constructor.
-  //----------------------------------------------------------------------------
-  PipelineHandler::PipelineHandler() : responseHandler( nullptr ), ownHandler( false )
+  PipelineHandler::PipelineHandler( ResponseHandler *handler ) :
+      responseHandler( handler )
   {
   }
 
@@ -74,10 +67,7 @@ namespace XrdCl
     // We need to copy status as original status object is destroyed in HandleResponse function
     XRootDStatus st( *status );
     if( responseHandler )
-    {
       responseHandler->HandleResponseWithHosts( status, response, hostList );
-      ownHandler = false;
-    }
     else
       dealloc( status, response, hostList );
 
@@ -107,14 +97,6 @@ namespace XrdCl
       AnyObject *response )
   {
     HandleResponseImpl( status, response );
-  }
-
-  //----------------------------------------------------------------------------
-  // OperationHandler Destructor
-  //----------------------------------------------------------------------------
-  PipelineHandler::~PipelineHandler()
-  {
-    if( ownHandler ) delete responseHandler;
   }
 
   //----------------------------------------------------------------------------
