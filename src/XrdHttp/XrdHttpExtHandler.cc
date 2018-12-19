@@ -70,7 +70,7 @@ verb(req->requestverb), headers(req->allheaders) {
   resource = req->resource.c_str();
   int envlen = 0;
   
-  query = req->opaque ? req->opaque->Env(envlen) : "";
+  headers["xrd-http-query"] = req->opaque?req->opaque->Env(envlen):"";
   
   // These fields usually identify the client that connected
 
