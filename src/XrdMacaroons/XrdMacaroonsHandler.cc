@@ -519,7 +519,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     {
         return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON validity object.", 0);
     }
-    json_object_object_add(response_obj, "expire_in", expire_in_obj);
+    json_object_object_add(response_obj, "expires_in", expire_in_obj);
 
     const char *macaroon_result = json_object_to_json_string_ext(response_obj, JSON_C_TO_STRING_PRETTY);
     int retval = req.SendSimpleResp(200, NULL, NULL, macaroon_result, 0);
