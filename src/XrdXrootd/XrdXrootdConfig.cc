@@ -1676,7 +1676,8 @@ int XrdXrootdProtocol::xsecl(XrdOucStream &Config)
                        data    All bound sockets must use TLS. When specified,
                                session is implied unless login is specified.
                        login   Logins and all subsequent requests must use TLS
-                       off     Turns all requirements off (default).
+                       none    Turns all requirements off (default).
+                       off     Synonym for off.
                        session All requests after login must use TLS
                        tpc     Third party copy requests must use TLS
 
@@ -1710,7 +1711,7 @@ int XrdXrootdProtocol::xtls(XrdOucStream &Config)
        }
 
     while (val)
-         {if (!strcmp(val, "off"))
+         {if (!strcmp(val, "off") || !strcmp(val, "none"))
              {myRole &= ~kXR_tlsAny;
               if (forall) tlsCap = tlsNot = 0;
                  else tlsCap = 0;
