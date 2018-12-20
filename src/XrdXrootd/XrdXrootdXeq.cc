@@ -257,9 +257,9 @@ int XrdXrootdProtocol::do_Bind()
 //
    SI->Bump(SI->miscCnt);
 
-// Check if binds need to occur on a TLS connection
+// Check if binds need to occur on a TLS connection.
 //
-   if ((doTLS & Req_TLSData) && !Link->hasTLS())
+   if ((doTLS & Req_TLSData) && !Link->hasTLS() && !Link->hasBridge())
       return Response.Send(kXR_TLSRequired, "bind requires TLS");
 
 // Find the link we are to bind to
@@ -794,7 +794,7 @@ int XrdXrootdProtocol::do_Getfile()
 
 // Check if getfiles need to occur on a TLS connection
 //
-   if ((doTLS & Req_TLSTPC) && !Link->hasTLS())
+   if ((doTLS & Req_TLSTPC) && !Link->hasTLS() && !Link->hasBridge())
       return Response.Send(kXR_TLSRequired, "getfile requires TLS");
 
    return Response.Send(kXR_Unsupported, "getfile request is not supported");
@@ -877,7 +877,7 @@ int XrdXrootdProtocol::do_Login()
 
 // Check if login need to occur on a TLS connection
 //
-   if ((doTLS & Req_TLSLogin) && !Link->hasTLS())
+   if ((doTLS & Req_TLSLogin) && !Link->hasTLS() && !Link->hasBridge())
       return Response.Send(kXR_TLSRequired, "login requires TLS");
 
 // Unmarshall the data
@@ -1423,7 +1423,8 @@ int XrdXrootdProtocol::do_Open()
 
 // If TPC opens require TLS but this is not a TLS connection, prohibit TPC
 //
-   if ((doTLS && Req_TLSTPC) && !Link->hasTLS()) openopts|= SFS_O_NOTPC;
+   if ((doTLS && Req_TLSTPC) && !Link->hasTLS() && !Link->hasBridge())
+      openopts|= SFS_O_NOTPC;
 
 // Open the file
 //
@@ -1834,7 +1835,7 @@ int XrdXrootdProtocol::do_Putfile()
 
 // Check if putfiles need to occur on a TLS connection
 //
-   if ((doTLS & Req_TLSTPC) && !Link->hasTLS())
+   if ((doTLS & Req_TLSTPC) && !Link->hasTLS() && !Link->hasBridge())
       return Response.Send(kXR_TLSRequired, "putfile requires TLS");
 
    return Response.Send(kXR_Unsupported, "putfile request is not supported");
