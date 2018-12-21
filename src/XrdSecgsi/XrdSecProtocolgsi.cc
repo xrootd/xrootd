@@ -2481,7 +2481,6 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.mode = mode;
       // debug
       cenv = getenv("XrdSecDEBUG");
-      PRINT("XrdSecDEBUG = "<< cenv << "   "<< getenv("XrdSecDEBUG"));
       if (cenv)
          {if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);
              else {PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
@@ -2558,7 +2557,6 @@ char *XrdSecProtocolgsiInit(const char mode,
       cenv = getenv("XrdSecGSIDELEGPROXY");
       if (cenv)
          opts.dlgpxy = atoi(cenv);
-      PRINT("XrdSecGSIDELEGPROXY = "<< cenv << "   "<< getenv("XrdSecGSIDELEGPROXY"));
 
       // Allowed server name formats
       cenv = getenv("XrdSecGSISRVNAMES");
