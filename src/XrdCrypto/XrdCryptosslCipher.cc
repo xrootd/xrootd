@@ -963,7 +963,7 @@ XrdSutBucket *XrdCryptosslCipher::AsBucket()
 //____________________________________________________________________________
 void XrdCryptosslCipher::SetIV(int l, const char *iv)
 {
-   // Set IV from l bytes at iv
+   // Set IV from l bytes at iv. If !iv, sets the IV length.
 
    if (fIV) {
       delete[] fIV;
@@ -971,12 +971,12 @@ void XrdCryptosslCipher::SetIV(int l, const char *iv)
       lIV = 0;
    }
 
-   if (iv && l > 0) {
-      fIV = new char[l];
-      if (fIV) {
-         memcpy(fIV,iv,l);
-         lIV = l;
+   if (l > 0) {
+      if (iv) {
+         fIV = new char[l];
+         if (fIV) memcpy(fIV,iv,l);
       }
+      lIV = l;
    }
 }
 
@@ -1127,5 +1127,5 @@ int XrdCryptosslCipher::MaxIVLength() const
 {
    // Return the max cipher IV length
 
-   return EVP_MAX_IV_LENGTH;
+   return (lIV > 0) ? lIV : EVP_MAX_IV_LENGTH;
 }
