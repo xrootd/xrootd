@@ -71,7 +71,7 @@ public:
    // Remove from the list, to avoid destroy by ~XrdSutBuffer
    void        Remove(XrdSutBucket *b) { fBuckets.Remove(b); }
 
-   void        Dump(const char *stepstr = 0);
+   void        Dump(const char *stepstr = 0, bool all = false);
    void        Message(const char *prepose = 0);
    int         Serialized(char **buffer, char opt = 'n');
 
