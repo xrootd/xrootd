@@ -237,9 +237,10 @@ int XrdSutBuffer::UpdateBucket(XrdOucString s, int ty)
 }
 
 //_____________________________________________________________________________
-void XrdSutBuffer::Dump(const char *stepstr)
+void XrdSutBuffer::Dump(const char *stepstr, bool all)
 {
-   // Dump content of buffer
+   // Dump content of buffer. If all is false, only active buckets are dumped;
+   // this is the default behaviour.
    EPNAME("Buffer::Dump");
 
    PRINT("//-----------------------------------------------------//");
@@ -262,18 +263,25 @@ void XrdSutBuffer::Dump(const char *stepstr)
    } else {
       PRINT("//  Step          : " <<fStep);
    }
-   PRINT("//  # of buckets  : " <<nbuck);
+   if (!all) {
+      PRINT("//  Dumping active buckets only ");
+   } else {
+      PRINT("//  # of buckets  : " <<nbuck);
+   }
    PRINT("// ");
  
    int kb = 0;
    XrdSutBucket *bp = fBuckets.Begin();
    while (bp) {
       PRINT("// ");
-      PRINT("//  buck: " <<kb++);
-      bp->Dump(0);
+      if (all || bp->type != kXRS_inactive) {
+         PRINT("//  buck: " <<kb++);
+         bp->Dump(0);
+      }
       // Get next
       bp = fBuckets.Next();
    }
+   if (!all) PRINT("//  # active buckets found: " << kb);
    PRINT("//                                                     //")
    PRINT("//-----------------------------------------------------//");
 }

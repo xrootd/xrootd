@@ -3148,7 +3148,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       // Parse the list
       int from = 0;
       while ((from = ciplist.tokenize(cip, from, ':')) != -1) {
-         if (cip.length() > 0) 
+         if (cip.length() > 0)
             if (sessionCF->SupportedCipher(cip.c_str()))
                break;
          cip = "";
@@ -3159,8 +3159,6 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
          hs->Chain = 0;
          return -1;
       }
-      // Communicate to server
-      br->UpdateBucket(cip, kXRS_cipher_alg);
    } else {
       NOTIFY("WARNING: list of ciphers supported by server missing"
             " - using default");
@@ -3309,6 +3307,17 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
             "using cipher public info from server");
       emsg = "could not instantiate session cipher ";
       return -1;
+   }
+
+   //
+   // Communicate the cipher name to server
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // Including the length of the IV if supported
+      String cipiv;
+      String::form(cipiv, "%s#%d", cip.c_str(), sessionKey->MaxIVLength());
+      br->UpdateBucket(cipiv, kXRS_cipher_alg);
+   } else {
+      br->UpdateBucket(cip, kXRS_cipher_alg);
    }
 
    // Deactivate what not needed any longer
@@ -3639,9 +3648,17 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    }
    //
    // Extract cipher algorithm chosen by the client
+   int lenIV = 0;
    String cip = "";
    if ((bck = br->GetBucket(kXRS_cipher_alg))) {
       bck->ToString(cip);
+      // Extract IV length, if any
+      int piv = cip.find('#');
+      if (piv >= 0) {
+         String siv(cip, piv+1);
+         if (siv.isdigit()) lenIV = siv.atoi();
+         cip.erase(piv);
+      }
       // Parse the list
       if (DefCipher.find(cip) == -1) {
          cmsg = "unsupported cipher chosen by the client";
@@ -3721,6 +3738,10 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          hs->Chain = 0;
          return -1;
       }
+
+      // Set IV length, if any
+      if (lenIV > 0) sessionKey->SetIV(lenIV, (const char *)0);
+
    } else {
       cmsg = "bucket with DH parameters not found or invalid: cannot finalize session cipher";
       return -1;

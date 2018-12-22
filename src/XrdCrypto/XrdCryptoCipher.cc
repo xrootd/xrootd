@@ -58,7 +58,7 @@ bool XrdCryptoCipher::IsValid()
 //____________________________________________________________________________
 void XrdCryptoCipher::SetIV(int l, const char *iv)
 {
-   // Set IV from l bytes at iv
+   // Set IV from l bytes at iv. If !iv, sets the IV length.
 
    ABSTRACTMETHOD("XrdCryptoCipher::SetIV");
 }
