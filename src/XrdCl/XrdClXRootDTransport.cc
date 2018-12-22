@@ -1712,7 +1712,7 @@ namespace XrdCl
       // Initialize some other structs
       //------------------------------------------------------------------------
       size_t authBuffLen = strlen( info->authBuffer );
-      char *pars = (char *)malloc( authBuffLen );
+      char *pars = (char *)malloc( authBuffLen + 1 );
       memcpy( pars, info->authBuffer, authBuffLen );
       info->authParams = new XrdSecParameters( pars, authBuffLen );
       sInfo.status = XRootDStreamInfo::AuthSent;
