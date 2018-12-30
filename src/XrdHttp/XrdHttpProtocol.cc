@@ -914,9 +914,9 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   // for authorization in the paths that it manages
   if (!Bridge && !FindMatchingExtHandler(CurrentReq)) {
     if (SecEntity.name)
-      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
+      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, ishttps ? "https" : "http");
     else
-      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", "XrdHttp");
+      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", ishttps ? "https" : "http");
       
     if (!Bridge) {
       TRACEI(REQ, " Authorization failed.");
