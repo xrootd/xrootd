@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <limits.h>
+#include <string>
 #include <unistd.h>
 #include <inttypes.h>
 #include <netinet/in.h>
@@ -47,6 +48,7 @@
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -116,11 +118,19 @@ static AdminReq       *Last;
 /*                     G l o b a l s   &   S t a t i c s                      */
 /******************************************************************************/
 
+
        XrdSysSemaphore  AdminReq::QPresent(0);
        XrdSysMutex      AdminReq::QMutex;
        AdminReq        *AdminReq::First = 0;
        AdminReq        *AdminReq::Last  = 0;
        int              AdminReq::numinQ= 0;
+
+       XrdOssStatInfo2_t  XrdCmsAdmin::areFunc  = 0;
+       XrdOucTList       *XrdCmsAdmin::areFirst = 0;
+       XrdOucTList       *XrdCmsAdmin::areLast  = 0;
+       XrdSysMutex        XrdCmsAdmin::areMutex;
+       XrdSysSemaphore    XrdCmsAdmin::areSem(0);
+       bool               XrdCmsAdmin::arePost  = false;
 
        XrdSysMutex      XrdCmsAdmin::myMutex;
        XrdSysSemaphore *XrdCmsAdmin::SyncUp = 0;
@@ -142,12 +152,41 @@ void *XrdCmsAdminMonAds(void *carg)
        Admin->MonAds();
        return (void *)0;
       }
+  
+void *XrdCmsAdminMonARE(void *carg)
+      {XrdCmsAdmin::RelayAREvent();
+       return (void *)0;
+      }
 
 void *XrdCmsAdminSend(void *carg)
       {XrdCmsAdmin::Relay(0,0);
        return (void *)0;
       }
- 
+  
+/******************************************************************************/
+/*                          I n i t A R E v e n t s                           */
+/******************************************************************************/
+  
+bool XrdCmsAdmin::InitAREvents(void *arFunc)
+{
+   pthread_t tid;
+
+// Record the function we will be using
+//
+   areFunc = (XrdOssStatInfo2_t)arFunc;
+
+// Start the event relay
+//
+   if (XrdSysThread::Run(&tid,XrdCmsAdminMonARE,(void *)0))
+      {Say.Emsg("InitAREvents", errno, "start arevent relay");
+       return false;
+      }
+
+// All done
+//
+   return true;
+}
+  
 /******************************************************************************/
 /*                                 L o g i n                                  */
 /******************************************************************************/
@@ -342,6 +381,50 @@ void XrdCmsAdmin::Relay(int setSock, int newSock)
 }
 
 /******************************************************************************/
+/*                          R e l a y A R E v e n t                           */
+/******************************************************************************/
+
+void XrdCmsAdmin::RelayAREvent()
+{
+   EPNAME("RelayAREvent");
+   const char *evWhat;
+   XrdOucTList *evP;
+   int evType, mod;
+
+// Endless loop relaying events
+//
+do{areMutex.Lock();
+   while((evP = areFirst))
+        {if (evP == areLast) areFirst = areLast = 0;
+            else areFirst = evP->next;
+         areMutex.UnLock();
+         XrdCms::CmsReqCode reqCode = static_cast<CmsReqCode>(evP->ival[0]);
+         mod = evP->ival[1];
+         if (reqCode == kYR_have)
+            {if (mod & CmsHaveRequest::Pending)
+                {evType = XrdOssStatEvent::PendAdded;
+                 evWhat = "pend ";
+                } else {
+                 evType = XrdOssStatEvent::FileAdded;
+                 evWhat = "have ";
+                }
+            } else {
+             evType = XrdOssStatEvent::FileRemoved;
+             evWhat = "gone ";
+            }
+         (*areFunc)(evP->text, 0, evType, 0, evP->text);
+         DEBUG("sending managers " <<evWhat <<evP->text);
+         XrdCmsManager::Inform(reqCode, mod, evP->text, strlen(evP->text)+1);
+         delete evP;
+         areMutex.Lock();
+        }
+   arePost = true;
+   areMutex.UnLock();
+   areSem.Wait();
+  } while(true);
+}
+  
+/******************************************************************************/
 /*                                  S e n d                                   */
 /******************************************************************************/
   
@@ -392,6 +475,25 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
+/*                              A d d E v e n t                               */
+/******************************************************************************/
+
+void XrdCmsAdmin::AddEvent(const char *path, XrdCms::CmsReqCode req, int mods)
+{
+   int info[2] = {(int)req, mods};
+   XrdOucTList *evP = new XrdOucTList(path, info);
+
+// Add the event to he queue
+//
+   areMutex.Lock();
+   if (areLast) areLast->next = evP;
+      else      areFirst      = evP;
+   areLast = evP;
+   if (arePost) {areSem.Post(); arePost = false;}
+   areMutex.UnLock();
+}
+
+/******************************************************************************/
 /*                                B e g A d s                                 */
 /******************************************************************************/
 
@@ -413,6 +515,36 @@ void XrdCmsAdmin::BegAds()
 //
    if (XrdSysThread::Run(&tid,XrdCmsAdminMonAds,(void *)this))
       Say.Emsg(epname, errno, "start alternate data server monitor");
+}
+  
+/******************************************************************************/
+/*                             C h e c k V N i d                              */
+/******************************************************************************/
+
+bool XrdCmsAdmin::CheckVNid(const char *xNid)
+{
+
+// Check if we have a vnid but the server is supplying one or is not the same
+//
+   if (Config.myVNID)
+      {if (!xNid)
+          {Say.Emsg("do_Login", "Warning! No xrootd vnid specified; "
+                                "proceeding only with cmsd vnid.");
+           return true;
+          }
+       if (!strcmp(xNid, Config.myVNID)) return true;
+       std::string msg("xrootd vnid '");
+       msg += xNid; msg += "' does not match cmsd vnid '";
+       msg += Config.myVNID; msg += "'.";
+       Say.Emsg("do_Login", msg.c_str());
+       return false;
+      }
+
+// We don't have a vnid, check if one is present
+//
+   if (xNid) Say.Emsg("do_Login", "Warning! xrootd has a vnid but cmsd does "
+                                  "not; proceeding without a vnid!");
+   return true;
 }
   
 /******************************************************************************/
@@ -489,11 +621,12 @@ do{while((snum = adsSocket.Open("localhost", Config.adsPort)) < 0)
   
 int XrdCmsAdmin::do_Login()
 {
+   std::string vnidVal;
    const char *emsg;
    char buff[64], *tp, Ltype = 0;
    int Port = 0;
 
-// Process: login {p | P | s | u} <name> [port <port>]
+// Process: login {p | P | s | u} <name> [port <port>] [nid <nid>]
 //
    if (!(tp = Stream.GetToken()))
       {Say.Emsg("do_Login", "login type not specified");
@@ -537,6 +670,13 @@ int XrdCmsAdmin::do_Login()
                   if (XrdOuca2x::a2i(Say,"login port",tp,&Port,0))
                      return 0;
                  }
+         else if (!strcmp(tp, "vnid"))
+                 {if (!(tp = Stream.GetToken()))
+                     {Say.Emsg("do_Login", "vnid value not specified");
+                      return 0;
+                     }
+                  vnidVal = tp;
+                 }
          else    {Say.Emsg("do_Login", "invalid login option -", tp);
                   return 0;
                  }
@@ -552,6 +692,14 @@ int XrdCmsAdmin::do_Login()
    else                                        emsg = 0;
    if (emsg) 
       {Say.Emsg("do_login", "Server login rejected; configured role", emsg);
+       return 0;
+      }
+
+// Verify virtual networking
+//
+   if ((vnidVal.length() || Config.myVNID)
+   && !CheckVNid(vnidVal.length() ? vnidVal.c_str() : 0))
+      {Say.Emsg("do_login", "Server login rejected; virtual networking error.");
        return 0;
       }
 
@@ -620,8 +768,12 @@ void XrdCmsAdmin::do_RmDid(int isPfn)
           } else tp = apath;
       }
 
-   DEBUG("sending managers gone " <<tp);
-   XrdCmsManager::Inform(kYR_gone, kYR_raw, tp, strlen(tp)+1);
+// Check if we are relaying remove events and, if so, vector through that.
+//
+   if (areFunc) AddEvent(tp, kYR_gone, kYR_raw);
+      else {DEBUG("sending managers gone " <<tp);
+            XrdCmsManager::Inform(kYR_gone, kYR_raw, tp, strlen(tp)+1);
+           }
 }
  
 /******************************************************************************/
@@ -649,6 +801,10 @@ void XrdCmsAdmin::do_RmDud(int isPfn)
           } else tp = apath;
       }
 
-   DEBUG("sending managers have online " <<tp);
-   XrdCmsManager::Inform(kYR_have, Mods, tp, strlen(tp)+1);
+// Check if we are relaying remove events and, if so, vector through that.
+//
+   if (areFunc) AddEvent(tp, kYR_have, Mods);
+      else {DEBUG("sending managers have online " <<tp);
+            XrdCmsManager::Inform(kYR_have, Mods, tp, strlen(tp)+1);
+           }
 }

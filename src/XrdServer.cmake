@@ -149,6 +149,7 @@ add_library(
   XrdCms/XrdCmsRTable.cc          XrdCms/XrdCmsRTable.hh
                                   XrdCms/XrdCmsTypes.hh
   XrdCms/XrdCmsUtils.cc           XrdCms/XrdCmsUtils.hh
+                                  XrdCms/XrdCmsVnId.hh
 
   #-----------------------------------------------------------------------------
   # XrdDig
@@ -160,7 +161,7 @@ add_library(
 target_link_libraries(
   XrdServer
   XrdUtils
-  dl
+  ${CMAKE_DL_LIBS}
   pthread
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )

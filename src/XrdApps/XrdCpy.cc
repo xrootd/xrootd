@@ -740,7 +740,7 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
    Path = src + (*src == 'x' ? 8 : 7);
    if (!(Path = index(Path, '/')))
       {EMSG("Unable to extract lfn from '" <<getFName(src) <<"'."); return 0;}
-   strncpy(lfnBuff, Path+1, sizeof(lfnBuff));
+   strncpy(lfnBuff, Path+1, sizeof(lfnBuff)-1);
    lfnBuff[sizeof(lfnBuff)-1] = 0;
    if ((qP = index(lfnBuff, '?'))) *qP = 0;
 
@@ -1458,6 +1458,10 @@ int doCp(XrdOucString &src, XrdOucString &dest, XrdClient *xrddest)
   
 int main(int argc, char**argv)
 {
+   std::cerr << "Note: this tool is DEPRECATED, use xrdcp instead." << std::endl;
+   Info(XrdClientDebug::kUSERDEBUG, "Main",
+        "Note: this tool is DEPRECATED, use xrdcp instead.");
+
    const char *Opaque;
    char *hName, *srcpath = 0, *destpath = 0;
 

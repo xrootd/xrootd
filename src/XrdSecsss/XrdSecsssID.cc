@@ -46,6 +46,7 @@
 /******************************************************************************/
   
 #define XRDSECSSSID "XrdSecsssID"
+#define XRDSECSSSENDO "XrdSecsssENDORSEMENT"
 
 XrdSysMutex         XrdSecsssID::InitMutex;
 
@@ -179,7 +180,7 @@ int XrdSecsssID::Register(const char *lid, XrdSecEntity *eP, int doRep)
 //
    if (!(idP = genID(eP))) return 0;
    myMutex.Lock(); 
-   rc = (Registry.Add(lid, idP, hOpt) ? 0 : 1);
+   rc = (Registry.Add(lid, idP, 0, XrdOucHash_Options(hOpt)) ? 0 : 1);
    myMutex.UnLock();
    return rc;
 }
@@ -203,6 +204,9 @@ XrdSecsssID::sssID *XrdSecsssID::genID(int Secure)
              ? (char *)"nobody"  : pBuff;
    myID.grps = (Secure || XrdOucUtils::GroupName(getegid(), gBuff, pgSz) == 0)
              ? (char *)"nogroup" : gBuff;
+
+   if (getenv(XRDSECSSSENDO)) 
+     {myID.endorsements = getenv(XRDSECSSSENDO); }
 
 // Just return the sssID
 //

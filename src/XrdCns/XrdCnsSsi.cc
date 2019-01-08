@@ -60,11 +60,22 @@ struct XrdCnsSsiFRec
 {
 char Info[XrdCnsLogRec::FixDLen];
 
-void Updt(const char *nInfo) {strncpy(Info, nInfo, sizeof(Info));}
+     void Updt(const char *nInfo) {
+       if(nInfo == 0) return;
+       size_t size = strlen(nInfo);
+       if (size > sizeof(Info)-1)
+	 size = sizeof(Info)-1;
+       memcpy(Info, nInfo, size);
+       Info[size] = '\0';
+     }
 
      XrdCnsSsiFRec(const char *Data) {if (!Data) Data = XrdCnsLogRec::iArg;
-                                      strncpy(Info, Data, sizeof(Info));
+	                              size_t size = strlen(Data);
+				      if (size > sizeof(Info)-1) 
+					size = sizeof(Info)-1;
+                                      memcpy(Info, Data, size);
                                       *Info = 'i';
+				      Info[size] = '\0';
                                      }
     ~XrdCnsSsiFRec() {}
 };
@@ -75,8 +86,12 @@ XrdOucHash<XrdCnsSsiFRec> *Files;
 char                       Info[XrdCnsLogRec::FixDLen];
 
      XrdCnsSsiDRec(const char *Data) {if (!Data) Data = XrdCnsLogRec::IArg;
-                                      strncpy(Info, Data, sizeof(Info));
+                                      size_t size = strlen(Data);
+				      if(size > sizeof(Info)-1)
+					size = sizeof(Info)-1;
+	                              memcpy(Info, Data, size);		      
                                       *Info = 'I';
+				      Info[size] = '\0';
                                       Files = new XrdOucHash<XrdCnsSsiFRec>;
                                      }
     ~XrdCnsSsiDRec() {if (Files) delete Files;}
@@ -725,7 +740,7 @@ void XrdCnsSsi::FSize(char *oP, char *iP, int bsz)
 //
    n = sprintf(buff,"%lld.%d%c", val, resid, sName);
    memset(oP, ' ', bsz);
-   strncpy(oP+(bsz-n), buff, n);
+   memcpy(oP+(bsz-n), buff, n);
 }
 
 /******************************************************************************/

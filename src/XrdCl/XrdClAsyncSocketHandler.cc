@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClOptimizers.hh"
 #include <netinet/tcp.h>
 
@@ -389,49 +390,21 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Write the message if not already written
+    // Try to write everything at once: signature, request and raw data
+    // (this is only supported if pOutHandler is an instance of XRootDMsgHandler)
     //--------------------------------------------------------------------------
-    Status st;
-    if( !pOutMsgDone )
+    Status st = WriteMessageAndRaw( pOutgoing, pSignature );
+    if( !st.IsOK() && st.code == errNotSupported )   //< this part should go away
+      st = WriteSeparately( pOutgoing, pSignature ); //< once we can add GetMsgBody
+                                                     //< to OutgoingMsgHandler interface !!!
+    if( !st.IsOK() )
     {
-      if( !(st = WriteSignedMessage( pOutgoing, pSignature )).IsOK() )
-      {
-        OnFault( st );
-        return;
-      }
-
-      if( st.code == suRetry )
-        return;
-
-      Log *log = DefaultEnv::GetLog();
-
-      if( pOutHandler && pOutHandler->IsRaw() )
-      {
-        log->Dump( AsyncSockMsg, "[%s] Will call raw handler to write payload "
-                   "for message: %s (0x%x).", pStreamName.c_str(),
-                   pOutgoing->GetDescription().c_str(), pOutgoing );
-      }
-
-      pOutMsgDone = true;
+      OnFault( st );
+      return;
     }
 
-    //--------------------------------------------------------------------------
-    // Check if the handler needs to be called
-    //--------------------------------------------------------------------------
-    if( pOutHandler && pOutHandler->IsRaw() )
-    {
-      uint32_t bytesWritten = 0;
-      st = pOutHandler->WriteMessageBody( pSocket->GetFD(), bytesWritten );
-      pOutMsgSize += bytesWritten;
-      if( !st.IsOK() )
-      {
-        OnFault( st );
-        return;
-      }
-
-      if( st.code == suRetry )
-        return;
-    }
+    if( st.code == suRetry )
+      return;
 
     Log *log = DefaultEnv::GetLog();
     log->Dump( AsyncSockMsg, "[%s] Successfully sent message: %s (0x%x).",
@@ -494,18 +467,10 @@ namespace XrdCl
       int status = pSocket->Send( msg->GetBufferAtCursor(), leftToBeWritten );
       if( status <= 0 )
       {
-        //----------------------------------------------------------------------
-        // Writing operation would block! So we are done for now, but we will
-        // return
-        //----------------------------------------------------------------------
-        if( errno == EAGAIN || errno == EWOULDBLOCK )
-          return Status( stOK, suRetry );
-
-        //----------------------------------------------------------------------
-        // Actual socket error error!
-        //----------------------------------------------------------------------
-        toWrite->SetCursor( 0 );
-        return Status( stError, errSocketError, errno );
+        Status ret = ClassifyErrno( errno );
+        if( !ret.IsOK() )
+          toWrite->SetCursor( 0 );
+        return ret;
       }
       msg->AdvanceCursor( status );
       leftToBeWritten -= status;
@@ -523,50 +488,155 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Write the message and its signature
   //----------------------------------------------------------------------------
-  Status AsyncSocketHandler::WriteSignedMessage( Message *toWrite, Message *&sign )
+  Status AsyncSocketHandler::WriteVMessage( Message   *toWrite,
+                                            Message   *&sign,
+                                            ChunkList *chunks,
+                                            uint32_t  *asyncOffset )
   {
-    if( !sign ) return WriteCurrentMessage( toWrite );
+    if( !sign && !chunks ) return WriteCurrentMessage( toWrite );
 
     Log *log = DefaultEnv::GetLog();
 
-    const size_t iovcnt = 2;
+    const size_t iovcnt = 1 + ( sign ? 1 : 0 ) + ( chunks ? chunks->size() : 0 );
     iovec iov[iovcnt];
-    ToIov( *sign,    iov[0] );
-    ToIov( *toWrite, iov[1] );
+    uint32_t leftToBeWritten = 0;
+    size_t i = 0;
 
-    uint32_t  leftToBeWritten = iov[0].iov_len + iov[1].iov_len;
+    if( sign )
+    {
+      ToIov( *sign, iov[i] );
+      leftToBeWritten += iov[i].iov_len;
+      ++i;
+    }
+
+    ToIov( *toWrite, iov[i] );
+    leftToBeWritten += iov[i].iov_len;
+    ++i;
+
+    uint32_t rawSize = 0;
+    if( chunks )
+    {
+      rawSize = ToIov( chunks, asyncOffset, iov + i );
+      leftToBeWritten += rawSize;
+    }
 
     while( leftToBeWritten )
     {
-      int bytesRead = pSocket->WriteV( iov, iovcnt );
-      if( bytesRead <= 0 )
+      int bytesWritten = pSocket->WriteV( iov, iovcnt );
+      if( bytesWritten <= 0 )
       {
-        //----------------------------------------------------------------------
-        // Writing operation would block! So we are done for now, but we will
-        // return
-        //----------------------------------------------------------------------
-        if( errno == EAGAIN || errno == EWOULDBLOCK )
-          return Status( stOK, suRetry );
-
-        //----------------------------------------------------------------------
-        // Actual socket error error!
-        //----------------------------------------------------------------------
-        sign->SetCursor( 0 );
-        toWrite->SetCursor( 0 );
-        return Status( stError, errSocketError, errno );
+        Status ret = ClassifyErrno( errno );
+        if( !ret.IsOK() )
+          toWrite->SetCursor( 0 );
+        return ret;
       }
 
-      leftToBeWritten -= bytesRead;
-      UpdateAfterWrite( *sign,    iov[0], bytesRead );
-      UpdateAfterWrite( *toWrite, iov[1], bytesRead );
+      leftToBeWritten -= bytesWritten;
+      if( sign )
+        UpdateAfterWrite( *sign, iov[0], bytesWritten );
+
+      i = sign ? 1 : 0;
+      UpdateAfterWrite( *toWrite, iov[i], bytesWritten );
+
+      if( chunks && asyncOffset )
+        UpdateAfterWrite( chunks, asyncOffset, iov + i + 1, bytesWritten );
     }
 
     //--------------------------------------------------------------------------
     // We have written the message successfully
     //--------------------------------------------------------------------------
-    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
+    if( sign )
+      log->Dump( AsyncSockMsg, "[%s] WroteV a message signature : %s (0x%x), "
+                 "%d bytes",
+                 pStreamName.c_str(), sign->GetDescription().c_str(),
+                 sign, sign->GetSize() );
+
+    log->Dump( AsyncSockMsg, "[%s] WroteV a message: %s (0x%x), %d bytes",
                pStreamName.c_str(), toWrite->GetDescription().c_str(),
                toWrite, toWrite->GetSize() );
+
+    if( chunks )
+      log->Dump( AsyncSockMsg, "[%s] WroteV raw data:  %d bytes",
+                 pStreamName.c_str(), rawSize );
+
+    return Status();
+  }
+
+  Status AsyncSocketHandler::WriteMessageAndRaw( Message *toWrite, Message *&sign )
+  {
+    // once we can add 'GetMessageBody' to OutgoingMsghandler
+    // interface we can get rid of the ugly dynamic_cast
+    static XRootDMsgHandler *xrdHandler = 0;
+    ChunkList *chunks = 0;
+    uint32_t  *asyncOffset = 0;
+
+    if( pOutHandler->IsRaw() )
+    {
+      if( xrdHandler != pOutHandler )
+        xrdHandler = dynamic_cast<XRootDMsgHandler*>( pOutHandler );
+
+      if( !xrdHandler )
+        return Status( stError, errNotSupported );
+
+      chunks = xrdHandler->GetMessageBody( asyncOffset );
+      Log    *log = DefaultEnv::GetLog();
+      log->Dump( AsyncSockMsg, "[%s] Will write the payload in one go with "
+                 "the header for message: %s (0x%x).", pStreamName.c_str(),
+                 pOutgoing->GetDescription().c_str(), pOutgoing );
+    }
+
+    Status st = WriteVMessage( toWrite, sign, chunks, asyncOffset );
+    if( st.IsOK() && st.code == suDone )
+    {
+      if( asyncOffset )
+        pOutMsgSize += *asyncOffset;
+      pOutMsgDone  = true;
+    }
+
+    return st;
+  }
+
+  Status AsyncSocketHandler::WriteSeparately( Message *toWrite, Message *&sign )
+  {
+    //------------------------------------------------------------------------
+    // Write the message if not already written
+    //------------------------------------------------------------------------
+    Status st;
+    if( !pOutMsgDone )
+    {
+      if( !(st = WriteVMessage( toWrite, sign, 0, 0 )).IsOK() )
+        return st;
+
+      if( st.code == suRetry )
+        return st;
+
+      Log *log = DefaultEnv::GetLog();
+
+      if( pOutHandler && pOutHandler->IsRaw() )
+      {
+        log->Dump( AsyncSockMsg, "[%s] Will call raw handler to write payload "
+                   "for message: %s (0x%x).", pStreamName.c_str(),
+                   pOutgoing->GetDescription().c_str(), pOutgoing );
+      }
+
+      pOutMsgDone = true;
+    }
+
+    //------------------------------------------------------------------------
+    // Check if the handler needs to be called
+    //------------------------------------------------------------------------
+    if( pOutHandler && pOutHandler->IsRaw() )
+    {
+      uint32_t bytesWritten = 0;
+      st = pOutHandler->WriteMessageBody( pSocket->GetFD(), bytesWritten );
+      pOutMsgSize += bytesWritten;
+      if( !st.IsOK() )
+        return st;
+
+      if( st.code == suRetry )
+        return st;
+    }
+
     return Status();
   }
 
@@ -690,7 +760,12 @@ namespace XrdCl
     pHandShakeData->in = pHSIncoming;
     pHSIncoming = 0;
     st = pTransport->HandShake( pHandShakeData, *pChannelData );
-    ++pHandShakeData->step;
+
+    //--------------------------------------------------------------------------
+    // Deal with wait responses
+    //--------------------------------------------------------------------------
+    kXR_int32 waitSeconds = HandleWaitRsp( pHandShakeData->in );
+
     delete pHandShakeData->in;
     pHandShakeData->in = 0;
 
@@ -699,6 +774,38 @@ namespace XrdCl
       OnFaultWhileHandshaking( st );
       return;
     }
+
+    //--------------------------------------------------------------------------
+    // We are handling a wait response and the transport handler told
+    // as to retry the request
+    //--------------------------------------------------------------------------
+    if( st.code == suRetry && waitSeconds >= 0 )
+    {
+      time_t resendTime = ::time( 0 ) + waitSeconds;
+      if( resendTime > pConnectionStarted + pConnectionTimeout )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( AsyncSockMsg,
+                    "[%s] Wont retry kXR_endsess request because would"
+                    "reach connection timeout.",
+                    pStreamName.c_str() );
+
+        OnFaultWhileHandshaking( Status( stError, errSocketTimeout ) );
+      }
+      else
+      {
+        TaskManager *taskMgr = DefaultEnv::GetPostMaster()->GetTaskManager();
+        WaitTask *task = new WaitTask( this, pHandShakeData->out );
+        pHandShakeData->out = 0;
+        taskMgr->RegisterTask( task, resendTime );
+      }
+      return;
+    }
+
+    //--------------------------------------------------------------------------
+    // We successfully proceeded to the next step
+    //--------------------------------------------------------------------------
+    ++pHandShakeData->step;
 
     //--------------------------------------------------------------------------
     // The transport handler gave us something to write
@@ -830,6 +937,9 @@ namespace XrdCl
       // called from inside of Stream::OnReadTimeout, this
       // in turn means that the ownership of following
       // pointers, has been transfered to the inQueue
+      if( !pIncHandler.second )
+        delete pIncoming;
+
       pIncoming   = 0;
       pOutgoing   = 0;
       pOutHandler = 0;
@@ -871,11 +981,123 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Update iovec after write
   //------------------------------------------------------------------------
-  void AsyncSocketHandler::UpdateAfterWrite( Message &msg, iovec &iov, int &bytesRead )
+  void AsyncSocketHandler::UpdateAfterWrite( Message  &msg,
+                                             iovec    &iov,
+                                             int      &bytesWritten )
   {
-    size_t advance = ( bytesRead < (int)iov.iov_len ) ? bytesRead : iov.iov_len;
-    bytesRead -= advance;
+    size_t advance = ( bytesWritten < (int)iov.iov_len ) ? bytesWritten : iov.iov_len;
+    bytesWritten -= advance;
     msg.AdvanceCursor( advance );
     ToIov( msg, iov );
+  }
+
+  //------------------------------------------------------------------------
+  // Add chunks to the given iovec
+  //------------------------------------------------------------------------
+  uint32_t AsyncSocketHandler::ToIov( ChunkList       *chunks,
+                                      const uint32_t  *offset,
+                                      iovec           *iov )
+  {
+    if( !chunks || !offset ) return 0;
+
+    uint32_t off  = *offset;
+    uint32_t size = 0;
+
+    for( auto itr = chunks->begin(); itr != chunks->end(); ++itr )
+    {
+      auto &chunk = *itr;
+      if( off > chunk.length )
+      {
+        iov->iov_len = 0;
+        iov->iov_base = 0;
+        off -= chunk.length;
+      }
+      else if( off > 0 )
+      {
+        iov->iov_len  = chunk.length - off;
+        iov->iov_base = reinterpret_cast<char*>( chunk.buffer ) + off;
+        size += iov->iov_len;
+        off = 0;
+      }
+      else
+      {
+        iov->iov_len  = chunk.length;
+        iov->iov_base = chunk.buffer;
+        size += iov->iov_len;
+      }
+      ++iov;
+    }
+
+    return size;
+  }
+
+  void AsyncSocketHandler::UpdateAfterWrite( ChunkList  *chunks,
+                                             uint32_t   *offset,
+                                             iovec      *iov,
+                                             int        &bytesWritten )
+  {
+    *offset += bytesWritten;
+    bytesWritten = 0;
+    ToIov( chunks, offset, iov );
+  }
+
+
+  void AsyncSocketHandler::RetryHSMsg( Message *msg )
+  {
+    pHSOutgoing = msg;
+    Status st;
+    if( !(st = EnableUplink()).IsOK() )
+    {
+      OnFaultWhileHandshaking( st );
+      return;
+    }
+  }
+
+  kXR_int32 AsyncSocketHandler::HandleWaitRsp( Message *msg )
+  {
+    // It would be more coherent if this could be done in the
+    // transport layer, unfortunately the API does not allow it.
+    kXR_int32 waitSeconds = -1;
+    ServerResponse *rsp = (ServerResponse*)msg->GetBuffer();
+    if( rsp->hdr.status == kXR_wait )
+      waitSeconds = rsp->body.wait.seconds;
+    return waitSeconds;
+  }
+
+  Status AsyncSocketHandler::ClassifyErrno( int error )
+  {
+    switch( errno )
+    {
+
+      case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+      case EWOULDBLOCK:
+#endif
+      {
+        //------------------------------------------------------------------
+        // Reading/writing operation would block! So we are done for now,
+        // but we will be back ;-)
+        //------------------------------------------------------------------
+        return Status( stOK, suRetry );
+      }
+      case ECONNRESET:
+      case EDESTADDRREQ:
+      case EMSGSIZE:
+      case ENOTCONN:
+      case ENOTSOCK:
+      {
+        //------------------------------------------------------------------
+        // Actual socket error error!
+        //------------------------------------------------------------------
+        return Status( stError, errSocketError, errno );
+      }
+      default:
+      {
+        //------------------------------------------------------------------
+        // Not a socket error
+        //------------------------------------------------------------------
+        return Status( stError, errInternal, errno );
+      }
+    }
   }
 }

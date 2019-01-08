@@ -26,7 +26,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdOuc/XrdOucSxeq.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdFileCacheInfo.hh"
@@ -40,14 +40,14 @@ struct FpHelper
 {
    XrdOssDF    *f_fp;
    off_t f_off;
-   XrdOucTrace *f_trace;
+   XrdSysTrace *f_trace;
    const char  *m_traceID;
    std::string f_ttext;
 
-   XrdOucTrace* GetTrace() const { return f_trace; }
+   XrdSysTrace* GetTrace() const { return f_trace; }
 
    FpHelper(XrdOssDF* fp, off_t off,
-            XrdOucTrace *trace, const char *tid, const std::string &ttext) :
+            XrdSysTrace *trace, const char *tid, const std::string &ttext) :
       f_fp(fp), f_off(off),
       f_trace(trace), m_traceID(tid), f_ttext(ttext)
    {}
@@ -104,7 +104,7 @@ const size_t Info::m_maxNumAccess   = 20;
 
 //------------------------------------------------------------------------------
 
-Info::Info(XrdOucTrace* trace, bool prefetchBuffer) :
+Info::Info(XrdSysTrace* trace, bool prefetchBuffer) :
    m_trace(trace),
    m_hasPrefetchBuffer(prefetchBuffer),
    m_buff_written(0),  m_buff_prefetch(0),
@@ -119,6 +119,23 @@ Info::~Info()
    if (m_buff_written) free(m_buff_written);
    if (m_buff_prefetch) free(m_buff_prefetch);
    delete m_cksCalc;
+}
+
+//------------------------------------------------------------------------------
+
+void Info::SetAllBitsSynced()
+{
+   // The following should be:
+   //   memset(m_store.m_buff_synced, 255, GetSizeInBytes());
+   // but GCC produces an overzealous 'possible argument transpose warning' and
+   // xrootd build uses warnings->errors escalation.
+   // This workaround can be removed for gcc >= 5.
+   // See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61294
+   const int nb = GetSizeInBytes();
+   for (int i = 0; i < nb; ++i)
+      m_store.m_buff_synced[i] = 255;
+
+   m_complete = true;
 }
 
 //------------------------------------------------------------------------------
@@ -149,10 +166,10 @@ void Info::ResizeBits(int s)
    if (m_buff_prefetch) free(m_buff_prefetch);
 
    m_sizeInBits = s;
-   m_buff_written      = (unsigned char*) malloc(GetSizeInBytes());
+   m_buff_written        = (unsigned char*) malloc(GetSizeInBytes());
    m_store.m_buff_synced = (unsigned char*) malloc(GetSizeInBytes());
-   memset(m_buff_written,      0, GetSizeInBytes());
-   memset(m_store.m_buff_synced,       0, GetSizeInBytes());
+   memset(m_buff_written,        0, GetSizeInBytes());
+   memset(m_store.m_buff_synced, 0, GetSizeInBytes());
 
    if (m_hasPrefetchBuffer)
    {
@@ -160,7 +177,6 @@ void Info::ResizeBits(int s)
       memset(m_buff_prefetch, 0, GetSizeInBytes());
    }
 }
-
 
 //------------------------------------------------------------------------------
 
@@ -215,7 +231,6 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    // cache complete status
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
 
-
    // read creation time
    if (r.Read(m_store.m_creationTime)) return false;
 
@@ -230,7 +245,6 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
    {
       if (r.Read(*it, sizeof(AStat))) return false;
    }
-
 
    return true;
 }
@@ -306,7 +320,7 @@ void Info::GetCksum( unsigned char* buff, char* digest)
 //------------------------------------------------------------------------------
 void Info::DisableDownloadStatus()
 {
-   // use version sign to skip downlaod status
+   // use version sign to skip download status
    m_store.m_version = -m_store.m_version;
 }
 //------------------------------------------------------------------------------
@@ -325,9 +339,9 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
    FpHelper w(fp, 0, m_trace, m_traceID, trace_pfx + "oss write failed");
 
    m_store.m_version = m_defaultVersion;
-   if (w.Write(m_store.m_version)) return false;
+   if (w.Write(m_store.m_version))    return false;
    if (w.Write(m_store.m_bufferSize)) return false;
-   if (w.Write(m_store.m_fileSize)) return false;
+   if (w.Write(m_store.m_fileSize))   return false;
 
    if (w.WriteRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
 
@@ -353,6 +367,24 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
 
 //------------------------------------------------------------------------------
 
+void Info::WriteIOStatAttach()
+{
+   m_store.m_accessCnt++;
+   if (m_store.m_astats.size() >= m_maxNumAccess)
+      m_store.m_astats.erase(m_store.m_astats.begin());
+
+   AStat as;
+   as.AttachTime = time(0);
+   m_store.m_astats.push_back(as);
+}
+
+void Info::WriteIOStat(Stats& s)
+{
+   m_store.m_astats.back().BytesDisk   = s.m_BytesDisk;
+   m_store.m_astats.back().BytesRam    = s.m_BytesRam;
+   m_store.m_astats.back().BytesMissed = s.m_BytesMissed;
+}
+
 void Info::WriteIOStatDetach(Stats& s)
 {
    m_store.m_astats.back().DetachTime  = time(0);
@@ -361,14 +393,28 @@ void Info::WriteIOStatDetach(Stats& s)
    m_store.m_astats.back().BytesMissed = s.m_BytesMissed;
 }
 
-void Info::WriteIOStatAttach()
+void Info::WriteIOStatSingle(long long bytes_disk)
 {
    m_store.m_accessCnt++;
-   if ( m_store.m_astats.size() >= m_maxNumAccess)
-      m_store.m_astats.erase( m_store.m_astats.begin());
+   if (m_store.m_astats.size() >= m_maxNumAccess)
+      m_store.m_astats.erase(m_store.m_astats.begin());
 
    AStat as;
-   as.AttachTime = time(0);
+   as.AttachTime = as.DetachTime = time(0);
+   as.BytesDisk  = bytes_disk;
+   m_store.m_astats.push_back(as);
+}
+
+void Info::WriteIOStatSingle(long long bytes_disk, time_t att, time_t dtc)
+{
+   m_store.m_accessCnt++;
+   if (m_store.m_astats.size() >= m_maxNumAccess)
+      m_store.m_astats.erase(m_store.m_astats.begin());
+
+   AStat as;
+   as.AttachTime = att;
+   as.DetachTime = dtc;
+   as.BytesDisk  = bytes_disk;
    m_store.m_astats.push_back(as);
 }
 
@@ -378,6 +424,7 @@ bool Info::GetLatestDetachTime(time_t& t) const
 {
    if (! m_store.m_accessCnt) return false;
 
-   t =  m_store.m_astats[m_store.m_accessCnt-1].DetachTime;
+   size_t entry = std::min(m_store.m_accessCnt, m_maxNumAccess) - 1;
+   t =  m_store.m_astats[entry].DetachTime;
    return true;
 }

@@ -26,9 +26,15 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClPropertyList.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClConstants.hh"
 #include "XrdNet/XrdNetUtils.hh"
 
 #include <sys/time.h>
+
+#ifdef __linux__
+#include <sys/fsuid.h>
+#endif
 
 namespace XrdCl
 {
@@ -150,6 +156,15 @@ namespace XrdCl
                                     uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Check if peer supports tpc / tpc lite
+      //!
+      //! @return : suDone if TPC lite is supported, suPartial if plain TPC is
+      //!           supported, stError otherwise
+      //------------------------------------------------------------------------
+      static XRootDStatus CheckTPCLite( const std::string &server,
+                                        uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Convert the fully qualified host name to country code
       //------------------------------------------------------------------------
       static std::string FQDNToCC( const std::string &fqdn );
@@ -228,6 +243,83 @@ namespace XrdCl
     private:
       int pDescriptor;
   };
+
+#ifdef __linux__
+  //----------------------------------------------------------------------------
+  //! Scoped fsuid and fsgid setter, restoring original values on destruction
+  //----------------------------------------------------------------------------
+  class ScopedFsUidSetter
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      ScopedFsUidSetter(uid_t fsuid, gid_t fsgid, const std::string &streamName)
+      : pFsUid(fsuid), pFsGid(fsgid), pStreamName(streamName)
+      {
+        pOk = true;
+        pPrevFsUid = -1;
+        pPrevFsGid = -1;
+
+        //----------------------------------------------------------------------
+        //! Set fsuid
+        //----------------------------------------------------------------------
+        if(pFsUid >= 0) {
+          pPrevFsUid = setfsuid(pFsUid);
+
+          if(setfsuid(pFsUid) != pFsUid) {
+            pOk = false;
+            return;
+          }
+        }
+
+        //----------------------------------------------------------------------
+        //! Set fsgid
+        //----------------------------------------------------------------------
+        if(pFsGid >= 0) {
+          pPrevFsGid = setfsgid(pFsGid);
+
+          if(setfsgid(pFsGid) != pFsGid) {
+            pOk = false;
+            return;
+          }
+        }
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      ~ScopedFsUidSetter() {
+        Log *log = DefaultEnv::GetLog();
+
+        if(pPrevFsUid >= 0) {
+          int retcode = setfsuid(pPrevFsUid);
+          log->Dump(XRootDTransportMsg, "[%s] Restored fsuid from %d to %d", pStreamName.c_str(), retcode, pPrevFsUid);
+        }
+
+        if(pPrevFsGid >= 0) {
+          int retcode = setfsgid(pPrevFsGid);
+          log->Dump(XRootDTransportMsg, "[%s] Restored fsgid from %d to %d", pStreamName.c_str(), retcode, pPrevFsGid);
+        }
+      }
+
+      bool IsOk() const {
+        return pOk;
+      }
+
+    private:
+      int pFsUid;
+      int pFsGid;
+
+      const std::string &pStreamName;
+
+      int pPrevFsUid;
+      int pPrevFsGid;
+
+      bool pOk;
+  };
+#endif
+
 }
 
 #endif // __XRD_CL_UTILS_HH__

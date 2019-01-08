@@ -218,6 +218,7 @@ XrdOssSys::XrdOssSys()
    STT_PreOp     = 0;
    STT_DoN2N     = 1;
    STT_V2        = 0;
+   STT_DoARE     = 0;
 }
   
 /******************************************************************************/
@@ -315,7 +316,7 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 
 // Configure space (final pass)
 //
-   ConfigSpace();
+   ConfigSpace(Eroute);
 
 // Set the prefix for files in cache file systems  
    if ( OptFlags & XrdOss_CacheFS ) 
@@ -423,6 +424,13 @@ void XrdOssSys::Config_Display(XrdSysError &Eroute)
      fp = RPList.First();
      while(fp)
           {List_Path("       oss.path ", fp->Path(), fp->Flag(), Eroute);
+           fp = fp->Next();
+          }
+     fp = SPList.First();
+     while(fp)
+          {Eroute.Say("       oss.space ", fp->Name(),
+                      (fp->Attr() == spAssign ? " assign  " : " default "),
+                       fp->Path());
            fp = fp->Next();
           }
 }
@@ -569,7 +577,7 @@ int XrdOssSys::ConfigProc(XrdSysError &Eroute)
 /*                           C o n f i g S p a c e                            */
 /******************************************************************************/
 
-void XrdOssSys::ConfigSpace()
+void XrdOssSys::ConfigSpace(XrdSysError &Eroute)
 {
    XrdOucPList *fp = RPList.First();
    int noCacheFS = !(OptFlags & XrdOss_CacheFS);
@@ -584,6 +592,25 @@ void XrdOssSys::ConfigSpace()
             ConfigSpace(fp->Path());
          fp = fp->Next();
         }
+
+// If there is a space list then verify it
+//
+   if ((fp = SPList.First()))
+      {XrdOssCache_Group  *fsg;
+       const char *what;
+       bool zAssign = false;
+       while(fp)
+            {if (fp->Attr() != spAssign) what = "default space ";
+                else {zAssign = true;    what = "assign space ";}
+             const char *grp = fp->Name();
+             fsg = XrdOssCache_Group::fsgroups;
+             while(fsg) {if (!strcmp(fsg->group,grp)) break; fsg = fsg->next;}
+             if (!fsg) Eroute.Say("Config warning: unable to ", what, grp,
+                                  " to ", fp->Path(), "; space not defined.");
+             fp = fp->Next();
+            }
+       if (zAssign) SPList.Default(static_cast<unsigned long long>(spAssign));
+      }
 }
 
 /******************************************************************************/
@@ -847,6 +874,7 @@ int XrdOssSys::ConfigStatLib(XrdSysError &Eroute, XrdOucEnv *envP)
        if (!(siGet2=(XrdOssStatInfoInit2_t)myLib.Resolve("XrdOssStatInfoInit2"))
        ||  !(STT_Fund = siGet2(this,Eroute.logger(),ConfigFN,STT_Parms,envP)))
           return 1;
+       if (STT_DoARE) envP->PutPtr("XrdOssStatInfo2*", (void *)STT_Fund);
       } else {
        XrdOssStatInfoInit_t siGet;
        if (!(siGet = (XrdOssStatInfoInit_t)myLib.Resolve("XrdOssStatInfoInit"))
@@ -1150,10 +1178,20 @@ int XrdOssSys::xdefault(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdSysError &Eroute)
 {
+    char *val;
+    int fence = 0, FDHalf = FDLimit>>1;
+
+    if (!(val = Config.GetWord()))
+       {Eroute.Emsg("Config", "fdlimit fence not specified"); return 1;}
+
+    if (!strcmp(val, "*")) FDFence = FDHalf;
+       else {if (XrdOuca2x::a2i(Eroute,"fdlimit fence",val,&fence,0)) return 1;
+             FDFence = (fence < FDHalf ? fence : FDHalf);
+            }
 
     while(Config.GetWord()) {}
 
-    Eroute.Say("Config warning: ", "fdlimit directive no longer supported.");
+//  Eroute.Say("Config warning: ", "fdlimit directive no longer supported.");
 
     return 0;
 }
@@ -1326,9 +1364,19 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdSysError &Eroute)
    pP = XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags);
    if (!pP) return 1;
 
-// This plugin does not support relative paths so check for this
+// If this is an absolute path, we are done
 //
    if (*(pP->Path()) == '/') return 0;
+
+// If this is an objectid path then make sure to set the default for these
+//
+   if (*(pP->Path()) == '*')
+      {RPList.Defstar(pP->Flag());
+       return 0;
+      }
+
+// We do not (yet) support exporting specific object ID's
+//
    Eroute.Emsg("Config", "Unsupported export -", pP->Path());
    return 1;
 }
@@ -1414,6 +1462,7 @@ int XrdOssSys::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
 /* Function: xspace
 
    Purpose:  To parse the directive: space <name> <path>
+                                 or: space <name> {assign}default} <lfn> [...]
 
              <name>   logical name for the filesystem.
              <path>   path to the filesystem.
@@ -1432,6 +1481,7 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
    struct dirent *dp;
    struct stat buff;
    DIR *DFD;
+   bool isAsgn;
 
 // Get the space name
 //
@@ -1445,6 +1495,11 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
 //
    if (!(val = Config.GetWord()))
       {Eroute.Emsg("Config", "space path not specified"); return 1;}
+
+// Check if assignment
+//
+   if (((isAsgn = !strcmp("assign",val)) || ! strcmp("default",val)) && !isCD)
+      return xspace(Config, Eroute, grp, isAsgn);
 
    k = strlen(val);
    if (k >= (int)(sizeof(fn)-1) || val[0] != '/' || k < 2)
@@ -1503,6 +1558,36 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
    closedir(DFD);
    return rc != 0;
 }
+
+/******************************************************************************/
+
+int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute,
+                      const char *grp, bool isAsgn)
+{
+   XrdOucPList *pl;
+   char *path;
+
+// Get the path
+//
+   path = Config.GetWord();
+   if (!path || !path[0])
+      {Eroute.Emsg("Config", "space path not specified"); return 1;}
+
+// Create a new path list object and add it to list of paths
+//
+do{if ((pl = SPList.Match(path))) pl->Set(path, grp);
+      else {pl = new XrdOucPList(path, grp);
+            SPList.Insert(pl);
+           }
+   pl->Set((isAsgn ? spAssign : 0));
+  } while((path = Config.GetWord()));
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
 
 int XrdOssSys::xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute)
 {
@@ -1583,11 +1668,13 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xstl
 
-   Purpose:  To parse the directive: statlib [-2] [non2n] [preopen] <path> [<parms>]
+   Purpose:  To parse the directive: statlib <Options> <path> [<parms>]
 
-             -2        use version 2 initialization interface.
-             non2n     do not apply name2name prior to calling plug-in.
-             preopen   issue the stat() prior to opening the file.
+   Options:  -2        use version 2 initialization interface.
+             -arevents forward add/remove events (server role cmsd only)
+             -non2n    do not apply name2name prior to calling plug-in.
+             -preopen  issue the stat() prior to opening the file.
+
              <path>    the path of the stat library to be used.
              <parms>   optional parms to be passed
 
@@ -1603,12 +1690,13 @@ int XrdOssSys::xstl(XrdOucStream &Config, XrdSysError &Eroute)
    if (!(val = Config.GetWord()) || !val[0])
       {Eroute.Emsg("Config", "statlib not specified"); return 1;}
 
-// Check for options
+// Check for options we support the old and new versions here
 //
-   STT_V2 = 0; STT_PreOp = 0; STT_DoN2N = 1;
-do{     if (!strcmp(val, "-2"))      STT_V2    = 1;
-   else if (!strcmp(val, "non2n"))   STT_DoN2N = 0;
-   else if (!strcmp(val, "preopen")) STT_PreOp = 1;
+   STT_V2 = 0; STT_PreOp = 0; STT_DoN2N = 1; STT_DoARE = 0;
+do{     if (!strcmp(val, "-2")) STT_V2    = 1;
+   else if (!strcmp(val, "arevents") || !strcmp(val, "-arevents")) STT_DoARE=1;
+   else if (!strcmp(val, "non2n")    || !strcmp(val, "-non2n"))    STT_DoN2N=0;
+   else if (!strcmp(val, "preopen")  || !strcmp(val, "-preopen"))  STT_PreOp=1;
    else break;
   } while((val = Config.GetWord()) && val[0]);
 

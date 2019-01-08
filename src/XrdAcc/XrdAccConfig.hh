@@ -92,13 +92,20 @@ int                 ConfigDBrec(XrdSysError &Eroute,
 void                ConfigDefaults(void);
 int                 ConfigFile(XrdSysError &Eroute, const char *cfn);
 int                 ConfigXeq(char *, XrdOucStream &, XrdSysError &);
+void                idChk(XrdSysError &Eroute, XrdAccAccess_ID *idList,
+                          XrdAccAccess_Tables &tabs);
+int                 idDef(XrdSysError &Eroute, XrdAccAccess_Tables &tabs,
+                          const char *idName);
+void                subSpace(char *id);
 int                 PrivsConvert(char *privs, XrdAccPrivCaps &ctab);
+
 int                 xaud(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xart(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xdbp(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xglt(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xgrt(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xnis(XrdOucStream &Cofig, XrdSysError &Eroute);
+int                 xspc(XrdOucStream &Cofig, XrdSysError &Eroute);
 
 XrdAccAuthDB        *Database;
 char                *dbpath;
@@ -107,5 +114,7 @@ XrdSysMutex          Config_Context;
 XrdSysThread         Config_Refresh;
 
 int                  options;
+int                  rulenum;
+char                 spChar;
 };
 #endif

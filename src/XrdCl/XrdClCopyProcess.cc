@@ -34,9 +34,11 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 
 #include <sys/time.h>
 
+#include <memory>
 #include <iostream>
 
 namespace
@@ -167,7 +169,7 @@ namespace XrdCl
     pJobProperties.push_back( properties );
     PropertyList &p = pJobProperties.back();
 
-    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", "zipArchive", 0};
+    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", "zipArchive", "xcp", 0};
     for( int i = 0; bools[i]; ++i )
       if( !p.HasProperty( bools[i] ) )
         p.Set( bools[i], false );
@@ -185,6 +187,17 @@ namespace XrdCl
         return XRootDStatus( stError, errInvalidArgs, 0,
                              "checkSumType not specified" );
       }
+      else
+      {
+        //----------------------------------------------------------------------
+        // Checksum type has to be case insensitive
+        //----------------------------------------------------------------------
+        std::string checkSumType;
+        p.Get( "checkSumType", checkSumType );
+        std::transform(checkSumType.begin(), checkSumType.end(),
+                                                checkSumType.begin(), ::tolower);
+        p.Set( "checkSumType", checkSumType );
+      }
     }
 
     if( !p.HasProperty( "parallelChunks" ) )
@@ -199,6 +212,13 @@ namespace XrdCl
       int val = DefaultCPChunkSize;
       env->GetInt( "CPChunkSize", val );
       p.Set( "chunkSize", val );
+    }
+
+    if( !p.HasProperty( "xcpBlockSize" ) )
+    {
+      int val = DefaultXCpBlockSize;
+      env->GetInt( "XCpBlockSize", val );
+      p.Set( "xcpBlockSize", val );
     }
 
     if( !p.HasProperty( "initTimeout" ) )
@@ -257,10 +277,66 @@ namespace XrdCl
       if( !source.IsValid() )
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid source" );
 
+      //--------------------------------------------------------------------------
+      // Create a virtual redirector if it is a Metalink file
+      //--------------------------------------------------------------------------
+      if( source.IsMetalink() )
+      {
+        RedirectorRegistry &registry = RedirectorRegistry::Instance();
+        XRootDStatus st = registry.RegisterAndWait( source );
+        if( !st.IsOK() ) return st;
+      }
+
+      // handle UNZIP CGI
+      const URL::ParamsMap &cgi = source.GetParams();
+      URL::ParamsMap::const_iterator itr = cgi.find( "xrdcl.unzip" );
+      if( itr != cgi.end() )
+      {
+        props.Set( "zipArchive", true );
+        props.Set( "zipSource",  itr->second );
+      }
+
       props.Get( "target", tmp );
       URL target = tmp;
       if( !target.IsValid() )
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid target" );
+
+      if( target.GetProtocol() != "stdio" )
+      {
+        // handle directories
+        bool targetIsDir = false;
+        props.Get( "targetIsDir", targetIsDir );
+
+        if( targetIsDir )
+        {
+          std::string path = target.GetPath() + '/';
+          std::string fn;
+
+          bool isZip = false;
+          props.Get( "zipArchive", isZip );
+          if( isZip )
+          {
+            props.Get( "zipSource", fn );
+          }
+          else if( source.IsMetalink() )
+          {
+            RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
+            VirtualRedirector *redirector = registry.Get( source );
+            fn = redirector->GetTargetName();
+          }
+          else
+          {
+            fn = source.GetPath();
+          }
+
+          size_t pos = fn.rfind( '/' );
+          if( pos != std::string::npos )
+            fn = fn.substr( pos + 1 );
+          path += fn;
+          target.SetPath( path );
+          props.Set( "target", target.GetURL() );
+        }
+      }
 
       bool tpc = false;
       props.Get( "thirdParty", tmp );
@@ -402,7 +478,16 @@ namespace XrdCl
   {
     std::vector<CopyJob*>::iterator itJ;
     for( itJ = pJobs.begin(); itJ != pJobs.end(); ++itJ )
-      delete *itJ;
+    {
+      CopyJob *job = *itJ;
+      URL src = job->GetSource();
+      if( src.IsMetalink() )
+      {
+        RedirectorRegistry &registry = RedirectorRegistry::Instance();
+        registry.Release( src );
+      }
+      delete job;
+    }
     pJobs.clear();
   }
 }

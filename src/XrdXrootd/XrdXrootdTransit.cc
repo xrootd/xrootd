@@ -116,6 +116,7 @@ int XrdXrootdTransit::Attn(XrdLink *lP, short *theSID, int rcode,
 int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
                                const struct iovec *ioV, int ioN, int ioL)
 {
+   XrdLink *theLink = tP->link;
    int rc;
 
 // Refresh the request structure
@@ -143,7 +144,7 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
           {AtomicBeg(runMutex);
            AtomicZAP(runStatus);
            AtomicEnd(runMutex);
-           tP->link->Enable();
+           theLink->Enable();
           } else {
            if (runWait >= 0)
               Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
@@ -267,7 +268,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    myMutex.Lock(); pID = ++bID; myMutex.UnLock();
    n = strlen(nameP);
    if (n >= int(sizeof(uname))) n = sizeof(uname)-1;
-   strncpy(uname, nameP, n);
+   strncpy(uname, nameP, sizeof(uname)-1);
    uname[n] = 0;
    linkP->setID(uname, pID);
 
@@ -414,7 +415,13 @@ int XrdXrootdTransit::Process()
 // be deleted while a timer is outstanding as the link has been disabled. So,
 // we can reissue the request with little worry.
 //
-   if (!runALen || RunCopy(runArgs, runALen)) rc = Process2();
+   if (!runALen || RunCopy(runArgs, runALen)) {
+      do{rc = Process2();
+        if (rc == 0) {
+          rc = realProt->Process(NULL);
+        }
+      } while((rc == 0) && !runError && !runWait);
+   }
       else rc = Send(kXR_error, ioV, 2, 0);
 
 // Defer the request if need be

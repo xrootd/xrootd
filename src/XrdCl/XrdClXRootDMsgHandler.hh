@@ -31,11 +31,106 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XProtocol/XProtocol.hh"
 
+#include <sys/uio.h>
+
+#include <list>
+#include <memory>
+
 namespace XrdCl
 {
   class PostMaster;
   class SIDManager;
   class URL;
+  class LocalFileHandler;
+
+  //----------------------------------------------------------------------------
+  // Single entry in the redirect-trace-back
+  //----------------------------------------------------------------------------
+  struct RedirectEntry
+  {
+      RedirectEntry( const URL &from, const URL &to ) : from( from ), to( to )
+      {
+
+      }
+
+      URL          from;
+      URL          to;
+      XRootDStatus status;
+
+      std::string ToString( bool prevok = true )
+      {
+        const std::string tostr   = to.GetLocation();
+        const std::string fromstr = from.GetLocation();
+
+        if( prevok )
+        {
+          if( tostr == fromstr )
+            return "Retrying: " + tostr;
+          return "Redirected from: " + fromstr + " to: " + tostr;
+        }
+        return "Failed at: " + fromstr + ", retrying at: " + tostr;
+      }
+  };
+
+  class XRootDMsgHandler;
+
+  //----------------------------------------------------------------------------
+  // Counted reference to XRootDMsgHandler, to be used with WaitTask
+  //----------------------------------------------------------------------------
+  class MsgHandlerRef
+  {
+    public:
+
+      MsgHandlerRef( XRootDMsgHandler *handler) : ref( handler ), count( 1 )
+      {
+
+      }
+
+      XRootDMsgHandler* operator->()
+      {
+        return ref;
+      }
+
+      operator bool() const
+      {
+        return ref;
+      }
+
+      operator XrdSysMutex&()
+      {
+        return mtx;
+      }
+
+      MsgHandlerRef& Self()
+      {
+        XrdSysMutexHelper lck( mtx );
+        ++count;
+        return *this;
+      }
+
+      void Invalidate()
+      {
+        XrdSysMutexHelper lck( mtx );
+        ref = 0;
+      }
+
+      void Free()
+      {
+        XrdSysMutexHelper lck( mtx );
+        --count;
+        if( count == 0 )
+        {
+          lck.UnLock();
+          delete this;
+        }
+      }
+
+    private:
+
+      XrdSysMutex       mtx;
+      XRootDMsgHandler *ref;
+      uint16_t          count;
+  };
 
   //----------------------------------------------------------------------------
   //! Handle/Process/Forward XRootD messages
@@ -43,6 +138,8 @@ namespace XrdCl
   class XRootDMsgHandler: public IncomingMsgHandler,
                           public OutgoingMsgHandler
   {
+      friend class HandleRspJob;
+
     public:
       //------------------------------------------------------------------------
       //! Constructor
@@ -54,15 +151,17 @@ namespace XrdCl
       //! @param sidMgr      the sid manager used to allocate SID for the initial
       //!                    message
       //------------------------------------------------------------------------
-      XRootDMsgHandler( Message         *msg,
-                        ResponseHandler *respHandler,
-                        const URL       *url,
-                        SIDManager      *sidMgr ):
+      XRootDMsgHandler( Message          *msg,
+                        ResponseHandler  *respHandler,
+                        const URL        *url,
+                        SIDManager       *sidMgr,
+                        LocalFileHandler *lFileHandler):
         pRequest( msg ),
         pResponse( 0 ),
         pResponseHandler( respHandler ),
         pUrl( *url ),
         pSidMgr( sidMgr ),
+        pLFileHandler( lFileHandler ),
         pExpiration( 0 ),
         pRedirectAsAnswer( false ),
         pHosts( 0 ),
@@ -86,7 +185,17 @@ namespace XrdCl
         pReadVRawChunkIndex( 0 ),
         pReadVRawMsgDiscard( false ),
 
-        pOtherRawStarted( false )
+        pOtherRawStarted( false ),
+
+        pFollowMetalink( false ),
+
+        pStateful( false ),
+
+        pAggregatedWaitTime( 0 ),
+
+        pMsgInFly( false ),
+
+        pRef( new MsgHandlerRef( this ) )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -99,6 +208,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ~XRootDMsgHandler()
       {
+        pRef->Free();
+
+        DumpRedirectTraceBack();
+
         if( !pHasSessionId )
           delete pRequest;
         delete pResponse;
@@ -177,8 +290,20 @@ namespace XrdCl
       //!                  stOK & suRetry if more data needs to be written
       //!                  stError on failure
       //------------------------------------------------------------------------
-      virtual Status WriteMessageBody( int       socket,
-                                       uint32_t &bytesRead );
+      Status WriteMessageBody( int       socket,
+                               uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      //! Get message body - called if IsRaw returns true
+      //!
+      //! @param asyncOffset  :  the current async offset
+      //! @return             :  the list of chunks
+      //------------------------------------------------------------------------
+      ChunkList* GetMessageBody( uint32_t *&asyncOffset )
+      {
+        asyncOffset = &pAsyncOffset;
+        return pChunkList;
+      }
 
       //------------------------------------------------------------------------
       //! Called after the wait time for kXR_wait has elapsed
@@ -252,6 +377,16 @@ namespace XrdCl
         pRedirectCounter = redirectCounter;
       }
 
+      void SetFollowMetalink( bool followMetalink )
+      {
+        pFollowMetalink = followMetalink;
+      }
+
+      void SetStateful( bool stateful )
+      {
+        pStateful = stateful;
+      }
+
     private:
       //------------------------------------------------------------------------
       //! Handle a kXR_read in raw mode
@@ -310,8 +445,7 @@ namespace XrdCl
       //! Perform the changes to the original request needed by the redirect
       //! procedure - allocate new streamid, append redirection data and such
       //------------------------------------------------------------------------
-      Status RewriteRequestRedirect( const URL::ParamsMap &newCgi,
-                                     const std::string    &newPath );
+      Status RewriteRequestRedirect( const URL &newUrl );
 
       //------------------------------------------------------------------------
       //! Some requests need to be rewritten also after getting kXR_wait - sigh
@@ -339,6 +473,40 @@ namespace XrdCl
       void SwitchOnRefreshFlag();
 
       //------------------------------------------------------------------------
+      //! If the current thread is a worker thread from our thread-pool
+      //! handle the response, otherwise submit a new task to the thread-pool
+      //------------------------------------------------------------------------
+      void HandleRspOrQueue();
+
+      //------------------------------------------------------------------------ 
+      //! Handle a redirect to a local file
+      //------------------------------------------------------------------------
+      void HandleLocalRedirect( URL *url );
+
+      //------------------------------------------------------------------------
+      //! Check if it is OK to retry this request
+      //!
+      //! @param   reuqest : the request in question
+      //! @return          : true if yes, false if no
+      //------------------------------------------------------------------------
+      bool IsRetryable( Message *request );
+
+      //------------------------------------------------------------------------
+      //! Check if for given request and Metalink redirector  it is OK to omit
+      //! the kXR_wait and proceed stright to the next entry in the Metalink file
+      //!
+      //! @param   reuqest : the request in question
+      //! @param   url     : metalink URL
+      //! @return          : true if yes, false if no
+      //------------------------------------------------------------------------
+      bool OmitWait( Message *request, const URL &url );
+
+      //------------------------------------------------------------------------
+      //! Dump the redirect-trace-back into the log file
+      //------------------------------------------------------------------------
+      void DumpRedirectTraceBack();
+
+      //------------------------------------------------------------------------
       // Helper struct for async reading of chunks
       //------------------------------------------------------------------------
       struct ChunkStatus
@@ -348,42 +516,61 @@ namespace XrdCl
         bool done;
       };
 
-      Message                   *pRequest;
-      Message                   *pResponse;
-      std::vector<Message *>     pPartialResps;
-      ResponseHandler           *pResponseHandler;
-      URL                        pUrl;
-      PostMaster                *pPostMaster;
-      SIDManager                *pSidMgr;
-      Status                     pStatus;
-      time_t                     pExpiration;
-      bool                       pRedirectAsAnswer;
-      HostList                  *pHosts;
-      bool                       pHasLoadBalancer;
-      HostInfo                   pLoadBalancer;
-      bool                       pHasSessionId;
-      std::string                pRedirectUrl;
-      ChunkList                 *pChunkList;
-      std::vector<ChunkStatus>   pChunkStatus;
-      uint16_t                   pRedirectCounter;
+      typedef std::list<std::unique_ptr<RedirectEntry>> RedirectTraceBack;
 
-      uint32_t                   pAsyncOffset;
-      uint32_t                   pAsyncReadSize;
-      char*                      pAsyncReadBuffer;
-      uint32_t                   pAsyncMsgSize;
+      Message                        *pRequest;
+      Message                        *pResponse;
+      std::vector<Message *>          pPartialResps;
+      ResponseHandler                *pResponseHandler;
+      URL                             pUrl;
+      PostMaster                     *pPostMaster;
+      SIDManager                     *pSidMgr;
+      LocalFileHandler               *pLFileHandler;
+      Status                          pStatus;
+      Status                          pLastError;
+      time_t                          pExpiration;
+      bool                            pRedirectAsAnswer;
+      HostList                       *pHosts;
+      bool                            pHasLoadBalancer;
+      HostInfo                        pLoadBalancer;
+      bool                            pHasSessionId;
+      std::string                     pRedirectUrl;
+      ChunkList                      *pChunkList;
+      std::vector<ChunkStatus>        pChunkStatus;
+      uint16_t                        pRedirectCounter;
 
-      bool                       pReadRawStarted;
-      uint32_t                   pReadRawCurrentOffset;
+      uint32_t                        pAsyncOffset;
+      uint32_t                        pAsyncReadSize;
+      char*                           pAsyncReadBuffer;
+      uint32_t                        pAsyncMsgSize;
 
-      uint32_t                   pReadVRawMsgOffset;
-      bool                       pReadVRawChunkHeaderDone;
-      bool                       pReadVRawChunkHeaderStarted;
-      bool                       pReadVRawSizeError;
-      int32_t                    pReadVRawChunkIndex;
-      readahead_list             pReadVRawChunkHeader;
-      bool                       pReadVRawMsgDiscard;
+      bool                            pReadRawStarted;
+      uint32_t                        pReadRawCurrentOffset;
 
-      bool                       pOtherRawStarted;
+      uint32_t                        pReadVRawMsgOffset;
+      bool                            pReadVRawChunkHeaderDone;
+      bool                            pReadVRawChunkHeaderStarted;
+      bool                            pReadVRawSizeError;
+      int32_t                         pReadVRawChunkIndex;
+      readahead_list                  pReadVRawChunkHeader;
+      bool                            pReadVRawMsgDiscard;
+
+      bool                            pOtherRawStarted;
+
+      bool                            pFollowMetalink;
+
+      bool                            pStateful;
+      int                             pAggregatedWaitTime;
+
+      std::unique_ptr<RedirectEntry>  pRdirEntry;
+      RedirectTraceBack               pRedirectTraceBack;
+
+      bool                            pMsgInFly;
+
+      //------------------------------------------------------------------------
+      // (Counted) Reference to myself - passed to WaitTask
+      //------------------------------------------------------------------------
+      MsgHandlerRef                  *pRef;
   };
 }
 

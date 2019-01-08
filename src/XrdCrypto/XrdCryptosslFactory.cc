@@ -185,6 +185,17 @@ bool XrdCryptosslFactory::SupportedCipher(const char *t)
 }
 
 //______________________________________________________________________________
+bool XrdCryptosslFactory::HasPaddingSupport()
+{
+   // Returns true if cipher padding is supported
+#if defined(HAVE_DH_PADDED) || defined(HAVE_DH_PADDED_FUNC)
+   return true;
+#else
+   return false;
+#endif
+}
+
+//______________________________________________________________________________
 XrdCryptoCipher *XrdCryptosslFactory::Cipher(const char *t, int l)
 {
    // Return an instance of a ssl implementation of XrdCryptoCipher.
@@ -232,12 +243,28 @@ XrdCryptoCipher *XrdCryptosslFactory::Cipher(XrdSutBucket *b)
 }
 
 //______________________________________________________________________________
+XrdCryptoCipher *XrdCryptosslFactory::Cipher(bool padded, int b, char *p,
+                                             int l, const char *t)
+{
+   // Return an instance of a Ssl implementation of XrdCryptoCipher.
+
+   XrdCryptoCipher *cip = new XrdCryptosslCipher(padded, b,p,l,t);
+   if (cip) {
+      if (cip->IsValid())
+         return cip;
+      else
+         delete cip;
+   }
+   return (XrdCryptoCipher *)0;
+}
+
+//______________________________________________________________________________
 XrdCryptoCipher *XrdCryptosslFactory::Cipher(int b, char *p,
                                              int l, const char *t)
 {
    // Return an instance of a Ssl implementation of XrdCryptoCipher.
 
-   XrdCryptoCipher *cip = new XrdCryptosslCipher(b,p,l,t);
+   XrdCryptoCipher *cip = new XrdCryptosslCipher(false,b,p,l,t);
    if (cip) {
       if (cip->IsValid())
          return cip;

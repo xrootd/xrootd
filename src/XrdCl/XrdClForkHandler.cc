@@ -45,7 +45,8 @@ namespace XrdCl
                 pid );
 
     pMutex.Lock();
-    pPostMaster->Stop();
+    if( pPostMaster )
+      pPostMaster->Stop();
     pFileTimer->Lock();
 
     //--------------------------------------------------------------------------
@@ -89,7 +90,8 @@ namespace XrdCl
       (*itFs)->UnLock();
 
     pFileTimer->UnLock();
-    pPostMaster->Start();
+    if( pPostMaster )
+      pPostMaster->Start();
 
     pMutex.UnLock();
   }
@@ -121,10 +123,13 @@ namespace XrdCl
       (*itFs)->UnLock();
 
     pFileTimer->UnLock();
-    pPostMaster->Finalize();
-    pPostMaster->Initialize();
-    pPostMaster->Start();
-    pPostMaster->GetTaskManager()->RegisterTask( pFileTimer, time(0), false );
+    if( pPostMaster )
+    {
+      pPostMaster->Finalize();
+      pPostMaster->Initialize();
+      pPostMaster->Start();
+      pPostMaster->GetTaskManager()->RegisterTask( pFileTimer, time(0), false );
+    }
 
     pMutex.UnLock();
   }

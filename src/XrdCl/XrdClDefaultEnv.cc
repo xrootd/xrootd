@@ -286,6 +286,11 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "ParallelEvtLoop",      DefaultParallelEvtLoop      );
     REGISTER_VAR_INT( varsInt, "MetalinkProcessing",   DefaultMetalinkProcessing   );
     REGISTER_VAR_INT( varsInt, "LocalMetalinkFile",    DefaultLocalMetalinkFile    );
+    REGISTER_VAR_INT( varsInt, "XCpBlockSize",         DefaultXCpBlockSize         );
+    REGISTER_VAR_INT( varsInt, "NoDelay",              DefaultNoDelay              );
+    REGISTER_VAR_INT( varsInt, "AioSignal",            DefaultAioSignal            );
+    REGISTER_VAR_INT( varsInt, "PreferIPv4",           DefaultPreferIPv4           );
+    REGISTER_VAR_INT( varsInt, "MaxMetalinkWait",      DefaultMaxMetalinkWait      );
 
     REGISTER_VAR_STR( varsStr, "PollerPreference",     DefaultPollerPreference     );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",        DefaultClientMonitor        );
@@ -295,6 +300,7 @@ namespace XrdCl
     REGISTER_VAR_STR( varsStr, "PlugInConfDir",        DefaultPlugInConfDir        );
     REGISTER_VAR_STR( varsStr, "ReadRecovery",         DefaultReadRecovery         );
     REGISTER_VAR_STR( varsStr, "WriteRecovery",        DefaultWriteRecovery        );
+    REGISTER_VAR_STR( varsStr, "OpenRecovery",         DefaultOpenRecovery         );
     REGISTER_VAR_STR( varsStr, "GlfnRedirector",       DefaultGlfnRedirector       );
 
     //--------------------------------------------------------------------------
@@ -669,7 +675,6 @@ namespace XrdCl
       "libXrdSecgsi.so",
       "libXrdSecgsiAuthzVO.so",
       "libXrdSecgsiGMAPDN.so",
-      "libXrdSecgsiGMAPLDAP.so",
       "libXrdSecpwd.so",
       "libXrdSecsss.so",
       "libXrdSecunix.so",

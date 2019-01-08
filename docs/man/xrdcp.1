@@ -11,8 +11,10 @@ xrdcp - copy files
 [\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
 [\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR]
 [\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
-[\fB--tpc\fR \fIfirst\fR|\fIonly\fR] [\fB--verbose\fR] [\fB--version\fR]
-[\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
+[\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR] [\fB--verbose\fR]
+[\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
+[\fB--dynamic-src\fR] [\fB--infiles\fR \fIfn\fR] [\fB--path\fR]
+[\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -81,8 +83,7 @@ use \fIproxyaddr\fB:\fIproxyport\fR as a SOCKS4 proxy. Only numerical addresses 
 .RE
 \fB-r\fR | \fB--recursive\fR
 .RS 5
-recursively copy all files starting at the given source directory. This option is
-\fIonly\fR supported for local files.
+recursively copy all files starting at the given source directory.
 
 .RE
 \fB--server\fR
@@ -98,8 +99,6 @@ neither produces summary information nor displays the progress bar.
 .RE
 \fB-y\fR | \fB--sources\fR \fInum\fR
 .RS 5
-[NOT YET IMPLEMENTED]
-
 uses up to \fInum\fR sources to copy the file.
 
 .RE
@@ -109,14 +108,18 @@ uses \fInum\fR additional parallel streams to do the transfer.
 The maximum value is 15. The default is 0 (i.e., use only the main stream).
 
 .RE
-\fB--tpc\fR \fIfirst|only\fR
+\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR
 .RS 5
 copies the file from remote server to remote server using third-party-copy
 protocol (i.e., data flows from server to server). The source and destination
 servers must support third party copies. Additional security restrictions
 may apply and may cause the copy to fail if they cannot be satisfied.
-Argument \fI'first'\fR tries tpc and if it fails, does a normal copy;
-while \fI'only'\fR fails the copy unless tpc succeeds.
+Argument '\fBfirst\fR' tries tpc and if it fails, does a normal copy;
+while '\fBonly\fR' fails the copy unless tpc succeeds. When '\fBdelegate\fR' is
+specified, the copy delegates the command issuer's credentials to the target
+server which uses those credentials to authenticate with the source server.
+Delegation is ignored if the target server is not configured to use delegated
+credentials. Currently, only gsi credentials can be delegated.
 
 .RE
 \fB-v\fR | \fB--verbose\fR
@@ -129,9 +132,9 @@ displays summary output.
 displays version information and immediately exits.
 
 .RE
-\fB-z\fR | \fB--zip\fR
+\fB-z\fR | \fB--zip\fR \fIfile\fR
 .RS 5
-copy given file from a ZIP archive.
+copy given file from a ZIP archive (same as xrdcl.unzip opaque info).
 
 .RE
 \fB-X\fR | \fB--xrate\fR \fIrate\fR
@@ -142,6 +145,31 @@ limits the copy speed to the specified \fIrate\fB. The rate may be qualified
 with the letter \fBk\fR, \fBm\fR, or \fBg\fR to indicate kilo, mega, or giga
 bytes, respectively. The option only applies when the source or destination is
 local.
+
+.RE
+\fB-Z\fR | \fB--dynamic-src\fR
+.RS 5
+file size may change during the copy
+
+.RE
+\fB-I\fR | \fB--infiles\fR \fIfn\fR
+.RS 5
+specifies the file that contains a list of input files
+
+.RE
+\fB-p\fR | \fB--path\fR
+.RS 5
+automatically create remote destination path
+
+.RE
+\fB--parallel\fR \fIn\fR
+.RS 5
+number of copy jobs to be run simultaneously
+
+.RE
+\fB--allow-http\fR
+.RS 5
+allow HTTP as source or destination protocol. Requires the XrdClHttp client plugin
 
 .SH LEGACY OPTIONS
 Legacy options are provided for backward compatability. These are now
@@ -261,6 +289,11 @@ Determines if read recovery should be enabled or disabled (enabled by default).
 XRD_WRITERECOVERY
 .RS 5
 Determines if write recovery should be enabled or disabled (enabled by default).
+.RE
+
+XRD_OPENRECOVERY
+.RS 5
+Determines if open recovery should be enabled or disabled for mutable (truncate or create) opens (enabled by default).
 .RE
 
 XRD_CONNECTIONWINDOW (-DIConnectionWindow)
@@ -438,13 +471,48 @@ Enable/Disable Metalink processing (enabled by default)
 
 XRD_LOCALMETALINKFILE
 .RS 5
-Enable/Disable local Metalink file processing (by convention the following URL schema has to be used: root://localfile//path/filename.meta4) 
+Enable/Disable local Metalink file processing (by convention the following URL schema has to be used: root://localfile//path/filename.meta4)
+The 'localfile' semantic is now deprecated, use file://localhost/path/filename.meta4 instead!
 .RE
 
 XRD_GLFNREDIRECTOR
 .RS 5
 The redirector will be used as a last resort if the GLFN tag is specified in a Metalink file.
 .RE
+
+XRD_XCPBLOCKSIZE
+.RS 5
+Maximu size of a data block assigned to a single source in case of an extreme copy transfer.
+.RE
+
+XRD_NODELAY
+.RS 5
+Disables the Nagle algorithm if set to 1 (default), enables it if set to 0.
+.RE
+
+XRD_PREFERIPV4
+.RS 5
+If set the client tries first IPv4 address (turned off by default).
+.RE
+
+XRD_MAXMETALINKWAIT
+.RS 5
+The maximum time in seconds a clinet can be stalled by the server if a Metalink redirector is available (defaults to 60s).
+.RE
+
+.SH RETURN CODES
+.RE
+\fB50\fR  : generic error (e.g. config, internal, data, OS, command line option)
+
+\fB51\fR  : socket related error
+
+\fB52\fR  : postmaster related error
+
+\fB53\fR  : XRootD related error
+
+\fB54\fR  : redirection error
+
+\fB55\fR  : query response was negative (this is not an error)
 
 .SH NOTES
 Documentation for all components associated with \fBxrdcp\fR can be found at

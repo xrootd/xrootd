@@ -38,7 +38,9 @@
 
 #include "XrdSys/XrdSysError.hh"
 
+struct StreamInfo;
 class XrdOucEnv;
+class XrdOucTList;
 
 class XrdOucStream
 {
@@ -207,8 +209,13 @@ int          Wait4Data(int msMax=-1);
   
 private:
         char *add2llB(char *tok, int reset=0);
+        bool  docont();
+        bool  docont( const char *path, XrdOucTList *tlP);
+        bool  docontD(const char *path, XrdOucTList *tlP);
+        bool  docontF(const char *path, bool noentok=false);
         char *doelse();
         char *doif();
+        bool  Echo(int ec, const char *t1, const char *t2=0, const char *t3=0);
         int   isSet(char *var);
         char *vSubs(char *Var);
         int   xMsg(const char *txt1, const char *txt2=0, const char *txt3=0);
@@ -231,9 +238,9 @@ static const int llBsz   = 1024;
         int   xcont;
         int   xline;
         char *myInst;
-        char *myHost;
-        char *myName;
-        char *myExec;
+ StreamInfo  *myInfo; // ABI compatible change!
+        char *myRsv1;
+        char *myRsv2;
  XrdSysError *Eroute;
  XrdOucEnv   *myEnv;
         char *varVal;

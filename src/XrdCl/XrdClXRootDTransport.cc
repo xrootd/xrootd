@@ -227,11 +227,14 @@ namespace XrdCl
       while( leftToBeRead )
       {
         int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
-        if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
-          return Status( stOK, suRetry );
 
-        if( status <= 0 )
+        // if the server shut down the socket declare a socket error (it
+        // will trigger a re-connect)
+        if( status == 0 )
           return Status( stError, errSocketError, errno );
+
+        if( status < 0 )
+          return ClassifyErrno( errno );
 
         leftToBeRead -= status;
         message->AdvanceCursor( status );
@@ -266,11 +269,14 @@ namespace XrdCl
     while( leftToBeRead )
     {
       int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
-      if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
-        return Status( stOK, suRetry );
 
-      if( status <= 0 )
+      // if the server shut down the socket declare a socket error (it
+      // will trigger a re-connect)
+      if( status == 0 )
         return Status( stError, errSocketError, errno );
+
+      if( status < 0 )
+        return ClassifyErrno( errno );
 
       leftToBeRead -= status;
       message->AdvanceCursor( status );
@@ -462,17 +468,16 @@ namespace XrdCl
     {
       Status st = ProcessEndSessionResp( handShakeData, info );
 
-      if( !st.IsOK() )
-      {
-        sInfo.status = XRootDStreamInfo::Broken;
-        return st;
-      }
-
       if( st.IsOK() && st.code == suDone )
       {
         sInfo.status = XRootDStreamInfo::Connected;
-        return st;
       }
+      else if( !st.IsOK() )
+      {
+        sInfo.status = XRootDStreamInfo::Broken;
+      }
+
+      return st;
     }
 
     return Status( stOK, suDone );
@@ -736,6 +741,16 @@ namespace XrdCl
         break;
       }
 
+      //------------------------------------------------------------------------
+      // WriteV - multiplexing writes doesn't work properly in the server
+      //------------------------------------------------------------------------
+      case kXR_writev:
+      {
+//        ClientWriteVRequest *req = (ClientWriteVRequest*)msg->GetBuffer();
+//        req->pathid = info->stream[downStream].pathId;
+        break;
+      }
+
     };
     MarshallRequest( msg );
     return PathID( upStream, downStream );
@@ -865,6 +880,22 @@ namespace XrdCl
         {
           dataChunk[i].rlen   = htonl( dataChunk[i].rlen );
           dataChunk[i].offset = htonll( dataChunk[i].offset );
+        }
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_writev
+      //------------------------------------------------------------------------
+      case kXR_writev:
+      {
+        uint16_t numChunks  = (req->writev.dlen)/16;
+        XrdProto::write_list *wrtList =
+            reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+        for( size_t i = 0; i < numChunks; ++i )
+        {
+          wrtList[i].wlen   = htonl( wrtList[i].wlen );
+          wrtList[i].offset = htonll( wrtList[i].offset );
         }
       }
     };
@@ -1220,7 +1251,7 @@ namespace XrdCl
     {
       SecurityRequest *newreq  = 0;
       // check if we have to secure the request in the first place
-      if( !NEED2SECURE ( info->protection )( *thereq ) ) return Status();
+      if( !( NEED2SECURE ( info->protection )( *thereq ) ) ) return Status();
       // secure (sign/encrypt) the request
       int rc = info->protection->Secure( newreq, *thereq, 0 );
       // there was an error
@@ -1232,6 +1263,46 @@ namespace XrdCl
     }
 
     return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Classify errno while reading/writing
+  //------------------------------------------------------------------------
+  Status XRootDTransport::ClassifyErrno( int error )
+  {
+    switch( errno )
+    {
+
+      case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+      case EWOULDBLOCK:
+#endif
+      {
+        //------------------------------------------------------------------
+        // Reading/writing operation would block! So we are done for now,
+        // but we will be back ;-)
+        //------------------------------------------------------------------
+        return Status( stOK, suRetry );
+      }
+      case ECONNRESET:
+      case EDESTADDRREQ:
+      case EMSGSIZE:
+      case ENOTCONN:
+      case ENOTSOCK:
+      {
+        //------------------------------------------------------------------
+        // Actual socket error error!
+        //------------------------------------------------------------------
+        return Status( stError, errSocketError, errno );
+      }
+      default:
+      {
+        //------------------------------------------------------------------
+        // Not a socket error
+        //------------------------------------------------------------------
+        return Status( stError, errInternal, errno );
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -1347,7 +1418,10 @@ namespace XrdCl
 
     if( rsp->hdr.dlen > 8 )
     {
-      info->protRespBody = new ServerResponseBody_Protocol( rsp->body.protocol );
+      info->protRespBody = new ServerResponseBody_Protocol();
+      info->protRespBody->flags = rsp->body.protocol.flags;
+      info->protRespBody->pval  = rsp->body.protocol.pval;
+      memcpy( &info->protRespBody->secreq, &rsp->body.protocol.secreq, rsp->hdr.dlen - 8 );
       info->protRespSize = rsp->hdr.dlen;
     }
 
@@ -1488,9 +1562,9 @@ namespace XrdCl
     // interfaces was not registered in DNS.
     //
     if( !dualStack && hsData->serverAddr )
-      {if ( (stacks & XrdNetUtils::hasIPv4
+      {if ( ( ( stacks & XrdNetUtils::hasIPv4 )
        &&    hsData->serverAddr->isIPType(XrdNetAddrInfo::IPv6))
-       ||   (stacks & XrdNetUtils::hasIPv6
+       ||   ( ( stacks & XrdNetUtils::hasIPv6 )
        &&    hsData->serverAddr->isIPType(XrdNetAddrInfo::IPv4)))
           {dualStack = true;
            loginReq->ability  |= kXR_hasipv64;
@@ -1500,20 +1574,20 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Check the username
     //--------------------------------------------------------------------------
+    std::string buffer( 8, 0 );
     if( hsData->url->GetUserName().length() )
-    {
-      ::strncpy( (char*)loginReq->username,
-                 hsData->url->GetUserName().c_str(), 8 );
-    }
+      buffer = hsData->url->GetUserName();
     else
     {
       char *name = new char[1024];
       if( !XrdOucUtils::UserName( geteuid(), name, 1024 ) )
-        ::strncpy( (char*)loginReq->username, name, 8 );
+	buffer = name;
       else
-        ::strncpy( (char*)loginReq->username, "????", 8 );
+	buffer = "????";
       delete [] name;
     }
+    buffer.resize( 8, 0 );
+    std::copy( buffer.begin(), buffer.end(), (char*)loginReq->username );
 
     msg->Append( cgiBuffer, cgiLen, 24 );
 
@@ -1552,6 +1626,23 @@ namespace XrdCl
 
     if( !info->firstLogIn )
       memcpy( info->oldSessionId, info->sessionId, 16 );
+
+    if( rsp->hdr.dlen == 0 && info->protocolVersion <= 0x289 )
+    {
+      //--------------------------------------------------------------------------
+      // This if statement is there only to support dCache inaccurate
+      // implementation of XRoot protocol, that in some cases returns
+      // an empty login response for protocol version <= 2.8.9.
+      //--------------------------------------------------------------------------
+      memset( info->sessionId, 0, 16 );
+      log->Warning( XRootDTransportMsg,
+                    "[%s] Logged in, accepting empty login response.",
+                    hsData->streamName.c_str() );
+      return Status();
+    }
+
+    if( rsp->hdr.dlen < 16 )
+      return Status( stError, errDataError );
 
     memcpy( info->sessionId, rsp->body.login.sessid, 16 );
 
@@ -1612,17 +1703,16 @@ namespace XrdCl
       URL::ParamsMap::const_iterator it;
       for( it = urlParams.begin(); it != urlParams.end(); ++it )
       {
-        if( it->first.compare( 0, 4, "xrd." ) )
-          continue;
-
-        info->authEnv->Put( it->first.c_str(), it->second.c_str() );
+        if( it->first.compare( 0, 4, "xrd." ) == 0 ||
+            it->first.compare( 0, 6, "xrdcl." ) == 0 )
+          info->authEnv->Put( it->first.c_str(), it->second.c_str() );
       }
 
       //------------------------------------------------------------------------
       // Initialize some other structs
       //------------------------------------------------------------------------
       size_t authBuffLen = strlen( info->authBuffer );
-      char *pars = (char *)malloc( authBuffLen );
+      char *pars = (char *)malloc( authBuffLen + 1 );
       memcpy( pars, info->authBuffer, authBuffLen );
       info->authParams = new XrdSecParameters( pars, authBuffLen );
       sInfo.status = XRootDStreamInfo::AuthSent;
@@ -1671,7 +1761,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( !credentials )
         {
-          log->Debug( XRootDTransportMsg,
+//        log->Debug( XRootDTransportMsg,
+          log->Error( XRootDTransportMsg,
                       "[%s] Auth protocol handler for %s refuses to give "
                       "us more credentials %s",
                       hsData->streamName.c_str(), protocolName.c_str(),
@@ -1803,6 +1894,35 @@ namespace XrdCl
     XrdSecGetProt_t  authHandler = GetAuthHandler();
     if( !authHandler )
       return Status( stFatal, errAuthFailed );
+
+    //--------------------------------------------------------------------------
+    // Retrieve secuid and secgid, if available. These will override the fsuid
+    // and fsgid of the current thread reading the credentials to prevent
+    // security holes in case this process is running with elevated permissions.
+    //--------------------------------------------------------------------------
+    char *secuidc = (ei.getEnv()) ? ei.getEnv()->Get("xrdcl.secuid") : 0;
+    char *secgidc = (ei.getEnv()) ? ei.getEnv()->Get("xrdcl.secgid") : 0;
+
+    int secuid = -1;
+    int secgid = -1;
+
+    if(secuidc) secuid = atoi(secuidc);
+    if(secgidc) secgid = atoi(secgidc);
+
+#ifdef __linux__
+    ScopedFsUidSetter uidSetter(secuid, secgid, hsData->streamName);
+    if(!uidSetter.IsOk()) {
+      log->Error( XRootDTransportMsg, "[%s] Error while setting (fsuid, fsgid) to (%d, %d)",
+                  hsData->streamName.c_str(), secuid, secgid );
+      return Status( stFatal, errAuthFailed );
+    }
+#else
+    if(secuid >= 0 || secgid >= 0) {
+      log->Error( XRootDTransportMsg, "[%s] xrdcl.secuid and xrdcl.secgid only supported on Linux.",
+                  hsData->streamName.c_str() );
+      return Status( stFatal, errAuthFailed );
+    }
+#endif
 
     //--------------------------------------------------------------------------
     // Loop over the possible protocols to find one that gives us valid
@@ -1949,19 +2069,38 @@ namespace XrdCl
 
     ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
 
+    // If we're good, we're good!
+    if( rsp->hdr.status == kXR_ok )
+      return Status();
+
+    // we ignore not found errors as such an error means the connection
+    // has been already terminated
+    if( rsp->hdr.status == kXR_error && rsp->body.error.errnum == kXR_NotFound )
+      return Status();
+
+    // other errors
     if( rsp->hdr.status == kXR_error )
     {
-      char *errorMsg = new char[rsp->hdr.dlen-3]; errorMsg[rsp->hdr.dlen-4] = 0;
-      memcpy( errorMsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
-      log->Debug( XRootDTransportMsg, "[%s] Got error response to "
+      std::string errorMsg( rsp->body.error.errmsg, rsp->hdr.dlen - 4 );
+      log->Error( XRootDTransportMsg, "[%s] Got error response to "
                   "kXR_endsess: %s", hsData->streamName.c_str(),
-                  errorMsg );
-      delete [] errorMsg;
-      // we don't really care if it failed
-      // return Status( stFatal, errLoginFailed );
+                  errorMsg.c_str() );
+      return Status( stFatal, errHandShakeFailed );
     }
 
-    return Status();
+    // Wait Response.
+    if( rsp->hdr.status == kXR_wait )
+    {
+      std::string msg( rsp->body.wait.infomsg, rsp->hdr.dlen - 4 );
+      log->Info( XRootDTransportMsg, "[%s] Got wait response to "
+                  "kXR_endsess: %s", hsData->streamName.c_str(),
+                  msg.c_str() );
+      hsData->out = GenerateEndSession( hsData, info );
+      return Status( stOK, suRetry );
+    }
+
+    // Any other response is protocol violation
+    return Status( stError, errDataError );
   }
 
   //----------------------------------------------------------------------------
@@ -2198,6 +2337,36 @@ namespace XrdCl
         {
           fhandle = dataChunk[i].fhandle;
           size += dataChunk[i].rlen;
+          ++numChunks;
+        }
+        o << "handle: ";
+        if( fhandle )
+          o << FileHandleToStr( fhandle );
+        else
+          o << "unknown";
+        o << ", ";
+        o << std::setbase(10);
+        o << "chunks: " << numChunks << ", ";
+        o << "total size: " << size << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_writev
+      //------------------------------------------------------------------------
+      case kXR_writev:
+      {
+        unsigned char *fhandle = 0;
+        o << "kXR_writev (";
+
+        XrdProto::write_list *wrtList =
+            reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+        uint64_t size      = 0;
+        uint32_t numChunks = 0;
+        for( size_t i = 0; i < req->dlen/sizeof(XrdProto::write_list); ++i )
+        {
+          fhandle = wrtList[i].fhandle;
+          size   += wrtList[i].wlen;
           ++numChunks;
         }
         o << "handle: ";

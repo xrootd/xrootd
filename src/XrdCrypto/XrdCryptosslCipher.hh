@@ -67,12 +67,12 @@ public:
    XrdCryptosslCipher(const char *t, int l, const char *k,
                                      int liv, const char *iv);
    XrdCryptosslCipher(XrdSutBucket *b);
-   XrdCryptosslCipher(int len, char *pub, int lpub, const char *t);
+   XrdCryptosslCipher(bool padded, int len, char *pub, int lpub, const char *t);
    XrdCryptosslCipher(const XrdCryptosslCipher &c);
    virtual ~XrdCryptosslCipher();
 
    // Finalize key computation (key agreement)
-   bool Finalize(char *pub, int lpub, const char *t);
+   bool Finalize(bool padded, char *pub, int lpub, const char *t);
    void Cleanup();
 
    // Validity
@@ -90,6 +90,7 @@ public:
    XrdSutBucket *AsBucket();
    char *IV(int &l) const { l = lIV; return fIV; }
    bool IsDefaultLength() const { return deflength; }
+   int  MaxIVLength() const;
 
    // Additional setter
    void  SetIV(int l, const char *iv);

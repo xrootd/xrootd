@@ -350,7 +350,6 @@ int XrdCryptosslX509Crl::LoadCache()
    // Load relevant info into the cache
    // Return 0 if ok, -1 in case of error
    EPNAME("LoadCache");
-   XrdSutCacheRef pfeRef;
 
    // The CRL must exists
    if (!crl) {
@@ -381,12 +380,6 @@ int XrdCryptosslX509Crl::LoadCache()
       return 0;
    }
 
-   // Init cache
-   if (cache.Init(nrevoked) != 0) {
-      DEBUG("problems init cache for CRL info");
-      return -1;
-   }
-
    // Get serial numbers of revoked certificates
    char *tagser = 0;
    int i = 0;
@@ -404,27 +397,28 @@ int XrdCryptosslX509Crl::LoadCache()
          TRACE(Dump, "certificate with serial number: "<<tagser<<
                      "  has been revoked");
          // Add to the cache
-         XrdSutPFEntry *cent = cache.Add(pfeRef, (const char *)tagser);
+         bool rdlock = false;
+         XrdSutCacheEntry *cent = cache.Get((const char *)tagser, rdlock);
          if (!cent) {
-            DEBUG("problems updating the cache");
+            DEBUG("problems getting entry in the cache");
             return -1;
          }
          // Add revocation date
          cent->mtime = XrdCryptosslASN1toUTC(X509_REVOKED_get0_revocationDate(rev));
+         // Set status
+         cent->mtime = kCE_ok;
          // Release the string for the serial number
          OPENSSL_free(tagser);
+         // Unlock the entry
+         cent->rwmtx.UnLock();
       }
    }
-
-   // rehash the cache
-   pfeRef.UnLock(); // Prevent lock inversion (though it doesn't matter here)
-   cache.Rehash(1);
 
    return 0;
 }
 
 //_____________________________________________________________________________
-int XrdCryptosslX509Crl::LastUpdate()
+time_t XrdCryptosslX509Crl::LastUpdate()
 {
    // Time of last update
 
@@ -440,7 +434,7 @@ int XrdCryptosslX509Crl::LastUpdate()
 }
 
 //_____________________________________________________________________________
-int XrdCryptosslX509Crl::NextUpdate()
+time_t XrdCryptosslX509Crl::NextUpdate()
 {
    // Time of next update
 
@@ -550,7 +544,6 @@ bool XrdCryptosslX509Crl::IsRevoked(int serialnumber, int when)
    // Check if certificate with serialnumber is in the
    // list of revocated certificates
    EPNAME("IsRevoked");
-   XrdSutCacheRef pfeRef;
 
    // Reference time
    int now = (when > 0) ? when : time(0);
@@ -571,13 +564,15 @@ bool XrdCryptosslX509Crl::IsRevoked(int serialnumber, int when)
    sprintf(tagser,"%x",serialnumber);
 
    // Look into the cache
-   XrdSutPFEntry *cent = cache.Get(pfeRef, (const char *)tagser);
-   if (cent) {
+   XrdSutCacheEntry *cent = cache.Get((const char *)tagser);
+   if (cent && cent->status == kCE_ok) {
       // Check the revocation time
       if (now > cent->mtime) {
          DEBUG("certificate "<<tagser<<" has been revoked");
+         cent->rwmtx.UnLock();
          return 1;
       }
+      cent->rwmtx.UnLock();
    }
 
    // Certificate not revoked
@@ -590,7 +585,6 @@ bool XrdCryptosslX509Crl::IsRevoked(const char *sernum, int when)
    // Check if certificate with 'sernum' is in the
    // list of revocated certificates
    EPNAME("IsRevoked");
-   XrdSutCacheRef pfeRef;
 
    // Reference time
    int now = (when > 0) ? when : time(0);
@@ -607,13 +601,15 @@ bool XrdCryptosslX509Crl::IsRevoked(const char *sernum, int when)
    }
 
    // Look into the cache
-   XrdSutPFEntry *cent = cache.Get(pfeRef, (const char *)sernum);
-   if (cent) {
+   XrdSutCacheEntry *cent = cache.Get((const char *)sernum);
+   if (cent && cent->status == kCE_ok) {
       // Check the revocation time
       if (now > cent->mtime) {
          DEBUG("certificate "<<sernum<<" has been revoked");
+         cent->rwmtx.UnLock();
          return 1;
       }
+      cent->rwmtx.UnLock();
    }
 
    // Certificate not revoked

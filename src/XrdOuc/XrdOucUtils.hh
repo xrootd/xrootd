@@ -68,17 +68,29 @@ static const char *InstName(const char *name, int Fillit=1);
 
 static int   is1of(char *val, const char **clist);
 
+static int   isFWD(const char *path, int *port=0, char *hBuff=0, int hBLen=0,
+                   bool pTrim=false);
+
 static int   Log2(unsigned long long n);
 
 static int   Log10(unsigned long long n);
 
 static void  makeHome(XrdSysError &eDest, const char *inst);
 
+static bool  makeHome(XrdSysError &eDest, const char *inst,
+                                          const char *path, mode_t mode);
+
 static int   makePath(char *path, mode_t mode);
+
+static char *parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode);
 
 static int   ReLink(const char *path, const char *target, mode_t mode=0);
  
 static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
+
+static void  toLower(char *str);
+
+static int   Token(const char **str, char delim, char *buff, int bsz);
 
 static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
 

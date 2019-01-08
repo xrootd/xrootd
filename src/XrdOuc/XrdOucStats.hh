@@ -33,9 +33,11 @@
 #include "XrdSys/XrdSysAtomics.hh"
 
 #ifdef HAVE_ATOMICS
-#define _statsINC(x) AtomicInc(x)
+#define _statsADD(x,y) AtomicAdd(x,y)
+#define _statsINC(x)   AtomicInc(x)
 #else
-#define _statsINC(x) statsMutex.Lock(); x++; statsMutex.UnLock()
+#define _statsADD(x,y) statsMutex.Lock(); x+=y; statsMutex.UnLock()
+#define _statsINC(x)   statsMutex.Lock(); x++;  statsMutex.UnLock()
 #endif
   
 class XrdOucStats
@@ -44,7 +46,11 @@ public:
 
 inline void Bump(int &val)       {_statsINC(val);}
 
-inline void Bump(long long &val) {_statsINC(val);}
+inline void Bump(int &val, int n){_statsADD(val,n);}
+
+inline void Bump(long long &val)              {_statsINC(val);}
+
+inline void Bump(long long &val, long long n) {_statsADD(val,n);}
 
 XrdSysMutex statsMutex;   // Mutex to serialize updates
 

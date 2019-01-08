@@ -77,9 +77,11 @@ void            setDebug(int dbg) {DebugON = dbg;}
 
 void            setErrP(XrdSysError *eP) {errP = eP;}
 
-                XrdSecPManager(int dbg=0)
+                XrdSecPManager(int dbg=0, bool secproxy=false,
+                                          bool fwdcreds=false)
                               : protnum(1), First(0), Last(0), errP(0),
-                                DebugON(dbg) {}
+                                DebugON(dbg), isProxy(secproxy),
+                                fwdCreds(fwdcreds) {}
                ~XrdSecPManager() {}
 
 private:
@@ -99,5 +101,7 @@ XrdSecProtList    *First;
 XrdSecProtList    *Last;
 XrdSysError       *errP;
 int                DebugON;
+bool               isProxy;
+bool               fwdCreds;
 };
 #endif

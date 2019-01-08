@@ -273,7 +273,7 @@ SOCKLEN_t   SockSize() {return addrSize;}
 //! @return The associated file descriptor. If negative, no association exists.
 //------------------------------------------------------------------------------
 
-inline int  SockFD() {return sockNum;}
+inline int  SockFD() {return (sockNum ? static_cast<int>(sockNum) : -1);}
 
 //------------------------------------------------------------------------------
 //! Assignment operator
@@ -281,18 +281,18 @@ inline int  SockFD() {return sockNum;}
 
 XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                {if (&rhs != this)
-                   {memcpy(&IP, &rhs.IP, sizeof(IP));
+                   {memmove(&IP, &rhs.IP, sizeof(IP));
                     addrSize = rhs.addrSize; sockNum = rhs.sockNum;
                     protType = rhs.protType;
                     if (hostName) free(hostName);
                     hostName = (rhs.hostName ? strdup(rhs.hostName):0);
+                    addrLoc = rhs.addrLoc;
                     if (rhs.sockAddr != &rhs.IP.Addr)
                        {if (!unixPipe || sockAddr == &IP.Addr)
                            unixPipe = new sockaddr_un;
                         memcpy(unixPipe, rhs.unixPipe, sizeof(sockaddr_un));
                        } else sockAddr = &IP.Addr;
                    }
-                addrLoc = rhs.addrLoc;
                 return *this;
                }
 
@@ -310,7 +310,7 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
 //! Constructor
 //------------------------------------------------------------------------------
 
-            XrdNetAddrInfo() : hostName(0), addrSize(0), protType(0), sockNum(-1)
+            XrdNetAddrInfo() : hostName(0), addrSize(0), protType(0), sockNum(0)
                            {IP.Addr.sa_family = 0;
                             sockAddr = &IP.Addr;
                            }
@@ -332,9 +332,6 @@ protected:
 
 static XrdNetCache        *dnsCache;
 
-// For optimization this union should be the first member of this class as we
-// compare "unixPipe" with "&IP" and want it optimized to "unixPipe == this".
-//
 XrdNetSockAddr             IP;
 union {struct sockaddr    *sockAddr;
        struct sockaddr_un *unixPipe;
@@ -343,6 +340,6 @@ char                      *hostName;
 LocInfo                    addrLoc;
 SOCKLEN_t                  addrSize;
 short                      protType;
-short                      sockNum;
+unsigned short             sockNum;
 };
 #endif

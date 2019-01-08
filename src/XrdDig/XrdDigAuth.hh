@@ -53,7 +53,11 @@ char          *eChk[eNum];
 enum           aType {aConf = 0, aCore = 1, aLogs = 2, aProc = 3, aNum = 4};
 bool           accOK[aNum];
 
-               XrdDigAuthEnt() : rec(0) {}
+               XrdDigAuthEnt() : next(0), rec(0) 
+	       {memset(prot, 0, sizeof(prot));
+		memset(eChk, 0, sizeof(eChk));
+		memset(accOK, 0, sizeof(accOK));
+	       }
               ~XrdDigAuthEnt() {if (rec) free(rec);}
 };
 

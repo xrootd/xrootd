@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
+#include "XrdClRedirectorRegistry.hh"
 
 namespace XrdCl
 {
@@ -40,7 +41,8 @@ namespace XrdCl
   Status MessageUtils::SendMessage( const URL               &url,
                                     Message                 *msg,
                                     ResponseHandler         *handler,
-                                    const MessageSendParams &sendParams )
+                                    const MessageSendParams &sendParams,
+                                    LocalFileHandler        *lFileHandler )
   {
     //--------------------------------------------------------------------------
     // Get the stuff needed to send the message
@@ -89,30 +91,97 @@ namespace XrdCl
     // Create and set up the message handler
     //--------------------------------------------------------------------------
     XRootDMsgHandler *msgHandler;
-    msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
+    msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr, lFileHandler );
     msgHandler->SetExpiration( sendParams.expires );
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
     msgHandler->SetChunkList( sendParams.chunkList );
     msgHandler->SetRedirectCounter( sendParams.redirectLimit );
+    msgHandler->SetStateful( sendParams.stateful );
 
     if( sendParams.loadBalancer.url.IsValid() )
       msgHandler->SetLoadBalancer( sendParams.loadBalancer );
 
     HostList *list = 0;
-    if( sendParams.hostList )
-      msgHandler->SetHostList( sendParams.hostList );
-    else
-    {
-      list = new HostList();
-      list->push_back( url );
-      msgHandler->SetHostList( list );
-    }
+    list = new HostList();
+    list->push_back( url );
+    msgHandler->SetHostList( list );
 
     //--------------------------------------------------------------------------
     // Send the message
     //--------------------------------------------------------------------------
     st = postMaster->Send( url, msg, msgHandler, sendParams.stateful,
                            sendParams.expires );
+    if( !st.IsOK() )
+    {
+      XRootDTransport::UnMarshallRequest( msg );
+      log->Error( XRootDMsg, "[%s] Unable to send the message %s: %s",
+                  url.GetHostId().c_str(), msg->GetDescription().c_str(),
+                  st.ToString().c_str() );
+
+      // Release the SID as the request was never send
+      sidMgr->ReleaseSID( req->streamid );
+      delete msgHandler;
+      delete list;
+      return st;
+    }
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Redirect a message
+  //----------------------------------------------------------------------------
+  Status MessageUtils::RedirectMessage( const URL         &url,
+                                        Message           *msg,
+                                        ResponseHandler   *handler,
+                                        MessageSendParams &sendParams,
+                                        LocalFileHandler  *lFileHandler )
+  {
+    //--------------------------------------------------------------------------
+    // Register a new virtual redirector
+    //--------------------------------------------------------------------------
+    RedirectorRegistry& registry = RedirectorRegistry::Instance();
+    Status st = registry.Register( url );
+    if( !st.IsOK() )
+      return st;
+
+    //--------------------------------------------------------------------------
+    // Get the stuff needed to send the message
+    //--------------------------------------------------------------------------
+    Log        *log        = DefaultEnv::GetLog();
+    PostMaster *postMaster = DefaultEnv::GetPostMaster();
+
+    if( !postMaster )
+      return Status( stError, errUninitialized );
+
+    log->Dump( XRootDMsg, "[%s] Redirecting message %s",
+               url.GetHostId().c_str(), msg->GetDescription().c_str() );
+
+    XRootDTransport::MarshallRequest( msg );
+
+    //--------------------------------------------------------------------------
+    // Create and set up the message handler
+    //--------------------------------------------------------------------------
+    XRootDMsgHandler *msgHandler;
+    msgHandler = new XRootDMsgHandler( msg, handler, &url, 0, lFileHandler );
+    msgHandler->SetExpiration( sendParams.expires );
+    msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
+    msgHandler->SetChunkList( sendParams.chunkList );
+    msgHandler->SetRedirectCounter( sendParams.redirectLimit );
+    msgHandler->SetFollowMetalink( true );
+
+    HostInfo info( url, true );
+    sendParams.loadBalancer = info;
+    msgHandler->SetLoadBalancer( info );
+
+    HostList *list = 0;
+    list = new HostList();
+    list->push_back( info );
+    msgHandler->SetHostList( list );
+
+    //--------------------------------------------------------------------------
+    // Redirect the message
+    //--------------------------------------------------------------------------
+    st = postMaster->Redirect( url, msg, msgHandler );
     if( !st.IsOK() )
     {
       XRootDTransport::UnMarshallRequest( msg );

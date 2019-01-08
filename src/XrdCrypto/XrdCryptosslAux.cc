@@ -195,6 +195,11 @@ bool XrdCryptosslX509VerifyChain(XrdCryptoX509Chain *chain, int &errcode)
    if (!verify_ok)
       errcode = gErrVerifyChain;
 
+   // Free context, stack, and store
+   X509_STORE_CTX_free(ctx);
+   sk_X509_pop_free(stk, X509_free);
+   X509_STORE_free(store);
+
    return verify_ok;
 }
 
@@ -607,12 +612,12 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
 }
 
 //____________________________________________________________________________
-int XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
+time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
 {
    // Function to convert from ASN1 time format into UTC
    // since Epoch (Jan 1, 1970) 
    // Return -1 if something went wrong
-   int etime = -1;
+   time_t etime = -1;
    EPNAME("ASN1toUTC");
 
    //

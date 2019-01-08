@@ -38,7 +38,9 @@ public:
 
 static
 const char *cgiC2Dst(const char *cKey, const char *xSrc, const char *xLfn,
-                     const char *xCks,       char *Buff, int Blen);
+                     const char *xCks,       char *Buff, int Blen, int strms=0,
+                     const char *iHst=0, const char *sprt=0, const char *tprt=0,
+                     bool push=false);
 
 static
 const char *cgiC2Src(const char *cKey, const char *xDst, int xTTL,
@@ -48,20 +50,18 @@ static
 const char *cgiD2Src(const char *cKey, const char *cOrg,
                            char *Buff, int Blen);
 
-static
-const char *tpcCks;
-static
-const char *tpcDst;
-static
-const char *tpcKey;
-static
-const char *tpcLfn;
-static
-const char *tpcOrg;
-static
-const char *tpcSrc;
-static
-const char *tpcTtl;
+static const char *tpcCks;
+static const char *tpcDlg;
+static const char *tpcDst;
+static const char *tpcKey;
+static const char *tpcLfn;
+static const char *tpcOrg;
+static const char *tpcPsh;
+static const char *tpcSpr;
+static const char *tpcSrc;
+static const char *tpcStr;
+static const char *tpcTpr;
+static const char *tpcTtl;
 
             XrdOucTPC() {}
            ~XrdOucTPC() {}

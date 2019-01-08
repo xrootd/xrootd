@@ -194,7 +194,7 @@ int XrdCmsFinderRMT::Configure(const char *cfn, char *Args, XrdOucEnv *envP)
 //
    if (!isMeta && !isTarget && config.haveMeta)
       {XrdCmsFinderTRG *Rsp = new XrdCmsFinderTRG(Say.logger(),Topts,myPort);
-       return Rsp->RunAdmin(CMSPath);
+       return Rsp->RunAdmin(CMSPath, config.myVNID);
       }
 
 // All done
@@ -887,20 +887,17 @@ XrdCmsFinderTRG::XrdCmsFinderTRG(XrdSysLogger *lp, int whoami, int port,
                                  XrdOss *theSS)
                : XrdCmsClient(XrdCmsClient::amTarget)
 {
-   char buff [256];
    isRedir = whoami & IsRedir;
    isProxy = whoami & IsProxy;
    SS      = theSS;
    CMSPath = 0;
+   Login   = 0;
    myManList = 0;
    CMSp    = new XrdOucStream(&Say);
    Active  = 0;
    myPort  = port;
    resMax  = -1;
    resCur  = 0;
-   sprintf(buff, "login %c %d port %d\n",(isProxy ? 'P' : 'p'),
-                 static_cast<int>(getpid()), port);
-   Login = strdup(buff);
    Say.logger(lp);
 }
  
@@ -970,12 +967,14 @@ int XrdCmsFinderTRG::Configure(const char *cfn, char *Ags, XrdOucEnv *envP)
       else      {myManList = config.ManList; config.ManList = 0;}
 
 // Set the error dest and simply call the configration object and if
-// successful, run the Admin thread. Note that unlike FinderRMT, we do not
-// extract the security function pointer or the network object pointer from
-// the environment as we don't need these at all.
 //
    if (config.Configure(cfn, What, XrdCmsClientConfig::configNorm)) return 0;
-   return RunAdmin(config.CMSPath);
+
+// Run the Admin thread. Note that unlike FinderRMT, we do not extract the
+// security function pointer or the network object pointer from the
+// environment as we don't need these at all.
+//
+   return RunAdmin(config.CMSPath, config.myVNID);
 }
   
 /******************************************************************************/
@@ -1160,14 +1159,23 @@ void XrdCmsFinderTRG::Suspend(int Perm)
 /*                              R u n A d m i n                               */
 /******************************************************************************/
   
-int XrdCmsFinderTRG::RunAdmin(char *Path)
+int XrdCmsFinderTRG::RunAdmin(char *Path, const char *vnid)
 {
+   const char *lFmt;
    pthread_t tid;
+   char buff [512];
 
 // Make sure we have a path to the cmsd
 //
    if (!(CMSPath = Path))
       {Say.Emsg("Config", "Unable to determine cms admin path"); return 0;}
+
+// Construct the login line
+//
+   lFmt = (vnid ? "login %c %d port %d vnid %s\n" : "login %c %d port %d\n");
+   snprintf(buff, sizeof(buff), lFmt, (isProxy ? 'P' : 'p'),
+                  static_cast<int>(getpid()), myPort, vnid);
+   Login = strdup(buff);
 
 // Start a thread to connect with the local cmsd
 //

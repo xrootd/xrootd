@@ -62,31 +62,37 @@ public:
    std::vector<char>   m_buff;
    long long           m_offset;
    File               *m_file;
-   bool                m_prefetch;
-   int                 m_refcnt;
-   int                 m_errno;                         // stores negative errno
-   bool                m_downloaded;
+   IO                 *m_io;            // IO that handled current request, used for == / != comparisons only
 
-   Block(File *f, long long off, int size, bool m_prefetch) :
-      m_offset(off), m_file(f), m_prefetch(m_prefetch), m_refcnt(0),
-      m_errno(0), m_downloaded(false)
+   int                 m_refcnt;
+   int                 m_errno;         // stores negative errno
+   bool                m_downloaded;
+   bool                m_prefetch;
+
+   Block(File *f, IO *io, long long off, int size, bool m_prefetch) :
+      m_offset(off), m_file(f), m_io(io), m_refcnt(0),
+      m_errno(0), m_downloaded(false), m_prefetch(m_prefetch)
    {
       m_buff.resize(size);
    }
 
-   char*     get_buff(long long pos = 0) { return &m_buff[pos]; }
-   int       get_size()   { return (int) m_buff.size(); }
-   long long get_offset() { return m_offset; }
+   char*     get_buff(long long pos = 0) { return &m_buff[pos];        }
+   int       get_size()                  { return (int) m_buff.size(); }
+   long long get_offset()                { return m_offset;            }
+
+   IO*  get_io() const { return m_io; }
 
    bool is_finished() { return m_downloaded || m_errno != 0; }
    bool is_ok()       { return m_downloaded; }
    bool is_failed()   { return m_errno != 0; }
 
-   void set_error_and_free(int err)
+   void set_downloaded()    { m_downloaded = true; }
+   void set_error(int err)  { m_errno      = err;  }
+
+   void reset_error_and_set_io(IO *io)
    {
-      m_errno = err;
-      std::vector<char> x;
-      m_buff.swap(x);
+      m_errno = 0;
+      m_io    = io;
    }
 };
 
@@ -96,8 +102,10 @@ class BlockResponseHandler : public XrdOucCacheIOCB
 {
 public:
    Block *m_block;
+   bool   m_for_prefetch;
 
-   BlockResponseHandler(Block *b) : m_block(b) {}
+   BlockResponseHandler(Block *b, bool prefetch) :
+      m_block(b), m_for_prefetch(prefetch) {}
 
    virtual void Done(int result);
 };
@@ -128,8 +136,7 @@ public:
    //------------------------------------------------------------------------
    //! Constructor.
    //------------------------------------------------------------------------
-   File(IO *io, std::string &path,
-        long long offset, long long fileSize);
+   File(const std::string &path, long long offset, long long fileSize);
 
    //------------------------------------------------------------------------
    //! Destructor.
@@ -141,9 +148,10 @@ public:
    bool Open();
 
    //! Vector read from disk if block is already downloaded, else ReadV from client.
-   int ReadV (const XrdOucIOVec *readV, int n);
+   int ReadV(IO *io, const XrdOucIOVec *readV, int n);
 
-   int Read(char* buff, long long offset, int size);
+   //! Normal read.
+   int Read (IO *io, char* buff, long long offset, int size);
 
    //----------------------------------------------------------------------
    //! \brief Data and cinfo files are open.
@@ -154,7 +162,19 @@ public:
    //! \brief Initiate close. Return true if still IO active.
    //! Used in XrdPosixXrootd::Close()
    //----------------------------------------------------------------------
-   bool ioActive();
+   bool ioActive(IO *io);
+   
+   //----------------------------------------------------------------------
+   //! \brief Flags that detach stats should be written out in final sync.
+   //! Called from CacheIO upon Detach.
+   //----------------------------------------------------------------------
+   void RequestSyncOfDetachStats();
+
+   //----------------------------------------------------------------------
+   //! \brief Returns true if any of blocks need sync.
+   //! Called from Cache::dec_ref_cnt on zero ref cnt
+   //----------------------------------------------------------------------
+   bool FinalizeSyncBeforeExit();
 
    //----------------------------------------------------------------------
    //! Sync file cache inf o and output data with disk
@@ -166,7 +186,7 @@ public:
    //----------------------------------------------------------------------
    Stats& GetStats() { return m_stats; }
 
-   void ProcessBlockResponse(Block* b, int res);
+   void ProcessBlockResponse(BlockResponseHandler* brh, int res);
    void WriteBlockToDisk(Block* b);
 
    void Prefetch();
@@ -176,56 +196,79 @@ public:
    //! Log path
    const char* lPath() const;
 
-   std::string     GetLocalPath() { return m_temp_filename; }
+   std::string& GetLocalPath() { return m_filename; }
 
-   XrdOucTrace*  GetTrace();
+   XrdSysTrace*  GetTrace();
 
    long long GetFileSize() { return m_fileSize; }
 
-   void WakeUp(IO* io);
+   void AddIO(IO *io);
+   int  GetPrefetchCountOnIO(IO *io);
+   void StopPrefetchingOnIO(IO *io);
+   void RemoveIO(IO *io);
 
+   // These three methods are called under Cache's m_active lock
+   int get_ref_cnt() { return   m_ref_cnt; }
+   int inc_ref_cnt() { return ++m_ref_cnt; }
+   int dec_ref_cnt() { return --m_ref_cnt; }
 
 private:
    enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
 
-   bool m_is_open;                      //!< open state
+   int            m_ref_cnt;            //!< number of references from IO or sync
+   
+   bool           m_is_open;            //!< open state
 
-   IO             *m_io;                //!< original data source
-   XrdOssDF       *m_output;            //!< file handle for data file on disk
-   XrdOssDF       *m_infoFile;          //!< file handle for data-info file on disk
-   Info m_cfi;                          //!< download status of file blocks and access statistics
+   XrdOssDF      *m_output;             //!< file handle for data file on disk
+   XrdOssDF      *m_infoFile;           //!< file handle for data-info file on disk
+   Info           m_cfi;                //!< download status of file blocks and access statistics
 
-   std::string    m_temp_filename;      //!< filename of data file on disk
-   long long      m_offset;             //!< offset of cached file for block-based operation
+   std::string    m_filename;           //!< filename of data file on disk
+   long long      m_offset;             //!< offset of cached file for block-based / hdfs operation
    long long      m_fileSize;           //!< size of cached disk file for block-based operation
 
+   // IO objects attached to this file.
+
+   struct IODetails
+   {
+      int    m_active_prefetches;
+      bool   m_allow_prefetching;
+
+      IODetails() : m_active_prefetches(0), m_allow_prefetching(true) {}
+   };
+
+   typedef std::map<IO*, IODetails> IoMap_t;
+   typedef IoMap_t::iterator        IoMap_i;
+
+   IoMap_t    m_io_map;
+   IoMap_i    m_current_io; //!< IO object to be used for prefetching.
+
    // fsync
-   XrdJob           *m_syncer;
    std::vector<int>  m_writes_during_sync;
-   int m_non_flushed_cnt;
+   int  m_non_flushed_cnt;
    bool m_in_sync;
 
-   typedef std::list<int>         IntList_t;
-   typedef IntList_t::iterator IntList_i;
+   typedef std::list<int>        IntList_t;
+   typedef IntList_t::iterator   IntList_i;
 
-   typedef std::list<Block*>      BlockList_t;
+   typedef std::list<Block*>     BlockList_t;
    typedef BlockList_t::iterator BlockList_i;
 
-   typedef std::map<int, Block*>  BlockMap_t;
-   typedef BlockMap_t::iterator BlockMap_i;
+   typedef std::map<int, Block*> BlockMap_t;
+   typedef BlockMap_t::iterator  BlockMap_i;
 
 
    BlockMap_t m_block_map;
 
    XrdSysCondVar m_downloadCond;
 
-   Stats m_stats;                   //!< cache statistics, used in IO detach
+   Stats m_stats;                      //!< cache statistics, used in IO detach
 
    PrefetchState_e m_prefetchState;
 
    int   m_prefetchReadCnt;
    int   m_prefetchHitCnt;
-   float m_prefetchScore;              //cached
+   float m_prefetchScore;              // cached
    
    bool  m_detachTimeIsLogged;
 
@@ -238,12 +281,14 @@ private:
                 long long &off,        // offset in user buffer
                 long long &blk_off,    // offset in block
                 long long &size);
-   // Read
-   Block* PrepareBlockRequest(int i, bool prefetch);
-   
-   void   ProcessBlockRequests(BlockList_t& blks);
 
-   int    RequestBlocksDirect(DirectResponseHandler *handler, IntList_t& blocks,
+   // Read
+   Block* PrepareBlockRequest(int i, IO *io, bool prefetch);
+   
+   void   ProcessBlockRequest (Block       *b,    bool prefetch);
+   void   ProcessBlockRequests(BlockList_t& blks, bool prefetch);
+
+   int    RequestBlocksDirect(IO *io, DirectResponseHandler *handler, IntList_t& blocks,
                               char* buff, long long req_off, long long req_size);
 
    int    ReadBlocksFromDisk(IntList_t& blocks,
@@ -251,27 +296,26 @@ private:
 
    // VRead
    bool VReadValidate     (const XrdOucIOVec *readV, int n);
-   bool VReadPreProcess   (const XrdOucIOVec *readV, int n,
+   bool VReadPreProcess   (IO *io, const XrdOucIOVec *readV, int n,
                            ReadVBlockListRAM&  blks_to_process,
                            ReadVBlockListDisk& blks_on_disk,
                            std::vector<XrdOucIOVec>& chunkVec);
    int  VReadFromDisk     (const XrdOucIOVec *readV, int n,
                            ReadVBlockListDisk& blks_on_disk);
-   int  VReadProcessBlocks(const XrdOucIOVec *readV, int n,
+   int  VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
                            std::vector<ReadVChunkListRAM>& blks_to_process,
                            std::vector<ReadVChunkListRAM>& blks_rocessed);
 
    long long BufferSize();
-   void AppendIOStatToFileInfo();
 
    void inc_ref_count(Block*);
    void dec_ref_count(Block*);
    void free_block(Block*);
 
+   bool select_current_io_or_disable_prefetching(bool skip_current);
+
    int  offsetIdx(int idx);
 };
-
-
 
 }
 

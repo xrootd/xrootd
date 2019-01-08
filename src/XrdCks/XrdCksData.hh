@@ -32,6 +32,8 @@
 
 #include <string.h>
 
+class XrdOucEnv;
+
 class XrdCksData
 {
 public:
@@ -40,7 +42,11 @@ static const int NameSize = 16; // Max name  length is NameSize - 1
 static const int ValuSize = 64; // Max value length is 512 bits
 
 char      Name[NameSize];       // Checksum algorithm name
+union    {
 long long fmTime;               // File's mtime when checksum was computed.
+const
+char     *tident;               // Set for get & calc only if proxy server!
+         };
 int       csTime;               // Delta from fmTime when checksum was computed.
 short     Rsvd1;                // Reserved field
 char      Rsvd2;                // Reserved field
@@ -74,8 +80,10 @@ int       Get(char *Buff, int Blen)
              }
 
 int       Set(const char *csName)
-             {if (strlen(csName) >= sizeof(Name)) return 0;
-              strncpy(Name, csName, sizeof(Name));
+             {size_t len = strlen(csName);
+              if (len >= sizeof(Name)) return 0;
+              memcpy(Name, csName, len);
+	      Name[len]=0;
               return 1;
              }
 
@@ -102,10 +110,18 @@ int       Set(const char *csVal, int csLen)
               return 1;
              }
 
-          XrdCksData() : Rsvd1(0), Rsvd2(0), Length(0)
-                       {memset(Name, 0, sizeof(Name));
-                        memset(Value,0, sizeof(Value));
-                       }
+          void Reset()
+                    {memset(Name, 0, sizeof(Name));
+                     memset(Value,0, sizeof(Value));
+                     fmTime = 0;
+                     csTime = 0;
+                     Rsvd1  = 0;
+                     Rsvd2  = 0;
+                     Length = 0;
+                    }
+
+          XrdCksData()
+                       {Reset();}
 
 bool      HasValue()
                   {

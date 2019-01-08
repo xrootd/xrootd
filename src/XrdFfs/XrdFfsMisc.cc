@@ -119,7 +119,7 @@ int XrdFfsMisc_get_all_urls_real(const char *oldurl, char **newurls, const int n
    used a cache to reduce unnecessary queries to the redirector 
 */ 
 
-char XrdFfsMiscCururl[1024] = "";
+char XrdFfsMiscCururl[MAXROOTURLLEN] = "";
 char *XrdFfsMiscUrlcache[XrdFfs_MAX_NUM_NODES];
 int XrdFfsMiscNcachedurls = 0;
 time_t XrdFfsMiscUrlcachetime = 0;
@@ -211,7 +211,7 @@ int XrdFfsMisc_get_list_of_data_servers(char* list)
     const char *hName, *hNend, *hPort, *hPend;
     char *url, *rc, *hostip, hsep;
   
-    rc = (char*)malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 1024);
+    rc = (char*)malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * MAXROOTURLLEN);
     rc[0] = '\0';
     pthread_mutex_lock(&XrdFfsMiscUrlcache_mutex);
     for (i = 0; i < XrdFfsMiscNcachedurls; i++)
@@ -388,7 +388,7 @@ void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid, int *id)
     XrdSecEntity XrdFfsMiscUent("");
 
     tmp = ntoa24((unsigned int)user_uid);
-    strncpy(user_num, tmp, 9);
+    memcpy(user_num, tmp, 9);
     free(tmp);
 
     if (id != NULL) {
@@ -418,24 +418,24 @@ void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid, int *id)
 
 void XrdFfsMisc_xrd_secsss_editurl(char *url, uid_t user_uid, int *id)
 {
-    char user_num[9], nurl[1024], *tmp;
+    char user_num[9], nurl[MAXROOTURLLEN], *tmp;
 
 // Xrootd proxy also use some of the stat()/unlink(), etc funcitons here, without user "sss". It use the default 
 // connection login name. Don't change this behavior. (so for proxy, use no "sss", and always have *id = 0
     if (id != NULL || XrdFfsMiscSecsss)
     {
         tmp = ntoa24(user_uid);
-        strncpy(user_num, tmp, 9);
+        memcpy(user_num, tmp, 9);
         free(tmp);
         if (id == NULL) user_num[strlen(user_num)] = 48;
         else user_num[strlen(user_num)] = *id + 48;
 
         nurl[0] = '\0';
-        strcat(nurl, "root://");
-        strcat(nurl, user_num);
-        strcat(nurl, "@");
-        strcat(nurl, &(url[7])); 
-        strcpy(url, nurl);
+        strncat(nurl, "root://", 8);
+        strncat(nurl, user_num, 9);
+        strncat(nurl, "@", 2);
+        strncat(nurl, &(url[7]), MAXROOTURLLEN-17);
+        strncpy(url, nurl, MAXROOTURLLEN);
     }
 }
 

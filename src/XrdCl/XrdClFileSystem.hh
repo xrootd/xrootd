@@ -153,10 +153,12 @@ namespace XrdCl
   {
     enum Flags
     {
-      None   = 0,  //!< Nothing special
-      Stat   = 1,  //!< Stat each entry
-      Locate = 2  //!< Locate all servers hosting the directory and send
-                   //!< the dirlist request to all of them
+      None      = 0, //!< Nothing special
+      Stat      = 1, //!< Stat each entry
+      Locate    = 2, //!< Locate all servers hosting the directory and send
+                     //!< the dirlist request to all of them
+      Recursive = 4,  //!< Do a recursive listing
+      Merge     = 8
     };
   };
   XRDOUC_ENUM_OPERATORS( DirListFlags::Flags )
@@ -174,8 +176,9 @@ namespace XrdCl
                                   //!< the location is known
       Stage       = kXR_stage,    //!< stage the file to disk if it is not
                                   //!< online
-      WriteMode   = kXR_wmode     //!< the file will be accessed for
+      WriteMode   = kXR_wmode,    //!< the file will be accessed for
                                   //!< modification
+      Cancel      = kXR_cancel
     };
   };
   XRDOUC_ENUM_OPERATORS( PrepareFlags::Flags )

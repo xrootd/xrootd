@@ -91,7 +91,7 @@ extern int ka_Icnt;
 
 namespace XrdGlobal
 {
-XrdBuffXL xlBuff;
+extern XrdBuffXL xlBuff;
 }
 
 namespace
@@ -155,7 +155,9 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    myInsName= 0;
    mySitName= 0;
    AdminPath= strdup("/tmp");
+   HomePath = 0;
    AdminMode= 0700;
+   HomeMode = 0700;
    Police   = 0;
    Net_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
    Net_Opts = XRDNET_KEEPALIVE;
@@ -262,7 +264,7 @@ int XrdConfig::Configure(int argc, char **argv)
       {if (*(argv[i]) == '-' && *(argv[i]+1) == '+')
           {int n = strlen(argv[i]+2), j = i+1, k = 1;
            if (urArgc == argc) urArgc = i;
-           if (n) strncpy(buff, argv[i]+2, (n > 256 ? 256 : n));
+           if (n) memcpy(buff, argv[i]+2, (n > 256 ? 256 : n));
            strcpy(&(buff[n]), ".argv**");
            while(j < argc && (*(argv[j]) != '-' || *(argv[j]+1) != '+')) j++;
            urArgv = new char*[j-i+1];
@@ -521,7 +523,8 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // If we hae a net name change the working directory
 //
-   if (myInsName) XrdOucUtils::makeHome(Log, myInsName);
+   if ((myInsName || HomePath)
+   &&  !XrdOucUtils::makeHome(Log, myInsName, HomePath, HomeMode)) NoGo = 1;
 
    // if we call this it means that the daemon has forked and we are
    // in the child process
@@ -581,6 +584,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    {
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
+   TS_Xeq("homepath",      xhpath);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("report",        xrep);
@@ -844,7 +848,7 @@ void XrdConfig::setCFG()
   
 int XrdConfig::setFDL()
 {
-   static const int maxFD = 1048576;
+   static const int maxFD = 65535; // was 1048576 see XrdNetAddrInfo::sockNum
    struct rlimit rlim;
    char buff[100];
 
@@ -998,7 +1002,7 @@ int XrdConfig::Setup(char *dfltp)
    if (PortWAN &&  (NetWAN = new XrdInet(&Log, &Trace, Police)))
       {if (Wan_Opts || Wan_Blen) NetWAN->setDefaults(Wan_Opts, Wan_Blen);
        if (myDomain) NetWAN->setDomain(myDomain);
-       if (NetWAN->Bind((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
+       if (NetWAN->BindSD((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
        PortWAN  = NetWAN->Port();
        wsz      = NetWAN->WSize();
        Wan_Blen = (wsz < Wan_Blen || !Wan_Blen ? wsz : Wan_Blen);
@@ -1020,7 +1024,7 @@ int XrdConfig::Setup(char *dfltp)
              if (Net_Opts || Net_Blen)
                 NetTCP[NetTCPlep]->setDefaults(Net_Opts, Net_Blen);
              if (myDomain) NetTCP[NetTCPlep]->setDomain(myDomain);
-             if (NetTCP[NetTCPlep]->Bind(cp->port, "tcp")) return 1;
+             if (NetTCP[NetTCPlep]->BindSD(cp->port, "tcp")) return 1;
              ProtInfo.Port   = NetTCP[NetTCPlep]->Port();
              ProtInfo.NetTCP = NetTCP[NetTCPlep];
              wsz             = NetTCP[NetTCPlep]->WSize();
@@ -1162,6 +1166,34 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
        else      Police->AddNetGroup(val);
 
     return 0;
+}
+
+/******************************************************************************/
+/*                                x h p a t h                                 */
+/******************************************************************************/
+
+/* Function: xhpath
+
+   Purpose:  To parse the directive: homepath <path> [group]
+
+             <path>    the path of the home director to be made as the cwd.
+
+             group     allows group access to the home path
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdConfig::xhpath(XrdSysError *eDest, XrdOucStream &Config)
+{
+
+// Free existing home path, if any
+//
+   if (HomePath) {free(HomePath); HomePath = 0;}
+
+// Parse the home path and return success or failure
+//
+   HomePath = XrdOucUtils::parseHome(*eDest, Config, HomeMode);
+   return (HomePath ? 0 : 1);
 }
 
 /******************************************************************************/

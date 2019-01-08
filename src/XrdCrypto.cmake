@@ -20,8 +20,6 @@ set( XRD_CRYPTO_LITE_SOVERSION 1 )
 add_library(
   XrdCrypto
   SHARED
-  XrdCrypto/PC1.cc                        XrdCrypto/PC1.hh
-  XrdCrypto/PC3.cc                        XrdCrypto/PC3.hh
   XrdCrypto/XrdCryptoAux.cc               XrdCrypto/XrdCryptoAux.hh
   XrdCrypto/XrdCryptoTrace.hh
   XrdCrypto/XrdCryptoBasic.cc             XrdCrypto/XrdCryptoBasic.hh
@@ -33,14 +31,12 @@ add_library(
   XrdCrypto/XrdCryptoX509Chain.cc         XrdCrypto/XrdCryptoX509Chain.hh
   XrdCrypto/XrdCryptoX509Crl.cc           XrdCrypto/XrdCryptoX509Crl.hh
   XrdCrypto/XrdCryptoX509Req.cc           XrdCrypto/XrdCryptoX509Req.hh
-  XrdCrypto/XrdCryptogsiX509Chain.cc      XrdCrypto/XrdCryptogsiX509Chain.hh
-  XrdCrypto/XrdCryptolocalCipher.cc       XrdCrypto/XrdCryptolocalCipher.hh
-  XrdCrypto/XrdCryptolocalFactory.cc      XrdCrypto/XrdCryptolocalFactory.hh )
+  XrdCrypto/XrdCryptogsiX509Chain.cc      XrdCrypto/XrdCryptogsiX509Chain.hh )
 
 target_link_libraries(
   XrdCrypto
   XrdUtils
-  dl )
+  ${CMAKE_DL_LIBS} )
 
 set_target_properties(
   XrdCrypto
@@ -125,8 +121,6 @@ if( BUILD_CRYPTO )
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 endif()
 # FIXME: Unused files
-#-rw-r--r-- 1 ljanyst ljanyst  2499 2011-03-21 16:13 XrdCryptosslX509Store.cc
-#-rw-r--r-- 1 ljanyst ljanyst  1750 2011-03-21 16:13 XrdCryptosslX509Store.hh
 #-rw-r--r-- 1 ljanyst ljanyst 16721 2011-03-21 16:13 XrdCryptotest.cc
 
 

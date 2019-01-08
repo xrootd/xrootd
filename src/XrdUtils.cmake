@@ -24,36 +24,38 @@ add_library(
   #-----------------------------------------------------------------------------
   # XrdSys
   #-----------------------------------------------------------------------------
+                                XrdSys/XrdSysAtomics.hh
   XrdSys/XrdSysDNS.cc           XrdSys/XrdSysDNS.hh
   XrdSys/XrdSysDir.cc           XrdSys/XrdSysDir.hh
-                                XrdSys/XrdSysFD.hh
-  XrdSys/XrdSysPlugin.cc        XrdSys/XrdSysPlugin.hh
-  XrdSys/XrdSysPriv.cc          XrdSys/XrdSysPriv.hh
-  XrdSys/XrdSysPlatform.cc      XrdSys/XrdSysPlatform.hh
-  XrdSys/XrdSysPthread.cc       XrdSys/XrdSysPthread.hh
-                                XrdSys/XrdSysSemWait.hh
-  XrdSys/XrdSysTimer.cc         XrdSys/XrdSysTimer.hh
-  XrdSys/XrdSysTrace.cc         XrdSys/XrdSysTrace.hh
-  XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
-  XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
+  XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
   XrdSys/XrdSysFAttr.cc         XrdSys/XrdSysFAttr.hh
                                 XrdSys/XrdSysFAttrBsd.icc
                                 XrdSys/XrdSysFAttrLnx.icc
                                 XrdSys/XrdSysFAttrMac.icc
                                 XrdSys/XrdSysFAttrSun.icc
+                                XrdSys/XrdSysFD.hh
+  XrdSys/XrdSysFallocate.cc     XrdSys/XrdSysFallocate.hh
+                                XrdSys/XrdSysHeaders.hh
   XrdSys/XrdSysIOEvents.cc      XrdSys/XrdSysIOEvents.hh
                                 XrdSys/XrdSysIOEventsPollE.icc
                                 XrdSys/XrdSysIOEventsPollKQ.icc
                                 XrdSys/XrdSysIOEventsPollPoll.icc
                                 XrdSys/XrdSysIOEventsPollPort.icc
-                                XrdSys/XrdSysAtomics.hh
-                                XrdSys/XrdSysHeaders.hh
-  XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
+                                XrdSys/XrdSysLinuxSemaphore.hh
+                                XrdSys/XrdSysLogPI.hh
   XrdSys/XrdSysLogger.cc        XrdSys/XrdSysLogger.hh
   XrdSys/XrdSysLogging.cc       XrdSys/XrdSysLogging.hh
-                                XrdSys/XrdSysLogPI.hh
-                                XrdSys/XrdSysLinuxSemaphore.hh
+  XrdSys/XrdSysPlatform.cc      XrdSys/XrdSysPlatform.hh
+  XrdSys/XrdSysPlugin.cc        XrdSys/XrdSysPlugin.hh
+  XrdSys/XrdSysPriv.cc          XrdSys/XrdSysPriv.hh
+  XrdSys/XrdSysPthread.cc       XrdSys/XrdSysPthread.hh
+                                XrdSys/XrdSysSemWait.hh
+  XrdSys/XrdSysTimer.cc         XrdSys/XrdSysTimer.hh
+  XrdSys/XrdSysTrace.cc         XrdSys/XrdSysTrace.hh
+  XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
   XrdSys/XrdSysXAttr.cc         XrdSys/XrdSysXAttr.hh
+  XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
+
 
   #-----------------------------------------------------------------------------
   # XrdOuc
@@ -66,8 +68,10 @@ add_library(
                                 XrdOuc/XrdOucCache2.hh
   XrdOuc/XrdOucCacheData.cc     XrdOuc/XrdOucCacheData.hh
   XrdOuc/XrdOucCacheDram.cc     XrdOuc/XrdOucCacheDram.hh
+                                XrdOuc/XrdOucCacheCM.hh
   XrdOuc/XrdOucCacheReal.cc     XrdOuc/XrdOucCacheReal.hh
                                 XrdOuc/XrdOucCacheSlot.hh
+                                XrdOuc/XrdOucCacheStats.hh
   XrdOuc/XrdOucCallBack.cc      XrdOuc/XrdOucCallBack.hh
   XrdOuc/XrdOucCRC.cc           XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucEnv.cc           XrdOuc/XrdOucEnv.hh
@@ -89,6 +93,7 @@ add_library(
   XrdOuc/XrdOucPinPath.cc       XrdOuc/XrdOucPinPath.hh
   XrdOuc/XrdOucPreload.cc       XrdOuc/XrdOucPreload.hh
   XrdOuc/XrdOucProg.cc          XrdOuc/XrdOucProg.hh
+  XrdOuc/XrdOucPsx.cc           XrdOuc/XrdOucPsx.hh
   XrdOuc/XrdOucPup.cc           XrdOuc/XrdOucPup.hh
   XrdOuc/XrdOucReqID.cc         XrdOuc/XrdOucReqID.hh
   XrdOuc/XrdOucSid.cc           XrdOuc/XrdOucSid.hh
@@ -136,11 +141,12 @@ add_library(
   # XrdSut
   #-----------------------------------------------------------------------------
   XrdSut/XrdSutAux.cc           XrdSut/XrdSutAux.hh
-  XrdSut/XrdSutCache.cc         XrdSut/XrdSutCache.hh
+  XrdSut/XrdSutPFCache.cc       XrdSut/XrdSutPFCache.hh
   XrdSut/XrdSutBucket.cc        XrdSut/XrdSutBucket.hh
   XrdSut/XrdSutBuckList.cc      XrdSut/XrdSutBuckList.hh
   XrdSut/XrdSutBuffer.cc        XrdSut/XrdSutBuffer.hh
   XrdSut/XrdSutPFile.cc         XrdSut/XrdSutPFile.hh
+  XrdSut/XrdSutCacheEntry.cc    XrdSut/XrdSutCacheEntry.hh
   XrdSut/XrdSutPFEntry.cc       XrdSut/XrdSutPFEntry.hh
   XrdSut/XrdSutRndm.cc          XrdSut/XrdSutRndm.hh
   XrdSut/XrdSutTrace.hh
@@ -170,6 +176,7 @@ add_library(
   #-----------------------------------------------------------------------------
   # XrdCks
   #-----------------------------------------------------------------------------
+  XrdCks/XrdCksAssist.cc           XrdCks/XrdCksAssist.hh
   XrdCks/XrdCksCalccrc32.cc        XrdCks/XrdCksCalccrc32.hh
   XrdCks/XrdCksCalcmd5.cc          XrdCks/XrdCksCalcmd5.hh
   XrdCks/XrdCksConfig.cc           XrdCks/XrdCksConfig.hh
@@ -194,10 +201,17 @@ add_library(
 target_link_libraries(
   XrdUtils
   pthread
-  dl
+  ${CMAKE_DL_LIBS}
   ${SOCKET_LIBRARY}
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )
+
+if ( SYSTEMD_FOUND )
+   target_link_libraries(
+     XrdUtils
+     ${SYSTEMD_LIBRARIES}
+   )
+endif()
 
 set_target_properties(
   XrdUtils

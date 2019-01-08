@@ -34,6 +34,10 @@
 #include <string.h>
 #include <strings.h>
   
+/******************************************************************************/
+/*                     C l a s s   X r d O u c T L i s t                      */
+/******************************************************************************/
+  
 class XrdOucTList
 {
 public:
@@ -57,7 +61,7 @@ int          val;
 
              XrdOucTList(const char *tval, int   iv[2], XrdOucTList *np=0)
                         {next=np; text = (tval ? strdup(tval) : 0);
-                         memcpy(sval, iv, sizeof(ival));}
+                         memcpy(ival, iv, sizeof(ival));}
 
              XrdOucTList(const char *tval, short sv[4], XrdOucTList *np=0)
                         {next=np; text = (tval ? strdup(tval) : 0);
@@ -70,6 +74,10 @@ int          val;
             ~XrdOucTList() {if (text) free(text);}
 };
 
+/******************************************************************************/
+/*               C l a s s   X r d O u c T L i s t H e l p e r                */
+/******************************************************************************/
+  
 class XrdOucTListHelper
 {
 public:
@@ -81,5 +89,33 @@ XrdOucTList **Anchor;
                            while((tp = *Anchor))
                                 {*Anchor = tp->next; delete tp;}
                           }
+};
+  
+/******************************************************************************/
+/*                 C l a s s   X r d O u c T L i s t F I F O                  */
+/******************************************************************************/
+  
+class XrdOucTListFIFO
+{
+public:
+
+XrdOucTList *first;
+XrdOucTList *last;
+
+inline void  Add(XrdOucTList *tP)
+                {if (last) last->next = tP;
+                    else   first = tP;
+                 last = tP;
+                }
+
+inline void  Clear() {XrdOucTList *tP;
+                      while((tP = first)) {first = tP->next; delete tP;}
+                      first = last = 0;
+                     }
+
+XrdOucTList *Pop() {XrdOucTList *tP = first; first = last = 0; return tP;}
+
+             XrdOucTListFIFO() : first(0), last(0) {}
+            ~XrdOucTListFIFO() {Clear();}
 };
 #endif

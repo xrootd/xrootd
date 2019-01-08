@@ -153,13 +153,29 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
    XrdSecProtList *pl;
    XrdSecProtocol *pp;
    XrdOucErrInfo   ei;
-   XrdOucErrInfo  *erp = (eri) ? eri : &ei;
+   XrdOucErrInfo  *erp;
+   char *wp;
    int i;
 
-// We support passing the list of protocols via Url parameter
+// We support passing the list of protocols via Url parameter unless this is
+// a proxy server as the url should be merely passed hrough. If the proxy is
+// not forwarding creds, then we use our error object to prevent security
+// yet from using anything but the proxy's credentials.
+// to become more clever
 //
-   char *wp = (eri && eri->getEnv()) ? eri->getEnv()->Get("xrd.wantprot") : 0;
+   if (isProxy)
+      {wp = 0;
+       if (!fwdCreds) eri = 0;
+      } else {
+       XrdOucEnv *envP;
+       if (!eri || (envP = eri->getEnv()) == 0) wp = 0;
+          else wp = envP->Get("xrd.wantprot");
+      }
+
+// Get the appropriate protocol list as well as the right error object
+//
    const char *wantProt = wp ? (const char *)wp : getenv("XrdSecPROTOCOL");
+   erp = (eri) ? eri : &ei;
 
 // We only scan the buffer once
 //

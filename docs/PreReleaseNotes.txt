@@ -5,3 +5,44 @@ XRootD
 Prerelease Notes
 ================
 
++ **New Features**
+  * **[Proxy]** Add 'pss.tid' CGI element to all outgoing URL's.
+  * **[Server]** Allow space preassignment of file creation paths.
+  * **[Server]** [Server] Allow spaces in id's via acc.spacechar. Fixes #712
+  * **[Server]** Add 'query confg start' to find server start time.
+  * **[Server]** Implement TpcLite for delegated TPC copy.
+  * **[Server]** Allow config continuation to files in a directory.
+  * **[Server]** Allow callbacks for close() and opague() requests.
+  * **[Server]** Allow the CKS manager to run on the redirector.
+  * **[TPC]** Enable use of delegated credentials for 3rd party copy.
+  * **[SSI]** Properly handle Finished() calls prior to response posting.
+  * **[Server]** Add &I=<iptype> to 'u' login monitoring record.
+  * **[XrdApps]** Implement xrdqstats command to display summary monitoring.
+  * **[XrdSsi]** Provide summary monitoring information to report stream.
+  * **[TPC]** Allow number of streams to use to be passed to the server.
+  * **[Proxy]** Implement new options in pfc.diskusage for better control of purging.
+  * **[POSIX]** Implement Cache Context Management plugin.
+
++ **Major bug fixes**
+  * **[Server]* ** Fix SEGV when using delegation and VOMSFUN with raw creds.
+  * **[Proxy]** Fix incorrect rc check when processing Fstat() (disabled progbar).
+  * **[POSIX]** Avoid SEGV due to race condition between open() and close().
+  * **[SSI]** Do not leak memory when a fatal error occurs. Fixes #775
+
++ **Minor bug fixes**
+  * **[Secsss]** Pass correct parameters when registering an ID. Fixes #689
+  * **[xrdcp]** Correct handling of --infiles option. Fixes #779
+  * **[POSIX]** Avoid unnecessary cache open requests.
+  * **[Server]** Follow protocol spec when returning file compression info. Fixes #721
+
++ **Miscellaneous**
+  * **[TPC]** Do not take case into account for hostname matching.
+  * **[Secgsi]** Implement stricter version of RFC2818 (host name check) for ciient.
+  * **[Server]** Do not allow badly formed CGI to pollute subsequent tokens.
+  * **[TPC]** Set envars XRD_TRACEID, XRDTPC_SPROT, and XRDTPC_TPROT
+  * **[TPC]** Allow source protocol to be transmitted to server via tpc.spr CGI.
+  * **[Proxy]** Add method to cache to get local file path of cached file.
+  * **[All]** Place protocol definition under a modified BSD license.
+  * **[Proxy]** Avoid auth failure due to URL cgi directives.
+  * **[Proxy]** Fix wrong logic in cache purge algorithm.
+

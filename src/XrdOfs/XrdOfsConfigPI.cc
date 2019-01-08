@@ -52,6 +52,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFAttr.hh"
@@ -88,7 +89,7 @@ XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
                  : autPI(0), cksPI(0), cmsPI(0), ossPI(0), urVer(verP),
                    Config(cfgP),  Eroute(errP), CksConfig(0), ConfigFN(cfn),
                    CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(false),
-                   Loaded(false), LoadOK(false)
+                   Loaded(false), LoadOK(false), cksLcl(false)
 {
    int rc;
 
@@ -146,6 +147,7 @@ void   XrdOfsConfigPI::DefaultCS(const char *alg)
 {
    if (CksAlg) free(CksAlg);
    CksAlg = strdup(alg);
+   XrdOucUtils::toLower(CksAlg);
 }
   
 /******************************************************************************/
@@ -274,8 +276,11 @@ bool XrdOfsConfigPI::Parse(TheLib what)
                           break;
           case theAutLib: break;
           case theCksLib: if (CksConfig)
-                             {if (CksConfig->ParseLib(*Config)) return false;
-                              RepLib(theCksLib, CksConfig->ManLib(), nullParms);
+                             {int libType;
+                              if (CksConfig->ParseLib(*Config, libType))
+                                 return false;
+                              if (libType) cksLcl = libType == 1;
+                              RepLib(theCksLib, CksConfig->ManLib(), nullParms, false);
                               return true;
                              }
                           Eroute->Emsg("Config", "Checksum version error!");
@@ -399,7 +404,7 @@ bool   XrdOfsConfigPI::Plugin(XrdOss          *&piP)
 /******************************************************************************/
   
 bool XrdOfsConfigPI::RepLib(XrdOfsConfigPI::TheLib what,
-                            const char *newLib, const char *newParms)
+                            const char *newLib, const char *newParms, bool parseParms)
 {
    const char *parmP;
    char  parms[2048];
@@ -422,7 +427,7 @@ bool XrdOfsConfigPI::RepLib(XrdOfsConfigPI::TheLib what,
 //
    if (newParms) parmP = (newParms == nullParms ? 0 : newParms);
       else {*parms = 0; parmP = parms;
-            if (!Config->GetRest(parms, sizeof(parms)))
+            if (parseParms && !Config->GetRest(parms, sizeof(parms)))
                {Eroute->Emsg("Config", drctv[xLib], "parameters too long");
                 return false;
                }

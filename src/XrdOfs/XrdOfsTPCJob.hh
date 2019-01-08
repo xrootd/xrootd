@@ -47,7 +47,8 @@ int           Sync(XrdOucErrInfo *eRR);
 
               XrdOfsTPCJob(const char *Url, const char *Org,
                            const char *Lfn, const char *Pfn,
-                           const char *Cks, short lfnLoc[2]);
+                           const char *Cks, short lfnLoc[2],
+                           const char *Spr, const char *Tpr);
 
              ~XrdOfsTPCJob() {}
 

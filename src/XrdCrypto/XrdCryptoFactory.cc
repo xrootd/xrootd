@@ -39,7 +39,6 @@
 #include "XrdCrypto/XrdCryptoAux.hh"
 #include "XrdCrypto/XrdCryptoTrace.hh"
 #include "XrdCrypto/XrdCryptoFactory.hh"
-#include "XrdCrypto/XrdCryptolocalFactory.hh"
 
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
@@ -51,9 +50,6 @@
 // For error logging
 static XrdSysError eDest(0,"cryptofactory_");
 
-// We have always an instance of the simple RSA implementation
-static XrdCryptolocalFactory localCryptoFactory;
-
 //____________________________________________________________________________
 XrdCryptoFactory::XrdCryptoFactory(const char *n, int id)
 {
@@ -62,7 +58,7 @@ XrdCryptoFactory::XrdCryptoFactory(const char *n, int id)
    if (n) {
       int l = strlen(n);
       l = (l > (MAXFACTORYNAMELEN - 1)) ? (MAXFACTORYNAMELEN - 1) : l;  
-      strncpy(name,n,l);
+      memcpy(name,n,l);
       name[l] = 0;  // null terminated
    }
    fID = id;
@@ -114,6 +110,15 @@ bool XrdCryptoFactory::SupportedCipher(const char *)
 }
 
 //______________________________________________________________________________
+bool XrdCryptoFactory::HasPaddingSupport()
+{
+   // Returns true id specified cipher is supported by the implementation
+
+   ABSTRACTMETHOD("XrdCryptoFactory::PaddingSupport");
+   return 0;
+}
+
+//______________________________________________________________________________
 XrdCryptoCipher *XrdCryptoFactory::Cipher(const char *, int)
 {
    // Return an instance of an implementation of XrdCryptoCipher.
@@ -134,6 +139,15 @@ XrdCryptoCipher *XrdCryptoFactory::Cipher(const char *, int, const char *,
 
 //______________________________________________________________________________
 XrdCryptoCipher *XrdCryptoFactory::Cipher(XrdSutBucket *)
+{
+   // Return an instance of an implementation of XrdCryptoCipher.
+
+   ABSTRACTMETHOD("XrdCryptoFactory::Cipher");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoCipher *XrdCryptoFactory::Cipher(bool, int, char *, int, const char *)
 {
    // Return an instance of an implementation of XrdCryptoCipher.
 
@@ -404,16 +418,13 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
 
    //
    // The id must be defined
-   if (!factoryid || !strlen(factoryid)) {
-      PRINT("crypto factory ID ("<<factoryid<<") undefined");
+   if (!factoryid) {
+      PRINT("crypto factory ID (NULL) undefined");
       return 0;
    }
-
-   //
-   // If the local simple implementation is required return the related pointer
-   if (!strcmp(factoryid,"local")) {
-      PRINT("local crypto factory requested");
-      return &localCryptoFactory;
+   if (!strlen(factoryid)) {
+      PRINT("crypto factory ID (\"\") undefined");
+      return 0;
    }
 
    // 

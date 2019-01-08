@@ -30,18 +30,21 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <iostream>
-#include <stdio.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
 #include <sys/stat.h>
 
+#include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixTrace.hh"
+#include "XrdPosix/XrdPosixXrootdPath.hh"
+
+#include "XrdSys/XrdSysTimer.hh"
 
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
@@ -49,7 +52,11 @@
 
 namespace XrdPosixGlobals
 {
-extern XrdOucCache2 *theCache;
+extern XrdOucCache2    *theCache;
+extern XrdOucName2Name *theN2N;
+extern int              ddInterval;
+extern int              ddMaxTries;
+       int              ddNumLost = 0;
 };
 
 namespace
@@ -67,23 +74,31 @@ std::string dsProperty("DataServer");
 XrdSysSemaphore XrdPosixFile::ddSem(0);
 XrdSysMutex     XrdPosixFile::ddMutex;
 XrdPosixFile   *XrdPosixFile::ddList = InitDDL();
+XrdPosixFile   *XrdPosixFile::ddLost = 0;
 
 char          *XrdPosixFile::sfSFX    =  0;
-int            XrdPosixFile::sfSLN    =  0;
+short          XrdPosixFile::sfSLN    =  0;
 bool           XrdPosixFile::ddPosted = false;
+int            XrdPosixFile::ddNum    =  0;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdPosixFile::XrdPosixFile(const char *path, XrdPosixCallBack *cbP, int Opts)
+XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
+                           int Opts)
              : XCio((XrdOucCacheIO2 *)this), PrepIO(0),
                mySize(0), myMtime(0), myInode(0), myMode(0),
-               theCB(cbP),
-               fPath(strdup(path)), fLoc(0),
-               cOpt(0),
+               theCB(cbP), fLoc(0), cOpt(0),
                isStream(Opts & isStrm ? 1 : 0)
 {
+// Handle path generation. This is trickt as we may have two namespaces. One
+// for the origin and one for the cache.
+//
+   fOpen = strdup(path); aOK = true;
+   if (!XrdPosixGlobals::theN2N || !XrdPosixGlobals::theCache) fPath = fOpen;
+      else if (!XrdPosixXrootPath::P2L("file",path,fPath)) aOK = false;
+              else if (!fPath) fPath = fOpen;
 
 // Check for structured file check
 //
@@ -119,6 +134,7 @@ XrdPosixFile::~XrdPosixFile()
 // Free the path and location information
 //
    if (fPath) free(fPath);
+   if (fOpen != fPath) free(fOpen);
    if (fLoc)  free(fLoc);
 }
 
@@ -132,56 +148,63 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
 // Called within a dedicated thread if XrdOucCacheIO is io-active or the
 // file cannot be closed in a clean fashion for some reason.
 //
-   static const int ddInterval =  30;
-   static const int maxTries   =  (3*60)/ddInterval;
+   EPNAME("DDestroy");
 
-   char eBuff[2048];
    XrdCl::XRootDStatus Status;
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
-   time_t tNow, wakeTime = 0;
-   bool doWait = false;
+   int ddCount;
+   bool ioActive, doWait = false;
 
 // Wait for active I/O to complete
 //
 do{if (doWait)
-      {sleep(ddInterval);
+      {XrdSysTimer::Snooze(XrdPosixGlobals::ddInterval);
        doWait = false;
       } else {
        ddSem.Wait();
-       tNow = time(0);
-       if (tNow < wakeTime) continue;
-       wakeTime = tNow + ddInterval;
+       doWait = true;
+       continue;
       }
 
 // Grab the delayed delete list
 //
-   ddMutex.Lock(); fNext=ddList; ddList=0; ddPosted=false; ddMutex.UnLock();
+   ddMutex.Lock();
+   fNext=ddList; ddList=0; ddPosted=false; ddCount = ddNum; ddNum = 0;
+   ddMutex.UnLock();
+
+// Do some debugging
+//
+   DEBUG("DLY destory of "<<ddCount<<" objects; "<<XrdPosixGlobals::ddNumLost
+         <<" already lost.");
 
 // Try to delete all the files on the list. If we exceeded the try limit,
 // remove the file from the list and let it sit forever.
 //
    while((fCurr = fNext))
         {fNext = fCurr->nextFile;
-         if (!(fCurr->XCio->ioActive()) && !fCurr->Refs())
-            {if (fCurr->Close(Status)) {delete fCurr; continue;}
+         if (!((ioActive = fCurr->XCio->ioActive())) && !fCurr->Refs())
+            {if (fCurr->Close(Status)) {delete fCurr; ddCount--; continue;}
                 else eTxt = Status.ToString().c_str();
-            } else   eTxt = "active I/O";
+            } else   eTxt = (ioActive ? "active I/O" : "callback");
 
-         if (fCurr->numTries > maxTries)
-            {snprintf(eBuff, sizeof(eBuff),
-                      "PosixFile: %s timeout closing %s; object lost!\n",
-                      eTxt, fCurr->Path());
-             std::cerr <<eBuff <<std::flush;
+         if (fCurr->numTries > XrdPosixGlobals::ddMaxTries)
+            {XrdPosixGlobals::ddNumLost++; ddCount--;
+             DMSG("DDestroy", eTxt <<" timeout closing " <<fCurr->Origin()
+                        <<' ' <<XrdPosixGlobals::ddNumLost <<" objects lost");
+             fCurr->nextFile = ddLost;
+             ddLost = fCurr;
              fCurr->Close(Status);
             } else {
              fCurr->numTries++;
              doWait = true;
              ddMutex.Lock();
-             fCurr->nextFile = ddList; ddList = fCurr; ddPosted = true;
+             fCurr->nextFile = ddList; ddList = fCurr;
+             ddNum++; ddPosted = true;
              ddMutex.UnLock();
             }
-        };
+        }
+        DEBUG("DLY destory end; "<<ddCount<<" objects deferred.");
    } while(true);
 
    return 0;
@@ -191,6 +214,8 @@ do{if (doWait)
 
 void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
 {
+   EPNAME("DDestroyFP");
+   int  ddCount;
    bool doPost;
 
 // Place this file on the delayed delete list
@@ -198,12 +223,16 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
    ddMutex.Lock();
    fp->nextFile = ddList;
    ddList       = fp;
+   ddNum++; ddCount = ddNum;
    if (ddPosted) doPost = false;
       else {doPost   = true;
             ddPosted = true;
            }
    ddMutex.UnLock();
    fp->numTries = 0;
+
+   DEBUG("DLY destory "<<(doPost ? "post " : "has ")<<ddCount
+                       <<" objects; added "<<fp->Origin());
 
    if (doPost) ddSem.Post();
 }
@@ -214,6 +243,11 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
 
 bool XrdPosixFile::Close(XrdCl::XRootDStatus &Status)
 {
+// If this is a defered open, disable any future calls as we are ready to
+// shutdown this beast!
+//
+   if (PrepIO) PrepIO->Disable();
+
 // If we don't need to close the file, then return success. Otherwise, do the
 // actual close and return the status. We should have already been removed
 // from the file table at this point and should be unlocked.
@@ -301,7 +335,7 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
 //
    delete status;
    delete response;
-   if (rc) delete this;
+   if (rc < 0) delete this;
 }
 
 /******************************************************************************/
@@ -337,9 +371,11 @@ int XrdPosixFile::Read (char *Buff, long long Offs, int Len)
    XrdCl::XRootDStatus Status;
    uint32_t bytes;
 
-// Issue read and return appropriately
+// Issue read and return appropriately.
 //
+   Ref();
    Status = clFile.Read((uint64_t)Offs, (uint32_t)Len, Buff, bytes);
+   unRef();
 
    return (Status.IsOK() ? (int)bytes : XrdPosixMap::Result(Status));
 }
@@ -355,11 +391,15 @@ void XrdPosixFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,
 
 // Issue read
 //
+   Ref();
    Status = clFile.Read((uint64_t)offs, (uint32_t)rlen, buff, rhp);
 
 // Check status
 //
-   if (!Status.IsOK()) rhp->Sched(-XrdPosixMap::Result(Status));
+   if (!Status.IsOK())
+      {rhp->Sched(-XrdPosixMap::Result(Status));
+       unRef();
+      }
 }
 
 /******************************************************************************/
@@ -387,7 +427,9 @@ int XrdPosixFile::ReadV (const XrdOucIOVec *readV, int n)
 // Issue the readv. We immediately delete the vrInfo as w don't need it as a
 // readv will succeed only if actually read the number of bytes requested.
 //
+   Ref();
    Status = clFile.VectorRead(chunkVec, (void *)0, vrInfo);
+   unRef();
    delete vrInfo;
 
 // Return appropriate result
@@ -418,11 +460,15 @@ void XrdPosixFile::ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n)
 //
    XrdPosixFileRH *rhp =  XrdPosixFileRH::Alloc(&iocb, this, 0, nbytes,
                                                 XrdPosixFileRH::isReadV);
+   Ref();
    Status = clFile.VectorRead(chunkVec, (void *)0, rhp);
 
 // Return appropriate result
 //
-   if (!Status.IsOK()) rhp->Sched(-XrdPosixMap::Result(Status));
+   if (!Status.IsOK())
+      {rhp->Sched(-XrdPosixMap::Result(Status));
+       unRef();
+      }
 }
 
 /******************************************************************************/
@@ -435,9 +481,11 @@ bool XrdPosixFile::Stat(XrdCl::XRootDStatus &Status, bool force)
 
 // Get the stat information from the open file
 //
+   Ref();
    Status = clFile.Stat(force, sInfo);
    if (!Status.IsOK())
-      {delete sInfo;
+      {unRef();
+       delete sInfo;
        return false;
       }
 
@@ -450,12 +498,30 @@ bool XrdPosixFile::Stat(XrdCl::XRootDStatus &Status, bool force)
 
 // Delete our status information and return final result
 //
+   unRef();
    delete sInfo;
    return true;
 }
 
 /******************************************************************************/
 /*                                  S y n c                                   */
+/******************************************************************************/
+
+int XrdPosixFile::Sync()
+{
+   XrdCl::XRootDStatus Status;
+
+// Issue the Sync
+//
+   Ref();
+   Status = clFile.Sync();
+   unRef();
+
+// Return result
+//
+   return XrdPosixMap::Result(Status);
+}
+
 /******************************************************************************/
 
 void XrdPosixFile::Sync(XrdOucCacheIOCB &iocb)
@@ -474,6 +540,25 @@ void XrdPosixFile::Sync(XrdOucCacheIOCB &iocb)
 }
   
 /******************************************************************************/
+/*                                 T r u n c                                  */
+/******************************************************************************/
+
+int XrdPosixFile::Trunc(long long Offset)
+{
+   XrdCl::XRootDStatus Status;
+
+// Issue truncate request
+//
+   Ref();
+   Status = clFile.Truncate((uint64_t)Offset);
+   unRef();
+
+// Return results
+//
+   return XrdPosixMap::Result(Status);
+}
+  
+/******************************************************************************/
 /*                                 W r i t e                                  */
 /******************************************************************************/
 
@@ -483,7 +568,9 @@ int XrdPosixFile::Write(char *Buff, long long Offs, int Len)
 
 // Issue read and return appropriately
 //
+   Ref();
    Status = clFile.Write((uint64_t)Offs, (uint32_t)Len, Buff);
+   unRef();
 
    return (Status.IsOK() ? Len : XrdPosixMap::Result(Status));
 }
@@ -499,20 +586,13 @@ void XrdPosixFile::Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
 
 // Issue read
 //
+   Ref();
    Status = clFile.Write((uint64_t)offs, (uint32_t)wlen, buff, rhp);
 
 // Check status
 //
-   if (!Status.IsOK()) rhp->Sched(-XrdPosixMap::Result(Status));
-}
-  
-/******************************************************************************/
-/*                                  D o I t                                   */
-/******************************************************************************/
-void XrdPosixFile::DoIt()
-{
-// Virtual function of XrdJob.
-// Called from XrdPosixXrootd::Close if the file is still IO active.
-
-   delete this;
+   if (!Status.IsOK())
+      {rhp->Sched(-XrdPosixMap::Result(Status));
+       unRef();
+      }
 }

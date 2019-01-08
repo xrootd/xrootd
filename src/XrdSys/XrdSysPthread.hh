@@ -41,6 +41,31 @@
 #include <semaphore.h>
 #endif
 
+#ifdef __APPLE__
+#ifndef CLOCK_REALTIME
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+namespace
+{
+  template< typename TYPE >
+  void get_apple_realtime( TYPE & wait )
+  {
+#ifdef CLOCK_REALTIME
+    clock_gettime(CLOCK_REALTIME, &wait);
+#else
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+    clock_get_time(cclock, &mts);
+    mach_port_deallocate(mach_task_self(), cclock);
+    wait.tv_sec  = mts.tv_sec;
+    wait.tv_nsec = mts.tv_nsec;
+#endif
+  }
+}
+#endif
+
 #include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
@@ -145,6 +170,52 @@ inline int CondLock()
        {if (pthread_mutex_trylock( &cs )) return 0;
         return 1;
        }
+#ifdef __APPLE__
+inline int TimedLock( int wait_ms )
+{
+  struct timespec wait, cur, dur;
+  get_apple_realtime(wait);
+  wait.tv_nsec += wait_ms * 100000;
+  wait.tv_sec += (wait.tv_nsec / 100000000);
+  wait.tv_nsec = wait.tv_nsec % 100000000;
+
+  int rc;
+  while( ( rc = pthread_mutex_trylock( &cs ) ) == EBUSY )
+  {
+    get_apple_realtime(cur);
+    if( ( cur.tv_sec > wait.tv_sec ) || 
+	( ( cur.tv_sec == wait.tv_sec ) && ( cur.tv_nsec >= wait.tv_nsec ) ) )
+      return 0;
+
+    dur.tv_sec  = wait.tv_sec  - cur.tv_sec;
+    dur.tv_nsec = wait.tv_nsec - cur.tv_nsec;
+    if( dur.tv_nsec < 0 )
+    {
+      --dur.tv_sec;
+      dur.tv_nsec += 1000000000;
+    }
+    
+    if( ( dur.tv_sec != 0 ) || ( dur.tv_nsec > 1000000 ) )
+    {
+      dur.tv_sec  = 0;
+      dur.tv_nsec = 1000000;
+    }
+
+    nanosleep( &dur, 0 );
+  }
+
+  return !rc;
+}
+#else
+inline int TimedLock(int wait_ms)
+       {struct timespec wait;
+        clock_gettime(CLOCK_REALTIME, &wait);
+        wait.tv_nsec += wait_ms * 100000;
+        wait.tv_sec += (wait.tv_nsec / 100000000);
+        wait.tv_nsec = wait.tv_nsec % 100000000;
+        return !pthread_mutex_timedlock(&cs, &wait);
+       }
+#endif
 
 inline void   Lock() {pthread_mutex_lock(&cs);}
 
@@ -236,6 +307,9 @@ inline int CondWriteLock()
 
 inline void  ReadLock() {pthread_rwlock_rdlock(&lock);}
 inline void  WriteLock() {pthread_rwlock_wrlock(&lock);}
+
+inline void ReadLock( int &status ) {status = pthread_rwlock_rdlock(&lock);}
+inline void WriteLock( int &status ) {status = pthread_rwlock_wrlock(&lock);}
 
 inline void UnLock() {pthread_rwlock_unlock(&lock);}
 

@@ -16,6 +16,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdAcc/XrdAccAuthorize.hh
   XrdAcc/XrdAccPrivs.hh
   XrdCks/XrdCks.hh
+  XrdCks/XrdCksAssist.hh
   XrdCks/XrdCksCalc.hh
   XrdCks/XrdCksData.hh
   XrdCks/XrdCksManager.hh
@@ -30,6 +31,8 @@ set( XROOTD_PUBLIC_HEADERS
   XrdClient/XrdClientUrlSet.hh
   XrdClient/XrdClientVector.hh
   XrdCms/XrdCmsClient.hh
+  XrdCms/XrdCmsVnId.hh
+  XrdFileCache/XrdFileCacheDecision.hh
   XrdNet/XrdNet.hh
   XrdNet/XrdNetAddr.hh
   XrdNet/XrdNetAddrInfo.hh
@@ -45,6 +48,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucBuffer.hh
   XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCache.hh
+  XrdOuc/XrdOucCacheStats.hh
   XrdOuc/XrdOucCallBack.hh
   XrdOuc/XrdOucChain.hh
   XrdOuc/XrdOucDLlist.hh
@@ -70,6 +74,8 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucEnum.hh
   XrdOuc/XrdOucCompiler.hh
+  XrdPosix/XrdPosix.hh
+  XrdPosix/XrdPosixCache.hh
   XrdPosix/XrdPosixCallBack.hh
   XrdPosix/XrdPosixExtern.hh
   XrdPosix/XrdPosixOsDep.hh
@@ -114,6 +120,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdClient/XrdClientPhyConnection.hh
   XrdClient/XrdClientReadCache.hh
   XrdClient/XrdClientSock.hh
+  XrdHttp/XrdHttpExtHandler.hh
   XrdNet/XrdNetPeer.hh
   XrdNet/XrdNetBuffer.hh
   XrdNet/XrdNetIF.hh
@@ -122,6 +129,19 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOfs/XrdOfsHandle.hh
   XrdOfs/XrdOfsTrace.hh
   XrdOfs/XrdOfsTPCInfo.hh
+  XrdSecsss/XrdSecsssID.hh
+  XrdSsi/XrdSsiAtomics.hh
+  XrdSsi/XrdSsiCluster.hh
+  XrdSsi/XrdSsiEntity.hh
+  XrdSsi/XrdSsiErrInfo.hh
+  XrdSsi/XrdSsiLogger.hh
+  XrdSsi/XrdSsiProvider.hh
+  XrdSsi/XrdSsiRequest.hh
+  XrdSsi/XrdSsiRespInfo.hh
+  XrdSsi/XrdSsiResponder.hh
+  XrdSsi/XrdSsiResource.hh
+  XrdSsi/XrdSsiService.hh
+  XrdSsi/XrdSsiStream.hh
   XrdSys/XrdSysPriv.hh
 
   XrdOss/XrdOssApi.hh
@@ -129,7 +149,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOss/XrdOssError.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
-  
+  XrdOuc/XrdOucN2NLoader.hh
 )
 
 install_headers(

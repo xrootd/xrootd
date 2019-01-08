@@ -103,7 +103,7 @@ namespace XrdCl
       typedef std::map<uint16_t, Message*> MessageMap;
       MessageMap pMessages;
       HandlerMap pHandlers;
-      XrdSysMutex pMutex;
+      XrdSysRecMutex pMutex;
   };
 }
 

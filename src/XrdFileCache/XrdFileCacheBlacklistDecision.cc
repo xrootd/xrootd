@@ -31,31 +31,12 @@ class BlacklistDecision : public XrdFileCache::Decision
 //----------------------------------------------------------------------------
 
 public:
-virtual bool Decide(const std::string & url, XrdOss &) const
+virtual bool Decide(const std::string & lfn, XrdOss &) const
 {
-   size_t slashslash = url.find("//");
-   const char *fname = url.c_str();
-   if (slashslash != std::string::npos)
-   {
-      fname += slashslash+2;
-      fname = strchr(fname, '/');
-      if (! fname) {return true; }
-   }
-   std::string url_path = fname;
-   size_t question = url_path.find("?");
-   if (question != std::string::npos)
-   {
-      url_path[question] = '\0';
-      fname = url_path.c_str();
-   }
-   if ((strlen(fname) > 1) && (fname[0] == '/') && (fname[1] == '/'))
-   {
-      fname++;
-   }
-   //m_log.Emsg("BlacklistDecide", "Deciding whether to cache file", fname);
+   //m_log.Emsg("BlacklistDecide", "Deciding whether to cache file", url.c_str());
    for (std::vector<std::string>::const_iterator it = m_blacklist.begin(); it != m_blacklist.end(); it++)
    {
-      if (! fnmatch(it->c_str(), fname, FNM_PATHNAME))
+      if (! fnmatch(it->c_str(), lfn.c_str(), FNM_PATHNAME))
       {
          //m_log.Emsg("BlacklistDecide", "Not caching file as it matches blacklist entry", it->c_str());
          return false;

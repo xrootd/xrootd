@@ -313,7 +313,7 @@ size_t XrdPosix_Fread(void *ptr, size_t size, size_t nitems, FILE *stream)
 #if defined(__linux__)
    else if (bytes < 0) stream->_flags |= _IO_ERR_SEEN;
    else                stream->_flags |= _IO_EOF_SEEN;
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__FreeBSD__)
    else if (bytes < 0) stream->_flags |= __SEOF;
    else                stream->_flags |= __SERR;
 #else
@@ -479,7 +479,7 @@ size_t XrdPosix_Fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream
 #ifndef SUNX86
 #if defined(__linux__)
       else stream->_flags |= _IO_ERR_SEEN;
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__FreeBSD__)
       else stream->_flags |= __SERR;
 #else
       else stream->_flag  |= _IOERR;

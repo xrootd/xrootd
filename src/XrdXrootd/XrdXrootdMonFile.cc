@@ -89,13 +89,15 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
 {
    XrdXrootdMonFileCLS cRec;
    char *cP;
-   int iMap, iSlot;
+   int iEnt, iMap, iSlot;
 
 // If this object was registered for I/O reporting, deregister it.
 //
-   if (fsP->MonEnt >= 0)
-      {iMap  = fsP->MonEnt >> XrdXrootdMonFMap::fmShft;
-       iSlot = fsP->MonEnt &  XrdXrootdMonFMap::fmMask;
+   if (fsP->MonEnt != -1)
+      {iEnt = fsP->MonEnt & 0xffff;
+       iMap  = iEnt >> XrdXrootdMonFMap::fmShft;
+       iSlot = iEnt &  XrdXrootdMonFMap::fmMask;
+       fsP->MonEnt = -1;
        fmMutex.Lock();
        if (fmMap[iMap].Free(iSlot)) fmUse[iMap]--;
        if (iMap == fmHWM) while(fmHWM >= 0 && !fmUse[fmHWM]) fmHWM--;

@@ -90,8 +90,8 @@ public:
    virtual XrdOucString SerialNumberString();
 
    // Validity interval
-   virtual int  NotBefore();  // begin-validity time in secs since Epoch
-   virtual int  NotAfter();   // end-validity time in secs since Epoch
+   virtual time_t  NotBefore();  // begin-validity time in secs since Epoch
+   virtual time_t  NotAfter();   // end-validity time in secs since Epoch
 
    // Issuer of top certificate
    virtual const char *Issuer();
@@ -103,11 +103,22 @@ public:
    virtual const char *SubjectHash(int);   // hash 
    const char *SubjectHash() { return SubjectHash(0); }  // hash 
 
+   // Returns true if the certificate has a subject alt name which matches
+   // the given hostnem. If it fals and hasSAN is false, there is no SAN extn.
+   virtual bool MatchesSAN(const char * fqdn, bool &hasSAN) = 0;
+
    // Retrieve a given extension if there (in opaque form) 
    virtual XrdCryptoX509data GetExtension(const char *oid);
 
    // Verify signature
    virtual bool Verify(XrdCryptoX509 *ref);
+
+   // Compare two hostnames, handling wildcards as appropriate.  Necessary
+   // for support for accepting connections where the remote X509 certificate
+   // is a wildcard certificate.
+   //
+   // Returns true if the FQDN matches the specified pattern
+   static bool MatchHostnames(const char *match_pattern, const char *fqdn);
 
 private:
 

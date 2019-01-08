@@ -1,6 +1,5 @@
 #include "XrdFileCacheIO.hh"
 #include "XrdFileCacheTrace.hh"
-#include "XrdPosix/XrdPosixFile.hh"
 
 using namespace XrdFileCache;
 

@@ -35,6 +35,7 @@
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -45,6 +46,36 @@
   
 extern XrdSysError  OfsEroute;
 extern XrdOfsStats  OfsStats;
+extern XrdOss      *XrdOfsOss;
+
+namespace XrdOfsTPCParms
+{
+extern bool         autoRM;
+}
+
+/******************************************************************************/
+/*                            D e s t r u c t o r                             */
+/******************************************************************************/
+
+XrdOfsTPCInfo::~XrdOfsTPCInfo()
+{
+// Check if we should remove the file
+//
+   if (isDST && !isAOK && XrdOfsTPCParms::autoRM && Lfn)
+      XrdOfsOss->Unlink(Lfn);
+
+// Delete all appendages
+//
+   if (Key) {free(Key); Key = 0;}
+   if (Org) {free(Org); Org = 0;}
+   if (Lfn) {free(Lfn); Lfn = 0;}
+   if (Dst) {free(Dst); Dst = 0;}
+   if (Spr) {free(Spr); Spr = 0;}
+   if (Tpr) {free(Tpr); Tpr = 0;}
+   if (Cks) {free(Cks); Cks = 0;}
+   if (Crd) {free(Crd); Crd = 0; Csz = 0;}
+   if (cbP) delete cbP;
+}
   
 /******************************************************************************/
 /*                                  F a i l                                   */
@@ -104,8 +135,15 @@ void XrdOfsTPCInfo:: Reply(int rC, int eC, const char *eMsg, XrdSysMutex *mP)
 // Clear pointer to call back prior to unlocking any locks
 //
    cbP = 0;
-   if (mP) mP->UnLock();
-   myCB->Reply(rC, eC, eMsg, Lfn);
+
+// Make sure a reply is valid here (i.e. client is in waitresop). If not,
+// then we need to scuttle the whole shebang (must be done with a lock).
+//
+   if (inWtR)
+      {inWtR = false;
+       if (mP) mP->UnLock();
+       if (myCB) myCB->Reply(rC, eC, eMsg, Lfn);
+      } else if (mP) mP->UnLock();
    delete myCB;
 }
 

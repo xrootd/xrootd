@@ -45,6 +45,8 @@
 #include <sys/uio.h>
 #endif // WIN32
 
+#include "XrdOuc/XrdOucTList.hh"
+
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysLogging.hh"
@@ -54,6 +56,49 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysUtils.hh"
   
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
+namespace
+{
+XrdOucTListFIFO *tFifo = 0;
+
+void Snatch(struct iovec *iov, int iovnum) // Called with logger mutex locked!
+{
+   XrdOucTList *tlP;
+   char *tBuff, *tbP;
+   int tLen = 0;
+
+// Do not save the new line character at the end
+//
+   if (iovnum && *((char *)iov[iovnum-1].iov_base) == '\n') iovnum--;
+
+// Calculate full length
+//
+   for (int i = 0; i <iovnum; i++) tLen += iov[i].iov_len;
+
+// Allocate storage
+//
+   if (!(tBuff = (char *)malloc(tLen+1))) return;
+
+// Copy in the segments into the buffer
+//
+   tbP = tBuff;
+   for (int i = 0; i <iovnum; i++)
+       {strncpy(tbP, (char *)iov[i].iov_base, iov[i].iov_len);
+        tbP += iov[i].iov_len;
+       }
+   *tbP = 0;
+
+// Allocate a new tlist object and add it toi the fifo
+//
+   tlP = new XrdOucTList;
+   tlP->text = tBuff;
+   tFifo->Add(tlP);
+}
+}
+
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
@@ -198,6 +243,12 @@ int XrdSysLogger::Bind(const char *path, int lfh)
    doLFR = (lfh > 0);
    if ((rc = ReBind(0))) return rc;
 
+// Lock the logs if XRootD is suppose to handle log rotation itself
+//
+  rc = HandleLogRotateLock( doLFR );
+  if( rc )
+    return -rc;
+
 // Handle specifics of lofile rotation
 //
    if (eInt == onFifo) {if ((rc = FifoMake())) return -rc;}
@@ -217,6 +268,26 @@ int XrdSysLogger::Bind(const char *path, int lfh)
    return (rc > 0 ? -rc : rc);
 }
 
+/******************************************************************************/
+/*                               C a p t u r e                                */
+/******************************************************************************/
+
+void XrdSysLogger::Capture(XrdOucTListFIFO *tFIFO)
+{
+
+// Obtain the serailization mutex
+//
+   Logger_Mutex.Lock();
+
+// Set the base for capturing messages
+//
+   tFifo = tFIFO;
+
+// Release the serailization mutex
+//
+   Logger_Mutex.UnLock();
+}
+  
 /******************************************************************************/
 /*                             P a r s e K e e p                              */
 /******************************************************************************/
@@ -286,6 +357,14 @@ void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 // Obtain the serailization mutex if need be
 //
    Logger_Mutex.Lock();
+
+// If we are capturing messages, do so now
+//
+   if (tFifo)
+      {Snatch(iov, iovcnt);
+       Logger_Mutex.UnLock();
+       return;
+      }
 
 // In theory, writev may write out a partial list. This rarely happens in
 // practice and so we ignore that possibility (recovery is pretty tough).
@@ -442,6 +521,48 @@ int XrdSysLogger::FifoMake()
 }
 
 /******************************************************************************/
+/*                  H a n d l e L o g R o t a t e L o c k                     */
+/******************************************************************************/
+int XrdSysLogger::HandleLogRotateLock( bool dorotate )
+{
+  if( !ePath ) return 0;
+
+  char *end = rindex(ePath, '/');
+  const std::string lckPath = (end ? std::string(ePath,end+1)+".lock" : ".lock");
+  int rc = unlink( lckPath.c_str() );
+  if( rc && errno != ENOENT )
+  {
+    BLAB( "The logfile lock (" << lckPath.c_str() << ") exists and cannot be removed: " << strerror( errno ) );
+    return EEXIST;
+  }
+
+  if( dorotate )
+  {
+    rc = open( lckPath.c_str(), O_CREAT, 0644 );
+    if( rc < 0 )
+    {
+      BLAB( "Failed to create the logfile lock (" << lckPath.c_str() << "): " << strerror( errno ) );
+      return errno;
+    }
+    close( rc );
+  }
+
+  return 0;
+}
+
+/******************************************************************************/
+/*                      R m L o g R o t a t e L o c k                         */
+/******************************************************************************/
+void XrdSysLogger::RmLogRotateLock()
+{
+  if( !ePath ) return;
+
+  char *end = rindex(ePath, '/') + 1;
+  const std::string lckPath = std::string( ePath, end ) + ".lock";
+  unlink( lckPath.c_str() );
+}
+
+/******************************************************************************/
 /*                              F i f o W a i t                               */
 /******************************************************************************/
   
@@ -538,7 +659,7 @@ int XrdSysLogger::ReBind(int dorename)
        localtime_r((const time_t *) &eNow, &nowtime);
        sprintf(buff, "%4d%02d%02d", nowtime.tm_year+1900, nowtime.tm_mon+1,
                                     nowtime.tm_mday);
-       strncpy(Filesfx, buff, 8);
+       memcpy(Filesfx, buff, 8);
       }
 
 // Open the file for output. Note that we can still leak a file descriptor
@@ -608,7 +729,7 @@ void XrdSysLogger::Trim()
 // Open the directory
 //
    if (!(DFD = opendir(logDir)))
-      {int msz = sprintf(eBuff, "Error %d (%s) opening log directory %s\n",
+      {int msz = snprintf(eBuff, 2048, "Error %d (%s) opening log directory %s\n",
                                 errno, strerror(errno), logDir);
        putEmsg(eBuff, msz);
        return;
@@ -637,7 +758,7 @@ void XrdSysLogger::Trim()
 //
    rc = errno; closedir(DFD);
    if (rc)
-      {int msz = sprintf(eBuff, "Error %d (%s) reading log directory %s\n",
+      {int msz = snprintf(eBuff, 2048, "Error %d (%s) reading log directory %s\n",
                                 rc, strerror(rc), logDir);
        putEmsg(eBuff, msz);
        return;
@@ -664,9 +785,9 @@ void XrdSysLogger::Trim()
    while(logNow && totNum--)
         {strcpy(logSfx, logNow->fn);
          if (unlink(logDir))
-            rc = sprintf(eBuff, "Error %d (%s) removing log file %s\n",
+            rc = snprintf(eBuff, 2048, "Error %d (%s) removing log file %s\n",
                                 errno, strerror(errno), logDir);
-            else rc = sprintf(eBuff, "Removed log file %s\n", logDir);
+            else rc = snprintf(eBuff, 2048, "Removed log file %s\n", logDir);
          putEmsg(eBuff, rc);
          logNow = logNow->next;
         }

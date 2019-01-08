@@ -381,6 +381,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
       PRINT("could not set subject name - return");
       return -kErrPX_SetAttribute;
    }
+
    //
    // Create the extension CertProxyInfo
    PROXY_CERT_INFO_EXTENSION *pci = PROXY_CERT_INFO_EXTENSION_new();
@@ -477,6 +478,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
       PRINT("could not set subject name");
       return -kErrPX_SetAttribute;
    }
+   X509_NAME_free(psubj);
 
    // Set issuer name
    if (X509_set_issuer_name(xPX, X509_get_subject_name(xEEC)) != 1) {
@@ -573,41 +575,40 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    if (fnp) {
       // Open the file in write mode
       FILE *fp = fopen(fnp,"w");
+      int ifp = -1;
       if (!fp) {
          PRINT("cannot open file to save the proxy certificate (file: "<<fnp<<")");
-         fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      int ifp = fileno(fp);
-      if (ifp == -1) {
+      else if ( (ifp = fileno(fp)) == -1) {
          PRINT("got invalid file descriptor for the proxy certificate (file: "<<
                 fnp<<")");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
       // Set permissions to 0600
-      if (fchmod(ifp, 0600) == -1) {
+      else if (fchmod(ifp, 0600) == -1) {
          PRINT("cannot set permissions on file: "<<fnp<<" (errno: "<<errno<<")");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-
-      if (!rc && PEM_write_X509(fp, xPX) != 1) {
+      else if (!rc && PEM_write_X509(fp, xPX) != 1) {
          PRINT("error while writing proxy certificate");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      if (!rc && PEM_write_RSAPrivateKey(fp, kPX, 0, 0, 0, 0, 0) != 1) {
+      else if (!rc && PEM_write_RSAPrivateKey(fp, kPX, 0, 0, 0, 0, 0) != 1) {
          PRINT("error while writing proxy private key");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      if (!rc && PEM_write_X509(fp, xEEC) != 1) {
+      else if (!rc && PEM_write_X509(fp, xEEC) != 1) {
          PRINT("error while writing EEC certificate");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      fclose(fp);
+      else
+        fclose(fp);
       // Change
    }
 
@@ -732,6 +733,7 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
       PRINT("could not set subject name - return");
       return -kErrPX_SetAttribute;
    }
+   X509_NAME_free(psubj);
    //
    // Create the extension CertProxyInfo
    PROXY_CERT_INFO_EXTENSION *pci = PROXY_CERT_INFO_EXTENSION_new();
@@ -857,7 +859,7 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
 
    // Cleanup
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
-   sk_X509_EXTENSION_free(esk);
+   sk_X509_EXTENSION_pop_free(esk, X509_EXTENSION_free);
 #else /* OPENSSL */
    sk_free(esk);
 #endif /* OPENSSL */
@@ -1046,6 +1048,7 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
          // Notify what we added
          int crit = X509_EXTENSION_get_critical(xpiextdup);
          DEBUG("added extension '"<<s<<"', critical: " << crit);
+         X509_EXTENSION_free( xpiextdup );
       }
       // Do not free the extension: its owned by the certificate
       xpiext = 0;
@@ -1068,12 +1071,14 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    //
    // Get the content
    int reqdepthlen = -1;
-   unsigned char *p = X509_EXTENSION_get_data(xriext)->data;
-   PROXY_CERT_INFO_EXTENSION *reqpci =
-      d2i_PROXY_CERT_INFO_EXTENSION(0, (XRDGSI_CONST unsigned char **)(&p), X509_EXTENSION_get_data(xriext)->length);
-   if (reqpci &&
-       reqpci->pcPathLengthConstraint)
-      reqdepthlen = ASN1_INTEGER_get(reqpci->pcPathLengthConstraint);
+   if (xriext) {
+      unsigned char *p = X509_EXTENSION_get_data(xriext)->data;
+      PROXY_CERT_INFO_EXTENSION *reqpci =
+         d2i_PROXY_CERT_INFO_EXTENSION(0, (XRDGSI_CONST unsigned char **)(&p), X509_EXTENSION_get_data(xriext)->length);
+      if (reqpci &&
+          reqpci->pcPathLengthConstraint)
+         reqdepthlen = ASN1_INTEGER_get(reqpci->pcPathLengthConstraint);
+   }
    DEBUG("REQ depth length: "<<reqdepthlen);
 
    // We allow max indepthlen-1
@@ -1115,12 +1120,16 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       PRINT("problem converting data for extension");
       return -kErrPX_Error;
    }
+   PROXY_CERT_INFO_EXTENSION_free( pci );
+
    // Set extension name.
    ASN1_OBJECT *obj = OBJ_txt2obj(gsiProxyCertInfo_OID, 1);
    if (!obj || X509_EXTENSION_set_object(ext, obj) != 1) {
       PRINT("could not set extension name");
       return -kErrPX_SetAttribute;
    }
+   ASN1_OBJECT_free( obj );
+
    // flag as critical
    if (X509_EXTENSION_set_critical(ext, 1) != 1) {
       PRINT("could not set extension critical flag");
@@ -1139,6 +1148,9 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       PRINT("problems signing the certificate");
       return -kErrPX_Signing;
    }
+
+   EVP_PKEY_free( ekpi ); // decrement reference counter
+   X509_EXTENSION_free( ext );
 
    // Prepare outputs
    *xcpo = new XrdCryptosslX509(xpo);
@@ -1328,6 +1340,10 @@ end:
 int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
    //
    // Check GSI 3 proxy info extension
+   // Returns:  0 if found
+   //          -1 if found by invalid/not usable,
+   //          -2 if not found (likely a v2 legacy proxy)
+
    EPNAME("X509CheckProxy3");
 
    // Point to the cerificate
@@ -1360,8 +1376,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          } else {
             PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
          }
-      }
-      else if (!strncmp(s, gsiProxyCertInfo_OLD_OID, sizeof(gsiProxyCertInfo_OLD_OID))) {
+      } else if (!strncmp(s, gsiProxyCertInfo_OLD_OID, sizeof(gsiProxyCertInfo_OLD_OID))) {
          if (ext == 0) {
             ext = xext;
             // Now get the extension
@@ -1372,9 +1387,11 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          }
       }
    }
+   //
+   // If the extension was not found it is probably a legacy (v2) proxy: signal it
    if (!ext) {
       emsg = "proxyCertInfo extension not found";
-      return -1;
+      return -2;
    }
    if (!pci) {
       emsg = "proxyCertInfo extension could not be deserialized";

@@ -2,6 +2,11 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
+# Modules
+#-------------------------------------------------------------------------------
+set( LIB_XRDCL_PROXY_PLUGIN XrdClProxyPlugin-${PLUGIN_VERSION} )
+
+#-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
 set( XRD_APP_UTILS_VERSION   1.0.0 )
@@ -17,7 +22,6 @@ add_executable(
 target_link_libraries(
   xrdadler32
   XrdPosix
-  XrdClient
   XrdUtils
   pthread
   ${ZLIB_LIBRARY} )
@@ -42,6 +46,7 @@ add_executable(
 
 target_link_libraries(
   mpxstats
+  XrdAppUtils
   XrdUtils
   ${EXTRA_LIBS}
   pthread
@@ -85,13 +90,28 @@ target_link_libraries(
   XrdUtils )
 
 #-------------------------------------------------------------------------------
+# xrdqstats
+#-------------------------------------------------------------------------------
+add_executable(
+  xrdqstats
+  XrdApps/XrdQStats.cc )
+
+target_link_libraries(
+  xrdqstats
+  XrdCl
+  XrdAppUtils
+  XrdUtils
+  ${EXTRA_LIBS} )
+
+#-------------------------------------------------------------------------------
 # AppUtils
 #-------------------------------------------------------------------------------
 add_library(
   XrdAppUtils
   SHARED
   XrdApps/XrdCpConfig.cc          XrdApps/XrdCpConfig.hh
-  XrdApps/XrdCpFile.cc            XrdApps/XrdCpFile.hh )
+  XrdApps/XrdCpFile.cc            XrdApps/XrdCpFile.hh
+  XrdApps/XrdMpxXml.cc            XrdApps/XrdMpxXml.hh )
 
 target_link_libraries(
   XrdAppUtils
@@ -118,15 +138,33 @@ target_link_libraries(
   XrdClient
   XrdUtils
   XrdAppUtils
-  dl
+  ${CMAKE_DL_LIBS}
   pthread
   ${EXTRA_LIBS} )
+
+#-------------------------------------------------------------------------------
+# XrdClProxyPlugin library
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRDCL_PROXY_PLUGIN}
+  MODULE
+  XrdApps/XrdClProxyPlugin/ProxyPrefixPlugin.cc
+  XrdApps/XrdClProxyPlugin/ProxyPrefixFile.cc)
+
+target_link_libraries(${LIB_XRDCL_PROXY_PLUGIN} XrdCl)
+
+set_target_properties(
+  ${LIB_XRDCL_PROXY_PLUGIN}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp-old XrdAppUtils xrdmapc xrdacctest
+  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp-old XrdAppUtils xrdmapc
+          xrdacctest ${LIB_XRDCL_PROXY_PLUGIN}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 

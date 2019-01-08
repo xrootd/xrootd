@@ -46,6 +46,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 //#include <libxml/parser.h>
 //#include <libxml/tree.h>
@@ -75,6 +76,10 @@ class XrdOucEnv;
 
 class XrdHttpReq : public XrdXrootd::Bridge::Result {
 private:
+  // HTTP response parameters to be sent back to the user
+  int httpStatusCode;
+  std::string httpStatusText;
+
   int parseContentRange(char *);
   int parseHost(char *);
   int parseRWOp(char *);
@@ -88,16 +93,22 @@ private:
 
   void getfhandle();
 
-  
+  /// Cook and send the response after the bridge did something
+  /// Return values:
+  ///  0->everything OK, additionsl steps may be required
+  ///  1->request processed completely
+  ///  -1->error
+  int PostProcessHTTPReq(bool final = false);
 
   // Parse a resource string, typically a filename, setting the resource field and the opaque data
   void parseResource(char *url);
+  // Map an XRootD error code to an appropriate HTTP status code and message
+  void mapXrdErrorToHttpStatus();
 public:
 
-  XrdHttpReq(XrdHttpProtocol *protinstance) {
+  XrdHttpReq(XrdHttpProtocol *protinstance) : keepalive(true) {
 
     prot = protinstance;
-    keepalive = false;
     length = 0;
     //xmlbody = 0;
     depth = 0;
@@ -131,7 +142,8 @@ public:
   /// Build the closing part for a multipart response
   std::string buildPartialHdrEnd(char *token);
 
-  // Appends to s the opaque info that we have
+  // Appends the opaque info that we have
+  // NOTE: this function assumes that the strings are unquoted, and will quote them
   void appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow);
 
   // ----------------
@@ -142,6 +154,7 @@ public:
   /// These are the HTTP/DAV requests that we support
 
   enum ReqType {
+    rtUnset = -1,
     rtUnknown = 0,
     rtMalformed,
     rtGET,
@@ -152,16 +165,25 @@ public:
     rtDELETE,
     rtPROPFIND,
     rtMKCOL,
-    rtMOVE
+    rtMOVE,
+    rtPOST
   };
 
   /// The request we got
   ReqType request;
-
-  /// The resource specified by the request, complete with all opaque data
+  std::string requestverb;
+  
+  // We have to keep the headers for possible further processing
+  // by external plugins
+  std::map<std::string, std::string> allheaders;
+  
+  /// The resource specified by the request, stripped of opaque data
   XrdOucString resource;
   /// The opaque data, after parsing
   XrdOucEnv *opaque;
+  /// The resource specified by the request, including all the opaque data
+  XrdOucString resourceplusopaque;
+  
   
   /// Tells if we have finished reading the header
   bool headerok;
@@ -175,7 +197,7 @@ public:
   std::vector<ReadWriteOp> rwOps_split;
 
   bool keepalive;
-  long long length;
+  long long length;  // Total size from client for PUT; total length of response TO client for GET.
   int depth;
   bool sendcontinue;
 
@@ -184,7 +206,16 @@ public:
   /// The destination field specified in the req
   std::string destination;
 
+  /// The requested digest type
+  std::string m_req_digest;
+  /// The checksum algorithm is specified as part of the opaque data in the URL.
+  /// Hence, when a digest is generated to satisfy a request, we cache the tweaked
+  /// URL in this data member.
+  XrdOucString m_resource_with_digest;
 
+  /// Additional opaque info that may come from the hdr2cgi directive
+  std::string hdr2cgistr;
+  
   //
   // Area for coordinating request and responses to/from the bridge
   //
@@ -234,19 +265,6 @@ public:
   ///  1->request processed
   ///  -1->error
   int ProcessHTTPReq();
-
-  /// Cook and send the response after the bridge did something
-  /// Return values:
-  ///  0->everything OK, additionsl steps may be required
-  ///  1->request processed completely
-  ///  -1->error
-  int PostProcessHTTPReq(bool final = false);
-
-
-
-
-
-
 
 
   // ------------
@@ -341,7 +359,7 @@ public:
 
   virtual int File(XrdXrootd::Bridge::Context &info, //!< the result context
           int dlen //!< byte  count
-          );
+  );
 
   //-----------------------------------------------------------------------------
   //! Redirect the client to another host:port.
@@ -368,6 +386,10 @@ public:
 
 
 };
+
+
+
+void trim(std::string &str);
 
 #endif	/* XRDHTTPREQ_HH */
 

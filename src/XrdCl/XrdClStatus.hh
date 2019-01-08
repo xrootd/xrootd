@@ -61,6 +61,8 @@ namespace XrdCl
   const uint16_t errNotSupported   = 13;
   const uint16_t errDataError      = 14; //!< data is corrupted
   const uint16_t errNotImplemented = 15; //!< Operation is not implemented
+  const uint16_t errNoMoreReplicas = 16; //!< No more replicas to try
+  const uint16_t errPipelineFailed = 17; //!< Pipeline failed and operation couldn't be executed
 
   //----------------------------------------------------------------------------
   // Socket related errors
@@ -78,12 +80,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Post Master related errors
   //----------------------------------------------------------------------------
-  const uint16_t errInvalidMessage     = 201;
-  const uint16_t errHandShakeFailed    = 202;
-  const uint16_t errLoginFailed        = 203;
-  const uint16_t errAuthFailed         = 204;
-  const uint16_t errQueryNotSupported  = 205;
-  const uint16_t errOperationExpired   = 206;
+  const uint16_t errInvalidMessage       = 201;
+  const uint16_t errHandShakeFailed      = 202;
+  const uint16_t errLoginFailed          = 203;
+  const uint16_t errAuthFailed           = 204;
+  const uint16_t errQueryNotSupported    = 205;
+  const uint16_t errOperationExpired     = 206;
+  const uint16_t errOperationInterrupted = 207;
 
   //----------------------------------------------------------------------------
   // XRootD related errors

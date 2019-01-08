@@ -253,7 +253,7 @@ namespace XrdCl
           pHandler = 0;
         }
         // and than destroy myself if this is the last reference
-        DestroyMyself();
+        DestroyMyself( scopedLock );
       }
       //------------------------------------------------------------------------
       //! Increment reference counter
@@ -280,21 +280,30 @@ namespace XrdCl
           // so we need to nullify the pointer
           pHandler = 0;
         }
+        else
+        {
+          delete status;
+          delete response;
+          delete hostList;
+        }
         // destroy the object if it is
-        DestroyMyself();
+        DestroyMyself( scopedLock );
       }
 
     private:
       //------------------------------------------------------------------------
       //! Deletes itself only if this is the last reference
       //------------------------------------------------------------------------
-      void DestroyMyself()
+      void DestroyMyself( XrdSysMutexHelper &lck )
       {
         // decrement the reference counter
         --pReferenceCounter;
         // if the object is not used anymore delete it
         if( pReferenceCounter == 0)
+        {
+          lck.UnLock();
           delete this;
+        }
       }
       //------------------------------------------------------------------------
       //! Private Destructor (use 'Destroy' method)
@@ -338,6 +347,7 @@ namespace XrdCl
     ResetMonitoringVars();
     DefaultEnv::GetForkHandler()->RegisterFileObject( this );
     DefaultEnv::GetFileTimer()->RegisterFileObject( this );
+    pLFileHandler = new LocalFileHandler();
   }
 
   //------------------------------------------------------------------------
@@ -367,6 +377,7 @@ namespace XrdCl
     ResetMonitoringVars();
     DefaultEnv::GetForkHandler()->RegisterFileObject( this );
     DefaultEnv::GetFileTimer()->RegisterFileObject( this );
+    pLFileHandler = new LocalFileHandler();
   }
 
   //----------------------------------------------------------------------------
@@ -403,6 +414,7 @@ namespace XrdCl
     delete pDataServer;
     delete pLoadBalancer;
     delete [] pFileHandle;
+    delete pLFileHandler;
   }
 
   //----------------------------------------------------------------------------
@@ -438,6 +450,11 @@ namespace XrdCl
 
     if (pFileUrl)
     {
+      if( pUseVirtRedirector && pFileUrl->IsMetalink() )
+      {
+        RedirectorRegistry& registry = RedirectorRegistry::Instance();
+        registry.Release( *pFileUrl );
+      }
       delete pFileUrl;
       pFileUrl = 0;
     }
@@ -483,14 +500,12 @@ namespace XrdCl
 
     pOpenMode  = mode;
     pOpenFlags = flags;
+    OpenHandler *openHandler = new OpenHandler( this, handler );
 
     Message           *msg;
     ClientOpenRequest *req;
-    std::string        path = pFileUrl->GetPathWithParams();
-    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
-      MessageUtils::CreateRequest<VirtualMessage>( msg, req, path.length() );
-    else
-      MessageUtils::CreateRequest( msg, req, path.length() );
+    std::string        path = pFileUrl->GetPathWithFilteredParams();
+    MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;
     req->mode      = mode;
@@ -499,27 +514,11 @@ namespace XrdCl
     msg->Append( path.c_str(), path.length(), 24 );
 
     XRootDTransport::SetDescription( msg );
-    OpenHandler *openHandler = new OpenHandler( this, handler );
     MessageSendParams params; params.timeout = timeout;
     params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
 
-    //--------------------------------------------------------------------------
-    // Register a virtual redirector
-    //--------------------------------------------------------------------------
-    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
-    {
-      RedirectorRegistry& registry = RedirectorRegistry::Instance();
-      XRootDStatus st = registry.Register( *pFileUrl );
-      if( !st.IsOK() ) return st;
-      HostInfo info( url, true );
-      HostList *list = new HostList();
-      list->push_back( info );
-      params.loadBalancer = info;
-      params.hostList     = list;
-    }
-
-    Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
+    Status st = IssueRequest( *pFileUrl, msg, openHandler, params );
 
     if( !st.IsOK() )
     {
@@ -578,7 +577,7 @@ namespace XrdCl
     params.stateful        = true;
     MessageUtils::ProcessSendParams( params );
 
-    Status st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler, params );
+    Status st = IssueRequest( *pDataServer, msg, closeHandler, params );
 
     if( !st.IsOK() )
     {
@@ -646,6 +645,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -687,8 +687,8 @@ namespace XrdCl
     params.stateful        = true;
     params.chunkList       = list;
     MessageUtils::ProcessSendParams( params );
-
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -733,6 +733,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -767,6 +768,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -803,6 +805,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -876,6 +879,135 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //------------------------------------------------------------------------
+  // Write scattered data chunks in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::VectorWrite( const ChunkList &chunks,
+                                              ResponseHandler *handler,
+                                              uint16_t         timeout )
+  {
+    //--------------------------------------------------------------------------
+    // Sanity check
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a vector write command for handle "
+                "0x%x to %s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Determine the size of the payload
+    //--------------------------------------------------------------------------
+
+    // the size of write vector
+    uint32_t payloadSize = sizeof(XrdProto::write_list) * chunks.size();
+
+    //--------------------------------------------------------------------------
+    // Build the message
+    //--------------------------------------------------------------------------
+    Message             *msg;
+    ClientWriteVRequest *req;
+    MessageUtils::CreateRequest( msg, req, payloadSize );
+
+    req->requestid = kXR_writev;
+    req->dlen      = sizeof(XrdProto::write_list) * chunks.size();
+
+    ChunkList *list   = new ChunkList();
+
+    //--------------------------------------------------------------------------
+    // Copy the chunk info
+    //--------------------------------------------------------------------------
+    XrdProto::write_list *writeList =
+        reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+
+
+
+    for( size_t i = 0; i < chunks.size(); ++i )
+    {
+      writeList[i].wlen   = chunks[i].length;
+      writeList[i].offset = chunks[i].offset;
+      memcpy( writeList[i].fhandle, pFileHandle, 4 );
+
+      list->push_back( ChunkInfo( chunks[i].offset,
+                                  chunks[i].length,
+                                  chunks[i].buffer ) );
+    }
+
+    //--------------------------------------------------------------------------
+    // Send the message
+    //--------------------------------------------------------------------------
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //------------------------------------------------------------------------
+  // Write scattered buffers in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::WriteV( uint64_t            offset,
+                                         const struct iovec *iov,
+                                         int                 iovcnt,
+                                         ResponseHandler    *handler,
+                                         uint16_t            timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a write command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientWriteRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    ChunkList *list   = new ChunkList();
+
+    uint32_t size = 0;
+    for( int i = 0; i < iovcnt; ++i )
+    {
+      size += iov[i].iov_len;
+      list->push_back( ChunkInfo( 0, iov[i].iov_len,
+                       (char*)iov[i].iov_base ) );
+    }
+
+    req->requestid  = kXR_write;
+    req->offset     = offset;
+    req->dlen       = size;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -915,6 +1047,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -950,6 +1083,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
@@ -1177,10 +1311,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !status->IsOK() && status->code == errRedirect && pFollowRedirects )
     {
-      std::string root = "root", xroot = "xroot";
+      static const std::string root = "root", xroot = "xroot", file = "file";
       std::string msg = status->GetErrorMessage();
       if( !msg.compare( 0, root.size(), root ) ||
-          !msg.compare( 0, xroot.size(), xroot ) )
+          !msg.compare( 0, xroot.size(), xroot ) ||
+          !msg.compare( 0, file.size(), file ) )
       {
         OnStateRedirection( msg, message, userHandler, sendParams );
         return;
@@ -1211,9 +1346,12 @@ namespace XrdCl
       ClientRequest *req = (ClientRequest*)message->GetBuffer();
       switch( req->header.requestid )
       {
-        case kXR_read:  i.opCode = Monitor::ErrorInfo::ErrRead;  break;
-        case kXR_readv: i.opCode = Monitor::ErrorInfo::ErrReadV; break;
-        case kXR_write: i.opCode = Monitor::ErrorInfo::ErrWrite; break;
+        case kXR_read:   i.opCode = Monitor::ErrorInfo::ErrRead;  break;
+        case kXR_readv:  i.opCode = Monitor::ErrorInfo::ErrReadV; break;
+        case kXR_write:  i.opCode = Monitor::ErrorInfo::ErrWrite; break;
+        // TODO
+        // once we do major release we can replace this with 'ErrWriteV'
+        case kXR_writev: i.opCode = Monitor::ErrorInfo::ErrWrite; break;
         default: i.opCode = Monitor::ErrorInfo::ErrUnc;
       }
 
@@ -1328,11 +1466,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_readv:
       {
-        ++pVCount;
+        ++pVRCount;
         size_t segs = req->header.dlen/sizeof(readahead_list);
         readahead_list *dataChunk = (readahead_list*)message->GetBuffer( 24 );
         for( size_t i = 0; i < segs; ++i )
-          pVBytes += dataChunk[i].rlen;
+          pVRBytes += dataChunk[i].rlen;
         pVSegs += segs;
         break;
       }
@@ -1346,6 +1484,20 @@ namespace XrdCl
         pWBytes += req->write.dlen;
         break;
       }
+
+      //------------------------------------------------------------------------
+      // Handle writev response
+      //------------------------------------------------------------------------
+      case kXR_writev:
+      {
+        ++pVWCount;
+        size_t size = req->header.dlen/sizeof(readahead_list);
+        XrdProto::write_list *wrtList =
+            reinterpret_cast<XrdProto::write_list*>( message->GetBuffer( 24 ) );
+        for( size_t i = 0; i < size; ++i )
+          pVWBytes += wrtList[i].wlen;
+        break;
+      }
     };
   }
 
@@ -1354,8 +1506,10 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void FileStateHandler::Tick( time_t now )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
-    TimeOutRequests( now );
+    if (pMutex.CondLock())
+       {TimeOutRequests( now );
+        pMutex.UnLock();
+       }
   }
 
   //----------------------------------------------------------------------------
@@ -1431,7 +1585,7 @@ namespace XrdCl
     if( pFileState == Opened )
     {
       msg->SetSessionId( pSessionId );
-      Status st = MessageUtils::SendMessage( *pDataServer, msg, handler, sendParams );
+      Status st = IssueRequest( *pDataServer, msg, handler, sendParams );
 
       //------------------------------------------------------------------------
       // Invalid session id means that the connection has been broken while we
@@ -1562,7 +1716,7 @@ namespace XrdCl
 
     MessageUtils::ProcessSendParams( params );
 
-    return MessageUtils::SendMessage( *pDataServer, msg, handler, params );
+    return IssueRequest( *pDataServer, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1591,14 +1745,11 @@ namespace XrdCl
     ClientOpenRequest *req;
     URL u = url;
 
-    if( !url.GetPath().empty() )
+    if( url.GetPath().empty() )
       u.SetPath( pFileUrl->GetPath() );
 
-    std::string path = u.GetPathWithParams();
-    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
-      MessageUtils::CreateRequest<VirtualMessage>( msg, req, path.length() );
-    else
-      MessageUtils::CreateRequest( msg, req, path.length() );
+    std::string path = u.GetPathWithFilteredParams();
+    MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_open;
     req->mode      = pOpenMode;
@@ -1625,18 +1776,10 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
 
     //--------------------------------------------------------------------------
-    // If a virtual redirector is in use, set it up in send parameters
+    // Issue the open request
     //--------------------------------------------------------------------------
-    if( pUseVirtRedirector && pFileUrl->IsMetalink() )
-    {
-      HostInfo info( *pFileUrl, true );
-      HostList *list = new HostList();
-      list->push_back( info );
-      params.loadBalancer = info;
-      params.hostList     = list;
-    }
+    Status st = IssueRequest( url, msg, openHandler, params );
 
-    Status st = MessageUtils::SendMessage( url, msg, openHandler, params );
     // if there was a problem destroy the open handler
     if( !st.IsOK() )
     {
@@ -1670,9 +1813,14 @@ namespace XrdCl
                   rd.request->GetDescription().c_str() );
       return;
     }
+
+    JobManager *jobMan = DefaultEnv::GetPostMaster()->GetJobManager();
     ResponseHandler *userHandler = sh->GetUserHandler();
-    userHandler->HandleResponseWithHosts( new XRootDStatus( status ), 0,
-                                          rd.params.hostList );
+    jobMan->QueueJob( new ResponseJob(
+                        userHandler,
+                        new XRootDStatus( status ),
+                        0, rd.params.hostList ) );
+
     delete sh;
   }
 
@@ -1697,8 +1845,8 @@ namespace XrdCl
     {
       it->request->SetSessionId( pSessionId );
       ReWriteFileHandle( it->request );
-      Status st = MessageUtils::SendMessage( *pDataServer, it->request,
-                                             it->handler, it->params );
+      Status st = IssueRequest( *pDataServer, it->request,
+                                 it->handler, it->params );
       if( !st.IsOK() )
         FailMessage( *it, st );
     }
@@ -1745,6 +1893,17 @@ namespace XrdCl
           memcpy( dataChunk[i].fhandle, pFileHandle, 4 );
         break;
       }
+      case kXR_writev:
+      {
+        ClientWriteVRequest *req =
+            reinterpret_cast<ClientWriteVRequest*>( msg->GetBuffer() );
+        XrdProto::write_list *wrtList =
+            reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+        size_t size = req->dlen / sizeof(XrdProto::write_list);
+        for( size_t i = 0; i < size; ++i )
+          memcpy( wrtList[i].fhandle, pFileHandle, 4 );
+        break;
+      }
     }
 
     Log *log = DefaultEnv::GetLog();
@@ -1767,14 +1926,33 @@ namespace XrdCl
       i.oTOD = pOpenTime;
       gettimeofday( &i.cTOD, 0 );
       i.rBytes = pRBytes;
-      i.vBytes = pVBytes;
-      i.wBytes = pWBytes;
-      i.vSegs  = pVSegs;
+      i.vBytes = pVRBytes;
+      i.wBytes = pWBytes + pVWBytes; //TODO once we can break ABI compatibility
+      i.vSegs  = pVSegs;             // we will add a special field for WriteV
       i.rCount = pRCount;
-      i.vCount = pVCount;
+      i.vCount = pVRCount;
       i.wCount = pWCount;
       i.status = status;
       mon->Event( Monitor::EvClose, &i );
     }
+  }
+
+  XRootDStatus FileStateHandler::IssueRequest( const URL         &url,
+                                               Message           *msg,
+                                               ResponseHandler   *handler,
+                                               MessageSendParams &sendParams )
+  {
+    // first handle Metalinks
+    if( pUseVirtRedirector && url.IsMetalink() )
+      return MessageUtils::RedirectMessage( url, msg, handler,
+                                            sendParams, pLFileHandler );
+
+    // than local file access
+    if( url.IsLocalFile() )
+      return pLFileHandler->ExecRequest( url, msg, handler, sendParams );
+
+    // and finally ordinary XRootD requests
+    return MessageUtils::SendMessage( url, msg, handler,
+                                      sendParams, pLFileHandler );
   }
 }

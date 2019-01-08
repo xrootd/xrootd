@@ -8,6 +8,22 @@ set( XRD_CL_VERSION   2.0.0 )
 set( XRD_CL_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
+# The XrdCl Pipelining API
+# (we build this API only if the compiler has a good support for c++11)
+#-------------------------------------------------------------------------------
+if( XrdClPipelines )
+  set( XrdClPipelineSources
+       XrdClOperations.cc          XrdClOperations.hh
+       							   XrdClOperationHandlers.hh
+       							   XrdClArg.hh
+       							   XrdClFwd.hh
+								   XrdClParallelOperation.hh
+								   XrdClFileOperations.hh
+								   XrdClFileSystemOperations.hh
+  )
+endif()
+
+#-------------------------------------------------------------------------------
 # The XrdCl lib
 #-------------------------------------------------------------------------------
 add_library(
@@ -65,6 +81,13 @@ add_library(
   XrdClMetalinkRedirector.cc  XrdClMetalinkRedirector.hh
   XrdClRedirectorRegistry.cc  XrdClRedirectorRegistry.hh
   XrdClZipArchiveReader.cc    XrdClZipArchiveReader.hh
+  XrdClXCpCtx.cc              XrdClXCpCtx.hh
+  XrdClXCpSrc.cc              XrdClXCpSrc.hh
+  XrdClLocalFileHandler.cc    XrdClLocalFileHandler.hh
+  XrdClLocalFileTask.cc       XrdClLocalFileTask.hh
+  XrdClZipListHandler.cc      XrdClZipListHandler.hh
+  
+  ${XrdClPipelineSources}
 )
 
 target_link_libraries(
@@ -72,7 +95,7 @@ target_link_libraries(
   XrdXml
   XrdUtils
   pthread
-  dl)
+  ${CMAKE_DL_LIBS})
 
 set_target_properties(
   XrdCl
@@ -141,6 +164,17 @@ install(
     XrdClFileSystemUtils.hh
     XrdClLog.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
+  
+install(
+  FILES
+    XrdClOperations.hh
+    XrdClOperationHandlers.hh
+    XrdClArg.hh
+    XrdClFwd.hh
+	XrdClParallelOperation.hh
+	XrdClFileOperations.hh
+	XrdClFileSystemOperations.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private )
 
 install(
   FILES

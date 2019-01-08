@@ -1,17 +1,14 @@
 #!/usr/bin/env perl
 
 #******************************************************************************
-#   $Id$
-#*                                                                            *
-#*                       X r d C m s N o t i f y . p m                        *
-#*                                                                            *
-# (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University   *
+#                                                                             *
+#                        X r d C m s N o t i f y . p m                        *
+#                                                                             *
+# (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University   *
 #                          All Rights Reserved                                *
 # Produced by Andrew Hanushevsky for Stanford University under contract       *
 #            DE-AC03-76-SFO0515 with the Department of Energy                 *
 #******************************************************************************
-  
-
 
 package  XrdCmsNotify;
 require  Exporter;
@@ -179,6 +176,7 @@ sub getConfig {my($iname) = @_;
   if (-r $pp1) {$fn = $pp1;}
      elsif (-r $pp2) {$fn = $pp2;}
         else {print STDERR "CmsNotify: Unable to find cmsd pid file\n" if $DEBUG;
+              print STDERR "as $pp1 or $pp2\n" if $DEBUG;
               return '';
              }
 

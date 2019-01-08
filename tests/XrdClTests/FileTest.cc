@@ -33,6 +33,7 @@
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include "XrdCl/XrdClZipArchiveReader.hh"
+#include "XrdCl/XrdClConstants.hh"
 
 using namespace XrdClTests;
 
@@ -46,14 +47,18 @@ class FileTest: public CppUnit::TestCase
       CPPUNIT_TEST( RedirectReturnTest );
       CPPUNIT_TEST( ReadTest );
       CPPUNIT_TEST( WriteTest );
+      CPPUNIT_TEST( WriteVTest );
       CPPUNIT_TEST( VectorReadTest );
+      CPPUNIT_TEST( VectorWriteTest );
       CPPUNIT_TEST( VirtualRedirectorTest );
       CPPUNIT_TEST( PlugInTest );
     CPPUNIT_TEST_SUITE_END();
     void RedirectReturnTest();
     void ReadTest();
     void WriteTest();
+    void WriteVTest();
     void VectorReadTest();
+    void VectorWriteTest();
     void VirtualRedirectorTest();
     void PlugInTest();
 };
@@ -112,7 +117,7 @@ void FileTest::RedirectReturnTest()
   MessageSendParams params; params.followRedirects = false;
   MessageUtils::ProcessSendParams( params );
   OpenInfo *response = 0;
-  CPPUNIT_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params ) );
+  CPPUNIT_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params, 0 ) );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
   delete handler;
   CPPUNIT_ASSERT_XRDST_NOTOK( st1, errRedirect );
@@ -204,7 +209,8 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   std::string archiveUrl = address + "/" + dataPath + "/data.zip";
 
-  ZipArchiveReader zip;
+  File zipsrc;
+  ZipArchiveReader zip( zipsrc );
   CPPUNIT_ASSERT_XRDST( zip.Open( archiveUrl ) );
 
   //----------------------------------------------------------------------------
@@ -326,6 +332,89 @@ void FileTest::WriteTest()
   delete [] buffer2;
   delete [] buffer3;
   delete [] buffer4;
+  delete stat;
+}
+
+//------------------------------------------------------------------------------
+// WriteV test
+//------------------------------------------------------------------------------
+void FileTest::WriteVTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/testFile.dat";
+  std::string fileUrl = address + "/";
+  fileUrl += filePath;
+
+  //----------------------------------------------------------------------------
+  // Fetch some data and checksum
+  //----------------------------------------------------------------------------
+  const uint32_t MB = 1024*1024;
+  char *buffer1 = new char[4*MB];
+  char *buffer2 = new char[4*MB];
+  char *buffer3 = new char[8*MB];
+  uint32_t bytesRead1 = 0;
+  File f1, f2;
+
+  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
+  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
+  uint32_t crc1 = Utils::ComputeCRC32( buffer1, 4*MB );
+  crc1 = Utils::UpdateCRC32( crc1, buffer2, 4*MB );
+
+  //----------------------------------------------------------------------------
+  // Prepare IO vector
+  //----------------------------------------------------------------------------
+  int iovcnt = 2;
+  iovec iov[iovcnt];
+  iov[0].iov_base = buffer1;
+  iov[0].iov_len  = 4*MB;
+  iov[1].iov_base = buffer2;
+  iov[1].iov_len  = 4*MB;
+
+  //----------------------------------------------------------------------------
+  // Write the data
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
+                           Access::UR | Access::UW ).IsOK() );
+  CPPUNIT_ASSERT( f1.WriteV( 0, iov, iovcnt ).IsOK() );
+  CPPUNIT_ASSERT( f1.Sync().IsOK() );
+  CPPUNIT_ASSERT( f1.Close().IsOK() );
+
+  //----------------------------------------------------------------------------
+  // Read the data and verify the checksums
+  //----------------------------------------------------------------------------
+  StatInfo *stat = 0;
+  CPPUNIT_ASSERT( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
+  CPPUNIT_ASSERT( f2.Stat( false, stat ).IsOK() );
+  CPPUNIT_ASSERT( stat );
+  CPPUNIT_ASSERT( stat->GetSize() == 8*MB );
+  CPPUNIT_ASSERT( f2.Read( 0, 8*MB, buffer3, bytesRead1 ).IsOK() );
+  CPPUNIT_ASSERT( bytesRead1 == 8*MB );
+
+  uint32_t crc2 = Utils::ComputeCRC32( buffer3, 8*MB );
+  CPPUNIT_ASSERT( f2.Close().IsOK() );
+  CPPUNIT_ASSERT( crc1 == crc2 );
+
+  FileSystem fs( url );
+  CPPUNIT_ASSERT( fs.Rm( filePath ).IsOK() );
+  delete [] buffer1;
+  delete [] buffer2;
+  delete [] buffer3;
+  delete stat;
 }
 
 //------------------------------------------------------------------------------
@@ -395,6 +484,134 @@ void FileTest::VectorReadTest()
 
   delete [] buffer1;
   delete [] buffer2;
+}
+
+void gen_random_str(char *s, const int len)
+{
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+
+    for (int i = 0; i < len - 1; ++i)
+    {
+        s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
+
+    s[len - 1] = 0;
+}
+
+//------------------------------------------------------------------------------
+// Vector write test
+//------------------------------------------------------------------------------
+void FileTest::VectorWriteTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/a048e67f-4397-4bb8-85eb-8d7e40d90763.dat";
+  std::string fileUrl = address + "/";
+  fileUrl += filePath;
+
+  //----------------------------------------------------------------------------
+  // Build a random chunk list for vector write
+  //----------------------------------------------------------------------------
+
+  const uint32_t MB = 1024*1024;
+  const uint32_t GB = 1000*MB; // maybe that's not 100% precise but that's
+                               // what we have in our testbed
+
+  time_t seed = time( 0 );
+  srand( seed );
+  DefaultEnv::GetLog()->Info( UtilityMsg,
+      "Carrying out the VectorWrite test with seed: %d", seed );
+
+  // figure out how many chunks are we going to write/read
+  size_t nbChunks = rand() % 100 + 1;
+
+  XrdCl::ChunkList chunks;
+  size_t   min_offset = 0;
+  uint32_t expectedCrc32 = 0;
+  size_t   totalSize = 0;
+
+  for( size_t i = 0; i < nbChunks; ++i )
+  {
+    // figure out the offset
+    size_t offset = min_offset + rand() % ( GB - min_offset + 1 );
+
+    // figure out the size
+    size_t size = MB + rand() % ( MB + 1 );
+    if( offset + size >= GB )
+      size = GB - offset;
+
+    // generate random string of given size
+    char *buffer = new char[size];
+    gen_random_str( buffer, size );
+
+    // calculate expected checksum
+    expectedCrc32 = Utils::UpdateCRC32( expectedCrc32, buffer, size );
+    totalSize += size;
+    chunks.push_back( XrdCl::ChunkInfo( offset, size, buffer ) );
+
+    min_offset = offset + size;
+    if( min_offset >= GB )
+      break;
+  }
+
+  //----------------------------------------------------------------------------
+  // Open the file
+  //----------------------------------------------------------------------------
+  File f;
+  CPPUNIT_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Update ) );
+
+  //----------------------------------------------------------------------------
+  // First do a VectorRead so we can revert to the original state
+  //----------------------------------------------------------------------------
+  char *buffer1 = new char[totalSize];
+  VectorReadInfo *info1 = 0;
+  CPPUNIT_ASSERT_XRDST( f.VectorRead( chunks, buffer1, info1 ) );
+
+  //----------------------------------------------------------------------------
+  // Then do the VectorWrite
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f.VectorWrite( chunks ) );
+
+  //----------------------------------------------------------------------------
+  // Now do a vector read and verify that the checksum is the same
+  //----------------------------------------------------------------------------
+  char *buffer2 = new char[totalSize];
+  VectorReadInfo *info2 = 0;
+  CPPUNIT_ASSERT_XRDST( f.VectorRead( chunks, buffer2, info2 ) );
+
+  CPPUNIT_ASSERT( info2->GetSize() == totalSize );
+  uint32_t crc32 = Utils::ComputeCRC32( buffer2, totalSize );
+  CPPUNIT_ASSERT( crc32 == expectedCrc32 );
+
+  //----------------------------------------------------------------------------
+  // And finally revert to the original state
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( f.VectorWrite( info1->GetChunks() ) );
+  CPPUNIT_ASSERT_XRDST( f.Close() );
+
+  delete info1;
+  delete info2;
+  delete [] buffer1;
+  delete [] buffer2;
+  for( auto itr = chunks.begin(); itr != chunks.end(); ++itr )
+    delete[] (char*)itr->buffer;
 }
 
 void FileTest::VirtualRedirectorTest()

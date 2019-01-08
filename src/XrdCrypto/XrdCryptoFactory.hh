@@ -140,11 +140,13 @@ public:
 
    // Cipher constructors
    virtual bool SupportedCipher(const char *t);
+   virtual bool HasPaddingSupport();
    virtual XrdCryptoCipher *Cipher(const char *t, int l = 0);
    virtual XrdCryptoCipher *Cipher(const char *t, int l, const char *k, 
                                    int liv, const char *iv);
    virtual XrdCryptoCipher *Cipher(XrdSutBucket *b);
    virtual XrdCryptoCipher *Cipher(int bits, char *pub, int lpub, const char *t = 0);
+   virtual XrdCryptoCipher *Cipher(bool padded, int bits, char *pub, int lpub, const char *t);
    virtual XrdCryptoCipher *Cipher(const XrdCryptoCipher &c);
 
    // MsgDigest constructors

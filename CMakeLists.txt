@@ -2,6 +2,11 @@
 # Project description
 #-------------------------------------------------------------------------------
 cmake_minimum_required( VERSION 2.6 )
+
+IF(CMAKE_VERSION VERSION_GREATER "2.8.12")
+   CMAKE_POLICY(SET CMP0022 OLD)
+ENDIF()
+
 project( XRootD )
 
 set( CMAKE_MODULE_PATH
@@ -10,6 +15,10 @@ set( CMAKE_MODULE_PATH
 
 if(NOT (CMAKE_VERSION VERSION_LESS "3.1"))
   cmake_policy(SET CMP0054 OLD)
+endif()
+
+if(CMAKE_VERSION VERSION_LESS "3.0")
+  SET(CMAKE_DL_LIBS "-ldl")
 endif()
 
 include( XRootDUtils )
@@ -57,3 +66,18 @@ if( BUILD_TESTS )
 endif()
 
 include( XRootDSummary )
+
+
+
+
+
+#-------------------------------------------------------------------------------
+# Configure an 'uninstall' target
+#-------------------------------------------------------------------------------
+CONFIGURE_FILE(
+	"${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+	"${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+	IMMEDIATE @ONLY)
+
+ADD_CUSTOM_TARGET(uninstall
+  "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")

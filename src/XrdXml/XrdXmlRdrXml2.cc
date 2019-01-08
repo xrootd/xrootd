@@ -113,7 +113,11 @@ XrdXmlRdrXml2::XrdXmlRdrXml2(bool &aOK, const char *fname, const char *enc)
 // Get a file reader
 //
    if (!(reader = xmlNewTextReaderFilename(fname)))
-      {if ((eCode = errno)) strncpy(eText, strerror(errno), sizeof(eText));
+      {if ((eCode = errno)) 
+	  {size_t size = sizeof(eText) - 1;
+           strncpy(eText, strerror(errno), size);
+	   eText[size] = '\0';
+	  }
           else strcpy(eText, "Unknown error opening input file");
        aOK = false;
       } else aOK = true;

@@ -137,6 +137,7 @@ XrdOfs::XrdOfs()
    Balancer      = 0;
    evsObject     = 0;
    myRole        = strdup("server");
+   OssIsProxy    = 0;
    ossRW         =' ';
 
 // Obtain port number we will be using. Note that the constructor must occur
@@ -160,6 +161,7 @@ XrdOfs::XrdOfs()
 //
    Cks       = 0;
    CksPfn    = true;
+   CksRdr    = true;
 }
   
 /******************************************************************************/
@@ -561,7 +563,8 @@ int XrdOfsFile::open(const char          *path,      // In
       }
 
 // If this is a third party copy and we are the destination, then validate
-// specification at this point and setup to transfer.
+// specification at this point and setup to transfer. Note that if the
+// call fails and auto removal is enabled, the file we created will be deleted.
 //
    if (tpcKey && isRW)
       {char pfnbuff[MAXPATHLEN+8]; const char *pfnP;
@@ -605,6 +608,11 @@ int XrdOfsFile::open(const char          *path,      // In
 //
    if (!(oP.fP = XrdOfsOss->newFile(tident)))
       return XrdOfsFS->Emsg(epname, error, ENOMEM, "open", path);
+
+// We need to make special provisions for proxy servers in the presence of
+// the TPC option as it's handled differently in this case.
+//
+   if (myTPC && XrdOfsFS->OssIsProxy) open_flag |= O_NOFOLLOW;
 
 // Open the file
 //
@@ -1353,7 +1361,7 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 
 // If we are a menager then we need to redirect the client to where the file is
 //
-   if (Finder && Finder->isRemote() 
+   if (CksRdr && Finder && Finder->isRemote() 
    &&  (rc = Finder->Locate(einfo, Path, SFS_O_RDONLY, &cksEnv)))
       return fsError(einfo, rc);
 
@@ -1361,6 +1369,13 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 //
    if (CksPfn && !(Path = XrdOfsOss->Lfn2Pfn(Path, buff, MAXPATHLEN, rc)))
       return Emsg(epname, einfo, rc, "checksum", Path);
+
+// If this is a proxy server then we may need to pass a pointer to the env
+//
+   if (OssIsProxy)
+      {if (Func == XrdSfsFileSystem::csGet || Func == XrdSfsFileSystem::csCalc)
+          cksData.tident = tident;
+      }
 
 // Now determine what to do
 //

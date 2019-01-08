@@ -59,6 +59,8 @@ public:
    //!
    //! @return number of bytes read
    //---------------------------------------------------------------------
+   using XrdOucCacheIO2::Read;
+
    virtual int Read(char *Buffer, long long Offset, int Length);
 
    //---------------------------------------------------------------------
@@ -69,6 +71,8 @@ public:
    //!
    //! @return total bytes read
    //---------------------------------------------------------------------
+   using XrdOucCacheIO2::ReadV;
+
    virtual int ReadV(const XrdOucIOVec *readV, int n);
 
    //---------------------------------------------------------------------
@@ -81,17 +85,16 @@ public:
    //! \brief Virtual method of XrdOucCacheIO.
    //! Called to check if destruction needs to be done in a separate task.
    virtual bool ioActive();
-
+   
    virtual int  Fstat(struct stat &sbuff);
 
    virtual long long FSize();
 
-   virtual void RelinquishFile(File*);
-
 private:
-   File* m_file;
-   struct stat      *m_localStat;
-   int     initCachedStat(const char* path);
+   XrdSysMutex  m_mutex;
+   File        *m_file;
+   struct stat *m_localStat;
+   int initCachedStat(const char* path);
 };
 
 }

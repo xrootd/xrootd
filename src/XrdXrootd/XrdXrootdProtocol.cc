@@ -122,6 +122,9 @@ int                   XrdXrootdProtocol::PrepareLimit = -1;
 bool                  XrdXrootdProtocol::LimitError = true;
 
 struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[RD_Num];
+int                   XrdXrootdProtocol::OD_Stall = 33;
+bool                  XrdXrootdProtocol::OD_Bypass= false;
+bool                  XrdXrootdProtocol::OD_Redir = false;
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
@@ -460,10 +463,12 @@ int XrdXrootdProtocol::Process2()
          {case kXR_read:     return do_Read();
           case kXR_readv:    return do_ReadV();
           case kXR_write:    return do_Write();
+          case kXR_writev:   return do_WriteV();
           case kXR_sync:     ReqID.setID(Request.header.streamid);
                              return do_Sync();
           case kXR_close:    return do_Close();
-          case kXR_truncate: if (!Request.header.dlen) return do_Truncate();
+          case kXR_truncate: ReqID.setID(Request.header.streamid);
+                             if (!Request.header.dlen) return do_Truncate();
                              break;
           case kXR_query:    if (!Request.header.dlen) return do_Qfh();
           default:           break;
@@ -668,10 +673,17 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
        cumReads += numReads; numReads  = 0;
        SI->prerCnt += numReadP;
        cumReadP += numReadP; numReadP = 0;
+
        SI->rvecCnt += numReadV;
        cumReadV += numReadV; numReadV = 0;
        SI->rsegCnt += numSegsV;
        cumSegsV += numSegsV; numSegsV = 0;
+
+       SI->wvecCnt += numWritV;
+       cumWritV += numWritV; numWritV = 0;
+       SI->wsegCnt += numSegsW;
+       cumSegsW += numSegsW, numSegsW = 0;
+
        SI->writeCnt += numWrites;
        cumWrites+= numWrites;numWrites = 0;
        SI->statsMutex.UnLock();
@@ -691,18 +703,18 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
   
 int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
 {
-   XrdOucErrInfo myInfo("CheckSum");
    int rc, ecode;
 
-// The arguments must have <name> <cstype> <path> (i.e. argc >= 3)
+// The arguments must have <name> <cstype> <path> <tident> (i.e. argc >= 4)
 //
-   if (argc < 3)
+   if (argc < 4)
       {Stream->PutLine("Internal error; not enough checksum args!");
        return 8;
       }
 
 // Issue the checksum calculation (that's all we do here).
 //
+   XrdOucErrInfo myInfo(argv[3]);
    rc = osFS->chksum(XrdSfsFileSystem::csCalc, argv[1], argv[2], myInfo);
 
 // Return result regardless of what it is
@@ -738,7 +750,7 @@ void XrdXrootdProtocol::Cleanup()
 // Delete the FTab if we have it
 //
    if (FTab)
-      {FTab->Recycle(Monitor.Files() ? Monitor.Agent : 0, Monitor.Fstat());
+      {FTab->Recycle(Monitor.Files() ? Monitor.Agent : 0);
        FTab = 0;
       }
 
@@ -774,6 +786,10 @@ void XrdXrootdProtocol::Cleanup()
 //
    while((pioP = pioFirst)) {pioFirst = pioP->Next; pioP->Recycle();}
    while((pioP = pioFree )) {pioFree  = pioP->Next; pioP->Recycle();}
+
+// Handle writev appendage
+//
+   if (wvInfo) {free(wvInfo); wvInfo = 0;}
 }
   
 /******************************************************************************/
@@ -819,15 +835,20 @@ void XrdXrootdProtocol::Reset()
    myStalls           = 0;
    myAioReq           = 0;
    myFile             = 0;
+   wvInfo             = 0;
    numReads           = 0;
    numReadP           = 0;
    numReadV           = 0;
    numSegsV           = 0;
+   numWritV           = 0;
+   numSegsW           = 0;
    numWrites          = 0;
    numFiles           = 0;
    cumReads           = 0;
    cumReadV           = 0;
    cumSegsV           = 0;
+   cumWritV           = 0;
+   cumSegsW           = 0;
    cumWrites          = 0;
    totReadP           = 0;
    hcPrev             =13;
@@ -842,12 +863,13 @@ void XrdXrootdProtocol::Reset()
    reTry              = 0;
    PathID             = 0;
    rvSeq              = 0;
+   wvSeq              = 0;
    pioFree = pioFirst = pioLast = 0;
    isActive = isDead  = isNOP = isBound = 0;
    sigNeed = sigHere = sigRead = false;
    sigWarn = true;
    rdType             = 0;
-   memset(&Entity, 0, sizeof(Entity));
+   Entity.Reset();
    memset(Stream,  0, sizeof(Stream));
    PrepareCount       = 0;
 }

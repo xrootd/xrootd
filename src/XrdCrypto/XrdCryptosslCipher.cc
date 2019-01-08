@@ -40,6 +40,7 @@
 //#include <openssl/dsa.h>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
+#include <openssl/dh.h>
 
 // ---------------------------------------------------------------------------//
 //
@@ -130,6 +131,26 @@ static int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
     }
     return 1;
 }
+#endif
+
+#if !defined(HAVE_DH_PADDED)
+#if defined(HAVE_DH_PADDED_FUNC)
+int DH_compute_key_padded(unsigned char *, const BIGNUM *, DH *);
+#else
+static int DH_compute_key_padded(unsigned char *key, const BIGNUM *pub_key, DH *dh)
+{
+    int rv, pad;
+    rv = dh->meth->compute_key(key, pub_key, dh);
+    if (rv <= 0)
+        return rv;
+    pad = BN_num_bytes(dh->p) - rv;
+    if (pad > 0) {
+        memmove(key + pad, key, rv);
+        memset(key, 0, pad);
+    }
+    return rv + pad;
+}
+#endif
 #endif
 
 //_____________________________________________________________________________
@@ -432,7 +453,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
 }
 
 //____________________________________________________________________________
-XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
+XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
                                        int lpub, const char *t)
 {
    // Constructor for key agreement.
@@ -516,15 +537,19 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
                      ktmp = new char[DH_size(fDH)];
                      memset(ktmp, 0, DH_size(fDH));
                      if (ktmp) {
-                        if ((ltmp = DH_compute_key((unsigned char *)ktmp,
-                                                    bnpub,fDH)) > 0)
-                           valid = 1;
+                        if (padded) {
+                           ltmp = DH_compute_key_padded((unsigned char *)ktmp,bnpub,fDH);
+                        } else {
+                           ltmp = DH_compute_key((unsigned char *)ktmp,bnpub,fDH);
+                        }
+                        if (ltmp > 0) valid = 1;
                      }
                   }
                }
             }
             BIO_free(biop);
          }
+         BN_free( bnpub );
       }
       //
       // If a valid key has been computed, set the cipher
@@ -649,7 +674,8 @@ void XrdCryptosslCipher::Cleanup()
 }
 
 //____________________________________________________________________________
-bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
+bool XrdCryptosslCipher::Finalize(bool padded,
+                                  char *pub, int /*lpub*/, const char *t)
 {
    // Finalize cipher during key agreement. Should be called
    // for a cipher build with special constructor defining member fDH.
@@ -685,9 +711,12 @@ bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
          ktmp = new char[DH_size(fDH)];
          memset(ktmp, 0, DH_size(fDH));
          if (ktmp) {
-            if ((ltmp =
-                 DH_compute_key((unsigned char *)ktmp,bnpub,fDH)) > 0)
-               valid = 1;
+            if (padded) {
+               ltmp = DH_compute_key_padded((unsigned char *)ktmp,bnpub,fDH);
+            } else {
+               ltmp = DH_compute_key((unsigned char *)ktmp,bnpub,fDH);
+            }
+            if (ltmp > 0) valid = 1;
          }
          BN_free(bnpub);
          bnpub=0;
@@ -791,14 +820,14 @@ char *XrdCryptosslCipher::Public(int &lpub)
                // position at the end
                p += (lhend+1);
                // Begin of public key hex
-               strncpy(p,"---BPUB---",10);
+               memcpy(p,"---BPUB---",10);
                p += 10;
                // Calculate and write public key hex
-               strncpy(p,phex,lhex);
+               memcpy(p,phex,lhex);
                OPENSSL_free(phex);
                // End of public key hex
                p += lhex;
-               strncpy(p,"---EPUB---",10);
+               memcpy(p,"---EPUB---",10);
                // Calculate total length
                lpub += (20 + lhex);
             } else {
@@ -934,7 +963,7 @@ XrdSutBucket *XrdCryptosslCipher::AsBucket()
 //____________________________________________________________________________
 void XrdCryptosslCipher::SetIV(int l, const char *iv)
 {
-   // Set IV from l bytes at iv
+   // Set IV from l bytes at iv. If !iv, sets the IV length.
 
    if (fIV) {
       delete[] fIV;
@@ -942,12 +971,12 @@ void XrdCryptosslCipher::SetIV(int l, const char *iv)
       lIV = 0;
    }
 
-   if (iv && l > 0) {
-      fIV = new char[l];
-      if (fIV) {
-         memcpy(fIV,iv,l);
-         lIV = l;
+   if (l > 0) {
+      if (iv) {
+         fIV = new char[l];
+         if (fIV) memcpy(fIV,iv,l);
       }
+      lIV = l;
    }
 }
 
@@ -976,8 +1005,8 @@ void XrdCryptosslCipher::GenerateIV()
       lIV = 0;
    }
 
-   // Generate a new one
-   fIV = XrdSutRndm::GetBuffer(EVP_MAX_IV_LENGTH);
+   // Generate a new one, using crypt-like chars
+   fIV = XrdSutRndm::GetBuffer(EVP_MAX_IV_LENGTH, 3);
    if (fIV)
       lIV = EVP_MAX_IV_LENGTH;
 }
@@ -1015,12 +1044,14 @@ int XrdCryptosslCipher::EncDec(int enc, const char *in, int lin, char *out)
 
    int lout = 0;
 
+   const char *action = (enc == 1) ? "encrypting" : "decrypting"; 
+
    // Check inputs
    if (!in || lin <= 0 || !out) {
       DEBUG("wrong inputs arguments");
-      if (!in) DEBUG("in: "<<in);
+      if (!in) DEBUG("in: NULL");
       if (lin <= 0) DEBUG("lin: "<<lin);
-      if (!out) DEBUG("out: "<<out);
+      if (!out) DEBUG("out: NULL");
       return 0;
    }
 
@@ -1059,7 +1090,7 @@ int XrdCryptosslCipher::EncDec(int enc, const char *in, int lin, char *out)
    int ltmp = 0;
    if (!EVP_CipherUpdate(ctx, (unsigned char *)&out[0], &ltmp,
                                (unsigned char *)in, lin)) {
-      DEBUG("error encrypting");
+      DEBUG("error " << action);
       return 0;
    }
    lout = ltmp;
@@ -1089,4 +1120,12 @@ int XrdCryptosslCipher::DecOutLength(int l)
    int lout = l+EVP_CIPHER_CTX_block_size(ctx)+1;
    lout = (lout <= 0) ? l : lout;
    return lout;
+}
+
+//____________________________________________________________________________
+int XrdCryptosslCipher::MaxIVLength() const
+{
+   // Return the max cipher IV length
+
+   return (lIV > 0) ? lIV : EVP_MAX_IV_LENGTH;
 }

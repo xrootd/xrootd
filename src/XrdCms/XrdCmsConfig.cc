@@ -85,7 +85,6 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -332,7 +331,8 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
                NoGo = 1;
               }
           }
-          else PortTCP = 0;
+          else if ((isManager && isServer)) PortTCP = PortSUP;
+                  else PortTCP = 0;
       }
 
 // If we are configured in proxy mode then we are running a shared filesystem
@@ -361,9 +361,9 @@ int XrdCmsConfig::Configure2()
 
   Output:   0 upon success or !0 otherwise.
 */
-   EPNAME("Configure2");
    int Who, NoGo = 0;
    char *p, buff[512];
+   std::string envData;
 
 // Print herald
 //
@@ -405,10 +405,20 @@ int XrdCmsConfig::Configure2()
 
 // Develop a stable unique identifier for this cmsd independent of the port
 //
-   if (!NoGo && !(mySID = setupSid()))
-      {Say.Emsg("cmsd", "Unable to generate system ID; too many managers.");
-       NoGo = 1;
-      } else {DEBUG("Global System Identification: " <<mySID);}
+   if (!NoGo)
+      {if (!(mySID = setupSid())) NoGo = 1;
+          else {if (QTRACE(Debug))
+                   Say.Say("Config ", "Global System Identification: ", mySID);
+                if (Config.mySite)
+                   {envData += "site=";
+                    envData += mySite;
+                   }
+               }
+      }
+
+// Create envCGI string for logins
+//
+   envCGI = (envData.length() > 0 ? strdup(envData.c_str()) : 0);
 
 // If we need a name library, load it now
 //
@@ -497,6 +507,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("localroot",     xlclrt);  // Any,     non-dynamic
    TS_Xeq("manager",       xmang);   // Server,  non-dynamic
    TS_Xeq("namelib",       xnml);    // Server,  non-dynamic
+   TS_Xeq("vnid",          xvnid);   // Server,  non-dynamic
    TS_Xeq("nbsendq",       xnbsq);   // Any      non-dynamic
    TS_Xeq("osslib",        xolib);   // Any,     non-dynamic
    TS_Xeq("perf",          xperf);   // Server,  non-dynamic
@@ -508,6 +519,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("seclib",        xsecl);   // Server,  non-dynamic
    TS_Xeq("subcluster",    xsubc);   // Manager, non-dynamic
+   TS_Xeq("superport",     xsupp);   // Super,   non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
    TS_Xer("whitelist",     xblk,true);//Manager, non-dynamic
@@ -656,6 +668,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    MaxLoad  = 0x7fffffff;
    MsgTTL   = 7;
    PortTCP  = 0;
+   PortSUP  = 0;
    P_cpu    = 0;
    P_fuzz   = 20;
    P_gsdf   = 0;
@@ -688,6 +701,8 @@ void XrdCmsConfig::ConfigDefaults(void)
    isSolo   = 0;
    isProxy  = 0;
    isServer = 0;
+   VNID_Lib = 0;
+   VNID_Parms=0;
    N2N_Lib  = 0;
    N2N_Parms= 0;
    lcl_N2N  = 0;
@@ -702,8 +717,10 @@ void XrdCmsConfig::ConfigDefaults(void)
    ManList   =0;
    NanList   =0;
    SanList   =0;
+   myVNID   = 0;
    mySID    = 0;
    mySite   = 0;
+   envCGI   = 0;
    cidTag   = 0;
    ifList    =0;
    perfint  = 3*60;
@@ -778,6 +795,7 @@ int XrdCmsConfig::ConfigOSS()
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
                               const char   *, XrdOucEnv  *, XrdVersionInfo &);
+   void *arFunc;
 
 // Set up environment for the OSS to keep it relevant for cmsd
 //
@@ -792,8 +810,14 @@ int XrdCmsConfig::ConfigOSS()
 
 // Load and return result
 //
-   return !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib,ossParms,
-                              &theEnv, *myVInfo));
+   ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib,ossParms,&theEnv,*myVInfo);
+   if (!ossFS) return 1;
+
+// Check if we should elay add/remove events to the statinfo function
+//
+   if (!isManager && isServer && (arFunc = theEnv.GetPtr("XrdOssStatInfo2*")))
+      return (XrdCmsAdmin::InitAREvents(arFunc) ? 0 : 1);
+   return 0;
 }
 
 /******************************************************************************/
@@ -1145,7 +1169,7 @@ int XrdCmsConfig::setupServer()
 //
    return 0;
 }
-
+  
 /******************************************************************************/
 /*                              s e t u p S i d                               */
 /******************************************************************************/
@@ -1153,7 +1177,7 @@ int XrdCmsConfig::setupServer()
 char *XrdCmsConfig::setupSid()
 {
    XrdOucTList *tp = (NanList ? NanList : ManList);
-   char sfx;
+   char *sidVal, sfx;
 
 // Grab the interfaces. This is normally set as an envar. If present then
 // we will copy it because we must use it permanently.
@@ -1169,10 +1193,26 @@ char *XrdCmsConfig::setupSid()
 //
    if (isManager && isServer) sfx = 'u';
       else sfx = (isManager ? 'm' : 's');
+   if (isProxy) sfx = toupper(sfx);
+
+// Get the node ID if we need to
+//
+   if (VNID_Lib)
+      {myVNID = XrdCmsSecurity::getVnId(Say,ConfigFN,VNID_Lib,VNID_Parms,sfx);
+       if (!myVNID) return 0;
+      }
 
 // Generate the system ID and set the cluster ID
 //
-   return XrdCmsSecurity::setSystemID(tp, myInsName, myName, cidTag, sfx);
+   sidVal = XrdCmsSecurity::setSystemID(tp, myVNID, cidTag, sfx);
+   if (!sidVal || *sidVal == '!')
+      {const char *msg;
+       if (!sidVal) msg = "too many managers.";
+          else msg = sidVal+1;
+       Say.Emsg("cmsd","Unable to generate system ID; ", msg);
+       return 0;
+      }
+   return sidVal;
 }
 
 /******************************************************************************/
@@ -2023,7 +2063,9 @@ int XrdCmsConfig::xnbsq(XrdSysError *eDest, XrdOucStream &CFile)
 // Now scan for the other options
 //
    while(val && *val)
-        {strncpy(xopt, val, sizeof(xopt));
+        {size_t size = sizeof(xopt)-1;
+	 strncpy(xopt, val, size);
+	 xopt[size] = '\0';
          if (!(val= CFile.GetWord()) || *val == 0)
             {eDest->Emsg("Config","nbsendq ", xopt, " argument not specified");
              return 1;
@@ -2934,6 +2976,50 @@ int XrdCmsConfig::xsubc(XrdSysError *eDest, XrdOucStream &CFile)
 }
   
 /******************************************************************************/
+/*                                 x s u p p                                  */
+/******************************************************************************/
+
+/* Function: xsupp
+
+   Purpose:  To parse the directive: superport <tcpnum>
+                                               [if [<hlst>] [named <nlst>]]
+
+             <tcpnum>   number of the tcp port for incomming requests
+             <hlst>     list of applicable host patterns
+             <nlst>     list of applicable instance names.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdCmsConfig::xsupp(XrdSysError *eDest, XrdOucStream &CFile)
+{   const char *invp = "superport port";
+    char *val, cport[32];
+    int rc, pnum;
+
+    if (!(val = CFile.GetWord()))
+       {eDest->Emsg("Config", "tcp port not specified"); return 1;}
+
+    strncpy(cport, val, sizeof(cport)-1); cport[sizeof(cport)-1] = '\0';
+
+    if ((val = CFile.GetWord()) && !strcmp("if", val))
+       if ((rc = XrdOucUtils::doIf(eDest,CFile,"superport directive",
+                                   myName,myInsName,myProg))<=0)
+          {if (!rc) CFile.noEcho(); return rc < 0;}
+
+         if (!strcmp(cport, "any")) pnum = 0;
+    else if (!strcmp(cport, "-p"))  pnum = PortTCP;
+    else if (isdigit(*cport))
+            {if (XrdOuca2x::a2i(*eDest,invp,cport,&pnum,1,65535)) return 0;}
+    else if (!(pnum = XrdNetUtils::ServPort(cport)))
+            {eDest->Emsg("Config", "Unable to find superport", cport);
+             return 1;
+            }
+
+    PortSUP = pnum;
+
+    return 0;
+}
+  
+/******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
 
@@ -2981,4 +3067,45 @@ int XrdCmsConfig::xtrace(XrdSysError *eDest, XrdOucStream &CFile)
 
     Trace.What = trval;
     return 0;
+}
+  
+/******************************************************************************/
+/*                                 x v n i d                                  */
+/******************************************************************************/
+
+/* Function: xvnid
+
+   Purpose:  To parse the directive: vnid {=|<|@}<vnarg> [<parms>]
+
+             <vnarg>   = - the actual vnid value
+                       < - the path of the file to be read for the vnid.
+                       @ - the path of the plugin library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xvnid(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val, parms[1024];
+
+// Get the argument
+//
+   if (!(val = CFile.GetWord()) || !val[0])
+      {eDest->Emsg("Config", "vnid not specified"); return 1;}
+
+// Record the path
+//
+   if (VNID_Lib) free(VNID_Lib);
+   VNID_Lib = strdup(val);
+
+// Record any parms (only if it starts with an @)
+//
+   if (VNID_Parms) {free(VNID_Parms); VNID_Parms = 0;}
+   if (*VNID_Lib == '@')
+      {if (!CFile.GetRest(parms, sizeof(parms)))
+          {eDest->Emsg("Config", "vnid plug-in parameters too long"); return 1;}
+       if (*parms) VNID_Parms = strdup(parms);
+      }
+   return 0;
 }

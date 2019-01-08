@@ -77,6 +77,8 @@ const int SYS_LOG_05 =  16;
 const int SYS_LOG_06 =  32;
 const int SYS_LOG_07 =  64;
 const int SYS_LOG_08 = 128;
+//              0x00000100 to 0x0000ffff reseved for     XRootD use
+//              0x00010000 to 0xffff0000 reseved for non-XRootD use
 
 /******************************************************************************/
 /*                            o o u c _ E r r o r                             */
@@ -147,9 +149,11 @@ XrdSysLogger *logger(XrdSysLogger *lp=0)
 void Say(const char *text1,   const char *text2=0, const char *txt3=0,
          const char *text4=0, const char *text5=0, const char *txt6=0);
 
-// Set the loging mask (only used by clients of this object)
+// Set/Get the loging mask (only used by clients of this object)
 //
 void setMsgMask(int mask) {msgMask = mask;}
+
+int  getMsgMask()         {return msgMask;}
 
 // SetPrefix() dynamically changes the error prefix
 //

@@ -1,4 +1,5 @@
-from distutils.core import setup, Extension
+from setuptools import setup
+from distutils.core import Extension
 from distutils import sysconfig
 from os import getenv, walk, path, path, getcwd, chdir
 from platform import system

@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --builddirectory=build --destdir=deb_packages
+
+override_dh_auto_configure:
+	dh_auto_configure -- -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_LIBDIR=lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+override_dh_install:
+	install -D -m 644 packaging/common/client.conf deb_packages/etc/xrootd/client.conf
+	install -D -m 644 packaging/common/client-plugin.conf.example deb_packages/etc/xrootd/client.plugins.d/client-plugin.conf.example
+	dh_install --sourcedir=deb_packages

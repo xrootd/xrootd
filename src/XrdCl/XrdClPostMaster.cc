@@ -188,14 +188,18 @@ namespace XrdCl
     if( !channel )
       return Status( stError, errNotSupported );
 
-    VirtualRedirector *redirector = 0;
-    if( dynamic_cast<VirtualMessage*>( msg ) )
-    {
-      RedirectorRegistry &registry   = RedirectorRegistry::Instance();
-      redirector = registry.Get( url );
-    }
+    return channel->Send( msg, handler, stateful, expires );
+  }
 
-    return channel->Send( msg, handler, stateful, expires, redirector );
+  Status PostMaster::Redirect( const URL          &url,
+                               Message            *msg,
+                               IncomingMsgHandler *inHandler )
+  {
+    RedirectorRegistry &registry  = RedirectorRegistry::Instance();
+    VirtualRedirector *redirector = registry.Get( url );
+    if( !redirector )
+      return Status( stError, errInvalidOp );
+    return redirector->HandleRequest( msg, inHandler );
   }
 
   //----------------------------------------------------------------------------
@@ -271,6 +275,24 @@ namespace XrdCl
       return Status( stError, errNotSupported );
 
     channel->RemoveEventHandler( handler );
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Shut down a channel
+  //------------------------------------------------------------------------
+  Status PostMaster::ForceDisconnect( const URL &url )
+  {
+    XrdSysMutexHelper scopedLock( pChannelMapMutex );
+    ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
+
+    if( it == pChannelMap.end() )
+      return Status( stError, errInvalidOp );
+
+    it->second->ForceDisconnect();
+    delete it->second;
+    pChannelMap.erase( it );
+
     return Status();
   }
 

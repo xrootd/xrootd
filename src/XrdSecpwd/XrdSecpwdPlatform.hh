@@ -31,7 +31,7 @@
 //
 // crypt
 //
-#if defined(__solaris__)
+#if defined(__linux__) || defined(__solaris__)
 #include <crypt.h>
 #endif
 #if defined(__osf__) || defined(__sgi) || defined(__APPLE__)

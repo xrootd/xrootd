@@ -31,11 +31,14 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucN2NLoader.hh"
 #include "XrdVersion.hh"
 #include "XrdCeph/XrdCephOss.hh"
 #include "XrdCeph/XrdCephOssDir.hh"
 #include "XrdCeph/XrdCephOssFile.hh"
 
+XrdVERSIONINFO(XrdOssGetStorageSystem, XrdCephOss);
 
 XrdSysError XrdCephEroute(0);
 XrdOucTrace XrdCephTrace(&XrdCephEroute);
@@ -46,6 +49,11 @@ static void logwrapper(char *format, va_list argp) {
   vsnprintf(g_logstring, 1024, format, argp);
   XrdCephEroute.Say(g_logstring);
 }
+
+/// pointer to library providing Name2Name interface. 0 be default
+/// populated in case of ceph.namelib entry in the config file
+/// used in XrdCephPosix
+extern XrdOucName2Name *g_namelib;
 
 extern "C"
 {
@@ -62,17 +70,19 @@ extern "C"
     // set parameters
     try {
       ceph_posix_set_defaults(parms);
-    } catch (std::exception e) {
+    } catch (std::exception &e) {
       XrdCephEroute.Say("CephOss loading failed with exception. Check the syntax of parameters : ", parms);
       return 0;
     }
     // deal with logging
     ceph_posix_set_logfunc(logwrapper);
-    return new XrdCephOss();
+    return new XrdCephOss(config_fn, XrdCephEroute);
   }
 }
 
-XrdCephOss::XrdCephOss() {}
+XrdCephOss::XrdCephOss(const char *configfn, XrdSysError &Eroute) {
+  Configure(configfn, Eroute);
+}
 
 XrdCephOss::~XrdCephOss() {
   ceph_posix_disconnect_all();
@@ -80,7 +90,7 @@ XrdCephOss::~XrdCephOss() {
 
 // declared and used in XrdCephPosix.cc
 extern unsigned int g_maxCephPoolIdx;
-int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute, XrdOucEnv *envP) {
+int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
    int NoGo = 0;
    XrdOucEnv myEnv;
    XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
@@ -102,13 +112,31 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute, XrdOucEnv *
            unsigned long value = strtoul(var, 0, 10);
            if (value > 0 and value <= 100) {
              g_maxCephPoolIdx = value;
-             break;
            } else {
              Eroute.Emsg("Config", "Invalid value for ceph.nbconnections in config file (must be between 1 and 100)", configfn, var);
              return 1;
            }
          } else {
            Eroute.Emsg("Config", "Missing value for ceph.nbconnections in config file", configfn);
+           return 1;
+         }
+       }
+       if (!strncmp(var, "ceph.namelib", 12)) {
+         var = Config.GetWord();
+         if (var) {
+           // Warn in case parameters were givne
+           char parms[1040];
+           if (!Config.GetRest(parms, sizeof(parms)) || parms[0]) {
+             Eroute.Emsg("Config", "namelib parameters will be ignored");
+           }
+           // Load name lib
+           XrdOucN2NLoader n2nLoader(&Eroute,configfn,NULL,NULL,NULL);
+           g_namelib = n2nLoader.Load(var, XrdVERSIONINFOVAR(XrdOssGetStorageSystem), NULL);
+           if (!g_namelib) {
+             Eroute.Emsg("Config", "Unable to load library given in ceph.namelib : %s", var);
+           }
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.namelib in config file", configfn);
            return 1;
          }
        }
@@ -165,7 +193,7 @@ int XrdCephOss::Stat(const char* path,
     } else {
       return ceph_posix_stat(env, path, buff);
     }
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephEroute.Say("stat : invalid syntax in file parameters");
     return -EINVAL;
   }
@@ -200,7 +228,7 @@ int XrdCephOss::Truncate (const char* path,
                           XrdOucEnv* env) {
   try {
     return ceph_posix_truncate(env, path, size);
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephEroute.Say("truncate : invalid syntax in file parameters");
     return -EINVAL;
   }
@@ -209,7 +237,7 @@ int XrdCephOss::Truncate (const char* path,
 int XrdCephOss::Unlink(const char *path, int Opts, XrdOucEnv *env) {
   try {
     return ceph_posix_unlink(env, path);
-  } catch (std::exception e) {
+  } catch (std::exception &e) {
     XrdCephEroute.Say("unlink : invalid syntax in file parameters");
     return -EINVAL;
   }
@@ -223,4 +251,3 @@ XrdOssDF* XrdCephOss::newFile(const char *tident) {
   return new XrdCephOssFile(this);
 }
 
-XrdVERSIONINFO(XrdOssGetStorageSystem, XrdCephOss);

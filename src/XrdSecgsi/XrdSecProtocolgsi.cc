@@ -38,9 +38,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <iostream>
 
 #include "XrdVersion.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -49,9 +51,9 @@
 #include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdSut/XrdSutAux.hh"
-#include "XrdSut/XrdSutCache.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptoX509Req.hh"
 
 #include "XrdSecgsi/XrdSecProtocolgsi.hh"
@@ -119,7 +121,12 @@ static const char *gGSErrStr[] = {
 
 // One day in secs
 static const int kOneDay = 86400; 
+// Default proxy location template
 static const char *gUsrPxyDef = "/tmp/x509up_u";
+// Tag for pad support
+static const char *gNoPadTag = "nopad";
+// static const char *gPadTag = "&pad";
+
 
 /******************************************************************************/
 /*                     S t a t i c   C l a s s   D a t a                      */
@@ -163,6 +170,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::VOMSFun = 0;
 int    XrdSecProtocolgsi::VOMSCertFmt = -1;
 int    XrdSecProtocolgsi::MonInfoOpt = 0;
 bool   XrdSecProtocolgsi::HashCompatibility = 1;
+bool   XrdSecProtocolgsi::TrustDNS = true;
 //
 // Crypto related info
 int  XrdSecProtocolgsi::ncrypt    = 0;                 // Number of factories
@@ -172,12 +180,11 @@ String XrdSecProtocolgsi::cryptName[XrdCryptoMax] = {0}; // their names
 XrdCryptoCipher *XrdSecProtocolgsi::refcip[XrdCryptoMax] = {0};    // ref for session ciphers 
 //
 // Caches
-XrdSutCache XrdSecProtocolgsi::cacheCA;   // CA info
-XrdSutCache XrdSecProtocolgsi::cacheCert; // Server certificates info
-XrdSutCache XrdSecProtocolgsi::cachePxy;  // Client proxies
-XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
-XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
-XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
+XrdSutCache  XrdSecProtocolgsi::cacheCA; // Server certificates info cache (default size 144)
+XrdSutCache  XrdSecProtocolgsi::cacheCert(8,13); // Server certificates info cache (Fibonacci-based sizes)
+XrdSutCache  XrdSecProtocolgsi::cachePxy(8,13);  // Client proxies cache (Fibonacci-based sizes)
+XrdSutCache  XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun (default size 144)
+XrdSutCache  XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun (default size 144)
 //
 // Services
 XrdOucGMap *XrdSecProtocolgsi::servGMap = 0; // Grid map service
@@ -256,6 +263,7 @@ void gsiHSVars::Dump(XrdSecProtocolgsi *p)
    PRINT("Crypto mod:          "<<CryptoMod);
    PRINT("Remote version:      "<<RemVers);
    PRINT("Ref cipher:          "<<Rcip);
+   PRINT("Cipher padding:      "<<HasPad);
    PRINT("Bucket for exp cert: "<<Cbck);
    PRINT("Handshake ID:        "<<ID);
    PRINT("Cache reference:     "<<Cref);
@@ -295,9 +303,54 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    }
 
    // Set host name and address
-      Entity.host = strdup(endPoint.Name("*unknown*"));
-      epAddr = endPoint;
-      Entity.addrInfo = &epAddr;
+   // The hostname is critical for the GSI protocol; it must match the potential
+   // names on the remote EEC.  We default to the hostname requested by the user to
+   // the client (or proxy).  However, as we may have been redirected to an IP
+   // address instead of an actual hostname, we must fallback to a reverse DNS lookup.
+   // As of time of testing (June 2018), EOS will redirect to an IP address to handle
+   // metadata commands and rely on the reverse DNS lookup for GSI security to function.
+   // Hence, this fallback likely needs to be kept for some time.
+   //
+   // We provide servers a switch and clients an environment variable to override all
+   // usage of DNS (processed on XrdSecProtocolgsiInit).
+   // Default is to fallback to DNS lookups in limited
+   // cases for backward compatibility.
+   expectedHost = NULL;
+   if (TrustDNS) {
+      if (!hname || !XrdNetAddrInfo::isHostName(hname)) {
+         Entity.host = strdup(endPoint.Name(""));
+      } else {
+         // At this point, hname still may possibly be a non-qualified domain name.
+         // If there is a '.' character, then we assume it is a qualified domain name --
+         // otherwise, we use DNS.
+         //
+         // NOTE: We can definitively test whether this is a qualified domain name by
+         // simply appending a '.' to `hname` and performing a lookup.  However, this
+         // causes DNS to be used by every lookup - meaning we rely on the security
+         // of DNS for all cases; we want to avoid this.
+         if (strchr(hname, '.')) {
+             // We have a valid hostname; proceed.
+             Entity.host = strdup(hname);
+         } else {
+             XrdNetAddr xrd_addr;
+             char canonname[256];
+             if (!xrd_addr.Set(hname) || (xrd_addr.Format(canonname, 256, XrdNetAddrInfo::fmtName, XrdNetAddrInfo::noPort) <= 0)) {
+                 Entity.host = strdup(hname);
+             } else {
+                 Entity.host = strdup(canonname);
+             }
+         }
+      }
+   } else {
+      // We have been told via environment variable to not trust DNS; use the exact
+      // hostname provided by the user.
+//    char dnBuff[256];
+//    getdomainname(dnBuff, sizeof(dnBuff));
+      Entity.host = strdup(hname);
+      expectedHost = strdup(hname);
+   }
+   epAddr = endPoint;
+   Entity.addrInfo = &epAddr;
 
    // Init session variables
    sessionCF = 0;
@@ -308,10 +361,11 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    sessionKver = 0;
    sessionKver = 0;
    proxyChain = 0;
+   useIV = false;
 
    //
    // Notify, if required
-   DEBUG("constructing: host: "<<hname);
+   DEBUG("constructing: host: "<< Entity.host);
    DEBUG("p: "<<XrdSecPROTOIDENT<<", plen: "<<XrdSecPROTOIDLEN);
    //
    // basic settings
@@ -509,6 +563,11 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    DEBUG("CRL information refreshed every "<<CRLRefresh<<" secs");
 
    //
+   // Honour trust / unstrust DNS settings (switch or env)
+   TrustDNS = opt.trustdns;
+   DEBUG("trust DNS option: "<<TrustDNS);
+
+   //
    // Server specific options
    if (Server) {
       //
@@ -517,15 +576,16 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          DefCrypto = opt.clist;
       //
       // List of crypto modules
-      String cryptlist(DefCrypto,0,-1,64);
+      String cryptlist;
+      String crypts(DefCrypto,0,-1,64);
       // 
       // Load crypto modules
       XrdSutPFEntry ent;
       XrdCryptoFactory *cf = 0;
-      if (cryptlist.length()) {
+      if (crypts.length()) {
          String ncpt = "";
          int from = 0;
-         while ((from = cryptlist.tokenize(ncpt, from, '|')) != -1) {
+         while ((from = crypts.tokenize(ncpt, from, '|')) != -1) {
             if (ncpt.length() > 0 && ncpt[0] != '-') {
                // Try loading 
                if ((cf = XrdCryptoFactory::GetCryptoFactory(ncpt.c_str()))) {
@@ -540,7 +600,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                      PRINT("ref cipher for module "<<ncpt<<
                            " cannot be instantiated : disable");
                      from -= ncpt.length();
-                     cryptlist.erase(ncpt);
                   } else {
                      ncrypt++;
                      if (ncrypt >= XrdCryptoMax) {
@@ -548,12 +607,14 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                               << XrdCryptoMax <<") reached ");
                         break;
                      }
+                     if (cryptlist.length()) cryptlist += ":";
+                     cryptlist += ncpt;
+                     if (!cf->HasPaddingSupport()) cryptlist += gNoPadTag;
                   }
                } else {
                   PRINT("cannot instantiate crypto factory "<<ncpt<<
                            ": disable");
                   from -= ncpt.length();
-                  cryptlist.erase(ncpt);
                }
             }
          }
@@ -562,13 +623,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       // We need at least one valid crypto module
       if (ncrypt <= 0) {
          ErrF(erp,kGSErrInit,"could not find any valid crypto module");
-         PRINT(erp->getErrText());
-         return Parms;
-      }
-      //
-      // Init CA info cache
-      if (cacheCA.Init(100) != 0) {
-         ErrF(erp,kGSErrError,"problems initializing CA info cache");
          PRINT(erp->getErrText());
          return Parms;
       }
@@ -637,36 +691,25 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       if (access(SrvKey.c_str(), R_OK)) {
          PRINT("WARNING: process has no permission to read the certificate key file: "<<SrvKey);
       }
-      //
-      // Init cache for certificates (we allow for more instances of
-      // the same certificate, one for each different crypto module
-      // available; this may evetually not be strictly needed.)
-      if (cacheCert.Init(10) != 0) {
-         ErrF(erp,kGSErrError,"problems init cache for certificates");
-         PRINT(erp->getErrText());
-         return Parms;
-      }
       int i = 0;
       String certcalist = "";   // list of CA for server certificates
-      XrdSutCacheRef pfeRef;
+      XrdSutCERef ceref;
       for (; i<ncrypt; i++) {
-         if (!GetSrvCertEnt(pfeRef, cryptF[i], time(0), certcalist)) {
+         if (!GetSrvCertEnt(ceref, cryptF[i], time(0), certcalist)) {
             PRINT("problems loading srv cert");
-            pfeRef.UnLock();
+            ceref.UnLock();
             continue;
          }
       }
       // Rehash cache
-      pfeRef.UnLock();
-      cacheCert.Rehash(1);
+      ceref.UnLock();
       //
       // We must have got at least one valid certificate
-      if (cacheCert.Empty()) {
+      if (cacheCert.Num() <= 0) {
          ErrF(erp,kGSErrError,"no valid server certificate found");
          PRINT(erp->getErrText());
          return Parms;
       }
-      if (QTRACE(Authen)) { cacheCert.Dump(); }
 
       DEBUG("CA list: "<<certcalist);
 
@@ -731,21 +774,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
             return Parms;
          } else {
             hasgmapfun = 1;
-            // Init or reset the cache
-            if (cacheGMAPFun.Empty()) {
-               if (cacheGMAPFun.Init(100) != 0) {
-                  ErrF(erp, kGSErrError, "Internal cache for the GMAP plug-in failed to initialize"); 
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
-            } else {
-               if (cacheGMAPFun.Reset() != 0) {
-                  PRINT("Error resetting GMAPFun cache");
-                  ErrF(erp, kGSErrError, "Internal cache for the GMAP plug-in failed to reset"); 
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
-            }
          }
       }
       //
@@ -777,20 +805,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
             } else {
                NOTIFY("authzfun: proxy certificate format: unknown (code: "<<AuthzCertFmt<<")");
             }
-            // Init or reset the cache
-            if (cacheAuthzFun.Empty()) {
-               if (cacheAuthzFun.Init(100) != 0) {
-                  ErrF(erp, kGSErrError, "Internal cache for authz plug-in failed to initialize"); 
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
-            } else {
-               if (cacheAuthzFun.Reset() != 0) {
-                  ErrF(erp, kGSErrError, "Internal cache for authz plug-in failed to reset"); 
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
-            }
             // Expiration of Authz related cache entries
             if (opt.authzto > 0) {
                AuthzCacheTimeOut = opt.authzto;
@@ -804,15 +818,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          GMAPCacheTimeOut = opt.gmapto;
          DEBUG("grid-map cache entries expire after "<<GMAPCacheTimeOut<<" secs");
       }
-
-      //
-      // Request for delegated proxies
-      if (opt.dlgpxy == 1 || opt.dlgpxy == 3)
-         PxyReqOpts |= kOptsSrvReq;
-      if (opt.dlgpxy == 2 || opt.dlgpxy == 3)
-         PxyReqOpts |= kOptsPxFile;
-      // Some notification
-      DEBUG("Delegated proxies options: "<<PxyReqOpts);
 
       //
       // Request for proxy export for authorization
@@ -838,19 +843,37 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
 
       //
-      // Template for the created proxy files
-      if ((PxyReqOpts & kOptsPxFile)) {
-         String TmpProxy = gUsrPxyDef;
-         if (opt.exppxy) TmpProxy = opt.exppxy;
-         if (XrdSutExpand(TmpProxy) == 0) {
-            UsrProxy = TmpProxy;
-         } else {
-            UsrProxy = gUsrPxyDef;
-            UsrProxy += "u<uid>";
+      // Handle delegated proxies options
+      if (opt.dlgpxy == -1) {
+        // Will not accept any delegated proxies
+        DEBUG("Will not accept delegated proxies");
+      } else {
+        // Ask the client to sign a delegated proxy; client may decide to forward its proxy
+        if (opt.dlgpxy == 1)
+           PxyReqOpts |= kOptsSrvReq;
+
+        // Exporting options (default none: delegated proxy kept in memory, in proxyChain) 
+        if (opt.exppxy) {
+           if (!strcmp(opt.exppxy, "=creds")) {
+              // register the delegated proxy in Entity.creds (in HEX format)
+              PxyReqOpts |=  kOptsPxCred;
+              DEBUG("Delegated proxy saved in Entity.creds ");
+           } else {
+              String TmpProxy = gUsrPxyDef;
+              if (strcmp(opt.exppxy, "=default"))
+                 TmpProxy = opt.exppxy;
+              if (XrdSutExpand(TmpProxy) == 0) {
+                 UsrProxy = TmpProxy;
+              } else {
+                 UsrProxy = gUsrPxyDef;
+                 UsrProxy += "u<uid>";
+              }
+              DEBUG("File template for delegated proxy: "<<UsrProxy);
+           }
          }
-         DEBUG("Template for exported proxy files: "<<UsrProxy);
+         DEBUG("Delegated proxies options: "<<PxyReqOpts);
       }
-      
+
       //
       // VOMS attributes switch
       // vomsat = 0  do not look for
@@ -909,22 +932,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    //
    // Client specific options
    if (!Server) {
-      //
-      // Init cache for CA certificate info. Clients will fill it
-      // upon need
-      if (cacheCA.Init(100) != 0) {
-         ErrF(erp,kGSErrError,"problems init cache for CA info");
-         PRINT(erp->getErrText());
-         return Parms;
-      }
-      //
-      // Init cache for proxies (in the future we may allow
-      // users to use more certificates, depending on the context)
-      if (cachePxy.Init(2) != 0) {
-         ErrF(erp,kGSErrError,"problems init cache for proxies");
-         PRINT(erp->getErrText());
-         return Parms;
-      }
       // use default dir $(HOME)/.<prefix>
       struct passwd *pw = getpwuid(getuid());
       if (!pw) {
@@ -979,12 +986,14 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          DefBits = opt.bits;
       //
       // Delegate proxy options
-      if (opt.dlgpxy == 1)
-         PxyReqOpts |= kOptsDlgPxy;
-      if (opt.dlgpxy == 2)
-         PxyReqOpts |= kOptsFwdPxy;
-      if (opt.sigpxy > 0 || opt.dlgpxy == 1)
+      if (opt.dlgpxy > 0) {
          PxyReqOpts |= kOptsSigReq;
+         if (opt.dlgpxy == 2) {
+            PxyReqOpts |= kOptsFwdPxy;
+         } else {
+            PxyReqOpts |= kOptsDlgPxy;
+         }
+      }
       //
       // Define valid CNs for the server certificates; default is null, which means that
       // the server CN must be in the form "*/<hostname>"
@@ -1035,7 +1044,9 @@ void XrdSecProtocolgsi::Delete()
    SafeDelete(sessionMD);     // Message Digest instance
    SafeDelete(sessionKsig);   // RSA key to sign
    SafeDelete(sessionKver);   // RSA key to verify
+   if (proxyChain) proxyChain->Cleanup(1);
    SafeDelete(proxyChain);    // Chain with delegated proxies
+   SafeDelete(expectedHost);
 
    delete this;
 }
@@ -1069,13 +1080,23 @@ int XrdSecProtocolgsi::Encrypt(const char *inbuf,  // Data to be encrypted
    if (!inbuf || inlen <= 0 || !outbuf)
       return -EINVAL;
 
+   // Regenerate IV
+   int liv = 0;
+   char *iv = 0;
+   if (useIV) {
+      iv = sessionKey->RefreshIV(liv);
+      sessionKey->SetIV(liv, iv);
+   }
+
    // Get output buffer
-   char *buf = (char *)malloc(sessionKey->EncOutLength(inlen));
+   char *buf = (char *)malloc(sessionKey->EncOutLength(inlen) + liv);
    if (!buf)
       return -ENOMEM;
+   // IV at beginning
+   memcpy(buf, iv, liv);
 
    // Encrypt
-   int len = sessionKey->Encrypt(inbuf, inlen, buf);
+   int len = sessionKey->Encrypt(inbuf, inlen, buf + liv);
    if (len <= 0) {
       SafeFree(buf);
       return -EINVAL;
@@ -1108,13 +1129,24 @@ int XrdSecProtocolgsi::Decrypt(const char *inbuf,  // Data to be decrypted
    if (!inbuf || inlen <= 0 || !outbuf)
       return -EINVAL;
 
+   // Size
+   int liv = (useIV) ? sessionKey->MaxIVLength() : 0;
+   int sz = inlen - liv;
    // Get output buffer
-   char *buf = (char *)malloc(sessionKey->DecOutLength(inlen));
+   char *buf = (char *)malloc(sessionKey->DecOutLength(sz) + liv);
    if (!buf)
       return -ENOMEM;
 
+   // Get and set IV
+   if (useIV) {
+      char *iv = new char[liv];
+      memcpy(iv, inbuf, liv);
+      sessionKey->SetIV(liv, iv);
+      delete[] iv;
+   }
+
    // Decrypt
-   int len = sessionKey->Decrypt(inbuf, inlen, buf);
+   int len = sessionKey->Decrypt(inbuf + liv, sz, buf);
    if (len <= 0) {
       SafeFree(buf);
       return -EINVAL;
@@ -1404,7 +1436,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    const char *stepstr = 0;
    char *bpub = 0;
    int lpub = 0;
-   String CryptList = "";
+   String CryptoMod = "";
    String Host = "";
    String RemID = "";
    String Emsg;
@@ -1413,6 +1445,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    // Buffer / Bucket related
    XrdSutBuffer *bpar   = 0;  // Global buffer
    XrdSutBuffer *bmai   = 0;  // Main buffer
+   XrdSutBucket *bck    = 0;  // Generic bucket
 
    //
    // Decode received buffer
@@ -1443,6 +1476,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    // Parse input buffer
    if (ParseClientInput(bpar, &bmai, Emsg) == -1) {
       DEBUG(Emsg<<" CF: "<<sessionCF);
+      std::cerr <<"secgsi: " <<Emsg <<'\n' <<std::flush;
       return ErrC(ei,bpar,bmai,0,kGSErrParseBuffer,Emsg.c_str(),stepstr);
    }
    // Dump, if requested
@@ -1473,7 +1507,9 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       //
       // Add bucket with cryptomod to the global list
       // (This must be always visible from now on)
-      if (bpar->AddBucket(hs->CryptoMod,kXRS_cryptomod) != 0)
+      CryptoMod = hs->CryptoMod;
+      if (hs->RemVers >= XrdSecgsiVersDHsigned && !(hs->HasPad)) CryptoMod += gNoPadTag;
+      if (bpar->AddBucket(CryptoMod,kXRS_cryptomod) != 0)
          return ErrC(ei,bpar,bmai,0,
               kGSErrCreateBucket,XrdSutBuckStr(kXRS_cryptomod),stepstr);
       //
@@ -1531,11 +1567,43 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       if (!(bpub = sessionKey->Public(lpub))) 
          return ErrC(ei,bpar,bmai,0,
                      kGSErrNoPublic,"session",stepstr);
+
       //
-      // Add it to the global list
-      if (bpar->UpdateBucket(bpub,lpub,kXRS_puk) != 0)
-         return ErrC(ei,bpar,bmai,0, kGSErrAddBucket,
-                     XrdSutBuckStr(kXRS_puk),"global",stepstr);
+      // If server supports decoding of signed DH, do sign them
+      if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+         bck = new XrdSutBucket(bpub,lpub,kXRS_cipher);
+         if (sessionKsig) {
+            // Encrypt client DH public parameters with client private key
+            if (sessionKsig->EncryptPrivate(*bck) <= 0)
+               return ErrC(ei,bpar,bmai,0, kGSErrExportPuK,
+                                 "encrypting client DH public parameters",stepstr);
+         } else {
+            return ErrC(ei,bpar,bmai,0, kGSErrExportPuK,
+                                 "client signing key undefined!",stepstr);
+         }
+         //
+         // Add it to the global list
+         if (bpar->AddBucket(bck) != 0)
+           return ErrC(ei,bpar,bmai,0, kGSErrAddBucket, "main",stepstr);
+         //
+         // Export client public key
+         XrdOucString cpub;
+         if (sessionKsig->ExportPublic(cpub) < 0)
+            return ErrC(ei,bpar,bmai,0, kGSErrExportPuK,
+                            "exporting client public key",stepstr);
+         // Add it to the global list
+         if (bpar->UpdateBucket(cpub.c_str(),cpub.length(),kXRS_puk) != 0)
+            return ErrC(ei,bpar,bmai,0, kGSErrAddBucket,
+                        XrdSutBuckStr(kXRS_puk),"global",stepstr);
+      } else {
+         //
+         // Add it to the global list
+         if (bpar->UpdateBucket(bpub,lpub,kXRS_puk) != 0)
+            return ErrC(ei,bpar,bmai,0, kGSErrAddBucket,
+                        XrdSutBuckStr(kXRS_puk),"global",stepstr);
+         delete[] bpub; // bpub is being duplicated inside of 'UpdateBucket'
+      }
+
       //
       // Add the proxy certificate
       bmai->AddBucket(hs->Cbck);
@@ -1610,6 +1678,32 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
 /******************************************************************************/
 /*               S e r v e r   O r i e n t e d   M e t h o d s                */
 /******************************************************************************/
+
+//_____________________________________________________________________________
+static bool AuthzFunCheck(XrdSutCacheEntry *e, void *a) {
+
+   int st_ref = (*((XrdSutCacheArg_t *)a)).arg1;
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg2;
+   long to_ref = (*((XrdSutCacheArg_t *)a)).arg3;
+   int st_exp = (*((XrdSutCacheArg_t *)a)).arg4;
+
+   if (e && (e->status == st_ref)) {
+      // Check expiration, if required
+      bool expired = 0;
+      if (to_ref > 0 && (ts_ref - e->mtime) > to_ref) expired = 1;
+      int notafter = *((int *) e->buf2.buf);
+      if (to_ref > notafter) expired = 1;
+
+      if (expired) {
+         // Invalidate the entry, if the case
+         e->status = st_exp;
+      } else {
+         return true;
+      }
+   }
+   return false;
+}
+
 /******************************************************************************/
 /*                          A u t h e n t i c a t e                           */
 /******************************************************************************/
@@ -1622,7 +1716,6 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    // Check if we have any credentials or if no credentials really needed.
    // In either case, use host name as client name
    EPNAME("Authenticate");
-   XrdSutCacheRef pfeRef;
 
    //
    // If cred buffer is two small or empty assume host protocol
@@ -1655,14 +1748,16 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    const char *stepstr = 0;
    String Message;
    String CryptList;
+   String Ciphers;
    String Host;
    String SrvPuKExp;
    String Salt;
    String RndmTag;
    String ClntMsg(256);
    // Buffer related
-   XrdSutBuffer    *bpar = 0;  // Global buffer
-   XrdSutBuffer    *bmai = 0;  // Main buffer
+   XrdSutBuffer *bpar = 0;  // Global buffer
+   XrdSutBuffer *bmai = 0;  // Main buffer
+   XrdSutBucket *bck = 0;  // Generic bucket 
    // Proxy export related
    XrdOucString spxy;
    XrdSutBucket *bpxy = 0;
@@ -1720,17 +1815,37 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
 
    case kXGC_certreq:
       //
-      // Client required us to send our certificate and cipher public part:
+      // Client required us to send our certificate and cipher DH public parameters:
       // add first this last one.
       // Extract buffer with public info for the cipher agreement
       if (!(bpub = hs->Rcip->Public(lpub))) 
          return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrNoPublic,
                                          "session",stepstr);
+
+      // If client supports decoding of signed DH, do sign them
+      if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+         bck = new XrdSutBucket(bpub,lpub,kXRS_cipher);
+         if (sessionKsig) {
+            //
+            // Encrypt server DH public parameters with server key
+            if (sessionKsig->EncryptPrivate(*bck) <= 0)
+               return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrExportPuK,
+                                 "encrypting server DH public parameters",stepstr);
+         } else {
+            return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrExportPuK,
+                                 "server signing key undefined!",stepstr);
+         }
+      } else {
+         // Previous naming
+         bck = new XrdSutBucket(bpub,lpub,kXRS_puk);
+      }
+
       //
       // Add it to the global list
-      if (bpar->AddBucket(bpub,lpub,kXRS_puk) != 0)
+      if (bpar->AddBucket(bck) != 0)
          return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrAddBucket,
                                             "main",stepstr);
+
       //
       // Add bucket with list of supported ciphers
       if (bpar->AddBucket(DefCipher,kXRS_cipher_alg) != 0)
@@ -1831,6 +1946,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                // PEM base64
                bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
+               delete bpxy;
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
             } else {
@@ -1866,16 +1982,19 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          // Fill the information needed by the external function
          if (AuthzCertFmt == 1) {
             // May have been already done
-            if (!Entity.creds || Entity.credslen == 0) {
+            if (!Entity.creds || (Entity.creds && Entity.credslen == 0)) {
                // PEM base64
                bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
+               // If not empty Entity.creds is a pointer to hs->Chain and
+               // we need not to free it
             }
          } else {
             // May have been already done
-            if (!Entity.creds || Entity.credslen > 0) {
+            if (Entity.creds && Entity.credslen > 0) {
+               // Entity.creds is in PEM form, we need to free it
                free(Entity.creds);
                // Raw (opaque) format, to be used with XrdCrypto
                Entity.creds = (char *) hs->Chain;
@@ -1894,56 +2013,51 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          const char *dn = (const char *)key;
          time_t now = hs->TimeStamp;
          // We may have it in the cache
-         XrdSutPFEntry *cent = cacheAuthzFun.Get(pfeRef, dn);
-         // Check expiration, if required
-         if (cent) {
-            bool expired = 0;
-            if (AuthzCacheTimeOut > 0 && (now - cent->mtime) > AuthzCacheTimeOut) expired = 1;
-            int notafter = *((int *) cent->buf2.buf);
-            if (now > notafter) expired = 1;
-            // Invalidate the entry, if the case
-            if (expired) {
-               FreeEntity((XrdSecEntity *) cent->buf1.buf);
-               SafeDelete(cent->buf1.buf);
-               SafeDelete(cent->buf2.buf);
-               cent->status = kPFE_disabled; // Prevent use after unlock!
-               pfeRef.UnLock();              // Discarding cent!
-               cacheAuthzFun.Remove(dn);
-               cent = 0;
-            }
+         XrdSutCERef ceref;
+         bool rdlock = false;
+         XrdSutCacheArg_t arg = {kCE_ok, now, AuthzCacheTimeOut, kCE_disabled};
+         XrdSutCacheEntry *cent = cacheAuthzFun.Get(dn, rdlock, AuthzFunCheck, (void *) &arg);
+         if (!cent) {
+            // Fatal error
+            kS_rc = kgST_error;
+            PRINT("ERROR: unable to get cache entry for dn: "<<dn);
+            break;
          }
-         if (!cent || (cent && (cent->status != kPFE_ok))) {
+         ceref.Set(&(cent->rwmtx));
+         if (!rdlock) {
+            if (cent->buf1.buf)
+               FreeEntity((XrdSecEntity *) cent->buf1.buf);
+            SafeDelete(cent->buf1.buf);
+            SafeDelete(cent->buf2.buf);
+         }
+         if (cent->status != kCE_ok) {
             int authzrc = 0;
             if ((authzrc = (*AuthzFun)(Entity)) != 0) {
                // Error
                kS_rc = kgST_error;
                PRINT("ERROR: the authorization plug-in reported a failure for this handshake");
                SafeDelete(key);
+               ceref.UnLock();
                break;
             } else {
-               if ((cent = cacheAuthzFun.Add(pfeRef, dn))) {
-                  cent->status = kPFE_ok;
-                  // Save a copy of the relevant Entity fields
-                  XrdSecEntity *se = new XrdSecEntity();
-                  int slen = 0;
-                  CopyEntity(&Entity, se, &slen);
-                  FreeEntity((XrdSecEntity *) cent->buf1.buf);
-                  SafeDelete(cent->buf1.buf);
-                  cent->buf1.buf = (char *) se;
-                  cent->buf1.len = slen;
-                  // Proxy expiration time
-                  int notafter = hs->Chain->End() ? hs->Chain->End()->NotAfter() : -1;
-                  cent->buf2.buf = (char *) new int(notafter);
-                  cent->buf2.len = sizeof(int);
-                  // Fill up the rest
-                  cent->cnt = 0;
-                  cent->mtime = now; // creation time
-                  // Rehash cache
-                  pfeRef.UnLock();   // cent can no longer be used
-                  cacheAuthzFun.Rehash(1);
-                  // Notify
-                  DEBUG("Saved Entity to cacheAuthzFun ("<<slen<<" bytes)");
-               }
+               cent->status = kCE_ok;
+               // Save a copy of the relevant Entity fields
+               XrdSecEntity *se = new XrdSecEntity();
+               int slen = 0;
+               CopyEntity(&Entity, se, &slen);
+               FreeEntity((XrdSecEntity *) cent->buf1.buf);
+               SafeDelete(cent->buf1.buf);
+               cent->buf1.buf = (char *) se;
+               cent->buf1.len = slen;
+               // Proxy expiration time
+               int notafter = hs->Chain->End() ? hs->Chain->End()->NotAfter() : -1;
+               cent->buf2.buf = (char *) new int(notafter);
+               cent->buf2.len = sizeof(int);
+               // Fill up the rest
+               cent->cnt = 0;
+               cent->mtime = now; // creation time
+               // Notify
+               DEBUG("Saved Entity to cacheAuthzFun ("<<slen<<" bytes)");
             }
          } else {
             // Fetch a copy of the saved entity
@@ -1953,6 +2067,8 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             // Notify
             DEBUG("Got Entity from cacheAuthzFun ("<<slen<<" bytes)");
          }
+         // Release lock
+         ceref.UnLock();
          // Cleanup
          SafeDelArray(key);
       }
@@ -2281,6 +2397,11 @@ void gsiOptions::Print(XrdOucTrace *t)
    POPTS(t, " Crypto modules: "<< (clist ? clist : XrdSecProtocolgsi::DefCrypto));
    POPTS(t, " Ciphers: "<< (cipher ? cipher : XrdSecProtocolgsi::DefCipher));
    POPTS(t, " MDigests: "<< (md ? md : XrdSecProtocolgsi::DefMD));
+   if (trustdns) {
+      POPTS(t, " Trusting DNS for hostname checking");
+   } else {
+      POPTS(t, " Untrusting DNS for hostname checking");
+   }
    POPTS(t, "*** ------------------------------------------------------------ ***");
 }
 
@@ -2345,11 +2466,9 @@ char *XrdSecProtocolgsiInit(const char mode,
       //                                      2 require,
       //                                      3 require non-expired CRL
       //             "XrdSecGSIDELEGPROXY"   Forwarding of credentials option:
-      //                                     0 none; 1 sign request created
+      //                                     0 deny; 1 sign request created
       //                                     by server; 2 forward local proxy
-      //                                     (include private key) [0]
-      //             "XrdSecGSISIGNPROXY"    permission to sign requests
-      //                                     0 no, 1 yes [1]
+      //                                     (include private key) [1]
       //             "XrdSecGSISRVNAMES"     Server names allowed: if the server CN
       //                                     does not match any of these, or it is
       //                                     explicitely denied by these, or it is
@@ -2439,11 +2558,6 @@ char *XrdSecProtocolgsiInit(const char mode,
       if (cenv)
          opts.dlgpxy = atoi(cenv);
 
-      // Sign delegate proxy requests
-      cenv = getenv("XrdSecGSISIGNPROXY");
-      if (cenv)
-         opts.sigpxy = atoi(cenv);
-
       // Allowed server name formats
       cenv = getenv("XrdSecGSISRVNAMES");
       if (cenv)
@@ -2453,6 +2567,10 @@ char *XrdSecProtocolgsiInit(const char mode,
       cenv = getenv("XrdSecGSIUSEDEFAULTHASH");
       if (cenv)
          opts.hashcomp = 0;
+
+      // DNS trusting control
+      if ((cenv = getenv("XrdSecGSITRUSTDNS")))
+         opts.trustdns = (!strcmp(cenv, "0")) ? false : true;
 
       //
       // Setup the object with the chosen options
@@ -2520,6 +2638,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-vomsfun:<voms_function>]
       //              [-vomsfunparms:<voms_function_init_parameters>]
       //              [-defaulthash]
+      //              [-trustdns:<0|1>]
       //
       int debug = -1;
       String clist = "";
@@ -2549,6 +2668,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int vomsat = 1;
       int moninfo = 0;
       int hashcomp = 1;
+      int trustdns = 1;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -2612,6 +2732,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                moninfo = atoi(op+9);
             } else if (!strcmp(op, "-defaulthash")) {
                hashcomp = 0;
+            } else if (!strncmp(op, "-trustdns:",10)) {
+               trustdns = atoi(op+10);
             } else {
                PRINT("ignoring unknown switch: "<<op);
             }
@@ -2628,11 +2750,12 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.ogmap = ogmap;
       opts.gmapto = gmapto;
       opts.authzto = authzto;
-      opts.dlgpxy = dlgpxy;
+      opts.dlgpxy = (dlgpxy >= 0 && dlgpxy <= 1) ? dlgpxy : 0;
       opts.authzpxy = authzpxy;
       opts.vomsat = vomsat;
       opts.moninfo = moninfo;
       opts.hashcomp = hashcomp;
+      opts.trustdns = (trustdns <= 0) ? false : true;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)
@@ -2813,7 +2936,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    //
    // Encrypted the bucket
    if (cip) {
-      if (cip->Encrypt(*bck) == 0) {
+      if (cip->Encrypt(*bck, useIV) == 0) {
          PRINT("error encrypting bucket - cipher "
                <<" - type: "<<XrdSutBuckStr(type));
          return -1;
@@ -2896,6 +3019,12 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
       hs->RemVers = Version;
       emsg = "server version information not found in options:"
              " assume same as local";
+   }
+   // Set use IV depending on the remote version
+   useIV = false;
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // Supports setting a unique IV in enc/dec operations
+      useIV = true;
    }
    //
    // Create cache
@@ -3019,35 +3148,22 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       // Parse the list
       int from = 0;
       while ((from = ciplist.tokenize(cip, from, ':')) != -1) {
-         if (cip.length() > 0) 
+         if (cip.length() > 0)
             if (sessionCF->SupportedCipher(cip.c_str()))
                break;
          cip = "";
       }
-      if (cip.length() > 0)
-         // COmmunicate to server
-         br->UpdateBucket(cip, kXRS_cipher_alg);
+      // Must have a common cipher algorithm
+      if (cip.length() <= 0) {
+         emsg = "no common cipher algorithm";
+         hs->Chain = 0;
+         return -1;
+      }
    } else {
       NOTIFY("WARNING: list of ciphers supported by server missing"
             " - using default");
    }
 
-   //
-   // Extract server public part for session cipher
-   if (!(bck = br->GetBucket(kXRS_puk))) {
-      emsg = "server public part for session cipher missing";
-      hs->Chain = 0;
-      return -1;
-   }
-   //
-   // Initialize session cipher
-   SafeDelete(sessionKey);
-   if (!(sessionKey =
-         sessionCF->Cipher(0,bck->buffer,bck->size,cip.c_str()))) {
-            PRINT("could not instantiate session cipher "
-                  "using cipher public info from server");
-            emsg = "could not instantiate session cipher ";
-   }
    //
    // Extract server certificate
    if (!(bck = br->GetBucket(kXRS_x509))) {
@@ -3089,10 +3205,56 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       return -1;
    }
    //
-   // Verify server identity
-   if (!ServerCertNameOK(hs->Chain->End()->Subject(), emsg)) {
-      return -1;
-   }
+   // Verify server identity using RFC2818 method
+   //
+   
+   // First we check the SAN. If the check succeeds then we are all done.
+   // Otherwise, if there is no SAN extension or if trustDNS is in effect,
+   // we check if the common name matches.
+   //
+   DEBUG("Checking cert is for host " <<Entity.host);
+
+   bool hasSAN, usedDNS = false;
+   const char *wantHost = (Entity.host ? Entity.host : "");
+
+   if (!hs->Chain->End()->MatchesSAN(Entity.host, hasSAN))
+      {if (hasSAN && !TrustDNS)
+          {emsg = "Unable to verify server hostname '"; emsg += wantHost;
+           emsg+= "' using SAN extension; common name fallback disallowed.";
+           return -1;
+          }
+       // If the common name check fails, TrustDNS allows fallback
+       if (!ServerCertNameOK(hs->Chain->End()->Subject(),Entity.host,emsg))
+          {if (!TrustDNS || Entity.addrInfo == 0 || expectedHost)
+              {emsg = "Unable to verify server hostname '"; emsg += wantHost;
+               emsg+= "' using common name; DNS fallback prohibited.";
+               return -1;
+              } 
+           // Use DNS to resolve possible alias name
+           const char *name = Entity.addrInfo->Name();
+           if (name == NULL)
+              {emsg = "Unable to verify server hostname '"; emsg += wantHost;
+               emsg+= "'; DNS fallback translation failed.";
+               return -1;
+              }
+           DEBUG("TrustDNS: checking if cert is for host " <<name);
+           usedDNS = true;
+           bool hostOK = ServerCertNameOK(hs->Chain->End()->Subject(),name,emsg)
+                      || (hasSAN && !hs->Chain->End()->MatchesSAN(name,hasSAN));
+           if (!hostOK) return -1;
+          }
+      }
+
+   // If we used the DNS then we must prohibit proxy delegation of any kind
+   //
+   if (usedDNS)
+      {if (hs->Options & (kOptsFwdPxy | kOptsSigReq))
+          {hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
+           std::cerr <<"secgsi: proxy delegation forbidden when trusting DNS!\n"
+                     <<std::flush;
+          }
+      }
+
    //
    // Extract the server key
    sessionKver = sessionCF->RSA(*(hs->Chain->End()->PKI()));
@@ -3100,9 +3262,70 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       emsg = "server certificate contains an invalid key";
       return -1;
    }
+   // Move next part to here, after sessionKver set, in order to
+   // verify the signature of DH parameters
+
+   //
+   // If client supports decoding of signed DH, do sign them
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+
+      // Extract server public part for session cipher
+      if (!(bck = br->GetBucket(kXRS_cipher))) {
+         emsg = "server public part for session cipher missing";
+         hs->Chain = 0;
+         return -1;
+      }
+
+      // Encrypt server DH public parameters with server key
+      if (sessionKver->DecryptPublic(*bck) <= 0) {
+         emsg = "decrypting server DH public parameters";
+         return -1;
+      }
+   } else {
+
+      // Extract server public part for session cipher
+      if (!(bck = br->GetBucket(kXRS_puk))) {
+         emsg = "server public part for session cipher missing";
+         hs->Chain = 0;
+         return -1;
+      }
+
+      // If the server doesn't provide signed DH parameter, disable proxy delegation
+      if (hs->Options & (kOptsFwdPxy | kOptsSigReq)) {
+         hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
+         PRINT("no signed DH parameters from " << Entity.host
+               << ". Will not delegate x509 proxy to it");
+      }
+   }
+
+   //
+   // Initialize session cipher
+   SafeDelete(sessionKey);
+   if (!(sessionKey =
+         sessionCF->Cipher(hs->HasPad, 0,bck->buffer,bck->size,cip.c_str())) || !(sessionKey->IsValid())) {
+      PRINT("could not instantiate session cipher "
+            "using cipher public info from server");
+      emsg = "could not instantiate session cipher ";
+      return -1;
+   }
+
+   //
+   // Communicate the cipher name to server
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // Including the length of the IV if supported
+      String cipiv;
+      String::form(cipiv, "%s#%d", cip.c_str(), sessionKey->MaxIVLength());
+      br->UpdateBucket(cipiv, kXRS_cipher_alg);
+   } else {
+      br->UpdateBucket(cip, kXRS_cipher_alg);
+   }
 
    // Deactivate what not needed any longer
-   br->Deactivate(kXRS_puk);
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      br->Deactivate(kXRS_cipher);
+   } else {
+      br->Deactivate(kXRS_puk);
+   }
    br->Deactivate(kXRS_x509);
 
    //
@@ -3172,7 +3395,7 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    //
    // Decrypt the main buffer with the session cipher, if available
    if (sessionKey) {
-      if (!(sessionKey->Decrypt(*bckm))) {
+      if (!(sessionKey->Decrypt(*bckm, useIV))) {
          emsg = "error   with session cipher";
          return -1;
       }
@@ -3243,6 +3466,8 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
          emsg = "problems signing the request";
          return 0;
       }
+      delete req;
+
       // Send back the signed request as bucket
       if ((bck = npxy->Export())) {
          // Add it to the main list
@@ -3251,6 +3476,7 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
             return 0;
          }
       }
+      delete npxy; // has been allocated in *X509SignProxyReq
    }
 
    //
@@ -3315,9 +3541,21 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Server side: process a kXGC_certreq message.
    // Return 0 on success, -1 on error. If the case, a message is returned
    // in cmsg.
-   XrdSutCacheRef pfeRef;
+   XrdSutCERef ceref;
    XrdSutBucket *bck = 0;
    XrdSutBucket *bckm = 0;
+
+   //
+   // Get version run by client, if there
+   if (br->UnmarshalBucket(kXRS_version,hs->RemVers) != 0) {
+      hs->RemVers = Version;
+      cmsg = "client version information not found in options:"
+             " assume same as local";
+   } else {
+      br->Deactivate(kXRS_version);
+   }
+   // Reset use IV; will be set in next round depending on the remote version
+   useIV = false;
 
    //
    // Extract the main buffer 
@@ -3340,15 +3578,6 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
       return -1;
    }
    //
-   // Get version run by client, if there
-   if (br->UnmarshalBucket(kXRS_version,hs->RemVers) != 0) {
-      hs->RemVers = Version;
-      cmsg = "client version information not found in options:"
-             " assume same as local";
-   } else {
-      br->Deactivate(kXRS_version);
-   }
-   //
    // Extract bucket with client issuer hash
    if (!(bck = br->GetBucket(kXRS_issuer_hash))) {
       cmsg = "client issuer hash missing";
@@ -3364,7 +3593,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    // Find our certificate in cache
    String cadum;
-   XrdSutPFEntry *cent = GetSrvCertEnt(pfeRef, sessionCF, hs->TimeStamp, cadum);
+   XrdSutCacheEntry *cent = GetSrvCertEnt(ceref, sessionCF, hs->TimeStamp, cadum);
    if (!cent) {
       cmsg = "cannot find certificate: corruption?";
       return -1;
@@ -3373,6 +3602,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Fill some relevant handshake variables
    sessionKsig = sessionCF->RSA(*((XrdCryptoRSA *)(cent->buf2.buf)));
    hs->Cbck = new XrdSutBucket(*((XrdSutBucket *)(cent->buf3.buf)));
+   ceref.UnLock();
 
    // Create a handshake cache 
    if (!(hs->Cref = new XrdSutPFEntry(hs->ID.c_str()))) {
@@ -3418,9 +3648,17 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    }
    //
    // Extract cipher algorithm chosen by the client
+   int lenIV = 0;
    String cip = "";
    if ((bck = br->GetBucket(kXRS_cipher_alg))) {
       bck->ToString(cip);
+      // Extract IV length, if any
+      int piv = cip.find('#');
+      if (piv >= 0) {
+         String siv(cip, piv+1);
+         if (siv.isdigit()) lenIV = siv.atoi();
+         cip.erase(piv);
+      }
       // Parse the list
       if (DefCipher.find(cip) == -1) {
          cmsg = "unsupported cipher chosen by the client";
@@ -3434,8 +3672,54 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
             " - using default");
    }
 
-   // First get the session cipher
-   if ((bck = br->GetBucket(kXRS_puk))) {
+   XrdOucString cpub;
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // Supports setting a unique IV in enc/dec operations
+      useIV = true;
+      // First get the client public key
+      if (!(bck = br->GetBucket(kXRS_puk))) {
+         cmsg = "bucket with client public key missing";
+         return -1;
+      }
+      bck->ToString(cpub);
+      sessionKver = sessionCF->RSA(cpub.c_str(), cpub.length());
+      if (!sessionKver || !sessionKver->IsValid()) {
+         cmsg = "bucket with client public key contains an invalid key";
+         return -1;
+      }
+
+      // Get the client DH parameters
+      if (!(bck = br->GetBucket(kXRS_cipher))) {
+         cmsg = "bucket with client DH parameters missing";
+         return -1;
+      }
+
+      // Decrypt client DH public parameters with client key
+      if (sessionKver->DecryptPublic(*bck) <= 0) {
+         cmsg = "decrypting client DH public parameters";
+         return -1;
+      }
+
+   } else {
+
+      // Get the client DH parameters
+      if (!(bck = br->GetBucket(kXRS_puk))) {
+         cmsg = "bucket with client DH parameters missing";
+         return -1;
+      }
+
+      // If the client doesn't provide signed DH parameter, disable proxy delegation
+      if ((PxyReqOpts & kOptsSrvReq) ||
+          hs->Options & (kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy))
+         PRINT("no signed DH parameters from client:" << Entity.tident <<
+               " : will not delegate x509 proxy to it");
+      if ((PxyReqOpts & kOptsSrvReq)) PxyReqOpts &= ~kOptsSrvReq;
+      if (hs->Options & (kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy))
+         hs->Options &= ~(kOptsDlgPxy | kOptsSigReq | kOptsFwdPxy);
+   }
+
+   // Get the session cipher
+   if (bck) {
       //
       // Cleanup
       SafeDelete(sessionKey);
@@ -3446,27 +3730,31 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          hs->Chain = 0;
          return -1;
       }
-      // Prepare cipher agreement: get a copy of the reference cipher
-      if (!(sessionKey = sessionCF->Cipher(*(hs->Rcip)))) {
-         cmsg = "cannot get reference cipher";
-         hs->Chain = 0;
-         return -1;
-      }
+      sessionKey = hs->Rcip;
       //
       // Instantiate the session cipher 
-      if (!(sessionKey->Finalize(bck->buffer,bck->size,cip.c_str()))) {
+      if (!(sessionKey->Finalize(hs->HasPad,bck->buffer,bck->size,cip.c_str()))) {
          cmsg = "cannot finalize session cipher";
          hs->Chain = 0;
          return -1;
       }
-      //
-      // We need it only once
-      br->Deactivate(kXRS_puk);
+
+      // Set IV length, if any
+      if (lenIV > 0) sessionKey->SetIV(lenIV, (const char *)0);
+
+   } else {
+      cmsg = "bucket with DH parameters not found or invalid: cannot finalize session cipher";
+      return -1;
    }
+   //
+   // We need it only once
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) br->Deactivate(kXRS_cipher);
+   br->Deactivate(kXRS_puk);
+
    //
    // Decrypt the main buffer with the session cipher, if available
    if (sessionKey) {
-      if (!(sessionKey->Decrypt(*bckm))) {
+      if (!(sessionKey->Decrypt(*bckm, useIV))) {
          cmsg = "error decrypting main buffer with session cipher";
          hs->Chain = 0;
          return -1;
@@ -3516,6 +3804,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       hs->Chain = 0;
       return -1;
    }
+
    //
    // Finalize chain: get a copy of it (we do not touch the reference)
    hs->Chain = new X509Chain(hs->Chain);
@@ -3549,6 +3838,33 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       cmsg += hs->Chain->LastError();
       return -1;
    }
+
+   //
+   // Extract the client public key from the certificate
+   XrdCryptoRSA *ckey = sessionCF->RSA(*(hs->Chain->End()->PKI()));
+   if (!ckey || !ckey->IsValid()) {
+      cmsg = "client certificate contains an invalid key";
+      return -1;
+   }
+   if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+      // For new clients, make sure it is the same we got from the bucket
+      XrdOucString cpubcert;
+      if ((ckey->ExportPublic(cpubcert) < 0)) {
+         cmsg = "exporting client public key";
+         return -1;
+      }
+      if (cpubcert != cpub) {
+         cmsg = "client public key does not match the one from the bucket!";
+         return -1;
+      }
+      delete ckey;
+   } else {
+      // For old clients, set the client public key from the certificate
+      sessionKver = ckey;
+   }
+
+   // Deactivate certificate buffer
+   (*bm)->Deactivate(kXRS_x509);
 
    //
    // Check if there will be delegated proxies; these can be through
@@ -3585,6 +3901,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
                   SafeDelete(hs->PxyChain);
                   NOTIFY("WARNING: proxy req: problem adding bucket to main buffer");
                }
+               delete rPXp;
             } else {
                SafeDelete(hs->PxyChain);
                NOTIFY("WARNING: proxy req: problem creating request");
@@ -3595,16 +3912,6 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
          NOTIFY("WARNING: proxy req: wrong number of certificates");
       }
    }
-
-   //
-   // Extract the client public key
-   sessionKver = sessionCF->RSA(*(hs->Chain->End()->PKI()));
-   if (!sessionKver || !sessionKver->IsValid()) {
-      cmsg = "server certificate contains an invalid key";
-      return -1;
-   }
-   // Deactivate certificate buffer 
-   (*bm)->Deactivate(kXRS_x509);
 
    //
    // Extract the MD algorithm chosen by the client
@@ -3654,7 +3961,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
    //
    // Decrypt the main buffer with the session cipher, if available
    if (sessionKey) {
-      if (!(sessionKey->Decrypt(*bckm))) {
+      if (!(sessionKey->Decrypt(*bckm, useIV))) {
          cmsg = "error decrypting main buffer with session cipher";
          return 0;
       }
@@ -3722,6 +4029,27 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
    // Notify
    if (QTRACE(Authen)) { proxyChain->Dump(); }
 
+   // Check if the proxy chain is to become the actual credentials
+   //
+   if ((PxyReqOpts & kOptsPxCred)) {
+      XrdCryptoX509ExportChain_t c2mem =
+                                 (sessionCF) ? sessionCF->X509ExportChain() : 0;
+      if (!c2mem) {
+         cmsg =  "chain exporter not found; proxy chain not exported";
+         return 0;
+      }
+      XrdOucString spxy;
+      XrdSutBucket *bpxy = (*c2mem)(proxyChain, true);
+      bpxy->ToString(spxy);
+      if (Entity.credslen > 0) SafeFree(Entity.creds);
+      Entity.creds = strdup(spxy.c_str());
+      Entity.credslen = spxy.length();
+      DEBUG("proxy chain exported in Entity.creds (" << Entity.credslen << " bytes)");
+      DEBUG("\n\n" << spxy.c_str() << "\n\n");
+      delete bpxy;
+      return 0;
+   }
+
    //
    // Extract user login name, if any
    String user;
@@ -3766,6 +4094,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
             cmsg += pxfile;
             return 0;
          }
+         PRINT("proxy chain dumped to "<< pxfile);
       } else {
          cmsg = "proxy chain not dumped to file: entity name undefined";
          return 0;
@@ -3822,7 +4151,7 @@ void XrdSecProtocolgsi::ErrF(XrdOucErrInfo *einfo, kXR_int32 ecode,
       if (bout) {
          bout[0] = 0;
          for (k = 0; k < i; k++)
-            sprintf(bout,"%s%s",bout,msgv[k]);
+            strcat(bout, msgv[k]);
          DEBUG(bout);
       } else {
          for (k = 0; k < i; k++)
@@ -3929,7 +4258,7 @@ bool XrdSecProtocolgsi::CheckRtag(XrdSutBuffer *bm, String &emsg)
 
 //______________________________________________________________________________
 XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *subjhash,
-                                             XrdCryptoFactory *CF, int dwld)
+                                             XrdCryptoFactory *CF, int dwld, int &errcrl)
 {
    // Scan crldir for a valid CRL certificate associated to CA whose
    // certificate is xca. If 'dwld' is true try to download the CRL from
@@ -3939,10 +4268,12 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // Return 0 in any other case
    EPNAME("LoadCRL");
    XrdCryptoX509Crl *crl = 0;
+   errcrl = 0;
 
    // make sure we got what we need
    if (!xca || !CF) {
       PRINT("Invalid inputs");
+      errcrl = -1;
       return crl;
    }
 
@@ -3956,7 +4287,6 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // The dir
    String crlext = XrdSecProtocolgsi::DefCRLext;
 
-   XrdCryptoX509 *xcasig = 0;
    String crldir;
    int from = 0;
    while ((from = CRLdir.tokenize(crldir, from, ',')) != -1) {
@@ -3967,39 +4297,9 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
       DEBUG("target file: "<<crlfile);
       // Try to init a crl
       if ((crl = CF->X509Crl(crlfile.c_str()))) {
-         // Signing certificate file
-         String casigfile = crldir + crl->IssuerHash(hashalg);
-         DEBUG("CA signing certificate file = "<<casigfile);
-         // Try to get signing certificate
-         if (!(xcasig = CF->X509(casigfile.c_str()))) {
-            if (CRLCheck >= 2) {
-               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
-                     ") could not be loaded - exit");
-               SafeDelete(crl);
-            } else {
-               DEBUG("CA certificate to verify the signature could not be loaded - verification skipped");
-            }
-            // We are done anyhow
-            return crl;
-         } else {
-            // Verify signature
-            if (crl->Verify(xcasig)) {
-               // Ok, we are done
-               SafeDelete(xcasig);
-               if (CRLCheck < 3 ||
-                  (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
-                  // Good CRL
-                  return crl;
-               } else {
-                  NOTIFY("CRL is expired (CRLCheck: "<<CRLCheck<<")");
-               }
-            } else {
-               PRINT("CA signature verification failed!");
-            }
-         }
+        if ((errcrl = VerifyCRL(crl, xca, crldir, CF, hashalg)) == 0) return crl;
       }
       SafeDelete(crl);
-      SafeDelete(xcasig);
    }
 
    // If not required, we are done
@@ -4013,33 +4313,11 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // To avoid this overload, the CRL information should be installed offline, e.g. with
    // utils/getCRLcert
 
+   errcrl = 0;
    // Try to retrieve it from the URI in the CA certificate, if any
    if ((crl = CF->X509Crl(xca))) {
-      // Signing certificate file
-      String casigfile = crldir + crl->IssuerHash(hashalg);
-      DEBUG("CA signing certificate file = "<<casigfile);
-      // Try to get signing certificate
-      if (!(xcasig = CF->X509(casigfile.c_str()))) {
-         PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
-               ") could not be loaded - exit");
-      } else {
-         // Verify signature
-         if (crl->Verify(xcasig)) {
-            // Ok, we are done
-            SafeDelete(xcasig);
-            if (CRLCheck < 3 ||
-               (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
-               // Good CRL
-               return crl;
-            } else {
-               NOTIFY("Downloaded CRL (CA) is expired (CRLCheck: "<<CRLCheck<<")");
-            }
-         } else {
-            PRINT("CA signature verification failed!");
-         }
-      }
+      if ((errcrl = VerifyCRL(crl, xca, crldir, CF, hashalg)) == 0) return crl;
       SafeDelete(crl);
-      SafeDelete(xcasig);
    }
 
    // Finally try the ".crl_url" file
@@ -4059,31 +4337,8 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
       while ((fgets(line, sizeof(line), furl))) {
          if (line[strlen(line) - 1] == '\n') line[strlen(line) - 1] = 0;
          if ((crl = CF->X509Crl(line, 1))) {
-            // Signing certificate file
-            String casigfile = crldir + crl->IssuerHash(hashalg);
-            DEBUG("CA signing certificate file = "<<casigfile);
-            // Try to get signing certificate
-            if (!(xcasig = CF->X509(casigfile.c_str()))) {
-               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
-                     ") could not be loaded - exit");
-            } else {
-               // Verify signature
-               if (crl->Verify(xcasig)) {
-                  // Ok, we are done
-                  SafeDelete(xcasig);
-                  if (CRLCheck < 3 ||
-                     (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
-                     // Good CRL
-                     return crl;
-                  } else {
-                     NOTIFY("Downloaded CRL (.crl_url file) is expired (CRLCheck: "<<CRLCheck<<")");
-                  }
-               } else {
-                  PRINT("CA signature verification failed!");
-               }
-            }
+            if ((errcrl = VerifyCRL(crl, xca, crldir, CF, hashalg)) == 0) return crl;
             SafeDelete(crl);
-            SafeDelete(xcasig);
          }
       }
    }
@@ -4110,34 +4365,10 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
          String crlfile = crldir + dent->d_name;
          DEBUG("analysing entry "<<crlfile);
          // Try to init a crl
-         crl = CF->X509Crl(crlfile.c_str());
-         if (!crl) continue;
-
-         // Signing certificate file
-         String casigfile = crldir + crl->IssuerHash(hashalg);
-         DEBUG("CA signing certificate file = "<<casigfile);
-         // Try to get signing certificate
-         if (!(xcasig = CF->X509(casigfile.c_str()))) {
-            PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
-                  ") could not be loaded - exit");
-         } else {
-            // Verify signature
-            if (crl->Verify(xcasig)) {
-               // Ok, we are done
-               SafeDelete(xcasig);
-               if (CRLCheck < 3 ||
-                  (CRLCheck == 3 && crl && !(crl->IsExpired()))) {
-                  // Good CRL
-                  break;
-               } else {
-                  NOTIFY("Candidate CRL from file "<< crlfile <<" is expired (CRLCheck: "<<CRLCheck<<")");
-               }
-            } else {
-               PRINT("CA signature verification failed!");
-            }
+         if ((crl = CF->X509Crl(crlfile.c_str()))) {
+            if ((errcrl = VerifyCRL(crl, xca, crldir, CF, hashalg)) == 0) break;
+            SafeDelete(crl);
          }
-         SafeDelete(xcasig);
-         SafeDelete(crl);
       }
       // Close dir
       closedir(dd);
@@ -4148,6 +4379,50 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    // We are done
    return crl;
 }
+
+//______________________________________________________________________________
+int XrdSecProtocolgsi::VerifyCRL(XrdCryptoX509Crl *crl, XrdCryptoX509 *xca, String crldir, 
+                                 XrdCryptoFactory *CF, int hashalg)
+{
+   EPNAME("VerifyCRL");
+   int rc = 0;
+   // Make sure they have the same issuer
+   if (!strcmp(xca->SubjectHash(hashalg), crl->IssuerHash(hashalg))) {
+      // Signing certificate file
+      String casigfile = crldir + crl->IssuerHash(hashalg);
+      DEBUG("CA signing certificate file = "<<casigfile);
+      // Try to get signing certificate
+      XrdCryptoX509 *xcasig = 0;
+      if (!(xcasig = CF->X509(casigfile.c_str()))) {
+         if (CRLCheck >= 2) {
+            PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
+                  ") could not be loaded - exit");
+         } else {
+            DEBUG("CA certificate to verify the signature could not be loaded - verification skipped");
+         }
+         rc = -3;
+      } else {
+         // Verify signature
+         if (crl->Verify(xcasig)) {
+            // Ok, we are done
+            if (CRLCheck >= 3 && crl && crl->IsExpired()) {
+               rc = -5;
+               NOTIFY("CRL is expired (CRLCheck: "<<CRLCheck<<")");
+            }
+         } else {
+            rc = -4;
+            PRINT("CA signature or CRL verification failed!");
+         }
+         SafeDelete(xcasig);
+      }
+   } else {
+      rc = -2;
+      PRINT("Loaded CRL does not match CA (subject CA "<<xca->SubjectHash(hashalg)<<
+            " does not match CRL issuer "<<crl->IssuerHash(hashalg)<<"! ");
+   } 
+   return rc;
+}
+
 //______________________________________________________________________________
 String XrdSecProtocolgsi::GetCApath(const char *cahash)
 {
@@ -4202,6 +4477,15 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
 
    // Point to the certificate
    XrdCryptoX509 *xc = cca->Begin();
+   if (!xc) {
+      PRINT("Cannot attach to first certificate in chain");
+      return 0;
+   }
+   // Make sure it is valid
+   if (!(xc->IsValid())) {
+      PRINT("CA certificate is expired ("<<xc->SubjectHash()<<", not_before: "<<xc->NotBefore()<<" secs UTC )");
+      return 0;
+   }
    // Is it self-signed ?
    bool self = (!strcmp(xc->IssuerHash(), xc->SubjectHash())) ? 1 : 0;
    if (!self) {
@@ -4249,8 +4533,9 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
          if (!notdone) {
             // Verify the chain
             X509Chain::EX509ChainErr e;
-            if (!(verified = cca->Verify(e)))
-               PRINT("CA certificate not self-signed: verification failed ("<<xc->SubjectHash()<<")");
+            x509ChainVerifyOpt_t vopt = {kOptsCheckSubCA, 0, -1, 0};
+            if (!(verified = cca->Verify(e, &vopt)))
+               PRINT("CA certificate not self-signed: verification failed for '"<<xc->SubjectHash()<<"': error: "<< cca->X509ChainError(e));
          } else {
             PRINT("CA certificate not self-signed: cannot verify integrity ("<<xc->SubjectHash()<<")");
          }
@@ -4287,6 +4572,44 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
    return verified;
 }
 
+//_____________________________________________________________________________
+static bool GetCACheck(XrdSutCacheEntry *e, void *a) {
+
+   EPNAME("GetCACheck");
+
+   int crl_check = (*((XrdSutCacheArg_t *)a)).arg1;
+   int crl_refresh = (*((XrdSutCacheArg_t *)a)).arg2;
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg3;
+
+   if (!e) return false;
+
+   X509Chain *chain = 0;
+   // If we had already something, check it, as we may be done
+   bool goodca = 0;
+   if ((chain = (X509Chain *)(e->buf1.buf))) {
+      // Check the validity of the certificates in the chain; if a certificate became invalid,
+      // we need to reload a valid one for the same CA.
+      if (chain->CheckValidity() == 0) {
+         goodca = 1;
+      } else {
+         PRINT("CA entry for '"<<e->name<<"' needs refreshing: clean the related entry cache first");
+         return false;
+      }
+   }
+   if (goodca) {
+      XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(e->buf2.buf);
+      bool goodcrl = 1;
+      if ((crl_check == 2 && !crl) || (crl_check == 3 && crl->IsExpired())) goodcrl = 0;
+      if (crl_refresh > 0 && ((ts_ref - e->mtime) > crl_refresh)) goodcrl = 0;
+      if (goodcrl) {
+         return true;
+      } else if (crl) {
+         PRINT("CRL entry for '"<<e->name<<"' needs refreshing: clean the related entry cache first ("<<e<<")");
+      }
+   }
+   return false;
+}
+
 //______________________________________________________________________________
 int XrdSecProtocolgsi::GetCA(const char *cahash,
                              XrdCryptoFactory *cf, gsiHSVars *hs)
@@ -4296,7 +4619,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // If 'hs' is defined, store pointers to chain and crl into 'hs'. 
    // Return 0 if ok, -1 if not available, -2 if CRL not ok
    EPNAME("GetCA");
-   XrdSutCacheRef pfeRef;
+   XrdSutCERef ceref;
    int rc = 0;
 
    // We nust have got a CA hash
@@ -4315,67 +4638,50 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    DEBUG("Querying cache for tag: "<<tag<<" (timestamp:"<<timestamp<<
          ", refresh fq:"<< CRLRefresh <<")");
 
-   // Try first the cache
-   XrdSutPFEntry *cent = cacheCA.Get(pfeRef, tag.c_str());
+   bool rdlock = false;
+   XrdSutCacheArg_t arg = {CRLCheck, CRLRefresh, timestamp, -1};
+   XrdSutCacheEntry *cent = cacheCA.Get(tag.c_str(), rdlock, GetCACheck, (void *) &arg);
+   if (!cent) {
+      PRINT("unable to get a valid entry from cache for " << tag);
+      return -1;
+   }
+   ceref.Set(&(cent->rwmtx));
 
-   X509Chain *chain = 0;
-   // If found, we are done
-   if (cent) {
-      bool goodca = 0;
-      if ((chain = (X509Chain *)(cent->buf1.buf))) {
-         // Check the validity of the certificates in the chain; if a certificate became invalid,
-         // we need to reload a valid one for the same CA.
-         if (chain->CheckValidity() == 0) {
-            goodca = 1;
-            if (hs) hs->Chain = chain;
-            // Add to the stack for proper cleaning of invalidated CAs
-            stackCA.Add(chain);
-         } else {
-            PRINT("CA entry for '"<<tag<<"' needs refreshing: clean the related entry cache first");
-            // Entry needs refreshing: we remove it from the stack, so it gets deleted when
-            // the last handshake using it is over 
-            stackCA.Del(chain);
-            cent->buf1.buf = 0;
-            if (!cacheCA.Remove(tag.c_str())) {
-               PRINT("problems removing entry from CA cache");
-               rc = -1;
-            }
-         }      
-      }
-      if (rc == 0) {
-         XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
-         bool goodcrl = (crl) ? 1 : 0;
-         if (goodcrl && CRLCheck >= 3 && crl->IsExpired()) goodcrl = 0;
-         if (goodcrl && CRLRefresh > 0 && ((timestamp - cent->mtime) > CRLRefresh)) goodcrl = 0;
-         // If the CA is not good, we reload the CRL in any case
-         if (goodca && goodcrl) {
-            if (hs) hs->Crl = crl;
-            // Add to the stack for proper cleaning of invalidated CRLs
-            stackCRL.Add(crl);
-            pfeRef.UnLock();
-            return 0;
-         } else {
-            PRINT("CRL entry for '"<<tag<<"' needs refreshing: clean the related entry cache first ("<<cent<<")");
-            // Entry needs refreshing: we remove it from the stack, so it gets deleted when
-            // the last handshake using it is over 
-            stackCRL.Del(crl);
-            cent->buf2.buf = 0;
-         }
-      }
-      chain = 0;
-   } else {
-      if (!(cent = cacheCA.Add(pfeRef, tag.c_str()))) {
-         PRINT("could not create a cache entry for this CA (" << tag <<")");
-         rc = -1;
-      }
+   // Point to the content
+   X509Chain *chain = (X509Chain *)(cent->buf1.buf);
+   XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
+
+   // If invalid we fail
+   if (cent->status == kCE_inactive) {
+      // Cleanup and remove existing invalid entries
+      if (chain) stackCA.Del(chain);
+      if (crl) stackCRL.Del(crl);
+      PRINT("unable to get a valid entry from cache for " << tag);
+      return -1;
    }
 
-   //
-   // If any failure, return
-   if (rc != 0) {
-      pfeRef.UnLock();
-      return rc;
+   // Check if we are done
+   if (rdlock) {
+      // Save chain
+      if (hs) hs->Chain = chain;
+      stackCA.Add(chain);
+      // Save crl
+      if (crl) {
+         if (hs) hs->Crl = crl;
+         // Add to the stack for proper cleaning of invalidated CRLs
+         stackCRL.Add(crl);
+      }
+      return 0;
    }
+
+   // Cleanup and remove existing invalid entries
+   if (chain) stackCA.Del(chain);
+   if (crl) stackCRL.Del(crl);
+
+   chain = 0;
+   crl = 0;
+   cent->buf1.buf = 0;
+   cent->buf2.buf = 0;
 
    // If not, prepare the file name
    String fnam = GetCApath(cahash);
@@ -4402,12 +4708,20 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             // Get CRL, if required
             ok = 1;
             if (CRLCheck > 0) {
-               if ((crl = LoadCRL(chain->Begin(), cahash, cf, CRLDownload))) {
+               int errcrl = 0;
+               if ((crl = LoadCRL(chain->EffCA(), cahash, cf, CRLDownload, errcrl))) {
                   // Good CA
                   DEBUG("CRL successfully loaded");
                } else {
-                  ok = 0;
-                  NOTIFY("CRL is missing or expired (CRLCheck: "<<CRLCheck<<")");
+                  String em = "missing or expired: ignoring";
+                  if ((CRLCheck == 1 && errcrl != 0 && errcrl != -5) || (CRLCheck >= 2 && errcrl != 0)) {
+                     ok = 0;
+                     em = "invalid: failing";
+                  } else if (CRLCheck >= 2) {
+                     ok = 0;
+                     em = "missing or expired: failing";
+                  }
+                  NOTIFY("CRL is "<<em<<" (CRLCheck: "<<CRLCheck<<")");
                }
             }
          }
@@ -4416,13 +4730,14 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             // Add to the cache
             cent->buf1.buf = (char *)(chain);
             cent->buf1.len = 0;      // Just a flag
+            stackCA.Add(chain);
             if (crl) {
                cent->buf2.buf = (char *)(crl);
                cent->buf2.len = 0;      // Just a flag
                stackCRL.Add(crl);
             }
             cent->mtime = timestamp;
-            cent->status = kPFE_ok;
+            cent->status = kCE_ok;
             cent->cnt = 0;
             // Fill output, if required
             if (hs) {
@@ -4432,18 +4747,19 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             }
          } else {
             SafeDelete(crl);
+            SafeDelete(chain);
             rc = -2;
          }
       } else {
+         SafeDelete(chain);
          NOTIFY("certificate not found or invalid (nci: "<<nci<<", CA: "<<
                (int)(verified)<<")");
          rc = -1;
       }
    }
 
-   // Rehash cache
-   pfeRef.UnLock();  // Make sure pointer is not locked
-   cacheCA.Rehash(1);
+   // We are done: release the lock
+   ceref.UnLock();
 
    // We are done
    return (rc != 0) ? rc : 0;
@@ -4586,6 +4902,9 @@ int XrdSecProtocolgsi::ParseCAlist(String calist)
       while ((from = calist.tokenize(cahash, from, '|')) != -1) {
          // Check this hash
          if (cahash.length()) {
+            // Make sure the extension ".0" if there, as external implementations may not
+            // include it
+            if (!cahash.endswith(".0")) cahash += ".0";
             // Get the CA chain
             if (GetCA(cahash.c_str(), sessionCF, hs) == 0)
                return 0;
@@ -4624,11 +4943,22 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
       // Check this module
       if (hs->CryptoMod.length() > 0) {
          DEBUG("found module: "<<hs->CryptoMod);
+         // Padding support?
+         bool otherHasPad = true;
+         if (hs->RemVers >= XrdSecgsiVersDHsigned) {
+            if (hs->CryptoMod.endswith(gNoPadTag)) {
+               otherHasPad = false;
+               hs->CryptoMod.replace(gNoPadTag, "");
+            }
+         } else {
+            otherHasPad = false;
+         }
          // Load the crypto factory
          if ((sessionCF = 
               XrdCryptoFactory::GetCryptoFactory(hs->CryptoMod.c_str()))) {
             sessionCF->SetTrace(GSITrace->What);
             if (QTRACE(Debug)) sessionCF->Notify();
+            if (otherHasPad && sessionCF->HasPaddingSupport()) hs->HasPad = 1;
             int fid = sessionCF->ID();
             int i = 0;
             // Retrieve the index in local table
@@ -4648,7 +4978,7 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
                }
             }
             // On servers the ref cipher should be defined at this point
-            hs->Rcip = refcip[i];
+            hs->Rcip = sessionCF->Cipher(hs->HasPad, 0,0,0);
             // we are done
             return 0;
          }
@@ -4659,6 +4989,19 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
    return -1;
 }
 
+//_____________________________________________________________________________
+static bool QueryProxyCheck(XrdSutCacheEntry *e, void *a) {
+
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg1;
+
+   if (e && e->buf1.buf) {
+      X509Chain *chain = (X509Chain *)(e->buf1.buf);
+      if (chain->CheckValidity(1, ts_ref) == 0) return true;
+   }
+   return false;
+}
+
+
 //__________________________________________________________________________
 int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
                                   const char *tag, XrdCryptoFactory *cf,
@@ -4666,45 +5009,45 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
 {
    // Query users proxies, initializing if needed
    EPNAME("QueryProxy");
-   XrdSutCacheRef pfeRef;
+   XrdSutCERef ceref;
 
    bool hasproxy = 0;
    // We may already loaded valid proxies
-   XrdSutPFEntry *cent = 0;
-   if (checkcache) {
-      cent = cache->Get(pfeRef, tag);
-      if (cent && cent->buf1.buf) {
-         //
-         po->chain = (X509Chain *)(cent->buf1.buf);
-         // Check validity of the entry found (it may have expired)
-         if (po->chain->CheckValidity(1, timestamp) == 0) {
-            po->ksig = (XrdCryptoRSA *)(cent->buf2.buf);
-            po->cbck = (XrdSutBucket *)(cent->buf3.buf);
-            hasproxy = 1;
-            return 0;
-         } else {
-            // Cleanup the chain
-            po->chain->Cleanup();
-            // Cleanup cache entry
-            cent->buf1.buf = 0;
-            cent->buf1.len = 0;
-            // The key is deleted by the certificate destructor
-            // Just reset the buffer
-            cent->buf2.buf = 0;
-            cent->buf2.len = 0;
-            // and the related bucket
-            if (cent->buf3.buf)
-               delete (XrdSutBucket *)(cent->buf3.buf);
-            cent->buf3.buf = 0;
-            cent->buf3.len = 0;
-         }
-      }
+   bool rdlock = false;
+   XrdSutCacheArg_t arg = {timestamp, -1, -1, -1};
+   XrdSutCacheEntry *cent = cache->Get(tag, rdlock, QueryProxyCheck, (void *) &arg);
+   if (!cent) {
+      PRINT("cannot get cache entry for: "<<tag);
+      return -1;
+   }
+   ceref.Set(&(cent->rwmtx));
+
+   if (checkcache && rdlock) {
+      po->chain = (X509Chain *)(cent->buf1.buf);
+      po->ksig = (XrdCryptoRSA *)(cent->buf2.buf);
+      po->cbck = (XrdSutBucket *)(cent->buf3.buf);
+      // We are done
+      ceref.UnLock();
+      return 0;
    }
 
-   // This is the last use of cent so we should remove the lock prior to
-   // entry the proxy refresh loop if we have a valid pointer.
-   //
-   if (cent) {cent = 0; pfeRef.UnLock();}
+   // Cleanup the chain
+   po->chain = (X509Chain *)(cent->buf1.buf);
+   if (po->chain) po->chain->Cleanup();
+   SafeDelete(po->chain);
+
+   // Cleanup cache entry
+   cent->buf1.buf = 0;
+   cent->buf1.len = 0;
+   // The key is deleted by the certificate destructor
+   // Just reset the buffer
+   cent->buf2.buf = 0;
+   cent->buf2.len = 0;
+   // and the related bucket
+   if (cent->buf3.buf)
+      delete (XrdSutBucket *)(cent->buf3.buf);
+   cent->buf3.buf = 0;
+   cent->buf3.len = 0;
 
    //
    // We do not have good proxies, try load (user may have initialized
@@ -4827,15 +5170,9 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          }
       }
 
-      // Get attach an entry in cache
-      if (!(cent = cache->Add(pfeRef, tag))) {
-         PRINT("could not create entry in cache");
-         continue;
-      }
-
       // Save info in cache
       cent->mtime = po->chain->End()->NotAfter(); // the expiring time
-      cent->status = kPFE_special;  // distinguish from normal certs
+      cent->status = kCE_special;  // distinguish from normal certs
       cent->cnt = 0;
       // The chain
       cent->buf1.buf = (char *)(po->chain);
@@ -4846,15 +5183,12 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       // The export bucket
       cent->buf3.buf = (char *)(po->cbck);
       cent->buf3.len = 0;      // Just a flag
-      pfeRef.UnLock();
-
-      // Rehash cache
-      pfeRef.UnLock();  // cent can no longer be used
-      cache->Rehash(1);
 
       // Set the positive flag
       hasproxy = 1;
    }
+   // Always unlock
+   ceref.UnLock();
 
    // We are done
    if (!hasproxy) {
@@ -4865,6 +5199,26 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       return -1;
    }
    return 0;
+}
+
+
+//_____________________________________________________________________________
+static bool QueryGMAPCheck(XrdSutCacheEntry *e, void *a) {
+   int st_ref = (*((XrdSutCacheArg_t *)a)).arg1;
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg2;
+   long to_ref = (*((XrdSutCacheArg_t *)a)).arg3;
+   if (e) {
+      // Check expiration, if required
+      if ((e->status != st_ref) ||
+          ((e->status == st_ref) &&
+           (to_ref > 0) &&
+           ((ts_ref - e->mtime) > to_ref))) {
+         return false;
+      } else {
+         return true;
+      }
+   }
+   return false;
 }
 
 //__________________________________________________________________________
@@ -4878,7 +5232,6 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
    // On return, an empty string in 'usrs' indicates failure.
    // Note that 'usrs' can be a comma-separated list of usernames. 
    EPNAME("QueryGMAP");
-   XrdSutCacheRef pfeRef;
 
    // List of user names attached to the entity
    usrs = "";
@@ -4891,45 +5244,37 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
 
    // Now we check the DN-mapping function and eventually the gridmap file.
    // The result can be cached for a while. 
-   XrdSutPFEntry *cent = 0;
    const char *dn = chain->EECname();
-   XrdOucString s;
    if (GMAPFun) {
-      // We may have it in the cache
-      cent = cacheGMAPFun.Get(pfeRef, dn);
-      // Check expiration, if required
-      if (GMAPCacheTimeOut > 0 &&
-         (cent && (now - cent->mtime) > GMAPCacheTimeOut)) {
-         // Invalidate the entry
-         pfeRef.UnLock();
-         cacheGMAPFun.Remove(dn);
-         cent = 0;
+      XrdSutCERef ceref;
+      bool rdlock = false;
+      XrdSutCacheArg_t arg = {kCE_ok, now, GMAPCacheTimeOut, -1};
+      XrdSutCacheEntry *cent = cacheGMAPFun.Get(dn, rdlock, QueryGMAPCheck, (void *) &arg);
+      if (!cent) {
+         PRINT("unable to get a valid entry from cache for dn: " << dn);
+         return;
       }
-      // Run the search via the external function
-      if (cent) {usrs=(const char *)(cent->buf1.buf); pfeRef.UnLock(); cent=0;}
-         else {
+      ceref.Set(&(cent->rwmtx));
+
+      // Check if we need to get/update the content
+      if (!rdlock) {
+         // Run the search via the external function
          char *name = (*GMAPFun)(dn, now);
-         if ((cent = cacheGMAPFun.Add(pfeRef, dn))) {
-            if (name) {
-               cent->status = kPFE_ok;
-               // Add username
-               SafeDelArray(cent->buf1.buf);
-               cent->buf1.buf = name;
-               cent->buf1.len = strlen(name);
-               usrs = (const char *)name;
-            } else {
-               // We cache the resul to avoid repeating the search
-               cent->status = kPFE_allowed;
-            }
-            // Fill up the rest
-            cent->cnt = 0;
-            cent->mtime = now; // creation time
-            // Rehash cache
-            pfeRef.UnLock();   // cent can no longer be used
-            cent = 0;
-            cacheGMAPFun.Rehash(1);
+         if (name) {
+            cent->status = kCE_ok;
+            // Add username
+            SafeDelArray(cent->buf1.buf);
+            cent->buf1.buf = name;
+            cent->buf1.len = strlen(name);
          }
+         // Fill up the rest
+         cent->cnt = 0;
+         cent->mtime = now; // creation time
       }
+      // Retrieve result form cache
+      usrs = cent->buf1.buf;
+      // We are done with the cache
+      ceref.UnLock();
    }
 
    // Check the map file, if any
@@ -5199,8 +5544,9 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    return ep;
 }
 
+
 //_____________________________________________________________________________
-bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg)
+bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, const char *hname, XrdOucString &emsg)
 {
    // Check that the server certificate subject name is consistent with the
    // expectations defined by the static SrvAllowedNames
@@ -5218,24 +5564,20 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
    if (cnidx != STR_NPOS) srvcn.assign(srvsubj, cnidx + 3);
 
    // Always check if the server CN is in the standard form "[*/]<target host name>[/*]"
-   if (Entity.host) {
-      if (srvcn != (const char *) Entity.host) {
-         int ih = srvcn.find((const char *) Entity.host);
-         if (ih == 0 || (ih > 0 && srvcn[ih-1] == '/')) {
-            ih += strlen(Entity.host);
-            if (ih >= srvcn.length() ||
-                srvcn[ih] == '\0' || srvcn[ih] == '/') allowed = 1;
-         }
-      } else {
-         allowed = 1;
+   if (hname) {
+      size_t ih = srvcn.find("/");
+      if (ih != std::string::npos) {
+         srvcn.erasefromstart(ih + 1);
       }
+      allowed = XrdCryptoX509::MatchHostnames(srvcn.c_str(), hname);
+
       // Update the error msg, if the case
       if (!allowed) {
          if (emsg.length() <= 0) {
             emsg = "server certificate CN '"; emsg += srvcn;
             emsg += "' does not match the expected format(s):";
          }
-         String defcn("[*/]"); defcn += Entity.host; defcn += "[/*]";
+         String defcn("[*/]"); defcn += hname; defcn += "[/*]";
          emsg += " '"; emsg += defcn; emsg += "' (default)";
       }
    }
@@ -5244,12 +5586,12 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
    if (SrvAllowedNames.length() > 0) {
       // The SrvAllowedNames string contains the allowed formats separated by a '|'.
       // The specifications can contain the <host> or <fqdn> placeholders which
-      // are replaced by Entity.host; they can also contain the '*' wildcard, in
+      // are replaced by hname; they can also contain the '*' wildcard, in
       // which case XrdOucString::matches is used. A '-' before the specification
       // will deny the matching CN's; the last matching wins.
       String allowedfmts(SrvAllowedNames);
-      allowedfmts.replace("<host>", (const char *) Entity.host);
-      allowedfmts.replace("<fqdn>", (const char *) Entity.host);
+      allowedfmts.replace("<host>", hname);
+      allowedfmts.replace("<fqdn>", hname);
       int from = 0;
       String fmt;
       while ((from = allowedfmts.tokenize(fmt, from, '|')) != -1) {
@@ -5281,9 +5623,22 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
 }
 
 //_____________________________________________________________________________
-XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
-                                                XrdCryptoFactory  *cf,
-                                                time_t timestamp, String &certcalist)
+static bool GetSrvCertEntCheck(XrdSutCacheEntry *e, void *a) {
+   int st_ref = (*((XrdSutCacheArg_t *)a)).arg1;
+   time_t ts_ref = (time_t)(*((XrdSutCacheArg_t *)a)).arg2;
+   if (e) {
+      if (e->status > st_ref) {
+         if (e->mtime >= ts_ref)
+            return true;
+      }
+   }
+   return false;
+}
+
+//_____________________________________________________________________________
+XrdSutCacheEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCERef &ceref,
+                                             XrdCryptoFactory  *cf,
+                                             time_t timestamp, String &certcalist)
 {
    // Get cache entry for server certificate. This function checks the cache
    // and loads or re-loads the certificate form the specified files if required.
@@ -5292,20 +5647,24 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
 
    if (!cf) {
       PRINT("Invalid inputs");
-      return (XrdSutPFEntry *)0;
+      return (XrdSutCacheEntry *)0;
    }
 
-   XrdSutPFEntry *cent = cacheCert.Get(pfeRef, cf->Name());
+   bool rdlock = false;
+   XrdSutCacheArg_t arg = {kCE_allowed, timestamp, -1, -1};
+   XrdSutCacheEntry *cent = cacheCert.Get(cf->Name(), rdlock, GetSrvCertEntCheck, (void *) &arg);
+   if (!cent) {
+      PRINT("unable to get a valid entry from cache for " << cf->Name());
+      return (XrdSutCacheEntry *)0;
+   }
+   ceref.Set(&(cent->rwmtx));
 
-   // If there is already one valid, we are done. Note that the caller has
-   // lock ownership of the pointer should it be returned.
-   //
-   if (cent && cent->mtime >= timestamp) return cent;
-
-   if (cent) PRINT("entry has expired: trying to renew ...");
+   // Are we done ?
+   if (rdlock) return cent;
+   if (cent->buf1.buf) PRINT("entry has expired: trying to renew ...");
    
    // Try get one or renew-it
-   if (cent && cent->status == kPFE_special) {
+   if (cent->status == kCE_special) {
       // Try init proxies
       ProxyIn_t pi = {SrvCert.c_str(), SrvKey.c_str(), CAdir.c_str(),
                         UsrProxy.c_str(), PxyValid.c_str(), 0, 512};
@@ -5313,24 +5672,23 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
       XrdCryptoRSA *k = 0;
       XrdSutBucket *b = 0;
       ProxyOut_t po = {ch, k, b };
+      // We lock inside
+      ceref.UnLock(false);
       if (QueryProxy(0, &cacheCert, cf->Name(), cf, timestamp, &pi, &po) != 0) {
          PRINT("proxy expired and cannot be renewed");
-         pfeRef.UnLock();
-         return (XrdSutPFEntry *)0;
+         return (XrdSutCacheEntry *)0;
       }
+      // When successful we return read-locked (this flow needs checking; but it is not mainstream)
+      ceref.ReadLock();
+      return cent;
    }
 
-   if (cent) {
-      // Reset the entry
-      delete (XrdCryptoX509 *) cent->buf1.buf; // Destroys also xsrv->PKI() pointed in cent->buf2.buf
-      delete (XrdSutBucket *) cent->buf3.buf;
-      cent->buf1.buf = 0;
-      cent->buf2.buf = 0;
-      cent->buf3.buf = 0;
-      cent->Reset();
-      pfeRef.UnLock(); // Note we throw away the pointer just below!/
-   }
-   cent = 0;
+   // Reset the entry
+   delete (XrdCryptoX509 *) cent->buf1.buf; // Destroys also xsrv->PKI() pointed in cent->buf2.buf
+   delete (XrdSutBucket *) cent->buf3.buf;
+   cent->buf1.buf = 0;
+   cent->buf2.buf = 0;
+   cent->buf3.buf = 0;
 
    //
    // Get the IDs of the file: we need them to acquire the right privileges when opening
@@ -5352,26 +5710,30 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
       if (xsrv->type != XrdCryptoX509::kEEC) {
          PRINT("problems loading srv cert: not EEC but: "<<xsrv->Type());
          SafeDelete(xsrv);
-         return cent;
+         ceref.UnLock();
+         return (XrdSutCacheEntry *)0;
       }
       // Must be valid
       if (!(xsrv->IsValid())) {
          PRINT("problems loading srv cert: invalid");
          SafeDelete(xsrv);
-         return cent;
+         ceref.UnLock();
+         return (XrdSutCacheEntry *)0;
       }
       // PKI must have been successfully initialized
       if (!xsrv->PKI() || xsrv->PKI()->status != XrdCryptoRSA::kComplete) {
          PRINT("problems loading srv cert: invalid PKI");
          SafeDelete(xsrv);
-         return cent;
+         ceref.UnLock();
+         return (XrdSutCacheEntry *)0;
       }
       // Must be exportable
       XrdSutBucket *xbck = xsrv->Export();
       if (!xbck) {
          PRINT("problems loading srv cert: cannot export into bucket");
          SafeDelete(xsrv);
-         return cent;
+         ceref.UnLock();
+         return (XrdSutCacheEntry *)0;
       }
       // We must have the issuing CA certificate
       int rcgetca = 0;
@@ -5393,47 +5755,48 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
             }
             SafeDelete(xsrv);
             SafeDelete(xbck);
-            return cent;
+            ceref.UnLock();
+            return (XrdSutCacheEntry *)0;
          }
       }
+
       // Ok: save it into the cache
-      String tag = cf->Name();
-      cent = cacheCert.Add(pfeRef, tag.c_str());
-      if (cent) {
-         cent->status = kPFE_ok;
-         cent->cnt = 0;
-         cent->mtime = xsrv->NotAfter(); // expiration time
-         // Save pointer to certificate (destroys also xsrv->PKI())
-         if (cent->buf1.buf) delete (XrdCryptoX509 *) cent->buf1.buf;
-         cent->buf1.buf = (char *)xsrv;
-         cent->buf1.len = 0;  // just a flag
-         // Save pointer to key
-         cent->buf2.buf = 0;
-         cent->buf2.buf = (char *)(xsrv->PKI());
-         cent->buf2.len = 0;  // just a flag
-         // Save pointer to bucket
-         if (cent->buf3.buf) delete (XrdSutBucket *) cent->buf3.buf;
-         cent->buf3.buf = (char *)(xbck);
-         cent->buf3.len = 0;  // just a flag
-         // Save CA hash in list to communicate to clients
-         if (certcalist.find(xsrv->IssuerHash()) == STR_NPOS) {
-            if (certcalist.length() > 0) certcalist += "|";
-            certcalist += xsrv->IssuerHash();
-         }
-         // Save also old CA hash in list to communicate to clients, if relevant
-         if (HashCompatibility && xsrv->IssuerHash(1) &&
-                                  strcmp(xsrv->IssuerHash(1),xsrv->IssuerHash())) {
-            if (certcalist.find(xsrv->IssuerHash(1)) == STR_NPOS) {
-               if (certcalist.length() > 0) certcalist += "|";
-               certcalist += xsrv->IssuerHash(1);
-            }
-         }
-      } else {
-         // Cleanup
-         SafeDelete(xsrv);
-         SafeDelete(xbck);
+      cent->status = kCE_ok;
+      cent->cnt = 0;
+      cent->mtime = xsrv->NotAfter(); // expiration time
+      // Save pointer to certificate (destroys also xsrv->PKI())
+      if (cent->buf1.buf) delete (XrdCryptoX509 *) cent->buf1.buf;
+      cent->buf1.buf = (char *)xsrv;
+      cent->buf1.len = 0;  // just a flag
+      // Save pointer to key
+      cent->buf2.buf = 0;
+      cent->buf2.buf = (char *)(xsrv->PKI());
+      cent->buf2.len = 0;  // just a flag
+      // Save pointer to bucket
+      if (cent->buf3.buf) delete (XrdSutBucket *) cent->buf3.buf;
+      cent->buf3.buf = (char *)(xbck);
+      cent->buf3.len = 0;  // just a flag
+      // Save CA hash in list to communicate to clients
+      if (certcalist.find(xsrv->IssuerHash()) == STR_NPOS) {
+         if (certcalist.length() > 0) certcalist += "|";
+         certcalist += xsrv->IssuerHash();
       }
+      // Save also old CA hash in list to communicate to clients, if relevant
+      if (HashCompatibility && xsrv->IssuerHash(1) &&
+                               strcmp(xsrv->IssuerHash(1),xsrv->IssuerHash())) {
+         if (certcalist.find(xsrv->IssuerHash(1)) == STR_NPOS) {
+            if (certcalist.length() > 0) certcalist += "|";
+            certcalist += xsrv->IssuerHash(1);
+         }
+      }
+   } else {
+      PRINT("failed to load certificate from files ("<< SrvCert <<","<<SrvKey<<")");
    }
+
+   // When successful we return read-locked; need to write-unlock before to avoid dead locking
+   ceref.UnLock(false);
+   ceref.ReadLock();
+
    // Done
    return cent;
 }

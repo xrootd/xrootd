@@ -54,7 +54,6 @@
 #include "XrdSec/XrdSecEntity.hh"
 # include "sys/param.h"
 #include "XrdOuc/XrdOucString.hh"
-static pthread_key_t cm_key;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static HMAC_CTX* HMAC_CTX_new() {
@@ -150,7 +149,34 @@ void Tobase64(const unsigned char *input, int length, char *out) {
 }
 
 
+static int
+char_to_int(int c)
+{
+  if (isdigit(c)) {
+    return c - '0';
+  } else {
+    c = tolower(c);
+    if (c >= 'a' && c <= 'f') {
+      return c - 'a' + 10;
+    }
+    return -1;
+  }
+}
 
+
+// Decode a hex digest array to raw bytes.
+//
+bool Fromhexdigest(const unsigned char *input, int length, unsigned char *out) {
+  for (int idx=0; idx < length; idx += 2) {
+    int upper =  char_to_int(input[idx]);
+    int lower =  char_to_int(input[idx+1]);
+    if ((upper < 0) || (lower < 0)) {
+      return false;
+    }
+    out[idx/2] = (upper << 4) + lower;
+  }
+  return true;
+}
 
 
 // Simple itoa function
@@ -210,19 +236,15 @@ void calcHashes(
   char buf[64];
   struct tm tms;
 
-  // set so key destructor can trigger removal of
-  // libcrypto error state when the thread finishes
-  pthread_setspecific(cm_key, &cm_key);
 
   if (!hash) {
     return;
   }
-
+  hash[0] = '\0';
+  
   if (!key) {
     return;
   }
-
-  hash[0] = '\0';
 
   if (!fn || !secent) {
     return;
@@ -257,6 +279,10 @@ void calcHashes(
   if (secent->host)
     HMAC_Update(ctx, (const unsigned char *) secent->host,
           strlen(secent->host) + 1);
+    
+  if (secent->moninfo)
+    HMAC_Update(ctx, (const unsigned char *) secent->moninfo,
+          strlen(secent->moninfo) + 1);
 
   localtime_r(&tim, &tms);
   strftime(buf, sizeof (buf), "%s", &tms);
@@ -319,9 +345,9 @@ char *unquote(char *str) {
 
 // Quote a string and return a new one
 
-char *quote(char *str) {
+char *quote(const char *str) {
   int l = strlen(str);
-  char *r = (char *) malloc(l + 1);
+  char *r = (char *) malloc(l*3 + 1);
   r[0] = '\0';
   int i, j = 0;
 
@@ -331,6 +357,22 @@ char *quote(char *str) {
     switch (c) {
       case ' ':
         strcpy(r + j, "%20");
+        j += 3;
+        break;
+      case '[':
+        strcpy(r + j, "%5B");
+        j += 3;
+        break;
+      case ']':
+        strcpy(r + j, "%5D");
+        j += 3;
+        break;
+      case ':':
+        strcpy(r + j, "%3A");
+        j += 3;
+        break;
+      case '/':
+        strcpy(r + j, "%2F");
         j += 3;
         break;
       default:

@@ -70,7 +70,7 @@ XrdOucReqID::XrdOucReqID()
   
 XrdOucReqID::XrdOucReqID(const XrdNetSockAddr *myAddr, int myPort)
 {
-   char ybuff[256], xbuff[256];
+   char ybuff[256], xbuff[512];
    unsigned int pHash;
    int n, eNow = static_cast<unsigned int>(time(0));
 

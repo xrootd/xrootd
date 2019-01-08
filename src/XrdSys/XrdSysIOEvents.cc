@@ -593,8 +593,9 @@ void XrdSys::IOEvents::Poller::CbkTMO()
 //
    toMutex.Lock();
    while((cP = tmoBase) && cP->deadLine <= time(0))
-        {toMutex.UnLock();
-         CbkXeq(cP, cP->dlType, 0, 0);
+        {int dlType = cP->dlType;
+         toMutex.UnLock();
+         CbkXeq(cP, dlType, 0, 0);
          toMutex.Lock();
         }
    toMutex.UnLock();
@@ -1004,7 +1005,7 @@ void XrdSys::IOEvents::Poller::Stop()
 
 // Initialize the pipdata structure
 //
-   memset(&cmdbuff, 0, sizeof(cmdbuff));
+   memset(static_cast<void*>( &cmdbuff ), 0, sizeof(cmdbuff));
    cmdbuff.req = PipeData::Stop;
 
 // Lock all of this

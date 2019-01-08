@@ -46,14 +46,51 @@ endif()
 
 set ( CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES} )
 
-check_function_exists(TLS_method HAVE_TLS)
-compiler_define_if_found(HAVE_TLS HAVE_TLS)
+check_function_exists(TLS_method HAVE_TLS_FUNC)
+check_symbol_exists(
+        TLS_method
+        ${OPENSSL_INCLUDE_DIR}/openssl/ssl.h 
+	HAVE_TLS_SYMB)
+if( HAVE_TLS_FUNC AND HAVE_TLS_SYMB )
+    add_definitions( -DHAVE_TLS )
+endif()
 
-check_function_exists(TLSv1_2_method HAVE_TLS12)
-compiler_define_if_found(HAVE_TLS12 HAVE_TLS12)
+check_function_exists(TLSv1_2_method HAVE_TLS12_FUNC)
+check_symbol_exists(
+        TLSv1_2_method
+        ${OPENSSL_INCLUDE_DIR}/openssl/ssl.h 
+	HAVE_TLS12_SYMB)
+if( HAVE_TLS12_FUNC AND HAVE_TLS12_SYMB )
+    add_definitions( -DHAVE_TLS12 )
+endif()
 
-check_function_exists(TLSv1_1_method HAVE_TLS11)
-compiler_define_if_found(HAVE_TLS11 HAVE_TLS11)
+check_function_exists(TLSv1_1_method HAVE_TLS11_FUNC)
+check_symbol_exists(
+        TLSv1_1_method 
+	${OPENSSL_INCLUDE_DIR}/openssl/ssl.h
+        HAVE_TLS11_SYMB)
+if( HAVE_TLS11_FUNC AND HAVE_TLS11_SYMB )
+    add_definitions( -DHAVE_TLS11 )
+endif()
 
-check_function_exists(TLSv1_method HAVE_TLS1)
-compiler_define_if_found(HAVE_TLS1 HAVE_TLS1)
+check_function_exists(TLSv1_method HAVE_TLS1_FUNC)
+check_symbol_exists(
+        TLSv1_method 
+	${OPENSSL_INCLUDE_DIR}/openssl/ssl.h
+        HAVE_TLS1_SYMB)
+if( HAVE_TLS1_FUNC AND HAVE_TLS1_SYMB )
+    add_definitions( -DHAVE_TLS1 )
+endif()
+
+check_function_exists(DH_compute_key_padded HAVE_DH_PADDED_FUNC)
+check_symbol_exists(
+        DH_compute_key_padded
+        ${OPENSSL_INCLUDE_DIR}/openssl/dh.h 
+    HAVE_DH_PADDED_SYMB)
+if( HAVE_DH_PADDED_FUNC)
+   if( HAVE_DH_PADDED_SYMB )
+     add_definitions( -DHAVE_DH_PADDED )
+   else()
+     add_definitions( -DHAVE_DH_PADDED_FUNC )
+   endif()
+endif()

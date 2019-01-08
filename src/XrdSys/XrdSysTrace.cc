@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysTrace.hh"
 
@@ -101,7 +102,10 @@ void XrdSysTrace::End()
 
 // Output the line
 //
-   logP->Put(vPnt, ioVec);
+   if (logP) logP->Put(vPnt, ioVec);
+      else {static XrdSysLogger tLog(XrdSysFD_Dup(STDERR_FILENO), 0);
+            tLog.Put(vPnt, ioVec);
+           }
 
 // All done
 //
@@ -169,6 +173,15 @@ XrdSysTrace& XrdSysTrace::operator<<(const char *val)
        ioVec[vPnt++].iov_len  = strlen(val);
       }
    return *this;
+}
+
+
+/******************************************************************************/
+/*                        < < std::string                                     */
+/******************************************************************************/
+XrdSysTrace& XrdSysTrace::operator<<(const std::string& val)
+{
+   return (*this << val.c_str());
 }
 
 /******************************************************************************/

@@ -158,11 +158,20 @@ namespace XrdCl
     if( it != pFactoryMap.end() && it->second->isEnv )
       return it->second->factory;
 
+    std::string protocol = URL( url ).GetProtocol();
+    std::map<std::string, FactoryHelper*>::iterator itProt;
+    itProt = pFactoryMap.find( protocol );
+    if( itProt != pFactoryMap.end() && itProt->second->isEnv )
+      return itProt->second->factory;
+
     if( pDefaultFactory )
       return pDefaultFactory->factory;
 
     if( it != pFactoryMap.end() )
       return it->second->factory;
+
+    if( itProt != pFactoryMap.end() )
+      return itProt->second->factory;
 
     return 0;
   }
@@ -203,6 +212,7 @@ namespace XrdCl
       pDefaultFactory = new FactoryHelper();
       pDefaultFactory->factory = pg.second;
       pDefaultFactory->plugin  = pg.first;
+      pDefaultFactory->isEnv = true;
     }
 
     //--------------------------------------------------------------------------
@@ -218,6 +228,7 @@ namespace XrdCl
 
       XrdSysPwd pwdHandler;
       passwd *pwd = pwdHandler.Get( getuid() );
+      if( !pwd ) return;
       std::string userPlugIns = pwd->pw_dir;
       userPlugIns += "/.xrootd/client.plugins.d";
       ProcessConfigDir( userPlugIns );
@@ -378,6 +389,26 @@ namespace XrdCl
     std::vector<std::string> normalizedURLs;
     std::vector<std::string>::iterator it;
 
+    if (urlString == "*") {
+      if (pDefaultFactory) {
+        if (pDefaultFactory->isEnv) {
+          log->Debug(PlugInMgrMsg, "There is already an env default plugin "
+                     "loaded, skiping %s", lib.c_str());
+          return false;
+        } else {
+          log->Debug(PlugInMgrMsg, "There can be only one default plugin "
+                     "loaded, skipping %s", lib.c_str());
+          return false;
+        }
+      } else {
+        pDefaultFactory = new FactoryHelper();
+        pDefaultFactory->factory = factory;
+        pDefaultFactory->plugin = plugin;
+        pDefaultFactory->isEnv = false;
+        return true;
+      }
+    }
+
     Utils::splitString( urls, urlString, ";" );
 
     for( it = urls.begin(); it != urls.end(); ++it )
@@ -451,8 +482,15 @@ namespace XrdCl
     URL urlObj = url;
     if( !urlObj.IsValid() )
       return "";
+
+    std::string protocol = urlObj.GetProtocol();
+    std::string hostname = urlObj.GetHostName();
+
+    if( hostname == "*" )
+      return protocol;
+
     std::ostringstream o;
-    o << urlObj.GetProtocol() << "://" << urlObj.GetHostName() << ":";
+    o << protocol << "://" << hostname << ":";
     o << urlObj.GetPort();
     return o.str();
   }

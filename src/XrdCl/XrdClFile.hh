@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <sys/uio.h>
 
 namespace XrdCl
 {
@@ -325,6 +326,65 @@ namespace XrdCl
                                VectorReadInfo  *&vReadInfo,
                                uint16_t          timeout = 0 )
                                XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Write scattered data chunks in one operation - async
+      //!
+      //! @param chunks    list of the chunks to be written.
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorWrite( const ChunkList &chunks,
+                                ResponseHandler *handler,
+                                uint16_t         timeout = 0 )
+                                XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Write scattered data chunks in one operation - sync
+      //!
+      //! @param chunks    list of the chunks to be written.
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorWrite( const ChunkList  &chunks,
+                               uint16_t          timeout = 0 )
+                               XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Write scattered buffers in one operation - async
+      //!
+      //! @param offset    offset from the beginning of the file
+      //! @param iov       list of the buffers to be written
+      //! @param iovcnt    number of buffers
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus WriteV( uint64_t            offset,
+                                const struct iovec *iov,
+                                int                 iovcnt,
+                                ResponseHandler    *handler,
+                                uint16_t            timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write scattered buffers in one operation - sync
+      //!
+      //! @param offset    offset from the beginning of the file
+      //! @param iov       list of the buffers to be written
+      //! @param iovcnt    number of buffers
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus WriteV( uint64_t            offset,
+                                const struct iovec *iov,
+                                int                 iovcnt,
+                                uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Performs a custom operation on an open file, server implementation

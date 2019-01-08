@@ -184,8 +184,8 @@ int XrdXrootdAdmin::do_Abort()
 
 // Send off the unsolicited response
 //
-   if (msg){return sendResp("abort", kXR_asyncab, msg, mlen);}
-            return sendResp("abort", kXR_asyncab);
+   if (msg) return sendResp("abort", kXR_asyncab, msg, mlen);
+      else  return sendResp("abort", kXR_asyncab);
 }
 
 /******************************************************************************/
@@ -394,7 +394,8 @@ int XrdXrootdAdmin::do_Lsd()
              mlen[1] = lp->Client(cname, sizeof(cname));
              mlen[2] = sprintf(iobuff, fmt2a,inuse-1,pp->numFiles,pp->totReadP,
                                (pp->cumReadP + pp->numReadP),
-                               inBytes, (pp->cumWrites+ pp->numWrites),
+                               inBytes, (pp->cumWrites+ pp->numWrites +
+                                         pp->cumWritV + pp->numWritV),
                                outBytes,(pp->cumReads + pp->numReads +
                                          pp->cumReadV + pp->numReadV),
                                stalls, tardies);
@@ -512,8 +513,8 @@ int XrdXrootdAdmin::do_Msg()
    msg = getMsg(msg, mlen);
 // Send off the unsolicited response
 //
-   if (msg){return sendResp("msg", kXR_asyncms, msg, mlen);}
-            return sendResp("msg", kXR_asyncms);
+   if (msg) return sendResp("msg", kXR_asyncms, msg, mlen);
+      else  return sendResp("msg", kXR_asyncms);
 }
  
 /******************************************************************************/

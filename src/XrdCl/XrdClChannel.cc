@@ -31,6 +31,8 @@
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 
+#include "XrdSys/XrdSysPthread.hh"
+
 #include <ctime>
 
 namespace
@@ -175,6 +177,10 @@ namespace
       XrdCl::Message   *pMsg;
   };
 
+}
+
+namespace XrdCl
+{
   class TickGeneratorTask: public XrdCl::Task
   {
     public:
@@ -194,6 +200,9 @@ namespace
       //------------------------------------------------------------------------
       time_t Run( time_t now )
       {
+        XrdSysMutexHelper lck( pMtx );
+        if( !pChannel ) return 0;
+
         using namespace XrdCl;
         pChannel->Tick( now );
 
@@ -202,13 +211,17 @@ namespace
         env->GetInt( "TimeoutResolution", timeoutResolution );
         return now+timeoutResolution;
       }
+
+      void Invalidate()
+      {
+        XrdSysMutexHelper lck( pMtx );
+        pChannel = 0;
+      }
+
     private:
       XrdCl::Channel *pChannel;
+      XrdSysMutex     pMtx;
   };
-}
-
-namespace XrdCl
-{
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -266,6 +279,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Channel::~Channel()
   {
+    pTickGenerator->Invalidate();
     pTaskManager->UnregisterTask( pTickGenerator );
     for( uint32_t i = 0; i < pStreams.size(); ++i )
       delete pStreams[i];
@@ -291,20 +305,10 @@ namespace XrdCl
   Status Channel::Send( Message              *msg,
                         OutgoingMsgHandler   *handler,
                         bool                  stateful,
-                        time_t                expires,
-                        VirtualRedirector    *redirector )
+                        time_t                expires )
 
   {
     PathID path = pTransport->Multiplex( msg, pChannelData );
-
-    if( redirector )
-    {
-      XRootDStatus st = redirector->HandleRequest( msg, pStreams[path.down] );
-      if( st.IsOK() )
-        handler->OnStatusReady( msg, Status() );
-      return st;
-    }
-
     return pStreams[path.up]->Send( msg, handler, stateful, expires );
   }
 
@@ -343,6 +347,20 @@ namespace XrdCl
     std::vector<Stream *>::iterator it;
     for( it = pStreams.begin(); it != pStreams.end(); ++it )
       (*it)->Tick( now );
+  }
+
+  //----------------------------------------------------------------------------
+  // Force disconnect of all streams
+  //----------------------------------------------------------------------------
+  Status Channel::ForceDisconnect()
+  {
+    //--------------------------------------------------------------------------
+    // Disconnect and recreate the streams
+    //--------------------------------------------------------------------------
+    for( uint32_t i = 0; i < pStreams.size(); ++i )
+      pStreams[i]->ForceError( Status( stError, errOperationInterrupted ) );
+
+    return Status();
   }
 
   //----------------------------------------------------------------------------

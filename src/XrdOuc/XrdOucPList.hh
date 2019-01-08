@@ -30,6 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdio.h>
 #include <strings.h>
 #include <stdlib.h>
   
@@ -39,6 +40,7 @@ public:
 
 inline int                 Attr() {return attrs;}
 inline unsigned long long  Flag() {return flags;}
+inline const char         *Name() {return name;}
 inline XrdOucPList        *Next() {return next;}
 inline char               *Path() {return path;}
 inline int                 Plen() {return pathlen;}
@@ -48,10 +50,24 @@ inline int          PathOK(const char *pd, const int pl)
 
 inline void         Set(int                aval) {attrs = aval;}
 inline void         Set(unsigned long long fval) {flags = fval;}
+inline void         Set(const char *pd, const char *pn)
+                       {if (path) free(path);
+                        pathlen = strlen(pd);
+                        int n = strlen(pn) + 1 + pathlen + 1;
+                        path = (char *)malloc(n);
+                        n = snprintf(path, n, "%s", pd);
+                        name = path+pathlen+1;
+                        strcpy(name, pn); // This is safe
+                       }
 
              XrdOucPList(const char *pd="", unsigned long long fv=0)
                         : flags(fv), next(0),  path(strdup(pd)),
                           pathlen(strlen(pd)), attrs(0) {}
+
+             XrdOucPList(const char *pd, const char *pn) 
+                        : next(0), path(0), attrs(0)
+                        {Set(pd, pn);}
+
             ~XrdOucPList()
                   {if (path) free(path);}
 
@@ -59,7 +75,10 @@ friend class XrdOucPListAnchor;
 
 private:
 
+union{
 unsigned long long flags;
+char              *name;
+     };
 XrdOucPList       *next;
 char              *path;
 int                pathlen;
@@ -80,6 +99,9 @@ inline XrdOucPList *About(const char *pathname)
                    }
 
 inline void        Default(unsigned long long x) {dflts = x;}
+inline
+unsigned long long Default() {return dflts;}
+inline void        Defstar(unsigned long long x) {dstrs = x;}
 
 inline void        Empty(XrdOucPList *newlist=0)
                    {XrdOucPList *p = next;
@@ -93,7 +115,8 @@ inline unsigned long long  Find(const char *pathname)
                     while(p) {if (p->PathOK(pathname, plen)) break;
                               p=p->next;
                              }
-                    return (p ? p->flags : dflts);
+                    if (p) return p->flags;
+                    return (*pathname == '/' ? dflts : dstrs);
                    }
 
 inline XrdOucPList *Match(const char *pathname)
@@ -117,11 +140,13 @@ inline void        Insert(XrdOucPList *newitem)
 
 inline int         NotEmpty() {return next != 0;}
 
-                   XrdOucPListAnchor(unsigned long long dfx=0) {dflts = dfx;}
+                   XrdOucPListAnchor(unsigned long long dfx=0)
+                                    : dflts(dfx), dstrs(dfx) {}
                   ~XrdOucPListAnchor() {}
 
 private:
 
 unsigned long long dflts;
+unsigned long long dstrs;
 };
 #endif

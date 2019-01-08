@@ -199,9 +199,9 @@ void UtilsTest::URLTest()
   CPPUNIT_ASSERT( url8.GetProtocol() == "file" );
   CPPUNIT_ASSERT( url8.GetUserName() == "" );
   CPPUNIT_ASSERT( url8.GetPassword() == "" );
-  CPPUNIT_ASSERT( url8.GetHostName() == "" );
+  CPPUNIT_ASSERT( url8.GetHostName() == "localhost" );
   CPPUNIT_ASSERT( url8.GetPath() == "/etc/passwd" );
-
+  CPPUNIT_ASSERT( url8.GetHostId() == "localhost" );
   CPPUNIT_ASSERT( url8.GetPathWithParams() == "/etc/passwd" );
   CPPUNIT_ASSERT( url8.GetParams().size() == 0 );
 

@@ -50,6 +50,8 @@
 
 #include <openssl/ssl.h>
 
+#include <vector>
+
 #include "XrdHttpReq.hh"
 
 /******************************************************************************/
@@ -67,13 +69,14 @@ class XrdBuffer;
 class XrdLink;
 class XrdXrootdProtocol;
 class XrdHttpSecXtractor;
+class XrdHttpExtHandler;
 struct XrdVersionInfo;
 class XrdOucGMap;
-
 
 class XrdHttpProtocol : public XrdProtocol {
   
   friend class XrdHttpReq;
+  friend class XrdHttpExtReq;
   
 public:
 
@@ -104,7 +107,8 @@ public:
   /// Perform a Stat request
   int doStat(char *fname);
 
-
+  /// Perform a checksum request
+  int doChksum(const XrdOucString &fname);
 
   /// Ctor, dtors and copy ctor
   XrdHttpProtocol operator =(const XrdHttpProtocol &rhs);
@@ -117,10 +121,8 @@ public:
   XrdObject<XrdHttpProtocol> ProtLink;
 
 
-
-  /// Sends a basic response. If the length is < 0 then it is calculated internally
-  int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
-
+  /// Authentication area
+  XrdSecEntity SecEntity;
 
 private:
 
@@ -131,8 +133,11 @@ private:
   /// Initialization of the ssl security things
   static int InitSecurity();
 
+  /// Start a response back to the client
+  int StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);
+
   /// Send some generic data to the client
-  int SendData(char *body, int bodylen);
+  int SendData(const char *body, int bodylen);
 
   /// Deallocate resources, in order to reutilize an object of this class
   void Cleanup();
@@ -148,14 +153,18 @@ private:
   /// This primitive, for the way it is used, is not supposed to block
   int getDataOneShot(int blen, bool wait=false);
 
+  /// Create a new BIO object from an XrdLink.  Returns NULL on failure.
+  static BIO *CreateBIO(XrdLink *lp);
   
   /// Functions related to the configuration
-  static int Config(const char *fn);
+  static int Config(const char *fn, XrdOucEnv *myEnv);
   static int xtrace(XrdOucStream &Config);
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);
   static int xsecxtractor(XrdOucStream &Config);
+  static int xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv);
   static int xsslcadir(XrdOucStream &Config);
+  static int xsslcipherfilter(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
   static int xlistdeny(XrdOucStream &Config);
   static int xlistredir(XrdOucStream &Config);
@@ -167,12 +176,36 @@ private:
   static int xsslcafile(XrdOucStream &Config);
   static int xsslverifydepth(XrdOucStream &Config);
   static int xsecretkey(XrdOucStream &Config);
-
+  static int xheader2cgi(XrdOucStream &Config);
+  
   static XrdHttpSecXtractor *secxtractor;
+  
   // Loads the SecXtractor plugin, if available
   static int LoadSecXtractor(XrdSysError *eDest, const char *libName,
                       const char *libParms);
+  
+  // An oldstyle struct array to hold exthandlers
+  #define MAX_XRDHTTPEXTHANDLERS 4
+  static struct XrdHttpExtHandlerInfo {
+    char name[16];
+    XrdHttpExtHandler *ptr;
+  } exthandler[MAX_XRDHTTPEXTHANDLERS];
+  static int exthandlercnt;
+  
+  // Loads the ExtHandler plugin, if available
+  static int LoadExtHandler(XrdSysError *eDest, const char *libName,
+                            const char *configFN, const char *libParms,
+                            XrdOucEnv *myEnv, const char *instName);
 
+  // Determines whether one of the loaded ExtHandlers are interested in
+  // handling a given request.
+  //
+  // Returns NULL if there is no matching handler.
+  static XrdHttpExtHandler *FindMatchingExtHandler(const XrdHttpReq &);
+
+  // Tells if an ext handler with the given name has already been loaded
+  static bool ExtHandlerLoaded(const char *handlername);
+  
   /// Circular Buffer used to read the request
   XrdBuffer *myBuff;
   /// The circular pointers
@@ -195,6 +228,16 @@ private:
   /// Copy a full line of text from the buffer into dest. Zero if no line can be found in the buffer
   int BuffgetLine(XrdOucString &dest);
 
+  /// Sends a basic response. If the length is < 0 then it is calculated internally
+  int SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen, bool keepalive);
+
+  /// Starts a chunked response; body of request is sent over multiple parts using the SendChunkResp
+  //  API.
+  int StartChunkedResp(int code, const char *desc, const char *header_to_add, bool keepalive);
+
+  /// Send a (potentially partial) body in a chunked response; invoking with NULL body
+  //  indicates that this is the last chunk in the response.
+  int ChunkResp(const char *body, long long bodylen);
   
   /// Gets a string that represents the IP address of the client. Must be freed
   char *GetClientIPStr();
@@ -253,10 +296,10 @@ protected:
 
   /// The link we are bound to
   XrdLink *Link;
-
-  /// Authentication area
-  XrdSecEntity SecEntity;
-
+  
+  /// Our IP address, as a string. Please remember that this may not be unique for
+  /// a given machine, hence we need to keep it here and recompute ad every new connection.
+  char *Addr_str;
   
   /// The instance of the DN mapper. Created only when a valid path is given
   static XrdOucGMap      *servGMap;  // Grid mapping service
@@ -285,15 +328,12 @@ protected:
   
   /// Our port, as a string
   static char * Port_str;
-  
-  /// Our IP address, as a string
-  static char * Addr_str;
 
   /// Windowsize
   static int Window;
 
   /// OpenSSL stuff
-  static char *sslcert, *sslkey, *sslcadir, *sslcafile;
+  static char *sslcert, *sslkey, *sslcadir, *sslcafile, *sslcipherfilter;
 
   /// Gridmap file location. The same used by XrdSecGsi
   static char *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
@@ -332,5 +372,13 @@ protected:
   /// Our role
   static kXR_int32 myRole;
   
+  /// Rules that turn HTTP headers to cgi tokens in the URL, for internal comsumption
+  static std::map< std::string, std::string > hdr2cgimap;
+
+  /// Type identifier for our custom BIO objects.
+  static int m_bio_type;
+
+  /// C-style vptr table for our custom BIO objects.
+  static BIO_METHOD *m_bio_method;
 };
 #endif

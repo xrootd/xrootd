@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPoller.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
+#include "XrdCl/XrdClTaskManager.hh"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -38,6 +39,32 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class AsyncSocketHandler: public SocketHandler
   {
+      //------------------------------------------------------------------------
+      // We need an extra task for rescheduling of HS request that received
+      // a wait response.
+      //------------------------------------------------------------------------
+      class WaitTask: public XrdCl::Task
+      {
+        public:
+          WaitTask( XrdCl::AsyncSocketHandler *handler, XrdCl::Message *msg ):
+            pHandler( handler ), pMsg( msg )
+          {
+            std::ostringstream o;
+            o << "WaitTask for: 0x" << msg;
+            SetName( o.str() );
+          }
+
+          virtual time_t Run( time_t now )
+          {
+            pHandler->RetryHSMsg( pMsg );
+            return 0;
+          }
+
+        private:
+          XrdCl::AsyncSocketHandler *pHandler;
+          XrdCl::Message            *pMsg;
+      };
+
     public:
       //------------------------------------------------------------------------
       //! Constructor
@@ -141,15 +168,23 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void OnWriteWhileHandshaking();
 
+
+      Status WriteMessageAndRaw( Message *toWrite, Message *&sign );
+
+      Status WriteSeparately( Message *toWrite, Message *&sign );
+
       //------------------------------------------------------------------------
       // Write the current message
       //------------------------------------------------------------------------
       Status WriteCurrentMessage( Message *toWrite );
 
       //------------------------------------------------------------------------
-      // Write the message and its signature
+      // Write the message, its signature and its body
       //------------------------------------------------------------------------
-      Status WriteSignedMessage( Message *toWrite, Message *&sign );
+      Status WriteVMessage( Message   *toWrite,
+                            Message   *&sign,
+                            ChunkList *chunks,
+                            uint32_t  *asyncOffset );
 
       //------------------------------------------------------------------------
       // Got a read readiness event
@@ -205,6 +240,43 @@ namespace XrdCl
       // Update iovec after write
       //------------------------------------------------------------------------
       inline void UpdateAfterWrite( Message &msg, iovec &iov, int &bytesRead );
+
+      //------------------------------------------------------------------------
+      // Add chunks to the given iovec
+      //------------------------------------------------------------------------
+      inline uint32_t ToIov( ChunkList       *chunks,
+                             const uint32_t  *offset,
+                             iovec           *iov );
+
+      //------------------------------------------------------------------------
+      // Update raw data after write
+      //------------------------------------------------------------------------
+      inline void UpdateAfterWrite( ChunkList  *chunks,
+                                    uint32_t   *offset,
+                                    iovec      *iov,
+                                    int        &bytesWritten );
+
+      //------------------------------------------------------------------------
+      // Retry hand shake message
+      //------------------------------------------------------------------------
+      void RetryHSMsg( Message *msg );
+
+      //------------------------------------------------------------------------
+      // Extract the value of a wait response
+      //
+      // @param rsp : the server response
+      // @return    : if rsp is a wait response then its value
+      //              otherwise -1
+      //------------------------------------------------------------------------
+      inline kXR_int32 HandleWaitRsp( Message *rsp );
+
+      //------------------------------------------------------------------------
+      //! Classify errno while reading/writing
+      //!
+      //! Once we are at R5, change Transport interface and use:
+      //!   Transport::ClassifyErrno
+      //------------------------------------------------------------------------
+      Status ClassifyErrno( int error );
 
       //------------------------------------------------------------------------
       // Data members

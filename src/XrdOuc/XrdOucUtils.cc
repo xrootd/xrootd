@@ -136,7 +136,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
    while(!strcmp(val, "defined"))
       {if (!(val = Config.GetWord()) || *val != '?')
           {if (eDest)
-              eDest->Emsg("Config","'?var' missing after 'defined' in",what);
+             {eDest->Emsg("Config","'?var' missing after 'defined' in",what);}
            return -1;
           }
        // Get environment if we have none
@@ -154,18 +154,18 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
        if (!val || !isDef) return isDef;
        if (strcmp(val, "&&"))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid for defined test in",what);
+             {eDest->Emsg("Config",val,"is invalid for defined test in",what);}
            return -1;
           } else {
            if (!(val = Config.GetWord()))
               {if (eDest)
-                   eDest->Emsg("Config","missing keyword after '&&' in",what);
+                  {eDest->Emsg("Config","missing keyword after '&&' in",what);}
                return -1;
               }
           }
        if (!is1of(val, brk))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
+             {eDest->Emsg("Config",val,"is invalid after '&&' in",what);}
            return -1;
           }
       }
@@ -176,7 +176,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
    if (!strcmp(val, "exec"))
       {if (!(val = Config.GetWord()) || !strcmp(val, "&&"))
           {if (eDest)
-              eDest->Emsg("Config","Program name missing after 'if exec' in",what);
+             {eDest->Emsg("Config","Program name missing after 'if exec' in",what);}
            return -1;
           }
 
@@ -192,12 +192,12 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 
        if (!(val = Config.GetWord()))
           {if (eDest)
-              eDest->Emsg("Config","Keyword missing after '&&' in",what);
+             {eDest->Emsg("Config","Keyword missing after '&&' in",what);}
            return -1;
           }
        if (strcmp(val, "named"))
           {if (eDest)
-              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
+             {eDest->Emsg("Config",val,"is invalid after '&&' in",what);}
            return -1;
           }
       }
@@ -207,7 +207,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 //
    if (!(val = Config.GetWord()))
       {if (eDest)
-          eDest->Emsg("Config","Instance name missing after 'if named' in", what);
+         {eDest->Emsg("Config","Instance name missing after 'if named' in", what);}
        return -1;
       }
 
@@ -399,6 +399,45 @@ int XrdOucUtils::is1of(char *val, const char **clist)
 }
 
 /******************************************************************************/
+/*                                 i s F W D                                  */
+/******************************************************************************/
+  
+int XrdOucUtils::isFWD(const char *path, int *port, char *hBuff, int hBLen,
+                       bool pTrim)
+{
+   const char *hName, *hNend, *hPort, *hPend, *hP = path;
+   char *eP;
+   int n;
+
+   if (*path == '/') hP++;  // Note: It's assumed an objectid if no slash
+   if (*hP   == 'x') hP++;
+   if (strncmp("root:/", hP, 6)) return 0;
+   if (hBuff == 0 || hBLen <= 0) return (hP - path) + 6;
+   hP += 6;
+
+   if (!XrdNetUtils::Parse(hP, &hName, &hNend, &hPort, &hPend)) return 0;
+   if (*hNend == ']') hNend++;
+      else {if (!(*hNend) && !(hNend = index(hName, '/'))) return 0;
+            if (!(*hPend)) hPend = hNend;
+           }
+
+   if (pTrim || !(*hPort)) n = hNend - hP;
+      else n = hPend - hP;
+   if (n >= hBLen) return 0;
+   strncpy(hBuff, hP, n);
+   hBuff[n] = 0;
+
+   if (port)
+      {if (*hNend != ':') *port = 0;
+          else {*port = strtol(hPort, &eP, 10);
+                if (*port < 0 || *port > 65535 || eP != hPend) return 0;
+               }
+      }
+
+   return hPend-path;
+}
+  
+/******************************************************************************/
 /*                                  L o g 2                                   */
 /******************************************************************************/
 
@@ -460,6 +499,53 @@ void XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst)
 }
 
 /******************************************************************************/
+  
+bool XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst,
+                                               const char *path, mode_t mode)
+{
+   char cwDir[1024];
+   const char *slash = "", *slash2 = "";
+   int n, rc;
+
+// Provide backward compatability for instance name qualification
+//
+
+   if (!path || !(n = strlen(path)))
+      {if (inst) makeHome(eDest, inst);
+       return true;
+      }
+
+// Augment the path with instance name, if need be
+//
+   if (path[n-1] != '/') slash = "/";
+   if (!inst || !(n = strlen(inst))) inst = "";
+      else slash2 = "/";
+    n = snprintf(cwDir, sizeof(cwDir), "%s%s%s%s", path, slash, inst, slash2);
+    if (n >= (int)sizeof(cwDir))
+       {eDest.Emsg("Config", ENAMETOOLONG, "create home directory", cwDir);
+        return false;
+       }
+
+// Create the path if it doesn't exist
+//
+   if ((rc = makePath(cwDir, mode)))
+      {eDest.Emsg("Config", rc, "create home directory", cwDir);
+       return false;
+      }
+
+// Switch to this directory
+//
+   if (chdir(cwDir) < 0)
+      {eDest.Emsg("Config", errno, "chdir to home directory", cwDir);
+       return false;
+      }
+
+// All done
+//
+   return true;
+}
+
+/******************************************************************************/
 /*                              m a k e P a t h                               */
 /******************************************************************************/
   
@@ -487,6 +573,42 @@ int XrdOucUtils::makePath(char *path, mode_t mode)
    return 0;
 }
  
+/******************************************************************************/
+/*                             p a r s e H o m e                              */
+/******************************************************************************/
+  
+char *XrdOucUtils::parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode)
+{
+   char *pval, *val, *HomePath = 0;
+
+// Get the path
+//
+   pval = Config.GetWord();
+   if (!pval || !pval[0])
+      {eDest.Emsg("Config", "home path not specified"); return 0;}
+
+// Make sure it's an absolute path
+//
+   if (*pval != '/')
+      {eDest.Emsg("Config", "home path not absolute"); return 0;}
+
+// Record the path
+//
+   HomePath = strdup(pval);
+
+// Get the optional access rights
+//
+   mode = S_IRWXU;
+   if ((val = Config.GetWord()) && val[0])
+      {if (!strcmp("group", val)) mode |= (S_IRGRP | S_IXGRP);
+          else {eDest.Emsg("Config", "invalid home path modifier -", val);
+                free(HomePath);
+                return 0;
+               }
+      }
+   return HomePath;
+}
+
 /******************************************************************************/
 /*                                R e L i n k                                 */
 /******************************************************************************/
@@ -537,6 +659,57 @@ char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 
    free(logfn);
    return strdup(buff);
+}
+
+/******************************************************************************/
+/*                               t o L o w e r                                */
+/******************************************************************************/
+
+void XrdOucUtils::toLower(char *str)
+{
+// Change each character to lower case
+//
+   while(*str) {*str = tolower(*str); str++;}
+}
+  
+/******************************************************************************/
+/*                                 T o k e n                                  */
+/******************************************************************************/
+
+int XrdOucUtils::Token(const char **str, char delim, char *buff, int bsz)
+{
+   const char *eP, *bP = *str;
+   int aLen, mLen;
+
+// Trim off the delimeters. Return zero if nothing left.
+//
+   while(*bP && *bP == delim) bP++;
+   if (*bP == 0) {*buff = 0; return 0;}
+
+// Find the next delimiter
+//
+   eP = bP;
+   while(*eP && *eP != delim) eP++;
+
+// If we ended at a null, make sure next call will return zero
+//
+   if (*eP == 0) *str = eP;
+      else       *str = eP+1;
+
+// Calculate length and make sure we don't overrun the buffer
+//
+   aLen = eP-bP;
+   if (aLen >= bsz) mLen = bsz-1;
+      else          mLen = aLen;
+
+// Copy token into buffer and end with null byte
+//
+   strncpy(buff, bP, mLen);
+   buff[mLen] = 0;
+
+// Return actual length
+//
+   return aLen;
 }
 
 /******************************************************************************/

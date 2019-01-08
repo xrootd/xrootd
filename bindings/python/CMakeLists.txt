@@ -8,6 +8,13 @@ set(XRD_BININCDIR  "${CMAKE_BINARY_DIR}/src")
 set(XRDCL_LIBDIR   "${CMAKE_BINARY_DIR}/src/XrdCl")
 set(XRD_LIBDIR     "${CMAKE_BINARY_DIR}/src")
 
+if( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
+  if( CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.7 )
+    message( "clang 3.5" )
+    set( CLANG_PROHIBITED ", '-Wp,-D_FORTIFY_SOURCE=2', '-fstack-protector-strong'" )
+  endif()
+endif()
+
 configure_file(${SETUP_PY_IN} ${SETUP_PY})
 
 add_custom_command(OUTPUT ${OUTPUT}

@@ -33,7 +33,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#if !defined(__solaris__)
+#if !defined(__solaris__) && !defined(__FreeBSD__)
 #include <sys/xattr.h> 
 #endif
 

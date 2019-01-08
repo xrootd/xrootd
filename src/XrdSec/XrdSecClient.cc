@@ -91,7 +91,8 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
    static int DebugON = ((getenv("XrdSecDEBUG") &&
                           strcmp(getenv("XrdSecDEBUG"), "0")) ? 1 : 0);
    static XrdSecProtNone ProtNone;
-   static XrdSecPManager PManager(DebugON);
+   static XrdSecPManager PManager(DebugON, getenv("XrdSecPROXY") != 0,
+                                  getenv("XrdSecPROXYCREDS") != 0);
    const char *noperr = "XrdSec: No authentication protocols are available.";
 
    XrdSecProtocol *protp;

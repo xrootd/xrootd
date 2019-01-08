@@ -61,15 +61,25 @@ const char     *Location() {return cacheIO2->Location();}
 virtual
 const char     *Path()  {return cacheIO1->Path();}
 
+using XrdOucCacheIO2::Read;
+
 virtual int     Read (char *Buffer, long long Offset, int Length)
                       {return cacheIO1->Read(Buffer, Offset, Length);}
+
+using XrdOucCacheIO2::ReadV;
 
 virtual int     ReadV(const XrdOucIOVec *readV, int n)
                       {return cacheIO1->ReadV(readV, n);}
 
+using XrdOucCacheIO2::Sync;
+
 virtual int     Sync() {return cacheIO1->Sync();}
 
+using XrdOucCacheIO2::Trunc;
+
 virtual int     Trunc(long long Offset) {return cacheIO1->Trunc(Offset);}
+
+using XrdOucCacheIO2::Write;
 
 virtual int     Write(char *Buffer, long long Offset, int Length)
                      {return cacheIO1->Write(Buffer, Offset, Length);}
@@ -97,10 +107,12 @@ XrdOucCacheIO2 *cacheIO2;
 class XrdPosixCacheBC : public XrdOucCache2
 {
 public:
+using XrdOucCache2::Attach;
+
 virtual
 XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *ioP, int opts=0)
                       {XrdOucCacheIO *newIOP = v1Cache->Attach(ioP, opts);
-                       if (newIOP == (XrdOucCacheIO *)newIOP) return ioP;
+                       if (newIOP == (XrdOucCacheIO *)ioP) return ioP;
                        return new XrdPosixCacheBCIO(newIOP, ioP);
                       }
 

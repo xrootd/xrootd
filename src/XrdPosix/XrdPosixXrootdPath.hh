@@ -34,7 +34,13 @@ class XrdPosixXrootPath
 {
 public:
 
+static bool AddProto(const char *proto);
+
 void  CWD(const char *path);
+
+static
+const char *P2L(const char  *who,  const char *inP,
+                      char *&relP, bool ponly=false);
 
 char *URL(const char *path, char *buff, int blen);
 

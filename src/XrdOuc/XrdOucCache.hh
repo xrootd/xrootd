@@ -30,8 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdOuc/XrdOucCacheStats.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 /* The classes defined here can be used to implement a general cache for
    data from an arbitrary source (e.g. files, sockets, etc); as follows:
@@ -80,64 +80,6 @@
 
       delete cacheIO->Detach();                  // Deletes cacheIO and physIO
 */
-  
-/******************************************************************************/
-/*                C l a s s   X r d O u c C a c h e S t a t s                 */
-/******************************************************************************/
-  
-/* The XrdOucCacheStats object holds statistics on cache usage. It is available
-   in for each XrdOucCacheIO and each XrdOucCache object. The former usually
-   identifies a specific file while the latter provides summary information.
-*/
-
-class XrdOucCacheStats
-{
-public:
-long long    BytesPead;  // Bytes read via preread (not included in BytesRead)
-long long    BytesRead;  // Total number of bytes read into the cache
-long long    BytesGet;   // Number of bytes delivered from the cache
-long long    BytesPass;  // Number of bytes read but not cached
-long long    BytesWrite; // Total number of bytes written from the cache
-long long    BytesPut;   // Number of bytes updated in the cache
-int          Hits;       // Number of times wanted data was in the cache
-int          Miss;       // Number of times wanted data was *not* in the cache
-int          HitsPR;     // Number of pages wanted data was just preread
-int          MissPR;     // Number of pages wanted data was just    read
-
-inline void Get(XrdOucCacheStats &Dst)
-               {sMutex.Lock();
-                Dst.BytesRead   = BytesPead;  Dst.BytesGet    = BytesRead;
-                Dst.BytesPass   = BytesPass;
-                Dst.BytesWrite  = BytesWrite; Dst.BytesPut    = BytesPut;
-                Dst.Hits        = Hits;       Dst.Miss        = Miss;
-                Dst.HitsPR      = HitsPR;     Dst.MissPR      = MissPR;
-                sMutex.UnLock();
-               }
-
-inline void Add(XrdOucCacheStats &Src)
-               {sMutex.Lock();
-                BytesRead  += Src.BytesPead;  BytesGet   += Src.BytesRead;
-                BytesPass  += Src.BytesPass;
-                BytesWrite += Src.BytesWrite; BytesPut   += Src.BytesPut;
-                Hits       += Src.Hits;       Miss       += Src.Miss;
-                HitsPR     += Src.HitsPR;     MissPR     += Src.MissPR;
-                sMutex.UnLock();
-               }
-
-inline void  Add(long long &Dest, int &Val)
-                {sMutex.Lock(); Dest += Val; sMutex.UnLock();}
-
-inline void  Lock()   {sMutex.Lock();}
-inline void  UnLock() {sMutex.UnLock();}
-
-             XrdOucCacheStats() : BytesPead(0), BytesRead(0),  BytesGet(0),
-                                  BytesPass(0), BytesWrite(0), BytesPut(0),
-                                  Hits(0),      Miss(0),
-                                  HitsPR(0),    MissPR(0) {}
-            ~XrdOucCacheStats() {}
-private:
-XrdSysMutex sMutex;
-};
 
 /******************************************************************************/
 /*                       X r d O u c C a c h e I O C B                        */
@@ -381,12 +323,13 @@ struct Parms
        int       Max2Cache; // Largest read to cache      (default PageSize)
        int       MaxFiles;  // Maximum number of files    (default 256 or 8K)
        int       Options;   // Options as defined below   (default r/o cache)
-       int       Reserve1;  // Reserved for future use
+       short     minPages;  // Minum number of pages      (default 256)
+       short     Reserve1;  // Reserved for future use
        int       Reserve2;  // Reserved for future use
 
                  Parms() : CacheSize(104857600), PageSize(32768),
                            Max2Cache(0), MaxFiles(0), Options(0),
-                           Reserve1(0),  Reserve2(0) {}
+                           minPages(0), Reserve1(0),  Reserve2(0) {}
       };
 
 // Valid option values in Parms::Options

@@ -32,11 +32,26 @@
 
 #include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssCks.hh"
+#include "XrdPss/XrdPssTrace.hh"
 
 #include "XrdVersion.hh"
 
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdPss/XrdPssUrlInfo.hh"
+
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+
+namespace XrdProxy
+{
+
+extern XrdSysTrace SysTrace;
+
+}
+
+using namespace XrdProxy;
   
 /******************************************************************************/
 /*                            X r d C k s I n i t                             */
@@ -86,8 +101,10 @@ XrdPssCks::csInfo *XrdPssCks::Find(const char *Name)
 
 int XrdPssCks::Get(const char *Pfn, XrdCksData &Cks)
 {
+   EPNAME("GetCks");
    static const int cksBLen = 256;
-   char             cksBuff[cksBLen], pBuff[2048], cgiBuff[32], *tP;
+   static const int urlBLen = 2048;
+   char             cksBuff[cksBLen], pBuff[urlBLen], cgiBuff[32], *tP;
    XrdOucTokenizer  Resp(cksBuff);
    time_t           Mtime;
    int              rc, n;
@@ -95,11 +112,20 @@ int XrdPssCks::Get(const char *Pfn, XrdCksData &Cks)
 // Construct the cgi for digest type
 //
    n = snprintf(cgiBuff, sizeof(cgiBuff), "cks.type=%s", Cks.Name);
+   if (n >= (int)sizeof(cgiBuff)) return -ENAMETOOLONG;
 
-// Direct the path to the origin (we don't have any cgi or ident info)
+// Construct the correct url info
 //
-   if (!XrdPssSys::P2URL(rc, pBuff, sizeof(pBuff), Pfn, 0, cgiBuff, n, 0, 0))
-      return rc;
+   XrdPssUrlInfo uInfo(Cks.tident, Pfn, cgiBuff, false);
+   uInfo.setID();
+
+// Direct the path to the origin
+//
+   if ((rc = XrdPssSys::P2URL(pBuff, sizeof(pBuff), uInfo))) return rc;
+
+// Do some debugging
+//
+    DEBUG(uInfo.Tident(),"url="<<pBuff);
 
 // First step is to getthe checksum value
 //

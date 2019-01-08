@@ -239,6 +239,7 @@ int XrdOfsTPCAuth::Get(XrdOfsTPC::Facts &Args, XrdOfsTPCAuth **theTPC)
 //
    *theTPC = aP;
    aP->Refs = 0;
+   aP->Info.Engage();
    return SFS_STARTED;
 }
 

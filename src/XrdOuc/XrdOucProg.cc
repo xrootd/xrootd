@@ -39,6 +39,7 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -94,9 +95,17 @@ int XrdOucProg::Feed(const char *data[], const int dlen[])
 /******************************************************************************/
 /*                                   R u n                                    */
 /******************************************************************************/
+
+#define runWithVec(strmP, theRC)\
+                  const char *argV[4]; int argC = 0;\
+                  if (arg1) argV[argC++] = arg1;\
+                  if (arg2) argV[argC++] = arg2;\
+                  if (arg3) argV[argC++] = arg3;\
+                  if (arg4) argV[argC++] = arg4;\
+                  theRC = Run(strmP, argV, argC)
   
-int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
-                                      const char *arg3, const char *arg4)
+int XrdOucProg::Run(XrdOucStream *Sp, const char *argV[], int argC,
+                                      const char *envV[])
 {
    const int maxArgs = sizeof(Arg)/sizeof(Arg[0])+4;
    char *myArgs[maxArgs+1];
@@ -115,10 +124,8 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
 
 // Append additional arguments as needed
 //
-   if (arg1 && j < maxArgs) myArgs[j++] = (char *)arg1;
-   if (arg2 && j < maxArgs) myArgs[j++] = (char *)arg2;
-   if (arg3 && j < maxArgs) myArgs[j++] = (char *)arg3;
-   if (arg4 && j < maxArgs) myArgs[j++] = (char *)arg4;
+   for (int i = 0; i < argC && j < maxArgs; i++)
+       if (argV[i]) myArgs[j++] = (char *)argV[i];
 
 // Make sure we don't have too many
 //
@@ -132,9 +139,18 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
 //
    if (myProc) return (*myProc)(Sp, myArgs, j);
 
-// Execute the command
+// Execute the command, possibly setting an environment.
 //
-   if (Sp->Exec(myArgs, 1, theEFD))
+   if (envV)
+      {XrdOucEnv progEnv, *oldEnv = Sp->SetEnv(&progEnv);
+       progEnv.PutPtr("XrdEnvars**", (void *)envV);
+       rc = Sp->Exec(myArgs, 1, theEFD);
+       Sp->SetEnv(oldEnv);
+      } else rc = Sp->Exec(myArgs, 1, theEFD);
+
+// Diagnose any errors
+//
+   if (rc)
       {rc = Sp->LastError();
        if (eDest) eDest->Emsg("Run", rc, "execute", Arg[0]);
        return -rc;
@@ -143,6 +159,19 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
 // All done, caller will drain output
 //
    return 0;
+}
+
+/******************************************************************************/
+
+int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
+                                      const char *arg3, const char *arg4)
+{
+   int rc;
+
+// Execute the command
+//
+   runWithVec(Sp, rc);
+   return rc;
 }
 
 /******************************************************************************/
@@ -156,7 +185,8 @@ int XrdOucProg::Run(const char *arg1, const char *arg2,
 
 // Execute the command
 //
-   if ((rc = Run(&cmd, arg1, arg2, arg3, arg4))) return rc;
+   runWithVec(&cmd, rc);
+   if (rc) return rc;
 
 // Drain all output
 //
@@ -167,6 +197,7 @@ int XrdOucProg::Run(const char *arg1, const char *arg2,
 //
    return RunDone(cmd);
 }
+
 /******************************************************************************/
 
 int XrdOucProg::Run(char *outBuff, int outBsz,
@@ -179,7 +210,8 @@ int XrdOucProg::Run(char *outBuff, int outBsz,
 
 // Execute the command
 //
-   if ((rc = Run(&cmd, arg1, arg2, arg3, arg4))) return rc;
+   runWithVec(&cmd, rc);
+   if (rc) return rc;
 
 // Drain the first line to the output buffer
 //

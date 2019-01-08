@@ -72,6 +72,8 @@
 
 // <RecType> <recname> {<tname>|<path> <priv>} [{<tname|<path> <priv>}] [...]
 
+// = <idname> <id:> <idval> [<id:> <idval> [....]]
+
 // Continuation records are signified by an ending backslash (\). Blank records
 // and comments (i.e., lines with the first non-blank being a pound sign) are
 // allowed. Word separators may be spaces or tabs.
@@ -87,6 +89,8 @@ public:
 virtual int   Open(XrdSysError &eroute, const char *path=0) = 0;
 
 virtual char  getRec(char **recname) = 0;
+
+virtual char  getID(char **id) = 0;
 
 virtual int   getPP(char **path, char **priv, bool &istmplt) = 0;
 

@@ -43,6 +43,7 @@
 #include "XrdOuc/XrdOucString.hh"
 
 #include "XrdSut/XrdSutAux.hh"
+#include "XrdSut/XrdSutRndm.hh"
 #include "XrdSut/XrdSutTrace.hh"
 
 static const char *gXRSBucketTypes[] = {
@@ -255,7 +256,11 @@ int XrdSutToHex(const char *in, int lin, char *out)
    int i = 0;
    out[0] = 0;
    for ( ; i < lin; i++)
-      sprintf(out,"%s%02x",out,(0xFF & in[i]));
+   {
+      char buff[3];
+      sprintf(buff, "%02x", (0xFF & in[i]));
+      strncat(out, buff, 3);
+   }
    // Null termination
    out[lbuf-1] = 0;
 
@@ -442,6 +447,13 @@ int XrdSutResolve(XrdOucString &path,
 
    // Replace <user>, if defined
    if (us && strlen(us) > 0) path.replace("<user>", us);
+
+   // Replace <rtag>, if defined
+   if (path.find("<rtag>") != STR_NPOS) {
+      XrdOucString rtag;
+      XrdSutRndm::GetString(2,6,rtag);
+      path.replace("<rtag>", rtag);
+   }
 
    // Done
    return 0;

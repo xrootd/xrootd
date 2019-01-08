@@ -38,6 +38,7 @@ namespace XrdCl
   class Stream;
   class JobManager;
   class VirtualRedirector;
+  class TickGeneratorTask;
 
   //----------------------------------------------------------------------------
   //! A communication channel between the client and the server
@@ -103,8 +104,7 @@ namespace XrdCl
       Status Send( Message              *msg,
                    OutgoingMsgHandler   *handler,
                    bool                  stateful,
-                   time_t                expires,
-                   VirtualRedirector    *redirector = 0 );
+                   time_t                expires );
 
       //------------------------------------------------------------------------
       //! Synchronously receive a message - blocks until a message matching
@@ -154,6 +154,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Tick( time_t now );
 
+      //------------------------------------------------------------------------
+      //! Force disconnect of all streams
+      //------------------------------------------------------------------------
+      Status ForceDisconnect();
+
     private:
 
       URL                    pUrl;
@@ -164,7 +169,7 @@ namespace XrdCl
       XrdSysMutex            pMutex;
       AnyObject              pChannelData;
       InQueue                pIncoming;
-      Task                  *pTickGenerator;
+      TickGeneratorTask     *pTickGenerator;
       JobManager            *pJobManager;
   };
 }

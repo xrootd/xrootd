@@ -163,16 +163,46 @@ namespace XrdCl
       return Status( stError, errInvalidAddr );
     }
 
-    addresses.clear();
-    for( int i = 0; i < nAddrs; ++i )
-      addresses.push_back( addrs[i] );
-    delete [] addrs;
+    //--------------------------------------------------------------------------
+    // Check what are the preferences IPv6 or IPv4
+    //--------------------------------------------------------------------------
+    int preferIPv4 = DefaultPreferIPv4;
+    DefaultEnv::GetEnv()->GetInt( "PreferIPv4", preferIPv4 );
 
     //--------------------------------------------------------------------------
-    // Sort and shuffle them
+    // Partition the addresses according to the preferences
+    //
+    // The preferred IP family goes to the back as it is easier to remove
+    // items from the back of the vector
     //--------------------------------------------------------------------------
-    std::random_shuffle( addresses.begin(), addresses.end() );
-    std::sort( addresses.begin(), addresses.end(), PreferIPv6() );
+    std::vector<XrdNetAddr> result( nAddrs );
+    auto itr  = result.begin();
+    auto ritr = result.end() - 1;
+
+    for( int i = 0; i < nAddrs; ++i )
+    {
+      bool isIPv4 = addrs[i].isIPType( XrdNetAddrInfo::IPv4 ) ||
+          ( addrs[i].isIPType( XrdNetAddrInfo::IPv6 ) && addrs[i].isMapped() );
+
+      auto store = preferIPv4 ?
+                   ( isIPv4 ? ritr-- : itr++ ) :
+                   ( isIPv4 ? itr++ : ritr-- );
+
+      *store = addrs[i];
+    }
+
+    //--------------------------------------------------------------------------
+    // Shuffle each partition
+    //--------------------------------------------------------------------------
+    std::random_shuffle( result.begin(), itr );
+    std::random_shuffle( itr, result.end() );
+
+    //--------------------------------------------------------------------------
+    // Return result through output parameter
+    //--------------------------------------------------------------------------
+    addresses.swap( result );
+    delete [] addrs;
+
     return Status();
   }
 
@@ -352,6 +382,55 @@ namespace XrdCl
       return XRootDStatus( stError, errNotSupported );
     }
     log->Debug( UtilityMsg, "Third party copy supported at: %s",
+                server.c_str() );
+
+    return XRootDStatus();
+  }
+
+  //------------------------------------------------------------------------
+  // Check if peer supports tpc / tpc lite
+  //------------------------------------------------------------------------
+  XRootDStatus Utils::CheckTPCLite( const std::string &server, uint16_t timeout )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( UtilityMsg, "Checking if the data server %s supports tpc / tpc lite",
+                server.c_str() );
+
+    FileSystem    sourceDSFS( server );
+    Buffer        queryArg; queryArg.FromString( "tpc tpcdlg" );
+    Buffer       *queryResponse;
+    XRootDStatus  st;
+    st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse,
+                           timeout );
+    if( !st.IsOK() )
+    {
+      log->Error( UtilityMsg, "Cannot query source data server %s: %s",
+                  server.c_str(), st.ToStr().c_str() );
+      st.status = stFatal;
+      return st;
+    }
+
+    std::string answer = queryResponse->ToString();
+    delete queryResponse;
+
+    std::vector<std::string> resp;
+    Utils::splitString( resp, answer, "\n" );
+
+    if( !isdigit( resp[0][0]) || atoi( resp[0].c_str() ) == 0 )
+    {
+      log->Debug( UtilityMsg, "Third party copy not supported at: %s",
+                  server.c_str() );
+      return XRootDStatus( stError, errNotSupported );
+    }
+
+    if( resp.size() == 1 || resp[1] == "tpcdlg" )
+    {
+      log->Debug( UtilityMsg, "TPC lite not supported at: %s",
+                  server.c_str() );
+      return XRootDStatus( stOK, suPartial );
+    }
+
+    log->Debug( UtilityMsg, "TPC lite supported at: %s",
                 server.c_str() );
 
     return XRootDStatus();

@@ -336,6 +336,7 @@ int XrdOucGMap::dn2user(const char *dn, char *user, int ulen, time_t now)
          user[ul] = 0;
          rc = 0;
       }
+      if (mc) delete mc;
    }
    if (rc == 0) {
       DEBUG(dbg, tracer, "XrdOucGMap::dn2user", "mapping DN '"<<dn<<"' to '"<<user<<"'");

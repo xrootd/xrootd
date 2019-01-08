@@ -44,7 +44,13 @@
 #ifdef HAVE_SENDFILE
 
 #ifndef __APPLE__
+#if !defined(__FreeBSD__)
 #include <sys/sendfile.h>
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
+#endif
 #endif
 
 #endif
@@ -129,6 +135,7 @@ static const char *TraceID;
        int             XrdLink::LinkTimeOuts  = 0;
        int             XrdLink::LinkStalls    = 0;
        int             XrdLink::LinkSfIntr    = 0;
+       int             XrdLink::maxFD         = 0;
        XrdSysMutex     XrdLink::statsMutex;
 
        const char     *XrdLinkScan::TraceID = "LinkScan";
@@ -202,6 +209,14 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
    char hName[1024], *unp, buff[16];
    int bl, peerFD = peer.SockFD();
 
+// Make sure that the incomming file descriptor can be handled
+//
+   if (peerFD < 0 || peerFD >= maxFD)
+      {snprintf(hName, sizeof(hName), "%d", peerFD);
+       XrdLog->Emsg("Link", "attempt to alloc out of range FD -",hName);
+       return (XrdLink *)0;
+      }
+
 // Make sure that the link slot is available
 //
    LTMutex.Lock();
@@ -249,8 +264,8 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
    lp->Addr = peer;
    strlcpy(lp->Lname, hName, sizeof(lp->Lname));
    bl = sprintf(buff, "?:%d", peerFD);
-   unp = lp->Lname - bl - 1;
-   strncpy(unp, buff, bl);
+   unp = lp->Uname + sizeof(Uname) - bl - 1;
+   memcpy(unp, buff, bl);
    lp->ID = unp;
    lp->FD = peerFD;
    lp->Comment = (const char *)unp;
@@ -277,7 +292,7 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
   
 int XrdLink::Backlog()
 {
-   XrdSysMutexHelper(wrMutex);
+   XrdSysMutexHelper lck(wrMutex);
 
 // Return backlog information
 //
@@ -431,7 +446,7 @@ void XrdLink::DoIt()
 // Either re-enable the link and cycle back waiting for a new request, leave
 // disabled, or terminate the connection.
 //
-   if (rc >= 0) {if (Poller) Poller->Enable(this);}
+   if (rc >= 0) {if (Poller && !Poller->Enable(this)) Close();}
       else if (rc != -EINPROGRESS) Close();
 }
   
@@ -696,13 +711,13 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
   
 int XrdLink::Send(const char *Buff, int Blen)
 {
-   ssize_t retc = 0, bytesleft = Blen, myBytes = 0;
+   ssize_t retc = 0, bytesleft = Blen;
 
 // Get a lock
 //
    wrMutex.Lock();
    isIdle = 0;
-   AtomicAdd(BytesOut, myBytes);
+   AtomicAdd(BytesOut, Blen);
 
 // Do non-blocking writes if we are setup to do so.
 //
@@ -719,7 +734,7 @@ int XrdLink::Send(const char *Buff, int Blen)
             {if (errno == EINTR) continue;
                 else break;
             }
-         myBytes += retc; bytesleft -= retc; Buff += retc;
+         bytesleft -= retc; Buff += retc;
         }
 
 // All done
@@ -889,7 +904,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
            else {myOffset = sfP->offset; bytesleft = sfP->sendsz;
                  while(bytesleft
                     && (retc=sendfile(FD,sfP->fdnum,&myOffset,bytesleft)) > 0)
-                      {myOffset += retc; bytesleft -= retc; xIntr++;}
+                      {bytesleft -= retc; xIntr++;}
                 }
         if (retc <  0 && errno == EINTR) continue;
         if (retc <= 0) break;
@@ -1016,6 +1031,7 @@ int XrdLink::Setup(int maxfds, int idlewait)
 // Compute the number of link objects we should allocate at a time. Generally,
 // we like to allocate 8k of them at a time but always as a power of two.
 //
+   maxFD = maxfds;
    numalloc = 8192 / sizeof(XrdLink);
    LinkAlloc = 1;
    while((numalloc = numalloc/2)) LinkAlloc = LinkAlloc*2;
@@ -1112,9 +1128,11 @@ void XrdLink::setRef(int use)
              XrdLog->Emsg("Link", "Zero use count for", ID);
             }
     else if (InUse == 1 && doPost)
-            {doPost--;
-             IOSemaphore.Post();
-             TRACEI(CONN, "setRef posted link");
+            {while(doPost)
+                {IOSemaphore.Post();
+                 TRACEI(CONN, "setRef posted link");
+                 doPost--;
+                }
              opMutex.UnLock();
             }
     else if (InUse < 0)
@@ -1265,12 +1283,11 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
    XrdSysCondVar killDone(0);
    XrdLink *lp;
    char buff[1024], *cp;
-   int wTime, didKW = KillCnt & KillXwt;
+   int wTime, killTries;
 
 // Find the correspodning link
 //
-   KillCnt = KillCnt & KillMsk;
-   if (!(lp = fd2link(fdnum, inst))) return (didKW ? -EPIPE : -ESRCH);
+   if (!(lp = fd2link(fdnum, inst))) return -ESRCH;
 
 // If this is self termination, then indicate that to the caller
 //
@@ -1302,18 +1319,22 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
 
 // Check if we have too many tries here
 //
-   if (lp->KillCnt > KillMax)
+   killTries = lp->KillCnt & KillMsk;
+   if (killTries > KillMax)
       {lp->opMutex.UnLock();
        return -ETIME;
       }
-   wTime = lp->KillCnt++;
+
+// Wait time increases as we have more unsuccessful kills. Update numbers.
+//
+   wTime = killTries++;
+   lp->KillCnt = killTries | KillXwt;
 
 // Make sure we can disable this link. Of not, then force the caller to wait
 // a tad more than the read timeout interval.
 //
    if (!(lp->isEnabled) || lp->InUse > 1 || lp->KillcvP)
       {wTime = wTime*2+waitKill;
-       KillCnt |= KillXwt;
        lp->opMutex.UnLock();
        return (wTime > 60 ? 60: wTime);
       }
@@ -1332,7 +1353,7 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
 
 // Now wait for the link to shutdown. This avoids lock problems.
 //
-   if (killDone.Wait(int(killWait))) {wTime += killWait; KillCnt |= KillXwt;}
+   if (killDone.Wait(int(killWait))) wTime += killWait;
       else wTime = -EPIPE;
    killDone.UnLock();
 

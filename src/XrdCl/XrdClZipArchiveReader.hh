@@ -31,6 +31,7 @@ namespace XrdCl
 {
 
 class ZipArchiveReaderImpl;
+class File;
 
 //----------------------------------------------------------------------------
 //! A wrapper class for the XrdCl::File.
@@ -48,8 +49,10 @@ class ZipArchiveReader
 
     //------------------------------------------------------------------------
     //! Constructor.
+    //!
+    //! Wraps up the File object
     //------------------------------------------------------------------------
-    ZipArchiveReader();
+    ZipArchiveReader( File &archive );
 
     //------------------------------------------------------------------------
     //! Destructor.
@@ -95,9 +98,29 @@ class ZipArchiveReader
     XRootDStatus Read( const std::string &filename, uint64_t offset, uint32_t size, void *buffer, ResponseHandler *handler, uint16_t timeout = 0 );
 
     //------------------------------------------------------------------------
-    // Sync read.
+    //! Sync read.
     //------------------------------------------------------------------------
     XRootDStatus Read( const std::string &filename, uint64_t offset, uint32_t size, void *buffer, uint32_t &bytesRead, uint16_t timeout = 0 );
+
+    //------------------------------------------------------------------------
+    //! Bounds the reader to a file inside the archive.
+    //------------------------------------------------------------------------
+    XRootDStatus Bind( const std::string &filename );
+
+    //------------------------------------------------------------------------
+    //! Async bound read.
+    //------------------------------------------------------------------------
+    XRootDStatus Read( uint64_t offset, uint32_t size, void *buffer, ResponseHandler *handler, uint16_t timeout = 0 );
+
+    //------------------------------------------------------------------------
+    //! Sync bound read.
+    //------------------------------------------------------------------------
+    XRootDStatus Read( uint64_t offset, uint32_t size, void *buffer, uint32_t &bytesRead, uint16_t timeout = 0 );
+
+    //------------------------------------------------------------------------
+    //! Sync list
+    //------------------------------------------------------------------------
+    XRootDStatus List( DirectoryList *&list );
 
     //------------------------------------------------------------------------
     //! Async close.
@@ -115,23 +138,13 @@ class ZipArchiveReader
     XRootDStatus Close( uint16_t timeout  = 0 );
 
     //------------------------------------------------------------------------
-    //! Set file property
-    //!
-    //! File properties:
-    //! ReadRecovery     [true/false] - enable/disable read recovery
-    //! WriteRecovery    [true/false] - enable/disable write recovery
-    //! FollowRedirects  [true/false] - enable/disable following redirections
-    //------------------------------------------------------------------------
-    bool SetProperty( const std::string &name, const std::string &value );
-
-    //------------------------------------------------------------------------
     //! Gets the size of the given file
     //!
     //! @param filename : the name of the file
     //!
     //! @return         : the size of the file as in CDFH record
     //------------------------------------------------------------------------
-    XRootDStatus GetSize( const std::string &filename, uint32_t &size ) const;
+    XRootDStatus GetSize( const std::string &filename, uint64_t &size ) const;
 
     //------------------------------------------------------------------------
     //! Check if the archive is open

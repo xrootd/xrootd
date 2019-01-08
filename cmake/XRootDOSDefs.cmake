@@ -8,6 +8,8 @@ set( Linux    FALSE )
 set( MacOSX   FALSE )
 set( Solaris  FALSE )
 
+set( XrdClPipelines FALSE )
+
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 set( LIBRARY_PATH_PREFIX "lib" )
 
@@ -17,9 +19,15 @@ endif()
 add_definitions( -DUSE_LIBC_SEMAPHORE=${USE_LIBC_SEMAPHORE} )
 
 #-------------------------------------------------------------------------------
+# Enable c++0x / c++11
+#-------------------------------------------------------------------------------
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -DOPENSSL_NO_FILENAMES" )
+
+#-------------------------------------------------------------------------------
 # GCC
 #-------------------------------------------------------------------------------
 if( CMAKE_COMPILER_IS_GNUCXX )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
   # gcc 4.1 is retarded
@@ -34,6 +42,10 @@ if( CMAKE_COMPILER_IS_GNUCXX )
   # interfears  with custom semaphore implementation
   if( (GCC_VERSION VERSION_GREATER 4.9.2) AND (USE_LIBC_SEMAPHORE EQUAL 0) )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer" )
+  endif()
+  
+  if( GCC_VERSION VERSION_GREATER 4.8.0 )
+  	set( XrdClPipelines TRUE )
   endif()
 
   # gcc 6.0 is more pedantic
@@ -66,6 +78,17 @@ if( APPLE )
   set( CMAKE_INSTALL_LIBDIR "lib" )
   set( CMAKE_INSTALL_BINDIR "bin" )
   set( CMAKE_INSTALL_MANDIR "share/man" )
+  set( CMAKE_INSTALL_INCLUDEDIR "include" )
+  set( CMAKE_INSTALL_DATADIR "share" )
+endif()
+
+#-------------------------------------------------------------------------------
+# FreeBSD
+#-------------------------------------------------------------------------------
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD" )
+  set( CMAKE_INSTALL_LIBDIR "lib" )
+  set( CMAKE_INSTALL_BINDIR "bin" )
+  set( CMAKE_INSTALL_MANDIR "man" )
   set( CMAKE_INSTALL_INCLUDEDIR "include" )
   set( CMAKE_INSTALL_DATADIR "share" )
 endif()

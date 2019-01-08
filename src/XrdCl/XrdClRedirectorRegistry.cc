@@ -6,13 +6,25 @@
  */
 
 #include "XrdClRedirectorRegistry.hh"
-
 #include "XrdCl/XrdClMetalinkRedirector.hh"
+#include "XrdCl/XrdClPostMasterInterfaces.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClLog.hh"
 
 #include <arpa/inet.h>
 
 namespace XrdCl
 {
+
+void RedirectJob::Run( void *arg )
+{
+  Message *msg = reinterpret_cast<Message*>( arg );
+  pHandler->Process( msg );
+  delete msg;
+  delete this;
+}
+
 
 RedirectorRegistry& RedirectorRegistry::Instance()
 {
@@ -27,11 +39,18 @@ RedirectorRegistry::~RedirectorRegistry()
     delete itr->second.first;
 }
 
-XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *handler )
+XRootDStatus RedirectorRegistry::RegisterImpl( const URL &u, ResponseHandler *handler )
 {
+  URL url = ConvertLocalfile( u );
+
   // we can only create a virtual redirector if
   // a path to a metadata file has been provided
   if( url.GetPath().empty() ) return XRootDStatus( stError, errNotSupported );
+
+  // regarding file protocol we only support localhost
+  if( url.GetProtocol() == "file" && url.GetHostName() != "localhost" )
+    return XRootDStatus( stError, errNotSupported );
+
   XrdSysMutexHelper scopedLock( pMutex );
   // get the key and check if it is already in the registry
   const std::string key = url.GetLocation();
@@ -59,6 +78,28 @@ XRootDStatus RedirectorRegistry::RegisterImpl( const URL &url, ResponseHandler *
     return XRootDStatus( stError, errNotSupported );
 }
 
+URL RedirectorRegistry::ConvertLocalfile( const URL &url )
+{
+  int localml = DefaultLocalMetalinkFile;
+  DefaultEnv::GetEnv()->GetInt( "LocalMetalinkFile", localml );
+
+  if( localml && url.GetProtocol() == "root" && url.GetHostName() == "localfile" )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Warning( PostMasterMsg,
+                  "Please note that the 'root://localfile//path/filename.meta4' "
+                  "semantic is now deprecated, use 'file://localhost/path/filename.meta4'"
+                  "instead!" );
+
+    URL copy( url );
+    copy.SetHostName( "localhost" );
+    copy.SetProtocol( "file" );
+    return copy;
+  }
+
+  return url;
+}
+
 XRootDStatus RedirectorRegistry::Register( const URL &url )
 {
   return RegisterImpl( url, 0 );
@@ -72,8 +113,10 @@ XRootDStatus RedirectorRegistry::RegisterAndWait( const URL &url )
   return MessageUtils::WaitForStatus( &handler );
 }
 
-VirtualRedirector* RedirectorRegistry::Get( const URL &url ) const
+VirtualRedirector* RedirectorRegistry::Get( const URL &u ) const
 {
+  URL url = ConvertLocalfile( u );
+
   XrdSysMutexHelper scopedLock( pMutex );
   // get the key and return the value if it is in the registry
   // offset 24 is where the path has been stored
@@ -88,8 +131,10 @@ VirtualRedirector* RedirectorRegistry::Get( const URL &url ) const
 //----------------------------------------------------------------------------
 // Release the virtual redirector associated with the given URL
 //----------------------------------------------------------------------------
-void RedirectorRegistry::Release( const URL &url )
+void RedirectorRegistry::Release( const URL &u )
 {
+  URL url = ConvertLocalfile( u );
+
   XrdSysMutexHelper scopedLock( pMutex );
   // get the key and return the value if it is in the registry
   // offset 24 is where the path has been stored

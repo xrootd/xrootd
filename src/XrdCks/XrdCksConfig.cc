@@ -44,6 +44,7 @@
 #include "XrdCks/XrdCksManOss.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
@@ -167,7 +168,7 @@ int XrdCksConfig::Manager(const char *Path, const char *Parms)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdCksConfig::ParseLib(XrdOucStream &Config)
+int XrdCksConfig::ParseLib(XrdOucStream &Config, int &libType)
 {
    static const int nameSize = XrdCksData::NameSize;
    static const int pathSize = MAXPATHLEN;
@@ -183,7 +184,7 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config)
    n = strlen(val);
    if (n >= nameSize)
       {eDest->Emsg("Config", "ckslib digest name too long -", val); return 1;}
-   strcpy(buff, val); bP = buff+n; *bP++ = ' ';
+   strcpy(buff, val); XrdOucUtils::toLower(buff); bP = buff+n; *bP++ = ' ';
 
 // Get the path
 //
@@ -202,7 +203,10 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config)
 
 // Check if this is for the manager
 //
-   if (*buff == '*' && *(buff+1) == ' ') return Manager(buff+2, parms);
+   if ((*buff == '*' || *buff == '=') && *(buff+1) == ' ')
+      {libType = (*buff == '*' ? -1 : 1);
+       return Manager(buff+2, parms);
+      } else libType = 0;
 
 // Add this digest to the list of digests
 //

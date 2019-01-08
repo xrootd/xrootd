@@ -28,27 +28,31 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <iostream>
-#include <stdio.h>
-
 #include "XrdPosix/XrdPosixObjGuard.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixTrace.hh"
 
 /******************************************************************************/
-/*                               G l o b a l s                                */
+/*                               D i s a b l e                                */
 /******************************************************************************/
-
-namespace XrdPosixGlobals
+  
+void XrdPosixPrepIO::Disable()
 {
-extern bool psxDBG;
-};
+   EPNAME("PrepIODisable");
+   XrdPosixObjGuard objGuard(fileP);
 
+   DEBUG("Disabling defered open "<<fileP->Origin());
+
+   openRC = -ESHUTDOWN;
+}
+  
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
   
 bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 {
+   EPNAME("PrepIOInit");
    XrdPosixObjGuard objGuard(fileP);
    XrdCl::XRootDStatus Status;
    static int maxCalls = 64;
@@ -58,22 +62,21 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
 //
    if (iCalls++ >= maxCalls)
       {maxCalls = maxCalls*2;
-       std::cerr <<"XrdPosix: Unexpected PrepIO calls (" <<iCalls <<")\n"
-                 <<std::flush;
+       DMSG("Init", iCalls <<" unexpected PrepIO calls!");
       }
-
-// Check if the file is already opened. This caller may be vestigial
-//
-   if (fileP->clFile.IsOpen()) return true;
 
 // Do not try to open the file if there was previous error
 //
    if (openRC) return false;
 
+// Check if the file is already opened. This caller may be vestigial
+//
+   if (fileP->clFile.IsOpen()) return true;
+
 // Open the file. It is too difficult to do an async open here as there is a
 // possible pending async request and doing both is not easy at all.
 //
-   Status = fileP->clFile.Open((std::string)fileP->Path(), clFlags, clMode);
+   Status = fileP->clFile.Open((std::string)fileP->Origin(), clFlags, clMode);
 
 // If all went well, then we need to do a Stat() call on the underlying file
 //
@@ -84,12 +87,8 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
    if (!Status.IsOK())
       {XrdPosixMap::Result(Status);
        openRC = -errno;
-       if (XrdPosixGlobals::psxDBG && errno != ENOENT && errno != ELOOP)
-          {char eBuff[2048];
-           snprintf(eBuff, sizeof(eBuff), "%s deferred open %s\n",
-                    Status.ToString().c_str(), fileP->Path());
-           std::cerr <<eBuff <<std::flush;
-          }
+       if (errno != ENOENT && errno != ELOOP)
+          {DEBUG(Status.ToString().c_str()<<" deferred open "<<fileP->Origin());}
        return false;
       }
 

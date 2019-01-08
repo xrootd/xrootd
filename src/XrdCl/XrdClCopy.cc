@@ -30,9 +30,10 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClDlgEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <stdio.h>
 #include <iostream>
 #include <iomanip>
 #include <limits>
@@ -250,7 +251,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
       std::cerr << checkSum.substr( 0, i+1 ) << " ";
       std::cerr << checkSum.substr( i+1, checkSum.length()-i ) << " ";
 
-      if( url->GetProtocol() == "file" )
+      if( url->IsLocalFile() )
         std::cerr << url->GetPath() << " ";
       else
       {
@@ -303,12 +304,6 @@ bool AllOptionsSupported( XrdCpConfig *config )
   if( config->xRate )
   {
     std::cerr << "Limiting transfer rate is not yet supported" << std::endl;
-    return false;
-  }
-
-  if( config->nSrcs != 1 )
-  {
-    std::cerr << "Multiple sources are not yet supported" << std::endl;
     return false;
   }
 
@@ -437,6 +432,8 @@ XrdCl::XRootDStatus GetDirList( XrdCl::FileSystem        *fs,
     }
   }
 
+  delete list;
+
   return XRootDStatus();
 }
 
@@ -449,35 +446,32 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
 {
   using namespace XrdCl;
 
-  XrdCpFile   start;
-  XrdCpFile  *end   = &start;
-  XrdCpFile  *current;
-  URL         source( basePath );
-  int         badUrl;
-
-  std::vector<std::string> *files       = new std::vector<std::string>();
-  std::vector<std::string> *directories = new std::vector<std::string>();
-
   Log *log = DefaultEnv::GetLog();
   log->Debug( AppMsg, "Indexing %s", basePath.c_str() );
 
-  XRootDStatus status = GetDirList( fs, source, files, directories );
-  if( !status.IsOK() )
+  DirectoryList *dirList = 0;
+  XRootDStatus st = fs->DirList( URL( basePath ).GetPath(), DirListFlags::Recursive, dirList );
+  if( !st.IsOK() )
   {
     log->Info( AppMsg, "Failed to get directory listing for %s: %s",
-                       source.GetURL().c_str(),
-                       status.GetErrorMessage().c_str() );
+                       basePath.c_str(),
+                       st.GetErrorMessage().c_str() );
+    return 0;
   }
 
-  std::vector<std::string>::iterator it;
-  for( it = files->begin(); it != files->end(); ++it )
+  XrdCpFile start, *current = 0;
+  XrdCpFile *end   = &start;
+  int       badUrl = 0;
+  for( auto itr = dirList->Begin(); itr != dirList->End(); ++itr )
   {
-    std::string file = basePath + "/" + (*it);
-    log->Dump( AppMsg, "Found file %s", file.c_str() );
-
-    current = new XrdCpFile( file.c_str(), badUrl );
+    DirectoryList::ListEntry *e = *itr;
+    if( e->GetStatInfo()->TestFlags( StatInfo::IsDir ) )
+      continue;
+    std::string path = basePath + '/' + e->GetName();
+    current = new XrdCpFile( path.c_str(), badUrl );
     if( badUrl )
     {
+      delete current;
       log->Error( AppMsg, "Bad URL: %s", current->Path );
       return 0;
     }
@@ -487,17 +481,8 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
     end           = current;
   }
 
-  for( it = directories->begin(); it != directories->end(); ++it )
-  {
-    std::string directory = basePath + "/" + (*it);
-    log->Dump( AppMsg, "Found directory %s", directory.c_str() );
+  delete dirList;
 
-    end->Next = IndexRemote( fs, directory, dirOffset );
-    while( end->Next ) end = end->Next;
-  }
-
-  delete files;
-  delete directories;
   return start.Next;
 }
 
@@ -524,7 +509,7 @@ int main( int argc, char **argv )
   XrdCpConfig config( argv[0] );
   config.Config( argc, argv, XrdCpConfig::optRmtRec );
   if( !AllOptionsSupported( &config ) )
-    return 254;
+    return 50; // generic error
   ProcessCommandLineEnv( &config );
 
   //----------------------------------------------------------------------------
@@ -548,6 +533,7 @@ int main( int argc, char **argv )
   bool         coerce    = false;
   bool         makedir   = false;
   bool         dynSrc    = false;
+  bool         delegate  = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -555,6 +541,18 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoCoerce ) )   coerce     = true;
   if( config.Want( XrdCpConfig::DoTpc ) )      thirdParty = "first";
   if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdParty = "only";
+  if( config.Want( XrdCpConfig::DoTpcDlgt ) )
+  {
+    // the env var is being set already here (we are issuing a stat
+    // inhere and we need the env var when we are establishing the
+    // connection and authenticating), but we are also setting a delegate
+    // parameter for CopyJob so it can be used on its own.
+    DlgEnv::Instance().Enable();
+    delegate = true;
+  }
+  else
+    DlgEnv::Instance().Disable();
+
   if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoPath    ) )  makedir    = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc     = true;
@@ -597,7 +595,7 @@ int main( int argc, char **argv )
     else
     {
       std::cerr << "Invalid parameter: " << config.CksVal << std::endl;
-      return 254;
+      return 50; // generic error
     }
   }
 
@@ -613,6 +611,17 @@ int main( int argc, char **argv )
   }
 
   //----------------------------------------------------------------------------
+  // Extreme Copy
+  //----------------------------------------------------------------------------
+  int nbSources = 0;
+  bool xcp      = false;
+  if( config.Want( XrdCpConfig::DoSources ) )
+  {
+    nbSources = config.nSrcs;
+    xcp       = true;
+  }
+
+  //----------------------------------------------------------------------------
   // Environment settings
   //----------------------------------------------------------------------------
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
@@ -621,6 +630,9 @@ int main( int argc, char **argv )
 
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
+
+  int blockSize = DefaultXCpBlockSize;
+  env->GetInt( "XCpBlockSize", blockSize );
 
   int parallelChunks = DefaultCPParallelChunks;
   env->GetInt( "CPParallelChunks", parallelChunks );
@@ -631,7 +643,7 @@ int main( int argc, char **argv )
     std::cerr << (int)std::numeric_limits<uint8_t>::max();
     std::cerr << " chunks in parallel. You asked for " << parallelChunks;
     std::cerr << "." << std::endl;
-    return 254;
+    return 50; // generic error
   }
 
   log->Dump( AppMsg, "Chunk size: %d, parallel chunks %d, streams: %d",
@@ -645,7 +657,24 @@ int main( int argc, char **argv )
   std::string dest;
   if( config.dstFile->Protocol == XrdCpFile::isDir ||
       config.dstFile->Protocol == XrdCpFile::isFile )
+  {
     dest = "file://";
+
+    // if it is not an absolute path append cwd
+    if( config.dstFile->Path[0] != '/' )
+    {
+      char buf[FILENAME_MAX];
+      char *cwd = getcwd( buf, FILENAME_MAX );
+      if( !cwd )
+      {
+        XRootDStatus st( stError, XProtocol::mapError( errno ), errno, strerror( errno ) );
+        std::cerr <<  st.GetErrorMessage() << std::endl;
+        return st.GetShellCode();
+      }
+      dest += cwd;
+      dest += '/';
+    }
+  }
   dest += config.dstFile->Path;
 
   //----------------------------------------------------------------------------
@@ -683,7 +712,7 @@ int main( int argc, char **argv )
   {
     std::cerr << "Multiple sources were given but target is not a directory.";
     std::cerr << std::endl;
-    return 255;
+    return 50; // generic error
   }
 
   //----------------------------------------------------------------------------
@@ -704,12 +733,12 @@ int main( int argc, char **argv )
       // Recursively index the remote directory
       //------------------------------------------------------------------------
       delete config.srcFile;
-      config.srcFile = IndexRemote( fs, source.GetURL(),
-                                    source.GetURL().size() );
+      std::string url = source.GetURL();
+      config.srcFile = IndexRemote( fs, url, url.size() );
       if ( !config.srcFile )
       {
         std::cerr << "Error indexing remote directory.";
-        return 255;
+        return 50; // generic error
       }
     }
 
@@ -732,7 +761,23 @@ int main( int argc, char **argv )
     PropertyList *results = new PropertyList;
     std::string source = sourceFile->Path;
     if( sourceFile->Protocol == XrdCpFile::isFile )
-      source = "file://" + source;
+    {
+      // make sure it is an absolute path
+      if( source[0] == '/' )
+        source = "file://" + source;
+      else
+      {
+        char buf[FILENAME_MAX];
+        char *cwd = getcwd( buf, FILENAME_MAX );
+        if( !cwd )
+        {
+          XRootDStatus st( stError, XProtocol::mapError( errno ), errno, strerror( errno ) );
+          std::cerr <<  st.GetErrorMessage() << std::endl;
+          return st.GetShellCode();
+        }
+        source = "file://" + std::string( cwd ) + '/' + source;
+      }
+    }
 
     AppendCGI( source, config.srcOpq );
 
@@ -741,44 +786,21 @@ int main( int argc, char **argv )
                dest.c_str() );
 
     //--------------------------------------------------------------------------
-    // Create a virtual redirector if it is a metalink file
-    //--------------------------------------------------------------------------
-    URL src( source );
-    if( src.IsMetalink() )
-    {
-      RedirectorRegistry &registry = RedirectorRegistry::Instance();
-      XRootDStatus st = registry.RegisterAndWait( src );
-      if( !st.IsOK() )
-      {
-        std::cerr << "RedirectorRegistry::Register " << source << " -> " << dest << ": ";
-        std::cerr << st.ToStr() << std::endl;
-        resultVect.push_back( results );
-        sourceFile = sourceFile->Next;
-        continue;
-      }
-    }
-
-    //--------------------------------------------------------------------------
     // Set up the job
     //--------------------------------------------------------------------------
     std::string target = dest;
-    if( targetIsDir)
+    // if this is a recursive copy make sure we preserve the directory structure
+    if( config.Want( XrdCpConfig::DoRecurse ) )
     {
-      target = dest + "/";
-      // if it is a metalink we don't want to use the metalink name
-      if( zip )
-      {
-        target += zipFile;
-      }
-      else if( src.IsMetalink() )
-      {
-        XrdCl::RedirectorRegistry &registry = XrdCl::RedirectorRegistry::Instance();
-        VirtualRedirector *redirector = registry.Get( source );
-        target += redirector->GetTargetName();
-      }
-      else target += (sourceFile->Path+sourceFile->Doff);
+      // get the source directory
+      std::string srcDir( sourceFile->Path, sourceFile->Doff );
+      // remove the trailing slash
+      if( srcDir[srcDir.size() - 1] == '/' )
+        srcDir = srcDir.substr( 0, srcDir.size() - 1 );
+      short diroff = srcDir.rfind( '/' );
+      target += '/';
+      target += sourceFile->Path + diroff;
     }
-
     AppendCGI( target, config.dstOpq );
 
     properties.Set( "source",         source         );
@@ -795,9 +817,16 @@ int main( int argc, char **argv )
     properties.Set( "chunkSize",      chunkSize      );
     properties.Set( "parallelChunks", parallelChunks );
     properties.Set( "zipArchive",     zip            );
+    properties.Set( "xcp",            xcp            );
+    properties.Set( "xcpBlockSize",   blockSize      );
+    properties.Set( "delegate",       delegate       );
+    properties.Set( "targetIsDir",    targetIsDir    );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );
+
+    if( xcp )
+      properties.Set( "nbXcpSources", nbSources      );
 
 
     XRootDStatus st = process.AddJob( properties, results );
@@ -861,6 +890,7 @@ int main( int argc, char **argv )
     return st.GetShellCode();
   }
   CleanUpResults( resultVect );
+
   return 0;
 }
 

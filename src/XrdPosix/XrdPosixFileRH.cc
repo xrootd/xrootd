@@ -121,6 +121,7 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
 
 // Now schedule this callback
 //
+   theFile->unRef();
    if (XrdPosixGlobals::schedP) XrdPosixGlobals::schedP->Schedule(this);
       else {pthread_t tid;
             XrdSysThread::Run(&tid, callDoIt, this, 0, "PosixFileRH");

@@ -66,19 +66,14 @@ public:
 static  void        setVals(XrdSysError    *erp,
                             XrdXrootdStats *SIp,
                             XrdScheduler   *schp,
-                            int             port)
-                           {eDest=erp; SI=SIp; Sched=schp; Port=port;}
+                            int             port);
 
                     XrdXrootdCallBack(const char *opn, const char opc)
                                      : Opname(opn), Opcode(opc) {}
 
                    ~XrdXrootdCallBack() {}
 private:
-static XrdSysError        *eDest;
-static XrdXrootdStats     *SI;
-static XrdScheduler       *Sched;
        const char         *Opname;
        const char          Opcode;
-static int                 Port;
 };
 #endif

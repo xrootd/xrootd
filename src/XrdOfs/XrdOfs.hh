@@ -376,10 +376,11 @@ short             poscAuto;       //  1 -> Automatic persist on close
 
 char              ossRW;          // The oss r/w capability
 bool              CksPfn;         // Checksum needs a pfn
+bool              CksRdr;         // Checksum may be redirected (i.e. not local)
 XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
 XrdCks           *Cks;            // Checksum manager
-int               Reserved4;      // Reserved for future checksum stuff
-
+char              Reserved[3];    // Reserved for future checksum stuff
+char              OssIsProxy;     // !0 if we detect the oss plugin is a proxy
 char              myRType[4];     // Role type for consistency with the cms
 
 XrdVersionInfo   *myVersion;      // Version number compiled against
@@ -402,6 +403,8 @@ XrdSysMutex              ocMutex; // Global mutex for open/close
 int           ConfigDispFwd(char *buff, struct fwdOpt &Fwd);
 int           ConfigPosc(XrdSysError &Eroute);
 int           ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo);
+int           ConfigTPC(XrdSysError &Eroute);
+char         *ConfigTPCDir(XrdSysError &Eroute, const char *xPath);
 const char   *Fname(const char *);
 int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                       const char *arg1=0, const char *arg2=0,

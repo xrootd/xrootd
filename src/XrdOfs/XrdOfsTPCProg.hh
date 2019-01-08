@@ -56,7 +56,7 @@ XrdOfsTPCProg   *Start(XrdOfsTPCJob *jP, int &rc);
 
                 ~XrdOfsTPCProg() {}
 private:
-
+       int            ExportCreds(const char *path);
 static XrdSysMutex    pgmMutex;
 static XrdOfsTPCProg *pgmIdle;
 

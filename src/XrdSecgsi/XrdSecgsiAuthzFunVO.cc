@@ -180,8 +180,7 @@ int XrdSecgsiAuthzFun(XrdSecEntity &entity)
        entity.name = strdup(vbuff);
       } else if (g_cn2usr && entity.name && (vtxt=strstr(entity.name,"/CN=")))
                 {char *cP = vbuff;
-                 if ((n = strlen(vtxt+4)) > g_maxvolen) n = g_maxvolen;
-                 strncpy(vbuff, vtxt+4, n); vbuff[n] = 0;
+                 strncpy(vbuff, vtxt+4, g_maxvolen); vbuff[n] = 0;
                  while(*cP) {if (*cP == ' ') *cP = '_'; cP++;}
                  for (i = n-1; i >= 0; i--) {if (*cP == '_') *cP = 0;}
                  if (*vbuff)
@@ -252,8 +251,8 @@ int XrdSecgsiAuthzInit(const char *cfg)
 //
    if (cfg)
       {i = strlen(cfg);
-       if (1 >= (int)sizeof(cfgbuff)) i = sizeof(cfgbuff)-1;
-       strncpy(cfgbuff, cfg, i);
+       if (i >= (int)sizeof(cfgbuff)) i = sizeof(cfgbuff)-1;
+       memcpy(cfgbuff, cfg, i);
        cfgbuff[i] = 0;
        if ((sP = index(cfgbuff, ' '))) *sP = 0;
       }

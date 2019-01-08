@@ -48,9 +48,9 @@ class XrdOfsHanKey
 public:
 
 const char          *Val;
+unsigned int         Links;
 unsigned int         Hash;
 short                Len;
-unsigned short       Links;
 
 inline XrdOfsHanKey& operator=(const XrdOfsHanKey &rhs)
                                  {Val = strdup(rhs.Val); Hash = rhs.Hash;
@@ -69,7 +69,7 @@ inline int           operator!=(const XrdOfsHanKey &oth)
                                  }
 
                     XrdOfsHanKey(const char *key=0, int kln=0)
-                                : Val(key), Len(kln), Links(0)
+                                : Val(key), Links(0), Len(kln)
                     {Hash = (key && kln ?
                           XrdOucCRC::CRC32((const unsigned char *)key,kln) : 0);
                     }

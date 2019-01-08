@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <netinet/in.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include "XrdVersion.hh"
 
@@ -57,6 +58,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -80,7 +82,17 @@ extern XrdOucTrace OfsTrace;
 class  XrdOss;
 extern XrdOss     *XrdOfsOss;
 
+class  XrdScheduler;
+       XrdScheduler *ofsSchedP;
+
 XrdVERSIONINFO(XrdOfs,XrdOfs);
+
+namespace
+{
+XrdOfsTPC::iParm  Parms;          // TPC parameters
+
+int SetMode(const char *path, mode_t mode) {return chmod(path, mode);}
+}
 
 /******************************************************************************/
 /*                               d e f i n e s                                */
@@ -134,12 +146,18 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    Eroute.Say("++++++ File system initialization started.");
 
+// Start off with no POSC log. Note that XrdSfsGetDefaultFileSystem nakes sure
+// that we are configured only once.
+//
+   poscLog = NULL;
+
 // Establish the network interface that the caller must provide
 //
    if (!EnvInfo || !(myIF = (XrdNetIF *)EnvInfo->GetPtr("XrdNetIF*")))
       {Eroute.Emsg("Finder", "Network i/f undefined; unable to self-locate.");
        NoGo = 1;
       }
+   ofsSchedP = (XrdScheduler *)EnvInfo->GetPtr("XrdScheduler*");
 
 // Preset all variables with common defaults
 //
@@ -227,10 +245,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
        ofsConfig->Default(XrdOfsConfigPI::theCksLib, buff, 0);
       }
 
-// Configure third party copy but only if we are not a manager or a proxy
+// Configure third party copy but only if we are not a manager
 //
-   if ((Options & ThirdPC) && !(Options & isProxy) && !(Options & isManager))
-      if (!XrdOfsTPC::Start()) NoGo = 1;
+   if ((Options & ThirdPC) && !(Options & isManager))
+      NoGo |= ConfigTPC(Eroute);
 
 // We need to do pre-initialization for event recording as the oss needs some
 // environmental information from that initialization to initialize the frm,
@@ -250,6 +268,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       else {ofsConfig->Plugin(XrdOfsOss);
             ofsConfig->Plugin(Cks);
             CksPfn = !ofsConfig->OssCks();
+            CksRdr = !ofsConfig->LclCks();
             if (Options & Authorize)
                {ofsConfig->Plugin(Authorization);
                 XrdOfsTPC::Init(Authorization);
@@ -294,6 +313,14 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       {if (poscAuto != -1 && !NoGo)
           Eroute.Say("Config POSC has been disabled by the osslib plugin.");
       } else if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
+
+// If the OSS plugin is really a proxy. If it is, it will export its origin.
+// We also suppress translating lfn to pfn (usually done via osslib +cksio).
+//
+   if (getenv("XRDXROOTD_PROXY"))
+      {OssIsProxy = 1;
+       CksPfn = false;
+      }
 
 // Setup statistical monitoring
 //
@@ -562,6 +589,101 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 //
    return 0;
 }
+  
+/******************************************************************************/
+/*                             C o n f i g T P C                              */
+/******************************************************************************/
+  
+int XrdOfs::ConfigTPC(XrdSysError &Eroute)
+{
+
+// Check if we need to configure rge credentials directory
+//
+   if (Parms.fCreds)
+      {char *cpath = Parms.cpath;
+       if (!(Parms.cpath = ConfigTPCDir(Eroute, cpath))) return 1;
+       free(cpath);
+      }
+
+// Initialize the TPC object
+//
+   XrdOfsTPC::Init(Parms);
+
+// Start TPC operations
+//
+   return (XrdOfsTPC::Start() ? 0 : 1);
+}
+
+/******************************************************************************/
+/*                          C o n f i g T P C D i r                           */
+/******************************************************************************/
+
+char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *xPath)
+{
+  
+   const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
+   const int BMode = S_IRWXU|        S_IRGRP|S_IXGRP; // 750
+   const char *iName;
+   char pBuff[MAXPATHLEN], *aPath;
+   int rc;
+
+// Construct the proper path to stored credentials
+//
+   iName = XrdOucUtils::InstName(-1);
+   if (xPath) aPath = XrdOucUtils::genPath(xPath, iName, ".ofs/.tpccreds/");
+      else {if (!(aPath = getenv("XRDADMINPATH")))
+               {XrdOucUtils::genPath(pBuff, MAXPATHLEN, "/tmp", iName);
+                aPath = pBuff;
+               }
+            aPath = XrdOucUtils::genPath(aPath, (char *)0, ".ofs/.tpccreds/");
+           }
+
+// Make sure directory path exists
+//
+   if ((rc = XrdOucUtils::makePath(aPath, AMode)))
+      {Eroute.Emsg("Config", rc, "create TPC path", aPath);
+       free(aPath);
+       return 0;
+      }
+
+// Protect the last component
+//
+   if (SetMode(aPath, BMode))
+      {Eroute.Emsg("Config", errno, "protect TPC path", aPath);
+       free(aPath);
+       return 0;
+      }
+
+// list the contents of teh directory
+//
+   XrdOucNSWalk nsWalk(&Eroute, aPath, 0, XrdOucNSWalk::retFile);
+   XrdOucNSWalk::NSEnt *nsX, *nsP = nsWalk.Index(rc);
+   if (rc)
+      {Eroute.Emsg("Config", rc, "list TPC path", aPath);
+       free(aPath);
+       return 0;
+      }
+
+// Remove directory contents of all files
+//
+   bool isBad = false;
+   while((nsX = nsP))
+        {nsP = nsP->Next;
+         if (unlink(nsX->Path))
+            {Eroute.Emsg("Config", errno, "remove TPC creds", nsX->Path);
+             isBad = true;
+            }
+         delete nsX;
+        }
+
+// Check if all went well
+//
+   if (isBad) {free(aPath); return 0;}
+
+// All done
+//
+   return aPath;
+}   
   
 /******************************************************************************/
 /*                             C o n f i g X e q                              */
@@ -1186,9 +1308,12 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
    Purpose:  To parse the directive: tpc [cksum <type>] [ttl <dflt> [<max>]]
                                          [logok] [xfr <n>] [allow <parms>]
                                          [require {all|client|dest} <auth>[+]]
-                                         [restrict <path>] [streams <num>]
+                                         [restrict <path>]
+                                         [streams <num>[,<max>]]
                                          [echo] [scan {stderr | stdout}]
                                          [autorm] [pgm <path> [parms]]
+                                         [fcreds  [?]<auth> =<evar>]
+                                         [fcpath <path>] [oids]
 
              parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
 
@@ -1199,7 +1324,8 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
              allow   only allow destinations that match the specified
                      authentication specification.
              <n>     maximum number of simultaneous transfers.
-             <num>   the number of TCP streams to use for the copy.
+             <num>   the default number of TCP streams to use for the copy.
+             <max>   The maximum number of TCP streams to use for the copy/
              <auth>  require that the client, destination, or both (i.e. all)
                      use the specified authentication protocol. Additional
                      require statements may be specified to add additional
@@ -1212,13 +1338,21 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                      default is to scan both.
              pgm     specifies the transfer command with optional paramaters.
                      It must be the last parameter on the line.
+             fcreds  Forward destination credentials for protocol <auth>. The
+                     request fails if thee are no credentials for <auth>. If a
+                     question mark preceeds <auth> then if the client has not
+                     forwarded its credentials, the server's credentials are
+                     used. Otherwise, the copy fails.
+             =<evar> the name of the envar to be set with the path to the
+                     credentials to be forwarded.
+             fcpath  where creds are stored (default <adminpath>/.ofs/.tpccreds).
+             oids    Object ID's are acceptable for the source lfn.
 
    Output: 0 upon success or !0 upon failure.
 */
 
 int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
 {
-   XrdOfsTPC::iParm Parms;
    char *val, pgm[1024];
    int  reqType;
    *pgm = 0;
@@ -1240,18 +1374,20 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
                 {Eroute.Emsg("Config","scan type not specified"); return 1;}
                   if (strcmp(val, "stderr")) Parms.Grab = -2;
              else if (strcmp(val, "stdout")) Parms.Grab = -1;
-                {Eroute.Emsg("Config","invalid scan type -",val); return 1;}
+             else if (strcmp(val, "all"   )) Parms.Grab =  0;
+             else {Eroute.Emsg("Config","invalid scan type -",val); return 1;}
              continue;
             }
          if (!strcmp(val, "echo"))  {Parms.xEcho = 1; continue;}
          if (!strcmp(val, "logok")) {Parms.Logok = 1; continue;}
          if (!strcmp(val, "autorm")){Parms.autoRM = 1; continue;}
+         if (!strcmp(val, "oids"))  {Parms.oidsOK = 1; continue;}
          if (!strcmp(val, "pgm"))
             {if (!Config.GetRest(pgm, sizeof(pgm)))
                 {Eroute.Emsg("Config", "tpc command line too long"); return 1;}
              if (!*pgm)
                 {Eroute.Emsg("Config", "tpc program not specified"); return 1;}
-             Parms.Pgm = pgm;
+             Parms.Pgm = strdup( pgm );
              break;
             }
          if (!strcmp(val, "require"))
@@ -1295,13 +1431,41 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
          if (!strcmp(val, "streams"))
             {if (!(val = Config.GetWord()))
                 {Eroute.Emsg("Config","tpc streams value not specified"); return 1;}
-             if (XrdOuca2x::a2i(Eroute,"tpc streams",val,&Parms.Strm,1)) return 1;
+             char *comma = index(val,',');
+             if (comma)
+                {*comma++ = 0;
+                 if (!(*comma))
+                    {Eroute.Emsg("Config","tpc streams max value missing"); return 1;}
+                 if (XrdOuca2x::a2i(Eroute,"tpc max streams",comma,&Parms.SMax,0,15))
+                    return 1;
+                }
+             if (XrdOuca2x::a2i(Eroute,"tpc streams",val,&Parms.Strm,0,15)) return 1;
+             continue;
+            }
+         if (!strcmp(val, "fcreds"))
+            {char aBuff[64];
+             Parms.fCreds = 1;
+             if (!(val = Config.GetWord()) || (*val == '?' && *(val+1) == '\0'))
+                {Eroute.Emsg("Config","tpc fcreds auth not specified"); return 1;}
+             if (strlen(val) >= sizeof(aBuff))
+                {Eroute.Emsg("Config","invalid fcreds auth -", val); return 1;}
+             strcpy(aBuff, val);
+             if (!(val = Config.GetWord()) || *val != '=' || *(val+1) == 0)
+                {Eroute.Emsg("Config","tpc fcreds envar not specified"); return 1;}
+             const char *emsg = XrdOfsTPC::AddAuth(aBuff,val+1);
+             if (emsg) {Eroute.Emsg("Config",emsg,"-", val); return 1;}
+             continue;
+            }
+         if (!strcmp(val, "fcpath"))
+            {if (Parms.cpath) {free(Parms.cpath); Parms.cpath = 0;}
+             if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","tpc fcpath arg not specified"); return 1;}
+             Parms.cpath = strdup(val);
              continue;
             }
          Eroute.Say("Config warning: ignoring invalid tpc option '",val,"'.");
         }
 
-   XrdOfsTPC::Init(Parms);
    Options |= ThirdPC;
    return 0;
 }

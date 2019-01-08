@@ -1,0 +1,11 @@
+include *.sh *.py *.in
+include CMakeLists.txt VERSION_INFO README COPYING* LICENSE
+
+recursive-include bindings *
+recursive-include cmake *
+recursive-include packaging *
+recursive-include src *
+recursive-include tests *
+recursive-include ups *
+recursive-include utils *
+recursive-include docs *

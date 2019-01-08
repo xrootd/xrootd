@@ -36,6 +36,7 @@
 
 class XrdLink;
 class XrdOucTList;
+class XrdSysError;
 
 class XrdCmsSecurity
 {
@@ -45,6 +46,10 @@ static int             Authenticate(XrdLink *Link, const char *Token, int tlen);
 
 static int             Configure(const char *Lib, const char *Cfn=0);
 
+static char           *getVnId(XrdSysError &eDest, const char *cfgFN,
+                               const char *nidlib, const char *nidparm,
+                               char nidType);
+
 static const char     *getToken(int &size, XrdNetAddrInfo *endPoint);
 
 static int             Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
@@ -52,14 +57,14 @@ static int             Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
 
 static void            setSecFunc(void *secfP);
 
-static char           *setSystemID(XrdOucTList *tp,    const char *iName,
-                                   const char  *iHost, const char *iTag,
-                                         char   iType);
+static char           *setSystemID(XrdOucTList *tp,    const char *iVNID,
+                                   const char  *iTag,        char  iType);
 
       XrdCmsSecurity() {}
      ~XrdCmsSecurity() {}
 
 private:
 static XrdSecService *DHS;
+static char *chkVnId(XrdSysError &eDest, const char *vnid, const char *what);
 };
 #endif

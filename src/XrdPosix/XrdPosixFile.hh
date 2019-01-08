@@ -47,7 +47,6 @@
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixObject.hh"
 
-#include "Xrd/XrdJob.hh"
 /******************************************************************************/
 /*                    X r d P o s i x F i l e   C l a s s                     */
 /******************************************************************************/
@@ -57,8 +56,7 @@ class XrdPosixPrepIO;
 
 class XrdPosixFile : public XrdPosixObject, 
                      public XrdOucCacheIO2,
-                     public XrdCl::ResponseHandler,
-                     public XrdJob
+                     public XrdCl::ResponseHandler
 {
 public:
 
@@ -107,6 +105,8 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        long long     Offset() {AtomicRet(updMutex, currOffset);}
 
+       const char   *Origin() {return fOpen;}
+
        const char   *Path() {return fPath;}
 
        int           Read (char *Buff, long long Offs, int Len);
@@ -128,12 +128,11 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        bool          Stat(XrdCl::XRootDStatus &Status, bool force=false);
 
-       int           Sync() {return XrdPosixMap::Result(clFile.Sync());}
+       int           Sync();
 
        void          Sync(XrdOucCacheIOCB &iocb);
 
-       int           Trunc(long long Offset)
-                          {return XrdPosixMap::Result(clFile.Truncate((uint64_t)Offset));}
+       int           Trunc(long long Offset);
 
        void          UpdtSize(size_t newsz)
                               {updMutex.Lock();
@@ -151,8 +150,6 @@ static void          DelayedDestroy(XrdPosixFile *fp);
        void          Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
                            int wlen);
 
-       void          DoIt();
-
        size_t        mySize;
        time_t        myMtime;
        dev_t         myRdev;
@@ -163,15 +160,18 @@ static
 XrdSysSemaphore      ddSem;
 static XrdSysMutex   ddMutex;
 static XrdPosixFile *ddList;
+static XrdPosixFile *ddLost;
 static char         *sfSFX;
-static int           sfSLN;
+static short         sfSLN;
 static bool          ddPosted;
+static int           ddNum;
 
 static const int realFD = 1;
 static const int isStrm = 2;
 static const int isUpdt = 4;
 
-           XrdPosixFile(const char *path, XrdPosixCallBack *cbP=0, int Opts=0);
+           XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP=0,
+                        int   Opts=0);
           ~XrdPosixFile();
 
 private:
@@ -182,6 +182,7 @@ union {long long         currOffset;
       };
 
 char       *fPath;
+char       *fOpen;
 char       *fLoc;
 union {int  cOpt; int numTries;};
 char        isStream;

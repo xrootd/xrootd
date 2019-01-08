@@ -121,11 +121,25 @@ public:
    newFile(char *user=0, int monid=0);
 
    virtual int
+   chksum(      csFunc         Func,
+          const char          *csName,
+          const char          *path,
+                XrdOucErrInfo &eInfo,
+          const XrdSecEntity  *client = 0,
+          const char          *opaque = 0);
+
+   virtual int
    chmod(const char             *Name,
                XrdSfsMode        Mode,
                XrdOucErrInfo    &out_error,
          const XrdSecEntity     *client,
          const char             *opaque = 0);
+
+   virtual void
+   Disc(const XrdSecEntity   *client = 0);
+
+   virtual void
+   EnvInfo(XrdOucEnv *envP);
 
    virtual int
    exists(const char                *fileName,

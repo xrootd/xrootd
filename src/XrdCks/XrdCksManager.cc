@@ -47,6 +47,7 @@
 #include "XrdCks/XrdCksXAttr.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFAttr.hh"
@@ -172,7 +173,11 @@ int XrdCksManager::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP)
    ioSize = (fileSize < (off_t)segSize ? fileSize : segSize); rc = 0;
    while(calcSize)
         {if ((inBuff = (char *)mmap(0, ioSize, PROT_READ, 
+#if defined(__FreeBSD__)
+                       MAP_RESERVED0040|MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
+#else
                        MAP_NORESERVE|MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
+#endif
             {rc = errno; eDest->Emsg("Cks", rc, "memory map", Pfn); break;}
          madvise(inBuff, ioSize, MADV_SEQUENTIAL);
          csP->Update(inBuff, ioSize);
@@ -213,7 +218,7 @@ int XrdCksManager::Config(const char *Token, char *Line)
       {eDest->Emsg("Config", "checksum name not specified"); return 1;}
    if (int(strlen(val)) >= XrdCksData::NameSize)
       {eDest->Emsg("Config", "checksum name too long"); return 1;}
-   strcpy(name, val);
+   strcpy(name, val); XrdOucUtils::toLower(name);
 
 // Get the path and optional parameters
 //

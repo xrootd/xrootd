@@ -334,6 +334,65 @@ namespace XrdCl
     return MessageUtils::WaitForResponse( &handler, vReadInfo );
   }
 
+  //------------------------------------------------------------------------
+  // Write scattered data chunks in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::VectorWrite( const ChunkList &chunks,
+                            ResponseHandler *handler,
+                            uint16_t         timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->VectorWrite( chunks, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Read scattered data chunks in one operation - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::VectorWrite( const ChunkList  &chunks,
+                           uint16_t          timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = VectorWrite( chunks, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForStatus( &handler );
+  }
+
+  //------------------------------------------------------------------------
+  // Write scattered buffers in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::WriteV( uint64_t            offset,
+                                  const struct iovec *iov,
+                                  int                 iovcnt,
+                                  ResponseHandler    *handler,
+                                  uint16_t            timeout )
+  {
+    // TODO check pPlugIn
+
+    return pStateHandler->WriteV( offset, iov, iovcnt, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Write scattered buffers in one operation - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::WriteV( uint64_t            offset,
+                                  const struct iovec *iov,
+                                  int                 iovcnt,
+                                  uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = WriteV( offset, iov, iovcnt, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    XRootDStatus status = MessageUtils::WaitForStatus( &handler );
+    return status;
+  }
+
+
   //----------------------------------------------------------------------------
   // Performs a custom operation on an open file, server implementation
   // dependent - async

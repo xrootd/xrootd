@@ -27,7 +27,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -38,6 +41,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecProtector.hh"
 #include "Xrd/XrdBuffer.hh"
@@ -89,6 +93,20 @@ struct XrdXrootdSessID
        ~XrdXrootdSessID() {}
        };
 
+struct XrdXrootdWVInfo
+       {XrdOucIOVec *wrVec;    // Prevents compiler array bounds complaint
+        int          curFH;
+        short        vBeg;
+        short        vPos;
+        short        vEnd;
+        short        vMon;
+        bool         doSync;
+        char         wvMon;
+        bool         ioMon;
+        char         vType;
+        XrdOucIOVec  ioVec[1]; // Dynamically sized
+       };
+
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
@@ -101,6 +119,44 @@ struct XrdXrootdSessID
         if (Route[xfnc].Port[rdType]) \
            return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],\
                                              Route[xfnc].Host[rdType])
+namespace
+{
+static const int op_isOpen    = 0x00010000;
+static const int op_isRead    = 0x00020000;
+
+const char *getTime()
+{
+static char buff[16];
+char tuff[8];
+struct timeval tv;
+struct tm *tmp;
+
+   if (gettimeofday(&tv, 0))
+      {perror("gettimeofday");
+       exit(255);
+      }
+   tmp = localtime(&tv.tv_sec);
+   if (!tmp)
+      {perror("localtime");
+       exit(255);
+      }
+                                   //012345678901234
+   if (strftime(buff, sizeof(buff), "%y%m%d:%H%M%S. ", tmp) <= 0)
+      {errno = EINVAL;
+       perror("strftime");
+       exit(255);
+      }
+
+    snprintf(tuff, sizeof(tuff), "%d", static_cast<int>(tv.tv_usec/100000));
+    buff[14] = tuff[0];
+    return buff;
+}
+
+// Startup time
+//          012345670123456
+//          yymmdd:hhmmss.t
+static const char *startUP = getTime();
+}
  
 /******************************************************************************/
 /*                              d o _ A d m i n                               */
@@ -140,8 +196,8 @@ int XrdXrootdProtocol::do_Auth()
    ||  strncmp(Entity.prot, (const char *)Request.auth.credtype,
                                    sizeof(Request.auth.credtype)))
       {if (AuthProt) AuthProt->Delete();
-       strncpy(Entity.prot, (const char *)Request.auth.credtype,
-                                   sizeof(Request.auth.credtype));
+       size_t size = sizeof(Request.auth.credtype);
+       strncpy(Entity.prot, (const char *)Request.auth.credtype, size);
        if (!(AuthProt = CIA->getProtocol(Link->Host(), *(Link->AddrInfo()),
                                          &cred, &eMsg)))
           {eText = eMsg.getErrText(rc);
@@ -330,7 +386,7 @@ int XrdXrootdProtocol::do_Chmod()
 int XrdXrootdProtocol::do_CKsum(int canit)
 {
    char *opaque;
-   char *algT = JobCKT, *args[4];
+   char *algT = JobCKT, *args[5];
    int rc;
 
 // Check for static routing
@@ -361,7 +417,7 @@ int XrdXrootdProtocol::do_CKsum(int canit)
        char *cksT;
        if ((cksT = jobEnv.Get("cks.type")))
           {XrdOucTList *tP = JobCKTLST;
-           while(tP && strcmp(tP->text, cksT)) tP = tP->next;
+           while(tP && strcasecmp(tP->text, cksT)) tP = tP->next;
            if (!tP)
               {char ebuf[1024];
                snprintf(ebuf, sizeof(ebuf), "%s checksum not supported.", cksT);
@@ -386,7 +442,8 @@ int XrdXrootdProtocol::do_CKsum(int canit)
       {args[0] = algT;
        args[1] = algT;
        args[2] = argp->buff;
-       args[3] = 0;
+       args[3] = const_cast<char *>(Client->tident);
+       args[4] = 0;
       } else {
        args[0] = algT;
        args[1] = argp->buff;
@@ -442,9 +499,11 @@ int XrdXrootdProtocol::do_CKsum(char *algT, const char *Path, char *Opaque)
   
 int XrdXrootdProtocol::do_Close()
 {
+   static XrdXrootdCallBack closeCB("close", XROOTD_MON_CLOSE);
    XrdXrootdFile *fp;
    XrdXrootdFHandle fh(Request.close.fhandle);
    int rc;
+   bool doDel = true;
 
 // Keep statistics
 //
@@ -461,32 +520,40 @@ int XrdXrootdProtocol::do_Close()
 //
    Link->Serialize();
 
-// If we are monitoring, insert a close entry
+// Setup the callback to allow close() to return SFS_STARTED so we can defer
+// the response to the close request as it may be a lengthy operation. In
+// this case the argument is the actual file pointer and the link reference
+// is recorded in the file object.
 //
-   if (Monitor.Files())
-      Monitor.Agent->Close(fp->Stats.FileID,
-                           fp->Stats.xfr.read + fp->Stats.xfr.readv,
-                           fp->Stats.xfr.write);
+   fp->cbArg = ReqID.getID();
+   fp->XrdSfsp->error.setErrCB(&closeCB, (unsigned long long)fp);
 
-// If fstream monitoring enabled, log it out there
-//
-   if (Monitor.Fstat()) XrdXrootdMonFile::Close(&(fp->Stats));
-
-// Do an explicit close of the file here; reflecting any errors
+// Do an explicit close of the file here; check for exceptions. Stall requests
+// leave the file open as there will be a retry. Otherwise, we remove the
+// file from our open table but a "started" return defers the the delete.
 //
    rc = fp->XrdSfsp->close();
    TRACEP(FS, "close rc=" <<rc <<" fh=" <<fh.handle);
-   if (SFS_OK != rc)
-      {if (rc == SFS_ERROR || rc == SFS_STALL)
-          return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
-       return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
-      }
+   if (rc >= SFS_STALL) return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+   if (rc == SFS_STARTED) doDel = false;
 
-// Delete the file from the file table; this will unlock/close the file
+// Before we potentially delete the file handle in FTab->Del, generate the
+// appropriate error code (if necessary).  Note that we delay the call
+// to Response.Send() in the successful case to avoid holding on to the lock
+// while the response is sent.
+   int retval = 0;
+   if (SFS_OK != rc) retval = fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+
+// Delete the file from the file table. If the file object is deleted then it
+// will unlock the file In all cases, final monitoring records will be produced.
 //
-   FTab->Del(fh.handle);
+   FTab->Del((Monitor.Files() ? Monitor.Agent : 0), fh.handle, doDel);
    numFiles--;
-   return Response.Send();
+
+// Send back the right response
+//
+   if (SFS_OK == rc) return Response.Send();
+   return retval;
 }
 
 /******************************************************************************/
@@ -696,13 +763,12 @@ int XrdXrootdProtocol::do_Endsess()
    TRACEP(LOGIN, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
           <<" rc=" <<rc <<" (" <<strerror(rc < 0 ? -rc : EAGAIN) <<")");
 
-// Return result
+// Return result. We only return obvious problems (exclude ESRCH and EPIPE).
 //
    if (rc >  0)
       return (rc = Response.Send(kXR_wait, rc, "session still active")) ? rc:1;
 
    if (rc == -EACCES)return Response.Send(kXR_NotAuthorized, "not session owner");
-   if (rc == -ESRCH) return Response.Send(kXR_NotFound, "session not found");
    if (rc == -ETIME) return Response.Send(kXR_Cancelled,"session not ended");
 
    return Response.Send();
@@ -810,6 +876,7 @@ int XrdXrootdProtocol::do_Login()
       {if (Request.login.username[i] == '\0' ||
            Request.login.username[i] == ' ') break;
        uname[i] = Request.login.username[i];
+       if (!isalnum(uname[i])) uname[i] = '_';
       }
    uname[i] = '\0';
 
@@ -928,8 +995,9 @@ int XrdXrootdProtocol::do_Login()
           }
        if (Monitor.Ready() && (appXQ || aInfo))
           {char apBuff[1024];
-           snprintf(apBuff, sizeof(apBuff), "&x=%s&y=%s",
-                    (appXQ ? appXQ : ""), (aInfo ? aInfo : ""));
+           snprintf(apBuff, sizeof(apBuff), "&x=%s&y=%s&I=%c",
+                    (appXQ ? appXQ : ""), (aInfo ? aInfo : ""),
+                    (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
            Entity.moninfo = strdup(apBuff);
           }
       }
@@ -1168,16 +1236,41 @@ int XrdXrootdProtocol::do_OffloadIO()
 /******************************************************************************/
 /*                               d o _ O p e n                                */
 /******************************************************************************/
+
+namespace
+{
+struct OpenHelper
+      {XrdSfsFile        *fp;
+       XrdXrootdFile     *xp;
+       XrdXrootdFileLock *Locker;
+       const char        *path;
+       char               mode;
+       bool               isOK;
+
+                          OpenHelper(XrdXrootdFileLock *lkP, const char *fn)
+                          : fp(0), xp(0), Locker(lkP), path(fn), mode(0),
+                            isOK(false) {}
+
+                         ~OpenHelper()
+                              {if (!isOK)
+                                  {if (xp) delete xp; // Deletes fp & unlocks
+                                      else {if (fp) delete fp;
+                                            if (mode) Locker->Unlock(path,mode);
+                                           }
+                                  }
+                              }
+      };
+}
   
 int XrdXrootdProtocol::do_Open()
 {
    static XrdXrootdCallBack openCB("open file", XROOTD_MON_OPENR);
    int fhandle;
-   int rc, mode, opts, openopts, doforce = 0, compchk = 0;
+   int rc, mode, opts, openopts, compchk = 0;
    int popt, retStat = 0;
    char *opaque, usage, ebuff[2048], opC;
-   bool doDig;
-   char *fn = argp->buff, opt[16], *op=opt, isAsync = '\0';
+   bool doDig, doforce = false, isAsync = false;
+   char *fn = argp->buff, opt[16], *op=opt;
    XrdSfsFile *fp;
    XrdXrootdFile *xp;
    struct stat statbuf;
@@ -1224,9 +1317,9 @@ int XrdXrootdProtocol::do_Open()
            }
    if (opts & kXR_compress)        
            {openopts |= SFS_O_RAWIO;   *op++ = 'c'; compchk = 1;}
-   if (opts & kXR_force)              {*op++ = 'f'; doforce = 1;}
+   if (opts & kXR_force)              {*op++ = 'f'; doforce = true;}
    if ((opts & kXR_async || as_force) && !as_noaio)
-                                      {*op++ = 'a'; isAsync = '1';}
+                                      {*op++ = 'a'; isAsync = true;}
    if (opts & kXR_refresh)            {*op++ = 's'; openopts |= SFS_O_RESET;
                                        SI->Bump(SI->Refresh);
                                       }
@@ -1257,6 +1350,27 @@ int XrdXrootdProtocol::do_Open()
 //
    if (popt & XROOTDXP_NOMWCHK) openopts |= SFS_O_MULTIW;
 
+// Construct an open helper to release resources should we exit due to an error.
+//
+   OpenHelper oHelp(Locker, fn);
+
+// Lock this file
+//
+   if (!(popt & XROOTDXP_NOLK))
+      {if ((rc = Locker->Lock(fn, usage, doforce)))
+          {const char *who;
+           if (rc > 0) who = (rc > 1 ? "readers" : "reader");
+              else {   rc = -rc;
+                       who = (rc > 1 ? "writers" : "writer");
+                   }
+           snprintf(ebuff, sizeof(ebuff)-1,
+                    "%s file %s is already opened by %d %s; open denied.",
+                    ('r' == usage ? "Input" : "Output"), fn, rc, who);
+           eDest.Emsg("Xeq", ebuff);
+           return Response.Send(kXR_FileLocked, ebuff);
+          } else oHelp.mode = usage;
+      }
+
 // Get a file object
 //
    if (doDig) fp = digFS->newFile(Link->ID, Monitor.Did);
@@ -1269,6 +1383,7 @@ int XrdXrootdProtocol::do_Open()
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
+   oHelp.fp = fp;
 
 // The open is elegible for a defered response, indicate we're ok with that
 //
@@ -1279,37 +1394,22 @@ int XrdXrootdProtocol::do_Open()
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
                      (mode_t)mode, CRED, opaque)))
-      {rc = fsError(rc, opC, fp->error, fn, opaque); delete fp; return rc;}
+      {rc = fsError(rc, opC, fp->error, fn, opaque); return rc;}
 
 // Obtain a hyper file object
 //
-   if (!(xp=new XrdXrootdFile(Link->ID,fp,usage,isAsync,Link->sfOK,&statbuf)))
-      {delete fp;
-       snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
+   xp = new XrdXrootdFile(Link->ID,fn,fp,usage,isAsync,Link->sfOK,&statbuf);
+   if (!xp)
+      {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
+   oHelp.xp = xp;
 
 // Serialize the link
 //
    Link->Serialize();
    *ebuff = '\0';
-
-// Lock this file
-//
-   if (!(popt & XROOTDXP_NOLK) && (rc = Locker->Lock(xp, doforce)))
-      {const char *who;
-       if (rc > 0) who = (rc > 1 ? "readers" : "reader");
-          else {   rc = -rc;
-                   who = (rc > 1 ? "writers" : "writer");
-               }
-       snprintf(ebuff, sizeof(ebuff)-1,
-                "%s file %s is already opened by %d %s; open denied.",
-                ('r' == usage ? "Input" : "Output"), fn, rc, who);
-       delete fp; xp->XrdSfsp = 0; delete xp;
-       eDest.Emsg("Xeq", ebuff);
-       return Response.Send(kXR_FileLocked, ebuff);
-      }
 
 // Create a file table for this link if it does not have one
 //
@@ -1318,8 +1418,7 @@ int XrdXrootdProtocol::do_Open()
 // Insert this file into the link's file table
 //
    if (!FTab || (fhandle = FTab->Add(xp)) < 0)
-      {delete xp;
-       snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
+      {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
@@ -1328,7 +1427,7 @@ int XrdXrootdProtocol::do_Open()
 //
    if (doforce)
       {int rdrs, wrtrs;
-       Locker->numLocks(xp, rdrs, wrtrs);
+       Locker->numLocks(fn, rdrs, wrtrs);
        if (('r' == usage && wrtrs) || ('w' == usage && rdrs) || wrtrs > 1)
           {snprintf(ebuff, sizeof(ebuff)-1,
              "%s file %s forced opened with %d reader(s) and %d writer(s).",
@@ -1345,9 +1444,8 @@ int XrdXrootdProtocol::do_Open()
       }
       else {int cpsize;
             fp->getCXinfo((char *)myResp.cptype, cpsize);
-            if (cpsize) {myResp.cpsize = static_cast<kXR_int32>(htonl(cpsize));
-                         resplen = sizeof(myResp);
-                        } else myResp.cpsize = 0;
+            myResp.cpsize = static_cast<kXR_int32>(htonl(cpsize));
+            resplen = sizeof(myResp);
            }
 
 // If client wants a stat in open, return the stat information
@@ -1378,8 +1476,9 @@ int XrdXrootdProtocol::do_Open()
    memcpy((void *)myResp.fhandle,(const void *)&fhandle,sizeof(myResp.fhandle));
    numFiles++;
 
-// Respond
+// Respond (failure is not an option now)
 //
+   oHelp.isOK = true;
    if (retStat)  return Response.Send(IOResp, 3, resplen);
       else       return Response.Send((void *)&myResp, resplen);
 }
@@ -1646,9 +1745,26 @@ int XrdXrootdProtocol::do_Qconf()
             n = snprintf(bp, bleft, "%s\n", (siteName ? siteName : "sitename"));
             bp += n; bleft -= n;
            }
+   else if (!strcmp("start", val))
+           {n = snprintf(bp, bleft, "%s\n", startUP);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("sysid", val))
+           {const char *cidval = getenv("XRDCMSCLUSTERID");
+            const char *nidval = getenv("XRDCMSVNID");
+            if (!cidval || !(*cidval) || !nidval || !(*nidval))
+               {cidval = "sysid"; nidval = "";}
+            n = snprintf(bp, bleft, "%s %s\n", nidval, cidval);
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("tpc", val))
            {char *tpcval = getenv("XRDTPC");
             n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpc"));
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("tpcdlg", val))
+           {char *tpcval = getenv("XRDTPCDLG");
+            n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpcdlg"));
             bp += n; bleft -= n;
            }
    else if (!strcmp("wan_port", val) && WANPort)
@@ -1665,6 +1781,12 @@ int XrdXrootdProtocol::do_Qconf()
            }
    else if (!strcmp("version", val))
            {n = snprintf(bp, bleft, "%s\n", XrdVSTRING);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("vnid", val))
+           {const char *nidval = getenv("XRDCMSVNID");
+            if (!nidval || !(*nidval)) nidval = "vnid";
+            n = snprintf(bp, bleft, "%s\n", nidval);
             bp += n; bleft -= n;
            }
    else {n = strlen(val);
@@ -1745,6 +1867,7 @@ int XrdXrootdProtocol::do_Qfh()
   
 int XrdXrootdProtocol::do_Qopaque(short qopt)
 {
+   static XrdXrootdCallBack qpqCB("query", XROOTD_MON_QUERY);
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    XrdSfsFSctl myData;
    const char *Act, *AData;
@@ -1777,6 +1900,9 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
        fsctl_cmd = SFS_FSCTL_PLUGIN;
        Act = " qopaquf '"; AData = argp->buff;
       }
+// The query is elegible for a defered response, indicate we're ok with that
+//
+   myError.setErrCB(&qpqCB, ReqID.getID());
 
 // Preform the actual function using the supplied arguments
 //
@@ -1810,7 +1936,8 @@ int XrdXrootdProtocol::do_Qspace()
 //
    if (opaque)
       {n = strlen(argp->buff); argp->buff[n] = '?';
-       if ((argp->buff)+n != opaque-1) strcpy(&argp->buff[n+1], opaque);
+       if ((argp->buff)+n != opaque-1)
+          memmove(&argp->buff[n+1], opaque, strlen(opaque)+1);
       }
 
 // Preform the actual function using the supplied logical FS name
@@ -2778,6 +2905,234 @@ int XrdXrootdProtocol::do_WriteSpan()
 }
   
 /******************************************************************************/
+/*                             d o _ W r i t e V                              */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_WriteV()
+{
+// This will write multiple buffers at the same time in an attempt to avoid
+// the disk latency. The information with the offsets and lengths of teh data
+// to write is passed as a data buffer. We attempt to optimize as best as
+// possible, though certain combinations may result in multiple writes. Since
+// socket flushing is nearly impossible when an error occurs, most errors
+// simply terminate the connection.
+//
+   const int wveSZ = sizeof(XrdProto::write_list);
+   struct trackInfo
+         {XrdXrootdWVInfo **wvInfo; bool doit;
+          trackInfo(XrdXrootdWVInfo **wvP) : wvInfo(wvP), doit(true) {}
+         ~trackInfo() {if (doit && *wvInfo) {free(*wvInfo); *wvInfo = 0;}}
+         } freeInfo(&wvInfo);
+
+   struct XrdProto::write_list *wrLst;
+   XrdOucIOVec *wrVec;
+   long long totSZ, maxSZ;
+   int curFH, k, Quantum, wrVecNum, wrVecLen = Request.header.dlen;
+
+// Compute number of elements in the write vector and make sure we have no
+// partial elements.
+//
+   wrVecNum = wrVecLen / wveSZ;
+   if ( (wrVecLen <= 0) || (wrVecNum*wveSZ != wrVecLen) )
+      {Response.Send(kXR_ArgInvalid, "Write vector is invalid");
+       return -1;
+      }
+
+// Make sure that we can make a copy of the read vector. So, we impose a limit
+// on it's size.
+//
+   if (wrVecNum > maxWvecsz)
+      {Response.Send(kXR_ArgTooLong, "Write vector is too long");
+       return -1;
+      }
+
+// Create the verctor write information structure sized as needed.
+//
+   if (wvInfo) free(wvInfo);
+   wvInfo = (XrdXrootdWVInfo *)malloc(sizeof(XrdXrootdWVInfo) +
+                                      sizeof(XrdOucIOVec)*(wrVecNum-1));
+   memset(wvInfo, 0, sizeof(XrdXrootdWVInfo) - sizeof(XrdOucIOVec));
+   wvInfo->wrVec = wrVec = wvInfo->ioVec;
+
+// Run down the list and compute the total size of the write. No individual
+// write may be greater than the maximum transfer size. We also use this loop
+// to copy the write list to our writev vector for later processing.
+//
+   wrLst = (XrdProto::write_list *)argp->buff;
+   totSZ = 0; maxSZ = 0; k = 0; Quantum = maxTransz; curFH = 0;
+   for (int i = 0; i < wrVecNum; i++)
+       {if (wrLst[i].wlen == 0) continue;
+        memcpy(&wrVec[k].info, wrLst[i].fhandle, sizeof(int));
+        wrVec[k].size = ntohl(wrLst[i].wlen);
+        if (wrVec[k].size < 0)
+           {Response.Send(kXR_ArgInvalid, "Writev length is negtive");
+            return -1;
+           }
+        if (wrVec[k].size > Quantum)
+           {Response.Send(kXR_NoMemory,"Single writev transfer is too large");
+            return -1;
+           }
+        wrVec[k].offset = ntohll(wrLst[i].offset);
+        if (wrVec[k].info == curFH) totSZ += wrVec[k].size;
+           else {if (maxSZ < totSZ) maxSZ = totSZ;
+                 totSZ = wrVec[k].size;
+                }
+        k++;
+       }
+
+// Check if we are not actually writing anything, simply return success
+//
+   if (maxSZ < totSZ) maxSZ = totSZ;
+   if (maxSZ == 0) return Response.Send();
+
+// So, now we account for the number of writev requests and total segments
+//
+   numWritV++; numSegsW += k; wrVecNum = k;
+
+// Calculate the transfer unit which will be the smaller of the maximum
+// transfer unit and the actual amount we need to transfer.
+//
+   if (maxSZ > maxTransz) Quantum = maxTransz;
+      else Quantum = static_cast<int>(maxSZ);
+   
+// Now obtain the right size buffer
+//
+   if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize)
+      {if (getBuff(0, Quantum) <= 0) return -1;}
+      else if (hcNow < hcNext) hcNow++;
+
+// Check that we really have at least the first file open (part of setup)
+//
+   if (!FTab || !(myFile = FTab->Get(wrVec[0].info)))
+      {Response.Send(kXR_FileNotOpen, "writev does not refer to an open file");
+       return -1;
+      }
+
+// Setup to do the complete transfer
+//
+   wvInfo->curFH = wrVec[0].info;
+   wvInfo->vBeg  = 0;
+   wvInfo->vPos  = 0;
+   wvInfo->vEnd  = wrVecNum;
+   wvInfo->vMon  = 0;
+   wvInfo->doSync= (Request.writev.options & ClientWriteVRequest::doSync) != 0;
+   wvInfo->wvMon = Monitor.InOut();
+   wvInfo->ioMon = (wvInfo->vMon > 1);
+// wvInfo->vType = (wvInfo->ioMon ? XROOTD_MON_WRITEU : XROOTD_MON_WRITEV);
+   myWVBytes     = 0;
+   myIOLen       = wrVec[0].size;
+   myBuff        = argp->buff;
+   myBlast       = 0;
+
+// Now we simply start the write operations
+//
+   freeInfo.doit = false;
+   return do_WriteVec();
+}
+
+/******************************************************************************/
+/*                           d o _ W r i t e V e c                            */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_WriteVec()
+{
+   XrdSfsXferSize xfrSZ;
+   int rc, wrVNum, vNow = wvInfo->vPos;
+   bool done, newfile;
+
+// Read the complete data from the socket for the current element. Note that
+// should we enter a resume state; upon re-entry all of the data will be read.
+//
+do{if (myIOLen > 0)
+      {wvInfo->wrVec[vNow].data = argp->buff + myBlast;
+       myBlast += myIOLen;
+       if ((rc = getData("data", myBuff, myIOLen)))
+          {if (rc < 0) return rc;
+           myIOLen  = 0;
+           Resume = &XrdXrootdProtocol::do_WriteVec;
+           myStalls++;
+           return rc;
+          }
+      }
+
+// Establish the state at this point as this will tell us what to do next.
+//
+   vNow++;
+   done = newfile = false;
+        if (vNow >= wvInfo->vEnd) done = true;
+   else if (wvInfo->wrVec[vNow].info != wvInfo->curFH) newfile = true;
+   else if (myBlast + wvInfo->wrVec[vNow].size <= argp->bsize)
+           {myIOLen = wvInfo->wrVec[vNow].size;
+            myBuff  = argp->buff + myBlast;
+            wvInfo->vPos = vNow;
+            continue;
+           }
+
+// We need to write out what we have.
+//
+   wrVNum = vNow - wvInfo->vBeg;
+   xfrSZ = myFile->XrdSfsp->writev(&(wvInfo->wrVec[wvInfo->vBeg]), wrVNum);
+   TRACEP(FS,"fh=" <<wvInfo->curFH <<" writeV " << xfrSZ <<':' <<wrVNum);
+   if (xfrSZ != myBlast) break;
+
+// Check if we need to do monitoring or a sync with no deferal. Note that
+// we currently do not support detailed monitoring for vector writes!
+//
+   if (done || newfile)
+      {int monVnum = vNow - wvInfo->vMon;
+       myFile->Stats.wvOps(myWVBytes, monVnum);
+/*!!   if (wvMon)
+          {Monitor.Agent->Add_wv(myFile->Stats.FileID, htonl(myWVBytes),
+                                 htons(monVNum), wvSeq++, wvInfo->vType);
+           if (ioMon) for (int k = wvInfo->vMon; k < vNow; k++)
+              Monitor.Agent->Add_wr(myFile->Stats.FileID,
+                                    htonl(wvInfo->wrVec[k].size),
+                                    htonll(wvInfo->wrVec[k].offset));
+          }
+*/
+       wvInfo->vMon = vNow;
+       myWVBytes = 0;
+       if (wvInfo->doSync)
+          {myFile->XrdSfsp->error.setErrCB(0,0);
+           xfrSZ = myFile->XrdSfsp->sync();
+           if (xfrSZ< 0) break;
+          }
+      }
+
+// If we are done, the finish up
+//
+   if (done)
+      {if (wvInfo) {free(wvInfo); wvInfo = 0;}
+       return Response.Send();
+      }
+
+// Sequence to a new file if we need to do so
+//
+   if (newfile)
+      {if (!FTab || !(myFile = FTab->Get(wvInfo->wrVec[vNow].info)))
+          {Response.Send(kXR_FileNotOpen,"writev does not refer to an open file");
+           return -1;
+          }
+       wvInfo->curFH = wvInfo->wrVec[vNow].info;
+      }
+
+// Setup to resume transfer
+//
+   myBlast = 0;
+   myBuff  = argp->buff;
+   myIOLen = wvInfo->wrVec[vNow].size;
+   wvInfo->vBeg = vNow;
+   wvInfo->vPos = vNow;
+
+} while(true);
+
+// If we got here then there was a write error (file pointer is valid).
+//
+   if (wvInfo) {free(wvInfo); wvInfo = 0;}
+   return fsError((int)xfrSZ, 0, myFile->XrdSfsp->error, 0, 0);
+}
+  
+/******************************************************************************/
 /*                              S e n d F i l e                               */
 /******************************************************************************/
 
@@ -2844,6 +3199,13 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
+
+       if (Path && (rc == kXR_Overloaded) && (opC == XROOTD_MON_OPENR
+                || opC == XROOTD_MON_OPENW || opC == XROOTD_MON_OPENC))
+          {if (myError.extData()) myError.Reset();
+           return fsOvrld(opC, Path, Cgi);
+          }
+
        if (Path && (rc == kXR_NotFound) && RQLxist && opC
        &&  (popt = RQList.Validate(Path)))
           {if (XrdXrootdMonitor::Redirect())
@@ -2864,7 +3226,7 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 //
    if (rc == SFS_REDIRECT)
       {SI->redirCnt++;
-       if (ecode <= 0) ecode = (ecode ? -ecode : Port);
+       if (ecode < 0 && ecode != -1) ecode = (ecode ? -ecode : Port);
        if (XrdXrootdMonitor::Redirect() && Path && opC)
            XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
        TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg <<':' <<ecode);
@@ -2930,25 +3292,73 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 }
 
 /******************************************************************************/
-/*                               f s R e d i r                                */
+/*                               f s O v r l d                                */
 /******************************************************************************/
-
-int XrdXrootdProtocol::fsRedir(XrdXrootdProtocol::RD_func xfnc)
+  
+int XrdXrootdProtocol::fsOvrld(char opC, const char *Path, char *Cgi)
 {
-   char *opaque;
+   static const char *prot = "root://";
+   static int negOne = -1;
+   static char quest = '?', slash = '/';
 
-// Extract out the opaque icgi information
-//
-   rpCheck(argp->buff, &opaque);
+   struct iovec rdrResp[8];
+   char *destP=0, dest[512];
+   int iovNum=0, pOff, port;
 
-// If we have some, then use the long path redirection
+// If this is a forwarded path and the client can handle full url's then
+// redirect the client to the destination in the path. Otherwise, if there is
+// an alternate destination, send client there. Otherwise, stall the client.
 //
-   if (opaque) return fsRedirNoEnt(0, opaque, xfnc);
+   if (OD_Bypass && clientPV & XrdOucEI::uUrlOK
+   &&  (pOff = XrdOucUtils::isFWD(Path, &port, dest, sizeof(dest))))
+      {    rdrResp[1].iov_base = (void *)&negOne;
+           rdrResp[1].iov_len  = sizeof(negOne);
+           rdrResp[2].iov_base = (void *)prot;
+           rdrResp[2].iov_len  = 7;                        // root://
+           rdrResp[3].iov_base = (void *)dest;
+           rdrResp[3].iov_len  = strlen(dest);             // host:port
+           rdrResp[4].iov_base = (void *)&slash;
+           rdrResp[4].iov_len  = (*Path == '/' ? 1 : 0);   // / or nil for objid
+           rdrResp[5].iov_base = (void *)(Path+pOff);
+           rdrResp[5].iov_len  = strlen(Path+pOff);        // path
+       if (Cgi && *Cgi)
+          {rdrResp[6].iov_base = (void *)&quest;
+           rdrResp[6].iov_len  = sizeof(quest);            // ?
+           rdrResp[7].iov_base = (void *)Cgi;
+           rdrResp[7].iov_len  = strlen(Cgi);              // cgi
+           iovNum = 8;
+          } else iovNum = 6;
+       destP = dest;
+      } else if ((destP = Route[RD_ovld].Host[rdType]))
+                 port   = Route[RD_ovld].Port[rdType];
 
-// Otherwise, send the client off right away
+// If a redirect happened, then trace it.
 //
-   return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],
-                                     Route[xfnc].Host[rdType]);
+   if (destP)
+      {SI->redirCnt++;
+       if (XrdXrootdMonitor::Redirect())
+           XrdXrootdMonitor::Redirect(Monitor.Did, destP, port,
+                                      opC|XROOTD_MON_REDLOCAL, Path);
+       if (iovNum)
+          {TRACEI(REDIR, Response.ID() <<"redirecting to "<<dest);
+           return Response.Send(kXR_redirect, rdrResp, iovNum);
+          } else {
+           TRACEI(REDIR, Response.ID() <<"redirecting to "<<destP<<':'<<port);
+           return Response.Send(kXR_redirect, port, destP);
+          }
+      }
+
+// If there is a stall value, then delay the client
+//
+   if (OD_Stall)
+      {TRACEI(STALL, Response.ID()<<"stalling client for "<<OD_Stall<<" sec");
+       SI->stallCnt++;
+       return Response.Send(kXR_wait, OD_Stall, "server is overloaded");
+      }
+
+// We were unsuccessful, return overload as an error
+//
+   return Response.Send(kXR_Overloaded, "server is overloaded");
 }
   
 /******************************************************************************/
@@ -3117,7 +3527,8 @@ void XrdXrootdProtocol::MonAuth()
    const char *bP = Buff;
 
    if (Client == &Entity) bP = Entity.moninfo;
-      else snprintf(Buff,sizeof(Buff), "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s",
+      else snprintf(Buff,sizeof(Buff),
+                    "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s&I=%c",
                      Client->prot,
                     (Client->name ? Client->name : ""),
                     (Client->host ? Client->host : ""),
@@ -3125,7 +3536,8 @@ void XrdXrootdProtocol::MonAuth()
                     (Client->role ? Client->role : ""),
                     (Client->grps ? Client->grps : ""),
                     (Client->moninfo ? Client->moninfo : ""),
-                    (Entity.moninfo  ? Entity.moninfo  : "")
+                    (Entity.moninfo  ? Entity.moninfo  : ""),
+                    (clientPV & XrdOucEI::uIPv4 ? '4' : '6')
                    );
 
    Monitor.Report(bP);

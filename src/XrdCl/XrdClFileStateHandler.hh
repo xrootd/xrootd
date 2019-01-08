@@ -30,8 +30,11 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClLocalFileHandler.hh"
 #include <list>
 #include <set>
+
+#include <sys/uio.h>
 
 namespace XrdCl
 {
@@ -197,6 +200,36 @@ namespace XrdCl
                                void            *buffer,
                                ResponseHandler *handler,
                                uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write scattered data chunks in one operation - async
+      //!
+      //! @param chunks    list of the chunks to be read
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorWrite( const ChunkList &chunks,
+                                ResponseHandler *handler,
+                                uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write scattered buffers in one operation - async
+      //!
+      //! @param offset    offset from the beginning of the file
+      //! @param iov       list of the buffers to be written
+      //! @param iovcnt    number of buffers
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus WriteV( uint64_t            offset,
+                                const struct iovec *iov,
+                                int                 iovcnt,
+                                ResponseHandler    *handler,
+                                uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Performs a custom operation on an open file, server implementation
@@ -398,11 +431,11 @@ namespace XrdCl
       {
         pOpenTime.tv_sec = 0; pOpenTime.tv_usec = 0;
         pRBytes      = 0;
-        pVBytes      = 0;
+        pVRBytes     = 0;
         pWBytes      = 0;
         pVSegs       = 0;
         pRCount      = 0;
-        pVCount      = 0;
+        pVRCount     = 0;
         pWCount      = 0;
         pCloseReason = Status();
       }
@@ -411,6 +444,18 @@ namespace XrdCl
       //! Dispatch monitoring information on close
       //------------------------------------------------------------------------
       void MonitorClose( const XRootDStatus *status );
+
+      //------------------------------------------------------------------------
+      //! Issues request:
+      //!  - if the request is for a Metalink a redirect is generated
+      //!  - if the request is for a local file, it will be passed to
+      //!    LocalFileHandler
+      //!  - otherwise vanilla XRootD request will be sent
+      //------------------------------------------------------------------------
+      XRootDStatus IssueRequest( const URL         &url,
+                                 Message           *msg,
+                                 ResponseHandler   *handler,
+                                 MessageSendParams &sendParams );
 
       mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;
@@ -429,7 +474,6 @@ namespace XrdCl
       bool                    pDoRecoverRead;
       bool                    pDoRecoverWrite;
       bool                    pFollowRedirects;
-      bool                    pDoneInitOpen;
       bool                    pUseVirtRedirector;
 
       //------------------------------------------------------------------------
@@ -437,12 +481,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       timeval                  pOpenTime;
       uint64_t                 pRBytes;
-      uint64_t                 pVBytes;
+      uint64_t                 pVRBytes;
       uint64_t                 pWBytes;
+      uint64_t                 pVWBytes;
       uint64_t                 pVSegs;
       uint64_t                 pRCount;
-      uint64_t                 pVCount;
+      uint64_t                 pVRCount;
       uint64_t                 pWCount;
+      uint64_t                 pVWCount;
       XRootDStatus             pCloseReason;
 
       //------------------------------------------------------------------------
@@ -450,6 +496,11 @@ namespace XrdCl
       // (there is only only OpenHandler reopening a file at a time)
       //------------------------------------------------------------------------
       ResponseHandlerHolder *pReOpenHandler;
+
+      //------------------------------------------------------------------------
+      // Responsible for file:// operations on the local filesystem
+      //------------------------------------------------------------------------
+      LocalFileHandler      *pLFileHandler;
   };
 }
 

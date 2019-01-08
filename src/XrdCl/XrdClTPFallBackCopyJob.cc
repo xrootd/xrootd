@@ -70,19 +70,21 @@ namespace XrdCl
     if( tmp == "first" )
       tpcFallBack = true;
 
-    XRootDStatus st = ThirdPartyCopyJob::CanDo( GetSource(), GetTarget(),
-                                                pProperties );
+    pJob = new ThirdPartyCopyJob( pJobId, pProperties, pResults );
+    XRootDStatus st = pJob->Run( progress );
+    if( st.IsOK() ) return st; // we are done
 
-    if( st.IsOK() )
-      pJob = new ThirdPartyCopyJob( pJobId, pProperties, pResults );
-    else if( tpcFallBack && !st.IsFatal() )
+    // check if we can fall back to streaming
+    if( tpcFallBack && ( st.code == errNotSupported || st.code == errOperationExpired ) )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Debug( UtilityMsg, "TPC is not supported, falling back to streaming mode." );
+
+      delete pJob;
       pJob = new ClassicCopyJob( pJobId, pProperties, pResults );
-    else
-      return st;
+      return pJob->Run( progress );
+    }
 
-    //--------------------------------------------------------------------------
-    // Run the job
-    //--------------------------------------------------------------------------
-    return pJob->Run( progress );
+    return st;
   }
 }

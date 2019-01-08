@@ -55,9 +55,10 @@ XrdOfsTPCJob      *XrdOfsTPCJob::jobLast  = 0;
   
 XrdOfsTPCJob::XrdOfsTPCJob(const char *Url, const char *Org,
                            const char *Lfn, const char *Pfn,
-                           const char *Cks, short lfnLoc[2])
-                          : XrdOfsTPC(Url, Org, Lfn, Pfn, Cks), myProg(0),
-                            Status(isWaiting)
+                           const char *Cks, short lfnLoc[2],
+                           const char *Spr, const char *Tpr)
+                          : XrdOfsTPC(Url, Org, Lfn, Pfn, Cks, Spr, Tpr),
+                            myProg(0), Status(isWaiting)
 {  lfnPos[0] = lfnLoc[0]; lfnPos[1] = lfnLoc[1]; }
   
 /******************************************************************************/
@@ -84,7 +85,12 @@ void XrdOfsTPCJob::Del()
                 {myProg->Cancel(); tpcCan = true;}
 
    if (tpcCan && Info.cbP)
-      Info.Reply(SFS_ERROR, ECANCELED, "destination file prematurely closed");
+      {Refs++; // Make sure this object cannot get deleted
+       Info.Reply(SFS_ERROR, ECANCELED, "destination file prematurely closed",
+                  &jobMutex); // Mutex is unlocked upon return!
+       jobMutex.Lock();
+       Refs--; // Undo the extra ref increase
+      }
 
 // Delete the element if possible
 //
@@ -147,6 +153,7 @@ int XrdOfsTPCJob::Sync(XrdOucErrInfo *eRR)
    if (Status == isRunning)
       {if (Info.SetCB(eRR)) return SFS_ERROR;
        eRR->setErrCode(cbWaitTime);
+       Info.Engage();
        return SFS_STARTED;
       }
 
@@ -179,6 +186,8 @@ int XrdOfsTPCJob::Sync(XrdOucErrInfo *eRR)
    if (Info.SetCB(eRR)) return SFS_ERROR;
    if (jobLast) {jobLast->Next = this; jobLast = this;}
       else jobQ = jobLast = this;
-   inQ = 1; eRR->setErrCode(cbWaitTime);
+   inQ = 1;
+   eRR->setErrCode(cbWaitTime);
+   Info.Engage();
    return SFS_STARTED;
 }

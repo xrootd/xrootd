@@ -156,7 +156,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 // the version string ends with a null by copying one less byte than need be.
 // The caller provided a struct that is gauranteed to end with nulls.
 //
-   memcpy(&urInfo, vP, sizeof(XrdVersionInfo)-1);
+   memcpy(static_cast<void*>( &urInfo ), vP, sizeof(XrdVersionInfo)-1);
 
 // If version numbers are identical then we are done
 //
@@ -284,7 +284,7 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 //
    if (!myHandle)
       {if ((myHandle = dlopen(libPath, flags))) libHandle = myHandle;
-          else {libMsg(dlerror(), " loading "); return 0;}
+          else {if (optional < 2) libMsg(dlerror(), " loading "); return 0;}
       }
 
 // Get the symbol. In the environment we have defined, null values are not

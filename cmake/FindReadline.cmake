@@ -24,6 +24,7 @@ else( READLINE_INCLUDE_DIR AND READLINE_LIBRARY )
     set( CMAKE_REQUIRED_INCLUDES ${READLINE_INCLUDE_DIR} )
     check_cxx_source_compiles(
       "
+      #include <stdio.h>
       #include <readline/readline.h>
       int main()
       {

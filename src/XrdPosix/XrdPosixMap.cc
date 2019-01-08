@@ -145,10 +145,11 @@ int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status)
        eNum  = (Status.errNo ? Status.errNo : mapCode(Status.code));
       }
 
-// Trace this if need be
+// Trace this if need be (we supress this for as we really need more info to
+// make this messae useful like the opteration and path).
 //
-   if (eNum != ENOENT && !eText.empty() && Debug)
-      cerr <<"XrdPosix: " <<eText <<endl;
+// if (eNum != ENOENT && !eText.empty() && Debug)
+//    cerr <<"XrdPosix: " <<eText <<endl;
 
 // Return
 //

@@ -29,6 +29,10 @@
 /******************************************************************************/
 
 #include <stdlib.h>
+#include <string>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "XrdVersion.hh"
 
@@ -39,14 +43,16 @@
 #include "XrdCms/XrdCmsSecurity.hh"
 #include "XrdCms/XrdCmsTalk.hh"
 #include "XrdCms/XrdCmsTrace.hh"
+#include "XrdCms/XrdCmsVnId.hh"
 
 #include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 using namespace XrdCms;
@@ -58,6 +64,8 @@ using namespace XrdCms;
 namespace
 {
 static XrdSecGetProt_t getProtocol = 0;
+
+static const int nidMax = 64;
 }
 
 XrdSecService *XrdCmsSecurity::DHS  = 0;
@@ -135,6 +143,43 @@ do {
 }
 
 /******************************************************************************/
+/*                               c h k V n I d                                */
+/******************************************************************************/
+  
+char *XrdCmsSecurity::chkVnId(XrdSysError &eDest, const char *vnid,
+                                                  const char *what)
+{
+   int n = strlen(vnid);
+
+// Check if it is too long
+//
+   if (n > nidMax)
+      {eDest.Emsg("Config", what, "a too long vnid -", vnid);
+       return 0;
+      }
+
+// Check for a null vnid
+//
+   if (!n || !(*vnid))
+      {eDest.Emsg("Config", what, "a null vnid.");
+       return 0;
+      }
+
+// Make sure the vnid does not contain invalid characters
+//
+   const char *cP = vnid;
+   while(*cP && (isalnum(*cP) || ispunct(*cP)) && *cP != '&' && *cP != ' ') cP++;
+   if (*cP)
+      {eDest.Emsg("Config", what, "an invalid vnid -", vnid);
+       return 0;
+      }
+
+// All is well
+//
+   return strdup(vnid);
+}
+
+/******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
 
@@ -160,6 +205,70 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
    return 1;
 }
 
+/******************************************************************************/
+/*                               g e t V n I d                                */
+/******************************************************************************/
+  
+char *XrdCmsSecurity::getVnId(XrdSysError &eDest, const char *cfgFN,
+                              const char *nidarg, const char *nidparm,
+                                    char  nidType)
+{
+   static XrdVERSIONINFODEF (myVer, XrdNID, XrdVNUMBER, XrdVERSION);
+   std::string (*ep)(XrdCmsgetVnIdArgs);
+   std::string nidName;
+
+// Read the vnid from a file is so directed
+//
+   if (*nidarg == '<')
+      {char buff[nidMax+8];
+       int nfd = XrdSysFD_Open(nidarg+1, O_RDONLY);
+       if (nfd < 0)
+          {eDest.Emsg("Config", errno, "open vnid file", nidarg+1);
+           return 0;
+          }
+       int n = read(nfd, buff, sizeof(buff)-1);
+       if (n < 0)
+          {eDest.Emsg("Config", errno, "read vnid file", nidarg+1);
+           close(nfd);
+           return 0;
+          }
+       close(nfd);
+       while(n && buff[n-1] == '\n') n--;
+       buff[n] = 0;
+       return chkVnId(eDest, buff, "vnid file contains");
+      }
+
+// Check if the actual vnid is being specified
+//
+   if (*nidarg == '=') return chkVnId(eDest, nidarg+1, "vnid value is");
+
+// Make sure a plugin is being passed
+//
+   if (*nidarg != '@')
+      {eDest.Emsg("Config", "vnid specification is invalid -", nidarg);
+       return 0;
+      }
+
+// Get the entry point of the node ID creator
+// 
+   XrdOucPinLoader nidLib(&eDest, &myVer, "vnid", nidarg+1);
+   ep = (std::string (*)(XrdCmsgetVnIdArgs))(nidLib.Resolve("XrdCmsgetVnId"));
+   if (!ep) return 0;
+
+// Get the node ID
+// 
+   nidName = ep(eDest, std::string(cfgFN), std::string(nidparm ? nidparm : ""),
+                       nidType, nidMax);
+
+// Unload the plugin (we don't need it anymore)
+//
+   nidLib.Unload();
+
+// Verify that the node ID meets specs
+//
+   return chkVnId(eDest, nidName.c_str(), "vnid plugin returned");
+}
+  
 /******************************************************************************/
 /*                              g e t T o k e n                               */
 /******************************************************************************/
@@ -250,22 +359,42 @@ void XrdCmsSecurity::setSecFunc(void *secfP)
 /*                           s e t S y s t e m I D                            */
 /******************************************************************************/
   
-char *XrdCmsSecurity::setSystemID(XrdOucTList *tp,    const char *iName,
-                                  const char  *iHost, const char *iTag,
-                                        char   iType)
+char *XrdCmsSecurity::setSystemID(XrdOucTList *tp,    const char *iVNID,
+                                  const char  *iTag,        char  iType)
 {
    XrdOucTList *tpF;
-   char sidbuff[8192], *sidend = sidbuff+sizeof(sidbuff)-32, *sp, *cP;
+   char sidbuff[8192], *sidend = sidbuff+sizeof(sidbuff)-32;
+   char *cP, *sp = sidbuff;
    char *fMan, *fp, *xp;
    int n;
 
-// The system ID starts with the semi-unique name of this node
+// Extract out the instance name (we must have one)
 //
-   if (!iName || !*iName) iName = "anon";
-   if (!iHost || !*iHost) iHost = "localhost";
-   strcpy(sidbuff, iName); strcat(sidbuff, "-");
-   sp = sidbuff + strlen(sidbuff);
-   *sp++ = iType; *sp++ = ' '; cP = sp;
+   const char *instP = getenv("XRDINSTANCE");
+   if (instP) instP = index(instP, ' ');
+   if (!instP) return (char *)"!envar XRDINSTANCE undefined.";
+   while(*instP && *instP == ' ') instP++;
+   if (!(*instP)) return (char *)"!envar XRDINSTANCE invalid.";
+
+// The system ID starts with the semi-unique name of this node unless it's
+// a vnetid, in which case it's unique withn this cluster. Note that vnetid's
+// always start with an asterisk. It does not otherwise.
+//
+   if (iVNID)
+      {*sp++ = '*'; *sp++ = iType; *sp++ = '-';
+       strcpy(sp, iVNID);
+       sp += strlen(iVNID);
+      } else {
+       *sp++ = iType; *sp++ = '-';
+       strcpy(sp, instP);
+       sp += strlen(instP);
+      }
+
+// Export the vnid
+//
+   *sp = 0;
+   XrdOucEnv::Export("XRDCMSVNID", sidbuff);
+   *sp++ = ' '; cP = sp;
 
 // Insert tag if we have one
 //
@@ -273,7 +402,7 @@ char *XrdCmsSecurity::setSystemID(XrdOucTList *tp,    const char *iName,
 
 // Develop a unique cluster name for this cluster
 //
-   if (!tp) sp += sprintf(sp, "%s@%s", iName, iHost);
+   if (!tp) sp += sprintf(sp, "%s", instP);
       else {tpF = tp;
             fMan = tp->text + strlen(tp->text) - 1;
             while((tp = tp->next))
@@ -297,6 +426,10 @@ char *XrdCmsSecurity::setSystemID(XrdOucTList *tp,    const char *iName,
 //
    *sp = '\0';
    XrdOucEnv::Export("XRDCMSCLUSTERID", cP);
+
+// Export the full virtual network ID
+//
+   XrdOucEnv::Export("XRDCMSSYSID", sidbuff);
 
 // Return the system ID
 //

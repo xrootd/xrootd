@@ -87,6 +87,7 @@ class XrdXrootdJob;
 class XrdXrootdMonitor;
 class XrdXrootdPio;
 class XrdXrootdStats;
+class XrdXrootdWVInfo;
 class XrdXrootdXPath;
 
 class XrdXrootdProtocol : public XrdProtocol, public XrdSfsDio
@@ -132,7 +133,7 @@ private:
 //
 enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
               RD_mv,        RD_prepare, RD_prepstg, RD_rm,     RD_rmdir,
-              RD_stat,      RD_trunc,
+              RD_stat,      RD_trunc,   RD_ovld,
               RD_open1,     RD_open2,   RD_open3,   RD_open4,  RD_Num};
 
        int   do_Admin();
@@ -179,6 +180,8 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_WriteAll();
        int   do_WriteCont();
        int   do_WriteNone();
+       int   do_WriteV();
+       int   do_WriteVec();
 
        int   aio_Error(const char *op, int ecode);
        int   aio_Read();
@@ -193,7 +196,7 @@ static int   Config(const char *fn);
 static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError,
                      const char *Path, char *Cgi);
-       int   fsRedir(RD_func xfnc);
+       int   fsOvrld(char opc, const char *Path, char *Cgi);
        int   fsRedirNoEnt(const char *eMsg, char *Cgi, int popt);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
@@ -213,11 +216,13 @@ static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
 static int   xfsL(XrdOucStream &Config, char *val, int lix);
+static int   xfso(XrdOucStream &Config);
 static int   xpidf(XrdOucStream &Config);
 static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
 static int   xmon(XrdOucStream &Config);
 static int   xred(XrdOucStream &Config);
+static bool  xred_php(char *val, char *hP[2], int rPort[2]);
 static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
 static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
 static int   xsecl(XrdOucStream &Config);
@@ -284,6 +289,9 @@ static XrdOucReqID        *PrepID;
 static struct RD_Table {char          *Host[2];
                         unsigned short Port[2];
                                  short RDSz[2];} Route[RD_Num];
+static int    OD_Stall;
+static bool   OD_Bypass;
+static bool   OD_Redir;
 
 // async configuration values
 //
@@ -301,14 +309,17 @@ static int                 as_syncw;     // writes to be synchronous
 static int                 maxBuffsz;    // Maximum buffer size we can have
 static int                 maxTransz;    // Maximum transfer size we can have
 static const int           maxRvecsz = 1024;   // Maximum read vector size
+static const int           maxWvecsz = 1024;   // Maximum writ vector size
 
 // Statistical area
 //
 static XrdXrootdStats     *SI;
 int                        numReads;     // Count for kXR_read
 int                        numReadP;     // Count for kXR_read pre-preads
-int                        numReadV;     // Count for kR_readv
-int                        numSegsV;     // Count for kR_readv segmens
+int                        numReadV;     // Count for kkR_readv
+int                        numSegsV;     // Count for kkR_readv  segmens
+int                        numWritV;     // Count for kkR_write
+int                        numSegsW;     // Count for kkR_writev segmens
 int                        numWrites;    // Count
 int                        numFiles;     // Count
 
@@ -316,6 +327,8 @@ int                        cumReads;     // Count less numReads
 int                        cumReadP;     // Count less numReadP
 int                        cumReadV;     // Count less numReadV
 int                        cumSegsV;     // Count less numSegsV
+int                        cumWritV;     // Count less numWritV
+int                        cumSegsW;     // Count less numSegsW
 int                        cumWrites;    // Count less numWrites
 long long                  totReadP;     // Bytes
 
@@ -353,8 +366,10 @@ int                        myBlen;
 int                        myBlast;
 int                       (XrdXrootdProtocol::*Resume)();
 XrdXrootdFile             *myFile;
+XrdXrootdWVInfo           *wvInfo;
 union {
 long long                  myOffset;
+long long                  myWVBytes;
 int                        myEInfo[2];
       };
 int                        myIOLen;
@@ -388,7 +403,8 @@ XrdXrootdPio              *pioFree;
 short                      PathID;
 char                       doWrite;
 char                       doWriteC;
-char                       rvSeq;
+unsigned char              rvSeq;
+unsigned char              wvSeq;
 
 // Track usage limts.
 //

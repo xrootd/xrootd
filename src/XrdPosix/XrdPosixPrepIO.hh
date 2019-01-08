@@ -41,6 +41,8 @@ XrdOucCacheIO *Base()   {return this;} // Already defined
 
 XrdOucCacheIO *Detach() {return this;} // Already defined
 
+void        Disable();
+
 long long   FSize() {return (Init() ? fileP->FSize() : openRC);}
 
 int         Fstat(struct stat &buf)

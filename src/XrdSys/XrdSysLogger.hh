@@ -47,6 +47,8 @@
 //! need to go and also handles log file rotation and trimming.
 //-----------------------------------------------------------------------------
 
+class XrdOucTListFIFO;
+
 class XrdSysLogger
 {
 public:
@@ -66,7 +68,12 @@ public:
 //! Destructor
 //-----------------------------------------------------------------------------
 
-        ~XrdSysLogger() {if (ePath) free(ePath);}
+        ~XrdSysLogger()
+        {
+          RmLogRotateLock();
+          if (ePath)
+            free(ePath);
+        }
 
 //-----------------------------------------------------------------------------
 //! Add a message to be printed at midnight.
@@ -127,6 +134,16 @@ void  AtMidnight(Task *mnTask);
 static const int onFifo = (int)0x80000000;
 
 int Bind(const char *path, int lfh=0);
+
+//-----------------------------------------------------------------------------
+//! Capture allows you to capture all messages (they are not routed). This is
+//! a global setting so use with caution!
+//!
+//! @param  tBase     Pointer to the XrdOucTListFIFO where messages are saved.
+//!                   If the pointer is nil, capturing is turned off.
+//-----------------------------------------------------------------------------
+
+void Capture(XrdOucTListFIFO *tFIFO);
 
 //-----------------------------------------------------------------------------
 //! Flush any pending output
@@ -235,6 +252,8 @@ void        FifoWait();
 int         Time(char *tbuff);
 static int  TimeStamp(struct timeval &tVal, unsigned long tID,
                       char *tbuff, int tbsz, bool hires);
+int         HandleLogRotateLock( bool dorotate );
+void        RmLogRotateLock();
 
 struct mmMsg
       {mmMsg *next;

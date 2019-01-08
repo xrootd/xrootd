@@ -33,10 +33,10 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 
+#include "XrdApps/XrdMpxXml.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -56,247 +56,9 @@ namespace XrdMpx
 static const int          addSender = 0x0001;
 
        int                Opts;
-
-       int                Debug;
 };
 
 using namespace XrdMpx;
-
-/******************************************************************************/
-/*                         L o c a l   C l a s s e s                          */
-/******************************************************************************/
-/******************************************************************************/
-/*                             X r d M p x V a r                              */
-/******************************************************************************/
-  
-class  XrdMpxVar
-{
-public:
-
-      int   Pop(const char *vName);
-
-      int   Push(const char *vName);
-
-      void  Reset() {vEnd = vBuff; vNum = -1; *vBuff = 0;}
-
-const char *Var() {return vBuff;}
-
-            XrdMpxVar() : vFence(vBuff + sizeof(vBuff) - 1) {Reset();}
-           ~XrdMpxVar() {}
-
-private:
-
-static const int   vMax = 15;
-             char *vEnd, *vFence, *vStack[vMax+1], vBuff[1024];
-             int   vNum;
-};
-
-/******************************************************************************/
-/*                        X r d M p x V a r : : P o p                         */
-/******************************************************************************/
-  
-int XrdMpxVar::Pop(const char *vName)
-{
-    if (Debug) cerr <<"Pop:  " <<(vName ? vName : "") <<"; var=" <<vBuff <<endl;
-    if (vNum < 0 || (vName && strcmp(vStack[vNum], vName))) return 0;
-    vEnd = vStack[vNum]-1; *vEnd = '\0'; vNum--;
-    return 1;
-}
-
-/******************************************************************************/
-/*                       X r d M p x V a r : : P u s h                        */
-/******************************************************************************/
-  
-int XrdMpxVar::Push(const char *vName)
-{
-   int n = strlen(vName);
-
-   if (Debug) cerr <<"Push: " <<vName <<"; var=" <<vBuff <<endl;
-   if (vNum >= vMax) return 0;
-   if (vNum >= 0) *vEnd++ = '.';
-      else         vEnd = vBuff;
-   if (vEnd+n+1 >= vFence) return 0;
-   strcpy(vEnd, vName);
-   vStack[++vNum] = vEnd;
-   vEnd += n;
-   return 1;
-}
-
-/******************************************************************************/
-/*                             X r d M p x X m l                              */
-/******************************************************************************/
-  
-class XrdMpxXml
-{
-public:
-
-enum fmtType {fmtCGI, fmtFlat, fmtXML};
-
-int Format(const char *Host, char *ibuff, char *obuff);
-
-    XrdMpxXml(fmtType ft) : fType(ft)
-                          {if (ft == fmtCGI) {vSep = '='; vSfx = '&';}
-                              else           {vSep = ' '; vSfx = '\n';}
-                          }
-   ~XrdMpxXml() {}
-
-private:
-
-struct VarInfo
-      {const char *Name;
-             char *Data;
-      };
-
-char *Add(char *Buff, const char *Var, const char *Val);
-void  getVars(XrdOucTokenizer &Data, VarInfo Var[]);
-int   xmlErr(const char *t1, const char *t2=0, const char *t3=0);
-
-fmtType fType;
-char    vSep;
-char    vSfx;
-};
-
-/******************************************************************************/
-/*                     X r d M p x X m l : : F o r m a t                      */
-/******************************************************************************/
-  
-int XrdMpxXml::Format(const char *Host, char *ibuff, char *obuff)
-{
-   static const char *Hdr0 = "<statistics ";
-   static const int   H0Len = strlen(Hdr0);
-
-   XrdMpxVar       xVar;
-   XrdOucTokenizer Data(ibuff);
-   VarInfo vHead[] = {{"tod", 0}, {"ver", 0}, {"src", 0}, {"tos", 0},
-                      {"pgm", 0}, {"ins", 0}, {"pid", 0}, {0, 0}};
-   VarInfo vStat[] = {{"id",  0}, {0, 0}};
-   VarInfo vTail[] = {{"toe", 0}, {0, 0}};
-   char *lP = ibuff, *oP = obuff, *tP, *vP;
-   int i, rc;
-
-// Insert a newline for the first '>'
-//
-   if (!(lP = (char *)index(lP, '>')))
-      return xmlErr("Invalid xml stream: ", ibuff);
-   *lP++ = '\n';
-
-// Now make the input tokenizable
-//
-   while(*lP)
-        {if (*lP == '>' || (*lP == '<' && *(lP+1) == '/')) *lP = ' ';
-         lP++;
-        }
-
-// The first token better be '<statistics'
-//
-   if (!(lP = Data.GetLine()) || strncmp(Hdr0, lP, H0Len))
-      return xmlErr("Stream does not start with '<statistics'.");
-   Data.GetToken(); getVars(Data, vHead);
-
-// Output the vars in the headers as 'stats..var'
-//
-   for (i = 0; vHead[i].Name; i++)
-       {if (vHead[i].Data) oP = Add(oP, vHead[i].Name, vHead[i].Data);}
-
-// Add in the host name, if supplied
-//
-   if (Host) oP = Add(oP, "host", Host);
-
-// Get the remainder
-//
-   if (!Data.GetLine()) return xmlErr("Null xml stream after header.");
-
-// The following segment reads all of the "stats" entries
-//
-   while((tP = Data.GetToken()) && strcmp(tP, "/statistics"))
-        {     if (*tP == '/')
-                 {if (!xVar.Pop(strcmp("/stats", tP) ? tP+1 : 0))
-                     return xmlErr(tP, "invalid end for ", xVar.Var());
-                 }
-         else if (*tP == '<')
-                 {if (strcmp("<stats", tP)) rc = xVar.Push(tP+1);
-                     else {getVars(Data, vStat);
-                           rc = (vStat[0].Data ? xVar.Push(vStat[0].Data)
-                                               : xVar.Push(tP+1));
-                          }
-                  if (!rc) return xmlErr("Nesting too deep for ", xVar.Var());
-                 }
-         else    {if ((vP = index(tP, '<'))) *vP = '\0';
-                  if (*tP == '"')
-                     {i = strlen(tP)-1;
-                      if (*(tP+i) == '"') {*(tP+i) = '\0'; i = 1;}
-                     } else i = 0;
-                  oP = Add(oP, xVar.Var(), tP+i);
-                  if (vP) {*vP = '<';
-                           if (vP != tP) memset(tP, ' ', vP - tP);
-                           Data.RetToken();
-                          }
-                 }
-        }
-   if (!tP) return xmlErr("Missing '</statistics>' in xml stream.");
-   getVars(Data, vTail);
-   if (vTail[0].Data) oP = Add(oP, vTail[0].Name, vTail[0].Data);
-   if (*(oP-1) == '&') oP--;
-   *oP++ = '\n';
-   return oP - obuff;
-}
-
-/******************************************************************************/
-/*                        X r d M p x X m l : : A d d                         */
-/******************************************************************************/
-  
-char *XrdMpxXml::Add(char *Buff, const char *Var, const char *Val)
-{
-   strcpy(Buff, Var); Buff += strlen(Var);
-   *Buff++ = vSep;
-   strcpy(Buff, Val); Buff += strlen(Val);
-   *Buff++ = vSfx;
-   return Buff;
-}
-
-/******************************************************************************/
-/*                                                                            */
-/*                    X r d M p x X m l : : g e t V a r s                     */
-/*                                                                            */
-/******************************************************************************/
-  
-void XrdMpxXml::getVars(XrdOucTokenizer &Data, VarInfo Var[])
-{
-   char *tVar, *tVal;
-   int i;
-
-// Initialize the data pointers to null
-//
-   i = 0;
-   while(Var[i].Name) Var[i++].Data = 0;
-
-// Get all of the variables/values and return where possible
-//
-   while((tVar = Data.GetToken()) && *tVar != '<' && *tVar != '/')
-        {if (!(tVal = (char *)index(tVar, '='))) continue;
-         *tVal++ = '\0';
-         if (*tVal == '"')
-            {tVal++, i = strlen(tVal);
-             if (*(tVal+i-1) == '"') *(tVal+i-1) = '\0';
-            }
-         i = 0;
-         while(Var[i].Name)
-              {if (!strcmp(Var[i].Name, tVar)) {Var[i].Data = tVal; break;}
-                  else i++;
-              }
-        }
-   if (tVar && (*tVar == '<' || *tVar == '/')) Data.RetToken();
-}
-
-/******************************************************************************/
-/*                     X r d M p x X m l : : x m l E r r                      */
-/******************************************************************************/
-  
-int XrdMpxXml::xmlErr(const char *t1, const char *t2, const char *t3)
-{
-   Say.Emsg(":", t1, t2, t3);
-   return 0;
-}
   
 /******************************************************************************/
 /*                             X r d M p x O u t                              */
@@ -457,15 +219,16 @@ int main(int argc, char *argv[])
    SOCKLEN_t fromLen;
    int Port = 0, retc, udpFD;
    char buff[64], c;
+   bool Debug;
 
 // Process the options
 //
-   opterr = 0; Debug = 0; Opts = 0;
+   opterr = 0; Debug = false; Opts = 0;
    if (argc > 1 && '-' == *argv[1]) 
       while ((c = getopt(argc,argv,"df:p:s")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
-       case 'd': Debug = 1;
+       case 'd': Debug = true;
                  break;
        case 'f':      if (!strcmp(optarg, "cgi" )) fType = XrdMpxXml::fmtCGI;
                  else if (!strcmp(optarg, "flat")) fType = XrdMpxXml::fmtFlat;
@@ -512,7 +275,7 @@ int main(int argc, char *argv[])
 
 // Establish format
 //
-   if (fType != XrdMpxXml::fmtXML) xP = new XrdMpxXml(fType);
+   if (fType != XrdMpxXml::fmtXML) xP = new XrdMpxXml(fType, Debug);
 
 // Now run a thread to output whatever we get
 //

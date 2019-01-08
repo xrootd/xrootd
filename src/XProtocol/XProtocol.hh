@@ -16,18 +16,40 @@
 /* Free Software Foundation, either version 3 of the License, or (at your     */
 /* option) any later version.                                                 */
 /*                                                                            */
-/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
-/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
-/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
-/* License for more details.                                                  */
+/* The XRootD protocol definition, documented in this file, is distributed    */
+/* under a modified BSD license and may be freely used to reimplement it.     */
+/* Any references to "source" in this license refers to this file or any      */
+/* other file that specifically contains the following license.               */
 /*                                                                            */
-/* You should have received a copy of the GNU Lesser General Public License   */
-/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
-/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/* Redistribution and use in source and binary forms, with or without         */
+/* modification, are permitted provided that the following conditions         */
+/* are met:                                                                   */
 /*                                                                            */
-/* The copyright holder's institutional names and contributor's names may not */
-/* be used to endorse or promote products derived from this software without  */
-/* specific prior written permission of the institution or contributor.       */
+/* 1. Redistributions of source code must retain the above copyright notice,  */
+/*    this list of conditions and the following disclaimer.                   */
+/*                                                                            */
+/* 2. Redistributions in binary form must reproduce the above copyright       */
+/*    notice, this list of conditions and the following disclaimer in the     */
+/*    documentation and/or other materials provided with the distribution.    */
+/*                                                                            */
+/* 3. Neither the name of the copyright holder nor the names of its           */
+/*    contributors may be used to endorse or promote products derived from    */
+/*    this software without specific prior written permission.                */
+/*                                                                            */
+/* 4. Derived software may not use the name XRootD or cmsd (regardless of     */
+/*    capitilization) in association with the derived work if the protocol    */
+/*    documented in this file is changed in any way.                          */
+/*                                                                            */
+/*    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS     */
+/*    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT       */
+/*    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR   */
+/*    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT    */
+/*    HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,  */
+/*    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT        */
+/*    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,   */
+/*    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY   */
+/*    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT     */
+/*    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE   */
 /******************************************************************************/
 
 //#ifndef __GNUC__
@@ -46,9 +68,9 @@
 // upper limit (i.e. n.9.9 + 1 -> n+1.0.0). The kXR_PROTSIGNVERSION defines the
 // protocol version where request signing became available.
 //
-#define kXR_PROTOCOLVERSION  0x00000310
+#define kXR_PROTOCOLVERSION  0x00000400
 #define kXR_PROTSIGNVERSION  0x00000310
-#define kXR_PROTOCOLVSTRING "3.1.0"
+#define kXR_PROTOCOLVSTRING "4.0.0"
 
 #include "XProtocol/XPtypes.hh"
 
@@ -117,6 +139,7 @@ enum XRequestTypes {
    kXR_truncate,// 3028
    kXR_sigver,  // 3029
    kXR_decrypt, // 3030
+   kXR_writev,  // 3031
    kXR_REQFENCE // Always last valid request code +1
 };
 
@@ -235,7 +258,6 @@ enum XLogonType {
    kXR_useradmin = 1
 };
 
-// Andy's request for async/unsolicited
 enum XPrepRequestOption {
    kXR_cancel = 1,
    kXR_notify = 2,
@@ -324,6 +346,7 @@ enum XErrorCode {
    kXR_overQuota,
    kXR_SigVerErr,
    kXR_DecryptErr,
+   kXR_Overloaded,
    kXR_ERRFENCE,    // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -565,6 +588,15 @@ struct ClientWriteRequest {
    kXR_char reserved[3];
    kXR_int32  dlen;
 };
+struct ClientWriteVRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  options;  // See static const ints below
+   kXR_char  reserved[15];
+   kXR_int32 dlen;
+
+   static const kXR_int32 doSync = 0x01;
+};
 struct ClientVerifywRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
@@ -614,6 +646,7 @@ typedef union {
    struct ClientSyncRequest sync;
    struct ClientTruncateRequest truncate;
    struct ClientWriteRequest write;
+   struct ClientWriteVRequest writev;
 } ClientRequest;
 
 typedef union {
@@ -633,6 +666,23 @@ struct read_args {
    kXR_char       reserved[7];
    // his struct is followed by an array of readahead_list
 };
+
+// New additions are placed in a specia namespace to avoid conflicts
+//
+namespace XrdProto
+{
+struct read_list {
+   kXR_char fhandle[4];
+   kXR_int32 rlen;
+   kXR_int64 offset;
+};
+
+struct write_list {
+   kXR_char fhandle[4];
+   kXR_int32 wlen;
+   kXR_int64 offset;
+};
+}
 
 //_____________________________________________________________________
 //   PROTOCOL DEFINITION: SERVER'S RESPONSE
@@ -867,6 +917,7 @@ static int mapError(int rc)
            case EDQUOT:       return kXR_overQuota;
            case EILSEQ:       return kXR_SigVerErr;
            case ERANGE:       return kXR_DecryptErr;
+           case EUSERS:       return kXR_Overloaded;
            default:           return kXR_FSError;
           }
       }
@@ -898,6 +949,7 @@ static int toErrno( int xerr )
         case kXR_overQuota:     return EDQUOT;
         case kXR_SigVerErr:     return EILSEQ;
         case kXR_DecryptErr:    return ERANGE;
+        case kXR_Overloaded:    return EUSERS;
         default:                return ENOMSG;
        }
 }

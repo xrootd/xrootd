@@ -73,7 +73,7 @@ namespace XrdCl
           sTOD.tv_sec = 0; sTOD.tv_usec = 0;
           eTOD.tv_sec = 0; eTOD.tv_usec = 0;
         }
-        std::string server;  //!< user\@host:port
+        std::string server;  //!< "user@host:port"
         std::string auth;    //!< authentication protocol used or empty if none
         timeval     sTOD;    //!< gettimeofday() when login started
         timeval     eTOD;    //!< gettimeofday() when login ended
@@ -87,7 +87,7 @@ namespace XrdCl
       {
         DisconnectInfo(): rBytes(0), sBytes(0), cTime(0)
         {}
-        std::string server;  //!< user\@host:port
+        std::string server;  //!< "user@host:port"
         uint64_t    rBytes;  //!< Number of bytes received
         uint64_t    sBytes;  //!< Number of bytes sent
         time_t      cTime;   //!< Seconds connected to the server
@@ -124,6 +124,7 @@ namespace XrdCl
         uint64_t            rBytes;  //!< Total number of bytes read via read
         uint64_t            vBytes;  //!< Total number of bytes read via readv
         uint64_t            wBytes;  //!< Total number of bytes written
+//      uint64_t            vwBytes;  //!< Total number of bytes written vie writev
         uint64_t            vSegs;   //!< Total count  of readv segments
         uint32_t            rCount;  //!< Total count  of reads
         uint32_t            vCount;  //!< Total count  of readv
@@ -142,6 +143,9 @@ namespace XrdCl
           ErrRead,      //!< Read
           ErrReadV,     //!< Readv
           ErrWrite,     //!< Write
+//        TODO
+//        ErrWriteV,    //!< WriteV (we can uncomment only when we do a major
+//                                   release as this is an ABI change)
           ErrUnc        //!< Unclassified operation
         };
 
@@ -195,7 +199,7 @@ namespace XrdCl
       {
         CheckSumInfo(): oTime(0), tTime(0), isOK(false) {}
         TransferInfo transfer;  //!< The transfer in question
-        std::string  cksum;     //!< Checksum as \<type\>:\<value\>
+        std::string  cksum;     //!< Checksum as "type:value"
         uint64_t     oTime;     //!< Microseconds to obtain cksum from origin
         uint64_t     tTime;     //!< Microseconds to obtain cksum from target
         bool         isOK;      //!< True if checksum matched, false otherwise

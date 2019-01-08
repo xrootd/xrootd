@@ -1,0 +1,8 @@
+{
+global:
+  XrdAccAuthorizeObject*;
+  XrdHttpGetExtHandler*;
+
+local:
+  *;
+};

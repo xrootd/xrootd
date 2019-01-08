@@ -23,7 +23,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucArgs.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdFileCacheInfo.hh"
@@ -49,8 +49,10 @@ Print::Print(XrdOss* oss, bool v, const char* path) : m_oss(oss), m_verbose(v), 
 }
 
 
-bool Print::isInfoFile(const char* path) {
-   if (strncmp(&path[strlen(path)-6], ".cinfo", 6)) {
+bool Print::isInfoFile(const char* path)
+{
+   if (strncmp(&path[strlen(path)-6], ".cinfo", 6))
+   {
       printf("%s is not cinfo file.\n\n", path);
       return false;
    }
@@ -64,9 +66,7 @@ void Print::printFile(const std::string& path)
    XrdOssDF* fh = m_oss->newFile(m_ossUser);
    fh->Open((path).c_str(),O_RDONLY, 0600, m_env);
 
-   XrdSysLogger log;
-   XrdSysError err(&log);
-   XrdOucTrace tr(&err); tr.What = 2;
+   XrdSysTrace tr(""); tr.What = 2;
    Info cfi(&tr);
 
    if ( ! cfi.Read(fh, path))
@@ -80,7 +80,7 @@ void Print::printFile(const std::string& path)
       if (cfi.TestBit(i)) cntd++;
 
    const Info::Store& store = cfi.RefStoredData();
-   char creationBuff[1000];
+   char   creationBuff[1000];
    time_t creationTime = store.m_creationTime;
    strftime(creationBuff, 1000, "%c", localtime(&creationTime));
 
@@ -193,18 +193,18 @@ int main(int argc, char *argv[])
 
 
    XrdOucStream Config(&err, getenv("XRDINSTANCE"), &myEnv, "=====> ");
-   XrdOucArgs Spec(&err, "pfc_print: ",    "",
-                   "verbose",        1, "v",
-                   "config",       1, "c",
-                   (const char *)0);
+   XrdOucArgs   Spec(&err, "xrdpfc_print: ", "",
+                     "verbose",      1, "v",
+                     "config",       1, "c",
+                     (const char *) 0);
 
 
    Spec.Set(argc-1, &argv[1]);
    char theOpt;
 
-   while((theOpt = Spec.getopt()) != (char)-1)
+   while ((theOpt = Spec.getopt()) != (char)-1)
    {
-      switch(theOpt)
+      switch (theOpt)
       {
       case 'c':
       {
@@ -276,4 +276,6 @@ int main(int argc, char *argv[])
          XrdFileCache::Print p(oss, verbose, path);
       }
    }
+
+   return 0;
 }

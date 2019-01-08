@@ -37,6 +37,7 @@
 #include <cstdio>
 #include <iostream>
 #include <iomanip>
+#include <cmath>
 
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
@@ -206,6 +207,14 @@ XRootDStatus DoCD( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Helper function to calculate number of digits in a number
+//------------------------------------------------------------------------------
+int nbDigits( uint64_t nb )
+{
+  return int( log10( double(nb) ) + 1);
+}
+
+//------------------------------------------------------------------------------
 // List a directory
 //------------------------------------------------------------------------------
 XRootDStatus DoLS( FileSystem                      *fs,
@@ -220,9 +229,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
   bool        stats    = false;
   bool        showUrls = false;
   std::string path;
-  DirListFlags::Flags flags = DirListFlags::Locate;
+  DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
-  if( argc > 5 )
+  if( argc > 6 )
   {
     log->Error( AppMsg, "Too many arguments." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -237,9 +246,23 @@ XRootDStatus DoLS( FileSystem                      *fs,
     }
     else if( args[i] == "-u" )
       showUrls = true;
+    else if( args[i] == "-R" )
+    {
+      flags |= DirListFlags::Recursive;
+    }
+    else if( args[i] == "-D" )
+    {
+      // show duplicates
+      flags &= ~DirListFlags::Merge;
+    }
     else
       path = args[i];
   }
+
+  if( showUrls )
+    // we don't merge the duplicate entries
+    // in case we print the full URL
+    flags &= ~DirListFlags::Merge;
 
   std::string newPath = "/";
   if( path.empty() )
@@ -309,7 +332,10 @@ XRootDStatus DoLS( FileSystem                      *fs,
 
         std::cout << " " << info->GetModTimeAsString();
 
-        std::cout << std::setw(12) << info->GetSize() << " ";
+        uint64_t size = info->GetSize();
+        int width = nbDigits( size ) + 2;
+        if( width < 12 ) width = 12;
+        std::cout << std::setw( width ) << info->GetSize() << " ";
       }
     }
     if( showUrls )
@@ -1101,6 +1127,8 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
       flags |= PrepareFlags::Stage;
     else if( args[i] == "-w" )
       flags |= PrepareFlags::WriteMode;
+    else if( args[i] == "-a" )
+      flags |= PrepareFlags::Cancel;
     else
       files.push_back( args[i] );
   }
@@ -1478,10 +1506,12 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     Modify permissions. Permission string example:\n"             );
   printf( "     rwxr-x--x\n\n"                                                );
 
-  printf( "   ls [-l] [-u] [dirname]\n"                                       );
+  printf( "   ls [-l] [-u] [-R] [-D] [dirname]\n"                             );
   printf( "     Get directory listing.\n"                                     );
   printf( "     -l stat every entry and pring long listing\n"                 );
-  printf( "     -u print paths as URLs\n\n"                                   );
+  printf( "     -u print paths as URLs\n"                                     );
+  printf( "     -R list subdirectories recursively\n"                         );
+  printf( "     -D show duplicate entries\n\n"                                );
 
   printf( "   locate [-n] [-r] [-d] <path>\n"                                 );
   printf( "     Get the locations of the path.\n"                             );
@@ -1557,13 +1587,14 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   truncate <filename> <length>\n"                               );
   printf( "     Truncate a file.\n\n"                                       );
 
-  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] filenames\n"        );
+  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] [-a] filenames\n"   );
   printf( "     Prepare one or more files for access.\n"                    );
   printf( "     -c co-locate staged files if possible\n"                    );
   printf( "     -f refresh file access time even if the location is known\n" );
   printf( "     -s stage the files to disk if they are not online\n"        );
   printf( "     -w the files will be accessed for modification\n"           );
-  printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n\n"   );
+  printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n"     );
+  printf( "     -a abort stage request\n\n"                                 );
 
   printf( "   cat [-o local file] file\n"                                   );
   printf( "     Print contents of a file to stdout.\n"                      );

@@ -29,7 +29,7 @@ target_link_libraries(
   ${LIB_XRD_SEC}
   XrdUtils
   pthread
-  dl )
+  ${CMAKE_DL_LIBS} )
 
 set_target_properties(
   ${LIB_XRD_SEC}

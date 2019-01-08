@@ -49,6 +49,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/param.h>
@@ -69,6 +70,8 @@
 /******************************************************************************/
   
 extern XrdPosixLinkage Xunix;
+
+namespace {bool isLite = (getenv("XRD_POSIX_PRELOAD_LITE") != 0);}
  
 /******************************************************************************/
 /*               6 4 - t o 3 2   B i t   C o n v e r s i o n s                */
@@ -323,6 +326,7 @@ int        lstat(         const char *path, struct stat *buf)
 #else
    struct stat64 buf64;
    int rc;
+
    if ((rc = XrdPosix_Lstat(path, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
 #endif
@@ -379,7 +383,12 @@ struct dirent* readdir(DIR *dirp)
    static int Init = Xunix.Init(&Init);
    struct dirent64 *dp64;
 
-   if (!(dp64 = XrdPosix_Readdir64(dirp))) return 0;
+   if ( isLite )
+   {
+       if (!(dp64 = Xunix.Readdir64(dirp))) return 0;
+   }
+   else
+       if (!(dp64 = XrdPosix_Readdir64(dirp))) return 0;
 
 #if !defined(__APPLE__) && !defined(_LP64) && !defined(__LP64__)
    if (XrdPosix_CopyDirent((struct dirent *)dp64, dp64)) return 0;
@@ -408,8 +417,12 @@ int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
    struct dirent64 *mydirent;
    int rc;
 
-   if ((rc = XrdPosix_Readdir64_r(dirp, dp64, &mydirent)))
-      return rc;
+   if ( isLite )
+   {
+       if ((rc = Xunix.Readdir64_r(dirp, dp64, &mydirent))) return rc;
+   }
+   else
+       if ((rc = XrdPosix_Readdir64_r(dirp, dp64, &mydirent))) return rc;
 
    if (!mydirent) {*result = 0; return 0;}
 

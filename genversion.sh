@@ -80,9 +80,10 @@ function getVersionFromLog()
 function printHelp()
 {
   echo "Usage:"                                                1>&2
-  echo "${0} [--help|--print-only] [SOURCEPATH]"               1>&2
+  echo "${0} [--help|--print-only|--version] [SOURCEPATH]"     1>&2
   echo "  --help       prints this message"                    1>&2
   echo "  --print-only prints the version to stdout and quits" 1>&2
+  echo "  --version    VERSION sets the version manually"      1>&2 
 }
 
 #-------------------------------------------------------------------------------
@@ -93,6 +94,13 @@ while test ${#} -ne 0; do
     PRINTHELP=1
   elif test x${1} = x--print-only; then
     PRINTONLY=1
+  elif test x${1} = x--version; then
+    if test ${#} -lt 2; then
+      echo "--version parameter needs an argument" 1>&2
+      exit 1
+    fi
+    USER_VERSION=${2}
+    shift
   else
     SOURCEPATH=${1}
   fi
@@ -144,6 +152,12 @@ if test ! -d ${SOURCEPATH}.git; then
   fi
 
 #-------------------------------------------------------------------------------
+# Check if the version has been specified by the user
+#-------------------------------------------------------------------------------
+elif test x$USER_VERSION != x; then
+  VERSION=$USER_VERSION
+
+#-------------------------------------------------------------------------------
 # We're in a git repo so we can try to determine the version using that
 #-------------------------------------------------------------------------------
 else
@@ -184,7 +198,7 @@ fi
 #-------------------------------------------------------------------------------
 # Make sure the version string is not longer than 25 characters
 #-------------------------------------------------------------------------------
-if test ${#VERSION} -gt 25; then
+if [ ${#VERSION} -gt 25 ] && [ x$USER_VERSION == x ] ; then
   VERSION="${VERSION:0:19}...${VERSION: -3}"
 fi
 

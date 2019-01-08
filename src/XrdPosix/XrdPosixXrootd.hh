@@ -53,6 +53,8 @@ class XrdScheduler;
 class XrdOucCache;
 class XrdOucCache2;
 class XrdOucEnv;
+class XrdOucName2Name;
+class XrdSysLogger;
 class XrdPosixCallBack;
 class XrdPosixCallBackIO;
 class XrdPosixFile;
@@ -327,10 +329,10 @@ static int     Unlink(const char *path);
 //!         is returned and errno is appropriately set.
 //-----------------------------------------------------------------------------
 
-static ssize_t VRead(int fildes, const XrdOucIOVec *readV, int n);
-
 static void    VRead(int fildes, const XrdOucIOVec *readV, int n,
                      XrdPosixCallBackIO *cbp); // Async extension!
+
+static ssize_t VRead(int fildes, const XrdOucIOVec *readV, int n);
 
 //-----------------------------------------------------------------------------
 //! Write() conforms to POSIX.1-2001 write()
@@ -355,20 +357,6 @@ static bool    isXrootdDir(DIR *dirp);
 
 static bool    myFD(int fd);
 
-static void    setCache(XrdOucCache *cP);
-
-static void    setCache(XrdOucCache2 *cP);
-
-static void    setDebug(int val, bool doDebug=false);
-
-static void    setEnv(const char *kword, int kval);
-
-static void    setIPV4(bool userv4);
-
-static void    setNumCB(int numcb);
-
-static void    setSched(XrdScheduler *sP);
-
 /* There must be one instance of this object per executable image. Typically,
    this object is declared in main() or at file level. This is necessary to
    properly do one-time initialization of the static members. When declaring
@@ -383,17 +371,27 @@ static void    setSched(XrdScheduler *sP);
                XrdPosixXrootd(int maxfd=255, int maxdir=0, int maxthr=0);
               ~XrdPosixXrootd();
 
+// The following methods were always considered private. They are no longer
+// used and will be removed on the next major release! They are only here for
+// now to keep ABI compatability for the 4.x and prior releases.
+//
+static void    setCache(XrdOucCache *cP);
+static void    setCache(XrdOucCache2 *cP);
+static void    setDebug(int val, bool doDebug=false);
+static void    setEnv(const char *kword, int kval);
+static void    setIPV4(bool userv4);
+static void    setLogger(XrdSysLogger *logP);
+static void    setNumCB(int numcb);
+static void    setN2N(XrdOucName2Name *pN2N, int opts=0);
+static void    setSched(XrdScheduler *sP);
+
 private:
 
-static void initEnv();
-static void initEnv(char *eData);
-static void initEnv(XrdOucEnv &, const char *, long long &);
 static int  Fault(XrdPosixFile *fp, int ecode);
 static void initStat(struct stat *buf);
 static void initXdev(dev_t &st_dev, dev_t &st_rdev);
-static XrdOucCache   *myCache;
-static XrdOucCache2  *myCache2;
-static int            baseFD;
-static int            initDone;
+
+static int  baseFD;
+static int  initDone;
 };
 #endif

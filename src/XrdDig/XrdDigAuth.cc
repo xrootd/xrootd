@@ -233,10 +233,6 @@ bool XrdDigAuth::Parse(XrdOucStream &aFile, int lNum)
    int  k, n, bLeft = sizeof(buff);
    bool aOK = false, tfVal;
 
-// Clear the arec the fastest way possible
-//
-   memset(aEnt.eP, 0, sizeof(XrdDigAuthEnt));
-
 // Get the record type tokens first
 //
    while((var = aFile.GetToken()) && *var)

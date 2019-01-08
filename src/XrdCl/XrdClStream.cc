@@ -147,7 +147,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Debug( PostMasterMsg, "[%s] Stream parameters: Network Stack: %s, "
                 "Connection Window: %d, ConnectionRetry: %d, Stream Error "
-                "Widnow: %d", pStreamName.c_str(), netStack.c_str(),
+                "Window: %d", pStreamName.c_str(), netStack.c_str(),
                 pConnectionWindow, pConnectionRetry, pStreamErrorWindow );
   }
 
@@ -240,7 +240,6 @@ namespace XrdCl
       return pLastFatalError;
 
     gettimeofday( &pConnectionStarted, 0 );
-    pConnectionInitTime = now;
     ++pConnectionCount;
 
     //--------------------------------------------------------------------------
@@ -260,17 +259,18 @@ namespace XrdCl
     Utils::LogHostAddresses( log, PostMasterMsg, pUrl->GetHostId(),
                              pAddresses );
 
-    //--------------------------------------------------------------------------
-    // Initiate the connection process to the first one on the list.
-    // It's more efficient to remove addresses from the back of a vector
-    // so we reverse the it.
-    //--------------------------------------------------------------------------
-    std::reverse( pAddresses.begin(), pAddresses.end() );
-    pSubStreams[0]->socket->SetAddress( pAddresses.back() );
-    pAddresses.pop_back();
-    st = pSubStreams[0]->socket->Connect( pConnectionWindow );
-    if( st.IsOK() )
-      pSubStreams[0]->status = Socket::Connecting;
+    while( !pAddresses.empty() )
+    {
+      pSubStreams[0]->socket->SetAddress( pAddresses.back() );
+      pAddresses.pop_back();
+      pConnectionInitTime = ::time( 0 );
+      st = pSubStreams[0]->socket->Connect( pConnectionWindow );
+      if( st.IsOK() )
+      {
+        pSubStreams[0]->status = Socket::Connecting;
+        break;
+      }
+    }
     return st;
   }
 
@@ -301,7 +301,7 @@ namespace XrdCl
     if( pSubStreams.size() <= path.up )
     {
       log->Warning( PostMasterMsg, "[%s] Unable to send message %s through "
-                    "substream %d using 0 instead", pStreamName.c_str(),
+                    "substream %d, using 0 instead", pStreamName.c_str(),
                     msg->GetDescription().c_str(), path.up );
       path.up = 0;
     }
@@ -323,27 +323,6 @@ namespace XrdCl
     else
       st.status = stFatal;
     return st;
-  }
-
-
-  //------------------------------------------------------------------------
-  // Queue a virtual response
-  //------------------------------------------------------------------------
-  Status Stream::ReceiveVirtual( Message *msg )
-  {
-    //--------------------------------------------------------------------------
-    // Check the session ID and bounce if needed
-    //--------------------------------------------------------------------------
-    if( msg->GetSessionId() &&
-        (pSubStreams[0]->status != Socket::Connected ||
-        pSessionId != msg->GetSessionId()) )
-      return Status( stError, errInvalidSession );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( PostMasterMsg, "[%s] Queuing virtual response: 0x%x.", pStreamName.c_str(), msg );
-    pJobManager->QueueJob( pQueueIncMsgJob, msg );
-
-    return Status();
   }
 
   //----------------------------------------------------------------------------
@@ -446,7 +425,7 @@ namespace XrdCl
     params.followRedirects = false;
     params.stateful        = true;
     MessageUtils::ProcessSendParams( params );
-    return MessageUtils::SendMessage( *pUrl, msg, handler, params );
+    return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
   }
 
   //----------------------------------------------------------------------------
@@ -689,48 +668,48 @@ namespace XrdCl
     // Check if we still have time to try and do something in the current window
     //--------------------------------------------------------------------------
     time_t elapsed = now-pConnectionInitTime;
-    if( elapsed < pConnectionWindow )
+    log->Error( PostMasterMsg, "[%s] elapsed = %d, pConnectionWindow = %d "
+               "seconds.", pStreamName.c_str(), elapsed, pConnectionWindow );
+
+    //------------------------------------------------------------------------
+    // If we have some IP addresses left we try them
+    //------------------------------------------------------------------------
+    if( !pAddresses.empty() )
     {
-      //------------------------------------------------------------------------
-      // If we have some IP addresses left we try them
-      //------------------------------------------------------------------------
-      if( !pAddresses.empty() )
+      Status st;
+      do
       {
         pSubStreams[0]->socket->SetAddress( pAddresses.back() );
         pAddresses.pop_back();
-
-        Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
-        if( !st.IsOK() )
-          OnFatalError( subStream, st, scopedLock );
-        return;
+        pConnectionInitTime = ::time( 0 );
+        st = pSubStreams[0]->socket->Connect( pConnectionWindow );
       }
+      while( !pAddresses.empty() && !st.IsOK() );
 
-      //------------------------------------------------------------------------
-      // If we still can retry with the same host name, we sleep until the end
-      // of the connection window and try
-      //------------------------------------------------------------------------
-      else if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
-      {
-        log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
-                   "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
+      if( !st.IsOK() )
+        OnFatalError( subStream, st, scopedLock );
 
-        Task *task = new ::StreamConnectorTask( this );
-        pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // Nothing can be done, we declare a failure
-      //------------------------------------------------------------------------
-      OnFatalError( subStream, status, scopedLock );
       return;
     }
+    //------------------------------------------------------------------------
+    // If we still can retry with the same host name, we sleep until the end
+    // of the connection window and try
+    //------------------------------------------------------------------------
+    else if( elapsed < pConnectionWindow && pConnectionCount < pConnectionRetry
+             && !status.IsFatal() )
+    {
+      log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
+                 "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
 
+      Task *task = new ::StreamConnectorTask( this );
+      pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
+      return;
+    }
     //--------------------------------------------------------------------------
     // We are out of the connection window, the only thing we can do here
     // is re-resolving the host name and retrying if we still can
     //--------------------------------------------------------------------------
-    if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
+    else if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
     {
       pAddresses.clear();
       pSubStreams[0]->status = Socket::Disconnected;
@@ -851,6 +830,66 @@ namespace XrdCl
     }
   }
 
+  //------------------------------------------------------------------------
+  // Force error
+  //------------------------------------------------------------------------
+  void Stream::ForceError( Status status )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    for( size_t substream = 0; substream < pSubStreams.size(); ++substream )
+    {
+      Log    *log = DefaultEnv::GetLog();
+      if( pSubStreams[substream]->status != Socket::Connected ) continue;
+      pSubStreams[substream]->socket->Close();
+      pSubStreams[substream]->status = Socket::Disconnected;
+      log->Error( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
+                  pStreamName.c_str(), status.ToString().c_str() );
+
+      //--------------------------------------------------------------------
+      // Reinsert the stuff that we have failed to sent
+      //--------------------------------------------------------------------
+      if( pSubStreams[substream]->outMsgHelper.msg )
+      {
+        OutMessageHelper &h = pSubStreams[substream]->outMsgHelper;
+        pSubStreams[substream]->outQueue->PushFront( h.msg, h.handler, h.expires,
+                                                     h.stateful );
+        pSubStreams[substream]->outMsgHelper.Reset();
+      }
+
+      //--------------------------------------------------------------------
+      // Reinsert the receiving handler
+      //--------------------------------------------------------------------
+      if( pSubStreams[substream]->inMsgHelper.handler )
+      {
+        InMessageHelper &h = pSubStreams[substream]->inMsgHelper;
+        pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
+        h.Reset();
+      }
+
+      pConnectionCount = 0;
+
+      //------------------------------------------------------------------------
+      // We're done here, unlock the stream mutex to avoid deadlocks and
+      // report the disconnection event to the handlers
+      //------------------------------------------------------------------------
+      log->Debug( PostMasterMsg, "[%s] Reporting disconnection to queued "
+                  "message handlers.", pStreamName.c_str() );
+
+      SubStreamList::iterator it;
+      OutQueue q;
+      for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+        q.GrabItems( *(*it)->outQueue );
+      scopedLock.UnLock();
+
+      q.Report( status );
+
+      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken,
+                                         pStreamNum, status );
+      pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status,
+                                      pStreamNum );
+    }
+  }
+
   //----------------------------------------------------------------------------
   // On fatal error
   //----------------------------------------------------------------------------
@@ -943,7 +982,16 @@ namespace XrdCl
       {
         log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, disconnecting...",
                     pStreamName.c_str() );
-        Disconnect();
+        scopedLock.UnLock();
+        //----------------------------------------------------------------------
+        // Important note!
+        //
+        // This destroys the Stream object itself, the underlined
+        // AsyncSocketHandler object (that called this method) and the Channel
+        // object that aggregates this Stream.
+        //----------------------------------------------------------------------
+        DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
+        return;
       }
     }
 

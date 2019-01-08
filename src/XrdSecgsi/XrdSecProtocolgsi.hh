@@ -40,6 +40,8 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 
+#include "XrdSut/XrdSutCache.hh"
+
 #include "XrdSut/XrdSutPFEntry.hh"
 #include "XrdSut/XrdSutPFile.hh"
 #include "XrdSut/XrdSutBuffer.hh"
@@ -61,12 +63,16 @@ typedef XrdCryptogsiX509Chain X509Chain;
   
 #define XrdSecPROTOIDENT    "gsi"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
-#define XrdSecgsiVERSION    10300
+#define XrdSecgsiVERSION    10400
 #define XrdSecNOIPCHK       0x0001
 #define XrdSecDEBUG         0x1000
 #define XrdCryptoMax        10
 
 #define kMAXBUFLEN          1024
+
+
+#define XrdSecgsiVersDHsigned  10400  // Version at which started signing
+                                      // of server DH parameters 
 
 //
 // Message codes either returned by server or included in buffers
@@ -101,7 +107,8 @@ enum kgsiHandshakeOpts {
    kOptsSigReq     = 4,      // 0x0004: Accept to sign delegated proxy
    kOptsSrvReq     = 8,      // 0x0008: Server request for delegated proxy
    kOptsPxFile     = 16,     // 0x0010: Save delegated proxies in file
-   kOptsDelChn     = 32      // 0x0020: Delete chain
+   kOptsDelChn     = 32,     // 0x0020: Delete chain
+   kOptsPxCred     = 64      // 0x0040: Save delegated proxies as credentials
 };
 
 // Error codes
@@ -139,9 +146,9 @@ enum kgsiErrors {
 #define REL2(x,y)   { if (x) delete x; if (y) delete y; }
 #define REL3(x,y,z) { if (x) delete x; if (y) delete y; if (z) delete z; }
 
-#define SafeDelete(x) { if (x) delete x ; x = 0; }
-#define SafeDelArray(x) { if (x) delete [] x ; x = 0; }
-#define SafeFree(x) { if (x) free(x) ; x = 0; }
+#define SafeDelete(x) { if (x) {delete x ; x = 0;} }
+#define SafeDelArray(x) { if (x) {delete [] x ; x = 0;} }
+#define SafeFree(x) { if (x) {free(x) ; x = 0;} }
 
 // External functions for generic mapping
 typedef char *(*XrdSecgsiGMAP_t)(const char *, int);
@@ -184,12 +191,12 @@ public:
    char  *authzfun;// [s] file with the function to fill entities [0]
    char  *authzfunparms;// [s] parameters for the function to fill entities [0]
    int    authzto; // [s] validity in secs of authz cache entries [-1 => unlimited]
-   int    ogmap;  // [s] gridmap file checking option 
-   int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy 
-                  // [s] ask client for proxies
-   int    sigpxy; // [c] accept delegated proxy requests 
+   int    ogmap;  // [s] gridmap file checking option
+   int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy; default 0
+                  // [s] ask client for proxies; default: do not accept delegated proxies
+   int    sigpxy; // [c] accept delegated proxy requests
    char  *srvnames;// [c] '|' separated list of allowed server names
-   char  *exppxy; // [s] template for the exported file with proxies (dlgpxy == 3)
+   char  *exppxy; // [s] template for the exported file with proxies
    int    authzpxy; // [s] if 1 make proxy available in exported form in the 'endorsement'
                     //     field of the XrdSecEntity object for use in XrdAcc
    int    vomsat; // [s] 0 do not look for; 1 extract if any
@@ -197,6 +204,8 @@ public:
    char  *vomsfunparms;// [s] parameters for the function to fill VOMS [0]
    int    moninfo; // [s] 0 do not look for; 1 use DN as default
    int    hashcomp; // [cs] 1 send hash names with both algorithms; 0 send only the default [1]
+
+   bool   trustdns; // [cs] 'true' if DNS is trusted [true]
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
@@ -206,7 +215,7 @@ public:
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
-                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; hashcomp = 1; }
+                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; hashcomp = 1; trustdns = true; }
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
    void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
@@ -236,14 +245,14 @@ template<class T>
 class GSIStack {
 public:
    void Add(T *t) {
-      char k[40]; snprintf(k, 40, "%p", t); 
+      char k[40]; snprintf(k, 40, "%p", t);
       mtx.Lock();
       if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count); // We need an additional count
       stack.Add(k, t, 0, Hash_count);
       mtx.UnLock();
    }
    void Del(T *t) {
-      char k[40]; snprintf(k, 40, "%p", t); 
+      char k[40]; snprintf(k, 40, "%p", t);
       mtx.Lock();
       if (stack.Find(k)) stack.Del(k, Hash_count);
       mtx.UnLock();
@@ -339,6 +348,7 @@ private:
    static int              VOMSCertFmt; 
    static int              MonInfoOpt;
    static bool             HashCompatibility;
+   static bool             TrustDNS;
    //
    // Crypto related info
    static int              ncrypt;                  // Number of factories
@@ -348,12 +358,11 @@ private:
    static XrdCryptoCipher *refcip[XrdCryptoMax];    // ref for session ciphers 
    //
    // Caches 
-   static XrdSutCache      cacheCA;   // Info about trusted CA's
-   static XrdSutCache      cacheCert; // Cache for available server certs
-   static XrdSutCache      cachePxy;  // Cache for client proxies
-   static XrdSutCache      cacheGMAP; // Cache for gridmap entries
-   static XrdSutCache      cacheGMAPFun; // Cache for entries mapped by GMAPFun
-   static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
+   static XrdSutCache   cacheCA;   // Info about trusted CA's
+   static XrdSutCache   cacheCert; // Server certificates info cache
+   static XrdSutCache   cachePxy;  // Client proxies cache; 
+   static XrdSutCache   cacheGMAPFun; // Cache for entries mapped by GMAPFun
+   static XrdSutCache   cacheAuthzFun; // Cache for entities filled by AuthzFun
    //
    // Services
    static XrdOucGMap      *servGMap;  // Grid mapping service 
@@ -385,7 +394,9 @@ private:
    XrdCryptoRSA    *sessionKsig;   // RSA key to sign
    XrdCryptoRSA    *sessionKver;   // RSA key to verify
    X509Chain       *proxyChain;    // Chain with the delegated proxy on servers
-   bool             srvMode;       // TRUE if server mode 
+   bool             srvMode;       // TRUE if server mode
+   char            *expectedHost;  // Expected hostname if TrustDNS is enabled.
+   bool             useIV;         // Use a non-zeroed unique IV in cipher enc/dec operations
 
    // Temporary Handshake local info
    gsiHSVars     *hs;
@@ -419,14 +430,16 @@ private:
                         XrdCryptoFactory *cryptof, gsiHSVars *hs = 0);
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
-   bool           ServerCertNameOK(const char *subject, String &e);
-   static XrdSutPFEntry *GetSrvCertEnt(XrdSutCacheRef   &pfeRef,
+   static int     VerifyCRL(XrdCryptoX509Crl *crl, XrdCryptoX509 *xca, XrdOucString crldir,
+                           XrdCryptoFactory *CF, int hashalg);
+   bool           ServerCertNameOK(const char *subject, const char *hname, String &e);
+   static XrdSutCacheEntry *GetSrvCertEnt(XrdSutCERef   &gcref,
                                        XrdCryptoFactory *cf,
                                        time_t timestamp, String &cal);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca, const char *sjhash,
-                                    XrdCryptoFactory *CF, int dwld);
+                                    XrdCryptoFactory *CF, int dwld, int &err);
 
    // Updating proxies
    static int     QueryProxy(bool checkcache, XrdSutCache *cache, const char *tag,
@@ -477,11 +490,12 @@ private:
 
 class gsiHSVars {
 public:
-   int               Iter;          // iteration number
+   int               Iter;          // Iteration number
    time_t            TimeStamp;     // Time of last call
-   String            CryptoMod;     // crypto module in use
+   String            CryptoMod;     // Crypto module in use
    int               RemVers;       // Version run by remote counterpart
-   XrdCryptoCipher  *Rcip;          // reference cipher
+   XrdCryptoCipher  *Rcip;          // Reference cipher
+   bool              HasPad;        // Whether padding is supported
    XrdSutBucket     *Cbck;          // Bucket with the certificate in export form
    String            ID;            // Handshake ID (dummy for clients)
    XrdSutPFEntry    *Cref;          // Cache reference
@@ -497,7 +511,7 @@ public:
    XrdSutBuffer     *Parms;         // Buffer with server parms on first iteration 
 
    gsiHSVars() { Iter = 0; TimeStamp = -1; CryptoMod = "";
-                 RemVers = -1; Rcip = 0;
+                 RemVers = -1; Rcip = 0; HasPad = 0;
                  Cbck = 0;
                  ID = ""; Cref = 0; Pent = 0; Chain = 0; Crl = 0; PxyChain = 0;
                  RtagOK = 0; Tty = 0; LastStep = 0; Options = 0; HashAlg = 0; Parms = 0;}

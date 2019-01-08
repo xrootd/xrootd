@@ -195,7 +195,7 @@ namespace PyXRootD
     else {
       uint32_t bytesRead;
       async( status = self->file->Read( offset, size, buffer, bytesRead, timeout ) );
-      pyresponse = Py_BuildValue( "s#", buffer, bytesRead );
+      pyresponse = PyBytes_FromStringAndSize( buffer, bytesRead );
       delete[] buffer;
     }
 
@@ -295,10 +295,10 @@ namespace PyXRootD
       if ( off_init == 0 )
         self->currentOffset += line->GetSize();
 
-      pyline = PyString_FromStringAndSize( line->GetBuffer(), line->GetSize() );
+      pyline = PyBytes_FromStringAndSize( line->GetBuffer(), line->GetSize() );
     }
     else
-      pyline = PyString_FromString( "" );
+      pyline = PyBytes_FromString( "" );
 
     delete line;
     delete chunk;
@@ -346,7 +346,7 @@ namespace PyXRootD
     {
       line = self->ReadLine( self, args, kwds );
 
-      if ( !line || PyString_Size( line ) == 0 )
+      if ( !line || PyBytes_Size( line ) == 0 )
         break;
 
       PyList_Append( lines, line );

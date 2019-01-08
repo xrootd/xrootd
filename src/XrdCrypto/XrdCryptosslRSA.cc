@@ -260,6 +260,7 @@ int XrdCryptosslRSA::ImportPublic(const char *pub, int lpub)
    // bytes.
    // Return 0 in case of success, -1 in case of failure
 
+   int rc = -1;
    if (fEVP)
       EVP_PKEY_free(fEVP);
    fEVP = 0;
@@ -283,9 +284,10 @@ int XrdCryptosslRSA::ImportPublic(const char *pub, int lpub)
       fEVP = keytmp;
       // Update status
       status = kPublic;
-      return 0;
+      rc = 0;
    }
-   return -1;
+   BIO_free(bpub);
+   return rc;
 }
 
 //_____________________________________________________________________________
@@ -364,14 +366,20 @@ int XrdCryptosslRSA::GetPublen()
 int XrdCryptosslRSA::ExportPublic(char *out, int)
 {
    // Export the public key into buffer out. The length of the buffer should be
-   // at least GetPublen()+1 bytes. If out=0 the buffer is m-allocated internally
-   // and should be freed by the caller.
+   // at least GetPublen()+1 bytes. The buffer out must be passed-by and it
+   // responsability-of the caller.
    // Return 0 in case of success, -1 in case of failure
    EPNAME("RSA::ExportPublic");
 
    // Make sure we have a valid key
    if (!IsValid()) {
       DEBUG("key not valid");
+      return -1;
+   }
+
+   // Check output buffer
+   if (!out) {
+      DEBUG("output buffer undefined!");
       return -1;
    }
 
@@ -389,14 +397,6 @@ int XrdCryptosslRSA::ExportPublic(char *out, int)
       return -1;
    }
 
-   // Check output buffer
-   if (!out) {
-      out = (char *) malloc(lbio+1);
-      if (!out) {
-         DEBUG("problems allocating output buffer");
-         return -1;
-      }
-   }
    // Read key from BIO to buf
    memcpy(out, cbio, lbio);
    // Null terminate
@@ -429,14 +429,20 @@ int XrdCryptosslRSA::GetPrilen()
 int XrdCryptosslRSA::ExportPrivate(char *out, int)
 {
    // Export the private key into buffer out. The length of the buffer should be
-   // at least GetPrilen()+1 bytes. If out=0 the buffer is m-allocated internally
-   // and should be freed by the caller.
+   // at least GetPrilen()+1 bytes. The buffer out must be passed-by and it
+   // responsability-of the caller.
    // Return 0 in case of success, -1 in case of failure
    EPNAME("RSA::ExportPrivate");
 
    // Make sure we have a valid key
    if (!IsValid()) {
       DEBUG("key not valid");
+      return -1;
+   }
+
+   // Check output buffer
+   if (!out) {
+      DEBUG("output buffer undefined!");
       return -1;
    }
 
@@ -454,14 +460,6 @@ int XrdCryptosslRSA::ExportPrivate(char *out, int)
       return -1;
    }
 
-   // Check output buffer
-   if (!out) {
-      out = (char *) malloc(lbio+1);
-      if (!out) {
-         DEBUG("problems allocating output buffer");
-         return -1;
-      }
-   }
    // Read key from BIO to buf
    memcpy(out, cbio, lbio);
    // Null terminate

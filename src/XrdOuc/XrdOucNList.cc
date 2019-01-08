@@ -58,6 +58,29 @@ XrdOucNList::XrdOucNList(const char *name, int nval)
 }
  
 /******************************************************************************/
+/*                                N a m e K O                                 */
+/******************************************************************************/
+  
+int XrdOucNList::NameKO(const char *pd, const int pl)
+{
+
+// Check if exact match wanted
+//
+   if (namelenR < 0) return !strcasecmp(pd, nameL);
+
+// Make sure the prefix matches
+//
+   if (namelenL && namelenL <= pl && strncasecmp(pd,nameL,namelenL))
+      return 0;
+
+// Make sure suffix matches
+//
+   if (!namelenR)     return 1;
+   if (namelenR > pl) return 0;
+   return !strcasecmp((pd + pl - namelenR), nameR);
+}
+ 
+/******************************************************************************/
 /*                                N a m e O K                                 */
 /******************************************************************************/
   

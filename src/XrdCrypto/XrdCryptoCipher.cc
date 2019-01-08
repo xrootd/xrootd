@@ -40,7 +40,7 @@
 #include "XrdCrypto/XrdCryptoCipher.hh"
 
 //_____________________________________________________________________________
-bool XrdCryptoCipher::Finalize(char *, int, const char *)
+bool XrdCryptoCipher::Finalize(bool, char *, int, const char *)
 {
    // Finalize key computation (key agreement)
    ABSTRACTMETHOD("XrdCryptoCipher::Finalize");
@@ -58,7 +58,7 @@ bool XrdCryptoCipher::IsValid()
 //____________________________________________________________________________
 void XrdCryptoCipher::SetIV(int l, const char *iv)
 {
-   // Set IV from l bytes at iv
+   // Set IV from l bytes at iv. If !iv, sets the IV length.
 
    ABSTRACTMETHOD("XrdCryptoCipher::SetIV");
 }
@@ -145,35 +145,65 @@ bool XrdCryptoCipher::IsDefaultLength() const
 }
 
 //____________________________________________________________________________
-int XrdCryptoCipher::Encrypt(XrdSutBucket &bck)
+int XrdCryptoCipher::MaxIVLength() const
+{
+   // Return the max cipher IV length
+
+   ABSTRACTMETHOD("XrdCryptoCipher::MaxIVLength");
+   return 0;
+}
+
+//____________________________________________________________________________
+int XrdCryptoCipher::Encrypt(XrdSutBucket &bck, bool useiv)
 {
    // Encrypt bucket bck with local cipher
    // Return size of encoded bucket or -1 in case of error
    int snew = -1;
 
-   int sz = EncOutLength(bck.size);
+   int liv = 0;
+   char *iv = 0;
+   if (useiv) {
+      iv = RefreshIV(liv);
+      if (!iv) return snew;
+   }
+
+   int sz = EncOutLength(bck.size) + liv;
    char *newbck = new char[sz];
    if (newbck) {
       memset(newbck, 0, sz);
-      snew = Encrypt(bck.buffer,bck.size,newbck);
+      if (liv > 0) memcpy(newbck, iv, liv);
+      snew = Encrypt(bck.buffer,bck.size,newbck+liv);
       if (snew > -1)
-         bck.Update(newbck,snew);
+         bck.Update(newbck,snew + liv);
    }
    return snew;
 }
 
 //____________________________________________________________________________
-int XrdCryptoCipher::Decrypt(XrdSutBucket &bck)
+int XrdCryptoCipher::Decrypt(XrdSutBucket &bck, bool useiv)
 {
    // Decrypt bucket bck with local cipher
    // Return size of encoded bucket or -1 in case of error
    int snew = -1;
 
-   int sz = DecOutLength(bck.size);
+   int liv = (useiv) ? MaxIVLength() : 0;
+
+   int sz = DecOutLength(bck.size - liv);
    char *newbck = new char[sz];
    if (newbck) {
+
+      if (useiv) {
+         char *iv = new char[liv];
+         if (iv) {
+            memcpy(iv,bck.buffer,liv);
+            SetIV(liv, iv);
+            delete[] iv;
+         } else {
+            return snew;
+         }
+      }
       memset(newbck, 0, sz);
-      snew = Decrypt(bck.buffer,bck.size,newbck);
+      snew = Decrypt(bck.buffer + liv, bck.size - liv, newbck);
       if (snew > -1)
          bck.Update(newbck,snew);
    }

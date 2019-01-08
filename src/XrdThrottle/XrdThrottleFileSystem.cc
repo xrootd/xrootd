@@ -13,7 +13,7 @@ XrdSfsDirectory *
 FileSystem::newDir(char *user,
                    int   monid)
 {
-   return (XrdSfsDirectory *)new XrdOfsDirectory(user, monid);
+   return m_sfs_ptr->newDir(user, monid);
 }
 
 XrdSfsFile *
@@ -35,6 +35,17 @@ FileSystem::newFile(char *user,
 }
 
 int
+FileSystem::chksum(      csFunc         Func,
+                  const char          *csName,
+                  const char          *path,
+                        XrdOucErrInfo &eInfo,
+                  const XrdSecEntity  *client,
+                  const char          *opaque)
+{
+   return m_sfs_ptr->chksum(Func, csName, path, eInfo, client, opaque);
+}
+
+int
 FileSystem::chmod(const char             *Name,
                         XrdSfsMode        Mode,
                         XrdOucErrInfo    &out_error,
@@ -42,6 +53,18 @@ FileSystem::chmod(const char             *Name,
                   const char             *opaque)
 {
    return m_sfs_ptr->chmod(Name, Mode, out_error, client, opaque);
+}
+
+void
+FileSystem::Disc(const XrdSecEntity *client)
+{
+   m_sfs_ptr->Disc(client);
+}
+
+void
+FileSystem::EnvInfo(XrdOucEnv *envP)
+{
+   m_sfs_ptr->EnvInfo(envP);
 }
 
 int

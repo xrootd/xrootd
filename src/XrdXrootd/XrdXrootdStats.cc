@@ -54,7 +54,9 @@ openCnt  = 0;     // Stats: Number of opens
 readCnt  = 0;     // Stats: Number of reads
 prerCnt  = 0;     // Stats: Number of reads
 rvecCnt  = 0;     // Stats: Number of readv
-rsegCnt  = 0;     // Stats: Number of readv segments
+rsegCnt  = 0;     // Stats: Number of readv  segments
+wvecCnt  = 0;     // Stats: Number of writev
+wsegCnt  = 0;     // Stats: Number of writev segments
 writeCnt = 0;     // Stats: Number of writes
 syncCnt  = 0;     // Stats: Number of sync
 miscCnt  = 0;     // Stats: Number of miscellaneous
@@ -80,7 +82,8 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"xrootd\"><num>%d</num>"
    "<ops><open>%d</open><rf>%d</rf><rd>%lld</rd><pr>%lld</pr>"
-   "<rv>%lld</rv><rs>%lld</rs><wr>%lld</wr>"
+   "<rv>%lld</rv><rs>%lld</rs>"
+   "<wv>%lld</wv><ws>%lld</ws><wr>%lld</wr>"
    "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
    "<sig><ok>%d</ok><bad>%d</bad><ign>%d</ign></sig>"
    "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio>"
@@ -95,8 +98,9 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
 //
    if (!buff)
       {char dummy[4096]; // Almost any size will do
-       len = snprintf(dummy, sizeof(dummy), statfmt, INMax, INMax, INMax, LLMax,
-                      LLMax, LLMax, LLMax, LLMax, INMax, INMax,
+       len = snprintf(dummy, sizeof(dummy), statfmt,
+                      INMax, INMax, INMax, LLMax,
+                      LLMax, LLMax, LLMax, LLMax, LLMax, LLMax, INMax, INMax,
                       INMax, INMax,
                       INMax, INMax, INMax,
                       LLMax, INMax, LLMax, INMax, LLMax, INMax,
@@ -107,8 +111,10 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
 // Format our statistics
 //
    statsMutex.Lock();
-   len = snprintf(buff, blen, statfmt, Count, openCnt, Refresh, readCnt,
-                  prerCnt, rvecCnt, rsegCnt, writeCnt, syncCnt, getfCnt,
+   len = snprintf(buff, blen, statfmt,
+                  Count,   openCnt, Refresh, readCnt,
+                  prerCnt, rvecCnt, rsegCnt, wvecCnt, wsegCnt, writeCnt,
+                  syncCnt, getfCnt,
                   putfCnt, miscCnt,
                   aokSCnt, badSCnt, ignSCnt,
                   AsyncNum, AsyncMax, AsyncRej, errorCnt, redirCnt, stallCnt,

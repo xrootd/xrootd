@@ -278,7 +278,8 @@ void XrdXmlMetaLink::DeleteAll(XrdOucFileInfo ** vecp, int vecn)
 {
 // Delete each object in the vector
 //
-   for (int i = 0; i < vecn; i++) delete vecp[i];
+   for (int i = 0; i < vecn; i++)
+     delete vecp[i];
 
 // Now delete the vector
 //
@@ -299,7 +300,11 @@ bool XrdXmlMetaLink::GetFile(const char *scope)
 //
    if (!reader->GetElement(fileElem, needFile))
       {if ((etext = reader->GetError(eCode)))
-          strncpy(eText, etext, sizeof(eText));
+	  {size_t len = strlen(etext);
+           if(len > sizeof(eText)-1) len=sizeof(eText)-1;
+           memcpy(eText, etext, len);
+	   eText[len]=0;
+	  }
        return false;
       }
 
@@ -416,7 +421,12 @@ void XrdXmlMetaLink::GetRdrError(const char *why)
 {
    const char *etext = reader->GetError(eCode);
 
-   if (etext) strncpy(eText, etext, sizeof(eText));
+   if (etext) 
+      {size_t len = strlen(etext);
+       if(len > sizeof(eText)-1) len = sizeof(eText)-1;
+       memcpy(eText, etext, len);
+       eText[len]=0;
+      }
       else {snprintf(eText, sizeof(eText), "End of xml while %s", why);
             eCode = EIDRM;
            }
@@ -490,6 +500,7 @@ bool XrdXmlMetaLink::GetUrl()
 // Add the url to the flle
 //
    currFile->AddUrl(value, uAVal[0], prty);
+   free(value);
 
 // All done
 //
