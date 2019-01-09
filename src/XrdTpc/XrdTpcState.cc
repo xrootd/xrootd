@@ -243,3 +243,9 @@ void State::DumpBuffers() const
 {
     m_stream->DumpBuffers();
 }
+
+bool State::Finalize()
+{
+    return m_stream->Finalize();
+}
+

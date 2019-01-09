@@ -81,6 +81,15 @@ public:
     // constructor once C++11 is allowed in XRootD.
     void Move (State &other);
 
+    // Flush and finalize a transfer state.  Eventually calls close() on the underlying
+    // file handle, which should hopefully synchronize the file metadata across
+    // all readers (even other load-balanced servers on the same distributed file
+    // system).
+    //
+    // Returns true on success; false otherwise.  Failures can happen, for example, if
+    // not all buffers have been reordered by the underlying stream.
+    bool Finalize();
+
 private:
     bool InstallHandlers(CURL *curl);
 

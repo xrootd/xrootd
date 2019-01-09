@@ -21,7 +21,8 @@ namespace TPC {
 class Stream {
 public:
     Stream(std::unique_ptr<XrdSfsFile> fh, size_t max_blocks, size_t buffer_size, XrdSysError &log)
-        : m_avail_count(max_blocks),
+        : m_open_for_write(false),
+          m_avail_count(max_blocks),
           m_fh(std::move(fh)),
           m_offset(0),
           m_log(log)
@@ -30,6 +31,7 @@ public:
         for (size_t idx=0; idx < max_blocks; idx++) {
             m_buffers.push_back(new Entry(buffer_size));
         }
+        m_open_for_write = true;
     }
 
     ~Stream();
@@ -43,6 +45,15 @@ public:
     size_t AvailableBuffers() const {return m_avail_count;}
 
     void DumpBuffers() const;
+
+    // Flush and finalize the stream.  If all data has been sent to the underlying
+    // file handle, close() will be invoked on the file handle.
+    //
+    // Further write operations on this stream will result in an error.
+    // If any memory buffers remain, an error occurs.
+    //
+    // Returns true on success; false otherwise.
+    bool Finalize();
 
 private:
 
@@ -124,6 +135,7 @@ private:
         std::vector<char> m_buffer;
     };
 
+    bool m_open_for_write;
     size_t m_avail_count;
     std::unique_ptr<XrdSfsFile> m_fh;
     off_t m_offset;

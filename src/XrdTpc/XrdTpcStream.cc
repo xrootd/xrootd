@@ -20,6 +20,26 @@ Stream::~Stream()
 }
 
 
+bool
+Stream::Finalize()
+{
+    // Do not close twice
+    if (!m_open_for_write) {
+        return false;
+    }
+    for (std::vector<Entry*>::iterator buffer_iter = m_buffers.begin();
+        buffer_iter != m_buffers.end();
+        buffer_iter++) {
+        delete *buffer_iter;
+        *buffer_iter = NULL;
+    }
+    m_fh->close();
+    m_open_for_write = false;
+    // If there are outstanding buffers to reorder, finalization failed
+    return m_avail_count == m_buffers.size();
+}
+
+
 int
 Stream::Stat(struct stat* buf)
 {
@@ -29,6 +49,7 @@ Stream::Stat(struct stat* buf)
 int
 Stream::Write(off_t offset, const char *buf, size_t size)
 {
+    if (!m_open_for_write) return SFS_ERROR;
     bool buffer_accepted = false;
     int retval = size;
     if (offset < m_offset) {
