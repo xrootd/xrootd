@@ -372,7 +372,12 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         ss << "failure: Remote side failed with status code " << state.GetStatusCode();
         m_log.Emsg(log_prefix, "Remote server failed request", ss.str().c_str());
     } else {
-        ss << "success: Created";
+        if (!handles[0]->Finalize()) {
+            ss << "failure: Failed to finalize and close file handle.";
+            m_log.Emsg(log_prefix, "Failed to finalize file handle");
+        } else {
+            ss << "success: Created";
+        }
     }
 
     if ((retval = req.ChunkResp(ss.str().c_str(), 0))) {
