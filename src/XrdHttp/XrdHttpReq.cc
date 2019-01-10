@@ -971,7 +971,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         }
         if (prot->doChksum(m_resource_with_digest) < 0) {
           // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
-          prot->SendSimpleResp(500, NULL, (char *) "Failed to create initial checksum request.", NULL, 0, false);
+          prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to create initial checksum request.", 0, false);
           return -1;
         }
         return 1;
