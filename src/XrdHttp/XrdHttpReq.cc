@@ -971,7 +971,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         }
         if (prot->doChksum(m_resource_with_digest) < 0) {
           // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
-          prot->SendSimpleResp(500, NULL, NULL, NULL, 0, false);
+          prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to create initial checksum request.", 0, false);
           return -1;
         }
         return 1;
@@ -1614,7 +1614,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             size_t digest_length = strlen(digest_value);
             unsigned char *digest_binary_value = (unsigned char *)malloc(digest_length);
             if (!Fromhexdigest(reinterpret_cast<unsigned char *>(digest_value), digest_length, digest_binary_value)) {
-              prot->SendSimpleResp(500, NULL, NULL, NULL, 0, false);
+              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to convert checksum hexdigest to base64.", 0, false);
               free(digest_binary_value);
               return -1;
             }
@@ -1632,7 +1632,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize, keepalive);
           return keepalive ? 1 : -1;
         } else {
-          prot->SendSimpleResp(500, NULL, NULL, NULL, 0, false);
+          prot->SendSimpleResp(500, NULL, NULL, "Underlying filesystem failed to calculate checksum.", 0, false);
           return -1;
         }
       }
