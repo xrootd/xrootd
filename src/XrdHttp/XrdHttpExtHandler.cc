@@ -31,7 +31,20 @@
 int XrdHttpExtReq::SendSimpleResp(int code, const char* desc, const char* header_to_add, const char* body, long long int bodylen)
 {
   if (!prot) return -1;
-  
+
+  // @FIXME
+  // - need this to circumvent missing API calls and keep ABI compatibility
+  // - when large files are returned we cannot return them in a single buffer
+  // @TODO: for XRootD 5.0 this two hidden calls should just be added to the external handler API and the code here can be removed
+
+  if ( code == 0 ) {
+    return prot->StartSimpleResp(200, desc, header_to_add, bodylen, true);
+  }
+
+  if ( code == 1 ) {
+    return prot->SendData(body, bodylen);
+  }
+
   return prot->SendSimpleResp(code, desc, header_to_add, body, bodylen, true);
 }
 
