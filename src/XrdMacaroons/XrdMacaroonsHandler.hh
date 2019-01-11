@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 #include "XrdHttp/XrdHttpExtHandler.hh"
 
@@ -49,6 +50,10 @@ public:
 private:
     std::string GenerateID(const XrdSecEntity &, const std::string &, const std::string &);
     std::string GenerateActivities(const XrdHttpExtReq &) const;
+
+    int ProcessOAuthConfig(XrdHttpExtReq &req);
+    int ProcessTokenRequest(XrdHttpExtReq& req);
+    int GenerateMacaroonResponse(XrdHttpExtReq& req, const std::string &response, const std::vector<std::string> &, ssize_t validity, bool oauth_response);
 
     static bool xsecretkey(XrdOucStream &Config, XrdSysError *log, std::string &secret);
     static bool xsitename(XrdOucStream &Config, XrdSysError *log, std::string &location);
