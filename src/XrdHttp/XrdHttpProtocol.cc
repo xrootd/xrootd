@@ -1359,7 +1359,7 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   
   if (wait && (blen > BuffUsed())) {
     TRACE(REQ, "BuffgetData: need to read " << blen - BuffUsed() << " bytes");
-    if (getDataOneShot(blen - BuffUsed(), true) < 0) return 0;
+    if ( getDataOneShot(blen - BuffUsed(), true) ) return 0;
   }
 
   if (myBuffStart < myBuffEnd) {
