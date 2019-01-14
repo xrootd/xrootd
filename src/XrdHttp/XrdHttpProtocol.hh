@@ -124,6 +124,9 @@ public:
   /// Authentication area
   XrdSecEntity SecEntity;
 
+  /// called via https
+  bool isHTTPS() { return ishttps; }
+
 private:
 
 
