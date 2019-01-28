@@ -29,6 +29,7 @@ namespace XrdCl
                            time_t                expires,
                            bool                  stateful )
   {
+    XrdSysMutexHelper lck( pMutex );
     pMessages.push_back( MsgHelper( msg, handler, expires, stateful ) );
   }
 
@@ -40,6 +41,7 @@ namespace XrdCl
                             time_t                expires,
                             bool                  stateful )
   {
+    XrdSysMutexHelper lck( pMutex );
     pMessages.push_front( MsgHelper( msg, handler, expires, stateful ) );
   }
 
@@ -50,6 +52,8 @@ namespace XrdCl
                                  time_t                &expires,
                                  bool                  &stateful )
   {
+    XrdSysMutexHelper lck( pMutex );
+
     if( pMessages.empty() )
       return 0;
 
@@ -66,6 +70,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void OutQueue::PopFront()
   {
+    XrdSysMutexHelper lck( pMutex );
     pMessages.pop_front();
   }
 
@@ -74,6 +79,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void OutQueue::Report( Status status )
   {
+    XrdSysMutexHelper lck( pMutex );
     MessageList::iterator it;
     for( it = pMessages.begin(); it != pMessages.end(); ++it )
       it->handler->OnStatusReady( it->msg, status );
@@ -84,6 +90,8 @@ namespace XrdCl
   //------------------------------------------------------------------------
   uint64_t OutQueue::GetSizeStateless() const
   {
+    XrdSysMutexHelper lck( pMutex );
+
     uint64_t size = 0;
     MessageList::const_iterator it;
     for( it = pMessages.begin(); it != pMessages.end(); ++it )
@@ -98,6 +106,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void OutQueue::GrabExpired( OutQueue &queue, time_t exp )
   {
+    XrdSysMutexHelper lck( pMutex );
+
     MessageList::iterator it;
     for( it = queue.pMessages.begin(); it != queue.pMessages.end(); )
     {
@@ -117,6 +127,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void OutQueue::GrabStateful( OutQueue &queue )
   {
+    XrdSysMutexHelper lck( pMutex );
+
     MessageList::iterator it;
     for( it = queue.pMessages.begin(); it != queue.pMessages.end(); )
     {
@@ -135,6 +147,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void OutQueue::GrabItems( OutQueue &queue )
   {
+    XrdSysMutexHelper lck( pMutex );
+
     MessageList::iterator it;
     for( it = queue.pMessages.begin(); it != queue.pMessages.end(); ++it )
       pMessages.push_back( *it );
