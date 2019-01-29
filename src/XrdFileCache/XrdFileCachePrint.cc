@@ -91,7 +91,7 @@ void Print::printFile(const std::string& path)
 
    if (m_verbose)
    {
-      int n_db = 0;
+      int8_t n_db = 0;
       { int x = cfi.GetSizeInBits(); while (x)
         {
            x /= 10; ++n_db;

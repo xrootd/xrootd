@@ -122,7 +122,7 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 static int           StatGen(struct stat &buf, char *xxBuff);
 
 //            XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
-              XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs);
+              XrdXrootdProtocol& operator =(const XrdXrootdProtocol &rhs);
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
 

@@ -74,6 +74,8 @@ inline int           operator!=(const XrdOfsHanKey &oth)
                           XrdOucCRC::CRC32((const unsigned char *)key,kln) : 0);
                     }
 
+		    XrdOfsHanKey(const XrdOfsHanKey&) = default;
+
                    ~XrdOfsHanKey() {};
 };
 

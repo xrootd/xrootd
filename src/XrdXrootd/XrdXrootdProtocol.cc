@@ -212,7 +212,7 @@ XrdXrootdProtocol::XrdXrootdProtocol()
 /*                   A s s i g n m e n t   O p e r a t o r                    */
 /******************************************************************************/
 
-XrdXrootdProtocol XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
+XrdXrootdProtocol& XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
 {
 // Reset all common fields
 //
