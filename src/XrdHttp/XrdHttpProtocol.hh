@@ -111,6 +111,7 @@ public:
   int doChksum(const XrdOucString &fname);
 
   /// Ctor, dtors and copy ctor
+  XrdHttpProtocol(const XrdHttpProtocol&) = default;
   XrdHttpProtocol operator =(const XrdHttpProtocol &rhs);
   XrdHttpProtocol(bool imhttps);
   ~XrdHttpProtocol() {
