@@ -199,7 +199,11 @@ namespace XrdCl
       action = it->second.first->OnStreamEvent( event, streamNum, status );
 
       if( action & IncomingMsgHandler::RemoveHandler )
-        it = pHandlers.erase( it );
+      {
+        auto next = it; ++next;
+        pHandlers.erase( it );
+        it = next;
+      }
       else
         ++it;
     }
@@ -221,7 +225,9 @@ namespace XrdCl
       {
         it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout, 0,
                                          Status( stError, errOperationExpired ) );
-        it = pHandlers.erase( it );
+        auto next = it; ++next;
+        pHandlers.erase( it );
+        it = next;
       }
       else
         ++it;
