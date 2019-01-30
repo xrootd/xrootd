@@ -24,6 +24,7 @@ Prerelease Notes
   * **[POSIX]** Implement Cache Context Management plugin.
 
 + **Major bug fixes**
+  * **[SSI]** Avoid race condition between Finish() and SetResponse().
   * **[Server]* ** Fix SEGV when using delegation and VOMSFUN with raw creds.
   * **[Proxy]** Fix incorrect rc check when processing Fstat() (disabled progbar).
   * **[POSIX]** Avoid SEGV due to race condition between open() and close().
