@@ -491,7 +491,8 @@ void XrdSsiFileReq::Finalize()
 
           // Request is bound so we can finish right off.
           //
-          case isBound:  if (strBuff) {strBuff->Recycle(); strBuff = 0;}
+          case isBound:  urState = isDone;
+                         if (strBuff) {strBuff->Recycle(); strBuff = 0;}
                          DEBUGXQ("Calling Finished(" <<cancel <<')');
                          if (respWait) WakeUp();
                          mHelper.UnLock();
