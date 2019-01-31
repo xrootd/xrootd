@@ -87,7 +87,14 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
     if (req.verb == "OPTIONS") {
         return ProcessOptionsReq(req);
     }
-    auto header = req.headers.find("Source");
+    auto header = req.headers.find("Credential");
+    if (header != req.headers.end()) {
+        if (header->second != "none") {
+            m_log.Emsg("ProcessReq", "COPY requested an unsupported credential type: ", header->second.c_str());
+            return req.SendSimpleResp(400, NULL, NULL, "COPY requestd an unsupported Credential type", 0);
+        }
+    }
+    header = req.headers.find("Source");
     if (header != req.headers.end()) {
         std::string src = PrepareURL(header->second);
         m_log.Emsg("ProcessReq", "Pull request from", src.c_str());
