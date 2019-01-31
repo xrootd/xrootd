@@ -2192,7 +2192,7 @@ namespace XrdCl
             << (*itr)->ToString( (*prev)->status.IsOK() ) << '\n';
 
     Log *log = DefaultEnv::GetLog();
-    log->Info( XRootDMsg, sstrm.str().c_str() );
+    log->Debug( XRootDMsg, sstrm.str().c_str() );
   }
 
 }
