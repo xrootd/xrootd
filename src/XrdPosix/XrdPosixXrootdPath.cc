@@ -256,24 +256,18 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 {
    struct xpath *xpnow = xplist;
    char tmpbuff[2048];
-   int i, pfxlen, plen, pathlen = 0;
+   int i, plen, pathlen = 0;
 
 // Check if this is a protocol we support
 //
    for (i = 0; i < ptEnts && XrdPosixGlobals::protoTab[i].name; i++)
+     {cerr <<"Checking for '"<<XrdPosixGlobals::protoTab[i].name
+           <<"' len=" <<XrdPosixGlobals::protoTab[i].nlen <<endl;
        if (!strncmp(path, XrdPosixGlobals::protoTab[i].name,
-                          XrdPosixGlobals::protoTab[i].nlen)) break;
-   if (i >= ptEnts) return (char *)path;
-   pfxlen = XrdPosixGlobals::protoTab[i].nlen;
-
-// If it starts with xroot, then convert it to be root
-//
-   if (!strncmp(path, "xroot://", 8))
-      {if (!buff) return (char *)1;
-       if ((int(strlen(path))) > blen) return 0;
-       strcpy(buff, path+1);
-       return buff;
-      }
+                          XrdPosixGlobals::protoTab[i].nlen))
+          return (char *)path;
+     }
+   if (i >= ptEnts) return (char *)0;
 
 // If a relative path was specified, convert it to an absolute path
 //
@@ -301,7 +295,7 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 // Verify that we won't overflow the buffer
 //
    if (!pathlen) pathlen = strlen(path);
-   plen = pfxlen + pathlen + xpnow->servln + 2;
+   plen = pathlen + xpnow->servln + 2;
    if (xpnow->nath) plen =  plen - xpnow->plen + xpnow->nlen;
    if (plen >= blen) return 0;
 
