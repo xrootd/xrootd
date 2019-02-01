@@ -98,6 +98,10 @@ private:
 
   void getfhandle();
 
+  // Process the checksum response and return a header that should
+  // be included in the response.
+  int PostProcessChecksum(std::string &digest_header);
+
   /// Cook and send the response after the bridge did something
   /// Return values:
   ///  0->everything OK, additionsl steps may be required
@@ -217,6 +221,8 @@ public:
   /// Hence, when a digest is generated to satisfy a request, we cache the tweaked
   /// URL in this data member.
   XrdOucString m_resource_with_digest;
+  /// The computed digest for the HTTP response header.
+  std::string m_digest_header;
 
   /// Additional opaque info that may come from the hdr2cgi directive
   std::string hdr2cgistr;
