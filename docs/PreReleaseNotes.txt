@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Allow tpc requests at destination endpoint to be redirected.
   * **[Proxy]** Add 'pss.tid' CGI element to all outgoing URL's.
   * **[Server]** Allow space preassignment of file creation paths.
   * **[Server]** [Server] Allow spaces in id's via acc.spacechar. Fixes #712
