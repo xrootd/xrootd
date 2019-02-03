@@ -162,6 +162,11 @@ XrdOfs::XrdOfs()
    Cks       = 0;
    CksPfn    = true;
    CksRdr    = true;
+
+// Set TPC redirect targets
+//
+   tpcRdrHost= 0;
+   tpcRdrPort= 0;
 }
   
 /******************************************************************************/
@@ -493,6 +498,16 @@ int XrdOfsFile::open(const char          *path,      // In
                       break;
   }
 
+// Preset TPC handling
+//
+   tpcKey = Open_Env.Get(XrdOucTPC::tpcKey);
+
+// Check if we will be redirecting the tpc request
+//
+   if (tpcKey && isRW && XrdOfsFS->tpcRdrHost)
+      {error.setErrInfo(XrdOfsFS->tpcRdrPort, XrdOfsFS->tpcRdrHost);
+       return SFS_REDIRECT;
+      }
 
 // If we have a finder object, use it to direct the client. The final
 // destination will apply the security that is needed
@@ -500,10 +515,6 @@ int XrdOfsFile::open(const char          *path,      // In
    if (XrdOfsFS->Finder && (retc = XrdOfsFS->Finder->Locate(error, path,
                                                    find_flag, &Open_Env)))
       return XrdOfsFS->fsError(error, retc);
-
-// Preset TPC handling
-//
-   tpcKey = Open_Env.Get(XrdOucTPC::tpcKey);
 
 // Create the file if so requested o/w try to attach the file
 //

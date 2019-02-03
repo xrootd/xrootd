@@ -308,6 +308,11 @@ enum {Authorize = 0x0001,    // Authorization wanted
 int   Options;               // Various options
 int   myPort;                // Port number being used
 
+// TPC related things
+//
+char             *tpcRdrHost;     // TPC redirect target or null if none
+int               tpcRdrPort;     // TPC redirect target port number
+
 // Networking
 //
 XrdNetIF *myIF;
@@ -373,13 +378,15 @@ XrdOfsPoscq      *poscQ;          //    -> poscQ if  persist on close enabled
 char             *poscLog;        //    -> Directory for posc recovery log
 int               poscHold;       //       Seconds to hold a forced close
 short             poscAuto;       //  1 -> Automatic persist on close
+char              poscRsvd;
 
 char              ossRW;          // The oss r/w capability
-bool              CksPfn;         // Checksum needs a pfn
-bool              CksRdr;         // Checksum may be redirected (i.e. not local)
+
 XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
 XrdCks           *Cks;            // Checksum manager
-char              Reserved[3];    // Reserved for future checksum stuff
+bool              CksPfn;         // Checksum needs a pfn
+bool              CksRdr;         // Checksum may be redirected (i.e. not local)
+char              Reserved;       // Reserved for future checksum stuff
 char              OssIsProxy;     // !0 if we detect the oss plugin is a proxy
 char              myRType[4];     // Role type for consistency with the cms
 
@@ -421,6 +428,7 @@ int           xpers(XrdOucStream &, XrdSysError &);
 int           xrole(XrdOucStream &, XrdSysError &);
 int           xtpc(XrdOucStream &, XrdSysError &);
 int           xtpcal(XrdOucStream &, XrdSysError &);
+int           xtpcr(XrdOucStream &, XrdSysError &);
 int           xtrace(XrdOucStream &, XrdSysError &);
 };
 #endif

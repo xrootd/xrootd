@@ -44,6 +44,8 @@
 
 #include "XrdCks/XrdCks.hh"
 
+#include "XrdNet/XrdNetUtils.hh"
+
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
@@ -1315,6 +1317,8 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                                          [fcreds  [?]<auth> =<evar>]
                                          [fcpath <path>] [oids]
 
+                                     tpc redirect <host>:<port> [<cgi>]
+
              parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
 
              <dflt>  the default seconds a tpc authorization may be valid.
@@ -1347,6 +1351,9 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                      credentials to be forwarded.
              fcpath  where creds are stored (default <adminpath>/.ofs/.tpccreds).
              oids    Object ID's are acceptable for the source lfn.
+             <host>  The redirection target host which may be localhost.
+             <port>  The redirection target port.
+             <cgi>   Optional cgi information.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1354,11 +1361,18 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
 {
    char *val, pgm[1024];
-   int  reqType;
    *pgm = 0;
+   int  reqType;
+   bool rdrok = true;
 
    while((val =  Config.GetWord()))
-        {if (!strcmp(val, "allow"))
+        {if (!strcmp(val, "redirect"))
+            {if (rdrok) return xtpcr(Config, Eroute);
+             Eroute.Emsg("Config", "tpc redirect must be seprately specified.");
+             return 1;
+            }
+         rdrok = false;
+         if (!strcmp(val, "allow"))
             {if (!xtpcal(Config, Eroute)) return 1;
              continue;
             }
@@ -1504,6 +1518,81 @@ int XrdOfs::xtpcal(XrdOucStream &Config, XrdSysError &Eroute)
 }
   
 /******************************************************************************/
+/*                                 x t p c r                                  */
+/******************************************************************************/
+
+int XrdOfs::xtpcr(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   char hname[256];
+   const char *cgi, *cgisep, *hBeg, *hEnd, *pBeg, *pEnd, *eText;
+   char *val;
+   int  n, port;
+
+// Get host and port
+//
+   if (!(val = Config.GetWord()))
+      {Eroute.Emsg("Config", "tpc redirect host not specified"); return 1;}
+
+// Parse this as it may be complicated.
+//
+   if (!XrdNetUtils::Parse(val, &hBeg, &hEnd, &pBeg, &pEnd))
+      {Eroute.Emsg("Config", "Invalid tpc redirect target -", val); return 1;}
+
+// Copy out the host target (make sure it's not too long)
+//
+   n = hEnd - hBeg;
+   if (*val == '[') n += 2;
+   if (n >= (int)sizeof(hname))
+      {Eroute.Emsg("Config", "Invalid tpc redirect target -", val); return 1;}
+   strncpy(hname, val, n);
+   hname[n] = 0;
+
+// Substitute our hostname for localhost if present
+//
+   if (!strcmp(hname, "localhost"))
+      {char *myHost = XrdNetUtils::MyHostName(0, &eText);
+       if (!myHost)
+          {Eroute.Emsg("Config", "Unable to determine tpc localhost;",eText);
+           return 1;
+          }
+       n = snprintf(hname, sizeof(hname), "%s", myHost);
+       free(myHost);
+       if (n >= (int)sizeof(hname))
+          {Eroute.Emsg("Config", "Invalid tpc localhost resolution -", hname);
+           return 1;
+          }
+      }
+
+// Make sure a port was specified
+//
+   if (pBeg == hEnd)
+      {Eroute.Emsg("Config", "tpc redirect port not specified"); return 1;}
+
+// Get the numeric version of the port number
+//
+   if (!(port = XrdNetUtils::ServPort(pBeg, false, &eText)))
+      {Eroute.Emsg("Config", "Invalid tpc redirect port;",eText); return 1;}
+
+// Check if there is cgi that must be included
+//
+   if (!(cgi = Config.GetWord())) cgisep =  cgi = (char *)"";
+      else cgisep = (*cgi != '&' ? "?&" : "?");
+
+// Copy out the hostname to be used
+//
+   if (tpcRdrHost) {free(tpcRdrHost); tpcRdrHost = 0;}
+
+   n = strlen(hname) + strlen(cgisep) + strlen(cgi) + 1;
+   tpcRdrHost = (char *)malloc(n);
+   snprintf(tpcRdrHost, n, "%s%s%s", hname, cgisep, cgi);
+   tpcRdrPort = port;
+
+// All done
+//
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
 
@@ -1520,8 +1609,7 @@ int XrdOfs::xtpcal(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 {
     static struct traceopts {const char *opname; int opval;} tropts[] =
-       {
-        {"aio",      TRACE_aio},
+       {{"aio",      TRACE_aio},
         {"all",      TRACE_ALL},
         {"chmod",    TRACE_chmod},
         {"close",    TRACE_close},
