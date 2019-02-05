@@ -241,7 +241,8 @@ private:
    typedef IoMap_t::iterator        IoMap_i;
 
    IoMap_t    m_io_map;
-   IoMap_i    m_current_io; //!< IO object to be used for prefetching.
+   IoMap_i    m_current_io;     //!< IO object to be used for prefetching.
+   int        m_ios_in_detach;  //!< Number of IO objects to which we replied false to ioActive() and will be removed soon.
 
    // fsync
    std::vector<int>  m_writes_during_sync;

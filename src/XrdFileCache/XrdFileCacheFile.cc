@@ -60,6 +60,7 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_offset(iOffset),
    m_fileSize(iFileSize),
    m_current_io(m_io_map.end()),
+   m_ios_in_detach(0),
    m_non_flushed_cnt(0),
    m_in_sync(false),
    m_downloadCond(0),
@@ -143,14 +144,26 @@ bool File::ioActive(IO *io)
 
          // On last IO, consider write queue blocks. Note, this also contains
          // blocks being prefetched.
-         if (m_io_map.size() == 1)
+         // For multiple IOs the ioActive queries can occur in order before
+         // any of them are actually removed / detached.
+
+         bool io_active_result;
+
+         if (m_io_map.size() - m_ios_in_detach == 1)
          {
-            return ! m_block_map.empty();
+            io_active_result = ! m_block_map.empty();
          }
          else
          {
-            return mi->second.m_active_prefetches > 0;
+            io_active_result = mi->second.m_active_prefetches > 0;
          }
+
+         if (io_active_result == false)
+         {
+            ++m_ios_in_detach;
+         }
+
+         return io_active_result;
       }
       else
       {
@@ -239,6 +252,7 @@ void File::RemoveIO(IO *io)
       }
 
       m_io_map.erase(mi);
+      --m_ios_in_detach;
 
       if (m_io_map.empty() && m_prefetchState != kStopped && m_prefetchState != kComplete)
       {
