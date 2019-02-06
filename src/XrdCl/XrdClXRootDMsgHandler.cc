@@ -2191,8 +2191,13 @@ namespace XrdCl
       sstrm << '\t' << counter << ". "
             << (*itr)->ToString( (*prev)->status.IsOK() ) << '\n';
 
+    bool warn = !pStatus.IsOK() && ( pStatus.code == errNotFound || pStatus.code == errRedirectLimit );
+
     Log *log = DefaultEnv::GetLog();
-    log->Debug( XRootDMsg, sstrm.str().c_str() );
+    if( warn )
+      log->Warning( XRootDMsg, sstrm.str().c_str() );
+    else
+      log->Debug( XRootDMsg, sstrm.str().c_str() );
   }
 
 }
