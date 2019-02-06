@@ -20,8 +20,9 @@ namespace XrdCl
 void RedirectJob::Run( void *arg )
 {
   Message *msg = reinterpret_cast<Message*>( arg );
+  // this makes sure the handler takes ownership of the new message
+  pHandler->Examine( msg );
   pHandler->Process( msg );
-  delete msg;
   delete this;
 }
 
