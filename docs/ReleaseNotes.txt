@@ -744,7 +744,7 @@ Version 4.1.0
      plug-ins.
    * **[Packaging/RPM]** Add SystemD configuration files for RHEL7.
    * **[Packaging/RPM]** Introduce compat RPM packaging providing xrootd 3.3.6
-     deamons and libraries with the ability to switch between desired versions
+     daemons and libraries with the ability to switch between desired versions
      using the sysconfig file.
    * **[Packaging/RPM]** The RPM naming has been switched back to xrootd
      (from xrootd4).
