@@ -54,6 +54,7 @@
 #include <functional> 
 #include <cctype>
 #include <locale>
+#include <string>
 
 #include "XrdHttpUtils.hh"
 
@@ -66,20 +67,46 @@
 #define TRACELINK prot->Link
 
 
-static XrdOucString convert_digest_name(const std::string &rfc_name)
+static XrdOucString convert_digest_name(const std::string &rfc_name_multiple)
 {
-  if (!strcasecmp(rfc_name.c_str(), "md5")) {
+  std::stringstream rfc_name_multiple_ss;
+  rfc_name_multiple_ss << rfc_name_multiple;
+  for (std::string rfc_name; std::getline(rfc_name_multiple_ss, rfc_name, ','); ) {
+    rfc_name.erase(rfc_name.find_last_not_of(" \n\r\t") + 1);
+    rfc_name.erase(0, rfc_name.find_first_not_of(" \n\r\t"));
+    rfc_name = rfc_name.substr(0, rfc_name.find(";"));
+    if (!strcasecmp(rfc_name.c_str(), "md5")) {
+      return "md5";
+    } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
+      return "adler32";
+    } else if (!strcasecmp(rfc_name.c_str(), "SHA")) {
+      return "sha1";
+    } else if (!strcasecmp(rfc_name.c_str(), "SHA-256")) {
+      return "sha256";
+    } else if (!strcasecmp(rfc_name.c_str(), "SHA-512")) {
+      return "sha512";
+    } else if (!strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+      return "cksum";
+    }
+  }
+  return "unknown";
+}
+
+
+static std::string convert_xrootd_to_rfc_name(const std::string &xrootd_name)
+{
+  if (!strcasecmp(xrootd_name.c_str(), "md5")) {
     return "md5";
-  } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
+  } else if (!strcasecmp(xrootd_name.c_str(), "adler32")) {
     return "adler32";
-  } else if (!strcasecmp(rfc_name.c_str(), "SHA")) {
-    return "sha1";
-  } else if (!strcasecmp(rfc_name.c_str(), "SHA-256")) {
-    return "sha256";
-  } else if (!strcasecmp(rfc_name.c_str(), "SHA-512")) {
-    return "sha512";
-  } else if (!strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
-    return "cksum";
+  } else if (!strcasecmp(xrootd_name.c_str(), "sha1")) {
+    return "SHA";
+  } else if (!strcasecmp(xrootd_name.c_str(), "sha256")) {
+    return "SHA-256";
+  } else if (!strcasecmp(xrootd_name.c_str(), "sha512")) {
+    return "SHA-512";
+  } else if (!strcasecmp(xrootd_name.c_str(), "cksum")) {
+    return "UNIXcksum";
   }
   return "unknown";
 }
@@ -1559,7 +1586,6 @@ int XrdHttpReq::ProcessHTTPReq() {
 }
 
 
-
 // This is invoked by the callbacks, after something has happened in the bridge
 
 int XrdHttpReq::PostProcessHTTPReq(bool final_) {
@@ -1611,8 +1637,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
       } else { // We requested a checksum and now have its response.
         if (iovN > 0) {
           TRACEI(REQ, "Checksum for HEAD " << resource << " " << reinterpret_cast<char *>(iovP[0].iov_base) << "=" << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
+          std::string response_name = convert_xrootd_to_rfc_name(reinterpret_cast<char *>(iovP[0].iov_base));
 
-          bool convert_to_base64 = needs_base64_padding(m_req_digest);
+          bool convert_to_base64 = needs_base64_padding(response_name);
           char *digest_value = reinterpret_cast<char *>(iovP[iovN-1].iov_base);
           if (convert_to_base64) {
             size_t digest_length = strlen(digest_value);
@@ -1629,7 +1656,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           }
 
           std::string digest_response = "Digest: ";
-          digest_response += m_req_digest;
+          digest_response += response_name;
           digest_response += "=";
           digest_response += digest_value;
           if (convert_to_base64) {free(digest_value);}
