@@ -305,7 +305,7 @@ release:cc7-x86_64:
     paths:
     - cc-7-x86_64/
   tags:
-    - xrootd-shell
+    - docker_node
   only:
     - web
   except:
@@ -326,7 +326,7 @@ release:slc6-x86_64:
     paths:
     - slc-6-x86_64/
   tags:
-    - xrootd-shell
+    - docker_node
   only:
     - web
   except:
@@ -347,7 +347,7 @@ release:slc6-i386:
     paths:
     - slc-6-i386/
   tags:
-    - xrootd-shell
+    - docker_node
   only:
     - web
   except:
@@ -489,7 +489,7 @@ xrootd_docker_get:
     - xrootd-docker/
     - epel-7/
   tags:
-    - xrootd-shell
+    - docker_node
   only:
     - schedules
     
@@ -523,7 +523,7 @@ xrootd_docker_test:
   after_script:
     - sudo ./xrootd-docker/clean.sh
   tags:
-    - xrootd-shell
+    - docker_node
   dependencies:
     - xrootd_docker_get
   only:
@@ -558,7 +558,7 @@ pyxrootd_docker_test:
     - sudo docker rmi -f gitlab-registry.cern.ch/dss/xrootd:pylatest
     
   tags:
-    - xrootd-shell
+    - docker_node
   dependencies:
     - xrootd_docker_get
   only:
