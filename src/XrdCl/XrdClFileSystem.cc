@@ -91,6 +91,25 @@ namespace
         return QueueTask( new XRootDStatus(), resp, handler );
       }
 
+      XrdCl::XRootDStatus Rm( const std::string       &path,
+                              XrdCl::ResponseHandler  *handler,
+                              uint16_t                 timeout )
+      {
+        using namespace XrdCl;
+
+        Log *log = DefaultEnv::GetLog();
+        if( unlink( path.c_str() ) )
+        {
+          log->Error( FileMsg, "Rm: failed: %s", strerror( errno ) );
+          XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                                  XProtocol::mapError( errno ),
+                                                  strerror( errno ) );
+          return QueueTask( error, 0, handler );
+        }
+
+        return QueueTask( new XRootDStatus(), nullptr, handler );
+      }
+
       static LocalFS& Instance()
       {
         static LocalFS instance;
@@ -1151,6 +1170,9 @@ namespace XrdCl
   {
     if( pPlugIn )
       return pPlugIn->Rm( path, handler, timeout );
+
+    if( pUrl->IsLocalFile() )
+      return LocalFS::Instance().Rm( path, handler, timeout );
 
     std::string fPath = FilterXrdClCgi( path );
 
