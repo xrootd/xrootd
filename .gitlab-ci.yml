@@ -481,6 +481,7 @@ weekly:slc6:
 xrootd_docker_get:
   stage: build:dockerimage:prepare
   script:
+    - yum install --nogpg -y git
     - git clone https://gitlab.cern.ch/eos/xrootd-docker.git
     - if [ ! -d "epel-7" ]; then mkdir epel-7; cp cc-7/* epel-7; fi
   artifacts:
