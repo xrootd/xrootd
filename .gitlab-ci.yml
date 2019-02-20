@@ -524,7 +524,7 @@ xrootd_docker_test:
   after_script:
     - sudo ./xrootd-docker/clean.sh
   tags:
-    - docker_node
+    - shell-with-docker
   dependencies:
     - xrootd_docker_get
   only:
@@ -559,7 +559,7 @@ pyxrootd_docker_test:
     - sudo docker rmi -f gitlab-registry.cern.ch/dss/xrootd:pylatest
     
   tags:
-    - docker_node
+    - shell-with-docker
   dependencies:
     - xrootd_docker_get
   only:
