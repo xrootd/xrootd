@@ -74,9 +74,17 @@ while test ${#} -ne 0; do
     fi
     USER_DEFINE="$USER_DEFINE --define \""${2}"\""
     shift
+  elif test x${1} = x-D; then
+    if test ${#} -lt 2; then
+      echo "-D parameter needs an argument" 1>&2
+      exit 1
+    fi
+    USER_D="$USER_D -D \""${2}"\""
   fi
   shift
 done
+
+echo "USER_D = $USER_D"
 
 if test $PRINTHELP -eq 1; then
   printHelp
@@ -263,6 +271,7 @@ eval "rpmbuild --define \"_topdir $TEMPDIR/rpmbuild\"    \
                --define \"_source_filedigest_algorithm md5\" \
                --define \"_binary_filedigest_algorithm md5\" \
                ${USER_DEFINE} \
+               ${USER_D} \
                -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log"
 if test $? -ne 0; then
   echo "[!] RPM creation failed" 1>&2
