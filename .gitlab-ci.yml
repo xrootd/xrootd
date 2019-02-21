@@ -292,14 +292,19 @@ build:macosx:
 release:cc7-x86_64:
   stage: build:rpm
   script:
+    - yum install --nogpg -y gcc-c++ rpm-build which git
     - mkdir cc-7-x86_64
     - git archive --prefix=xrootd-${CI_COMMIT_TAG#"v"}/ --format=tar tags/$CI_COMMIT_TAG | gzip -9fn > xrootd-${CI_COMMIT_TAG#"v"}.tar.gz
     - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-x86_64
     - cd packaging/
-    - ./makesrpm.sh
-    - /bin/mock --init -r epel-7-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el7" --define="_with_python3 1"
+    - git checkout tags/${CI_COMMIT_TAG}
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" -D "dist .el7 -D "dist .el7" 
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el7" *.src.rpm
     - cd ..
-    - cp packaging/build/*.rpm cc-7-x86_64
+    - cp packaging/RPMS/*.rpm cc-7-x86_64
+    - cp packaging/*src.rpm   cc-7-x86_64
   artifacts:
     expire_in: 1 day
     paths:
@@ -315,12 +320,17 @@ release:cc7-x86_64:
 release:slc6-x86_64:
   stage: build:rpm
   script:
-    - cd packaging/
-    - ./makesrpm.sh
-    - /bin/mock --init -r epel-6-x86_64 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6" --define="_with_python3 1"
-    - cd ..
+    - yum install --nogpg -y gcc-c++ rpm-build which git tar
     - mkdir slc-6-x86_64
-    - cp packaging/build/*.rpm slc-6-x86_64
+    - cd packaging/
+    - git checkout tags/${CI_COMMIT_TAG}
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" -D "dist .el6"
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el6"  *.src.rpm
+    - cd ..
+    - cp packaging/RPMS/*.rpm slc-6-x86_64
+    - cp packaging/*src.rpm   slc-6-x86_64
   artifacts:
     expire_in: 1 day
     paths:
@@ -336,12 +346,17 @@ release:slc6-x86_64:
 release:slc6-i386:
   stage: build:rpm
   script:
-    - cd packaging/
-    - ./makesrpm.sh
-    - /bin/mock --init -r epel-6-i386 --rebuild xrootd-*.src.rpm --resultdir ./build/ --define="_with_tests 1" --define="_without_xrootd_user 1" -D "dist .el6" --define="_with_python3 1"
-    - cd ..
+    - yum install --nogpg -y gcc-c++ rpm-build which git tar
     - mkdir slc-6-i386
-    - cp packaging/build/*.rpm slc-6-i386
+    - cd packaging/
+    - git checkout tags/${CI_COMMIT_TAG}
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" -D "dist .el6"
+    - yum-builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS 
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el6"  *.src.rpm
+    - cd ..
+    - cp packaging/RPMS/*.rpm slc-6-i386
+    - cp packaging/*src.rpm   slc-6-i386
   artifacts:
     expire_in: 1 day
     paths:
