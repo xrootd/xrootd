@@ -291,6 +291,7 @@ build:macosx:
 
 release:cc7-x86_64:
   stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ rpm-build which git
     - mkdir cc-7-x86_64
@@ -319,6 +320,7 @@ release:cc7-x86_64:
 
 release:slc6-x86_64:
   stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ rpm-build which git tar
     - mkdir slc-6-x86_64
@@ -345,6 +347,7 @@ release:slc6-x86_64:
 
 release:slc6-i386:
   stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ rpm-build which git tar
     - mkdir slc-6-i386
@@ -353,7 +356,7 @@ release:slc6-i386:
     - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" -D "dist .el6"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS 
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el6"  *.src.rpm
+    - rpmbuild --target=i386 --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el6"  *.src.rpm
     - cd ..
     - cp packaging/RPMS/*.rpm slc-6-i386
     - cp packaging/*src.rpm   slc-6-i386
