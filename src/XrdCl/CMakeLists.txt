@@ -95,6 +95,7 @@ target_link_libraries(
   XrdXml
   XrdUtils
   pthread
+  ${EXTRA_LIBS}
   ${CMAKE_DL_LIBS})
 
 set_target_properties(

@@ -498,7 +498,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     std::vector<char> macaroon_resp; macaroon_resp.reserve(size_hint);
     if (macaroon_serialize(mac_with_date, &macaroon_resp[0], size_hint, &mac_err))
     {
-        printf("Returned macaroon_serialize code: %lu\n", size_hint);
+        printf("Returned macaroon_serialize code: %zu\n", size_hint);
         return req.SendSimpleResp(500, NULL, NULL, "Internal error serializing macaroon", 0);
     }
 
