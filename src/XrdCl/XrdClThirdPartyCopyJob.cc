@@ -294,7 +294,8 @@ namespace XrdCl
     // We can only do a TPC if both source and destination are remote files
     //--------------------------------------------------------------------------
     if( source.IsLocalFile() || target.IsLocalFile() )
-      return XRootDStatus( stError, errNotSupported );
+      return XRootDStatus( stError, errNotSupported, 0,
+                           "Cannot do a third-party-copy for local file." );
 
     //--------------------------------------------------------------------------
     // Check the initial settings
@@ -306,7 +307,8 @@ namespace XrdCl
 
     if( target.GetProtocol() != "root" &&
         target.GetProtocol() != "xroot" )
-      return XRootDStatus( stError, errNotSupported );
+      return XRootDStatus( stError, errNotSupported, 0, "Third-party-copy "
+                           "is only supported for root/xroot protocol." );
 
     pProperties->Get( "initTimeout", initTimeout );
     InitTimeoutCalc timeLeft( initTimeout );
@@ -464,7 +466,8 @@ namespace XrdCl
       if( st.code == errErrorResponse &&
           st.errNo == kXR_FSError &&
           st.GetErrorMessage().find( "tpc not supported" ) != std::string::npos )
-        return XRootDStatus( stError, errNotSupported ); // the open failed due to lack of TPC support on the server side
+        return XRootDStatus( stError, errNotSupported, 0, // the open failed due to lack of TPC support on the server side
+                             "Destination does not support third-party-copy." );
       return st;
     }
 
@@ -486,7 +489,8 @@ namespace XrdCl
     {
       // we still want to send a close, but we time it out fast
       st = dstFile.Close( 1 );
-      return XRootDStatus( stError, errNotSupported ); // doesn't support TPC
+      return XRootDStatus( stError, errNotSupported, 0, // doesn't support TPC
+                           "Destination does not support third-party-copy.");
     }
 
     //--------------------------------------------------------------------------
@@ -498,7 +502,8 @@ namespace XrdCl
     if( !tpcLite && tpcLiteOnly ) // doesn't support TPC-lite and it was our only hope
     {
       st = dstFile.Close( 1 );
-      return XRootDStatus( stError, errNotSupported );
+      return XRootDStatus( stError, errNotSupported, 0, "Destination does not "
+                           "support delegation." );
     }
 
     //--------------------------------------------------------------------------
@@ -521,7 +526,8 @@ namespace XrdCl
       {
         log->Error( UtilityMsg, "Source (%s) does not support TPC",
                     tpcSource.GetHostId().c_str() );
-        return XRootDStatus( stError, errNotSupported );
+        return XRootDStatus( stError, errNotSupported, 0, "Source does not "
+                             "support third-party-copy" );
       }
 
       if( !timeLeft().IsOK() )
