@@ -46,3 +46,8 @@ Package: xrootd-server-devel
 Architecture: any
 Depends: ${shlibs:Depends}, xrootd-devel (=${binary:Version}), xrootd-client-devel (=${binary:Version}), xrootd-server-libs (=${binary:Version})
 Description: This package contains header files and development libraries for xrootd server development.
+
+Package: xrootd-fuse
+Architecture: any
+Depends: ${shlibs:Depends}, libfuse-dev, xrootd-libs (=${binary:Version}), xrootd-client-libs (=${binary:Version})
+Description: This package contains the FUSE (file system in user space) xrootd mount tool.
