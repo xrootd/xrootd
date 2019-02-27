@@ -2189,10 +2189,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
         case 0: // response to stat()
         {
-
+          DirListInfo e;
+          e.size = 0;
+          e.flags = 0;
+          
           // Now parse the answer building the entries vector
           if (iovN > 0) {
-            DirListInfo e;
             e.path = resource.c_str();
 
             // Now parse the stat info
@@ -2254,7 +2256,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           }
 
           // If this was the last bunch of entries, send the buffer and empty it immediately
-          if (depth == 0) {
+          if ((depth == 0) || !(e.flags & kXR_isDir)) {
             string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
