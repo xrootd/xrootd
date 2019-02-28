@@ -27,6 +27,7 @@
 #include "PyXRootDFile.hh"
 #include "PyXRootDCopyProcess.hh"
 #include "PyXRootDURL.hh"
+#include "PyXRootDFinalize.hh"
 
 namespace PyXRootD
 {
@@ -40,7 +41,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyMethodDef module_methods[] =
     {
-      { NULL } /* Sentinel */
+      // The finalization routine used in atexit handler.
+      { "__XrdCl_Stop_Threads", __XrdCl_Stop_Threads, METH_NOARGS, "Stop XrdCl threads." },
+      { NULL, NULL, 0, NULL }
     };
 
 #if PY_MAJOR_VERSION >= 3
