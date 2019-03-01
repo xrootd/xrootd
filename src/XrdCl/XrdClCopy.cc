@@ -797,9 +797,13 @@ int main( int argc, char **argv )
       // remove the trailing slash
       if( srcDir[srcDir.size() - 1] == '/' )
         srcDir = srcDir.substr( 0, srcDir.size() - 1 );
-      short diroff = srcDir.rfind( '/' );
+      size_t diroff = srcDir.rfind( '/' );
+      // if there is no '/' it means a directory name has been given as relative path
+      if( diroff == std::string::npos ) diroff = 0;
       target += '/';
       target += sourceFile->Path + diroff;
+      // remove the filename from destination path as it will be appended later anyway
+      target = target.substr( 0 , target.rfind('/') );
     }
     AppendCGI( target, config.dstOpq );
 
