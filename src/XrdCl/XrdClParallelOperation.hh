@@ -89,10 +89,10 @@ namespace XrdCl
       {
         std::ostringstream oss;
         oss << "Parallel(";
-        for( int i = 0; i < pipelines.size(); i++ )
+        for( size_t i = 0; i < pipelines.size(); i++ )
         {
           oss << pipelines[i]->ToString();
-          if( i != pipelines.size() - 1 )
+          if( i + 1  != pipelines.size() )
           {
             oss << " && ";
           }
