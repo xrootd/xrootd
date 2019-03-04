@@ -1530,7 +1530,10 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
        if (Request.prepare.options & kXR_cancel)
           {opts = 0;
            isCancel = true;
-          } else opts = Request.prepare.options;
+          } else {
+           opts = Request.prepare.options;
+           isCancel = false;
+          }
       }
    isPrepare = !(isCancel || isQuery);
 
