@@ -60,12 +60,17 @@ int XrdTlsConnection::Accept()
 /*                               C o n n e c t                                */
 /******************************************************************************/
   
-int XrdTlsConnection::Connect()
-  {
-    int rc = SSL_connect( ssl );
-    int error = SSL_get_error( ssl, rc );
-    return error;
-  }
+int XrdTlsConnection::Connect(const char *thehost)
+{
+// Setup host verification of a host has been specified
+//
+
+// Do the connect.
+//
+   int rc = SSL_connect( ssl );
+   int error = SSL_get_error( ssl, rc );
+   return error;
+}
   
 /******************************************************************************/
 /*                              E r r 2 T e x t                               */
