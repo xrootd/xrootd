@@ -155,7 +155,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_OffloadIO();
        int   do_Open();
        int   do_Ping();
-       int   do_Prepare();
+       int   do_Prepare(bool isQuery=false);
        int   do_Protocol(ServerResponseBody_Protocol *rsp=0);
        int   do_Putfile();
        int   do_Qconf();
@@ -408,6 +408,7 @@ unsigned char              wvSeq;
 
 // Track usage limts.
 //
+static bool                PrepareAlt;  // Use alternate prepare handling
 static bool                LimitError;  // Indicates that hitting a limit should result in an error response.
                                         // If false, when possible, silently ignore errors.
 int                        PrepareCount;

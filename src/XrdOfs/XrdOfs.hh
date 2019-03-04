@@ -42,6 +42,7 @@
 class XrdNetIF;
 class XrdOfsEvs;
 class XrdOfsPocq;
+class XrdOfsPrepare;
 class XrdOss;
 class XrdOssDF;
 class XrdOssDir;
@@ -383,10 +384,11 @@ char              poscRsvd;
 char              ossRW;          // The oss r/w capability
 
 XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
+XrdOfsPrepare    *prepHandler;    // Plugin   prepare
 XrdCks           *Cks;            // Checksum manager
 bool              CksPfn;         // Checksum needs a pfn
 bool              CksRdr;         // Checksum may be redirected (i.e. not local)
-char              Reserved;       // Reserved for future checksum stuff
+bool              prepAuth;       // Prepare requires authorization
 char              OssIsProxy;     // !0 if we detect the oss plugin is a proxy
 char              myRType[4];     // Role type for consistency with the cms
 

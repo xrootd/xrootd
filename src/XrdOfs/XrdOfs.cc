@@ -54,6 +54,7 @@
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
+#include "XrdOfs/XrdOfsPrepare.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 #include "XrdOfs/XrdOfsStats.hh"
@@ -162,6 +163,11 @@ XrdOfs::XrdOfs()
    Cks       = 0;
    CksPfn    = true;
    CksRdr    = true;
+
+// Prepare handling
+//
+   prepHandler = 0;
+   prepAuth = true;
 
 // Set TPC redirect targets
 //
@@ -1822,12 +1828,25 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
    XrdOucTList *tp = pargs.paths;
    int retc;
 
-// Run through the paths to make sure client can read each one
+// Run through the paths to make sure client can read each one unless we aren't
+// supposed to apply authorization.
 //
-   while(tp)
-        {AUTHORIZE(client,0,AOP_Read,"prepare",tp->text,out_error);
-         tp = tp->next;
-        }
+   if (prepAuth)
+      while(tp)
+           {AUTHORIZE(client,0,AOP_Read,"prepare",tp->text,out_error);
+            tp = tp->next;
+           }
+
+// If there is a prepare plugin, invoke it and return the result.
+//
+   if (prepHandler)
+      {if (pargs.opts & Prep_QUERY)
+          return prepHandler->query(pargs, out_error, client);
+       if (pargs.opts & Prep_CANCEL)
+          return prepHandler->cancel(pargs, out_error, client);
+
+       return prepHandler->begin(pargs, out_error, client);
+      }
 
 // If we have a finder object, use it to prepare the paths. Otherwise,
 // ignore this prepare request (we may change this in the future).

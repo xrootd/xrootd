@@ -266,11 +266,16 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Now load all of the required plugins
 //
-   if (!ofsConfig->Load(piOpts, EnvInfo)) NoGo = 1;
+   if (!ofsConfig->Load(piOpts, this, EnvInfo)) NoGo = 1;
       else {ofsConfig->Plugin(XrdOfsOss);
             ofsConfig->Plugin(Cks);
             CksPfn = !ofsConfig->OssCks();
             CksRdr = !ofsConfig->LclCks();
+            if (ofsConfig->Plugin(prepHandler))
+               {prepAuth = ofsConfig->PrepAuth();
+                if (EnvInfo) EnvInfo->Put("XRD_PrepHandler", "1");
+                   else XrdOucEnv::Export("XRD_PrepHandler", "1");
+               }
             if (Options & Authorize)
                {ofsConfig->Plugin(Authorization);
                 XrdOfsTPC::Init(Authorization);
@@ -709,6 +714,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("notifymsg",     xnmsg);
     TS_XPI("osslib",        theOssLib);
     TS_Xeq("persist",       xpers);
+    TS_XPI("preplib",       thePrpLib);
     TS_Xeq("role",          xrole);
     TS_Xeq("tpc",           xtpc);
     TS_Xeq("trace",         xtrace);

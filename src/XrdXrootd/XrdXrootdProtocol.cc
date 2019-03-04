@@ -119,6 +119,7 @@ int                   XrdXrootdProtocol::myRole = 0;
 int                   XrdXrootdProtocol::myRolf = 0;
 
 int                   XrdXrootdProtocol::PrepareLimit = -1;
+bool                  XrdXrootdProtocol::PrepareAlt = false;
 bool                  XrdXrootdProtocol::LimitError = true;
 
 struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[RD_Num];

@@ -35,6 +35,8 @@
 class  XrdAccAuthorize;
 class  XrdCks;
 class  XrdCksConfig;
+class  XrdOfs;
+class  XrdOfsPrepare;
 class  XrdOss;
 class  XrdOucEnv;
 class  XrdOucStream;
@@ -64,8 +66,9 @@ enum TheLib {theAtrLib = 0x0100,  //!< Extended attribute plugin
              theCksLib = 0x0402,  //!< Checksum manager plugin
              theCmsLib = 0x0803,  //!< Cms client plugin
              theOssLib = 0x1004,  //!< Oss plugin
-             allXXXLib = 0x1f05,  //!< All plugins (Load() only)
-             maxXXXLib = 0x0005,  //!< Maximum different plugins
+             thePrpLib = 0x2005,  //!< Prp plugin (prepare)
+             allXXXLib = 0x3f06,  //!< All plugins (Load() only)
+             maxXXXLib = 0x0006,  //!< Maximum different plugins
              libIXMask = 0x00ff
             };
 
@@ -112,13 +115,14 @@ void   Display();
 //!
 //! @param   what    A "or" combination of TheLib enums specifying which
 //!                  plugins need to be loaded.
+//! @param   ofsP    Pointer to the ofs plugin requesting he load.
 //! @param   envP    Pointer to the environment normally passed to the default
 //!                  oss plugin at load time.
 //!
 //! @return          true upon success and false upon failure.
 //-----------------------------------------------------------------------------
 
-bool   Load(int what, XrdOucEnv *envP=0);
+bool   Load(int what, XrdOfs *ofsP=0, XrdOucEnv *envP=0);
 
 //-----------------------------------------------------------------------------
 //! Obtain an instance of this class (note that the constructor is private).
@@ -177,7 +181,16 @@ bool   Parse(TheLib what);
 bool   Plugin(XrdAccAuthorize *&piP);    //!< Get Authorization plugin
 bool   Plugin(XrdCks          *&pip);    //!< Get Checksum manager plugin
 bool   Plugin(XrdCmsClient_t   &piP);    //!< Get Cms client object generator
+bool   Plugin(XrdOfsPrepare   *&piP);    //!< Get Prp plugin (prepare)
 bool   Plugin(XrdOss          *&piP);    //!< Get Oss plugin
+
+//-----------------------------------------------------------------------------
+//! Check if the prepare plugin wants authorization.
+//!
+//! @return  True if the plugin wants authorization, false otherwise.
+//-----------------------------------------------------------------------------
+
+bool   PrepAuth();
 
 //-----------------------------------------------------------------------------
 //! Set the checksum read size
@@ -212,14 +225,17 @@ private:
 
 bool          ParseAtrLib();
 bool          ParseOssLib();
+bool          ParsePrpLib();
 bool          RepLib(TheLib what, const char *newLib, const char *newParms=0, bool parseParms=true);
 bool          SetupAttr(TheLib what);
 bool          SetupAuth();
 bool          SetupCms();
+bool          SetupPrp(XrdOfs *ofsP, XrdOucEnv *envP);
 
 XrdAccAuthorize *autPI;    //!< -> Authorization plugin
 XrdCks          *cksPI;    //!< -> Checksum manager plugin
 XrdCmsClient_t   cmsPI;    //!< -> Cms client object generator plugin
+XrdOfsPrepare   *prpPI;    //!< -> Prp plugin (prepare)
 XrdOss          *ossPI;    //!< -> Oss plugin
 XrdVersionInfo  *urVer;    //!< -> Version information
 
@@ -243,6 +259,7 @@ int           CksRdsz;
 bool          defLib[maxXXXLib];
 bool          ossXAttr;
 bool          ossCksio;
+bool          prpAuth;
 bool          Loaded;
 bool          LoadOK;
 bool          cksLcl;

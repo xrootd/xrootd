@@ -1503,11 +1503,12 @@ int XrdXrootdProtocol::do_Ping()
 /*                            d o _ P r e p a r e                             */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_Prepare()
+int XrdXrootdProtocol::do_Prepare(bool isQuery)
 {
-   int rc, hport, pathnum = 0;
-   char opts, hname[256], reqid[128], nidbuff[512], *path, *opaque;
+   static XrdXrootdCallBack prpCB("query", XROOTD_MON_QUERY);
+
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
+
    XrdOucTokenizer pathlist(argp->buff);
    XrdOucTList *pFirst=0, *pP, *pLast = 0;
    XrdOucTList *oFirst=0, *oP, *oLast = 0;
@@ -1515,64 +1516,81 @@ int XrdXrootdProtocol::do_Prepare()
    XrdXrootdPrepArgs pargs(0, 0);
    XrdSfsPrep fsprep;
 
+   int rc, pathnum = 0;
+   char reqid[128], nidbuff[512], *path, *opaque, *prpid = 0;
+   char opts;
+   bool isCancel, isPrepare;
+
+// Establish what we are really doing here
+//
+   if (isQuery)
+      {opts = 0;
+       isCancel = false;
+      } else {
+       if (Request.prepare.options & kXR_cancel)
+          {opts = 0;
+           isCancel = true;
+          } else opts = Request.prepare.options;
+      }
+   isPrepare = !(isCancel || isQuery);
+
 // Apply prepare limits, as necessary.
-   if ((PrepareLimit >= 0) && (++PrepareCount > PrepareLimit)) {
+//
+   if (isPrepare && (PrepareLimit >= 0) && (++PrepareCount > PrepareLimit)) {
       if (LimitError) {
-         return Response.Send(kXR_noserver,
+         return Response.Send( kXR_overQuota,
                               "Surpassed this connection's prepare limit.");
       } else {
          return Response.Send();
       }
    }
 
-// Grab the options
-//
-   opts = Request.prepare.options;
-
 // Check for static routing
 //
-   if ((opts & kXR_stage) || (opts & kXR_cancel)) {STATIC_REDIRECT(RD_prepstg);}
+   if ((opts & kXR_stage) || isCancel) {STATIC_REDIRECT(RD_prepstg);}
    STATIC_REDIRECT(RD_prepare);
 
-// Get a request ID for this prepare and check for static routine
+// Prehandle requests that must have a requestID. Otherwise, generate one.
+// Note that prepare request id's have two formats. The external format is
+// is qualifiaed by this host while the internal one removes the qualification.
+// The internal one is only used for the native prepare implementation.
+// To wit: prpid is the unqualified ID while reqid is the qualified one for
+// generated id's while prpid is always the specified request id.
 //
-   if (opts & kXR_stage && !(opts & kXR_cancel)) 
-      {fsprep.reqid = PrepID->ID(reqid, sizeof(reqid));
-       fsprep.opts  = Prep_STAGE | (opts & kXR_coloc ? Prep_COLOC : 0);
+   if (isCancel || isQuery)
+      {if (!(prpid = pathlist.GetLine()))
+          return Response.Send(kXR_ArgMissing, "Prepare requestid not specified");
+       fsprep.reqid = prpid;
+       fsprep.opts = (isCancel ? Prep_CANCEL : Prep_QUERY);
+       if (!PrepareAlt)
+          {char hname[256];
+           int  hport;
+           prpid = PrepID->isMine(prpid, hport, hname, sizeof(hname));
+           if (!prpid)
+              {if (!hport) return Response.Send(kXR_ArgInvalid,
+                           "Prepare requestid owned by an unknown server");
+               TRACEI(REDIR, Response.ID() <<" redirecting prepare to "
+                             << hname <<':' <<hport);
+               return Response.Send(kXR_redirect, hport, hname);
+              }
+          }
+      } else {
+       if (opts & kXR_stage)
+          {prpid = PrepID->ID(reqid, sizeof(reqid));
+           fsprep.reqid = reqid;
+           fsprep.opts  = Prep_STAGE | (opts & kXR_coloc ? Prep_COLOC : 0);
+          } else {
+            reqid[0]='*'; reqid[1]='\0';
+            fsprep.reqid = prpid = reqid;
+            fsprep.opts = 0;
+          }
       }
-      else {reqid[0]='*'; reqid[1]='\0'; fsprep.reqid = reqid; fsprep.opts = 0;}
 
-// Initialize the fsile system prepare arg list
+// Initialize the file system prepare arg list
 //
    fsprep.paths   = 0;
    fsprep.oinfo   = 0;
-   fsprep.opts   |= Prep_PRTY0 | (opts & kXR_fresh ? Prep_FRESH : 0);
    fsprep.notify  = 0;
-
-// Check if this is a cancel request
-//
-   if (opts & kXR_cancel)
-      {if (!(path = pathlist.GetLine()))
-          return Response.Send(kXR_ArgMissing, "Prepare requestid not specified");
-       fsprep.reqid = PrepID->isMine(path, hport, hname, sizeof(hname));
-       if (!fsprep.reqid)
-          {if (!hport) return Response.Send(kXR_ArgInvalid,
-                             "Prepare requestid owned by an unknown server");
-           if (TRACING(TRACE_REDIR))
-              {if (hport < 0)
-                  {TRACEI(REDIR, Response.ID() <<"redirecting to " << hname);}
-                  else {TRACEI(REDIR, Response.ID() <<"redirecting to "
-                                      << hname <<':' <<hport);
-                       }
-              }
-           return Response.Send(kXR_redirect, hport, hname);
-          }
-       if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
-          return fsError(rc, XROOTD_MON_PREP, myError, path, 0);
-       rc = Response.Send();
-       XrdXrootdPrepare::Logdel(path);
-       return rc;
-      }
 
 // Cycle through all of the paths in the list
 //
@@ -1585,22 +1603,81 @@ int XrdXrootdProtocol::do_Prepare()
          (oLast ? (oLast->next = oP) : (oFirst = oP)); oLast = oP;
          pathnum++;
         }
+   fsprep.paths = pFirst;
+   fsprep.oinfo = oFirst;
+
+// We support callbacks but only for alternate prepare processing
+//
+   if (PrepareAlt) myError.setErrCB(&prpCB, ReqID.getID());
+
+// Process cancel requests here; they are simple at this point.
+//
+   if (isCancel)
+      {if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
+          return fsError(rc, XROOTD_MON_PREP, myError, path, 0);
+       rc = Response.Send();
+       if (!PrepareAlt) XrdXrootdPrepare::Logdel(prpid);
+       return rc;
+      }
+
+// Process query requests here; they are simple at this point.
+//
+   if (isQuery)
+      {if (PrepareAlt)
+          {if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
+              return fsError(rc, XROOTD_MON_PREP, myError, path, 0);
+           rc = Response.Send();
+          } else {
+           char *mBuff = myError.getMsgBuff(rc);
+           pargs.reqid = prpid;
+           pargs.user  = Link->ID;
+           pargs.paths = pFirst;
+           rc = XrdXrootdPrepare::List(pargs, mBuff, rc);
+           if (rc < 0) rc = Response.Send("No information found.");
+              else rc = Response.Send(mBuff);
+          }
+       return rc;
+      }
 
 // Make sure we have at least one path
 //
    if (!pFirst)
       return Response.Send(kXR_ArgMissing, "No prepare paths specified");
 
-// Issue the prepare
+// Handle notification parameter. The notification depends on whether or not
+// we have a custom prepare handler.
 //
    if (opts & kXR_notify)
-      {fsprep.notify  = nidbuff;
-       sprintf(nidbuff, Notify, Link->FDnum(), Link->ID);
-       fsprep.opts = (opts & kXR_noerrs ? Prep_SENDAOK : Prep_SENDACK);
+      {const char *nprot = (opts & kXR_usetcp ? "tcp" : "udp");
+       fsprep.notify  = nidbuff;
+       if (PrepareAlt)
+          {if (Request.prepare.port == 0) fsprep.notify = 0;
+              else snprintf(nidbuff, sizeof(nidbuff), "%s://%s:%d/",
+                            nprot, Link->Host(), ntohs(Request.prepare.port));
+          } else sprintf(nidbuff, Notify, nprot, Link->FDnum(), Link->ID);
+       if (fsprep.notify)
+          fsprep.opts = (opts & kXR_noerrs ? Prep_SENDAOK : Prep_SENDACK);
       }
+
+// Complete prepare options
+//
+   fsprep.opts |= (opts & kXR_fresh ? Prep_FRESH : 0);
    if (opts & kXR_wmode) fsprep.opts |= Prep_WMODE;
-   fsprep.paths = pFirst;
-   fsprep.oinfo = oFirst;
+   if (PrepareAlt)
+      {switch(Request.prepare.prty)
+             {case 0:  fsprep.opts |= Prep_PRTY0; break;
+              case 1:  fsprep.opts |= Prep_PRTY1; break;
+              case 2:  fsprep.opts |= Prep_PRTY2; break;
+              case 3:  fsprep.opts |= Prep_PRTY3; break;
+              default: break;
+             }
+      } else {
+       if (Request.prepare.prty == 0) fsprep.opts |= Prep_PRTY0;
+          else fsprep.opts |= Prep_PRTY1;
+      }
+
+// Issue the prepare request
+//
    if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
       return fsError(rc, XROOTD_MON_PREP, myError, pFirst->text, oFirst->text);
 
@@ -1608,11 +1685,12 @@ int XrdXrootdProtocol::do_Prepare()
 //
    if (!(opts & kXR_stage)) rc = Response.Send();
       else {rc = Response.Send(reqid, strlen(reqid));
-            pargs.reqid=reqid;
-            pargs.user=Link->ID;
-            pargs.paths=pFirst;
-            XrdXrootdPrepare::Log(pargs);
-            pargs.reqid = 0;
+            if (!PrepareAlt)
+               {pargs.reqid = prpid;
+                pargs.user  = Link->ID;
+                pargs.paths = pFirst;
+                XrdXrootdPrepare::Log(pargs);
+               }
            }
    return rc;
 }
@@ -1975,6 +2053,7 @@ int XrdXrootdProtocol::do_Query()
           case kXR_Qopaque:
           case kXR_Qopaquf: return do_Qopaque(qopt);
           case kXR_Qopaqug: return do_Qfh();
+          case kXR_QPrep:   return do_Prepare(true);
           default:          break;
          }
 

@@ -46,6 +46,7 @@
 
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
+#include "XrdOfs/XrdOfsPrepare.hh"
 
 #include "XrdOss/XrdOss.hh"
 
@@ -65,7 +66,8 @@
   
 namespace
 {
-const char *drctv[] = {"xattrlib", "authlib", "ckslib", "cmslib", "osslib"};
+const char *drctv[] = {"xattrlib", "authlib", "ckslib", "cmslib",
+                         "osslib", "preplib"};
 
 const char *nullParms = 0;
 }
@@ -89,7 +91,7 @@ XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
                  : autPI(0), cksPI(0), cmsPI(0), ossPI(0), urVer(verP),
                    Config(cfgP),  Eroute(errP), CksConfig(0), ConfigFN(cfn),
                    CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(false),
-                   Loaded(false), LoadOK(false), cksLcl(false)
+                   prpAuth(true), Loaded(false), LoadOK(false), cksLcl(false)
 {
    int rc;
 
@@ -179,7 +181,7 @@ void   XrdOfsConfigPI::Display()
 /*                                  L o a d                                   */
 /******************************************************************************/
   
-bool XrdOfsConfigPI::Load(int loadLib, XrdOucEnv *envP)
+bool XrdOfsConfigPI::Load(int loadLib, XrdOfs *ofsP, XrdOucEnv *envP)
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
                               const char   *, XrdOucEnv  *, XrdVersionInfo &);
@@ -231,6 +233,10 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOucEnv *envP)
 // Setup the cms if we need to
 //
    if (DO_LOAD(theCmsLib) && !SetupCms()) return false;
+
+// Setup the prepare plugin if need be
+//
+   if (DO_LOAD(thePrpLib) && !SetupPrp(ofsP, envP)) return false;
 
 // All done
 //
@@ -289,6 +295,8 @@ bool XrdOfsConfigPI::Parse(TheLib what)
           case theCmsLib: break;
                           break;
           case theOssLib: return ParseOssLib();
+                          break;
+          case thePrpLib: return ParsePrpLib();
                           break;
           default:        Eroute->Emsg("Config", "Invalid plugin Parse() call");
                           return false;
@@ -384,6 +392,52 @@ bool XrdOfsConfigPI::ParseOssLib()
 }
 
 /******************************************************************************/
+/* Private:                  P a r s e P r p L i b                            */
+/******************************************************************************/
+  
+/* Function: ParsePrpLib
+
+   Purpose:  To parse the directive: preplib [<opts>] <path> [<parms>]
+             <opts>: [+noauth]
+
+             +noauth   do not apply authorization to path list.
+             <path>    the path of the prepare library to be used.
+             <parms>   optional parms to be passed
+
+  Output: true upon success or false upon failure.
+*/
+
+bool XrdOfsConfigPI::ParsePrpLib()
+{
+   char *val, oBuff[80];
+   int   oI = PIX(thePrpLib);
+
+// Reset to defaults
+//
+    prpAuth = true;
+    if (LP[oI].opts) {free(LP[oI].opts); LP[oI].opts = 0;}
+    *oBuff = 0;
+
+// Get the path and parms, and process keywords
+//
+   while((val = Config->GetWord()))
+        {     if (!strcmp("+noauth",  val))
+                 {if (prpAuth) strcat(oBuff, "+noauth "); prpAuth = false;}
+         else break;
+        }
+
+// Check if we a library path
+//
+   if (!val || !val[0])
+      {Eroute->Emsg("Config", "preplib not specified"); return false;}
+
+// Record the path and parameters
+//
+   if (*oBuff) LP[oI].opts = strdup(oBuff);
+   return RepLib(thePrpLib, val);
+}
+
+/******************************************************************************/
 /*                                P l u g i n                                 */
 /******************************************************************************/
   
@@ -396,9 +450,18 @@ bool   XrdOfsConfigPI::Plugin(XrdCks          *&piP)
 bool   XrdOfsConfigPI::Plugin(XrdCmsClient_t   &piP)
 {      return (piP = cmsPI) != 0;}
 
+bool   XrdOfsConfigPI::Plugin(XrdOfsPrepare   *&piP)
+{      return (piP = prpPI) != 0;}
+
 bool   XrdOfsConfigPI::Plugin(XrdOss          *&piP)
 {      return (piP = ossPI) != 0;}
 
+/******************************************************************************/
+/*                              P r e p A u t h                               */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::PrepAuth() {return prpAuth;}
+  
 /******************************************************************************/
 /* Private:                       R e p L i b                                 */
 /******************************************************************************/
@@ -531,5 +594,34 @@ bool XrdOfsConfigPI::SetupCms()
            CmsLib = LP[PIX(theCmsLib)].lib = strdup(myLib.Path());
           }
       }
+   return true;
+}
+
+/******************************************************************************/
+/*                              S e t u p P r p                               */
+/******************************************************************************/
+  
+bool XrdOfsConfigPI::SetupPrp(XrdOfs *ofsP, XrdOucEnv *envP)
+{
+   XrdOfsgetPrepare_t ep;
+   char *PrpLib   = LP[PIX(thePrpLib)].lib;
+   char *PrpParms = LP[PIX(thePrpLib)].parms;
+
+// Load the plugin if we have to
+//
+   if (LP[PIX(thePrpLib)].lib)
+      {XrdOucPinLoader myLib(Eroute, urVer, "preplib", PrpLib);
+       ep = (XrdOfsgetPrepare_t)(myLib.Resolve("XrdOfsgetPrepare"));
+       if (!ep) return false;
+       if (strcmp(PrpLib, myLib.Path()))
+          {free(PrpLib);
+           PrpLib = LP[PIX(thePrpLib)].lib = strdup(myLib.Path());
+          }
+      }
+
+// Get the Object now
+//
+   if (ep)
+      return 0 != (prpPI = ep(Eroute, ConfigFN, PrpParms, ofsP, ossPI, envP));
    return true;
 }

@@ -76,13 +76,13 @@ const  char            *XrdXrootdPrepare::TraceID = "Prepare";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdXrootdPrepare::XrdXrootdPrepare(XrdSysError *errp, XrdScheduler *sp)
-                 : XrdJob("Prep log scrubber")
+XrdXrootdPrepare::XrdXrootdPrepare(XrdSysError *errp, XrdScheduler *sp,
+                                   bool nomsg) : XrdJob("Prep log scrubber")
 {eDest    = errp;
  SchedP   = sp;
  if (LogDir) SchedP->Schedule((XrdJob *)this, scrubtime+time(0));
-    else eDest->Say("Config warning: 'xrootd.prepare logdir' not specified; "
-                    "prepare tracking disabled.");
+    else if (!nomsg) eDest->Say("Config warning: 'xrootd.prepare logdir' "
+                                "not specified; prepare tracking disabled.");
 }
   
 /******************************************************************************/

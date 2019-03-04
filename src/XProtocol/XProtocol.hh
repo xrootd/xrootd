@@ -265,7 +265,8 @@ enum XPrepRequestOption {
    kXR_stage  = 8,
    kXR_wmode  = 16,
    kXR_coloc  = 32,
-   kXR_fresh  = 64
+   kXR_fresh  = 64,
+   kXR_usetcp =128
 };
 
 // Version used for kXR_decrypt and kXR_sigver and is set in

@@ -104,7 +104,7 @@ static int        setParms(int stime, int skeep);
 
 static int        setParms(char *ldir);
 
-           XrdXrootdPrepare(XrdSysError *lp, XrdScheduler *sp);
+           XrdXrootdPrepare(XrdSysError *lp, XrdScheduler *sp, bool nomsg);
           ~XrdXrootdPrepare() {}   // Never gets deleted
 
 private:

@@ -301,6 +301,11 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
           } else osFS->EnvInfo(&myEnv);
       }
 
+// Check if the file system includes a custom prepare handler as this will
+// affect how we handle prepare requests.
+//
+   if (myEnv.Get("XRD_PrepHandler")) PrepareAlt = true;
+
 // Check if the diglib should be loaded. We only support the builtin one. In
 // the future we will have to change this code to be like the above.
 //
@@ -350,8 +355,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Initialize for prepare processing
 //
-   XrdXrootdPrepQ = new XrdXrootdPrepare(&eDest, pi->Sched);
-   sprintf(buff, "udp://%s:%d/&L=%%d&U=%%s", pi->myName, pi->Port);
+   XrdXrootdPrepQ = new XrdXrootdPrepare(&eDest, pi->Sched, PrepareAlt);
+   sprintf(buff, "%%s://%s:%d/&L=%%d&U=%%s", pi->myName, pi->Port);
    Notify = strdup(buff);
 
 // Set the redirect flag if we are a pure redirector
