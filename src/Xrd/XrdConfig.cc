@@ -977,7 +977,6 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 {
    XrdConfigProt *cp;
    int i, xport, wsz, arbNet, the_Opts, the_Blen;
-   bool needTLS = false;
 
 // Establish the FD limit
 //
@@ -1055,7 +1054,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
                           "requires TLS but TLS is not configured!");
                  return 1;
                 }
-             xport = PortTLS; needTLS = true;
+             xport = PortTLS;
             } else xport = PortTCP;
          ProtInfo.Port = (cp->port < 0 ? xport : cp->port);
          XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
