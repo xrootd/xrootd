@@ -91,9 +91,13 @@ enum HS_Mode
 
 //------------------------------------------------------------------------
 //! Establish a TLS connection
+//!
+//! @param  thehost  - The expected hostname. If nil the peername is not
+//!                    verified.
+//! @return 0 upon success or an SSL error code upon failure.
 //------------------------------------------------------------------------
 
-  int Connect();
+  int Connect(const char *thehost=0);
 
 //------------------------------------------------------------------------
 //! Obtain context associated with this connection.
