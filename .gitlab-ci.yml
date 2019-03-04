@@ -268,9 +268,10 @@ build:macosx:
     - mkdir -p tarball/xrootd
     - cd build
     - /usr/local/bin/cmake -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2o_2/include/ -D OPENSSL_SSL_LIBRARY=/usr/local/Cellar/openssl/1.0.2o_2/lib/libssl.dylib -D OPENSSL_CRYPTO_LIBRARY=/usr/local/Cellar/openssl/1.0.2o_2/lib/libcrypto.dylib -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
+    - cd src/XrdCl/
     - make -j4
     - make install
-    - cd ../tarball
+    - cd ../../../tarball
     - tar -zcf xrootd.tar.gz xrootd
     - cd ..
     - mkdir osx
