@@ -162,12 +162,17 @@ virtual void   ProcessRequest(XrdSsiRequest  &reqRef,
 //-----------------------------------------------------------------------------
 //! @brief Stop the client-side service. This is never called server-side.
 //!
-//! @return true     Service has been stopped and this object has been deleted.
+//! @param  immed    When true, the service is only stopped if here are no
+//!                  active requests. Otherwise, after all requests have
+//!                  finished. the service object is deleted.
+//!
+//! @return true     Service has been stopped. Once all requests have been
+//!                  completed, the service object will be deleted.
 //! @return false    Service cannot be stopped because there are still active
-//!                  foreground requests. Cancel the requests then call Stop().
+//!                  foreground requests and the immed parameter was true.
 //-----------------------------------------------------------------------------
 
-virtual bool   Stop() {return false;}
+virtual bool   Stop(bool immed=false) {return !immed;}
 
 //-----------------------------------------------------------------------------
 //! Constructor

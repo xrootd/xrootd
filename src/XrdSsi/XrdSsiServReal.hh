@@ -46,13 +46,14 @@ void           ProcessRequest(XrdSsiRequest &reqRef, XrdSsiResource &resRef);
 
 void           Recycle(XrdSsiSessReal *sObj, bool reuse);
 
-bool           Stop();
+bool           Stop(bool immed=false);
 
 void           StopReuse(const char *resKey);
 
                XrdSsiServReal(const char *contact, int hObj)
                              : manNode(strdup(contact)), freeSes(0),
-                               freeCnt(0), freeMax(hObj), actvSes(0) {}
+                               freeCnt(0), freeMax(hObj), actvSes(0),
+                               doStop(false) {}
 
               ~XrdSsiServReal();
 private:
@@ -71,5 +72,6 @@ XrdSsiSessReal *freeSes;
 int             freeCnt;
 int             freeMax;
 int             actvSes;
+bool            doStop;
 };
 #endif
