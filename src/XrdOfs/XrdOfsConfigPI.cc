@@ -603,7 +603,7 @@ bool XrdOfsConfigPI::SetupCms()
   
 bool XrdOfsConfigPI::SetupPrp(XrdOfs *ofsP, XrdOucEnv *envP)
 {
-   XrdOfsgetPrepare_t ep;
+   XrdOfsgetPrepare_t ep = nullptr;
    char *PrpLib   = LP[PIX(thePrpLib)].lib;
    char *PrpParms = LP[PIX(thePrpLib)].parms;
 
