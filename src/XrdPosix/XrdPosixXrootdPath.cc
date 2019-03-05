@@ -256,18 +256,15 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 {
    struct xpath *xpnow = xplist;
    char tmpbuff[2048];
-   int i, plen, pathlen = 0;
+   int plen, pathlen = 0;
 
 // Check if this is a protocol we support
 //
-   for (i = 0; i < ptEnts && XrdPosixGlobals::protoTab[i].name; i++)
-     {cerr <<"Checking for '"<<XrdPosixGlobals::protoTab[i].name
-           <<"' len=" <<XrdPosixGlobals::protoTab[i].nlen <<endl;
-       if (!strncmp(path, XrdPosixGlobals::protoTab[i].name,
+   for (int i = 0; i < ptEnts && XrdPosixGlobals::protoTab[i].name; i++)
+      {if (!strncmp(path, XrdPosixGlobals::protoTab[i].name,
                           XrdPosixGlobals::protoTab[i].nlen))
           return (char *)path;
      }
-   if (i >= ptEnts) return (char *)0;
 
 // If a relative path was specified, convert it to an absolute path
 //
@@ -301,7 +298,7 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 
 // Build the url
 //
-   strcpy(buff, XrdPosixGlobals::protoTab[i].name);
+   strcpy(buff, XrdPosixGlobals::protoTab[0].name);
    strcat(buff, xpnow->server);
    strcat(buff, "/");
    if (xpnow->nath) {strcat(buff, xpnow->nath); path += xpnow->plen;}
