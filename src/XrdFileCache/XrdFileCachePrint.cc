@@ -116,7 +116,7 @@ void Print::printFile(const std::string& path)
    size_t startIdx = cfi.GetAccessCnt() < cfi.GetMaxNumAccess() ? 0 : cfi.GetAccessCnt() - cfi.GetMaxNumAccess();
    for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)
    {
-      printf("access %zu: ", startIdx++);
+      printf("access %lu: ", (unsigned long)startIdx++);
       char as[500];
       strftime(as, 500, "%c", localtime(&(it->AttachTime)));
 
