@@ -157,12 +157,6 @@ namespace {
           bool executed;
     };
 
-    char* createBuf(const char* content, uint32_t length){
-        char* buf = new char[length + 1]();
-        strncpy(buf, content, length);
-        return buf;
-    }
-
 
 
 }
