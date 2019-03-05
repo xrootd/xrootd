@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * **[POSIX]** Fix VMP issues with POSIX preload library causing SEGV.
 
 + **Minor bug fixes**
 
