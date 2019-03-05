@@ -692,6 +692,7 @@ int XrdXrootdTransit::Send(int rcode, const struct iovec *ioV, int ioN, int ioL)
                    return Wait(rInfo, ioV, ioN, ioL);
                    break;
           case kXR_waitresp:
+                   runDone = false;
                    return WaitResp(rInfo, ioV, ioN, ioL);
                    break;
           default: if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
