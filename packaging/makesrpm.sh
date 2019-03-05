@@ -84,8 +84,6 @@ while test ${#} -ne 0; do
   shift
 done
 
-echo "USER_D = $USER_D"
-
 if test $PRINTHELP -eq 1; then
   printHelp
   exit 0
