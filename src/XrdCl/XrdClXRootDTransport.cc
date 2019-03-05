@@ -1168,7 +1168,14 @@ namespace XrdCl
       seconds = ntohl( rsp->body.wait.seconds ) + 5; // we need extra time
                                                      // to re-send the request
     else if( rsp->hdr.status == kXR_waitresp )
+    {
       seconds = ntohl( rsp->body.waitresp.seconds );
+
+      log->Dump( XRootDMsg, "[%s] Got kXR_waitresp response of %d seconds, "
+                 "setting up wait barrier.",
+                 info->streamName.c_str(),
+                 seconds );
+    }
 
     time_t barrier = time(0) + seconds;
     if( info->waitBarrier < barrier )

@@ -182,8 +182,14 @@ namespace XrdCl
         return Take | RemoveHandler;
 
       case kXR_waitresp:
+      {
+        log->Dump( XRootDMsg, "[%s] Got kXR_waitresp response to "
+                   "message %s", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
+
         pResponse = 0;
         return Take | Ignore; // This must be handled synchronously!
+      }
 
       //------------------------------------------------------------------------
       // Handle the potential raw cases
