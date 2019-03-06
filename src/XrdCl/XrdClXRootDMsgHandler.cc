@@ -52,28 +52,20 @@ namespace
   class WaitTask: public XrdCl::Task
   {
     public:
-
-      WaitTask( XrdCl::MsgHandlerRef &handlerRef ): pHandlerRef( handlerRef )
+      WaitTask( XrdCl::XRootDMsgHandler *handler ): pHandler( handler )
       {
         std::ostringstream o;
-        o << "WaitTask for: 0x" << handlerRef->GetRequest();
+        o << "WaitTask for: 0x" << handler->GetRequest();
         SetName( o.str() );
-      }
-
-      ~WaitTask()
-      {
-        pHandlerRef.Free();
       }
 
       virtual time_t Run( time_t now )
       {
-        XrdSysMutexHelper lck( pHandlerRef );
-        if( pHandlerRef ) pHandlerRef->WaitDone( now );
+        pHandler->WaitDone( now );
         return 0;
       }
-
     private:
-      XrdCl::MsgHandlerRef &pHandlerRef;
+      XrdCl::XRootDMsgHandler *pHandler;
   };
 }
 
@@ -671,7 +663,7 @@ namespace XrdCl
         if( resendTime < pExpiration )
         {
           TaskManager *taskMgr = pPostMaster->GetTaskManager();
-          taskMgr->RegisterTask( new WaitTask( pRef->Self() ), resendTime );
+          taskMgr->RegisterTask( new WaitTask( this ), resendTime );
         }
         else
         {
@@ -746,12 +738,6 @@ namespace XrdCl
 
     if( streamNum != 0 )
       return 0;
-
-    //--------------------------------------------------------------------------
-    // Invalidate pRef in case there is a WaitTask
-    //--------------------------------------------------------------------------
-    if( !status.IsOK() && status.code == errOperationInterrupted )
-      pRef->Invalidate();
 
     HandleError( status, 0 );
     return RemoveHandler;

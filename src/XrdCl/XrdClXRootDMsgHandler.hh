@@ -72,66 +72,6 @@ namespace XrdCl
       }
   };
 
-  class XRootDMsgHandler;
-
-  //----------------------------------------------------------------------------
-  // Counted reference to XRootDMsgHandler, to be used with WaitTask
-  //----------------------------------------------------------------------------
-  class MsgHandlerRef
-  {
-    public:
-
-      MsgHandlerRef( XRootDMsgHandler *handler) : ref( handler ), count( 1 )
-      {
-
-      }
-
-      XRootDMsgHandler* operator->()
-      {
-        return ref;
-      }
-
-      operator bool() const
-      {
-        return ref;
-      }
-
-      operator XrdSysMutex&()
-      {
-        return mtx;
-      }
-
-      MsgHandlerRef& Self()
-      {
-        XrdSysMutexHelper lck( mtx );
-        ++count;
-        return *this;
-      }
-
-      void Invalidate()
-      {
-        XrdSysMutexHelper lck( mtx );
-        ref = 0;
-      }
-
-      void Free()
-      {
-        XrdSysMutexHelper lck( mtx );
-        --count;
-        if( count == 0 )
-        {
-          lck.UnLock();
-          delete this;
-        }
-      }
-
-    private:
-
-      XrdSysMutex       mtx;
-      XRootDMsgHandler *ref;
-      uint16_t          count;
-  };
-
   //----------------------------------------------------------------------------
   //! Handle/Process/Forward XRootD messages
   //----------------------------------------------------------------------------
@@ -193,9 +133,8 @@ namespace XrdCl
 
         pAggregatedWaitTime( 0 ),
 
-        pMsgInFly( false ),
+        pMsgInFly( false )
 
-        pRef( new MsgHandlerRef( this ) )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -208,8 +147,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ~XRootDMsgHandler()
       {
-        pRef->Free();
-
         DumpRedirectTraceBack();
 
         if( !pHasSessionId )
@@ -566,11 +503,6 @@ namespace XrdCl
       RedirectTraceBack               pRedirectTraceBack;
 
       bool                            pMsgInFly;
-
-      //------------------------------------------------------------------------
-      // (Counted) Reference to myself - passed to WaitTask
-      //------------------------------------------------------------------------
-      MsgHandlerRef                  *pRef;
   };
 }
 
