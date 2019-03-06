@@ -79,6 +79,7 @@ static const char *gsiClientSteps[] = {
    "kXGC_none",
    "kXGC_certreq",
    "kXGC_cert",
+   "kXGC_sigpxy",
    "kXGC_reserved"
 };
 
@@ -86,6 +87,7 @@ static const char *gsiServerSteps[] = {
    "kXGS_none",
    "kXGS_init",
    "kXGS_cert",
+   "kXGS_pxyreq",
    "kXGS_reserved"
 };
 
