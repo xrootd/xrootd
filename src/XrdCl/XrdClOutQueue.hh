@@ -23,8 +23,6 @@
 #include <utility>
 #include "XrdCl/XrdClStatus.hh"
 
-#include "XrdSys/XrdSysPthread.hh"
-
 namespace XrdCl
 {
   class Message;
@@ -149,8 +147,6 @@ namespace XrdCl
 
       typedef std::list<MsgHelper> MessageList;
       MessageList pMessages;
-      mutable XrdSysMutex pMutex;
-
   };
 }
 
