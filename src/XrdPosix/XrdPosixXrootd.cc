@@ -76,6 +76,8 @@
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
+class XrdSysError;
+
 namespace XrdPosixGlobals
 {
 XrdScheduler    *schedP    = 0;
@@ -85,6 +87,7 @@ XrdOucCache2    *myCache2  = 0;
 XrdOucName2Name *theN2N    = 0;
 XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 XrdSysLogger    *theLogger = 0;
+XrdSysError     *eDest     = 0;
 XrdSysTrace      Trace("Posix", 0,
                       (getenv("XRDPOSIX_DEBUG") ? TRACE_Debug : 0));
 int              ddInterval= 30;

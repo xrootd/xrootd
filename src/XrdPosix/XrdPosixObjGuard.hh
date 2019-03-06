@@ -37,12 +37,21 @@ class XrdPosixObjGuard
 public:
 
 void  Init(XrdPosixFile *fP)
-          {if (guardP) guardP->updUnLock();
+          {if (guardP)
+              {guardP->unRef();
+               guardP->updUnLock();
+              }
            guardP = fP;
+           guardP->Ref();
            guardP->updLock();
           }
 
-void  Release() {if (guardP) {guardP->updUnLock(); guardP = 0;}}
+void  Release() {if (guardP)
+                    {guardP->unRef();
+                     guardP->updUnLock();
+                     guardP = 0;
+                    }
+                }
 
       XrdPosixObjGuard(XrdPosixFile *fP): guardP(0) {Init(fP);}
      ~XrdPosixObjGuard() {Release();}
