@@ -1470,10 +1470,10 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    }
    stepstr = ServerStepStr(step);
    // Dump, if requested
+   XrdOucString bmsg;
    if (QTRACE(Dump)) {
-      XrdOucString msg("IN: ");
-      msg += stepstr;
-      bpar->Dump(msg.c_str());
+      bmsg.form("IN: bpar: %s", stepstr);
+      bpar->Dump(bmsg.c_str());
    }
    //
    // Parse input buffer
@@ -1484,9 +1484,11 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    }
    // Dump, if requested
    if (QTRACE(Dump)) {
-      if (bmai)
-         bmai->Dump("IN: main");
-    }
+      if (bmai) {
+         bmsg.form("IN: bmai: %s", stepstr);
+         bmai->Dump(bmsg.c_str());
+      }
+   }
    //
    // Version
    DEBUG("version run by server: "<< hs->RemVers);
@@ -1658,11 +1660,10 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    int nser = bpar->Serialized(&bser,'f');
 
    if (QTRACE(Authen)) {
-      XrdOucString msg("OUT: ");
-      msg += ClientStepStr(bpar->GetStep());
-      bpar->Dump(msg.c_str());
-      msg.replace(ClientStepStr(bpar->GetStep()), "main");
-      bmai->Dump(msg.c_str());
+      bmsg.form("OUT: bpar: %s", ClientStepStr(bpar->GetStep()));
+      bpar->Dump(bmsg.c_str());
+      bmsg.form("OUT: bmai: %s", ClientStepStr(bpar->GetStep()));
+      bmai->Dump(bmsg.c_str());
    }
    //
    // We may release the buffers now
@@ -1778,10 +1779,10 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    step = bpar->GetStep();
    stepstr = ClientStepStr(step);
    // Dump, if requested
+   XrdOucString bmsg;
    if (QTRACE(Dump)) {
-      XrdOucString msg("IN: ");
-      msg += stepstr;
-      bpar->Dump(msg.c_str());
+      bmsg.form("IN: bpar: %s", stepstr);
+      bpar->Dump(bmsg.c_str());
    }
    //
    // Parse input buffer
@@ -1795,9 +1796,11 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    DEBUG("options req by client: "<< hs->Options);
    //
    // Dump, if requested
-   if (QTRACE(Authen)) {
-      if (bmai)
-         bmai->Dump("IN: main");
+   if (QTRACE(Dump)) {
+      if (bmai) {
+         bmsg.form("IN: bmai: %s", stepstr);
+         bmai->Dump(bmsg.c_str());
+      }
    }
    //
    // Check random challenge
@@ -2155,11 +2158,10 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       //
       // Dump, if requested
       if (QTRACE(Authen)) {
-         XrdOucString msg("OUT: ");
-         msg += ServerStepStr(bpar->GetStep());
-         bpar->Dump(msg.c_str());
-         msg.replace(ServerStepStr(bpar->GetStep()), "main");
-         bmai->Dump(msg.c_str());
+         bmsg.form("OUT: bpar: %s", ServerStepStr(bpar->GetStep()));
+         bpar->Dump(bmsg.c_str());
+         bmsg.form("OUT: bmai: %s", ServerStepStr(bpar->GetStep()));
+         bmai->Dump(bmsg.c_str());
       }
       //
       // Create buffer for client
