@@ -66,6 +66,7 @@ extern XrdOucCache2              *myCache2;
 extern XrdOucName2Name           *theN2N;
 extern XrdCl::DirListFlags::Flags dlFlag;
 extern XrdSysLogger              *theLogger;
+extern XrdSysError               *eDest;
 extern XrdSysTrace                Trace;
 extern int                        ddInterval;
 extern int                        ddMaxTries;
@@ -251,6 +252,11 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 //
    XrdPosixGlobals::Trace.SetLogger(parms.theLogger);
    XrdPosixGlobals::theLogger = parms.theLogger;
+
+// Create an error object if we have a logger
+//
+   if (parms.theLogger)
+      XrdPosixGlobals::eDest = new XrdSysError(parms.theLogger, "Posix");
 
 // Set networking mode
 //

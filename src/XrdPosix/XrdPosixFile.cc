@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
@@ -44,6 +45,7 @@
 #include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
 
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 /******************************************************************************/
@@ -54,6 +56,7 @@ namespace XrdPosixGlobals
 {
 extern XrdOucCache2    *theCache;
 extern XrdOucName2Name *theN2N;
+extern XrdSysError     *eDest;
 extern int              ddInterval;
 extern int              ddMaxTries;
        int              ddNumLost = 0;
@@ -190,8 +193,16 @@ do{if (doWait)
 
          if (fCurr->numTries > XrdPosixGlobals::ddMaxTries)
             {XrdPosixGlobals::ddNumLost++; ddCount--;
-             DMSG("DDestroy", eTxt <<" timeout closing " <<fCurr->Origin()
+             if (XrdPosixGlobals::eDest)
+                {char buff[256];
+                 snprintf(buff, sizeof(buff), "(%d) %s",
+                                XrdPosixGlobals:: ddNumLost, eTxt);
+                 XrdPosixGlobals::eDest->Emsg("DDestroy",
+                                         "timeout closing", fCurr->Origin());
+                } else {
+                 DMSG("DDestroy", eTxt <<" timeout closing " <<fCurr->Origin()
                         <<' ' <<XrdPosixGlobals::ddNumLost <<" objects lost");
+                }
              fCurr->nextFile = ddLost;
              ddLost = fCurr;
              fCurr->Close(Status);
