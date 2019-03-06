@@ -1006,7 +1006,7 @@ XRootDStatus DoQuery( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc != 3 )
+  if( !( argc >= 3 ) )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -1037,30 +1037,57 @@ XRootDStatus DoQuery( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  std::string strArg = args[2];
-  if( qCode == QueryCode::ChecksumCancel ||
-      qCode == QueryCode::Checksum       ||
-      qCode == QueryCode::XAttr )
+  if( !( qCode & QueryCode::Prepare ) && argc != 3  )
   {
-    if( !BuildPath( strArg, env, args[2] ).IsOK() )
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string strArg = args[2];
+  if( qCode & QueryCode::Prepare )
+  {
+    // strArg is supposed to contain already the request ID
+
+    for( size_t i = 3; i < args.size(); ++i )
     {
-      log->Error( AppMsg, "Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
+      std::string path = args[i];
+      if( !BuildPath( path, env, path ).IsOK() )
+      {
+        log->Error( AppMsg, "Invalid path." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      // we use new line character as delimiter
+      strArg += '\n';
+      strArg += path;
+    }
+  }
+  else
+  {
+    std::string strArg = args[2];
+    if( qCode == QueryCode::ChecksumCancel ||
+        qCode == QueryCode::Checksum       ||
+        qCode == QueryCode::XAttr )
+    {
+      if( !BuildPath( strArg, env, args[2] ).IsOK() )
+      {
+        log->Error( AppMsg, "Invalid path." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
     }
   }
 
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  Buffer *response = 0;
-  Buffer  arg( strArg.size() );
+  Buffer arg( strArg.size() );
   arg.FromString( strArg );
+  Buffer *response = 0;
   XRootDStatus st = fs->Query( qCode, arg, response );
 
   if( !st.IsOK() )
   {
-    log->Error( AppMsg, "Unable run query %s %s: %s",
-                        args[1].c_str(), strArg.c_str(),
+    log->Error( AppMsg, "Unable run query %s: %s",
+                        args[1].c_str(),
                         st.ToStr().c_str() );
     return st;
   }
@@ -1095,6 +1122,7 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
   PrepareFlags::Flags      flags    = PrepareFlags::None;
   std::vector<std::string> files;
   uint8_t                  priority = 0;
+  std::string              reqid;
 
   for( uint32_t i = 1; i < args.size(); ++i )
   {
@@ -1128,7 +1156,21 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
     else if( args[i] == "-w" )
       flags |= PrepareFlags::WriteMode;
     else if( args[i] == "-a" )
+    {
       flags |= PrepareFlags::Cancel;
+      if( i < args.size()-1 )
+      {
+        // by convention the request ID appears as the the first token
+        // in the list of files
+        files.push_back( args[i+1] );
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '-a' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
     else
       files.push_back( args[i] );
   }
@@ -1149,6 +1191,12 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
     log->Error( AppMsg, "Prepare request failed: %s", st.ToStr().c_str() );
     return st;
   }
+
+  if( ( flags & PrepareFlags::Stage ) && response )
+  {
+    std::cout << response->ToString() << '\n';
+  }
+
   delete response;
   return XRootDStatus();
 }
@@ -1576,7 +1624,8 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "                               i - server identification\n"      );
   printf( "                               z - synchronized statistics\n"    );
   printf( "                               l - connection statistics\n"      );
-  printf( "     xattr          <path>   Extended attributes\n\n"            );
+  printf( "     xattr          <path>   Extended attributes\n"            );
+  printf( "     prepare        <reqid> [filenames]  Prepare request status\n\n" );
 
   printf( "   rm <filename>\n"                                              );
   printf( "     Remove a file.\n\n"                                         );
@@ -1587,7 +1636,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   truncate <filename> <length>\n"                               );
   printf( "     Truncate a file.\n\n"                                       );
 
-  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] [-a] filenames\n"   );
+  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] [-a requestid] filenames\n"   );
   printf( "     Prepare one or more files for access.\n"                    );
   printf( "     -c co-locate staged files if possible\n"                    );
   printf( "     -f refresh file access time even if the location is known\n" );

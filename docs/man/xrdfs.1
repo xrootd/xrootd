@@ -158,6 +158,9 @@ l - connection statistics
 .br
 .RE
 \fIxattr\fR          \fB<path>\fR   Extended attributes
+.br
+\fIprepare\fR        \fB<reqid> [filenames]\fR  Prepare request status
+
 
 .RE
 \fBrm\fR \fI<filename>\fR
@@ -175,7 +178,7 @@ Remove a directory.
 Truncate a file.
 
 .RE
-\fBprepare\fR \fI[-c]\fR \fI[-f]\fR \fI[-s]\fR \fI[-w]\fR \fI[-p priority]\fR \fIfilenames\fR
+\fBprepare\fR \fI[-c]\fR \fI[-f]\fR \fI[-s]\fR \fI[-w]\fR \fI[-p priority]\fR \fI[-a requestid]\fR \fIfilenames\fR
 .RS 3
 Prepare one or more files for access.
 .br
