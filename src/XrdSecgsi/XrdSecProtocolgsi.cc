@@ -2896,16 +2896,18 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    // allow to prove authenticity of counter part
    //
    // Generate new random tag and create a bucket
-   String RndmTag;
-   XrdSutRndm::GetRndmTag(RndmTag);
-   //
-   // Get bucket
-   brt = 0;
-   if (!(brt = new XrdSutBucket(RndmTag,kXRS_rtag))) {
-      PRINT("error creating random tag bucket");
-      return -1;
+   if (!(opt == 'c' && step == kXGC_sigpxy)) {
+      String RndmTag;
+      XrdSutRndm::GetRndmTag(RndmTag);
+      //
+      // Get bucket
+      brt = 0;
+      if (!(brt = new XrdSutBucket(RndmTag,kXRS_rtag))) {
+         PRINT("error creating random tag bucket");
+         return -1;
+      }
+      buf->AddBucket(brt);
    }
-   buf->AddBucket(brt);
    //
    // Get cache entry
    if (!hs->Cref) {
@@ -3470,6 +3472,7 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
          return 0;
       }
       delete req;
+      (*bm)->Deactivate(kXRS_x509_req);
 
       // Send back the signed request as bucket
       if ((bck = npxy->Export())) {
