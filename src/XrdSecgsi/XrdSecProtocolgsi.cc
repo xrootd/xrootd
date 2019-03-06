@@ -4801,13 +4801,13 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf, X509Chain 
    // Check existence and permission of the key file
    struct stat st;
    if (stat(pi->key, &st) != 0) {
-      PRINT("cannot access private key file: "<<pi->key);
+      DEBUG("cannot access private key file: "<<pi->key);
       return 1;
    }
    if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
       (st.st_mode & (S_IWGRP | S_IWOTH)) != 0 ||
       (st.st_mode & (S_IRGRP | S_IROTH)) != 0) {
-      PRINT("wrong permissions for file: "<<pi->key<< " (should be 0600)");
+      DEBUG("wrong permissions for file: "<<pi->key<< " (should be 0600)");
       return 1;
    }
     //
