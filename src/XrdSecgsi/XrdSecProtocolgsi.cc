@@ -870,6 +870,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                  UsrProxy = gUsrPxyDef;
                  UsrProxy += "u<uid>";
               }
+              PxyReqOpts |=  kOptsPxFile;
               DEBUG("File template for delegated proxy: "<<UsrProxy);
            }
          }
