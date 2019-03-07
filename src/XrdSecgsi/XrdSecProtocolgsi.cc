@@ -79,6 +79,7 @@ static const char *gsiClientSteps[] = {
    "kXGC_none",
    "kXGC_certreq",
    "kXGC_cert",
+   "kXGC_sigpxy",
    "kXGC_reserved"
 };
 
@@ -86,6 +87,7 @@ static const char *gsiServerSteps[] = {
    "kXGS_none",
    "kXGS_init",
    "kXGS_cert",
+   "kXGS_pxyreq",
    "kXGS_reserved"
 };
 
@@ -868,6 +870,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                  UsrProxy = gUsrPxyDef;
                  UsrProxy += "u<uid>";
               }
+              PxyReqOpts |=  kOptsPxFile;
               DEBUG("File template for delegated proxy: "<<UsrProxy);
            }
          }
@@ -1467,10 +1470,10 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    }
    stepstr = ServerStepStr(step);
    // Dump, if requested
+   XrdOucString bmsg;
    if (QTRACE(Dump)) {
-      XrdOucString msg("IN: ");
-      msg += stepstr;
-      bpar->Dump(msg.c_str());
+      bmsg.form("IN: bpar: %s", stepstr);
+      bpar->Dump(bmsg.c_str());
    }
    //
    // Parse input buffer
@@ -1481,9 +1484,11 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    }
    // Dump, if requested
    if (QTRACE(Dump)) {
-      if (bmai)
-         bmai->Dump("IN: main");
-    }
+      if (bmai) {
+         bmsg.form("IN: bmai: %s", stepstr);
+         bmai->Dump(bmsg.c_str());
+      }
+   }
    //
    // Version
    DEBUG("version run by server: "<< hs->RemVers);
@@ -1655,11 +1660,10 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    int nser = bpar->Serialized(&bser,'f');
 
    if (QTRACE(Authen)) {
-      XrdOucString msg("OUT: ");
-      msg += ClientStepStr(bpar->GetStep());
-      bpar->Dump(msg.c_str());
-      msg.replace(ClientStepStr(bpar->GetStep()), "main");
-      bmai->Dump(msg.c_str());
+      bmsg.form("OUT: bpar: %s", ClientStepStr(bpar->GetStep()));
+      bpar->Dump(bmsg.c_str());
+      bmsg.form("OUT: bmai: %s", ClientStepStr(bpar->GetStep()));
+      bmai->Dump(bmsg.c_str());
    }
    //
    // We may release the buffers now
@@ -1775,10 +1779,10 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    step = bpar->GetStep();
    stepstr = ClientStepStr(step);
    // Dump, if requested
+   XrdOucString bmsg;
    if (QTRACE(Dump)) {
-      XrdOucString msg("IN: ");
-      msg += stepstr;
-      bpar->Dump(msg.c_str());
+      bmsg.form("IN: bpar: %s", stepstr);
+      bpar->Dump(bmsg.c_str());
    }
    //
    // Parse input buffer
@@ -1792,9 +1796,11 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    DEBUG("options req by client: "<< hs->Options);
    //
    // Dump, if requested
-   if (QTRACE(Authen)) {
-      if (bmai)
-         bmai->Dump("IN: main");
+   if (QTRACE(Dump)) {
+      if (bmai) {
+         bmsg.form("IN: bmai: %s", stepstr);
+         bmai->Dump(bmsg.c_str());
+      }
    }
    //
    // Check random challenge
@@ -2152,11 +2158,10 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       //
       // Dump, if requested
       if (QTRACE(Authen)) {
-         XrdOucString msg("OUT: ");
-         msg += ServerStepStr(bpar->GetStep());
-         bpar->Dump(msg.c_str());
-         msg.replace(ServerStepStr(bpar->GetStep()), "main");
-         bmai->Dump(msg.c_str());
+         bmsg.form("OUT: bpar: %s", ServerStepStr(bpar->GetStep()));
+         bpar->Dump(bmsg.c_str());
+         bmsg.form("OUT: bmai: %s", ServerStepStr(bpar->GetStep()));
+         bmai->Dump(bmsg.c_str());
       }
       //
       // Create buffer for client
@@ -2893,16 +2898,18 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    // allow to prove authenticity of counter part
    //
    // Generate new random tag and create a bucket
-   String RndmTag;
-   XrdSutRndm::GetRndmTag(RndmTag);
-   //
-   // Get bucket
-   brt = 0;
-   if (!(brt = new XrdSutBucket(RndmTag,kXRS_rtag))) {
-      PRINT("error creating random tag bucket");
-      return -1;
+   if (!(opt == 'c' && step == kXGC_sigpxy)) {
+      String RndmTag;
+      XrdSutRndm::GetRndmTag(RndmTag);
+      //
+      // Get bucket
+      brt = 0;
+      if (!(brt = new XrdSutBucket(RndmTag,kXRS_rtag))) {
+         PRINT("error creating random tag bucket");
+         return -1;
+      }
+      buf->AddBucket(brt);
    }
-   buf->AddBucket(brt);
    //
    // Get cache entry
    if (!hs->Cref) {
@@ -3467,6 +3474,7 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
          return 0;
       }
       delete req;
+      (*bm)->Deactivate(kXRS_x509_req);
 
       // Send back the signed request as bucket
       if ((bck = npxy->Export())) {
@@ -4793,13 +4801,13 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf, X509Chain 
    // Check existence and permission of the key file
    struct stat st;
    if (stat(pi->key, &st) != 0) {
-      PRINT("cannot access private key file: "<<pi->key);
+      DEBUG("cannot access private key file: "<<pi->key);
       return 1;
    }
    if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
       (st.st_mode & (S_IWGRP | S_IWOTH)) != 0 ||
       (st.st_mode & (S_IRGRP | S_IROTH)) != 0) {
-      PRINT("wrong permissions for file: "<<pi->key<< " (should be 0600)");
+      DEBUG("wrong permissions for file: "<<pi->key<< " (should be 0600)");
       return 1;
    }
     //
