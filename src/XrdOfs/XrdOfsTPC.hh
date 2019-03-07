@@ -88,10 +88,10 @@ struct  iParm {char *Pgm;
                int   Strm;
                int   SMax;
                int   Xmax;
-               char  Grab;
-               char  xEcho;
-               char  autoRM;
-               char  oidsOK;
+               signed char Grab;
+               signed char xEcho;
+               signed char autoRM;
+               signed char oidsOK;
                      iParm() : Pgm(0), Ckst(0), cpath(0), fCreds(0),
                                Dflttl(-1), Maxttl(-1),
                                Logok(-1), Strm(-1), SMax(64), Xmax(-1), Grab(0),
