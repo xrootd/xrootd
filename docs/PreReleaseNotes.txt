@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Allow configurable posc sync level.
   * **[Server]** Implement framework for a kXR_prepare plug-in.
 
 + **Major bug fixes**
