@@ -50,7 +50,7 @@
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdOfsPoscq::XrdOfsPoscq(XrdSysError *erp, XrdOss *oss, const char *fn)
+XrdOfsPoscq::XrdOfsPoscq(XrdSysError *erp, XrdOss *oss, const char *fn, int sv)
 {
    eDest = erp;
    ossFS = oss;
@@ -59,6 +59,10 @@ XrdOfsPoscq::XrdOfsPoscq(XrdSysError *erp, XrdOss *oss, const char *fn)
    pocSZ = 0;
    pocIQ = 0;
    SlotList = SlotLust = 0;
+
+   if (sv > 32767) sv = 32767;
+      else if (sv < 0) sv = 0;
+   pocWS = pocSV = sv-1;
 }
   
 /******************************************************************************/
@@ -286,7 +290,10 @@ int XrdOfsPoscq::reqWrite(void *Buff, int Bsz, int Offs)
 
    do {rc = pwrite(pocFD, Buff, Bsz, Offs);} while(rc < 0 && errno == EINTR);
 
-   if (rc >= 0 && Bsz > 8) rc = fsync(pocFD);
+   if (rc >= 0 && Bsz > 8)
+      {if (!pocWS) {pocWS = pocSV; rc = fsync(pocFD);}
+          else pocWS--;
+      }
 
    if (rc < 0) {eDest->Emsg("reqWrite",errno,"write", pocFN); return 0;}
    return 1;

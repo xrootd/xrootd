@@ -72,7 +72,8 @@ static recEnt *List(XrdSysError *Say, const char *theFN);
 
 inline int     Num() {return pocIQ;}
 
-               XrdOfsPoscq(XrdSysError *erp, XrdOss *oss, const char *fn);
+               XrdOfsPoscq(XrdSysError *erp, XrdOss *oss, const char *fn,
+                           int sv=1);
               ~XrdOfsPoscq() {}
 
 private:
@@ -96,5 +97,9 @@ char        *pocFN;
 int          pocSZ;
 int          pocFD;
 int          pocIQ;
+unsigned
+short        pocWS;
+unsigned
+short        pocSV;
 };
 #endif

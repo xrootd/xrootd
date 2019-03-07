@@ -152,6 +152,7 @@ XrdOfs::XrdOfs()
    poscLog = 0;
    poscHold= 10*60;
    poscAuto= 0;
+   poscSync= 1;
 
 // Set the configuration file name and dummy handle
 //

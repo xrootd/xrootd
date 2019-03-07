@@ -378,8 +378,8 @@ XrdOfsEvs        *evsObject;      //    ->Event Notifier
 XrdOfsPoscq      *poscQ;          //    -> poscQ if  persist on close enabled
 char             *poscLog;        //    -> Directory for posc recovery log
 int               poscHold;       //       Seconds to hold a forced close
-short             poscAuto;       //  1 -> Automatic persist on close
-char              poscRsvd;
+short             poscSync;       //       Number of requests before sync
+signed char       poscAuto;       //  1 -> Automatic persist on close
 
 char              ossRW;          // The oss r/w capability
 

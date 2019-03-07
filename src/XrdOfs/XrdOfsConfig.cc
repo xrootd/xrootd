@@ -495,7 +495,7 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
 
 // Create object then initialize it
 //
-   poscQ = new XrdOfsPoscq(&Eroute, XrdOfsOss, poscLog);
+   poscQ = new XrdOfsPoscq(&Eroute, XrdOfsOss, poscLog, int(poscSync));
    rP = poscQ->Init(rc);
    if (!rc) return 1;
 
@@ -1142,12 +1142,14 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 
    Purpose:  To parse the directive: persist [auto | manual | off]
                                              [hold <sec>] [logdir <dirp>]
+                                             [sync <snum>]
 
              auto      POSC processing always on for creation requests
              manual    POSC processing must be requested (default)
              off       POSC processing is disabled
              <sec>     Seconds inclomplete files held (default 10m)
              <dirp>    Directory to hold POSC recovery log (default adminpath)
+             <snum>    Number of outstanding equests before syncing to disk.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1155,7 +1157,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 {
    char *val;
-   int htime = -1, popt = -2;
+   int snum = -1, htime = -1, popt = -2;
 
    if (!(val = Config.GetWord()))
       {Eroute.Emsg("Config","persist option not specified");return 1;}
@@ -1189,6 +1191,14 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
                   if (poscLog) free(poscLog);
                   poscLog = strdup(val);
                  }
+         else if (!strcmp(val, "sync"))
+                 {if (!(val = Config.GetWord()))
+                     {Eroute.Emsg("Config","sync value not specified");
+                      return 1;
+                     }
+                  if (XrdOuca2x::a2i(Eroute,"sync value",val,&snum,0,32767))
+                      return 1;
+                 }
          else Eroute.Say("Config warning: ignoring invalid persist option '",val,"'.");
          val = Config.GetWord();
         }
@@ -1197,6 +1207,7 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 //
    if (htime >= 0) poscHold = htime;
    if (popt  > -2) poscAuto = popt;
+   if (snum  > -1) poscSync = snum;
    return 0;
 }
 
