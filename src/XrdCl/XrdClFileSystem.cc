@@ -107,7 +107,7 @@ namespace
           return QueueTask( error, 0, handler );
         }
 
-        return QueueTask( new XRootDStatus(), nullptr, handler );
+        return QueueTask( new XRootDStatus(), 0, handler );
       }
 
       static LocalFS& Instance()
