@@ -151,7 +151,7 @@ namespace XrdCl
       act     = handler->Examine( msg );
       exp     = it->second.second;
 
-      if( act & IncomingMsgHandler::Take )
+      if( act & IncomingMsgHandler::RemoveHandler )
         pHandlers.erase( it );
     }
 
