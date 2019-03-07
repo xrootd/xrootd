@@ -1729,7 +1729,7 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
 /*                           d o _ P r o t o c o l                            */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_Protocol()
+int XrdXrootdProtocol::do_Protocol(ServerResponseBody_Protocol *rsp)
 {
    static kXR_int32 verNum = static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION));
    static kXR_int32 theRle = static_cast<kXR_int32>(htonl(myRole));
