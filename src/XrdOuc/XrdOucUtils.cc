@@ -95,7 +95,7 @@ int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
           {delete it->second;
            idMap.erase(it);
           } else {
-           if (blen > 0) luRet = snprintf(buff, blen, it->second->Name);
+           if (blen > 0) luRet = snprintf(buff, blen, "%s", it->second->Name);
           }
       }
    idMutex.UnLock();
