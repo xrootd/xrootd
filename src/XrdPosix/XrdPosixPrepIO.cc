@@ -87,8 +87,10 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
    if (!Status.IsOK())
       {XrdPosixMap::Result(Status);
        openRC = -errno;
-       if (errno != ENOENT && errno != ELOOP)
-          {DEBUG(Status.ToString().c_str()<<" deferred open "<<fileP->Origin());}
+       if (DEBUGON && errno != ENOENT && errno != ELOOP)
+          {std::string eTxt = Status.ToString();
+           DEBUG(eTxt<<" deferred open "<<fileP->Origin());
+          }
        return false;
       }
 

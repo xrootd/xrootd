@@ -154,6 +154,7 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
    EPNAME("DDestroy");
 
    XrdCl::XRootDStatus Status;
+   std::string statusMsg;
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
    int ddCount;
@@ -188,8 +189,10 @@ do{if (doWait)
         {fNext = fCurr->nextFile;
          if (!((ioActive = fCurr->XCio->ioActive())) && !fCurr->Refs())
             {if (fCurr->Close(Status)) {delete fCurr; ddCount--; continue;}
-                else eTxt = Status.ToString().c_str();
-            } else   eTxt = (ioActive ? "active I/O" : "callback");
+                else {statusMsg = Status.ToString();
+                      eTxt = statusMsg.c_str();
+                     }
+            } else    eTxt = (ioActive ? "active I/O" : "callback");
 
          if (fCurr->numTries > XrdPosixGlobals::ddMaxTries)
             {XrdPosixGlobals::ddNumLost++; ddCount--;
