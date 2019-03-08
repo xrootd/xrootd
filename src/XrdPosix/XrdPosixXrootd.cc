@@ -269,7 +269,10 @@ int XrdPosixXrootd::Close(int fildes)
 //
    if (!(fP->XCio->ioActive()) && !fP->Refs())
       {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
-          else {DEBUG(Status.ToString().c_str() <<" closing " <<fP->Origin());}
+          else if (DEBUGON)
+                  {std::string eTxt = Status.ToString();
+                   DEBUG(eTxt <<" closing " <<fP->Origin());
+                  }
       } else ret = true;
 
 // If we still have a handle then we need to do a delayed delete on this
@@ -597,8 +600,10 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
    if (!Status.IsOK())
       {XrdPosixMap::Result(Status);
        int rc = errno;
-       if (rc != ENOENT && rc != ELOOP)
-          {DEBUG(Status.ToString().c_str() <<" open " <<fp->Origin());}
+       if (DEBUGON && rc != ENOENT && rc != ELOOP)
+          {std::string eTxt = Status.ToString();
+           DEBUG(eTxt <<" open " <<fp->Origin());
+          }
        delete fp;
        errno = rc;
        return -1;
