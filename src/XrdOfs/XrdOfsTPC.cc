@@ -135,7 +135,7 @@ int XrdOfsTPCAllow::Match(const XrdSecEntity *Who, const char *Host)
    if (Who->grps)
       {char gBuff[1028], Group[64];
        strlcpy(gBuff+1, Who->grps, sizeof(gBuff)-1); *gBuff = ' ';
-       strlcpy(Group+1, theGN, sizeof(Group));       *Group = ' ';
+       strlcpy(Group+1, theGN, sizeof(Group)-1);     *Group = ' ';
        return strstr(gBuff, Group) != 0;
       } else return 0;
    return 1;
