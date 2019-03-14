@@ -215,6 +215,8 @@ int XrdHttpReq::parseLine(char *line, int len) {
 
     } else if (!strcmp(key, "Expect") && strstr(val, "100-continue")) {
       sendcontinue = true;
+    } else if (!strcasecmp(key, "Transfer-Encoding") && strstr(val, "chunked")) {
+      m_transfer_encoding_chunked = true;
     } else {
       // Some headers need to be translated into "local" cgi info. In theory they should already be quoted
       std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
@@ -2069,6 +2071,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
       if (!fopened) {
 
+        // We do not support chunked transfer encoding.
+        if (m_transfer_encoding_chunked) {
+          prot->SendSimpleResp(501, "Not Implemented", NULL, NULL, 0, false);
+          return -1;
+        }
+
         if (xrdresp != kXR_ok) {
 
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
@@ -2480,6 +2488,7 @@ void XrdHttpReq::reset() {
   depth = 0;
   sendcontinue = false;
 
+  m_transfer_encoding_chunked = false;
 
   /// State machine to talk to the bridge
   reqstate = 0;
