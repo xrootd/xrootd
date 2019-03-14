@@ -80,6 +80,9 @@ private:
   int httpStatusCode;
   std::string httpStatusText;
 
+  // Whether transfer encoding was requested.
+  bool m_transfer_encoding_chunked;
+
   int parseContentRange(char *);
   int parseHost(char *);
   int parseRWOp(char *);
