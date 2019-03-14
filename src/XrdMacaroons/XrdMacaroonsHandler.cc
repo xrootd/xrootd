@@ -106,6 +106,7 @@ Handler::~Handler()
 
 std::string
 Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
+                    const std::vector<std::string> &other_caveats,
                     const std::string &before)
 {
     uuid_t uu;
@@ -123,7 +124,15 @@ Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
     if (entity.role) {ss << "role=" << entity.role << ", ";}
     if (entity.grps) {ss << "groups=" << entity.grps << ", ";}
     if (entity.endorsements) {ss << "endorsements=" << entity.endorsements << ", ";}
-    if (activities.size()) {ss << "activity=" << activities << ", ";}
+    if (activities.size()) {ss << "base_activities=" << activities << ", ";}
+
+    for (std::vector<std::string>::const_iterator iter = other_caveats.begin();
+         iter != other_caveats.end();
+         iter++)
+    {
+        ss << "user_caveat=" << *iter << ", ";
+    }
+
     ss << "expires=" << before;
 
     m_log->Emsg("MacaroonGen", ss.str().c_str());
@@ -416,7 +425,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     std::string utc_time_caveat = ss.str();
 
     std::string activities = GenerateActivities(req);
-    std::string macaroon_id = GenerateID(req.GetSecEntity(), activities, utc_time_str);
+    std::string macaroon_id = GenerateID(req.GetSecEntity(), activities, other_caveats, utc_time_str);
     enum macaroon_returncode mac_err;
 
     struct macaroon *mac = macaroon_create(reinterpret_cast<const unsigned char*>(m_location.c_str()),
