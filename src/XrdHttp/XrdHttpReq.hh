@@ -82,6 +82,8 @@ private:
 
   // Whether transfer encoding was requested.
   bool m_transfer_encoding_chunked;
+  long long m_current_chunk_offset;
+  long long m_current_chunk_size;
 
   int parseContentRange(char *);
   int parseHost(char *);
