@@ -927,17 +927,17 @@ int XrdHttpReq::ProcessHTTPReq() {
   
   
   // Verify if we have an external handler for this request
+  if (reqstate == 0) {
+    XrdHttpExtHandler *exthandler = prot->FindMatchingExtHandler(*this);
+    if (exthandler) {
+      XrdHttpExtReq xreq(this, prot);
+      int r = exthandler->ProcessReq(xreq);
+      reset();
+      if (!r) return 1; // All went fine, response sent
+      if (r < 0) return -1; // There was a hard error... close the connection
 
-  XrdHttpExtHandler *exthandler = prot->FindMatchingExtHandler(*this);
-  if (exthandler) {
-    XrdHttpExtReq xreq(this, prot);
-    int r = exthandler->ProcessReq(xreq);
-    reset();
-    if (!r) return 1; // All went fine, response sent
-    if (r < 0) return -1; // There was a hard error... close the connection
-    
-    return 1; // There was an error and a response was sent
-    
+      return 1; // There was an error and a response was sent
+    }
   }
   
   /// If we have to add extra header information, add it here.
