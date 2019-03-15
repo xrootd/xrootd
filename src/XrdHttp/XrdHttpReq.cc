@@ -1264,12 +1264,14 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.write.requestid = htons(kXR_write);
           memcpy(xrdreq.write.fhandle, fhandle, 4);
 
+          long long bytes_to_read = min(static_cast<long long>(prot->BuffUsed()),
+                                        length - writtenbytes);
 
           xrdreq.write.offset = htonll(writtenbytes);
-          xrdreq.write.dlen = htonl(prot->BuffUsed());
+          xrdreq.write.dlen = htonl(bytes_to_read);
 
-          TRACEI(REQ, "Writing " << prot->BuffUsed());
-          if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, prot->BuffUsed())) {
+          TRACEI(REQ, "Writing " << bytes_to_read);
+          if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_read)) {
             prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run write request.", 0, false);
             return -1;
           }
