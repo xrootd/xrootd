@@ -11,6 +11,7 @@ Prerelease Notes
   * **[POSIX]** Fix VMP issues with POSIX preload library causing SEGV.
 
 + **Minor bug fixes**
+  * **[Server]** Fix bridge waitResp issues to allow merge of pull #902.
 
 + **Miscellaneous**
 
