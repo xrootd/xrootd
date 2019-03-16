@@ -876,7 +876,7 @@ int XrdXrootdProtocol::do_Login()
       {if (Request.login.username[i] == '\0' ||
            Request.login.username[i] == ' ') break;
        uname[i] = Request.login.username[i];
-       if (!isalnum(uname[i])) uname[i] = '_';
+       if (!isprint(uname[i])) uname[i] = '_';
       }
    uname[i] = '\0';
 
