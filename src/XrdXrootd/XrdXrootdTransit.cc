@@ -116,7 +116,6 @@ int XrdXrootdTransit::Attn(XrdLink *lP, short *theSID, int rcode,
 int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
                                const struct iovec *ioV, int ioN, int ioL)
 {
-   XrdLink *theLink = tP->link;
    int rc;
 
 // Refresh the request structure
@@ -137,18 +136,16 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
 //
    rc = Send(rcode, ioV, ioN, ioL);
 
-// If no wait needed, enable the link. Otherwise, handle the wait (rare)
+// Handle end based on current state
 //
-   if (rc >= 0)
-      {if (runDone && !runWait)
+   if (rc >= 0 && !runWait)
+      {if (runDone)
           {AtomicBeg(runMutex);
            AtomicZAP(runStatus);
            AtomicEnd(runMutex);
-           theLink->Enable();
-          } else {
-           if (runWait >= 0)
-              Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
           }
+       if (reInvoke) Sched->Schedule((XrdJob *)&respJob);
+           else Link->Enable();
       }
 
 // All done
@@ -322,21 +319,34 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
 }
   
 /******************************************************************************/
+/*                               P r o c e e d                                */
+/******************************************************************************/
+  
+void XrdXrootdTransit::Proceed()
+{
+   int rc;
+
+// If we were interrupted in a reinvoke state, resume that state.
+//
+   if (reInvoke) rc = Process(Link);
+      else rc = 0;
+
+// Handle ending status
+//
+   if (rc >= 0) Link->Enable();
+      else if (rc != -EINPROGRESS) Link->Close();
+}
+  
+/******************************************************************************/
 /*                               P r o c e s s                                */
 /******************************************************************************/
   
 int XrdXrootdTransit::Process(XrdLink *lp)
 {
-   int rc, bridgeActive;
+   int rc;
 
-// This entry is serialized via link processing. First, get the run status.
-//
-   AtomicBeg(runMutex);
-   bridgeActive = AtomicGet(runStatus);
-   AtomicEnd(runMutex);
-
-// If we are running then we need to reflect this to the xrootd protocol as
-// data is now available. One of the following will be returned.
+// This entry is serialized via link processing and data is now available.
+// One of the following will be returned.
 //
 // < 0 -> Stop getting requests,
 //        -EINPROGRESS leave link disabled but otherwise all is well
@@ -344,20 +354,6 @@ int XrdXrootdTransit::Process(XrdLink *lp)
 // = 0 -> OK, get next request, if allowed, o/w enable the link
 // > 0 -> Slow link, stop getting requests  and enable the link
 //
-   if (bridgeActive)
-      {rc = XrdXrootdProtocol::Process(lp);
-       if (rc < 0) return rc;
-       if (runWait)
-          {if (runWait >= 0)
-              Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
-           return -EINPROGRESS;
-          }
-       if (!runDone) return rc;
-       AtomicBeg(runMutex);
-       AtomicZAP(runStatus);
-       AtomicEnd(runMutex);
-       if (!reInvoke) return 1;
-      }
 
 // Reflect data is present to the underlying protocol and if Run() has been
 // called we need to dispatch that request. This may be iterative.
@@ -369,11 +365,7 @@ do{rc = realProt->Process((reInvoke ? 0 : lp));
           else {runDone = false;
                 rc = (Resume ? XrdXrootdProtocol::Process(lp) : Process2());
                 if (rc >= 0)
-                   {if (runWait)
-                       {if (runWait >= 0)
-                           Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
-                        return -EINPROGRESS;
-                       }
+                   {if (runWait) rc = -EINPROGRESS;
                     if (!runDone) return rc;
                     AtomicBeg(runMutex);
                     AtomicZAP(runStatus);
@@ -394,61 +386,6 @@ do{rc = realProt->Process((reInvoke ? 0 : lp));
 // All done
 //
    return (rc ? rc : 1);
-}
-
-/******************************************************************************/
-  
-int XrdXrootdTransit::Process()
-{
-   static int  eCode         = htonl(kXR_NoMemory);
-   static char eText[]       = "Insufficent memory to re-issue request";
-   static struct iovec ioV[] = {{(char *)&eCode,sizeof(eCode)},
-                                {(char *)&eText,sizeof(eText)}};
-   int rc;
-
-// Update wait statistics
-//
-   runWTot += runWait;
-   runWait = 0;
-
-// While we are running asynchronously, there is no way that this object can
-// be deleted while a timer is outstanding as the link has been disabled. So,
-// we can reissue the request with little worry.
-//
-   if (!runALen || RunCopy(runArgs, runALen)) {
-      do{rc = Process2();
-        if (rc == 0) {
-          rc = realProt->Process(NULL);
-        }
-      } while((rc == 0) && !runError && !runWait);
-   }
-      else rc = Send(kXR_error, ioV, 2, 0);
-
-// Defer the request if need be
-//
-   if (rc >= 0 && runWait)
-      {if (runWait > 0) Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
-       return 0;
-      }
-   runWTot = 0;
-
-// Indicate we are no longer active
-//
-   if (runStatus)
-      {AtomicBeg(runMutex);
-       AtomicZAP(runStatus);
-       AtomicEnd(runMutex);
-      }
-
-// If the link needs to be terminated, terminate the link. Otherwise, we can
-// enable the link for new requests at this point.
-//
-   if (rc < 0) Link->Close();
-      else     Link->Enable();
-
-// All done
-//
-   return 0;
 }
 
 /******************************************************************************/
@@ -489,6 +426,56 @@ void XrdXrootdTransit::Recycle(XrdLink *lp, int consec, const char *reason)
 // Now just free up our object.
 //
    TranStack.Push(&TranLink);
+}
+
+/******************************************************************************/
+/*                               R e d r i v e                                */
+/******************************************************************************/
+  
+void XrdXrootdTransit::Redrive()
+{
+   static int  eCode         = htonl(kXR_NoMemory);
+   static char eText[]       = "Insufficent memory to re-issue request";
+   static struct iovec ioV[] = {{(char *)&eCode,sizeof(eCode)},
+                                {(char *)&eText,sizeof(eText)}};
+   int rc;
+
+// Update wait statistics
+//
+   runWTot += runWait;
+   runWait = 0;
+
+// While we are running asynchronously, there is no way that this object can
+// be deleted while a timer is outstanding as the link has been disabled. So,
+// we can reissue the request with little worry.
+//
+   if (!runALen || RunCopy(runArgs, runALen)) {
+      do{rc = Process2();
+        if (rc == 0) {
+          rc = realProt->Process(NULL);
+        }
+      } while((rc == 0) && !runError && !runWait);
+   }
+      else rc = Send(kXR_error, ioV, 2, 0);
+
+// Defer the request if need be
+//
+   if (rc >= 0 && runWait) return;
+   runWTot = 0;
+
+// Indicate we are no longer active
+//
+   if (runStatus)
+      {AtomicBeg(runMutex);
+       AtomicZAP(runStatus);
+       AtomicEnd(runMutex);
+      }
+
+// If the link needs to be terminated, terminate the link. Otherwise, we can
+// enable the link for new requests at this point.
+//
+   if (rc < 0) Link->Close();
+      else     Link->Enable();
 }
 
 /******************************************************************************/
@@ -772,9 +759,10 @@ int XrdXrootdTransit::Wait(XrdXrootd::Bridge::Context &rInfo,
 //
    if (runWCall && !(respObj->Wait(rInfo, runWait, eMsg))) return -1;
 
-// All done, the process driver will effect the wait
+// All done, schedule the wait
 //
    TRACEP(REQ, "Bridge delaying request " <<runWait <<" sec (" <<eMsg <<")");
+   Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
    return 0;
 }
 

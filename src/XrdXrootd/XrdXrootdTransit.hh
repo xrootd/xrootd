@@ -85,16 +85,16 @@ bool          Disc();
 static void Init(XrdScheduler *schedP, int qMax, int qTTL);
 
 //-----------------------------------------------------------------------------
+//! Resume processing after a waitresp completion.
+//-----------------------------------------------------------------------------
+
+void          Proceed();
+
+//-----------------------------------------------------------------------------
 //! Handle link activation (replaces parent activation).
 //-----------------------------------------------------------------------------
 
-int           Process(XrdLink *lp);
-
-//-----------------------------------------------------------------------------
-//! Handle protocol redrive after wait.
-//-----------------------------------------------------------------------------
-
-int           Process();
+int           Process(XrdLink *lp); // XrdProtocol override
 
 //-----------------------------------------------------------------------------
 //! Handle link shutdown.
@@ -103,10 +103,10 @@ int           Process();
 void          Recycle(XrdLink *lp, int consec, const char *reason);
 
 //-----------------------------------------------------------------------------
-//! Reissue a request after a wait
+//! Redrive a request after a wait
 //-----------------------------------------------------------------------------
 
-void          Reissue();
+void          Redrive();
 
 //-----------------------------------------------------------------------------
 //! Initialize the valid request table.
@@ -156,7 +156,12 @@ void          SetWait(int wtime, bool notify=false)
 //! Constructor & Destructor
 //-----------------------------------------------------------------------------
 
-              XrdXrootdTransit() : TranLink(this), waitJob(this) {}
+              XrdXrootdTransit() : TranLink(this),
+                                   respJob(this, &XrdXrootdTransit::Proceed,
+                                           "Transit proceed"),
+                                   waitJob(this, &XrdXrootdTransit::Redrive,
+                                           "Transit redrive")
+                                 {}
 virtual      ~XrdXrootdTransit() {}
 
 private:
@@ -174,22 +179,24 @@ int   Wait(XrdXrootd::Bridge::Context &rInfo,
 int   WaitResp(XrdXrootd::Bridge::Context &rInfo,
                const struct iovec *ioV, int ioN, int ioL);
 
-class WaitReq : public XrdJob
+class SchedReq : public XrdJob
      {public:
-      void DoIt() {spanP->Process();}
+      typedef void (XrdXrootdTransit::*callbackFP)();
+      void DoIt() {(spanP->*cbFunc)();}
 
-           WaitReq(XrdXrootdTransit *tP)
-                  : XrdJob("Transit Redrive"), spanP(tP)
-                     {}
-          ~WaitReq() {}
+           SchedReq(XrdXrootdTransit *tP, callbackFP cbP, const char *why)
+                   : XrdJob(why), spanP(tP), cbFunc(cbP) {}
+          ~SchedReq() {}
       private:
       XrdXrootdTransit *spanP;
+      callbackFP        cbFunc;
      };
 
 static XrdObjectQ<XrdXrootdTransit> TranStack;
 XrdObject<XrdXrootdTransit>         TranLink;
 
-WaitReq                      waitJob;
+SchedReq                     respJob;
+SchedReq                     waitJob;
 XrdSysMutex                  runMutex;
 static const char           *reqTab;
 XrdProtocol                 *realProt;
