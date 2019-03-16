@@ -48,8 +48,8 @@ public:
         std::string &location, std::string &secret, ssize_t &max_duration);
 
 private:
-    std::string GenerateID(const XrdSecEntity &, const std::string &, const std::vector<std::string> &, const std::string &);
-    std::string GenerateActivities(const XrdHttpExtReq &) const;
+    std::string GenerateID(const std::string &, const XrdSecEntity &, const std::string &, const std::vector<std::string> &, const std::string &);
+    std::string GenerateActivities(const XrdHttpExtReq &, const std::string &) const;
 
     int ProcessOAuthConfig(XrdHttpExtReq &req);
     int ProcessTokenRequest(XrdHttpExtReq& req);

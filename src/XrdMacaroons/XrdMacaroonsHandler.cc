@@ -105,7 +105,9 @@ Handler::~Handler()
 
 
 std::string
-Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
+Handler::GenerateID(const std::string &resource,
+                    const XrdSecEntity &entity,
+                    const std::string &activities,
                     const std::vector<std::string> &other_caveats,
                     const std::string &before)
 {
@@ -117,6 +119,7 @@ Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
 
     std::stringstream ss;
     ss << "ID=" << result << ", ";
+    ss << "resource=" << resource << ", ";
     if (entity.prot[0] != '\0') {ss << "protocol=" << entity.prot << ", ";}
     if (entity.name) {ss << "name=" << entity.name << ", ";}
     if (entity.host) {ss << "host=" << entity.host << ", ";}
@@ -141,11 +144,11 @@ Handler::GenerateID(const XrdSecEntity &entity, const std::string &activities,
 
 
 std::string
-Handler::GenerateActivities(const XrdHttpExtReq & req) const
+Handler::GenerateActivities(const XrdHttpExtReq & req, const std::string &resource) const
 {
     std::string result = "activity:READ_METADATA";
     // TODO - generate environment object that includes the Authorization header.
-    XrdAccPrivs privs = m_chain ? m_chain->Access(&req.GetSecEntity(), req.resource.c_str(), AOP_Any, NULL) : XrdAccPriv_None;
+    XrdAccPrivs privs = m_chain ? m_chain->Access(&req.GetSecEntity(), resource.c_str(), AOP_Any, NULL) : XrdAccPriv_None;
     if ((privs & XrdAccPriv_Create) == XrdAccPriv_Create) {result += ",UPLOAD";}
     if (privs & XrdAccPriv_Read) {result += ",DOWNLOAD";}
     if (privs & XrdAccPriv_Delete) {result += ",DELETE";}
@@ -309,7 +312,20 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
     {
         path = "/";
     }
-    return GenerateMacaroonResponse(req, path, other_caveats, validity, true);
+    std::vector<std::string> other_caveats_final;
+    if (!other_caveats.empty()) {
+        std::stringstream ss;
+        ss << "activity:";
+        for (std::vector<std::string>::const_iterator iter = other_caveats.begin();
+             iter != other_caveats.end();
+             iter++)
+        {
+            ss << *iter << ",";
+        }
+        const std::string &final_str = ss.str();
+        other_caveats_final.push_back(final_str.substr(0, final_str.size() - 1));
+    }
+    return GenerateMacaroonResponse(req, path, other_caveats_final, validity, true);
 }
 
 
@@ -424,8 +440,8 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     ss << "before:" << utc_time_str;
     std::string utc_time_caveat = ss.str();
 
-    std::string activities = GenerateActivities(req);
-    std::string macaroon_id = GenerateID(req.GetSecEntity(), activities, other_caveats, utc_time_str);
+    std::string activities = GenerateActivities(req, resource);
+    std::string macaroon_id = GenerateID(resource, req.GetSecEntity(), activities, other_caveats, utc_time_str);
     enum macaroon_returncode mac_err;
 
     struct macaroon *mac = macaroon_create(reinterpret_cast<const unsigned char*>(m_location.c_str()),
