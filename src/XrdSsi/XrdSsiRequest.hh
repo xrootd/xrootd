@@ -269,6 +269,16 @@ virtual void    RelRequestBuffer() {}
 inline void     SetDetachTTL(uint32_t dttl) {detTTL = dttl;}
 
 //-----------------------------------------------------------------------------
+//! Set request retry notification. If a non-default value is desired, it must
+//! be set prior to calling XrdSsiService::ProcessRequest(). This is a one-time
+//! request and retry mode is turned off in the request object afterwards.
+//!
+//! @param onoff   True to turn retry on and false to turn it off.
+//-----------------------------------------------------------------------------
+
+       void     SetRetry(bool onoff);
+
+//-----------------------------------------------------------------------------
 //! Set timeout for initiating the request. If a non-default value is desired,
 //! it must be set prior to calling XrdSsiService::ProcessRequest().
 //!
@@ -302,6 +312,7 @@ const char      *epNode;
 uint32_t         detTTL;
 uint16_t         tOut;
 bool             onClient;
-char             rsvd2;
+char             flags;
+static const int isaRetry = 1;
 };
 #endif

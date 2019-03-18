@@ -47,6 +47,14 @@ static void            Dispose(XrdSsiRequest &reqR) {reqR.Dispose();}
 
 static XrdSsiErrInfo  &ErrInfoRef(XrdSsiRequest *rP) {return rP->errInfo;}
 
+static bool            isaRetry(XrdSsiRequest *rP)
+                               {if (rP->flags & XrdSsiRequest::isaRetry)
+                                   {rP->flags &= ~XrdSsiRequest::isaRetry;
+                                    return true;
+                                   }
+                                return false;
+                               }
+
 static void            onServer(XrdSsiRequest *rP) {rP->onClient = false;}
 
 static XrdSsiRequest  *Request(XrdSsiResponder *rP) {return rP->reqP;}

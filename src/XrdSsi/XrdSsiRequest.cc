@@ -52,7 +52,7 @@ XrdSsiMutex ubMutex(XrdSsiMutex::Recursive);
 XrdSsiRequest::XrdSsiRequest(const char *reqid, uint16_t tmo)
                             : reqID(reqid), rrMutex(&XrdSsi::ubMutex),
                               theRespond(0), rsvd1(0), epNode(0),
-                              detTTL(0), tOut(0), onClient(true), rsvd2(0) {}
+                              detTTL(0), tOut(0), onClient(true), flags(0) {}
   
 /******************************************************************************/
 /* Private:                     C l e a n U p                                */
@@ -184,4 +184,17 @@ void XrdSsiRequest::ReleaseRequestBuffer()
 {
    XrdSsiMutexMon lck(rrMutex);
    RelRequestBuffer();
+}
+
+/******************************************************************************/
+/*                              S e t R e t r y                               */
+/******************************************************************************/
+  
+void XrdSsiRequest::SetRetry(bool onoff)
+{
+
+// Set flag as needed
+//
+if (onoff) flags |=  isaRetry;
+   else    flags &= ~isaRetry;
 }

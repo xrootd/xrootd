@@ -227,12 +227,17 @@ bool XrdSsiSessReal::Provision(XrdSsiRequest *reqP, const char *epURL)
    EPNAME("Provision");
    XrdCl::XRootDStatus epStatus;
    XrdSsiMutexMon rHelp(&sessMutex);
+   XrdCl::OpenFlags::Flags oFlags = XrdCl::OpenFlags::Read;
+
+// Set retry flag as appropriate
+//
+   if (XrdSsiRRAgent::isaRetry(reqP)) oFlags |= XrdCl::OpenFlags::Refresh;
 
 // Issue the open and if the open was started, return success.
 //
    DEBUG("Provisioning " <<epURL);
-   epStatus = epFile.Open((const std::string)epURL,
-                          XrdCl::OpenFlags::Read, (XrdCl::Access::Mode)0,
+   epStatus = epFile.Open((const std::string)epURL, oFlags,
+                          (XrdCl::Access::Mode)0,
                           (XrdCl::ResponseHandler *)this,
                           reqP->GetTimeOut());
 
