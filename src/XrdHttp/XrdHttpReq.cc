@@ -927,17 +927,17 @@ int XrdHttpReq::ProcessHTTPReq() {
   
   
   // Verify if we have an external handler for this request
+  if (reqstate == 0) {
+    XrdHttpExtHandler *exthandler = prot->FindMatchingExtHandler(*this);
+    if (exthandler) {
+      XrdHttpExtReq xreq(this, prot);
+      int r = exthandler->ProcessReq(xreq);
+      reset();
+      if (!r) return 1; // All went fine, response sent
+      if (r < 0) return -1; // There was a hard error... close the connection
 
-  XrdHttpExtHandler *exthandler = prot->FindMatchingExtHandler(*this);
-  if (exthandler) {
-    XrdHttpExtReq xreq(this, prot);
-    int r = exthandler->ProcessReq(xreq);
-    reset();
-    if (!r) return 1; // All went fine, response sent
-    if (r < 0) return -1; // There was a hard error... close the connection
-    
-    return 1; // There was an error and a response was sent
-    
+      return 1; // There was an error and a response was sent
+    }
   }
   
   /// If we have to add extra header information, add it here.
@@ -1284,8 +1284,89 @@ int XrdHttpReq::ProcessHTTPReq() {
 
       } else {
 
-        // Check if we have finished
-        if (writtenbytes < length) {
+        if (m_transfer_encoding_chunked) {
+          if (m_current_chunk_size == m_current_chunk_offset) {
+            // Chunk has been consumed; we now must process the CRLF.
+            // Note that we don't support trailer headers.
+            if (prot->BuffUsed() < 2) return 1;
+            if (prot->myBuffStart[0] != '\r' || prot->myBuffStart[1] != '\n') {
+              prot->SendSimpleResp(400, NULL, NULL, (char *) "Invalid trailing chunk encoding.", 0, keepalive);
+              return -1;
+            }
+            prot->BuffConsume(2);
+            if (m_current_chunk_size == 0) {
+              // All data has been sent.  Turn off chunk processing and
+              // set the bytes written and length appropriately; on next callback,
+              // we will hit the close() block below.
+              m_transfer_encoding_chunked = false;
+              length = writtenbytes;
+              return ProcessHTTPReq();
+            }
+            m_current_chunk_size = -1;
+            m_current_chunk_offset = 0;
+            // If there is more data, we try to process the next chunk; otherwise, return
+            if (!prot->BuffUsed()) return 1;
+          }
+          if (-1 == m_current_chunk_size) {
+
+              // Parse out the next chunk size.
+            long long idx = 0;
+            bool found_newline = false;
+            for (; idx < prot->BuffAvailable(); idx++) {
+              if (prot->myBuffStart[idx] == '\n') {
+                found_newline = true;
+                break;
+              }
+            }
+            if ((idx == 0) || prot->myBuffStart[idx-1] != '\r') {
+              prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
+              return -1;
+            }
+            if (found_newline) {
+              char *endptr = NULL;
+              std::string line_contents(prot->myBuffStart, idx);
+              long long chunk_contents = strtol(line_contents.c_str(), &endptr, 16);
+                // Chunk sizes can be followed by trailer information or CRLF
+              if (*endptr != ';' && *endptr != '\r') {
+                prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
+                return -1;
+              }
+              m_current_chunk_size = chunk_contents;
+              m_current_chunk_offset = 0;
+              prot->BuffConsume(idx + 1);
+              TRACE(REQ, "XrdHTTP PUT: next chunk from client will be " << m_current_chunk_size << " bytes");
+            } else {
+                // Need more data!
+              return 1;
+            }
+          }
+
+          if (m_current_chunk_size == 0) {
+            // All data has been sent.  Invoke this routine again immediately to process CRLF
+            return ProcessHTTPReq();
+          } else {
+            // At this point, we have a chunk size defined and should consume payload data
+            memset(&xrdreq, 0, sizeof (xrdreq));
+            xrdreq.write.requestid = htons(kXR_write);
+            memcpy(xrdreq.write.fhandle, fhandle, 4);
+
+            long long chunk_bytes_remaining = m_current_chunk_size - m_current_chunk_offset;
+            long long bytes_to_write = min(static_cast<long long>(prot->BuffUsed()),
+                                           chunk_bytes_remaining);
+
+            xrdreq.write.offset = htonll(writtenbytes);
+            xrdreq.write.dlen = htonl(bytes_to_write);
+
+            TRACEI(REQ, "Writing chunk of size " << bytes_to_write << " starting with '" << *(prot->myBuffStart) << "'");
+            if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_write)) {
+              prot->SendSimpleResp(500, NULL, NULL, (char *) "Could not run write request.", 0, false);
+              return -1;
+            }
+            // If there are more bytes in the buffer, then immediately call us after the
+            // write is finished; otherwise, wait for data.
+            return (prot->BuffUsed() > chunk_bytes_remaining) ? 0 : 1;
+          }
+        } else if (writtenbytes < length) {
 
 
           // --------- WRITE
@@ -2100,12 +2181,6 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
       if (!fopened) {
 
-        // We do not support chunked transfer encoding.
-        if (m_transfer_encoding_chunked) {
-          prot->SendSimpleResp(501, "Not Implemented", NULL, NULL, 0, false);
-          return -1;
-        }
-
         if (xrdresp != kXR_ok) {
 
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
@@ -2137,6 +2212,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           // Consume the written bytes
           prot->BuffConsume(ntohl(xrdreq.write.dlen));
           writtenbytes += l;
+
+          // Update the chunk offset
+          if (m_transfer_encoding_chunked) {
+            m_current_chunk_offset += l;
+          }
 
           // We try to completely fill up our buffer before flushing
           prot->ResumeBytes = min(length - writtenbytes, (long long) prot->BuffAvailable());
@@ -2518,6 +2598,8 @@ void XrdHttpReq::reset() {
   sendcontinue = false;
 
   m_transfer_encoding_chunked = false;
+  m_current_chunk_size = -1;
+  m_current_chunk_offset = 0;
 
   /// State machine to talk to the bridge
   reqstate = 0;
