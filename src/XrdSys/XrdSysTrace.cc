@@ -91,7 +91,7 @@ XrdSysTrace& XrdSysTrace::Beg(const char *usr,
 /*                                   E n d                                    */
 /******************************************************************************/
   
-XrdSysTrace *XrdSysTrace::End()
+XrdSysTrace& XrdSysTrace::operator<<(XrdSysTrace *val)
 {
 
 // Make sure and endline character appears
@@ -110,7 +110,7 @@ XrdSysTrace *XrdSysTrace::End()
 // All done
 //
    myMutex.UnLock();
-   return this;
+   return *this;
 }
 
 /******************************************************************************/

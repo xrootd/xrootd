@@ -51,7 +51,7 @@ public:
 
 XrdSysTrace& Beg(const char *usr=0, const char *epn=0, const char *txt=0);
 
-XrdSysTrace *End();
+XrdSysTrace *End() {return this;}
 
 void         SetLogger(XrdSysLogger *logp) {logP = logp;}
 
@@ -90,7 +90,7 @@ XrdSysTrace& operator<<(Xrd::Fmt val)
                         return *this;
                        }
 
-XrdSysTrace& operator<<(XrdSysTrace *stp) {return *stp;}
+XrdSysTrace& operator<<(XrdSysTrace *stp);
 
              XrdSysTrace(const char *pfx, XrdSysLogger *logp=0, int tf=0)
                         : What(tf), logP(logp), iName(pfx), dPnt(0),
