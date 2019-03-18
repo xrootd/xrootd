@@ -40,7 +40,7 @@
 #define QTRACE(act) Trace.What & TRACESSI_ ## act
 
 #define DEBUG(y) if (Trace.What & TRACESSI_Debug) \
-                 {Trace.Beg(tident, epname) <<y; Trace.End();}
+                    SYSTRACE(Trace., tident, epname, 0, y)
 
 #define EPNAME(x) static const char *epname = x;
 

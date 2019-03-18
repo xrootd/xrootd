@@ -36,8 +36,7 @@
 
 #include "XrdSys/XrdSysTrace.hh"
 
-#define DMSG(x,y) {XrdPosixGlobals::Trace.Beg(0, x) <<y; \
-                   XrdPosixGlobals::Trace.End();}
+#define DMSG(x,y) SYSTRACE(XrdPosixGlobals::Trace. , 0, x, 0, y)
 
 #define DEBUGON (XrdPosixGlobals::Trace.What & TRACE_Debug)
 

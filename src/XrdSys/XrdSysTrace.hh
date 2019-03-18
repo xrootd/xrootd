@@ -42,13 +42,16 @@ namespace Xrd
 enum Fmt {dec=0, hex};
 }
 
+#define SYSTRACE(obj, usr, epn, txt, dbg) \
+        obj Beg(usr, epn, txt) <<dbg <<obj End();
+
 class XrdSysTrace
 {
 public:
 
 XrdSysTrace& Beg(const char *usr=0, const char *epn=0, const char *txt=0);
 
-void         End();
+XrdSysTrace *End();
 
 void         SetLogger(XrdSysLogger *logp) {logP = logp;}
 
@@ -86,6 +89,8 @@ XrdSysTrace& operator<<(Xrd::Fmt val)
                         else if (val == Xrd::dec) doHex = false;
                         return *this;
                        }
+
+XrdSysTrace& operator<<(XrdSysTrace *stp) {return *stp;}
 
              XrdSysTrace(const char *pfx, XrdSysLogger *logp=0, int tf=0)
                         : What(tf), logP(logp), iName(pfx), dPnt(0),
