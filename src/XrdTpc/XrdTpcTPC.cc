@@ -31,6 +31,18 @@ XrdSysMutex TPCHandler::m_monid_mutex;
 XrdVERSIONINFO(XrdHttpGetExtHandler, HttpTPC);
 
 
+static std::string prepareURL(const XrdHttpExtReq &req) {
+  std::map<std::string, std::string>::const_iterator iter = req.headers.find("xrd-http-query");
+  if (iter == req.headers.end() || iter->second.empty()) {return req.resource;}
+
+  std::string query = iter->second;
+  if (query[0] == '&') {
+    query = query.substr(1);
+  }
+  return req.resource + "?" + query;
+}
+
+
 static char *quote(const char *str) {
   int l = strlen(str);
   char *r = (char *) malloc(l*3 + 1);
@@ -417,7 +429,9 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     }
     std::string authz = GetAuthz(req);
 
-    int open_results = OpenWaitStall(*fh, req.resource, SFS_O_RDONLY, 0644,
+    std::string full_url = prepareURL(req);
+
+    int open_results = OpenWaitStall(*fh, full_url, SFS_O_RDONLY, 0644,
                                      req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_results) {
         return RedirectTransfer(req, fh->error);
@@ -485,8 +499,9 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             streams = streams == 0 ? 1 : stream_req;
         }
     }
+    std::string full_url = prepareURL(req);
 
-    int open_result = OpenWaitStall(*fh, req.resource, mode|SFS_O_WRONLY, 0644,
+    int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY, 0644,
                                     req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_result) {
         return RedirectTransfer(req, fh->error);
