@@ -2590,7 +2590,7 @@ int XrdHttpProtocol::xsslcadir(XrdOucStream & Config) {
 
 /* Function: xsslcipherfilter
 
-   Purpose:  To parse the directive: sslcipherfilter <filter>
+   Purpose:  To parse the directive: cipherfilter <filter>
 
              <filter>    the filter string to be used when generating
                          the SSL cipher list
