@@ -296,9 +296,9 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    if (m_configuration.m_RamAbsAvailable == 0)
    {
       m_configuration.m_RamAbsAvailable = m_isClient ? 256ll * 1024 * 1024 : 1024ll * 1024 * 1024;
-      char buff2[1024];
-      snprintf(buff2, sizeof(buff2), "RAM usage is not specified. Default value %s is used.", m_isClient ? "256m" : "1g");
-      TRACE(Warning, buff2);
+      char buff[1024];
+      snprintf(buff, sizeof(buff), "RAM usage pfc.ram is not specified. Default value %s is used.", m_isClient ? "256m" : "1g");
+      m_log.Say("Config info: ", buff);
    }
    m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable / m_configuration.m_bufferSize);
    
@@ -354,7 +354,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
          loff += snprintf(buff + loff, sizeof(buff) - loff, "%s", unameBuff);
       }
 
-      m_log.Say( buff);
+      m_log.Say(buff);
    }
 
    m_log.Say("------ File Caching Proxy interface initialization ", retval ? "completed" : "failed");

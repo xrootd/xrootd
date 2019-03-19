@@ -143,6 +143,11 @@ public:
    void DisableDownloadStatus();
 
    //---------------------------------------------------------------------
+   //! Reset IO Stats
+   //---------------------------------------------------------------------
+   void ResetAllAccessStats();
+
+   //---------------------------------------------------------------------
    //! Write open time in the last entry of access statistics
    //---------------------------------------------------------------------
    void WriteIOStatAttach();
@@ -222,6 +227,16 @@ public:
    long long GetNDownloadedBytes() const;
 
    //---------------------------------------------------------------------
+   //! Get number of the last downloaded block
+   //---------------------------------------------------------------------
+   int GetLastDownloadedBlock() const;
+
+   //---------------------------------------------------------------------
+   //! Get expected data file size
+   //---------------------------------------------------------------------
+   long long GetExpectedDataFileSize() const;
+
+  //---------------------------------------------------------------------
    //! Update complete status
    //---------------------------------------------------------------------
    void UpdateDownloadCompleteStatus();
@@ -308,6 +323,23 @@ inline int Info::GetNDownloadedBlocks() const
 inline long long Info::GetNDownloadedBytes() const
 {
    return m_store.m_bufferSize * GetNDownloadedBlocks();
+}
+
+inline int Info::GetLastDownloadedBlock() const
+{
+   for (int i = m_sizeInBits - 1; i >= 0; --i)
+      if (TestBit(i)) return i;
+
+   return -1;
+}
+
+inline long long Info::GetExpectedDataFileSize() const
+{
+   int last_block = GetLastDownloadedBlock();
+   if (last_block == m_sizeInBits - 1)
+      return m_store.m_fileSize;
+   else
+      return (last_block + 1) * m_store.m_bufferSize;
 }
 
 inline int Info::GetSizeInBytes() const
