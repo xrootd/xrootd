@@ -70,7 +70,6 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_prefetchScore(1),
    m_detachTimeIsLogged(false)
 {
-   Open();
 }
 
 File::~File()
@@ -92,6 +91,17 @@ File::~File()
    }
 
    TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
+}
+
+File* File::FileOpen(const std::string &path, long long offset, long long fileSize)
+{
+   File *file = new File(path, offset, fileSize);
+   if ( ! file->Open())
+   {
+      delete file;
+      file = 0;
+   }
+   return file;
 }
 
 //------------------------------------------------------------------------------
@@ -127,7 +137,7 @@ bool File::ioActive(IO *io)
       if (mi != m_io_map.end())
       {
          TRACEF(Info, "ioActive for io " << io <<
-                ", active_prefetces " << mi->second.m_active_prefetches <<
+                ", active_prefetches " << mi->second.m_active_prefetches <<
                 ", allow_prefetching " << mi->second.m_allow_prefetching << 
                 "; (block_map.size() = " << m_block_map.size() << ").");
 
@@ -273,18 +283,31 @@ void File::RemoveIO(IO *io)
 
 bool File::Open()
 {
-   TRACEF(Dump, "File::Open() open file for disk cache ");
+   TRACEF(Dump, "File::Open() open file for disk cache");
+
+   if (m_is_open)
+   {
+      TRACEF(Error, "File::Open() file is already opened.");
+      return true;
+   }
 
    const Configuration &conf = Cache::GetInstance().RefConfiguration();
 
    XrdOss     &myOss  = * Cache::GetInstance().GetOss();
    const char *myUser =   conf.m_username.c_str();
    XrdOucEnv   myEnv;
+   struct stat data_stat, info_stat;
+
+   std::string ifn = m_filename + Info::m_infoExtension;
+
+   bool data_existed = (myOss.Stat(m_filename.c_str(), &data_stat) == XrdOssOK);
+   bool info_existed = (myOss.Stat(ifn.c_str(),        &info_stat) == XrdOssOK);
 
    // Create the data file itself.
    char size_str[32]; sprintf(size_str, "%lld", m_fileSize);
    myEnv.Put("oss.asize",  size_str);
    myEnv.Put("oss.cgroup", conf.m_data_space.c_str());
+
    if (myOss.Create(myUser, m_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
    {
       TRACEF(Error, "File::Open() Create failed for data file " << m_filename << ERRNO_AND_ERRSTR);
@@ -299,12 +322,7 @@ bool File::Open()
       return false;
    }
 
-   // Create the info file
-   std::string ifn = m_filename + Info::m_infoExtension;
-
-   struct stat infoStat;
-   bool fileExisted = (myOss.Stat(ifn.c_str(), &infoStat) == XrdOssOK);
-
+   // Create the info file.
    myEnv.Put("oss.asize", "64k"); // TODO: Calculate? Get it from configuration? Do not know length of access lists ...
    myEnv.Put("oss.cgroup", conf.m_meta_space.c_str());
    if (myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
@@ -323,11 +341,26 @@ bool File::Open()
       return false;
    }
 
-   if (fileExisted && m_cfi.Read(m_infoFile, ifn))
+   bool initialize_info_file = true;
+
+   if (info_existed && m_cfi.Read(m_infoFile, ifn))
    {
-      TRACEF(Debug, "Read existing info file.");
+      TRACEF(Debug, "Open - reading existing info file. (data_existed=" << data_existed  <<
+             ", data_size_stat=" << (data_existed ? data_stat.st_size : -1ll) <<
+             ", data_size_from_last_block=" << m_cfi.GetExpectedDataFileSize() << ")");
+
+      // Check if data file exists and is of reasonable size.
+      if (data_existed && data_stat.st_size >= m_cfi.GetExpectedDataFileSize())
+      {
+         initialize_info_file = false;
+      }
+      else
+      {
+         TRACEF(Warning, "Open - basic sanity checks on data file failed, resetting info file.");
+         m_cfi.ResetAllAccessStats();
+      }
    }
-   else
+   if (initialize_info_file)
    {
       m_cfi.SetBufferSize(conf.m_bufferSize);
       m_cfi.SetFileSize(m_fileSize);

@@ -176,23 +176,43 @@ Cache::Cache(XrdSysLogger *logger) :
 
 XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
 {
+   const char* tpfx = "Cache::Attach() ";
+
    if (Cache::GetInstance().Decide(io))
    {
-      TRACE(Info, "Cache::Attach() " << io->Path());
-      IO* cio;
-      if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
-         cio = new IOFileBlock(io, m_stats, *this);
-      else
-         cio = new IOEntireFile(io, m_stats, *this);
+      TRACE(Info, tpfx << io->Path());
 
-      TRACE_PC(Debug, const char* loc = io->Location(),
-               "Cache::Attach() " << io->Path() << " location: " <<
+      IO *cio;
+
+      if (Cache::GetInstance().RefConfiguration().m_hdfsmode)
+      {
+         cio = new IOFileBlock(io, m_stats, *this);
+      }
+      else
+      {
+         // TODO if overloaded, redirect !!!
+
+         IOEntireFile *ioef = new IOEntireFile(io, m_stats, *this);
+
+         if ( ! ioef->HasFile())
+         {
+           delete ioef;
+           // TODO redirect instead !!!
+           TRACE(Error, tpfx << "Failed opening local file, falling back to remote access " << io->Path());
+           return io;
+         }
+
+         cio = ioef;
+      }
+
+      TRACE_PC(Debug, const char* loc = io->Location(), tpfx << io->Path() << " location: " <<
                ((loc && loc[0] != 0) ? loc : "<deferred open>"));
+
       return cio;
    }
    else
    {
-      TRACE(Info, "Cache::Attach() decision decline " << io->Path());
+      TRACE(Info, tpfx << "decision decline " << io->Path());
    }
    return io;
 }
@@ -335,8 +355,9 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
       filesize = st.st_size;
    }
 
-   File* file = new File(path, off, filesize);
+   File *file = File::FileOpen(path, off, filesize);
 
+   if (file)
    {
       XrdSysCondVarHelper lock(&m_active_cond);
 

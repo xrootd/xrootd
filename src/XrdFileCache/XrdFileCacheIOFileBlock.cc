@@ -65,8 +65,11 @@ XrdOucCacheIO* IOFileBlock::Detach()
      XrdSysMutexHelper lock(&m_mutex);
      for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
      {
-         it->second->RequestSyncOfDetachStats();
-         m_cache.ReleaseFile(it->second, this);
+        if (it->second)
+        {
+           it->second->RequestSyncOfDetachStats();
+           m_cache.ReleaseFile(it->second, this);
+        }
      }
    }
    XrdOucCacheIO *io = GetInput();
@@ -101,13 +104,15 @@ void IOFileBlock::CloseInfoFile()
 void IOFileBlock::GetBlockSizeFromPath()
 {
    const static std::string tag = "hdfsbsize=";
+
    std::string path = GetInput()->Path();
-   size_t pos1 = path.find(tag);
-   size_t t = tag.length();
-   if ( pos1 != path.npos)
+   size_t pos1      = path.find(tag);
+   size_t t         = tag.length();
+
+   if (pos1 != path.npos)
    {
       pos1 += t;
-      size_t pos2 = path.find("&", pos1 );
+      size_t pos2 = path.find("&", pos1);
       if (pos2 != path.npos )
       {
          std::string bs = path.substr(pos1, pos2 - pos1);
@@ -125,6 +130,8 @@ void IOFileBlock::GetBlockSizeFromPath()
 //______________________________________________________________________________
 File* IOFileBlock::newBlockFile(long long off, int blocksize)
 {
+   // NOTE: Can return 0 if opening of a local file fails!
+
    XrdCl::URL url(GetInput()->Path());
    std::string fname = url.GetPath();
 
@@ -132,7 +139,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    ss << fname;
    char offExt[64];
    // filename like <origpath>___<size>_<offset>
-   sprintf(&offExt[0],"___%lld_%lld", m_blocksize, off );
+   sprintf(&offExt[0], "___%lld_%lld", m_blocksize, off);
    ss << &offExt[0];
    fname = ss.str();
 
@@ -241,11 +248,13 @@ int IOFileBlock::initLocalStat()
 bool IOFileBlock::ioActive()
 {
    XrdSysMutexHelper lock(&m_mutex);
+
    bool active = false;
+
    for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
       // Need to initiate stop on all File / block objects.
-      if (it->second->ioActive(this))
+      if (it->second && it->second->ioActive(this))
       {
          active = true;
       }
@@ -280,7 +289,7 @@ int IOFileBlock::Read(char *buff, long long off, int size)
    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx)
    {
       // locate block
-      File* fb;
+      File *fb;
       m_mutex.Lock();
       std::map<int, File*>::iterator it = m_blocks.find(blockIdx);
       if (it != m_blocks.end())
@@ -298,8 +307,9 @@ int IOFileBlock::Read(char *buff, long long off, int size)
             // TRACEIO(Dump, "IOFileBlock::Read() last block, change output file size to " << pbs);
          }
 
+         // Note: File* can be 0 and stored as 0 if local open fails!
          fb = newBlockFile(blockIdx*m_blocksize, pbs);
-         m_blocks.insert(std::pair<int,File*>(blockIdx, (File*) fb));
+         m_blocks.insert(std::make_pair(blockIdx, fb));
       }
       m_mutex.UnLock();
 
@@ -309,12 +319,12 @@ int IOFileBlock::Read(char *buff, long long off, int size)
       {
          if (blockIdx == idx_first)
          {
-            readBlockSize = (blockIdx + 1) *m_blocksize - off0;
+            readBlockSize = (blockIdx + 1) * m_blocksize - off0;
             TRACEIO(Dump, "Read partially till the end of the block");
          }
          else if (blockIdx == idx_last)
          {
-            readBlockSize = (off0+size) - blockIdx*m_blocksize;
+            readBlockSize = (off0 + size) - blockIdx * m_blocksize;
             TRACEIO(Dump, "Read partially till the end of the block %s");
          }
          else
@@ -325,7 +335,9 @@ int IOFileBlock::Read(char *buff, long long off, int size)
 
       TRACEIO(Dump, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
-      int retvalBlock = fb->Read(this, buff, off, readBlockSize);
+      int retvalBlock = (fb != 0) ?
+         fb->Read(this, buff, off, readBlockSize) :
+         GetInput()->Read(buff, off, readBlockSize);
 
       TRACEIO(Dump, "IOFileBlock::Read()  Block read returned " << retvalBlock);
       if (retvalBlock == readBlockSize)
