@@ -251,6 +251,12 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
   else
     hp->ishttps = myishttps;
 
+  // Allocate 1MB buffer from pool
+  if (!hp->myBuff) {
+    hp->myBuff = BPool->Obtain(1024 * 1024);
+  }
+  hp->myBuffStart = hp->myBuffEnd = hp->myBuff->buff;
+
   // Bind the protocol to the link and return the protocol
   //
   hp->Link = lp;
@@ -1797,10 +1803,11 @@ void XrdHttpProtocol::Reset() {
   CurrentReq.reset();
   CurrentReq.reqstate = 0;
 
-  if (!myBuff) {
-    myBuff = BPool->Obtain(1024 * 1024);
+  if (myBuff) {
+    BPool->Release(myBuff);
+    myBuff = 0;
   }
-  myBuffStart = myBuffEnd = myBuff->buff;
+  myBuffStart = myBuffEnd = 0;
 
   DoingLogin = false;
 
