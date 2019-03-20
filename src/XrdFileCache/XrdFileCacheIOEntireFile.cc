@@ -37,7 +37,7 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & 
    m_file(0),
    m_localStat(0)
 {
-   XrdCl::URL url(GetInput()->Path());
+   XrdCl::URL  url(GetInput()->Path());
    std::string fname = url.GetPath();
    m_file = Cache::GetInstance().GetFile(fname, this);
 }
@@ -55,14 +55,14 @@ IOEntireFile::~IOEntireFile()
 //______________________________________________________________________________
 int IOEntireFile::Fstat(struct stat &sbuff)
 {
-   XrdCl::URL url(GetPath());
+   XrdCl::URL  url(GetPath());
    std::string name = url.GetPath();
    name += Info::m_infoExtension;
 
    int res = 0;
    if( ! m_localStat)
    {
-      res =  initCachedStat(name.c_str());
+      res = initCachedStat(name.c_str());
       if (res) return res;
    }
 

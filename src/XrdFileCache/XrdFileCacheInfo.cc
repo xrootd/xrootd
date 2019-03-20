@@ -151,7 +151,7 @@ void Info::SetBufferSize(long long bs)
 void Info::SetFileSize(long long fs)
 {
    m_store.m_fileSize = fs;
-   ResizeBits((m_store.m_fileSize - 1)/m_store.m_bufferSize + 1);
+   ResizeBits((m_store.m_fileSize - 1) / m_store.m_bufferSize + 1);
    m_store.m_creationTime = time(0);
 }
 
@@ -162,8 +162,8 @@ void Info::ResizeBits(int s)
    // drop buffer in case of failed/partial reads
 
    if (m_store.m_buff_synced) free(m_store.m_buff_synced);
-   if (m_buff_written) free(m_buff_written);
-   if (m_buff_prefetch) free(m_buff_prefetch);
+   if (m_buff_written)        free(m_buff_written);
+   if (m_buff_prefetch)       free(m_buff_prefetch);
 
    m_sizeInBits = s;
    m_buff_written        = (unsigned char*) malloc(GetSizeInBytes());
@@ -175,6 +175,10 @@ void Info::ResizeBits(int s)
    {
       m_buff_prefetch = (unsigned char*) malloc(GetSizeInBytes());
       memset(m_buff_prefetch, 0, GetSizeInBytes());
+   }
+   else
+   {
+      m_buff_prefetch = 0;
    }
 }
 
@@ -366,6 +370,12 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
 }
 
 //------------------------------------------------------------------------------
+
+void Info::ResetAllAccessStats()
+{
+   m_store.m_accessCnt = 0;
+   m_store.m_astats.clear();
+}
 
 void Info::WriteIOStatAttach()
 {
