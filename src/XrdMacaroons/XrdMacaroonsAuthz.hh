@@ -34,11 +34,17 @@ public:
     }
 
 private:
+    XrdAccPrivs OnMissing(const XrdSecEntity     *Entity,
+                          const char             *path,
+                          const Access_Operation  oper,
+                                XrdOucEnv        *env);
+
     ssize_t m_max_duration;
     XrdAccAuthorize *m_chain;
     XrdSysError m_log;
     std::string m_secret;
     std::string m_location;
+    int m_authz_behavior;
 };
 
 }
