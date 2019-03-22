@@ -38,6 +38,7 @@ namespace XrdCl
   const uint64_t AsyncSockMsg       = 0x0000000000000200ULL;
   const uint64_t JobMgrMsg          = 0x0000000000000400ULL;
   const uint64_t PlugInMgrMsg       = 0x0000000000000800ULL;
+  const uint64_t ExDbgMsg           = 0x0000000000001000ULL; //special type debugging extra-hard problems
 
   //----------------------------------------------------------------------------
   // Environment settings
