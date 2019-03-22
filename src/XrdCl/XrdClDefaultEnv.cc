@@ -153,6 +153,7 @@ namespace
       masks["AsyncSockMsg"]       = XrdCl::AsyncSockMsg;
       masks["JobMgrMsg"]          = XrdCl::JobMgrMsg;
       masks["PlugInMgrMsg"]       = XrdCl::PlugInMgrMsg;
+      masks["ExDbgMsg"]           = XrdCl::ExDbgMsg;
     }
 
     //--------------------------------------------------------------------------
@@ -823,6 +824,7 @@ namespace XrdCl
     log->SetTopicName( AsyncSockMsg,       "AsyncSock" );
     log->SetTopicName( JobMgrMsg,          "JobMgr" );
     log->SetTopicName( PlugInMgrMsg,       "PlugInMgr" );
+    log->SetTopicName( ExDbgMsg,           "ExDbgMsg" );
   }
 }
 
