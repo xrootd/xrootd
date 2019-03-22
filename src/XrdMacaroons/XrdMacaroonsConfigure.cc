@@ -11,8 +11,32 @@
 
 using namespace Macaroons;
 
+
+static bool xonmissing(XrdOucStream &config_obj, XrdSysError *log, Handler::AuthzBehavior &behavior)
+{
+  char *val = config_obj.GetWord();
+  if (!val || !val[0])
+  {
+    log->Emsg("Config", "macaroons.onmissing requires a value (valid values: passthrough [default], allow, deny)");
+    return false;
+  }
+  if (!strcasecmp(val, "passthrough")) {
+    behavior = Handler::AuthzBehavior::PASSTHROUGH;
+  } else if (!strcasecmp(val, "allow")) {
+    behavior = Handler::AuthzBehavior::ALLOW;
+  } else if (!strcasecmp(val, "deny")) {
+    behavior = Handler::AuthzBehavior::DENY;
+  } else
+  {
+    log->Emsg("Config", "macaroons.onmissing is invalid (valid values: passthrough [default], allow, deny)! Provided value:", val);
+    return false;
+  }
+  return true;
+}
+
 bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
-    std::string &location, std::string &secret, ssize_t &max_duration)
+    std::string &location, std::string &secret, ssize_t &max_duration,
+    AuthzBehavior &behavior)
 {
   XrdOucStream config_obj(log, getenv("XRDINSTANCE"), env, "=====> ");
 
@@ -47,6 +71,7 @@ bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
     else if (!strcmp("sitename", var)) {success = xsitename(config_obj, log, location);}
     else if (!strcmp("trace", var)) {success = xtrace(config_obj, log);}
     else if (!strcmp("maxduration", var)) {success = xmaxduration(config_obj, log, max_duration);}
+    else if (!strcmp("onmissing", var)) {success = xonmissing(config_obj, log, behavior);}
     else {
         log->Say("Config warning: ignoring unknown directive '", orig_var, "'.");
         config_obj.Echo();
