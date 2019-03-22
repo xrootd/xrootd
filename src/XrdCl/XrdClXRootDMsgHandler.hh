@@ -30,6 +30,8 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XProtocol/XProtocol.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClConstants.hh"
 
 #include <sys/uio.h>
 
@@ -140,6 +142,11 @@ namespace XrdCl
         if( msg->GetSessionId() )
           pHasSessionId = true;
         memset( &pReadVRawChunkHeader, 0, sizeof( readahead_list ) );
+
+        Log *log = DefaultEnv::GetLog();
+        log->Debug( XRootDMsg, "[%s] MsgHandler created: %x (message: %s ).",
+                    pUrl.GetHostId().c_str(), this,
+                    pRequest->GetDescription().c_str() );
       }
 
       //------------------------------------------------------------------------
@@ -155,6 +162,20 @@ namespace XrdCl
         std::vector<Message *>::iterator it;
         for( it = pPartialResps.begin(); it != pPartialResps.end(); ++it )
           delete *it;
+
+        pRequest         = reinterpret_cast<Message*>( 0xDEADBEEF );
+        pResponse        = reinterpret_cast<Message*>( 0xDEADBEEF );
+        pResponseHandler = reinterpret_cast<ResponseHandler*>( 0xDEADBEEF );
+        pPostMaster      = reinterpret_cast<PostMaster*>( 0xDEADBEEF );
+        pSidMgr          = reinterpret_cast<SIDManager*>( 0xDEADBEEF );
+        pLFileHandler    = reinterpret_cast<LocalFileHandler*>( 0xDEADBEEF );
+        pHosts           = reinterpret_cast<HostList*>( 0xDEADBEEF );
+        pChunkList       = reinterpret_cast<ChunkList*>( 0xDEADBEEF );
+
+        Log *log = DefaultEnv::GetLog();
+        log->Debug( XRootDMsg, "[%s] Destroying MsgHandler: %x (message: %s ).",
+                    pUrl.GetHostId().c_str(), this,
+                    pRequest->GetDescription().c_str() );
       }
 
       //------------------------------------------------------------------------
