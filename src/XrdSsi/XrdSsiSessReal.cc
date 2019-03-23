@@ -231,7 +231,7 @@ bool XrdSsiSessReal::Provision(XrdSsiRequest *reqP, const char *epURL)
 
 // Set retry flag as appropriate
 //
-   if (XrdSsiRRAgent::isaRetry(reqP)) oFlags |= XrdCl::OpenFlags::Refresh;
+   if (XrdSsiRRAgent::isaRetry(reqP, true)) oFlags |= XrdCl::OpenFlags::Refresh;
 
 // Issue the open and if the open was started, return success.
 //

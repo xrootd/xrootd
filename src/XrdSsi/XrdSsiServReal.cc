@@ -299,7 +299,9 @@ bool XrdSsiServReal::ResReuse(XrdSsiRequest  &reqRef,
 // Entry found, check if this session can actually be reused
 //
    sesP = it->second;
-   if (resRef.rOpts & XrdSsiResource::Discard || !sesP->Run(&reqRef))
+   bool doDiscard = (resRef.rOpts & XrdSsiResource::Discard) != 0
+                  || XrdSsiRRAgent::isaRetry(&reqRef);
+   if (doDiscard || !sesP->Run(&reqRef))
       {resCache.erase(it);
        sesP->UnHold();
        return false;
