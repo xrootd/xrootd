@@ -613,7 +613,7 @@ publish:rhel:release:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - tarball=cc-7-x86_64/xrootd-*.tar.gz
-    - "for platform in cc-7-x86_64 slc-6-x86_64 slc-6-i386; do 
+    - "for platform in cc-7-x86_64 slc-6-x86_64; do 
          path=$prefix/release/$platform/$CI_COMMIT_TAG/;
          sudo -u stci -H mkdir -p $path/{source,tarball};
          sudo -u stci -H cp $platform/*.rpm $path;
