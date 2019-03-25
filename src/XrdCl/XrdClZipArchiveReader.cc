@@ -879,6 +879,10 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   if( cditr == pFileToCdfh.end() ) return XRootDStatus( stError, errNotFound, errNotFound, "File not found." );
   CDFH *cdfh = pCdRecords[cditr->second];
 
+  // check if the file is compressed, for now we only support uncompressed files!
+  if( cdfh->pCompressionMethod != 0 )
+    return XRootDStatus( stError, errNotSupported, 0, "Decompression is not supported!" );
+
   // Now the problem is that at the beginning of our
   // file there is the Local-file-header, which size
   // is not known because of the variable size 'extra'
