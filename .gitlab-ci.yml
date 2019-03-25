@@ -346,33 +346,6 @@ release:slc6-x86_64:
     - branches
     - /^(?!v[0-9]+).*/
 
-release:slc6-i386:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
-  script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git tar
-    - mkdir slc-6-i386
-    - cd packaging/
-    - git checkout tags/${CI_COMMIT_TAG}
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" -D "dist .el6"
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - mkdir RPMS 
-    - rpmbuild --target=i386 --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el6"  *.src.rpm
-    - cd ..
-    - cp packaging/RPMS/*.rpm slc-6-i386
-    - cp packaging/*src.rpm   slc-6-i386
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - slc-6-i386/
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
-    - /^(?!v[0-9]+).*/
-
 release:deb_ubuntu_bionic:
   <<: *deb_ubuntu_bionic_def
   only:
