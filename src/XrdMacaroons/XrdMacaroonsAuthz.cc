@@ -108,14 +108,33 @@ static XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
 Authz::Authz(XrdSysLogger *log, char const *config, XrdAccAuthorize *chain)
     : m_max_duration(86400),
     m_chain(chain),
-    m_log(log, "macarons_")
+    m_log(log, "macarons_"),
+    m_authz_behavior(static_cast<int>(Handler::AuthzBehavior::PASSTHROUGH))
 {
-    if (!Handler::Config(config, nullptr, &m_log, m_location, m_secret, m_max_duration))
+    Handler::AuthzBehavior behavior;
+    if (!Handler::Config(config, nullptr, &m_log, m_location, m_secret, m_max_duration, behavior))
     {
         throw std::runtime_error("Macaroon authorization config failed.");
     }
+    m_authz_behavior = static_cast<int>(behavior);
 }
 
+
+XrdAccPrivs
+Authz::OnMissing(const XrdSecEntity *Entity, const char *path,
+                 const Access_Operation oper, XrdOucEnv *env)
+{
+    switch (m_authz_behavior) {
+        case Handler::AuthzBehavior::PASSTHROUGH:
+            return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
+        case Handler::AuthzBehavior::ALLOW:
+            return AddPriv(oper, XrdAccPriv_None);;
+        case Handler::AuthzBehavior::DENY:
+            return XrdAccPriv_None;
+    }
+    // Code should be unreachable.
+    return XrdAccPriv_None;
+}
 
 XrdAccPrivs
 Authz::Access(const XrdSecEntity *Entity, const char *path,
@@ -124,12 +143,27 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     const char *authz = env ? env->Get("authz") : nullptr;
     // We don't allow any testing to occur in this authz module, preventing
     // a macaroon to be used to receive further macaroons.
-    if (!authz || strncmp(authz, "Bearer%20", 9) || oper == AOP_Any)
+    if (oper == AOP_Any)
     {
-        //m_log.Emsg("Access", "No bearer token present");
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
     }
+    if (!authz || strncmp(authz, "Bearer%20", 9))
+    {
+        //m_log.Emsg("Access", "No bearer token present");
+        return OnMissing(Entity, path, oper, env);
+    }
     authz += 9;
+
+    macaroon_returncode mac_err = MACAROON_SUCCESS;
+    struct macaroon* macaroon = macaroon_deserialize(
+        authz,
+        &mac_err);
+    if (!macaroon)
+    {
+        // Do not log - might be other token type!
+        //m_log.Emsg("Access", "Failed to parse the macaroon");
+        return OnMissing(Entity, path, oper, env);
+    }
 
     struct macaroon_verifier *verifier = macaroon_verifier_create();
     if (!verifier)
@@ -140,12 +174,12 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     if (!path)
     {
         m_log.Emsg("Access", "Request with no provided path.");
+        macaroon_verifier_destroy(verifier);
         return XrdAccPriv_None;
     }
 
     AuthzCheck check_helper(path, oper, m_max_duration, m_log);
 
-    macaroon_returncode mac_err = MACAROON_SUCCESS;
     if (macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_before_s, &check_helper, &mac_err) ||
         macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_activity_s, &check_helper, &mac_err) ||
         macaroon_verifier_satisfy_general(verifier, AuthzCheck::verify_name_s, &check_helper, &mac_err) ||
@@ -156,16 +190,6 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
         return XrdAccPriv_None;
     }
 
-    struct macaroon* macaroon = macaroon_deserialize(
-        authz,
-        &mac_err);
-    if (!macaroon)
-    {
-        m_log.Emsg("Access", "Failed to parse the macaroon");
-        macaroon_verifier_destroy(verifier);
-        return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
-    }
-
     const unsigned char *macaroon_loc;
     size_t location_sz;
     macaroon_location(macaroon, &macaroon_loc, &location_sz);
@@ -173,6 +197,7 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     {
         m_log.Emsg("Access", "Macaroon is for incorrect location", reinterpret_cast<const char *>(macaroon_loc));
         macaroon_verifier_destroy(verifier);
+        macaroon_destroy(macaroon);
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
     }
 
@@ -187,11 +212,15 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
         macaroon_destroy(macaroon);
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
     }
+    macaroon_verifier_destroy(verifier);
+
     const unsigned char *macaroon_id;
     size_t id_sz;
     macaroon_identifier(macaroon, &macaroon_id, &id_sz);
+
     std::string macaroon_id_str(reinterpret_cast<const char *>(macaroon_id), id_sz);
     m_log.Log(LogMask::Info, "Access", "Macaroon verification successful; ID", macaroon_id_str.c_str());
+    macaroon_destroy(macaroon);
 
     // Copy the name, if present into the macaroon, into the credential object.
     if (Entity && check_helper.GetSecName().size()) {

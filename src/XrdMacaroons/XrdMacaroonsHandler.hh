@@ -29,11 +29,18 @@ public:
         m_chain(chain),
         m_log(log)
     {
-        if (!Config(config, myEnv, m_log, m_location, m_secret, m_max_duration))
+        AuthzBehavior behavior;
+        if (!Config(config, myEnv, m_log, m_location, m_secret, m_max_duration, behavior))
         {
             throw std::runtime_error("Macaroon handler config failed.");
         }
     }
+
+    enum AuthzBehavior {
+        PASSTHROUGH,
+        ALLOW,
+        DENY
+    };
 
     virtual ~Handler();
 
@@ -45,7 +52,8 @@ public:
     // Static configuration method; made static to allow Authz object to reuse
     // this code.
     static bool Config(const char *config, XrdOucEnv *env, XrdSysError *log,
-        std::string &location, std::string &secret, ssize_t &max_duration);
+        std::string &location, std::string &secret, ssize_t &max_duration,
+        AuthzBehavior &behavior);
 
 private:
     std::string GenerateID(const std::string &, const XrdSecEntity &, const std::string &, const std::vector<std::string> &, const std::string &);
