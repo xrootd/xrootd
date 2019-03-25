@@ -7,6 +7,62 @@ Release Notes
 
 
 -------------
+Version 4.9.1
+-------------
+
++ **Major bug fixes**
+  * **[POSIX]** Fix VMP issues with POSIX preload library causing SEGV.
+  * **[POSIX]** Additional hardening of POSIX functions for Xcache.
+  * **[XrdCl]** Make sure local destination path is not scrambled, 
+                fixes #925
+  * **[XrdCl]** Fix memory leak in AsyncSocketHandler.
+  * **[XrdCl]** Fix recursive copy.
+  * **[Server]** Liberalize character set allowed in login name (fixes 
+                 EOS issue).
+  * **[Server]** Save the proper ReqID for async responses on close.
+  * **[Server]** Handle waitresp sequencing to avoid early bridge 
+                 termination.
+  * **[XrdHttp]** Only consider running plugins for new requests.
+  * **[XrdHttp]** Handle clients that request multiple checksums.
+  * **[XrdHttp]** Do not accept more data than specified in the HTTP 
+                  request.
+  * **[XrdHttp]** Fix high memory usage caused by cached XrdHttpProtocol 
+                  objects.
+  * **[XrdSecgsi]** Fine tune message bucket content.
+  * **[XrdSecgsi]** Make sure options for proxy saving to file are honored.
+  * **[XrdSecgsi]** add missing entries in gsiClientStesp and gsiServerSteps.
+  * **[Python]** Ensure Python module doesn't deadlock/segv on exit, 
+                 fixes #330
+  * **[XrdMacaroon]** Create macaroon with proper caveats and path.
+  * **[Proxy]** Improve handling of failures during opening of local data 
+                and cinfo files.
+  * **[XrdTpc]** Only use Curl's low-speed-limit with libcurl v7.38 
+                 and later.
+
++ **Minor bug fixes**
+  * **[Server]** Fix bridge waitResp issues to allow merge of pull #902.
+  * **[Server]** Further simplify tracing, especially for var persistece.
+  * **[Server]** Fix strlcpy for Group null-string in XrdOfsTPC.
+  * **[XrdMacaroon]** Log user caveats with macaroon generation.
+  * **[XrdMacaroon]** Allow admin to customize default macaroons authz.
+  * **[XrdHttp]** XrdHttp does not support chunked encoding; respond 
+                  appropriately.
+  * **[POSIX]** Fix string scoping issues in debug messages.
+  * **[XrdSecgsi]** Downgrade error msg from key file issues to DEBUG.
+  * **[XrdSecgsi]** Improve buffer content dumps for debugging purposes.
+  * **[XrdCl]** Use correct flag to remove handler in inqueue.
+  * **[XrdCl]** Log properly kXR_waitresp, closes #852
+  * **[XrdCl]** Fail ZIP extraction if file is compressed.
+  * **[XrdHttp]** Don't assume that a header "Depth: 1" means that the 
+                  resource is a directory.
+
++ **Miscellaneous**
+  * **[XrdHttp]** Add support for chunked encoding in uploads.
+  * **[Packaging]** Add xrootd-fuse deb package, closes #831
+  * **[XrdCl]** Add more descriptive error message on XrdCl::CopyProcess:run, 
+                closes #849
+
+-------------
 Version 4.9.0
 -------------
 
