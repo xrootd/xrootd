@@ -540,6 +540,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
         printf("Returned macaroon_serialize code: %lu\n", (unsigned long)size_hint);
         return req.SendSimpleResp(500, NULL, NULL, "Internal error serializing macaroon", 0);
     }
+    macaroon_destroy(mac_with_date);
 
     json_object *response_obj = json_object_new_object();
     if (!response_obj)
