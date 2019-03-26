@@ -366,30 +366,44 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
         return req.SendSimpleResp(400, NULL, NULL, "Content-Length has invalid value.", 0);
     }
     //for (const auto &header : req.headers) { printf("** Request header: %s=%s\n", header.first.c_str(), header.second.c_str()); }
+
+    // request_data is not necessarily null-terminated; hence, we use the more advanced _ex variant
+    // of the tokener to avoid making a copy of the character buffer.
     char *request_data;
     if (req.BuffgetData(blen, &request_data, true) != blen)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Missing or invalid body of request.", 0);
     }
-    json_object *macaroon_req = json_tokener_parse(request_data);
-    if (!macaroon_req)
+    json_tokener *tokener = json_tokener_new();
+    if (!tokener)
     {
+        return req.SendSimpleResp(500, NULL, NULL, "Internal error when allocating token parser.", 0);
+    }
+    json_object *macaroon_req = json_tokener_parse_ex(tokener, request_data, blen);
+    enum json_tokener_error err = json_tokener_get_error(tokener);
+    json_tokener_free(tokener);
+    if (err != json_tokener_success)
+    {
+        if (macaroon_req) json_object_put(macaroon_req);
         return req.SendSimpleResp(400, NULL, NULL, "Invalid JSON serialization of macaroon request.", 0);
     }
     json_object *validity_obj;
     if (!json_object_object_get_ex(macaroon_req, "validity", &validity_obj))
     {
+        json_object_put(macaroon_req);
         return req.SendSimpleResp(400, NULL, NULL, "JSON request does not include a `validity`", 0);
     }
     const char *validity_cstr = json_object_get_string(validity_obj);
     if (!validity_cstr)
     {
+        json_object_put(macaroon_req);
         return req.SendSimpleResp(400, NULL, NULL, "validity key cannot be cast to a string", 0);
     }
     std::string validity_str(validity_cstr);
     ssize_t validity = determine_validity(validity_str);
     if (validity <= 0)
     {
+        json_object_put(macaroon_req);
         return req.SendSimpleResp(400, NULL, NULL, "Invalid ISO 8601 duration for validity key", 0);
     }
     json_object *caveats_obj;
@@ -412,7 +426,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
             }                                
         }
     }
-    json_object_put(caveats_obj);
+    json_object_put(macaroon_req);
 
     return GenerateMacaroonResponse(req, req.resource, other_caveats, validity, false);
 }
