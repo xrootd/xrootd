@@ -1191,8 +1191,8 @@ int XrdHttpReq::ProcessHTTPReq() {
             // We want to be invoked again after this request is finished
             return 0;
           }
-          // fallthrough
         }
+        // fallthrough
         default: // Read() or Close()
         {
 
@@ -2159,9 +2159,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               return -1;
             }
 
-            // Remaining case: reqstate == 2 and we didn't ask for a digest (should be a read);
-            // fallthrough
+            // Remaining case: reqstate == 2 and we didn't ask for a digest (should be a read).
           }
+          // fallthrough
           default: //read or readv
           {
 
