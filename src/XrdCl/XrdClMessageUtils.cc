@@ -118,6 +118,9 @@ namespace XrdCl
                   url.GetHostId().c_str(), msg->GetDescription().c_str(),
                   st.ToString().c_str() );
 
+      // we need to reassign req as its current value might have been
+      // invalidated in the meanwhile due to a realloc
+      req = (ClientRequestHdr*)msg->GetBuffer();
       // Release the SID as the request was never send
       sidMgr->ReleaseSID( req->streamid );
       delete msgHandler;
