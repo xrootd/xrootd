@@ -197,7 +197,7 @@ namespace XrdCl
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
 
-    if( pIncHandler.second )
+    if( !pIncHandler.second )
       delete pIncoming;
 
     pIncoming = 0;
@@ -889,7 +889,7 @@ namespace XrdCl
     log->Error( AsyncSockMsg, "[%s] Socket error encountered: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
 
-    if( pIncHandler.second )
+    if( !pIncHandler.second )
       delete pIncoming;
 
     pIncoming   = 0;
@@ -937,7 +937,7 @@ namespace XrdCl
       // called from inside of Stream::OnReadTimeout, this
       // in turn means that the ownership of following
       // pointers, has been transfered to the inQueue
-      if( pIncHandler.second )
+      if( !pIncHandler.second )
         delete pIncoming;
 
       pIncoming   = 0;
