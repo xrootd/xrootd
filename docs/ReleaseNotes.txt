@@ -17,6 +17,7 @@ Version 4.9.1
                 fixes #925
   * **[XrdCl]** Fix memory leak in AsyncSocketHandler.
   * **[XrdCl]** Fix recursive copy.
+  * **[XrdCl]** Make sure released SID is valid object.
   * **[Server]** Liberalize character set allowed in login name (fixes 
                  EOS issue).
   * **[Server]** Save the proper ReqID for async responses on close.
@@ -45,6 +46,9 @@ Version 4.9.1
   * **[Server]** Fix strlcpy for Group null-string in XrdOfsTPC.
   * **[XrdMacaroon]** Log user caveats with macaroon generation.
   * **[XrdMacaroon]** Allow admin to customize default macaroons authz.
+  * **[XrdMacaroon]** Set the macaroons.onmissing default.
+  * **[XrdMacaroon]** Interact with json-c appropriately for request.
+  * **[XrdMacaroon]** Ensure we delete macaroon object after use.
   * **[XrdHttp]** XrdHttp does not support chunked encoding; respond 
                   appropriately.
   * **[POSIX]** Fix string scoping issues in debug messages.
@@ -58,9 +62,11 @@ Version 4.9.1
 
 + **Miscellaneous**
   * **[XrdHttp]** Add support for chunked encoding in uploads.
+  * **[XrdHttp]** Implement RFC 3230 digests for GET requests.
   * **[Packaging]** Add xrootd-fuse deb package, closes #831
   * **[XrdCl]** Add more descriptive error message on XrdCl::CopyProcess:run, 
                 closes #849
+  * **[XrdCl]** Add special logs for future debugging of BNL problem.
 
 -------------
 Version 4.9.0
