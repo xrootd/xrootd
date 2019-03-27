@@ -890,7 +890,8 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   // record and shift it by the file size.
   // The next record is either the next LFH (next file)
   // or the start of the Central-directory.
-  uint64_t nextRecordOffset = ( cditr->second + 1 < pCdRecords.size() ) ? pCdRecords[cditr->second + 1]->pOffset : pEocd->pCdOffset;
+  uint64_t cdOffset = pZip64Eocd ? pZip64Eocd->pCdOffset : pEocd->pCdOffset;
+  uint64_t nextRecordOffset = ( cditr->second + 1 < pCdRecords.size() ) ? pCdRecords[cditr->second + 1]->pOffset : cdOffset;
   uint64_t fileSize = cdfh->pCompressionMethod ? cdfh->pCompressedSize : cdfh->pUncompressedSize;
   uint64_t offset = nextRecordOffset - fileSize + relativeOffset;
   uint64_t sizeTillEnd = fileSize - relativeOffset;
