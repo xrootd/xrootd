@@ -40,7 +40,7 @@ using namespace XrdFileCache;
 namespace
 {
 
-const int PREFETCH_MAX_ATTEMPTS = 10;
+const int BLOCK_WRITE_MAX_ATTEMPTS = 4;
 
 Cache* cache() { return &Cache::GetInstance(); }
 
@@ -831,16 +831,20 @@ void File::WriteBlockToDisk(Block* b)
       {
          TRACEF(Warning, "File::WriteToDisk() reattempt " << cnt << " writing missing " << buffer_remaining << " for block  offset " << b->m_offset);
       }
-      if (cnt > PREFETCH_MAX_ATTEMPTS)
+      if (cnt > BLOCK_WRITE_MAX_ATTEMPTS)
       {
          TRACEF(Error, "File::WriteToDisk() write block with off = " <<  b->m_offset <<" failed too manny attempts ");
+
+         XrdSysCondVarHelper _lck(m_downloadCond);
+         dec_ref_count(b);
+
          return;
       }
    }
 
    // set bit fetched
    TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size " <<  size);
-   int pfIdx =  (b->m_offset - m_offset)/m_cfi.GetBufferSize();
+   int pfIdx =  (b->m_offset - m_offset) / m_cfi.GetBufferSize();
 
    bool schedule_sync = false;
    {
@@ -853,7 +857,6 @@ void File::WriteBlockToDisk(Block* b)
 
       // clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() dec_ref_count %d %s", pfIdx, lPath());
       dec_ref_count(b);
-
 
       // set bit synced
       if (m_in_sync)
@@ -922,7 +925,8 @@ void File::dec_ref_count(Block* b)
    b->m_refcnt--;
    assert(b->m_refcnt >= 0);
 
-   // File::Read() can decrease ref count before waiting to be , prefetch starts with refcnt 0
+   // File::Read() can decrease ref count before waiting for the block in case
+   // of an error. Prefetch starts with refcnt 0.
    if (b->m_refcnt == 0 && b->is_finished())
    {
       free_block(b);
@@ -932,7 +936,7 @@ void File::dec_ref_count(Block* b)
 void File::free_block(Block* b)
 {
    // Method always called under lock.
-   int i = b->m_offset/BufferSize();
+   int i = b->m_offset / BufferSize();
    TRACEF(Dump, "File::free_block block " << b << "  idx =  " <<  i);
    size_t ret = m_block_map.erase(i);
    if (ret != 1)
