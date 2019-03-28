@@ -2098,7 +2098,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               if (rwOps.size() == 0) {
                 // Full file.
                 
-                prot->SendSimpleResp(200, NULL, m_digest_header.c_str(), NULL, filesize, keepalive);
+                prot->SendSimpleResp(200, NULL, m_digest_header.empty() ? NULL : m_digest_header.c_str(), NULL, filesize, keepalive);
                 return 0;
               } else
                 if (rwOps.size() == 1) {
