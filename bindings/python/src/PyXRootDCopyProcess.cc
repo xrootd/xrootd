@@ -125,6 +125,15 @@ namespace PyXRootD
     properties.Set( "initTimeout",    initTimeout    );
     properties.Set( "tpcTimeout",     tpcTimeout     );
 
+    if( sourceLimit > 1 )
+    {
+      int blockSize = XrdCl::DefaultXCpBlockSize;
+      env->GetInt( "XCpBlockSize", blockSize );
+      properties.Set( "xcp",          true        );
+      properties.Set( "xcpBlockSize", blockSize   );
+      properties.Set( "nbXcpSources", sourceLimit );
+    }
+
     XrdCl::XRootDStatus status = self->process->AddJob(properties,
                                                        &self->results->back());
 
