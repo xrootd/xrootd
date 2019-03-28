@@ -61,6 +61,15 @@ class CopyProcess(object):
   def __init__(self):
     self.__process = client.CopyProcess()
 
+  def parallel(self, parallel):
+    """ Add a config job to the copy process in order to set the number of
+        parallel copy jobs.
+
+    :param parallel: number of parallel copy jobs
+    :type  parallel: integer
+    """
+    self.__process.parallel(parallel)
+
   def add_job(self,
               source,
               target,

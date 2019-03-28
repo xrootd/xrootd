@@ -39,6 +39,7 @@ namespace PyXRootD
   class CopyProcess
   {
     public:
+      static PyObject* Parallel( CopyProcess *self, PyObject *args, PyObject *kwds );
       static PyObject* AddJob(CopyProcess *self, PyObject *args, PyObject *kwds);
       static PyObject* Prepare(CopyProcess *self, PyObject *args, PyObject *kwds);
       static PyObject* Run(CopyProcess *self, PyObject *args, PyObject *kwds);
@@ -46,6 +47,7 @@ namespace PyXRootD
       PyObject_HEAD
       XrdCl::CopyProcess              *process;
       std::deque<XrdCl::PropertyList> *results;
+      int                              parallel;
   };
 
   PyDoc_STRVAR(copyprocess_type_doc, "CopyProcess object (internal)");
@@ -55,8 +57,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static int CopyProcess_init( CopyProcess *self, PyObject *args )
   {
-    self->process = new XrdCl::CopyProcess();
-    self->results = new std::deque<XrdCl::PropertyList>();
+    self->process  = new XrdCl::CopyProcess();
+    self->results  = new std::deque<XrdCl::PropertyList>();
+    self->parallel = 1;
     return 0;
   }
 
@@ -75,6 +78,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyMethodDef CopyProcessMethods[] =
   {
+    { "parallel",
+       (PyCFunction) PyXRootD::CopyProcess::Parallel,  METH_VARARGS | METH_KEYWORDS, NULL },
     { "add_job",
        (PyCFunction) PyXRootD::CopyProcess::AddJob,  METH_VARARGS | METH_KEYWORDS, NULL },
     { "prepare",

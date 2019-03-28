@@ -35,6 +35,24 @@
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------
+  // Set the unmber of parallel jobs
+  //----------------------------------------------------------------------------
+  PyObject* CopyProcess::Parallel( CopyProcess *self, PyObject *args, PyObject *kwds )
+  {
+    static const char *kwlist[]
+      = { "parallel", NULL };
+
+    // we cannot submit a config job now because it needs to be the last one,
+    // otherwise it will segv
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "I:parallel",
+         (char**) kwlist, &self->parallel ) )
+      return NULL;
+
+    XrdCl::XRootDStatus st;
+    return ConvertType( &st );
+  }
+
+  //----------------------------------------------------------------------------
   // Add a job to the copy process
   //----------------------------------------------------------------------------
   PyObject* CopyProcess::AddJob( CopyProcess *self, PyObject *args, PyObject *kwds )
@@ -118,7 +136,15 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* CopyProcess::Prepare( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
-    XrdCl::XRootDStatus status = self->process->Prepare();
+    // add a config job that sets the number of parallel copy jobs
+    XrdCl::PropertyList processConfig;
+    processConfig.Set( "jobType", "configuration" );
+    processConfig.Set( "parallel", self->parallel );
+    XrdCl::XRootDStatus status = self->process->AddJob(processConfig, 0);
+    if( !status.IsOK() )
+      return ConvertType( &status );
+
+    status = self->process->Prepare();
     return ConvertType( &status );
   }
 
