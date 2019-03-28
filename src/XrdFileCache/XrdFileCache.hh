@@ -242,6 +242,7 @@ public:
 
    void FileSyncDone(File*, bool high_debug);
    
+   XrdSysError* GetLog()   { return &m_log;  }
    XrdSysTrace* GetTrace() { return m_trace; }
 
    void ExecuteCommandUrl(const std::string& command_url);

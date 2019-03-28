@@ -205,7 +205,8 @@ public:
 
    std::string& GetLocalPath() { return m_filename; }
 
-   XrdSysTrace*  GetTrace();
+   XrdSysError* GetLog();
+   XrdSysTrace* GetTrace();
 
    long long GetFileSize() { return m_fileSize; }
 
