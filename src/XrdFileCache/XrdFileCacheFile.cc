@@ -811,39 +811,34 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
 void File::WriteBlockToDisk(Block* b)
 {
-   int retval = 0;
    // write block buffer into disk file
-   long long offset = b->m_offset - m_offset;
-   long long size = (offset +  m_cfi.GetBufferSize()) > m_fileSize ? (m_fileSize - offset) : m_cfi.GetBufferSize();
-   int buffer_remaining = size;
-   int buffer_offset = 0;
-   int cnt = 0;
-   const char* buff = &b->m_buff[0];
-   while ((buffer_remaining > 0) && // There is more to be written
-          (((retval = m_output->Write(buff, offset + buffer_offset, buffer_remaining)) != -1)
-           || (errno == EINTR))) // Write occurs without an error
+   long long   offset = b->m_offset - m_offset;
+   long long   size   = (offset + m_cfi.GetBufferSize()) > m_fileSize ? (m_fileSize - offset) : m_cfi.GetBufferSize();
+   const char *buff   = &b->m_buff[0];
+
+   ssize_t retval = m_output->Write(buff, offset, size);
+
+   if (retval < size)
    {
-      buffer_remaining -= retval;
-      buff += retval;
-      cnt++;
-
-      if (buffer_remaining)
+      if (retval < 0)
       {
-         TRACEF(Warning, "File::WriteToDisk() reattempt " << cnt << " writing missing " << buffer_remaining << " for block  offset " << b->m_offset);
+         GetLog()->Emsg("File::WriteToDisk()", -retval, "write block to disk", GetLocalPath().c_str());
       }
-      if (cnt > BLOCK_WRITE_MAX_ATTEMPTS)
+      else
       {
-         TRACEF(Error, "File::WriteToDisk() write block with off = " <<  b->m_offset <<" failed too manny attempts ");
-
-         XrdSysCondVarHelper _lck(m_downloadCond);
-         dec_ref_count(b);
-
-         return;
+         TRACEF(Error, "File::WriteToDisk() incomplete block write ret=" << retval << " (should be " << size << ")");
       }
+
+      XrdSysCondVarHelper _lck(m_downloadCond);
+      // XXXX MT - I suspect there might be a conrer case where block is not deallocated.
+      // Try to catch the case in debuggger.
+      dec_ref_count(b);
+
+      return;
    }
 
    // set bit fetched
-   TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size " <<  size);
+   TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size=" <<  size);
    int pfIdx =  (b->m_offset - m_offset) / m_cfi.GetBufferSize();
 
    bool schedule_sync = false;
@@ -1156,6 +1151,11 @@ void File::Prefetch()
 float File::GetPrefetchScore() const
 {
    return m_prefetchScore;
+}
+
+XrdSysError* File::GetLog()
+{
+   return Cache::GetInstance().GetLog();
 }
 
 XrdSysTrace* File::GetTrace()
