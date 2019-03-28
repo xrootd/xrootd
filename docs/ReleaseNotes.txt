@@ -18,6 +18,7 @@ Version 4.9.1
   * **[XrdCl]** Fix memory leak in AsyncSocketHandler.
   * **[XrdCl]** Fix recursive copy.
   * **[XrdCl]** Make sure released SID is valid object.
+  * **[XrdCl]** Correctly calculate the offset of the last file in ZIP64.
   * **[Server]** Liberalize character set allowed in login name (fixes 
                  EOS issue).
   * **[Server]** Save the proper ReqID for async responses on close.
@@ -37,6 +38,8 @@ Version 4.9.1
   * **[XrdMacaroon]** Create macaroon with proper caveats and path.
   * **[Proxy]** Improve handling of failures during opening of local data 
                 and cinfo files.
+  * **[Proxy]** Fix memory leak - block was not freed when writing to 
+                disk failed.
   * **[XrdTpc]** Only use Curl's low-speed-limit with libcurl v7.38 
                  and later.
 
@@ -59,6 +62,8 @@ Version 4.9.1
   * **[XrdCl]** Fail ZIP extraction if file is compressed.
   * **[XrdHttp]** Don't assume that a header "Depth: 1" means that the 
                   resource is a directory.
+  * **[Python]** Expose parallel copy jobs in python bindings.
+  * **[Python]** Expose multi-source download in python.
 
 + **Miscellaneous**
   * **[XrdHttp]** Add support for chunked encoding in uploads.
