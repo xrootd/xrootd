@@ -7,6 +7,14 @@ Release Notes
 
 
 -------------
+Version 4.8.6
+-------------
+
++ **Major bug fixes**
+* **[XrdCl]** Make sure released SID is valid object.
+* **[XrdCl]** Handle properly server disconnect.
+
+-------------
 Version 4.8.5
 -------------
 
