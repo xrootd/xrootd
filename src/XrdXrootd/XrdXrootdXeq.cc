@@ -1305,7 +1305,15 @@ int XrdXrootdProtocol::do_Open()
             if (opts & kXR_replica)   {*op++ = '+';
                                        openopts |= SFS_O_REPLICA;
                                       }
-            if (opts & kXR_mkdir)     {*op++ = 'm';
+            // Up until 3/28/19 we mistakenly used kXR_mkdir instead of
+            // kXR_mkpath to allow path creation. That meant, path creation was
+            // allowed if _mkpath|_async|_refresh|_open_apnd|_replica were set.
+            // Since the client has always turned on _async that meant that
+            // path creation was always enabled. We continue this boondogle
+            // using the correct flag for backward compatibility reasons, sigh.
+            //
+            if (opts & (kXR_mkpath | kXR_async))
+                                      {*op++ = 'm';
                                        mode |= SFS_O_MKPTH;
                                       }
            }
