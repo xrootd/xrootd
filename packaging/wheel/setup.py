@@ -5,6 +5,7 @@ from distutils.command.bdist import bdist
 
 import subprocess
 import sys
+import getpass
 
 def get_version():
     version = subprocess.check_output(['./genversion.sh', '--print-only'])
@@ -28,7 +29,14 @@ def get_version_from_file():
 class CustomInstall(install):
     def run(self): 
         command = ['./install.sh']
-        prefix = sys.prefix
+        if self.user:
+            username = getpass.getuser()
+            path = [path for path in sys.path if username in path and '.local' in path]
+            if not path: raise RuntimeError( 'No user specific directory in sys.path!' )
+            path = path[0][:path[0].index( '.local' ) + len( '.local' )]
+            prefix = path
+        else:
+            prefix = sys.prefix
         if len(prefix) > 0:
             command.append(prefix)
         subprocess.call(command)
