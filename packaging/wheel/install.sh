@@ -4,11 +4,17 @@ startdir="$(pwd)"
 mkdir xrootdbuild
 cd xrootdbuild
 
-if [ -z "$1" ]; then
-    cmake ../.
-else
-    cmake ../. -DCMAKE_INSTALL_PREFIX=$1
+CMAKE_ARGS="-DENABLE_PYTHON=TRUE"
+
+if [ ! -z "$1" ]; then
+  CMAKE_ARGS=$CMAKE_ARGS" -DCMAKE_INSTALL_PREFIX=$1"
 fi
+
+if [ ! -z "$2" ]; then
+  CMAKE_ARGS=$CMAKE_ARGS" -DXRD_PYTHON_REQ_VERSION=$2"
+fi
+
+cmake .. $CMAKE_ARGS
 
 res=$?
 if [ "$res" -ne "0" ]; then
@@ -29,7 +35,7 @@ if [ "$res" -ne "0" ]; then
 fi
 
 
-python setup.py install
+python$2 setup.py install
 res=$?
 if [ "$res" -ne "0" ]; then
     exit 1

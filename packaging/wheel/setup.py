@@ -37,8 +37,8 @@ class CustomInstall(install):
             prefix = path
         else:
             prefix = sys.prefix
-        if len(prefix) > 0:
-            command.append(prefix)
+        command.append(prefix)
+        command.append( self.config_vars['py_version_short'] )
         subprocess.call(command)
 
 
